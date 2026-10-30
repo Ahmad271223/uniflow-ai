@@ -1447,6 +1447,23 @@
    }
   },
   {
+   "op": "background",
+   "now": "2026-10-19T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": []
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
    "op": "tick",
    "now": "2026-10-20T11:00:00",
    "result": {
@@ -1454,6 +1471,138 @@
     "waiting": [],
     "failed": [],
     "nachtraege": []
+   }
+  },
+  {
+   "op": "background",
+   "now": "2026-10-20T11:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "op": "sql",
+   "now": "2026-10-20T11:00:00",
+   "sql": [
+    [
+     "INSERT OR REPLACE INTO settings(key, value) VALUES ('auto_tests', '0')",
+     []
+    ]
+   ]
+  },
+  {
+   "op": "background",
+   "now": "2026-10-20T11:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": false,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "off",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "op": "sql",
+   "now": "2026-10-20T11:00:00",
+   "sql": [
+    [
+     "INSERT OR REPLACE INTO settings(key, value) VALUES ('auto_tests', '1')",
+     []
+    ]
+   ]
+  },
+  {
+   "op": "background",
+   "now": "2026-10-20T11:31:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "op": "background",
+   "now": "2026-10-20T11:31:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
    }
   },
   {
@@ -1471,6 +1620,23 @@
     "waiting": [],
     "failed": [],
     "nachtraege": []
+   }
+  },
+  {
+   "op": "background",
+   "now": "2026-10-20T11:31:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 1,
+    "plans": []
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": null
    }
   },
   {
@@ -2179,6 +2345,33 @@
    }
   },
   {
+   "op": "background",
+   "now": "2026-10-26T13:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-27T11:30:00",
+      "deadline_at": "2026-10-29T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-27T15:00:00"
+   }
+  },
+  {
    "op": "http",
    "now": "2026-10-26T13:00:00",
    "method": "POST",
@@ -2187,6 +2380,64 @@
    "status": 409,
    "response": {
     "detail": "Der gemeinsame Wochentest der Lehrwoche 3 erscheint voraussichtlich am 27.10. um 11:30 Uhr."
+   }
+  },
+  {
+   "op": "background",
+   "now": "2026-10-27T11:31:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-27T11:30:00",
+      "deadline_at": "2026-10-29T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     2
+    ],
+    "next_at": "2026-10-27T15:00:00"
+   }
+  },
+  {
+   "op": "background",
+   "now": "2026-10-27T11:31:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-27T11:30:00",
+      "deadline_at": "2026-10-29T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     2
+    ],
+    "next_at": "2026-10-27T15:00:00"
    }
   },
   {
@@ -2204,6 +2455,23 @@
     "waiting": [],
     "failed": [],
     "nachtraege": []
+   }
+  },
+  {
+   "op": "background",
+   "now": "2026-10-27T11:31:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 1,
+    "plans": []
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": null
    }
   },
   {
@@ -3338,5 +3606,2647 @@
     "duration_sec": null
    }
   ]
- }
+ },
+ "background_cases": [
+  {
+   "name": "leer",
+   "now": "2026-10-20T10:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": []
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "leer",
+   "now": "2026-10-20T10:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": []
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "leer",
+   "now": "2026-10-20T10:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": []
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "genau_8_uhr_faellig",
+   "now": "2026-10-20T08:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T07:00:00",
+      "deadline_at": "2026-10-22T07:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "genau_8_uhr_faellig",
+   "now": "2026-10-20T08:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T07:00:00",
+      "deadline_at": "2026-10-22T07:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "genau_8_uhr_faellig",
+   "now": "2026-10-20T08:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T07:00:00",
+      "deadline_at": "2026-10-22T07:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "geplant_vor_termin",
+   "now": "2026-10-20T08:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "geplant_vor_termin",
+   "now": "2026-10-20T08:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "geplant_vor_termin",
+   "now": "2026-10-20T08:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "publish_genau_auf_termin",
+   "now": "2026-10-20T09:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:00",
+      "deadline_at": "2026-10-22T15:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "publish_genau_auf_termin",
+   "now": "2026-10-20T09:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:00",
+      "deadline_at": "2026-10-22T15:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "publish_genau_auf_termin",
+   "now": "2026-10-20T09:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:00",
+      "deadline_at": "2026-10-22T15:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "publish_sekunde_nach_termin",
+   "now": "2026-10-20T09:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:01",
+      "deadline_at": "2026-10-22T15:00:01",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "publish_sekunde_nach_termin",
+   "now": "2026-10-20T09:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:01",
+      "deadline_at": "2026-10-22T15:00:01",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "publish_sekunde_nach_termin",
+   "now": "2026-10-20T09:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:01",
+      "deadline_at": "2026-10-22T15:00:01",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "nach_20_uhr",
+   "now": "2026-10-20T20:30:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T21:00:00",
+      "deadline_at": "2026-10-22T21:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "nach_20_uhr",
+   "now": "2026-10-20T20:30:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T21:00:00",
+      "deadline_at": "2026-10-22T21:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "nach_20_uhr",
+   "now": "2026-10-20T20:30:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T21:00:00",
+      "deadline_at": "2026-10-22T21:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "monatswechsel",
+   "now": "2026-10-31T19:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-31T20:30:00",
+      "deadline_at": "2026-11-02T20:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-11-01T08:00:00"
+   }
+  },
+  {
+   "name": "monatswechsel",
+   "now": "2026-10-31T19:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-31T20:30:00",
+      "deadline_at": "2026-11-02T20:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-11-01T08:00:00"
+   }
+  },
+  {
+   "name": "monatswechsel",
+   "now": "2026-10-31T19:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-31T20:30:00",
+      "deadline_at": "2026-11-02T20:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-11-01T08:00:00"
+   }
+  },
+  {
+   "name": "jahreswechsel",
+   "now": "2026-12-31T21:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-12-31T22:00:00",
+      "deadline_at": "2027-01-02T22:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2027-01-01T08:00:00"
+   }
+  },
+  {
+   "name": "jahreswechsel",
+   "now": "2026-12-31T21:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-12-31T22:00:00",
+      "deadline_at": "2027-01-02T22:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2027-01-01T08:00:00"
+   }
+  },
+  {
+   "name": "jahreswechsel",
+   "now": "2026-12-31T21:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-12-31T22:00:00",
+      "deadline_at": "2027-01-02T22:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2027-01-01T08:00:00"
+   }
+  },
+  {
+   "name": "zeitumstellung_oktober",
+   "now": "2026-10-24T22:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-25T01:30:00",
+      "deadline_at": "2026-10-27T01:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-25T08:00:00"
+   }
+  },
+  {
+   "name": "zeitumstellung_oktober",
+   "now": "2026-10-24T22:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-25T01:30:00",
+      "deadline_at": "2026-10-27T01:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-25T08:00:00"
+   }
+  },
+  {
+   "name": "zeitumstellung_oktober",
+   "now": "2026-10-24T22:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-25T01:30:00",
+      "deadline_at": "2026-10-27T01:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-25T08:00:00"
+   }
+  },
+  {
+   "name": "zeitumstellung_maerz",
+   "now": "2026-03-28T23:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-03-29T02:30:00",
+      "deadline_at": "2026-03-31T02:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-03-29T08:00:00"
+   }
+  },
+  {
+   "name": "zeitumstellung_maerz",
+   "now": "2026-03-28T23:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-03-29T02:30:00",
+      "deadline_at": "2026-03-31T02:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-03-29T08:00:00"
+   }
+  },
+  {
+   "name": "zeitumstellung_maerz",
+   "now": "2026-03-28T23:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-03-29T02:30:00",
+      "deadline_at": "2026-03-31T02:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-03-29T08:00:00"
+   }
+  },
+  {
+   "name": "faellig_sekunde_vor_termin",
+   "now": "2026-10-20T14:59:59",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T14:59:59",
+      "deadline_at": "2026-10-22T14:59:59",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "faellig_sekunde_vor_termin",
+   "now": "2026-10-20T14:59:59",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T14:59:59",
+      "deadline_at": "2026-10-22T14:59:59",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "faellig_sekunde_vor_termin",
+   "now": "2026-10-20T14:59:59",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T14:59:59",
+      "deadline_at": "2026-10-22T14:59:59",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "genau_termin_nicht_faellig",
+   "now": "2026-10-20T15:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:01",
+      "deadline_at": "2026-10-22T15:00:01",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "genau_termin_nicht_faellig",
+   "now": "2026-10-20T15:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:01",
+      "deadline_at": "2026-10-22T15:00:01",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "genau_termin_nicht_faellig",
+   "now": "2026-10-20T15:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T15:00:01",
+      "deadline_at": "2026-10-22T15:00:01",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "drei_versuche",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "fehlgeschlagen",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 3,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "drei_versuche",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "fehlgeschlagen",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 3,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "drei_versuche",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "fehlgeschlagen",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 3,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "zwei_versuche",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "fehlgeschlagen",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 2,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "zwei_versuche",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "fehlgeschlagen",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 2,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "zwei_versuche",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "fehlgeschlagen",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 2,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_laeuft",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T12:10:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_laeuft",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T12:10:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_laeuft",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T12:10:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_bis_termin",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T15:00:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "sperre_bis_termin",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T15:00:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "sperre_bis_termin",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T15:00:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "sperre_abgelaufen",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T11:50:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_abgelaufen",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T11:50:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_abgelaufen",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T11:50:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_genau_jetzt",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T12:00:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_genau_jetzt",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T12:00:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "sperre_genau_jetzt",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": "2026-10-20T12:00:00",
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "wartend_vor_frist",
+   "now": "2026-10-21T09:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "wartet",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T15:00:00"
+   }
+  },
+  {
+   "name": "wartend_vor_frist",
+   "now": "2026-10-21T09:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "wartet",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T15:00:00"
+   }
+  },
+  {
+   "name": "wartend_vor_frist",
+   "now": "2026-10-21T09:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "wartet",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T15:00:00"
+   }
+  },
+  {
+   "name": "wartend_frist_vorbei",
+   "now": "2026-10-23T09:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "wartet",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-23T15:00:00"
+   }
+  },
+  {
+   "name": "wartend_frist_vorbei",
+   "now": "2026-10-23T09:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "wartet",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-23T15:00:00"
+   }
+  },
+  {
+   "name": "wartend_frist_vorbei",
+   "now": "2026-10-23T09:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "wartet",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-23T15:00:00"
+   }
+  },
+  {
+   "name": "limit_ohne_wiederverwendung",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "limit",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "limit_ohne_wiederverwendung",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "limit_ohne_wiederverwendung",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "limit_mit_wiederverwendung",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": true
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_mit_wiederverwendung",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": true
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_mit_wiederverwendung",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": true
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_nicht_faellig",
+   "now": "2026-10-20T08:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_nicht_faellig",
+   "now": "2026-10-20T08:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_nicht_faellig",
+   "now": "2026-10-20T08:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_eigene_grenze",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 2,
+    "today_defs": 2,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "limit",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "limit_eigene_grenze",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 2,
+    "today_defs": 2,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "limit_eigene_grenze",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 2,
+    "today_defs": 2,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-21T08:00:00"
+   }
+  },
+  {
+   "name": "limit_eins_von_zwei_wiederverwendbar",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": true
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1,
+     2
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_eins_von_zwei_wiederverwendbar",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": true
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1,
+     2
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "limit_eins_von_zwei_wiederverwendbar",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 8,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": true
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1,
+     2
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "aus",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": false,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "off",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "aus",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": false,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "off",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "aus",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": false,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "off",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "fremde_stati_zaehlen_nicht",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "veroeffentlicht",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "ersetzt",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "fremde_stati_zaehlen_nicht",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "veroeffentlicht",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "ersetzt",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "fremde_stati_zaehlen_nicht",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "veroeffentlicht",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "ersetzt",
+      "publish_at": "2026-10-20T11:30:00",
+      "deadline_at": "2026-10-22T11:30:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": null
+   }
+  },
+  {
+   "name": "mehrere_plaene_kleinster_termin",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-21T09:00:00",
+      "deadline_at": "2026-10-23T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-20T16:00:00",
+      "deadline_at": "2026-10-22T16:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "idle",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "mehrere_plaene_kleinster_termin",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-21T09:00:00",
+      "deadline_at": "2026-10-23T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-20T16:00:00",
+      "deadline_at": "2026-10-22T16:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "mehrere_plaene_kleinster_termin",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-21T09:00:00",
+      "deadline_at": "2026-10-23T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-20T16:00:00",
+      "deadline_at": "2026-10-22T16:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [],
+    "next_at": "2026-10-20T20:00:00"
+   }
+  },
+  {
+   "name": "faellig_und_spaeter",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-22T09:00:00",
+      "deadline_at": "2026-10-24T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "faellig_und_spaeter",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-22T09:00:00",
+      "deadline_at": "2026-10-24T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "faellig_und_spaeter",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 1,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 2,
+      "status": "geplant",
+      "publish_at": "2026-10-22T09:00:00",
+      "deadline_at": "2026-10-24T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     1
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "spaeter_und_faellig_reihenfolge",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 7,
+      "status": "geplant",
+      "publish_at": "2026-10-22T09:00:00",
+      "deadline_at": "2026-10-24T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 3,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 5,
+      "status": "geplant",
+      "publish_at": "2026-10-20T10:00:00",
+      "deadline_at": "2026-10-22T10:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "run",
+    "due": [
+     3,
+     5
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "spaeter_und_faellig_reihenfolge",
+   "now": "2026-10-20T12:00:00",
+   "ai": false,
+   "busy": false,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 7,
+      "status": "geplant",
+      "publish_at": "2026-10-22T09:00:00",
+      "deadline_at": "2026-10-24T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 3,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 5,
+      "status": "geplant",
+      "publish_at": "2026-10-20T10:00:00",
+      "deadline_at": "2026-10-22T10:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "no_ai",
+    "due": [
+     3,
+     5
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  },
+  {
+   "name": "spaeter_und_faellig_reihenfolge",
+   "now": "2026-10-20T12:00:00",
+   "ai": true,
+   "busy": true,
+   "snapshot": {
+    "auto_tests": true,
+    "daily_limit": 8,
+    "today_defs": 0,
+    "plans": [
+     {
+      "id": 7,
+      "status": "geplant",
+      "publish_at": "2026-10-22T09:00:00",
+      "deadline_at": "2026-10-24T09:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 3,
+      "status": "geplant",
+      "publish_at": "2026-10-20T11:00:00",
+      "deadline_at": "2026-10-22T11:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     },
+     {
+      "id": 5,
+      "status": "geplant",
+      "publish_at": "2026-10-20T10:00:00",
+      "deadline_at": "2026-10-22T10:00:00",
+      "attempts": 0,
+      "lock_until": null,
+      "reusable": false
+     }
+    ]
+   },
+   "decision": {
+    "action": "busy",
+    "due": [
+     3,
+     5
+    ],
+    "next_at": "2026-10-20T15:00:00"
+   }
+  }
+ ]
 }

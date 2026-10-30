@@ -797,6 +797,89 @@ def _release(conn, plan_id: int, tok: str) -> None:
     conn.execute("UPDATE wt_plans SET lock_token=NULL, lock_until=NULL WHERE id=? AND lock_token=?", (plan_id, tok))
 
 
+# ============================================================================ Hintergrundlauf (iPad: 8, 15, 20 Uhr)
+# Das iPad bekommt vom System nur zu festen Zeiten einen Hintergrundlauf (BackgroundSchedule im Swift-Kern: 8, 15 und
+# 20 Uhr, "fruehestens"). Ob ein Lauf etwas zu tun haette und wann der naechste noetig ist, entscheidet sich allein aus
+# der Uhrzeit und dem Stand der Plaene; das steht hier als reine Logik, damit Python und Swift dieselbe Antwort geben
+# (Pruefdaten `weekly.json`, Schritte "background" und "background_cases"). Am PC laeuft stattdessen `_weekly_loop`.
+BACKGROUND_HOURS = (8, 15, 20)
+OPEN_STATES = ("geplant", "wartet", "fehlgeschlagen")
+MAX_ATTEMPTS = 3
+
+
+def slot_at_or_after(t: datetime, hours=BACKGROUND_HOURS) -> datetime:
+    """Erster Termin aus `hours` (volle Stunde, naive Ortszeit) am Tag von `t` ab `t` einschliesslich, sonst der erste am
+    naechsten Tag. Kalendertage ohne Zeitzone, darum gilt um die Zeitumstellung weiter 8:00 Ortszeit."""
+    for h in sorted(set(hours)):
+        s = t.replace(hour=h, minute=0, second=0, microsecond=0)
+        if s >= t:
+            return s
+    return (t + timedelta(days=1)).replace(hour=min(hours), minute=0, second=0, microsecond=0)
+
+
+def next_slot(now: datetime, hours=BACKGROUND_HOURS) -> datetime:
+    """Naechster Termin streng nach `now` (wie `BackgroundSchedule.next`)."""
+    return slot_at_or_after(now + timedelta(seconds=1), hours)
+
+
+def background_snapshot(conn, now: datetime) -> dict:
+    """Nur lesen: alles, was `background_decision` braucht. `reusable` = es gibt schon einen geprueften oder
+    veroeffentlichten Test mit demselben Stoffumfang (dann zaehlt das Tageslimit nicht, wie in `process_plan`)."""
+    now = _now(now)
+    s = _settings(conn)
+    settings = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM settings WHERE key='auto_tests'")}
+    today_n = db.row(conn, "SELECT COUNT(*) AS n FROM wt_defs WHERE substr(created_at,1,10)=?", (now.date().isoformat(),))["n"]
+    plans = []
+    for p in db.rows(conn, "SELECT * FROM wt_plans WHERE status IN ('geplant','wartet','fehlgeschlagen') ORDER BY id"):
+        reuse = db.row(conn, "SELECT id FROM wt_defs WHERE kind='wochentest' AND module_id=? AND scope_key=? AND status IN ('geprueft','veroeffentlicht') LIMIT 1",
+                       (p["module_id"], p["scope_key"]))
+        plans.append({"id": p["id"], "status": p["status"], "publish_at": p["publish_at"], "deadline_at": p["deadline_at"],
+                      "attempts": int(p["attempts"] or 0), "lock_until": p["lock_until"], "reusable": bool(reuse)})
+    return {"auto_tests": settings.get("auto_tests", "1") == "1", "daily_limit": s["daily_limit"], "today_defs": today_n, "plans": plans}
+
+
+def background_decision(snap: dict, now: datetime, ai: bool = True, busy: bool = False, hours=BACKGROUND_HOURS) -> dict:
+    """Was ein Hintergrundlauf um `now` taete und wann der naechste fruehestens noetig ist.
+
+    action: off (auto_tests aus), no_ai (keine KI verbunden), busy (anderer Auftrag laeuft), limit (faellig, aber
+    Tageslimit erreicht und nichts wiederverwendbar), run (mindestens ein Plan faellig), idle (nichts faellig).
+    due: die faelligen Plaene, genau die Bedingung aus `tick` und `_claim` (offen, publish_at <= now, attempts < 3,
+    keine laufende Sperre). next_at: naechster Termin aus `hours`, an dem es etwas zu tun geben kann, None wenn kein
+    offener Plan mit Versuchen uebrig ist oder auto_tests aus ist. Die Reihenfolge off, no_ai, busy ist die von
+    `WeeklyAutoTick.run` im Swift-Kern."""
+    now = _now(now)
+    out = {"action": "idle", "due": [], "next_at": None}
+    if not snap.get("auto_tests", True):
+        out["action"] = "off"
+        return out
+    nxt, reusable = [], False
+    for p in snap.get("plans", []):
+        if p["status"] not in OPEN_STATES or int(p["attempts"]) >= MAX_ATTEMPTS:
+            continue
+        lock = datetime.fromisoformat(p["lock_until"]) if p.get("lock_until") else None
+        pub = datetime.fromisoformat(p["publish_at"])
+        if lock is not None and lock >= now:
+            nxt.append(next_slot(lock, hours))                  # `_claim` braucht lock_until < now
+        elif pub > now:
+            nxt.append(slot_at_or_after(pub, hours))
+        else:
+            out["due"].append(p["id"])
+            reusable = reusable or bool(p.get("reusable"))
+    if out["due"]:
+        if int(snap.get("today_defs", 0)) >= int(snap.get("daily_limit", 0)) and not reusable:
+            out["action"] = "limit"                             # erst morgen zaehlt das Tageslimit neu
+            nxt.append(slot_at_or_after((now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0), hours))
+        else:
+            out["action"] = "run"
+            nxt.append(next_slot(now, hours))                   # wartend oder fehlgeschlagen: beim naechsten Termin wieder
+    if not ai:
+        out["action"] = "no_ai"
+    elif busy:
+        out["action"] = "busy"
+    out["next_at"] = min(nxt).isoformat() if nxt else None
+    return out
+
+
 def tick(now: datetime | None = None, user_id: str = LOCAL_USER, log=print) -> dict:
     """Ein Durchlauf: indexieren, Plaene aktualisieren, faellige Tests erzeugen/veroeffentlichen, Nachtraege anbieten."""
     now = _now(now)

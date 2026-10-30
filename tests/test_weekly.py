@@ -518,3 +518,107 @@ def test_submitted_shared_attempt_cannot_be_deleted(env, app):
         c.execute("UPDATE tests SET submitted_at='2026-10-20T13:00:00', score=50, max_score=100 WHERE id=?", (tid,))
     st, _, _ = asgi_call(app, "DELETE", f"/api/tests/{tid}")
     assert st == 400
+
+
+# ================================================================ Hintergrundlauf (iPad: 8, 15, 20 Uhr)
+def _dt(s):
+    return datetime.fromisoformat(s)
+
+
+def test_background_slots_naive_local_time():
+    from app import weekly
+    s, n = weekly.slot_at_or_after, weekly.next_slot
+    assert s(_dt("2026-10-20T08:00:00")) == _dt("2026-10-20T08:00:00")      # einschliesslich
+    assert n(_dt("2026-10-20T08:00:00")) == _dt("2026-10-20T15:00:00")      # streng danach
+    assert s(_dt("2026-10-20T07:59:59")) == _dt("2026-10-20T08:00:00")
+    assert s(_dt("2026-10-20T15:00:01")) == _dt("2026-10-20T20:00:00")
+    assert s(_dt("2026-10-20T20:00:01")) == _dt("2026-10-21T08:00:00")
+    assert s(_dt("2026-10-31T20:30:00")) == _dt("2026-11-01T08:00:00")      # Monatswechsel
+    assert s(_dt("2026-12-31T22:00:00")) == _dt("2027-01-01T08:00:00")      # Jahreswechsel
+    assert s(_dt("2026-10-25T01:30:00")) == _dt("2026-10-25T08:00:00")      # Zeitumstellung: Kalendertag, kein Sprung
+    assert s(_dt("2026-03-29T02:30:00")) == _dt("2026-03-29T08:00:00")
+    assert n(_dt("2026-10-20T14:59:59")) == _dt("2026-10-20T15:00:00")
+    assert s(_dt("2026-10-20T09:00:00"), hours=(22,)) == _dt("2026-10-20T22:00:00")
+
+
+def _plan(pid=1, status="geplant", publish="2026-10-20T11:30:00", attempts=0, lock=None, reusable=False):
+    return {"id": pid, "status": status, "publish_at": publish, "deadline_at": "2026-10-22T11:30:00",
+            "attempts": attempts, "lock_until": lock, "reusable": reusable}
+
+
+def _snap(*plans, auto=True, limit=8, today=0):
+    return {"auto_tests": auto, "daily_limit": limit, "today_defs": today, "plans": list(plans)}
+
+
+def test_background_decision_rules():
+    from app import weekly
+    d = weekly.background_decision
+    noon = _dt("2026-10-20T12:00:00")
+    assert d(_snap(), noon) == {"action": "idle", "due": [], "next_at": None}
+    assert d(_snap(_plan()), _dt("2026-10-20T08:00:00")) == {"action": "idle", "due": [], "next_at": "2026-10-20T15:00:00"}
+    assert d(_snap(_plan()), noon) == {"action": "run", "due": [1], "next_at": "2026-10-20T15:00:00"}
+    assert d(_snap(_plan()), noon, ai=False) == {"action": "no_ai", "due": [1], "next_at": "2026-10-20T15:00:00"}
+    assert d(_snap(_plan()), noon, busy=True) == {"action": "busy", "due": [1], "next_at": "2026-10-20T15:00:00"}
+    assert d(_snap(_plan(), auto=False), noon) == {"action": "off", "due": [], "next_at": None}
+    # drei Versuche: nie mehr wecken; zwei Versuche: beim naechsten Termin wieder
+    assert d(_snap(_plan(status="fehlgeschlagen", attempts=3)), noon) == {"action": "idle", "due": [], "next_at": None}
+    assert d(_snap(_plan(status="fehlgeschlagen", attempts=2)), noon)["action"] == "run"
+    # Sperre: `_claim` braucht lock_until < now
+    assert d(_snap(_plan(lock="2026-10-20T12:00:00")), noon) == {"action": "idle", "due": [], "next_at": "2026-10-20T15:00:00"}
+    assert d(_snap(_plan(lock="2026-10-20T15:00:00")), noon)["next_at"] == "2026-10-20T20:00:00"
+    assert d(_snap(_plan(lock="2026-10-20T11:50:00")), noon)["action"] == "run"
+    # Tageslimit: nur ohne wiederverwendbaren Test, dann erst morgen 8 Uhr
+    assert d(_snap(_plan(), today=8), noon) == {"action": "limit", "due": [1], "next_at": "2026-10-21T08:00:00"}
+    assert d(_snap(_plan(reusable=True), today=8), noon)["action"] == "run"
+    assert d(_snap(_plan(), today=8), noon, ai=False)["action"] == "no_ai"
+    # kleinster Termin ueber mehrere Plaene, fremde Stati zaehlen nicht
+    assert d(_snap(_plan(1, publish="2026-10-21T09:00:00"), _plan(2, publish="2026-10-20T16:00:00")), noon)["next_at"] == "2026-10-20T20:00:00"
+    assert d(_snap(_plan(status="veroeffentlicht"), _plan(2, status="ersetzt")), noon) == {"action": "idle", "due": [], "next_at": None}
+    assert d(_snap(_plan(5, publish="2026-10-20T10:00:00"), _plan(3, publish="2026-10-20T11:00:00")), noon)["due"] == [5, 3]
+
+
+def test_background_snapshot_and_decision_follow_the_plan(env):
+    from app import weekly
+    env.mark(36)
+    with env.conn() as c:
+        assert weekly.background_decision(weekly.background_snapshot(c, _dt("2026-10-19T12:00:00")), _dt("2026-10-19T12:00:00")) == \
+            {"action": "idle", "due": [], "next_at": None}
+    env.tick("2026-10-20T11:00:00")
+    with env.conn() as c:
+        snap = weekly.background_snapshot(c, _dt("2026-10-20T11:00:00"))
+    assert snap == {"auto_tests": True, "daily_limit": 8, "today_defs": 0,
+                    "plans": [{"id": 1, "status": "geplant", "publish_at": "2026-10-20T11:30:00", "deadline_at": "2026-10-22T11:30:00",
+                               "attempts": 0, "lock_until": None, "reusable": False}]}
+    assert weekly.background_decision(snap, _dt("2026-10-20T11:00:00"))["next_at"] == "2026-10-20T15:00:00"
+    assert weekly.background_decision(snap, _dt("2026-10-20T11:31:00")) == {"action": "run", "due": [1], "next_at": "2026-10-20T15:00:00"}
+    env.tick("2026-10-20T11:31:00")
+    with env.conn() as c:
+        snap = weekly.background_snapshot(c, _dt("2026-10-20T11:31:00"))
+        assert snap["plans"] == [] and snap["today_defs"] == 1
+        assert weekly.background_decision(snap, _dt("2026-10-20T11:31:00")) == {"action": "idle", "due": [], "next_at": None}
+        # gleicher Stoffumfang noch einmal geplant: wiederverwendbar, Tageslimit zaehlt nicht
+        p = env.plans()[0]
+        c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('weekly_ai_daily_limit', '1')")
+        c.execute("""INSERT INTO wt_plans(module_id, week_no, part, scope, scope_key, user_id, coverage, lecture_end, publish_at, deadline_at, status, created_at)
+                     VALUES (?, 9, 1, 'personal', ?, 'local', '{}', '2026-10-20T11:30:00', '2026-10-20T12:00:00', '2026-10-22T12:00:00', 'geplant', '2026-10-20T11:31:00')""",
+                  (p["module_id"], p["scope_key"]))
+        c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('auto_tests', '0')")
+        snap = weekly.background_snapshot(c, _dt("2026-10-20T12:00:00"))
+    assert snap["auto_tests"] is False and snap["daily_limit"] == 1 and snap["plans"][0]["reusable"] is True
+    assert weekly.background_decision(snap, _dt("2026-10-20T12:00:00"))["action"] == "off"
+    snap["auto_tests"] = True
+    assert weekly.background_decision(snap, _dt("2026-10-20T12:00:00"))["action"] == "run"
+    snap["plans"][0]["reusable"] = False
+    assert weekly.background_decision(snap, _dt("2026-10-20T12:00:00"))["action"] == "limit"
+
+
+def test_background_cases_match_fixture():
+    """Die erfundenen Faelle in weekly.json (auch vom Swift-Kern gespielt) muessen zum heutigen Code passen."""
+    from pathlib import Path
+    from app import weekly
+    fx = json.loads((Path(__file__).resolve().parents[1] / "packages/shared-contracts/fixtures/local-backend/weekly.json").read_text(encoding="utf-8"))
+    cases = fx["background_cases"]
+    assert len(cases) >= 60 and len({c["name"] for c in cases}) >= 20
+    for c in cases:
+        got = weekly.background_decision(c["snapshot"], _dt(c["now"]), ai=c["ai"], busy=c["busy"])
+        assert got == c["decision"], c["name"]

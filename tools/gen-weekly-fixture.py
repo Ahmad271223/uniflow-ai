@@ -15,7 +15,7 @@ import importlib.util
 import json
 import re
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from schema_source import ROOT, SchemaSource, without_sync, write_or_check
 
@@ -180,6 +180,13 @@ def build() -> dict:
             steps.append({"op": "tick", "now": clock["now"].isoformat(), "result": res})
             return res
 
+        def background(ai=True, busy=False):
+            with src.db.cursor() as c:
+                snap = weekly.background_snapshot(c, clock["now"])
+            dec = weekly.background_decision(snap, clock["now"], ai=ai, busy=busy)
+            steps.append({"op": "background", "now": clock["now"].isoformat(), "ai": ai, "busy": busy, "snapshot": snap, "decision": dec})
+            return dec
+
         def run_sql(stmts):
             with src.db.cursor() as c:
                 for s, p in stmts:
@@ -204,9 +211,18 @@ def build() -> dict:
         http("GET", "/api/markers/preview?file_id=lec-prog1&page=40&lecture_date=2026-10-30")
         http("GET", f"/api/markers?file_id={LEC}")
         http("GET", f"/api/weekly/module/{MOD}")
+        background()                                             # noch kein Plan: nichts zu tun, kein Termin
         # vor der Veroeffentlichung (24 h nach Vorlesungsende) nichts, danach der Test
         tick("2026-10-20T11:00:00")
+        background()                                             # Plan geplant fuer 11:30: naechster Termin 15:00
+        run_sql([("INSERT OR REPLACE INTO settings(key, value) VALUES ('auto_tests', '0')", [])])
+        background()                                             # aus
+        run_sql([("INSERT OR REPLACE INTO settings(key, value) VALUES ('auto_tests', '1')", [])])
+        at("2026-10-20T11:31:00")
+        background(ai=False)                                     # faellig, aber keine KI
+        background()                                             # faellig: laufen
         tick("2026-10-20T11:31:00")
+        background()                                             # veroeffentlicht: kein Termin mehr
         http("GET", f"/api/weekly/module/{MOD}")
         http("GET", "/api/weekly/defs/1")
         tests = http("GET", "/api/tests") or []
@@ -236,8 +252,13 @@ def build() -> dict:
         http("POST", "/api/tasks/900/start-test")
         http("POST", "/api/tasks/901/start-test")
         tick("2026-10-26T13:00:00")                              # Plan der Woche 3 angelegt, noch nicht faellig
+        background()                                             # naechster Termin 27.10. 15:00
         http("POST", "/api/tasks/900/start-test")
+        at("2026-10-27T11:31:00")
+        background(busy=True)                                    # faellig, aber ein anderer Auftrag laeuft
+        background()
         tick("2026-10-27T11:31:00")
+        background()
         http("POST", "/api/tasks/900/start-test")              # beim Veroeffentlichen verknuepft
         # nach der Veroeffentlichung geplante Testaufgabe: der Versuch am gemeinsamen Test, Status in Bearbeitung
         run_sql([("INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) "
@@ -280,10 +301,65 @@ def build() -> dict:
                 for r in rows:
                     r.pop("lock_token", None); r.pop("lock_until", None)
                 tables[t] = rows
+        cases = background_cases(weekly)
     finally:
         src.cleanup()
     return without_sync({"generator": "tools/gen-weekly-fixture.py", "module_id": MOD, "start": "2026-10-19T12:00:00",
-                         "seed": sql, "steps": steps, "ai": ai_log, "tables": tables})
+                         "seed": sql, "steps": steps, "ai": ai_log, "tables": tables, "background_cases": cases})
+
+
+def background_cases(weekly) -> list:
+    """Erfundene Staende fuer `background_decision` ohne Datenbank: Termingrenzen, Monats- und Jahreswechsel, die
+    Zeitumstellung (naive Ortszeit, daher ohne Sprung), Sperre, Versuche, Tageslimit, aus / keine KI / beschaeftigt."""
+    def plan(pid=1, status="geplant", publish="2026-10-20T11:30:00", deadline=None, attempts=0, lock=None, reusable=False):
+        return {"id": pid, "status": status, "publish_at": publish,
+                "deadline_at": deadline or (datetime.fromisoformat(publish) + timedelta(hours=48)).isoformat(),
+                "attempts": attempts, "lock_until": lock, "reusable": reusable}
+
+    def snap(*plans, auto=True, limit=8, today=0):
+        return {"auto_tests": auto, "daily_limit": limit, "today_defs": today, "plans": list(plans)}
+
+    specs = [
+        ("leer", "2026-10-20T10:00:00", snap()),
+        ("genau_8_uhr_faellig", "2026-10-20T08:00:00", snap(plan(publish="2026-10-20T07:00:00"))),
+        ("geplant_vor_termin", "2026-10-20T08:00:00", snap(plan())),
+        ("publish_genau_auf_termin", "2026-10-20T09:00:00", snap(plan(publish="2026-10-20T15:00:00"))),
+        ("publish_sekunde_nach_termin", "2026-10-20T09:00:00", snap(plan(publish="2026-10-20T15:00:01"))),
+        ("nach_20_uhr", "2026-10-20T20:30:00", snap(plan(publish="2026-10-20T21:00:00"))),
+        ("monatswechsel", "2026-10-31T19:00:00", snap(plan(publish="2026-10-31T20:30:00"))),
+        ("jahreswechsel", "2026-12-31T21:00:00", snap(plan(publish="2026-12-31T22:00:00"))),
+        ("zeitumstellung_oktober", "2026-10-24T22:00:00", snap(plan(publish="2026-10-25T01:30:00"))),
+        ("zeitumstellung_maerz", "2026-03-28T23:00:00", snap(plan(publish="2026-03-29T02:30:00"))),
+        ("faellig_sekunde_vor_termin", "2026-10-20T14:59:59", snap(plan(publish="2026-10-20T14:59:59"))),
+        ("genau_termin_nicht_faellig", "2026-10-20T15:00:00", snap(plan(publish="2026-10-20T15:00:01"))),
+        ("drei_versuche", "2026-10-20T12:00:00", snap(plan(status="fehlgeschlagen", attempts=3))),
+        ("zwei_versuche", "2026-10-20T12:00:00", snap(plan(status="fehlgeschlagen", attempts=2))),
+        ("sperre_laeuft", "2026-10-20T12:00:00", snap(plan(lock="2026-10-20T12:10:00"))),
+        ("sperre_bis_termin", "2026-10-20T12:00:00", snap(plan(lock="2026-10-20T15:00:00"))),
+        ("sperre_abgelaufen", "2026-10-20T12:00:00", snap(plan(lock="2026-10-20T11:50:00"))),
+        ("sperre_genau_jetzt", "2026-10-20T12:00:00", snap(plan(lock="2026-10-20T12:00:00"))),
+        ("wartend_vor_frist", "2026-10-21T09:00:00", snap(plan(status="wartet"))),
+        ("wartend_frist_vorbei", "2026-10-23T09:00:00", snap(plan(status="wartet"))),
+        ("limit_ohne_wiederverwendung", "2026-10-20T12:00:00", snap(plan(), today=8)),
+        ("limit_mit_wiederverwendung", "2026-10-20T12:00:00", snap(plan(reusable=True), today=8)),
+        ("limit_nicht_faellig", "2026-10-20T08:00:00", snap(plan(), today=8)),
+        ("limit_eigene_grenze", "2026-10-20T12:00:00", snap(plan(), limit=2, today=2)),
+        ("limit_eins_von_zwei_wiederverwendbar", "2026-10-20T12:00:00",
+         snap(plan(1, publish="2026-10-20T11:00:00"), plan(2, publish="2026-10-20T11:00:00", reusable=True), today=8)),
+        ("aus", "2026-10-20T12:00:00", snap(plan(), auto=False)),
+        ("fremde_stati_zaehlen_nicht", "2026-10-20T12:00:00", snap(plan(status="veroeffentlicht"), plan(2, status="ersetzt"))),
+        ("mehrere_plaene_kleinster_termin", "2026-10-20T12:00:00",
+         snap(plan(1, publish="2026-10-21T09:00:00"), plan(2, publish="2026-10-20T16:00:00"))),
+        ("faellig_und_spaeter", "2026-10-20T12:00:00", snap(plan(1, publish="2026-10-20T11:00:00"), plan(2, publish="2026-10-22T09:00:00"))),
+        ("spaeter_und_faellig_reihenfolge", "2026-10-20T12:00:00",
+         snap(plan(7, publish="2026-10-22T09:00:00"), plan(3, publish="2026-10-20T11:00:00"), plan(5, publish="2026-10-20T10:00:00"))),
+    ]
+    out = []
+    for name, now, s in specs:
+        for ai, busy in ((True, False), (False, False), (True, True)):
+            out.append({"name": name, "now": now, "ai": ai, "busy": busy, "snapshot": s,
+                        "decision": weekly.background_decision(s, datetime.fromisoformat(now), ai=ai, busy=busy)})
+    return out
 
 
 def main() -> int:

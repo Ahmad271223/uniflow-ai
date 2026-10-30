@@ -133,6 +133,14 @@ Inhalte abfragen, die erst Wochen später drankommen.
   solange die App im Vordergrund ist. Bedingungen: `auto_tests` ist an, die KI ist verbunden, und kein anderer
   Hintergrundauftrag läuft. Ohne KI gibt es keinen Lauf, damit fällige Pläne ihre drei Versuche nicht verbrauchen. Im
   Hintergrund läuft auf dem iPad kein Takt, der nächste Lauf folgt beim Öffnen.
+- **Hintergrundlauf (vorbereitet, 30.10.):** Für einen Lauf bei geschlossener App zu den Zeiten des Hintergrundabgleichs
+  (8, 15, 20 Uhr) gibt es die Entscheidung als reine Logik in Python (`weekly.background_snapshot`,
+  `weekly.background_decision`, `slot_at_or_after`, `next_slot`) und im Swift-Kern (`WeeklyBackground`), gegen dieselben
+  Prüfdaten (`weekly.json`, Schritte `background` und `background_cases`). Sie sagt, ob ein Lauf etwas täte (`run`, `idle`,
+  `limit`, `off`, `no_ai`, `busy`), welche Pläne fällig sind und wann der nächste Termin nötig ist (`next_at`, oder keiner,
+  wenn kein offener Plan mit Versuchen bleibt). Noch nicht gebaut, weil es Xcode braucht: der Aufruf aus dem langen
+  Hintergrundlauf (`BackgroundSyncController`, unabhängig vom Stud.IP-Gate), das Bestellen des Termins aus `next_at`,
+  dass ein Abbruch durch iOS keinen Versuch kostet, und der `Weekly.tick` nach dem Abgleich wie am PC (`_full_sync`).
 
 ## Grenzen (ehrlich)
 

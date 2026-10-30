@@ -115,6 +115,12 @@ final class WeeklyFixtureTests: XCTestCase {
                 XCTAssertEqual(res, step["result"], label)
             case "sql":
                 try await run(b, step["sql"]?.array ?? [])
+            case "background":
+                let nowSeconds = Weekly.seconds(now) ?? 0
+                let snap = try await b.context.database.withConnection { c in try WeeklyBackground.snapshot(c, now: nowSeconds) }
+                XCTAssertEqual(snap, step["snapshot"], label)
+                let decision = WeeklyBackground.decide(snap, now: nowSeconds, ai: step["ai"]?.bool ?? true, busy: step["busy"]?.bool ?? false)
+                XCTAssertEqual(decision, step["decision"], label)
             case "mock":
                 let res = try await Weekly.createMockExam(b.context, moduleID: step["module_id"]?.int ?? 0, full: step["full"]?.bool ?? false,
                                                           now: Weekly.seconds(now))
@@ -169,6 +175,42 @@ final class WeeklyFixtureTests: XCTestCase {
         XCTAssertEqual(WeeklySHA1.hex(Data()), "da39a3ee5e6b4b0d3255bfef95601890afd80709")
         XCTAssertEqual(WeeklySHA1.hex("Grüße"), "f649751d6e1bb46f8c86a8e0300237c33df07074")
         XCTAssertEqual(WeeklySHA1.hex(String(repeating: "a", count: 1000)), "291e9a6c66994949b57ba5e650361e98fc36b1ba")
+    }
+
+    /// `background_decision` wie Python fuer alle Faelle ohne Datenbank (Termingrenzen, Monats- und Jahreswechsel,
+    /// Zeitumstellung, Sperre, Versuche, Tageslimit, aus/keine KI/beschaeftigt)
+    func testBackgroundCasesMatchPython() throws {
+        let cases = try fixture()["background_cases"]?.array ?? []
+        XCTAssertGreaterThan(cases.count, 0, "background_cases fehlen")
+        for c in cases {
+            let name = c["name"]?.string ?? "?"
+            let now = try XCTUnwrap(Weekly.seconds(c["now"]?.string ?? ""), name)
+            let got = WeeklyBackground.decide(c["snapshot"] ?? .null, now: now, ai: c["ai"]?.bool ?? true, busy: c["busy"]?.bool ?? false)
+            XCTAssertEqual(got, c["decision"], "Fall \(name) (\(c["now"]?.string ?? ""), ai=\(c["ai"]?.bool ?? true), busy=\(c["busy"]?.bool ?? false))")
+        }
+    }
+
+    /// `WeeklyBackground.nextSlot` (naive Ortszeit) trifft dieselbe Ortszeit wie `BackgroundSchedule.next` (Date mit
+    /// Zeitzone Europe/Berlin), auch um die Zeitumstellung
+    func testBackgroundSlotsMatchBackgroundSchedule() throws {
+        guard let tz = TimeZone(identifier: "Europe/Berlin") else { throw XCTSkip("keine Zeitzonendatenbank") }
+        let times = ["2026-10-20T07:59:59", "2026-10-20T08:00:00", "2026-10-20T14:59:59", "2026-10-20T15:00:00",
+                     "2026-10-20T19:59:00", "2026-10-20T20:00:00", "2026-10-20T23:30:00", "2026-10-24T22:00:00",
+                     "2026-10-25T01:30:00", "2026-10-25T03:30:00", "2026-03-28T23:00:00", "2026-03-29T01:59:00",
+                     "2026-12-31T21:00:00", "2026-10-31T19:00:00"]
+        for t in times {
+            let naive = try XCTUnwrap(Weekly.seconds(t), t)
+            let day = Weekly.today(naive), rest = naive - day * 86_400
+            // BerlinClock rechnet in Minuten; die Sekunden kommen unveraendert dazu (keine Testzeit liegt in der doppelten
+            // oder fehlenden Stunde)
+            let utc = BerlinClock.utcSeconds(day: day, minutes: rest / 60) + rest % 60
+            let next = BackgroundSchedule.next(after: Date(timeIntervalSince1970: TimeInterval(utc)), timeZone: tz)
+            let l = BerlinClock.local(utc: Int(next.timeIntervalSince1970))
+            XCTAssertEqual(Weekly.iso(WeeklyBackground.nextSlot(naive)), Weekly.iso(l.day * 86_400 + l.minutes * 60), "nach \(t)")
+        }
+        XCTAssertEqual(WeeklyBackground.hours, BackgroundSchedule.hours)
+        XCTAssertEqual(Weekly.iso(WeeklyBackground.slot(atOrAfter: Weekly.seconds("2026-10-20T08:00:00")!)), "2026-10-20T08:00:00")
+        XCTAssertEqual(Weekly.iso(WeeklyBackground.nextSlot(Weekly.seconds("2026-10-20T08:00:00")!)), "2026-10-20T15:00:00")
     }
 
     func testISOWeekAndRounding() {
