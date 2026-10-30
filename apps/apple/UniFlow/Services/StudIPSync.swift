@@ -328,11 +328,15 @@ final class StudIPSync: ObservableObject {
 
     // MARK: Anmeldung
 
+    /// Letzte Anmeldung (`LoginReminder`)
+    var lastSignIn: Date? { offersStudIP ? defaults.object(forKey: LoginReminder.lastLoginKey) as? Date : nil }
+
     /// Aufruf aus der Anmeldeansicht, sobald Stud.IP die Sitzung bestaetigt hat.
     func signedIn(cookies: [HTTPCookie]) {
         do {
             try self.cookies.save(cookies)
             setFlag(Keys.sessionExpired, false)
+            defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
             phase = .idle
             Task { await run() }
         } catch {
@@ -359,6 +363,7 @@ final class StudIPSync: ObservableObject {
         }
         cookies.clear()
         setFlag(Keys.sessionExpired, false)
+        defaults.removeObject(forKey: LoginReminder.lastLoginKey)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         phase = .signedOut
     }

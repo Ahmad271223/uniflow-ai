@@ -51,6 +51,10 @@ final class BackgroundSyncAppTests: XCTestCase {
 
         func isAllowed() async -> Bool { allowed }
 
+        private(set) var planned: [String: (content: BackgroundNotice.Content, date: Date)] = [:]
+        func schedule(_ content: BackgroundNotice.Content, id: String, thread: String, at date: Date) async { planned[id] = (content, date) }
+        func cancel(id: String) { planned[id] = nil }
+
         func post(_ content: BackgroundNotice.Content, id: String, thread: String) async { posts.append((content, id, thread)) }
     }
 
@@ -79,6 +83,7 @@ final class BackgroundSyncAppTests: XCTestCase {
         var isRunning = false
         var report = BackgroundSyncReport()
         var waitsForCancel = false
+        var lastSignIn: Date?
         /// wartet, bis der Test `release` setzt (Lauf, der nach dem Loeschen des Containers endet)
         var holds = false
         var release = false
@@ -710,6 +715,42 @@ final class BackgroundSyncAppTests: XCTestCase {
     /// Der lange Lauf prueft die Wochentests auch ohne Stud.IP-Sitzung und mit ausgeschaltetem Abgleich; der kurze
     /// nie. Ein veroeffentlichter Test bringt die Mitteilung "Neuer Wochentest verfügbar" (eigene Kennung, Gruppe des
     /// Containers, ohne Fach); ohne KI oder ohne faelligen Plan laeuft der Takt nicht.
+    /// Anmeldung 6 Stunden her: beim Oeffnen eine Frage, danach 6 Stunden Ruhe; Mitteilung am naechsten Termin 8/15/20 Uhr
+    func testLoginReminderAsksAfterSixHoursAndPlansOneNotice() async throws {
+        let m = manager()
+        let (a, _) = try ready(m, .luh)
+        let (b, _, n) = controller(m, a)
+        let id = "de.uniflow.ai.sync.login.reminder"
+        let fake = FakeSync()
+        b.target = { _ in fake }
+        let now = b.now()                                        // Montag 10:00 Berlin
+
+        // ohne Anmeldung nichts
+        XCTAssertNil(b.loginReminderSource())
+        await b.schedule()
+        XCTAssertNil(n.planned[id])
+
+        // vor 5 Stunden und 59 Minuten: noch nicht fragen
+        fake.lastSignIn = now.addingTimeInterval(-(6 * 3600 - 60))
+        XCTAssertNil(b.loginReminderSource())
+        await b.schedule()
+        XCTAssertEqual(n.planned[id]?.date, now.addingTimeInterval(5 * 3600), "15 Uhr, 6 Stunden nach 04:01")
+        XCTAssertEqual(n.planned[id]?.content, BackgroundNotice.loginReminder("Stud.IP"))
+
+        // 6 Stunden her: einmal fragen, dann Ruhe
+        fake.lastSignIn = now.addingTimeInterval(-6 * 3600)
+        XCTAssertEqual(b.loginReminderSource(), "Stud.IP")
+        b.markLoginAsked()
+        XCTAssertNil(b.loginReminderSource())
+        await b.schedule()
+        XCTAssertEqual(n.planned[id]?.date, now.addingTimeInterval(10 * 3600), "gefragt um 10 Uhr: Mitteilung erst 20 Uhr")
+
+        // Schalter "Benachrichtigen" aus: nichts vorgemerkt
+        BackgroundSyncSettings(defaults: bed.defaults).notify = false
+        await b.schedule()
+        XCTAssertNil(n.planned[id])
+    }
+
     func testLongRunRunsTheWeeklyStepEvenWithoutSessionTheShortRunNever() async throws {
         let m = manager()
         let (a, luh) = try ready(m, .luh)                        // keine Stud.IP-Sitzung: der Abgleich faellt aus

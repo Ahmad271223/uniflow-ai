@@ -124,6 +124,9 @@ protocol BackgroundNotifying: AnyObject {
     func isAllowed() async -> Bool
     /// `id`: gleiche Kennung ersetzt die alte; `thread`: Gruppe in der Mitteilungszentrale (Container)
     func post(_ content: BackgroundNotice.Content, id: String, thread: String) async
+    /// Mitteilung fuer einen Termin vormerken (gleiche Kennung ersetzt die alte); kommt auch bei geschlossener App
+    func schedule(_ content: BackgroundNotice.Content, id: String, thread: String, at date: Date) async
+    func cancel(id: String)
 }
 
 /// Eigene Schicht des Hintergrundabgleichs: eigene Kennungen (Kategorie, Mitteilungen, Gruppen mit dem Praefix
@@ -154,6 +157,17 @@ final class SystemBackgroundNotifier: BackgroundNotifying {
     }
 
     func post(_ content: BackgroundNotice.Content, id: String, thread: String) async {
+        await add(content, id: id, thread: thread, trigger: nil)
+    }
+
+    func schedule(_ content: BackgroundNotice.Content, id: String, thread: String, at date: Date) async {
+        let c = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        await add(content, id: id, thread: thread, trigger: UNCalendarNotificationTrigger(dateMatching: c, repeats: false))
+    }
+
+    func cancel(id: String) { UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id]) }
+
+    private func add(_ content: BackgroundNotice.Content, id: String, thread: String, trigger: UNNotificationTrigger?) async {
         let center = UNUserNotificationCenter.current()
         if !categoryRegistered {
             // ohne Option .hiddenPreviewsShowTitle: bei ausgeblendeter Vorschau nur der Platzhalter. setNotificationCategories
@@ -170,7 +184,7 @@ final class SystemBackgroundNotifier: BackgroundNotifying {
         c.sound = .default
         c.categoryIdentifier = Self.category
         c.threadIdentifier = thread
-        try? await center.add(UNNotificationRequest(identifier: id, content: c, trigger: nil))
+        try? await center.add(UNNotificationRequest(identifier: id, content: c, trigger: trigger))
     }
 }
 
@@ -184,6 +198,12 @@ protocol BackgroundSyncable: AnyObject {
     var usableSources: [String] { get }
     var isRunning: Bool { get }
     func runInBackground(_ kind: BackgroundSyncKind) async -> BackgroundSyncReport
+    /// Letzte Anmeldung bei der Hochschule (`LoginReminder`), nil: keine bekannt
+    var lastSignIn: Date? { get }
+}
+
+extension BackgroundSyncable {
+    var lastSignIn: Date? { nil }
 }
 
 extension StudIPSync: BackgroundSyncable {
@@ -322,6 +342,7 @@ final class BackgroundSyncController: ObservableObject {
     @discardableResult
     func schedule(ran: BackgroundSyncKind? = nil) async -> [BackgroundSyncKind: Date] {
         guard allowed() else { return [:] }
+        await scheduleLoginReminder()
         let weeklyAt = await weeklyNextAt()
         guard settings.enabled || weeklyAt != nil else {
             for k in BackgroundSyncKind.allCases { scheduler.cancel(k) }
@@ -356,6 +377,38 @@ final class BackgroundSyncController: ObservableObject {
         }
         nextPlanned = earliest.min()
         return submitted
+    }
+
+    /// Quelle, bei der sich der Nutzer neu anmelden soll (`LoginReminder`); nil: nichts zu fragen
+    func loginReminderSource() -> String? {
+        guard let c = reminderContainer(), let t = target(c),
+              LoginReminder.due(lastLogin: t.lastSignIn, lastAsked: BackgroundSyncState(defaults: c.defaults).loginAsked, now: now()) else { return nil }
+        return t.fileSource
+    }
+
+    /// Gefragt: die naechste Frage und Mitteilung erst nach weiteren 6 Stunden
+    func markLoginAsked() {
+        guard let c = reminderContainer() else { return }
+        BackgroundSyncState(defaults: c.defaults).loginAsked = now()
+    }
+
+    private func reminderContainer() -> ActiveContainer? {
+        guard allowed(), let c = containers.active, c.key == account.containerKey, account.stage == .ready,
+              containers.problem == nil, !containers.demoActive else { return nil }
+        return c
+    }
+
+    /// Hoechstens eine vorgemerkte Mitteilung; jeder Wechsel in den Hintergrund ersetzt sie mit dem neuen Stand
+    private func scheduleLoginReminder() async {
+        let id = SystemBackgroundNotifier.prefix + "login.reminder"
+        guard let c = reminderContainer(), let t = target(c), settings.notify, await notifier.isAllowed(),
+              let at = LoginReminder.noticeDate(lastLogin: t.lastSignIn, lastAsked: BackgroundSyncState(defaults: c.defaults).loginAsked,
+                                                now: now(), timeZone: timeZone()) else {
+            notifier.cancel(id: id)
+            return
+        }
+        await notifier.schedule(BackgroundNotice.loginReminder(t.fileSource), id: id,
+                                thread: SystemBackgroundNotifier.prefix + c.layout.identifier.uuidString, at: at)
     }
 
     /// Naechster Termin, an dem ein Wochentest des offenen Containers etwas zu tun haben kann (`next_at`); nil ohne

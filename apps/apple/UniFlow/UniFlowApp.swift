@@ -126,11 +126,23 @@ struct UniFlowApp: App {
                 containers.hildesheim?.runIfDue()
                 containers.qis?.runIfDue()
                 weeklyTicker.resume()
+                askForLoginIfDue()
             } else {
                 weeklyTicker.pause()
             }
             // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8)
             if phase == .background { Task { await background.schedule() } }
+        }
+    }
+
+    /// Letzte Anmeldung 6 Stunden her: um eine neue bitten (`LoginReminder`), "OK" fuehrt zu den Anmeldungen
+    private func askForLoginIfDue() {
+        guard let source = background.loginReminderSource() else { return }
+        background.markLoginAsked()
+        Task {
+            if await overlay.confirm("Bitte neu anmelden\n\nDeine letzte Anmeldung bei \(source) liegt mehr als 6 Stunden zurück. Melde dich neu an, damit der Abgleich weiterläuft.") {
+                router.go(.settings(tab: "account"))
+            }
         }
     }
 }

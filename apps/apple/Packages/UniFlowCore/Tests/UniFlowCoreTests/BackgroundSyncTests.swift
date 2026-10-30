@@ -371,4 +371,24 @@ final class BackgroundSyncTests: XCTestCase {
         let withOwn = try await db.withConnection { try UniStore.sourceFileIDs($0) }
         XCTAssertEqual(withOwn, ["d1", "d2"], "eigene Dokumente zaehlen nie als neu aus der Hochschule")
     }
+
+    func testLoginReminderSixHoursAndNextSlot() {
+        let berlin = TimeZone(identifier: "Europe/Berlin")!
+        let monday10 = Date(timeIntervalSince1970: 1_793_005_200)      // 2026-10-26 10:00 Berlin
+        let h: TimeInterval = 3600
+        XCTAssertFalse(LoginReminder.due(lastLogin: nil, lastAsked: nil, now: monday10))
+        XCTAssertFalse(LoginReminder.due(lastLogin: monday10.addingTimeInterval(-6 * h + 1), lastAsked: nil, now: monday10))
+        XCTAssertTrue(LoginReminder.due(lastLogin: monday10.addingTimeInterval(-6 * h), lastAsked: nil, now: monday10))
+        XCTAssertFalse(LoginReminder.due(lastLogin: monday10.addingTimeInterval(-9 * h), lastAsked: monday10.addingTimeInterval(-h), now: monday10))
+        XCTAssertNil(LoginReminder.noticeDate(lastLogin: nil, lastAsked: nil, now: monday10, timeZone: berlin))
+        // genau 6 Stunden vor 15 Uhr: der Termin 15 Uhr zaehlt mit
+        XCTAssertEqual(LoginReminder.noticeDate(lastLogin: monday10.addingTimeInterval(-h), lastAsked: nil, now: monday10, timeZone: berlin),
+                       monday10.addingTimeInterval(5 * h))
+        // eine Sekunde spaeter: 20 Uhr
+        XCTAssertEqual(LoginReminder.noticeDate(lastLogin: monday10.addingTimeInterval(-h + 1), lastAsked: nil, now: monday10, timeZone: berlin),
+                       monday10.addingTimeInterval(10 * h))
+        // laengst faellig: naechster Termin nach jetzt
+        XCTAssertEqual(LoginReminder.noticeDate(lastLogin: monday10.addingTimeInterval(-48 * h), lastAsked: nil, now: monday10, timeZone: berlin),
+                       monday10.addingTimeInterval(5 * h))
+    }
 }

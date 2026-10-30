@@ -196,7 +196,11 @@ final class HildesheimConnection: ObservableObject {
 
     /// Nach einer Anmeldung abgleichen. Laeuft schon einer (der uebliche Weg: Learnweb verbunden, Abgleich laeuft, dann
     /// LSF verbinden), gilt die Quelle fuer ihn nicht; sie bekommt direkt danach einen eigenen Lauf.
+    /// Letzte Anmeldung (`LoginReminder`)
+    var lastSignIn: Date? { defaults.object(forKey: LoginReminder.lastLoginKey) as? Date }
+
     private func afterSignIn(_ s: Source) {
+        defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
         if isRunning {
             connectedDuringRun.insert(s)
             return
@@ -224,7 +228,7 @@ final class HildesheimConnection: ObservableObject {
             task.cancel()
             _ = await task.value
         }
-        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending] { defaults.removeObject(forKey: k) }
+        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
         for s in Source.allCases {
             defaults.removeObject(forKey: Keys.ok(s))
             set(s, .notConnected)

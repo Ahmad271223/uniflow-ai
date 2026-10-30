@@ -208,11 +208,34 @@ public struct BackgroundSyncRecord: Codable, Equatable, Sendable {
     }
 }
 
+/// Bitte um eine neue Anmeldung bei der Hochschule (Entscheidung des Inhabers vom 30.10.2026): liegt die letzte
+/// Anmeldung `interval` zurueck, fragt die App beim Oeffnen; bei geschlossener App kommt eine Mitteilung am naechsten
+/// Termin aus 8, 15 und 20 Uhr danach. Beides haengt nicht davon ab, dass iOS die App im Hintergrund startet.
+public enum LoginReminder {
+    public static let interval: TimeInterval = 6 * 3600
+    public static let lastLoginKey = "uniflow.login.last"
+
+    /// Beim Oeffnen fragen? Jede Frage zaehlt wie eine Anmeldung: die naechste kommt erst `interval` spaeter
+    public static func due(lastLogin: Date?, lastAsked: Date?, now: Date) -> Bool {
+        guard let lastLogin else { return false }
+        return now.timeIntervalSince(max(lastLogin, lastAsked ?? lastLogin)) >= interval
+    }
+
+    /// Termin der Mitteilung; nil ohne Anmeldung
+    public static func noticeDate(lastLogin: Date?, lastAsked: Date?, now: Date, timeZone: TimeZone) -> Date? {
+        guard let lastLogin else { return nil }
+        let earliest = max(lastLogin, lastAsked ?? lastLogin).addingTimeInterval(interval)
+        // `next` sucht streng nach dem Zeitpunkt: ein Termin genau nach 6 Stunden zaehlt mit
+        return BackgroundSchedule.next(after: max(now, earliest.addingTimeInterval(-1)), timeZone: timeZone)
+    }
+}
+
 /// Stand des Hintergrundabgleichs eines Containers in dessen Einstellungs-Suite (geht mit dem Loeschen der Daten der
 /// Hochschule und des Kontos; ein anderer Nutzer oder die andere Hochschule sieht nichts davon)
 public struct BackgroundSyncState {
     public enum Keys {
         public static let last = "uniflow.background.last"
+        public static let loginAsked = "uniflow.background.loginAsked"
         public static func loginNotice(_ source: String) -> String {
             "uniflow.background.loginNotice." + source.lowercased().filter { $0.isLetter || $0.isNumber }
         }
@@ -230,6 +253,12 @@ public struct BackgroundSyncState {
 
     public func record(_ r: BackgroundSyncRecord) {
         if let data = try? JSONEncoder().encode(r) { defaults.set(data, forKey: Keys.last) }
+    }
+
+    /// Zuletzt beim Oeffnen um eine neue Anmeldung gebeten (`LoginReminder`)
+    public var loginAsked: Date? {
+        get { defaults.object(forKey: Keys.loginAsked) as? Date }
+        nonmutating set { defaults.set(newValue, forKey: Keys.loginAsked) }
     }
 
     /// Hinweis "Bitte bei … anmelden" fuer diese Quelle schon gezeigt (in diesem Ablauf der Sitzung)
@@ -283,6 +312,12 @@ public enum BackgroundNotice {
     /// ohne Fach, Woche oder Inhalt
     public static let weeklyTest = Content(title: "Neuer Wochentest verfügbar",
                                            body: "Ein gemeinsamer Wochentest wurde erzeugt und veröffentlicht. Öffne Studora, um ihn zu bearbeiten.")
+
+    /// Geplante Bitte um eine neue Anmeldung (`LoginReminder`), die Sitzung kann noch gueltig sein
+    public static func loginReminder(_ source: String) -> Content {
+        Content(title: "Bitte \(at(source)) neu anmelden",
+                body: "Deine letzte Anmeldung liegt mehr als 6 Stunden zurück. Öffne Studora und melde dich neu an, damit der Abgleich weiterläuft.")
+    }
 
     /// "bei Stud.IP", "bei Learnweb", "beim LSF"
     static func at(_ source: String) -> String { source == "LSF" ? "beim LSF" : "bei \(source)" }

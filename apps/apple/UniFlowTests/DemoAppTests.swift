@@ -353,6 +353,8 @@ final class DemoAppTests: XCTestCase {
         func requestPermission() async -> Bool { true }
         func isAllowed() async -> Bool { true }
         func post(_ content: BackgroundNotice.Content, id: String, thread: String) async { posts += 1 }
+        func schedule(_ content: BackgroundNotice.Content, id: String, thread: String, at date: Date) async {}
+        func cancel(id: String) {}
     }
 
     /// Echter Stud.IP-Abgleich des Containers mit einem Client des Tests
