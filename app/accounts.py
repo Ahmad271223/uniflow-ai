@@ -144,7 +144,7 @@ def _migrate(conn) -> None:
 def cursor():
     p = db_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(p, check_same_thread=False)
+    conn = sqlite3.connect(p, check_same_thread=False, timeout=15)      # wie billing.connect: bei Last nicht nach 5 s aufgeben
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")

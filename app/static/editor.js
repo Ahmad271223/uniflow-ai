@@ -14,14 +14,12 @@ let pdfjsLib = null;
 async function getPdfjs() { if (pdfjsLib) return pdfjsLib; pdfjsLib = await import("./vendor/pdf.min.mjs?v=3"); pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; return pdfjsLib; }
 function loadScript(src) { return new Promise((res, rej) => { if ($(`script[src="${src}"]`)) return res(); const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.head.append(s); }); }
 
-// ---------------------------------------------------------------- IndexedDB (lokale Entwürfe, Vorschaubilder)
-export const IDB = {
-  db: null,
-  open() { if (this.db) return Promise.resolve(this.db); return new Promise((res, rej) => { const r = indexedDB.open("lernapp-editor", 2); r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains("drafts")) d.createObjectStore("drafts", { keyPath: "fileId" }); if (!d.objectStoreNames.contains("thumbs")) d.createObjectStore("thumbs", { keyPath: "key" }); }; r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }); },
-  async get(store, key) { try { const db = await this.open(); return new Promise(res => { const q = db.transaction(store).objectStore(store).get(key); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); } catch { return null; } },
-  async put(store, rec) { try { const db = await this.open(); db.transaction(store, "readwrite").objectStore(store).put(rec); } catch {} },
-  async del(store, key) { try { const db = await this.open(); db.transaction(store, "readwrite").objectStore(store).delete(key); } catch {} },
-};
+// ---------------------------------------------------------------- IndexedDB (Entwuerfe = Notiz-Warteschlange, Vorschaubilder)
+// Die Entwuerfe liegen in der Warteschlange aus notes-queue.js (dirty = noch nicht beim Server); pwa.js sendet sie,
+// wenn kein Editor die Datei haelt. IDB bleibt fuer Vorschaubilder (Fehler sind dort egal).
+import { IDB, notesQueue, isOfflineResponse } from "./notes-queue.js?v=1";
+export { IDB };
+const Thumbs = { get: k => IDB.get("thumbs", k).catch(() => null), put: v => IDB.put("thumbs", v).catch(() => {}), del: k => IDB.del("thumbs", k).catch(() => {}) };
 
 export const FONTS = ["Arial", "Helvetica", "Segoe UI", "Verdana", "Georgia", "Times New Roman", "Courier New", "Comic Sans MS", "Cambria Math"];
 export const TEMPLATES = { blank: "Leer", lined: "Liniert", grid: "Kariert", dotted: "Gepunktet", mm: "Millimeter", cornell: "Cornell" };
@@ -105,7 +103,9 @@ export class PdfEditor {
   async loadModel() {
     let server = null;
     try { const r = await fetch(`/api/files/${this.fileId}/annotations`); if (r.ok) server = await r.json(); else this.offline = true; } catch { this.offline = true; }
-    const draft = await IDB.get("drafts", this.fileId);
+    notesQueue.hold(this.fileId);                       // solange der Editor offen ist, sendet er selbst (pwa.js laesst die Datei aus)
+    let draft = await notesQueue.get(this.fileId);
+    if (draft && draft.account && notesQueue.account && draft.account !== notesQueue.account) draft = null;   // Entwurf eines anderen Kontos
     const serverModel = server ? this.migrate(server.data || { version: 2 }) : null;
     this.version = server ? (server.version || 0) : (draft?.version || 0);
     if (draft && draft.dirty && (!server || (draft.version || 0) >= (server.version || 0))) {
@@ -124,6 +124,7 @@ export class PdfEditor {
       this.base = this.snap(this.model);
     }
     if (this.dirty) this.scheduleSave();
+    notesQueue.flush().catch(() => {});                 // Notizen anderer Dateien, die ohne Netz liegen blieben
   }
   // Vergleichsstand: pro Seite das JSON, dazu Seitenreihenfolge und Dokument-Notizen
   snap(m) { return { pages: Object.fromEntries(Object.entries(m.pages || {}).map(([k, v]) => [k, JSON.stringify(v)])), order: JSON.stringify([m.pageOrder || [], m.deletedPages || []]), meta: JSON.stringify([m.note || "", m.bookmarks || [], m.outline || []]) }; }
@@ -585,36 +586,45 @@ export class PdfEditor {
   // Lokaler Entwurf unabhaengig vom Hochladen: spaetestens 1,5 s nach einer Aenderung (zwischen zwei Strichen),
   // damit ein Safari-Absturz beim Dauerschreiben nichts verliert
   _draftSoon() { if (!this._draftT) this._draftT = setTimeout(() => this._writeDraft(), 1500); }
-  _writeDraft(force = false) { if (!force && (this.penDown || this._activeLive) && !this.destroyed) { this._draftT = setTimeout(() => this._writeDraft(), 300); return; } clearTimeout(this._draftT); this._draftT = 0; if (!this.dirty || !this.model) return; try { const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); } catch {} }
-  setSaveState(st) { const el = $(".ed-status", this.c); if (el) el.dataset.state = st; this.onStatus(st === "saving" ? "Speichert…" : st === "offline" ? "Offline – wird nachgeholt" : "Gespeichert"); }
+  _writeDraft(force = false) { if (!force && (this.penDown || this._activeLive) && !this.destroyed) { this._draftT = setTimeout(() => this._writeDraft(), 300); return; } clearTimeout(this._draftT); this._draftT = 0; if (!this.dirty || !this.model) return; this._remember(); }
+  // Entwurf = Eintrag der Notiz-Warteschlange: Stand, Basisversion, geaenderte Seiten mit ihrem bestaetigten Stand (fuer die Zusammenfuehrung ohne Editor)
+  _remember() { try { const dd = this.diffFromBase(); return notesQueue.remember({ fileId: this.fileId, data: this.model, version: this.version, dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); } catch { return Promise.resolve(false); } }
+  setSaveState(st, detail = "") { const el = $(".ed-status", this.c); if (el) el.dataset.state = st === "error" ? "offline" : st; this.onStatus(st === "saving" ? "Speichert…" : st === "offline" ? "Offline – Notizen werden gesendet, sobald Netz da ist" : st === "error" ? `Speichern fehlgeschlagen${detail ? ` (${detail})` : ""} – neuer Versuch in 15 s` : "Gespeichert"); }
   scheduleSave() { clearTimeout(this._t); if (!this._dirtySince) this._dirtySince = Date.now(); this._t = setTimeout(() => this._saveTick(), 1200); }
-  _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); this.flush(); }
+  _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; this._remember(); this.flush(); }
   // snapshot (Schliessen, nach Konflikt): ersetzter und neuer Stand in den Versionsverlauf (sonst hoechstens alle 5 min,
   // Editor-Schritt 4); ohne
   // offene Aenderung wird dafuer noch einmal gesendet, falls seit dem letzten Snapshot gespeichert wurde
   async flush(snapshot = false) {
     if (this.readOnly || this.saving || !(this.dirty || (snapshot && this._savedSinceSnapshot))) return; this.saving = true;
-    let retryConflict = false;
+    let retryConflict = false, r = null;
     try {
       const sentJson = JSON.stringify(this.model);
-      const r = await fetch(`/api/files/${this.fileId}/annotations?base_version=${this.version}${snapshot ? "&snapshot=true" : ""}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: sentJson });
+      r = await fetch(`/api/files/${this.fileId}/annotations?base_version=${this.version}${snapshot ? "&snapshot=true" : ""}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: sentJson });
       if (r.status === 409) {
         const srv = await r.json();
         this._conflicts = (this._conflicts || 0) + 1;
         if (this._conflicts > 3) throw new Error("Konflikt nicht auflösbar");
         this.applyServerMerge(srv.data, srv.version); retryConflict = true; return;
       }
-      if (!r.ok) throw new Error(r.statusText);
+      if (await isOfflineResponse(r)) { const e = new Error("offline"); e.offline = true; throw e; }
+      if (!r.ok) { let d = ""; try { d = (await r.json()).detail || ""; } catch {} throw new Error(d || r.statusText || `HTTP ${r.status}`); }
       const j = await r.json(); this.version = j.version; this._conflicts = 0; this._savedSinceSnapshot = !snapshot;
       this.base = this.snap(JSON.parse(sentJson));
       const changedMeanwhile = JSON.stringify(this.model) !== sentJson;   // waehrend des Sendens weitergeschrieben?
       this.dirty = changedMeanwhile;
       if (changedMeanwhile) { this.scheduleSave(); this.setSaveState("saving"); }
-      else { IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: false, savedAt: Date.now() }); this.setSaveState("saved"); }
-      IDB.del("thumbs", this.fileId + ":" + (this.pages[0]?.key || ""));
+      else { notesQueue.settled(this.fileId, { data: this.model, version: this.version }); this.setSaveState("saved"); }
+      Thumbs.del(this.fileId + ":" + (this.pages[0]?.key || ""));
       this.offline = false;
-    } catch (e) { this.offline = true; this.setSaveState("offline"); setTimeout(() => this.flush(), 15000); }
-    finally { this.saving = false; if (retryConflict) this.flush(true); }   // nach Konflikt: verworfener Stand bleibt im Verlauf
+    } catch (e) {
+      // Ohne Netz (fetch gescheitert, Service Worker 503 "offline"): der Stand liegt in der Warteschlange (notes-queue.js) und
+      // geht beim naechsten Netz raus, hier (online-Ereignis) oder ohne Editor aus pwa.js. Anderer Fehler: melden, spaeter erneut.
+      const offline = !!e.offline || r === null || (typeof navigator !== "undefined" && navigator.onLine === false);
+      this.offline = offline; this._remember(); this.setSaveState(offline ? "offline" : "error", offline ? "" : e.message);
+      if (!this.destroyed) setTimeout(() => this.flush(), 15000);          // geschlossen: ab jetzt sendet die Warteschlange (pwa.js)
+    }
+    finally { this.saving = false; if (retryConflict) this.flush(true); else if (this.destroyed) notesQueue.release(this.fileId); }   // nach Konflikt: verworfener Stand bleibt im Verlauf
   }
 
   // ---------------------------------------------------------------- Werkzeuge
@@ -1144,17 +1154,18 @@ export class PdfEditor {
     this._prev.forEach(u => u && URL.revokeObjectURL(u)); this._prev.clear();
     // der Entwurf liegt schon in IndexedDB; das Senden laeuft weiter, Schliessen und Seitenwechsel warten hoechstens 1,5 s
     if (unsaved || this._savedSinceSnapshot) await Promise.race([this.flush(true), new Promise(r => setTimeout(r, 1500))]);
+    if (!this.dirty && !this.saving) notesQueue.release(this.fileId);   // sonst gibt flush() die Datei frei, sobald es fertig ist (auch ohne Netz: dann sendet pwa.js)
   }
 }
 
 // ---------------------------------------------------------------- Vorschaubild (für die Bibliothek)
 export async function renderThumbnail(fileId, url, chdate, width = 180) {
   const key = `${fileId}:${chdate}:${width}`;
-  const cached = await IDB.get("thumbs", key); if (cached) return cached.data;
+  const cached = await Thumbs.get(key); if (cached) return cached.data;
   try {
     await getPdfjs(); const buf = await (await fetch(url)).arrayBuffer(); const doc = await pdfjsLib.getDocument({ data: buf }).promise; const page = await doc.getPage(1);
     const vp0 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: width / vp0.width }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height;
-    await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; const data = cv.toDataURL("image/jpeg", 0.75); doc.destroy(); IDB.put("thumbs", { key, data, at: Date.now() }); return data;
+    await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; const data = cv.toDataURL("image/jpeg", 0.75); doc.destroy(); Thumbs.put({ key, data, at: Date.now() }); return data;
   } catch { return null; }
 }
 

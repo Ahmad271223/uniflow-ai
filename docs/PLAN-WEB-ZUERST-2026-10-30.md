@@ -47,7 +47,20 @@ prüfen, Rechtstexte in die Oberfläche einbauen (heute Platzhalter), Monitoring
    ohne Netz scheitern mit Code `offline` (503). Beim Abmelden oder Kontowechsel wird die Ablage geleert. Im Kopf
    steht „Offline – zuletzt geladene Inhalte“. Echter Browserlauf in `tests/test_pwa.py` (Chromium: laden, Netz aus,
    neu laden, Übersicht aus der Ablage, Änderung scheitert mit `offline`, Konto nie aus der Ablage).
-   **Offen:** Notizen ohne Netz zwischenspeichern und nachsenden (Journal im Web), Prüfung in Safari auf iPad und Mac.
+   **Stand 30.10. (Cloud), Notizen ohne Netz:** `app/static/notes-queue.js` ist das Journal im Web: der zuletzt gewollte
+   Stand je Datei liegt mit `base_version`, Zeitstempel und Konto in IndexedDB (`lernapp-editor`/`drafts`, Rückfall
+   localStorage). Scheitert das Speichern im Editor am Netz (fetch-Fehler oder Worker-Antwort `offline`), zeigt er „Offline –
+   Notizen werden gesendet, sobald Netz da ist“ und arbeitet weiter; beim Öffnen ohne Netz gilt der lokale Stand, nicht der
+   ältere Serverstand. Nachgesendet wird beim `online`-Ereignis, beim Start (`pwa.js`) und beim Öffnen eines Editors; eine
+   offene Datei sendet der Editor selbst (`hold`). Bei 409 wird mit `merge.js` (`mergeDocument`, Basis = bestätigter Stand
+   der geänderten Seiten) zusammengeführt und erneut gesendet, bei Erfolg „Notizen nachgesendet“; andere Fehler bleiben
+   liegen und werden einmal gemeldet. `clear` des Workers lässt die Warteschlange stehen; beim Kontowechsel werden Notizen
+   des alten Kontos nicht unter dem neuen gesendet (gleiche Stud.IP-Datei-IDs, Sitzung weg), sondern bleiben mit Vermerk
+   liegen, der Nutzer sieht einen Hinweis, und sie gehen raus, sobald das Konto wieder angemeldet ist. Geprüft ohne Browser
+   (`tests/js/notes-queue.test.mjs`) und in Chromium (`tests/test_pwa.py`: Notizbuch, Netz aus, schreiben, schließen, ohne
+   Netz wieder öffnen, anderes Gerät speichert, Netz an, Stand zusammengeführt beim Server).
+   **Offen:** Prüfung in Safari auf iPad und Mac (IndexedDB im privaten Modus, Speicherräumung nach 7 Tagen ohne Nutzung
+   bei nicht installierter Web-App).
 3. **Dateien hereinbekommen, Entscheidung 1 (siehe 4):** Upload von Hand gibt es (`server.py:2479`). Der Abgleich
    durch den Dienst mit Uni-Zugangsdaten gibt es auch, ist aber die heikle Variante.
 4. **Wochentests im Dienst:** Takt je Konto statt nur lokal, Ausführung über die Job-Warteschlange (`jobs.py`),

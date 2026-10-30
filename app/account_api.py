@@ -88,7 +88,9 @@ def register(request: Request, body: dict = Body(...)):
     try:
         user = accounts.register(body.get("email"), body.get("password"), (body.get("university") or "").strip().lower(),
                                  client_ip=_ip(request))
-        _, token = accounts.login(user["email"], body.get("password"), *_device(body, request))
+        # Sitzung direkt anlegen statt ueber login(): spart das zweite scrypt (Lasttest 30.10.: Registrieren = 2x Hash)
+        with accounts.cursor() as conn:
+            token = accounts.create_session(conn, user["id"], *_device(body, request))
     except accounts.AccountError as e:
         raise _err(e)
     # Willkommensmail mit Bestaetigungslink; ein Fehler beim Versand aendert die Antwort nicht

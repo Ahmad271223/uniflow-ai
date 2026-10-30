@@ -63,8 +63,10 @@ def test_env_example_names_every_lernapp_variable_from_app():
 
 def test_env_example_has_no_real_values():
     text = read(".env.example")
-    for key in ("LERNAPP_SECRET_KEY", "LERNAPP_SMTP_PASSWORD", "LERNAPP_SMTP_USER"):
+    for key in ("LERNAPP_SECRET_KEY", "LERNAPP_SMTP_PASSWORD", "LERNAPP_SMTP_USER", "LERNAPP_STRIPE_SECRET_KEY",
+                "LERNAPP_STRIPE_WEBHOOK_SECRET", "LERNAPP_OPENAI_API_KEY"):
         assert re.search(rf"^{key}=\s*$", text, re.M), key
+    assert not re.search(r"sk_live_[A-Za-z0-9]{8}|whsec_[A-Za-z0-9]{8}|sk-[A-Za-z0-9]{20}", text), "echter Schluessel in der Vorlage"
     assert "example.de" in text and "LERNAPP_MODE=hosted" in text and "LERNAPP_FILES=stream" in text
     assert "LERNAPP_HTTPS=1" in text
 
@@ -96,6 +98,8 @@ def test_compose_mounts_volumes_and_keeps_app_internal():
     assert "uniflow-data:/data" in c and "uniflow-logs:/logs" in c and "caddy-data:/data" in c
     assert "restart: unless-stopped" in c and "memory:" in c and "dockerfile: deploy/Dockerfile" in c
     assert "${UNIFLOW_DOMAIN" in c and "LERNAPP_HTTPS" in c and "LERNAPP_ALLOWED_HOSTS" in c
+    # Caddy startet mit leerer ACME-Adresse nicht (`email` ohne Argument im Caddyfile) – Compose muss sie verlangen
+    assert "${UNIFLOW_ACME_EMAIL:?" in c, "UNIFLOW_ACME_EMAIL muss Pflicht sein"
     app_block = c.split("  caddy:")[0]
     assert "ports:" not in app_block, "die App bekommt keinen Port am Host – nur Caddy"
     assert '"80:80"' in c and '"443:443"' in c
@@ -130,6 +134,10 @@ def test_backup_script_keeps_fourteen_days_and_is_documented():
     sh = read("backup.sh")
     assert sh.startswith("#!/usr/bin/env bash") and "set -euo pipefail" in sh
     assert "BACKUP_KEEP_DAYS:-14" in sh and "backup_snapshot.py" in sh and "accounts.db" in sh
+    # 30.10.2026: `tar -tzf | grep -q` brach mit pipefail scheinbar zufaellig ab (SIGPIPE an tar) und meldete ein
+    # vollstaendiges Archiv als unvollstaendig – die Liste wird erst ganz gelesen, dann durchsucht
+    assert not re.search(r"tar -tzf[^\n]*\|\s*grep", sh), "tar | grep in einer Pipeline mit pipefail"
+    assert 'LIST="$(tar -tzf "$OUT")"' in sh
     assert "OnCalendar=" in read("uniflow-backup.timer") and "backup.sh" in read("uniflow-backup.service")
     doc = (ROOT / "docs" / "release" / "BETRIEB.md").read_text(encoding="utf-8")
     for must in ("docker compose up -d --build", "python -m app.accounts", "python -m app.retention --dry-run",

@@ -21,8 +21,11 @@ $COMPOSE exec -T app python - < "$HERE/backup_snapshot.py" > "$OUT.part"
 mv "$OUT.part" "$OUT"
 chmod 600 "$OUT"
 
-# Pruefen, dass das Archiv lesbar ist und die Kontodatenbank enthaelt
-tar -tzf "$OUT" | grep -q 'uniflow-data/accounts.db$' || { echo "Backup unvollstaendig: accounts.db fehlt in $OUT" >&2; exit 1; }
+# Pruefen, dass das Archiv lesbar ist und die Kontodatenbank enthaelt. Erst die ganze Liste lesen, dann suchen:
+# `tar | grep -q` bricht mit pipefail scheinbar zufaellig ab (grep schliesst die Pipe nach dem ersten Treffer, tar
+# bekommt SIGPIPE) und meldete ein vollstaendiges Archiv als unvollstaendig.
+LIST="$(tar -tzf "$OUT")"
+grep -q 'uniflow-data/accounts.db$' <<<"$LIST" || { echo "Backup unvollstaendig: accounts.db fehlt in $OUT" >&2; exit 1; }
 
 # Aufbewahrung: aeltere Archive loeschen
 find "$BACKUP_DIR" -maxdepth 1 -name 'uniflow-*.tar.gz' -type f -mtime "+$KEEP_DAYS" -delete
