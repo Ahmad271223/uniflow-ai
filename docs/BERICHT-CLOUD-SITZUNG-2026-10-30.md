@@ -154,3 +154,25 @@ docker run --rm -v "$PWD":/repo -v /tmp/swiftbuild:/build -w /repo/apps/apple/Pa
 
 Docker Hub selbst bremst (429), der Spiegel `mirror.gcr.io` geht. `download.swift.org` ist im Netz der Umgebung
 gesperrt, ein Ubuntu-Paket gibt es nicht; darum Docker.
+
+## 7. Nachtrag: App-Lauf auf dem Mac (30.10.2026, abends)
+
+Stand `develop` mit `ae844ad` und `8f8cb8c`, Xcode 27.2, Simulator „iPad“ (iPad Pro 11 M5, iOS 27.2). Ausnahme von der
+Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lief er nicht.
+
+- Build beim ersten Versuch fehlerfrei. Voller App-Lauf ×2: je 563 Tests, 0 Fehler, 2 übersprungen (`EditorScaleTests`
+  und `RealSheetSolutionE2ETests`, beide nur auf Anforderung).
+- Fehler in `performRun` behoben: Bei ausgeschaltetem Abgleich nannte das Gate nur `.disabled`, der Wochentest lief
+  dadurch auch neben einem laufenden Abgleich und beim Wechsel. Der Test dafür schlug vor der Änderung fehl.
+- Drei Tests passten nicht mehr zur Regel vom 30.10. (Unterlagen aus Woche 1 und 2, geplant wurde Woche 3). Angepasst
+  wurden die Testdaten, nicht die Logik; `slotted` ist jetzt genau 2 statt mindestens 4.
+- Hand-Prüfung im Simulator (per vorübergehendem UI-Test):
+  - **ChatGPT verbinden:** Karte, Zustimmung, Systemabfrage und echte Anmeldeseite von `auth.openai.com` gehen auf;
+    Abbrechen zeigt „Anmeldung abgebrochen.“ Die Anmeldung selbst ist ungeprüft (nur der Inhaber).
+  - **Freigabe nachholen:** nicht geprüft. Der Knopf erscheint nur bei verbundenem Konto ohne Freigabe.
+  - **Hintergrundlauf:** `_simulateLaunchForTaskWithIdentifier` wurde laut Log angenommen, die Karte zeigte danach aber
+    „noch keiner“: Der Lauf kam in der App nicht an, die Ursache ist nicht geklärt. Geprüft ist er nur in den App-Tests.
+- Offen: Die Systemabfrage nennt „UniFlow“ statt „Studora“ (`CFBundleName` ist `$(PRODUCT_NAME)`).
+- Hinweise für die nächste Sitzung: `xcode-select` zeigt hier auf die Command Line Tools, darum
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` setzen. Im Lauf mit `test-without-building` fielen die 19
+  Kauf-Tests durch, mit `xcodebuild test` waren sie grün; Grund nicht geklärt, darum `xcodebuild test` nehmen.
