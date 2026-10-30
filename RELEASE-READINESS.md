@@ -61,9 +61,9 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | --- | --- | --- |
 | Server (VPS in der EU), Domain, Mail-Anbieter, Dienst-Geheimnis, Backup-Ziel, AVV mit dem Hoster | offen | Inhaber (`docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md` Abschnitt 4) |
 | Rechtstexte: Impressum, Datenschutz (inkl. Uni-Zugangsdaten beim Dienst, KI über das Backend, Stripe), Nutzungsbedingungen | Entwürfe mit Platzhaltern in `docs/release/`, nicht anwaltlich geprüft | Inhaber |
-| Dienst einrichten, Lasttest, Monitoring | offen, nie in Betrieb | Cloud-/PC-Sitzung |
+| Dienst einrichten, Monitoring | offen, nie in Betrieb; Startpaket und Checkliste `docs/START-DIENST-CHECKLISTE.md` fertig (30.10.), Lasttest in-process gemacht (`docs/LASTTEST-DIENST-2026-10-30.md`: ~100 Anfragen/s je Prozess, keine SQLite-Sperren, Engpass Schonpause je Hochschule) | Inhaber (Server) + Sitzung |
 | Installierbare Web-App, Offline-Rückfall | gebaut 30.10. | – |
-| Notizen ohne Netz zwischenspeichern und nachsenden (Journal im Web) | offen | Sitzung |
+| Notizen ohne Netz zwischenspeichern und nachsenden (`app/static/notes-queue.js`) | gebaut 30.10., Chromium-Lauf grün; Safari offen | Inhaber + Sitzung (Safari) |
 | Hochschul-Abgleich durch den Dienst nur mit Zustimmung (Karte, Häkchen, Löschen) | gebaut 30.10.; Anfrage an LUH und Hildesheim läuft parallel | Inhaber |
 | Wochentests im Dienst je Konto (Job nach dem Abgleich, zu den Zeitfenstern, auf Knopfdruck) mit Studora-KI und Kontingent | gebaut 30.10.; braucht OpenAI-Schlüssel des Inhabers im Dienst (`LERNAPP_OPENAI_API_KEY`) | Inhaber |
 | ChatGPT-Abo des Nutzers im gehosteten Dienst | bleibt aus bis OpenAI freigibt (Warteliste) | Inhaber |
@@ -96,7 +96,7 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | Risiko | Folge | Gegenmaßnahme |
 | --- | --- | --- |
 | Alles Gerätenahe ist nur im Simulator geprüft | Stift, Hintergrundlauf und Speicher können sich am iPad anders verhalten | erster Gerätetest, sobald eine Signierung möglich ist (kostenlose Signierung per Kabel reicht für das eigene iPad) |
-| Dienst nie unter Last | Chromium-Speicher beim Abgleich, Datenbank je Konto, Backups ungeprüft | Lasttest nach Inbetriebnahme (100 Konten, 1000 Dateien), `docker stats` nach dem ersten Tag |
+| Dienst nie auf einem Server unter Last | In-process-Lasttest 30.10. ok (100/500 Konten); Chromium-Speicher beim Abgleich, Netz/TLS, Mehrprozess auf accounts.db ungemessen; Backup und Restore im Container durchgespielt | Lasttest auf dem Server wiederholen (`tools/lasttest-dienst.py`), `docker stats` nach dem ersten Tag |
 | KI nie echt | Prompts, Fehlercodes der Responses API und Kosten der Studora-KI sind Annahmen | erster echter Lauf durch den Inhaber vor jedem Store-Text, der KI nennt |
 | Uni-Zugangsdaten beim Dienst | der Dienst hält Passwörter verschlüsselt und meldet sich von der Server-IP an | Zustimmung je Konto (gebaut), Text in der Datenschutzerklärung, Rückmeldung von LUH und Hildesheim abwarten |
 | GitHub Actions gesperrt seit 25.10. | kein Bauen auf GitHub; Windows-Installer und Apple-Läufe nur lokal oder gar nicht; Quellen widersprechen sich, ob der Windows-Workflow am 27.10. lief | Abrechnung klären (`docs/GITHUB-ABRECHNUNG.md`) oder lokal bauen |
@@ -129,9 +129,9 @@ Offen (nur der Inhaber):
 ## 7. Nächste Schritte in Reihenfolge
 
 1. Inhaber: Server, Domain, Mail, Stripe, Rechtstexte (Abschnitt 4.1).
-2. Sitzung: Dienst einrichten, Lasttest, Rechtstexte einbauen, Monitoring.
+2. Inhaber: Server, Domain, Mail nach `docs/START-DIENST-CHECKLISTE.md`; Sitzung: Rechtstexte einbauen, Monitoring.
 3. Inhaber: einmal mit dem eigenen ChatGPT-Abo anmelden und einen Wochentest auf echtem Skript prüfen.
-4. Sitzung: Journal für Notizen ohne Netz im Web; Prüfung in Safari.
+4. Inhaber + Sitzung: Web-App und Offline-Notizen in Safari auf iPad und Mac prüfen.
 5. Inhaber + PC-Sitzung: Partner Center, Screenshots, Store-Einreichung Windows.
 6. Mac-Sitzung, sobald Apple freigibt: G2-Client, Community über den Dienst, Gerätetest, App Store.
 

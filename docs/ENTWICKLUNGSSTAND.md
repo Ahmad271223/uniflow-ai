@@ -172,8 +172,10 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
   löschen“, Satz in `release/DATENSCHUTZ.md`).
 - **Getestet:** `tests/test_pwa.py` mit echtem Chromium (laden, Netz aus, neu laden, Konto nie aus der Ablage),
   `tests/js/sw.test.mjs`, `test_deploy.py`, `test_web_login.py`, `test_legal_pages.py`; Container lokal `healthy`.
-- **Offen:** Dienst nie auf einem Server; Safari auf iPad und Mac ungeprüft; Notizen ohne Netz zwischenspeichern und
-  nachsenden (Journal im Web) nicht gebaut; Lasttest; Rechtstexte mit Platzhaltern; Server, Domain, Mail, Stripe,
+- **Fertig (30.10., abends):** Notizen ohne Netz zwischenspeichern und nachsenden (`app/static/notes-queue.js`, 11 Node-Tests,
+  Chromium-Lauf mit 409-Zusammenführung); Lasttest in-process (`docs/LASTTEST-DIENST-2026-10-30.md`); Startpaket
+  (`deploy/`, `docs/START-DIENST-CHECKLISTE.md`, Backup/Restore im Container durchgespielt).
+- **Offen:** Dienst nie auf einem Server; Safari auf iPad und Mac ungeprüft; Rechtstexte mit Platzhaltern; Server, Domain, Mail, Stripe,
   Partner Center beim Inhaber.
 
 ## Phase 16 – Community
@@ -189,7 +191,7 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
 
 1. Inhaber: Server, Domain, Mail-Anbieter, Stripe-Konto, Rechtstexte; einmal mit dem eigenen ChatGPT-Abo anmelden und
    einen Wochentest auf echtem Skript prüfen.
-2. Cloud-/PC-Sitzung: Dienst in Betrieb nehmen, Lasttest, Journal für Notizen ohne Netz im Web, Prüfung in Safari.
+2. Inhaber: Server, Domain, Mail nach `docs/START-DIENST-CHECKLISTE.md`; danach Sitzung: Dienst in Betrieb nehmen, Lasttest auf dem Server, Prüfung in Safari.
 3. Inhaber + PC-Sitzung: Microsoft Store (Partner Center, Screenshots, Einreichung).
 4. Mac-Sitzung, sobald Apple freigibt: G2-Client auf dem iPad, Community über den Dienst, Gerätetest nach
    `MAC-IPAD-CHECKLISTE.md` und `EDITOR-ABNAHME.md`, App Store.
