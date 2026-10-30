@@ -2575,6 +2575,8 @@
       "weekly_test": 1,
       "test_minutes": null,
       "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase",
       "file_count": 2,
       "new_count": 2,
       "open_tasks": 0,
@@ -2768,6 +2770,11 @@
      "pen_input": "all",
      "hand": "right",
      "semester_rule_applied": "1",
+     "weekly_publish_hours": "24",
+     "weekly_max_delay_hours": "48",
+     "weekly_ai_daily_limit": "8",
+     "weekly_questions": "15",
+     "weekly_mode": "marker",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -2840,6 +2847,8 @@
       "weekly_test": 1,
       "test_minutes": null,
       "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase",
       "file_count": 2,
       "new_count": 2,
       "open_tasks": 0,
@@ -2936,6 +2945,11 @@
      "pen_input": "all",
      "hand": "right",
      "semester_rule_applied": "1",
+     "weekly_publish_hours": "24",
+     "weekly_max_delay_hours": "48",
+     "weekly_ai_daily_limit": "8",
+     "weekly_questions": "15",
+     "weekly_mode": "marker",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -6488,7 +6502,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    }
   ],
   "annotations": [

@@ -160,7 +160,9 @@
          "color_custom": 0,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
-         "sync_device": "ipad-1"
+         "sync_device": "ipad-1",
+         "expected_materials": null,
+         "exam_reuse": "paraphrase"
         }
        ],
        "study_packages": [
@@ -373,6 +375,41 @@
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
+        },
+        {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
         }
        ]
       },
@@ -517,7 +554,9 @@
          "color_custom": 0,
          "sync_version": 2,
          "sync_updated_at": "<zeit>",
-         "sync_device": "mac-1"
+         "sync_device": "mac-1",
+         "expected_materials": null,
+         "exam_reuse": "paraphrase"
         },
         "client": {
          "name": "Physik 1",
@@ -580,7 +619,9 @@
          "color_custom": 0,
          "sync_version": 3,
          "sync_updated_at": "<zeit>",
-         "sync_device": "ipad-1"
+         "sync_device": "ipad-1",
+         "expected_materials": null,
+         "exam_reuse": "paraphrase"
         },
         "client": {
          "name": "uralt"
@@ -616,7 +657,9 @@
          "color_custom": 0,
          "sync_version": 3,
          "sync_updated_at": "<zeit>",
-         "sync_device": "ipad-1"
+         "sync_device": "ipad-1",
+         "expected_materials": null,
+         "exam_reuse": "paraphrase"
         }
        ],
        "settings": [
@@ -784,6 +827,41 @@
         {
          "key": "user_name",
          "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1193,6 +1271,41 @@
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
+        },
+        {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
         }
        ]
       },
@@ -1537,6 +1650,41 @@
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
+        },
+        {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
         }
        ],
        "annotations": [
@@ -1783,6 +1931,41 @@
          "sync_device": null
         },
         {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
          "key": "hours_per_day",
          "value": "6",
          "sync_version": 2,
@@ -1972,6 +2155,41 @@
         {
          "key": "user_name",
          "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -2309,7 +2527,9 @@
          "color_custom": 0,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
-         "sync_device": "mac-1"
+         "sync_device": "mac-1",
+         "expected_materials": null,
+         "exam_reuse": "paraphrase"
         }
        ],
        "flashcards": [
@@ -2640,7 +2860,9 @@
          "color_custom": 0,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
-         "sync_device": "ipad-1"
+         "sync_device": "ipad-1",
+         "expected_materials": null,
+         "exam_reuse": "paraphrase"
         }
        ],
        "study_packages": [
@@ -2850,6 +3072,41 @@
         {
          "key": "user_name",
          "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_ai_daily_limit",
+         "value": "8",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_max_delay_hours",
+         "value": "48",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_mode",
+         "value": "marker",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_publish_hours",
+         "value": "24",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "weekly_questions",
+         "value": "15",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null

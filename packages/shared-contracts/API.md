@@ -37,3 +37,9 @@ Regeln für Notizen (`packages/shared-contracts/annotations.schema.json`):
 Aufgaben `/api/tasks/open`, `/api/tasks/{id}/status`, Lernpakete `/api/packages/{id}`, Stundenplan `/api/timetable/week?start=`,
 `/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards`, KI-Tutor `/api/ai/tutor`,
 Noten `/api/grades`, Learnweb-Fristen `/api/deadlines`, Dienste `/api/services`, Netzwerk/PIN `/api/network` (nur vom PC sinnvoll).
+
+## Wochentests mit Seitenmarker (ab 3.2)
+
+Marker „Vorlesung bis hier“ und gemeinsame Wochentests: Endpunkte, Datenmodell und Regeln in `docs/WOCHENTESTS.md`.
+Native Clients setzen Marker über `POST /api/markers` mit `{file_id, page}` (Originalseite der PDF, 1-basiert) und zeigen
+`GET /api/markers?file_id=…` in der Seitenübersicht an. Marker sind keine Annotationen und gehören nicht in `annotations`.

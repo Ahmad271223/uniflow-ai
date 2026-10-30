@@ -362,6 +362,21 @@
         },
         "user_name": {
          "type": "string"
+        },
+        "weekly_ai_daily_limit": {
+         "type": "string"
+        },
+        "weekly_max_delay_hours": {
+         "type": "string"
+        },
+        "weekly_mode": {
+         "type": "string"
+        },
+        "weekly_publish_hours": {
+         "type": "string"
+        },
+        "weekly_questions": {
+         "type": "string"
         }
        }
       },
@@ -648,6 +663,21 @@
          "type": "string"
         },
         "user_name": {
+         "type": "string"
+        },
+        "weekly_ai_daily_limit": {
+         "type": "string"
+        },
+        "weekly_max_delay_hours": {
+         "type": "string"
+        },
+        "weekly_mode": {
+         "type": "string"
+        },
+        "weekly_publish_hours": {
+         "type": "string"
+        },
+        "weekly_questions": {
          "type": "string"
         }
        }
@@ -1440,6 +1470,21 @@
        "type": "string"
       },
       "user_name": {
+       "type": "string"
+      },
+      "weekly_ai_daily_limit": {
+       "type": "string"
+      },
+      "weekly_max_delay_hours": {
+       "type": "string"
+      },
+      "weekly_mode": {
+       "type": "string"
+      },
+      "weekly_publish_hours": {
+       "type": "string"
+      },
+      "weekly_questions": {
        "type": "string"
       }
      }
@@ -2608,6 +2653,12 @@
       "exam_date": {
        "type": "null"
       },
+      "exam_reuse": {
+       "type": "string"
+      },
+      "expected_materials": {
+       "type": "null"
+      },
       "icon": {
        "type": "null"
       },
@@ -3470,6 +3521,21 @@
        "type": "string"
       },
       "user_name": {
+       "type": "string"
+      },
+      "weekly_ai_daily_limit": {
+       "type": "string"
+      },
+      "weekly_max_delay_hours": {
+       "type": "string"
+      },
+      "weekly_mode": {
+       "type": "string"
+      },
+      "weekly_publish_hours": {
+       "type": "string"
+      },
+      "weekly_questions": {
        "type": "string"
       }
      }

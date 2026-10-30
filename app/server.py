@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault
+from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -476,6 +476,10 @@ def _full_sync():
         planner.generate_plan()
     if s["auto_tests"]:
         planner.create_weekly_tests()
+        try:
+            weekly.tick()
+        except Exception as e:  # noqa: BLE001
+            print(f"Wochentest-Takt: {e}")
     return f"{len(res['new_files'])} neue Dateien, {n} analysiert"
 
 
@@ -1156,7 +1160,7 @@ def tests(request: Request):
     limit = "" if entitlements.has(entitlements.user_of(request), "can_use_extended_test_history") else f" LIMIT {HISTORY_BASIC}"
     with db.cursor() as conn:
         rows = db.rows(conn, """SELECT id, subject, week_start, title, duration_min, created_at, started_at, submitted_at,
-                                       score, max_score, module_id, week_no, auto, questions FROM tests ORDER BY created_at DESC""" + limit)
+                                       score, max_score, module_id, week_no, auto, def_id, questions FROM tests WHERE COALESCE(user_id,'local')='local' ORDER BY created_at DESC""" + limit)
     for r in rows:
         try:
             r["question_count"] = len(json.loads(r.pop("questions") or "[]"))
@@ -1184,7 +1188,7 @@ def gen_test(body: dict = Body(...)):
 
 @app.post("/api/tests/generate-week")
 def gen_week_tests():
-    return _run_bg("Wochentests", lambda: len(planner.create_weekly_tests()))
+    return _run_bg("Wochentests", lambda: f"{len(planner.create_weekly_tests())} klassisch, {len(weekly.tick()['published'])} mit Seitenmarker")
 
 
 @app.get("/api/tests/{test_id}")
@@ -1199,7 +1203,8 @@ def get_test(test_id: int):
     t["questions"] = json.loads(t["questions"])
     if not t["submitted_at"]:
         for q in t["questions"]:
-            q.pop("answer", None)   # Loesung erst nach Abgabe sichtbar
+            for k in ("answer", "steps", "rubric", "refs", "from_exam", "exam_mode"):
+                q.pop(k, None)   # Loesung, Loesungsweg und Quellen erst nach Abgabe sichtbar
     t["answers"] = json.loads(t["answers"]) if t["answers"] else {}
     t["feedback"] = json.loads(t["feedback"]) if t["feedback"] else None
     return t
@@ -1219,6 +1224,10 @@ def submit_test(test_id: int, body: dict = Body(...)):
 @app.delete("/api/tests/{test_id}")
 def delete_test(test_id: int):
     with db.cursor() as conn:
+        t = _found(db.row(conn, "SELECT auto, module_id, week_no, def_id, submitted_at FROM tests WHERE id=?", (test_id,)), "Test")
+        # abgegebene gemeinsame Wochentests (app/weekly.py) bleiben fuer Rangliste und Lernverlauf
+        if t["def_id"] and t["submitted_at"]:
+            raise HTTPException(400, "Abgegebene gemeinsame Tests bleiben für Rangliste und Lernverlauf erhalten.")
         t = _found(db.row(conn, "SELECT auto, module_id, week_no FROM tests WHERE id=?", (test_id,)), "Test")
         # sonst legt der Sync (create_weekly_tests) denselben Wochentest sofort wieder an
         if t["auto"] and t["module_id"] is not None and t["week_no"] is not None:
@@ -1228,6 +1237,148 @@ def delete_test(test_id: int):
         conn.execute("UPDATE study_tasks SET test_id=NULL WHERE test_id=?", (test_id,))   # Aufgabe bietet dann "Test starten" an
         conn.execute("DELETE FROM tests WHERE id=?", (test_id,))
     return {"ok": True}
+
+
+# ----------------------------------------------------------------------------
+# Vorlesungs-Seitenmarker, gemeinsame Wochentests, Probeklausuren (app/weekly.py)
+# ----------------------------------------------------------------------------
+
+def _werr(e: Exception):
+    raise HTTPException(400 if isinstance(e, weekly.WeeklyError) else 500, str(e))
+
+
+@app.get("/api/markers")
+def api_markers(module_id: int | None = None, file_id: str | None = None):
+    with db.cursor() as conn:
+        if file_id:
+            weekly.revalidate_markers(conn, file_id)
+        return weekly.list_markers(conn, module_id, file_id)
+
+
+@app.get("/api/markers/preview")
+def api_marker_preview(file_id: str, page: int, lecture_date: str | None = None):
+    try:
+        with db.cursor() as conn:
+            return weekly.marker_preview(conn, file_id, page, lecture_date=lecture_date)
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.post("/api/markers")
+def api_marker_create(body: dict = Body(...)):
+    try:
+        with db.cursor() as conn:
+            return weekly.create_marker(conn, body["file_id"], int(body["page"]), lecture_date=body.get("lecture_date"),
+                                        topic=body.get("topic"), page_key=body.get("page_key"))
+    except KeyError as e:
+        raise HTTPException(400, f"Feld fehlt: {e}")
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.patch("/api/markers/{marker_id}")
+def api_marker_update(marker_id: int, body: dict = Body(...)):
+    try:
+        with db.cursor() as conn:
+            return weekly.update_marker(conn, marker_id, page=body.get("page"), lecture_date=body.get("lecture_date"),
+                                        topic=body.get("topic"), page_key=body.get("page_key"))
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.delete("/api/markers/{marker_id}")
+def api_marker_delete(marker_id: int):
+    try:
+        with db.cursor() as conn:
+            weekly.delete_marker(conn, marker_id)
+        return {"ok": True}
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.post("/api/markers/{marker_id}/release")
+def api_marker_release(marker_id: int, body: dict = Body(default={})):
+    try:
+        with db.cursor() as conn:
+            return weekly.release_marker(conn, marker_id, confirm=bool(body.get("confirm")))
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.get("/api/weekly/module/{module_id}")
+def api_weekly_module(module_id: int):
+    with db.cursor() as conn:
+        return weekly.module_overview(conn, module_id)
+
+
+@app.get("/api/weekly/defs/{def_id}")
+def api_weekly_def(def_id: int):
+    try:
+        with db.cursor() as conn:
+            return weekly.def_details(conn, def_id)
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.post("/api/weekly/defs/{def_id}/attempt")
+def api_weekly_attempt(def_id: int):
+    try:
+        with db.cursor() as conn:
+            return {"test_id": weekly.attempt_for(conn, def_id)}
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+
+
+@app.get("/api/weekly/ranking")
+def api_weekly_ranking(module_id: int, week_no: int | None = None):
+    with db.cursor() as conn:
+        return weekly.module_ranking(conn, module_id, week_no)
+
+
+@app.post("/api/weekly/tick")
+def api_weekly_tick():
+    # "Erneut versuchen": fehlgeschlagene Plaene bekommen wieder drei Versuche (nie veroeffentlicht ohne Pruefung)
+    with db.cursor() as conn:
+        conn.execute("UPDATE wt_plans SET attempts=0 WHERE status='fehlgeschlagen'")
+    return _run_bg("Wochentests", lambda: weekly.tick())
+
+
+@app.post("/api/weekly/mock-exam")
+def api_weekly_mock(body: dict = Body(...)):
+    mid = int(body.get("module_id") or 0)
+    full = bool(body.get("full"))
+    try:   # Vorpruefung sofort (z. B. "noch nicht alles markiert"), Erzeugung im Hintergrund
+        with db.cursor() as conn:
+            if not weekly.coverage(conn, mid)["segments"]:
+                raise weekly.WeeklyError("Noch kein Vorlesungsstoff markiert – Probeklausur nicht möglich.")
+    except Exception as e:  # noqa: BLE001
+        _werr(e)
+    return _run_bg("Probeklausur", lambda: weekly.create_mock_exam(mid, full=full)["test_id"])
+
+
+def _weekly_loop():
+    import time as _t
+    while True:
+        _t.sleep(600)
+        try:
+            with db.cursor() as conn:
+                if not db.get_settings(conn)["auto_tests"]:
+                    continue
+            if _bg_lock.acquire(blocking=False):
+                try:
+                    weekly.tick()
+                finally:
+                    _bg_lock.release()
+        except Exception as e:  # noqa: BLE001
+            print(f"Wochentest-Takt: {e}")
+
+
+@app.on_event("startup")
+def _start_weekly_loop():
+    import os
+    if os.environ.get("LERNAPP_NO_SCHEDULER"):
+        return
+    threading.Thread(target=_weekly_loop, daemon=True, name="wochentests").start()
 
 
 # ----------------------------------------------------------------------------
@@ -1542,11 +1693,15 @@ def api_modules_auto_assign():
 
 @app.patch("/api/modules/{module_id}")
 def api_module_patch(module_id: int, body: dict = Body(...)):
-    allowed = {"name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes"}
+    allowed = {"name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes", "expected_materials", "exam_reuse"}
     with db.cursor() as conn:
         before = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,))
         for k, v in body.items():
             if k in allowed:
+                if k == "expected_materials":
+                    v = json.dumps([x for x in (v or []) if x in weekly.EXPECTABLE])
+                if k == "exam_reuse" and v not in ("original", "paraphrase"):
+                    raise HTTPException(400, "exam_reuse: original oder paraphrase")
                 conn.execute(f"UPDATE modules SET {k}=? WHERE id=?", (v or None if k == "exam_date" else v, module_id))
         # Merker fuer eine selbst gewaehlte Farbe (app/colors.py): nur, wenn sich die Farbe wirklich aendert (die
         # Bearbeiten-Dialoge schicken sie auch unveraendert mit)

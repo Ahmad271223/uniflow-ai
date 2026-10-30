@@ -43,6 +43,11 @@ Uni & Noten, Community (vorbereitet), Einstellungen**. Rechts oben: Sync, Hell/D
   Mehr-Menü: Favorit, kopieren, drehen, Gliederung, Vorlage wechseln, Gehe zu, leeren, Papierkorb, Scrollrichtung,
   Seitenleiste links/rechts, Stift-/Handballenerkennung, Einzelseite/fortlaufend, Werkzeugleiste anpassen.
   Export: diese Seite / ausgewählte / alle, ohne Notizen, Drucken. Zubehör: Aufnehmen, Zoom-Ansicht, Lineal, Zeitmesser.
+- **Wochentests mit Seitenmarker (3.2)**: Im Skript „Vorlesung bis hier“ setzen – der Wochentest enthält nur Stoff bis
+  zu dieser Seite. Übungen, Musterlösungen und Altklausuren werden aufgabengenau per Inhalt zugeordnet; 15 Aufgaben
+  (4–5 kurz, 1–2 angelehnte Altklausuraufgaben), 24 h nach Vorlesungsende, gleiche Version für alle mit gleichem Stoffstand,
+  geprüft vor der Veröffentlichung, spätere Uploads als Nachtrag. Probeklausur getrennt und auf Anfrage.
+  Modul → „Lernfortschritt & Wochentests“. Details: `docs/WOCHENTESTS.md`.
 - **Tests & Wiederholung**: Testkarten pro Modul und Lehrwoche. Regel: höchstens ein automatischer Wochentest pro
   Modul und Lehrwoche (Unique-Index), nur bei neuen Inhalten; Materialien aus Vorlesung und allen Übungen.
 - **Uni & Noten**: alle Uni-Dienste (Stud.IP, ILIAS, QIS, IDM, Webmail, Matrix, LUHKI, GitLab, TIB, Mensa,

@@ -524,6 +524,10 @@ def _init_db(conn) -> None:
     # Nur aktuelle Semester einplanen (28.10.2026, app/semesters.py): einmalig alle Kurse nach der Regel schalten
     from . import semesters
     semesters.migrate(conn)
+    # Vorlesungs-Seitenmarker, Aufgabenindex, gemeinsame Wochentests (app/weekly.py, PR #6)
+    from . import scriptsearch, weekly
+    scriptsearch.ensure_table(conn)                 # Seitentexte (Skriptsuche), Grundlage des Aufgabenindex
+    weekly.ensure_schema(conn)
 
 
 def ensure_term(conn, university: str) -> None:

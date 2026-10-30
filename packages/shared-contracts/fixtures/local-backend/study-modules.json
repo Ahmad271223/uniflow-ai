@@ -6779,6 +6779,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -6811,6 +6813,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 10,
        "new_count": 8,
        "open_tasks": 1,
@@ -6844,6 +6848,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -6871,6 +6877,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -6898,6 +6906,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 5,
        "new_count": 5,
        "open_tasks": 0,
@@ -6925,6 +6935,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -6952,6 +6964,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -6979,6 +6993,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -7013,7 +7029,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -7922,7 +7940,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -8577,7 +8597,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [],
       "weeks": [],
@@ -8609,7 +8631,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -8715,7 +8739,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -9075,7 +9101,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -9234,7 +9262,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -9273,7 +9303,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -9354,6 +9386,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -9383,6 +9417,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 10,
        "new_count": 8,
        "open_tasks": 1,
@@ -9416,6 +9452,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9443,6 +9481,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -9470,6 +9510,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 5,
        "new_count": 5,
        "open_tasks": 0,
@@ -9497,6 +9539,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -9524,6 +9568,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9551,6 +9597,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9585,7 +9633,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -10491,7 +10541,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -11152,6 +11204,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -11179,6 +11233,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 10,
        "new_count": 8,
        "open_tasks": 1,
@@ -11206,6 +11262,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11233,6 +11291,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -11260,6 +11320,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 5,
        "new_count": 5,
        "open_tasks": 0,
@@ -11287,6 +11349,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -11314,6 +11378,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11341,6 +11407,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11375,7 +11443,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -11726,7 +11796,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -11748,7 +11820,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 1
+      "color_custom": 1,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -11770,7 +11844,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -11848,7 +11924,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 1
+      "color_custom": 1,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -11870,7 +11948,9 @@
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 45.5,
-      "color_custom": 1
+      "color_custom": 1,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -11892,7 +11972,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -11923,7 +12005,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      }
     },
     {
@@ -12061,6 +12145,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 11,
        "new_count": 9,
        "open_tasks": 1,
@@ -12094,6 +12180,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12121,6 +12209,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -12148,6 +12238,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 4,
        "new_count": 4,
        "open_tasks": 0,
@@ -12175,6 +12267,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -12202,6 +12296,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12229,6 +12325,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12256,6 +12354,8 @@
        "weekly_test": 0,
        "test_minutes": 45.5,
        "color_custom": 1,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -12288,6 +12388,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12315,6 +12417,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 1,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12342,6 +12446,8 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12376,7 +12482,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -13089,7 +13197,9 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
-       "color_custom": 0
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase"
       },
       "courses": [
        {
@@ -13389,7 +13499,9 @@
     "active": 1,
     "weekly_test": 0,
     "test_minutes": 45.5,
-    "color_custom": 1
+    "color_custom": 1,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 2,
@@ -13405,7 +13517,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 3,
@@ -13421,7 +13535,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 4,
@@ -13437,7 +13553,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 5,
@@ -13453,7 +13571,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 6,
@@ -13469,7 +13589,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 7,
@@ -13485,7 +13607,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 8,
@@ -13501,7 +13625,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 9,
@@ -13517,7 +13643,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 10,
@@ -13533,7 +13661,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 1
+    "color_custom": 1,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 11,
@@ -13549,7 +13679,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    }
   ],
   "courses": [

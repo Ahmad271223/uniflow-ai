@@ -1,6 +1,7 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
 import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=32";
-import { PdfEditor } from "./editor.js?v=43";
+import { PdfEditor } from "./editor.js?v=44";
+import { setupLectureMarker } from "./views-weekly.js?v=1";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -23,7 +24,7 @@ export async function viewDoc(parts, params, view) {
       ${params.task ? `<button class="btn ok sm" id="docDone" title="Aufgabe erledigt">${icon("check", 14)}<span class="hide-s"> Erledigt</span></button>` : ""}
       <select class="input doc-state" id="docState" title="Status des Dokuments"><option value="neu" ${f.status === "neu" ? "selected" : ""}>neu</option><option value="gelesen" ${f.status === "gelesen" || f.status === "neu" ? "selected" : ""}>gelesen</option><option value="erledigt" ${f.status === "erledigt" ? "selected" : ""}>erledigt</option></select>
       <button class="btn ghost icon sm" id="docFav" title="Favorit" style="color:${f.favorite ? "var(--warn)" : "var(--muted)"}">${icon("star", 16)}</button>
-      <button class="btn ghost sm" id="docNotes" title="Notizfläche">${icon("note", 16)}<span class="hide-s"> Notizen</span></button><button class="btn ghost sm" id="docSplit" title="Zweites Dokument daneben öffnen">${icon("columns", 16)}<span class="hide-s"> Geteilt</span></button><button class="btn ghost icon sm" id="docFull" title="Vollbild">${icon("maximize", 16)}</button></div>
+      ${f.module_id && /\.pdf$/i.test(f.name || f.local_path || "") && f.course_id !== "__user__" ? `<button class="btn ghost sm doc-lecmark" id="docLecMark" title="Vorlesung bis hier: letzte behandelte Seite markieren">${icon("bookmark", 16)}<span class="hide-s"> Vorlesung bis hier</span></button>` : ""}<button class="btn ghost sm" id="docNotes" title="Notizfläche">${icon("note", 16)}<span class="hide-s"> Notizen</span></button><button class="btn ghost sm" id="docSplit" title="Zweites Dokument daneben öffnen">${icon("columns", 16)}<span class="hide-s"> Geteilt</span></button><button class="btn ghost icon sm" id="docFull" title="Vollbild">${icon("maximize", 16)}</button></div>
     <button class="fs-exit" id="fsExit" title="Vollbild verlassen">${icon("x", 15)} Vollbild beenden</button>
     <div class="doc-panes ${hand}" id="docPanes"><div class="doc-pane" id="paneA"></div><div class="split-handle" id="splitHandle" hidden title="Breite ziehen"><i></i></div><div class="doc-pane" id="paneB" hidden></div><div class="notes-pane" id="paneN" hidden><div class="nh">${icon("note", 16)} Eigene Notizen<span class="spacer"></span><span class="muted tiny" id="noteSaved"></span></div><textarea id="noteArea" placeholder="Hier frei schreiben und rechnen. Wird automatisch gespeichert.&#10;Für Handschrift: im Editor eine leere Notizseite einfügen (Seite +)."></textarea></div></div>`;
   renderTabs(id);
@@ -79,7 +80,8 @@ export async function viewDoc(parts, params, view) {
   };
   $("#docSplit").onclick = async () => { if (split) return closeSplit(); const pick = await pickDocument(f.module_id); if (pick) openSplit(pick); };
   const isExercise = ["uebung", "loesung", "klausur"].includes(f.doc_type) || /übung|uebung|blatt|ueb\d|aufgabe/i.test(`${f.name} ${f.studip_folder || ""}`);
-  if (edA && isExercise) setupScriptHint(edA, f, openSplit);   // Modul ermittelt der Server aus der Datei
+  if (edA && isExercise) setupScriptHint(edA, f, openSplit);
+  if (edA && $("#docLecMark")) setupLectureMarker(edA, f, $("#docLecMark")).catch(() => {});   // Modul ermittelt der Server aus der Datei
 }
 // ---------------------------------------------------------------- Skriptsuche: unaufdringlicher Hinweis zur aktuellen Aufgabe
 function setupScriptHint(ed, f, openSplit) {

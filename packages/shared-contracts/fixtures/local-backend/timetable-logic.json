@@ -3344,6 +3344,8 @@
      "weekly_test": 1,
      "test_minutes": null,
      "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase",
      "file_count": 7,
      "new_count": 4,
      "open_tasks": 0,
@@ -3392,6 +3394,8 @@
      "weekly_test": 1,
      "test_minutes": null,
      "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase",
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -3440,6 +3444,8 @@
      "weekly_test": 1,
      "test_minutes": null,
      "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase",
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -7362,6 +7368,8 @@
      "weekly_test": 1,
      "test_minutes": null,
      "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase",
      "file_count": 7,
      "new_count": 4,
      "open_tasks": 0,
@@ -7409,6 +7417,8 @@
      "weekly_test": 1,
      "test_minutes": null,
      "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase",
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -7457,6 +7467,8 @@
      "weekly_test": 1,
      "test_minutes": null,
      "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase",
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -14226,7 +14238,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 2,
@@ -14242,7 +14256,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 3,
@@ -14258,7 +14274,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    },
    {
     "id": 4,
@@ -14274,7 +14292,9 @@
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
-    "color_custom": 0
+    "color_custom": 0,
+    "expected_materials": null,
+    "exam_reuse": "paraphrase"
    }
   ]
  }

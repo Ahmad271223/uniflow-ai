@@ -1,4 +1,5 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
+import { renderWeeklyBox } from "./views-weekly.js?v=1";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=32";
 
 // ================================================================ MODULE
@@ -30,7 +31,7 @@ async function viewModule(id, view) {
   const render = () => {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
-    const body = tab === "overview" ? d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
+    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small">Lade Wochentests…</div></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
         <div class="wb">${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
@@ -45,6 +46,7 @@ async function viewModule(id, view) {
     $$(".week-block .wh", view).forEach(h => h.onclick = e => { if (e.target.closest(".ai-week")) return; const wb = $(".wb", h.parentElement); wb.hidden = !wb.hidden; });
     $$(".ai-week", view).forEach(b => b.onclick = () => summarizeWeek(d.weeks.find(w => w.week === +b.dataset.w), m));
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
+    if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
   };
   render();
 }
@@ -70,7 +72,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted">⏳ Die KI liest die Vorlesungsfolien dieser Woche…</div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=43"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=44"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -79,7 +81,7 @@ export async function viewExams(parts, params, view) {
   const [tests, mods, cards] = await Promise.all([api("/tests"), api("/modules"), api("/flashcards?due=true")]);
   const modByName = Object.fromEntries(mods.map(m => [m.name, m]));
   const groups = {}; tests.forEach(t => { const k = (t.module_id || t.subject) + ":" + (t.week_no ?? t.week_start); (groups[k] ||= []).push(t); });
-  const cardsHtml = tests.length ? Object.values(groups).sort((a, b) => (b[0].week_start || "").localeCompare(a[0].week_start || "")).map(g => g.map(t => { const m = modByName[t.subject]; const pct = t.submitted_at ? Math.round(100 * t.score / t.max_score) : null; return `<div class="card test-card" style="--mc:${m?.color || "var(--accent)"}"><div class="row between"><div class="row"><span class="dot" style="background:${m?.color || "var(--accent)"}"></span><b>${esc(shortName(t.subject))}</b></div><div class="row test-head-r">${t.auto ? `<span class="badge neutral">Wochentest</span>` : `<span class="badge info">manuell</span>`}<button class="btn ghost icon test-del" data-del="${t.id}" title="Test löschen" aria-label="Test löschen">${icon("trash", 16)}</button></div></div>
+  const cardsHtml = tests.length ? Object.values(groups).sort((a, b) => (b[0].week_start || "").localeCompare(a[0].week_start || "")).map(g => g.map(t => { const m = modByName[t.subject]; const pct = t.submitted_at ? Math.round(100 * t.score / t.max_score) : null; return `<div class="card test-card" style="--mc:${m?.color || "var(--accent)"}"><div class="row between"><div class="row"><span class="dot" style="background:${m?.color || "var(--accent)"}"></span><b>${esc(shortName(t.subject))}</b></div><div class="row test-head-r">${t.def_id ? `<span class="badge ok" title="Gemeinsamer Wochentest, Stoff bis zum Seitenmarker">${t.week_no ? "Wochentest" : "Probeklausur"}</span>` : t.auto ? `<span class="badge neutral">Wochentest</span>` : `<span class="badge info">manuell</span>`}${t.def_id && t.submitted_at ? "" : `<button class="btn ghost icon test-del" data-del="${t.id}" title="Test löschen" aria-label="Test löschen">${icon("trash", 16)}</button>`}</div></div>
       <div class="small muted" style="margin:.3rem 0">${t.week_no ? `Lehrwoche ${t.week_no}` : t.week_start ? `Woche ${fmtDate(t.week_start)}` : ""} · ${t.duration_min} min · ${t.question_count || "?"} Aufgaben</div>
       <div class="small" style="min-height:2.6em">${esc((t.title || "").replace(/^Wochentest\s+[^–-]+[–-]\s*/, "").replace(/\(.*?Minuten.*?\)/, "").trim())}</div>
       ${pct !== null ? `<div class="progress ${pct >= 60 ? "ok" : ""}" style="margin:.5rem 0 .3rem"><i style="width:${pct}%;${pct < 60 ? "background:var(--bad)" : ""}"></i></div><div class="row between small"><span>${Math.round(t.score)}/${Math.round(t.max_score)} Punkte (${pct} %)</span><a class="btn test-go" href="#/exams/${t.id}">Ansehen</a></div>` : `<div class="row between small" style="margin-top:.5rem"><span class="muted">${t.started_at ? "begonnen" : "noch nicht gestartet"}</span><a class="btn primary test-go" href="#/exams/${t.id}">${icon("play", 15)} ${t.started_at ? "Fortsetzen" : "Starten"}</a></div>`}

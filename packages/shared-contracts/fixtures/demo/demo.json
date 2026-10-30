@@ -723,7 +723,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -1180,6 +1182,26 @@
        {
         "key": "user_name",
         "value": ""
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -1222,7 +1244,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -1679,6 +1703,26 @@
        {
         "key": "user_name",
         "value": ""
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -1845,6 +1889,26 @@
        {
         "key": "user_name",
         "value": ""
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -1993,6 +2057,26 @@
        {
         "key": "user_name",
         "value": ""
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -2302,7 +2386,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -2629,6 +2715,26 @@
        {
         "key": "user_name",
         "value": "Testperson"
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -2653,7 +2759,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        },
        {
         "id": 2,
@@ -2669,7 +2777,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -3310,6 +3420,26 @@
        {
         "key": "user_name",
         "value": "Testperson"
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -3352,7 +3482,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        },
        {
         "id": 2,
@@ -3368,7 +3500,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -4058,6 +4192,26 @@
        {
         "key": "user_name",
         "value": "Testperson"
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -4100,7 +4254,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -4438,6 +4594,26 @@
        {
         "key": "user_name",
         "value": "Testperson"
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -4462,7 +4638,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        },
        {
         "id": 3,
@@ -4478,7 +4656,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -5126,6 +5306,26 @@
        {
         "key": "user_name",
         "value": "Testperson"
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },
@@ -5168,7 +5368,9 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
-        "color_custom": 0
+        "color_custom": 0,
+        "expected_materials": null,
+        "exam_reuse": "paraphrase"
        }
       ],
       "courses": [
@@ -5506,6 +5708,26 @@
        {
         "key": "user_name",
         "value": "Testperson"
+       },
+       {
+        "key": "weekly_ai_daily_limit",
+        "value": "8"
+       },
+       {
+        "key": "weekly_max_delay_hours",
+        "value": "48"
+       },
+       {
+        "key": "weekly_mode",
+        "value": "marker"
+       },
+       {
+        "key": "weekly_publish_hours",
+        "value": "24"
+       },
+       {
+        "key": "weekly_questions",
+        "value": "15"
        }
       ]
      },

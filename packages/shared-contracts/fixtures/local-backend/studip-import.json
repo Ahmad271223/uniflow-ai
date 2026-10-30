@@ -3372,6 +3372,8 @@
       "weekly_test": 1,
       "test_minutes": null,
       "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase",
       "file_count": 10,
       "new_count": 10,
       "open_tasks": 0,
@@ -3399,6 +3401,8 @@
       "weekly_test": 1,
       "test_minutes": null,
       "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase",
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -3426,6 +3430,8 @@
       "weekly_test": 1,
       "test_minutes": null,
       "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase",
       "file_count": 2,
       "new_count": 2,
       "open_tasks": 0,
@@ -3459,7 +3465,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      },
      "courses": [
       {
@@ -4086,7 +4094,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      },
      "courses": [
       {
@@ -4191,7 +4201,9 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
-      "color_custom": 0
+      "color_custom": 0,
+      "expected_materials": null,
+      "exam_reuse": "paraphrase"
      },
      "courses": [
       {
@@ -4618,7 +4630,9 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
-     "color_custom": 0
+     "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase"
     },
     {
      "id": 2,
@@ -4634,7 +4648,9 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
-     "color_custom": 0
+     "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase"
     },
     {
      "id": 3,
@@ -4650,7 +4666,9 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
-     "color_custom": 0
+     "color_custom": 0,
+     "expected_materials": null,
+     "exam_reuse": "paraphrase"
     }
    ]
   }
