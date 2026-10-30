@@ -58,8 +58,13 @@ def test_pkce_and_authorization_url(cg):
     assert q["resource"] == "https://api.openai.com/v1" and q["response_type"] == "code"
     assert q["redirect_uri"] == "http://127.0.0.1:1455/auth/callback" and "localhost" not in q["redirect_uri"]
     assert (q["state"], q["nonce"], q["code_challenge"], q["code_challenge_method"]) == ("st", "no", challenge, "S256")
-    again = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.build_auth_url("oaiapp_x", host, "http://127.0.0.1:2/auth/callback", "s", "n", "c", id_token_hint="idt")).query))
-    assert again["client_id"] == "oaiapp_x" and "agent_name_hint" not in again and again["id_token_hint"] == "idt"
+    again = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.build_auth_url("oaiapp_x", host, "http://127.0.0.1:2/auth/callback", "s", "n", "c", login_hint="ich@example.org")).query))
+    assert again["client_id"] == "oaiapp_x" and "agent_name_hint" not in again and again["login_hint"] == "ich@example.org"
+    assert "id_token_hint" not in again and "prompt" not in again, "kein Token in der Browser-Adresse, keine erzwungene Zustimmung"
+    consent = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.build_auth_url("oaiapp_x", host, "r", "s", "n", "c", reconsent=True)).query))
+    assert consent["prompt"] == "consent" and "login_hint" not in consent
+    fresh = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.build_auth_url(None, host, "r", "s", "n", "c", login_hint="x@y")).query))
+    assert "login_hint" not in fresh, "bei der Erstregistrierung gibt es kein Profil"
 
 
 def test_callback_rejects_wrong_state_and_denial_without_exchange(cg):
@@ -236,3 +241,71 @@ def test_api_endpoints_local(app, cg, monkeypatch):
     assert st == 400 and d["code"] == "chatgpt_model_invalid"
     st, d = j(asgi_call(app, "POST", "/api/integrations/chatgpt/disconnect", body="{}"))
     assert (st, d) == (200, {"connected": False}) and not cg.connected()
+
+
+# ================================================================ Abgleich mit dem Devkit (30.10.2026)
+def test_start_uses_login_hint_reconsent_and_new_account(cg, monkeypatch):
+    _login(cg, monkeypatch)
+    urls = []
+    monkeypatch.setattr(cg, "open_url", lambda u: urls.append(u) or True)
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.start()["auth_url"]).query))
+    assert q["client_id"] == "oaiapp_test" and q["login_hint"] == "ich@example.org" and "prompt" not in q
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.start(reconsent=True)["auth_url"]).query))
+    assert q["prompt"] == "consent" and q["login_hint"] == "ich@example.org"
+    host = cg.host_id()
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(cg.start(new_account=True)["auth_url"]).query))
+    d = cg.load()
+    assert q["client_id"] == "dynamic_agent_client" and q["agent_name_hint"] == "Studora" and "login_hint" not in q
+    assert "client_id" not in d and "credentials" not in d and "profile" not in d and d["host_id"] == host, "Rechnerkennung bleibt"
+    assert len(urls) == 3
+
+
+def test_relogin_with_other_account_is_rejected(cg, monkeypatch):
+    _login(cg, monkeypatch)
+    monkeypatch.setattr(cg, "verify_id_token", lambda token, client_id, nonce, now=None: {"sub": "u2", "email": "anderer@example.org"})
+    monkeypatch.setattr(cg, "http_post_form", lambda url, fields: _token_response(access_token="at-9"))
+    with pytest.raises(cg.ChatGPTError) as e:
+        cg.complete_login(cg.load(), "oaiapp_test", "code-2", "v", "http://127.0.0.1:1/auth/callback", "n")
+    assert e.value.code == "chatgpt_account_mismatch" and e.value.status == 409
+    d = cg.load()
+    assert d["profile"]["sub"] == "u1" and d["credentials"]["access_token"] == "at-1", "nichts ueberschrieben"
+    # Erneuerung mit rotiertem ID-Token eines anderen Kontos: neu anmelden
+    with pytest.raises(cg.ChatGPTError) as e:
+        cg.refresh(cg.load())
+    assert e.value.code == "chatgpt_login_needed" and cg.load()["needs_reauth"]
+    # Erneuerung ohne ID-Token oder mit demselben Konto geht wie bisher
+    cg.load(); d = cg.load(); d.pop("needs_reauth"); cg.save(d)
+    monkeypatch.setattr(cg, "http_post_form", lambda url, fields: {"access_token": "at-3", "expires_in": 60})
+    assert cg.refresh(cg.load())["credentials"]["access_token"] == "at-3"
+    monkeypatch.setattr(cg, "verify_id_token", lambda token, client_id, nonce, now=None: {"sub": "u1", "email": "ich@example.org"})
+    monkeypatch.setattr(cg, "http_post_form", lambda url, fields: _token_response(access_token="at-4", refresh_token="rt-4"))
+    assert cg.refresh(cg.load())["credentials"]["refresh_token"] == "rt-4"
+
+
+def test_earliest_refresh_at_delays_the_refresh(cg, monkeypatch):
+    now = time.time()
+    c = cg._credentials_from(_token_response(earliest_refresh_at=1_900_000_000))
+    assert c["earliest_refresh_at"] == 1_900_000_000.0
+    c = cg._credentials_from(_token_response(earliest_refresh_at="2030-01-01T00:00:00Z"))
+    assert c["earliest_refresh_at"] == 1_893_456_000.0
+    assert cg._credentials_from(_token_response(earliest_refresh_at="2030-01-01T00:00:00"))["earliest_refresh_at"] == 1_893_456_000.0, "ohne Zone = UTC"
+    assert "earliest_refresh_at" not in cg._credentials_from(_token_response(earliest_refresh_at="irgendwann"))
+    assert "earliest_refresh_at" not in cg._credentials_from(_token_response(earliest_refresh_at=True))
+    _login(cg, monkeypatch)
+    calls = []
+    monkeypatch.setattr(cg, "http_post_form", lambda url, fields: calls.append(fields) or {"access_token": "at-neu", "expires_in": 3600})
+    # kurz vor Ablauf, Erneuerung noch nicht erlaubt: das alte Token bleibt gueltig und wird genutzt
+    d = cg.load(); d["credentials"]["expires_at"] = now + 30; d["credentials"]["earliest_refresh_at"] = now + 600; cg.save(d)
+    assert cg.access_token() == "at-1" and not calls
+    # abgelaufen und Erneuerung noch nicht erlaubt: klare Meldung, kein Aufruf
+    d = cg.load(); d["credentials"]["expires_at"] = now - 1; cg.save(d)
+    with pytest.raises(cg.ChatGPTError) as e:
+        cg.access_token()
+    assert e.value.code == "chatgpt_refresh_not_ready" and e.value.status == 503 and not calls
+    # Sperre vorbei: erneuern
+    d = cg.load(); d["credentials"]["earliest_refresh_at"] = now - 1; cg.save(d)
+    assert cg.access_token() == "at-neu" and calls[0]["grant_type"] == "refresh_token"
+
+
+def test_status_points_to_usage_settings(cg):
+    assert cg.status()["usage_help_url"] == "https://chatgpt.com/settings/usage"

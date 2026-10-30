@@ -36,15 +36,18 @@ public enum ChatGPTProtocol {
     }
 
     /// `build_auth_url`: Erstregistrierung ohne eigene Client-ID (`dynamic_agent_client` + Name der App), sonst die
-    /// ausgestellte ID (dann auf Wunsch mit `id_token_hint`)
+    /// ausgestellte ID. `loginHint` (E-Mail des gespeicherten Profils, nur mit Client-ID) statt eines ID-Tokens:
+    /// gespeicherte Tokens gehoeren nicht in die Browser-Adresse (Devkit oauth.ts). `reconsent` erzwingt die
+    /// Zustimmungsseite (`prompt=consent`), auch bei der Erstregistrierung.
     public static func authorizeURL(clientID: String?, host: String, redirectURI: String, state: String, nonce: String,
-                                    challenge: String, idTokenHint: String? = nil) -> String {
+                                    challenge: String, loginHint: String? = nil, reconsent: Bool = false) -> String {
         var q: [(String, String)] = [("client_id", clientID ?? ChatGPTConstants.firstClientID)]
         if clientID == nil { q.append(("agent_name_hint", ChatGPTConstants.agentName)) }
         q += [("ext_agent_host_id", host), ("response_type", "code"), ("redirect_uri", redirectURI), ("scope", ChatGPTConstants.scope),
               ("resource", ChatGPTConstants.resource), ("state", state), ("nonce", nonce), ("code_challenge", challenge),
               ("code_challenge_method", "S256")]
-        if clientID != nil, let idTokenHint { q.append(("id_token_hint", idTokenHint)) }
+        if clientID != nil, let loginHint, !loginHint.isEmpty { q.append(("login_hint", loginHint)) }
+        if reconsent { q.append(("prompt", "consent")) }
         return ChatGPTConstants.authURL + "?" + urlencode(q)
     }
 
@@ -70,6 +73,20 @@ public enum ChatGPTProtocol {
         /// Sekunden seit 1970
         public var expiresAt: Double
         public var scopes: [String]
+        /// `earliest_refresh_at` der Token-Antwort (Sekunden seit 1970): vorher nicht erneuern (Devkit
+        /// `refresh_not_ready`). Fehlt bei aelteren gespeicherten Zustaenden und ohne Angabe von OpenAI.
+        public var earliestRefreshAt: Double? = nil
+
+        public init(accessToken: String, refreshToken: String?, idToken: String?, tokenType: String, expiresAt: Double,
+                    scopes: [String], earliestRefreshAt: Double? = nil) {
+            self.accessToken = accessToken
+            self.refreshToken = refreshToken
+            self.idToken = idToken
+            self.tokenType = tokenType
+            self.expiresAt = expiresAt
+            self.scopes = scopes
+            self.earliestRefreshAt = earliestRefreshAt
+        }
 
         /// Darf Studora das Abo nutzen? Nur, wenn OpenAI den Scope wirklich gewaehrt hat (`sharing`)
         public var sharing: Bool { scopes.contains(ChatGPTConstants.usageScope) }
@@ -87,7 +104,74 @@ public enum ChatGPTProtocol {
         }
     }
 
-    /// `_credentials_from`: alles zusammen ersetzen (auch das rotierte Refresh-Token); ohne Zugriffstoken ein Fehler
+    /// `_earliest_refresh`: Sekunden seit 1970 als Zahl, oder ISO-8601 wie `datetime.fromisoformat` (mit `Z`, mit
+    /// Versatz, oder ohne Zone = UTC); Wahrheitswerte und Unlesbares ergeben nil. Ohne Zeitzonendatenbank gerechnet.
+    static func earliestRefresh(_ v: PyJSON?) -> Double? {
+        switch v {
+        case .some(.int(let digits)): return Double(digits)
+        case .some(.float(let d)): return d
+        case .some(.string(let s)): return isoEpoch(PyText.strip(s))
+        default: return nil
+        }
+    }
+
+    /// `datetime.fromisoformat(s).timestamp()` fuer die erweiterte Schreibweise `YYYY-MM-DD[THH:MM[:SS[.f…]]][Zone]`,
+    /// Zone `Z`, `±HH:MM`, `±HHMM` oder `±HH`; ohne Zone UTC. Andere Schreibweisen (Kalenderwoche, Grundformat) nicht.
+    static func isoEpoch(_ s: String) -> Double? {
+        let u = Array(s.utf8)
+        var i = 0
+        func digits(_ n: Int) -> Int? {
+            guard i + n <= u.count else { return nil }
+            var v = 0
+            for k in i..<(i + n) {
+                guard u[k] >= 48, u[k] <= 57 else { return nil }
+                v = v * 10 + Int(u[k] - 48)
+            }
+            i += n
+            return v
+        }
+        func eat(_ c: UInt8) -> Bool { if i < u.count, u[i] == c { i += 1; return true }; return false }
+        guard let year = digits(4), eat(UInt8(ascii: "-")), let month = digits(2), eat(UInt8(ascii: "-")), let day = digits(2),
+              (1...12).contains(month), day >= 1, day <= BerlinClock.daysInMonth(year: year, month: month) else { return nil }
+        var hour = 0, minute = 0, second = 0, fraction = 0.0, offset = 0
+        if i < u.count, u[i] != UInt8(ascii: "Z"), u[i] != UInt8(ascii: "+"), u[i] != UInt8(ascii: "-") {
+            i += 1                                        // Trenner (T oder Leerzeichen, wie Python: ein beliebiges Zeichen)
+            guard let h = digits(2), eat(UInt8(ascii: ":")), let m = digits(2), h <= 23, m <= 59 else { return nil }
+            hour = h; minute = m
+            if eat(UInt8(ascii: ":")) {
+                guard let sec = digits(2), sec <= 59 else { return nil }
+                second = sec
+                if eat(UInt8(ascii: ".")) || eat(UInt8(ascii: ",")) {
+                    var scale = 0.1, any = false
+                    while i < u.count, u[i] >= 48, u[i] <= 57 { fraction += Double(u[i] - 48) * scale; scale /= 10; i += 1; any = true }
+                    guard any else { return nil }
+                }
+            }
+        }
+        if i < u.count {
+            if eat(UInt8(ascii: "Z")) {
+                guard i == u.count else { return nil }
+            } else {
+                let sign = u[i] == UInt8(ascii: "-") ? -1 : (u[i] == UInt8(ascii: "+") ? 1 : 0)
+                guard sign != 0 else { return nil }
+                i += 1
+                guard let oh = digits(2), oh <= 23 else { return nil }
+                var om = 0
+                if i < u.count {
+                    _ = eat(UInt8(ascii: ":"))
+                    guard let m = digits(2), m <= 59 else { return nil }
+                    om = m
+                }
+                guard i == u.count else { return nil }
+                offset = sign * (oh * 3600 + om * 60)
+            }
+        }
+        let days = BerlinClock.dayNumber(year: year, month: month, day: day)
+        return Double(days * 86400 + hour * 3600 + minute * 60 + second - offset) + fraction
+    }
+
+    /// `_credentials_from`: alles zusammen ersetzen (auch das rotierte Refresh-Token); ohne Zugriffstoken ein Fehler.
+    /// Nennt OpenAI `earliest_refresh_at`, wird vorher nicht erneuert.
     public static func credentials(from resp: PyJSON, previous: Credentials? = nil, now: Double) throws -> Credentials {
         guard case .string(let access)? = AIPrompts.get(resp, "access_token"), !access.isEmpty else {
             throw AIError("chatgpt_token_invalid", "Die Antwort von OpenAI enthaelt kein Zugriffstoken.")
@@ -101,7 +185,8 @@ public enum ChatGPTProtocol {
         }
         return Credentials(accessToken: access, refreshToken: text("refresh_token") ?? previous?.refreshToken,
                            idToken: text("id_token") ?? previous?.idToken, tokenType: text("token_type") ?? "Bearer",
-                           expiresAt: now + expiresIn(AIPrompts.get(resp, "expires_in")), scopes: scopes)
+                           expiresAt: now + expiresIn(AIPrompts.get(resp, "expires_in")), scopes: scopes,
+                           earliestRefreshAt: earliestRefresh(AIPrompts.get(resp, "earliest_refresh_at")))
     }
 
     // MARK: Responses API

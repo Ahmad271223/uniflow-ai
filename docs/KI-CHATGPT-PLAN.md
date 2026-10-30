@@ -197,3 +197,44 @@ Projekte sind ohne Antrag zugelassen. Damit lässt sich Phase 1 testen, ohne das
 | 4 | Datenschutzerklärung, App-Datenschutzangaben, Privacy Manifest, App-Prüfung | Inhaber + PC-Sitzung | Update im App Store |
 
 Kosten für UniFlow: keine laufenden KI-Kosten, kein zusätzlicher Server. Aufwand liegt in Phase 1–3.
+
+## 9. Stand 30.10.2026: Abgleich mit dem OpenAI-Cookbook und dem Devkit
+
+Der Inhaber hat am 30.10. das Cookbook „Integrating Sign in with ChatGPT in your Opensource App“ vorgelegt. Abgleich
+mit dem offiziellen Devkit (`github.com/openai/sign-in-with-chatgpt-devkit`, `packages/local/src/oauth.ts`):
+
+**Was schon gebaut war** (Python `app/chatgpt_login.py`, Swift `UniFlowCore/AI`): Host-ID je Installation
+(`ext_agent_host_id`), Erstregistrierung mit `client_id=dynamic_agent_client` und `agent_name_hint`, ausgestellte
+Client-ID vor dem Code-Tausch speichern, PKCE, `resource=https://api.openai.com/v1`, ID-Token gegen JWKS prüfen,
+`sharing` nur bei gewährtem `chatgpt.tokens.use.direct`, Erneuerung mit rotierendem Refresh-Token, Responses API,
+Modell-Liste. **Eine vorab vergebene Client-ID ist nicht nötig**; Abschnitt 4 Punkt 4 ist damit überholt.
+
+**Heute nachgezogen** (Python, Vertrag `shared-contracts/ai/contract.json`, Swift-Kern):
+
+| Punkt | Devkit | Studora |
+|---|---|---|
+| Anmeldung mit bekanntem Konto | `login_hint=<E-Mail>`; kein Token in der Browser-Adresse (der Browser-Start legt sie als Prozessargument offen) | `build_auth_url(login_hint=…)` statt `id_token_hint` |
+| Freigabe nachholen | `prompt=consent` | `start(reconsent=True)`, Knopf „Freigabe nachholen“ wenn `sharing` falsch |
+| Anderes Konto | neues Profil = neue Registrierung | `start(new_account=True)`: Client-ID, Profil, Zugangsdaten weg, Host-ID bleibt; Knopf „Anderes Konto verbinden“ |
+| Kontoabgleich | `account_mismatch`, wenn eine erneute Anmeldung oder ein rotiertes ID-Token ein anderes `sub` liefert | `chatgpt_account_mismatch` (409) bei der Anmeldung; bei der Erneuerung `needs_reauth` |
+| Erneuerung | `earliest_refresh_at` aus der Token-Antwort, vorher `refresh_not_ready` | Feld in den Zugangsdaten; `chatgpt_refresh_not_ready` (503), solange das alte Token noch gilt, wird es benutzt |
+| Nutzung verwalten | `https://chatgpt.com/settings/usage` | `USAGE_HELP_URL`, Swift `ChatGPTConstants.usageHelpURL` |
+
+Nicht übernommen: mehrere gespeicherte Profile je Installation (Devkit `listProfiles`/`selectProfile`). Studora ist je
+Rechner bzw. je Apple-Nutzer ein Konto; „Anderes Konto verbinden“ deckt den Wechsel ab.
+
+**Zulassung laut Cookbook (Stand 30.10.):** Die Nutzung des ChatGPT-Abos ist zum Start für **Open-Source-Projekte und
+lokal laufende persönliche Projekte** ohne Antrag verfügbar; **bezahlte oder gehostete Apps** sollen sich auf die
+Warteliste setzen. Das Repo `Ahmad271223/uniflow-ai` ist öffentlich (Open Source, noch ohne Lizenzdatei), die
+iPad-, Mac- und Windows-Apps laufen lokal, aber Studora Plus ist kostenpflichtig, und die Web-Version läuft gehostet.
+Daraus folgt:
+- Eigener PC / Windows / iPad lokal: technisch frei, Nutzung des Abos nie an einen Tarif gekoppelt
+  (`plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"] = False`). Ob eine verkaufte App mit offenem Quellcode als
+  „Open Source“ im Sinne von OpenAI gilt, muss der Inhaber bei OpenAI klären (Warteliste, Abschnitt 4 Punkt 2) und
+  eine Lizenzdatei ins Repo legen.
+- Gehosteter Dienst (Web): bleibt aus (`available()` = nicht gehostet), bis OpenAI freigibt.
+
+**Für die Mac-Sitzung (App, braucht Xcode):** `ChatGPTLink.available` im Release-Build nicht mehr an eine
+konfigurierte Client-ID binden (die dynamische Registrierung braucht keine); `beginLogin(redirectURI:newAccount:reconsent:)`
+aufrufen; Knöpfe „Freigabe nachholen“ und „Anderes Konto verbinden“ in den Einstellungen; Meldungen für
+`chatgpt_account_mismatch` und `chatgpt_refresh_not_ready`; `ChatGPTSessionTests` (nur Apple) laufen lassen.

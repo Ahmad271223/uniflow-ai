@@ -119,13 +119,16 @@ def _check_cases(ai) -> list[dict]:
 def _chatgpt(cl, backend) -> dict:
     auth = [
         {"client_id": None, "host": "urn:uuid:00000000-0000-4000-8000-000000000001", "redirect_uri": "http://127.0.0.1:53682/auth/callback",
-         "state": "st-1", "nonce": "no-1", "challenge": "ch-1", "id_token_hint": None},
+         "state": "st-1", "nonce": "no-1", "challenge": "ch-1", "login_hint": None, "reconsent": False},
         {"client_id": "oaiapp_testclient", "host": "urn:uuid:00000000-0000-4000-8000-000000000002", "redirect_uri": "http://127.0.0.1:1/auth/callback",
-         "state": "s t/+&=ä", "nonce": "n", "challenge": "c", "id_token_hint": "eyJ.hint.x"},
-        {"client_id": None, "host": "h", "redirect_uri": "r", "state": "s", "nonce": "n", "challenge": "c", "id_token_hint": "ignoriert"},
+         "state": "s t/+&=ä", "nonce": "n", "challenge": "c", "login_hint": "ich+x@beispiel.de", "reconsent": False},
+        {"client_id": "oaiapp_testclient", "host": "h", "redirect_uri": "r", "state": "s", "nonce": "n", "challenge": "c", "login_hint": None, "reconsent": True},
+        {"client_id": "oaiapp_testclient", "host": "h", "redirect_uri": "r", "state": "s", "nonce": "n", "challenge": "c", "login_hint": "a@b", "reconsent": True},
+        {"client_id": None, "host": "h", "redirect_uri": "r", "state": "s", "nonce": "n", "challenge": "c", "login_hint": "ignoriert", "reconsent": True},
     ]
     for a in auth:
-        a["url"] = cl.build_auth_url(a["client_id"], a["host"], a["redirect_uri"], a["state"], a["nonce"], a["challenge"], a["id_token_hint"])
+        a["url"] = cl.build_auth_url(a["client_id"], a["host"], a["redirect_uri"], a["state"], a["nonce"], a["challenge"],
+                                     login_hint=a["login_hint"], reconsent=a["reconsent"])
     import base64
     import hashlib
     pkce = [{"verifier": v, "challenge": base64.urlsafe_b64encode(hashlib.sha256(v.encode("ascii")).digest()).decode("ascii").rstrip("=")}
@@ -137,6 +140,12 @@ def _chatgpt(cl, backend) -> dict:
         ({"access_token": "at-3", "expires_in": "kaputt", "scope": "  openid   profile "}, None),
         ({"access_token": "", "expires_in": 10}, None),
         ({"refresh_token": "rt"}, None),
+        ({"access_token": "at-5", "expires_in": 600, "earliest_refresh_at": 1900000000}, None),
+        ({"access_token": "at-6", "expires_in": 600, "earliest_refresh_at": "2030-01-01T00:00:00Z"}, None),
+        ({"access_token": "at-7", "expires_in": 600, "earliest_refresh_at": "2030-01-01T02:00:00+02:00"}, None),
+        ({"access_token": "at-8", "expires_in": 600, "earliest_refresh_at": "2030-01-01T00:00:00"}, None),
+        ({"access_token": "at-9", "expires_in": 600, "earliest_refresh_at": "irgendwann"}, None),
+        ({"access_token": "at-10", "expires_in": 600, "earliest_refresh_at": True}, None),
     ]:
         try:
             c = cl._credentials_from(resp, prev)

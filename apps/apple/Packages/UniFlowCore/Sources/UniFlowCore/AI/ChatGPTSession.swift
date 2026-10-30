@@ -170,14 +170,36 @@ public actor ChatGPTSession {
 
     // MARK: Anmelden
 
-    /// Neuer Anmeldeversuch; die App oeffnet `url` und leitet die Rueckleitung an `completeLogin` weiter
+    /// Neuer Anmeldeversuch (`start`); die App oeffnet `url` und leitet die Rueckleitung an `completeLogin` weiter.
+    /// `newAccount`: anderes ChatGPT-Konto, also eine neue Registrierung (ausgestellte Client-ID, Profil und
+    /// Zugangsdaten weg, die Geraetekennung bleibt). `reconsent`: Zustimmungsseite erzwingen, um die Nutzung des
+    /// Abos freizugeben. `login_hint` ist die E-Mail des gespeicherten Profils, nur mit vorhandener Client-ID.
+    public func beginLogin(redirectURI: String, newAccount: Bool = false, reconsent: Bool = false) throws -> ChatGPTLoginAttempt {
+        if newAccount {
+            state.clientID = nil
+            state.credentials = nil
+            state.profile = nil
+            state.needsReauth = false
+            state.lastError = nil
+            modelsCache = nil
+            try persist()
+        }
+        return newAttempt(redirectURI: redirectURI, reconsent: reconsent)
+    }
+
+    /// Wie `beginLogin(redirectURI:newAccount:reconsent:)` ohne Zuruecksetzen; kann nichts speichern, wirft nicht
     public func beginLogin(redirectURI: String) -> ChatGPTLoginAttempt {
+        newAttempt(redirectURI: redirectURI, reconsent: false)
+    }
+
+    private func newAttempt(redirectURI: String, reconsent: Bool) -> ChatGPTLoginAttempt {
         var rng = SystemRandomNumberGenerator()
         let verifier = ChatGPTProtocol.newVerifier(using: &rng)
         let st = ChatGPTProtocol.randomToken(bytes: 32, using: &rng), nonce = ChatGPTProtocol.randomToken(bytes: 16, using: &rng)
+        let hint = state.clientID != nil ? state.profile?.email : nil
         let url = ChatGPTProtocol.authorizeURL(clientID: state.clientID, host: state.hostID, redirectURI: redirectURI, state: st,
                                                nonce: nonce, challenge: ChatGPTProtocol.challenge(for: verifier),
-                                               idTokenHint: state.credentials?.idToken)
+                                               loginHint: hint, reconsent: reconsent)
         let attempt = ChatGPTLoginAttempt(url: url, redirectURI: redirectURI, state: st, nonce: nonce, verifier: verifier,
                                           clientID: state.clientID, started: now())
         pending = attempt
@@ -236,6 +258,7 @@ public actor ChatGPTSession {
         let creds = try ChatGPTProtocol.credentials(from: resp, now: now())
         if let idToken = creds.idToken {
             let claims = try await verifyIDToken(idToken, clientID: clientID, nonce: flow.nonce)
+            try sameAccount(claims)                       // vor dem Speichern: bei fremdem Konto bleibt alles wie es war
             state.profile = .init(sub: claims["sub"]?.string, email: claims["email"]?.string,
                                   name: claims["name"]?.string ?? claims["given_name"]?.string)
         }
@@ -246,29 +269,62 @@ public actor ChatGPTSession {
         try persist()
     }
 
+    /// `_same_account`: eine erneute Anmeldung mit der gespeicherten Client-ID muss dasselbe ChatGPT-Konto liefern
+    /// (Devkit `account_mismatch`); ein anderes Konto gehoert zu einer neuen Registrierung (`beginLogin(newAccount:)`)
+    private func sameAccount(_ claims: JSONValue) throws {
+        guard let old = state.profile?.sub, !old.isEmpty, let new = claims["sub"]?.string, !new.isEmpty, new != old else { return }
+        throw AIError("chatgpt_account_mismatch", "Diese Anmeldung gehoert zu einem anderen ChatGPT-Konto. Bitte das "
+                      + "urspruengliche Konto waehlen oder in Studora „Anderes Konto verbinden“.")
+    }
+
     // MARK: Token
 
-    /// Gueltiges Zugriffstoken (erneuert 60 s vor Ablauf)
+    /// Gueltiges Zugriffstoken (`access_token`): erneuert 60 s vor Ablauf, aber nicht vor `earliest_refresh_at`;
+    /// ist das Token dann schon abgelaufen, `chatgpt_refresh_not_ready` (gleich noch einmal versuchen)
     public func accessToken() async throws -> String {
         guard status.connected, let c = state.credentials else { throw AIError("chatgpt_login_needed", "ChatGPT ist nicht verbunden.") }
         if state.needsReauth { throw AIError("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte neu verbinden.") }
-        if c.expiresAt - ChatGPTConstants.refreshMargin <= now() { try await refresh() }
+        let t = now()
+        if c.expiresAt - ChatGPTConstants.refreshMargin <= t {
+            if let earliest = c.earliestRefreshAt, earliest > t {
+                if c.expiresAt <= t {
+                    throw AIError("chatgpt_refresh_not_ready", "Die ChatGPT-Verbindung kann noch nicht erneuert werden – "
+                                  + "bitte gleich noch einmal versuchen.")
+                }
+            } else {
+                try await refresh()
+            }
+        }
         return state.credentials!.accessToken
     }
 
+    /// `refresh`: rotiertes Refresh-Token uebernehmen; ein mitgeliefertes ID-Token (Nonce entfaellt) muss zum
+    /// gespeicherten Konto passen, sonst neu anmelden
     private func refresh() async throws {
         guard let c = state.credentials, let rt = c.refreshToken, !rt.isEmpty, let clientID = state.clientID else {
             throw AIError("chatgpt_login_needed", "Bitte ChatGPT neu verbinden.")
         }
+        let resp: PyJSON
         do {
-            let resp = try await postForm(ChatGPTConstants.tokenURL, ChatGPTProtocol.refreshForm(refreshToken: rt, clientID: clientID))
-            state.credentials = try ChatGPTProtocol.credentials(from: resp, previous: c, now: now())
-            state.needsReauth = false
-            try persist()
+            resp = try await postForm(ChatGPTConstants.tokenURL, ChatGPTProtocol.refreshForm(refreshToken: rt, clientID: clientID))
         } catch let e as HTTPFailure where [400, 401, 403].contains(e.status) {
             try markReauth("Erneuerung abgelehnt: \(e.message)")
             throw AIError("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte neu verbinden.")
         }
+        let new = try ChatGPTProtocol.credentials(from: resp, previous: c, now: now())
+        if AIPrompts.truthy(AIPrompts.get(resp, "id_token")) {
+            do {
+                try sameAccount(try await verifyIDToken(AIPrompts.str(AIPrompts.get(resp, "id_token")), clientID: clientID, nonce: nil))
+            } catch {                                 // wie `except ChatGPTError`: Pruefung oder Abruf der Schluessel
+                guard error is AIError || error is HTTPFailure else { throw error }
+                let why = (error as? AIError)?.message ?? (error as? HTTPFailure)?.message ?? ""
+                try markReauth("Erneuerung: \(why)")
+                throw AIError("chatgpt_login_needed", "Die erneuerte Anmeldung passt nicht zu diesem Konto – bitte neu verbinden.")
+            }
+        }
+        state.credentials = new
+        state.needsReauth = false
+        try persist()
     }
 
     private func markReauth(_ why: String) throws {

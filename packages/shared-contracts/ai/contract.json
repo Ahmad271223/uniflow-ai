@@ -3324,7 +3324,7 @@
   "resource": "https://api.openai.com/v1",
   "responses_url": "https://api.openai.com/v1/responses",
   "models_url": "https://api.openai.com/v1/models",
-  "usage_help_url": "https://chatgpt.com/#settings",
+  "usage_help_url": "https://chatgpt.com/settings/usage",
   "scope": "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct",
   "usage_scope": "chatgpt.tokens.use.direct",
   "first_client_id": "dynamic_agent_client",
@@ -3370,7 +3370,8 @@
     "state": "st-1",
     "nonce": "no-1",
     "challenge": "ch-1",
-    "id_token_hint": null,
+    "login_hint": null,
+    "reconsent": false,
     "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=Studora&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000001&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=st-1&nonce=no-1&code_challenge=ch-1&code_challenge_method=S256"
    },
    {
@@ -3380,8 +3381,31 @@
     "state": "s t/+&=ä",
     "nonce": "n",
     "challenge": "c",
-    "id_token_hint": "eyJ.hint.x",
-    "url": "https://auth.openai.com/api/accounts/authorize?client_id=oaiapp_testclient&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000002&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s+t%2F%2B%26%3D%C3%A4&nonce=n&code_challenge=c&code_challenge_method=S256&id_token_hint=eyJ.hint.x"
+    "login_hint": "ich+x@beispiel.de",
+    "reconsent": false,
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=oaiapp_testclient&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000002&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s+t%2F%2B%26%3D%C3%A4&nonce=n&code_challenge=c&code_challenge_method=S256&login_hint=ich%2Bx%40beispiel.de"
+   },
+   {
+    "client_id": "oaiapp_testclient",
+    "host": "h",
+    "redirect_uri": "r",
+    "state": "s",
+    "nonce": "n",
+    "challenge": "c",
+    "login_hint": null,
+    "reconsent": true,
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=oaiapp_testclient&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256&prompt=consent"
+   },
+   {
+    "client_id": "oaiapp_testclient",
+    "host": "h",
+    "redirect_uri": "r",
+    "state": "s",
+    "nonce": "n",
+    "challenge": "c",
+    "login_hint": "a@b",
+    "reconsent": true,
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=oaiapp_testclient&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256&login_hint=a%40b&prompt=consent"
    },
    {
     "client_id": null,
@@ -3390,8 +3414,9 @@
     "state": "s",
     "nonce": "n",
     "challenge": "c",
-    "id_token_hint": "ignoriert",
-    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=Studora&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256"
+    "login_hint": "ignoriert",
+    "reconsent": true,
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=Studora&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256&prompt=consent"
    }
   ],
   "pkce": [
@@ -3485,6 +3510,106 @@
     },
     "previous": null,
     "error": "chatgpt_token_invalid"
+   },
+   {
+    "response": {
+     "access_token": "at-5",
+     "expires_in": 600,
+     "earliest_refresh_at": 1900000000
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-5",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [],
+     "earliest_refresh_at": 1900000000.0,
+     "expires_in_used": 600
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-6",
+     "expires_in": 600,
+     "earliest_refresh_at": "2030-01-01T00:00:00Z"
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-6",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [],
+     "earliest_refresh_at": 1893456000.0,
+     "expires_in_used": 600
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-7",
+     "expires_in": 600,
+     "earliest_refresh_at": "2030-01-01T02:00:00+02:00"
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-7",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [],
+     "earliest_refresh_at": 1893456000.0,
+     "expires_in_used": 600
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-8",
+     "expires_in": 600,
+     "earliest_refresh_at": "2030-01-01T00:00:00"
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-8",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [],
+     "earliest_refresh_at": 1893456000.0,
+     "expires_in_used": 600
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-9",
+     "expires_in": 600,
+     "earliest_refresh_at": "irgendwann"
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-9",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [],
+     "expires_in_used": 600
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-10",
+     "expires_in": 600,
+     "earliest_refresh_at": true
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-10",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [],
+     "expires_in_used": 600
+    }
    }
   ],
   "responses_request": [

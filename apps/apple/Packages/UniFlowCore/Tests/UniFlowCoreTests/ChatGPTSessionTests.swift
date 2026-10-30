@@ -119,13 +119,94 @@ final class ChatGPTSessionTests: XCTestCase {
         XCTAssertEqual(store.load()?.clientID, "oaiapp_new")
         XCTAssertEqual(store.load()?.credentials?.refreshToken, "rt-1")
 
-        // zweite Anmeldung: die ausgestellte ID, mit id_token_hint, ohne Namen der App
+        // zweite Anmeldung: die ausgestellte ID, mit login_hint (E-Mail, kein Token), ohne Namen der App
         let again = await s.beginLogin(redirectURI: "http://127.0.0.1:1/auth/callback")
         let q2 = query(again.url)
         XCTAssertEqual(q2["client_id"], "oaiapp_new")
         XCTAssertNil(q2["agent_name_hint"])
-        XCTAssertNotNil(q2["id_token_hint"])
+        XCTAssertEqual(q2["login_hint"], "test@example.invalid")
+        XCTAssertNil(q2["id_token_hint"], "gespeicherte Tokens gehoeren nicht in die Browser-Adresse")
+        XCTAssertNil(q2["prompt"])
         XCTAssertNotEqual(again.state, attempt.state)
+        XCTAssertNil(query(attempt.url)["login_hint"], "bei der Erstregistrierung gibt es kein Profil")
+    }
+
+    func testReconsentAndNewAccount() async throws {
+        let (s, fake, store) = await make()
+        _ = try await connect(s, fake)
+        let consent = try await s.beginLogin(redirectURI: "r", reconsent: true)
+        let q = query(consent.url)
+        XCTAssertEqual(q["prompt"], "consent")
+        XCTAssertEqual(q["login_hint"], "test@example.invalid")
+        XCTAssertEqual(q["client_id"], "oaiapp_new")
+        let host = store.load()?.hostID
+        try await s.setModel("gpt-test")
+        let fresh = try await s.beginLogin(redirectURI: "r", newAccount: true)
+        let q2 = query(fresh.url)
+        XCTAssertEqual(q2["client_id"], "dynamic_agent_client")
+        XCTAssertEqual(q2["agent_name_hint"], "Studora")
+        XCTAssertNil(q2["login_hint"])
+        XCTAssertNil(fresh.clientID)
+        let saved = try XCTUnwrap(store.load())
+        XCTAssertNil(saved.clientID)
+        XCTAssertNil(saved.credentials)
+        XCTAssertNil(saved.profile)
+        XCTAssertFalse(saved.needsReauth)
+        XCTAssertNil(saved.lastError)
+        XCTAssertEqual(saved.hostID, host, "Geraetekennung bleibt")
+        XCTAssertEqual(saved.model, "gpt-test", "Einstellungen bleiben")
+        let st = await s.status
+        XCTAssertFalse(st.connected || st.registered)
+        // die neue Registrierung laeuft wie die erste, mit anderem Konto
+        let token = idToken(claims(aud: "oaiapp_other", nonce: fresh.nonce).merging(["sub": "user-2", "email": "zwei@example.invalid"]) { $1 })
+        await fake.on(ChatGPTConstants.tokenURL) { _ in
+            (200, json(["access_token": "at-9", "refresh_token": "rt-9", "id_token": .string(token), "expires_in": 3600, "scope": "openid"]))
+        }
+        try await s.completeLogin(query: ["state": fresh.state, "code": "code-9", "client_id": "oaiapp_other"])
+        XCTAssertEqual(store.load()?.clientID, "oaiapp_other")
+        XCTAssertEqual(store.load()?.profile?.sub, "user-2")
+    }
+
+    func testReloginWithAnotherAccountIsRejected() async throws {
+        let (s, fake, store) = await make()
+        _ = try await connect(s, fake)
+        let saves = store.saves
+        let again = await s.beginLogin(redirectURI: "r")
+        let other = idToken(claims(aud: "oaiapp_new", nonce: again.nonce, exp: clock + 100_000)
+                                .merging(["sub": "user-2", "email": "zwei@example.invalid"]) { $1 })
+        await fake.on(ChatGPTConstants.tokenURL) { _ in
+            (200, json(["access_token": "at-2", "refresh_token": "rt-2", "id_token": .string(other), "expires_in": 3600, "scope": "openid"]))
+        }
+        await assertError(try await s.completeLogin(query: ["state": again.state, "code": "c", "client_id": "oaiapp_new"]),
+                          code: "chatgpt_account_mismatch", contains: "anderen ChatGPT-Konto")
+        XCTAssertEqual(store.saves, saves, "nichts gespeichert")
+        XCTAssertEqual(store.load()?.credentials?.accessToken, "at-1", "nichts ueberschrieben")
+        XCTAssertEqual(store.load()?.profile?.sub, "user-1")
+        let st = await s.status
+        XCTAssertTrue(st.connected && !st.needsReauth)
+        // Erneuerung mit rotiertem ID-Token eines anderen Kontos: neu anmelden
+        clock += 4000
+        await assertError(try await s.accessToken(), code: "chatgpt_login_needed", contains: "passt nicht zu diesem Konto")
+        let st2 = await s.status
+        XCTAssertTrue(st2.needsReauth)
+        XCTAssertEqual(store.load()?.credentials?.accessToken, "at-1", "die fremden Zugangsdaten werden nicht uebernommen")
+        // Erneuerung ohne ID-Token oder mit demselben Konto geht wie bisher
+        let (s2, fake2, store2) = await make()
+        _ = try await connect(s2, fake2)
+        await fake2.on(ChatGPTConstants.tokenURL) { _ in (200, json(["access_token": "at-3", "expires_in": 60])) }
+        clock += 4000
+        let plain = try await s2.accessToken()
+        XCTAssertEqual(plain, "at-3")
+        let same = idToken(claims(aud: "oaiapp_new", nonce: "egal"))
+        await fake2.on(ChatGPTConstants.tokenURL) { _ in
+            (200, json(["access_token": "at-4", "refresh_token": "rt-4", "id_token": .string(same), "expires_in": 3600]))
+        }
+        clock += 100
+        let rotated = try await s2.accessToken()
+        XCTAssertEqual(rotated, "at-4")
+        XCTAssertEqual(store2.load()?.credentials?.refreshToken, "rt-4")
+        let st3 = await s2.status
+        XCTAssertFalse(st3.needsReauth)
     }
 
     func testClientIDIsKeptEvenIfTheExchangeFails() async throws {
@@ -239,6 +320,37 @@ final class ChatGPTSessionTests: XCTestCase {
         XCTAssertTrue(store.load()?.credentials?.sharing == true, "Scopes der vorigen Anmeldung bleiben")
         count = await fake.count(ChatGPTConstants.tokenURL)
         XCTAssertEqual(count, 2)
+    }
+
+    func testEarliestRefreshAtDelaysTheRefresh() async throws {
+        let (s, fake, store) = await make()
+        _ = try await connect(s, fake)
+        await fake.on(ChatGPTConstants.tokenURL) { _ in (200, json(["access_token": "at-neu", "expires_in": 3600])) }
+        var d = try XCTUnwrap(store.load())
+        // kurz vor Ablauf, Erneuerung noch nicht erlaubt: das alte Token bleibt gueltig und wird genutzt
+        d.credentials?.expiresAt = clock + 30
+        d.credentials?.earliestRefreshAt = clock + 600
+        try store.save(d)
+        let t = self
+        let s1 = ChatGPTSession(store: store, http: fake, signature: ChatGPTAppleSignature(), now: { t.clock })
+        let still = try await s1.accessToken()
+        XCTAssertEqual(still, "at-1")
+        var calls = await fake.count(ChatGPTConstants.tokenURL)
+        XCTAssertEqual(calls, 1, "keine Erneuerung vor earliest_refresh_at")
+        // abgelaufen und Erneuerung noch nicht erlaubt: klare Meldung, kein Aufruf
+        clock += 31
+        await assertError(try await s1.accessToken(), code: "chatgpt_refresh_not_ready")
+        calls = await fake.count(ChatGPTConstants.tokenURL)
+        XCTAssertEqual(calls, 1)
+        let st = await s1.status
+        XCTAssertFalse(st.needsReauth, "kein Abmelden")
+        // Sperre vorbei: erneuern
+        clock += 600
+        let renewed = try await s1.accessToken()
+        XCTAssertEqual(renewed, "at-neu")
+        let f = form(await fake.last(ChatGPTConstants.tokenURL))
+        XCTAssertEqual(f["grant_type"], "refresh_token")
+        XCTAssertNil(store.load()?.credentials?.earliestRefreshAt, "die neue Antwort nennt keine Sperre")
     }
 
     func testRejectedRefreshNeedsANewLoginAndStopsCalling() async throws {

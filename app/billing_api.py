@@ -158,10 +158,12 @@ def _chatgpt_call(fn):
 @router.post("/api/integrations/chatgpt/connect")
 def chatgpt_connect(request: Request, body: dict | None = Body(default=None)):
     """Eigener PC: Anmeldung bei OpenAI im Browser beginnen (Loopback-Rueckleitung). Liefert die Adresse und den Port;
-    die Oberflaeche fragt danach den Stand ab. Im Dienst 503, solange OpenAI nicht freigegeben hat."""
+    die Oberflaeche fragt danach den Stand ab. Body: `new_account` (anderes Konto = neue Registrierung), `reconsent`
+    (Freigabe der Abo-Nutzung nachholen). Im Dienst 503, solange OpenAI nicht freigegeben hat."""
     cg = _chatgpt_local()
-    open_browser = not (isinstance(body, dict) and body.get("open_browser") is False)
-    return _chatgpt_call(lambda: cg.start(open_browser=open_browser))
+    b = body if isinstance(body, dict) else {}
+    open_browser = b.get("open_browser") is not False
+    return _chatgpt_call(lambda: cg.start(open_browser=open_browser, new_account=bool(b.get("new_account")), reconsent=bool(b.get("reconsent"))))
 
 
 @router.post("/api/integrations/chatgpt/disconnect")

@@ -28,6 +28,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -40,7 +41,7 @@ JWKS_URL = "https://auth.openai.com/.well-known/jwks.json"
 RESOURCE = "https://api.openai.com/v1"
 RESPONSES_URL = "https://api.openai.com/v1/responses"
 MODELS_URL = "https://api.openai.com/v1/models"
-USAGE_HELP_URL = "https://chatgpt.com/#settings"
+USAGE_HELP_URL = "https://chatgpt.com/settings/usage"
 SCOPE = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
 USAGE_SCOPE = "chatgpt.tokens.use.direct"
 FIRST_CLIENT_ID = "dynamic_agent_client"
@@ -133,15 +134,20 @@ def pkce() -> tuple[str, str]:
 
 
 def build_auth_url(client_id: str | None, host: str, redirect_uri: str, state: str, nonce: str, challenge: str,
-                   id_token_hint: str | None = None) -> str:
-    """Erstregistrierung ohne eigene Client-ID (`dynamic_agent_client` + Name der App), sonst die ausgestellte ID."""
+                   login_hint: str | None = None, reconsent: bool = False) -> str:
+    """Erstregistrierung ohne eigene Client-ID (`dynamic_agent_client` + Name der App), sonst die ausgestellte ID.
+    `login_hint` (E-Mail des gespeicherten Profils) statt eines ID-Tokens: gespeicherte Tokens gehoeren nicht in die
+    Browser-Adresse, die der Browser-Start als Prozessargument offenlegt (Devkit oauth.ts). `reconsent` erzwingt die
+    Zustimmungsseite, damit der Nutzer die Nutzung seines Abos nachtraeglich freigeben kann (`prompt=consent`)."""
     q: list[tuple[str, str]] = [("client_id", client_id or FIRST_CLIENT_ID)]
     if not client_id:
         q.append(("agent_name_hint", AGENT_NAME))
     q += [("ext_agent_host_id", host), ("response_type", "code"), ("redirect_uri", redirect_uri), ("scope", SCOPE),
           ("resource", RESOURCE), ("state", state), ("nonce", nonce), ("code_challenge", challenge), ("code_challenge_method", "S256")]
-    if client_id and id_token_hint:
-        q.append(("id_token_hint", id_token_hint))
+    if client_id and login_hint:
+        q.append(("login_hint", login_hint))
+    if reconsent:
+        q.append(("prompt", "consent"))
     return AUTH_URL + "?" + urllib.parse.urlencode(q)
 
 
@@ -238,8 +244,24 @@ def verify_id_token(token: str, client_id: str, nonce: str | None, now: float | 
 
 # ---------------------------------------------------------------- Token tauschen und erneuern
 
+def _earliest_refresh(v) -> float | None:
+    """`earliest_refresh_at` der Token-Antwort: Sekunden seit 1970 oder ISO-8601 (ohne Zone = UTC); sonst None."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str) and v.strip():
+        try:
+            t = datetime.fromisoformat(v.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).timestamp()
+    return None
+
+
 def _credentials_from(resp: dict, previous: dict | None = None) -> dict:
-    """Zugangsdaten aus einer Token-Antwort; alles zusammen ersetzen (auch das rotierte Refresh-Token)."""
+    """Zugangsdaten aus einer Token-Antwort; alles zusammen ersetzen (auch das rotierte Refresh-Token). Nennt OpenAI
+    `earliest_refresh_at`, wird vorher nicht erneuert (Devkit: `refresh_not_ready`)."""
     access = resp.get("access_token")
     if not isinstance(access, str) or not access:
         raise ChatGPTError("chatgpt_token_invalid", "Die Antwort von OpenAI enthaelt kein Zugriffstoken.", 502)
@@ -248,9 +270,13 @@ def _credentials_from(resp: dict, previous: dict | None = None) -> dict:
     except (TypeError, ValueError):
         expires_in = 3600
     scopes = [s for s in str(resp.get("scope") or "").split() if s] or list((previous or {}).get("scopes") or [])
-    return {"access_token": access, "refresh_token": resp.get("refresh_token") or (previous or {}).get("refresh_token"),
-            "id_token": resp.get("id_token") or (previous or {}).get("id_token"), "token_type": resp.get("token_type") or "Bearer",
-            "expires_at": time.time() + expires_in, "scopes": scopes, "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    out = {"access_token": access, "refresh_token": resp.get("refresh_token") or (previous or {}).get("refresh_token"),
+           "id_token": resp.get("id_token") or (previous or {}).get("id_token"), "token_type": resp.get("token_type") or "Bearer",
+           "expires_at": time.time() + expires_in, "scopes": scopes, "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    earliest = _earliest_refresh(resp.get("earliest_refresh_at"))
+    if earliest is not None:
+        out["earliest_refresh_at"] = earliest
+    return out
 
 
 def exchange_code(client_id: str, code: str, verifier: str, redirect_uri: str) -> dict:
@@ -262,12 +288,22 @@ def _profile_from(claims: dict) -> dict:
     return {"sub": claims.get("sub"), "email": claims.get("email"), "name": claims.get("name") or claims.get("given_name")}
 
 
+def _same_account(d: dict, claims: dict) -> None:
+    """Eine erneute Anmeldung mit der gespeicherten Client-ID muss dasselbe ChatGPT-Konto liefern (Devkit
+    `account_mismatch`); ein anderes Konto gehoert zu einer neuen Registrierung (`start(new_account=True)`)."""
+    old = (d.get("profile") or {}).get("sub")
+    if old and claims.get("sub") and claims["sub"] != old:
+        raise ChatGPTError("chatgpt_account_mismatch", "Diese Anmeldung gehoert zu einem anderen ChatGPT-Konto. Bitte das "
+                           "urspruengliche Konto waehlen oder in Studora „Anderes Konto verbinden“.", 409)
+
+
 def complete_login(d: dict, client_id: str, code: str, verifier: str, redirect_uri: str, nonce: str) -> dict:
     """Code tauschen, ID-Token pruefen, Zugangsdaten und Profil speichern. Liefert den gespeicherten Zustand."""
     resp = exchange_code(client_id, code, verifier, redirect_uri)
     creds = _credentials_from(resp)
     if creds.get("id_token"):
         claims = verify_id_token(creds["id_token"], client_id, nonce)
+        _same_account(d, claims)
         d["profile"] = _profile_from(claims)
     d["client_id"] = client_id
     d["credentials"] = creds
@@ -292,7 +328,14 @@ def refresh(d: dict | None = None) -> dict:
             mark_reauth(d, f"Erneuerung abgelehnt: {e.message}")
             raise ChatGPTError("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte neu verbinden.", 401)
         raise
-    d["credentials"] = _credentials_from(resp, creds)
+    new = _credentials_from(resp, creds)
+    if resp.get("id_token"):
+        try:
+            _same_account(d, verify_id_token(resp["id_token"], d["client_id"], None))
+        except ChatGPTError as e:
+            mark_reauth(d, f"Erneuerung: {e.message}")
+            raise ChatGPTError("chatgpt_login_needed", "Die erneuerte Anmeldung passt nicht zu diesem Konto – bitte neu verbinden.", 401)
+    d["credentials"] = new
     d.pop("needs_reauth", None)
     save(d)
     return d
@@ -307,8 +350,15 @@ def access_token() -> str:
             raise ChatGPTError("chatgpt_login_needed", "ChatGPT ist nicht verbunden.", 401)
         if d.get("needs_reauth"):
             raise ChatGPTError("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte neu verbinden.", 401)
-        if float(d["credentials"].get("expires_at") or 0) - REFRESH_MARGIN_S <= time.time():
-            d = refresh(d)
+        creds, now = d["credentials"], time.time()
+        if float(creds.get("expires_at") or 0) - REFRESH_MARGIN_S <= now:
+            earliest = creds.get("earliest_refresh_at")
+            if earliest is not None and float(earliest) > now:
+                if float(creds.get("expires_at") or 0) <= now:
+                    raise ChatGPTError("chatgpt_refresh_not_ready", "Die ChatGPT-Verbindung kann noch nicht erneuert werden – "
+                                       "bitte gleich noch einmal versuchen.", 503)
+            else:
+                d = refresh(d)
         return d["credentials"]["access_token"]
 
 
@@ -415,14 +465,20 @@ def _serve(flow: Flow) -> None:
         srv.server_close()
 
 
-def start(open_browser: bool = True) -> dict:
-    """Anmeldung beginnen: Loopback-Server, Browser oeffnen. Liefert {"auth_url", "port"}; nur ein Ablauf zugleich."""
+def start(open_browser: bool = True, new_account: bool = False, reconsent: bool = False) -> dict:
+    """Anmeldung beginnen: Loopback-Server, Browser oeffnen. Liefert {"auth_url", "port"}; nur ein Ablauf zugleich.
+    `new_account`: anderes ChatGPT-Konto, also eine neue Registrierung (ausgestellte Client-ID, Profil und Zugangsdaten
+    weg, die Rechnerkennung bleibt). `reconsent`: Zustimmungsseite erzwingen, um die Nutzung des Abos freizugeben."""
     global _flow
     _require_local()
     with _lock:
         if _flow and not _flow.done.is_set() and not _flow.expired:
             _flow.done.set()                          # alten Ablauf beenden, der Server-Thread raeumt auf
         d = load()
+        if new_account:
+            for k in ("client_id", "credentials", "profile", "needs_reauth", "last_error"):
+                d.pop(k, None)
+            save(d)
         host = host_id(d)
         client_id = d.get("client_id") or None
         srv = HTTPServer(("127.0.0.1", 0), _handler_class())
@@ -430,8 +486,8 @@ def start(open_browser: bool = True) -> dict:
         flow.server = srv
         srv.flow = flow                               # type: ignore[attr-defined]
         _flow = flow
-        hint = (d.get("credentials") or {}).get("id_token") if client_id else None
-        url = build_auth_url(client_id, host, flow.redirect_uri, flow.state, flow.nonce, flow.challenge, id_token_hint=hint)
+        hint = (d.get("profile") or {}).get("email") if client_id else None
+        url = build_auth_url(client_id, host, flow.redirect_uri, flow.state, flow.nonce, flow.challenge, login_hint=hint, reconsent=reconsent)
         threading.Thread(target=_serve, args=(flow,), name="uniflow-chatgpt-login", daemon=True).start()
     if open_browser:
         open_url(url)

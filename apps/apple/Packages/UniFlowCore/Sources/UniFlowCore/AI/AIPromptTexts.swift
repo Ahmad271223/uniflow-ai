@@ -55,7 +55,7 @@ public enum ChatGPTConstants {
     public static let resource = #"https://api.openai.com/v1"#
     public static let responsesURL = #"https://api.openai.com/v1/responses"#
     public static let modelsURL = #"https://api.openai.com/v1/models"#
-    public static let usageHelpURL = #"https://chatgpt.com/#settings"#
+    public static let usageHelpURL = #"https://chatgpt.com/settings/usage"#
     public static let scope = #"openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"#
     public static let usageScope = #"chatgpt.tokens.use.direct"#
     public static let firstClientID = #"dynamic_agent_client"#

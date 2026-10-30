@@ -124,7 +124,7 @@ final class AIContractTests: XCTestCase {
             func opt(_ k: String) -> String? { if case .string(let v)? = g(a, k) { return v }; return nil }
             let url = ChatGPTProtocol.authorizeURL(clientID: opt("client_id"), host: s(a, "host"), redirectURI: s(a, "redirect_uri"),
                                                    state: s(a, "state"), nonce: s(a, "nonce"), challenge: s(a, "challenge"),
-                                                   idTokenHint: opt("id_token_hint"))
+                                                   loginHint: opt("login_hint"), reconsent: g(a, "reconsent") == .bool(true))
             same(url, s(a, "url"), "Autorisierung \(s(a, "state"))")
         }
         for p in list(cg, "pkce") { XCTAssertEqual(ChatGPTProtocol.challenge(for: s(p, "verifier")), s(p, "challenge")) }
@@ -148,7 +148,10 @@ final class AIContractTests: XCTestCase {
             XCTAssertEqual(got.tokenType, s(e, "token_type"))
             XCTAssertEqual(got.scopes, list(e, "scopes").map { PyText.str($0) })
             XCTAssertEqual(got.expiresAt - 1000, Double(PyText.str(g(e, "expires_in_used") ?? .null)))
+            let earliest: Double? = { guard let v = g(e, "earliest_refresh_at"), v != .null else { return nil }; return Double(PyText.str(v)) }()
+            XCTAssertEqual(got.earliestRefreshAt, earliest, "earliest_refresh_at \(s(e, "access_token"))")
         }
+        XCTAssertTrue(list(cg, "credentials").contains { g(g($0, "credentials"), "earliest_refresh_at") != nil }, "Vertrag ohne earliest_refresh_at-Faelle")
         for r in list(cg, "responses_request") {
             let schema: JSONValue? = { guard let v = g(r, "schema"), v != .null else { return nil }; return v.json }()
             XCTAssertEqual(ChatGPTProtocol.responsesBody(model: s(r, "model"), system: s(r, "system"), prompt: s(r, "prompt"), schema: schema),
@@ -166,6 +169,42 @@ final class AIContractTests: XCTestCase {
                        ["grant_type", "client_id", "code", "code_verifier", "redirect_uri", "resource"])
         XCTAssertTrue(form.hasPrefix("grant_type=authorization_code&") && form.contains("code=c%2F1"))
         XCTAssertTrue(ChatGPTProtocol.refreshForm(refreshToken: "rt", clientID: "id").hasPrefix("grant_type=refresh_token&refresh_token=rt&client_id=id&resource="))
+    }
+
+    /// `earliest_refresh_at` wie `datetime.fromisoformat(...).timestamp()` jenseits der Vertragsfaelle
+    func testEarliestRefreshParsesLikePython() {
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2030-01-01"), 1_893_456_000, "nur Datum = Mitternacht UTC")
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2030-01-01 00:00"), 1_893_456_000, "Leerzeichen als Trenner, ohne Sekunden")
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2030-01-01T00:00:00.500Z"), 1_893_456_000.5)
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2030-01-01T02:00:00+0200"), 1_893_456_000)
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2030-01-01T02:00:00+02"), 1_893_456_000)
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2029-12-31T22:00:00-02:00"), 1_893_456_000)
+        XCTAssertEqual(ChatGPTProtocol.isoEpoch("2024-02-29T12:00:00Z"), 1_709_208_000, "Schaltjahr")
+        for bad in ["", "2030-02-30", "2030-13-01", "2030-01-01T24:00", "2030-01-01T00:00:00+25:00", "2030-01-01T00:00:00Zx", "irgendwann"] {
+            XCTAssertNil(ChatGPTProtocol.isoEpoch(bad), bad)
+        }
+        XCTAssertEqual(ChatGPTProtocol.earliestRefresh(.int("1900000000")), 1_900_000_000)
+        XCTAssertEqual(ChatGPTProtocol.earliestRefresh(.float(12.5)), 12.5)
+        XCTAssertEqual(ChatGPTProtocol.earliestRefresh(.string("  2030-01-01T00:00:00Z ")), 1_893_456_000, "wie strip()")
+        XCTAssertNil(ChatGPTProtocol.earliestRefresh(.bool(true)))
+        XCTAssertNil(ChatGPTProtocol.earliestRefresh(.string("")))
+        XCTAssertNil(ChatGPTProtocol.earliestRefresh(.null))
+        XCTAssertNil(ChatGPTProtocol.earliestRefresh(nil))
+    }
+
+    /// Gespeicherte Zustaende ohne `earliestRefreshAt` (vor dem Abgleich mit dem Devkit) laden weiter
+    func testStoredStateWithoutEarliestRefreshStillDecodes() throws {
+        let old = Data("""
+        {"hostID":"urn:uuid:1","clientID":"oaiapp_x","credentials":{"accessToken":"at","refreshToken":"rt","tokenType":"Bearer",
+        "expiresAt":1000,"scopes":["openid"]},"model":"","useForAI":true,"needsReauth":false}
+        """.utf8)
+        let st = try JSONDecoder().decode(ChatGPTState.self, from: old)
+        XCTAssertEqual(st.credentials?.accessToken, "at")
+        XCTAssertNil(st.credentials?.earliestRefreshAt)
+        var withIt = st
+        withIt.credentials?.earliestRefreshAt = 1_900_000_000
+        let again = try JSONDecoder().decode(ChatGPTState.self, from: JSONEncoder().encode(withIt))
+        XCTAssertEqual(again.credentials?.earliestRefreshAt, 1_900_000_000)
     }
 
     func testVerifierAndTokensHaveTheRightShape() {
