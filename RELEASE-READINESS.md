@@ -1,106 +1,143 @@
-# UniFlow AI – Release-Readiness (Zweig `develop`, 25.10.2026)
+# Studora – Release-Readiness (Zweig `develop`, 30.10.2026)
 
-> Neuester Stand: [`docs/LIVE-BLOCKER-TEST-2026-10-25.md`](docs/LIVE-BLOCKER-TEST-2026-10-25.md) (Live-Blocker-Test,
-> fünf behobene Blocker, Serverplanung nach Nutzerzahl).
+> Neuester Stand: `docs/BERICHT-CLOUD-SITZUNG-2026-10-30.md` (Testzahlen, Architektur, Nachtrag App-Lauf auf dem Mac)
+> und `docs/PLAN-WEB-ZUERST-2026-10-30.md` (Entscheidungen des Inhabers vom 30.10., Reihenfolge der Veröffentlichung).
 
-Kurzfassung: **Nicht release-bereit.** Server und Web-Editor sind getestet und gehärtet. Die iPad-App ist bis Phase 3
-im Simulator grün, Phase 4 kompiliert, alles danach ist **nicht gebaut**, weil GitHub Actions seit 25.10., 00:15 Uhr
-wegen der Abrechnung keine Jobs startet. Kein Test auf einem echten iPad oder Mac. `main` ist unverändert, kein Merge,
-kein Release.
+Kurzfassung: **Nicht release-bereit, aber alle Teile sind gebaut und automatisch geprüft.** Python 598, Swift-Kern
+776 (Linux 761), iPad-App 564 im Simulator, JS 38, Generatoren 21, Android 119, alles grün in lokalen Läufen (GitHub
+Actions sind seit dem 25.10. gesperrt). Was fehlt, liegt außerhalb des Codes: ein Server für den Dienst (nie in
+Betrieb), die Freigabe von Apple (am 28.10. abgelehnt), die Zulassung von OpenAI für den gehosteten Dienst, Konten
+bei Stripe und im Microsoft Partner Center, Rechtstexte, und jede Prüfung mit echten Geräten und echter KI. `main` ist
+unverändert, kein Merge, kein Release.
 
-## 1. Erfolgreich gebaut
+Reihenfolge nach Entscheidung des Inhabers vom 30.10.: **Web über den eigenen Dienst zuerst**, dann **Windows über den
+Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit Übernahme der Daten über das Konto.
 
-| Was | Wo | Commit |
-| --- | --- | --- |
-| UniFlowCore (Swift-Paket) | GitHub Actions: Linux (`swift:6.0-jammy`) und macOS 15 | bis `ecfdfab` jeder Lauf grün |
-| iPad-App inkl. Phase 4 (Editor-Funktionen, StoreKit-Code) | macOS 15, Xcode 16.4, iPad-Simulator | `ecfdfab` (App-Ziel kompiliert; Testziel scheiterte an einer Testdatei) |
-| Server (Python 3.14), Weboberfläche | lokal und CI | aktueller Stand |
+## 1. Gebaut und automatisch geprüft
 
-## 2. Erfolgreich getestet
-
-| Bereich | Tests | Wo | Stand |
+| Teil | Tests | Wo gelaufen | Datum |
 | --- | --- | --- | --- |
-| Server: Sicherheit, Datenverlust, Verträge, Migration, Kontingente | 42 | lokal (pytest) | aktuell |
-| Gemeinsame Zusammenführung Web | 10 | lokal (Node) | aktuell |
-| Swift-Kern: JSON, Zusammenführung, Journal, Sync (1000/5000 Striche, Upload-Überschneidung, Netzabbruch, Absturz, Speicherfehler, Konflikte, Neustart) | 37 | CI Linux + macOS | `ecfdfab` |
-| iPad: Strich-Identität, Pixel-Radierer, Lasso, Seitenkoordinaten, Overlay-Anforderung | 12 | CI iPad-Simulator | `6b699b4` |
-| Web-Editor: Konflikt mit zweitem Gerät auf derselben Seite, Entwurf beim Dauerschreiben | manuell mit simulierten Eingaben | eingebauter Browser | 25.10. |
-| Gehärteter Server mit echter Oberfläche (PDF-Anzeige, Speichern, Download statt Anzeige für `.py`) | manuell | Testinstanz `127.0.0.1:8766` mit Datenbank-Kopie | 25.10. |
+| Python-Server (Einzelplatz, Windows-Backend, gehosteter Dienst): Sicherheit, Verträge, Migration, Konto, Abgleich, Community, Abos, Probe und Stripe, Wochentests, Lernplan-Regel, PWA | 598 | Cloud-Container (Linux), zuletzt Commit `8d40053` | 30.10. |
+| Generatoren der Prüfdaten (`--check`) | 21 / 21 | Cloud | 30.10. |
+| Web: Zusammenführung, Seite drehen, Lösungen, Service-Worker-Regeln | 38 (Node 22) | Cloud | 30.10. |
+| Swift-Kern `UniFlowCore`: lokales Backend (118 `/api`-Pfade), Lernplan, Wochentests inkl. Hintergrund-Entscheidung, Sign in with ChatGPT, Abgleich, Journal | 776 (Mac) / 761 (Linux, Docker Swift 6.1) | Mac ×2, Cloud ×2 | 30.10. |
+| iPad-App (Xcode 27.2, Simulator iPad Pro 11, iOS 27.2): Build fehlerfrei, voller Lauf ×2 | 564 (2 übersprungen, nur auf Anforderung) | Mac | 30.10. abends |
+| Android (Kotlin-Kern und App) | 119 | Docker-Bild `android-sdk:35` | 27.10. |
+| Dienst-Paket `deploy/` (Image, Compose, Caddy, Backup) | `tests/test_deploy.py`; Container startet lokal `healthy` | Docker Desktop | 27.10. |
+| Windows-App 0.4.9 (Installer NSIS, MSIX für den Store) | `tests/test_desktop*.py`; Installer still installiert und geprüft | Workflow `windows.yml` | 27.10. (siehe Risiko „Actions“ unten) |
 
-## 3. Fehlgeschlagen
+## 2. Von Hand geprüft
 
-| Was | Ursache | Stand |
+| Was | Wie | Datum |
 | --- | --- | --- |
-| Apple-Läufe `d801e9e`, `df90001`, `4ef3377`, `ecfdfab` | echte Kompilierfehler (`CGSize`, `Transaction`, `cos`, Raw-String in Test) | im Code behoben, Korrektur des letzten nicht gebaut |
-| Apple `7efe85f`, `b5922f3`; CI und Android `b5922f3` | **Abrechnungssperre**, Jobs nie gestartet | wartet auf Freigabe (`docs/GITHUB-ABRECHNUNG.md`) |
+| Stud.IP-Abgleich mit echten Daten | LUH-Konto des Inhabers, 150 Dateien, am PC und im iPad-Simulator | bis 28.10. |
+| Web-App offline: laden, Netz aus, neu laden, Übersicht aus der Ablage, Änderung scheitert mit `offline`, Konto nie aus der Ablage | echter Chromium-Lauf in `tests/test_pwa.py` | 30.10. |
+| ChatGPT verbinden auf dem iPad: Karte, Zustimmung, Systemabfrage, echte Anmeldeseite `auth.openai.com`, Abbrechen | Simulator (vorübergehender UI-Test); die Anmeldung selbst nur durch den Inhaber | 30.10. |
+| Debug-Knopf „Langen Hintergrundlauf starten“ auf dem iPad | Simulator; iOS selbst kann den Lauf dort nicht starten (`BGTaskScheduler` nicht verfügbar) | 30.10. |
+| Windows-App: Start, Abgleich mit Fortschritt, Stundenplan, Dokument, zweites Fenster, Sicherungen | PC des Inhabers | 27.10. |
+| Dienst im Container: Registrierung, `/login`, Datenschutzseite, Backup-Archiv | lokal in Docker | 27.10. |
 
-## 4. Noch nicht getestet
+## 3. Nicht geprüft (ehrlich)
 
-- **Swift seit `ecfdfab` (nie kompiliert):** Übersicht, Module, Kalender, KI-Tests, Einstellungen, geteilte Ansicht,
-  gemeinsame Palette und gemeinsamer Rückgängig-Verlauf, Seitenschlüssel-Umbau, Lebenszyklus (Pausieren statt Beenden
-  beim Tabwechsel). Von Hand Zeile für Zeile geprüft; dabei behoben: Tupel-Keypaths in Listen, mehrdeutige
-  Koordinatenebene, Startseite des Skripts, StoreKit-Datei nicht im Testbundle.
-- **iOS-Tests ohne Lauf:** Phase-4-Tests (6), Kauftest (2), Hilfsbausteine (4).
-- **Android-Kern** (Kotlin) und **Windows** (Tauri): nie gebaut; Konfiguration und Code statisch geprüft.
-- **Alles am Gerät:** Schreibgefühl, Handballen, Pencil-Doppeltippen, Palette, Zoom am Gerät, Speicher bei großen PDFs,
-  Offline über mehrere Tage, Export am Gerät (`docs/MAC-IPAD-CHECKLISTE.md`).
-- Stud.IP-Abgleich auf dem iPad: nur Konzept (`docs/IPAD-STUDIP-SYNC.md`).
+| Punkt | Warum nicht | Wer |
+| --- | --- | --- |
+| **Echte KI auf echtem Skript** (Wochentest, Einordnung, Tutor) | alle KI-Tests laufen mit simulierter KI; der Inhaber hat sich noch nicht mit seinem ChatGPT-Abo angemeldet | Inhaber |
+| **Echtes iPad mit Apple Pencil**: Schreibgefühl, Handballen, Doppeltippen, Zoom, Speicher bei großen PDFs, Export, Hintergrundlauf über Tage | nie auf einem Gerät gelaufen; Developer Program fehlt | Inhaber + Mac-Sitzung (`docs/EDITOR-ABNAHME.md`, `docs/MAC-IPAD-CHECKLISTE.md`) |
+| **Dienst auf einem Server**: Caddy mit echter Domain, Mailversand, Hochschul-Abgleich mit Chromium unter Last, Backup-Timer, Löschfristen | kein Server, keine Domain, kein Mail-Anbieter | Inhaber (beschaffen), dann Cloud-/PC-Sitzung |
+| **Web-App in Safari** (iPad, Mac): Installieren, Offline, Stift im Browser (`touch-action`, Handballen) | nur Chromium im Test | Inhaber + Sitzung |
+| **Hintergrund-Wochentests auf dem iPad** (App-Teil) | App-Tests grün, der Start durch iOS geht nur am Gerät | Inhaber |
+| **Freigabe nachholen** (ChatGPT) | Knopf erscheint nur bei verbundenem Konto ohne Freigabe | Inhaber |
+| QIS auf dem iPad | der Inhaber hat 0 Leistungen | – |
+| Hildesheim mit echten Daten auf dem iPad | Zählwerte weichen ab (iPad 195, PC 539 Dateien) | PC-Sitzung (`docs/STAND-MAC-SITZUNG.md`) |
+| Android auf einem Gerät | kein Android-Gerät | später (V2) |
+| Windows-App auf einem fremden Rechner (WebView2, Firewall, Virenscanner) | nur der PC des Inhabers | Inhaber |
+| Stripe gegen das echte Stripe-Konto, Microsoft-Store-Beleg | Stripe-Konto und Preise fehlen; Microsoft-Beleg nicht gebaut | Inhaber, PC-Sitzung |
+
+## 4. Was bis zur Veröffentlichung fehlt, je Weg
+
+### 4.1 Web über den eigenen Dienst (zuerst)
+
+| Schritt | Stand | Wer |
+| --- | --- | --- |
+| Server (VPS in der EU), Domain, Mail-Anbieter, Dienst-Geheimnis, Backup-Ziel, AVV mit dem Hoster | offen | Inhaber (`docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md` Abschnitt 4) |
+| Rechtstexte: Impressum, Datenschutz (inkl. Uni-Zugangsdaten beim Dienst, KI über das Backend, Stripe), Nutzungsbedingungen | Entwürfe mit Platzhaltern in `docs/release/`, nicht anwaltlich geprüft | Inhaber |
+| Dienst einrichten, Lasttest, Monitoring | offen, nie in Betrieb | Cloud-/PC-Sitzung |
+| Installierbare Web-App, Offline-Rückfall | gebaut 30.10. | – |
+| Notizen ohne Netz zwischenspeichern und nachsenden (Journal im Web) | offen | Sitzung |
+| Hochschul-Abgleich durch den Dienst nur mit Zustimmung (Karte, Häkchen, Löschen) | gebaut 30.10.; Anfrage an LUH und Hildesheim läuft parallel | Inhaber |
+| Wochentests im Dienst je Konto (Job nach dem Abgleich, zu den Zeitfenstern, auf Knopfdruck) mit Studora-KI und Kontingent | gebaut 30.10.; braucht OpenAI-Schlüssel des Inhabers im Dienst (`LERNAPP_OPENAI_API_KEY`) | Inhaber |
+| ChatGPT-Abo des Nutzers im gehosteten Dienst | bleibt aus bis OpenAI freigibt (Warteliste) | Inhaber |
+| Probe 7 Tage, Tarifwahl, Stripe (Checkout, Kundenportal, Webhook) | gebaut 30.10.; Stripe-Konto, Preise, Schlüssel fehlen | Inhaber |
+| Prüfung in Safari auf iPad und Mac, Edge unter Windows | offen | Inhaber + Sitzung |
+
+### 4.2 Windows über den Microsoft Store
+
+| Schritt | Stand |
+| --- | --- |
+| MSIX-Paket | baut (`apps/windows/msix/README.md`) |
+| Partner-Center-Konto, Produktidentität in `msix/store.json`, Screenshots, Datenschutz-URL | offen (Inhaber) |
+| Store-Texte ohne KI-Versprechen, solange OpenAI nicht freigibt | Entwürfe in `docs/release/` |
+| Bezahlen: zuerst Free; Stripe für Windows gebaut; Microsoft-Store-Beleg | Stripe fertig, Microsoft-Beleg nicht gebaut |
+| Code-Signierung außerhalb des Stores | nicht nötig für den Store; sonst Zertifikat kaufen |
+
+### 4.3 App Store (iPad, Mac), sobald Apple freigibt
+
+| Schritt | Stand |
+| --- | --- |
+| Apple Developer Program | abgelehnt am 28.10., Support-Fall beim Inhaber |
+| Team-ID in `apps/apple/Config/Team.xcconfig`, Signierung, „Mit Apple anmelden“, CloudKit-Container | offen |
+| App Store Connect: Eintrag „Studora“, Produkt Plus (`de.uniflow.plus.monthly`), Datenschutzangaben | offen (`docs/release/APP-STORE.md`) |
+| iPad: Konto-Anmeldung sichtbar machen (Dienst-Adresse), **G2-Client bauen**, Community von CloudKit auf den Dienst | offen (Mac-Sitzung) |
+| Übernahme vom Web: Module, Stundenplan, Lernplan, Karteikarten, Einstellungen, Notizen über G2; eigene Dokumente mit Inhalt noch nicht | offen |
+| Gerätetest nach Checkliste | offen |
 
 ## 5. Kritische Risiken
 
 | Risiko | Folge | Gegenmaßnahme |
 | --- | --- | --- |
-| **Laufender Server hat noch die alte, angreifbare Version** | Dateien lesbar/schreibbar, bis neu gestartet wird | `Start-iPad.cmd` neu starten (Ordner steht auf `develop`) |
-| Zugangsdaten waren über die Leselücke erreichbar | Missbrauch von LUH-Konto, Servern (SSH), Claude | Wechsel nach `docs/SICHERHEIT.md` Abschnitt 3 |
-| ~1.400 Zeilen Swift nie kompiliert | erste CI-Runden werden Fehler zeigen | Checkliste unten; Fehler sind meist klein (Typen, APIs) |
-| Kein Gerätetest | Stifteingabe kann sich anders verhalten als im Simulator | Gerätetest vor jeder weiteren Funktion |
-| Stud.IP auf dem iPad braucht OAuth2-Client der LUH | ohne ihn nur Übergangslösung (Anmeldung beim Öffnen) | Anfrage an das Stud.IP-Team der LUH |
-| Firewall erlaubt Python in öffentlichen Netzen | Erreichbarkeit im eduroam | Befehle in `docs/SICHERHEIT.md` Abschnitt 4 (als Admin) |
+| Alles Gerätenahe ist nur im Simulator geprüft | Stift, Hintergrundlauf und Speicher können sich am iPad anders verhalten | erster Gerätetest, sobald eine Signierung möglich ist (kostenlose Signierung per Kabel reicht für das eigene iPad) |
+| Dienst nie unter Last | Chromium-Speicher beim Abgleich, Datenbank je Konto, Backups ungeprüft | Lasttest nach Inbetriebnahme (100 Konten, 1000 Dateien), `docker stats` nach dem ersten Tag |
+| KI nie echt | Prompts, Fehlercodes der Responses API und Kosten der Studora-KI sind Annahmen | erster echter Lauf durch den Inhaber vor jedem Store-Text, der KI nennt |
+| Uni-Zugangsdaten beim Dienst | der Dienst hält Passwörter verschlüsselt und meldet sich von der Server-IP an | Zustimmung je Konto (gebaut), Text in der Datenschutzerklärung, Rückmeldung von LUH und Hildesheim abwarten |
+| GitHub Actions gesperrt seit 25.10. | kein Bauen auf GitHub; Windows-Installer und Apple-Läufe nur lokal oder gar nicht; Quellen widersprechen sich, ob der Windows-Workflow am 27.10. lief | Abrechnung klären (`docs/GITHUB-ABRECHNUNG.md`) oder lokal bauen |
+| Rechtstexte sind Entwürfe mit Platzhaltern | Abmahnrisiko, Store-Ablehnung | ausfüllen (`tests/test_release_texts.py` listet die Platzhalter), prüfen lassen |
+| OpenAI-Zulassung | Repo ist öffentlich (Open Source, noch ohne Lizenzdatei), aber Plus ist kostenpflichtig und das Web läuft gehostet | Warteliste, Lizenzdatei ins Repo, Frage nach der Tarif-Kopplung stellen |
+| Wackliger pytest unter Last | ein Lauf von sieben fiel am 30.10. unter paralleler Last, Name nicht gesichert; danach nicht wiederholbar | bei erneutem Auftreten den Namen sichern |
 
-## 6. Erforderliche Entscheidungen
+## 6. Entscheidungen
 
-1. **GitHub Actions**: bis zum Monatswechsel warten oder Actions-Budget erhöhen (kostet Geld).
-2. **Server neu starten** und **Zugangsdaten wechseln** (deine Aktionen).
-3. **Firewall-Regeln** einschränken (Administrator).
-4. **Lokale Werkzeuge** (optional, siehe unten): Docker-Images laden, Gradle oder Rust installieren.
-5. **LUH anfragen**: OAuth2-Client für Stud.IP.
-6. Später: Hosting, KI-Abrechnung, Apple Developer Program, Notiz-Sync über den Dienst ja/nein.
+Getroffen am 30.10.2026 (Inhaber):
 
-### Lokale Werkzeuge (geprüft, nicht installiert)
+1. Web zuerst über den eigenen Dienst, Windows Store, iPad und Mac vorerst als Web-App, später App Store mit Übernahme
+   über das Konto.
+2. Uni-Passwörter beim Dienst: ja, nur mit ausdrücklicher Zustimmung je Konto.
+3. KI im Web: ChatGPT-Abo des Nutzers (nach OpenAI-Freigabe) **und** Studora-KI über den Dienst (Pro AI).
+4. Jedes neue Konto: 7 Tage Probe mit allen Rechten, dann Tarifwahl; Stripe für Web und Windows; Apple in der App;
+   Microsoft Store später.
+5. Lernplan ohne KI nach der Regel „je Tag nur der Stoff seiner Lehrwoche plus Skriptrest nach dem Marker der
+   Vorwoche“; der KI-Wochenplan ist entfernt.
+6. Bitte um neue Anmeldung bei der Hochschule nach 6 Stunden (Frage beim Öffnen, sonst Mitteilung zum nächsten Termin).
 
-| Werkzeug | Zweck | Weg | Umfang |
-| --- | --- | --- | --- |
-| Docker (vorhanden, läuft nicht) | Swift-Kern und Kotlin-Kern lokal testen, ohne Actions | Docker Desktop starten, Images `swift:6.0-jammy`, `gradle:8.10-jdk17` laden | ca. 1–2 GB Download, keine Installation |
-| Gradle (Java 17 vorhanden) | Android-Kern | Zip von gradle.org entpacken | ca. 130 MB + Abhängigkeiten |
-| Rust + Visual Studio Build Tools | Tauri-Build für Windows | rustup + C++-Build-Tools (Admin) | mehrere GB |
-| Swift für Windows | Swift-Kern ohne Docker | Toolchain + Build Tools | mehrere GB |
+Offen (nur der Inhaber):
 
-Empfehlung: Docker-Weg (geringster Eingriff, deckt Swift- und Kotlin-Kern ab). Die iPad-App selbst braucht immer macOS.
+1. Server, Domain, Mail, Stripe-Konto, Partner Center, Lizenzdatei, Rechtstexte.
+2. Plus-Kontingent 3 oder 6 Tests; geteilter Wochentest gegen das Kontingent (`docs/GEMEINSAME-WOCHENTESTS.md`).
+3. Name und Domain prüfen („Studora“ als Marke frei?).
+4. Alte Branches von Ahmad271223 durchsehen und schließen.
+5. GitHub Actions wieder freigeben oder dauerhaft lokal bauen.
 
-## 7. Geschätzter Aufwand bis zur ersten iPad-Testversion
+## 7. Nächste Schritte in Reihenfolge
 
-| Schritt | Aufwand |
-| --- | --- |
-| CI grün bekommen (Kompilierfehler Phase 5/6, 2–5 Runden) | 0,5–1 Tag |
-| MacBook einrichten, App per Kabel auf das eigene iPad (kostenlose Signierung) | 0,5 Tag |
-| Gerätetest nach Checkliste, kritische Fehler beheben | 2–4 Tage |
-| **Erste selbst installierte iPad-Testversion** | **ca. 3–6 Arbeitstage** |
-| TestFlight (Developer Program, HTTPS-Testserver, Datenschutzangaben) | zusätzlich 1–2 Wochen, Kosten nach Freigabe |
-
-## 8. Checkliste, sobald GitHub Actions wieder läuft
-
-1. Abrechnung prüfen und freigeben (`docs/GITHUB-ABRECHNUNG.md`).
-2. GitHub → Actions → **Apple** → „Run workflow“ auf `develop`. Erwartet: Linux-Kern 37 Tests, macOS-Kern 37,
-   iPad-Simulator 24 Tests (StrokeConverter 8, PDFLayout 4, EditorFeature 6, Purchase 2, Support 4).
-3. Bei Kompilierfehlern: alle Fehler eines Laufs zusammen beheben, ein Commit, erneut starten. Jede Runde mit
-   Fehlern und Korrektur in `docs/ENTWICKLUNGSSTAND.md` eintragen.
-4. **CI** läuft beim Push automatisch: Python 42 Tests, pip-audit, Geheimnis-Prüfung, Web-Syntax, Node-Tests.
-5. **Android** (Kotlin-Kern) prüfen; bei Fehlern wie Schritt 3.
-6. **Windows** einmal manuell starten, Installer aus den Artefakten lokal testen, `Cargo.lock` übernehmen.
-7. Ergebnisse in diese Datei übertragen (Abschnitte 1–4), erst dann neue Funktionen.
-8. Danach: Gerätetest nach `docs/MAC-IPAD-CHECKLISTE.md`.
+1. Inhaber: Server, Domain, Mail, Stripe, Rechtstexte (Abschnitt 4.1).
+2. Sitzung: Dienst einrichten, Lasttest, Rechtstexte einbauen, Monitoring.
+3. Inhaber: einmal mit dem eigenen ChatGPT-Abo anmelden und einen Wochentest auf echtem Skript prüfen.
+4. Sitzung: Journal für Notizen ohne Netz im Web; Prüfung in Safari.
+5. Inhaber + PC-Sitzung: Partner Center, Screenshots, Store-Einreichung Windows.
+6. Mac-Sitzung, sobald Apple freigibt: G2-Client, Community über den Dienst, Gerätetest, App Store.
 
 ## Verweise
 
-`docs/SICHERHEIT.md` · `docs/SICHERHEITSKONZEPT-KONTEN.md` · `docs/IPAD-STUDIP-SYNC.md` · `docs/GITHUB-ABRECHNUNG.md` ·
-`docs/ENTWICKLUNGSSTAND.md` · `docs/BESTANDSAUFNAHME.md` · `docs/MAC-IPAD-CHECKLISTE.md` · `docs/KONTEN-ABOS-PLAN.md`
+`docs/BERICHT-CLOUD-SITZUNG-2026-10-30.md` · `docs/PLAN-WEB-ZUERST-2026-10-30.md` · `docs/ARCHITEKTUR-ZIEL-2026-10-29.md` ·
+`docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md` · `docs/ABO-SYSTEM.md` · `docs/KI-CHATGPT-PLAN.md` · `docs/WOCHENTESTS.md` ·
+`docs/UEBERGABE-MAC-NEUE-SITZUNG-2026-10-30.md` · `docs/ENTWICKLUNGSSTAND.md` · `docs/release/BETRIEB.md` ·
+`docs/EDITOR-ABNAHME.md` · `docs/MAC-IPAD-CHECKLISTE.md` · `docs/SICHERHEIT.md` · `docs/GITHUB-ABRECHNUNG.md`
