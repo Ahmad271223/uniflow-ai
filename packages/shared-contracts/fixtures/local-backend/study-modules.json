@@ -12011,6 +12011,111 @@
      }
     },
     {
+     "method": "PATCH",
+     "path": "/api/modules/3",
+     "raw": "{\"expected_materials\": [\"gruppenuebung\", \"fremd\", 3, \"hoersaaluebung\"], \"exam_reuse\": \"original\"}",
+     "status": 200,
+     "response": {
+      "id": 3,
+      "name": "Leeres Modul",
+      "semester": "SoSe 2027",
+      "color": "#e0803a",
+      "icon": "b",
+      "priority": 1,
+      "exam_date": null,
+      "sort": 2,
+      "created_at": "2026-10-01T08:00:00",
+      "active_custom": 0,
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": null,
+      "color_custom": 0,
+      "expected_materials": "[\"gruppenuebung\", \"hoersaaluebung\"]",
+      "exam_reuse": "original"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/modules/3",
+     "raw": "{\"priority\": 9, \"exam_reuse\": \"alles\"}",
+     "status": 400,
+     "response": {
+      "detail": "exam_reuse: original oder paraphrase"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/modules/3",
+     "raw": "{\"expected_materials\": \"tutorium\", \"exam_reuse\": \"paraphrase\"}",
+     "status": 200,
+     "response": {
+      "id": 3,
+      "name": "Leeres Modul",
+      "semester": "SoSe 2027",
+      "color": "#e0803a",
+      "icon": "b",
+      "priority": 1,
+      "exam_date": null,
+      "sort": 2,
+      "created_at": "2026-10-01T08:00:00",
+      "active_custom": 0,
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": null,
+      "color_custom": 0,
+      "expected_materials": "[]",
+      "exam_reuse": "paraphrase"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/modules/3",
+     "raw": "{\"expected_materials\": {\"zusatz\": 1, \"x\": 2}}",
+     "status": 200,
+     "response": {
+      "id": 3,
+      "name": "Leeres Modul",
+      "semester": "SoSe 2027",
+      "color": "#e0803a",
+      "icon": "b",
+      "priority": 1,
+      "exam_date": null,
+      "sort": 2,
+      "created_at": "2026-10-01T08:00:00",
+      "active_custom": 0,
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": null,
+      "color_custom": 0,
+      "expected_materials": "[\"zusatz\"]",
+      "exam_reuse": "paraphrase"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/modules/3",
+     "raw": "{\"expected_materials\": null}",
+     "status": 200,
+     "response": {
+      "id": 3,
+      "name": "Leeres Modul",
+      "semester": "SoSe 2027",
+      "color": "#e0803a",
+      "icon": "b",
+      "priority": 1,
+      "exam_date": null,
+      "sort": 2,
+      "created_at": "2026-10-01T08:00:00",
+      "active_custom": 0,
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": null,
+      "color_custom": 0,
+      "expected_materials": "[]",
+      "exam_reuse": "paraphrase"
+     }
+    },
+    {
      "method": "POST",
      "path": "/api/courses/k-pi-t/module",
      "raw": "{\"module_id\": null}",
@@ -12180,7 +12285,7 @@
        "weekly_test": 1,
        "test_minutes": null,
        "color_custom": 0,
-       "expected_materials": null,
+       "expected_materials": "[]",
        "exam_reuse": "paraphrase",
        "file_count": 0,
        "new_count": 0,
@@ -13536,7 +13641,7 @@
     "weekly_test": 1,
     "test_minutes": null,
     "color_custom": 0,
-    "expected_materials": null,
+    "expected_materials": "[]",
     "exam_reuse": "paraphrase"
    },
    {

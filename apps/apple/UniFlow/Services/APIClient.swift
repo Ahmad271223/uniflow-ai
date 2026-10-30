@@ -289,6 +289,8 @@ struct LibFile: Decodable, Identifiable, Hashable {
     let has_notes: Int?
     let page_count: Int?
     let studip_folder: String?
+    /// Kurs der Datei; eigene Uploads liegen in "__user__" (dort kein "Vorlesung bis hier", wie views-doc.js)
+    var course_id: String? = nil
 
     var displayTitle: String { ai_title ?? title ?? name }
     /// Geladene PDF: dieselbe Regel wie die Bibliothek (`kind == "pdf"`, das `UniRules.fileKind` auch bei mime

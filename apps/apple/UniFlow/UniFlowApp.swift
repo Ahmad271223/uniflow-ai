@@ -19,6 +19,8 @@ struct UniFlowApp: App {
     @StateObject private var background: BackgroundSyncController
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue     // wie localStorage "theme" im Web
     @Environment(\.scenePhase) private var scenePhase
+    /// gemeinsame Wochentests im Vordergrund alle 10 min (am PC `_weekly_loop`)
+    @State private var weeklyTicker = WeeklyAutoTicker()
 
     init() {
         // Teilen-Dateien und empfangene Kopien frueherer Laeufe liegen ausserhalb der Container: weg (AppTemp; von
@@ -123,6 +125,9 @@ struct UniFlowApp: App {
                 containers.studip.runIfDue()
                 containers.hildesheim?.runIfDue()
                 containers.qis?.runIfDue()
+                weeklyTicker.resume()
+            } else {
+                weeklyTicker.pause()
             }
             // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8)
             if phase == .background { Task { await background.schedule() } }

@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 92,
+ "count": 103,
  "paths": [
   {
    "method": "DELETE",
@@ -48,6 +48,30 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/markers/{}",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/markers/1"
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
    }
   },
   {
@@ -1097,6 +1121,50 @@
   },
   {
    "method": "GET",
+   "shape": "/api/markers",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/markers?file_id=f1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/markers/preview",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/markers/preview?file_id=f1&page=1"
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/modules",
    "sources": [
     "UniFlow/Views/Exams/ExamsPage.swift",
@@ -1953,6 +2021,111 @@
    }
   },
   {
+   "method": "GET",
+   "shape": "/api/weekly/defs/{}",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/weekly/defs/1"
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/weekly/module/{}",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/weekly/module/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "current_week": {
+       "type": "number"
+      },
+      "mock_exams": {
+       "type": "array",
+       "item": null
+      },
+      "needs_review": {
+       "type": "array",
+       "item": null
+      },
+      "settings": {
+       "type": "object",
+       "keys": {
+        "daily_limit": {
+         "type": "number"
+        },
+        "exam_reuse": {
+         "type": "string"
+        },
+        "expected_materials": {
+         "type": "array",
+         "item": null
+        },
+        "max_delay_hours": {
+         "type": "number"
+        },
+        "publish_hours": {
+         "type": "number"
+        },
+        "questions": {
+         "type": "number"
+        }
+       }
+      },
+      "weeks": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "markers": {
+          "type": "array",
+          "item": null
+         },
+         "plans": {
+          "type": "array",
+          "item": null
+         },
+         "status": {
+          "type": "string"
+         },
+         "topic": {
+          "type": "null"
+         },
+         "week": {
+          "type": "number"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
    "method": "PATCH",
    "shape": "/api/courses/{}",
    "sources": [
@@ -2052,9 +2225,37 @@
   },
   {
    "method": "PATCH",
+   "shape": "/api/markers/{}",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/markers/1",
+    "body": {
+     "topic": "Thema"
+    }
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "PATCH",
    "shape": "/api/modules/{}",
    "sources": [
     "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Modules/WeeklyViews.swift",
     "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
@@ -2616,6 +2817,62 @@
    "expect": {
     "status": 404,
     "reason": "QIS auf dem iPad folgt (F4)"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/markers",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/markers",
+    "body": {
+     "file_id": "f1",
+     "page": 1,
+     "page_key": "p1"
+    }
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/markers/{}/release",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/markers/1/release",
+    "body": {
+     "confirm": true
+    }
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
    }
   },
   {
@@ -3367,6 +3624,72 @@
    }
   },
   {
+   "method": "POST",
+   "shape": "/api/weekly/defs/{}/attempt",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/weekly/defs/1/attempt"
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/weekly/mock-exam",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/weekly/mock-exam",
+    "body": {
+     "module_id": 1,
+     "full": false
+    }
+   },
+   "python": {
+    "status": 400,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 400
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/weekly/tick",
+   "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift"
+   ],
+   "request": {
+    "path": "/api/weekly/tick"
+   },
+   "expect": {
+    "status": 200,
+    "reason": "Hintergrundauftrag Wochentests (am PC _run_bg, 200)"
+   }
+  },
+  {
    "method": "PUT",
    "shape": "/api/credentials/{}",
    "sources": [
@@ -3411,6 +3734,7 @@
    "method": "PUT",
    "shape": "/api/settings",
    "sources": [
+    "UniFlow/Views/Modules/WeeklyViews.swift",
     "UniFlow/Views/PlanDialogs.swift",
     "UniFlow/Views/Settings/SettingsPage.swift",
     "UniFlow/Views/Timetable/TimetableShared.swift"

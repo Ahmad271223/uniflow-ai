@@ -114,6 +114,26 @@ Inhalte abfragen, die erst Wochen später drankommen.
 - `tests`: Bearbeitungsversuche, neu mit `def_id`, `user_id` und `duration_sec`. Pro Version und Person gibt es einen
   Versuch.
 
+## iPad (ohne PC)
+
+- **Kern:** `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/LocalBackend/Weekly/` ist eine Swift-Fassung von
+  `app/weekly.py` mit denselben Endpunkten (`WeeklyEndpoints.swift`). Die Fixture
+  `packages/shared-contracts/fixtures/local-backend/weekly.json` (`tools/gen-weekly-fixture.py`) spielt den ganzen
+  Ablauf nach: Marker, Zeitplan, KI-Aufrufe mit byte-gleichen Prompts, Veröffentlichung, Nachtrag, Probeklausur und die
+  Tabellen am Ende. `PATCH /api/modules/{id}` nimmt wie am PC `expected_materials` und `exam_reuse` an
+  (Fixture `study-modules.json`).
+- **Oberfläche** (`apps/apple/UniFlow/Views/Modules/WeeklyViews.swift`, wie `app/static/views-weekly.js`):
+  - Knopf „Vorlesung bis hier“ in der Leiste des Dokuments, mit Dialog: Vorschau, Termin, Thema, eigene Marker mit
+    Springen, Verschieben, Freigeben und Löschen.
+  - Kennzeichen „bis hier“ an den Miniaturen.
+  - Box „Lernfortschritt & Wochentests“ auf der Modulseite mit Testdetails, Rangliste, Einstellungen und Probeklausur.
+  - Lokal erscheinen Box und Knopf nur mit verbundenem ChatGPT-Abo, wie die Wochentest-Felder im Modul-Dialog. Am
+    PC-Server erscheinen sie immer.
+- **Takt:** `WeeklyAutoTick` (Kern) und `WeeklyAutoTicker` (App) laufen 20 s nach dem Öffnen und danach alle 10 min,
+  solange die App im Vordergrund ist. Bedingungen: `auto_tests` ist an, die KI ist verbunden, und kein anderer
+  Hintergrundauftrag läuft. Ohne KI gibt es keinen Lauf, damit fällige Pläne ihre drei Versuche nicht verbrauchen. Im
+  Hintergrund läuft auf dem iPad kein Takt, der nächste Lauf folgt beim Öffnen.
+
 ## Grenzen (ehrlich)
 
 - Die Zuordnung arbeitet auf der Textebene der PDFs. Gescannte oder handschriftliche Seiten und Abbildungen werden

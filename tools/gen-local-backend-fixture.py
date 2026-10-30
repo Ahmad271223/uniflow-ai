@@ -148,6 +148,21 @@ SAMPLES: dict[str, dict] = {
     "POST /api/tests/{}/submit": {"path": "/api/tests/1/submit", "body": {"answers": {}},
                                   "expect": {"status": 404, "reason": "Python 500 (Test nicht gefunden); lokal 404, Tests entfallen"}},
     "DELETE /api/tests/{}": {"path": "/api/tests/1"},
+    # Vorlesungs-Seitenmarker und gemeinsame Wochentests (views-weekly.js, iPad: WeeklyViews.swift); leere Datenbank:
+    # Regelfehler als 400 (`_werr`), die Uebersicht leer, der Takt als Hintergrundauftrag
+    "GET /api/markers": {"path": "/api/markers?file_id=f1"},
+    "GET /api/markers/preview": {"path": "/api/markers/preview?file_id=f1&page=1"},
+    "POST /api/markers": {"path": "/api/markers", "body": {"file_id": "f1", "page": 1, "page_key": "p1"}},
+    "PATCH /api/markers/{}": {"path": "/api/markers/1", "body": {"topic": "Thema"}},
+    "DELETE /api/markers/{}": {"path": "/api/markers/1"},
+    "POST /api/markers/{}/release": {"path": "/api/markers/1/release", "body": {"confirm": True}},
+    "GET /api/weekly/module/{}": {"path": "/api/weekly/module/1"},
+    "GET /api/weekly/defs/{}": {"path": "/api/weekly/defs/1"},
+    "POST /api/weekly/defs/{}/attempt": {"path": "/api/weekly/defs/1/attempt"},
+    "POST /api/weekly/mock-exam": {"path": "/api/weekly/mock-exam", "body": {"module_id": 1, "full": False}},
+    # am PC ein Hintergrund-Thread, der in die naechsten Szenarien hineinliefe (andere Datenbank): nur der Status
+    "POST /api/weekly/tick": {"path": "/api/weekly/tick", "python": False,
+                              "expect": {"status": 200, "reason": "Hintergrundauftrag Wochentests (am PC _run_bg, 200)"}},
     "GET /api/flashcards": {"path": "/api/flashcards?due=true"},
     "POST /api/flashcards": {"path": "/api/flashcards", "body": {"cards": [{"question": "Testfrage", "answer": "Testantwort"}]}},
     "POST /api/flashcards/{}/review": {"path": "/api/flashcards/1/review", "body": {"correct": True}},
@@ -664,6 +679,13 @@ MODULE_SCENARIOS = [
         ("PATCH", "/api/modules/2", {"name": "Umbenannte Beispieltechnik"}),
         ("PATCH", "/api/modules/99", {"name": "gibt es nicht"}),
         ("PATCH", "/api/modules/3", '{"icon": "a", "icon": "b", "semester": "SoSe 2027"}'),
+        # Wochentest-Einstellungen des Moduls (views-weekly.js): nur bekannte Arten, ungueltige Wiederverwendung -> 400
+        # ohne Teilaenderung (priority bleibt)
+        ("PATCH", "/api/modules/3", {"expected_materials": ["gruppenuebung", "fremd", 3, "hoersaaluebung"], "exam_reuse": "original"}),
+        ("PATCH", "/api/modules/3", {"priority": 9, "exam_reuse": "alles"}),
+        ("PATCH", "/api/modules/3", {"expected_materials": "tutorium", "exam_reuse": "paraphrase"}),
+        ("PATCH", "/api/modules/3", {"expected_materials": {"zusatz": 1, "x": 2}}),
+        ("PATCH", "/api/modules/3", {"expected_materials": None}),
         ("POST", "/api/courses/k-pi-t/module", {"module_id": None}),
         ("POST", "/api/courses/k-pi-t/module", {"module_id": 99}),
         ("POST", "/api/courses/k-pi-t/module", {"module_id": "2"}),

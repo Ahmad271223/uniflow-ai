@@ -10,7 +10,23 @@ public enum ModulesEndpoints: LocalEndpointModule {
     public static let name = "Module"
 
     /// Felder, die `PATCH /api/modules/{id}` aendern darf
-    static let patchable: Set<String> = ["name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes"]
+    static let patchable: Set<String> = ["name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes",
+                                         "expected_materials", "exam_reuse"]
+
+    /// `expected_materials` wie server.py: `json.dumps([x for x in (v or []) if x in weekly.EXPECTABLE])` (ein Text
+    /// zerfaellt in Zeichen, ein Objekt in seine Schluessel; beides ergibt hier nur bekannte Arten)
+    static func expectedMaterials(_ v: PyJSON) throws -> SQLiteValue {
+        let items: [String]
+        switch v {
+        case .array(let a): items = a.compactMap { if case .string(let s) = $0 { return s } else { return nil } }
+        case .object(let m): items = m.map(\.key)
+        case .string, .null: items = []
+        default:
+            guard !LocalTerms.truthy(v) else { throw LocalHTTPError(status: 500, message: "object is not iterable") }
+            items = []
+        }
+        return .text(PyJSON.array(items.filter { Weekly.expectable.contains($0) }.map { .string($0) }).dumps)
+    }
 
     /// Rumpf als Python-dict: doppelte Schluessel behalten den letzten Wert an der ersten Stelle (PyJSON.parse)
     static func body(_ req: LocalRequest) throws -> [PyJSON.Member] {
@@ -64,7 +80,11 @@ public enum ModulesEndpoints: LocalEndpointModule {
             let id = SQLiteValue.integer(Int64(req.intParam("module_id")))
             // for k, v in body.items(): Reihenfolge der ersten Nennung, Wert der letzten
             let updates: [(String, SQLiteValue)] = try members.filter { patchable.contains($0.key) }.map { m in
-                (m.key, m.key == "exam_date" && !LocalTerms.truthy(m.value) ? .null : try LocalTerms.bindable(m.value, field: m.key))
+                if m.key == "expected_materials" { return (m.key, try expectedMaterials(m.value)) }
+                if m.key == "exam_reuse", m.value != .string("original"), m.value != .string("paraphrase") {
+                    throw LocalHTTPError(status: 400, message: "exam_reuse: original oder paraphrase")
+                }
+                return (m.key, m.key == "exam_date" && !LocalTerms.truthy(m.value) ? .null : try LocalTerms.bindable(m.value, field: m.key))
             }
             let rename = try value(members, "name").map { try LocalTerms.bindable($0, field: "name") }
             let colorSent = members.contains { $0.key == "color" }

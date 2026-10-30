@@ -39,7 +39,7 @@ final class LocalModulesAppTests: XCTestCase {
         func state(forUserID id: String) async -> AppleCredentialState { .authorized }
     }
 
-    private func tempDir() throws -> URL {
+    func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-s4-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
@@ -47,13 +47,13 @@ final class LocalModulesAppTests: XCTestCase {
     }
 
     /// Unix-Zeit einer Berliner Ortszeit
-    private func ts(_ local: String) -> SQLiteValue {
+    func ts(_ local: String) -> SQLiteValue {
         .integer(Int64(UniFlowClock.fixed(berlin: local)!.now.timeIntervalSince1970))
     }
 
     /// Lokales Backend mit Seed: zwei Faecher (Vorlesung + Uebung), Dateien in drei Lehrwochen, eine Altklausur,
     /// eine Datei vor dem Vorlesungsbeginn, eine Begruessung (kein Fach)
-    private func seededAPI() async throws -> (APIClient, RecordingTransport) {
+    func seededAPI() async throws -> (APIClient, RecordingTransport) {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true),
                                     clock: .fixed(berlin: "2026-11-20T10:00:00")!)
         let backend = try await host.backend()
@@ -130,7 +130,7 @@ final class LocalModulesAppTests: XCTestCase {
     /// `.task` der Seite, das Uebernehmen der Antwort) nicht ab, die Seite bliebe beim Ladezustand. Der
     /// Bedienungshilfen-Baum von SwiftUI bleibt in Unit-Tests leer (ohne VoiceOver); darum Texterkennung (Vision) auf
     /// dem gezeichneten Fenster.
-    private func render<V: View>(_ view: V, api: APIClient, recorder: RecordingTransport,
+    func render<V: View>(_ view: V, api: APIClient, recorder: RecordingTransport,
                                  until done: ([(path: String, status: Int)]) -> Bool) async throws -> [String] {
         let suite = "uniflow-s4-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -161,7 +161,7 @@ final class LocalModulesAppTests: XCTestCase {
     /// Zeilen, die die Texterkennung im gezeichneten Fenster findet. Gezeichnet mit dreifacher Aufloesung und in
     /// ueberlappenden Streifen erkannt: Auf dem ganzen Fenster auf einmal liest Vision die kleine Schrift (12 pt) oft
     /// falsch.
-    private func recognizedTexts(_ view: UIView) throws -> [String] {
+    func recognizedTexts(_ view: UIView) throws -> [String] {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 3
         let image = UIGraphicsImageRenderer(bounds: view.bounds, format: format).image { _ in
@@ -188,7 +188,7 @@ final class LocalModulesAppTests: XCTestCase {
     /// "-", "I" als "|" oder "l", "ö" als "o", selten ein Buchstabe falsch). Darum zaehlen Leerraum, Gross-/
     /// Kleinschreibung und Akzente nicht, diese Zeichen gelten jeweils als gleich, und je angefangene 10 Zeichen ist ein
     /// Fehler erlaubt (Editierabstand zum besten Ausschnitt aller Zeilen). Gilt ebenso fuer "steht nicht da".
-    private func shows(_ texts: [String], _ text: String) -> Bool {
+    func shows(_ texts: [String], _ text: String) -> Bool {
         func norm(_ s: String) -> [Character] {
             s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "de_DE")).compactMap { c -> Character? in
                 if c.isWhitespace { return nil }

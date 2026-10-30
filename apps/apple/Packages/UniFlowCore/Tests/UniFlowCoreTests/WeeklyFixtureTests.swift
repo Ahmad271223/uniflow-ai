@@ -180,3 +180,48 @@ final class WeeklyFixtureTests: XCTestCase {
         XCTAssertEqual(Weekly.iso(Weekly.seconds("2026-10-20T11:30:00")! + 86_400), "2026-10-21T11:30:00")
     }
 }
+
+/// Takt auf dem iPad (`WeeklyAutoTick`) wie `_weekly_loop` am PC: aus mit `auto_tests` = 0, ohne KI kein Lauf (kein
+/// verbrauchter Versuch), nicht neben einem anderen Hintergrundauftrag
+final class WeeklyAutoTickTests: XCTestCase {
+    struct NoAnswer: AIProvider {
+        func answer(system: String, prompt: String) async throws -> String { throw AIError("test", "keine Antwort") }
+    }
+
+    private func backend() async throws -> LocalBackend {
+        let ticker = WeeklyFixtureTests.Ticker()
+        ticker.set("2026-10-21T12:00:00")
+        return try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: ticker.clock)
+    }
+
+    func testOffWithoutAutoTests() async throws {
+        let b = try await backend()
+        b.context.ai.set(NoAnswer())
+        _ = try await b.context.database.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('auto_tests', '0')")
+        let r = await WeeklyAutoTick.run(b.context)
+        XCTAssertEqual(r, .off)
+    }
+
+    func testNoAIKeepsAttempts() async throws {
+        let b = try await backend()
+        _ = try await b.context.database.execute("""
+            INSERT INTO wt_plans(module_id, week_no, scope, scope_key, coverage, lecture_end, publish_at, deadline_at, attempts)
+            VALUES(1, 1, 'personal', 'k', '{}', '2026-10-20T10:00:00', '2026-10-20T11:00:00', '2026-10-22T11:00:00', 0)
+            """)
+        let r = await WeeklyAutoTick.run(b.context)
+        XCTAssertEqual(r, .noAI)
+        let attempts = try await b.context.database.rows("SELECT attempts FROM wt_plans").first?["attempts"]
+        XCTAssertEqual(attempts, .number(0))
+    }
+
+    func testBusyWhileAnotherJobRuns() async throws {
+        let b = try await backend()
+        b.context.ai.set(NoAnswer())
+        _ = try await b.context.jobs.start("Test erstellen") { try await Task.sleep(nanoseconds: 400_000_000); return nil }
+        let busy = await WeeklyAutoTick.run(b.context)
+        XCTAssertEqual(busy, .busy)
+        while (await b.context.jobs.state["running"]?.bool) == true { try await Task.sleep(nanoseconds: 20_000_000) }
+        let ran = await WeeklyAutoTick.run(b.context)
+        XCTAssertEqual(ran, .ran("0 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", changed: false))
+    }
+}

@@ -42,6 +42,13 @@ final class ToolPickerHolder: ObservableObject {
 }
 
 /// Vorlagen fuer neue Seiten (gleiche Namen wie TEMPLATES im Web-Editor).
+/// Seite fuer den Dialog "Vorlesung bis hier" (PDF-Seite 1-basiert und Seitenschluessel)
+struct MarkerPage: Identifiable {
+    let page: Int
+    let key: String
+    var id: String { key }
+}
+
 struct ExportFile: Identifiable {
     let id = UUID()
     let url: URL
@@ -152,6 +159,10 @@ struct DocumentView: View {
     @State private var taskDone = false
     /// zuletzt gelesene Seite merken (`last_page`, wie onPage im Web), entprellt
     @State private var lastPageTask: Task<Void, Never>?
+    /// Vorlesungs-Seitenmarker ("Vorlesung bis hier", views-weekly.js setupLectureMarker)
+    @StateObject private var markers = LectureMarkers()
+    @State private var markerPage: MarkerPage?
+    @State private var markerNotice: String?
 
     init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil) {
         self.api = api
@@ -188,6 +199,26 @@ struct DocumentView: View {
         }
     }
 
+    /// "Vorlesung bis hier" nur fuer PDFs eines Moduls, nicht fuer eigene Uploads und nicht in alten Fassungen
+    /// (views-doc.js: module_id, .pdf, course_id != "__user__"); der Marker dient den Wochentests der KI, darum lokal
+    /// nur mit ChatGPT-Abo (wie die Wochentest-Box)
+    private var offersLectureMarker: Bool {
+        Self.offersLectureMarker(store.file, readOnly: readOnly || store.isOldVersion, local: api.isLocal, ai: aiEnabled)
+    }
+
+    static func offersLectureMarker(_ f: LibFile, readOnly: Bool, local: Bool, ai: Bool) -> Bool {
+        f.module_id != nil && f.isPDF && f.course_id != "__user__" && !readOnly && (!local || ai)
+    }
+
+    /// Knopf: nur auf Originalseiten des Skripts (keine eingefuegte Notizseite)
+    private func openLectureMarker() {
+        guard let e = store.entry(forPageIndex: bridge.pageIndex), e.kind == "pdf", let page = e.pdfIndex else {
+            actionError = "Bitte eine Seite des Vorlesungsskripts wählen (keine eingefügte Notizseite)."
+            return
+        }
+        markerPage = MarkerPage(page: page, key: e.key)
+    }
+
     /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
     private var scriptLeft: Bool { hand != "left" }
 
@@ -217,7 +248,7 @@ struct DocumentView: View {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
                         // nicht verdeckt oder beruehrt
                         if showSidebar, scriptLeft {
-                            PageSidebar(store: store, bridge: bridge).frame(width: 200)
+                            PageSidebar(store: store, bridge: bridge, markers: markers).frame(width: 200)
                             Divider()
                         }
                         if let c = companion, scriptLeft {
@@ -231,7 +262,7 @@ struct DocumentView: View {
                         }
                         if showSidebar, !scriptLeft {
                             Divider()
-                            PageSidebar(store: store, bridge: bridge).frame(width: 200)
+                            PageSidebar(store: store, bridge: bridge, markers: markers).frame(width: 200)
                         }
                     }
                     .coordinateSpace(NamedCoordinateSpace.named("split"))
@@ -261,6 +292,17 @@ struct DocumentView: View {
                 if id == store.file.id { bridge.controller?.goToPage(page - 1) }
             }
         }
+        .sheet(item: $markerPage) { mp in
+            LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
+                               goTo: { pdfPage in
+                                   if let i = store.layout?.entries.firstIndex(where: { $0.kind == "pdf" && $0.pdfIndex == pdfPage }) {
+                                       bridge.controller?.goToPage(i)
+                                   }
+                               }, done: { markerNotice = $0 })
+        }
+        .alert("Vorlesung bis hier", isPresented: Binding(get: { markerNotice != nil }, set: { if !$0 { markerNotice = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(markerNotice ?? "") }
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
         .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
         .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
@@ -351,6 +393,7 @@ struct DocumentView: View {
             scheduleSuggestion(bridge.pageIndex)
             await reloadSolutionLayers()
             await loadCommunityMatches()
+            if offersLectureMarker { await markers.refresh(api: api, fileID: store.file.id) }
         }
         // zu sehen oder nicht: ein anderes Fenster darf ein nicht sichtbares Dokument uebernehmen (OpenDocuments)
         .onAppear { store.setShown(true) }
@@ -532,6 +575,15 @@ struct DocumentView: View {
             }
             StatusLabel(status: store.status)
             SyncIssueBadge(store: store)
+            if offersLectureMarker {
+                Button { openLectureMarker() } label: {
+                    Label("Vorlesung bis hier", systemImage: markers.needsReview ? "bookmark.trianglebadge.exclamationmark" : "bookmark")
+                }
+                .tint(markers.needsReview ? UF.warn : nil)
+                .help(markers.needsReview ? "Ein Marker muss nach einer Dokumentänderung geprüft werden"
+                                          : "Vorlesung bis hier: letzte behandelte Seite markieren")
+                .accessibilityIdentifier("doc.lectureMarker")
+            }
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
             if aiEnabled {
                 Button { showTutor = true } label: { Label("KI", systemImage: "sparkles") }
@@ -1073,6 +1125,8 @@ struct CompanionPicker: View {
 struct PageSidebar: View {
     @ObservedObject var store: DocumentStore
     @ObservedObject var bridge: EditorBridge
+    /// Vorlesungs-Seitenmarker des Dokuments (Kennzeichen "bis hier" an der Miniatur)
+    var markers: LectureMarkers?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1090,7 +1144,7 @@ struct PageSidebar: View {
                 .frame(maxHeight: 180)
                 Divider()
             }
-            ThumbnailStrip(store: store, bridge: bridge)
+            ThumbnailStrip(store: store, bridge: bridge, markers: markers)
         }
         .background(Color(uiColor: .secondarySystemBackground))
     }
@@ -1104,6 +1158,7 @@ struct PageSidebar: View {
 struct ThumbnailStrip: View {
     @ObservedObject var store: DocumentStore
     @ObservedObject var bridge: EditorBridge
+    var markers: LectureMarkers?
     @StateObject private var cache = ThumbnailCache()
     @Environment(\.displayScale) private var displayScale
 
@@ -1168,11 +1223,33 @@ struct ThumbnailStrip: View {
             }
             .frame(width: Self.width)
             .overlay(Rectangle().strokeBorder(current ? Color.accentColor : Color(uiColor: .separator), lineWidth: current ? 2 : 1))
+            .overlay(alignment: .bottom) { if let lm = lectureMark(entry) { MarkerTag(review: LectureMarkers.reviewFlag(lm)) } }
             Text("\(i + 1)").font(.caption2.monospacedDigit()).foregroundStyle(current ? Color.accentColor : .secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Seite \(i + 1)")
+        .accessibilityLabel("Seite \(i + 1)" + (lectureMark(entry).map { LectureMarkers.reviewFlag($0) ? ", Vorlesung bis hier, bitte prüfen" : ", Vorlesung bis hier" } ?? ""))
         .accessibilityAddTraits(current ? [.isSelected] : [])
+    }
+}
+
+extension ThumbnailStrip {
+    /// Marker, der auf dieser Originalseite endet (eingefuegte Seiten tragen keinen)
+    func lectureMark(_ entry: DisplayLayout.Entry) -> JSONValue? {
+        entry.kind == "pdf" ? markers?.mark(pdfPage: entry.pdfIndex) : nil
+    }
+}
+
+/// .ed-thumb-lm: Band "bis hier" am unteren Rand der Miniatur (Warnfarbe, wenn der Marker zu pruefen ist)
+struct MarkerTag: View {
+    let review: Bool
+    var body: some View {
+        Label("bis hier", systemImage: "flag.fill")
+            .font(.system(size: 10, weight: .semibold))
+            .labelStyle(.titleAndIcon)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 1)
+            .background(review ? UF.warn : UF.accent)
     }
 }
 

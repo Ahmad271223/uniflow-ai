@@ -1625,3 +1625,20 @@ Vertrag entstehen konnte. **Bitte beim nächsten Arbeiten an `app/ai.py` beachte
    Sync-Vertrag), oder die Branches schließen.
 10. Weiter offen aus der Übergabe: `PUT /api/terms` wie das iPad (569), kürzere 500er-Texte (555), Ausfälle
     ausblenden (A1). Laut 196555e erledigt, bitte bestätigen.
+
+## Mac-Sitzung: „Vorlesung bis hier“ und gemeinsame Wochentests auf dem iPad (30.10.2026)
+
+- **Kern:** Die Swift-Fassung von `app/weekly.py` ist byte-gleich zur Fixture `local-backend/weekly.json`, die
+  `tools/gen-weekly-fixture.py` erzeugt.
+- **Oberfläche:** Knopf und Dialog im Dokument, Kennzeichen an den Miniaturen, Box auf der Modulseite, Testdetails,
+  Einstellungen und Probeklausur. Einzelheiten stehen in `docs/WOCHENTESTS.md`, Abschnitt „iPad (ohne PC)“.
+- **Takt auf dem iPad:** im Vordergrund alle 10 min, nur mit KI.
+- **Für die PC-Sitzung:**
+  - In `app/` hat sich nichts geändert.
+  - `tools/gen-local-backend-fixture.py` hat neue Fälle:
+    - `PATCH /api/modules` mit `expected_materials` und `exam_reuse`
+    - die elf Wochentest- und Marker-Pfade in `SAMPLES`
+  - `POST /api/weekly/tick` läuft dort nicht gegen Python (`"python": False`). Der Hintergrund-Thread lief sonst in die
+    nächsten Szenarien hinein, und `library-files.json` bekam „no such table: wt_plans“.
+- **Offen:** ein Durchlauf mit echtem Skript und echter KI auf dem iPad. Dafür braucht es eine echte Stud.IP-PDF und
+  das verbundene ChatGPT-Abo, beides nur mit dem Inhaber.
