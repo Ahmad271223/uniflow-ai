@@ -376,16 +376,47 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard widest > 0 else { return }
         let fit = widest * mixedFormatFactor
         if lastFit == 0 {
+            let page = pdfView.currentPage
             pdfView.autoScales = false
             applyLimits(fit: fit, widest: widest)
             pdfView.scaleFactor = fit
+            centerColumn(keeping: page)
         } else if abs(fit - lastFit) > 0.0001 {
             let next = ZoomPolicy.scaleAfterResize(current: pdfView.scaleFactor, oldFit: lastFit, newFit: fit, userZoomed: userZoomed,
                                                    widestFit: widest)
             applyLimits(fit: fit, widest: widest)
+            let page = pdfView.currentPage
             pdfView.scaleFactor = next
+            if !userZoomed { centerColumn(keeping: page) }
         }
         lastFit = fit
+    }
+
+    /// Gemischte Formate (M6): PDFView legt alle Seiten mittig in eine Spalte so breit wie die breiteste Seite. Bei der
+    /// Einpassung auf die mittlere Breite die Ansicht waagerecht auf die Mitte stellen; dort liegen alle schmaleren
+    /// Seiten (sonst stand sie am linken Rand der breiten Spalte, und die Seiten waren nicht zu sehen).
+    /// `page`: die Seite vor dem Zoomwechsel; PDFView verschiebt beim Zoomen auch senkrecht, danach wieder zu ihr.
+    private func centerColumn(keeping page: PDFPage?) {
+        guard mixedFormatFactor > 1.001 else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let page, page.document === self.pdfView.document { self.pdfView.go(to: page) }
+            self.centerHorizontally()
+        }
+    }
+
+    /// Ansicht waagerecht auf die Mitte der Seitenspalte (dort liegen alle Seiten, gemischte Formate)
+    private func centerHorizontally() {
+        guard mixedFormatFactor > 1.001, let scroll = firstScrollView(in: pdfView) else { return }
+        let x = max(0, (scroll.contentSize.width - scroll.bounds.width) / 2)
+        scroll.setContentOffset(CGPoint(x: x, y: scroll.contentOffset.y), animated: false)
+    }
+
+    /// Zu einer Seite springen. Bei gemischten Formaten schiebt `PDFView.go(to:)` die Ansicht in der breiten Spalte
+    /// waagerecht neben alle Seiten (gemessen: Versatz 3 800 pt, keine Seite sichtbar); danach wieder auf die Mitte.
+    private func show(page: PDFPage) {
+        pdfView.go(to: page)
+        centerHorizontally()
     }
 
     private func applyLimits(fit: CGFloat, widest: CGFloat) {
@@ -444,7 +475,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         })
         view.setNeedsLayout()                                   // neue Einpassung, falls sich die Formate geaendert haben
         if lastFit > 0 { pdfView.scaleFactor = keepScale }
-        if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) { pdfView.go(to: page) }
+        if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) { show(page: page) }
         // aktuelle Seite melden (auch ohne Blaettern), nach der laufenden SwiftUI-Aktualisierung
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -905,12 +936,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func goToPage(_ index: Int) {
         guard let page = pdfView.document?.page(at: index) else { return }
-        pdfView.go(to: page)
+        show(page: page)
     }
 
     func show(_ selection: PDFSelection) {
         pdfView.highlightedSelections = [selection]
         pdfView.go(to: selection)
+        centerHorizontally()
     }
 
     func undo() {

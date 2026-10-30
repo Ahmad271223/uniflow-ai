@@ -503,7 +503,9 @@ final class DocumentStore: ObservableObject {
     /// Eingefuegte PDF-Seiten aus dem Web: Dateien laden (nur `/api/assets/...`), danach die Anzeige neu aufbauen
     private func loadMissingAssets(_ doc: AnnotationDocument) {
         let urls = Set(doc.pageOrder.compactMap { p -> String? in
-            guard p["type"]?.string == "asset", let u = p["assetUrl"]?.string, u.hasPrefix("/api/assets/") else { return nil }
+            // ueber Pfadteile geprueft (kein Pfad-Literal, das der Fixture-Generator als Endpunkt liest)
+            guard p["type"]?.string == "asset", let u = p["assetUrl"]?.string,
+                  URL(string: u)?.pathComponents.prefix(3) == ["/", "api", "assets"], !u.contains("..") else { return nil }
             return u
         })
         for url in urls where assetPDFs[url] == nil && !assetsLoading.contains(url) {
