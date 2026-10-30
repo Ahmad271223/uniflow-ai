@@ -10,7 +10,7 @@ mit, darum stehen die wichtigsten Regeln und Entscheidungen unten noch einmal.
 | --- | --- | --- | --- |
 | `develop` | `ed565d8` | Editor 3–6, Barrierefreiheit, PR #6 (Seitenmarker), iPad-Kern `weekly.py`, iPad-Oberfläche „Vorlesung bis hier“ und Wochentest-Box | voll grün: Kern 765×2, App 557×2, pytest 558, alle Generatoren |
 | `wip/lernplan-woche` | `952ced2` und dieser Übergabe-Commit | Lernplan nach der Regel des Inhabers (siehe 2), KI-Wochenplan entfernt | pytest 562, alle Generatoren `--check`, Kern 765×2, App-Tests `LocalModulesAppTests` (11) grün. **Der volle App-Lauf fehlt noch.** |
-| `refs/backup/mac-2026-10-30/*` | – | Ältere lokale Zwischen-Branches des alten Macs (25.–27.10.). Ihr Inhalt ist längst in `develop`, die Commits haben nur andere Prüfsummen. Gesichert, damit nichts verloren geht. | – |
+| `refs/backup/mac-2026-10-30/*` | – | Ältere lokale Zwischen-Branches des alten Macs (25.–27.10.). Ihr Inhalt ist längst in `develop`, die Commits haben nur andere Prüfsummen. 27 von 84 gesichert. 57 Stände vom 25. und 26.10. lehnte GitHub ab, weil sie alte Workflow-Dateien enthalten und der Zugang des alten Macs kein `workflow`-Recht hatte. Ihr Inhalt ist in `develop`. | – |
 
 `main` bleibt unberührt. Pull Request #6 ist geschlossen; sein Inhalt steckt in `develop`.
 
