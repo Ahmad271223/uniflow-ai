@@ -6,7 +6,8 @@ Geraeten denselben Stand hat.
 
 Regeln:
 - Die Berechtigung entscheidet der Server, nie die App allein. Kein Endpunkt nimmt einen Tarif aus der Anfrage an.
-- Quellen eines Tarifs: `app_store` (gepruefte Transaktion, app/apple_store.py), `manual` (Betrieb, CLI
+- Quellen eines Tarifs: `app_store` (gepruefte Transaktion, app/apple_store.py), `stripe` (Web und Windows,
+  app/stripe_billing.py), `trial` (7 Tage Probe je neues Konto, plans.TRIAL), `manual` (Betrieb, CLI
   `python -m app.accounts plan ...`, steht wie bisher in users.plan/plan_until). Es gilt der hoechste aktive.
 - Hochzaehlen und Grenze pruefen geschieht in einem UPDATE innerhalb einer Schreibtransaktion (BEGIN IMMEDIATE):
   zwei gleichzeitige Anfragen koennen nicht beide den letzten freien Test bekommen.
@@ -21,7 +22,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from . import plans
 
@@ -59,6 +60,21 @@ CREATE TABLE IF NOT EXISTS usage_requests (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_usage_requests_user ON usage_requests(user_id, period);
+CREATE TABLE IF NOT EXISTS plan_choices (
+    user_id TEXT PRIMARY KEY,             -- Antwort auf die Aufforderung nach der Probe (free | plus | ...), einmal
+    plan TEXT NOT NULL,
+    chosen_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stripe_customers (
+    user_id TEXT PRIMARY KEY,
+    customer_id TEXT UNIQUE NOT NULL,     -- cus_…
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stripe_events (
+    id TEXT PRIMARY KEY,                  -- evt_…, jedes Ereignis zaehlt hoechstens einmal
+    type TEXT,
+    created_at TEXT NOT NULL
+);
 """
 
 ACTIVE_STATUSES = ("active", "grace", "billing_retry")
@@ -225,6 +241,63 @@ def set_entitlement(conn: sqlite3.Connection, user_id, source: str, plan: str, *
          _now(now).isoformat()))
 
 
+# ---------------------------------------------------------------- Probe und Tarifwahl
+
+def start_trial(conn: sqlite3.Connection, user_id, now: datetime | None = None) -> dict | None:
+    """Probe fuer ein neues Konto (plans.TRIAL): alles frei bis `expires_at`, verlaengert nie. Nur einmal je Konto;
+    ein zweiter Aufruf aendert nichts (liefert None)."""
+    uid = str(user_id)
+    if conn.execute("SELECT 1 FROM entitlements WHERE user_id=? AND source='trial'", (uid,)).fetchone():
+        return None
+    t = _now(now)
+    ends = (t + timedelta(days=plans.TRIAL["days"])).replace(microsecond=0).isoformat()
+    set_entitlement(conn, uid, "trial", plans.TRIAL["plan"], expires_at=ends, status="active", will_renew=False, now=t)
+    return {"plan": plans.TRIAL["plan"], "ends_at": ends}
+
+
+def end_trial(conn: sqlite3.Connection, user_id, now: datetime | None = None) -> bool:
+    """Probe sofort beenden (Betrieb, Tests): der Eintrag bleibt als "vorbei" stehen, damit sie nicht erneut startet."""
+    t = _now(now).isoformat()
+    cur = conn.execute("UPDATE entitlements SET status='expired', expires_at=?, updated_at=? WHERE user_id=? AND source='trial' AND expires_at > ?",
+                       (t, t, str(user_id), t))
+    return cur.rowcount == 1
+
+
+def trial_info(conn: sqlite3.Connection, user_id, now: datetime | None = None) -> dict:
+    """Stand der Probe: active, ends_at, days_left (aufgerundet), expired."""
+    t = _now(now)
+    row = conn.execute("SELECT plan, expires_at, status FROM entitlements WHERE user_id=? AND source='trial'", (str(user_id),)).fetchone()
+    if not row or not row[1]:
+        return {"granted": False, "active": False, "ends_at": None, "days_left": 0, "expired": False, "plan": None}
+    ends = datetime.fromisoformat(row[1])
+    left = ends - t
+    active = left.total_seconds() > 0 and row[2] in ACTIVE_STATUSES
+    return {"granted": True, "active": active, "ends_at": row[1], "plan": normalize_plan(row[0]),
+            "days_left": int((left.total_seconds() + 86399) // 86400) if active else 0,
+            "expired": not active}
+
+
+def record_plan_choice(conn: sqlite3.Connection, user_id, plan: str, now: datetime | None = None) -> str:
+    """Antwort auf die Aufforderung nach der Probe merken (einmal; eine spaetere Wahl ersetzt die erste)."""
+    p = normalize_plan(plan)
+    if not p:
+        raise ValueError(f"unbekannter Tarif {plan}")
+    conn.execute("INSERT INTO plan_choices(user_id, plan, chosen_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET plan=excluded.plan, chosen_at=excluded.chosen_at",
+                 (str(user_id), p, _now(now).isoformat()))
+    return p
+
+
+def plan_choice(conn: sqlite3.Connection, user_id) -> str | None:
+    row = conn.execute("SELECT plan FROM plan_choices WHERE user_id=?", (str(user_id),)).fetchone()
+    return row[0] if row else None
+
+
+def needs_plan_choice(conn: sqlite3.Connection, user_id, plan: str, now: datetime | None = None) -> bool:
+    """Aufforderung zeigen? Probe vorbei, kein bezahlter Tarif, noch keine Antwort."""
+    tr = trial_info(conn, user_id, now)
+    return bool(tr["expired"] and plan == "free" and plan_choice(conn, user_id) is None)
+
+
 def entitlement_rows(conn: sqlite3.Connection, user_id) -> list[dict]:
     cur = conn.execute("""SELECT source, plan, original_transaction_id, expires_at, status, will_renew, pending_plan,
                                  environment, updated_at FROM entitlements WHERE user_id=?""", (str(user_id),))
@@ -253,6 +326,8 @@ def status(conn: sqlite3.Connection, user: dict, now: datetime | None = None) ->
         "pending_plan": src.get("pending_plan") if src else None,
         "entitlements": plans.entitlements(plan), "quotas": quotas,
         "integrations": plans.contract()["integrations"], "mode": "hosted",
+        "trial": trial_info(conn, user["id"], t), "plan_choice": plan_choice(conn, user["id"]),
+        "needs_plan_choice": needs_plan_choice(conn, user["id"], plan, t),
     }
 
 

@@ -10,17 +10,20 @@
                                           vorgetaeuschte Verbindung); auf dem eigenen PC: Sign in with ChatGPT starten
 - POST /api/integrations/chatgpt/disconnect, GET .../models, PUT .../settings {model, use_for_ai}  nur auf dem eigenen PC
 
-Zahlung im Web gibt es noch nicht (kein Zahlungsanbieter eingerichtet); die Tarife werden in der Apple-App gekauft.
+- POST /api/billing/stripe/checkout       {plan} -> Checkout-Adresse (Web, Windows; app/stripe_billing.py)
+- POST /api/billing/stripe/portal         Kundenportal (Wechsel, Kuendigung, Rechnungen)
+- POST /api/billing/stripe/webhook        Ereignisse von Stripe (oeffentlich, Signatur geprueft)
+- POST /api/billing/plan-choice           {plan} Antwort auf die Aufforderung nach der 7-Tage-Probe
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from . import apple_store, billing, config, entitlements, plans
+from . import apple_store, billing, config, entitlements, plans, stripe_billing
 
 router = APIRouter()
 
-PUBLIC = {"/api/billing/plans", "/api/billing/apple/notifications"}
+PUBLIC = {"/api/billing/plans", "/api/billing/apple/notifications", "/api/billing/stripe/webhook"}
 
 
 def _user(request: Request) -> dict:
@@ -41,8 +44,12 @@ def purchase_channels() -> dict:
     return {
         "apple": {"available": True, "note": "Abschluss, Wechsel, Kündigung und Wiederherstellen in der iPad-/Mac-App "
                                              "über den App Store."},
-        "web": {"available": False, "note": "Im Web und unter Windows gibt es noch keinen Abschluss. Ein Abo aus der "
-                                            "Apple-App gilt hier automatisch, sobald du mit demselben Studora-Konto angemeldet bist."},
+        "web": {"available": stripe_billing.available(),
+                "note": ("Abschluss, Wechsel und Kündigung im Web und unter Windows über Stripe. Ein Abo aus der Apple-App gilt "
+                         "hier automatisch, sobald du mit demselben Studora-Konto angemeldet bist.") if stripe_billing.available() else
+                        ("Im Web und unter Windows gibt es noch keinen Abschluss. Ein Abo aus der Apple-App gilt hier "
+                         "automatisch, sobald du mit demselben Studora-Konto angemeldet bist."),
+                "plans": sorted(stripe_billing.prices(), key=plans.rank)},
         "android": {"available": False, "note": "Die Android-App ist pausiert."},
     }
 
@@ -79,6 +86,69 @@ def apple_verify(request: Request, body: dict = Body(...)):
         out = apple_store.verify_purchase(conn, u["id"], signed, body.get("signed_renewal") or None)
     except (apple_store.AppleError, billing.BillingError) as e:
         raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    finally:
+        conn.close()
+    out["entitlements"] = entitlements.status(request)
+    return out
+
+
+# ---------------------------------------------------------------- Stripe (Web, Windows) und Tarifwahl nach der Probe
+
+def _stripe_call(fn):
+    conn = billing.connect()
+    try:
+        return fn(conn)
+    except (stripe_billing.StripeError, billing.BillingError) as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    finally:
+        conn.close()
+
+
+@router.post("/api/billing/stripe/checkout")
+def stripe_checkout(request: Request, body: dict = Body(...)):
+    """Abschluss im Web: liefert die Checkout-Adresse von Stripe; den Tarif setzt erst der Webhook."""
+    _hosted()
+    u = _user(request)
+    plan = str(body.get("plan") or "")
+    if plan not in plans.PLANS or plan == "free":
+        raise HTTPException(400, {"detail": "Bitte einen kostenpflichtigen Tarif angeben.", "code": "plan_invalid"})
+    return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan))
+
+
+@router.post("/api/billing/stripe/portal")
+def stripe_portal(request: Request):
+    _hosted()
+    u = _user(request)
+    return _stripe_call(lambda conn: stripe_billing.portal(conn, u))
+
+
+@router.post("/api/billing/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Oeffentlich; die Signatur im Kopf Stripe-Signature ersetzt die Sitzung."""
+    _hosted()
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature")
+    return _stripe_call(lambda conn: stripe_billing.handle_event(conn, payload, sig))
+
+
+@router.post("/api/billing/plan-choice")
+def plan_choice(request: Request, body: dict = Body(...)):
+    """Antwort auf die Aufforderung nach der Probe: free merken; einen bezahlten Tarif merken und, wenn Stripe
+    eingerichtet ist, gleich die Checkout-Adresse liefern (sonst Hinweis auf die Apple-App)."""
+    _hosted()
+    u = _user(request)
+    plan = str(body.get("plan") or "")
+    if plan not in plans.PLANS:
+        raise HTTPException(400, {"detail": "Unbekannter Tarif.", "code": "plan_invalid"})
+    conn = billing.connect()
+    try:
+        billing.record_plan_choice(conn, u["id"], plan)
+        out = {"plan": plan, "checkout_url": None}
+        if plan != "free" and stripe_billing.available():
+            try:
+                out["checkout_url"] = stripe_billing.checkout(conn, u, plan)["url"]
+            except stripe_billing.StripeError as e:
+                out["checkout_error"] = e.message
     finally:
         conn.close()
     out["entitlements"] = entitlements.status(request)

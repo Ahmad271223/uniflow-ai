@@ -5,7 +5,7 @@ import { viewFiles } from "./views-lib.js?v=40";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=35";
 import { viewTimetable, openEvent } from "./views-tt.js?v=33";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=48";
-import { viewAbo } from "./views-abo.js?v=32";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=33";
 import { initPWA, installBanner, bindInstallBanner, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=1";
 
 // ---------------------------------------------------------------- Shell
@@ -156,6 +156,7 @@ async function start() {
   window.__app = { route, api, state };
   api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
+  if (state.hosted && state.entitlements?.needs_plan_choice && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie
   // der lokale Dienst im Standardbrowser (/api/desktop/open, nur http/https)
   api("/desktop").then(d => {

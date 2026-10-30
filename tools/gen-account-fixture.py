@@ -79,6 +79,7 @@ def build() -> dict:
     pw, pw2 = "sehr-geheim-123", "noch-geheimer-456"
     st, reg = call("Konto anlegen", "POST", "/api/account/register", {"email": "Erika@Beispiel.de", "password": pw, "university": "hildesheim", "device_id": "ipad-1", "device_name": "iPad"})
     token = reg["token"]
+    accounts.end_trial(reg["user"]["id"])                       # "Studora Free" meint den Stand nach der 7-Tage-Probe
     call("Konto anlegen: Adresse schon vergeben", "POST", "/api/account/register", {"email": "erika@beispiel.de", "password": pw, "university": "luh"})
     call("Konto anlegen: Passwort zu kurz", "POST", "/api/account/register", {"email": "neu@beispiel.de", "password": "kurz", "university": "luh"})
     call("Konto anlegen: Hochschule unbekannt", "POST", "/api/account/register", {"email": "neu@beispiel.de", "password": pw, "university": "tum"})

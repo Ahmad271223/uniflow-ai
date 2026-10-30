@@ -83,6 +83,7 @@ def build() -> dict:
     def user(email, plus=True, admin=False, uni="luh"):
         st, d = call(f"Konto {email.split('@')[0]} anlegen", "POST", "/api/account/register", {"email": email, "password": "sehr-geheim-123", "university": uni})
         accounts.mark_email_verified(d["user"]["id"])           # Veroeffentlichen verlangt eine bestaetigte Adresse
+        accounts.end_trial(d["user"]["id"])                     # "Free" meint den Stand nach der 7-Tage-Probe
         if plus:
             accounts.set_plan(d["user"]["id"], "plus")
         if admin:

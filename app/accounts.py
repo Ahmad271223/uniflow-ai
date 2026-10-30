@@ -282,7 +282,29 @@ def register(email: str, password: str, university: str, client_ip: str | None =
         uid = uuid.uuid4().hex
         conn.execute("INSERT INTO users(id, email, pw_hash, university, created_at) VALUES (?,?,?,?,?)",
                      (uid, email, hash_password(password), university, iso(now())))
-        return _public(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
+        user = _public(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
+    grant_trial(uid)
+    return user
+
+
+def grant_trial(user_id: str) -> None:
+    """Probe fuer ein neues Konto (app/billing.py, plans.TRIAL); eigene Verbindung, nach der Schreibtransaktion."""
+    from . import billing
+    conn = billing.connect()
+    try:
+        billing.start_trial(conn, user_id)
+    finally:
+        conn.close()
+
+
+def end_trial(user_id: str) -> bool:
+    """Probe sofort beenden (Betrieb, Tests, Prüfdaten: "Free" meint den Stand nach der Probe)."""
+    from . import billing
+    conn = billing.connect()
+    try:
+        return billing.end_trial(conn, user_id)
+    finally:
+        conn.close()
 
 
 def create_session(conn, user_id: str, device_id: str | None, device_name: str | None) -> str:
@@ -543,7 +565,10 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
             row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
             created = True
         token = create_session(conn, row["id"], device_id, device_name)
-        return _public(row), token, created
+        user = _public(row)
+    if created:
+        grant_trial(user["id"])
+    return user, token, created
 
 
 def login_with_identity(provider: str, identity_token: str, device_id: str | None = None, device_name: str | None = None,

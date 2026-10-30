@@ -1,7 +1,8 @@
 // Studora – Abo-Übersicht: vier Tarife, eigener Stand, Kontingente (Server: /api/billing/plans, /api/entitlements).
 // Es wird nur als enthalten gezeigt, was technisch freigeschaltet ist (status "available"); alles andere steht als
-// "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen geht heute nur in der Apple-App (App Store).
-import { api, esc, icon, state } from "./core.js?v=32";
+// "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen: Apple-App (App Store) oder, wenn Stripe eingerichtet ist, im Web.
+// Jedes neue Konto hat 7 Tage Probe (plans.TRIAL); danach einmal die Aufforderung, einen Tarif zu wählen (planChoicePrompt).
+import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=32";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {
@@ -53,6 +54,16 @@ export async function viewAbo(_, params, view) {
        ${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>
        ${quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new)}${quotaBar(labels.library_tests, me.quotas.library_tests)}${quotaBar(labels.ai_assist, me.quotas.ai_assist)}`;
   const gpt = contract.integrations.chatgpt;
+  const web = contract.purchase.web || {}, viaStripe = me.source === "stripe";
+  const tr = me.trial || {};
+  const trial = local || !tr.granted ? "" : tr.active
+    ? `<div class="card" style="margin-bottom:1rem;border-color:var(--accent)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("sparkles", 18)}<div style="flex:1"><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><div class="small muted">Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen von ${esc(contract.plans[tr.plan]?.name || "Studora Pro AI")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</div></div></div></div>`
+    : me.needs_plan_choice
+      ? `<div class="card" style="margin-bottom:1rem;border-color:var(--warn)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("alert", 18)}<div style="flex:1"><b>Deine Probe ist vorbei</b><div class="small muted">Wähle unten einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten und lesbar.</div></div><button class="btn sm" id="aboStayFree">Bei Free bleiben</button></div></div>`
+      : "";
+  const afterCheckout = params.checkout === "success"
+    ? `<p class="small" style="color:var(--ok);margin:.2rem 0">${icon("check", 14)} Zahlung abgeschlossen. Dein Tarif erscheint hier, sobald Stripe die Bestätigung geschickt hat (meist sofort).</p>`
+    : params.checkout === "cancel" ? `<p class="small muted" style="margin:.2rem 0">Abschluss abgebrochen, nichts wurde berechnet.</p>` : "";
   const cards = contract.order.map(key => {
     const p = contract.plans[key], isCur = key === current;
     const q = p.quotas;
@@ -62,9 +73,11 @@ export async function viewAbo(_, params, view) {
         .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die Studora-KI eingerichtet ist)` : t),
     ].filter(Boolean).map(t => `<div class="small">${t}</div>`).join("");
     const highlight = key === "pro_ai" ? "border-color:var(--accent)" : "";
-    const action = local ? "" : isCur ? `<span class="badge ok">Dein Tarif</span>`
-      : key === "free" ? `<span class="muted small">Zurück zu Free: Abo im App Store kündigen</span>`
-      : `<button class="btn sm" disabled title="${esc(contract.purchase.web.note)}">In der Apple-App abschließen</button>`;
+    const action = local ? "" : isCur ? `<span class="badge ok">Dein Tarif</span>${viaStripe ? ` <button class="btn sm" id="aboPortal">Abo verwalten</button>` : ""}`
+      : key === "free" ? `<span class="muted small">${viaStripe ? "Zurück zu Free: im Kundenportal kündigen (Abo verwalten)" : me.source === "app_store" ? "Zurück zu Free: Abo im App Store kündigen" : "Kostenlos, ohne Laufzeit"}</span>`
+      : web.available && (web.plans || []).includes(key) && !viaStripe ? `<button class="btn sm primary" data-buy="${key}">Abschließen</button>`
+      : viaStripe ? `<button class="btn sm" data-portal="1">Wechseln (Abo verwalten)</button>`
+      : `<button class="btn sm" disabled title="${esc(web.note || "")}">In der Apple-App abschließen</button>`;
     return `<div class="card" style="display:flex;flex-direction:column;gap:.5rem;${highlight}">
       <div class="card-head" style="margin:0"><h2>${esc(p.name)}</h2>${key === "pro_ai" ? `<span class="badge info">ohne eigenes ChatGPT</span>` : ""}</div>
       <div><span style="font-size:1.6rem;font-weight:700">${euro(p.price_cents)}</span><span class="muted small"> / Monat</span></div>
@@ -75,7 +88,7 @@ export async function viewAbo(_, params, view) {
   }).join("");
   view.innerHTML = `<div class="content" style="max-width:1180px">
     <div class="page-head"><div><h1>Abo & Tarife</h1><div class="sub">${local ? "Eigener PC" : `Dein Tarif: ${esc(me.plan_name)}`}</div></div></div>
-    <div class="card" style="margin-bottom:1rem">${status}</div>
+    ${trial}<div class="card" style="margin-bottom:1rem">${afterCheckout}${status}</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">${cards}</div>
     <div class="grid cols-2" style="margin-top:1rem">
       ${local && gptLocal?.available ? `<div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></div>
@@ -87,4 +100,19 @@ export async function viewAbo(_, params, view) {
         <p class="small muted">Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></div>
     </div></div>`;
   if (state.hosted) state.entitlements = me;
+  if (params.checkout === "success" && me.source !== "stripe" && !viewAbo._retried) { viewAbo._retried = true; setTimeout(() => { if (location.hash.startsWith("#/abo")) state.route(); }, 4000); }
+  $$("[data-buy]", view).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api("/billing/plan-choice", { method: "POST", body: { plan: b.dataset.buy } }); if (r.checkout_url) { location.href = r.checkout_url; return; } toast(r.checkout_error || "Abschluss zurzeit nur in der Apple-App", 5000); } catch (e) { toast(e.message, 5000); } b.disabled = false; });
+  const portal = async () => { try { const r = await api("/billing/stripe/portal", { method: "POST", body: {} }); location.href = r.url; } catch (e) { toast(e.message, 5000); } };
+  $("#aboPortal", view)?.addEventListener("click", portal);
+  $$("[data-portal]", view).forEach(b => b.onclick = portal);
+  $("#aboStayFree", view)?.addEventListener("click", async () => { try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free – deine Notizen bleiben"); state.route(); } catch (e) { toast(e.message, 5000); } });
+}
+
+/// Einmal je Sitzung nach der Probe: Tarif waehlen oder bei Free bleiben (app.js beim Start, wenn needs_plan_choice)
+export function planChoicePrompt(me) {
+  try { if (sessionStorage.getItem("plan-choice-prompted")) return; sessionStorage.setItem("plan-choice-prompted", "1"); } catch {}
+  const m = modal(`<h2 style="margin-top:0">${icon("sparkles", 18)} Deine Probe ist vorbei</h2>
+    <p class="small muted">Sieben Tage lang war alles frei. Wähle jetzt einen Tarif – oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar; bei Free ist nur das Bearbeiten und die KI gesperrt.</p>
+    <div class="row wrap" style="gap:.5rem;margin-top:.8rem"><a class="btn primary" href="#/abo" data-close>Tarife ansehen</a><button class="btn" id="pcFree">Bei Free bleiben</button><button class="btn ghost" data-close>Später</button></div>`);
+  $("#pcFree", m).onclick = async () => { try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free"); if (state.entitlements) state.entitlements.needs_plan_choice = false; } catch (e) { toast(e.message, 5000); } m.remove(); };
 }

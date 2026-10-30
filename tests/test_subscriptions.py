@@ -48,10 +48,21 @@ def _j(resp):
     return st, (json.loads(b) if b else None)
 
 
+def end_trial(user_id):
+    from app import billing
+    conn = billing.connect()
+    try:
+        billing.end_trial(conn, user_id)
+    finally:
+        conn.close()
+
+
 def user(app, email, plan="free", uni="luh", admin=False):
     from app import accounts
     st, d = _j(asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni})))
     assert st == 201, d
+    # jedes neue Konto hat 7 Tage Probe (plans.TRIAL); die Tarif-Tests meinen den Stand danach
+    end_trial(d["user"]["id"])
     if plan != "free":
         accounts.set_plan(d["user"]["id"], plan)
     if admin:

@@ -117,6 +117,17 @@ prüfen. Nur Punkt 8 braucht den Mac.
 5. **Plus-Kontingent 3 oder 6 Tests, geteilter Test gegen das Kontingent?** (aus `GEMEINSAME-WOCHENTESTS.md`,
    `ABO-SYSTEM.md`, weiter offen).
 
+### Entschieden am 30.10.2026 (abends)
+
+1. **Uni-Passwörter beim Dienst: ja.** Web-Nutzer lassen den Dienst mit ihren Hochschul-Zugangsdaten abgleichen
+   (`vault.py`, `jobs.py`). Bedingung: ausdrückliche Zustimmung je Nutzer in der Oberfläche, Text in der
+   Datenschutzerklärung, Anfrage an LUH und Hildesheim läuft parallel.
+2. **KI im Web: beides.** (b) ChatGPT-Abo des Nutzers im Browser, sobald OpenAI freigibt; (c) Studora-KI über den Dienst
+   als Pro AI auf Kosten des Inhabers, mit Kontingenten (`ai_backend.py`, Kostenkontrolle).
+3. **Bezahlen: erst Free, Stripe wird gebaut.** Jedes neue Konto bekommt **7 Tage Probe mit allen Rechten**
+   (wie Pro AI), danach die Aufforderung, einen Tarif zu wählen; ohne Wahl gilt Free. Stripe (Checkout, Kundenportal,
+   Webhooks) für Web; Apple bleibt für die App; Microsoft Store später.
+
 ## 5. Was dieser Plan nicht löst
 
 - Die KI hängt an OpenAI (Freigabe) oder an deinen Kosten. Keine Stufe hier ändert das.

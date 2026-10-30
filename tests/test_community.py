@@ -33,6 +33,7 @@ def _user(app, email, plus=True, admin=False, uni="luh", verified=True):
     st, _, b = asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni}))
     assert st == 201, b
     d = json.loads(b)
+    accounts.end_trial(d["user"]["id"])             # Tarif-Tests meinen den Stand nach der 7-Tage-Probe (30.10.2026)
     if verified:                                    # Veroeffentlichen verlangt eine bestaetigte Adresse (28.10.2026)
         accounts.mark_email_verified(d["user"]["id"])
     if plus:
