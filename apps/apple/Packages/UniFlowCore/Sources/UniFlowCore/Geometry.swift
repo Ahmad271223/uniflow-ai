@@ -42,18 +42,31 @@ public enum ZoomPolicy {
     public static let minFactor: CGFloat = 0.5
     public static let maxFactor: CGFloat = 6
 
-    public static func limits(fitScale: CGFloat) -> ClosedRange<CGFloat> {
+    /// Grenzen um die Einpassung; `widestFit` (gemischte Formate): so weit heraus, dass auch die breiteste Seite
+    /// ganz zu sehen ist.
+    public static func limits(fitScale: CGFloat, widestFit: CGFloat? = nil) -> ClosedRange<CGFloat> {
         let fit = max(fitScale, 0.01)
-        return (fit * minFactor)...(fit * maxFactor)
+        let lower = min(fit * minFactor, max(widestFit ?? .infinity, 0.001))
+        return lower...(fit * maxFactor)
+    }
+
+    /// Gemischte Seitengroessen (Befund M6, Editor-Schritt 5): PDFView passt auf die breiteste Seite ein, eine A0-Seite
+    /// machte so alle A4-Seiten winzig. Eingepasst wird stattdessen auf die mittlere Seitenbreite (Median): Faktor, um
+    /// den diese Einpassung groesser ist als die von PDFView; 1 bei gleich breiten Seiten.
+    public static func mixedFormatFactor(widths: [CGFloat]) -> CGFloat {
+        let w = widths.filter { $0.isFinite && $0 > 0 }.sorted()
+        guard let widest = w.last else { return 1 }
+        return widest / w[w.count / 2]
     }
 
     /// Neuer Zoom nach einer Groessenaenderung der Ansicht.
     /// - Hat der Nutzer nicht selbst gezoomt, bleibt die Seite eingepasst.
     /// - Sonst bleibt der Zoom relativ zur Einpassung gleich (z. B. beim Drehen des iPads).
-    public static func scaleAfterResize(current: CGFloat, oldFit: CGFloat, newFit: CGFloat, userZoomed: Bool) -> CGFloat {
+    public static func scaleAfterResize(current: CGFloat, oldFit: CGFloat, newFit: CGFloat, userZoomed: Bool,
+                                        widestFit: CGFloat? = nil) -> CGFloat {
         guard oldFit > 0, newFit > 0 else { return current }
         let next = userZoomed ? current * newFit / oldFit : newFit
-        let range = limits(fitScale: newFit)
+        let range = limits(fitScale: newFit, widestFit: widestFit)
         return min(max(next, range.lowerBound), range.upperBound)
     }
 

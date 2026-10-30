@@ -233,6 +233,9 @@ final class DocumentStore: ObservableObject {
     private let engine: SyncEngine
     private let ink = InkProcessor()
     private var original: PDFDocument?
+    /// PDFs der im Browser eingefuegten Seiten je `assetUrl` (P1-3); geladen bei Bedarf, fehlgeschlagene nicht erneut
+    private var assetPDFs: [String: PDFDocument] = [:]
+    private var assetsLoading = Set<String>()
     private var document = AnnotationDocument.empty()
     private var structure = ""
     private var pendingDrawings: [String: DrawingBox] = [:]
@@ -491,8 +494,29 @@ final class DocumentStore: ObservableObject {
         let sig = DisplayLayout.structureSignature(doc)
         if forceLayout || sig != structure || layout == nil {
             structure = sig
-            layout = DisplayLayout.build(original: original, document: doc)
+            layout = DisplayLayout.build(original: original, document: doc, assets: assetPDFs)
             layoutVersion += 1
+        }
+        loadMissingAssets(doc)
+    }
+
+    /// Eingefuegte PDF-Seiten aus dem Web: Dateien laden (nur `/api/assets/...`), danach die Anzeige neu aufbauen
+    private func loadMissingAssets(_ doc: AnnotationDocument) {
+        let urls = Set(doc.pageOrder.compactMap { p -> String? in
+            // ueber Pfadteile geprueft (kein Pfad-Literal, das der Fixture-Generator als Endpunkt liest)
+            guard p["type"]?.string == "asset", let u = p["assetUrl"]?.string,
+                  URL(string: u)?.pathComponents.prefix(3) == ["/", "api", "assets"], !u.contains("..") else { return nil }
+            return u
+        })
+        for url in urls where assetPDFs[url] == nil && !assetsLoading.contains(url) {
+            assetsLoading.insert(url)
+            Task { [weak self] in
+                guard let self else { return }
+                if let (data, http) = try? await self.api.data(url), http.statusCode == 200, let pdf = PDFDocument(data: data) {
+                    self.assetPDFs[url] = pdf
+                    self.apply(document: self.document, forceLayout: true)
+                }                                                   // sonst bleibt der Platzhalter (kein neuer Versuch)
+            }
         }
     }
 
@@ -832,6 +856,24 @@ final class DocumentStore: ObservableObject {
             }
             return change
         }
+    }
+
+    /// Objekte einer Seite aendern (Objekt-Werkzeuge, Editor-Schritt 6): ausstehende Striche zuerst, dann die Aenderung
+    /// auf den aktuellen Stand der Seite; Striche bleiben, wie sie sind. Rueckgabe: die Objekte vorher (fuer
+    /// Rueckgaengig) oder nil, wenn nichts geaendert wurde.
+    @discardableResult
+    func editObjects(pageKey key: String, _ change: ([JSONValue]) -> [JSONValue]) async -> [JSONValue]? {
+        guard isWritable else { return nil }
+        await processPending()
+        await stampOriginIfNeeded()
+        var page = (await engine.page(key)) ?? .object(["objects": .array([])])
+        let before = page["objects"]?.array ?? []
+        let after = change(before)
+        guard after != before else { return nil }
+        page["objects"] = .array(after)
+        await engine.updatePage(key, page)
+        onPagesChanged?([key])
+        return before
     }
 
     /// Textfeld auf der Seite anlegen (im Web-Editor bearbeitbar).

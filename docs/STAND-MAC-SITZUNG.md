@@ -1586,3 +1586,42 @@ Vertrag entstehen konnte. **Bitte beim nächsten Arbeiten an `app/ai.py` beachte
   bereits ausgestellte Client-IDs bleiben gültig.
 - **Für Windows/Web offen:** Die Testansicht kann die Schwierigkeit je Aufgabe (`difficulty`) und die Klausuraufgabe
   (`exam_style`) anzeigen; ältere Tests ohne diese Felder bleiben lesbar.
+
+## Mac-Sitzung: Editor-Schritte 3–5, Vertragsänderungen in `app/`, Fragen an die PC-Sitzung (29.10.2026, abends)
+
+**In `app/` geändert (bitte am PC ansehen, Windows nutzt denselben Server und Editor):**
+
+1. **Versionsverlauf der Notizen (Editor-Schritt 4, Entscheidung 3 des Inhabers):** `PUT /api/files/{id}/annotations`
+   legt höchstens alle 5 Minuten eine Version an (`VERSION_EVERY_S` in `app/server.py`). Neu ist der Parameter
+   `?snapshot=true`: Er übernimmt den ersetzten und den neuen Stand in den Verlauf (beim Schließen, nach einem
+   Konflikt, beim Wiederherstellen). Der Web-Editor sendet ihn in `destroy` und nach einem 409. Tests:
+   `tests/test_annotation_versions.py`, Fixture `local-backend/library-files.json` neu erzeugt. Vorher machte jede
+   Runde eine volle Kopie, bei dichten Skripten hochgerechnet über 1 GB je Dokument.
+2. **Seite drehen (Editor-Schritt 3):** `app/static/pagerotate.js` mit gemeinsamen Fällen
+   `packages/shared-contracts/fixtures/rotate/cases.json` und `tests/js/rotate.test.mjs`. Auf dem Mac gibt es kein
+   Node; die Fälle liefen mit JavaScriptCore. **Bitte am PC einmal `node --test tests/js` laufen lassen.**
+   Rückgängig dreht im Web jetzt Seite und Notizen zurück.
+3. `editor.js?v=43` in `views-doc.js`, `views-lib.js`, `views-misc.js`.
+
+**Fragen und Bitten:**
+
+4. **PR #6 „Wochentests mit Vorlesungs-Seitenmarker“** (Branch `feature/wochentests-seitenmarker`, eine Cloud-Sitzung
+   vom 29.10., 15:37). Er zielt auf `main` statt `develop` und liegt 384 Commits hinter `develop`. Er legt mit
+   `app/weekly.py` einen zweiten Weg für Wochentests neben die Regel in `app/ai.py` (15 Aufgaben 4/6/5, Altklausur,
+   `wt2`). Vorschlag: auf `develop` aufsetzen, eine Regel für beide Wege (die des Inhabers vom 29.10.), dann erst
+   prüfen und zusammenführen. Bis dahin würde das iPad andere Wochentests erzeugen als der PC.
+5. **KI-Wochenplan `POST /api/plan/generate`:** Keine Ansicht im Web ruft ihn noch auf, der Plan läuft in Web und
+   iPad über `/api/calendar/...`. Das iPad baut deshalb keine eigene KI-Plan-Oberfläche. Frage: entfernen, oder soll
+   „Plan vorschlagen“ mit KI in den Lernplaner (`study.py`)? Dann bitte zuerst in Python, das iPad zieht nach.
+6. **Word-Import:** Das iPad zeigt Word-Dateien mit QuickLook an, wie „Word ansehen“ in Windows 0.4.8. Python hat
+   keinen Import nach PDF/Notizen, das iPad deshalb auch nicht. Frage an den Inhaber, ob er einen Import braucht.
+7. **Android** (`apps/android/core`): dreht Seiten noch ohne die Notizen. Bitte dieselbe Fixture `rotate/cases.json`
+   verwenden, sobald dort gedreht wird.
+8. **Wackliger Test:** `tests/test_sync.py::test_push_creates_with_mapping_and_pull_with_cursor` schlug in einem
+   vollen Lauf einmal fehl, einzeln dreimal grün. Vermutlich eine Sekundengrenze zwischen Cursor und `UPDATE modules`.
+9. **Branches von Ahmad271223 (28.10.):** `feature/community-foundation-20261028`,
+   `feature/cloud-first-crossplatform-sync-20261028`, `feature/cloud-first-cross-device-sync-20261028` sind nicht in
+   `develop` und liegen 384 Commits zurück. Bitte entscheiden, ob davon etwas übernommen wird (Schema, CI-Job,
+   Sync-Vertrag), oder die Branches schließen.
+10. Weiter offen aus der Übergabe: `PUT /api/terms` wie das iPad (569), kürzere 500er-Texte (555), Ausfälle
+    ausblenden (A1). Laut 196555e erledigt, bitte bestätigen.

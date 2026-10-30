@@ -13,6 +13,21 @@ final class EditorBridge: ObservableObject {
     @Published var zoomPercent = 100
     @Published var pageIndex = 0
     @Published var pageKey: String?
+    /// Objekt-Werkzeuge (Editor-Schritt 6)
+    @Published var objectMode = false
+    @Published var objectTool: ObjectEditing.Tool = .select
+    @Published var objectSelection = 0
+    @Published var textSelected = false
+
+    func setObjectMode(_ on: Bool) {
+        controller?.objects.setActive(on)
+        objectMode = controller?.objects.isActive ?? false
+    }
+
+    func setObjectTool(_ t: ObjectEditing.Tool) {
+        controller?.objects.tool = t
+        objectTool = t
+    }
 
     func undo() { controller?.undo() }
     func redo() { controller?.redo() }
@@ -91,6 +106,13 @@ struct DocumentView: View {
     @State private var showTrash = false
     @State private var choosingCompanion = false
     @State private var addingText = false
+    // Seitenwerkzeuge (Editor-Schritt 5)
+    @State private var goingToPage = false
+    @State private var goToText = ""
+    @State private var addingOutline = false
+    @State private var outlineTitle = ""
+    @State private var confirmClear = false
+    @State private var showOutline = false
     @State private var newText = ""
     @State private var exportFile: ExportFile?
     @State private var exporting = false
@@ -192,7 +214,9 @@ struct DocumentView: View {
             } else if store.pdf != nil {
                 GeometryReader { geo in
                     HStack(spacing: 0) {
-                        if showSidebar {
+                        // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
+                        // nicht verdeckt oder beruehrt
+                        if showSidebar, scriptLeft {
                             PageSidebar(store: store, bridge: bridge).frame(width: 200)
                             Divider()
                         }
@@ -205,6 +229,10 @@ struct DocumentView: View {
                             splitHandle(width: geo.size.width)
                             companionPane(c).frame(width: geo.size.width * splitFraction)
                         }
+                        if showSidebar, !scriptLeft {
+                            Divider()
+                            PageSidebar(store: store, bridge: bridge).frame(width: 200)
+                        }
                     }
                     .coordinateSpace(NamedCoordinateSpace.named("split"))
                 }
@@ -216,6 +244,9 @@ struct DocumentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(fullScreen ? .hidden : .visible, for: .navigationBar)
         .toolbar { toolbar }
+        .overlay(alignment: .bottom) {
+            if bridge.objectMode { ObjectToolbar(bridge: bridge).padding(.bottom, 12) }
+        }
         .overlay(alignment: .topTrailing) {
             if fullScreen {
                 Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
@@ -232,6 +263,7 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
         .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
+        .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id) { f in
@@ -285,6 +317,28 @@ struct DocumentView: View {
             }
             Button("Abbrechen", role: .cancel) { newText = "" }
         } message: { Text("Erscheint oben links auf der aktuellen Seite und ist im Browser bearbeitbar.") }
+        .alert("Gehe zu Seite", isPresented: $goingToPage) {
+            TextField("Seite", text: $goToText).keyboardType(.numberPad)
+            Button("Springen") {
+                if let n = Int(goToText.trimmingCharacters(in: .whitespaces)), let c = bridge.controller, c.pageCount > 0 {
+                    c.goToPage(min(max(n, 1), c.pageCount) - 1)
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { Text("1 – \(bridge.controller?.pageCount ?? 1)") }
+        .alert("Zur Gliederung hinzufügen", isPresented: $addingOutline) {
+            TextField("Titel", text: $outlineTitle)
+            Button("Hinzufügen") {
+                let title = outlineTitle
+                if let key = bridge.pageKey { Task { await bridge.controller?.addOutline(title: title, key: key) } }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { Text("Erscheint unter „Gliederung“ und im Browser in der Seitenleiste.") }
+        .confirmationDialog("Alle Notizen auf dieser Seite löschen?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Seite leeren", role: .destructive) {
+                if let key = bridge.pageKey { Task { await bridge.controller?.clearPage(key: key) } }
+            }
+        } message: { Text("Text, Formen und Striche dieser Seite werden entfernt.") }
         .alert("Hinweis", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(actionError ?? "") }
@@ -454,7 +508,9 @@ struct DocumentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
-            Button { withAnimation { showSidebar.toggle() } } label: { Label("Seiten", systemImage: "sidebar.left") }
+            Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
+                Label("Seiten", systemImage: scriptLeft ? "sidebar.left" : "sidebar.right")
+            }
             Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
                 .disabled(!canWrite)
             Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
@@ -492,6 +548,11 @@ struct DocumentView: View {
             Button { pencilOnly.toggle() } label: {
                 Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
             }
+            Button { bridge.setObjectMode(!bridge.objectMode) } label: {
+                Label(bridge.objectMode ? "Objekte" : "Tinte", systemImage: bridge.objectMode ? "square.on.circle" : "pencil.tip")
+            }
+            .disabled(!ownNotesVisible || !canWrite)
+            .accessibilityIdentifier("doc.objectMode")
             layersMenu
             Menu {
                 // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
@@ -564,8 +625,11 @@ struct DocumentView: View {
                         if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
                     } label: { Label("Seite drehen", systemImage: "rotate.right") }
                     Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
+                    pageToolsMenu
                 }
                 .disabled(!ownNotesVisible || !canWrite)
+                Button { goToText = ""; goingToPage = true } label: { Label("Gehe zu Seite …", systemImage: "arrow.right.to.line") }
+                Button { showOutline = true } label: { Label("Gliederung …", systemImage: "list.bullet.indent") }
                 Divider()
                 Button {
                     if entitlements.allows(.communityRead) { importingSolution = true } else { solutionSheet = .locked(.communityRead) }
@@ -583,6 +647,64 @@ struct DocumentView: View {
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
             } label: { Label("Mehr", systemImage: "ellipsis.circle") }
         }
+    }
+
+    /// Untermenue "Seite" wie das Seitenmenue im Web-Editor: kopieren, verschieben, Leerseite davor/am Ende, Vorlage und
+    /// Format (nur Leerseiten), Gliederung, leeren
+    @ViewBuilder private var pageToolsMenu: some View {
+        let isBlank = bridge.controller?.pageEntry(key: bridge.pageKey)?.kind == "blank"
+        Menu {
+            Button { Task { await bridge.controller?.duplicatePage(key: bridge.pageKey) } } label: {
+                Label("Seite kopieren", systemImage: "plus.square.on.square")
+            }
+            Menu {
+                Button("Nach vorne") { Task { await bridge.controller?.movePage(key: bridge.pageKey, to: .forward) } }
+                Button("Nach hinten") { Task { await bridge.controller?.movePage(key: bridge.pageKey, to: .backward) } }
+                Button("An den Anfang") { Task { await bridge.controller?.movePage(key: bridge.pageKey, to: .first) } }
+                Button("Ans Ende") { Task { await bridge.controller?.movePage(key: bridge.pageKey, to: .last) } }
+            } label: { Label("Seite verschieben", systemImage: "arrow.up.arrow.down") }
+            Menu {
+                ForEach(PaperTemplate.choices, id: \.id) { t in
+                    Button(t.name) { if let key = bridge.pageKey { Task { await bridge.controller?.insertBlankPage(before: key, template: t.id) } } }
+                }
+            } label: { Label("Leere Seite davor", systemImage: "doc.badge.plus") }
+            Menu {
+                ForEach(PaperTemplate.choices, id: \.id) { t in
+                    Button(t.name) { Task { await bridge.controller?.appendBlankPage(template: t.id) } }
+                }
+            } label: { Label("Leere Seite am Ende", systemImage: "doc.badge.plus") }
+            if isBlank {
+                Menu {
+                    ForEach(PaperTemplate.choices, id: \.id) { t in
+                        Button(t.name) { Task { await bridge.controller?.setTemplate(t.id, key: bridge.pageKey) } }
+                    }
+                } label: { Label("Vorlage wechseln", systemImage: "squareshape.split.3x3") }
+                Menu {
+                    ForEach(PageFormats.paper, id: \.key) { f in
+                        ForEach(PageFormats.Orientation.allCases, id: \.self) { o in
+                            if let size = PageFormats.size(f.key, o) {
+                                Button(o == .portrait ? "\(f.name) hoch" : "\(f.name) quer") {
+                                    Task { await bridge.controller?.setFormat(CGSize(width: size.width, height: size.height), key: bridge.pageKey) }
+                                }
+                            }
+                        }
+                    }
+                    Section("Whiteboard (immer quer)") {
+                        ForEach(PageFormats.whiteboards, id: \.key) { f in
+                            if let size = PageFormats.size(f.key, .landscape) {
+                                Button(f.name) {
+                                    Task { await bridge.controller?.setFormat(CGSize(width: size.width, height: size.height), key: bridge.pageKey) }
+                                }
+                            }
+                        }
+                    }
+                } label: { Label("Seitenformat ändern", systemImage: "rectangle.portrait.and.arrow.right") }
+            }
+            Button { outlineTitle = "Seite \(bridge.pageIndex + 1)"; addingOutline = true } label: {
+                Label("Zur Gliederung hinzufügen", systemImage: "list.bullet.indent")
+            }
+            Button(role: .destructive) { confirmClear = true } label: { Label("Seite leeren", systemImage: "eraser") }
+        } label: { Label("Seite", systemImage: "doc.on.doc") }
     }
 
     /// Untermenue "Leere Seite danach > Anderes Format > <Format>": Vorlage waehlen, Seite in diesem Format einfuegen
@@ -1289,6 +1411,114 @@ struct PageTrashSheet: View {
     }
 }
 
+/// Leiste im Objektmodus: Werkzeuge wie im Web (Auswaehlen, Text, Haftnotiz, Formen, Lasso) und Aktionen fuer die
+/// Auswahl. Die Stiftpalette von PencilKit ist in diesem Modus ohne Wirkung.
+struct ObjectToolbar: View {
+    @ObservedObject var bridge: EditorBridge
+    private let colors: [(String, String)] = [("#e5322d", "Rot"), ("#1d2130", "Schwarz"), ("#2f7fd1", "Blau"), ("#2e9e5b", "Grün"),
+                                              ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if bridge.objectTool == .markup {
+                HStack(spacing: 8) {
+                    if bridge.textSelected {
+                        Button("Markieren") { bridge.controller?.objects.applyMarkup(.highlight) }
+                            .accessibilityIdentifier("objects.markup.highlight")
+                        Button("Unterstreichen") { bridge.controller?.objects.applyMarkup(.underline) }
+                        Button("Durchstreichen") { bridge.controller?.objects.applyMarkup(.strike) }
+                    } else {
+                        Text("Text in der PDF auswählen (gedrückt halten und ziehen)").font(.callout).foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+            tools
+        }
+    }
+
+    private var tools: some View {
+        HStack(spacing: 6) {
+            ForEach(ObjectEditing.Tool.allCases, id: \.self) { t in
+                Button { bridge.setObjectTool(t) } label: { Image(systemName: t.systemImage).frame(width: 30, height: 30) }
+                    .buttonStyle(.bordered)
+                    .tint(bridge.objectTool == t ? .accentColor : .secondary)
+                    .accessibilityLabel(t.label)
+                    .accessibilityIdentifier("objects.tool.\(t.rawValue)")
+            }
+            Divider().frame(height: 26)
+            Menu {
+                ForEach(colors, id: \.0) { c in
+                    Button(c.1) { bridge.controller?.objects.recolorSelection(c.0) }
+                }
+            } label: { Image(systemName: "paintpalette").frame(width: 30, height: 30) }
+                .accessibilityLabel("Farbe")
+            Button { bridge.controller?.objects.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
+                .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
+            Button { bridge.controller?.objects.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
+                .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            Button(role: .destructive) { bridge.controller?.objects.deleteSelection() } label: {
+                Image(systemName: "trash").frame(width: 30, height: 30)
+            }
+            .disabled(bridge.objectSelection == 0).accessibilityLabel("Auswahl löschen")
+            .accessibilityIdentifier("objects.delete")
+            Divider().frame(height: 26)
+            Button("Fertig") { bridge.setObjectMode(false) }
+        }
+        .padding(8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(radius: 4)
+    }
+}
+
+/// Gliederung des Dokuments (`outline` wie im Web): antippen springt zur Seite, Wischen entfernt den Eintrag.
+struct OutlineSheet: View {
+    @ObservedObject var bridge: EditorBridge
+    @Environment(\.dismiss) private var dismiss
+    @State private var entries: [(title: String, key: String, index: Int?)]?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let entries {
+                    if entries.isEmpty {
+                        ContentUnavailableView("Noch keine Gliederung", systemImage: "list.bullet.indent",
+                                               description: Text("Mehr → Seite → Zur Gliederung hinzufügen"))
+                    }
+                    ForEach(Array(entries.enumerated()), id: \.offset) { i, e in
+                        Button {
+                            if let index = e.index { bridge.controller?.goToPage(index); dismiss() }
+                        } label: {
+                            HStack {
+                                Text(e.title)
+                                Spacer()
+                                Text(e.index.map { "Seite \($0 + 1)" } ?? "Seite fehlt").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(e.index == nil)
+                        .swipeActions {
+                            if bridge.controller?.writable == true {
+                                Button("Entfernen", role: .destructive) {
+                                    Task { await bridge.controller?.removeOutline(at: i); await reload() }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Gliederung")
+            .toolbar { Button("Fertig") { dismiss() } }
+            .task { await reload() }
+        }
+    }
+
+    private func reload() async { entries = await bridge.controller?.outlineEntries() ?? [] }
+}
+
 /// Teilen-Dialog des Systems (z. B. exportierte PDF in Dateien sichern).
 struct ActivityView: UIViewControllerRepresentable {
     let items: [Any]
@@ -1392,6 +1622,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
             bridge?.pageIndex = i
             bridge?.pageKey = key
         }
+        vc.objects.onSelectionChange = { [weak bridge] n in bridge?.objectSelection = n }
+        vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
         bridge.controller = vc
         return vc
     }

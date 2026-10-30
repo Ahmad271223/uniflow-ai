@@ -148,7 +148,7 @@ final class PageUndoTarget {
 ///   auf die gerade gebundene Canvas oder, ohne Overlay, direkt auf den gespeicherten Stand der Seite.
 final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, PKCanvasViewDelegate, PKToolPickerObserver {
 
-    private let store: DocumentStore
+    let store: DocumentStore
     let pdfView = PDFView()
     private let toolPicker: PKToolPicker
     /// Nur ein Editor zeigt die Palette (geteilte Ansicht: Uebung und Skript teilen sich eine Palette).
@@ -169,6 +169,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// gehalten, sondern beim Zurueckscrollen neu aufgebaut (der Verlauf haengt am Seitenschluessel).
     static let parkedAreaLimit: CGFloat = 6 * 595 * 842
     private var lastFit: CGFloat = 0
+    /// Einpassen auf die mittlere Seitenbreite statt der breitesten (M6, `ZoomPolicy.mixedFormatFactor`)
+    private var mixedFormatFactor: CGFloat = 1
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
     private(set) var shownLayoutVersion = -1
@@ -239,12 +241,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private func applyOwnNotes(to overlay: PageInkView) {
         overlay.setOwnNotesVisible(ownNotesVisible)
         if !canEdit { overlay.canvas.isUserInteractionEnabled = false }
+        objects.prepare(overlay)
     }
+
+    /// Auf dem Mac ("Designed for iPad") gibt es keinen Apple Pencil: dort schreiben Maus und Trackpad immer
+    static var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac }
+    private var drawingPolicy: PKCanvasViewDrawingPolicy { pencilOnly && !Self.isMac ? .pencilOnly : .anyInput }
 
     var pencilOnly = true {
         didSet {
             guard pencilOnly != oldValue else { return }
-            allOverlays.forEach { $0.canvas.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput }
+            allOverlays.forEach { $0.canvas.drawingPolicy = drawingPolicy }
             configureScrollGestures()
         }
     }
@@ -277,7 +284,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     deinit { observers.forEach { NotificationCenter.default.removeObserver($0) } }
 
-    private var allOverlays: [PageInkView] { Array(live.values) + parked }
+    var allOverlays: [PageInkView] { Array(live.values) + parked }
+    /// Verlauf des Dokuments (auch fuer die Objekt-Werkzeuge)
+    var editUndo: UndoManager { documentUndo }
+    /// Objekt-Werkzeuge (Editor-Schritt 6); eingeschaltet nimmt die Canvas keine Eingabe an
+    private(set) lazy var objects = ObjectEditing(controller: self)
 
     var currentPageIndex: Int {
         guard let page = pdfView.currentPage, let doc = pdfView.document else { return 0 }
@@ -361,22 +372,55 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let fit = pdfView.scaleFactorForSizeToFit
-        guard fit > 0 else { return }
+        let widest = pdfView.scaleFactorForSizeToFit
+        guard widest > 0 else { return }
+        let fit = widest * mixedFormatFactor
         if lastFit == 0 {
+            let page = pdfView.currentPage
             pdfView.autoScales = false
-            applyLimits(fit: fit)
+            applyLimits(fit: fit, widest: widest)
             pdfView.scaleFactor = fit
+            centerColumn(keeping: page)
         } else if abs(fit - lastFit) > 0.0001 {
-            let next = ZoomPolicy.scaleAfterResize(current: pdfView.scaleFactor, oldFit: lastFit, newFit: fit, userZoomed: userZoomed)
-            applyLimits(fit: fit)
+            let next = ZoomPolicy.scaleAfterResize(current: pdfView.scaleFactor, oldFit: lastFit, newFit: fit, userZoomed: userZoomed,
+                                                   widestFit: widest)
+            applyLimits(fit: fit, widest: widest)
+            let page = pdfView.currentPage
             pdfView.scaleFactor = next
+            if !userZoomed { centerColumn(keeping: page) }
         }
         lastFit = fit
     }
 
-    private func applyLimits(fit: CGFloat) {
-        let range = ZoomPolicy.limits(fitScale: fit)
+    /// Gemischte Formate (M6): PDFView legt alle Seiten mittig in eine Spalte so breit wie die breiteste Seite. Bei der
+    /// Einpassung auf die mittlere Breite die Ansicht waagerecht auf die Mitte stellen; dort liegen alle schmaleren
+    /// Seiten (sonst stand sie am linken Rand der breiten Spalte, und die Seiten waren nicht zu sehen).
+    /// `page`: die Seite vor dem Zoomwechsel; PDFView verschiebt beim Zoomen auch senkrecht, danach wieder zu ihr.
+    private func centerColumn(keeping page: PDFPage?) {
+        guard mixedFormatFactor > 1.001 else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let page, page.document === self.pdfView.document { self.pdfView.go(to: page) }
+            self.centerHorizontally()
+        }
+    }
+
+    /// Ansicht waagerecht auf die Mitte der Seitenspalte (dort liegen alle Seiten, gemischte Formate)
+    private func centerHorizontally() {
+        guard mixedFormatFactor > 1.001, let scroll = firstScrollView(in: pdfView) else { return }
+        let x = max(0, (scroll.contentSize.width - scroll.bounds.width) / 2)
+        scroll.setContentOffset(CGPoint(x: x, y: scroll.contentOffset.y), animated: false)
+    }
+
+    /// Zu einer Seite springen. Bei gemischten Formaten schiebt `PDFView.go(to:)` die Ansicht in der breiten Spalte
+    /// waagerecht neben alle Seiten (gemessen: Versatz 3 800 pt, keine Seite sichtbar); danach wieder auf die Mitte.
+    private func show(page: PDFPage) {
+        pdfView.go(to: page)
+        centerHorizontally()
+    }
+
+    private func applyLimits(fit: CGFloat, widest: CGFloat) {
+        let range = ZoomPolicy.limits(fitScale: fit, widestFit: widest)
         pdfView.minScaleFactor = range.lowerBound
         pdfView.maxScaleFactor = range.upperBound
     }
@@ -391,7 +435,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let scroll = firstScrollView(in: pdfView) else { return }
         let fingers = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
         scroll.panGestureRecognizer.allowedTouchTypes = fingers
-        scroll.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
+        // Mac: die Maus schreibt, geblaettert wird mit Rad oder Trackpad (keine Ein-Finger-Geste)
+        scroll.panGestureRecognizer.minimumNumberOfTouches = pencilOnly && !Self.isMac ? 1 : 2
         scroll.pinchGestureRecognizer?.allowedTouchTypes = fingers
         scroll.delaysContentTouches = false
     }
@@ -425,8 +470,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         shownLayoutVersion = store.layoutVersion
         let pdf = layout.pdf
         pdfView.document = pdf
+        mixedFormatFactor = ZoomPolicy.mixedFormatFactor(widths: (0..<pdf.pageCount).compactMap { i in
+            pdf.page(at: i).map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize.width }
+        })
+        view.setNeedsLayout()                                   // neue Einpassung, falls sich die Formate geaendert haben
         if lastFit > 0 { pdfView.scaleFactor = keepScale }
-        if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) { pdfView.go(to: page) }
+        if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) { show(page: page) }
         // aktuelle Seite melden (auch ohne Blaettern), nach der laufenden SwiftUI-Aktualisierung
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -511,7 +560,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     private func configure(_ overlay: PageInkView) {
         let c = overlay.canvas
-        c.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput
+        c.drawingPolicy = drawingPolicy
         c.delegate = self
         c.tool = toolPicker.selectedTool
         toolPicker.addObserver(c)
@@ -530,7 +579,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     private func showObjects(_ objects: [JSONValue], entry: DisplayLayout.Entry?, on overlay: PageInkView) {
-        let placeholder = entry?.kind == "asset" ? "Eingefügte Seite aus dem Browser – Inhalt nur dort sichtbar. Notizen hier werden gespeichert." : nil
+        let placeholder = entry?.kind == "asset" && entry?.assetShown != true
+            ? "Eingefügte Seite aus dem Browser – wird geladen oder ist hier nicht verfügbar. Notizen hier werden gespeichert." : nil
         overlay.objectsView.show(template: entry?.template, placeholder: placeholder, objects: objects, images: store.images)
         for o in objects where o["type"]?.string == "image" {
             if let src = o["src"]?.string, store.images[src] == nil {
@@ -621,7 +671,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     /// Overlay des aktuellen Seitenaufbaus fuer einen Schluessel (sichtbar oder geparkt).
-    private func boundOverlay(forKey key: String) -> PageInkView? {
+    func boundOverlay(forKey key: String) -> PageInkView? {
         allOverlays.first { $0.pageKey == key && $0.generation == shownLayoutVersion }
     }
 
@@ -745,6 +795,124 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         return change != nil
     }
 
+    // MARK: Seitenwerkzeuge (Editor-Schritt 5, P1-1/P1-2; Regeln in `PageOrder`, gleich wie im Web-Editor)
+
+    /// Seitenoperation ueber den Store: vorher die Striche der betroffenen Seite einsammeln, danach neu aufbauen und
+    /// die Seite zeigen, die die Operation nennt (`Change.focusKey`).
+    @discardableResult
+    private func changePages(flushing key: String?, _ op: @escaping (inout AnnotationDocument) -> PageOrder.Change?) async -> PageOrder.Change? {
+        guard writable, let editor = pageEditor else { return nil }
+        if let key, let v = boundOverlay(forKey: key), v.loaded { store.canvasChanged(pageKey: key, drawing: v.canvas.drawing) }
+        var focus: String?
+        let change = await editor.applyPageStructure { doc in
+            let c = op(&doc)
+            focus = c?.focusKey
+            return c
+        }
+        pendingFocusKey = focus
+        finishPageChange(change)
+        return change
+    }
+
+    /// Seite kopieren (dahinter), danach die Kopie zeigen
+    @discardableResult
+    func duplicatePage(key: String? = nil) async -> Bool {
+        guard let key = key ?? currentPageKey else { return false }
+        return await changePages(flushing: key) { PageOrder.duplicate(&$0, key: key) } != nil
+    }
+
+    /// Seite um `delta` Plaetze verschieben (-1 nach vorn, +1 nach hinten) bzw. an den Anfang/ans Ende
+    @discardableResult
+    func movePage(key: String? = nil, to target: PageTarget) async -> Bool {
+        guard let key = key ?? currentPageKey, let layout = shownLayout, let i = layout.index(ofKey: key) else { return false }
+        let to: Int
+        switch target {
+        case .forward: to = i - 1
+        case .backward: to = i + 1
+        case .first: to = 0
+        case .last: to = layout.entries.count - 1
+        }
+        // Ziel ist der Platz der angezeigten Seite dort (in pageOrder koennen nicht angezeigte Eintraege dazwischen stehen)
+        guard to != i, let neighbor = layout.key(at: to) else { return false }
+        return await changePages(flushing: nil) { doc in
+            guard let target = doc.pageOrder.firstIndex(where: { $0["key"]?.string == neighbor }) else { return nil }
+            return PageOrder.move(&doc, key: key, to: target)
+        } != nil
+    }
+
+    enum PageTarget { case forward, backward, first, last }
+
+    /// Alle Notizen der Seite entfernen (Rueckgaengig der Canvas gilt dafuer nicht mehr)
+    @discardableResult
+    func clearPage(key: String? = nil) async -> Bool {
+        guard let key = key ?? currentPageKey else { return false }
+        let change = await changePages(flushing: key) { PageOrder.clear(&$0, key: key) }
+        if change != nil { dropUndo(forKey: key) }
+        return change != nil
+    }
+
+    /// Vorlage einer Leerseite wechseln
+    @discardableResult
+    func setTemplate(_ template: String, key: String? = nil) async -> Bool {
+        guard let key = key ?? currentPageKey else { return false }
+        return await changePages(flushing: nil) { PageOrder.setTemplate(&$0, key: key, template: template) } != nil
+    }
+
+    /// Format einer Leerseite aendern
+    @discardableResult
+    func setFormat(_ size: CGSize, key: String? = nil) async -> Bool {
+        guard let key = key ?? currentPageKey else { return false }
+        let w = Double(size.width), h = Double(size.height)
+        return await changePages(flushing: nil) { PageOrder.setFormat(&$0, key: key, width: w, height: h) } != nil
+    }
+
+    /// Leerseite vor der Seite einfuegen (Groesse wie diese Seite ohne Drehung, sonst A4)
+    @discardableResult
+    func insertBlankPage(before key: String, template: String = "blank") async -> String? {
+        let size = shownLayout?.index(ofKey: key).flatMap { shownLayout?.baseSize(at: $0) } ?? CGSize(width: 595, height: 842)
+        let t = PaperTemplate.isKnown(template) ? template : "blank"
+        let w = Double(size.width), h = Double(size.height)
+        return await changePages(flushing: nil) { PageOrder.insertBlank(&$0, before: key, template: t, width: w, height: h) }?.focusKey
+    }
+
+    /// Leerseite am Ende einfuegen
+    @discardableResult
+    func appendBlankPage(template: String = "blank") async -> String? {
+        let size = shownLayout.flatMap { l in l.baseSize(at: l.entries.count - 1) } ?? CGSize(width: 595, height: 842)
+        let t = PaperTemplate.isKnown(template) ? template : "blank"
+        let w = Double(size.width), h = Double(size.height)
+        return await changePages(flushing: nil) { PageOrder.insertBlank(&$0, after: nil, template: t, width: w, height: h) }?.focusKey
+    }
+
+    /// Seite zur Gliederung hinzufuegen
+    @discardableResult
+    func addOutline(title: String, key: String? = nil) async -> Bool {
+        guard let key = key ?? currentPageKey else { return false }
+        return await changePages(flushing: nil) { PageOrder.addOutline(&$0, key: key, title: title) } != nil
+    }
+
+    /// Gliederungspunkt entfernen
+    @discardableResult
+    func removeOutline(at position: Int) async -> Bool {
+        await changePages(flushing: nil) { PageOrder.removeOutline(&$0, at: position) } != nil
+    }
+
+    /// Gliederung zum Anzeigen (Titel und Anzeige-Index der Seite; Seiten ausserhalb der Anzeige ohne Index)
+    func outlineEntries() async -> [(title: String, key: String, index: Int?)] {
+        guard let editor = pageEditor else { return [] }
+        let doc = await editor.pageStructureDocument()
+        return PageOrder.outline(doc).map { ($0.title, $0.key, shownLayout?.index(ofKey: $0.key)) }
+    }
+
+    /// Zahl der angezeigten Seiten (Gehe zu Seite)
+    var pageCount: Int { shownLayout?.entries.count ?? 0 }
+
+    /// Eintrag der Seite in `pageOrder` (Leerseite? Format?), fuer die Menues
+    func pageEntry(key: String?) -> DisplayLayout.Entry? {
+        guard let key, let i = shownLayout?.index(ofKey: key) else { return nil }
+        return shownLayout?.entry(at: i)
+    }
+
     /// Inhalt des Papierkorbs (aelteste zuerst), leer ohne Umsetzung im Store.
     func trashedPages() async -> [PageOrder.TrashedPage] {
         guard let editor = pageEditor else { return [] }
@@ -768,12 +936,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func goToPage(_ index: Int) {
         guard let page = pdfView.document?.page(at: index) else { return }
-        pdfView.go(to: page)
+        show(page: page)
     }
 
     func show(_ selection: PDFSelection) {
         pdfView.highlightedSelections = [selection]
         pdfView.go(to: selection)
+        centerHorizontally()
     }
 
     func undo() {

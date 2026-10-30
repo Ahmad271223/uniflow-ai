@@ -368,3 +368,35 @@ Neu mit Schritt 3. Die Simulator-Tests dazu stehen in `EditorStep3Tests` (App), 
 | 19.4 | Mit PC: im Browser drehen, dann **Rückgängig** | Seite und Notizen wieder wie vorher (vorher blieben die Notizen gedreht stehen) | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 19.5 | Nur mit zwei iPads verschiedener iPadOS-Versionen: auf dem neueren mit einem neuen Stift (z. B. Schreibfeder ab iPadOS 26) schreiben, auf dem älteren daneben schreiben, wieder auf dem neueren öffnen | die Striche des neueren iPads behalten dort ihr Aussehen (P0-8); auf dem älteren erscheinen sie in Ersatzdarstellung | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 
+
+## 20. Gerätepunkte zu Schritt 5 (Seitenwerkzeuge P1-1, Navigation P1-2, eingefügte Seiten P1-3)
+
+Neu mit Schritt 5. Simulator-Tests: `EditorStep5Tests` (App), `PageToolsTests` (Kern). Menü: Mehr → Seite.
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 20.1 | Beschriebene Seite kopieren | Kopie direkt dahinter, mit denselben Notizen; Striche der Kopie zuerst im Browser-Aussehen | ☐ bestanden ☐ nicht bestanden | |
+| 20.2 | Seite nach vorne, nach hinten, an den Anfang, ans Ende | Reihenfolge stimmt, die Seite bleibt sichtbar; im Browser dieselbe Reihenfolge | ☐ bestanden ☐ nicht bestanden | |
+| 20.3 | Leere Seite davor / am Ende, dann Vorlage und Format einer Leerseite ändern | Vorlage und Größe sofort sichtbar; bei PDF-Seiten fehlen „Vorlage“ und „Format“ | ☐ bestanden ☐ nicht bestanden | |
+| 20.4 | Seite leeren (Rückfrage bestätigen) | Text, Formen und Striche der Seite weg, Nachbarseiten unverändert | ☐ bestanden ☐ nicht bestanden | |
+| 20.5 | Zur Gliederung hinzufügen, Mehr → Gliederung, Eintrag antippen, Eintrag wegwischen | Sprung zur Seite; im Browser dieselbe Gliederung | ☐ bestanden ☐ nicht bestanden | |
+| 20.6 | Gehe zu Seite … mit einer Zahl über der Seitenzahl | springt zur letzten Seite | ☐ bestanden ☐ nicht bestanden | |
+| 20.7 | Dokument mit einer A0-Whiteboard-Seite zwischen A4-Seiten | A4 füllt die Breite (nicht mehr winzig), die A0-Seite ist breiter und lässt sich durch Herauszoomen ganz sehen (M6) | ☐ bestanden ☐ nicht bestanden | |
+| 20.8 | Mit PC: im Browser PDF-Seiten einfügen, auf dem iPad öffnen | die eingefügten Seiten zeigen ihren Inhalt (vorher Platzhalter), Notizen darauf bleiben | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 20.9 | Linkshänder in den Einstellungen, Seitenleiste öffnen | Seitenleiste rechts, Skript in der geteilten Ansicht rechts | ☐ bestanden ☐ nicht bestanden | |
+
+## 21. Gerätepunkte zu Schritt 6 (Objekt-Werkzeuge P1-4 bis P1-7, PDF-Text markieren P2-7)
+
+Neu mit Schritt 6. Simulator-Tests: `EditorStep6Tests` (App), `PageObjectEditTests` (Kern). Umschalter „Tinte/Objekte“
+in der Werkzeugleiste; im Objektmodus schreibt der Stift nicht.
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 21.1 | Objekte → Text, auf die Seite tippen, mit dem Pencil hineinschreiben (Scribble) und mit der Tastatur | Text erscheint im Feld, nach „Fertig“ gespeichert; ein leer gelassenes Feld verschwindet | ☐ bestanden ☐ nicht bestanden | |
+| 21.2 | Haftnotiz setzen und beschriften | gelbe Notiz, im Browser gleich | ☐ bestanden ☐ nicht bestanden | |
+| 21.3 | Rechteck, Ellipse, Linie, Pfeil ziehen | Form folgt dem Finger; Farbe aus der Palette | ☐ bestanden ☐ nicht bestanden | |
+| 21.4 | Objekt antippen, ziehen, mit zwei Fingern vergrößern, Farbe ändern, löschen; dann Rückgängig/Wiederholen | jede Aktion umkehrbar; Striche bleiben unberührt | ☐ bestanden ☐ nicht bestanden | |
+| 21.5 | Lasso um mehrere Objekte, gemeinsam verschieben | alle Objekte im Lasso bewegen sich, Striche nicht (die wählt das PencilKit-Lasso) | ☐ bestanden ☐ nicht bestanden | |
+| 21.6 | Objekte → Text markieren, Text in der PDF gedrückt halten und ziehen, Markieren / Unterstreichen / Durchstreichen | Markierung auf der Zeile, Linie knapp unter der Schrift bzw. mitten durch; im Browser gleich | ☐ bestanden ☐ nicht bestanden | |
+| 21.7 | Wie 21.6 auf einer gedrehten Seite | Markierung liegt auf dem gedrehten Text | ☐ bestanden ☐ nicht bestanden | |
+| 21.8 | Am Mac („Designed for iPad“, falls freigeschaltet): mit Maus schreiben, mit Trackpad blättern | die Maus schreibt auch bei „Nur Stift“, Blättern mit Rad oder Trackpad | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
