@@ -101,7 +101,7 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | Uni-Zugangsdaten beim Dienst | der Dienst hält Passwörter verschlüsselt und meldet sich von der Server-IP an | Zustimmung je Konto (gebaut), Text in der Datenschutzerklärung, Rückmeldung von LUH und Hildesheim abwarten |
 | GitHub Actions gesperrt seit 25.10. | kein Bauen auf GitHub; Windows-Installer und Apple-Läufe nur lokal oder gar nicht; Quellen widersprechen sich, ob der Windows-Workflow am 27.10. lief | Abrechnung klären (`docs/GITHUB-ABRECHNUNG.md`) oder lokal bauen |
 | Rechtstexte sind Entwürfe mit Platzhaltern | Abmahnrisiko, Store-Ablehnung | ausfüllen (`tests/test_release_texts.py` listet die Platzhalter), prüfen lassen |
-| OpenAI-Zulassung | Repo ist öffentlich (Open Source, noch ohne Lizenzdatei), aber Plus ist kostenpflichtig und das Web läuft gehostet | Warteliste, Lizenzdatei ins Repo, Frage nach der Tarif-Kopplung stellen |
+| OpenAI-Zulassung | Repo wird privat (Entscheidung 31.10.), Plus ist kostenpflichtig, das Web läuft gehostet: ChatGPT-Verbindung für andere Nutzer erst nach Freigabe | Warteliste, Frage nach der Tarif-Kopplung stellen |
 | Wackliger pytest unter Last | ein Lauf von sieben fiel am 30.10. unter paralleler Last, Name nicht gesichert; danach nicht wiederholbar | bei erneutem Auftreten den Namen sichern |
 
 ## 6. Entscheidungen
@@ -120,7 +120,7 @@ Getroffen am 30.10.2026 (Inhaber):
 
 Offen (nur der Inhaber):
 
-1. Server, Domain, Mail, Stripe-Konto, Partner Center, Lizenzdatei, Rechtstexte.
+1. Repo auf privat stellen (GitHub-Einstellungen), Server, Domain, Mail, Stripe-Konto, Partner Center, Rechtstexte.
 2. Plus-Kontingent 3 oder 6 Tests; geteilter Wochentest gegen das Kontingent (`docs/GEMEINSAME-WOCHENTESTS.md`).
 3. Name und Domain prüfen („Studora“ als Marke frei?).
 4. Alte Branches von Ahmad271223 durchsehen und schließen.

@@ -225,13 +225,11 @@ Rechner bzw. je Apple-Nutzer ein Konto; „Anderes Konto verbinden“ deckt den 
 
 **Zulassung laut Cookbook (Stand 30.10.):** Die Nutzung des ChatGPT-Abos ist zum Start für **Open-Source-Projekte und
 lokal laufende persönliche Projekte** ohne Antrag verfügbar; **bezahlte oder gehostete Apps** sollen sich auf die
-Warteliste setzen. Das Repo `Ahmad271223/uniflow-ai` ist öffentlich (Open Source, noch ohne Lizenzdatei), die
-iPad-, Mac- und Windows-Apps laufen lokal, aber Studora Plus ist kostenpflichtig, und die Web-Version läuft gehostet.
-Daraus folgt:
+Warteliste setzen. **Entscheidung des Inhabers am 31.10.2026: Das Repo wird privat** (kein Open Source, keine
+Lizenzdatei). Damit gilt für Studora eindeutig der Weg über die Warteliste für bezahlte und gehostete Apps:
 - Eigener PC / Windows / iPad lokal: technisch frei, Nutzung des Abos nie an einen Tarif gekoppelt
-  (`plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"] = False`). Ob eine verkaufte App mit offenem Quellcode als
-  „Open Source“ im Sinne von OpenAI gilt, muss der Inhaber bei OpenAI klären (Warteliste, Abschnitt 4 Punkt 2) und
-  eine Lizenzdatei ins Repo legen.
+  (`plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"] = False`). Der Inhaber nutzt die Verbindung bis zur Antwort
+  von OpenAI nur selbst (persönliches, lokal laufendes Projekt); für andere Nutzer braucht es die Freigabe.
 - Gehosteter Dienst (Web): bleibt aus (`available()` = nicht gehostet), bis OpenAI freigibt.
 
 **Gebaut am 30.10. in der Cloud, ungeprüft auf dem Mac:** `ChatGPTLink.available` ist in jedem Build wahr (die

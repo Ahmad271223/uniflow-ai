@@ -141,6 +141,11 @@ prüfen. Nur Punkt 8 braucht den Mac.
    (wie Pro AI), danach die Aufforderung, einen Tarif zu wählen; ohne Wahl gilt Free. Stripe (Checkout, Kundenportal,
    Webhooks) für Web; Apple bleibt für die App; Microsoft Store später.
 
+4. **Repo privat (31.10.):** Kein Open Source, keine Lizenzdatei. Der Code bleibt beim Inhaber; für die
+   ChatGPT-Verbindung anderer Nutzer gilt damit die OpenAI-Warteliste. Das Umstellen geht nur in den
+   GitHub-Einstellungen des Inhabers (Settings → General → Danger Zone → Change visibility); aus der Cloud-Sitzung ist
+   es gesperrt.
+
 **Umgesetzt am 30.10. (Cloud, Python geprüft):**
 - Zu 1: `PUT /api/credentials` verlangt im Dienst `consent: true` (sonst 400 `consent_required`), die Zustimmung steht
   mit Zeitpunkt im Tresor (`UNI_CONSENT_AT`) und in `GET /api/credentials`; Karte in den Einstellungen mit Erklärung,
