@@ -159,7 +159,7 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
 - **Getestet:** `tests/test_chatgpt_login.py`, `test_ai_contract.py`, `test_ai_console.py`; Kern 776 (ChatGPT-Sitzung
   nur auf Apple); Simulator: Karte, Zustimmung, Systemabfrage und echte Anmeldeseite öffnen sich.
 - **Ungeprüft:** jede echte Anmeldung und Anfrage (nur der Inhaber); Fehlercodes der Responses API bei erschöpftem
-  Kontingent; OpenAI-Zulassung für den gehosteten Dienst (Warteliste); Lizenzdatei fehlt im Repo.
+  Kontingent; OpenAI-Zulassung für den gehosteten Dienst (Warteliste); Repo wird privat, keine Lizenzdatei (Entscheidung 31.10.).
 
 ## Phase 15 – Web zuerst: Dienst und Web-App (30.10.)
 - **Fertig:** gehosteter Modus (`LERNAPP_MODE=hosted`, eine Datenbank je Konto, `/login`, Rechtsseiten),
