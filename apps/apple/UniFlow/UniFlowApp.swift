@@ -127,7 +127,10 @@ struct UniFlowApp: App {
                 containers.qis?.runIfDue()
                 weeklyTicker.resume()
                 askForLoginIfDue()
-                Task { await containers.account.refresh() }                // Probe: Resttage, Ende
+                Task {
+                    await containers.account.refresh()                     // Probe: Resttage, Ende
+                    if await containers.account.syncNow(), !router.route.isDocument { router.reload() }
+                }
             } else {
                 weeklyTicker.pause()
             }

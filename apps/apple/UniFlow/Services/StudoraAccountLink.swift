@@ -63,12 +63,48 @@ final class StudoraAccountLink: ObservableObject {
     @Published private(set) var busy = false
     @Published var message: String?
 
+    /// Geraete-Abgleich (Vertrag G2): laeuft gerade, letztes Ergebnis in diesem Prozess
+    @Published private(set) var syncing = false
+    @Published private(set) var lastSync: DeviceSyncResult?
+    /// Automatisch hoechstens alle 3 Minuten (`sync_client.start_background`)
+    static let autoSyncInterval: TimeInterval = 180
+    private var lastSyncAt: Date?
+    private var host: LocalBackendHost?
+    private var university: String?
+
     private(set) var account: StudoraAccount?
     private var scope: String?
 
-    func use(userScope: String?) {
+    /// `true`, wenn der Abgleich gerade laufen darf: angemeldet, gleiche Hochschule wie das Konto, keine Demo-Inhalte
+    static func canSync(user: StudoraAccount.User?, university: String?, blocked: Bool) -> Bool {
+        guard let user, !blocked else { return false }
+        return user.university == nil || user.university == university
+    }
+
+    /// Abgleich mit dem Konto; Rueckgabe: hat er hier etwas geaendert? `force`: Knopf, sonst hoechstens alle 3 Minuten
+    @discardableResult
+    func syncNow(force: Bool = false) async -> Bool {
+        guard !syncing, let account, let host, let id = user?.id,
+              force || lastSyncAt.map({ Date().timeIntervalSince($0) >= Self.autoSyncInterval }) ?? true,
+              let backend = try? await host.backend() else { return false }
+        // Demo-Inhalte gehoeren nicht ins Konto; direkt aus der Datenbank, `demoActive` kommt beim Start erst spaeter
+        let demo = (try? await backend.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? true
+        guard Self.canSync(user: user, university: university, blocked: demo) else { return false }
+        syncing = true
+        defer { syncing = false }
+        let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID).run(account: id)
+        lastSync = r
+        lastSyncAt = Date()
+        return r.applied + r.deleted > 0
+    }
+
+    func use(userScope: String?, host: LocalBackendHost? = nil, university: String? = nil) {
+        self.host = host
+        self.university = university
         guard userScope != scope else { return }
         scope = userScope
+        lastSync = nil
+        lastSyncAt = nil
         user = nil
         sessions = []
         planStatus = nil

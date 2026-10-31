@@ -185,3 +185,20 @@ Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lie
 - Hinweise für die nächste Sitzung: `xcode-select` zeigt hier auf die Command Line Tools, darum
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` setzen. Im Lauf mit `test-without-building` fielen die 19
   Kauf-Tests durch, mit `xcodebuild test` waren sie grün; Grund nicht geklärt, darum `xcodebuild test` nehmen.
+
+## 8. Nachtrag: Probe-Anzeige und G2-Client auf dem iPad (31.10.2026)
+
+- **Probe:** `TrialBanner` auf der Übersicht, Daten aus `GET /api/entitlements`, `POST /api/billing/plan-choice` nur für
+  „Bei Free bleiben“. Die laufende Probe hebt den Tarif (`Entitlements.useServiceTrial`). Bezahlt wird nur im App Store.
+  Offen: Prüfung, ob Apple die Probe am App Store vorbei annimmt; Anzeige auf dem Bildschirm ungeprüft (braucht Dienst).
+- **G2-Client:** `DeviceSync.swift`, 1:1 nach `app/sync_client.py`. `DeviceSyncSchema.ensure` läuft erst beim ersten
+  Abgleich mit einem Konto, ohne Dienst bleibt die Datenbank unverändert. In der App: beim Öffnen höchstens alle 3
+  Minuten, Knopf „Jetzt abgleichen“ auf der Konto-Karte; nicht bei Demo-Inhalten und nicht bei anderer Hochschule.
+- **Tests:** `DeviceSyncLiveTests` (5): zwei Swift-Geräte gegen den echten Dienst, nach `tests/test_sync_client.py`.
+  Aufruf: `.venv/bin/python tools/g2-testdienst.py 8931`, dann in UniFlowCore
+  `G2_TEST_SERVICE=http://127.0.0.1:8931 swift test --filter DeviceSyncLiveTests`. Ohne die Variable übersprungen.
+  `DeviceSyncTests` (3) ohne Dienst. Sechs absichtliche Fehler werden gefunden.
+- **Noch nicht geprüft oder offen:** Abgleich in der App gegen einen laufenden Dienst (nur der Kern ist live geprüft);
+  ein offenes Dokument lädt geholte Notizen erst beim Sichern; Übernahme von Daten aus dem Web, wenn das iPad schon
+  Inhalt hat, läuft über die fachlichen Schlüssel, ein eigener Ablauf ist nicht gebaut.
+

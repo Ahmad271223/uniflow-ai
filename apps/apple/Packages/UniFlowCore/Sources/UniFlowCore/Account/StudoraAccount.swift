@@ -42,6 +42,15 @@ public actor StudoraAccount {
         public var university: String?
         public var plan: String
         public var role: String
+
+        public init(id: String, email: String, emailVerified: Bool, university: String?, plan: String, role: String) {
+            self.id = id
+            self.email = email
+            self.emailVerified = emailVerified
+            self.university = university
+            self.plan = plan
+            self.role = role
+        }
     }
 
     public struct Session: Equatable, Sendable {
@@ -186,6 +195,16 @@ public actor StudoraAccount {
         _ = try await request("POST", "/api/billing/plan-choice", body: ["plan": .string("free")])
     }
 
+    // MARK: Geraete-Abgleich (Vertrag G2)
+
+    public func syncChanges(query: String) async throws -> JSONValue {
+        json(try await request("GET", "/api/sync/changes?\(query)"))
+    }
+
+    public func syncPush(_ body: JSONValue) async throws -> JSONValue {
+        json(try await request("POST", "/api/sync/push", body: body))
+    }
+
     /// Ein anderes Geraet abmelden; die eigene Sitzung beendet diese Anmeldung
     public func revoke(session id: Int) async throws {
         _ = try await request("DELETE", "/api/account/sessions/\(id)")
@@ -215,3 +234,5 @@ public actor StudoraAccount {
         return Int(j["purge_after_days"]?.double ?? 30)
     }
 }
+
+extension StudoraAccount: DeviceSyncTransport {}

@@ -37,6 +37,9 @@ enum UFRoute: Hashable {
         }
     }
 
+    /// Geoeffnetes Dokument: nicht von aussen neu laden (Notizen fuehrt der Editor beim Sichern zusammen)
+    var isDocument: Bool { if case .doc = self { return true }; return false }
+
     /// Hash-Route der Web-App, z. B. fuer eingebettete Web-Ansichten
     var hash: String {
         func q(_ pairs: [(String, String?)]) -> String {

@@ -335,7 +335,7 @@ final class ContainerManager: ObservableObject {
         generation += 1
         onChange?(c)
         chatgpt.use(userScope: key.userScope, host: c.host)
-        account.use(userScope: key.userScope)
+        account.use(userScope: key.userScope, host: c.host, university: key.university.rawValue)
         Task { await checkDatabase(c) }
         Task { await refreshDemo() }
         Task { await moveLegacyWebData(into: c) }
