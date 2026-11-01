@@ -112,6 +112,18 @@ final class PageInkView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
+    /// Die Seite wird per Transform vergroessert (Seitenpunkte bleiben die Koordinaten). Damit die Tinte nicht wie ein
+    /// hochgezogenes Bild wirkt, rendert die Canvas in der Aufloesung der Anzeige; PencilKit zeichnet in eigenen
+    /// Unteransichten, darum gilt der Faktor fuer alle.
+    func setRenderScale(_ scale: CGFloat) {
+        func walk(_ v: UIView) {
+            v.contentScaleFactor = scale
+            v.subviews.forEach(walk)
+        }
+        walk(canvas)
+        objectsView.setRenderScale(scale)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         let s = geometry.scale(forViewSize: bounds.size)
@@ -168,6 +180,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// (etwa 140 MB). Grosse Seiten (A2, Whiteboards bis A0, PC-Stand 7bcdfe5) werden darum nicht mehr auf Vorrat
     /// gehalten, sondern beim Zurueckscrollen neu aufgebaut (der Verlauf haengt am Seitenschluessel).
     static let parkedAreaLimit: CGFloat = 6 * 595 * 842
+    private var renderScaleTask: Task<Void, Never>?
     private var lastFit: CGFloat = 0
     /// Einpassen auf die mittlere Seitenbreite statt der breitesten (M6, `ZoomPolicy.mixedFormatFactor`)
     private var mixedFormatFactor: CGFloat = 1
@@ -425,7 +438,29 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.maxScaleFactor = range.upperBound
     }
 
+    /// Faktor fuer die Zeichenflaeche: Bildschirm mal PDF-Zoom, begrenzt (je Seite eine Metal-Flaeche im Speicher)
+    nonisolated static func renderScale(screen: CGFloat, zoom: CGFloat, limit: CGFloat = 5) -> CGFloat {
+        guard zoom.isFinite, zoom > 0 else { return screen }
+        return min(limit, max(screen, (screen * zoom * 4).rounded(.up) / 4))
+    }
+
+    private var currentRenderScale: CGFloat {
+        Self.renderScale(screen: view.window?.screen.scale ?? UIScreen.main.scale, zoom: pdfView.scaleFactor)
+    }
+
+    /// Erst nach dem Zoomen: Waehrend des Pinchens wuerde jede Aenderung die Zeichenflaeche neu anlegen
+    private func scheduleRenderScale() {
+        renderScaleTask?.cancel()
+        renderScaleTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard let self, !Task.isCancelled else { return }
+            let s = self.currentRenderScale
+            self.allOverlays.forEach { $0.setRenderScale(s) }
+        }
+    }
+
     private func scaleChanged() {
+        scheduleRenderScale()
         if lastFit > 0 { userZoomed = ZoomPolicy.isUserZoom(scale: pdfView.scaleFactor, fitScale: lastFit) }
         onZoomChange?(lastFit > 0 ? pdfView.scaleFactor / lastFit : 1)
     }
@@ -559,6 +594,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     private func configure(_ overlay: PageInkView) {
+        overlay.setRenderScale(currentRenderScale)
         let c = overlay.canvas
         c.drawingPolicy = drawingPolicy
         c.delegate = self

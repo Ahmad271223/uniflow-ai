@@ -222,7 +222,17 @@ enum ObjectGeometry {
 /// Vorlage und Formen sind Vektor-Ebenen und bleiben beim Zoomen scharf. Immer im hellen Erscheinungsbild
 /// (siehe `PageInkView`), damit Farben auf dem weissen Papier wie im Web aussehen.
 final class PageObjectsView: UIView {
+    private struct Placed {
+        let view: UIView?
+        let layer: CALayer?
+        let base: CGAffineTransform
+    }
+
     private var signature = ""
+    /// Gezeigte Ansichten je Objekt-ID, fuer die Vorschau beim Ziehen
+    private var placed: [String: [Placed]] = [:]
+    /// Aufloesung fuer Formen und Text (`PageInkView.setRenderScale`)
+    private var renderScale: CGFloat = 0
     /// Zuletzt gezeigter Inhalt (fuer `update(images:)`)
     private var shown: (template: String?, placeholder: String?, objects: [JSONValue])?
 
@@ -249,6 +259,7 @@ final class PageObjectsView: UIView {
         signature = sig
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         subviews.forEach { $0.removeFromSuperview() }
+        placed = [:]
 
         // Vorlage zuerst, damit sie hinter Text, Formen und der Tinte liegt (wie im Web)
         PaperTemplate.layers(for: template, size: bounds.size).forEach { layer.addSublayer($0) }
@@ -262,6 +273,7 @@ final class PageObjectsView: UIView {
             addSubview(label)
         }
         for o in others { add(o, images: images) }
+        applyRenderScale()
     }
 
     /// Bilder sind nachgeladen: den zuletzt gezeigten Inhalt mit ihnen zeigen (Pruefbericht 502; vorher zeichnete der
@@ -271,8 +283,39 @@ final class PageObjectsView: UIView {
         show(template: s.template, placeholder: s.placeholder, objects: s.objects, images: images)
     }
 
+    /// Formen und Text in der Aufloesung der Anzeige zeichnen, sonst werden sie beim Vergroessern unscharf
+    func setRenderScale(_ scale: CGFloat) {
+        guard scale != renderScale else { return }
+        renderScale = scale
+        applyRenderScale()
+    }
+
+    private func applyRenderScale() {
+        guard renderScale > 0 else { return }
+        layer.sublayers?.forEach { $0.contentsScale = renderScale }
+        func walk(_ v: UIView) {
+            v.contentScaleFactor = renderScale
+            v.subviews.forEach(walk)
+        }
+        subviews.forEach(walk)
+    }
+
+    /// Vorschau beim Ziehen: Die gewaehlten Objekte folgen dem Finger, ohne dass das Modell geaendert wird
+    func previewMove(ids: Set<String>, by d: CGPoint) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for id in ids {
+            for p in placed[id] ?? [] {
+                let t = p.base.concatenating(CGAffineTransform(translationX: d.x, y: d.y))
+                if let v = p.view { v.transform = t } else { p.layer?.setAffineTransform(t) }
+            }
+        }
+        CATransaction.commit()
+    }
+
     private func add(_ o: JSONValue, images: [String: UIImage]) {
         let t = ObjectGeometry.transform(o)
+        let id = o["id"]?.string ?? ""
         let alpha = Float(ObjectGeometry.opacity(o))
         if let s = ObjectGeometry.shapePath(o) {
             let l = CAShapeLayer()
@@ -287,6 +330,7 @@ final class PageObjectsView: UIView {
             l.fillColor = s.closed ? ObjectGeometry.color(o["fill"])?.cgColor : nil
             l.opacity = alpha
             layer.addSublayer(l)
+            placed[id, default: []].append(Placed(view: nil, layer: l, base: t))
             if let head = s.arrowHead {
                 let h = CAShapeLayer()
                 h.path = head
@@ -296,6 +340,7 @@ final class PageObjectsView: UIView {
                 h.fillColor = ObjectGeometry.color(o["stroke"])?.cgColor
                 h.opacity = alpha
                 layer.addSublayer(h)
+                placed[id, default: []].append(Placed(view: nil, layer: h, base: t))
             }
             return
         }
@@ -316,6 +361,7 @@ final class PageObjectsView: UIView {
             addSubview(box)
             box.frame = CGRect(origin: .zero, size: size)
             box.transform = t
+            placed[id, default: []].append(Placed(view: box, layer: nil, base: t))
         case "image":
             guard let src = o["src"]?.string else { return }
             let w = ObjectGeometry.coordinate(o["width"], 100), h = ObjectGeometry.coordinate(o["height"], 100)
@@ -328,6 +374,7 @@ final class PageObjectsView: UIView {
             addSubview(view)
             view.frame = CGRect(x: 0, y: 0, width: w, height: h)
             view.transform = t
+            placed[id, default: []].append(Placed(view: view, layer: nil, base: t))
         default:
             break
         }

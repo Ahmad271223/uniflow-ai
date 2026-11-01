@@ -278,3 +278,17 @@ Nur über das Studora-Konto (Entscheidung des Inhabers), mit denselben Daten wie
 Tippen auf eine Seite kommentiert die Stelle (Seite und Anker wie im Web), Antworten, Bearbeiten, Löschen, Melden, Gefällt mir.
 Sichtbar für alle Mitglieder der Community, Schreiben ab Plus mit bestätigter E-Mail. Über CloudKit gibt es keine Kommentare.
 Marken zeigt nur der Leser; die Ebene über der PDF im Dokument zeigt sie noch nicht.
+
+## 13. Nachtrag: Erster Test auf dem echten iPad (1.11.2026)
+
+iPad (A16), iOS 27.0.1, Entwicklungs-Build mit `-UFPlan plus`. Mit Apple anmelden klappt. Gemeldet und behoben (in App-Tests
+geprüft, am Gerät noch zu bestätigen):
+- **Unscharfe Tinte und Objekte (P0-10):** Canvas und Objekte rendern jetzt in der Auflösung der Anzeige
+  (`PageInkView.setRenderScale`, Bildschirm mal PDF-Zoom, höchstens 5), angepasst 0,25 s nach dem Zoomen. Ob PencilKit den
+  Faktor in seinen Unteransichten beachtet, zeigt nur das Gerät; sonst bleibt der Weg aus dem Plan (Canvas-Zoom statt Transform).
+- **Verzerrtes Verschieben:** Die Objekt-Werkzeuge rechneten in Punkten der skalierten Ansicht statt in Seitenpunkten; Auswahl,
+  Entwurf und Texteditor liegen jetzt in `content`. Beim Ziehen folgt das Objekt dem Finger (`previewMove`), Striche nicht.
+- **Text ließ sich nicht entfernen:** Das Text-Werkzeug blieb aktiv und legte neue Felder an. Jetzt wechselt es nach dem Anlegen zu
+  „Auswählen“, Tippen auf vorhandenen Text bearbeitet ihn, und ein geleertes Feld wird gelöscht.
+
+Die Warnung „Tarife konnten nicht geladen werden“ nennt fälschlich die Verbindung, wenn die Produkte im App Store fehlen; noch offen.

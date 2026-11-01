@@ -1700,6 +1700,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
             bridge?.pageKey = key
         }
         vc.objects.onSelectionChange = { [weak bridge] n in bridge?.objectSelection = n }
+        vc.objects.onToolChange = { [weak bridge] t in bridge?.objectTool = t }
         vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
         bridge.controller = vc
         return vc

@@ -59,6 +59,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// Auswahl (eine Seite)
     private(set) var selection: (key: String, ids: Set<String>)?
     var onSelectionChange: ((Int) -> Void)?
+    /// Der Editor hat das Werkzeug selbst gewechselt (nach dem Anlegen eines Textes, nach dem Lasso)
+    var onToolChange: ((Tool) -> Void)?
 
     private lazy var tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
     private lazy var doubleTap: UITapGestureRecognizer = {
@@ -167,8 +169,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     private func locate(_ g: UIGestureRecognizer) -> (PageInkView, CGPoint)? {
         guard let c = controller else { return nil }
         for v in c.allOverlays where v.window != nil && !v.pageKey.isEmpty {
-            let p = g.location(in: v)
-            if v.bounds.contains(p) { return (v, p) }
+            // Objekte stehen in Seitenpunkten: `content` rechnet die Skalierung der Seite heraus
+            let p = g.location(in: v.content)
+            if v.content.bounds.contains(p) { return (v, p) }
         }
         return nil
     }
@@ -199,11 +202,23 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         let key = v.pageKey
         switch tool {
         case .text, .sticky:
-            let id = PageOrder.uid()
-            let o = tool == .text ? PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y))
-                                  : PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y))
+            let kind = tool
             Task {
+                // vorhandenen Text bearbeiten statt ein weiteres Feld darueberzulegen
+                let list = await objects(key)
+                if let hit = PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight),
+                   list.first(where: { $0["id"]?.string == hit })?["type"]?.string == "text" {
+                    setTool(.select)
+                    select(key: key, ids: [hit], in: list)
+                    beginTextEditing(key: key, id: hit, isNew: false)
+                    return
+                }
+                let id = PageOrder.uid()
+                let o = kind == .text ? PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y))
+                                      : PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y))
                 await commit(key) { $0 + [o] }
+                // danach auswaehlen: Antippen trifft den Text, der Papierkorb loescht ihn
+                setTool(.select)
                 beginTextEditing(key: key, id: id, isNew: true)
             }
         default:
@@ -234,10 +249,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             guard let (v, p) = locate(g) else { g.state = .cancelled; return }
             panStart = (v, p)
             lassoPoints = [p]
-            if tool.shapeKind != nil || tool == .lasso { v.layer.addSublayer(draftLayer) }
+            if tool.shapeKind != nil || tool == .lasso { v.content.layer.addSublayer(draftLayer) }
         case .changed:
             guard let start = panStart else { return }
-            let p = g.location(in: start.overlay)
+            let p = g.location(in: start.overlay.content)
             if let kind = tool.shapeKind {
                 let path = CGMutablePath()
                 if kind == "line" || kind == "arrow" { path.move(to: start.point); path.addLine(to: p) }
@@ -250,8 +265,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 path.addLines(between: lassoPoints)
                 draftLayer.path = path
             } else {
-                let d = g.translation(in: start.overlay)
+                let d = g.translation(in: start.overlay.content)
                 selectionLayer.setAffineTransform(CGAffineTransform(translationX: d.x, y: d.y))
+                if let sel = selection { start.overlay.objectsView.previewMove(ids: sel.ids, by: d) }
             }
         case .ended:
             guard let start = panStart else { return }
@@ -259,7 +275,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             draftLayer.removeFromSuperlayer()
             draftLayer.path = nil
             let key = start.overlay.pageKey
-            let p = g.location(in: start.overlay)
+            let p = g.location(in: start.overlay.content)
             if let kind = tool.shapeKind {
                 guard hypot(p.x - start.point.x, p.y - start.point.y) > 4,
                       let o = PageObjectEdit.shape(id: PageOrder.uid(), kind: kind, from: (Double(start.point.x), Double(start.point.y)),
@@ -271,15 +287,19 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 Task {
                     let list = await objects(key)
                     let ids = PageObjectEdit.inLasso(list, polygon: poly, textHeight: Self.textHeight)
-                    if ids.isEmpty { clearSelection() } else { tool = .select; select(key: key, ids: Set(ids), in: list) }
+                    if ids.isEmpty { clearSelection() } else { setTool(.select); select(key: key, ids: Set(ids), in: list) }
                 }
             } else if let sel = selection {
                 selectionLayer.setAffineTransform(.identity)
-                let d = g.translation(in: start.overlay)
-                guard abs(d.x) + abs(d.y) > 0.5 else { return }
+                let d = g.translation(in: start.overlay.content)
+                guard abs(d.x) + abs(d.y) > 0.5 else {
+                    start.overlay.objectsView.previewMove(ids: sel.ids, by: .zero)
+                    return
+                }
                 Task { await commit(sel.key) { PageObjectEdit.move($0, ids: sel.ids, dx: Double(d.x), dy: Double(d.y)) } }
             }
         default:
+            if let sel = selection { panStart?.overlay.objectsView.previewMove(ids: sel.ids, by: .zero) }
             panStart = nil
             draftLayer.removeFromSuperlayer()
             selectionLayer.setAffineTransform(.identity)
@@ -301,6 +321,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         default:
             selectionLayer.setAffineTransform(.identity)
         }
+    }
+
+    private func setTool(_ t: Tool) {
+        tool = t
+        onToolChange?(t)
     }
 
     private func rect(_ a: CGPoint, _ b: CGPoint) -> CGRect {
@@ -332,7 +357,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         }
         guard !box.isNull else { clearSelection(); return }
         selectionLayer.path = CGPath(rect: box.insetBy(dx: -4, dy: -4), transform: nil)
-        if selectionLayer.superlayer !== overlay.layer { overlay.layer.addSublayer(selectionLayer) }
+        if selectionLayer.superlayer !== overlay.content.layer { overlay.content.layer.addSublayer(selectionLayer) }
     }
 
     // MARK: Aktionen auf der Auswahl (Leiste im Objektmodus)
@@ -392,7 +417,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             view.transform = CGAffineTransform(rotationAngle: CGFloat((o["rotation"]?.double ?? 0) * .pi / 180))
             view.delegate = self
             view.accessibilityIdentifier = "objects.textEditor"
-            overlay.addSubview(view)
+            overlay.content.addSubview(view)
             editing = (key, id, view, isNew)
             view.becomeFirstResponder()
         }
@@ -405,7 +430,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         textView.frame.size.height = max(28, fit.height)
     }
 
-    /// Bearbeiten beenden: Text speichern; ein neues, leer gebliebenes Feld wird wieder entfernt
+    /// Bearbeiten beenden: Text speichern; ein leeres Feld wird entfernt (sonst bliebe es unsichtbar auf der Seite)
     func endTextEditing() {
         guard let e = editing else { return }
         editing = nil
@@ -413,8 +438,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         e.view.delegate = nil
         e.view.removeFromSuperview()
         Task {
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && e.isNew {
-                await commit(e.key, undoable: false) { PageObjectEdit.delete($0, ids: [e.id]) }
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if selection?.ids.contains(e.id) == true { clearSelection() }
+                await commit(e.key, undoable: !e.isNew) { PageObjectEdit.delete($0, ids: [e.id]) }
             } else {
                 await commit(e.key) { PageObjectEdit.set($0, ids: [e.id], "text", .string(text)) }
             }
