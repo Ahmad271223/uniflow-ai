@@ -43,7 +43,7 @@ def publish(request: Request, body: dict = Body(...)):
     if not u.get("email_verified"):
         raise HTTPException(403, {"detail": "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Willkommensmail, "
                                             "neu anfordern unter Konto).", "code": "email_unverified"})
-    return _run(community.publish, u, config.university(), body.get("package"), body.get("title"))
+    return _run(community.publish, u, config.university(), body.get("package"), body.get("title"), body.get("community_key"))
 
 
 @router.get("/solutions")
@@ -76,7 +76,36 @@ def claims(request: Request, body: dict = Body(...)):
     """Geraet meldet die Fingerabdruecke (SHA-256) seiner PDFs aus dem Hochschul-Abgleich: {fingerprints: [...],
     replace?: bool}. Danach findet, laedt, liked und kommentiert das Konto Loesungen zu diesen PDFs."""
     u = _user(request)
-    return _run(community.claim_files, u, config.university(), body.get("fingerprints") or [], bool(body.get("replace")))
+    return _run(community.claim_files, u, config.university(), body.get("fingerprints") or [], bool(body.get("replace")), body.get("course_keys"))
+
+
+@router.get("/communities")
+def communities(request: Request):
+    """Gemeldete Kurse und eigene Lerngruppen, je mit `joined`, Mitgliedern und Loesungen."""
+    return {"communities": _run(community.communities, _user(request), config.university())}
+
+
+@router.post("/communities/{community_key}/join")
+def join(request: Request, community_key: str, body: dict = Body(default={})):
+    """{kind: course | group}; Kurs nur aus dem eigenen Abgleich."""
+    return _run(community.join, _user(request), config.university(), community_key, body.get("kind") or "course")
+
+
+@router.delete("/communities/{community_key}/join")
+def leave(request: Request, community_key: str):
+    return _run(community.leave, _user(request), community_key)
+
+
+@router.get("/communities/{community_key}/solutions")
+def community_solutions(request: Request, community_key: str):
+    """Loesungen der Community, nur fuer Mitglieder, auch ohne die PDF."""
+    return {"solutions": _run(community.community_solutions, _user(request), community_key)}
+
+
+@router.post("/groups", status_code=201)
+def create_group(request: Request, body: dict = Body(...)):
+    """{group_key, name}: Lerngruppe anlegen und beitreten (ab Plus); der Code bleibt beim Geraet."""
+    return _run(community.create_group, _user(request), config.university(), body.get("group_key"), body.get("name"))
 
 
 @router.post("/solutions/{solution_id}/like")

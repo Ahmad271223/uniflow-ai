@@ -169,6 +169,21 @@ def build() -> dict:
     call("Suchen nach dem Sperren: leer", "GET", "/api/community/solutions?fingerprint=" + FP, token=tl)
     pseud = community.pseudonym(autor["id"])
     call("Sperre aufheben", "DELETE", f"/api/community/blocks/{pseud}", token=tl)
+    # Communities (1.11.2026): beitreten, Loesung nur fuer Mitglieder, auch ohne die PDF
+    group = hashlib.sha256(b"uniflow.community.group.v1\0luh\0ABCDEFGH").hexdigest()
+    ids[group] = "<group-key>"
+    call("Geraet meldet seine Kurse", "POST", "/api/community/claims", {"fingerprints": [], "course_keys": [key]}, token=ta)
+    call("Community des Kurses beitreten", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=ta)
+    call("Beitreten ohne den Kurs", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tf)
+    pkg2 = community.sample_package("d" * 64, solution_id="6f1c1c0e-0000-4000-8000-000000000003", key_material="community-secret")
+    ids[pkg2["header"]["solutionId"]] = "<solution-id-3>"
+    call("In die Community veroeffentlichen", "POST", "/api/community/solutions", {"package": pkg2, "title": "Blatt 4", "community_key": key}, token=ta)
+    call("Community ohne Mitgliedschaft lesen", "GET", f"/api/community/communities/{key}/solutions", token=tl)
+    call("Community lesen", "GET", f"/api/community/communities/{key}/solutions", token=ta)
+    call("Lerngruppe anlegen", "POST", "/api/community/groups", {"group_key": group, "name": "Mathe-Runde"}, token=ta)
+    call("Lerngruppe beitreten", "POST", f"/api/community/communities/{group}/join", {"kind": "group"}, token=tl)
+    call("Eigene Communities", "GET", "/api/community/communities", token=ta)
+    call("Community verlassen", "DELETE", f"/api/community/communities/{group}/join", token=tl)
     call("Moderation ohne Rolle", "GET", "/api/community/moderation", token=tl)
     call("Moderation: Warteschlange", "GET", "/api/community/moderation", token=tadm)
     call("Moderation: verbergen", "POST", f"/api/community/solutions/{sid}/moderate", {"action": "hide", "reason": "pruefen"}, token=tadm)

@@ -1,8 +1,13 @@
 """Community-Dienst (Vertrag G4): Loesungspakete veroeffentlichen, finden, laden, zurueckziehen, melden, sperren.
 
 Nur im gehosteten Modus. Der Dienst bekommt ausschliesslich das verschluesselte Paket (`docs/LOESUNGEN-TEILEN.md`,
-Format `uniflow-solution` Version 1); den Inhalt kann nur oeffnen, wer dieselbe Original-PDF hat (Schluessel aus den
-PDF-Bytes). Der Dienst prueft deshalb nur den Kopf des Pakets und speichert es unveraendert.
+Format `uniflow-solution` Version 1). Der Dienst prueft nur den Kopf des Pakets und speichert es unveraendert.
+
+Communities (1.11.2026): Jeder Kurs ist eine Community, dazu Lerngruppen mit Code. Beitreten kann ein Konto nur Kursen,
+die ein Geraet gemeldet hat (`claim_files`, `course_keys`), und Lerngruppen, deren Schluessel es kennt. Eine Loesung
+gehoert zu genau einer Community (`community_key`) und ist nur fuer deren Mitglieder sichtbar, auch ohne die PDF: Ihr
+Schluessel kommt aus Kurs-ID bzw. Code (`keyMaterial` = `community-secret`), den der Dienst nie erfaehrt.
+Pakete ohne Community (Schluessel aus den PDF-Bytes) folgen weiter der PDF.
 
 Berechtigung: Veroeffentlichen, Suchen und Laden gibt es nur fuer Dateien aus dem eigenen Hochschul-Abgleich des
 Kontos (Fingerabdruck `document.sha256` muss in der eigenen Datenbank als `files.content_sha256` einer Datei mit
@@ -34,6 +39,8 @@ MAX_PACKAGE_BYTES = ((48 << 20) + 16 + 2) // 3 * 4 + (1 << 20)      # wie Soluti
 MAX_PAGES = 2_000
 MAX_DISPLAY_NAME, MAX_TITLE = 60, 200
 REPORTS_TO_HIDE = 3
+KEY_MATERIALS = ("original-pdf-bytes", "community-secret")
+MAX_GROUP_NAME = 60
 REPORT_REASONS = ("foreignMaterial", "gradedSubmission", "offensive", "spam", "other")
 HEADER_KEYS = {"solutionId", "createdAt", "displayName", "document", "contents", "encryption"}
 TOP_KEYS = {"format", "formatVersion", "header", "ciphertext"}
@@ -118,6 +125,29 @@ CREATE TABLE IF NOT EXISTS claims (
     claimed_at TEXT NOT NULL,
     PRIMARY KEY (user_id, fingerprint)
 );
+CREATE TABLE IF NOT EXISTS course_claims (
+    user_id TEXT NOT NULL,
+    course_key TEXT NOT NULL,            -- CommunityKeys.courseKey eines Kurses aus dem Abgleich des Geraets
+    university TEXT NOT NULL,
+    claimed_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, course_key)
+);
+CREATE TABLE IF NOT EXISTS community_members (
+    user_id TEXT NOT NULL,
+    community_key TEXT NOT NULL,         -- Kurs- oder Gruppen-Schluessel, nie Kurs-ID oder Code im Klartext
+    university TEXT NOT NULL,
+    kind TEXT NOT NULL,                  -- course | group
+    joined_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, community_key)
+);
+CREATE INDEX IF NOT EXISTS idx_members_key ON community_members(community_key);
+CREATE TABLE IF NOT EXISTS study_groups (
+    group_key TEXT PRIMARY KEY,
+    university TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -131,6 +161,9 @@ def _schema(conn) -> None:
     from . import community_qa
     conn.executescript(SCHEMA)
     conn.executescript(community_qa.SCHEMA)
+    if "community_key" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
+        conn.execute("ALTER TABLE solutions ADD COLUMN community_key TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_community ON solutions(community_key, status)")
 
 
 def _now() -> str:
@@ -201,20 +234,27 @@ def owns_file(fingerprint: str, user_id: str | None = None) -> bool:
 MAX_CLAIMS = 5_000                      # je Meldung; ein Semester hat selten mehr als einige hundert PDFs
 
 
-def claim_files(user: dict, university: str, fingerprints: list, replace: bool = False) -> dict:
-    """Geraet meldet die Fingerabdruecke seiner PDFs aus dem Hochschul-Abgleich. `replace`: alle bisherigen Meldungen
-    des Kontos fuer diese Hochschule ersetzen (voller Abgleich), sonst ergaenzen."""
+def claim_files(user: dict, university: str, fingerprints: list, replace: bool = False, course_keys: list | None = None) -> dict:
+    """Geraet meldet die Fingerabdruecke seiner PDFs aus dem Hochschul-Abgleich und die Schluessel seiner Kurse.
+    `replace`: alle bisherigen Meldungen des Kontos fuer diese Hochschule ersetzen (voller Abgleich), sonst ergaenzen."""
     if not isinstance(fingerprints, list) or len(fingerprints) > MAX_CLAIMS:
         raise CommunityError("claims_invalid", f"Höchstens {MAX_CLAIMS} Fingerabdrücke je Meldung.")
+    if not isinstance(course_keys or [], list) or len(course_keys or []) > MAX_CLAIMS:
+        raise CommunityError("claims_invalid", f"Höchstens {MAX_CLAIMS} Kurse je Meldung.")
     fps = sorted({str(f).lower() for f in fingerprints if HEX64.match(str(f).lower())})
+    keys = sorted({str(k).lower() for k in course_keys or [] if HEX64.match(str(k).lower())})
     now = _now()
     with cursor() as conn:
         if replace:
             conn.execute("DELETE FROM claims WHERE user_id=? AND university=?", (user["id"], university))
         conn.executemany("INSERT OR REPLACE INTO claims(user_id, fingerprint, university, claimed_at) VALUES (?,?,?,?)",
                          [(user["id"], f, university, now) for f in fps])
+        if course_keys is not None and replace:
+            conn.execute("DELETE FROM course_claims WHERE user_id=? AND university=?", (user["id"], university))
+        conn.executemany("INSERT OR REPLACE INTO course_claims(user_id, course_key, university, claimed_at) VALUES (?,?,?,?)",
+                         [(user["id"], k, university, now) for k in keys])
         n = conn.execute("SELECT COUNT(*) FROM claims WHERE user_id=? AND university=?", (user["id"], university)).fetchone()[0]
-    return {"accepted": len(fps), "ignored": len(fingerprints) - len(fps), "total": n}
+    return {"accepted": len(fps), "ignored": len(fingerprints) - len(fps), "total": n, "courses": len(keys)}
 
 
 def require_file(fingerprint: str, user_id: str | None = None) -> None:
@@ -282,7 +322,7 @@ def validate_package(pkg) -> dict:
     e = h.get("encryption")
     if not isinstance(e, dict) or set(e) != {"cipher", "kdf", "keyMaterial", "salt", "nonce", "plaintextBytes"}:
         bad("encryption")
-    if e.get("cipher") != "AES-256-GCM" or e.get("kdf") != "HKDF-SHA256" or e.get("keyMaterial") != "original-pdf-bytes":
+    if e.get("cipher") != "AES-256-GCM" or e.get("kdf") != "HKDF-SHA256" or e.get("keyMaterial") not in KEY_MATERIALS:
         bad("Verschlüsselung")
     if _b64len(str(e.get("salt")), "salt") != 32 or _b64len(str(e.get("nonce")), "nonce") != 12:
         bad("Salz/Nonce")
@@ -293,7 +333,8 @@ def validate_package(pkg) -> dict:
     pb = e.get("plaintextBytes")
     if not isinstance(pb, int) or isinstance(pb, bool) or pb < 0 or pb != n - 16:
         bad("plaintextBytes")
-    return {"id": sid.lower(), "fingerprint": fp, "display_name": name, "created_at": created, "page_count": pc, "pages": pages}
+    return {"id": sid.lower(), "fingerprint": fp, "display_name": name, "created_at": created, "page_count": pc, "pages": pages,
+            "key_material": e["keyMaterial"]}
 
 
 # ---------------------------------------------------------------- Veroeffentlichen, Suchen, Laden, Zurueckziehen
@@ -301,7 +342,7 @@ def validate_package(pkg) -> dict:
 def _summary(r, me: str, reported: set[str] | None = None, conn=None) -> dict:
     out = {"solution_id": r["id"], "fingerprint": r["fingerprint"], "display_name": r["display_name"], "pseudonym": r["pseudonym"],
            "title": r["title"], "created_at": r["created_at"], "published_at": r["published_at"], "page_count": r["page_count"],
-           "pages": r["pages"], "downloads": r["downloads"], "status": r["status"], "mine": r["author_id"] == me,
+           "pages": r["pages"], "downloads": r["downloads"], "status": r["status"], "mine": r["author_id"] == me, "community_key": r["community_key"],
            "reported_by_me": r["id"] in (reported or set())}
     if conn is not None:
         out["likes"] = conn.execute("SELECT COUNT(*) FROM likes WHERE solution_id=?", (r["id"],)).fetchone()[0]
@@ -310,10 +351,108 @@ def _summary(r, me: str, reported: set[str] | None = None, conn=None) -> dict:
     return out
 
 
-def publish(user: dict, university: str, pkg, title: str | None = None) -> dict:
+def _member(conn, user: dict, community_key: str | None) -> bool:
+    return bool(community_key and conn.execute("SELECT 1 FROM community_members WHERE user_id=? AND community_key=?",
+                                               (user["id"], community_key)).fetchone())
+
+
+def _community_key(key) -> str:
+    k = str(key or "").lower()
+    if not HEX64.match(k):
+        raise CommunityError("community_invalid", "Ungültige Community.")
+    return k
+
+
+def join(user: dict, university: str, community_key, kind: str) -> dict:
+    """Beitreten: Kurs nur, wenn ein Geraet des Kontos ihn gemeldet hat; Lerngruppe, wenn es sie gibt."""
+    key = _community_key(community_key)
+    if kind not in ("course", "group"):
+        raise CommunityError("community_invalid", "Ungültige Community.")
+    with cursor() as conn:
+        if kind == "course":
+            if not conn.execute("SELECT 1 FROM course_claims WHERE user_id=? AND course_key=? AND university=?",
+                                (user["id"], key, university)).fetchone():
+                raise CommunityError("course_not_owned", "Diesen Kurs gibt es nicht in deinem Hochschul-Abgleich.", 403)
+        elif not conn.execute("SELECT 1 FROM study_groups WHERE group_key=? AND university=?", (key, university)).fetchone():
+            raise CommunityError("group_not_found", "Keine Lerngruppe mit diesem Code an deiner Hochschule.", 404)
+        conn.execute("INSERT OR IGNORE INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,?,?,?)",
+                     (user["id"], key, university, kind, _now()))
+    return {"joined": True, "community_key": key}
+
+
+def leave(user: dict, community_key) -> dict:
+    with cursor() as conn:
+        conn.execute("DELETE FROM community_members WHERE user_id=? AND community_key=?", (user["id"], _community_key(community_key)))
+    return {"left": True}
+
+
+def create_group(user: dict, university: str, group_key, name) -> dict:
+    """Lerngruppe anlegen (ab Plus); der Code bleibt beim Geraet, der Dienst kennt nur den Schluessel."""
+    require_plan(user)
+    key, clean = _community_key(group_key), str(name or "").strip()
+    if not clean or len(clean) > MAX_GROUP_NAME:
+        raise CommunityError("group_name_invalid", "Gib der Lerngruppe einen Namen (höchstens 60 Zeichen).")
+    with cursor() as conn:
+        if conn.execute("SELECT 1 FROM study_groups WHERE group_key=?", (key,)).fetchone():
+            raise CommunityError("group_exists", "Diese Lerngruppe gibt es schon.", 409)
+        now = _now()
+        conn.execute("INSERT INTO study_groups(group_key, university, name, created_by, created_at) VALUES (?,?,?,?,?)",
+                     (key, university, clean, user["id"], now))
+        conn.execute("INSERT INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,?,'group',?)",
+                     (user["id"], key, university, now))
+    return {"community_key": key, "name": clean, "kind": "group"}
+
+
+def communities(user: dict, university: str) -> list[dict]:
+    """Eigene Communities und alle gemeldeten Kurse (`joined` je Eintrag); Kursnamen kennt nur das Geraet."""
+    with cursor() as conn:
+        joined = {r["community_key"]: r for r in conn.execute("SELECT * FROM community_members WHERE user_id=?", (user["id"],))}
+        claimed = {r["course_key"] for r in conn.execute("SELECT course_key FROM course_claims WHERE user_id=? AND university=?",
+                                                         (user["id"], university))}
+        out = []
+        for key in sorted(claimed | set(joined)):
+            m = joined.get(key)
+            g = conn.execute("SELECT name FROM study_groups WHERE group_key=?", (key,)).fetchone()
+            members = conn.execute("SELECT COUNT(*) FROM community_members WHERE community_key=?", (key,)).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM solutions WHERE community_key=? AND status='active'", (key,)).fetchone()[0]
+            out.append({"community_key": key, "kind": "group" if g else "course", "name": g["name"] if g else None,
+                        "joined": bool(m), "members": members, "solutions": count})
+    return out
+
+
+def community_solutions(user: dict, community_key) -> list[dict]:
+    key = _community_key(community_key)
+    with cursor() as conn:
+        if not _member(conn, user, key):
+            raise CommunityError("not_a_member", "Tritt zuerst dieser Community bei.", 403)
+        rows = conn.execute("SELECT * FROM solutions WHERE community_key=? AND status='active' ORDER BY published_at DESC", (key,)).fetchall()
+        return _listed(conn, user, rows)
+
+
+def _listed(conn, user: dict, rows) -> list[dict]:
+    blocked = {r["pseudonym"] for r in conn.execute("SELECT pseudonym FROM blocks WHERE user_id=?", (user["id"],))}
+    banned = {r["author_id"] for r in conn.execute("SELECT author_id FROM bans")}
+    reported = {r["solution_id"] for r in conn.execute("SELECT solution_id FROM reports WHERE reporter_id=?", (user["id"],))}
+    out = [_summary(r, user["id"], reported, conn) for r in rows if r["pseudonym"] not in blocked and r["author_id"] not in banned]
+    out.sort(key=lambda x: x["published_at"], reverse=True)         # meistgelikte zuerst, bei Gleichstand die neueste
+    out.sort(key=lambda x: -x["likes"])
+    return out
+
+
+def publish(user: dict, university: str, pkg, title: str | None = None, community_key=None) -> dict:
     require_plan(user)
     info = validate_package(pkg)
-    require_file(info["fingerprint"])
+    key = _community_key(community_key) if community_key else None
+    if key:
+        if info["key_material"] != "community-secret":
+            raise CommunityError("package_invalid", "Die Lösung ist beschädigt (Kopf: Verschlüsselung).")
+        with cursor() as conn:
+            if not _member(conn, user, key):
+                raise CommunityError("not_a_member", "Tritt zuerst dieser Community bei.", 403)
+    else:
+        if info["key_material"] != "original-pdf-bytes":
+            raise CommunityError("community_invalid", "Ungültige Community.")
+        require_file(info["fingerprint"])
     title = (title or "").strip()[:MAX_TITLE] or None
     raw = json.dumps(pkg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     if len(raw) > MAX_PACKAGE_BYTES:
@@ -332,29 +471,34 @@ def publish(user: dict, university: str, pkg, title: str | None = None) -> dict:
         package_dir().mkdir(parents=True, exist_ok=True)
         (package_dir() / f"{info['id']}.uniflowsolution").write_text(raw, encoding="utf-8")
         conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at, published_at,
-                        page_count, pages, size, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active')
-                        ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
+                        page_count, pages, size, status, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?)
+                        ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, community_key=excluded.community_key, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
                           created_at=excluded.created_at, published_at=excluded.published_at, page_count=excluded.page_count,
                           pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL""",
                      (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
-                      info["created_at"], now, info["page_count"], info["pages"], len(raw)))
+                      info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
     return {"solution_id": info["id"], "published_at": now, "pseudonym": pseudonym(user["id"]), "republished": bool(cur)}
 
 
 def find(user: dict, university: str, fingerprint: str) -> list[dict]:
-    # Lesen duerfen alle Konten (Recht can_read_community, auch Studora Free); weiter nur fuer die eigene PDF
-    require_file(fingerprint)
+    """Loesungen zu einer PDF: aus den eigenen Communities, dazu Pakete ohne Community fuer die eigene PDF."""
+    fp = fingerprint if HEX64.match(fingerprint or "") else None
     with cursor() as conn:
-        blocked = {r["pseudonym"] for r in conn.execute("SELECT pseudonym FROM blocks WHERE user_id=?", (user["id"],))}
-        banned = {r["author_id"] for r in conn.execute("SELECT author_id FROM bans")}
-        reported = {r["solution_id"] for r in conn.execute("SELECT solution_id FROM reports WHERE reporter_id=?", (user["id"],))}
+        joined = [r[0] for r in conn.execute("SELECT community_key FROM community_members WHERE user_id=?", (user["id"],))]
+    if not fp or not joined:
+        require_file(fingerprint)
+    owned = owns_file(fp) if fp else False
+    with cursor() as conn:
         rows = conn.execute("SELECT * FROM solutions WHERE fingerprint=? AND university=? AND status='active' ORDER BY published_at DESC",
-                            (fingerprint, university)).fetchall()
-        out = [_summary(r, user["id"], reported, conn) for r in rows if r["pseudonym"] not in blocked and r["author_id"] not in banned]
-    # meistgelikte zuerst, bei Gleichstand die neueste
-    out.sort(key=lambda x: x["published_at"], reverse=True)
-    out.sort(key=lambda x: -x["likes"])
-    return out
+                            (fp, university)).fetchall()
+        return _listed(conn, user, [r for r in rows if (r["community_key"] in joined if r["community_key"] else owned)])
+
+
+def _require_access(conn, user: dict, r) -> None:
+    if not r["community_key"]:
+        require_file(r["fingerprint"], user["id"])
+    elif not _member(conn, user, r["community_key"]):
+        raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
 
 
 def get_package(user: dict, solution_id: str) -> tuple[dict, dict]:
@@ -365,7 +509,7 @@ def get_package(user: dict, solution_id: str) -> tuple[dict, dict]:
         if conn.execute("SELECT 1 FROM bans WHERE author_id=?", (r["author_id"],)).fetchone() and r["author_id"] != user["id"]:
             raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
         if r["author_id"] != user["id"]:
-            require_file(r["fingerprint"])
+            _require_access(conn, user, r)
             conn.execute("UPDATE solutions SET downloads=downloads+1 WHERE id=?", (r["id"],))
         p = package_dir() / f"{r['id']}.uniflowsolution"
         if not p.exists():
@@ -539,7 +683,7 @@ def _visible_solution(conn, user: dict, solution_id: str):
     if r["author_id"] != user["id"]:
         if conn.execute("SELECT 1 FROM bans WHERE author_id=?", (r["author_id"],)).fetchone():
             raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
-        require_file(r["fingerprint"], user["id"])
+        _require_access(conn, user, r)
     return r
 
 
@@ -746,7 +890,7 @@ def _can_comment(user: dict) -> bool:
 
 
 def sample_package(fingerprint: str, pages: int = 2, page_count: int = 12, display_name: str = "", solution_id: str | None = None,
-                   created_at: str = "2026-10-26T10:00:00Z") -> dict:
+                   created_at: str = "2026-10-26T10:00:00Z", key_material: str = "original-pdf-bytes") -> dict:
     """Syntaktisch gueltiges Paket fuer Tests und den Vertrag (Chiffrat ist Zufall, nicht entschluesselbar)."""
     import os
     ct = os.urandom(48)
@@ -754,7 +898,7 @@ def sample_package(fingerprint: str, pages: int = 2, page_count: int = 12, displ
             "header": {"solutionId": solution_id or str(uuid.uuid4()), "createdAt": created_at, "displayName": display_name,
                        "document": {"sha256": fingerprint, "pageCount": page_count},
                        "contents": {"pages": pages, "images": 0, "missingImages": 0},
-                       "encryption": {"cipher": "AES-256-GCM", "kdf": "HKDF-SHA256", "keyMaterial": "original-pdf-bytes",
+                       "encryption": {"cipher": "AES-256-GCM", "kdf": "HKDF-SHA256", "keyMaterial": key_material,
                                       "salt": base64.b64encode(os.urandom(32)).decode(), "nonce": base64.b64encode(os.urandom(12)).decode(),
                                       "plaintextBytes": len(ct) - 16}},
             "ciphertext": base64.b64encode(ct).decode()}

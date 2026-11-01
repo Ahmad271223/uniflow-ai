@@ -58,7 +58,7 @@ def test_device_claims_let_windows_and_ipad_share_and_open(hosted):
     st, d = _publish(hosted, ha)
     assert (st, d["code"]) == (403, "file_not_owned")
     st, d = _claim(hosted, ha, FP, "kaputt", FP)
-    assert st == 200 and d == {"accepted": 1, "ignored": 2, "total": 1}
+    assert st == 200 and d == {"accepted": 1, "ignored": 2, "total": 1, "courses": 0}
     st, d = _publish(hosted, ha)
     assert st == 201, d
     sid = d["solution_id"]
