@@ -63,7 +63,7 @@ export async function renderWeeklyBox(host, module, onChange) {
       const right = !p ? (w.markers.length ? `<span class="muted small">Marker gesetzt</span>` : `<span class="muted small">${icon("bookmark", 13)} im Skript „Vorlesung bis hier“ setzen</span>`)
         : p.status === "veroeffentlicht" ? `${pc !== null ? `<span class="badge ${pc >= 60 ? "ok" : "bad"}">${pc} %</span>` : ""}<a class="btn ${t?.submitted_at ? "" : "primary"} sm" href="#/exams/${t?.id}">${t?.submitted_at ? "Ergebnis" : `${icon("play", 13)} Starten`}</a><button class="btn ghost sm" data-def="${p.def_id}">Details</button>`
         : p.status === "wartet" ? `<span class="small muted">wartet auf ${p.missing.map(x => SRC[x] || x).join(", ")} · spätestens ${when(p.deadline_at)}</span>`
-        : p.status === "fehlgeschlagen" ? `<span class="small" style="color:var(--bad)" title="${esc(p.error || "")}">${icon("alert", 13)} nicht freigegeben</span><button class="btn ghost sm" data-retry>Erneut versuchen</button>`
+        : p.status === "fehlgeschlagen" ? `<span class="small" style="color:var(--bad-text)" title="${esc(p.error || "")}">${icon("alert", 13)} nicht freigegeben</span><button class="btn ghost sm" data-retry>Erneut versuchen</button>`
         : `<span class="small muted">${icon("clock", 13)} erscheint ${when(p.publish_at)}</span>`;
       const st = !p ? w.status : p.status_text;
       const pages = p ? p.pages.map(s => `S. ${s.from}–${s.to}`).join(", ") : "";
@@ -99,7 +99,7 @@ export async function defDetails(id) {
       <span>Testaufgaben</span><div>${d.question_count}${d.levels ? ` <span class="muted small">(${Object.entries(d.levels).map(([k, v]) => `${v} ${k}`).join(", ")})</span>` : ""} · ${d.duration_min} min</div>
       <span>Veröffentlicht</span><div>${when(d.published_at)}</div>
       <span>Bearbeitung</span><div>${st}${d.test ? ` <a class="btn sm" href="#/exams/${d.test.id}" data-close-link>${d.test.submitted_at ? "Ansehen" : "Starten"}</a>` : ""}</div>
-      ${d.missing.length ? `<span>Fehlende Quellen</span><div style="color:var(--warn)">${d.missing.map(x => SRC[x] || x).join(", ")} waren bis zur Veröffentlichung nicht hochgeladen</div>` : ""}
+      ${d.missing.length ? `<span>Fehlende Quellen</span><div style="color:var(--warn-text)">${d.missing.map(x => SRC[x] || x).join(", ")} waren bis zur Veröffentlichung nicht hochgeladen</div>` : ""}
       ${d.excluded_count ? `<span>Ausgeschlossen</span><div class="muted small">${d.excluded_count} Aufgaben aus Übungen/Altklausuren betreffen noch nicht behandelten Stoff</div>` : ""}
       ${d.nachtraege.length ? `<span>Nachträge</span><div>${d.nachtraege.map(n => `${esc(n.title || "Nachtrag")} · ${when(n.published_at)}`).join("<br>")}</div>` : ""}
     </div>
