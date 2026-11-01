@@ -1,0 +1,87 @@
+DEFINE SCHEMA
+
+    RECORD TYPE Solution (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        solutionID       STRING,
+        fingerprint      STRING QUERYABLE,
+        university       STRING QUERYABLE,
+        courseKey        STRING QUERYABLE,
+        visibility       STRING,
+        groupKey         STRING,
+        displayName      STRING,
+        title            STRING,
+        pageCount        INT64,
+        week             INT64,
+        createdAt        STRING,
+        package          ASSET,
+        ownerRecordName  STRING,
+        withdrawn        INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Report (
+        "___createTime"     TIMESTAMP,
+        "___createdBy"      REFERENCE,
+        "___etag"           STRING,
+        "___modTime"        TIMESTAMP,
+        "___modifiedBy"     REFERENCE,
+        "___recordID"       REFERENCE QUERYABLE,
+        solutionID          STRING QUERYABLE,
+        reason              STRING,
+        note                STRING,
+        reporterRecordName  STRING,
+        createdAt           STRING QUERYABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE StudyGroup (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        groupKey         STRING,
+        name             STRING,
+        university       STRING,
+        ownerRecordName  STRING,
+        createdAt        STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Block (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        ownerRecordName  STRING,
+        createdAt        STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Ban (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        ownerRecordName  STRING,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
