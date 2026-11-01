@@ -8,7 +8,7 @@ Stores zeigen sie öffentlich an.
 ## Variante A – natürliche Person (Einzelunternehmen)
 
 **Anbieter**
-[[Vorname Nachname]]
+[[Name]]
 [[Straße Hausnummer]]
 [[PLZ Ort]]
 Deutschland
