@@ -2,8 +2,8 @@
 
 Betriebsart ueber LERNAPP_MAIL:
   off   kein Versand (nur ein Protokolleintrag ohne Inhalt)
-  log   die ganze Mail wird in config.log_dir()/mail.log geschrieben (Standard am eigenen PC und im Dienst ohne
-        SMTP-Host; so laesst sich der Reset-Link im Betrieb aus der Datei holen)
+  log   die ganze Mail wird in `log_path()` = config.BASE_LOG_DIR/mail.log geschrieben (Standard am eigenen PC und im
+        Dienst ohne SMTP-Host; so laesst sich der Reset-Link im Betrieb aus der Datei holen)
   smtp  Versand ueber smtplib (Standard im gehosteten Modus, sobald LERNAPP_SMTP_HOST gesetzt ist)
 
 SMTP: LERNAPP_SMTP_HOST, LERNAPP_SMTP_PORT (587 = STARTTLS, Standard; 465 = SSL von Anfang an; alles andere: STARTTLS
@@ -12,8 +12,12 @@ wenn der Server es anbietet), LERNAPP_SMTP_USER / LERNAPP_SMTP_PASSWORD (leer = 
 aller Links in Mails (z. B. https://uniflow.example); die Anmeldeseite nimmt den Reset-Token als /login?reset=<token>.
 
 Regeln: `send` wirft nie - ein Fehler beim Versand landet in mail.log und auf der Konsole, der API-Aufruf bleibt 200.
-Token und Passwoerter stehen nie im normalen Serverprotokoll; nur im Modus `log` steht der Reset-Link in mail.log
-(die Datei liegt im Protokollordner des Dienstes, nicht in einem Nutzerordner).
+Token und Passwoerter stehen nie im normalen Serverprotokoll; nur im Modus `log` steht der Reset-Link in mail.log.
+mail.log ist EIN zentrales Protokoll im Protokollordner des Dienstes (`config.BASE_LOG_DIR`, im Container /logs), auch
+wenn die Mail aus dem Kontext eines Kontos heraus verschickt wird (z. B. Bestaetigung erneut senden, Konto loeschen):
+`config.log_dir()` zeigt dort auf `users/<id>/logs/` und wird hier absichtlich NICHT benutzt – der Betreiber soll den
+Mailversand an einer Stelle pruefen koennen (docs/START-DIENST-CHECKLISTE.md, Abschnitt 11), und der Nutzerordner
+faellt unter die Loeschfristen von app/retention.py.
 """
 from __future__ import annotations
 
@@ -83,7 +87,8 @@ def smtp_settings() -> dict:
 # ---------------------------------------------------------------- Protokoll
 
 def log_path():
-    return config.log_dir() / "mail.log"
+    """Zentrales Mail-Protokoll des Prozesses, unabhaengig vom Nutzerkontext (siehe Modulkopf)."""
+    return config.BASE_LOG_DIR / "mail.log"
 
 
 def _log(text: str) -> None:

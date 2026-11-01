@@ -1,6 +1,10 @@
-# UniFlow – gehosteter Dienst auf einem VPS: App (uvicorn, intern) + Caddy (TLS, Ports 80/443).
+# UniFlow – gehosteter Dienst auf einem VPS: App (uvicorn, 2 Prozesse, intern) + Jobs (Hochschul-Abgleich, Wochentests,
+# Loeschfristen; eigener Container aus demselben Image) + Caddy (TLS, Ports 80/443).
 # Start aus dem Ordner deploy/:  docker compose up -d --build        Anleitung: docs/release/BETRIEB.md
 # Variablen kommen aus deploy/.env (Vorlage: .env.example). Diese Datei nennt keine Geheimnisse.
+# Aufteilung (Lasttest 30.10.2026, Empfehlung 1): die API laeuft mit `uvicorn --workers 2` (deploy/Dockerfile); damit
+# der Job-Runner nicht in jedem API-Prozess startet, bekommt die API LERNAPP_JOBS=off und `jobs` laeuft getrennt.
+# So nimmt kein Chromium der API CPU und Speicher weg, und ein Absturz eines Abgleichs legt die API nicht lahm.
 
 name: uniflow
 
@@ -23,20 +27,72 @@ services:
       LERNAPP_HTTPS: "1"
       # Host-Kopfzeile, die der Dienst annimmt (Schutz gegen DNS-Rebinding); Caddy reicht den Original-Host durch
       LERNAPP_ALLOWED_HOSTS: ${UNIFLOW_DOMAIN:?deploy/.env fehlt oder UNIFLOW_DOMAIN ist leer}
+      # Keine Arbeiter und kein Zeitplan in den API-Prozessen (uvicorn --workers 2 wuerde beides doppelt starten);
+      # das macht der Dienst `jobs` unten. Ueberschreibt den Wert aus .env absichtlich.
+      LERNAPP_JOBS: "off"
     volumes:
       - uniflow-data:/data      # accounts.db, secret.key (falls kein LERNAPP_SECRET_KEY), users/<id>/...
-      - uniflow-logs:/logs      # access/access-YYYY-MM-DD.log (14 Tage), retention.log
+      - uniflow-logs:/logs      # access/access-YYYY-MM-DD.log (14 Tage), mail.log
     expose:
       - "8765"                  # nur im Compose-Netz erreichbar, kein Port am Host
-    # Chromium (Playwright-Abgleich) braucht mehr als die 64 MB /dev/shm von Docker
-    shm_size: "512m"
     deploy:
       resources:
         limits:
-          # App ca. 300 MB + je gleichzeitigem Browser-Abgleich 300–500 MB (LERNAPP_JOB_WORKERS=2) – passt auf 4 GB RAM
-          memory: 2560M
+          # 2 API-Prozesse je 150–300 MB (Lasttest: 110–140 MB gemessen ohne Browser); kein Chromium in diesem Container
+          memory: 768M
+        reservations:
+          memory: 256M
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  jobs:
+    # Dasselbe Image wie `app` (baut `app`, hier nur verwenden), anderer Startbefehl: Arbeiter (Chromium-Abgleiche,
+    # Wochentests) und Zeitplan (LERNAPP_SYNC_TIMES, Loeschfristen LERNAPP_RETENTION_TIME) als eigener Prozess.
+    # Genau EIN Exemplar (die Zeitplan-Merkmale in accounts.db verhindern doppelte Fenster, aber nicht doppelte Arbeiter
+    # ueber LERNAPP_JOB_WORKERS hinaus): nie `docker compose up --scale jobs=2`.
+    image: uniflow-app:latest
+    pull_policy: never
+    container_name: uniflow-jobs
+    restart: unless-stopped
+    command: ["python", "-m", "app.jobs"]
+    depends_on:
+      app:
+        condition: service_started
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      LERNAPP_MODE: hosted
+      LERNAPP_DATA_DIR: /data
+      LERNAPP_LOG_DIR: /logs
+      LERNAPP_HTTPS: "1"
+    volumes:
+      - uniflow-data:/data      # dieselben Daten wie die API: Warteschlange sync_jobs in accounts.db, Nutzerordner, Browser-Profile
+      - uniflow-logs:/logs      # retention.log, jobs.heartbeat (Lebenszeichen fuer den Healthcheck), mail.log
+    # Chromium (Playwright-Abgleich) braucht mehr als die 64 MB /dev/shm von Docker
+    shm_size: "512m"
+    # Lebenszeichen: python -m app.jobs schreibt alle 10 s /logs/jobs.heartbeat, solange Arbeiter und Zeitplan laufen;
+    # --healthcheck prueft, ob die Datei juenger als 120 s ist (app/jobs.py heartbeat_ok). Ersetzt den HTTP-Check des Images.
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.jobs", "--healthcheck"]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          # Prozess ca. 300 MB + je gleichzeitigem Browser-Abgleich 300–500 MB (LERNAPP_JOB_WORKERS=2); mit app (768M)
+          # und Caddy passt das auf 4 GB RAM. Bei LERNAPP_JOB_WORKERS=4 (8 GB) auf 3584M erhoehen.
+          memory: 1792M
         reservations:
           memory: 512M
+    # Laufende Abgleiche duerfen nach SIGTERM noch 25 s zu Ende kommen (app/jobs.py STOP_GRACE_S), dann werden sie als
+    # abgebrochen markiert und beim naechsten Zeitfenster nachgeholt.
     stop_grace_period: 30s
     logging:
       driver: json-file

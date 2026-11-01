@@ -16,7 +16,7 @@ def mail_env(monkeypatch, tmp_path):
     for k in ("LERNAPP_MAIL", "LERNAPP_SMTP_HOST", "LERNAPP_SMTP_PORT", "LERNAPP_SMTP_USER", "LERNAPP_SMTP_PASSWORD",
               "LERNAPP_MAIL_FROM", "LERNAPP_PUBLIC_URL"):
         monkeypatch.delenv(k, raising=False)
-    monkeypatch.setattr(config, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(config, "BASE_LOG_DIR", tmp_path)      # mail.log liegt zentral im Protokollordner des Dienstes
     return tmp_path
 
 
@@ -190,3 +190,27 @@ def test_hosted_reset_endpoint_uses_mail_sender_with_the_right_token(app, monkey
     finally:
         monkeypatch.setattr(accounts, "reset_sender", None)
         accounts.db_path().unlink(missing_ok=True)
+
+
+def test_mail_from_account_context_lands_in_the_central_log(mail_env, monkeypatch, tmp_path):
+    """Bestaetigung erneut senden, Konto loeschen: der Versand laeuft im Kontext eines Kontos, in dem config.log_dir()
+    auf users/<id>/logs/ zeigt. mail.log bleibt trotzdem EIN zentrales Protokoll (config.BASE_LOG_DIR), damit der
+    Betreiber den Mailversand an einer Stelle prueft und der Nutzerordner nichts davon enthaelt."""
+    from app import config, mail
+    monkeypatch.setattr(config, "BASE_DATA_DIR", tmp_path / "data")
+    monkeypatch.setenv("LERNAPP_MAIL", "log")
+    uid = "c" * 32
+    token = config.set_user_context(uid, "luh")
+    try:
+        assert config.log_dir() == config.user_data_dir(uid, "luh") / "logs", "Nutzerkontext aktiv"
+        assert mail.log_path() == mail_env / "mail.log" and mail.log_path().parent != config.log_dir()
+        assert mail.send("konto@beispiel.de", "Betreff im Kontext", "Inhalt aus dem Konto") is True
+    finally:
+        config.reset_user_context(token)
+    central = (mail_env / "mail.log").read_text(encoding="utf-8")
+    assert "konto@beispiel.de" in central and "Betreff im Kontext" in central
+    assert not (config.user_data_dir(uid, "luh") / "logs" / "mail.log").exists(), "nichts im Nutzerordner"
+    # ohne Kontext: dieselbe Datei
+    assert mail.send("frei@beispiel.de", "Ohne Kontext", "x") is True
+    text = (mail_env / "mail.log").read_text(encoding="utf-8")
+    assert text.index("Betreff im Kontext") < text.index("Ohne Kontext")
