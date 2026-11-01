@@ -83,8 +83,8 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
 
 ## 7. Community-Regeln
 
-Die Community dient dazu, **eigene** Lösungen zu Übungsblättern mit Studierenden derselben Hochschule zu vergleichen,
-die dieselbe PDF haben. Es gilt:
+Die Community dient dazu, **eigene** Lösungen zu Übungsblättern mit den Mitgliedern eines Kurses oder einer Lerngruppe
+derselben Hochschule zu vergleichen. Es gilt:
 
 1. Teile nur Lösungen, die du selbst erarbeitet hast. Keine Musterlösungen der Lehrenden, keine Folien, keine
    fremden Texte (auch nicht in Ausschnitten, die über ein Zitat hinausgehen).

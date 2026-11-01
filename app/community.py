@@ -6,8 +6,9 @@ Format `uniflow-solution` Version 1). Der Dienst prueft nur den Kopf des Pakets 
 Communities (1.11.2026): Jeder Kurs ist eine Community, dazu Lerngruppen mit Code. Beitreten kann ein Konto nur Kursen,
 die ein Geraet gemeldet hat (`claim_files`, `course_keys`), und Lerngruppen, deren Schluessel es kennt. Eine Loesung
 gehoert zu genau einer Community (`community_key`) und ist nur fuer deren Mitglieder sichtbar, auch ohne die PDF: Ihr
-Schluessel kommt aus Kurs-ID bzw. Code (`keyMaterial` = `community-secret`), den der Dienst nie erfaehrt.
-Pakete ohne Community (Schluessel aus den PDF-Bytes) folgen weiter der PDF.
+Schluessel kommt aus Kurs-ID bzw. Code (`keyMaterial` = `community-secret`). Gleicht das Geraet selbst ab, kennt der Dienst
+beides nicht; bei Konten mit Hochschul-Abgleich durch den Dienst liegt die Kurs-ID in deren Datenbank, dann koennte er
+die Kurs-Pakete rechnerisch oeffnen. Neu veroeffentlicht wird nur noch in eine Community.
 
 Berechtigung: Veroeffentlichen, Suchen und Laden gibt es nur fuer Dateien aus dem eigenen Hochschul-Abgleich des
 Kontos (Fingerabdruck `document.sha256` muss in der eigenen Datenbank als `files.content_sha256` einer Datei mit
@@ -39,6 +40,8 @@ MAX_PACKAGE_BYTES = ((48 << 20) + 16 + 2) // 3 * 4 + (1 << 20)      # wie Soluti
 MAX_PAGES = 2_000
 MAX_DISPLAY_NAME, MAX_TITLE = 60, 200
 REPORTS_TO_HIDE = 3
+# Nur fuer Tests der Regeln rund um eine Loesung (Likes, Moderation): Pakete ohne Community. Im Betrieb immer aus.
+LEGACY_PUBLISH = False
 KEY_MATERIALS = ("original-pdf-bytes", "community-secret")
 MAX_GROUP_NAME = 60
 REPORT_REASONS = ("foreignMaterial", "gradedSubmission", "offensive", "spam", "other")
@@ -449,10 +452,10 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
         with cursor() as conn:
             if not _member(conn, user, key):
                 raise CommunityError("not_a_member", "Tritt zuerst dieser Community bei.", 403)
-    else:
-        if info["key_material"] != "original-pdf-bytes":
-            raise CommunityError("community_invalid", "Ungültige Community.")
+    elif LEGACY_PUBLISH:
         require_file(info["fingerprint"])
+    else:
+        raise CommunityError("community_required", "Wähle eine Community aus.")
     title = (title or "").strip()[:MAX_TITLE] or None
     raw = json.dumps(pkg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     if len(raw) > MAX_PACKAGE_BYTES:

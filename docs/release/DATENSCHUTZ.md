@@ -113,13 +113,15 @@ Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelö
 
 ## 8. Community (Plus)
 
-In der Community kannst du deine Lösung zu einem Übungsblatt mit Studierenden derselben Hochschule teilen, die
-dieselbe PDF haben.
+In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei und teilst deine Lösung zu einem
+Übungsblatt mit deren Mitgliedern. Mitglieder sehen deine Notizen auch dann, wenn sie die PDF nicht haben.
 
 - **Was andere sehen:** ein Pseudonym (`Studi-…`, aus deiner Konto-ID abgeleitet, nicht umkehrbar), den von dir
   gewählten Anzeigenamen und Titel, Seitenzahl, Zeitpunkt, Anzahl der Downloads. Nie deine E-Mail oder Konto-ID.
-- **Was der Dienst speichert:** das Paket mit deinen Notizen **verschlüsselt** (Schlüssel aus der Original-PDF,
-  nur wer dieselbe PDF hat, kann es öffnen; der Dienst kann den Inhalt nicht lesen), den Fingerabdruck der PDF
+- **Was der Dienst speichert:** das Paket mit deinen Notizen **verschlüsselt** (Schlüssel aus der Kurs-Kennung bzw.
+  dem Beitrittscode; wer Kurs-Kennung oder Code kennt, kann es öffnen. Lässt du deine Hochschule durch den Dienst
+  abgleichen, liegt die Kurs-Kennung beim Dienst, er könnte Pakete dieses Kurses dann technisch lesen; er tut es nicht),
+  deine Mitgliedschaften und die Schlüssel deiner Kurse, den Fingerabdruck der PDF
   (SHA-256), Kopfdaten des Pakets, Status, Downloadzähler; Meldungen (Grund, Hinweis, meldendes Konto – intern),
   deine Sperrliste; bei Verstößen Sperren von Konten. Dazu deine **Likes** (welches Konto welche Lösung mag, nach
   außen nur als Anzahl), deine **Kommentare** (Text, Pseudonym, Seite und Stelle auf der Seite, Zeitpunkt) und die

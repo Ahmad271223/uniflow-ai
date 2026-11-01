@@ -67,6 +67,7 @@ def build() -> dict:
     from app import accounts, community, config, db
     from app.server import app
     config.MODE = "hosted"
+    community.LEGACY_PUBLISH = True
     for p in (accounts.db_path(), community.db_path()):
         p.unlink(missing_ok=True)
     flows: list[dict] = []

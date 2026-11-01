@@ -56,3 +56,10 @@ def app():
     assert str(config.DATA_DIR).startswith(_TMP), "Tests duerfen nie den echten Datenordner nutzen"
     from app.server import app as fastapi_app
     return fastapi_app
+
+
+@pytest.fixture(autouse=True)
+def _community_legacy_publish(monkeypatch):
+    """Tests der Regeln rund um eine Loesung veroeffentlichen ohne Community; die Pflicht prueft test_community_groups.py."""
+    from app import community
+    monkeypatch.setattr(community, "LEGACY_PUBLISH", True)

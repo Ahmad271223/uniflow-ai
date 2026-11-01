@@ -259,3 +259,15 @@ Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lie
 - **Hinweise für Mac-Läufe:** `Config/Team.xcconfig` setzt lokal einen iCloud-Container, dann scheitert
   `testWithoutContainerNothingWorksAndNothingCrashes`; darum `UF_CLOUDKIT_CONTAINER=` an `xcodebuild` anhängen. Ohne
   `node` scheitern in pytest die beiden `test_plan_names`-Tests (Rückfall auf `jsc`).
+
+## 11. Nachtrag: Community je Kurs (1.11.2026)
+
+Entscheidung des Inhabers: Jeder Kurs ist eine Community, man tritt bei, geteilt wird nur innerhalb; wer die PDF nicht hat,
+bekommt die Lösung ohne PDF im Hintergrund. Regeln und Grenzen stehen oben in `docs/LOESUNGEN-TEILEN.md`. Damit ist
+Abschnitt 10 zu Sichtbarkeit und Lerngruppen überholt. Das CloudKit-Schema musste nicht geändert werden: Lerngruppen-Lösungen
+stehen ebenfalls unter `courseKey`, dem Feld mit Such-Index. Datenschutz und Nutzungsbedingungen sind angepasst, nicht
+anwaltlich geprüft. Der wacklige pytest unter Last heißt `test_subscriptions.py::test_13_parallel_generation_creates_no_duplicates`
+(einmal im Gesamtlauf, einzeln immer grün, auch ohne diese Änderungen).
+
+Noch nicht geprüft: der Web-Leser und die Karte in einem echten Browser (hier nur Node), die App-Oberfläche von Hand, echtes
+CloudKit. Neue Veröffentlichungen ohne Community lehnt der Dienst ab; `community.LEGACY_PUBLISH` ist nur für Tests.

@@ -1,5 +1,16 @@
 # Lösung teilen: Format, Ablauf, Sicherheit und Grenzen
 
+> **Stand 1.11.2026, Entscheidung des Inhabers:** Die Community besteht aus einer Community je Kurs und aus Lerngruppen.
+> Man tritt bei, Lösungen sehen nur Mitglieder. Community-Pakete haben `keyMaterial` = `community-secret`: Der Schlüssel
+> kommt aus Kurs-ID bzw. Beitrittscode, nicht aus der PDF. Wer dieselbe PDF hat, sieht die Lösung als Ebene darüber, alle
+> anderen auf leeren Seiten. Das Teilen als Datei bleibt an die PDF gebunden. Wo unten etwas anderes steht (Sichtbarkeit
+> „Modul/Lerngruppe/Anonym“, „nur mit der eigenen PDF“), gilt dieser Abschnitt.
+>
+> Grenzen: Wer eine Kurs-ID kennt, kann ein Kurs-Paket rechnerisch öffnen; das schließt den Dienst bei Konten ein, deren
+> Hochschul-Abgleich er selbst ausführt. Beim Dienst prüft die Mitgliedschaft der Server, bei CloudKit nur die App
+> (Kenntnis der Kurs-ID, Mitgliedschaft je Gerät). Lerngruppen-Codes liegen je Gerät und werden nicht abgeglichen. Im Web
+> zeigt der Leser ohne PDF Striche, Text, Formen und Bilder in einfacher Darstellung.
+
 Stand 26.10.2026, Zweig `wip/loesung-teilen` mit Nachbesserung `wip/loesung-teilen-fix` (Schritt S9 in
 `docs/IPAD-OHNE-PC.md`), Online-Community in `wip/community-cloudkit`, auf den Abnahme-Stand gesetzt und mit den
 Entscheidungen des Inhabers nachgebessert in `wip/community-2` (S9b). Gilt für die native iPad-App.

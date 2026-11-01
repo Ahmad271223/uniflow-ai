@@ -58,13 +58,15 @@ def test_solution_reaches_members_without_the_pdf_and_nobody_else(hosted):  # no
     assert call(hosted, "GET", f"/solutions/{sid}", leser)[0] == 404, "nach dem Austritt ist die Loesung weg"
 
 
-def test_publish_needs_membership_and_the_community_key_material(hosted):  # noqa: F811
+def test_publish_needs_membership_and_the_community_key_material(hosted, monkeypatch):  # noqa: F811
     from app import community
+    monkeypatch.setattr(community, "LEGACY_PUBLISH", False)
     drin = member(hosted, "drin@beispiel.de")
     _, draussen = _user(hosted, "draussen@beispiel.de")
     assert call(hosted, "POST", "/solutions", draussen, {"package": package(), "community_key": KURS})[0] == 403
     assert call(hosted, "POST", "/solutions", drin, {"package": community.sample_package(FP), "community_key": KURS})[0] == 400
     assert call(hosted, "POST", "/solutions", drin, {"package": package()})[0] == 400, "Community-Paket braucht eine Community"
+    assert call(hosted, "POST", "/solutions", drin, {"package": community.sample_package(FP)})[0] == 400, "ohne Community nichts Neues"
     assert call(hosted, "POST", "/solutions", drin, {"package": package(), "community_key": "kaputt"})[0] == 400
 
 

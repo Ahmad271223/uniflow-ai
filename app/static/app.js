@@ -4,7 +4,7 @@ import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=42";
 import { viewFiles } from "./views-lib.js?v=41";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=35";
 import { viewTimetable, openEvent } from "./views-tt.js?v=33";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=50";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=51";
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=33";
 import { initPWA, installBanner, bindInstallBanner, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=2";
 

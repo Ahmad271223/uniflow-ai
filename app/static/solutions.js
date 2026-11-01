@@ -374,3 +374,38 @@ export function mismatch(content, pdf) {
   }
   return null;
 }
+
+// ---------------------------------------------------------------- Community (ohne DOM)
+
+export const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function normalizedCode(raw) {
+  const c = String(raw || "").toUpperCase().replace(/[\s-]/g, "");
+  return c.length === 8 && [...c].every(x => CODE_ALPHABET.includes(x)) ? c : null;
+}
+
+/** Notizen einer Seite auf einen Canvas-Kontext zeichnen, in Punkten der Seite (ohne PDF). */
+export function drawObjects(ctx, page, images = {}) {
+  for (const o of page.objects || []) {
+    ctx.save();
+    ctx.translate(o.x || 0, o.y || 0); ctx.rotate((o.rotation || 0) * Math.PI / 180); ctx.scale(o.scaleX || 1, o.scaleY || 1);
+    ctx.globalAlpha = o.opacity ?? 1; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const poly = (p, close) => { ctx.beginPath(); for (let i = 0; i + 1 < p.length; i += 2) i ? ctx.lineTo(p[i], p[i + 1]) : ctx.moveTo(p[i], p[i + 1]); if (close) ctx.closePath(); };
+    if (o.type === "stroke" && o.points?.length >= 2) { ctx.strokeStyle = o.color || "#000"; ctx.lineWidth = o.width || 1; poly(o.points); ctx.stroke(); }
+    else if (o.type === "text") {
+      const size = o.fontSize || 14; ctx.font = `${o.italic ? "italic " : ""}${o.bold ? "bold " : ""}${size}px ${o.fontFamily || "sans-serif"}`;
+      const lines = String(o.text || "").split("\n");
+      if (o.bg) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, o.width || 200, lines.length * size * 1.2); }
+      ctx.fillStyle = o.fill || "#000"; ctx.textBaseline = "top"; lines.forEach((l, i) => ctx.fillText(l, 0, i * size * 1.2));
+    } else if (o.type === "shape") {
+      ctx.strokeStyle = o.stroke || "#000"; ctx.lineWidth = o.strokeWidth || 1; ctx.fillStyle = o.fill || "transparent";
+      const w = o.width || 0, h = o.height || 0;
+      if (o.shape === "rect") { ctx.beginPath(); ctx.rect(0, 0, w, h); }
+      else if (o.shape === "ellipse") { ctx.beginPath(); ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2); }
+      else if (o.shape === "triangle") poly([w / 2, 0, w, h, 0, h], true);
+      else poly(o.points || [], o.shape === "polygon");
+      if (o.fill) ctx.fill(); ctx.stroke();
+    } else if (o.type === "image" && images[o.src]) ctx.drawImage(images[o.src], 0, 0, o.width || 0, o.height || 0);
+    ctx.restore();
+  }
+}

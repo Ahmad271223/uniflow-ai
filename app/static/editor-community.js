@@ -7,7 +7,8 @@
 // `anchor` = {x, y} in 0..1 von links oben in der Anzeige des Absenders (dieselben Koordinaten wie die Objekte,
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
-import * as S from "./solutions.js?v=1";
+import * as S from "./solutions.js?v=2";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=1";
 import { renderLinkCard } from "./studora-link.js?v=3";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -110,7 +111,8 @@ class Community {
     this.opened.set(id, o);
     try {
       const { package: pkg } = await capi(`/solutions/${id}`);
-      const content = await S.openPackage(pkg, this.pdfBytes(), this.fp);
+      const community = pkg.header?.encryption?.keyMaterial === "community-secret";
+      const content = community ? await openWithSpaces(pkg, (await loadSpaces()).spaces) : await S.openPackage(pkg, this.pdfBytes(), this.fp);
       const bad = S.mismatch(content, this.pdfInfo);
       if (bad) throw Object.assign(new Error(bad), { code: "mismatch" });
       o.content = content; o.images = content.images;
@@ -306,8 +308,10 @@ class Community {
   shareBody() {
     const rows = this.shareRows(); this.shareSel ||= new Set(rows.filter(r => r.ok && r.n).map(r => r.key));
     const sel = rows.filter(r => this.shareSel.has(r.key) && r.ok); const objs = sel.reduce((a, r) => a + r.n, 0);
-    const canShare = this.info?.can_share;
+    const spaces = (this.spaces || []).filter(s => s.joined); const canShare = this.info?.can_share && spaces.length;
+    if (this.spaces === undefined) { this.spaces = null; loadSpaces().then(d => { this.spaces = d.spaces; this.render(); }).catch(() => { this.spaces = []; }); }
     return `<p class="small muted" style="margin-top:.2rem">Geteilt werden nur deine eigenen Notizen der gewählten Seiten, nie die PDF. Andere sehen sie nur, wenn sie dieselbe Original-PDF haben.</p>
+      ${spaces.length ? `<label class="small">Community<select class="input" data-f="space">${spaces.map(s => `<option value="${esc(s.key)}" ${s.key === this.spaceKey ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label><p class="tiny muted">Sichtbar für die Mitglieder. Wer dieselbe PDF hat, sieht deine Notizen darüber, alle anderen auf leeren Seiten.</p>` : `<p class="tiny muted">Tritt unter „Community“ dem Kurs bei, dann kannst du hier veröffentlichen.</p>`}
       <label class="small">Titel<input class="input" data-f="title" maxlength="200" value="${esc(this.shareTitle ?? this.ed.name.replace(/\.pdf$/i, ""))}"></label>
       <label class="small">Anzeigename <span class="muted">(leer = nur dein Pseudonym${this.info?.pseudonym ? ` ${esc(this.info.pseudonym)}` : ""})</span><input class="input" data-f="name" maxlength="60" value="${esc(this.shareName || "")}"></label>
       <div class="com-pages">${rows.map(r => `<label class="small ${r.ok ? "" : "muted"}" title="${r.ok ? "" : "Eingefügte Bild- oder PDF-Seiten werden nie geteilt"}"><input type="checkbox" data-pg="${esc(r.key)}" ${r.ok ? "" : "disabled"} ${r.ok && this.shareSel.has(r.key) ? "checked" : ""}> ${esc(r.label)} <span class="muted">· ${r.n} Objekt${r.n === 1 ? "" : "e"}</span></label>`).join("")}</div>
@@ -354,6 +358,11 @@ class Community {
                                      images, fingerprint: this.fp, title: this.shareTitle ?? this.ed.name.replace(/\.pdf$/i, ""), displayName: this.shareName || "" });
     return { content, pkg: await S.seal(content, this.pdfBytes()) };
   }
+  shareSpace() {
+    const joined = (this.spaces || []).filter(s => s.joined);
+    const key = $('[data-f="space"]', this.el)?.value;
+    return joined.find(s => s.key === key) || joined[0];
+  }
 
   bind() {
     const el = this.el; const msg = t => { const m = $(".com-share-msg", el); if (m) m.textContent = t; };
@@ -373,8 +382,10 @@ class Community {
             const a = document.createElement("a"); a.href = url; a.download = `${(content.title || "Lösung").replace(/[\\/:*?"<>|]+/g, "_")}.uniflowsolution`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 20000);
             msg(`Datei erstellt: ${content.pages.length} Seiten${content.missingImages.length ? `, ${content.missingImages.length} Bild(er) nicht verfügbar` : ""}.`);
           } else {
-            await capi("/solutions", { method: "POST", body: { package: pkg, title: content.title || null } });
-            msg("Veröffentlicht. Andere mit derselben PDF sehen deine Lösung jetzt."); this.tab = "list"; await this.load();
+            const space = this.shareSpace(); if (!space) throw new Error("Tritt zuerst einer Community bei.");
+            const sealed = await S.seal(content, null, { secret: space.secret });
+            await capi("/solutions", { method: "POST", body: { package: sealed, title: content.title || null, community_key: space.key } });
+            msg(`Veröffentlicht in „${space.name}“.`); this.tab = "list"; await this.load();
           }
         } catch (e) { msg(e.message); }
         b.disabled = false;

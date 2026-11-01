@@ -90,3 +90,13 @@ test("bauen aus dem Notizmodell des Editors, Pruefung gegen die eigene PDF", asy
   const bad = JSON.parse(JSON.stringify(model)); bad.pages.p1.objects.push({ type: "image", src: "data:application/pdf;base64,JVBERi0x" });
   assert.throws(() => S.buildContent({ model: bad, selectedKeys: ["p1"], pdfPageCount: 3, pdfPage: i => sizes[i], fingerprint: fp }), e => e.code === "containsPDFData");
 });
+
+test("Notizen ohne PDF: Striche und Text landen auf dem Canvas", async () => {
+  const calls = [];
+  const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : (...a) => { calls.push(k); }), set: (t, k, v) => { t[k] = v; return true; } });
+  S.drawObjects(ctx, { objects: [{ type: "stroke", points: [0, 0, 5, 5], color: "#000", width: 2 }, { type: "text", text: "a\nb", fontSize: 10 }] });
+  assert.ok(calls.includes("stroke"));
+  assert.equal(calls.filter(c => c === "fillText").length, 2);
+  assert.equal(S.normalizedCode("abcd-efgh"), "ABCDEFGH");
+  assert.equal(S.normalizedCode("ABCDEFG0"), null);
+});

@@ -50,7 +50,7 @@ STUNDENPLAN UND LERNKALENDER
 
 GEMEINSAM LERNEN (PLUS)
 • Eigene Karteikarten mit Wiederholung
-• Lösungen zu Übungsblättern mit anderen vergleichen: als verschlüsselte Datei, die nur öffnen kann, wer dieselbe PDF hat[[; später online unter Pseudonym, mit Melden und Sperren]]
+• Lösungen zu Übungsblättern mit anderen vergleichen: als verschlüsselte Datei, die nur öffnen kann, wer dieselbe PDF hat[[; später online in der Community deines Kurses, unter Pseudonym, mit Melden und Sperren]]
 
 DEINE DATEN
 • Alles liegt auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
