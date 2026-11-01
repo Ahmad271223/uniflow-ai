@@ -39,8 +39,8 @@ DEFINE SCHEMA
         reporterRecordName  STRING,
         createdAt           STRING QUERYABLE SORTABLE,
         GRANT WRITE TO "_creator",
-        GRANT CREATE TO "_icloud",
-        GRANT READ TO "_world"
+        GRANT READ TO "_creator",
+        GRANT CREATE TO "_icloud"
     );
 
     RECORD TYPE StudyGroup (

@@ -378,7 +378,7 @@ Datensätze beim Dienst:
    Production. Indizes: `Solution` QUERYABLE auf `fingerprint`, `university`, `courseKey`; `Ban` und `Block`
    QUERYABLE auf `recordName` (die App fragt alle Datensätze des Typs ab – CloudKit braucht dafür diesen Index,
    sonst „Field recordName is not marked queryable“); `Report` wie oben. Berechtigungen (Security Roles) der öffentlichen Datenbank: `_world` Read,
-   `_icloud` Create, `_creator` Write – Standard für `Solution`, `Report`, `StudyGroup`; für `Ban` siehe Punkt 3.
+   `_icloud` Create, `_creator` Write – Standard für `Solution`, `StudyGroup`; für `Ban` siehe Punkt 3. `Report` (Entscheidung 1.11.): kein `_world` Read, nur `_creator`, damit niemand sieht, wer was gemeldet hat.
 
 **Grenzen und offene Punkte (Inhaber):**
 1. CloudKit gibt es nur auf Apple-Geräten; Windows/Android siehe „Später (V2)“.
