@@ -119,6 +119,31 @@ def test_offline_reload_comes_from_the_worker(served):
             browser.close()
 
 
+def test_first_visit_shows_no_update_notice(served):
+    """Beim allerersten Aufruf gibt es keinen vorherigen Worker: "Studora wurde aktualisiert" darf nicht erscheinen
+    (app/static/sw-update.js; der echte Update-Fall ist mit Attrappen in tests/js/sw-update.test.mjs geprueft)."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        pytest.skip("Playwright fehlt")
+    with sync_playwright() as p:
+        browser = _browser(p)
+        if browser is None:
+            pytest.skip("kein Chromium fuer Playwright")
+        try:
+            context = browser.new_context(bypass_csp=True)
+            page = context.new_page()
+            page.goto(served + "/#/dashboard")
+            page.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller !== null", timeout=20000)
+            page.wait_for_function("document.querySelector('#view') && /Guten/.test(document.querySelector('#view').textContent)", timeout=20000)
+            page.wait_for_timeout(1500)                      # Zeit fuer ein (falsches) statechange nach clients.claim()
+            assert "aktualisiert" not in (page.text_content("body") or ""), "kein Update-Hinweis beim ersten Aufruf"
+            toast = page.query_selector("#toastEl")
+            assert toast is None or toast.is_hidden() or "aktualisiert" not in (toast.text_content() or "")
+        finally:
+            browser.close()
+
+
 def _notebook(app, file_id: str):
     """Eigenes Notizbuch wie POST /api/notebooks (lokaler Modus: direkt in die Datenbank), Notizen auf Version 1."""
     import json
