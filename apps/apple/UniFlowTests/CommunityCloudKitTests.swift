@@ -616,6 +616,17 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertTrue(membership.joinedCourses().isEmpty)
     }
 
+    func testCommentStaysOnThePageAndRowNamesCounts() {
+        XCTAssertEqual(CommunityReaderPage.clamped(-0.2), 0)
+        XCTAssertEqual(CommunityReaderPage.clamped(1.4), 1)
+        XCTAssertEqual(CommunityReaderPage.clamped(.nan), 0)
+        var s = CommunitySolutionSummary(solutionID: "1", fingerprint: "f", displayName: "Lea", createdAt: "2026-10-26T10:00:00Z", pageCount: 1)
+        s.likes = 1
+        s.commentCount = 2
+        XCTAssertTrue(CommunitySpaceSheet.detail(s, account: true).hasSuffix("1 Like · 2 Kommentare"))
+        XCTAssertFalse(CommunitySpaceSheet.detail(s, account: false).contains("Like"), "ohne Konto keine Zahlen, die es nicht gibt")
+    }
+
     func testAccountTextsDoNotPromiseThePDFAsTheOnlyWay() {
         XCTAssertTrue(CommunityTexts.visibilityMembers.contains("leeren Seiten"))
         XCTAssertFalse(CommunityPage.howItWorks.contains { $0.text.contains("Modul oder") })

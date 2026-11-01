@@ -17,6 +17,7 @@ enum CommunityTexts {
     static let visibilityAnonymous = "Sichtbar für alle an deiner Hochschule, die dieselbe PDF haben – ohne Pseudonym."
     static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Community und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Lesen können die Lösung die Mitglieder der Community."
     static let visibilityMembers = "Sichtbar für die Mitglieder dieser Community. Wer dieselbe PDF hat, sieht deine Notizen darüber, alle anderen auf leeren Seiten."
+    static let commentsNotice = "Alle Mitglieder dieser Community sehen deine Kommentare unter deinem Pseudonym. Tippe auf eine Seite, um eine Stelle zu kommentieren. Schreiben geht ab Plus mit bestätigter E-Mail-Adresse."
     static let noCommunity = "Du bist noch in keiner Community. Tritt unter „Community“ dem Kurs bei, dann kannst du hier teilen."
     static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Schlüssel deiner Kurse und die Fingerabdrücke deiner PDFs. Kurs-IDs und Beitrittscodes bleiben auf dem Gerät. Andere sehen nie deine E-Mail-Adresse. Lesen können die Lösung die Mitglieder der Community."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
@@ -183,7 +184,7 @@ struct CommunitySpaceSheet: View {
     }
 
     private func row(_ s: CommunitySolutionSummary) -> some View {
-        UFItemRow(s.title.isEmpty ? "Lösung" : s.title, sub: "Lösung von \(s.displayName.isEmpty ? "Anonym" : s.displayName) · \(ForeignSolutionLayer.date(s.createdAt))",
+        UFItemRow(s.title.isEmpty ? "Lösung" : s.title, sub: detail(s),
                   leading: { UFIcon("layers", size: 18).foregroundStyle(UF.muted) },
                   trailing: {
                       HStack(spacing: 8) {
@@ -196,6 +197,17 @@ struct CommunitySpaceSheet: View {
                           }
                       }
                   })
+    }
+
+    private func detail(_ s: CommunitySolutionSummary) -> String { Self.detail(s, account: service.isAccountService) }
+
+    static func detail(_ s: CommunitySolutionSummary, account: Bool) -> String {
+        var parts = ["Lösung von \(s.displayName.isEmpty ? "Anonym" : s.displayName)", ForeignSolutionLayer.date(s.createdAt)]
+        if account {
+            parts.append(s.likes == 1 ? "1 Like" : "\(s.likes) Likes")
+            parts.append(s.commentCount == 1 ? "1 Kommentar" : "\(s.commentCount) Kommentare")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func load() async {
@@ -224,8 +236,9 @@ struct CommunitySpaceSheet: View {
     }
 }
 
-/// Leser einer Community-Loesung: Notizen auf leeren Seiten. Hat das Geraet dieselbe PDF, fuehrt der Knopf ins Dokument;
-/// dort liegt die Loesung als Ebene ueber der PDF.
+/// Leser einer Community-Loesung: Notizen auf leeren Seiten, darunter die Kommentare der Community. Tippen auf eine Seite
+/// kommentiert genau diese Stelle. Hat das Geraet dieselbe PDF, fuehrt der Knopf ins Dokument; dort liegt die Loesung als
+/// Ebene ueber der PDF.
 struct CommunityReaderSheet: View {
     let solution: CommunitySolutionSummary
     let service: CommunityService
@@ -235,6 +248,14 @@ struct CommunityReaderSheet: View {
     @State private var images: [String: UIImage] = [:]
     @State private var localFile: String?
     @State private var error: String?
+    @State private var comments: [CommunityComment] = []
+    @State private var liked = false
+    @State private var likes = 0
+    @State private var draft = ""
+    @State private var replyTo: CommunityComment?
+    @State private var editing: CommunityComment?
+    @State private var spot: (page: String, anchor: CommunityComment.Anchor)?
+    @State private var busy = false
 
     var body: some View {
         NavigationStack {
@@ -255,9 +276,14 @@ struct CommunityReaderSheet: View {
                     }
                     if let content {
                         ForEach(content.pages, id: \.key) { page in
-                            CommunityReaderPage(page: page, images: images)
+                            CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: service.isAccountService ? { anchor in
+                                spot = (page.key, anchor)
+                                replyTo = nil
+                                editing = nil
+                            } : nil)
                         }
                     } else if error == nil { ProgressView().controlSize(.small) }
+                    if service.isAccountService { commentsCard }
                 }
             }
             .navigationTitle(solution.title.isEmpty ? "Lösung" : solution.title)
@@ -267,26 +293,164 @@ struct CommunityReaderSheet: View {
         .task { await load() }
     }
 
+    private func marks(_ page: SolutionPage) -> [CommunityReaderPage.Mark] {
+        comments.enumerated().compactMap { i, c in
+            guard c.pageKey == page.key, c.parentID == nil, let a = c.anchor else { return nil }
+            return CommunityReaderPage.Mark(number: i + 1, anchor: a)
+        }
+    }
+
+    private var commentsCard: some View {
+        UFCard {
+            UFCardHead("Kommentare", icon: "users") {
+                if !solution.isOwn {
+                    UFButton("\(liked ? "Gefällt dir" : "Gefällt mir") · \(likes)", size: .small) { toggleLike() }.disabled(busy)
+                } else {
+                    Text(likes == 1 ? "1 Like" : "\(likes) Likes").ufFont(12.8).foregroundStyle(UF.muted)
+                }
+            }
+            Text(CommunityTexts.commentsNotice).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
+            if comments.isEmpty { Text("Noch keine Kommentare.").ufFont(13.12).foregroundStyle(UF.muted) }
+            ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in commentRow(c, number: i + 1) }
+            if let target = composerTitle { Text(target).ufFont(12.8, 600).foregroundStyle(UF.text2).padding(.top, 8) }
+            UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70).padding(.top, 8)
+            HStack(spacing: 8) {
+                UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
+                    .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if composerTitle != nil {
+                    UFButton("Abbrechen", size: .small) { resetComposer() }
+                }
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private var composerTitle: String? {
+        if editing != nil { return "Kommentar bearbeiten" }
+        if let replyTo { return "Antwort an \(replyTo.pseudonym)" }
+        return spot != nil ? "Kommentar an der gewählten Stelle" : nil
+    }
+
+    private func commentRow(_ c: CommunityComment, number: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                if c.anchor != nil { Text("\(number)").ufFont(11.84, 600).foregroundStyle(UF.accentText) }
+                Text(c.pseudonym + (c.byAuthor ? " · Autor" : "") + (c.edited ? " · bearbeitet" : "")).ufFont(12.8, 600).foregroundStyle(UF.text2)
+                Text(ForeignSolutionLayer.date(c.createdAt)).ufFont(11.84).foregroundStyle(UF.muted)
+            }
+            Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5).foregroundStyle(c.deleted ? UF.muted : UF.text)
+                .fixedSize(horizontal: false, vertical: true)
+            if !c.deleted {
+                HStack(spacing: 8) {
+                    UFButton("Antworten", size: .small) {
+                        resetComposer()
+                        replyTo = c
+                    }
+                    if c.isMine {
+                        UFButton("Bearbeiten", size: .small) {
+                            resetComposer()
+                            editing = c
+                            draft = c.text
+                        }
+                    } else {
+                        UFButton("Melden", size: .small) { report(c) }
+                    }
+                    if c.isMine || solution.isOwn { UFButton("Löschen", kind: .danger, size: .small) { remove(c) } }
+                }
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.leading, c.parentID == nil ? 0 : 20)
+    }
+
+    private func resetComposer() {
+        draft = ""
+        replyTo = nil
+        editing = nil
+        spot = nil
+    }
+
     private func load() async {
+        likes = solution.likes
+        liked = solution.likedByMe
         do {
             let c = try await SolutionSharing.loadCommunity(solution.solutionID, service: service)
             images = c.images.compactMapValues { UIImage(data: $0.data) }
             content = c
             if let host = ActiveContainer.current?.host { localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host) }
+            if service.isAccountService { comments = try await service.comments(solutionID: solution.solutionID) }
         } catch { self.error = CommunityTexts.message(error) }
+    }
+
+    private func act(_ op: @escaping () async throws -> Void) {
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try await op()
+                comments = try await service.comments(solutionID: solution.solutionID)
+                error = nil
+            } catch { self.error = CommunityTexts.message(error) }
+        }
+    }
+
+    private func send() {
+        let text = draft, parent = replyTo?.id, edit = editing?.id, place = spot
+        act {
+            if let edit {
+                _ = try await service.editComment(id: edit, text: text)
+            } else {
+                _ = try await service.addComment(solutionID: solution.solutionID, text: text, parentID: parent, pageKey: place?.page, anchor: place?.anchor)
+            }
+            resetComposer()
+        }
+    }
+
+    private func remove(_ c: CommunityComment) { act { try await service.deleteComment(id: c.id) } }
+
+    private func report(_ c: CommunityComment) { act { try await service.reportComment(id: c.id, reason: .other) } }
+
+    private func toggleLike() {
+        let next = !liked
+        act {
+            likes = try await service.setLiked(solutionID: solution.solutionID, next)
+            liked = next
+        }
     }
 }
 
-private struct CommunityReaderPage: View {
+struct CommunityReaderPage: View {
+    struct Mark: Identifiable {
+        let number: Int
+        let anchor: CommunityComment.Anchor
+        var id: Int { number }
+    }
+
     let page: SolutionPage
     let images: [String: UIImage]
+    var marks: [Mark] = []
+    var tapped: ((CommunityComment.Anchor) -> Void)?
     @State private var image: UIImage?
 
     var body: some View {
         Group {
             if let image {
                 Image(uiImage: image).resizable().scaledToFit().overlay(Rectangle().stroke(UF.line))
+                    .overlay {
+                        GeometryReader { geo in
+                            ZStack(alignment: .topLeading) {
+                                Color.clear.contentShape(Rectangle())
+                                    .onTapGesture { p in tapped?(.init(x: Self.clamped(p.x / geo.size.width), y: Self.clamped(p.y / geo.size.height))) }
+                                ForEach(marks) { m in
+                                    Text("\(m.number)").ufFont(11.84, 600).foregroundStyle(.white).frame(width: 20, height: 20)
+                                        .background(Circle().fill(UF.accentText))
+                                        .position(x: m.anchor.x * geo.size.width, y: m.anchor.y * geo.size.height)
+                                }
+                            }
+                        }
+                    }
                     .accessibilityLabel("Seite mit \(page.objects.count) Notizobjekten")
+                    .accessibilityHint(tapped == nil ? "" : "Tippen kommentiert diese Stelle")
             } else { ProgressView().controlSize(.small) }
         }
         .task(id: page.key) {
@@ -294,6 +458,8 @@ private struct CommunityReaderPage: View {
             image = await Task.detached(priority: .utility) { ImageBox(SolutionPreview.image(page, images: images, width: 860)) }.value.image
         }
     }
+
+    static func clamped(_ v: Double) -> Double { v.isFinite ? min(1, max(0, v)) : 0 }
 
     private struct ImageBox: @unchecked Sendable {
         let image: UIImage
@@ -317,6 +483,7 @@ struct CommunitySolutionsSheet: View {
     @State private var reporting: CommunitySolutionSummary?
     @State private var blocking: CommunitySolutionSummary?
     @State private var withdrawing: CommunitySolutionSummary?
+    @State private var discussing: CommunitySolutionSummary?
     @State private var notice: String?
 
     var body: some View {
@@ -329,6 +496,9 @@ struct CommunitySolutionsSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .task { await load() }
+        .sheet(isPresented: Binding(get: { discussing != nil }, set: { if !$0 { discussing = nil } })) {
+            if let s = discussing { CommunityReaderSheet(solution: s, service: service) { discussing = nil } }
+        }
         .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
             if let s = reporting {
                 CommunityReportDialog(solution: s, service: service, done: { message in
@@ -401,7 +571,7 @@ struct CommunitySolutionsSheet: View {
     private func row(_ s: CommunitySolutionSummary) -> some View {
         let pages = s.pageCount == 1 ? "1 Seite" : "\(s.pageCount) Seiten"
         let who = s.isOwn ? "deine Veröffentlichung" : s.visibility.title
-        return UFItemRow(ForeignSolutionLayer.label(displayName: s.displayName, createdAt: s.createdAt), sub: "\(pages) · \(who)",
+        return UFItemRow(ForeignSolutionLayer.label(displayName: s.displayName, createdAt: s.createdAt), sub: "\(pages) · \(who)\(service.isAccountService ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")",
                          leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
                          trailing: {
                              HStack(spacing: 8) {
@@ -409,6 +579,9 @@ struct CommunitySolutionsSheet: View {
                                      load(s)
                                  }
                                  .disabled(busyID != nil)
+                                 if service.isAccountService {
+                                     UFButton("Kommentare", size: .small) { discussing = s }
+                                 }
                                  Menu {
                                      if s.isOwn {
                                          Button(role: .destructive) { withdrawing = s } label: { Label("Zurückziehen", systemImage: "trash") }

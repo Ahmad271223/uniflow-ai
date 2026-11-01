@@ -23,6 +23,15 @@ public protocol CommunityService: Sendable {
     func leave(_ space: CommunitySpace) async throws
     /// Loesungen einer Community, nur fuer Mitglieder; neueste bzw. meistgelikte zuerst
     func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary]
+    /// Kommentare einer Loesung, Antworten direkt unter ihrem Kommentar (nur Studora-Dienst)
+    func comments(solutionID: String) async throws -> [CommunityComment]
+    /// `pageKey` und `anchor` (0...1 von links oben): Stelle auf einer Seite der Loesung; nil = zur ganzen Loesung
+    func addComment(solutionID: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment
+    func editComment(id: String, text: String) async throws -> CommunityComment
+    func deleteComment(id: String) async throws
+    func reportComment(id: String, reason: CommunityReportReason) async throws
+    /// Gefaellt mir setzen oder entfernen; Ergebnis ist die neue Anzahl
+    func setLiked(solutionID: String, _ liked: Bool) async throws -> Int
     /// Paket veroeffentlichen; Ergebnis ist die Kennung beim Dienst.
     func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication
     /// Veroeffentlichte Loesungen zu einer Original-PDF (Fingerabdruck dient nur der Zuordnung), schon gefiltert
@@ -58,6 +67,12 @@ extension CommunityService {
         try await publish(package, options: CommunityPublishOptions())
     }
 
+    public func comments(solutionID: String) async throws -> [CommunityComment] { throw CommunityServiceError.notConnected }
+    public func addComment(solutionID: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment { throw CommunityServiceError.notConnected }
+    public func editComment(id: String, text: String) async throws -> CommunityComment { throw CommunityServiceError.notConnected }
+    public func deleteComment(id: String) async throws { throw CommunityServiceError.notConnected }
+    public func reportComment(id: String, reason: CommunityReportReason) async throws { throw CommunityServiceError.notConnected }
+    public func setLiked(solutionID: String, _ liked: Bool) async throws -> Int { throw CommunityServiceError.notConnected }
     public func communities() async throws -> [CommunitySpace] { throw CommunityServiceError.notConnected }
     public func join(_ space: CommunitySpace) async throws { throw CommunityServiceError.notConnected }
     public func leave(_ space: CommunitySpace) async throws { throw CommunityServiceError.notConnected }
@@ -112,6 +127,46 @@ public struct CommunitySpace: Equatable, Sendable, Identifiable, Hashable {
     public static func group(_ g: CommunityStudyGroup) -> CommunitySpace {
         CommunitySpace(key: g.groupKey, kind: .group, name: g.name, joined: true,
                        secret: CommunityKeys.secret(university: g.university, groupCode: g.code), code: g.code)
+    }
+}
+
+/// Kommentar zu einer Loesung (app/community.py `_comment_out`)
+public struct CommunityComment: Equatable, Sendable, Identifiable {
+    public struct Anchor: Equatable, Sendable {
+        public var x: Double
+        public var y: Double
+        public init(x: Double, y: Double) {
+            self.x = x
+            self.y = y
+        }
+    }
+
+    public var id: String
+    public var parentID: String?
+    public var pseudonym: String
+    public var pageKey: String?
+    public var anchor: Anchor?
+    public var text: String
+    public var deleted: Bool
+    public var createdAt: String
+    public var edited: Bool
+    public var isMine: Bool
+    /// geschrieben vom Autor der Loesung
+    public var byAuthor: Bool
+
+    public init(id: String, parentID: String? = nil, pseudonym: String, pageKey: String? = nil, anchor: Anchor? = nil, text: String,
+                deleted: Bool = false, createdAt: String, edited: Bool = false, isMine: Bool = false, byAuthor: Bool = false) {
+        self.id = id
+        self.parentID = parentID
+        self.pseudonym = pseudonym
+        self.pageKey = pageKey
+        self.anchor = anchor
+        self.text = text
+        self.deleted = deleted
+        self.createdAt = createdAt
+        self.edited = edited
+        self.isMine = isMine
+        self.byAuthor = byAuthor
     }
 }
 
@@ -187,6 +242,9 @@ public struct CommunitySolutionSummary: Equatable, Sendable {
     /// eigene Veroeffentlichung
     public var isOwn: Bool
     public var communityKey: String?
+    public var likes = 0
+    public var likedByMe = false
+    public var commentCount = 0
 
     public init(solutionID: String, fingerprint: String, displayName: String, createdAt: String, pageCount: Int,
                 title: String = "", visibility: CommunityVisibility = .module, week: Int = 0,
@@ -263,6 +321,8 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     case accountRequired
     /// PDF nicht aus dem eigenen Hochschul-Abgleich
     case fileNotOwned
+    /// Kommentare und Likes gibt es nur ueber das Studora-Konto
+    case commentsNeedAccount
     /// Community noch nicht beigetreten
     case notAMember
     /// Sichtbarkeit oder Lerngruppe, die der Studora-Dienst nicht kennt
@@ -286,6 +346,7 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .unavailable: return "Die Community ist in diesem Build nicht verfügbar (kein iCloud-Container)."
         case .notSignedIn: return "Melde dich auf diesem iPad bei iCloud an (Einstellungen → Apple-ID), um die Community zu nutzen."
         case .accountRequired: return "Melde dich unter Einstellungen wieder bei deinem Studora-Konto an, um die Community zu nutzen."
+        case .commentsNeedAccount: return "Kommentare und Likes gibt es nur mit Studora-Konto."
         case .notAMember: return "Tritt zuerst dieser Community bei."
         case .fileNotOwned: return "Lösungen gibt es nur für PDFs aus deinem Hochschul-Abgleich."
         case .visibilityUnsupported: return "Wähle eine Community aus, in der du Mitglied bist."

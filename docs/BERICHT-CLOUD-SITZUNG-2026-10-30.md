@@ -271,3 +271,10 @@ anwaltlich geprüft. Der wacklige pytest unter Last heißt `test_subscriptions.p
 
 Noch nicht geprüft: der Web-Leser und die Karte in einem echten Browser (hier nur Node), die App-Oberfläche von Hand, echtes
 CloudKit. Neue Veröffentlichungen ohne Community lehnt der Dienst ab; `community.LEGACY_PUBLISH` ist nur für Tests.
+
+## 12. Nachtrag: Kommentare und Likes auf iPad und Mac (1.11.2026)
+
+Nur über das Studora-Konto (Entscheidung des Inhabers), mit denselben Daten wie Web und Windows. Im Leser unter der Lösung;
+Tippen auf eine Seite kommentiert die Stelle (Seite und Anker wie im Web), Antworten, Bearbeiten, Löschen, Melden, Gefällt mir.
+Sichtbar für alle Mitglieder der Community, Schreiben ab Plus mit bestätigter E-Mail. Über CloudKit gibt es keine Kommentare.
+Marken zeigt nur der Leser; die Ebene über der PDF im Dokument zeigt sie noch nicht.

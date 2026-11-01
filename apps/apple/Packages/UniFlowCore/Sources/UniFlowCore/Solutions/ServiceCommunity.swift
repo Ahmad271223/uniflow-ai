@@ -78,10 +78,22 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
 
     private func summary(_ s: JSONValue) -> CommunitySolutionSummary? {
         guard let id = s["solution_id"]?.string, let fp = s["fingerprint"]?.string else { return nil }
-        return CommunitySolutionSummary(solutionID: id, fingerprint: fp, displayName: s["display_name"]?.string ?? "",
+        var out = CommunitySolutionSummary(solutionID: id, fingerprint: fp, displayName: s["display_name"]?.string ?? "",
                                         createdAt: s["created_at"]?.string ?? "", pageCount: s["page_count"]?.int ?? 0,
                                         title: s["title"]?.string ?? "", ownerRecordName: s["pseudonym"]?.string ?? "",
                                         isOwn: s["mine"]?.bool ?? false, communityKey: s["community_key"]?.string)
+        out.likes = s["likes"]?.int ?? 0
+        out.likedByMe = s["liked_by_me"]?.bool ?? false
+        out.commentCount = s["comments"]?.int ?? 0
+        return out
+    }
+
+    static func comment(_ c: JSONValue) -> CommunityComment? {
+        guard let id = c["id"]?.string else { return nil }
+        let anchor = c["anchor"]?["x"]?.double.flatMap { x in c["anchor"]?["y"]?.double.map { CommunityComment.Anchor(x: x, y: $0) } }
+        return CommunityComment(id: id, parentID: c["parent_id"]?.string, pseudonym: c["pseudonym"]?.string ?? "", pageKey: c["page_key"]?.string,
+                                anchor: anchor, text: c["text"]?.string ?? "", deleted: c["deleted"]?.bool ?? false, createdAt: c["created_at"]?.string ?? "",
+                                edited: c["edited_at"]?.string != nil, isMine: c["mine"]?.bool ?? false, byAuthor: c["by_author"]?.bool ?? false)
     }
 
     private func summaries(_ r: JSONValue) -> [CommunitySolutionSummary] {
@@ -179,6 +191,42 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
 
     public func blockedOwners() async throws -> [String] {
         (try await call("GET", "/blocks"))["blocked"]?.array?.compactMap(\.string) ?? []
+    }
+
+    // MARK: Kommentare und Likes
+
+    public func comments(solutionID: String) async throws -> [CommunityComment] {
+        ((try await call("GET", "/solutions/\(Self.query(solutionID))/comments"))["comments"]?.array ?? []).compactMap(Self.comment)
+    }
+
+    public func addComment(solutionID: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment {
+        var body: [String: JSONValue] = ["text": .string(text)]
+        if let parentID { body["parent_id"] = .string(parentID) }
+        if let pageKey { body["page_key"] = .string(pageKey) }
+        if let anchor { body["anchor"] = .object(["x": .number(anchor.x), "y": .number(anchor.y)]) }
+        guard let c = Self.comment(try await call("POST", "/solutions/\(Self.query(solutionID))/comments", body: .object(body))) else {
+            throw CommunityServiceError.server("Antwort ohne Kennung.")
+        }
+        return c
+    }
+
+    public func editComment(id: String, text: String) async throws -> CommunityComment {
+        guard let c = Self.comment(try await call("PATCH", "/comments/\(Self.query(id))", body: .object(["text": .string(text)]))) else {
+            throw CommunityServiceError.server("Antwort ohne Kennung.")
+        }
+        return c
+    }
+
+    public func deleteComment(id: String) async throws {
+        _ = try await call("DELETE", "/comments/\(Self.query(id))")
+    }
+
+    public func reportComment(id: String, reason: CommunityReportReason) async throws {
+        _ = try await call("POST", "/comments/\(Self.query(id))/report", body: .object(["reason": .string(reason.rawValue)]))
+    }
+
+    public func setLiked(solutionID: String, _ liked: Bool) async throws -> Int {
+        (try await call(liked ? "POST" : "DELETE", "/solutions/\(Self.query(solutionID))/like"))["likes"]?.int ?? 0
     }
 
     // MARK: Lerngruppen

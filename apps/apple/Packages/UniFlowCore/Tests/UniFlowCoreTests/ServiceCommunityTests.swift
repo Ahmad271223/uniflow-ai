@@ -202,6 +202,55 @@ final class ServiceCommunityLiveTests: XCTestCase {
         try await author.withdraw(solutionID: pub.solutionID)
     }
 
+    func testCommentsAndLikesAcrossMembers() async throws {
+        let course = CommunitySpace.course(university: "luh", id: UUID().uuidString, title: "Kurs")
+        let author = try await member(course: course), reader = try await member(course: course)
+        let free = try await member(plan: "free", course: course)
+        let outsider = try await member(course: .course(university: "luh", id: UUID().uuidString, title: "Anderer"))
+        for m in [author, reader, free] {
+            let s = try await XCTUnwrapAsync(await m.communities().first)
+            try await m.join(s)
+        }
+        let p = try communityPackage(randomHex(), secret: try XCTUnwrap(course.secret))
+        let id = try await author.publish(p, options: CommunityPublishOptions(title: "Blatt", communityKey: course.key)).solutionID
+
+        let c = try await reader.addComment(solutionID: id, text: "Schritt 2 fehlt", parentID: nil, pageKey: "p1", anchor: .init(x: 0.25, y: 0.5))
+        XCTAssertEqual(c.anchor, .init(x: 0.25, y: 0.5))
+        XCTAssertTrue(c.isMine)
+        let r = try await author.addComment(solutionID: id, text: "Danke", parentID: c.id, pageKey: nil, anchor: nil)
+        XCTAssertEqual(r.parentID, c.id)
+        XCTAssertTrue(r.byAuthor)
+
+        let seen = try await free.comments(solutionID: id)
+        XCTAssertEqual(seen.map(\.text), ["Schritt 2 fehlt", "Danke"], "alle Mitglieder sehen sie, auch ohne Plus")
+        XCTAssertEqual(seen.map(\.isMine), [false, false])
+        do { _ = try await free.addComment(solutionID: id, text: "x", parentID: nil, pageKey: nil, anchor: nil); XCTFail() } catch {
+            guard case .server = error as? CommunityServiceError else { return XCTFail("\(error)") }
+        }
+        do { _ = try await outsider.comments(solutionID: id); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notFound) }
+
+        let edited = try await reader.editComment(id: c.id, text: "Schritt 2 fehlt noch")
+        XCTAssertTrue(edited.edited)
+        try await free.reportComment(id: c.id, reason: .spam)
+
+        let liked = try await reader.setLiked(solutionID: id, true)
+        XCTAssertEqual(liked, 1)
+        let joined = try await XCTUnwrapAsync(await reader.communities().first)
+        let row = try await XCTUnwrapAsync(await reader.solutions(in: joined).first)
+        XCTAssertEqual(row.likes, 1)
+        XCTAssertTrue(row.likedByMe)
+        XCTAssertEqual(row.commentCount, 2)
+        let unliked = try await reader.setLiked(solutionID: id, false)
+        XCTAssertEqual(unliked, 0)
+        do { _ = try await author.setLiked(solutionID: id, true); XCTFail() } catch {
+            guard case .server = error as? CommunityServiceError else { return XCTFail("\(error)") }
+        }
+
+        try await author.deleteComment(id: r.id)
+        let left = try await reader.comments(solutionID: id)
+        XCTAssertEqual(left.map(\.id), [c.id])
+    }
+
     func testStudyGroupWithCode() async throws {
         let course = CommunitySpace.course(university: "luh", id: UUID().uuidString, title: "Kurs")
         let a = try await member(course: course), b = try await member(plan: "free", course: course)
