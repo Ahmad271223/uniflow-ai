@@ -7,6 +7,9 @@ dem Browser (`app/static/solutions.js`): `tools/gen-solution-vectors.py` erzeugt
 
 - Schluessel: HKDF-SHA256 (RFC 5869) ueber die vollstaendigen PDF-Bytes, Salz 32 Byte, Info
   "uniflow-solution/v1|<loesungs-id klein>", 32 Byte.
+  Community-Pakete (1.11.2026): `keyMaterial` = "community-secret", Eingabe statt der PDF ist `community_secret`
+  aus Kurs-ID bzw. Beitrittscode, damit Mitglieder eine Loesung auch ohne die PDF oeffnen. Der Dienst kennt nur den
+  davon getrennten Kurs- bzw. Gruppen-Schluessel.
 - AES-256-GCM, Nonce 12 Byte, Ergebnis Chiffrat + 16-Byte-Tag, AAD = kanonisches JSON von
   {"format", "formatVersion", "header"}.
 - Kanonisches JSON wie `JSONValue.serialized(sortedKeys: true)`: sortierte Schluessel, keine Leerzeichen, UTF-8 ohne
@@ -89,35 +92,46 @@ def derive_key(pdf: bytes, salt: bytes, info: bytes) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=info).derive(pdf)
 
 
+def community_secret(scope: str, university: str, value: str) -> bytes:
+    """Schluesselmaterial einer Community; `scope` = course (Kurs-ID) oder group (normalisierter Code)."""
+    return hashlib.sha256(f"uniflow.community.secret.v1\0{scope}\0{university}\0{value}".encode()).digest()
+
+
 def aad(header: dict) -> bytes:
     return canonical({"format": FORMAT, "formatVersion": FORMAT_VERSION, "header": header}).encode()
 
 
-def header_for(content: dict, salt: bytes, nonce: bytes, plaintext_bytes: int) -> dict:
+def header_for(content: dict, salt: bytes, nonce: bytes, plaintext_bytes: int, key_material: str = "original-pdf-bytes") -> dict:
     return {"solutionId": content["solutionId"], "createdAt": content["createdAt"], "displayName": content["displayName"],
             "document": {"sha256": content["document"]["sha256"], "pageCount": content["document"]["pageCount"]},
             "contents": {"pages": len(content["pages"]), "images": len(content["images"]), "missingImages": len(content["missingImages"])},
-            "encryption": {"cipher": "AES-256-GCM", "kdf": "HKDF-SHA256", "keyMaterial": "original-pdf-bytes",
+            "encryption": {"cipher": "AES-256-GCM", "kdf": "HKDF-SHA256", "keyMaterial": key_material,
                            "salt": base64.b64encode(salt).decode(), "nonce": base64.b64encode(nonce).decode(),
                            "plaintextBytes": plaintext_bytes}}
 
 
-def seal(content: dict, pdf: bytes, salt: bytes, nonce: bytes) -> dict:
-    if hashlib.sha256(pdf).hexdigest() != content["document"]["sha256"]:
+def seal(content: dict, pdf: bytes | None, salt: bytes, nonce: bytes, secret: bytes | None = None) -> dict:
+    if secret is None and hashlib.sha256(pdf).hexdigest() != content["document"]["sha256"]:
         raise ValueError("Fingerabdruck passt nicht")
     plaintext = canonical(content).encode()
-    header = header_for(content, salt, nonce, len(plaintext))
-    key = derive_key(pdf, salt, key_info(header["solutionId"]))
+    header = header_for(content, salt, nonce, len(plaintext), "community-secret" if secret else "original-pdf-bytes")
+    key = derive_key(secret or pdf, salt, key_info(header["solutionId"]))
     ct = AESGCM(key).encrypt(nonce, plaintext, aad(header))
     return {"format": FORMAT, "formatVersion": FORMAT_VERSION, "header": header, "ciphertext": base64.b64encode(ct).decode()}
 
 
-def open_package(pkg: dict, pdf: bytes) -> dict:
+def open_package(pkg: dict, pdf: bytes | None = None, secret: bytes | None = None) -> dict:
     h = pkg["header"]
-    if hashlib.sha256(pdf).hexdigest() != h["document"]["sha256"]:
-        raise ValueError("fingerprintMismatch")
     e = h["encryption"]
-    key = derive_key(pdf, base64.b64decode(e["salt"]), key_info(h["solutionId"]))
+    if e["keyMaterial"] == "community-secret":
+        if secret is None:
+            raise ValueError("decryptionFailed")
+        material = secret
+    else:
+        if pdf is None or hashlib.sha256(pdf).hexdigest() != h["document"]["sha256"]:
+            raise ValueError("fingerprintMismatch")
+        material = pdf
+    key = derive_key(material, base64.b64decode(e["salt"]), key_info(h["solutionId"]))
     plain = AESGCM(key).decrypt(base64.b64decode(e["nonce"]), base64.b64decode(pkg["ciphertext"]), aad(h))
     if len(plain) != e["plaintextBytes"]:
         raise ValueError("Groesse")

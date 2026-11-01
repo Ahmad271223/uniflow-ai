@@ -4,10 +4,6 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-private struct NoCommunityTransport: CommunityTransport {
-    func community(_ method: String, _ path: String, body: JSONValue?) async throws -> JSONValue { .null }
-}
-
 /// Online-Community ueber `CloudKitCommunityService` gegen ein nachgebildetes CloudKit (`FakeCommunityCloud`, nur im
 /// Speicher): veroeffentlichen, finden (Hochschule, Kurs-Schluessel, Lerngruppe, anonym, zurueckgezogen, gesperrt),
 /// laden, zurueckziehen, melden, blockieren, Lerngruppen und Fehlerfaelle. Kein echtes CloudKit, kein Netz, keine
@@ -153,7 +149,8 @@ final class CommunityCloudKitTests: XCTestCase {
         let membership = CommunityMembership(defaults: suite())
         let keys = Set(courses.map { CommunityKeys.courseKey(university: university.rawValue, courseID: $0) })
             .union(courseNames.compactMap { CommunityKeys.courseKey(university: university.rawValue, courseName: $0) })
-        let service = CloudKitCommunityService(cloud: cloud, university: university, membership: membership, courseKeys: { keys })
+        let service = CloudKitCommunityService(cloud: cloud, university: university, membership: membership, courseKeys: { keys },
+                                               courses: { [.course(university: university.rawValue, id: "kurs-1", title: "Lineare Algebra")] })
         let fallback = try cloud ?? FakeCommunityCloud(assetDir: tempDir())
         return Device(cloud: fallback, membership: membership, service: service, library: SolutionLibrary(root: try tempDir()))
     }
@@ -207,7 +204,7 @@ final class CommunityCloudKitTests: XCTestCase {
                                  images: [:], title: "Übungsblatt 3")
         let options = CommunityPublishOptions(visibility: .module, courseKey: courseKey("kurs-1"), title: "Übungsblatt 3", week: 4)
         let pub = try await SolutionSharing.publishToCommunity(src, keys: ["p1"], displayName: "Lea", options: options,
-                                                               service: d.service, library: d.library)
+                                                               space: .course(university: "luh", id: "kurs-1", title: "Lineare Algebra"), service: d.service, library: d.library)
         let records = cloud.all(CommunityRecordType.solution)
         XCTAssertEqual(records.count, 1)
         let r = try XCTUnwrap(records.first)
@@ -596,17 +593,32 @@ final class CommunityCloudKitTests: XCTestCase {
         }
         let local = await CommunityCourses.localFingerprints(host: host)
         XCTAssertEqual(local, [sha("a"), sha("b")], "keine eigenen, geloeschten, fremden oder Nicht-PDFs")
-        let byID = await CommunityCourses.fingerprints(courseKey: CommunityKeys.courseKey(university: "luh", courseID: "kurs-1"), host: host, university: "luh")
-        XCTAssertEqual(byID, [sha("a")])
-        let byName = await CommunityCourses.fingerprints(courseKey: try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Analysis")), host: host, university: "luh")
-        XCTAssertEqual(byName, [sha("b")])
     }
 
-    func testAccountTextsDoNotPromiseGroupsOrCourses() {
-        let account = ServiceCommunityService(transport: NoCommunityTransport(), localFingerprints: { [] }, courseFingerprints: { _ in [] })
-        XCTAssertEqual(CommunityTexts.visibility(.module, service: account), CommunityTexts.visibilityAccount)
-        XCTAssertEqual(CommunityTexts.visibility(.module, service: NotConnectedCommunityService()), CommunityTexts.visibilityModule)
-        XCTAssertFalse(CommunityPage.howItWorks(account: true).contains { $0.text.contains("Lerngruppe") })
+    func testCommunityReachesMembersOnlyAndOpensWithoutThePDF() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let defaults = UserDefaults(suiteName: "community-" + UUID().uuidString)
+        let membership = CommunityMembership(defaults: defaults)
+        let course = CommunitySpace.course(university: "luh", id: "kurs-1", title: "Analysis")
+        let service = CloudKitCommunityService(cloud: cloud, university: .luh, membership: membership,
+                                               courseKeys: { membership.joinedCourses() }, courses: { [course] })
+        let start = try await service.communities()
+        XCTAssertEqual(start.map(\.joined), [false])
+        do { _ = try await service.solutions(in: course); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notAMember) }
+        try await service.join(course)
+        var joined = course
+        joined.joined = true
+        let after = try await service.communities()
+        XCTAssertEqual(after.map(\.joined), [true])
+        let list = try await service.solutions(in: joined)
+        XCTAssertEqual(list, [])
+        try await service.leave(joined)
+        XCTAssertTrue(membership.joinedCourses().isEmpty)
+    }
+
+    func testAccountTextsDoNotPromiseThePDFAsTheOnlyWay() {
+        XCTAssertTrue(CommunityTexts.visibilityMembers.contains("leeren Seiten"))
+        XCTAssertFalse(CommunityPage.howItWorks.contains { $0.text.contains("Modul oder") })
     }
 
     func testCourseKeysComeFromTheLocalDatabase() async throws {
@@ -721,7 +733,7 @@ final class CommunityCloudKitTests: XCTestCase {
                                  fingerprint: fp, images: [:], title: "Übungsblatt 3")
         let pub = try await SolutionSharing.publishToCommunity(src, keys: ["p1"], displayName: "Ben",
                                                                options: .init(visibility: .module, courseKey: courseKey("kurs-1"), title: "Übungsblatt 3"),
-                                                               service: ben.service, library: ben.library)
+                                                               space: .course(university: "luh", id: "kurs-1", title: "Lineare Algebra"), service: ben.service, library: ben.library)
         // Ada (gleicher Kurs) findet sie beim Oeffnen des Blatts, laedt sie und sieht die fremde Ebene
         cloud.user = "_user-ada"
         let ada = try device(cloud)

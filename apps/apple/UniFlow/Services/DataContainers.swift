@@ -78,6 +78,7 @@ final class ActiveContainer: @unchecked Sendable {
     let solutions: SolutionLibrary
     /// Online-Community dieses Containers (CloudKit; ohne iCloud-Container im Build "nicht verfügbar")
     let community: CloudKitCommunityService
+    let membership: CommunityMembership
     /// Einstellungen dieses Containers (Stud.IP-Kursauswahl, letzter Abgleich, Learnweb/LSF, Anzeigename beim Teilen)
     let defaults: UserDefaults
     let defaultsSuite: String
@@ -102,8 +103,11 @@ final class ActiveContainer: @unchecked Sendable {
         defaultsSuite = Self.defaultsSuite(layout.identifier)
         defaults = UserDefaults(suiteName: defaultsSuite) ?? appDefaults
         let localHost = host, university = key.university.rawValue
-        community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: CommunityMembership(defaults: defaults),
-                                             courseKeys: { await CommunityCourses.courseKeys(host: localHost, university: university) })
+        let membership = CommunityMembership(defaults: defaults)
+        self.membership = membership
+        community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: membership,
+                                             courseKeys: { membership.joinedCourses() },
+                                             courses: { await CommunityCourses.spaces(host: localHost, university: university) })
         tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope, onlyUniversity: key.university)
         cookies = StudIPCookieStore(service: cookieService, container: layout.identifier)
     }

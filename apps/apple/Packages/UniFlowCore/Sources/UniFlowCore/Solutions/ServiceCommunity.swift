@@ -12,12 +12,18 @@ extension StudoraAccount: CommunityTransport {
     }
 }
 
+/// Lerngruppen dieses Geraets (Code, Name); der Code bleibt hier, der Dienst kennt nur den Schluessel
+public protocol CommunityGroupStore: Sendable {
+    func groups() -> [CommunityStudyGroup]
+    func add(_ group: CommunityStudyGroup)
+    func remove(code: String)
+}
+
 /// Community ueber den Studora-Dienst (Vertrag G4, app/community_api.py), so wie Web und Windows sie nutzen.
 ///
-/// Der Dienst kennt keine Sichtbarkeit, keine Kurs-Schluessel und keine Lerngruppen: Eine Loesung sieht jedes Konto
-/// derselben Hochschule, das dieselbe PDF aus dem eigenen Abgleich gemeldet hat (`/claims`). Darum gibt es hier nur
-/// `Modul` (mit Pseudonym oder leer), und eine Veroeffentlichung fuer eine Lerngruppe scheitert, statt still fuer alle
-/// sichtbar zu werden. Die Kursansicht fragt je Fingerabdruck des Kurses einzeln.
+/// Jeder Kurs ist eine Community, dazu Lerngruppen. Beitreten kann ein Konto Kursen, die dieses Geraet gemeldet hat
+/// (`/claims`), Lerngruppen ueber den Code. Loesungen sehen nur Mitglieder, auch ohne die PDF. Kurs-IDs und Codes
+/// bleiben auf dem Geraet, der Dienst kennt nur die Schluessel.
 public final class ServiceCommunityService: CommunityService, @unchecked Sendable {
     /// `community.MAX_CLAIMS`
     public static let maxClaims = 5_000
@@ -25,17 +31,22 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
     private let transport: CommunityTransport
     /// Fingerabdruecke der PDFs aus dem eigenen Abgleich (`service_link.local_fingerprints`)
     private let localFingerprints: @Sendable () async -> [String]
-    /// Fingerabdruecke der Dateien eines Kurs-Schluessels
-    private let courseFingerprints: @Sendable (String) async -> [String]
+    /// Kurse aus dem eigenen Abgleich, je als Community
+    private let localCourses: @Sendable () async -> [CommunitySpace]
+    private let university: String
+    private let membership: CommunityGroupStore
     private let lock = NSLock()
     /// Sperren geht beim Dienst ueber eine Loesung des Autors: letzte gesehene je Pseudonym
     private var lastSolution: [String: String] = [:]
 
-    public init(transport: CommunityTransport, localFingerprints: @escaping @Sendable () async -> [String],
-                courseFingerprints: @escaping @Sendable (String) async -> [String]) {
+    public init(transport: CommunityTransport, university: String, membership: CommunityGroupStore,
+                localFingerprints: @escaping @Sendable () async -> [String],
+                localCourses: @escaping @Sendable () async -> [CommunitySpace]) {
         self.transport = transport
+        self.university = university
+        self.membership = membership
         self.localFingerprints = localFingerprints
-        self.courseFingerprints = courseFingerprints
+        self.localCourses = localCourses
     }
 
     public var isConnected: Bool { true }
@@ -48,9 +59,11 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
         switch (e.status, e.code) {
         case (0, _): return CommunityServiceError.offline
         case (401, _): return CommunityServiceError.accountRequired
+        case (404, "group_not_found"): return CommunityServiceError.groupNotFound
         case (404, _): return CommunityServiceError.notFound
         case (_, "not_owner"): return CommunityServiceError.notOwner
         case (_, "file_not_owned"): return CommunityServiceError.fileNotOwned
+        case (_, "not_a_member"): return CommunityServiceError.notAMember
         default: return CommunityServiceError.server(e.message)
         }
     }
@@ -59,63 +72,88 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
         do { return try await transport.community(method, path, body: body) } catch { throw Self.serviceError(error) }
     }
 
-    /// Weiss der Dienst nichts von der PDF, einmal alle eigenen melden und die Anfrage wiederholen
-    private func withClaims(_ op: () async throws -> JSONValue) async throws -> JSONValue {
-        do { return try await op() } catch let e as AccountError where e.code == "file_not_owned" {
-            let fps = await localFingerprints()
-            guard !fps.isEmpty else { throw Self.serviceError(e) }
-            _ = try await call("POST", "/claims", body: .object(["fingerprints": .array(fps.map(JSONValue.string))]))
-            do { return try await op() } catch { throw Self.serviceError(error) }
-        } catch { throw Self.serviceError(error) }
-    }
-
     private static func query(_ s: String) -> String {
         s.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? s
     }
 
     private func summary(_ s: JSONValue) -> CommunitySolutionSummary? {
         guard let id = s["solution_id"]?.string, let fp = s["fingerprint"]?.string else { return nil }
-        let owner = s["pseudonym"]?.string ?? ""
         return CommunitySolutionSummary(solutionID: id, fingerprint: fp, displayName: s["display_name"]?.string ?? "",
                                         createdAt: s["created_at"]?.string ?? "", pageCount: s["page_count"]?.int ?? 0,
-                                        title: s["title"]?.string ?? "", ownerRecordName: owner, isOwn: s["mine"]?.bool ?? false)
+                                        title: s["title"]?.string ?? "", ownerRecordName: s["pseudonym"]?.string ?? "",
+                                        isOwn: s["mine"]?.bool ?? false, communityKey: s["community_key"]?.string)
     }
 
-    private func solutions(_ fingerprint: String) async throws -> [CommunitySolutionSummary] {
-        let path = "/solutions?fingerprint=" + Self.query(fingerprint.lowercased())
-        let list = (try await withClaims { try await transport.community("GET", path, body: nil) })["solutions"]?.array ?? []
-        let out = list.compactMap(summary)
+    private func summaries(_ r: JSONValue) -> [CommunitySolutionSummary] {
+        let out = (r["solutions"]?.array ?? []).compactMap(summary)
         lock.withLock { for s in out where !s.isOwn && !s.ownerRecordName.isEmpty { lastSolution[s.ownerRecordName] = s.solutionID } }
         return out
+    }
+
+    /// Kurse und PDFs des Geraets melden, damit der Dienst den Beitritt zulaesst
+    private func claim(_ courses: [CommunitySpace]) async throws {
+        let fps = await localFingerprints()
+        _ = try await call("POST", "/claims", body: .object(["fingerprints": .array(fps.map(JSONValue.string)),
+                                                             "course_keys": .array(courses.prefix(Self.maxClaims).map { .string($0.key) })]))
+    }
+
+    // MARK: Communities
+
+    public func communities() async throws -> [CommunitySpace] {
+        let courses = await localCourses()
+        try await claim(courses)
+        let rows = (try await call("GET", "/communities"))["communities"]?.array ?? []
+        var byKey: [String: JSONValue] = [:]
+        for r in rows { if let k = r["community_key"]?.string { byKey[k] = r } }
+        func merged(_ s: CommunitySpace) -> CommunitySpace {
+            var s = s
+            s.joined = byKey[s.key]?["joined"]?.bool ?? s.joined
+            s.members = byKey[s.key]?["members"]?.int
+            s.solutions = byKey[s.key]?["solutions"]?.int
+            return s
+        }
+        return courses.map(merged) + membership.groups().filter { byKey[$0.groupKey]?["joined"]?.bool == true }.map { merged(.group($0)) }
+    }
+
+    public func join(_ space: CommunitySpace) async throws {
+        _ = try await call("POST", "/communities/\(space.key)/join", body: .object(["kind": .string(space.kind.rawValue)]))
+    }
+
+    public func leave(_ space: CommunitySpace) async throws {
+        _ = try await call("DELETE", "/communities/\(space.key)/join")
+    }
+
+    public func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary] {
+        summaries(try await call("GET", "/communities/\(space.key)/solutions"))
     }
 
     // MARK: CommunityService
 
     public func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
-        guard options.visibility == .module else { throw CommunityServiceError.visibilityUnsupported }
-        let body = JSONValue.object(["package": try JSONValue.parse(package.encoded()), "title": .string(options.title)])
-        let r = try await withClaims { try await transport.community("POST", "/solutions", body: body) }
+        guard let key = options.communityKey, package.header.isCommunityPackage else { throw CommunityServiceError.visibilityUnsupported }
+        let body = JSONValue.object(["package": try JSONValue.parse(package.encoded()), "title": .string(options.title), "community_key": .string(key)])
+        let r = try await call("POST", "/solutions", body: body)
         guard let id = r["solution_id"]?.string else { throw CommunityServiceError.server("Antwort ohne Kennung.") }
         return CommunityPublication(solutionID: id, publishedAt: r["published_at"]?.string.flatMap(SolutionValidator.parseDate) ?? Date())
     }
 
+    /// Loesungen zu einer PDF aus den eigenen Communities
     public func findMatching(fingerprint: String) async throws -> [CommunitySolutionSummary] {
-        try await solutions(fingerprint)
+        do {
+            return summaries(try await transport.community("GET", "/solutions?fingerprint=" + Self.query(fingerprint.lowercased()), body: nil))
+        } catch let e as AccountError where e.code == "file_not_owned" {
+            return []                                                    // noch in keiner Community und keine eigene PDF
+        } catch { throw Self.serviceError(error) }
     }
 
     public func findForCourse(courseKey: String) async throws -> [CommunitySolutionSummary] {
-        var seen = Set<String>(), out: [CommunitySolutionSummary] = []
-        for fp in Set(await courseFingerprints(courseKey).map { $0.lowercased() }).sorted() {
-            do {
-                for s in try await solutions(fp) where seen.insert(s.solutionID).inserted { out.append(s) }
-            } catch CommunityServiceError.fileNotOwned { continue }
-        }
-        return out.sorted { $0.createdAt > $1.createdAt }
+        do { return summaries(try await transport.community("GET", "/communities/\(courseKey)/solutions", body: nil)) } catch let e as AccountError where e.code == "not_a_member" {
+            return []
+        } catch { throw Self.serviceError(error) }
     }
 
     public func download(solutionID: String) async throws -> SolutionPackage {
-        let path = "/solutions/" + Self.query(solutionID)
-        let r = try await withClaims { try await transport.community("GET", path, body: nil) }
+        let r = try await call("GET", "/solutions/" + Self.query(solutionID))
         guard let p = r["package"] else { throw CommunityServiceError.notFound }
         return try SolutionPackage.decode(p.serialized())
     }
@@ -143,8 +181,32 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
         (try await call("GET", "/blocks"))["blocked"]?.array?.compactMap(\.string) ?? []
     }
 
-    public func createStudyGroup(name: String) async throws -> CommunityStudyGroup { throw CommunityServiceError.visibilityUnsupported }
-    public func joinStudyGroup(code: String) async throws -> CommunityStudyGroup { throw CommunityServiceError.visibilityUnsupported }
-    public func leaveStudyGroup(code: String) async throws {}
-    public func studyGroups() async throws -> [CommunityStudyGroup] { [] }
+    // MARK: Lerngruppen
+
+    public func createStudyGroup(name: String) async throws -> CommunityStudyGroup {
+        guard let clean = CommunityRules.validGroupName(name) else { throw CommunityServiceError.invalidGroupName }
+        let group = CommunityStudyGroup(code: CommunityKeys.randomGroupCode(), name: clean, university: university)
+        _ = try await call("POST", "/groups", body: .object(["group_key": .string(group.groupKey), "name": .string(clean)]))
+        membership.add(group)
+        return group
+    }
+
+    public func joinStudyGroup(code raw: String) async throws -> CommunityStudyGroup {
+        guard let code = CommunityKeys.normalizedGroupCode(raw) else { throw CommunityServiceError.invalidGroupCode }
+        let key = CommunityKeys.groupKey(university: university, code: code)
+        _ = try await call("POST", "/communities/\(key)/join", body: .object(["kind": "group"]))
+        let rows = (try await call("GET", "/communities"))["communities"]?.array ?? []
+        let name = rows.first { $0["community_key"]?.string == key }?["name"]?.string ?? code
+        let group = CommunityStudyGroup(code: code, name: name, university: university)
+        membership.add(group)
+        return group
+    }
+
+    public func leaveStudyGroup(code raw: String) async throws {
+        guard let code = CommunityKeys.normalizedGroupCode(raw) else { return }
+        _ = try await call("DELETE", "/communities/\(CommunityKeys.groupKey(university: university, code: code))/join")
+        membership.remove(code: code)
+    }
+
+    public func studyGroups() async throws -> [CommunityStudyGroup] { membership.groups() }
 }

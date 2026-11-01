@@ -41,9 +41,8 @@ struct SolutionShareSheet: View {
     @State private var busy = false
     @State private var shareFile: ExportFile?
     // Community: Sichtbarkeit, Lerngruppen, Kurs-Schluessel und Lehrwoche der Datei, Bestaetigung, Ergebnis
-    @State private var visibility: CommunityVisibility = .module
-    @State private var groups: [CommunityStudyGroup] = []
-    @State private var groupCode = ""
+    @State private var spaces: [CommunitySpace] = []
+    @State private var spaceKey = ""
     @State private var courseKey: String?
     @State private var week = 0
     @State private var confirmingPublish = false
@@ -175,23 +174,14 @@ struct SolutionShareSheet: View {
                 CommunityTexts.badge(community)
             }
             if community.isConnected {
-                if !community.isAccountService {
-                    UFSegmented(options: CommunityVisibility.allCases.map { ($0, $0.title) }, selection: $visibility)
-                        .padding(.bottom, 8)
+                if spaces.isEmpty {
+                    Text(CommunityTexts.noCommunity).ufFont(13.12).foregroundStyle(UF.warn)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    UFSelect(options: spaces.map { ($0.key, $0.name) }, selection: $spaceKey)
+                    Text(CommunityTexts.visibilityMembers).ufFont(13.12).foregroundStyle(UF.text2)
+                        .fixedSize(horizontal: false, vertical: true).padding(.top, 4)
                 }
-                if visibility == .studyGroup {
-                    if groups.isEmpty {
-                        Text("Du bist in keiner Lerngruppe. Lege in den Einstellungen eine an oder tritt mit einem Code bei.")
-                            .ufFont(13.12).foregroundStyle(UF.warn)
-                    } else {
-                        UFSelect(options: groups.map { ($0.code, $0.name) }, selection: $groupCode)
-                    }
-                }
-                if visibility == .module, courseKey == nil, !community.isAccountService {
-                    Text(CommunityServiceError.missingCourse.localizedDescription).ufFont(13.12).foregroundStyle(UF.warn)
-                }
-                Text(CommunityTexts.visibility(visibility, service: community)).ufFont(13.12).foregroundStyle(UF.text2)
-                    .fixedSize(horizontal: false, vertical: true).padding(.top, 4)
                 Text(CommunityTexts.copyright).ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 8)
             } else {
@@ -203,7 +193,7 @@ struct SolutionShareSheet: View {
     private func publishedCard(_ p: CommunityPublication) -> some View {
         UFCard {
             UFCardHead("Veröffentlicht", icon: "check")
-            Text("Deine Lösung ist in der Community – \(CommunityTexts.publishedAt(SolutionPackage.timestamp(p.publishedAt))). \(CommunityTexts.visibility(visibility, service: community))")
+            Text("Deine Lösung ist in der Community – \(CommunityTexts.publishedAt(SolutionPackage.timestamp(p.publishedAt))). \(CommunityTexts.visibilityMembers)")
                 .ufFont(14.5).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
             Text("Zurückziehen kannst du sie jederzeit unter „Meine geteilten Lösungen“.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 6)
@@ -213,13 +203,10 @@ struct SolutionShareSheet: View {
 
     private var canPublish: Bool {
         guard community.isConnected, !busy, !publishing, draft?.canShare(selected) == true else { return false }
-        if community.isAccountService { return true }
-        switch visibility {
-        case .module: return courseKey != nil
-        case .studyGroup: return groups.contains { $0.code == groupCode }
-        case .anonymous: return true
-        }
+        return space != nil
     }
+
+    private var space: CommunitySpace? { spaces.first { $0.key == spaceKey } }
 
     private var actions: some View {
         UFFlexWrap(gap: 10) {
@@ -238,7 +225,7 @@ struct SolutionShareSheet: View {
 
     /// Bestaetigung vor dem Veroeffentlichen: nur eigene Notizen, Sichtbarkeit, Pseudonym
     private var publishDialog: some View {
-        let name = CommunityRules.effectiveDisplayName(displayName, visibility: visibility)
+        let name = CommunityRules.effectiveDisplayName(displayName, visibility: .module)
         return UFDialog(SolutionTexts.communityConfirmTitle, icon: "users") {
             VStack(alignment: .leading, spacing: 9.6) {
                 Text(CommunityTexts.copyright)
@@ -248,7 +235,7 @@ struct SolutionShareSheet: View {
                     Label(SolutionTexts.missingImages(missingImages(preview)), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(UF.warn)
                 }
-                Text("Sichtbarkeit: \(community.isAccountService ? "alle mit derselben PDF" : visibility.title)\(visibility == .studyGroup ? " „\(groups.first { $0.code == groupCode }?.name ?? "")“" : "") · \(name.isEmpty ? "anonym" : "als „\(name)“")")
+                Text("Community: \(space?.name ?? "") · \(name.isEmpty ? "anonym" : "als „\(name)“")")
                     .foregroundStyle(UF.text)
                 Text(CommunityTexts.privacy(community)).foregroundStyle(UF.muted)
             }
@@ -287,16 +274,14 @@ struct SolutionShareSheet: View {
     private func load() async {
         guard draft == nil, Entitlements.shared.allows(.shareSolutions) else { return }
         displayName = SolutionDisplayName.load()
-        groups = (try? await community.studyGroups()) ?? []
-        groupCode = groups.first?.code ?? ""
-        // Kurs-Schluessel aus Kurs-ID oder, bei eigenen Dokumenten, aus dem Modulnamen (eine Stelle: CommunityCourses)
+        spaces = ((try? await community.communities()) ?? []).filter(\.joined)
+        // Vorauswahl: die Community des Kurses dieser Datei
         if let host = ActiveContainer.current?.host, let uni = ActiveContainer.current?.key.university,
            let key = await CommunityCourses.courseKey(fileID: store.file.id, host: host, university: uni.rawValue) {
             courseKey = key
             week = await CommunityCourses.week(fileID: store.file.id, moduleID: store.file.module_id, api: api)
-        } else if !community.isAccountService {
-            visibility = .anonymous
         }
+        spaceKey = spaces.first { $0.key == courseKey }?.key ?? spaces.first?.key ?? ""
         do {
             let s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
             let prepared = try await Task.detached(priority: .userInitiated) { try SolutionSharing.draft(s) }.value
@@ -339,13 +324,15 @@ struct SolutionShareSheet: View {
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         SolutionDisplayName.save(name)
         let keys = Array(selected)
-        let options = CommunityPublishOptions(visibility: visibility, courseKey: courseKey,
-                                              groupKey: groups.first { $0.code == groupCode }?.groupKey, title: source.title, week: week)
+        guard let space else { return }
+        let group = space.kind == .group
+        let options = CommunityPublishOptions(visibility: group ? .studyGroup : .module, courseKey: space.key, groupKey: group ? space.key : nil,
+                                              title: source.title, week: week, communityKey: space.key)
         let service = community
         Task {
             do {
-                published = try await SolutionSharing.publishToCommunity(source, keys: keys, displayName: CommunityRules.effectiveDisplayName(name, visibility: visibility),
-                                                                         options: options, service: service)
+                published = try await SolutionSharing.publishToCommunity(source, keys: keys, displayName: CommunityRules.effectiveDisplayName(name, visibility: .module),
+                                                                         options: options, space: space, service: service)
                 await CommunityMatches.shared.invalidate()
             } catch {
                 shareError = CommunityTexts.message(error)

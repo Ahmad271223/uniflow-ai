@@ -117,9 +117,15 @@ final class StudoraAccountLink: ObservableObject {
             CommunityRoute.shared.service = nil
             return
         }
+        guard let membership = ActiveContainer.current?.membership else {
+            CommunityRoute.shared.service = nil
+            routedAccount = nil
+            return
+        }
         CommunityRoute.shared.service = ServiceCommunityService(
-            transport: account, localFingerprints: { await CommunityCourses.localFingerprints(host: host) },
-            courseFingerprints: { await CommunityCourses.fingerprints(courseKey: $0, host: host, university: university) })
+            transport: account, university: university, membership: membership,
+            localFingerprints: { await CommunityCourses.localFingerprints(host: host) },
+            localCourses: { await CommunityCourses.spaces(host: host, university: university) })
     }
 
     func use(userScope: String?, host: LocalBackendHost? = nil, university: String? = nil) {

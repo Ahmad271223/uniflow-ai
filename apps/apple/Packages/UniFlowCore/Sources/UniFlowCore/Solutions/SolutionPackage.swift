@@ -427,6 +427,8 @@ public struct SolutionHeader: Equatable, Sendable {
     public static let cipherName = "AES-256-GCM"
     public static let kdfName = "HKDF-SHA256"
     public static let keyMaterialName = "original-pdf-bytes"
+    /// Community-Paket: Schluessel aus Kurs-ID bzw. Code, Mitglieder oeffnen es auch ohne die PDF
+    public static let communityKeyMaterialName = "community-secret"
 
     public var solutionID: String
     public var createdAt: String
@@ -439,6 +441,9 @@ public struct SolutionHeader: Equatable, Sendable {
     public var salt: Data
     public var nonce: Data
     public var plaintextBytes: Int
+    public var keyMaterial = SolutionHeader.keyMaterialName
+
+    public var isCommunityPackage: Bool { keyMaterial == SolutionHeader.communityKeyMaterialName }
 
     public var json: JSONValue {
         .object([
@@ -448,7 +453,7 @@ public struct SolutionHeader: Equatable, Sendable {
                                  "missingImages": .number(Double(missingImageCount))]),
             "encryption": .object([
                 "cipher": .string(SolutionHeader.cipherName), "kdf": .string(SolutionHeader.kdfName),
-                "keyMaterial": .string(SolutionHeader.keyMaterialName),
+                "keyMaterial": .string(keyMaterial),
                 "salt": .string(salt.base64EncodedString()), "nonce": .string(nonce.base64EncodedString()),
                 "plaintextBytes": .number(Double(plaintextBytes)),
             ]),
@@ -477,7 +482,8 @@ public struct SolutionHeader: Equatable, Sendable {
         }
         let e = h["encryption"]
         guard e?["cipher"]?.string == SolutionHeader.cipherName, e?["kdf"]?.string == SolutionHeader.kdfName,
-              e?["keyMaterial"]?.string == SolutionHeader.keyMaterialName else {
+              let material = e?["keyMaterial"]?.string,
+              material == SolutionHeader.keyMaterialName || material == SolutionHeader.communityKeyMaterialName else {
             throw SolutionError.invalidHeader("Verfahren")
         }
         guard let saltB64 = e?["salt"]?.string, let salt = Data(base64Encoded: saltB64), salt.count == 32 else {
@@ -491,6 +497,7 @@ public struct SolutionHeader: Equatable, Sendable {
         }
         self.init(solutionID: id.lowercased(), createdAt: created, displayName: name, fingerprint: fp, pdfPageCount: count,
                   pageCount: pages, imageCount: images, missingImageCount: missing, salt: salt, nonce: nonce, plaintextBytes: size)
+        keyMaterial = material
     }
 
     public init(solutionID: String, createdAt: String, displayName: String, fingerprint: String, pdfPageCount: Int,
@@ -582,6 +589,17 @@ public struct SolutionPackage: Equatable, Sendable {
     public static func seal(_ content: SolutionContent, originalPDF: Data, cipher: SolutionCipher,
                             salt: Data? = nil, nonce: Data? = nil) throws -> SolutionPackage {
         guard cipher.sha256Hex(originalPDF) == content.fingerprint else { throw SolutionError.fingerprintMismatch }
+        return try seal(content, material: originalPDF, name: SolutionHeader.keyMaterialName, cipher: cipher, salt: salt, nonce: nonce)
+    }
+
+    /// Fuer eine Community verschluesseln (`CommunityKeys.secret`): Mitglieder oeffnen das Paket auch ohne die PDF.
+    public static func seal(_ content: SolutionContent, communitySecret: Data, cipher: SolutionCipher,
+                            salt: Data? = nil, nonce: Data? = nil) throws -> SolutionPackage {
+        try seal(content, material: communitySecret, name: SolutionHeader.communityKeyMaterialName, cipher: cipher, salt: salt, nonce: nonce)
+    }
+
+    private static func seal(_ content: SolutionContent, material: Data, name: String, cipher: SolutionCipher,
+                             salt: Data?, nonce: Data?) throws -> SolutionPackage {
         // dieselben Pruefungen wie beim Oeffnen: was geteilt wird, muss sich auch oeffnen lassen
         let checked = try SolutionContent(json: content.json)
         guard checked == content else { throw SolutionError.invalidContent("nicht verlustfrei") }
@@ -589,13 +607,14 @@ public struct SolutionPackage: Equatable, Sendable {
         guard plaintext.count <= SolutionLimits.maxPlaintextBytes else { throw SolutionError.tooLarge }
         // keine pauschale Textsuche nach "%PDF-" mehr: eigener Freitext darf das enthalten; PDF-Daten in Verweisen und
         // Bildern sind oben schon abgewiesen (SolutionValidator.checkNoPDF, Bild nur PNG/JPEG)
-        let header = SolutionHeader(
+        var header = SolutionHeader(
             solutionID: content.solutionID, createdAt: content.createdAt, displayName: content.displayName,
             fingerprint: content.fingerprint, pdfPageCount: content.pdfPageCount, pageCount: content.pages.count,
             imageCount: content.images.count, missingImageCount: content.missingImages.count,
             salt: salt ?? randomBytes(32), nonce: nonce ?? randomBytes(12), plaintextBytes: plaintext.count)
+        header.keyMaterial = name
         let aad = SolutionPackage.aad(header: header.json)
-        let sealed = try cipher.seal(plaintext, keyMaterial: originalPDF, salt: header.salt,
+        let sealed = try cipher.seal(plaintext, keyMaterial: material, salt: header.salt,
                                      info: keyInfo(solutionID: header.solutionID), nonce: header.nonce, aad: aad)
         guard sealed.count == plaintext.count + tagBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
         return SolutionPackage(header: header, ciphertext: sealed)
@@ -604,10 +623,21 @@ public struct SolutionPackage: Equatable, Sendable {
     /// Mit der eigenen Original-PDF entschluesseln und vollstaendig pruefen. Passt der Fingerabdruck nicht, wird gar
     /// nicht erst entschluesselt.
     public func open(originalPDF: Data, cipher: SolutionCipher) throws -> SolutionContent {
+        guard !header.isCommunityPackage else { throw SolutionError.decryptionFailed }
         guard cipher.sha256Hex(originalPDF) == header.fingerprint else { throw SolutionError.fingerprintMismatch }
+        return try open(material: originalPDF, cipher: cipher)
+    }
+
+    /// Community-Paket mit dem Schluessel der Community oeffnen, ohne PDF.
+    public func open(communitySecret: Data, cipher: SolutionCipher) throws -> SolutionContent {
+        guard header.isCommunityPackage else { throw SolutionError.decryptionFailed }
+        return try open(material: communitySecret, cipher: cipher)
+    }
+
+    private func open(material: Data, cipher: SolutionCipher) throws -> SolutionContent {
         let plaintext: Data
         do {
-            plaintext = try cipher.open(ciphertext, keyMaterial: originalPDF, salt: header.salt,
+            plaintext = try cipher.open(ciphertext, keyMaterial: material, salt: header.salt,
                                         info: SolutionPackage.keyInfo(solutionID: header.solutionID), nonce: header.nonce,
                                         aad: authenticatedHeader)
         } catch {

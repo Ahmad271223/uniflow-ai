@@ -396,5 +396,84 @@
    },
    "error": "invalidHeader"
   }
- ]
+ ],
+ "community": {
+  "university": "luh",
+  "course_id": "kurs-beispiel",
+  "code": "ABCDEFGH",
+  "secret_hex": "11dd68c6a8749b3ad0f126d06989eb68a93747d08a3f4b100180e6444bdbdb8e",
+  "group_secret_hex": "6a8f5d94c14287b669b7a1775fcd7fa9c9a5fac754c5e9c07108708c60ae8132",
+  "salt": "ERERERERERERERERERERERERERERERERERERERERERE=",
+  "nonce": "IiIiIiIiIiIiIiIi",
+  "plaintext": "{\"createdAt\":\"2026-10-28T10:00:00Z\",\"displayName\":\"\",\"document\":{\"pageCount\":1,\"sha256\":\"97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad\"},\"format\":\"uniflow-solution-content\",\"formatVersion\":1,\"images\":{},\"missingImages\":[],\"pages\":[{\"extraRotation\":0,\"height\":842,\"key\":\"p1\",\"kind\":\"pdf\",\"objects\":[{\"color\":\"#f5b400\",\"id\":\"s\",\"opacity\":0.35,\"points\":[1,2,3,4],\"tool\":\"marker\",\"type\":\"stroke\",\"width\":16}],\"pdfIndex\":1,\"rotation\":0,\"width\":595}],\"solutionId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\",\"title\":\"\"}",
+  "content": {
+   "format": "uniflow-solution-content",
+   "formatVersion": 1,
+   "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+   "createdAt": "2026-10-28T10:00:00Z",
+   "title": "",
+   "displayName": "",
+   "document": {
+    "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+    "pageCount": 1
+   },
+   "pages": [
+    {
+     "key": "p1",
+     "kind": "pdf",
+     "pdfIndex": 1,
+     "width": 595,
+     "height": 842,
+     "rotation": 0,
+     "extraRotation": 0,
+     "objects": [
+      {
+       "id": "s",
+       "type": "stroke",
+       "tool": "marker",
+       "color": "#f5b400",
+       "width": 16,
+       "opacity": 0.35,
+       "points": [
+        1,
+        2,
+        3,
+        4
+       ]
+      }
+     ]
+    }
+   ],
+   "images": {},
+   "missingImages": []
+  },
+  "package": {
+   "format": "uniflow-solution",
+   "formatVersion": 1,
+   "header": {
+    "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+    "createdAt": "2026-10-28T10:00:00Z",
+    "displayName": "",
+    "document": {
+     "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+     "pageCount": 1
+    },
+    "contents": {
+     "pages": 1,
+     "images": 0,
+     "missingImages": 0
+    },
+    "encryption": {
+     "cipher": "AES-256-GCM",
+     "kdf": "HKDF-SHA256",
+     "keyMaterial": "community-secret",
+     "salt": "ERERERERERERERERERERERERERERERERERERERERERE=",
+     "nonce": "IiIiIiIiIiIiIiIi",
+     "plaintextBytes": 527
+    }
+   },
+   "ciphertext": "O4wdh2p21rcnYEuZ4fLEmWvvJ0Vwe+HKFnsXRpMFFarKZhJgkMy7iSiHId9VmAWPz5noRnPfpx3TbIZkMFB1u3zrjmRztwZd6h0q6iG/ULvAk0sI1/Vw8sFOHVh2Gu9KAZ0hSw0li63Cn4PPAQdDW6RssEat4vWMPWzP8jw0gCBZTVlqxaP5IfrBLJ3aegLN9Kmbp5FL92mfVckwMqBdj9o3NkeM9UCHuxynMBTK7MvKlGWTrepEOQGEEj2UDP8CjR3w04iA02dc9nOZ7fDL9EDSRVlTZvpoqZIwElnfGNoL6QwzTwfdXedFqx71y3zjQq/MzaQUgTOVpIo5BB7xHmXG8BGyKhZFjb+nVQyl2b3c3WrkzaEXcseeW61E5KSCSEHjBmzg+D0DN/n9ivTh4CsRXCrcwXNVvY7t96YNRc7Gs4ML8zkqINI6U6gFdOdk917I/3eb7ZseBzsrWdspN0klnUQmx1uaVH8GVZ2DwvXCDfqEtm0+bhLKTOFgSM2DLUQL+RzZa3HTfqFrOeyDQqcaJvB2XsrQiGDuPKmeAUdnE9pr4d24Z3wTH57UrNSvgefKfhcy2hmcRnXh1tXP3N0ROeS1+3posYDmvHmHDRGLpWvIt5t+99M0UFA36Ix1IA9HxKJvSqe5KqeV7e92lOkx8hxGdqqpEjYEiaY7lyiZ5CGKKRciZ8gVujqaXPHPDMW53XP0a9+SDionXNEg"
+  },
+  "package_text": "{\"ciphertext\":\"O4wdh2p21rcnYEuZ4fLEmWvvJ0Vwe+HKFnsXRpMFFarKZhJgkMy7iSiHId9VmAWPz5noRnPfpx3TbIZkMFB1u3zrjmRztwZd6h0q6iG/ULvAk0sI1/Vw8sFOHVh2Gu9KAZ0hSw0li63Cn4PPAQdDW6RssEat4vWMPWzP8jw0gCBZTVlqxaP5IfrBLJ3aegLN9Kmbp5FL92mfVckwMqBdj9o3NkeM9UCHuxynMBTK7MvKlGWTrepEOQGEEj2UDP8CjR3w04iA02dc9nOZ7fDL9EDSRVlTZvpoqZIwElnfGNoL6QwzTwfdXedFqx71y3zjQq/MzaQUgTOVpIo5BB7xHmXG8BGyKhZFjb+nVQyl2b3c3WrkzaEXcseeW61E5KSCSEHjBmzg+D0DN/n9ivTh4CsRXCrcwXNVvY7t96YNRc7Gs4ML8zkqINI6U6gFdOdk917I/3eb7ZseBzsrWdspN0klnUQmx1uaVH8GVZ2DwvXCDfqEtm0+bhLKTOFgSM2DLUQL+RzZa3HTfqFrOeyDQqcaJvB2XsrQiGDuPKmeAUdnE9pr4d24Z3wTH57UrNSvgefKfhcy2hmcRnXh1tXP3N0ROeS1+3posYDmvHmHDRGLpWvIt5t+99M0UFA36Ix1IA9HxKJvSqe5KqeV7e92lOkx8hxGdqqpEjYEiaY7lyiZ5CGKKRciZ8gVujqaXPHPDMW53XP0a9+SDionXNEg\",\"format\":\"uniflow-solution\",\"formatVersion\":1,\"header\":{\"contents\":{\"images\":0,\"missingImages\":0,\"pages\":1},\"createdAt\":\"2026-10-28T10:00:00Z\",\"displayName\":\"\",\"document\":{\"pageCount\":1,\"sha256\":\"97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad\"},\"encryption\":{\"cipher\":\"AES-256-GCM\",\"kdf\":\"HKDF-SHA256\",\"keyMaterial\":\"community-secret\",\"nonce\":\"IiIiIiIiIiIiIiIi\",\"plaintextBytes\":527,\"salt\":\"ERERERERERERERERERERERERERERERERERERERERERE=\"},\"solutionId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\"}}"
+ }
 }

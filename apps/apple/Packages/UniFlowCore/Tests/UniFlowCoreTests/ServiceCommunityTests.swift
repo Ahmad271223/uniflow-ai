@@ -38,51 +38,45 @@ private final class FakeTransport: CommunityTransport, @unchecked Sendable {
     }
 }
 
-private func service(_ t: CommunityTransport, local: [String] = [pdfA], course: [String] = []) -> ServiceCommunityService {
-    ServiceCommunityService(transport: t, localFingerprints: { local }, courseFingerprints: { _ in course })
+private final class MemoryGroups: CommunityGroupStore, @unchecked Sendable {
+    var list: [CommunityStudyGroup] = []
+    func groups() -> [CommunityStudyGroup] { list }
+    func add(_ group: CommunityStudyGroup) { list.append(group) }
+    func remove(code: String) { list.removeAll { $0.code == code } }
 }
 
-private let notOwned = AccountError(status: 403, code: "file_not_owned", message: "Diese PDF stammt nicht aus deinem Hochschul-Abgleich.", retryAfter: nil)
+private func service(_ t: CommunityTransport, local: [String] = [pdfA], courses: [CommunitySpace] = []) -> ServiceCommunityService {
+    ServiceCommunityService(transport: t, university: "luh", membership: MemoryGroups(), localFingerprints: { local }, localCourses: { courses })
+}
 
 final class ServiceCommunityTests: XCTestCase {
-    func testStudyGroupsNeverPublishForEveryone() async throws {
+    func testNothingIsPublishedWithoutACommunityPackage() async throws {
         let t = FakeTransport { _, _ in .null }
-        let s = service(t)
-        for v in [CommunityVisibility.studyGroup, .anonymous] {
-            do {
-                _ = try await s.publish(try package(pdfA), options: CommunityPublishOptions(visibility: v, groupKey: "g"))
-                XCTFail("durfte nicht veroeffentlichen")
-            } catch { XCTAssertEqual(error as? CommunityServiceError, .visibilityUnsupported) }
-        }
+        do {
+            _ = try await service(t).publish(try package(pdfA), options: CommunityPublishOptions(communityKey: "k"))
+            XCTFail("an die PDF gebundenes Paket darf nicht in die Community")
+        } catch { XCTAssertEqual(error as? CommunityServiceError, .visibilityUnsupported) }
         XCTAssertEqual(t.calls, [])
-        let groups = try await s.studyGroups()
-        XCTAssertEqual(groups, [])
     }
 
-    func testUnknownPDFClaimsOnceAndRetries() async throws {
-        let t = FakeTransport { key, n in
-            if key.hasPrefix("GET"), n == 1 { throw notOwned }
-            return .object(["solutions": .array([])])
-        }
-        let list = try await service(t).findMatching(fingerprint: pdfA.uppercased())
-        XCTAssertEqual(list, [])
-        XCTAssertEqual(t.calls, ["GET /solutions?fingerprint=\(pdfA)", "POST /claims", "GET /solutions?fingerprint=\(pdfA)"])
-    }
-
-    func testStillUnknownOrNothingToClaimIsAnError() async throws {
+    func testCommunitiesClaimCoursesAndMergeTheServiceState() async throws {
+        let course = CommunitySpace.course(university: "luh", id: "kurs-1", title: "Analysis")
         let t = FakeTransport { key, _ in
-            if key.hasPrefix("GET") { throw notOwned }
-            return .null
+            guard key == "GET /communities" else { return .null }
+            return .object(["communities": .array([.object(["community_key": .string(course.key), "joined": .bool(true), "members": 3, "solutions": 2])])])
         }
-        do { _ = try await service(t).findMatching(fingerprint: pdfA); XCTFail() } catch {
-            XCTAssertEqual(error as? CommunityServiceError, .fileNotOwned)
-        }
-        XCTAssertEqual(t.calls.count, 3)
-        let empty = FakeTransport { _, _ in throw notOwned }
-        do { _ = try await service(empty, local: []).findMatching(fingerprint: pdfA); XCTFail() } catch {
-            XCTAssertEqual(error as? CommunityServiceError, .fileNotOwned)
-        }
-        XCTAssertEqual(empty.calls.count, 1)
+        let list = try await service(t, courses: [course]).communities()
+        XCTAssertEqual(t.calls, ["POST /claims", "GET /communities"])
+        XCTAssertEqual(list.map(\.name), ["Analysis"])
+        XCTAssertEqual(list.first?.joined, true)
+        XCTAssertEqual(list.first?.members, 3)
+        XCTAssertEqual(list.first?.secret, CommunityKeys.secret(university: "luh", courseID: "kurs-1"))
+    }
+
+    func testNoCommunityYetFindsNothingInsteadOfFailing() async throws {
+        let t = FakeTransport { _, _ in throw AccountError(status: 403, code: "file_not_owned", message: "x", retryAfter: nil) }
+        let list = try await service(t).findMatching(fingerprint: pdfA)
+        XCTAssertEqual(list, [])
     }
 
     func testErrorsAreMapped() {
@@ -92,30 +86,38 @@ final class ServiceCommunityTests: XCTestCase {
         XCTAssertEqual(map(0, "service_unreachable"), .offline)
         XCTAssertEqual(map(401, "unauthenticated"), .accountRequired)
         XCTAssertEqual(map(404, "not_found"), .notFound)
+        XCTAssertEqual(map(404, "group_not_found"), .groupNotFound)
         XCTAssertEqual(map(403, "not_owner"), .notOwner)
+        XCTAssertEqual(map(403, "not_a_member"), .notAMember)
         XCTAssertEqual(map(403, "plan_required"), .server("M"))
-    }
-
-    func testCourseAsksEachFingerprintSkipsForeignPDFButShowsRealErrors() async throws {
-        func row(_ id: String, _ at: String) -> JSONValue {
-            .object(["solution_id": .string(id), "fingerprint": .string(pdfA), "created_at": .string(at), "pseudonym": .string("p"), "mine": .bool(false)])
-        }
-        let ok = FakeTransport { key, _ in
-            if key.contains(pdfB) { throw AccountError(status: 403, code: "file_not_owned", message: "", retryAfter: nil) }
-            return .object(["solutions": .array([row("1", "2026-10-01"), row("2", "2026-10-02")])])
-        }
-        let list = try await service(ok, local: [], course: [pdfA, pdfB, pdfA.uppercased()]).findForCourse(courseKey: "k")
-        XCTAssertEqual(list.map(\.solutionID), ["2", "1"])
-        XCTAssertEqual(ok.calls.count, 2)
-        let bad = FakeTransport { _, _ in throw AccountError(status: 500, code: "http_500", message: "kaputt", retryAfter: nil) }
-        do { _ = try await service(bad, course: [pdfA]).findForCourse(courseKey: "k"); XCTFail() } catch {
-            XCTAssertEqual(error as? CommunityServiceError, .server("kaputt"))
-        }
     }
 
     func testBlockNeedsASeenSolution() async {
         let s = service(FakeTransport { _, _ in .null })
         do { try await s.block(owner: "unbekannt"); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notFound) }
+    }
+
+    func testSecretMatchesTheSharedVectorAndOpensWithoutThePDF() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../../../../packages/shared-contracts/fixtures/solutions/vectors.json")
+        let c = try XCTUnwrap(try JSONValue.parse(Data(contentsOf: url))["community"])
+        let uni = try XCTUnwrap(c["university"]?.string)
+        func hex(_ d: Data) -> String { d.map { String(format: "%02x", $0) }.joined() }
+        XCTAssertEqual(hex(CommunityKeys.secret(university: uni, courseID: try XCTUnwrap(c["course_id"]?.string))), c["secret_hex"]?.string)
+        XCTAssertEqual(hex(CommunityKeys.secret(university: uni, groupCode: try XCTUnwrap(c["code"]?.string))), c["group_secret_hex"]?.string)
+
+        let pack = try SolutionPackage.decode(try XCTUnwrap(c["package_text"]?.string).data(using: .utf8)!)
+        XCTAssertTrue(pack.header.isCommunityPackage)
+        XCTAssertEqual(String(decoding: pack.encoded(), as: UTF8.self), c["package_text"]?.string, "Kopf bleibt byte-gleich")
+
+        let cipher = TestHMACCipher(), secret = CommunityKeys.secret(university: "luh", courseID: "kurs-1")
+        let content = SolutionContent(solutionID: UUID().uuidString.lowercased(), createdAt: "2026-10-26T10:00:00Z", title: "Blatt", displayName: "",
+                                      fingerprint: pdfA, pdfPageCount: 1,
+                                      pages: [SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 595, height: 842, rotation: 0, extraRotation: 0,
+                                                           objects: [.object(["type": "stroke", "points": .array([1, 2, 3, 4])])])])
+        let sealed = try SolutionPackage.seal(content, communitySecret: secret, cipher: cipher)
+        XCTAssertEqual(try sealed.open(communitySecret: secret, cipher: cipher), content)
+        XCTAssertThrowsError(try sealed.open(communitySecret: CommunityKeys.secret(university: "luh", courseID: "anderer"), cipher: cipher))
+        XCTAssertThrowsError(try sealed.open(originalPDF: Data("x".utf8), cipher: cipher), "Community-Paket haengt nicht an der PDF")
     }
 }
 
@@ -140,62 +142,81 @@ private final class MemoryTokens: AccountTokenStore, @unchecked Sendable {
 }
 
 final class ServiceCommunityLiveTests: XCTestCase {
-    private func member(plan: String = "plus", pdfs: [String]) async throws -> ServiceCommunityService {
+    private func member(plan: String = "plus", course: CommunitySpace, pdfs: [String] = []) async throws -> ServiceCommunityService {
         guard let base = ProcessInfo.processInfo.environment["G2_TEST_SERVICE"] else { throw XCTSkip("G2_TEST_SERVICE fehlt") }
         let r = try await LiveHTTP().send(AIHTTPRequest(method: "POST", url: base + "/__test/account", headers: ["Content-Type": "application/json"],
                                                         body: JSONValue.object(["plan": .string(plan)]).serialized()))
         let token = try XCTUnwrap(try JSONValue.parse(r.body)["token"]?.string)
         let account = StudoraAccount(base: base, http: LiveHTTP(), tokens: MemoryTokens(token), deviceID: "ipad-" + UUID().uuidString, deviceName: "Test")
-        return service(account, local: pdfs, course: pdfs)
+        return service(account, local: pdfs, courses: [course])
     }
 
-    private func randomPDF() -> String { (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased().padding(toLength: 64, withPad: "0", startingAt: 0) }
-
-    func testPublishFindDownloadReportBlockWithdraw() async throws {
-        let pdf = randomPDF()
-        let author = try await member(pdfs: [pdf]), reader = try await member(plan: "free", pdfs: [pdf])
-        let p = try package(pdf)
-        let pub = try await author.publish(p, options: CommunityPublishOptions(title: "Blatt 1"))
-        XCTAssertEqual(pub.solutionID, p.header.solutionID)
-
-        let found = try await reader.findMatching(fingerprint: pdf)
-        let hit = try XCTUnwrap(found.first)
-        XCTAssertEqual(found.count, 1)
-        XCTAssertEqual(hit.title, "Blatt 1")
-        XCTAssertEqual(hit.displayName, "Mira")
-        XCTAssertFalse(hit.isOwn)
-        let own = try await author.findMatching(fingerprint: pdf)
-        XCTAssertEqual(own.first?.isOwn, true)
-        let loaded = try await reader.download(solutionID: pub.solutionID)
-        XCTAssertEqual(loaded, p)
-
-        do { try await reader.withdraw(solutionID: pub.solutionID); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notOwner) }
-        try await reader.report(solutionID: pub.solutionID, reason: .spam, note: "Test")
-
-        try await reader.block(owner: hit.ownerRecordName)
-        let blocked = try await reader.blockedOwners()
-        XCTAssertEqual(blocked, [hit.ownerRecordName])
-        let hidden = try await reader.findMatching(fingerprint: pdf)
-        XCTAssertEqual(hidden, [])
-        try await reader.unblock(owner: hit.ownerRecordName)
-        let course = try await reader.findForCourse(courseKey: "k")
-        XCTAssertEqual(course.map(\.solutionID), [pub.solutionID])
-
-        try await author.withdraw(solutionID: pub.solutionID)
-        let gone = try await reader.findMatching(fingerprint: pdf)
-        XCTAssertEqual(gone, [])
-        do { _ = try await reader.download(solutionID: pub.solutionID); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notFound) }
+    private func communityPackage(_ fp: String, secret: Data) throws -> SolutionPackage {
+        let content = SolutionContent(solutionID: UUID().uuidString.lowercased(), createdAt: "2026-10-26T10:00:00Z", title: "Blatt", displayName: "Mira",
+                                      fingerprint: fp, pdfPageCount: 1,
+                                      pages: [SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 595, height: 842, rotation: 0, extraRotation: 0,
+                                                           objects: [.object(["type": "stroke", "points": .array([1, 2, 3, 4])])])])
+        return try SolutionPackage.seal(content, communitySecret: secret, cipher: TestHMACCipher())
     }
 
-    func testFreeCannotPublishAndForeignPDFStaysClosed() async throws {
-        let pdf = randomPDF()
-        let free = try await member(plan: "free", pdfs: [pdf])
-        do {
-            _ = try await free.publish(try package(pdf), options: CommunityPublishOptions())
-            XCTFail()
-        } catch { guard case .server = error as? CommunityServiceError else { return XCTFail("\(error)") } }
-        do { _ = try await free.findMatching(fingerprint: randomPDF()); XCTFail() } catch {
-            XCTAssertEqual(error as? CommunityServiceError, .fileNotOwned)
+    private func randomHex() -> String { (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased().padding(toLength: 64, withPad: "0", startingAt: 0) }
+
+    func testCourseCommunityFromJoiningToReadingWithoutThePDF() async throws {
+        let id = UUID().uuidString, pdf = randomHex()
+        let course = CommunitySpace.course(university: "luh", id: id, title: "Analysis")
+        let author = try await member(course: course, pdfs: [pdf]), reader = try await member(plan: "free", course: course)
+        let outsider = try await member(course: .course(university: "luh", id: UUID().uuidString, title: "Anderer"))
+
+        var mine = try await XCTUnwrapAsync(await author.communities().first)
+        XCTAssertFalse(mine.joined)
+        do { _ = try await author.publish(try communityPackage(pdf, secret: try XCTUnwrap(course.secret)), options: CommunityPublishOptions(communityKey: course.key)); XCTFail() } catch {
+            XCTAssertEqual(error as? CommunityServiceError, .notAMember)
         }
+        try await author.join(mine)
+        mine = try await XCTUnwrapAsync(await author.communities().first)
+        XCTAssertEqual(mine.joined, true)
+        let p = try communityPackage(pdf, secret: try XCTUnwrap(course.secret))
+        let pub = try await author.publish(p, options: CommunityPublishOptions(title: "Blatt 1", communityKey: course.key))
+
+        let seat = try await XCTUnwrapAsync(await reader.communities().first)
+        try await reader.join(seat)
+        let joined = try await XCTUnwrapAsync(await reader.communities().first)
+        let hits = try await reader.solutions(in: joined)
+        XCTAssertEqual(hits.map(\.solutionID), [pub.solutionID])
+        XCTAssertEqual(hits.first?.communityKey, course.key)
+        let loaded = try await reader.download(solutionID: pub.solutionID)
+        XCTAssertEqual(try loaded.open(communitySecret: try XCTUnwrap(joined.secret), cipher: TestHMACCipher()).title, "Blatt", "Mitglied ohne PDF liest die Notizen")
+        let byPDF = try await reader.findMatching(fingerprint: pdf)
+        XCTAssertEqual(byPDF.count, 1)
+
+        do { _ = try await outsider.download(solutionID: pub.solutionID); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notFound) }
+        do { _ = try await outsider.solutions(in: course); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notAMember) }
+
+        try await reader.report(solutionID: pub.solutionID, reason: .spam, note: "Test")
+        try await reader.block(owner: try XCTUnwrap(hits.first?.ownerRecordName))
+        let hidden = try await reader.solutions(in: joined)
+        XCTAssertEqual(hidden, [])
+        try await reader.unblock(owner: try XCTUnwrap(hits.first?.ownerRecordName))
+        try await reader.leave(joined)
+        do { _ = try await reader.download(solutionID: pub.solutionID); XCTFail() } catch { XCTAssertEqual(error as? CommunityServiceError, .notFound) }
+        try await author.withdraw(solutionID: pub.solutionID)
     }
+
+    func testStudyGroupWithCode() async throws {
+        let course = CommunitySpace.course(university: "luh", id: UUID().uuidString, title: "Kurs")
+        let a = try await member(course: course), b = try await member(plan: "free", course: course)
+        let g = try await a.createStudyGroup(name: "Mathe-Runde")
+        let joined = try await b.joinStudyGroup(code: g.code)
+        XCTAssertEqual(joined.name, "Mathe-Runde")
+        let spaces = try await b.communities()
+        XCTAssertEqual(spaces.first { $0.kind == .group }?.members, 2)
+        try await b.leaveStudyGroup(code: g.code)
+        let after = try await b.communities()
+        XCTAssertNil(after.first { $0.kind == .group })
+    }
+}
+
+private func XCTUnwrapAsync<T>(_ v: @autoclosure () async throws -> T?) async throws -> T {
+    let x = try await v()
+    return try XCTUnwrap(x)
 }

@@ -17,8 +17,9 @@ import UniFlowCore
 // Moderation macht der Inhaber im CloudKit Dashboard: `withdrawn` setzen, Datensatz `Ban` fuer gesperrte Nutzer.
 
 /// Lerngruppen und Sperrliste (Zwischenspeicher) dieses Containers in seiner Einstellungs-Suite.
-final class CommunityMembership: @unchecked Sendable {
+final class CommunityMembership: CommunityGroupStore, @unchecked Sendable {
     static let groupsKey = "uniflow.community.groups"
+    static let joinedKey = "uniflow.community.joined"
     static let blockedKey = "uniflow.community.blocked"
 
     private let defaults: UserDefaults?
@@ -47,6 +48,15 @@ final class CommunityMembership: @unchecked Sendable {
         lock.withLock {
             defaults?.set(list.map { ["code": $0.code, "name": $0.name, "university": $0.university] }, forKey: Self.groupsKey)
         }
+    }
+
+    /// Beigetretene Kurs-Communities dieses Containers (CloudKit kennt keine Mitgliedschaft: Kenntnis der Kurs-ID)
+    func joinedCourses() -> Set<String> { lock.withLock { Set(defaults?.stringArray(forKey: Self.joinedKey) ?? []) } }
+
+    func setJoined(_ key: String, _ joined: Bool) {
+        var keys = joinedCourses()
+        if joined { keys.insert(key) } else { keys.remove(key) }
+        lock.withLock { defaults?.set(keys.sorted(), forKey: Self.joinedKey) }
     }
 
     func blocked() -> Set<String> { lock.withLock { Set(defaults?.stringArray(forKey: Self.blockedKey) ?? []) } }
@@ -92,15 +102,22 @@ enum CommunityCourses {
         return Array(Set(rows.compactMap { $0["sha"]?.string }).sorted().prefix(ServiceCommunityService.maxClaims))
     }
 
-    /// Fingerabdruecke der Hochschul-PDFs zu einem Kurs-Schluessel (Kurs-ID, Kurstitel oder Modulname)
-    static func fingerprints(courseKey: String, host: LocalBackendHost, university: String) async -> [String] {
+    /// Alle Kurse des Containers als Communities, ohne den Pseudokurs der eigenen Uploads
+    static func spaces(host: LocalBackendHost, university: String) async -> [CommunitySpace] {
         guard let backend = try? await host.backend() else { return [] }
-        let rows = (try? await backend.context.database.withConnection { try $0.rows(syncedPDFs) }) ?? []
-        return rows.filter { r in
-            r["course_id"]?.string.map { CommunityKeys.courseKey(university: university, courseID: $0) } == courseKey
-                || r["title"]?.string.flatMap { CommunityKeys.courseKey(university: university, courseName: $0) } == courseKey
-                || r["module_name"]?.string.flatMap { CommunityKeys.courseKey(university: university, courseName: $0) } == courseKey
-        }.compactMap { $0["sha"]?.string }
+        let rows = (try? await backend.context.database.withConnection { try $0.rows("SELECT id, title FROM courses WHERE id <> '__user__' ORDER BY title") }) ?? []
+        return rows.compactMap { r in
+            guard let id = r["id"]?.string else { return nil }
+            return CommunitySpace.course(university: university, id: id, title: r["title"]?.string ?? id)
+        }
+    }
+
+    /// Lokale Datei zu einem Fingerabdruck, um eine Loesung ueber der eigenen PDF zu zeigen
+    static func localFile(fingerprint: String, host: LocalBackendHost) async -> String? {
+        guard let backend = try? await host.backend() else { return nil }
+        return (try? await backend.context.database.withConnection {
+            try $0.scalar("SELECT id FROM files WHERE content_sha256=? AND deleted_at IS NULL AND local_path IS NOT NULL LIMIT 1", [.text(fingerprint)])?.string
+        }) ?? nil
     }
 
     /// Kurs-Schluessel einer Datei: aus der Kurs-ID (Abgleich) oder, bei eigenen Dokumenten, aus dem Namen des
@@ -183,16 +200,19 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
     let membership: CommunityMembership
     /// Kurs-Schluessel des Suchenden (`CommunityCourses.courseKeys`)
     private let courseKeys: @Sendable () async -> Set<String>
+    /// Kurse aus der lokalen Datenbank (`CommunityCourses.spaces`)
+    private let courses: @Sendable () async -> [CommunitySpace]
     private let lock = NSLock()
     private var cachedUser: String?
     private var cachedBans: (owners: Set<String>, at: Date)?
 
     init(cloud: CommunityCloud?, university: UniversityKey, membership: CommunityMembership,
-         courseKeys: @escaping @Sendable () async -> Set<String>) {
+         courseKeys: @escaping @Sendable () async -> Set<String>, courses: @escaping @Sendable () async -> [CommunitySpace] = { [] }) {
         self.cloud = cloud
         self.university = university
         self.membership = membership
         self.courseKeys = courseKeys
+        self.courses = courses
     }
 
     var isConnected: Bool { cloud != nil }
@@ -330,6 +350,20 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         } catch {
             throw Self.serviceError(error)
         }
+    }
+
+    func communities() async throws -> [CommunitySpace] {
+        let joined = membership.joinedCourses()
+        return await courses().map { var s = $0; s.joined = joined.contains(s.key); return s } + membership.groups().map(CommunitySpace.group)
+    }
+
+    func join(_ space: CommunitySpace) async throws { membership.setJoined(space.key, true) }
+    func leave(_ space: CommunitySpace) async throws { membership.setJoined(space.key, false) }
+
+    /// Lerngruppen-Loesungen stehen ebenfalls unter `courseKey`: dieses Feld hat in Production den Such-Index
+    func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary] {
+        guard space.joined else { throw CommunityServiceError.notAMember }
+        return try await findForCourse(courseKey: space.key)
     }
 
     func findForCourse(courseKey: String) async throws -> [CommunitySolutionSummary] {
@@ -498,19 +532,34 @@ final class CommunityMatches {
 }
 
 extension SolutionSharing {
-    /// Veroeffentlichen: Inhalt und Siegel wie beim Teilen als Datei (abseits des Hauptthreads), Kopie unter "Meine
-    /// geteilten Lösungen", dann zum Dienst; danach das Datum merken ("veröffentlicht am …").
+    /// Veroeffentlichen: Inhalt wie beim Teilen als Datei, Kopie unter "Meine geteilten Lösungen" (an die PDF gebunden),
+    /// fuer die Community mit deren Schluessel versiegelt, dann zum Dienst; danach das Datum merken.
     static func publishToCommunity(_ source: SolutionSource, keys: [String], displayName: String, options: CommunityPublishOptions,
-                                   service: CommunityService, library: SolutionLibrary = library) async throws -> CommunityPublication {
+                                   space: CommunitySpace, service: CommunityService, library: SolutionLibrary = library) async throws -> CommunityPublication {
+        guard let secret = space.secret else { throw CommunityServiceError.notAMember }
         let sealed = try await Task.detached(priority: .userInitiated) {
             let built = try SolutionSharing.content(source, keys: keys, displayName: displayName)
-            let sealed = try SolutionSharing.package(built, originalPDF: source.originalPDF)
-            try library.recordShared(sealed, title: source.title)
-            return sealed
+            try library.recordShared(SolutionSharing.package(built, originalPDF: source.originalPDF), title: source.title)
+            return try SolutionPackage.seal(built, communitySecret: secret, cipher: SolutionSharing.cipher)
         }.value
         let publication = try await service.publish(sealed, options: options)
         try library.setPublished(publication.solutionID, at: publication.publishedAt)
         return publication
+    }
+
+    /// Community-Paket mit einem der bekannten Schluessel oeffnen (das Paket nennt seine Community nicht)
+    static func openCommunity(_ package: SolutionPackage, spaces: [CommunitySpace]) throws -> SolutionContent {
+        for secret in spaces.compactMap(\.secret) {
+            if let c = try? package.open(communitySecret: secret, cipher: cipher) { return c }
+        }
+        throw SolutionError.decryptionFailed
+    }
+
+    /// Loesung laden und entschluesseln (fuer den Leser, auch ohne die PDF)
+    static func loadCommunity(_ solutionID: String, service: CommunityService) async throws -> SolutionContent {
+        let package = try await service.download(solutionID: solutionID)
+        let spaces = try await service.communities()
+        return try await Task.detached(priority: .userInitiated) { try openCommunity(package, spaces: spaces) }.value
     }
 
     /// Eigene Veroeffentlichung zurueckziehen (Dienst, dann das Datum loeschen; die Kopie bleibt).
@@ -533,7 +582,14 @@ extension DocumentStore {
     /// "Laden und anzeigen" aus der Community: Paket laden, als Datei ablegen und ueber `importSolution` uebernehmen
     /// (derselbe Weg wie die Datei: fremde Ebene, eigene Notizen unveraendert).
     func importFromCommunity(_ solutionID: String, service: CommunityService, library: SolutionLibrary = SolutionSharing.library) async throws -> SolutionImportResult {
-        let package = try await service.download(solutionID: solutionID)
+        var package = try await service.download(solutionID: solutionID)
+        if package.header.isCommunityPackage {
+            // lokal wieder an die PDF binden: Ebene, Bibliothek und Pruefungen bleiben wie beim Dateiweg
+            let pdf = try Data(contentsOf: originalPDFURL)
+            let spaces = try await service.communities()
+            let content = try SolutionSharing.openCommunity(package, spaces: spaces)
+            package = try SolutionPackage.seal(content, originalPDF: pdf, cipher: SolutionSharing.cipher)
+        }
         let url = try SolutionSharing.writeDownloaded(package)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         return try await importSolution(url, library: library)

@@ -12,12 +12,13 @@ import UniFlowCore
 /// Feste Texte (auch fuer Tests).
 enum CommunityTexts {
     static let copyright = "In der Community erscheinen nur deine eigenen Notizen – kein Originalmaterial deiner Hochschule (Folien, Aufgabenstellungen, Skripte). Mit dem Veröffentlichen bestätigst du, dass alles von dir stammt."
-    static let visibilityModule = "Sichtbar für alle an deiner Hochschule, die denselben Kurs in Stud.IP bzw. Learnweb haben oder ein Modul mit demselben Namen. Wer den Kurs nicht kennt, findet sie nicht – eine Bestätigung der Hochschule gibt es nicht."
+    static let visibilityModule = "Sichtbar für alle an deiner Hochschule, die denselben Kurs in Stud.IP bzw. Learnweb haben. Eine Bestätigung der Hochschule gibt es nicht."
     static let visibilityGroup = "Sichtbar nur für Mitglieder der gewählten Lerngruppe (wer den Beitrittscode kennt)."
     static let visibilityAnonymous = "Sichtbar für alle an deiner Hochschule, die dieselbe PDF haben – ohne Pseudonym."
-    static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Sichtbarkeit und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Öffnen kann die Lösung nur, wer dieselbe PDF hat."
-    static let visibilityAccount = "Sichtbar für alle Studora-Konten an deiner Hochschule, die dieselbe PDF aus ihrem Hochschul-Abgleich haben."
-    static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Fingerabdrücke deiner PDFs aus dem Hochschul-Abgleich. Andere sehen nie deine E-Mail-Adresse. Öffnen kann die Lösung nur, wer dieselbe PDF hat."
+    static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Community und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Lesen können die Lösung die Mitglieder der Community."
+    static let visibilityMembers = "Sichtbar für die Mitglieder dieser Community. Wer dieselbe PDF hat, sieht deine Notizen darüber, alle anderen auf leeren Seiten."
+    static let noCommunity = "Du bist noch in keiner Community. Tritt unter „Community“ dem Kurs bei, dann kannst du hier teilen."
+    static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Schlüssel deiner Kurse und die Fingerabdrücke deiner PDFs. Kurs-IDs und Beitrittscodes bleiben auf dem Gerät. Andere sehen nie deine E-Mail-Adresse. Lesen können die Lösung die Mitglieder der Community."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
     /// Einstellungen und Community-Seite ohne iCloud-Container: ehrlich, mit dem Weg, der bleibt
     static let unavailableHint = "Dieser Build hat keinen iCloud-Container (dafür braucht es das Apple Developer Program). Es wird nichts veröffentlicht und nichts gesucht. Lösungen teilst du weiterhin als verschlüsselte Datei – im Editor unter „Ebenen“."
@@ -29,10 +30,6 @@ enum CommunityTexts {
 
     static func matches(_ n: Int) -> String {
         n == 1 ? "1 Lösung aus der Community zu diesem Blatt" : "\(n) Lösungen aus der Community zu diesem Blatt"
-    }
-
-    static func visibility(_ v: CommunityVisibility, service: CommunityService) -> String {
-        service.isAccountService ? visibilityAccount : visibility(v)
     }
 
     static func privacy(_ service: CommunityService) -> String { service.isAccountService ? privacyAccount : privacy }
@@ -74,6 +71,233 @@ enum CommunityJoinLink {
             return nil
         }
         return CommunityKeys.normalizedGroupCode(url.pathComponents[2])
+    }
+}
+
+// MARK: - Communities (je Kurs und Lerngruppe)
+
+/// Alle Kurse aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen
+struct CommunitySpacesCard: View {
+    private var service: CommunityService { SolutionSharing.community }
+    @State private var spaces: [CommunitySpace]?
+    @State private var error: String?
+    @State private var busy: String?
+    @State private var open: CommunitySpace?
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Deine Communities", icon: "users")
+            Text("Jeder Kurs hat seine eigene Community. Tritt bei, dann siehst und teilst du dort Lösungen.")
+                .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
+            if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+            if let spaces {
+                if spaces.isEmpty { Text("Noch keine Kurse. Gleiche zuerst deine Hochschule ab.").ufFont(13.12).foregroundStyle(UF.muted) }
+                ForEach(spaces) { s in
+                    UFItemRow(s.name, sub: Self.detail(s),
+                              leading: { UFIcon(s.kind == .group ? "users" : "book", size: 18).foregroundStyle(UF.muted) },
+                              trailing: {
+                                  HStack(spacing: 8) {
+                                      if s.joined {
+                                          UFButton("Öffnen", size: .small) { open = s }
+                                          if s.kind == .course { UFButton("Verlassen", size: .small) { change(s, join: false) }.disabled(busy != nil) }
+                                      } else {
+                                          UFButton("Beitreten", icon: "plus", kind: .primary, size: .small) { change(s, join: true) }.disabled(busy != nil)
+                                      }
+                                  }
+                              })
+                }
+            } else if error == nil {
+                ProgressView().controlSize(.small)
+            }
+        }
+        .padding(.bottom, 16)
+        .task { await reload() }
+        .sheet(item: $open) { s in CommunitySpaceSheet(space: s, service: service) { open = nil } }
+    }
+
+    static func detail(_ s: CommunitySpace) -> String {
+        var parts = [s.kind == .group ? "Lerngruppe" : "Kurs"]
+        if let m = s.members { parts.append(m == 1 ? "1 Mitglied" : "\(m) Mitglieder") }
+        if let n = s.solutions { parts.append(n == 1 ? "1 Lösung" : "\(n) Lösungen") }
+        return parts.joined(separator: " · ")
+    }
+
+    private func reload() async {
+        do { spaces = try await service.communities(); error = nil } catch { self.error = CommunityTexts.message(error) }
+    }
+
+    private func change(_ s: CommunitySpace, join: Bool) {
+        busy = s.key
+        Task {
+            defer { busy = nil }
+            do {
+                if join { try await service.join(s) } else { try await service.leave(s) }
+                CommunityMatches.shared.invalidate()
+                await reload()
+            } catch { self.error = CommunityTexts.message(error) }
+        }
+    }
+}
+
+/// Loesungen einer Community; jede laesst sich ansehen, auch ohne die PDF
+struct CommunitySpaceSheet: View {
+    let space: CommunitySpace
+    let service: CommunityService
+    let close: () -> Void
+    @State private var items: [CommunitySolutionSummary]?
+    @State private var error: String?
+    @State private var reading: CommunitySolutionSummary?
+    @State private var reporting: CommunitySolutionSummary?
+    @State private var notice: String?
+
+    var body: some View {
+        NavigationStack {
+            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let notice { Text(notice).ufFont(13.12, 600).foregroundStyle(UF.ok) }
+                    if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+                    if let items {
+                        if items.isEmpty { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
+                        ForEach(items, id: \.solutionID) { s in row(s) }
+                    } else if error == nil { ProgressView().controlSize(.small) }
+                }
+            }
+            .navigationTitle(space.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
+        }
+        .task { await load() }
+        .sheet(item: Binding(get: { reading.map(ReadingItem.init) }, set: { reading = $0?.solution })) { r in
+            CommunityReaderSheet(solution: r.solution, service: service) { reading = nil }
+        }
+        .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
+            if let s = reporting {
+                CommunityReportDialog(solution: s, service: service, done: { m in reporting = nil; notice = m })
+            }
+        }
+    }
+
+    private struct ReadingItem: Identifiable {
+        let solution: CommunitySolutionSummary
+        var id: String { solution.solutionID }
+    }
+
+    private func row(_ s: CommunitySolutionSummary) -> some View {
+        UFItemRow(s.title.isEmpty ? "Lösung" : s.title, sub: "Lösung von \(s.displayName.isEmpty ? "Anonym" : s.displayName) · \(ForeignSolutionLayer.date(s.createdAt))",
+                  leading: { UFIcon("layers", size: 18).foregroundStyle(UF.muted) },
+                  trailing: {
+                      HStack(spacing: 8) {
+                          UFButton("Ansehen", size: .small) { reading = s }
+                          if s.isOwn {
+                              UFButton("Zurückziehen", kind: .danger, size: .small) { withdraw(s) }
+                          } else {
+                              UFButton("Melden", size: .small) { reporting = s }
+                              UFButton("Blockieren", size: .small) { block(s) }
+                          }
+                      }
+                  })
+    }
+
+    private func load() async {
+        do { items = try await service.solutions(in: space); error = nil } catch { self.error = CommunityTexts.message(error) }
+    }
+
+    private func block(_ s: CommunitySolutionSummary) {
+        Task {
+            do {
+                try await service.block(owner: s.ownerRecordName)
+                items?.removeAll { $0.ownerRecordName == s.ownerRecordName }
+                CommunityMatches.shared.invalidate()
+                notice = "Nutzer blockiert."
+            } catch { self.error = CommunityTexts.message(error) }
+        }
+    }
+
+    private func withdraw(_ s: CommunitySolutionSummary) {
+        Task {
+            do {
+                try await SolutionSharing.withdrawFromCommunity(s.solutionID, service: service)
+                items?.removeAll { $0.solutionID == s.solutionID }
+                notice = "Lösung zurückgezogen."
+            } catch { self.error = CommunityTexts.message(error) }
+        }
+    }
+}
+
+/// Leser einer Community-Loesung: Notizen auf leeren Seiten. Hat das Geraet dieselbe PDF, fuehrt der Knopf ins Dokument;
+/// dort liegt die Loesung als Ebene ueber der PDF.
+struct CommunityReaderSheet: View {
+    let solution: CommunitySolutionSummary
+    let service: CommunityService
+    let close: () -> Void
+    @EnvironmentObject private var router: UFRouter
+    @State private var content: SolutionContent?
+    @State private var images: [String: UIImage] = [:]
+    @State private var localFile: String?
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+                    if let localFile {
+                        UFCard {
+                            Text("Du hast dieselbe PDF. Im Dokument liegt die Lösung als Ebene darüber.").ufFont(13.12).foregroundStyle(UF.text2)
+                            UFButton("In meiner PDF ansehen", icon: "layers", kind: .primary, size: .small) {
+                                close()
+                                router.go(.doc(localFile, task: nil, page: nil))
+                            }
+                            .padding(.top, 8)
+                        }
+                    } else if content != nil {
+                        Text("Du hast diese PDF nicht, darum stehen die Notizen auf leeren Seiten.").ufFont(13.12).foregroundStyle(UF.muted)
+                    }
+                    if let content {
+                        ForEach(content.pages, id: \.key) { page in
+                            CommunityReaderPage(page: page, images: images)
+                        }
+                    } else if error == nil { ProgressView().controlSize(.small) }
+                }
+            }
+            .navigationTitle(solution.title.isEmpty ? "Lösung" : solution.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
+        }
+        .task { await load() }
+    }
+
+    private func load() async {
+        do {
+            let c = try await SolutionSharing.loadCommunity(solution.solutionID, service: service)
+            images = c.images.compactMapValues { UIImage(data: $0.data) }
+            content = c
+            if let host = ActiveContainer.current?.host { localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host) }
+        } catch { self.error = CommunityTexts.message(error) }
+    }
+}
+
+private struct CommunityReaderPage: View {
+    let page: SolutionPage
+    let images: [String: UIImage]
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFit().overlay(Rectangle().stroke(UF.line))
+                    .accessibilityLabel("Seite mit \(page.objects.count) Notizobjekten")
+            } else { ProgressView().controlSize(.small) }
+        }
+        .task(id: page.key) {
+            let page = self.page, images = self.images
+            image = await Task.detached(priority: .utility) { ImageBox(SolutionPreview.image(page, images: images, width: 860)) }.value.image
+        }
+    }
+
+    private struct ImageBox: @unchecked Sendable {
+        let image: UIImage
+        init(_ i: UIImage) { image = i }
     }
 }
 
@@ -432,44 +656,42 @@ struct CommunitySettingsCard: View {
                                 toast.show("Pseudonym gespeichert")
                             }
                         }
-                        Text(service.isAccountService ? "Erscheint bei Lösungen, die du veröffentlichst. Nie dein echter Name." : "Erscheint bei Lösungen, die du mit Sichtbarkeit „Modul“ oder „Lerngruppe“ veröffentlichst. Nie dein echter Name.")
+                        Text("Erscheint bei Lösungen, die du veröffentlichst. Nie dein echter Name.")
                             .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
                     } else {
                         shareHint(CommunityTexts.pseudonymPlusHint)
                     }
 
-                    if !service.isAccountService {
-                        UFCardHead("Lerngruppen", icon: "users").padding(.top, 16)
-                        if groups.isEmpty {
-                            Text("Du bist in keiner Lerngruppe. Lege eine an und gib den Code weiter, oder tritt mit einem Code bei.")
-                                .ufFont(13.12).foregroundStyle(UF.muted)
-                        }
-                        ForEach(groups, id: \.code) { g in
-                            UFItemRow(g.name, sub: "Code \(g.code)",
-                                      leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
-                                      trailing: {
-                                          HStack(spacing: 8) {
-                                              UFButton("Code & QR", icon: "grid", size: .small) { showingCode = g }
-                                              UFButton("Verlassen", kind: .danger, size: .small) { leaving = g }
-                                          }
-                                      })
-                        }
-                        UFFlexWrap(gap: 9.6) {
-                            if canShare {
-                                HStack(spacing: 8) {
-                                    UFTextInput("Name der neuen Lerngruppe", text: $newGroupName).frame(width: 220)
-                                    UFButton("Anlegen", icon: "plus", size: .small) { create() }.disabled(busy || !service.isConnected)
-                                }
-                            }
-                            HStack(spacing: 8) {
-                                UFTextInput("Beitrittscode", text: $joinCode).frame(width: 160)
-                                    .textInputAutocapitalization(.characters).autocorrectionDisabled()
-                                UFButton("Beitreten", icon: "log-out", size: .small) { join() }.disabled(busy || !service.isConnected)
-                            }
-                        }
-                        .padding(.top, 8)
-                        if !canShare { shareHint(CommunityTexts.createGroupPlusHint).padding(.top, 8) }
+                    UFCardHead("Lerngruppen", icon: "users").padding(.top, 16)
+                    if groups.isEmpty {
+                        Text("Du bist in keiner Lerngruppe. Lege eine an und gib den Code weiter, oder tritt mit einem Code bei.")
+                            .ufFont(13.12).foregroundStyle(UF.muted)
                     }
+                    ForEach(groups, id: \.code) { g in
+                        UFItemRow(g.name, sub: "Code \(g.code)",
+                                  leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
+                                  trailing: {
+                                      HStack(spacing: 8) {
+                                          UFButton("Code & QR", icon: "grid", size: .small) { showingCode = g }
+                                          UFButton("Verlassen", kind: .danger, size: .small) { leaving = g }
+                                      }
+                                  })
+                    }
+                    UFFlexWrap(gap: 9.6) {
+                        if canShare {
+                            HStack(spacing: 8) {
+                                UFTextInput("Name der neuen Lerngruppe", text: $newGroupName).frame(width: 220)
+                                UFButton("Anlegen", icon: "plus", size: .small) { create() }.disabled(busy || !service.isConnected)
+                            }
+                        }
+                        HStack(spacing: 8) {
+                            UFTextInput("Beitrittscode", text: $joinCode).frame(width: 160)
+                                .textInputAutocapitalization(.characters).autocorrectionDisabled()
+                            UFButton("Beitreten", icon: "log-out", size: .small) { join() }.disabled(busy || !service.isConnected)
+                        }
+                    }
+                    .padding(.top, 8)
+                    if !canShare { shareHint(CommunityTexts.createGroupPlusHint).padding(.top, 8) }
 
                     UFCardHead("Sperrliste", icon: "alert").padding(.top, 16)
                     if blocked.isEmpty {

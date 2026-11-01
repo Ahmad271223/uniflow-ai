@@ -55,6 +55,21 @@ public enum CommunityKeys {
         SolutionSHA256.hex(Data(("uniflow.community.group.v1\u{0}" + university + "\u{0}" + (normalizedGroupCode(code) ?? code)).utf8))
     }
 
+    /// Schluesselmaterial eines Kurses (Community-Pakete). Bewusst getrennt vom Kurs-Schluessel: den kennt der Dienst,
+    /// das hier nur, wer die Kurs-ID kennt.
+    public static func secret(university: String, courseID: String) -> Data {
+        secret("course", university, courseID)
+    }
+
+    /// Schluesselmaterial einer Lerngruppe aus dem Beitrittscode
+    public static func secret(university: String, groupCode: String) -> Data {
+        secret("group", university, normalizedGroupCode(groupCode) ?? groupCode)
+    }
+
+    private static func secret(_ scope: String, _ university: String, _ value: String) -> Data {
+        Data(SolutionSHA256.hash(Data(("uniflow.community.secret.v1\u{0}" + scope + "\u{0}" + university + "\u{0}" + value).utf8)))
+    }
+
     public static let groupCodeLength = 8
     /// ohne 0/O und 1/I, damit sich der Code vorlesen und abtippen laesst
     public static let groupCodeAlphabet: [Character] = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")

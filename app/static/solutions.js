@@ -98,6 +98,11 @@ export async function sha256Hex(bytes) {
 export function randomBytes(n) { const u = new Uint8Array(n); globalThis.crypto.getRandomValues(u); return u; }
 export const keyInfo = id => utf8(`${FORMAT}/v${FORMAT_VERSION}|${String(id).toLowerCase()}`);
 
+/** Schluesselmaterial einer Community (1.11.2026): `scope` course (Kurs-ID) oder group (normalisierter Code). */
+export async function communitySecret(scope, university, value) {
+  return new Uint8Array(await subtle().digest("SHA-256", utf8(`uniflow.community.secret.v1\0${scope}\0${university}\0${value}`)));
+}
+
 async function aesKey(pdfBytes, salt, info) {
   const base = await subtle().importKey("raw", u8of(pdfBytes), "HKDF", false, ["deriveKey"]);
   return subtle().deriveKey({ name: "HKDF", hash: "SHA-256", salt, info }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
@@ -226,7 +231,7 @@ export function decodePackage(pkg) {
   const pages = exactInt(h.contents?.pages), images = exactInt(h.contents?.images), missing = exactInt(h.contents?.missingImages);
   if (pages === null || pages < 1 || pages > LIMITS.maxPages || images === null || images < 0 || images > LIMITS.maxImages || missing === null || missing < 0 || missing > LIMITS.maxObjects) fail("invalidHeader", "Inhaltsangaben");
   const e = h.encryption;
-  if (e?.cipher !== "AES-256-GCM" || e?.kdf !== "HKDF-SHA256" || e?.keyMaterial !== "original-pdf-bytes") fail("invalidHeader", "Verfahren");
+  if (e?.cipher !== "AES-256-GCM" || e?.kdf !== "HKDF-SHA256" || !["original-pdf-bytes", "community-secret"].includes(e?.keyMaterial)) fail("invalidHeader", "Verfahren");
   const salt = b64decode(e.salt); if (!salt || salt.length !== 32) fail("invalidHeader", "Salz");
   const nonce = b64decode(e.nonce); if (!nonce || nonce.length !== 12) fail("invalidHeader", "Nonce");
   const size = exactInt(e.plaintextBytes); if (size === null || size < 1 || size > LIMITS.maxPlaintextBytes) fail("invalidHeader", "Größe");
@@ -240,15 +245,16 @@ export function decodePackage(pkg) {
 }
 
 /** Inhalt mit der Original-PDF verschluesseln (SolutionPackage.seal). `salt`/`nonce` nur fuer Testvektoren. */
-export async function seal(content, pdfBytes, { salt, nonce } = {}) {
-  if (await sha256Hex(pdfBytes) !== content.document.sha256) fail("fingerprintMismatch");
+export async function seal(content, pdfBytes, { salt, nonce, secret } = {}) {
+  if (!secret && await sha256Hex(pdfBytes) !== content.document.sha256) fail("fingerprintMismatch");
   const checked = validateContent(content);
   if (canonical(checked) !== canonical(content)) fail("invalidContent", "nicht verlustfrei");
   const plaintext = utf8(canonical(content));
   if (plaintext.length > LIMITS.maxPlaintextBytes) fail("tooLarge");
   salt = salt || randomBytes(32); nonce = nonce || randomBytes(12);
   const header = headerJSON(content, salt, nonce, plaintext.length);
-  const key = await aesKey(pdfBytes, salt, keyInfo(header.solutionId));
+  if (secret) header.encryption.keyMaterial = "community-secret";
+  const key = await aesKey(secret || pdfBytes, salt, keyInfo(header.solutionId));
   const ct = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv: nonce, additionalData: aadBytes(header), tagLength: 128 }, key, plaintext));
   if (ct.length !== plaintext.length + TAG_BYTES) fail("invalidContent", "Verschlüsselung");
   return { format: FORMAT, formatVersion: FORMAT_VERSION, header, ciphertext: b64encode(ct) };
@@ -256,12 +262,13 @@ export async function seal(content, pdfBytes, { salt, nonce } = {}) {
 export const encodePackage = pkg => canonical(pkg);
 
 /** Mit der eigenen PDF entschluesseln und pruefen (SolutionPackage.open). Fingerabdruck falsch: gar nicht erst. */
-export async function openPackage(pkg, pdfBytes, fingerprint = null) {
+export async function openPackage(pkg, pdfBytes, fingerprint = null, secret = null) {
   const { header, sealed, salt, nonce } = decodePackage(pkg);
-  if ((fingerprint || await sha256Hex(pdfBytes)) !== header.document.sha256) fail("fingerprintMismatch");
+  const community = header.encryption.keyMaterial === "community-secret";
+  if (community ? !secret : (fingerprint || await sha256Hex(pdfBytes)) !== header.document.sha256) fail(community ? "decryptionFailed" : "fingerprintMismatch");
   let plain;
   try {
-    const key = await aesKey(pdfBytes, salt, keyInfo(header.solutionId));
+    const key = await aesKey(community ? secret : pdfBytes, salt, keyInfo(header.solutionId));
     plain = new Uint8Array(await subtle().decrypt({ name: "AES-GCM", iv: nonce, additionalData: aadBytes(header), tagLength: 128 }, key, sealed));
   } catch { fail("decryptionFailed"); }
   if (plain.length !== header.encryption.plaintextBytes) fail("invalidContent", "Größe");

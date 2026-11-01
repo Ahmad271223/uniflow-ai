@@ -107,10 +107,19 @@ def render() -> str:
         {"name": "andere PDF", "pdf_of": 1, "package": c1["package"], "error": "fingerprintMismatch"},
         {"name": "unbekanntes Feld im Kopf", "pdf_of": 1, "package": extra, "error": "invalidHeader"},
     ]
+    secret = sf.community_secret("course", "luh", "kurs-beispiel")
+    group_secret = sf.community_secret("group", "luh", "ABCDEFGH")
+    content = content_anon(hashlib.sha256(pdf_b).hexdigest())
+    pkg = sf.seal(content, None, b"\x11" * 32, b"\x22" * 12, secret)
+    assert sf.open_package(pkg, secret=secret) == content
+    community = {"university": "luh", "course_id": "kurs-beispiel", "code": "ABCDEFGH", "secret_hex": secret.hex(), "group_secret_hex": group_secret.hex(),
+                 "salt": base64.b64encode(b"\x11" * 32).decode(), "nonce": base64.b64encode(b"\x22" * 12).decode(),
+                 "plaintext": sf.canonical(content), "content": content, "package": pkg, "package_text": sf.canonical(pkg)}
     data = {"_hinweis": "Erzeugt mit tools/gen-solution-vectors.py (Referenz app/solution_format.py); nicht von Hand aendern. "
                         "Pruefen: tests/test_solution_vectors.py (Python), tests/js/solutions.test.mjs (Browser), "
                         "Swift: SolutionPackage.open/seal mit festem Salz und Nonce.",
-            "format": sf.FORMAT, "formatVersion": sf.FORMAT_VERSION, "cases": [c1, c2], "negative": negative}
+            "format": sf.FORMAT, "formatVersion": sf.FORMAT_VERSION, "cases": [c1, c2], "negative": negative,
+            "community": community}
     return json.dumps(data, ensure_ascii=False, indent=1) + "\n"
 
 

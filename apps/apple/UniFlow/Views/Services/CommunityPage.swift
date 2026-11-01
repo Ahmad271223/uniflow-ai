@@ -32,18 +32,10 @@ struct CommunityPage: View {
 
     /// Mit Dienst: wo die Community in der App steckt (sie lebt im Dokument und im Modul, nicht auf dieser Seite)
     static let howItWorks: [(icon: String, text: String)] = [
-        ("layers", "Im Dokument unter „Ebenen“: „n Lösungen aus der Community zu diesem Blatt“ – laden und als eigene, nicht bearbeitbare Ebene über deiner PDF ansehen."),
-        ("book", "Im Modul unter „Community“: alle veröffentlichten Lösungen zu den Dateien des Moduls, nach Lehrwoche."),
-        ("users", "Ab \(UFPlan.plus.name) im Editor „Lösung teilen …“ → „In der Community veröffentlichen“: nur deine eigenen Notizen, sichtbar für dein Modul, deine Lerngruppe oder anonym an deiner Hochschule."),
+        ("users", "Jeder Kurs hat eine eigene Community. Tritt unten bei, dann siehst du dort die Lösungen der anderen."),
+        ("layers", "Hast du dieselbe PDF, liegt eine Lösung im Dokument unter „Ebenen“ über deiner PDF. Sonst liest du sie auf leeren Seiten."),
+        ("book", "Ab \(UFPlan.plus.name) im Editor „Lösung teilen …“ → „In der Community veröffentlichen“: nur deine eigenen Notizen, nur für die Mitglieder der gewählten Community."),
     ]
-
-    /// Am Studora-Konto gibt es keine Sichtbarkeit: Dokument und Modul bleiben, das Veroeffentlichen steht anders da
-    static func howItWorks(account: Bool) -> [(icon: String, text: String)] {
-        guard account else { return howItWorks }
-        var rows = howItWorks
-        rows[2].text = "Ab \(UFPlan.plus.name) im Editor „Lösung teilen …“ → „In der Community veröffentlichen“: nur deine eigenen Notizen. \(CommunityTexts.visibilityAccount)"
-        return rows
-    }
 
     var body: some View {
         let mode = UFDataMode.current(api: session.api, studip: studip, demo: demo)
@@ -67,7 +59,7 @@ struct CommunityPage: View {
                     UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }
                 }
                 VStack(alignment: .leading, spacing: 9.6) {
-                    ForEach(Array(Self.howItWorks(account: SolutionSharing.community.isAccountService).enumerated()), id: \.offset) { row in
+                    ForEach(Array(Self.howItWorks.enumerated()), id: \.offset) { row in
                         HStack(alignment: .top, spacing: 10) {
                             UFIcon(row.element.icon, size: 18).foregroundStyle(UF.accentText).padding(.top, 1)
                             Text(row.element.text).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
@@ -78,6 +70,7 @@ struct CommunityPage: View {
             }
             .padding(.bottom, 16)
         }
+        CommunitySpacesCard()
         CommunitySettingsCard()                                              // Pseudonym, Lerngruppen, Sperrliste
     }
 

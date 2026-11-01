@@ -16,6 +16,13 @@ public protocol CommunityService: Sendable {
     var isConnected: Bool { get }
     /// Studora-Dienst (G4): ein Konto, keine Sichtbarkeit und keine Lerngruppen, sichtbar fuer alle mit derselben PDF
     var isAccountService: Bool { get }
+    /// Alle Kurse aus dem eigenen Abgleich und die eigenen Lerngruppen, je mit `joined`
+    func communities() async throws -> [CommunitySpace]
+    /// Kurs-Community beitreten (Lerngruppen ueber `joinStudyGroup`) und wieder verlassen
+    func join(_ space: CommunitySpace) async throws
+    func leave(_ space: CommunitySpace) async throws
+    /// Loesungen einer Community, nur fuer Mitglieder; neueste bzw. meistgelikte zuerst
+    func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary]
     /// Paket veroeffentlichen; Ergebnis ist die Kennung beim Dienst.
     func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication
     /// Veroeffentlichte Loesungen zu einer Original-PDF (Fingerabdruck dient nur der Zuordnung), schon gefiltert
@@ -51,6 +58,10 @@ extension CommunityService {
         try await publish(package, options: CommunityPublishOptions())
     }
 
+    public func communities() async throws -> [CommunitySpace] { throw CommunityServiceError.notConnected }
+    public func join(_ space: CommunitySpace) async throws { throw CommunityServiceError.notConnected }
+    public func leave(_ space: CommunitySpace) async throws { throw CommunityServiceError.notConnected }
+    public func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary] { throw CommunityServiceError.notConnected }
     public func findForCourse(courseKey: String) async throws -> [CommunitySolutionSummary] { throw CommunityServiceError.notConnected }
     public func block(owner: String) async throws { throw CommunityServiceError.notConnected }
     public func unblock(owner: String) async throws { throw CommunityServiceError.notConnected }
@@ -59,6 +70,49 @@ extension CommunityService {
     public func joinStudyGroup(code: String) async throws -> CommunityStudyGroup { throw CommunityServiceError.notConnected }
     public func leaveStudyGroup(code: String) async throws { throw CommunityServiceError.notConnected }
     public func studyGroups() async throws -> [CommunityStudyGroup] { throw CommunityServiceError.notConnected }
+}
+
+/// Eine Community: jeder Kurs aus dem eigenen Abgleich oder eine Lerngruppe. `secret` entsteht auf dem Geraet aus
+/// Kurs-ID bzw. Code und oeffnet die Pakete der Community auch ohne die PDF; nil, wenn dieses Geraet ihn nicht kennt.
+public struct CommunitySpace: Equatable, Sendable, Identifiable, Hashable {
+    public enum Kind: String, Sendable { case course, group }
+
+    public var key: String
+    public var kind: Kind
+    public var name: String
+    public var joined: Bool
+    /// nil: der Dienst kennt die Zahl nicht (CloudKit)
+    public var members: Int?
+    public var solutions: Int?
+    public var secret: Data?
+    /// Beitrittscode einer Lerngruppe
+    public var code: String?
+
+    public var id: String { key }
+
+    public init(key: String, kind: Kind, name: String, joined: Bool = false, members: Int? = nil, solutions: Int? = nil,
+                secret: Data? = nil, code: String? = nil) {
+        self.key = key
+        self.kind = kind
+        self.name = name
+        self.joined = joined
+        self.members = members
+        self.solutions = solutions
+        self.secret = secret
+        self.code = code
+    }
+
+    /// Community eines Kurses aus der lokalen Datenbank
+    public static func course(university: String, id: String, title: String) -> CommunitySpace {
+        CommunitySpace(key: CommunityKeys.courseKey(university: university, courseID: id), kind: .course, name: title,
+                       secret: CommunityKeys.secret(university: university, courseID: id))
+    }
+
+    /// Community einer Lerngruppe
+    public static func group(_ g: CommunityStudyGroup) -> CommunitySpace {
+        CommunitySpace(key: g.groupKey, kind: .group, name: g.name, joined: true,
+                       secret: CommunityKeys.secret(university: g.university, groupCode: g.code), code: g.code)
+    }
 }
 
 /// Wer eine veroeffentlichte Loesung sehen darf (docs/LOESUNGEN-TEILEN.md, Abschnitt 7).
@@ -92,14 +146,17 @@ public struct CommunityPublishOptions: Equatable, Sendable {
     public var title: String
     /// Lehrwoche aus der lokalen Einordnung (0 = unbekannt), fuer die Kursansicht nach Woche
     public var week: Int
+    /// Community, in der die Loesung erscheint (Pflicht am Studora-Dienst; `SolutionPackage.seal(communitySecret:)`)
+    public var communityKey: String?
 
     public init(visibility: CommunityVisibility = .module, courseKey: String? = nil, groupKey: String? = nil,
-                title: String = "", week: Int = 0) {
+                title: String = "", week: Int = 0, communityKey: String? = nil) {
         self.visibility = visibility
         self.courseKey = courseKey
         self.groupKey = groupKey
         self.title = title
         self.week = week
+        self.communityKey = communityKey
     }
 }
 
@@ -129,10 +186,11 @@ public struct CommunitySolutionSummary: Equatable, Sendable {
     public var ownerRecordName: String
     /// eigene Veroeffentlichung
     public var isOwn: Bool
+    public var communityKey: String?
 
     public init(solutionID: String, fingerprint: String, displayName: String, createdAt: String, pageCount: Int,
                 title: String = "", visibility: CommunityVisibility = .module, week: Int = 0,
-                ownerRecordName: String = "", isOwn: Bool = false) {
+                ownerRecordName: String = "", isOwn: Bool = false, communityKey: String? = nil) {
         self.solutionID = solutionID
         self.fingerprint = fingerprint
         self.displayName = displayName
@@ -143,6 +201,7 @@ public struct CommunitySolutionSummary: Equatable, Sendable {
         self.week = week
         self.ownerRecordName = ownerRecordName
         self.isOwn = isOwn
+        self.communityKey = communityKey
     }
 
     public init(listing l: CommunityListing, isOwn: Bool) {
@@ -204,6 +263,8 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     case accountRequired
     /// PDF nicht aus dem eigenen Hochschul-Abgleich
     case fileNotOwned
+    /// Community noch nicht beigetreten
+    case notAMember
     /// Sichtbarkeit oder Lerngruppe, die der Studora-Dienst nicht kennt
     case visibilityUnsupported
     case offline
@@ -225,8 +286,9 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .unavailable: return "Die Community ist in diesem Build nicht verfügbar (kein iCloud-Container)."
         case .notSignedIn: return "Melde dich auf diesem iPad bei iCloud an (Einstellungen → Apple-ID), um die Community zu nutzen."
         case .accountRequired: return "Melde dich unter Einstellungen wieder bei deinem Studora-Konto an, um die Community zu nutzen."
+        case .notAMember: return "Tritt zuerst dieser Community bei."
         case .fileNotOwned: return "Lösungen gibt es nur für PDFs aus deinem Hochschul-Abgleich."
-        case .visibilityUnsupported: return "Lerngruppen gibt es mit dem Studora-Konto noch nicht. Lösungen sieht, wer dieselbe PDF hat."
+        case .visibilityUnsupported: return "Wähle eine Community aus, in der du Mitglied bist."
         case .offline: return "Keine Verbindung zum Community-Dienst. Prüfe dein Netz und versuche es erneut."
         case .quota: return "Das Kontingent des Community-Dienstes ist erschöpft. Bitte später erneut versuchen."
         case .notOwner: return "Nur eigene Veröffentlichungen lassen sich zurückziehen."

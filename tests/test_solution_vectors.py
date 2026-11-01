@@ -39,6 +39,21 @@ def test_open_reseal_and_reject():
             sf.open_package(n["package"], pdf)
 
 
+def test_community_package_opens_with_the_secret_without_the_pdf():
+    from cryptography.exceptions import InvalidTag
+    from app import community, solution_format as sf
+    c = json.loads(FIX.read_text(encoding="utf-8"))["community"]
+    secret = sf.community_secret("course", c["university"], c["course_id"])
+    assert secret.hex() == c["secret_hex"]
+    assert sf.open_package(c["package"], secret=secret) == c["content"]
+    assert sf.canonical(sf.seal(c["content"], None, base64.b64decode(c["salt"]), base64.b64decode(c["nonce"]), secret)) == c["package_text"]
+    with pytest.raises(InvalidTag):
+        sf.open_package(c["package"], secret=sf.community_secret("course", c["university"], "anderer-kurs"))
+    with pytest.raises(ValueError):
+        sf.open_package(c["package"], pdf=b"%PDF-1.7")
+    assert community.validate_package(c["package"])["key_material"] == "community-secret"
+
+
 def test_service_accepts_real_packages():
     from app import community
     v = json.loads(FIX.read_text(encoding="utf-8"))

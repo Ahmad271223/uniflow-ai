@@ -33,6 +33,19 @@ for (const n of V.negative) {
   });
 }
 
+test("Community-Paket: mit dem Schluessel der Community, ohne die PDF", async () => {
+  const c = V.community;
+  const secret = await S.communitySecret("course", c.university, c.course_id);
+  assert.equal(Buffer.from(secret).toString("hex"), c.secret_hex);
+  assert.equal(Buffer.from(await S.communitySecret("group", c.university, c.code)).toString("hex"), c.group_secret_hex);
+  assert.equal(S.canonical(await S.openPackage(c.package, null, null, secret)), c.plaintext);
+  const pkg = await S.seal(c.content, null, { salt: bytes(c.salt), nonce: bytes(c.nonce), secret });
+  assert.equal(S.encodePackage(pkg), c.package_text);
+  await assert.rejects(S.openPackage(c.package, null), e => e.code === "decryptionFailed");
+  const other = await S.communitySecret("course", c.university, "anderer-kurs");
+  await assert.rejects(S.openPackage(c.package, null, null, other), e => e.code === "decryptionFailed");
+});
+
 test("Zahlen wie Swift (JSONValue.format)", () => {
   const cases = [[0, "0"], [-0, "0"], [595, "595"], [595.28, "595.28"], [0.25, "0.25"], [1e-5, "1e-05"], [1.5e-7, "1.5e-07"],
                  [0.0001, "0.0001"], [1234.5678, "1234.5678"], [-12.5, "-12.5"], [1e16, "1e+16"], [123456789012345.6, "123456789012345.6"]];
