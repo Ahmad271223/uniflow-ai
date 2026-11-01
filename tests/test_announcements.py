@@ -87,7 +87,7 @@ def test_calendar_dashboard_and_api_show_notices(app, ann_db, monkeypatch):
 def test_web_shows_notices():
     from pathlib import Path
     st = Path(__file__).resolve().parents[1] / "app" / "static"
-    plan, tt, app_js, core = ((st / f).read_text(encoding="utf-8") for f in ("views-plan.js", "views-tt.js", "app.js", "core.js"))
+    plan, tt, app_js, core = ((st / f).read_text(encoding="utf-8") for f in ("views-plan.js", "views-tt.js", "views-home.js", "core.js"))
     assert plan.count("noteChips(") >= 3 and "noteChips(d, true)" in tt and "Ankündigungen</h2>" in app_js
     assert "safeUrl(n.url)" in core and "esc(n.snippet)" in core
 

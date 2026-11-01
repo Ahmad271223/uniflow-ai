@@ -1,6 +1,6 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
 import { renderWeeklyBox } from "./views-weekly.js?v=1";
-import { installCard, bindInstallBanner } from "./pwa.js?v=2";
+import { installCard, bindInstallBanner } from "./pwa.js?v=3";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=32";
 
 // ================================================================ MODULE

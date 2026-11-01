@@ -593,3 +593,80 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
   .wt-facts { grid-template-columns: minmax(0, 1fr); gap: .2rem; }
   .wt-facts > span { padding-top: .5rem; }
 }
+
+/* === Übersicht (Design 2) === */
+/* Startseite (views-home.js): beantwortet "Was mache ich heute?". Flach: keine Schatten, keine Verläufe; Nebentext in
+   --text-2 (nicht --muted), damit der Kontrast auch unabhängig von den globalen Variablen >= 4,5:1 bleibt. */
+.ov .card, .ov .btn, .ov .pkg-card, .ov .pwa-hint { box-shadow: none; }
+.ov .muted, .ov .item .sub, .ov .ann-item .s, .ov .week-strip .d .m, .ov-t2 { color: var(--text-2); }
+.ov .page-head { margin-bottom: .9rem; }
+.ov .greet .date { color: var(--text-2); }
+.ov-stats { display: flex; flex-wrap: wrap; gap: .15rem 1.6rem; margin: -.4rem 0 1.1rem; font-size: .92rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ov-stats b { color: var(--text); font-weight: 700; }
+
+.ov-top { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; align-items: stretch; }
+.ov-top > * { min-width: 0; }
+.ov-focus { flex: 1 1 320px; display: flex; flex-wrap: wrap; gap: 1.2rem 1.6rem; padding: 1.4rem 1.5rem; border-radius: var(--r-lg); background: var(--accent-soft); color: var(--text); }
+.ov-top { container-type: inline-size; }
+.ov-top.solo .ov-focus { flex-basis: 100%; }
+.ov-main { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: .7rem; }
+.ov-aside { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: .55rem; padding-top: 1rem; border-top: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.ov-aside h2 { display: flex; align-items: center; gap: .45rem; font-size: 1.05rem; }
+.ov-aside p { margin: 0; color: var(--text-2); }
+@container (min-width: 640px) { .ov-aside { flex: 0 1 280px; padding: 0 0 0 1.6rem; border-top: 0; border-left: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); } }
+.ov-plan { flex: 1.7 1 440px; display: flex; flex-direction: column; }
+.ov-kicker { font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-text); }
+.ov-big { display: flex; align-items: baseline; gap: .2rem .7rem; flex-wrap: wrap; }
+.ov-big b { font-size: 4rem; line-height: 1; font-weight: 750; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ov-big span { font-size: 1.25rem; font-weight: 650; }
+.ov-head { display: flex; align-items: center; gap: .55rem; font-size: 1.55rem; font-weight: 700; line-height: 1.25; letter-spacing: -.01em; }
+.ov-lead { margin: 0; color: var(--text-2); }
+.ov-lead .dot { display: inline-block; margin-right: .3rem; vertical-align: 0; }
+.ov-nowrap { font-weight: 600; color: var(--text); }
+.ov-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.ov-actions .btn { min-height: 44px; padding: .65rem 1.1rem; font-size: 1rem; }
+.ov-next { display: flex; flex-direction: column; gap: .1rem; margin-top: auto; padding-top: .8rem; border-top: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); font-size: .9rem; }
+.ov-link { display: block; padding: .2rem 0; border: 0; background: none; font: inherit; text-align: left; color: var(--text); cursor: pointer; border-radius: 4px; }
+.ov-link:hover { text-decoration: underline; }
+.ov-link .dot { display: inline-block; margin-right: .3rem; }
+
+.ov-pkg { border: 0; border-left: 4px solid var(--pc, var(--accent)); background: color-mix(in srgb, var(--pc, var(--accent)) 9%, var(--surface)); padding: .8rem 1rem; margin-bottom: .6rem; }
+.ov-pkg-t .row { flex-wrap: wrap; gap: 0 .6rem; }
+.ov-pkg-sub { margin: .15rem 0 0 1.1rem; color: var(--text-2); }
+.ov-tasks { display: flex; flex-direction: column; gap: .3rem; margin: .55rem 0 .6rem 1.1rem; }
+.ov-task-t { flex: 1; min-width: 0; }
+.ov-done .ov-task-t { text-decoration: line-through; color: var(--text-2); }
+.ov-none { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: .6rem; }
+.ov-none p { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.ov-sec { display: flex; align-items: center; justify-content: space-between; margin: .9rem 0 .25rem; }
+.ov-sec h3 { display: flex; align-items: center; gap: .4rem; }
+.ov-ev { display: flex; align-items: center; gap: .6rem; padding: .5rem .3rem; border-radius: var(--r-sm); font-size: .9rem; cursor: pointer; }
+.ov-ev:hover { background: var(--surface-2); }
+.ov-ev b { min-width: 92px; flex: none; font-variant-numeric: tabular-nums; }
+.ov-ev-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-ev-r { max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-off .ov-ev-t { text-decoration: line-through; color: var(--text-2); }
+
+.ov .pwa-hint { margin: 0 0 1rem; border: 0; background: var(--surface-2); padding: .8rem 1rem; }
+.ov-rest { display: flex; flex-wrap: wrap; gap: 1rem; align-items: stretch; }
+.ov-rest > .ov-card { flex: 1 1 280px; min-width: 0; }
+.ov-mod-bar { height: 5px; margin-top: .4rem; background: color-mix(in srgb, var(--mc, var(--accent)) 16%, var(--surface)); }
+.ov-mod-bar > i { background: var(--mc, var(--accent)); }
+.ov-foot { margin-top: .4rem; }
+.ov .week-strip .d .m { font-size: .76rem; }
+
+/* Dunkel: weisse Schrift auf dem hellen Akzent hat nur 3,2:1, dunkle Schrift gut 5:1 */
+:root[data-theme="dark"] .ov .btn.primary { color: #0f1117; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):not([data-theme="dark"]) .ov .btn.primary { color: #0f1117; } }
+@media (max-width: 640px) { .ov .page-head .actions { display: none; } }
+@media (max-width: 480px) {
+  .ov .page-head { margin-bottom: .6rem; }
+  .ov-stats { margin-bottom: .8rem; gap: .1rem 1.1rem; font-size: .88rem; }
+  .ov-top { gap: .8rem; }
+  .ov-focus { padding: 1rem 1.1rem; gap: .8rem; }
+  .ov-main { gap: .5rem; }
+  .ov-big b { font-size: 3rem; }
+  .ov-big span { font-size: 1.1rem; }
+  .ov-head { font-size: 1.3rem; }
+  .ov-next { padding-top: .5rem; }
+}

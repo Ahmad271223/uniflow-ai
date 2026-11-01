@@ -15,7 +15,7 @@ def test_chips_open_a_detail_window_instead_of_a_bare_link():
     assert "export function chipDetail(key)" in core and 'closest("[data-chip]")' in core
     for text in ("Ganze Ankündigung", 'api("/announcements?days=365")', 'target="_blank" rel="noopener"', "überfällig", "data-close"):
         assert text in core, text
-    app = (STATIC / "app.js").read_text(encoding="utf-8")
+    app = (STATIC / "views-home.js").read_text(encoding="utf-8")      # Uebersicht seit Design 2 in views-home.js
     assert 'chipRef({ ...u, id: u.deadline_id' in app, "Fristen unter „Nächste Termine“ ebenso"
 
 
