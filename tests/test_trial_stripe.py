@@ -270,6 +270,139 @@ def test_unknown_price_or_customer_is_acknowledged_but_never_applied(hosted, str
     assert st == 409 and d["code"] == "subscription_owned_by_other_account"
 
 
+def schedule(sid="sub_sched_1", sub="sub_1", next_price="price_plus", cur_end=None, phases=None):
+    """Subscription Schedule wie von GET /subscription_schedules/{id}: laufende Phase bis `cur_end`, dann `next_price`."""
+    cur_end = cur_end if cur_end is not None else int(time.time()) + 30 * 86400
+    if phases is None:
+        phases = [{"start_date": cur_end - 30 * 86400, "end_date": cur_end, "items": [{"price": "price_ai", "quantity": 1}]},
+                  {"start_date": cur_end, "end_date": cur_end + 30 * 86400, "items": [{"price": next_price, "quantity": 1}]}]
+    return {"id": sid, "object": "subscription_schedule", "subscription": sub, "status": "active",
+            "current_phase": {"start_date": phases[0]["start_date"], "end_date": phases[0]["end_date"]}, "phases": phases}
+
+
+def test_portal_downgrade_is_scheduled_to_the_period_end(hosted, stripe):
+    """Downgrade im Kundenportal: Stripe haengt einen Subscription Schedule an, die naechste Phase traegt den kleineren
+    Preis -> Tarif bleibt, `pending_plan` zeigt den Wechsel (wie Apple `autoRenewProductId`). Wirkt der Wechsel, kommt
+    `customer.subscription.updated` mit dem neuen Preis und ohne Schedule -> Tarif plus, pending leer."""
+    from app import billing
+    u, h = register(hosted, "runter@beispiel.de")
+    conn = billing.connect(); billing.end_trial(conn, u["id"]); conn.close()
+    end = int(time.time()) + 30 * 86400
+    payload, sig = event("evt_d1", "customer.subscription.created", subscription(price="price_ai", end=end, meta={"user_id": u["id"]}))
+    assert webhook(hosted, payload, sig)[1]["pending_plan"] is None
+    # Portal: Wechsel auf Plus zum Periodenende -> Abo traegt die Schedule-ID
+    stripe.answers["/subscription_schedules/sub_sched_1"] = schedule(next_price="price_plus", cur_end=end)
+    sub = {**subscription(price="price_ai", end=end, meta={"user_id": u["id"]}), "schedule": "sub_sched_1"}
+    payload, sig = event("evt_d2", "customer.subscription.updated", sub)
+    st, d = webhook(hosted, payload, sig)
+    assert st == 200 and d["applied"] and d["plan"] == "pro_ai" and d["pending_plan"] == "plus", d
+    assert ("GET", "/subscription_schedules/sub_sched_1", None, None) in stripe.calls
+    e = ent(hosted, h)
+    assert e["plan"] == "pro_ai" and e["source"] == "stripe" and e["pending_plan"] == "plus" and e["will_renew"] is True
+    assert e["entitlements"]["can_use_ai_explanations"], "bis zum Periodenende gilt der alte Tarif"
+    # eingebetteter Schedule (expand) geht ohne weiteren Aufruf
+    before = len(stripe.calls)
+    sub2 = {**sub, "schedule": schedule(next_price="price_pc", cur_end=end)}
+    payload, sig = event("evt_d3", "customer.subscription.updated", sub2)
+    assert webhook(hosted, payload, sig)[1]["pending_plan"] == "pro_connect" and len(stripe.calls) == before
+    # Periodenende: Stripe stellt den Posten um, der Schedule ist abgeschlossen/abgehaengt
+    payload, sig = event("evt_d4", "customer.subscription.updated", subscription(price="price_plus", end=end + 30 * 86400, meta={"user_id": u["id"]}))
+    d = webhook(hosted, payload, sig)[1]
+    assert d["plan"] == "plus" and d["pending_plan"] is None
+    e = ent(hosted, h)
+    assert e["plan"] == "plus" and e["pending_plan"] is None and not e["entitlements"]["can_use_ai_explanations"]
+
+
+def test_schedule_without_a_real_change_sets_no_pending_plan(hosted, stripe):
+    from app import billing, stripe_billing as sb
+    u, h = register(hosted, "gleich@beispiel.de")
+    conn = billing.connect(); billing.end_trial(conn, u["id"]); conn.close()
+    end = int(time.time()) + 30 * 86400
+    base = subscription(price="price_ai", end=end, meta={"user_id": u["id"]})
+    # gleicher Preis in der naechsten Phase (z. B. Schedule nur fuer Rabatt/Menge)
+    stripe.answers["/subscription_schedules/sub_sched_same"] = schedule(sid="sub_sched_same", next_price="price_ai", cur_end=end)
+    payload, sig = event("evt_s1", "customer.subscription.updated", {**base, "schedule": "sub_sched_same"})
+    assert webhook(hosted, payload, sig)[1]["pending_plan"] is None
+    # unbekannter Preis in der Phase: kein Tarif, kein Fehler
+    stripe.answers["/subscription_schedules/sub_sched_x"] = schedule(sid="sub_sched_x", next_price="price_x", cur_end=end)
+    payload, sig = event("evt_s2", "customer.subscription.updated", {**base, "schedule": "sub_sched_x"})
+    st, d = webhook(hosted, payload, sig)
+    assert st == 200 and d["applied"] and d["plan"] == "pro_ai" and d["pending_plan"] is None
+    # Schedule ohne weitere Phase, Phase ohne Posten, Schedule nicht ladbar: ebenso None
+    stripe.answers["/subscription_schedules/sub_sched_one"] = schedule(sid="sub_sched_one", cur_end=end, phases=[
+        {"start_date": end - 30 * 86400, "end_date": end, "items": [{"price": "price_ai"}]}])
+    payload, sig = event("evt_s3", "customer.subscription.updated", {**base, "schedule": "sub_sched_one"})
+    assert webhook(hosted, payload, sig)[1]["pending_plan"] is None
+    stripe.answers["/subscription_schedules/sub_sched_leer"] = schedule(sid="sub_sched_leer", cur_end=end, phases=[
+        {"start_date": end - 30 * 86400, "end_date": end, "items": [{"price": "price_ai"}]}, {"start_date": end, "items": []}])
+    payload, sig = event("evt_s4", "customer.subscription.updated", {**base, "schedule": "sub_sched_leer"})
+    assert webhook(hosted, payload, sig)[1]["pending_plan"] is None
+
+    def failing_get(path):
+        raise sb.StripeError("stripe_error", "Stripe antwortete mit Fehler 404", 502)
+    stripe.module.http_get = failing_get
+    payload, sig = event("evt_s5", "customer.subscription.updated", {**base, "schedule": "sub_sched_weg"})
+    st, d = webhook(hosted, payload, sig)
+    assert st == 200 and d["applied"] and d["pending_plan"] is None
+    assert ent(hosted, h)["plan"] == "pro_ai" and ent(hosted, h)["pending_plan"] is None
+    # ohne current_phase zaehlt die erste Phase, die nach jetzt beginnt; Phasen in der Vergangenheit nicht
+    now = dt.datetime.now(UTC)
+    sched = {"phases": [{"start_date": end - 60 * 86400, "items": [{"price": "price_pc"}]},
+                        {"start_date": end + 10, "items": [{"price": {"id": "price_plus"}}]}]}
+    assert sb.pending_plan_for({"schedule": sched}, "pro_ai", now) == "plus"
+    assert sb.pending_plan_for({"schedule": None}, "pro_ai", now) is None
+    assert sb.pending_plan_for({"schedule": {"id": "sub_sched_weg"}}, "pro_ai", now) is None, "Objekt ohne Phasen -> nachladen -> Fehler -> None"
+
+
+def test_schedule_events_reload_the_subscription(hosted, stripe):
+    """subscription_schedule.updated/released/canceled tragen nur den Schedule; das Abo wird geladen und frisch gesetzt."""
+    from app import billing
+    u, h = register(hosted, "plan@beispiel.de")
+    conn = billing.connect(); billing.end_trial(conn, u["id"]); conn.close()
+    end = int(time.time()) + 30 * 86400
+    payload, sig = event("evt_e1", "customer.subscription.created", subscription(price="price_ai", end=end, meta={"user_id": u["id"]}))
+    assert webhook(hosted, payload, sig)[1]["applied"]
+    sched = schedule(next_price="price_plus", cur_end=end)
+    stripe.answers["/subscription_schedules/sub_sched_1"] = sched
+    stripe.answers["/subscriptions/sub_1"] = {**subscription(price="price_ai", end=end, meta={"user_id": u["id"]}), "schedule": "sub_sched_1"}
+    payload, sig = event("evt_e2", "subscription_schedule.updated", sched)
+    st, d = webhook(hosted, payload, sig)
+    assert st == 200 and d["applied"] and d["plan"] == "pro_ai" and d["pending_plan"] == "plus", d
+    assert ("GET", "/subscriptions/sub_1", None, None) in stripe.calls
+    assert ent(hosted, h)["pending_plan"] == "plus"
+    # Wechsel im Portal zurueckgenommen: Schedule released, Abo ohne Schedule -> pending leer, Tarif bleibt
+    stripe.answers["/subscriptions/sub_1"] = subscription(price="price_ai", end=end, meta={"user_id": u["id"]})
+    payload, sig = event("evt_e3", "subscription_schedule.released", {**sched, "status": "released", "released_subscription": "sub_1"})
+    d = webhook(hosted, payload, sig)[1]
+    assert d["applied"] and d["plan"] == "pro_ai" and d["pending_plan"] is None
+    assert ent(hosted, h)["plan"] == "pro_ai" and ent(hosted, h)["pending_plan"] is None
+    payload, sig = event("evt_e4", "subscription_schedule.canceled", {**sched, "status": "canceled", "subscription": None})
+    assert webhook(hosted, payload, sig)[1] == {"received": True, "type": "subscription_schedule.canceled", "applied": False, "reason": "no_subscription"}
+    # Schedule-Ereignis fuer ein Abo ohne zuordenbares Konto: quittiert, nichts gesetzt
+    stripe.answers["/subscriptions/sub_f"] = subscription(sid="sub_f", customer="cus_fremd")
+    payload, sig = event("evt_e5", "subscription_schedule.updated", schedule(sid="sub_sched_f", sub="sub_f"))
+    assert webhook(hosted, payload, sig)[1]["reason"] == "unknown_customer"
+
+
+def test_immediate_change_in_the_portal_switches_at_once(hosted, stripe):
+    """Sofortiger Wechsel (anteilig berechnet): der Posten traegt den neuen Preis, kein Schedule -> Tarif sofort, pending leer."""
+    from app import billing
+    u, h = register(hosted, "sofort@beispiel.de")
+    conn = billing.connect(); billing.end_trial(conn, u["id"]); conn.close()
+    end = int(time.time()) + 30 * 86400
+    payload, sig = event("evt_u1", "customer.subscription.created", subscription(price="price_plus", end=end, meta={"user_id": u["id"]}))
+    assert webhook(hosted, payload, sig)[1]["plan"] == "plus" and ent(hosted, h)["plan"] == "plus"
+    payload, sig = event("evt_u2", "customer.subscription.updated", {**subscription(price="price_ai", end=end, meta={"user_id": u["id"]}), "schedule": None})
+    d = webhook(hosted, payload, sig)[1]
+    assert d["plan"] == "pro_ai" and d["pending_plan"] is None
+    e = ent(hosted, h)
+    assert e["plan"] == "pro_ai" and e["pending_plan"] is None and e["entitlements"]["can_use_ai_explanations"]
+    # sofortiges Downgrade genauso: Preis am Posten entscheidet
+    payload, sig = event("evt_u3", "customer.subscription.updated", subscription(price="price_pc", end=end, meta={"user_id": u["id"]}))
+    assert webhook(hosted, payload, sig)[1]["plan"] == "pro_connect" and ent(hosted, h)["plan"] == "pro_connect"
+    assert not [c for c in stripe.calls if c[0] == "GET"], "ohne Schedule wird nichts nachgeladen"
+
+
 def test_portal_needs_a_customer(hosted, stripe):
     u, h = register(hosted, "portal@beispiel.de")
     st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/portal", headers=h, body="{}"))

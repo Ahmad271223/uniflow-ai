@@ -1,0 +1,58 @@
+{
+  "_hinweis": [
+    "VORLAGE mit erfundenen Beispielwerten (Max Beispiel, Beispielstraße 1, beispiel.de). Nach angaben.json kopieren, eigene Werte eintragen,",
+    "dann: python tools/rechtstexte-fuellen.py angaben.json --check   (zeigt, was offen ist)",
+    "      python tools/rechtstexte-fuellen.py angaben.json --out ORDNER   oder ohne --out = docs/release/*.md ueberschreiben.",
+    "Leere Pflichtwerte sind ein Fehler. Optional (leer erlaubt): email_datenschutz, ustid, datenschutzbeauftragter, datum.",
+    "Schluessel, die mit _ beginnen, ignoriert das Werkzeug. Alle Platzhalter und ihre Zuordnung: docs/release/README.md."
+  ],
+
+  "_hinweis_anbieter": "Wer Studora anbietet (Impressum, Verantwortlicher der Datenschutzerklaerung, Vertragspartner der Nutzungsbedingungen, Copyright im App Store, Haendlerangaben). Natuerliche Person: Vor- und Nachname.",
+  "name": "Max Beispiel",
+  "strasse": "Beispielstraße 1",
+  "plz_ort": "12345 Beispielstadt",
+
+  "_hinweis_kontakt": "email: Kontakt in Impressum, Datenschutz, Nutzungsbedingungen, Konto loeschen, Stores. telefon: Pflicht (§ 5 DDG zweiter Kontaktweg, DSA-Haendlerangaben bei Apple). email_datenschutz: nur fuer die Datenschutzerklaerung; leer = gleiche Adresse wie email.",
+  "email": "hallo@beispiel.de",
+  "email_datenschutz": "",
+  "telefon": "+49 170 0000000",
+
+  "_hinweis_domain": "Nur der Hostname des gehosteten Dienstes, ohne https:// (das Werkzeug setzt es davor): daraus werden https://.../datenschutz, /impressum, /nutzungsbedingungen, /konto-loeschen, /support.",
+  "domain": "app.beispiel.de",
+
+  "_hinweis_dienst": "Datenschutzerklaerung Abschnitt 11: Hoster mit Rechtsform, Serverstandort (Stadt, Land), Anbieter fuer den Mailversand (Passwort zuruecksetzen).",
+  "hoster": "Beispiel-Hosting GmbH",
+  "hoster_ort": "Beispielstadt, Deutschland",
+  "mail_anbieter": "Beispiel-Mail GmbH, Deutschland",
+
+  "_hinweis_aufsicht": "Fuer den Sitz des Anbieters zustaendige Datenschutz-Aufsichtsbehoerde mit Anschrift (Beispiel: Niedersachsen).",
+  "aufsichtsbehoerde": "Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover",
+
+  "_hinweis_umsatzsteuer": "ustid gesetzt -> 'USt-IdNr. nach § 27a UStG: ...'. ustid leer -> kleinunternehmer muss true sein -> 'Kleinunternehmer nach § 19 UStG, keine USt-IdNr.'",
+  "ustid": "",
+  "kleinunternehmer": true,
+
+  "_hinweis_sonstiges": "datenschutzbeauftragter: leer = 'gibt es nicht'; sonst Name und Kontakt. antwortfrist: KONTO-LOESCHEN.md, Zusage fuer die Bestaetigung per E-Mail. datum: Stand der Texte, TT.MM.JJJJ; leer = heute.",
+  "datenschutzbeauftragter": "",
+  "antwortfrist": "7 Tagen",
+  "datum": "",
+
+  "unternehmen": {
+    "_hinweis": "Nur fuer eine juristische Person (UG, GmbH): firma ausfuellen, dann sind alle Felder Pflicht und das Impressum nimmt Variante B. Natuerliche Person: alles leer lassen.",
+    "firma": "",
+    "rechtsform": "",
+    "vertreten_durch": "",
+    "registergericht": "",
+    "registernummer": ""
+  },
+
+  "funktionen": {
+    "_hinweis": "Optionale Satzteile der Store-Texte: true = Satz bleibt, false = faellt weg. Nur true, wenn die Funktion in der eingereichten App wirklich laeuft (APP-STORE.md, Tabelle oben).",
+    "ipad_hildesheim": false,
+    "ipad_fristen": false,
+    "ipad_skriptsuche": false,
+    "ipad_community_online": false,
+    "android_karteikarten": false,
+    "android_community": false
+  }
+}

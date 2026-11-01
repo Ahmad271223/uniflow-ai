@@ -36,6 +36,8 @@ LOCK_MINUTES = 10
 VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
 # Grenzen (Anzahl, Minuten) je Schluessel; jeder Versuch zaehlt (28.10.2026). IP-Grenzen grosszuegig wegen NAT im
 # Hochschulnetz, Adress- und Kontogrenzen streng. LERNAPP_LIMIT_<NAME>=Anzahl/Minuten ueberschreibt (z. B. 50/60).
+# register_ip 30/h ist der vorsichtige Code-Standard (Einzelplatz, Tests); im Dienst reicht das hinter eduroam/Hoersaal-NAT
+# nicht (Lasttest 30.10.2026, Fund 6) – deploy/.env.example setzt LERNAPP_LIMIT_REGISTER_IP=300/60 (docs/START-DIENST-CHECKLISTE.md 5.5).
 LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60), "verify_user": (5, 60), "export_user": (3, 1440),
           "comment_user": (30, 60), "like_user": (120, 60),
           # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)

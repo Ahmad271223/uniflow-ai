@@ -30,15 +30,20 @@ Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; 
 **Größe für den Start: 2 vCPU, 4 GB RAM, 40 GB SSD** (z. B. Hetzner CX23 in Nürnberg/Falkenstein, IONOS VPS in
 Deutschland). Begründung:
 
-- Der App-Container ist in `deploy/docker-compose.yml` auf 2,5 GB begrenzt: ca. 300 MB für den Dienst selbst plus je
-  gleichzeitigem Hochschul-Abgleich ein Chromium-Browser mit 300–500 MB (`LERNAPP_JOB_WORKERS=2`). Caddy braucht
-  unter 50 MB, das Betriebssystem unter 500 MB. Das passt in 4 GB.
+- `deploy/docker-compose.yml` startet drei Container: **app** (die API, zwei uvicorn-Prozesse, Grenze 768 MB),
+  **jobs** (Hochschul-Abgleich mit Chromium, Wochentests, Löschfristen; ca. 300 MB plus je gleichzeitigem Abgleich ein
+  Browser mit 300–500 MB bei `LERNAPP_JOB_WORKERS=2`, Grenze 1,75 GB) und **caddy** (unter 50 MB). Das
+  Betriebssystem braucht unter 500 MB. Das passt in 4 GB. Die Trennung stammt aus dem Lasttest
+  (`docs/LASTTEST-DIENST-2026-10-30.md`, Abschnitt 7): ein Browser-Abgleich nimmt der API sonst CPU und Speicher weg.
 - Die Serverplanung in `docs/LIVE-BLOCKER-TEST-2026-10-25.md` („Hosting nach Nutzerzahl“) rechnet mit diesem Server
   bis etwa 1.000 registrierte Nutzer und 100 gleichzeitig.
 - Das Image ist wegen Chromium rund 2 GB groß; mit Docker-Zwischenständen und Backups reichen 40 GB.
-- **Lasttest mit 100 Konten und 1.000 Dateien: siehe Lasttest** (`docs/LASTTEST-DIENST-2026-10-30.md`, entsteht
-  parallel mit `tools/lasttest-dienst.py`). Zeigt er Engpässe, ist der nächste Schritt 4 vCPU / 8 GB und
-  `LERNAPP_JOB_WORKERS=4`; ein VPS lässt sich beim Hoster ohne Neuinstallation vergrößern.
+- **Lasttest mit 100 Konten und 1.000 Dateien: siehe Lasttest** (`docs/LASTTEST-DIENST-2026-10-30.md`). Ergebnis:
+  die API trägt mit zwei Prozessen weit mehr als die erwarteten Anfragen; der Engpass ist der Abgleich durch den Dienst
+  (höchstens 240 Starts je Stunde je Hochschule wegen `LERNAPP_UNI_GAP_S=15`, realistisch ~500 Konten mit
+  Zugangsdaten je Hochschule). Wächst der Dienst darüber hinaus, ist der nächste Schritt 4 vCPU / 8 GB,
+  `LERNAPP_JOB_WORKERS=4` und die Speichergrenze des Containers `jobs` auf 3584M; ein VPS lässt sich beim Hoster ohne
+  Neuinstallation vergrößern.
 
 Beim Bestellen:
 
@@ -201,11 +206,24 @@ Ausgabenlimit setzen.
 | `LERNAPP_AI_PRICE_IN_EUR` / `LERNAPP_AI_PRICE_OUT_EUR` | Preise je 1 Mio. Tokens aus der OpenAI-Preisliste, in Euro umgerechnet – nur damit die Budgets rechnen können |
 | `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_USER_BUDGET_EUR` | Monatsgrenze gesamt (Standard 50) und je Konto (Standard 2); erreicht = Sperre bis zum nächsten Monat |
 
-### 5.5 Rest
+### 5.5 Registrierungen je IP (Hochschulnetz)
+
+Der Dienst zählt Registrierungen je Client-IP (`app/accounts.py`, Grenze `register_ip`); im Code stehen 30 je Stunde.
+Hinter eduroam, im Hörsaal oder in der Bibliothek teilen sich aber hunderte Geräte wenige Adressen (NAT) – nach dem
+ersten Hörsaal, in dem jemand die App vorstellt, bekämen alle weiteren „Zu viele Versuche“ (429). Die Vorlage setzt
+deshalb **`LERNAPP_LIMIT_REGISTER_IP=300/60`** (300 je Stunde, Lasttest Empfehlung 3). So lassen; in den ersten Wochen
+beobachten, ob in `docker compose logs app` oder im Zugriffsprotokoll 429 bei `/api/account/register` auftauchen – dann
+den ersten Wert erhöhen (`600/60`), `docker compose up -d` genügt. Missbrauch bremsen weiterhin die Grenze je
+E-Mail-Adresse, die Bestätigungsmail und das Passwort-Hashing. Nur einen zweiten Wert (Minuten) ändern, wenn du weißt,
+warum.
+
+### 5.6 Rest
 
 Google-/Apple-Anmeldung, App-Store-Kaufprüfung, Zeitfenster (`LERNAPP_SYNC_TIMES=08:00,15:00`), Arbeiter
 (`LERNAPP_JOB_WORKERS=2`), Löschfristen (`14`/`90` Tage): Standardwerte lassen. Die Löschfristen müssen zur
-Datenschutzerklärung passen – wer sie ändert, ändert beides.
+Datenschutzerklärung passen – wer sie ändert, ändert beides. `LERNAPP_JOBS` hat mit Compose keine Wirkung: der
+API-Container bekommt in `docker-compose.yml` fest `off`, der Container `jobs` übernimmt Abgleich, Wochentests und
+Löschfristen (Abschnitt 1).
 
 ---
 
@@ -214,8 +232,9 @@ Datenschutzerklärung passen – wer sie ändert, ändert beides.
 ```bash
 cd /srv/uniflow/app/deploy
 docker compose config -q           # keine Ausgabe = .env und docker-compose.yml stimmig
-docker compose up -d --build       # baut das Image (5–10 Minuten, lädt Chromium), startet App und Caddy
-docker compose ps                  # app: "healthy" (nach ca. 30 s), caddy: "running"
+docker compose up -d --build       # baut das Image (5–10 Minuten, lädt Chromium), startet app, jobs und Caddy
+docker compose ps                  # app: "healthy" (nach ca. 30 s), jobs: "healthy" (nach ca. 60 s), caddy: "running"
+docker compose logs jobs           # eine Zeile "[jobs] gestartet: 2 Arbeiter, Zeitplan 08:00, 15:00 ..."
 docker compose logs -f caddy       # Zertifikat: "certificate obtained successfully"; Strg+C beendet nur die Anzeige
 ```
 
@@ -238,8 +257,8 @@ anmelden. In den Einstellungen die Hochschule wählen, Zustimmung zum Abgleich g
 abgleichen“. Dabei auf dem Server zusehen:
 
 ```bash
-docker compose logs -f app         # Zeilen "[jobs] ..." zeigen den Abgleich
-docker stats --no-stream           # Speicher des App-Containers während des Abgleichs (Chromium)
+docker compose logs -f jobs        # Zeilen "[jobs] ..." zeigen den Abgleich (läuft im Container jobs, nicht in app)
+docker stats --no-stream           # Speicher des Containers uniflow-jobs während des Abgleichs (Chromium)
 ```
 
 Außerdem einmal „Passwort vergessen“ auf der Anmeldeseite: Mail mit Link muss kommen.
@@ -263,6 +282,8 @@ docker compose exec app python -m app.accounts plan <mail> pro_ai 2027-03-31   #
 docker compose exec app python -m app.accounts reset-token <mail>              # Notfall-Reset-Link ohne Mail: https://app.studora.de/login?reset=<TOKEN>
 docker compose exec app python -m app.retention --dry-run                      # zeigt, was die Löschfristen löschen würden
 ```
+
+`exec app` und `exec jobs` sind gleichwertig: beide Container sehen dieselben Daten (`/data`) und Protokolle (`/logs`).
 
 ---
 
@@ -288,11 +309,11 @@ Der Zielspeicher muss in der EU liegen; die Archive enthalten personenbezogene D
 
 ```bash
 cd /srv/uniflow/app/deploy
-docker compose stop app
+docker compose stop app jobs                             # beide Container, die /data benutzen
 ls /srv/uniflow/backups                                  # Archiv aussuchen
 docker run --rm -v uniflow_uniflow-data:/data -v /srv/uniflow/backups:/backups:ro alpine sh -c \
   'rm -rf /data/* && tar -xzf /backups/<Archiv>.tar.gz -C /data --strip-components=1 && chown -R 1000:1000 /data'
-docker compose start app
+docker compose start app jobs
 docker compose exec app python -m app.accounts list      # deine Konten sind wieder da
 ```
 
@@ -308,13 +329,14 @@ Vor jedem Update ein Backup (`backup.sh`). Dann:
 
 ```bash
 cd /srv/uniflow/app && git pull
-cd deploy && docker compose up -d --build       # baut neu, tauscht nur den App-Container; Caddy und Zertifikat bleiben
-docker compose ps && docker compose logs --tail=50 app
+cd deploy && docker compose up -d --build       # baut neu, tauscht app und jobs; Caddy und Zertifikat bleiben
+docker compose ps && docker compose logs --tail=50 app jobs
 docker image prune -f                           # alte Images löschen (Platz)
 ```
 
-Ein laufender Abgleich wird beim Tausch abgebrochen und beim nächsten Zeitfenster nachgeholt. Änderungen an `.env`
-gelten nach `docker compose up -d` (ohne `--build`).
+Ein laufender Abgleich bekommt beim Tausch noch 25 Sekunden, dann wird er als „Abgebrochen (Dienst gestoppt)“
+markiert und beim nächsten Zeitfenster nachgeholt (`docker compose logs jobs` zeigt die betroffenen Job-Nummern).
+Änderungen an `.env` gelten nach `docker compose up -d` (ohne `--build`).
 
 Für das Betriebssystem sorgt `unattended-upgrades` (Sicherheitsupdates automatisch); alle paar Monate einmal
 `apt update && apt upgrade -y && reboot`.
@@ -325,12 +347,14 @@ Für das Betriebssystem sorgt `unattended-upgrades` (Sicherheitsupdates automati
 
 ```bash
 cd /srv/uniflow/app/deploy
-docker compose logs --tail=200 app          # Anwendung: "[jobs]" Abgleiche, "[retention]" Löschfristen, Fehler mit Traceback
+docker compose logs --tail=200 app          # API: Anfragen-Fehler mit Traceback, "[mail]" Versandfehler
+docker compose logs --tail=200 jobs         # "[jobs]" Abgleiche und Wochentests, "[retention]" Löschfristen, Start/Stopp des Runners
 docker compose logs --tail=100 caddy        # Zertifikat, Verbindungsfehler zur App
 docker compose exec app sh -c 'tail -n 20 /logs/access/access-$(date +%F).log'    # Zugriffsprotokoll (14 Tage)
 docker compose exec app tail -n 20 /logs/retention.log                            # eine Zeile je Löschlauf (täglich 04:00)
 docker compose exec app sh -c 'tail -n 30 /data/users/<Konto-ID>/logs/sync.log'  # Abgleich eines Kontos (ID aus accounts list)
-docker compose exec app tail -n 20 /logs/mail.log                                 # Mailversand und Fehler (Registrierung, Passwort vergessen); erneutes Senden aus dem Konto: /data/users/<Konto-ID>/logs/mail.log
+docker compose exec app tail -n 20 /logs/mail.log                                 # Mailversand und Fehler (Registrierung, Passwort vergessen, Bestätigung erneut senden) – EIN zentrales Protokoll für alle Konten
+docker compose exec jobs cat /logs/jobs.heartbeat                                 # Lebenszeichen des Job-Runners (Zeitstempel, alle 10 s neu)
 ```
 
 Caddy schreibt bewusst kein Zugriffsprotokoll (Datenschutz, die App führt ihr eigenes mit Frist). Zur Fehlersuche
@@ -345,13 +369,16 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
 | `docker compose config` bricht ab: „UNIFLOW_DOMAIN ist leer“ / „UNIFLOW_ACME_EMAIL fehlt“ | `.env` fehlt in `deploy/` oder Zeile leer. Ausfüllen, erneut. |
 | Browser: „Verbindung nicht sicher“, Caddy-Log „obtaining certificate … failed“ | DNS zeigt noch nicht auf den Server (`dig +short app.studora.de`), oder Port 80/443 zu (`ufw status`, Hoster-Firewall). Beheben, `docker compose restart caddy`. Nach 5 Fehlversuchen wartet Let's Encrypt eine Stunde. |
 | `docker compose ps`: app bleibt „unhealthy“ / startet neu | `docker compose logs app`. Häufig: `LERNAPP_SECRET_KEY muss 32 Byte …` (Wert falsch kopiert; neu erzeugen, solange noch keine Zugangsdaten gespeichert sind). |
+| `docker compose ps`: jobs „unhealthy“ oder „restarting“ | `docker compose logs jobs`. Der Healthcheck prüft nur das Lebenszeichen `/logs/jobs.heartbeat` (muss jünger als 2 Minuten sein). Steht dort „ein Thread ist beendet“ oder ein Traceback: `docker compose restart jobs`; derselbe Fehler wie bei app, wenn `LERNAPP_SECRET_KEY` falsch ist. Läuft `jobs` nicht, bleiben Abgleiche „wartet (Platz …)“ und die Löschfristen laufen nicht. |
+| Registrierung meldet „Zu viele Versuche“ (429), obwohl nur wenige Leute registrieren | Viele Geräte hinter einer Adresse (eduroam, Hörsaal). `LERNAPP_LIMIT_REGISTER_IP` in `.env` erhöhen (Abschnitt 5.5), `docker compose up -d`. Der Zähler läuft nach einer Stunde von selbst ab. |
 | Seite lädt, aber „Unbekannter Hostname“ (421) | `LERNAPP_ALLOWED_HOSTS` passt nicht zur Domain, unter der du aufrufst (z. B. `www.`). Namen mit Komma ergänzen, `docker compose up -d`. |
 | Keine Bestätigungs-/Reset-Mail | `docker compose exec app tail -n 20 /logs/mail.log`. Steht dort die ganze Mail: `LERNAPP_SMTP_HOST` leer (Modus `log`). Steht dort „authentication failed“: Zugangsdaten. Mail im Spam: SPF/DKIM beim Anbieter noch nicht verifiziert. Notfall: `app.accounts reset-token`. |
-| Abgleich schlägt fehl, „browser“/„chromium“ im Log | Speicher: `docker stats`; `LERNAPP_JOB_WORKERS=1` setzen oder Server vergrößern. Fehlerbilder liegen unter `/data/users/<ID>/logs/`. |
+| Abgleich schlägt fehl, „browser“/„chromium“ im Log | Speicher: `docker stats` (Container `uniflow-jobs`); `LERNAPP_JOB_WORKERS=1` setzen oder Server vergrößern. Fehlerbilder liegen unter `/data/users/<ID>/logs/`. |
+| Abgleich bleibt „wartet (Platz 1)“ | Container `jobs` läuft nicht (`docker compose ps`). Die API legt die Jobs nur an; abgearbeitet werden sie in `jobs`. |
 | Stripe: Abschluss klappt, Tarif erscheint nicht | Webhook-Adresse oder `whsec_` falsch (Stripe-Dashboard → Webhooks → Zustellversuche zeigen 400). Testmodus und Livemodus haben getrennte Schlüssel und Webhooks. |
 | KI-Funktionen melden „nicht eingerichtet“ (503) | `LERNAPP_OPENAI_API_KEY` oder `LERNAPP_AI_MODEL` leer; nach dem Eintragen `docker compose up -d`. Bei „Budget erreicht“: `LERNAPP_AI_BUDGET_EUR` erhöhen oder bis Monatsanfang warten. |
 | Platte voll | `df -h /`, `docker system df`, `docker image prune -f`; Backups außer Haus und `BACKUP_KEEP_DAYS` prüfen. |
-| Löschfristen laufen nicht (keine tägliche Zeile in `retention.log`) | `LERNAPP_JOBS` darf nicht `off` sein. |
+| Löschfristen laufen nicht (keine tägliche Zeile in `retention.log`) | Sie laufen im Container `jobs` (`docker compose ps jobs` muss „healthy“ zeigen). Ohne Compose: `LERNAPP_JOBS` darf im API-Prozess nicht `off` sein, oder `python -m app.jobs` getrennt starten. |
 | Server kaputt / gehackt | Neuer Server, Abschnitte 3–6, dann Wiederherstellung (Abschnitt 9) mit demselben `LERNAPP_SECRET_KEY`. Danach alle Zugangsdaten (SSH, Stripe, OpenAI, Mail) erneuern. |
 
 ---
@@ -416,6 +443,21 @@ im Dockerfile und kann auf 2 GB RAM gehen.
 - **Nicht hier prüfbar:** Chromium im Container (Download gesperrt; am 27.10. auf Docker Desktop geprüft: 1,99 GB,
   Chromium startet als `uniflow`), echtes Zertifikat, Mailversand, Stripe- und OpenAI-Aufrufe – das sind die Tests in
   Abschnitt 7 auf dem echten Server.
+
+### 15a. Nachtrag 01.11.2026 (Betriebsfunde aus dem Lasttest umgesetzt)
+
+- API mit `uvicorn --workers 2` (Dockerfile) und Jobs als eigener Container `jobs` (`python -m app.jobs`, gleiche
+  Volumes und `.env`; API fest `LERNAPP_JOBS=off`). `python -m app.jobs` beendet sich auf `docker stop` geordnet
+  (laufende Jobs 25 s abwarten, Rest als abgebrochen markieren) und schreibt alle 10 s das Lebenszeichen
+  `/logs/jobs.heartbeat`, das der Healthcheck (`python -m app.jobs --healthcheck`) prüft.
+- `LERNAPP_LIMIT_REGISTER_IP=300/60` in der Vorlage (Abschnitt 5.5).
+- Zeitplan (`jobs.schedule_due`): ein Tresor-Durchlauf und eine Datenbankverbindung je Zeitfenster statt einer je Konto.
+- `mail.log` ist ein zentrales Protokoll (`/logs/mail.log`), auch für Mails aus dem Kontext eines Kontos.
+- Geprüft in der Cloud-Sitzung: `docker compose config -q` mit Test-`.env` (drei Dienste, `jobs` mit Healthcheck,
+  `LERNAPP_JOBS=off` nur bei app), `tests/test_deploy.py`, `tests/test_hosted_sync.py`, `tests/test_mail.py`.
+  **Nicht geprüft:** echter Start mit zwei uvicorn-Prozessen und getrenntem Jobs-Container gegen eine `accounts.db`
+  (Prozess-Konkurrenz auf WAL-Dateien) – beim ersten Start auf dem Server `docker compose ps` (alle drei „healthy“/
+  „running“) und einen Abgleich nach Abschnitt 7 beobachten.
 
 ---
 

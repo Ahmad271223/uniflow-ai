@@ -235,6 +235,87 @@ def test_schedule_due_once_per_slot(hosted, monkeypatch):
     assert jobs.latest(u["id"])["trigger"] == "scheduled" and jobs.latest("x" * 32) is None
 
 
+def test_schedule_due_reads_vault_once_and_uses_one_connection_per_slot(hosted, monkeypatch):
+    """Lasttest 30.10.2026, Fund 7: je Fenster EIN Tresor-Durchlauf (vorher zwei) und EINE Verbindung fuer Merkmal und
+    alle Jobs (vorher eine je Konto); mehrere faellige Fenster in einem Aufruf teilen sich den Tresor-Durchlauf."""
+    from app import accounts, jobs, vault
+    users = [accounts.register(f"k{i}@beispiel.de", "sehr-geheim-123", "luh") for i in range(4)]
+    for u in users[:2]:
+        vault.set_values(u["id"], {"STUDIP_USER": "x", "STUDIP_PASSWORD": "y"})
+    calls = {"vault": 0, "conn": 0}
+    real_vault, real_conn = vault.users_with_credentials, jobs._conn
+
+    def counting_vault():
+        calls["vault"] += 1
+        return real_vault()
+
+    def counting_conn():
+        calls["conn"] += 1
+        return real_conn()
+    monkeypatch.setattr(vault, "users_with_credentials", counting_vault)
+    monkeypatch.setattr(jobs, "_conn", counting_conn)
+    assert jobs.schedule_due(datetime(2026, 10, 26, 16, 0), ["08:00", "15:00"]) == 4, "4 Konten, das zweite Fenster findet alle wartend"
+    assert calls == {"vault": 1, "conn": 2}, calls
+    kinds = sorted(jobs.latest(u["id"])["kind"] for u in users)
+    assert kinds == ["sync", "sync", "weekly", "weekly"]
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM schedule_marks").fetchone()[0] == 2
+        assert conn.execute("SELECT COUNT(*) FROM sync_jobs").fetchone()[0] == 4, "keine doppelten Jobs"
+    # schon bearbeitet: nur noch die Merkmal-Abfrage, kein Tresor-Durchlauf
+    calls.update(vault=0, conn=0)
+    assert jobs.schedule_due(datetime(2026, 10, 26, 16, 5), ["08:00", "15:00"]) == 0
+    assert calls == {"vault": 0, "conn": 2}
+    # ohne vorgeholte Liste holt active_users_without_credentials sie selbst (Aufrufer ausserhalb des Zeitplans)
+    assert sorted(jobs.active_users_without_credentials()) == sorted(u["id"] for u in users[2:]) and calls["vault"] == 1
+
+
+def test_runner_stop_marks_jobs_of_this_process_as_aborted(hosted, monkeypatch):
+    """`python -m app.jobs` bekommt SIGTERM (docker stop): laufende Jobs bis zur Frist abwarten, den Rest als abgebrochen
+    markieren – sonst stuenden sie 6 Stunden auf 'running' (recover_stale)."""
+    from app import accounts, jobs
+    u = accounts.register("stop@beispiel.de", "sehr-geheim-123", "luh")
+    j = jobs.enqueue(u["id"], "weekly", "scheduled")
+    started, release = threading.Event(), threading.Event()
+
+    def slow_job(job):
+        started.set()
+        release.wait(5)
+        return {"ok": True}
+    monkeypatch.setattr(jobs, "run_job", slow_job)
+    r = jobs.Runner(workers=1, poll_seconds=0.05)
+    r.start()
+    assert started.wait(5) and r.alive()
+    assert r.running_jobs() == [j["id"]]
+    assert r.stop(0.2) == [j["id"]], "nach der Frist noch am Laufen: markiert"
+    got = jobs.latest(u["id"])
+    assert got["status"] == "failed" and got["message"] == "Abgebrochen (Dienst gestoppt)"
+    release.set()
+    for t in r._threads:
+        t.join(5)
+    assert not r.alive()
+    # ohne laufende Jobs: nichts zu markieren
+    r2 = jobs.Runner(workers=1, poll_seconds=0.05)
+    r2.start()
+    assert r2.stop(1) == []
+
+
+def test_jobs_main_writes_heartbeat_for_healthcheck_and_stops_cleanly(hosted, monkeypatch, tmp_path, capsys):
+    from app import config, jobs
+    monkeypatch.setattr(config, "BASE_LOG_DIR", tmp_path / "logs")
+    monkeypatch.setenv("LERNAPP_JOB_WORKERS", "1")
+    assert jobs.main(["--healthcheck"]) == 1, "ohne Lebenszeichen unhealthy"
+    stop = threading.Event()
+    stop.set()                                              # wie SIGTERM gleich nach dem Start
+    assert jobs.main([], stop_event=stop) == 0
+    out = capsys.readouterr().out
+    assert "[jobs] gestartet: 1 Arbeiter" in out and "[jobs] beendet" in out
+    assert jobs.heartbeat_path() == tmp_path / "logs" / "jobs.heartbeat" and jobs.heartbeat_path().exists()
+    assert jobs.heartbeat_ok() and jobs.main(["--healthcheck"]) == 0
+    assert not jobs.heartbeat_ok(max_age_s=0), "zu alt -> unhealthy"
+    monkeypatch.setattr(config, "MODE", "local")
+    assert jobs.main([]) == 2, "nur im gehosteten Modus"
+
+
 # ---------------------------------------------------------------- Endpunkte
 
 def test_hosted_credentials_and_sync_endpoints(hosted, monkeypatch):

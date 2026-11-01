@@ -102,6 +102,15 @@ async function route() {
 }
 state.route = route; window.addEventListener("hashchange", route);
 
+// Probe auf der Uebersicht (Dienst): "noch N Tage alles frei", danach einmal die Aufforderung (planChoicePrompt)
+function trialHint() {
+  const tr = state.entitlements?.trial;
+  if (!state.hosted || !tr?.granted) return "";
+  if (tr.active) return `<div class="card pwa-hint"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("sparkles", 18)}<div style="flex:1"><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><div class="small muted">Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</div></div><a class="btn sm" href="#/abo">Tarife</a></div></div>`;
+  if (state.entitlements?.needs_plan_choice) return `<div class="card pwa-hint" style="border-color:var(--warn)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("alert", 18)}<div style="flex:1"><b>Deine Probe ist vorbei</b><div class="small muted">Wähle einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten.</div></div><a class="btn primary sm" href="#/abo">Tarif wählen</a></div></div>`;
+  return "";
+}
+
 // ================================================================ ÜBERSICHT (Dashboard)
 async function viewDashboard(_, __, view) {
   const d = await api("/dashboard");
@@ -111,7 +120,7 @@ async function viewDashboard(_, __, view) {
   const doneToday = pk.reduce((n, p) => n + p.tasks.filter(t => t.status === "erledigt").length, 0); const totalToday = pk.reduce((n, p) => n + p.tasks.length, 0);
   const newByMod = {}; d.new_files.forEach(f => (newByMod[f.subject || "Sonstiges"] ||= []).push(f));
   const nextOpen = pk.flatMap(p => p.tasks.filter(t => !["erledigt", "uebersprungen"].includes(t.status)).map(t => ({ ...t, p })))[0];
-  view.innerHTML = `<div class="content" style="max-width:1120px">${installBanner()}
+  view.innerHTML = `<div class="content" style="max-width:1120px">${installBanner()}${trialHint()}
     <div class="page-head greet"><div><h1>${greet}!</h1><div class="date">${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })} · ${pk.length ? `heute ${pk.length} Lernpaket${pk.length > 1 ? "e" : ""}` : "heute ist nichts geplant"}${evs.length ? ` · ${evs.filter(e => e.status === "teilnahme").length} Uni-Termine` : ""}</div></div>
       <div class="actions"><a class="btn" href="#/plan?view=day&date=${today.date}">${icon("calendar", 16)} Tagesansicht</a>${nextOpen ? `<a class="btn primary" href="${nextOpen.file_id ? `#/doc/${nextOpen.file_id}?task=${nextOpen.id}` : `#/plan?view=day&date=${today.date}`}">${icon("play", 16)} Weiterlernen</a>` : ""}</div></div>
     <div class="grid cols-3" style="margin-bottom:1.2rem"><div class="card kpi"><b>${fmtMin(today.minutes || 0)}</b><span>heute geplant${today.free?.length ? ` · ${fmtMin(today.free.reduce((a, w) => a + w.minutes, 0))} frei` : ""}</span></div><div class="card kpi"><b>${doneToday} / ${totalToday}</b><span>Aufgaben erledigt</span><div class="progress ok" style="margin-top:.4rem"><i style="width:${totalToday ? Math.round(100 * doneToday / totalToday) : 0}%"></i></div></div><div class="card kpi" style="${d.backlog ? "border-color:var(--bad)" : ""}"><b style="${d.backlog ? "color:var(--bad)" : ""}">${d.backlog}</b><span>nachzuholen${d.backlog ? ` · <a href="#" id="rescueBtn">neu planen</a>` : ""}</span></div></div>

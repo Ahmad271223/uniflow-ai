@@ -202,7 +202,39 @@ Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lie
   ein offenes Dokument lädt geholte Notizen erst beim Sichern; Übernahme von Daten aus dem Web, wenn das iPad schon
   Inhalt hat, läuft über die fachlichen Schlüssel, ein eigener Ablauf ist nicht gebaut.
 
-## 9. Nachtrag: Community auf dem iPad über den Dienst (1.11.2026)
+## 9. Nachtrag: G2-Livetest in der Cloud (01.11.2026)
+
+- **Aufbau:** `tools/g2-testdienst.py` auf Port 8931 (echter Dienst, `LERNAPP_MODE=hosted`, Wegwerf-Daten), Swift 6.1
+  im Docker-Container mit Host-Netz (`G2_TEST_SERVICE=http://127.0.0.1:8931`). Der Dienst startete ohne Änderung.
+- **Zahlen:** `DeviceSyncLiveTests` 5/5 gegen den echten Dienst, `DeviceSyncTests` 3/3 ohne Dienst (Filterlauf: 8 Tests,
+  0 Fehler). Ganze Kern-Suite mit gesetzter Variable: **771 Tests, 0 Fehler** (77 s), die Live-Tests liefen mit, nicht
+  übersprungen. Keine Änderung an `DeviceSync.swift` oder den Tests nötig, nichts committet.
+- **Von Hand gegen den Dienst geprüft** (zwei Python-Skripte mit rohem G2 über HTTP, zusammen rund 50 Prüfungen, alle
+  bestanden; verglichen mit dem, was `handleResults`/`applyPage`/`applyRow`/`afterAnnotation` erwarten):
+  Registrieren über `/__test/account`; erster Abruf (nur Standard-Einstellungen, `cursor`/`has_more`/`changes`/
+  `tombstones`); Push mit negativer `local_id`, Kind mit Fremdschlüssel auf `-1` → `created` + `mapping`; Einstellung →
+  `applied` mit `id` = Schlüssel ohne `local_id` (der Swift-Fallback für `settings` greift); `lan_pin` → `ignored`;
+  gleiche `op_id` → `repeated`, gleiche ID; Abruf mit Cursor (nur Neues, zweiter Abruf leer), seitenweise mit `limit=1`
+  ohne Verlust; Konflikt auf demselben Feld von zwei Geräten → `conflict` mit `version`, `client_won` und
+  `conflicts[].server/client`, der Dienststand entspricht genau der Swift-Regel „server + client_won-Felder,
+  sync_version = version“; älterer Schreiber verliert (`client_won=[]`); Löschen → `deleted`, Grabstein mit `entity`,
+  `entity_id` (Text), `deleted_at`, `device`; Löschen gegen jüngere Änderung → `edit_wins` mit voller Zeile; Änderung
+  älter als Grabstein → `deleted` mit `deleted_at`, jünger → `resurrected`; Notizen: `applied`/`version`, ohne passende
+  `base_version` → `conflict` mit `data` als Objekt, Abruf liefert `data` als Objekt plus `version`; unbekannte Datei →
+  `unknown_file`; Kind mit unbekanntem Elternteil → `error` + `message`; Tarif Free → `plan_required` nur für Notizen;
+  falscher/fehlender Token → 401.
+- **Gefundene Fehler:** keine, weder in Swift noch in Python. Drei Beobachtungen, kein Handlungsbedarf: (a) Bei Feld-
+  Konflikten vergleicht der Dienst das `updated_at` des Geräts mit seinem eigenen Stempel (`app/sync.py:202`,
+  Server-Uhr); die Geräteuhr entscheidet also mit. Der Swift-Trigger liefert UTC mit Millisekunden, das passt zu `TS_RE`
+  (sonst nähme der Dienst stillschweigend „jetzt“). (b) `plan_required`-Ergebnisse stehen in `results` vorn
+  (`app/server.py:551`); Swift ordnet über `entity` + `id`/`local_id` zu, nicht über die Position. (c) Die `op_id` der
+  App (`ipad-<uuid>.<tabelle>.<id>.<version>`) passt zu `OP_RE`; ein unpassendes Format wäre kein Fehler, nur ohne
+  Wiederholschutz.
+- **Offen:** Die App-Schicht (`StudoraAccountLink.swift`, Knopf, 3-Minuten-Takt) ist nur auf dem Mac prüfbar. Kein
+  gemischter Lauf Swift-Gerät + Windows-Client (`sync_client.py`) auf demselben Konto; die Swift-Tests legen eigene
+  Konten an, die Python-Seite wurde hier per rohem G2 geprüft. Die Punkte aus Abschnitt 8 bleiben.
+
+## 10. Nachtrag: Community auf dem iPad über den Dienst (1.11.2026)
 
 - **Umschaltung:** Mit angemeldetem Studora-Konto derselben Hochschule nutzt die App `ServiceCommunityService` (Kern,
   Vertrag G4), sonst wie bisher CloudKit (`CommunityRoute`, gesetzt von `StudoraAccountLink`).

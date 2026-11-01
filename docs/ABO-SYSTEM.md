@@ -98,9 +98,19 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
 - Konfiguration des Dienstes: `LERNAPP_STRIPE_SECRET_KEY`, `LERNAPP_STRIPE_WEBHOOK_SECRET`,
   `LERNAPP_STRIPE_PRICES="plus=price_…,pro_connect=price_…,pro_ai=price_…"`, `LERNAPP_PUBLIC_URL`. Ohne Schlüssel bleibt
   der Web-Abschluss ehrlich aus (`purchase.web.available = false`, 503 `stripe_not_configured`).
-- Tests: `tests/test_trial_stripe.py` (13), dazu `tests/test_subscriptions.py` (die Tarif-Tests beenden die Probe zuerst).
-- Offen: Downgrade über das Kundenportal (Stripe plant ihn als Abo-Änderung, `pending_plan` bleibt leer, bis der Wechsel
-  wirkt), Microsoft-Store-Beleg, Stripe-Preise in Partner-Konto anlegen (Inhaber).
+- Wechsel im Kundenportal (seit 1.11.2026): ein **sofortiger** Wechsel (anteilig berechnet) ändert den Preis am Posten,
+  der Tarif wechselt sofort, `pending_plan` bleibt leer. Ein Wechsel **zum Periodenende** (Downgrade) hängt Stripe als
+  Subscription Schedule an das Abo (`subscription.schedule`); der Server lädt den Schedule
+  (`GET /v1/subscription_schedules/{id}`, oder nutzt ihn eingebettet), nimmt den Preis der Phase nach der laufenden und
+  setzt `pending_plan`, wenn er einen anderen bekannten Tarif ergibt (wie Apple `autoRenewProductId`). Gleicher Preis,
+  unbekannter Preis, keine weitere Phase oder Schedule nicht ladbar → `pending_plan` leer, kein Fehler. Zusätzlich
+  verarbeitet: `subscription_schedule.updated/released/canceled` (Abo nachladen; ohne Schedule wird `pending_plan`
+  wieder leer). `pending_update` (Upgrade mit offener Zahlung) zählt nicht als geplanter Wechsel. Am echten Konto zu
+  prüfen: dass das Portal den Wechsel zum Periodenende tatsächlich als Schedule anlegt (Portal-Einstellung
+  „Proration“/„Wechsel zum Ende des Zeitraums“) und der Webhook-Endpunkt die `subscription_schedule.*`-Ereignisse
+  abonniert hat.
+- Tests: `tests/test_trial_stripe.py` (17), dazu `tests/test_subscriptions.py` (die Tarif-Tests beenden die Probe zuerst).
+- Offen: Microsoft-Store-Beleg, Stripe-Preise in Partner-Konto anlegen (Inhaber).
 
 ## 4. ChatGPT-Verbindung
 

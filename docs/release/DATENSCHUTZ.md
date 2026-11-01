@@ -221,8 +221,7 @@ Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschun
 Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage von
 Art. 6 Abs. 1 lit. f DSGVO (Art. 21). Eine erteilte Einwilligung kannst du jederzeit mit Wirkung für die Zukunft
 widerrufen. Wende dich dazu an [[E-Mail]]. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren,
-zum Beispiel bei der für deinen Wohnsitz oder bei der für uns zuständigen Behörde: [[Aufsichtsbehörde, z. B. Die
-Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover]].
+zum Beispiel bei der für deinen Wohnsitz oder bei der für uns zuständigen Behörde: [[Aufsichtsbehörde]].
 
 ## 15. Konto löschen, Daten mitnehmen
 

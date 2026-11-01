@@ -18,6 +18,11 @@ Regeln:
   -> expired; `cancel_at_period_end` -> laeuft bis `current_period_end`, verlaengert nicht.
 - Ein Ereignis mit unbekanntem Preis oder ohne zuordenbares Konto wird quittiert (200) und protokolliert, nie
   stillschweigend als Tarif uebernommen.
+- Wechsel im Kundenportal: sofort (anteilig berechnet) -> der Posten traegt den neuen Preis, der Tarif wechselt sofort,
+  `pending_plan` leer. Zum Periodenende -> Stripe haengt einen Subscription Schedule an (`subscription.schedule`), dessen
+  naechste Phase den neuen Preis traegt -> `pending_plan` wie bei Apple (`autoRenewProductId`); Ereignisse
+  `subscription_schedule.updated/released/canceled` laden das Abo nach. `pending_update` (Upgrade mit offener Zahlung)
+  wird nicht als geplanter Wechsel gewertet.
 """
 from __future__ import annotations
 
@@ -227,13 +232,67 @@ def _period_end(sub: dict):
     return sub.get("current_period_end") or (items[0].get("current_period_end") if items else None)
 
 
+def _price_id(price) -> str | None:
+    return price if isinstance(price, str) else (price or {}).get("id")
+
+
+def _object_id(ref) -> str | None:
+    return ref if isinstance(ref, str) else (ref or {}).get("id")
+
+
+def _next_phase_price(schedule: dict, now: datetime) -> str | None:
+    """Preis-ID der Phase, die auf die laufende folgt (Wechsel zum Periodenende), sonst None."""
+    phases = [p for p in (schedule.get("phases") or []) if isinstance(p, dict)]
+    cur = schedule.get("current_phase") or {}
+    boundary = cur.get("end_date")
+    try:
+        boundary = int(boundary) if boundary else None
+    except (TypeError, ValueError):
+        boundary = None
+    t = int(now.timestamp())
+
+    def starts(p):
+        try:
+            return int(p.get("start_date") or 0)
+        except (TypeError, ValueError):
+            return 0
+    later = sorted((p for p in phases if (starts(p) >= boundary if boundary else starts(p) > t)), key=starts)
+    if not later:
+        return None
+    items = later[0].get("items") or []
+    return _price_id(items[0].get("price")) if items and isinstance(items[0], dict) else None
+
+
+def pending_plan_for(sub: dict, plan: str, now: datetime) -> str | None:
+    """Geplanter Wechsel zur naechsten Verlaengerung: Preis der naechsten Schedule-Phase, wenn er einen anderen
+    bekannten Tarif ergibt. Kein Schedule, Schedule nicht ladbar, Phase ohne Preis oder Preis unbekannt -> None.
+    `sub.pending_update` (Upgrade, dessen Zahlung noch aussteht) zaehlt bewusst nicht: der Tarif wechselt erst,
+    wenn Stripe den Posten umstellt und `customer.subscription.updated` schickt."""
+    ref = sub.get("schedule")
+    if not ref:
+        return None
+    schedule = ref if isinstance(ref, dict) and ref.get("phases") is not None else None
+    if schedule is None:
+        sid = _object_id(ref)
+        if not sid:
+            return None
+        try:
+            schedule = http_get(f"/subscription_schedules/{sid}")
+        except StripeError:
+            return None
+    nxt = plan_for_price(_next_phase_price(schedule or {}, now))
+    return nxt if nxt and nxt != plan else None
+
+
 def apply_subscription(conn, sub: dict, now: datetime | None = None) -> dict:
-    """Abo-Objekt von Stripe in eine Berechtigung (Quelle stripe) umsetzen. Liefert, was gesetzt wurde."""
+    """Abo-Objekt von Stripe in eine Berechtigung (Quelle stripe) umsetzen. Liefert, was gesetzt wurde.
+    Der Tarif folgt immer dem Preis des Postens (ein sofortiger Wechsel im Portal wirkt sofort); ein ueber einen
+    Schedule geplanter Wechsel zum Periodenende steht in `pending_plan`."""
     items = (sub.get("items") or {}).get("data") or []
     price = (items[0].get("price") or {}).get("id") if items else None
     plan = plan_for_price(price)
     meta = sub.get("metadata") or {}
-    uid = meta.get("user_id") or user_for_customer(conn, sub.get("customer") if isinstance(sub.get("customer"), str) else (sub.get("customer") or {}).get("id"))
+    uid = meta.get("user_id") or user_for_customer(conn, _object_id(sub.get("customer")))
     if not uid:
         return {"applied": False, "reason": "unknown_customer", "subscription": sub.get("id")}
     if not plan:
@@ -241,12 +300,15 @@ def apply_subscription(conn, sub: dict, now: datetime | None = None) -> dict:
     status = STATUS.get(sub.get("status") or "", None)
     if status is None:
         return {"applied": False, "reason": f"status_{sub.get('status')}", "subscription": sub.get("id"), "user_id": uid}
+    t = now or datetime.now(timezone.utc)
     expires = _iso(_period_end(sub))
     will_renew = status == "active" and not sub.get("cancel_at_period_end")
+    pending = pending_plan_for(sub, plan, t)
     billing.set_entitlement(conn, uid, SOURCE, plan, original_transaction_id=sub.get("id"), expires_at=expires,
-                            status=status, will_renew=will_renew, environment="livemode" if sub.get("livemode") else "test", now=now)
+                            status=status, will_renew=will_renew, pending_plan=pending,
+                            environment="livemode" if sub.get("livemode") else "test", now=now)
     return {"applied": True, "user_id": uid, "plan": plan, "status": status, "expires_at": expires, "will_renew": will_renew,
-            "subscription": sub.get("id")}
+            "pending_plan": pending, "subscription": sub.get("id")}
 
 
 def handle_event(conn, payload: bytes, signature: str | None, now: datetime | None = None, secret: str | None = None) -> dict:
@@ -279,4 +341,11 @@ def handle_event(conn, payload: bytes, signature: str | None, now: datetime | No
         return {"received": True, "type": etype, **apply_subscription(conn, sub, now)}
     if etype in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
         return {"received": True, "type": etype, **apply_subscription(conn, obj, now)}
+    if etype in ("subscription_schedule.updated", "subscription_schedule.released", "subscription_schedule.canceled"):
+        # Wechsel zum Periodenende geplant, geaendert oder zurueckgenommen: das Abo traegt (oder verliert) den Schedule;
+        # es wird frisch geladen, damit `pending_plan` aus dem tatsaechlichen Stand folgt.
+        sid = _object_id(obj.get("subscription"))
+        if not sid:
+            return {"received": True, "type": etype, "applied": False, "reason": "no_subscription"}
+        return {"received": True, "type": etype, **apply_subscription(conn, http_get(f"/subscriptions/{sid}"), now)}
     return {"received": True, "type": etype, "applied": False, "reason": "ignored"}

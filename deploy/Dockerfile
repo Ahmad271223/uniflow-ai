@@ -47,10 +47,16 @@ VOLUME ["/data", "/logs"]
 EXPOSE 8765
 
 # Oeffentlich ohne Sitzung: /login liefert im gehosteten Modus 200 (app/server.py). Host 127.0.0.1 besteht die Host-Pruefung.
+# Der Dienst `jobs` in docker-compose.yml ersetzt diesen Healthcheck durch `python -m app.jobs --healthcheck` (Lebenszeichen).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import sys, urllib.request; r = urllib.request.urlopen('http://127.0.0.1:8765/login', timeout=4); sys.exit(0 if r.status == 200 else 1)"
 
 # --proxy-headers/--forwarded-allow-ips: Caddy haengt X-Forwarded-For/-Proto an (Client-IP im Zugriffsprotokoll);
 # das Secure-Flag des Sitzungs-Cookies kommt aus LERNAPP_HTTPS=1 (app/account_api.py), nicht aus dem Proto-Header.
 # --no-access-log: das eigene Zugriffsprotokoll (app/retention.py) gilt 14 Tage, das von uvicorn kennt keine Frist.
-CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8765", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]
+# --workers 2 (Lasttest vom 30.10., docs/LASTTEST-DIENST-*.md Empfehlung 1): zwei API-Prozesse fuer 2 Kerne. Folgen: Zustand je Prozess
+# (Sperre _bg_lock, Cache _user_dbs_ready, LERNAPP_LIMIT_API_PER_MIN zaehlt je Prozess) – unkritisch, denn alles
+# Gemeinsame (Sitzungen, Warteschlange, Zeitplan-Merkmale) steht in accounts.db. ABER: LERNAPP_JOBS=inproc wuerde den
+# Job-Runner in jedem Prozess starten, darum setzt docker-compose.yml fuer die API LERNAPP_JOBS=off und startet die
+# Jobs aus demselben Image als eigenen Dienst `jobs` (python -m app.jobs). Ohne Compose: --workers 1 oder Jobs getrennt.
+CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8765", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]

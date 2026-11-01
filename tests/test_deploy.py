@@ -93,6 +93,61 @@ def test_dockerfile_runs_unprivileged_with_chromium_and_hosted_defaults():
     assert "--proxy-headers" in df and "--no-access-log" in df and "HEALTHCHECK" in df
 
 
+def test_dockerfile_runs_two_api_workers_and_compose_moves_jobs_to_own_service():
+    """Lasttest 30.10.2026, Empfehlung 1: uvicorn --workers 2; weil LERNAPP_JOBS=inproc den Runner je Prozess starten
+    wuerde, bekommt die API in docker-compose.yml fest LERNAPP_JOBS=off und `jobs` laeuft als eigener Dienst aus demselben
+    Image mit denselben Volumes, der .env, Chromium-/dev/shm und einem Healthcheck ueber das Lebenszeichen."""
+    import yaml
+    df = read("Dockerfile")
+    assert '"--workers", "2"' in df, "CMD uvicorn --workers 2"
+    c = yaml.safe_load(read("docker-compose.yml"))
+    app, jobs = c["services"]["app"], c["services"]["jobs"]
+    assert str(app["environment"]["LERNAPP_JOBS"]).lower() == "off", "API-Prozesse ohne Job-Runner"
+    assert jobs["image"] == app["image"] and "build" not in jobs and jobs.get("pull_policy") == "never"
+    assert jobs["command"] == ["python", "-m", "app.jobs"]
+    assert sorted(jobs["volumes"]) == sorted(app["volumes"]), "gleiche Daten und Protokolle"
+    assert jobs["env_file"] == app["env_file"], "dieselbe deploy/.env"
+    for k in ("LERNAPP_MODE", "LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR"):
+        assert jobs["environment"][k] == app["environment"][k]
+    assert "LERNAPP_JOBS" not in jobs["environment"], "python -m app.jobs liest LERNAPP_JOBS nicht; nichts vortaeuschen"
+    assert "shm_size" in jobs and "shm_size" not in app, "Chromium laeuft nur noch im Jobs-Container"
+    assert jobs["healthcheck"]["test"] == ["CMD", "python", "-m", "app.jobs", "--healthcheck"]
+    assert "app" in jobs["depends_on"] and jobs["restart"] == "unless-stopped"
+    assert "ports" not in jobs and "expose" not in jobs, "der Jobs-Container hoert auf nichts"
+    assert c["services"]["caddy"]["depends_on"]["app"]["condition"] == "service_healthy"
+    # Speicher: beide Container zusammen muessen auf den 4-GB-Server passen (Checkliste Abschnitt 1)
+    def mb(v: str) -> int:
+        return int(v.rstrip("M"))
+    total = mb(app["deploy"]["resources"]["limits"]["memory"]) + mb(jobs["deploy"]["resources"]["limits"]["memory"])
+    assert 2048 <= total <= 3072, total
+    for svc in (app, jobs):
+        assert svc["stop_grace_period"] == "30s"
+
+
+def test_env_example_raises_register_limit_for_campus_nat():
+    """Lasttest 30.10.2026, Fund 6: 30 Registrierungen je IP und Stunde reichen hinter eduroam-NAT nicht. Die Vorlage
+    setzt 300/60, und app/accounts._limit liest genau diesen Wert."""
+    from app import accounts
+    text = read(".env.example")
+    m = re.search(r"^LERNAPP_LIMIT_REGISTER_IP=(\d+)/(\d+)$", text, re.M)
+    assert m, "LERNAPP_LIMIT_REGISTER_IP fehlt in .env.example"
+    n, minutes = int(m.group(1)), int(m.group(2))
+    assert n >= 300 and minutes == 60 and n > accounts.LIMITS["register_ip"][0]
+    assert "NAT" in text and "eduroam" in text, "Begruendung steht dabei"
+    import os
+    old = os.environ.get("LERNAPP_LIMIT_REGISTER_IP")
+    os.environ["LERNAPP_LIMIT_REGISTER_IP"] = m.group(0).split("=", 1)[1]
+    try:
+        assert accounts._limit("register_ip") == (n, minutes)
+    finally:
+        if old is None:
+            del os.environ["LERNAPP_LIMIT_REGISTER_IP"]
+        else:
+            os.environ["LERNAPP_LIMIT_REGISTER_IP"] = old
+    doc = (ROOT / "docs" / "START-DIENST-CHECKLISTE.md").read_text(encoding="utf-8")
+    assert "LERNAPP_LIMIT_REGISTER_IP=300/60" in doc and "python -m app.jobs" in doc and "jobs.heartbeat" in doc
+
+
 def test_compose_mounts_volumes_and_keeps_app_internal():
     c = read("docker-compose.yml")
     assert "uniflow-data:/data" in c and "uniflow-logs:/logs" in c and "caddy-data:/data" in c
@@ -101,7 +156,7 @@ def test_compose_mounts_volumes_and_keeps_app_internal():
     # Caddy startet mit leerer ACME-Adresse nicht (`email` ohne Argument im Caddyfile) – Compose muss sie verlangen
     assert "${UNIFLOW_ACME_EMAIL:?" in c, "UNIFLOW_ACME_EMAIL muss Pflicht sein"
     app_block = c.split("  caddy:")[0]
-    assert "ports:" not in app_block, "die App bekommt keinen Port am Host – nur Caddy"
+    assert "ports:" not in app_block, "die App und die Jobs bekommen keinen Port am Host – nur Caddy"
     assert '"80:80"' in c and '"443:443"' in c
 
 

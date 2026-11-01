@@ -12,11 +12,17 @@ Wochentests (30.10.2026, Entscheidung 2c): `weekly.tick()` laeuft je Konto nach 
 Test verbraucht eins aus dem Monatskontingent `ai_tests_new` des Tarifs (Free: keins -> Plan wartet).
 Betrieb: im API-Prozess (`LERNAPP_JOBS=inproc`, Standard im gehosteten Modus) oder getrennt mit
 `python -m app.jobs` (dann `LERNAPP_JOBS=off` fuer den API-Prozess). `LERNAPP_JOB_WORKERS` (Standard 2) begrenzt die
-gleichzeitigen Browser (je etwa 300 MB).
+gleichzeitigen Browser (je etwa 300 MB). Laeuft die API mit mehreren uvicorn-Prozessen (`--workers 2`,
+deploy/Dockerfile), MUSS der Zeitplan getrennt laufen: `inproc` wuerde je Prozess einen Runner starten.
+`python -m app.jobs` (deploy/docker-compose.yml, Dienst `jobs`) beendet sich sauber auf SIGTERM/SIGINT: keine neuen
+Jobs mehr, laufende bis `STOP_GRACE_S` abwarten, den Rest als abgebrochen markieren; alle `HEARTBEAT_S` Sekunden
+schreibt er `heartbeat_path()` (Datei im Protokollordner) fuer den Healthcheck des Containers.
 """
 from __future__ import annotations
 
 import os
+import signal
+import sys
 import threading
 import time
 from datetime import datetime, timedelta
@@ -25,6 +31,8 @@ from . import accounts, config, db, vault
 
 KINDS = {"sync": "Sync", "grades": "Notenspiegel", "weekly": "Wochentests"}
 BROWSER_KINDS = ("sync", "grades")     # nur diese belasten die Hochschule (uni_limits)
+HEARTBEAT_S = 10                       # Abstand der Lebenszeichen von `python -m app.jobs` (Healthcheck: juenger als 120 s)
+STOP_GRACE_S = 25                      # unter dem stop_grace_period des Containers (30 s), damit wir selbst aufraeumen koennen
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sync_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,19 +73,24 @@ def _job(r) -> dict | None:
 
 # ---------------------------------------------------------------- Warteschlange
 
+def _enqueue(conn, user_id: str, kind: str, trigger: str) -> dict:
+    """`enqueue` auf einer offenen Verbindung (der Zeitplan legt so alle Jobs eines Fensters in einer Verbindung an)."""
+    cur = conn.execute("SELECT * FROM sync_jobs WHERE user_id=? AND kind=? AND status IN ('queued','running') ORDER BY id LIMIT 1",
+                       (user_id, kind)).fetchone()
+    if cur:
+        return {**_job(cur), "already": True}
+    c = conn.execute("INSERT INTO sync_jobs(user_id, kind, trigger, status, requested_at) VALUES (?,?,?,'queued',?)",
+                     (user_id, kind, trigger, _now()))
+    return {**_job(conn.execute("SELECT * FROM sync_jobs WHERE id=?", (c.lastrowid,)).fetchone()), "already": False}
+
+
 def enqueue(user_id: str, kind: str = "sync", trigger: str = "manual") -> dict:
     """Legt einen Job an; gibt es fuer das Konto schon einen wartenden oder laufenden Job dieser Art, den."""
     if kind not in KINDS:
         raise ValueError("Unbekannte Job-Art")
     cm, conn = _conn()
     try:
-        cur = conn.execute("SELECT * FROM sync_jobs WHERE user_id=? AND kind=? AND status IN ('queued','running') ORDER BY id LIMIT 1",
-                           (user_id, kind)).fetchone()
-        if cur:
-            return {**_job(cur), "already": True}
-        c = conn.execute("INSERT INTO sync_jobs(user_id, kind, trigger, status, requested_at) VALUES (?,?,?,'queued',?)",
-                         (user_id, kind, trigger, _now()))
-        return {**_job(conn.execute("SELECT * FROM sync_jobs WHERE id=?", (c.lastrowid,)).fetchone()), "already": False}
+        return _enqueue(conn, user_id, kind, trigger)
     finally:
         cm.__exit__(None, None, None)
 
@@ -146,14 +159,17 @@ def claim_next() -> dict | None:
     cm, conn = _conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
-        r = conn.execute("""SELECT j.id FROM sync_jobs j JOIN users u ON u.id=j.user_id WHERE j.status='queued'
+        # Pause 0 heisst: keine Pausenregel. Die Zeitstempel haben Sekundenaufloesung; mit "> since" wuerde sonst ein in
+        # der naechsten Sekunde gestarteter Job alle anderen Arbeiter kurz sperren (wackliger Test unter Last, 01.11.2026).
+        gap_sql = "" if gap <= 0 else """AND NOT EXISTS (SELECT 1 FROM sync_jobs y JOIN users yu ON yu.id=y.user_id
+                                 WHERE yu.university=u.university AND y.kind IN ('sync','grades') AND y.started_at > ?)"""
+        r = conn.execute(f"""SELECT j.id FROM sync_jobs j JOIN users u ON u.id=j.user_id WHERE j.status='queued'
                             AND j.user_id NOT IN (SELECT user_id FROM sync_jobs WHERE status='running')
                             AND (j.kind NOT IN ('sync','grades') OR (
                                 (SELECT COUNT(*) FROM sync_jobs x JOIN users xu ON xu.id=x.user_id
                                  WHERE x.status='running' AND x.kind IN ('sync','grades') AND xu.university=u.university) < ?
-                                AND NOT EXISTS (SELECT 1 FROM sync_jobs y JOIN users yu ON yu.id=y.user_id
-                                 WHERE yu.university=u.university AND y.kind IN ('sync','grades') AND y.started_at > ?)))
-                            ORDER BY j.id LIMIT 1""", (par, since)).fetchone()
+                                {gap_sql}))
+                            ORDER BY j.id LIMIT 1""", (par, since) if gap > 0 else (par,)).fetchone()
         if not r:
             return None
         conn.execute("UPDATE sync_jobs SET status='running', started_at=? WHERE id=? AND status='queued'", (_now(), r["id"]))
@@ -279,14 +295,21 @@ def _with_weekly(user: dict, message: str) -> str:
         return f"{message} · Wochentests: FEHLER {e}"
 
 
-def active_users_without_credentials() -> list[str]:
-    """Konten, die selbst hochladen (kein Abgleich durch den Dienst): sie bekommen den Wochentest-Takt als eigenen Job."""
-    with_creds = {uid for uid, _ in vault.users_with_credentials()}
-    cm, conn = _conn()
-    try:
+def active_users_without_credentials(with_credentials: list[tuple[str, str]] | None = None, conn=None) -> list[str]:
+    """Konten, die selbst hochladen (kein Abgleich durch den Dienst): sie bekommen den Wochentest-Takt als eigenen Job.
+    `with_credentials` = schon geholtes `vault.users_with_credentials()` (der Tresor-Durchlauf entschluesselt je Konto
+    und ist das Teure daran), `conn` = offene accounts-Verbindung; ohne beides holt die Funktion sich beides selbst."""
+    if with_credentials is None:
+        with_credentials = vault.users_with_credentials()
+    with_creds = {uid for uid, _ in with_credentials}
+    if conn is not None:
         rows = conn.execute("SELECT id FROM users WHERE status='active'").fetchall()
-    finally:
-        cm.__exit__(None, None, None)
+    else:
+        cm, conn = _conn()
+        try:
+            rows = conn.execute("SELECT id FROM users WHERE status='active'").fetchall()
+        finally:
+            cm.__exit__(None, None, None)
     return [r["id"] for r in rows if r["id"] not in with_creds]
 
 
@@ -317,23 +340,29 @@ def due_slots(now: datetime, times: list[str] | None = None) -> list[str]:
 
 
 def schedule_due(now: datetime | None = None, times: list[str] | None = None) -> int:
-    """Fuer jedes erreichte, noch nicht bearbeitete Zeitfenster einen Abgleich je Konto mit Zugangsdaten anlegen."""
+    """Fuer jedes erreichte, noch nicht bearbeitete Zeitfenster einen Abgleich je Konto mit Zugangsdaten anlegen
+    (Konten ohne Zugangsdaten: den Wochentest-Job). Je Fenster ein Tresor-Durchlauf (`vault.users_with_credentials`)
+    und eine Verbindung fuer Merkmal und alle Jobs (Lasttest 30.10.2026, Fund 7); das Merkmal `schedule_marks` wird mit
+    den Jobs zusammen festgeschrieben, ein Abbruch dazwischen laesst das Fenster also unbearbeitet statt leer."""
     now = now or datetime.now()
     n = 0
+    with_creds: list[tuple[str, str]] | None = None
     for slot in due_slots(now, times):
         cm, conn = _conn()
         try:
             if conn.execute("SELECT 1 FROM schedule_marks WHERE slot=?", (slot,)).fetchone():
                 continue
             conn.execute("INSERT INTO schedule_marks(slot, created_at) VALUES (?,?)", (slot, _now()))
+            if with_creds is None:
+                with_creds = vault.users_with_credentials()
+            for uid, _uni in with_creds:
+                if not _enqueue(conn, uid, "sync", "scheduled")["already"]:
+                    n += 1
+            for uid in active_users_without_credentials(with_creds, conn):
+                if not _enqueue(conn, uid, "weekly", "scheduled")["already"]:
+                    n += 1
         finally:
             cm.__exit__(None, None, None)
-        for uid, _uni in vault.users_with_credentials():
-            if not enqueue(uid, "sync", "scheduled")["already"]:
-                n += 1
-        for uid in active_users_without_credentials():
-            if not enqueue(uid, "weekly", "scheduled")["already"]:
-                n += 1
     return n
 
 
@@ -344,15 +373,35 @@ class Runner:
         self.workers, self.poll = max(1, workers), poll_seconds
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
+        self._running: dict[str, int] = {}             # Thread-Name -> Job-ID, die dieser Arbeiter gerade ausfuehrt
+        self._lock = threading.Lock()
 
     def _worker(self) -> None:
+        name = threading.current_thread().name
         while not self._stop.is_set():
             try:
-                if not work_once():
+                job = claim_next()
+                if not job:
                     self._stop.wait(self.poll)
+                    continue
+                with self._lock:
+                    self._running[name] = job["id"]
+                try:
+                    run_job(job)
+                finally:
+                    with self._lock:
+                        self._running.pop(name, None)
             except Exception as e:  # noqa: BLE001
                 print(f"[jobs] Arbeiter-Fehler: {e}")
                 self._stop.wait(self.poll)
+
+    def running_jobs(self) -> list[int]:
+        with self._lock:
+            return sorted(self._running.values())
+
+    def alive(self) -> bool:
+        """Alle Arbeiter- und der Zeitplan-Thread laufen noch (Grundlage des Lebenszeichens)."""
+        return bool(self._threads) and all(t.is_alive() for t in self._threads)
 
     def _scheduler(self) -> None:
         from . import retention
@@ -377,8 +426,43 @@ class Runner:
         s.start()
         self._threads.append(s)
 
-    def stop(self) -> None:
+    def stop(self, grace_seconds: float = 0) -> list[int]:
+        """Keine neuen Jobs mehr; bis `grace_seconds` auf laufende warten, danach die noch laufenden Jobs dieses
+        Prozesses als abgebrochen markieren (der Prozess endet gleich, `recover_stale` muesste sonst 6 h warten).
+        Liefert die IDs der abgebrochenen Jobs."""
         self._stop.set()
+        deadline = time.monotonic() + max(0.0, grace_seconds)
+        for t in self._threads:
+            t.join(max(0.0, deadline - time.monotonic()))
+        aborted = self.running_jobs()
+        for job_id in aborted:
+            try:
+                _finish(job_id, False, "Abgebrochen (Dienst gestoppt)")
+            except Exception as e:  # noqa: BLE001
+                print(f"[jobs] Job {job_id} nicht als abgebrochen markiert: {e}")
+        return aborted
+
+
+def heartbeat_path():
+    """Lebenszeichen von `python -m app.jobs`: Aenderungszeit = letzter Takt (Healthcheck in deploy/docker-compose.yml)."""
+    return config.BASE_LOG_DIR / "jobs.heartbeat"
+
+
+def write_heartbeat() -> None:
+    try:
+        p = heartbeat_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(_now() + "\n", encoding="utf-8")
+    except OSError as e:
+        print(f"[jobs] Lebenszeichen nicht geschrieben: {e}")
+
+
+def heartbeat_ok(max_age_s: float = 120) -> bool:
+    """Fuer den Healthcheck: Lebenszeichen vorhanden und juenger als `max_age_s`."""
+    try:
+        return time.time() - heartbeat_path().stat().st_mtime < max_age_s
+    except OSError:
+        return False
 
 
 _runner: Runner | None = None
@@ -394,21 +478,54 @@ def start_background() -> Runner | None:
     return _runner
 
 
-def main() -> int:
-    """python -m app.jobs: Arbeiter und Zeitplan als eigener Prozess."""
+def main(argv: list[str] | None = None, stop_event: threading.Event | None = None) -> int:
+    """python -m app.jobs: Arbeiter und Zeitplan als eigener Prozess (deploy/docker-compose.yml, Dienst `jobs`).
+
+    `python -m app.jobs --healthcheck` prueft nur das Lebenszeichen (Exit 0/1) – fuer den Healthcheck des Containers.
+    SIGTERM (docker stop) und SIGINT (Strg+C) beenden geordnet: laufende Jobs bis STOP_GRACE_S abwarten, den Rest als
+    abgebrochen markieren. Ausgabe nach stdout mit Praefix [jobs] (Container-Log)."""
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if "--healthcheck" in argv:
+        return 0 if heartbeat_ok() else 1
     if not config.is_hosted():
         print("Nur im gehosteten Modus (LERNAPP_MODE=hosted).")
         return 2
+    stop = stop_event or threading.Event()
+    got: dict = {}
+
+    def _on_signal(signum, _frame):
+        got["signal"] = signal.Signals(signum).name
+        stop.set()
+
+    previous = {}
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            previous[sig] = signal.signal(sig, _on_signal)
+        except (ValueError, OSError):                 # nicht im Haupt-Thread (Tests): dann nur ueber stop_event
+            pass
     r = Runner(workers=int(os.environ.get("LERNAPP_JOB_WORKERS") or 2))
-    r.start()
-    print(f"[jobs] {r.workers} Arbeiter, Zeitplan {', '.join(sync_times())} – Strg+C beendet")
     try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        r.stop()
+        r.start()
+        par, gap = uni_limits()
+        print(f"[jobs] gestartet: {r.workers} Arbeiter, Zeitplan {', '.join(sync_times()) or '-'} (Ortszeit), "
+              f"je Hochschule {par} gleichzeitig / {gap:g} s Abstand, Lebenszeichen {heartbeat_path()} – SIGTERM/Strg+C beendet", flush=True)
+        write_heartbeat()
+        while not stop.is_set():
+            stop.wait(HEARTBEAT_S)
+            if r.alive():
+                write_heartbeat()
+            else:
+                print("[jobs] ein Thread ist beendet – kein Lebenszeichen mehr (Container wird unhealthy)", flush=True)
+        print(f"[jobs] beende ({got.get('signal', 'stop')}): keine neuen Jobs, laufende bis {STOP_GRACE_S} s abwarten", flush=True)
+        aborted = r.stop(STOP_GRACE_S)
+        if aborted:
+            print(f"[jobs] abgebrochen (werden beim naechsten Zeitfenster nachgeholt): Jobs {aborted}", flush=True)
+        print("[jobs] beendet", flush=True)
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

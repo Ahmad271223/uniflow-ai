@@ -31,8 +31,65 @@ Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröffentlichung ersetzt sein
 (`tests/test_release_texts.py` listet sie auf):
 
-`[[Name]]`, `[[Anschrift]]`, `[[E-Mail]]`, `[[Telefon]]`, `[[Domain]]`, `[[Hosting-Anbieter]]`, `[[Serverstandort]]`,
-`[[Mail-Anbieter]]`, `[[Datum]]`, `[[USt-IdNr.]]` (nur falls vorhanden), `[[Aufsichtsbehörde]]`.
+`[[Name]]`, `[[Anschrift]]` (im Impressum getrennt als `[[Straße Hausnummer]]` und `[[PLZ Ort]]`), `[[E-Mail]]`,
+`[[Telefon]]`, `[[Domain]]`, `[[Hosting-Anbieter]]`, `[[Serverstandort]]`, `[[Mail-Anbieter]]`, `[[Datum]]`, `[[Jahr]]`,
+`[[USt-IdNr.]]` (nur falls vorhanden), `[[Aufsichtsbehörde]]`. Dazu im Impressum die Angaben für eine juristische
+Person (`[[Firma]]`, `[[Rechtsform]]`, …), in den Store-Texten optionale Satzteile wie `[[ UND DER UNIVERSITÄT
+HILDESHEIM]]` (nur übernehmen, wenn die Funktion läuft) und Prüfhinweise wie `[[Anwaltlich prüfen.]]`.
+
+## Platzhalter ausfüllen: `tools/rechtstexte-fuellen.py`
+
+Der Inhaber trägt **einmal wenige Werte** in eine JSON ein, das Werkzeug ersetzt damit alle Platzhalter in
+`IMPRESSUM.md`, `DATENSCHUTZ.md`, `NUTZUNGSBEDINGUNGEN.md`, `KONTO-LOESCHEN.md`, `APP-STORE.md` und `PLAY-STORE.md`
+(diese README und `BETRIEB.md` bleiben unberührt, sie beschreiben die Platzhalter nur). Vorlage mit erfundenen
+Beispielwerten: `angaben.example.json` (Felder `_hinweis` erklären jeden Wert).
+
+```bash
+cp docs/release/angaben.example.json angaben.json      # eigene Werte eintragen (angaben.json nicht einchecken)
+.venv/bin/python tools/rechtstexte-fuellen.py angaben.json --check          # was ist offen, welcher Wert gehört wohin
+.venv/bin/python tools/rechtstexte-fuellen.py angaben.json --out /pfad/legal  # ausgefüllte Dateien in einen anderen Ordner
+.venv/bin/python tools/rechtstexte-fuellen.py angaben.json                  # docs/release/*.md an Ort und Stelle überschreiben
+```
+
+`--check` schreibt nichts und endet mit Exit 1, solange Platzhalter offen sind oder ein Pflichtwert in der JSON leer
+ist. Beim Füllen prüft das Werkzeug vor dem Schreiben, dass kein `[[` mehr vorkommt und keiner der Arbeitsvermerke,
+die `tests/test_release_texts.py` verbietet; ist `datum` leer, nimmt es das heutige Datum (TT.MM.JJJJ). Ein Platzhalter,
+den das Werkzeug nicht kennt, ist ein Fehler – neue Platzhalter in `tools/rechtstexte-fuellen.py` (`VALUES`,
+`FEATURES`, `NOTES`) eintragen. Tests: `tests/test_rechtstexte.py`.
+
+**Werte, die der Inhaber liefern muss** (Pflicht, sofern nicht „optional“):
+
+| Wert in der JSON | Platzhalter / Wirkung | Wo |
+|---|---|---|
+| `name` | `[[Name]]` – Anbieter, Verantwortlicher, Copyright | Impressum (Variante A), Datenschutz 2, Nutzungsbedingungen 1, App Store |
+| `strasse`, `plz_ort` | `[[Straße Hausnummer]]`, `[[PLZ Ort]]`; zusammen `[[Anschrift]]` („Straße, PLZ Ort“) | Impressum, Datenschutz 2, Nutzungsbedingungen 1 |
+| `email` | `[[E-Mail]]` – Kontakt, Support-URL-Kontakt, Konto löschen | alle sechs Dateien |
+| `email_datenschutz` (optional) | `[[E-Mail]]` nur in `DATENSCHUTZ.md`; leer = `email` | Datenschutz 2, 14, 15 |
+| `telefon` | `[[Telefon]]` – zweiter Kontaktweg (§ 5 DDG), Händlerangaben (DSA), Play Console | Impressum, Play Store |
+| `domain` | `[[Domain]]` – nur Hostname, eingesetzt wird `https://<domain>` (…/datenschutz, /impressum, /konto-loeschen, /support) | alle sechs Dateien |
+| `hoster`, `hoster_ort` | `[[Hosting-Anbieter]]`, `[[Serverstandort]]` | Datenschutz 11 |
+| `mail_anbieter` | `[[Mail-Anbieter]]` | Datenschutz 11 |
+| `aufsichtsbehoerde` | `[[Aufsichtsbehörde]]` mit Anschrift (z. B. Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover) | Datenschutz 14 |
+| `ustid` (optional) + `kleinunternehmer` (true/false) | Block **Umsatzsteuer**: USt-IdNr. gesetzt → „USt-IdNr. nach § 27a UStG: …“; leer → `kleinunternehmer` muss true sein → „Kleinunternehmer nach § 19 UStG, keine USt-IdNr.“ | Impressum |
+| `datenschutzbeauftragter` (optional) | leer → „Einen Datenschutzbeauftragten gibt es nicht …“; sonst „Datenschutzbeauftragte/r: …“ (`[[Falls doch benannt: Name und Kontakt.]]`) | Datenschutz 2 |
+| `antwortfrist` | `[[7 Tagen]]` – Zusage für die Bestätigung einer Löschung per E-Mail | Konto löschen |
+| `datum` (optional) | `[[Datum]]` (Stand der Texte) und `[[Jahr]]` (Copyright); leer = heute | Datenschutz, Nutzungsbedingungen, App Store |
+| `unternehmen.*` (nur juristische Person) | `firma` gesetzt → Impressum **Variante B** mit `[[Firma]] [[Rechtsform]]`, `[[Geschäftsführer/in Vorname Nachname]]`, `[[Amtsgericht Ort]]`, `[[HRB …]]`; leer → **Variante A** (natürliche Person). Die andere Variante wird entfernt, Überschrift „Angaben nach § 5 DDG“, Titel „Impressum“ | Impressum |
+| `funktionen.*` (true/false) | optionale Satzteile: `ipad_hildesheim` (`[[ UND DER UNIVERSITÄT HILDESHEIM]]`, `[[ bzw. Learnweb]]`), `ipad_fristen` (Abgabefristen/Ankündigungen/Feiertage, auch Bildschirmfoto 5), `ipad_skriptsuche`, `ipad_community_online`, `android_karteikarten`, `android_community` (beide zusammen für `[[, dazu Karteikarten und das Teilen von Lösungen]]`) | App Store, Play Store |
+| – | Prüfhinweise `[[Anwaltlich prüfen…]]`, `[[mit Apple-Dokumentation…]]`, `[[Mit der Google-Dokumentation…]]` und die Erklärung `[[…]]` in `PLAY-STORE.md` werden entfernt und im Protokoll genannt | Nutzungsbedingungen 5, 9; App Store; Play Store |
+
+Nicht als Platzhalter vorgesehen (steht fest im Text): Land „Deutschland“ im Impressum, OpenAI/ChatGPT (Datenschutz
+8a, nur bei eigener Verbindung), Apple/Google als Zahlungsabwickler. Die Vorbehalte „Entwurf, Stand 26.10.2026“ und
+„vor der Veröffentlichung anwaltlich prüfen“ bleiben stehen – sie entfernt die Anwältin oder der Anwalt nach der
+Prüfung von Hand.
+
+**Danach:** Der Dienst liest die Dateien zur Laufzeit aus `LERNAPP_LEGAL_DIR` (`app/legal.py`, Standard
+`docs/release`; im Docker-Image `/srv/uniflow/docs/release`, hineinkopiert beim Bauen, `deploy/Dockerfile`). Nach dem
+Füllen also entweder Image neu bauen (`docker compose up -d --build`) oder den `--out`-Ordner als Volume einhängen und
+`LERNAPP_LEGAL_DIR` darauf zeigen (`deploy/.env.example`); kein Cache-Zähler nötig, die Seiten werden mit `no-cache`
+ausgeliefert. Wer `docs/release/*.md` an Ort und Stelle füllt, passt in `tests/test_release_texts.py` die eine
+Erwartung `"[[Domain]]/datenschutz" in long` an (dann `https://<domain>/datenschutz`); die übrigen Prüfungen dort
+gelten weiter. Das Windows-Paket nimmt `docs/release` mit (`apps/windows/backend/uniflow-backend.spec`).
 
 ## Was vor der Veröffentlichung noch zu tun ist
 
@@ -60,7 +117,8 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
 5. **Öffentliche Seiten – erledigt (26.10.2026):** der Dienst liefert `/datenschutz`, `/nutzungsbedingungen`,
    `/impressum` und `/konto-loeschen` direkt aus diesen Markdown-Dateien aus (`app/legal.py`, ohne Sitzung, auch im
    gehosteten Modus; Platzhalter erscheinen gelb markiert, bis sie ersetzt sind). Verlinkt auf der Anmeldeseite und im
-   Konto-Menü der App; `tests/test_legal_pages.py`. Es bleibt, die Platzhalter zu ersetzen.
+   Konto-Menü der App; `tests/test_legal_pages.py`. Es bleibt, die Platzhalter zu ersetzen (Abschnitt „Platzhalter
+   ausfüllen“, `tools/rechtstexte-fuellen.py`).
 6. **App Review – erledigt (27.10.2026):** Demo-Inhalte ohne Hochschulkonto (`app/demo.py`): Einstellungen →
    Erweitert → „Demo-Inhalte anlegen“ bzw. `POST /api/demo {enabled: true}` legt ein Demo-Modul mit drei selbst
    erzeugten PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung an; „entfernen“ nimmt alles
