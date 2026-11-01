@@ -374,7 +374,7 @@ Datensätze beim Dienst:
 4. **Meldung erledigen:** `Report`-Datensatz löschen (oder stehen lassen als Verlauf). Eine Lösung mit mehreren
    Meldungen fällt im Dashboard über die Sortierung nach `solutionID` auf; eine automatische Schwelle („ab drei
    Meldungen verborgen“) gibt es in V1 nicht.
-5. **Schema:** Fertig in `apps/apple/Config/cloudkit-schema.ckdb` (Einspielen mit `xcrun cktool import-schema`, noch nicht gegen Apple geprüft). Sonst legt Development Felder beim ersten Speichern an; vor dem Release „Deploy Schema Changes“ nach
+5. **Schema:** Fertig in `apps/apple/Config/cloudkit-schema.ckdb` (am 1.11.2026 vom Inhaber über die Console in Development importiert und nach Production deployt; das Speichern aus der App ist noch ungeprüft). Sonst legt Development Felder beim ersten Speichern an; vor dem Release „Deploy Schema Changes“ nach
    Production. Indizes: `Solution` QUERYABLE auf `fingerprint`, `university`, `courseKey`; `Ban` und `Block`
    QUERYABLE auf `recordName` (die App fragt alle Datensätze des Typs ab – CloudKit braucht dafür diesen Index,
    sonst „Field recordName is not marked queryable“); `Report` wie oben. Berechtigungen (Security Roles) der öffentlichen Datenbank: `_world` Read,
