@@ -194,6 +194,7 @@ public actor SyncEngine {
 
     private var statusHandler: (@Sendable (SyncStatus) -> Void)?
     private var remoteChangeHandler: (@Sendable ([String]) -> Void)?
+    private var fetchRequested = false
     private var issueHandler: (@Sendable (SyncIssue?) -> Void)?
 
     private var pdfPageCount = 0
@@ -506,6 +507,14 @@ public actor SyncEngine {
         await uploadLoop()
     }
 
+    /// Der Stand wurde ausserhalb dieser Engine geaendert (Geraete-Abgleich): Serverstand einarbeiten, auch ohne eigene
+    /// Aenderung. Laeuft gerade ein Upload, kommt der Abruf danach.
+    public func refreshFromServer() async {
+        fetchRequested = true
+        await syncNow()
+        if fetchRequested { await syncNow() }
+    }
+
     /// Nach einer Aenderung: kurz warten und hochladen. Bei 401/403 nicht (wartet auf ausdrueckliche Anfrage). Bei
     /// einem Serverfehler bleibt eine geplante Wiederholung mit wachsendem Abstand bestehen; ist keine geplant (z. B.
     /// 5xx beim Oeffnen ohne ungesendete Seiten), wird eine geplant.
@@ -557,11 +566,12 @@ public actor SyncEngine {
             return
         }
         uploading = true
-        if needsServerState || (!hasDirty && (serverErrorStatus != nil || blockedBy != nil || networkDown)) {
+        if needsServerState || fetchRequested || (!hasDirty && (serverErrorStatus != nil || blockedBy != nil || networkDown)) {
             // nichts zu senden, der letzte Versuch scheiterte aber: leichter Abruf, ob der Server wieder antwortet.
             // Unbekannter lokaler Stand (beschaedigte oder veraltete Dateien): erst den Serverstand einarbeiten
             do {
                 let server = try await transport.fetch(documentID: documentID)
+                fetchRequested = false
                 noteReachable()
                 retryDelay = 2
                 serverRetryDelay = 2

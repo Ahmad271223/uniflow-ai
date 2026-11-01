@@ -172,11 +172,13 @@ struct SolutionShareSheet: View {
     private var communityCard: some View {
         UFCard {
             UFCardHead("In der Community", icon: "users") {
-                community.isConnected ? UFBadge("CloudKit", tone: .ok) : UFBadge("nicht verfügbar", tone: .warn)
+                CommunityTexts.badge(community)
             }
             if community.isConnected {
-                UFSegmented(options: CommunityVisibility.allCases.map { ($0, $0.title) }, selection: $visibility)
-                    .padding(.bottom, 8)
+                if !community.isAccountService {
+                    UFSegmented(options: CommunityVisibility.allCases.map { ($0, $0.title) }, selection: $visibility)
+                        .padding(.bottom, 8)
+                }
                 if visibility == .studyGroup {
                     if groups.isEmpty {
                         Text("Du bist in keiner Lerngruppe. Lege in den Einstellungen eine an oder tritt mit einem Code bei.")
@@ -185,10 +187,10 @@ struct SolutionShareSheet: View {
                         UFSelect(options: groups.map { ($0.code, $0.name) }, selection: $groupCode)
                     }
                 }
-                if visibility == .module, courseKey == nil {
+                if visibility == .module, courseKey == nil, !community.isAccountService {
                     Text(CommunityServiceError.missingCourse.localizedDescription).ufFont(13.12).foregroundStyle(UF.warn)
                 }
-                Text(CommunityTexts.visibility(visibility)).ufFont(13.12).foregroundStyle(UF.text2)
+                Text(CommunityTexts.visibility(visibility, service: community)).ufFont(13.12).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 4)
                 Text(CommunityTexts.copyright).ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 8)
@@ -201,7 +203,7 @@ struct SolutionShareSheet: View {
     private func publishedCard(_ p: CommunityPublication) -> some View {
         UFCard {
             UFCardHead("Veröffentlicht", icon: "check")
-            Text("Deine Lösung ist in der Community – \(CommunityTexts.publishedAt(SolutionPackage.timestamp(p.publishedAt))). \(CommunityTexts.visibility(visibility))")
+            Text("Deine Lösung ist in der Community – \(CommunityTexts.publishedAt(SolutionPackage.timestamp(p.publishedAt))). \(CommunityTexts.visibility(visibility, service: community))")
                 .ufFont(14.5).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
             Text("Zurückziehen kannst du sie jederzeit unter „Meine geteilten Lösungen“.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 6)
@@ -211,6 +213,7 @@ struct SolutionShareSheet: View {
 
     private var canPublish: Bool {
         guard community.isConnected, !busy, !publishing, draft?.canShare(selected) == true else { return false }
+        if community.isAccountService { return true }
         switch visibility {
         case .module: return courseKey != nil
         case .studyGroup: return groups.contains { $0.code == groupCode }
@@ -245,9 +248,9 @@ struct SolutionShareSheet: View {
                     Label(SolutionTexts.missingImages(missingImages(preview)), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(UF.warn)
                 }
-                Text("Sichtbarkeit: \(visibility.title)\(visibility == .studyGroup ? " „\(groups.first { $0.code == groupCode }?.name ?? "")“" : "") · \(name.isEmpty ? "anonym" : "als „\(name)“")")
+                Text("Sichtbarkeit: \(community.isAccountService ? "alle mit derselben PDF" : visibility.title)\(visibility == .studyGroup ? " „\(groups.first { $0.code == groupCode }?.name ?? "")“" : "") · \(name.isEmpty ? "anonym" : "als „\(name)“")")
                     .foregroundStyle(UF.text)
-                Text(CommunityTexts.privacy).foregroundStyle(UF.muted)
+                Text(CommunityTexts.privacy(community)).foregroundStyle(UF.muted)
             }
             .ufFont(13.12).foregroundStyle(UF.text2)
             .fixedSize(horizontal: false, vertical: true)
@@ -291,7 +294,7 @@ struct SolutionShareSheet: View {
            let key = await CommunityCourses.courseKey(fileID: store.file.id, host: host, university: uni.rawValue) {
             courseKey = key
             week = await CommunityCourses.week(fileID: store.file.id, moduleID: store.file.module_id, api: api)
-        } else {
+        } else if !community.isAccountService {
             visibility = .anonymous
         }
         do {

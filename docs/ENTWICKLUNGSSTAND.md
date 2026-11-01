@@ -75,7 +75,7 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
 - **Fertig:** Studora-Konto G1 (`app/accounts.py`, `account_api.py`, 18 Endpunkte: registrieren, E-Mail bestätigen,
   anmelden mit E-Mail, Apple, Google, Passwort zurücksetzen, Geräte, Export, löschen); Geräte-Abgleich G2
   (`app/sync.py` Dienst, `sync_client.py` Windows, Android `SyncEngine`); im Swift-Kern `StudoraAccountLink`
-  (sichtbar erst mit Dienst-Adresse), **kein G2-Client auf dem iPad**. Vier Tarife in `app/plans.py`, Rechte in
+  (sichtbar erst mit Dienst-Adresse), G2-Client auf dem iPad seit 31.10.. Vier Tarife in `app/plans.py`, Rechte in
   `entitlements.py`, Apple-Belege (`apple_store.py`), Kontingente mit Reservierung.
 - **Neu 30.10.:** 7 Tage Probe mit allen Rechten für jedes neue Konto (`billing.start_trial`), danach Tarifwahl
   (`needs_plan_choice`, `POST /api/billing/plan-choice`); Stripe für Web und Windows (`app/stripe_billing.py`:
@@ -193,5 +193,5 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
    einen Wochentest auf echtem Skript prüfen.
 2. Inhaber: Server, Domain, Mail nach `docs/START-DIENST-CHECKLISTE.md`; danach Sitzung: Dienst in Betrieb nehmen, Lasttest auf dem Server, Prüfung in Safari.
 3. Inhaber + PC-Sitzung: Microsoft Store (Partner Center, Screenshots, Einreichung).
-4. Mac-Sitzung, sobald Apple freigibt: G2-Client auf dem iPad, Community über den Dienst, Gerätetest nach
+4. Mac-Sitzung, sobald Apple freigibt: Gerätetest nach
    `MAC-IPAD-CHECKLISTE.md` und `EDITOR-ABNAHME.md`, App Store.

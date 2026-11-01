@@ -958,6 +958,9 @@ final class DocumentStore: ObservableObject {
         lifecycle.append(center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.engine.requestUpload() }
         })
+        lifecycle.append(center.addObserver(forName: .uniflowAccountSynced, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.engine.refreshFromServer() }
+        })
     }
 
     private func flushInBackground() async {

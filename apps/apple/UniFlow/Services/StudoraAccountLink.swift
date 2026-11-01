@@ -34,6 +34,11 @@ struct URLSessionServiceTransport: ServiceHTTPTransport {
     }
 }
 
+extension Notification.Name {
+    /// Geraete-Abgleich hat hier etwas geaendert; offene Dokumente holen ihren Stand neu
+    static let uniflowAccountSynced = Notification.Name("uniflow.accountSynced")
+}
+
 /// Studora-Konto auf dem iPad (V1, Entscheidung des Inhabers vom 29.10.2026; Plan ENTSCHEIDUNGEN-INHABER-2026-10-29 §3):
 /// anmelden mit E-Mail (wer sich auf Windows registriert hat) und spaeter mit Apple, angemeldete Geraete, Datenexport,
 /// Konto loeschen. Noch ohne Abgleich der Notizen (Stufe 2). Sichtbar erst mit Dienst-Adresse (`StudoraServiceURL`).
@@ -54,7 +59,9 @@ final class StudoraAccountLink: ObservableObject {
         return id
     }
 
-    @Published private(set) var user: StudoraAccount.User?
+    @Published private(set) var user: StudoraAccount.User? {
+        didSet { updateCommunityRoute() }
+    }
     @Published private(set) var sessions: [StudoraAccount.Session] = []
     /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
@@ -71,6 +78,7 @@ final class StudoraAccountLink: ObservableObject {
     private var lastSyncAt: Date?
     private var host: LocalBackendHost?
     private var university: String?
+    private var routedAccount: String?
 
     private(set) var account: StudoraAccount?
     private var scope: String?
@@ -95,12 +103,29 @@ final class StudoraAccountLink: ObservableObject {
         let r = await DeviceSync(database: backend.context.database, transport: account, device: Self.deviceID).run(account: id)
         lastSync = r
         lastSyncAt = Date()
+        if r.applied + r.deleted + r.notesMerged > 0 { NotificationCenter.default.post(name: .uniflowAccountSynced, object: nil) }
         return r.applied + r.deleted > 0
+    }
+
+    /// Community ueber den Dienst (G4) nur mit Konto derselben Hochschule, sonst bleibt CloudKit
+    private func updateCommunityRoute() {
+        let id = user.map(\.id).flatMap { Self.canSync(user: user, university: university, blocked: false) ? $0 : nil }
+        guard id != routedAccount else { return }
+        routedAccount = id
+        CommunityMatches.shared.invalidate()
+        guard id != nil, let account, let host, let university else {
+            CommunityRoute.shared.service = nil
+            return
+        }
+        CommunityRoute.shared.service = ServiceCommunityService(
+            transport: account, localFingerprints: { await CommunityCourses.localFingerprints(host: host) },
+            courseFingerprints: { await CommunityCourses.fingerprints(courseKey: $0, host: host, university: university) })
     }
 
     func use(userScope: String?, host: LocalBackendHost? = nil, university: String? = nil) {
         self.host = host
         self.university = university
+        defer { updateCommunityRoute() }
         guard userScope != scope else { return }
         scope = userScope
         lastSync = nil

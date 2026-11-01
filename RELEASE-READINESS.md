@@ -87,7 +87,8 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | Apple Developer Program | abgelehnt am 28.10., Support-Fall beim Inhaber |
 | Team-ID in `apps/apple/Config/Team.xcconfig`, Signierung, „Mit Apple anmelden“, CloudKit-Container | offen |
 | App Store Connect: Eintrag „Studora“, Produkt Plus (`de.uniflow.plus.monthly`), Datenschutzangaben | offen (`docs/release/APP-STORE.md`) |
-| iPad: Konto-Anmeldung sichtbar machen (Dienst-Adresse), **G2-Client bauen**, Community von CloudKit auf den Dienst | offen (Mac-Sitzung) |
+| iPad: G2-Client und Community über den Dienst | gebaut 31.10./1.11., Kern live gegen den lokalen Dienst geprüft; ohne Lerngruppen und Sichtbarkeit (kennt der Dienst nicht) |
+| iPad: Konto-Anmeldung sichtbar machen | offen: Dienst-Adresse `StudoraServiceURL` setzen |
 | Übernahme vom Web: Module, Stundenplan, Lernplan, Karteikarten, Einstellungen, Notizen über G2; eigene Dokumente mit Inhalt noch nicht | offen |
 | Gerätetest nach Checkliste | offen |
 
@@ -133,7 +134,7 @@ Offen (nur der Inhaber):
 3. Inhaber: einmal mit dem eigenen ChatGPT-Abo anmelden und einen Wochentest auf echtem Skript prüfen.
 4. Inhaber + Sitzung: Web-App und Offline-Notizen in Safari auf iPad und Mac prüfen.
 5. Inhaber + PC-Sitzung: Partner Center, Screenshots, Store-Einreichung Windows.
-6. Mac-Sitzung, sobald Apple freigibt: G2-Client, Community über den Dienst, Gerätetest, App Store.
+6. Mac-Sitzung, sobald Apple freigibt: Gerätetest, App Store.
 
 ## Verweise
 

@@ -202,3 +202,28 @@ Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lie
   ein offenes Dokument lädt geholte Notizen erst beim Sichern; Übernahme von Daten aus dem Web, wenn das iPad schon
   Inhalt hat, läuft über die fachlichen Schlüssel, ein eigener Ablauf ist nicht gebaut.
 
+## 9. Nachtrag: Community auf dem iPad über den Dienst (1.11.2026)
+
+- **Umschaltung:** Mit angemeldetem Studora-Konto derselben Hochschule nutzt die App `ServiceCommunityService` (Kern,
+  Vertrag G4), sonst wie bisher CloudKit (`CommunityRoute`, gesetzt von `StudoraAccountLink`).
+- **Unterschied zu CloudKit, im Dienst so gebaut:** Keine Sichtbarkeit, keine Kurs-Schlüssel, keine Lerngruppen. Eine
+  Lösung sieht jedes Konto derselben Hochschule, das dieselbe PDF aus dem eigenen Abgleich gemeldet hat. Die Oberfläche
+  zeigt am Konto darum keine Auswahl und keine Lerngruppen, die Texte sagen das. Eine Veröffentlichung für eine
+  Lerngruppe oder „Anonym“ scheitert im Kern mit `visibilityUnsupported` und wird nie für alle sichtbar. Wer anonym
+  bleiben will, lässt das Pseudonym leer; der Dienst zeigt dann nur sein festes Konto-Pseudonym.
+- **Ablauf:** Antwortet der Dienst `file_not_owned`, meldet die App einmal alle eigenen Hochschul-PDFs (`/claims`) und
+  wiederholt die Anfrage. Die Kursansicht fragt je Fingerabdruck einzeln. Sperren geht beim Dienst über eine Lösung des
+  Autors; die letzte gesehene Lösung je Pseudonym ist nur im Speicher.
+- **Eigene Dokumente** lassen sich am Konto nicht veröffentlichen (Regel des Dienstes), mit CloudKit schon.
+- **Offenes Dokument:** Bringt der Geräte-Abgleich etwas, holt ein offenes Dokument den Stand neu und führt ihn zusammen
+  (`SyncEngine.refreshFromServer`, Mitteilung `.uniflowAccountSynced`). Punkt aus Abschnitt 8 erledigt; in der App nur
+  gebaut, die Logik ist im Kern geprüft.
+- **Tests:** `ServiceCommunityTests` (6) ohne Dienst, `ServiceCommunityLiveTests` (2) gegen den echten Dienst
+  (`tools/g2-testdienst.py`, Aufruf wie in Abschnitt 8, Filter `ServiceCommunity`).
+- **Stand:** Kern 794 ×2, davon 7 live gegen den Dienst. App 571 ×1 (2 übersprungen). Der zweite App-Lauf steht aus: der
+  Mac ging mit zugeklapptem Deckel im Akkubetrieb schlafen (Log 05:28), die Wiederholungen ebenso. Generatoren 21 / 21,
+  pytest 589 grün, 8 übersprungen, 2 Fehler (`test_plan_names`, siehe unten; Python und JS unverändert).
+- **Noch nicht geprüft:** Abgleich und Community in der App gegen einen laufenden Dienst, nur der Kern ist live geprüft.
+- **Hinweise für Mac-Läufe:** `Config/Team.xcconfig` setzt lokal einen iCloud-Container, dann scheitert
+  `testWithoutContainerNothingWorksAndNothingCrashes`; darum `UF_CLOUDKIT_CONTAINER=` an `xcodebuild` anhängen. Ohne
+  `node` scheitern in pytest die beiden `test_plan_names`-Tests (Rückfall auf `jsc`).

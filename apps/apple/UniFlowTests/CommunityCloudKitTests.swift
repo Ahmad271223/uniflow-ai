@@ -4,6 +4,10 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
+private struct NoCommunityTransport: CommunityTransport {
+    func community(_ method: String, _ path: String, body: JSONValue?) async throws -> JSONValue { .null }
+}
+
 /// Online-Community ueber `CloudKitCommunityService` gegen ein nachgebildetes CloudKit (`FakeCommunityCloud`, nur im
 /// Speicher): veroeffentlichen, finden (Hochschule, Kurs-Schluessel, Lerngruppe, anonym, zurueckgezogen, gesperrt),
 /// laden, zurueckziehen, melden, blockieren, Lerngruppen und Fehlerfaelle. Kein echtes CloudKit, kein Netz, keine
@@ -571,6 +575,38 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(CommunityCourses.courseKeys(module: detail, university: "luh"),
                        [CommunityKeys.courseKey(university: "luh", courseID: "kurs-7"), nameKey])
         XCTAssertEqual(CommunityCourses.courseKeys(module: ["module": ["name": "  "]], university: "luh"), [])
+    }
+
+    func testFingerprintsOnlyFromOwnSyncedPDFs() async throws {
+        let root = try tempDir()
+        let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-10-26T14:30:05")!)
+        let backend = try await host.backend()
+        let sha = { (c: Character) in String(repeating: c, count: 64) }
+        try await backend.context.database.withConnection { c in
+            try c.execute("INSERT INTO courses(id, title, kind, active) VALUES ('kurs-1', 'Lineare Algebra', 'vorlesung', 1)")
+            try c.execute("INSERT INTO courses(id, title, kind, active) VALUES ('kurs-2', 'Analysis', 'vorlesung', 1)")
+            for (id, course, name, url, hash, deleted) in [
+                ("a", "kurs-1", "Blatt.pdf", "https://x/1", sha("a"), nil), ("b", "kurs-2", "Blatt.PDF", "https://x/2", sha("b"), nil),
+                ("c", "__user__", "Eigen.pdf", "https://x/3", sha("c"), nil), ("d", "kurs-1", "Weg.pdf", "https://x/4", sha("d"), "2026-10-26"),
+                ("e", "kurs-1", "Video.mp4", "https://x/5", sha("e"), nil), ("f", "kurs-1", "Ohne.pdf", "", sha("f"), nil),
+            ] as [(String, String, String, String, String, String?)] {
+                try c.execute("INSERT INTO files(id, course_id, name, download_url, content_sha256, deleted_at) VALUES (?,?,?,?,?,?)",
+                              [.text(id), .text(course), .text(name), .text(url), .text(hash), deleted.map(SQLiteValue.text) ?? .null])
+            }
+        }
+        let local = await CommunityCourses.localFingerprints(host: host)
+        XCTAssertEqual(local, [sha("a"), sha("b")], "keine eigenen, geloeschten, fremden oder Nicht-PDFs")
+        let byID = await CommunityCourses.fingerprints(courseKey: CommunityKeys.courseKey(university: "luh", courseID: "kurs-1"), host: host, university: "luh")
+        XCTAssertEqual(byID, [sha("a")])
+        let byName = await CommunityCourses.fingerprints(courseKey: try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Analysis")), host: host, university: "luh")
+        XCTAssertEqual(byName, [sha("b")])
+    }
+
+    func testAccountTextsDoNotPromiseGroupsOrCourses() {
+        let account = ServiceCommunityService(transport: NoCommunityTransport(), localFingerprints: { [] }, courseFingerprints: { _ in [] })
+        XCTAssertEqual(CommunityTexts.visibility(.module, service: account), CommunityTexts.visibilityAccount)
+        XCTAssertEqual(CommunityTexts.visibility(.module, service: NotConnectedCommunityService()), CommunityTexts.visibilityModule)
+        XCTAssertFalse(CommunityPage.howItWorks(account: true).contains { $0.text.contains("Lerngruppe") })
     }
 
     func testCourseKeysComeFromTheLocalDatabase() async throws {

@@ -107,7 +107,7 @@ vereinbar: in der iPad-App gibt es Apple-Kauf, im Web Stripe, im Store Microsoft
 | 5 | Wochentests im Dienst je Konto | Cloud-/PC-Sitzung | 1 (KI-Entscheidung) |
 | 6 | Windows Store: Partner Center, Screenshots, Einreichung | Inhaber + PC-Sitzung | 2 (Datenschutz-URL) |
 | 7 | Stripe und Microsoft-Beleg im Dienst | PC-Sitzung | 1 (Bezahl-Entscheidung) |
-| 8 | iPad: Konto sichtbar, G2-Client, Community über Dienst | Mac-Sitzung | 3, Apple-Freigabe |
+| 8 | iPad: G2-Client und Community über Dienst gebaut (1.11.), Konto sichtbar mit Dienst-Adresse | Mac-Sitzung | 3, Apple-Freigabe |
 | 9 | Hinweis „App laden“ im Web, Übernahme prüfen | Cloud- + Mac-Sitzung | 8 |
 
 Punkte 4, 5 und 7 lassen sich in dieser Cloud-Sitzung oder am PC bauen und mit pytest, Generatoren und JS-Tests

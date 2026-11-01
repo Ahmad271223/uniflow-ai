@@ -81,7 +81,7 @@ anderen Worten; die Geräte brauchen dafür keine Änderung, weil die Schnittste
 |---|---|---|
 | **G1 Konto** `/api/account/...` | registrieren, E-Mail bestätigen, anmelden (E-Mail, **Mit Apple**, Google), Passwort zurücksetzen, Geräte einzeln abmelden, Hochschule, Datenexport, Konto löschen | Dienst fertig, Windows fertig; **iPad in V1, sobald der Server steht** (Entscheidung 29.10., Plan ENTSCHEIDUNGEN-29.10 §3) |
 | **G2 Abgleich** `/api/sync/changes`, `/api/sync/push` | Daten zwischen den Geräten eines Kontos | Dienst fertig, Windows fertig (0.4.8); **iPad in Stufe 2** |
-| **G4 Community** `/api/community/...` | Lösungen teilen und projizieren, Likes, Kommentare an der Stelle, Fragen je Kurs, Lesezeichen, Mitteilungen, Melden, Sperren, Moderation, Rangliste (nur Admin) | Dienst fertig, Windows fertig (0.4.7–0.4.9); iPad heute über iCloud (CloudKit), **Umstellung auf den Dienst in Stufe 2** |
+| **G4 Community** `/api/community/...` | Lösungen teilen und projizieren, Likes, Kommentare an der Stelle, Fragen je Kurs, Lesezeichen, Mitteilungen, Melden, Sperren, Moderation, Rangliste (nur Admin) | Dienst fertig, Windows fertig (0.4.7–0.4.9); iPad über den Dienst, sobald ein Konto angemeldet ist (seit 1.11., ohne Lerngruppen), sonst iCloud (CloudKit) |
 | Hochschule am Gerät | Gerät meldet nur Fingerabdruck und Seitentext seiner PDFs (`PUT …/fingerprint`, `…/pagetext`), nie die Datei | Dienst fertig |
 | Kaufprüfung | App-Store- bzw. Microsoft-Kauf beim Dienst bestätigen, dann Pro-Tarife | Dienst vorbereitet, braucht Apple-Team |
 | **KI** | auf dem iPad: direkt an OpenAI mit dem ChatGPT-Abo des Nutzers (gebaut 29.10.); Pro AI später über den Dienst mit günstigem Modell | ChatGPT gebaut (sichtbar im Debug-Build, für alle nach Freigabe durch OpenAI) |

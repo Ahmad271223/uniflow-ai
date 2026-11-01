@@ -16,6 +16,8 @@ enum CommunityTexts {
     static let visibilityGroup = "Sichtbar nur für Mitglieder der gewählten Lerngruppe (wer den Beitrittscode kennt)."
     static let visibilityAnonymous = "Sichtbar für alle an deiner Hochschule, die dieselbe PDF haben – ohne Pseudonym."
     static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Sichtbarkeit und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Öffnen kann die Lösung nur, wer dieselbe PDF hat."
+    static let visibilityAccount = "Sichtbar für alle Studora-Konten an deiner Hochschule, die dieselbe PDF aus ihrem Hochschul-Abgleich haben."
+    static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Fingerabdrücke deiner PDFs aus dem Hochschul-Abgleich. Andere sehen nie deine E-Mail-Adresse. Öffnen kann die Lösung nur, wer dieselbe PDF hat."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
     /// Einstellungen und Community-Seite ohne iCloud-Container: ehrlich, mit dem Weg, der bleibt
     static let unavailableHint = "Dieser Build hat keinen iCloud-Container (dafür braucht es das Apple Developer Program). Es wird nichts veröffentlicht und nichts gesucht. Lösungen teilst du weiterhin als verschlüsselte Datei – im Editor unter „Ebenen“."
@@ -27,6 +29,20 @@ enum CommunityTexts {
 
     static func matches(_ n: Int) -> String {
         n == 1 ? "1 Lösung aus der Community zu diesem Blatt" : "\(n) Lösungen aus der Community zu diesem Blatt"
+    }
+
+    static func visibility(_ v: CommunityVisibility, service: CommunityService) -> String {
+        service.isAccountService ? visibilityAccount : visibility(v)
+    }
+
+    static func privacy(_ service: CommunityService) -> String { service.isAccountService ? privacyAccount : privacy }
+
+    @MainActor @ViewBuilder static func badge(_ service: CommunityService) -> some View {
+        if service.isConnected {
+            UFBadge(service.isAccountService ? "Studora-Konto" : "CloudKit", tone: .ok)
+        } else {
+            UFBadge("nicht verfügbar", tone: .warn)
+        }
     }
 
     static func publishedAt(_ iso: String) -> String { "veröffentlicht am \(ForeignSolutionLayer.date(iso))" }
@@ -394,7 +410,7 @@ struct CommunitySettingsCard: View {
     var body: some View {
         UFCard {
             UFCardHead("Community", icon: "users") {
-                service.isConnected ? UFBadge("CloudKit", tone: .ok) : UFBadge("nicht verfügbar", tone: .warn)
+                CommunityTexts.badge(service)
             }
             UFGate(.communityRead, entitlements: entitlements) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -402,7 +418,7 @@ struct CommunitySettingsCard: View {
                         Text(CommunityTexts.unavailableHint).ufFont(13.12).foregroundStyle(UF.warn)
                             .fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
                     }
-                    Text(CommunityTexts.privacy).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    Text(CommunityTexts.privacy(service)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).padding(.top, 8).fixedSize(horizontal: false, vertical: true) }
 
                     UFCardHead("Pseudonym", icon: "user").padding(.top, 16)
@@ -416,42 +432,44 @@ struct CommunitySettingsCard: View {
                                 toast.show("Pseudonym gespeichert")
                             }
                         }
-                        Text("Erscheint bei Lösungen, die du mit Sichtbarkeit „Modul“ oder „Lerngruppe“ veröffentlichst. Nie dein echter Name.")
+                        Text(service.isAccountService ? "Erscheint bei Lösungen, die du veröffentlichst. Nie dein echter Name." : "Erscheint bei Lösungen, die du mit Sichtbarkeit „Modul“ oder „Lerngruppe“ veröffentlichst. Nie dein echter Name.")
                             .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
                     } else {
                         shareHint(CommunityTexts.pseudonymPlusHint)
                     }
 
-                    UFCardHead("Lerngruppen", icon: "users").padding(.top, 16)
-                    if groups.isEmpty {
-                        Text("Du bist in keiner Lerngruppe. Lege eine an und gib den Code weiter, oder tritt mit einem Code bei.")
-                            .ufFont(13.12).foregroundStyle(UF.muted)
-                    }
-                    ForEach(groups, id: \.code) { g in
-                        UFItemRow(g.name, sub: "Code \(g.code)",
-                                  leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
-                                  trailing: {
-                                      HStack(spacing: 8) {
-                                          UFButton("Code & QR", icon: "grid", size: .small) { showingCode = g }
-                                          UFButton("Verlassen", kind: .danger, size: .small) { leaving = g }
-                                      }
-                                  })
-                    }
-                    UFFlexWrap(gap: 9.6) {
-                        if canShare {
+                    if !service.isAccountService {
+                        UFCardHead("Lerngruppen", icon: "users").padding(.top, 16)
+                        if groups.isEmpty {
+                            Text("Du bist in keiner Lerngruppe. Lege eine an und gib den Code weiter, oder tritt mit einem Code bei.")
+                                .ufFont(13.12).foregroundStyle(UF.muted)
+                        }
+                        ForEach(groups, id: \.code) { g in
+                            UFItemRow(g.name, sub: "Code \(g.code)",
+                                      leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
+                                      trailing: {
+                                          HStack(spacing: 8) {
+                                              UFButton("Code & QR", icon: "grid", size: .small) { showingCode = g }
+                                              UFButton("Verlassen", kind: .danger, size: .small) { leaving = g }
+                                          }
+                                      })
+                        }
+                        UFFlexWrap(gap: 9.6) {
+                            if canShare {
+                                HStack(spacing: 8) {
+                                    UFTextInput("Name der neuen Lerngruppe", text: $newGroupName).frame(width: 220)
+                                    UFButton("Anlegen", icon: "plus", size: .small) { create() }.disabled(busy || !service.isConnected)
+                                }
+                            }
                             HStack(spacing: 8) {
-                                UFTextInput("Name der neuen Lerngruppe", text: $newGroupName).frame(width: 220)
-                                UFButton("Anlegen", icon: "plus", size: .small) { create() }.disabled(busy || !service.isConnected)
+                                UFTextInput("Beitrittscode", text: $joinCode).frame(width: 160)
+                                    .textInputAutocapitalization(.characters).autocorrectionDisabled()
+                                UFButton("Beitreten", icon: "log-out", size: .small) { join() }.disabled(busy || !service.isConnected)
                             }
                         }
-                        HStack(spacing: 8) {
-                            UFTextInput("Beitrittscode", text: $joinCode).frame(width: 160)
-                                .textInputAutocapitalization(.characters).autocorrectionDisabled()
-                            UFButton("Beitreten", icon: "log-out", size: .small) { join() }.disabled(busy || !service.isConnected)
-                        }
+                        .padding(.top, 8)
+                        if !canShare { shareHint(CommunityTexts.createGroupPlusHint).padding(.top, 8) }
                     }
-                    .padding(.top, 8)
-                    if !canShare { shareHint(CommunityTexts.createGroupPlusHint).padding(.top, 8) }
 
                     UFCardHead("Sperrliste", icon: "alert").padding(.top, 16)
                     if blocked.isEmpty {

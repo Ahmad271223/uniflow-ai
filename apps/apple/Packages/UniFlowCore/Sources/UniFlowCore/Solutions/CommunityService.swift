@@ -14,6 +14,8 @@ import Foundation
 public protocol CommunityService: Sendable {
     /// Dienst vorhanden (Build mit iCloud-Container) – sagt nichts ueber Netz oder iCloud-Anmeldung.
     var isConnected: Bool { get }
+    /// Studora-Dienst (G4): ein Konto, keine Sichtbarkeit und keine Lerngruppen, sichtbar fuer alle mit derselben PDF
+    var isAccountService: Bool { get }
     /// Paket veroeffentlichen; Ergebnis ist die Kennung beim Dienst.
     func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication
     /// Veroeffentlichte Loesungen zu einer Original-PDF (Fingerabdruck dient nur der Zuordnung), schon gefiltert
@@ -42,6 +44,8 @@ public protocol CommunityService: Sendable {
 }
 
 extension CommunityService {
+    public var isAccountService: Bool { false }
+
     /// Veroeffentlichen mit Standardoptionen (Sichtbarkeit Modul ohne Kurs-Schluessel: der Dienst weist das ab).
     public func publish(_ package: SolutionPackage) async throws -> CommunityPublication {
         try await publish(package, options: CommunityPublishOptions())
@@ -196,6 +200,12 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     case unavailable
     /// auf diesem iPad nicht bei iCloud angemeldet (oder iCloud eingeschraenkt)
     case notSignedIn
+    /// Sitzung beim Studora-Konto beendet
+    case accountRequired
+    /// PDF nicht aus dem eigenen Hochschul-Abgleich
+    case fileNotOwned
+    /// Sichtbarkeit oder Lerngruppe, die der Studora-Dienst nicht kennt
+    case visibilityUnsupported
     case offline
     /// Kontingent beim Dienst erschoepft
     case quota
@@ -214,6 +224,9 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .notConnected: return "Community-Dienst noch nicht verbunden."
         case .unavailable: return "Die Community ist in diesem Build nicht verfügbar (kein iCloud-Container)."
         case .notSignedIn: return "Melde dich auf diesem iPad bei iCloud an (Einstellungen → Apple-ID), um die Community zu nutzen."
+        case .accountRequired: return "Melde dich unter Einstellungen wieder bei deinem Studora-Konto an, um die Community zu nutzen."
+        case .fileNotOwned: return "Lösungen gibt es nur für PDFs aus deinem Hochschul-Abgleich."
+        case .visibilityUnsupported: return "Lerngruppen gibt es mit dem Studora-Konto noch nicht. Lösungen sieht, wer dieselbe PDF hat."
         case .offline: return "Keine Verbindung zum Community-Dienst. Prüfe dein Netz und versuche es erneut."
         case .quota: return "Das Kontingent des Community-Dienstes ist erschöpft. Bitte später erneut versuchen."
         case .notOwner: return "Nur eigene Veröffentlichungen lassen sich zurückziehen."

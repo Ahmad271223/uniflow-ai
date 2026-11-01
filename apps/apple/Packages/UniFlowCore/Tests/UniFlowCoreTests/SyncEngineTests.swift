@@ -320,6 +320,20 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(box.keys, ["p2"])
     }
 
+    /// Der Geraete-Abgleich schreibt am Editor vorbei: das offene Dokument holt den Stand ohne eigene Aenderung
+    func testRefreshFromServerBringsForeignNotesIntoAnOpenDocument() async {
+        let server = MockServer()
+        let engine = makeEngine(server, MemoryBlobStore())
+        _ = await engine.open(pdfPageCount: 2)
+        let box = ChangedBox()
+        await engine.setHandlers(onStatus: nil, onRemoteChange: { keys in box.add(keys) })
+        await server.externalEdit { $0.pages["p2"] = page(["anderes-geraet"]) }
+        await engine.syncNow()
+        XCTAssertEqual(box.keys, [], "ohne Anstoss bleibt es beim alten Stand")
+        await engine.refreshFromServer()
+        XCTAssertEqual(box.keys, ["p2"])
+    }
+
     /// Vertrag mergeDocument: beide Geraete sortieren die Seiten verschieden um -> die Reihenfolge dieses Geraets
     /// gilt, die Oberflaeche erfaehrt es (`SyncIssue.seitenreihenfolge`), "Verstanden" raeumt den Hinweis weg
     func testBothDevicesReorderingPagesIsShownAsOrderConflict() async {

@@ -77,6 +77,32 @@ enum CommunityCourses {
         return keys
     }
 
+    /// PDFs aus dem eigenen Abgleich (`service_link.local_fingerprints`): Dateien mit Quelle, ohne eigene und geloeschte
+    private static let syncedPDFs = """
+        SELECT f.content_sha256 AS sha, f.course_id AS course_id, c.title AS title, m.name AS module_name FROM files f
+        LEFT JOIN courses c ON c.id = f.course_id LEFT JOIN folders fo ON fo.id = f.folder_id LEFT JOIN modules m ON m.id = fo.module_id
+        WHERE f.course_id <> '__user__' AND f.download_url IS NOT NULL AND f.download_url <> '' AND f.deleted_at IS NULL
+          AND f.content_sha256 IS NOT NULL AND (f.mime LIKE '%pdf' OR lower(f.name) LIKE '%.pdf')
+        """
+
+    /// Fingerabdruecke aller eigenen Hochschul-PDFs; hoechstens `ServiceCommunityService.maxClaims` (Grenze des Dienstes)
+    static func localFingerprints(host: LocalBackendHost) async -> [String] {
+        guard let backend = try? await host.backend() else { return [] }
+        let rows = (try? await backend.context.database.withConnection { try $0.rows(syncedPDFs) }) ?? []
+        return Array(Set(rows.compactMap { $0["sha"]?.string }).sorted().prefix(ServiceCommunityService.maxClaims))
+    }
+
+    /// Fingerabdruecke der Hochschul-PDFs zu einem Kurs-Schluessel (Kurs-ID, Kurstitel oder Modulname)
+    static func fingerprints(courseKey: String, host: LocalBackendHost, university: String) async -> [String] {
+        guard let backend = try? await host.backend() else { return [] }
+        let rows = (try? await backend.context.database.withConnection { try $0.rows(syncedPDFs) }) ?? []
+        return rows.filter { r in
+            r["course_id"]?.string.map { CommunityKeys.courseKey(university: university, courseID: $0) } == courseKey
+                || r["title"]?.string.flatMap { CommunityKeys.courseKey(university: university, courseName: $0) } == courseKey
+                || r["module_name"]?.string.flatMap { CommunityKeys.courseKey(university: university, courseName: $0) } == courseKey
+        }.compactMap { $0["sha"]?.string }
+    }
+
     /// Kurs-Schluessel einer Datei: aus der Kurs-ID (Abgleich) oder, bei eigenen Dokumenten, aus dem Namen des
     /// Moduls (ueber den Ordner); nil ohne Kurs und Modul oder bei unbekannter Datei
     static func courseKey(fileID: String, host: LocalBackendHost, university: String) async -> String? {
@@ -119,6 +145,19 @@ enum CommunityCourses {
             }
         }
         return 0
+    }
+}
+
+/// Community ueber das Studora-Konto, solange eines passend angemeldet ist (`StudoraAccountLink`); sonst CloudKit.
+/// Bestehende CloudKit-Eintraege werden nicht uebernommen: bisher gab es keinen Build mit iCloud-Container.
+final class CommunityRoute: @unchecked Sendable {
+    static let shared = CommunityRoute()
+    private let lock = NSLock()
+    private var account: CommunityService?
+
+    var service: CommunityService? {
+        get { lock.withLock { account } }
+        set { lock.withLock { account = newValue } }
     }
 }
 

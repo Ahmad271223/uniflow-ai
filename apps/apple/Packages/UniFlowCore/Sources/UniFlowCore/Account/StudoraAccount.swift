@@ -98,7 +98,7 @@ public actor StudoraAccount {
 
     // MARK: Anfragen
 
-    private func request(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true) async throws -> ServiceHTTPResponse {
+    func request(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true) async throws -> ServiceHTTPResponse {
         var headers = ["Accept": "application/json"]
         if body != nil { headers["Content-Type"] = "application/json" }
         if auth {
