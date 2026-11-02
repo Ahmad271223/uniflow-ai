@@ -68,7 +68,8 @@ def blocks(request: Request):
 
 @router.get("/moderation")
 def moderation(request: Request):
-    return {"solutions": _run(community.moderation_queue, _user(request))}
+    u = _user(request)
+    return {"solutions": _run(community.moderation_queue, u), **_run(community_qa.moderation_posts, u)}
 
 
 @router.post("/claims")
@@ -257,6 +258,16 @@ def qa_report(request: Request, kind: str, target_id: str, body: dict = Body(...
     if not k:
         raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
     return _run(community_qa.report, _user(request), k, target_id, body.get("reason"))
+
+
+@router.post("/{kind}/{target_id}/moderate")
+def qa_moderate(request: Request, kind: str, target_id: str, body: dict = Body(...)):
+    """Nur Admin: verborgenen Kommentar, verborgene Frage oder Antwort wiederherstellen ({action: restore});
+    kind = comments | questions | answers."""
+    k = {"comments": "comment", "questions": "question", "answers": "answer"}.get(kind)
+    if not k:
+        raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
+    return _run(community_qa.moderate_post, _user(request), k, target_id, body.get("action") or "")
 
 
 @router.get("/bookmarks")

@@ -24,6 +24,7 @@
    "GET /api/community/mine",
    "POST /api/community/solutions/{id}/report",
    "POST /api/community/solutions/{id}/block",
+   "POST /api/community/{comments|questions|answers}/{id}/moderate",
    "DELETE /api/community/blocks/{pseudonym}",
    "GET /api/community/blocks",
    "GET /api/community/moderation",
@@ -1650,12 +1651,42 @@
        {
         "reason": "foreignMaterial",
         "note": "Folien enthalten",
-        "created_at": "<zeit-utc>"
+        "created_at": "<zeit-utc>",
+        "reporter": {
+         "pseudonym": "<pseudonym>",
+         "account_age_days": 0,
+         "email_verified": true
+        }
        }
       ],
       "author_banned": false
      }
-    ]
+    ],
+    "comments": [],
+    "questions": [
+     {
+      "id": "<question-id>",
+      "kind": "question",
+      "status": "active",
+      "pseudonym": "<pseudonym>",
+      "text": "Wie zeige ich Konvergenz?",
+      "context": "<course-key>",
+      "created_at": "<zeit-utc>",
+      "report_count": 1,
+      "reports": [
+       {
+        "reason": "spam",
+        "created_at": "<zeit-utc>",
+        "reporter": {
+         "pseudonym": "<pseudonym>",
+         "account_age_days": 0,
+         "email_verified": true
+        }
+       }
+      ]
+     }
+    ],
+    "answers": []
    }
   },
   {

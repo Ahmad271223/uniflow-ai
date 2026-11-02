@@ -11,8 +11,10 @@ Ablauf beim Erstellen eines Tests (app/library_api.py):
 Pruefstufen (`review`):
 - `private`   – nur fuer den Besitzer, nie im Pool (Standard fuer eigene Tests und Tests aus dem eigenen ChatGPT).
 - `pending`   – vom Nutzer ausdruecklich zur Freigabe eingereicht, wartet auf die Moderation. Nicht im Pool.
-- `auto_checked` – von der Studora-KI aus Fach/Thema erzeugt (keine Inhalte des Nutzers), automatische Pruefung
-  bestanden (Form, Loesung, keine persoenlichen Daten). Im Pool.
+- `auto_checked` – von der Studora-KI erzeugt, und zwar aus Fach, Thema, Unterthema und Lernziel, die der anfragende
+  Nutzer frei eingibt (der Prompt enthaelt also Text des Nutzers). Nur eine automatische Formpruefung bestanden: Form,
+  Loesung unter den Antwortmoeglichkeiten, keine Links oder persoenlichen Angaben in Frage, Antworten, Loesung und
+  Erklaerung. Die fachliche Richtigkeit wird nicht geprueft und es gibt keine Moderation. Im Pool.
 - `approved`  – von der Moderation geprueft. Im Pool.
 - `rejected`  – abgelehnt, nie im Pool.
 
@@ -240,8 +242,10 @@ def check(q: dict) -> list[str]:
     d = q.get("difficulty", 3)
     if not isinstance(d, int) or not 1 <= d <= 5:
         errs.append("Schwierigkeit muss 1 bis 5 sein")
-    if scrub(text) != text or scrub(answer) != answer:
-        errs.append("enthält persönliche Daten")
+    extra = [str(o) for o in q.get("options") or []] if isinstance(q.get("options"), list) else []
+    extra.append(str(q.get("explanation") or ""))        # Optionen und Erklaerung: Links und Personenangaben
+    if scrub(text) != text or scrub(answer) != answer or any(scrub(x) != x for x in extra):
+        errs.append("enthält persönliche Daten oder Links")
     return errs
 
 

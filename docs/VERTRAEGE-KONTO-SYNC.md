@@ -336,7 +336,11 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   solution}` (zählt `downloads`, außer bei der eigenen); `DELETE /api/community/solutions/{id}` → `{withdrawn,
   already}` (403 `not_owner`); `GET /api/community/mine`; `POST …/{id}/report {reason, note}` → `{reported, hidden,
   reports}`; `POST …/{id}/block` → `{blocked}`; `DELETE /api/community/blocks/{pseudonym}`; `GET
-  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}`.
+  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}`. Melden (auch
+  Kommentare, Fragen, Antworten) verlangt eine bestätigte E-Mail (403 `email_unverified`) und die Sichtbarkeit des
+  Beitrags, höchstens 10 Meldungen je Konto und Tag (429 `rate_limited`). Die Moderation zeigt je Meldung `reporter`
+  (`pseudonym`, `account_age_days`, `email_verified`) sowie `comments`, `questions`, `answers` (verborgen oder
+  gemeldet); `POST /api/community/{comments|questions|answers}/{id}/moderate {action: "restore"}` gibt Verborgenes frei.
 - **Web**: die Seite „Community“ zeigt im Dienst die eigenen Veröffentlichungen (zurückziehen), gesperrte Autoren
   (aufheben) und für Admins die Moderation; am PC erklärt sie, dass die Community nur im Dienst läuft. Veröffentlichen,
   suchen, laden, melden und sperren macht der iPad-Client im Editor (M15).
