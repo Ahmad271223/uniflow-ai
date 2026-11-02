@@ -102,7 +102,9 @@ extension Weekly {
     /// Seitentexte und Suchindex eines Moduls fuer die synchronen Schritte
     static func prepare(_ moduleID: Int, _ ctx: LocalContext) async throws -> ScriptSearch.Index {
         try await ensurePages(try await moduleFileIDs(moduleID, ctx), ctx)
-        return try await ScriptSearch.index(moduleID: .integer(Int64(moduleID)), database: ctx.database, files: ctx.files, cache: ctx.scriptIndex)
+        // Vorlesungen und Skripte als Bild: der Index erkennt ihre Seiten (einmal je Seite)
+        return try await ScriptSearch.index(moduleID: .integer(Int64(moduleID)), database: ctx.database, files: ctx.files, cache: ctx.scriptIndex,
+                                            ocr: ctx.ocr.provider)
     }
 
     /// `tick(now)`: indexieren, Plaene aktualisieren, faellige Tests erzeugen und veroeffentlichen, Nachtraege anbieten
@@ -120,7 +122,8 @@ extension Weekly {
             let marked: [String] = try await ctx.database.withConnection { c in
                 try c.query("SELECT DISTINCT file_id FROM lecture_markers WHERE module_id=? AND deleted_at IS NULL", [.integer(Int64(mid))]).compactMap { $0["file_id"]?.string }
             }
-            try await ensurePages(marked, ctx)
+            // markierte Vorlesungen: Grundlage der Wochentests, auch als Bild (Texterkennung)
+            try await ensurePages(marked, ctx, ocr: .all)
             let idx = try await prepare(mid, ctx)
             indexes[mid] = idx
             try await ctx.database.transaction { c in

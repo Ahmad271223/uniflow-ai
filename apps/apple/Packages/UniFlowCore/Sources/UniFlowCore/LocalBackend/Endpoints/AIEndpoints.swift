@@ -34,7 +34,8 @@ enum AIEndpoints: LocalEndpointModule {
                     guard try await ctx.database.queryOne("SELECT 1 FROM files WHERE id=?", [.text(fileID)]) != nil else {
                         throw LocalHTTPError.notFound("Datei nicht gefunden")
                     }
-                    let pages = try await ScriptSearch.pageTexts(fileID: fileID, database: ctx.database, files: ctx.files, clock: ctx.clock)
+                    // nur die offene Seite erkennen, wenn ihre Textebene fast leer ist
+                    let pages = try await ScriptSearch.pageTexts(fileID: fileID, ctx: ctx, ocrScope: .pages([page]))
                     guard !pages.isEmpty else { throw LocalHTTPError(status: 404, detail: ["detail": "Kein Seitentext vorhanden.", "code": "no_content"]) }
                     pageText = 1 <= page && page <= pages.count ? pages[page - 1] : ""
                 }
@@ -71,6 +72,8 @@ enum AIEndpoints: LocalEndpointModule {
 
     /// `extract.MAX_CHARS`: so viel Text der Datei geht in die Analyse
     static let analysisChars = 14000
+    /// so viele Seiten ohne Textebene erkennt die Analyse hoechstens (Texterkennung, `PageOCR`)
+    static let analysisOCRPages = 10
 
     /// `int(x or standard)` wie in `_store_analysis`; unlesbare Werte -> standard (Python wuerde scheitern)
     static func pyIntOr(_ v: PyJSON?, _ fallback: Int) -> Int {
@@ -93,7 +96,8 @@ enum AIEndpoints: LocalEndpointModule {
             "SELECT f.name, c.title AS course_title FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", [.text(fileID)]) else {
             throw LocalHTTPError.notFound("Datei nicht gefunden")
         }
-        let pages = (try? await ScriptSearch.pageTexts(fileID: fileID, database: ctx.database, files: ctx.files, clock: ctx.clock)) ?? []
+        // erkannt werden hoechstens die ersten Seiten (die Analyse nimmt nur den Anfang des Textes)
+        let pages = (try? await ScriptSearch.pageTexts(fileID: fileID, ctx: ctx, ocrScope: .leading(analysisOCRPages))) ?? []
         let text = PyText.slice(pages.joined(separator: "\n"), 0, analysisChars)
         let prompt = AIPrompts.analysis(course: f["course_title"]?.string ?? "", fileName: f["name"]?.string ?? "", text: text)
         let res: PyJSON
@@ -145,7 +149,7 @@ enum AIEndpoints: LocalEndpointModule {
                                                          [.text(fileID)])?["module_id"]
             guard let module, LocalModules.truthy(module), !PyText.strip(query).isEmpty else { return out }
             let res = try await ScriptSearch.search(moduleID: module, query: query, exclude: nil, limit: limit + 2,
-                                                    database: ctx.database, files: ctx.files, cache: ctx.scriptIndex)
+                                                    database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: ctx.ocr.provider)
             for r in res["results"]?.array ?? [] {
                 if r["file_id"]?.string == fileID, Int(r["page"]?.double ?? -1) == page { continue }
                 let title = AIPrompts.truthy(r["title"].map(PyJSON.init)) ? r["title"]! : (r["name"] ?? .null)

@@ -121,9 +121,10 @@ enum Weekly {
         return []
     }
 
-    /// Seitentexte der Dateien sicherstellen (aus der PDF lesen und speichern, wenn noetig)
-    static func ensurePages(_ fileIDs: [String], _ ctx: LocalContext) async throws {
-        for id in fileIDs { _ = try await ScriptSearch.pageTexts(fileID: id, database: ctx.database, files: ctx.files, clock: ctx.clock) }
+    /// Seitentexte der Dateien sicherstellen (aus der PDF lesen und speichern, wenn noetig); `ocr`: welche fast leeren
+    /// Seiten die Texterkennung ergaenzt (Standard keine, z. B. Marken beim Oeffnen einer Datei)
+    static func ensurePages(_ fileIDs: [String], _ ctx: LocalContext, ocr: OCRScope = .none) async throws {
+        for id in fileIDs { _ = try await ScriptSearch.pageTexts(fileID: id, ctx: ctx, ocrScope: ocr) }
     }
 
     /// PDFs eines Moduls (Vorlesungen, Skripte, Uebungen, Loesungen, Klausuren)

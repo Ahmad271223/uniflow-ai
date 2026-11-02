@@ -247,6 +247,7 @@ public enum DemoContent {
             try c.execute("DELETE FROM \(t) WHERE file_id LIKE 'demo-%'")
         }
         if try hasTable(c, "file_versions") { try c.execute("DELETE FROM file_versions WHERE file_id LIKE 'demo-%'") }
+        if try hasTable(c, "page_ocr") { try c.execute("DELETE FROM page_ocr WHERE file_id LIKE 'demo-%'") }
         if try DueStore.hasTables(c) {
             try c.execute("DELETE FROM due_hits WHERE file_id LIKE 'demo-%' OR announcement_id LIKE 'demo-%' OR course_id LIKE 'demo-%'")
             try c.execute("DELETE FROM due_choices WHERE key LIKE 'demo-%'")
