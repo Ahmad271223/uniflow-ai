@@ -50,7 +50,7 @@ final class StudyClassifyTests: XCTestCase {
         var problems: [String] = []
         for c in cases {
             let name = c["name"]?.string, folder = c["folder"]?.string, ai = c["ai_type"]?.string
-            let (t, label) = StudyClassify.effectiveType(name: name, folder: folder, aiType: ai)
+            let (t, label) = StudyClassify.effectiveType(name: name, folder: folder, aiType: ai, courseKind: c["course_kind"]?.string)
             if t != c["type"]?.string || label != c["label"]?.string {
                 problems.append("\(name.debugDescription) / \(folder.debugDescription) / \(ai.debugDescription): (\(t), \(label)) statt (\(c["type"]?.string ?? "-"), \(c["label"]?.string ?? "-"))")
             }

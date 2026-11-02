@@ -294,7 +294,8 @@ final class PageObjectsView: UIView {
         guard renderScale > 0 else { return }
         layer.sublayers?.forEach { $0.contentsScale = renderScale }
         func walk(_ v: UIView) {
-            v.contentScaleFactor = renderScale
+            // Text nie unter dem festen Wert in `add`, sonst wird er beim Zoomen pixelig
+            v.contentScaleFactor = max(renderScale, UIScreen.main.scale * 2)
             v.subviews.forEach(walk)
         }
         subviews.forEach(walk)

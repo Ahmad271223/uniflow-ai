@@ -501,6 +501,16 @@ LOWER_CASES = ["ΟΔΟΣ", "ΟΔΟΣ ΚΑΙ ΣΤΑΣΗ", "Σ", "ΑΣ.", "ΑΣ'Β
 # Buchstaben, die in Mustern mit re.I vorkommen duerfen (PyRegex.caseVariants)
 IGNORECASE_LETTERS = "abcdefghijklmnopqrstuvwxyzäöüß"
 
+# (Dateiname, Ordner, KI-Typ, Kursart): ohne Stichwort entscheidet bei PDFs die Art des Kurses
+EFFECTIVE_TYPE_KIND_CASES = [
+    ("Prog1-01-Introduction.pdf", "", None, "vorlesung"), ("GDS_Kap_2.pdf", None, None, "vorlesung"),
+    ("ETI_01_Einfuehrung.pdf", "", None, "vorlesung"), ("Handout.pdf", "", None, "uebung"), ("Handout.pdf", "", None, "gruppenuebung"),
+    ("Prog1-01.pdf", "", "skript", "vorlesung"), ("Video.zip", "", None, "vorlesung"), ("1_2.gif", "", None, "vorlesung"),
+    ("Handout.pdf", "", None, "sonstiges"), ("Handout.pdf", "", None, None), ("Ablaufplan_WS26.pdf", "", None, "vorlesung"),
+    ("Assignment02.pdf", "Assignments/02", None, "uebung"), ("backe-kuchen.pf", "Assignments/02", None, "uebung"),
+    ("Formelsammlung.pdf", "", None, "vorlesung"), ("Hinweise.pdf", "", None, "uebung"), ("SigSys_Ü18.pdf", "", None, "vorlesung"), ("ueber_alles.pdf", "", None, "vorlesung"),
+]
+
 # (Dateiname, Stud.IP-Ordner, KI-Typ) fuer study.effective_type: jede Regel in ihrer Reihenfolge und Grenzfaelle
 EFFECTIVE_TYPE_CASES = [
     ("Klausurergebnisse WS.pdf", None, None), ("Raumverteilung.pdf", "Klausur", "klausur"), ("Hinweise.pdf", "Organisatorisches", None),
@@ -729,6 +739,8 @@ def study_modules(src: SchemaSource, app) -> dict:
         cls = [{"title": t, "subject": classify(t)[0], "kind": classify(t)[1]} for t in CLASSIFY_TITLES]
         eff = [{"name": n, "folder": f, "ai_type": a, "type": study.effective_type(n, f, a)[0],
                 "label": study.effective_type(n, f, a)[1]} for n, f, a in EFFECTIVE_TYPE_CASES]
+        eff += [{"name": n, "folder": f, "ai_type": a, "course_kind": k, "type": study.effective_type(n, f, a, k)[0],
+                 "label": study.effective_type(n, f, a, k)[1]} for n, f, a, k in EFFECTIVE_TYPE_KIND_CASES]
         hints = [{"name": n, "folder": f, "hint": study.week_hint(n, f)} for n, f in WEEK_HINT_CASES]
         ratios = [{"a": a, "b": b, "ratio": difflib.SequenceMatcher(None, a, b).ratio()} for a, b in SEQUENCE_PAIRS]
         lower = [{"text": t, "lower": t.lower()} for t in LOWER_CASES]

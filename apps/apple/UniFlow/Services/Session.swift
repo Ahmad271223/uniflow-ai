@@ -141,7 +141,12 @@ enum DebugLaunch {
     /// Tarif aus -UFPlan (nur Debug); nil = Tarif aus StoreKit
     static func forcedPlan(defaults d: UserDefaults = .standard) -> UFPlan? {
         #if DEBUG
-        return d.string(forKey: "UFPlan").flatMap(UFPlan.init(rawValue:))
+        let plan = d.string(forKey: "UFPlan").flatMap(UFPlan.init(rawValue:))
+        #if !targetEnvironment(simulator)
+        // Testbuild auf dem Geraet: bleibt auch nach einem Start vom Home-Bildschirm
+        if let plan { d.set(plan.rawValue, forKey: "UFPlan") }
+        #endif
+        return plan
         #else
         return nil
         #endif

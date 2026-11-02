@@ -13,7 +13,7 @@ public enum StudyClassify {
     public static let typeLabels = ["vorlesung": "Vorlesung", "uebung": "Übung", "loesung": "Lösung", "skript": "Skript",
                                     "klausur": "Klausur", "organisatorisch": "Organisatorisches"]
 
-    private static let orga = PyRegex("klausurergebnis|raumverteilung|organisat|termine|ankuendigung|ankündigung")
+    private static let orga = PyRegex("klausurergebnis|raumverteilung|organisat|termine|ankuendigung|ankündigung|ablaufplan")
     private static let solution = PyRegex(#"l(ö|oe)s|\blsg\b|_lsg|lsg\.|solution|musterl"#)
     private static let examSolution = PyRegex(#"klausur|kurztest|\bkk\d|\bgk\d?"#)
     private static let exam = PyRegex(#"alte klausur|altklausur|probeklausur|klausur|kurztest|\bkk\d|\bgk\d?\b|exam"#)
@@ -22,13 +22,16 @@ public enum StudyClassify {
     private static let hallExercise = PyRegex(#"h(ö|oe)rsaal|zentral(ü|ue)bung|\bz(ü|ue)\d|\bh(ü|ue)\d|\bhu\d"#)
     private static let tutorial = PyRegex(#"tutorium|\btut\d"#)
     private static let exercise = PyRegex(#"(ü|ue)bung|blatt|\bueb\d|\bub\d|exercise|aufgaben|sheet"#)
+    private static let exerciseName = PyRegex(#"assignment|[ _\-](ü|ue)\d"#)
+    private static let notLecture = PyRegex("formelsammlung|merkblatt|hinweis")
     private static let notes = PyRegex("mitschrift")
     private static let lectureWords = PyRegex("vorlesung|folien")
     private static let script = PyRegex("skript|script")
     private static let lecture = PyRegex(#"vorlesung|folien|slides|\bvl\d|lecture"#)
 
     /// `effective_type(name, folder, ai_type) -> (doc_type, label)`; label z. B. "Gruppenübung", "Altklausur".
-    public static func effectiveType(name: String?, folder: String?, aiType: String?) -> (type: String, label: String) {
+    /// Ohne Stichwort und ohne KI entscheidet bei PDFs die Art des Kurses (Folien wie "Prog1-01-Introduction.pdf").
+    public static func effectiveType(name: String?, folder: String?, aiType: String?, courseKind: String? = nil) -> (type: String, label: String) {
         let fl = PyText.lower("\(folder ?? "") / \(name ?? "")")
         let nm = PyText.lower(name ?? "")
         if orga.found(in: fl) { return ("organisatorisch", "Organisatorisches") }
@@ -37,10 +40,14 @@ public enum StudyClassify {
         if groupExercise.found(in: fl) { return ("uebung", "Gruppenübung") }
         if hallExercise.found(in: fl) { return ("uebung", "Hörsaalübung") }
         if tutorial.found(in: fl) { return ("uebung", "Tutorium") }
-        if exercise.found(in: fl) { return ("uebung", "Übung") }
+        if exercise.found(in: fl) || exerciseName.found(in: nm) { return ("uebung", "Übung") }
         if notes.found(in: fl), !lectureWords.found(in: fl) { return ("skript", "Mitschrift") }
         if script.found(in: fl) { return ("skript", "Skript") }
         if lecture.found(in: fl) { return ("vorlesung", "Vorlesung") }
+        if aiType?.isEmpty ?? true, nm.hasSuffix(".pdf"), !notLecture.found(in: nm) {
+            if courseKind == "vorlesung" { return ("vorlesung", "Vorlesung") }
+            if ["uebung", "gruppenuebung", "hoersaaluebung", "tutorium"].contains(courseKind) { return ("uebung", "Übung") }
+        }
         let t = (aiType?.isEmpty ?? true) ? "sonstiges" : aiType!                      // ai_type or "sonstiges"
         return (t, typeLabels[t] ?? "Sonstiges")
     }
@@ -74,7 +81,8 @@ public enum StudyClassify {
     public static func enrichFile(_ f: [String: JSONValue]) -> [String: JSONValue] {
         var out = f
         let ai = f["doc_type"] ?? .null
-        let (t, label) = effectiveType(name: f["name"]?.string, folder: f["studip_folder"]?.string, aiType: ai.string)
+        let (t, label) = effectiveType(name: f["name"]?.string, folder: f["studip_folder"]?.string, aiType: ai.string,
+                                         courseKind: f["course_kind"]?.string)
         out["ai_doc_type"] = ai
         out["doc_type"] = .string(t)
         out["sub_label"] = .string(label)

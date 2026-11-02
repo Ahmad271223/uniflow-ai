@@ -21,6 +21,8 @@ final class EditorDeviceFixesTests: XCTestCase {
         XCTAssertEqual(v.canvas.contentScaleFactor, 4)
         XCTAssertEqual(v.canvas.subviews.first?.contentScaleFactor, 4)
         XCTAssertEqual(v.objectsView.subviews.first?.contentScaleFactor, 4)
+        v.setRenderScale(2)
+        XCTAssertGreaterThanOrEqual(v.objectsView.subviews.first?.contentScaleFactor ?? 0, UIScreen.main.scale * 2, "Text nie groeber als vorher")
     }
 
     /// Objekte stehen in Seitenpunkten: Bei skalierter Seite ergibt derselbe Finger-Weg den halben Weg auf der Seite

@@ -328,6 +328,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             pdfView.topAnchor.constraint(equalTo: view.topAnchor),
             pdfView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+        pdfView.interpolationQuality = .high
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
         pdfView.usePageViewController(false)

@@ -232,7 +232,7 @@ def doc_version(conn, file_id: str) -> str:
 
 
 def _file(conn, file_id: str) -> dict | None:
-    f = db.row(conn, """SELECT f.id, f.name, f.chdate, f.studip_folder, f.local_path, f.first_seen, c.module_id, c.title AS course_title,
+    f = db.row(conn, """SELECT f.id, f.name, f.chdate, f.studip_folder, f.local_path, f.first_seen, c.module_id, c.title AS course_title, c.kind AS course_kind,
                                a.doc_type, a.title AS ai_title FROM files f JOIN courses c ON c.id=f.course_id
                         LEFT JOIN analysis a ON a.file_id=f.id WHERE f.id=?""", (file_id,))
     return study.enrich_file(f) if f else None

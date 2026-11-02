@@ -767,6 +767,142 @@
    "ai_type": null,
    "type": "sonstiges",
    "label": "Sonstiges"
+  },
+  {
+   "name": "Prog1-01-Introduction.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "vorlesung",
+   "label": "Vorlesung"
+  },
+  {
+   "name": "GDS_Kap_2.pdf",
+   "folder": null,
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "vorlesung",
+   "label": "Vorlesung"
+  },
+  {
+   "name": "ETI_01_Einfuehrung.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "vorlesung",
+   "label": "Vorlesung"
+  },
+  {
+   "name": "Handout.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "uebung",
+   "type": "uebung",
+   "label": "Übung"
+  },
+  {
+   "name": "Handout.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "gruppenuebung",
+   "type": "uebung",
+   "label": "Übung"
+  },
+  {
+   "name": "Prog1-01.pdf",
+   "folder": "",
+   "ai_type": "skript",
+   "course_kind": "vorlesung",
+   "type": "skript",
+   "label": "Skript"
+  },
+  {
+   "name": "Video.zip",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "1_2.gif",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Handout.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "sonstiges",
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Handout.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": null,
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Ablaufplan_WS26.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "organisatorisch",
+   "label": "Organisatorisches"
+  },
+  {
+   "name": "Assignment02.pdf",
+   "folder": "Assignments/02",
+   "ai_type": null,
+   "course_kind": "uebung",
+   "type": "uebung",
+   "label": "Übung"
+  },
+  {
+   "name": "backe-kuchen.pf",
+   "folder": "Assignments/02",
+   "ai_type": null,
+   "course_kind": "uebung",
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Formelsammlung.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "Hinweise.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "uebung",
+   "type": "sonstiges",
+   "label": "Sonstiges"
+  },
+  {
+   "name": "SigSys_Ü18.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "uebung",
+   "label": "Übung"
+  },
+  {
+   "name": "ueber_alles.pdf",
+   "folder": "",
+   "ai_type": null,
+   "course_kind": "vorlesung",
+   "type": "vorlesung",
+   "label": "Vorlesung"
   }
  ],
  "week_hint": [
@@ -3409,6 +3545,7 @@
      "day": "2026-10-21",
      "week": 2,
      "ids": [
+      "f-ma-12",
       "f-ma-02",
       "f-ma-07"
      ]
@@ -4493,6 +4630,7 @@
      "day": "2026-10-21",
      "week": 2,
      "ids": [
+      "f-ma-12",
       "f-ma-02",
       "f-ma-07"
      ]
@@ -5501,11 +5639,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5515,11 +5653,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5529,11 +5667,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5543,11 +5681,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5557,11 +5695,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5571,11 +5709,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5585,11 +5723,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5599,11 +5737,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5613,11 +5751,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5627,11 +5765,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5641,11 +5779,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5655,11 +5793,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -5669,11 +5807,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-ma-12",
       "f-ma-02",
       "f-ma-06",
       "f-ma-07",
-      "f-ma-03",
-      "f-ma-13"
+      "f-ma-03"
      ]
     },
     {
@@ -6701,6 +6839,32 @@
   "day": "2026-10-21",
   "response": [
    {
+    "id": "f-ma-12",
+    "name": "Fragen.pdf",
+    "chdate": 1792362600,
+    "status": "neu",
+    "favorite": 0,
+    "last_opened": null,
+    "size": 1000,
+    "course_id": "k-ma-fs",
+    "studip_folder": null,
+    "course_title": "Testmathematik I - Fragestunden",
+    "course_kind": "uebung",
+    "subject": "Testmathematik I",
+    "module_id": 1,
+    "doc_type": "uebung",
+    "ai_title": null,
+    "difficulty": null,
+    "est_minutes": null,
+    "topics": null,
+    "summary": null,
+    "has_notes": null,
+    "ai_doc_type": null,
+    "sub_label": "Übung",
+    "week_hint": null,
+    "source": "studip"
+   },
+   {
     "id": "f-ma-02",
     "name": "VL02.pdf",
     "chdate": 1792483200,
@@ -6784,7 +6948,7 @@
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
-       "progress": 38,
+       "progress": 33,
        "next_package": {
         "date": "2026-11-21",
         "title": "Testmathematik I – Nachholen"
@@ -7272,12 +7436,7 @@
           "sub_label": "Gruppenübung",
           "week_hint": 2,
           "source": "studip"
-         }
-        ],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [],
-        "sonstiges": [
+         },
          {
           "id": "f-ma-12",
           "name": "Fragen.pdf",
@@ -7292,7 +7451,7 @@
           "course_kind": "uebung",
           "subject": "Testmathematik I",
           "module_id": 1,
-          "doc_type": "sonstiges",
+          "doc_type": "uebung",
           "ai_title": null,
           "difficulty": null,
           "est_minutes": null,
@@ -7300,11 +7459,15 @@
           "summary": null,
           "has_notes": null,
           "ai_doc_type": null,
-          "sub_label": "Sonstiges",
+          "sub_label": "Übung",
           "week_hint": null,
           "source": "studip"
          }
-        ]
+        ],
+        "loesungen": [],
+        "skripte": [],
+        "klausuren": [],
+        "sonstiges": []
        },
        {
         "week": 3,
@@ -7636,7 +7799,7 @@
         "course_kind": "uebung",
         "subject": "Testmathematik I",
         "module_id": 1,
-        "doc_type": "sonstiges",
+        "doc_type": "uebung",
         "ai_title": null,
         "difficulty": null,
         "est_minutes": null,
@@ -7644,7 +7807,7 @@
         "summary": null,
         "has_notes": null,
         "ai_doc_type": null,
-        "sub_label": "Sonstiges",
+        "sub_label": "Übung",
         "week_hint": null,
         "source": "studip"
        },
@@ -7883,7 +8046,7 @@
         "source": "studip"
        }
       ],
-      "progress": 38,
+      "progress": 33,
       "new_count": 11,
       "open_tasks": 2,
       "next_package": {
@@ -9391,7 +9554,7 @@
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
-       "progress": 38,
+       "progress": 33,
        "next_package": null,
        "next_event": null,
        "task_count": 5,
@@ -9876,12 +10039,7 @@
           "sub_label": "Gruppenübung",
           "week_hint": 2,
           "source": "studip"
-         }
-        ],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [],
-        "sonstiges": [
+         },
          {
           "id": "f-ma-12",
           "name": "Fragen.pdf",
@@ -9896,7 +10054,7 @@
           "course_kind": "uebung",
           "subject": "Testmathematik I",
           "module_id": 1,
-          "doc_type": "sonstiges",
+          "doc_type": "uebung",
           "ai_title": null,
           "difficulty": null,
           "est_minutes": null,
@@ -9904,11 +10062,15 @@
           "summary": null,
           "has_notes": null,
           "ai_doc_type": null,
-          "sub_label": "Sonstiges",
+          "sub_label": "Übung",
           "week_hint": null,
           "source": "studip"
          }
-        ]
+        ],
+        "loesungen": [],
+        "skripte": [],
+        "klausuren": [],
+        "sonstiges": []
        },
        {
         "week": 3,
@@ -10240,7 +10402,7 @@
         "course_kind": "uebung",
         "subject": "Testmathematik I",
         "module_id": 1,
-        "doc_type": "sonstiges",
+        "doc_type": "uebung",
         "ai_title": null,
         "difficulty": null,
         "est_minutes": null,
@@ -10248,7 +10410,7 @@
         "summary": null,
         "has_notes": null,
         "ai_doc_type": null,
-        "sub_label": "Sonstiges",
+        "sub_label": "Übung",
         "week_hint": null,
         "source": "studip"
        },
@@ -10487,7 +10649,7 @@
         "source": "studip"
        }
       ],
-      "progress": 38,
+      "progress": 33,
       "new_count": 11,
       "open_tasks": 2,
       "next_package": null,
@@ -11209,7 +11371,7 @@
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
-       "progress": 38,
+       "progress": 33,
        "next_package": null,
        "next_event": null,
        "task_count": 5,
@@ -12464,7 +12626,7 @@
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
-       "progress": 38,
+       "progress": 33,
        "next_package": {
         "date": "2026-11-21",
         "title": "Testmathematik I – Nachholen"

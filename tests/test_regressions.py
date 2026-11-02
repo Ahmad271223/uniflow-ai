@@ -101,6 +101,15 @@ def test_document_type_from_studip_folder():
     assert effective_type("KK1.pdf", "Alte Klausuren/WS 24/25", "klausur") == ("klausur", "Altklausur")
     assert effective_type("KK1aWS2425lsg.pdf", "Alte Klausuren/WS 24/25", "loesung") == ("loesung", "Klausur-Lösung")
     assert effective_type("x.pdf", "Mitschriften Tranche I", None) == ("skript", "Mitschrift")
+    # echte Namen vom iPad (1.11.2026): Folien ohne Stichwort erkennt die Art des Kurses
+    assert effective_type("Prog1-01-Introduction.pdf", "", None, "vorlesung") == ("vorlesung", "Vorlesung")
+    assert effective_type("GDS_Kap_2.pdf", "", None, "vorlesung") == ("vorlesung", "Vorlesung")
+    assert effective_type("Prog1-01.pdf", "", None) == ("sonstiges", "Sonstiges"), "ohne Kursart keine Annahme"
+    assert effective_type("Prog1-01.pdf", "", "skript", "vorlesung") == ("skript", "Skript"), "die KI geht vor"
+    assert effective_type("Ablaufplan_WS26.pdf", "", None, "vorlesung")[0] == "organisatorisch"
+    assert effective_type("Assignment02.pdf", "Assignments/02", None, "uebung") == ("uebung", "Übung")
+    assert effective_type("backe-kuchen.pf", "Assignments/02", None, "uebung") == ("sonstiges", "Sonstiges")
+    assert effective_type("SigSys_Ü18.pdf", "", None, "vorlesung") == ("uebung", "Übung")
     assert week_hint("GU01.pdf", "Gruppenübung") == 1
     assert week_hint("02A.pdf", "Vorlesung") == 2
     assert week_hint("Übungsblatt 3.pdf", None) == 3

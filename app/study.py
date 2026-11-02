@@ -186,11 +186,12 @@ def week_label(start: date, w: int) -> str:
 # Dokumenttyp aus Stud.IP-Ordner + Dateiname (schlaegt die KI-Einschaetzung, wenn eindeutig)
 # ----------------------------------------------------------------------------
 
-def effective_type(name: str, folder: str | None, ai_type: str | None) -> tuple[str, str]:
-    """Liefert (doc_type, label). label z. B. 'Gruppenuebung', 'Hoersaaluebung', 'Altklausur'."""
+def effective_type(name: str, folder: str | None, ai_type: str | None, course_kind: str | None = None) -> tuple[str, str]:
+    """Liefert (doc_type, label). label z. B. 'Gruppenuebung', 'Hoersaaluebung', 'Altklausur'. Ohne Stichwort und ohne
+    KI entscheidet bei PDFs die Art des Kurses: Folien heissen oft nur 'Prog1-01-Introduction.pdf' oder 'GDS_Kap_2.pdf'."""
     fl = f"{folder or ''} / {name or ''}".lower()
     nm = (name or "").lower()
-    if re.search(r"klausurergebnis|raumverteilung|organisat|termine|ankuendigung|ankündigung", fl):
+    if re.search(r"klausurergebnis|raumverteilung|organisat|termine|ankuendigung|ankündigung|ablaufplan", fl):
         return "organisatorisch", "Organisatorisches"
     if re.search(r"l(ö|oe)s|\blsg\b|_lsg|lsg\.|solution|musterl", nm):
         return "loesung", "Klausur-Lösung" if re.search(r"klausur|kurztest|\bkk\d|\bgk\d?", fl) else "Lösung"
@@ -202,7 +203,7 @@ def effective_type(name: str, folder: str | None, ai_type: str | None) -> tuple[
         return "uebung", "Hörsaalübung"
     if re.search(r"tutorium|\btut\d", fl):
         return "uebung", "Tutorium"
-    if re.search(r"(ü|ue)bung|blatt|\bueb\d|\bub\d|exercise|aufgaben|sheet", fl):
+    if re.search(r"(ü|ue)bung|blatt|\bueb\d|\bub\d|exercise|aufgaben|sheet", fl) or re.search(r"assignment|[ _\-](ü|ue)\d", nm):
         return "uebung", "Übung"
     if re.search(r"mitschrift", fl) and not re.search(r"vorlesung|folien", fl):
         return "skript", "Mitschrift"
@@ -211,6 +212,11 @@ def effective_type(name: str, folder: str | None, ai_type: str | None) -> tuple[
     if re.search(r"vorlesung|folien|slides|\bvl\d|lecture", fl):
         return "vorlesung", "Vorlesung"
     lab = {"vorlesung": "Vorlesung", "uebung": "Übung", "loesung": "Lösung", "skript": "Skript", "klausur": "Klausur", "organisatorisch": "Organisatorisches"}
+    if not ai_type and nm.endswith(".pdf") and not re.search(r"formelsammlung|merkblatt|hinweis", nm):
+        if course_kind == "vorlesung":
+            return "vorlesung", "Vorlesung"
+        if course_kind in ("uebung", "gruppenuebung", "hoersaaluebung", "tutorium"):
+            return "uebung", "Übung"
     t = ai_type or "sonstiges"
     return t, lab.get(t, "Sonstiges")
 
@@ -242,7 +248,7 @@ def file_source(f: dict) -> str:
 
 
 def enrich_file(f: dict) -> dict:
-    t, lab = effective_type(f.get("name"), f.get("studip_folder"), f.get("doc_type"))
+    t, lab = effective_type(f.get("name"), f.get("studip_folder"), f.get("doc_type"), f.get("course_kind"))
     f["ai_doc_type"] = f.get("doc_type"); f["doc_type"] = t; f["sub_label"] = lab
     f["week_hint"] = week_hint(f.get("name"), f.get("studip_folder")) if t in LECTURE_WEEK_TYPES else None
     f["source"] = file_source(f)
