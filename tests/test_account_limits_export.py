@@ -197,6 +197,21 @@ def test_export_needs_a_session_and_is_limited(hosted):
     assert (st, r["code"]) == (429, "rate_limited")
 
 
+def test_cross_site_export_is_refused_before_it_costs_quota(hosted):
+    from app import accounts
+    st, d = _register(hosted, "csrf@beispiel.de")
+    h = {"Authorization": f"Bearer {d['token']}"}
+    accounts.LIMITS["export_user"] = (1, 1440)
+    for fremd in ({"Sec-Fetch-Site": "cross-site"}, {"Sec-Fetch-Site": "same-site"}, {"Origin": "https://evil.example"},
+                  {"Origin": "null"}, {"Referer": "https://evil.example/seite"}):
+        st, r = _j(asgi_call(hosted, "GET", "/api/account/export", headers={**h, **fremd}))
+        assert (st, r["code"]) == (403, "cross_site"), fremd
+    # das Kontingent ist unberuehrt: eigene Seite bekommt den Export, danach greift die Grenze wie bisher
+    eigen = {**h, "Sec-Fetch-Site": "same-origin", "Referer": "http://test/"}
+    assert asgi_call(hosted, "GET", "/api/account/export", headers=eigen)[0] == 200
+    assert _j(asgi_call(hosted, "GET", "/api/account/export", headers={**h, "Sec-Fetch-Site": "none"}))[0] == 429
+
+
 def test_limits_can_be_set_by_environment(hosted, monkeypatch):
     from app import accounts
     monkeypatch.setenv("LERNAPP_LIMIT_REGISTER_IP", "1/60")

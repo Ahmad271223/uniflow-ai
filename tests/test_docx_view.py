@@ -95,3 +95,42 @@ def test_endpoint_serves_html_for_a_local_docx(app, tmp_path):
     finally:
         with db.cursor() as conn:
             conn.execute("DELETE FROM files WHERE id='dx-1'")
+
+
+# -- Zip-Bombe: ein winziges Dokument darf die Vorschau nicht auf hunderte MB aufblasen
+def _docx_with_image(data: bytes, refs: int) -> bytes:
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/_rels/document.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="x" Target="media/a.png"/></Relationships>')
+        runs = "".join('<w:r><w:drawing><a:blip r:embed="rId1"/></w:drawing></w:r>' for _ in range(refs))
+        z.writestr("word/document.xml", f'<w:document {NS}><w:body><w:p>{runs}</w:p></w:body></w:document>')
+        z.writestr("word/media/a.png", data)
+    return b.getvalue()
+
+
+def test_zero_byte_image_bomb_stays_small(app, tmp_path):
+    """Verifier 8: ein Eintrag mit 8 MiB Nullen, viermal verwiesen, ergab ~45 MB Antwort aus ~9 KB Datei."""
+    from app import db
+    f = tmp_path / "bombe.docx"
+    f.write_bytes(_docx_with_image(b"\x00" * ((8 << 20) - 1), 4))
+    db.init_db()
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM files WHERE id='dx-bomb'")
+        conn.execute("INSERT OR IGNORE INTO courses(id, title) VALUES ('dx-kurs', 'Kurs')")
+        conn.execute("INSERT INTO files(id, course_id, name, status, local_path) VALUES ('dx-bomb', 'dx-kurs', 'bombe.docx', 'neu', ?)", (str(f),))
+    try:
+        st, _, b = asgi_call(app, "GET", "/api/files/dx-bomb/docx")
+    finally:
+        with db.cursor() as conn:
+            conn.execute("DELETE FROM files WHERE id='dx-bomb'")
+    assert st == 200 and len(b) < 1 << 20, len(b)
+    assert json.loads(b)["html"].count("[Bild zu groß]") == 4
+
+
+def test_total_image_bytes_are_capped_per_reference(monkeypatch):
+    import os
+    from app import docx_view
+    monkeypatch.setattr(docx_view, "MAX_IMAGES_TOTAL", 1 << 20)
+    out = docx_view.to_html(_docx_with_image(os.urandom(300_000), 6))     # unkomprimierbar: 3 Verweise passen, 3 nicht
+    assert out["images"] == 3 and out["html"].count("<img ") == 3 and out["html"].count("[Bild zu groß]") == 3
+    assert len(out["html"]) < 2 * (1 << 20)

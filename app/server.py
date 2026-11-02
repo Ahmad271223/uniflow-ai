@@ -152,6 +152,9 @@ def _api_rate(user_id: str, now: float | None = None) -> int:
     return 0
 
 
+_FASTAPI_DOC_PATHS = ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")
+
+
 @app.middleware("http")
 async def hosted_guard(request, call_next):
     """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
@@ -159,6 +162,9 @@ async def hosted_guard(request, call_next):
     if not config.is_hosted():
         return await call_next(request)
     path = request.url.path
+    if path in _FASTAPI_DOC_PATHS:
+        # eingebaute Schnittstellenbeschreibung (Routenkarte, auch der Verwaltungs- und Agentenpfade): im Dienst aus
+        return JSONResponse({"detail": "Nicht gefunden."}, status_code=404)
     if path in ("/", "/index.html", "/login"):
         # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin
         user = accounts.authenticate(account_api.token_of(request))
