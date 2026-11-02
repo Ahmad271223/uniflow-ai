@@ -586,6 +586,7 @@ struct DocumentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
+            UFLogoMenu()                                       // die App-Leiste ist im Editor aus (mehr Platz zum Schreiben)
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
                 Label("Seiten", systemImage: scriptLeft ? "sidebar.left" : "sidebar.right")
             }
@@ -1792,11 +1793,27 @@ struct StatusLabel: View {
     let status: SyncStatus
 
     var body: some View {
-        Label(status.label, systemImage: icon)
-            .labelStyle(.titleAndIcon)
-            .font(.caption)
-            .foregroundStyle(color)
-            .accessibilityLabel(status.label)
+        // Normalfall nur das Symbol mit fester Breite: der Text wechselt nach jedem Strich ("Speichert …", "Gespeichert")
+        // und liess die Leiste springen; Probleme stehen weiter mit Text da
+        Group {
+            if problem {
+                Label(status.label, systemImage: icon).labelStyle(.titleAndIcon).lineLimit(1).fixedSize()
+            } else {
+                Image(systemName: icon).frame(width: 26, height: 22)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(color)
+        .help(status.label)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(status.label)
+    }
+
+    private var problem: Bool {
+        switch status {
+        case .offline, .localSaveFailed, .conflictUnresolved: return true
+        default: return false
+        }
     }
 
     private var icon: String {

@@ -195,6 +195,8 @@ struct UFNavItem: Identifiable {
 struct AppShell<Content: View>: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var session: Session
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
 
@@ -205,9 +207,10 @@ struct AppShell<Content: View>: View {
             let hideChrome = router.fullscreenDoc || router.examFocus
             ZStack(alignment: .leading) {
                 HStack(spacing: 0) {
-                    if !narrow && !hideChrome {
-                        UFSidebar(collapsed: docOpen || sidebarMode == "min", allowCollapse: !docOpen)
-                            .frame(width: docOpen || sidebarMode == "min" ? UF.sidebarMin : UF.sidebar)
+                    // im Editor keine Leiste: das Logo in seiner Werkzeugleiste fuehrt zu den Bereichen (`UFLogoMenu`)
+                    if !narrow && !hideChrome && !docOpen {
+                        UFSidebar(collapsed: sidebarMode == "min", allowCollapse: true)
+                            .frame(width: sidebarMode == "min" ? UF.sidebarMin : UF.sidebar)
                             .transition(.move(edge: .leading))
                     }
                     VStack(spacing: 0) {
@@ -231,7 +234,48 @@ struct AppShell<Content: View>: View {
             .animation(UF.transition, value: sidebarMode)
             .animation(UF.transition, value: router.drawerOpen)
             .environment(\.ufWindowWidth, geo.size.width)
+            .environment(\.ufLogoMenu, UFLogoMenuTargets(
+                items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
+                                         community: SolutionSharing.community.isConnected, ai: aiEnabled).map { ($0.title, $0.route) },
+                go: { [router] r in router.go(r) }))
         }
+    }
+}
+
+/// Studora-Logo in der Werkzeugleiste des Editors (dort ist die App-Leiste aus): Menue mit denselben Bereichen wie
+/// die Leiste und den Einstellungen. Die Ziele setzt `AppShell` (`\.ufLogoMenu`); ohne sie (Editor ausserhalb der App-
+/// Huelle, z. B. alte Fassung, Tests) erscheint nichts.
+struct UFLogoMenu: View {
+    @Environment(\.ufLogoMenu) private var menu
+
+    var body: some View {
+        if let menu {
+            Menu {
+                ForEach(menu.items, id: \.title) { item in Button(item.title) { menu.go(item.route) } }
+                Divider()
+                Button("Einstellungen") { menu.go(.settings()) }
+            } label: {
+                RoundedRectangle(cornerRadius: 8).fill(UF.logoGradient)
+                    .frame(width: 28, height: 28)
+                    .overlay(UFIcon("graduation", size: 16).foregroundStyle(.white))
+            }
+            .accessibilityLabel("Studora-Menü")
+            .accessibilityIdentifier("doc.logoMenu")
+        }
+    }
+}
+
+struct UFLogoMenuTargets {
+    var items: [(title: String, route: UFRoute)]
+    var go: (UFRoute) -> Void
+}
+
+private struct UFLogoMenuKey: EnvironmentKey { static let defaultValue: UFLogoMenuTargets? = nil }
+
+extension EnvironmentValues {
+    var ufLogoMenu: UFLogoMenuTargets? {
+        get { self[UFLogoMenuKey.self] }
+        set { self[UFLogoMenuKey.self] = newValue }
     }
 }
 

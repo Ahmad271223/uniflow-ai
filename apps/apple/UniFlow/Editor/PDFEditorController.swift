@@ -644,6 +644,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         c.delegate = self
         c.tool = toolPicker.selectedTool
         toolPicker.addObserver(c)
+        // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht)
+        if writable { toolPicker.setVisible(true, forFirstResponder: c) }
     }
 
     /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).
@@ -1072,11 +1074,26 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // nur zurueckholen, wenn niemand sonst den Fokus haelt (oder die PDF-Ansicht ihn beim Antippen nahm): ein
         // geoeffnetes Menue ("Seite einfügen"), ein Textfeld oder ein Popover wuerde sonst sofort wieder geschlossen
         if let current = UIResponder.uf_current {
-            guard let v = current as? UIView, v.isDescendant(of: view), !(current is UITextInput) else { return }
+            // eigene Ansicht oder eine Zeichenflaeche (auch die des Dokuments daneben in der geteilten Ansicht, die beim
+            // Schreiben den Fokus nimmt); Menues, Popover und Textfelder nicht
+            guard let v = current as? UIView, !(current is UITextInput),
+                  v.isDescendant(of: view) || Self.isInsideEditor(v) else { return }
         }
         // ein Blatt (Teilen, Gliederung, Marker ...) liegt darueber: die Palette nicht darueberlegen
         guard view.window?.rootViewController?.presentedViewController == nil else { return }
         anchor.becomeFirstResponder()
+    }
+}
+
+extension PDFEditorController {
+    /// Ansicht eines Editors: eine Zeichenflaeche oder etwas in einer PDF-Ansicht
+    static func isInsideEditor(_ v: UIView) -> Bool {
+        var cur: UIView? = v
+        while let c = cur {
+            if c is PKCanvasView || c is PDFView { return true }
+            cur = c.superview
+        }
+        return false
     }
 }
 
