@@ -142,6 +142,18 @@
   },
   {
    "method": "GET",
+   "path": "/api/account/identities",
+   "public": false,
+   "summary": "Mit dem Konto verknüpfte Anmeldungen (Google/Apple)."
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/account/identities/{provider}",
+   "public": false,
+   "summary": "Verknüpfte Anmeldung (Google/Apple) entfernen."
+  },
+  {
+   "method": "GET",
    "path": "/api/account/info",
    "public": true,
    "summary": "Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."

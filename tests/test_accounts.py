@@ -139,6 +139,10 @@ def test_identity_login_requires_configured_verifier_and_links_by_subject(hosted
     other = accounts.register("other@beispiel.de", "sehr-geheim-123", "luh")
     with pytest.raises(accounts.AccountError) as x:
         accounts.link_identity(other["id"], "apple", "gut")
+    assert x.value.code == "email_unverified" and x.value.status == 403, "Verknuepfen setzt eine bestaetigte Adresse voraus"
+    accounts.mark_email_verified(other["id"])
+    with pytest.raises(accounts.AccountError) as x:
+        accounts.link_identity(other["id"], "apple", "gut")
     assert x.value.code == "identity_taken"
     accounts.identity_verifiers["google"] = lambda t: {"subject": "g-7", "email": "other@beispiel.de"}
     assert accounts.link_identity(other["id"], "google", "x") == {"provider": "google", "linked": True}
