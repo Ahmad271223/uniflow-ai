@@ -1,5 +1,5 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=34";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=35";
 import { viewDashboard as viewHome } from "./views-home.js?v=4";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=46";
 import { viewFiles } from "./views-lib.js?v=45";

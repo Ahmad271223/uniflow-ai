@@ -148,8 +148,9 @@ def test_course_context_for_tutor_and_week(cancelled_week, monkeypatch, app):
     assert "AUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle):\nKursbeschreibung: Analysis" in seen["p"]
     # Wochentest: Zeile nach dem Modul, nur mit Inhalt
     ctx = {"module": {"name": "M"}, "plan": {"week_no": 3}, "topic": "", "n": 15, "exam_reuse": "paraphrase", "lecture": [], "prior": [], "tasks": []}
-    assert "AUS STUD.IP" not in weekly._gen_prompt({**ctx, "studip": ""})
-    p = weekly._gen_prompt({**ctx, "studip": "Sitzung am 03.11.: Grenzwerte"})
+    # `studip_context` (Kursbeschreibung, Sitzungsthemen) neben `studip` (Courseware-/Wiki-Zeilen aus studip_texts)
+    assert "AUS STUD.IP" not in weekly._gen_prompt({**ctx, "studip_context": ""})
+    p = weekly._gen_prompt({**ctx, "studip_context": "Sitzung am 03.11.: Grenzwerte"})
     assert "Modul: M · Lehrwoche 3\nAUS STUD.IP (nur zur Einordnung; Aufgaben nur aus dem Material unten):\nSitzung am 03.11.: Grenzwerte\n" in p
     with db.cursor() as conn:
         conn.execute("DELETE FROM files WHERE id='rx-f'")
