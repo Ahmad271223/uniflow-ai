@@ -34,7 +34,7 @@ export async function viewDoc(parts, params, view) {
   $("#docFull").onclick = () => document.body.classList.toggle("fullscreen-doc");
   $("#fsExit").onclick = () => document.body.classList.remove("fullscreen-doc");
   $("#docMenu").onclick = () => { $("#sidebar").classList.toggle("open"); };
-  $("#docDone")?.addEventListener("click", async () => { await api(`/tasks/${params.task}/status`, { method: "POST", body: { status: "erledigt" } }); toast("Aufgabe erledigt ✓"); location.hash = "#/plan"; });
+  $("#docDone")?.addEventListener("click", async () => { await api(`/tasks/${params.task}/status`, { method: "POST", body: { status: "erledigt" } }); toast("Aufgabe erledigt"); location.hash = "#/plan"; });
   const edA = await mountDoc($("#paneA"), f, { page: +params.page || f.last_page || 1, penInput: settings.pen_input, onPage: debounce(p => api(`/files/${id}/opened`, { method: "POST", body: { last_page: p } }).catch(() => {}), 800), restore: docTabs.state[id] });
   let lastEd = edA;
   if (edA) { edA.tabId = id; edA.onActive = () => { lastEd = edA; }; edA.delegate = () => lastEd; $("#noteArea").value = edA.model.note || ""; $("#noteArea").oninput = debounce(() => { edA.model.note = $("#noteArea").value; edA.markDirty(); $("#noteSaved").textContent = "gespeichert"; }, 600); }

@@ -189,13 +189,18 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   "university": "luh|hildesheim", "nonce": "<falls beim SDK gesetzt>", "email": "<nur Rückfall>", "device_id",
   "device_name"}`. Antwort wie `/login`: `{"user", "token", "created"}` (201 bei neuem Konto, sonst 200), Browser
   bekommt dasselbe Cookie `uniflow_session`. Ablauf: bekannte Kennung → Sitzung; sonst vom Anbieter bestätigte E-Mail
-  eines bestehenden Kontos → verknüpfen und anmelden; sonst neues Konto ohne Passwort (Passwort-Login gesperrt, bis
+  eines bestehenden Kontos mit bestätigter Adresse → verknüpfen und anmelden (ist die Adresse des Kontos noch nicht
+  bestätigt: 409 `email_taken`, erst dort anmelden bzw. Passwort zurücksetzen); sonst neues Konto ohne Passwort (Passwort-Login gesperrt, bis
   per „Passwort vergessen“ eines gesetzt ist). `university` ist nur für ein neues Konto nötig; `email` nur, wenn das
   Token keine Adresse enthält (Apple liefert sie bei jeder Anmeldung, als Relay-Adresse). Alte Clients dürfen weiter
   `identity_token` schicken.
 - **Fehler:** 401 `token_invalid` (Signatur, Ablauf, `iss`, `aud`, `nonce`), 501 `provider_not_configured`, 400
   `university_unknown` / `email_required`, 409 `email_taken` (Adresse unbestätigt und schon vergeben) /
-  `identity_taken` (`link`: Kennung gehört zu einem anderen Konto), 404 `provider_unknown`.
+  `identity_taken` (`link`: Kennung gehört zu einem anderen Konto), 403 `email_unverified` (`link`: Adresse des Kontos
+  noch nicht bestätigt), 404 `provider_unknown`.
+- **Anmeldungen verwalten:** `GET /api/account/identities` → `{"identities": [{provider, email, created_at}]}`;
+  `DELETE /api/account/identities/{provider}` (404 `identity_not_found`; 409 `last_login_method`, wenn das Konto kein
+  Passwort hat und es die einzige Anmeldung ist). „Passwort vergessen“ (Reset) löscht alle verknüpften Anmeldungen.
 - **Prüfung (Server):** JWKS von `https://www.googleapis.com/oauth2/v3/certs` bzw. `https://appleid.apple.com/auth/keys`
   (urllib, 1 Stunde Cache, bei unbekannter `kid` einmal frisch), RS256/ES256 mit `cryptography`, `iss`
   (`accounts.google.com` / `https://accounts.google.com`, `https://appleid.apple.com`), `aud` ∈ Client-IDs, `exp`
@@ -331,7 +336,11 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   solution}` (zählt `downloads`, außer bei der eigenen); `DELETE /api/community/solutions/{id}` → `{withdrawn,
   already}` (403 `not_owner`); `GET /api/community/mine`; `POST …/{id}/report {reason, note}` → `{reported, hidden,
   reports}`; `POST …/{id}/block` → `{blocked}`; `DELETE /api/community/blocks/{pseudonym}`; `GET
-  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}`.
+  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}`. Melden (auch
+  Kommentare, Fragen, Antworten) verlangt eine bestätigte E-Mail (403 `email_unverified`) und die Sichtbarkeit des
+  Beitrags, höchstens 10 Meldungen je Konto und Tag (429 `rate_limited`). Die Moderation zeigt je Meldung `reporter`
+  (`pseudonym`, `account_age_days`, `email_verified`) sowie `comments`, `questions`, `answers` (verborgen oder
+  gemeldet); `POST /api/community/{comments|questions|answers}/{id}/moderate {action: "restore"}` gibt Verborgenes frei.
 - **Web**: die Seite „Community“ zeigt im Dienst die eigenen Veröffentlichungen (zurückziehen), gesperrte Autoren
   (aufheben) und für Admins die Moderation; am PC erklärt sie, dass die Community nur im Dienst läuft. Veröffentlichen,
   suchen, laden, melden und sperren macht der iPad-Client im Editor (M15).

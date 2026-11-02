@@ -41,7 +41,9 @@ VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
 LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60), "verify_user": (5, 60), "export_user": (3, 1440),
           "comment_user": (30, 60), "like_user": (120, 60),
           # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)
-          "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440)}
+          "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440),
+          # Melden (Loesung, Kommentar, Frage, Antwort): ab drei Meldungen wird ein Beitrag verborgen, daher knapp je Tag
+          "report_user": (10, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -437,6 +439,9 @@ def reset_password(token: str, new_password: str) -> None:
         conn.execute("UPDATE users SET pw_hash=?, email_verified=1 WHERE id=?", (hash_password(new_password), r["user_id"]))
         conn.execute("UPDATE reset_tokens SET used_at=? WHERE token_hash=?", (iso(now()), r["token_hash"]))
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (iso(now()), r["user_id"]))
+        # Anmeldewege (Google/Apple), die vor diesem Nachweis verknuepft wurden, gelten nicht weiter; wer die Adresse
+        # besitzt, verknuepft sie danach neu (sonst behielte jemand, der das Konto vorab angelegt hat, einen Zugang)
+        conn.execute("DELETE FROM identities WHERE user_id=?", (r["user_id"],))
 
 
 # ---------------------------------------------------------------- E-Mail-Adresse bestaetigen (28.10.2026)
@@ -509,14 +514,42 @@ def verify_identity(provider: str, identity_token: str, nonce: str | None = None
 
 
 def link_provider(user_id: str, provider: str, subject: str, email: str | None = None) -> dict:
-    """Geprueft (subject vom Anbieter) mit dem Konto verknuepfen; dieselbe Kennung geht nie an ein zweites Konto."""
+    """Geprueft (subject vom Anbieter) mit dem Konto verknuepfen; dieselbe Kennung geht nie an ein zweites Konto.
+    Nur bei bestaetigter E-Mail-Adresse des Kontos: ein unbestaetigtes Konto kann jede Person fuer fremde Adressen anlegen."""
     with cursor() as conn:
+        u = conn.execute("SELECT email_verified FROM users WHERE id=? AND status='active'", (user_id,)).fetchone()
+        if not u:
+            raise AccountError("not_found", "Konto nicht gefunden.", 404)
+        if not u["email_verified"]:
+            raise AccountError("email_unverified", "Bitte zuerst die E-Mail-Adresse bestätigen (Link in der Willkommensmail), "
+                                                   f"dann lässt sich die {provider.capitalize()}-Anmeldung verknüpfen.", 403)
         other = conn.execute("SELECT user_id FROM identities WHERE provider=? AND subject=?", (provider, subject)).fetchone()
         if other and other["user_id"] != user_id:
             raise AccountError("identity_taken", f"Diese {provider.capitalize()}-Anmeldung gehört schon zu einem anderen Konto.", 409)
         conn.execute("INSERT OR IGNORE INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
                      (provider, subject, user_id, normalize_email(email) or None, iso(now())))
     return {"provider": provider, "linked": True}
+
+
+def identities(user_id: str) -> list[dict]:
+    """Mit dem Konto verknuepfte Anmeldewege (ohne die Kennung des Anbieters)."""
+    with cursor() as conn:
+        rows = conn.execute("SELECT provider, email, created_at FROM identities WHERE user_id=? ORDER BY created_at, provider",
+                            (user_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def unlink_provider(user_id: str, provider: str) -> bool:
+    """Verknuepfung entfernen. Ohne Passwort bliebe der letzte Anmeldeweg nicht ersetzbar: dann 409 last_login_method."""
+    with cursor() as conn:
+        u = conn.execute("SELECT pw_hash FROM users WHERE id=? AND status='active'", (user_id,)).fetchone()
+        if not u:
+            raise AccountError("not_found", "Konto nicht gefunden.", 404)
+        count = conn.execute("SELECT COUNT(*) FROM identities WHERE user_id=?", (user_id,)).fetchone()[0]
+        if not u["pw_hash"] and count <= 1:
+            raise AccountError("last_login_method", "Das ist der einzige Anmeldeweg dieses Kontos. Bitte zuerst ein Passwort setzen "
+                                                    "(Passwort zurücksetzen).", 409)
+        return conn.execute("DELETE FROM identities WHERE user_id=? AND provider=?", (user_id, provider)).rowcount > 0
 
 
 def link_identity(user_id: str, provider: str, identity_token: str, nonce: str | None = None) -> dict:
@@ -529,7 +562,8 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
                         fallback_email: str | None = None) -> tuple[dict, str, bool]:
     """Anmelden mit einer GEPRUEFTEN Anbieter-Kennung (app/social_login.py oder ein Pruefer aus `identity_verifiers`).
     1. bekannte Verknuepfung -> Sitzung wie beim normalen Login;
-    2. sonst: vom Anbieter bestaetigte E-Mail und ein aktives Konto mit dieser Adresse -> verknuepfen und anmelden;
+    2. sonst: vom Anbieter bestaetigte E-Mail und ein aktives Konto mit dieser Adresse -> verknuepfen und anmelden, aber
+       nur wenn das Konto seine Adresse bestaetigt hat (sonst 409 email_taken);
     3. sonst: neues Konto ohne Passwort (Passwort-Login gesperrt, bis die Person per Reset eines setzt). Dafuer braucht
        es eine Adresse (vom Anbieter, sonst `fallback_email` vom Client, dann unbestaetigt) und die Hochschule.
     Liefert (Nutzer, Token, neu_angelegt)."""
@@ -544,6 +578,11 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
         created = False
         if not row and email and email_verified:
             existing = conn.execute("SELECT * FROM users WHERE email=? AND status='active'", (email,)).fetchone()
+            if existing and not existing["email_verified"]:
+                # das Konto kann jede Person mit fremder Adresse angelegt haben: erst dort anmelden bzw. per Reset bestaetigen
+                raise AccountError("email_taken", "Für diese E-Mail-Adresse gibt es schon ein Konto, dessen Adresse noch nicht bestätigt ist. "
+                                                  f"Bitte dort anmelden (oder das Passwort zurücksetzen) und die {provider.capitalize()}-Anmeldung "
+                                                  "danach verknüpfen.", 409)
             if existing:
                 conn.execute("INSERT OR IGNORE INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
                              (provider, subject, existing["id"], email, iso(now())))

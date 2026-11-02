@@ -1,7 +1,7 @@
 """„Mit Google/Apple anmelden“ (app/social_login.py, Konto-Endpunkte): ID-Tokens werden gegen die JWKS des Anbieters
 geprueft (RS256 und ES256, iss, aud, exp, nonce); gueltig -> Sitzung, sonst 401; ohne Client-ID 501; dieselbe Kennung
-fuehrt immer zum selben Konto; eine bestaetigte E-Mail verknuepft ein bestehendes Konto; Loeschen entfernt die
-Verknuepfung. JWKS-Abruf und Uhr sind ausgetauscht, es geht nichts ins Netz."""
+fuehrt immer zum selben Konto; eine bestaetigte E-Mail verknuepft ein bestehendes Konto nur, wenn dieses seine Adresse
+bestaetigt hat; Loeschen und Passwort-Reset entfernen die Verknuepfungen; Anmeldungen lassen sich auflisten und entfernen. JWKS-Abruf und Uhr sind ausgetauscht, es geht nichts ins Netz."""
 import base64
 import hashlib
 import json
@@ -242,6 +242,16 @@ def test_verified_email_links_existing_account_and_delete_removes_link(hosted, k
     st, reg, _ = _j(asgi_call(hosted, "POST", "/api/account/register",
                               body=json.dumps({"email": "erika@beispiel.de", "password": "sehr-geheim-123", "university": "luh"})))
     assert st == 201
+    # Konto mit unbestaetigter Adresse (kann jede Person fuer fremde Adressen anlegen): keine Zusammenfuehrung, 409
+    apple_tok = keys.token(apple_claims(email="Erika@Beispiel.de"), alg="ES256", kid="ec-1")
+    st, d, h = _login(hosted, "apple", {"id_token": apple_tok})
+    assert (st, d["code"]) == (409, "email_taken") and "bestätigt" in d["detail"] and "verknüpfen" in d["detail"]
+    assert not [1 for k, _ in h if k == b"set-cookie"]
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM identities").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    # nach der Bestaetigung der Adresse klappt die Zusammenfuehrung
+    accounts.mark_email_verified(reg["user"]["id"])
     # bestaetigte E-Mail des Anbieters = bestehendes Konto -> verknuepfen, kein neues Konto
     st, d, _ = _login(hosted, "apple", {"id_token": keys.token(apple_claims(email="Erika@Beispiel.de"), alg="ES256", kid="ec-1")})
     assert st == 200 and d["created"] is False and d["user"]["id"] == reg["user"]["id"]
@@ -254,6 +264,7 @@ def test_verified_email_links_existing_account_and_delete_removes_link(hosted, k
     # dieselbe Apple-Kennung kann nicht an ein zweites Konto verknuepft werden
     st, other, _ = _j(asgi_call(hosted, "POST", "/api/account/register",
                                 body=json.dumps({"email": "other@beispiel.de", "password": "sehr-geheim-123", "university": "luh"})))
+    accounts.mark_email_verified(other["user"]["id"])        # Verknuepfen setzt eine bestaetigte Adresse voraus
     st, d, _ = _j(asgi_call(hosted, "POST", "/api/account/link/apple", body=json.dumps({"id_token": keys.token(apple_claims())}),
                             headers={"Authorization": f"Bearer {other['token']}"}))
     assert (st, d["code"]) == (409, "identity_taken")
@@ -298,3 +309,98 @@ def test_legacy_verifier_path_still_works(hosted, monkeypatch):
     assert (st, d["code"]) == (401, "identity_invalid")
     st, d, _ = _login(hosted, "apple", {"identity_token": "gut", "university": "luh"})
     assert st == 201 and d["user"]["email"] == "relay-1@privaterelay.appleid.com"
+
+
+# ---------------------------------------------------------------- Konto vorab angelegt / Verknuepfungen (Sicherheitsprüfung)
+
+def _bearer(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _register(hosted, email="erika@beispiel.de", password="angreifer-pw-123"):
+    st, reg, _ = _j(asgi_call(hosted, "POST", "/api/account/register",
+                              body=json.dumps({"email": email, "password": password, "university": "luh"})))
+    assert st == 201
+    return reg
+
+
+def test_unverified_account_is_not_taken_over_by_provider_login(hosted, keys):
+    """Wer eine fremde Adresse vorab registriert, behaelt kein Passwort und keine Sitzung auf dem Konto der Person,
+    die sich spaeter mit Google anmeldet: 409 statt Zusammenfuehrung."""
+    from app import accounts
+    attacker = _register(hosted)
+    st, d, _ = _login(hosted, "google", {"id_token": keys.token(google_claims()), "university": "luh"})
+    assert (st, d["code"]) == (409, "email_taken")
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM identities").fetchone()[0] == 0
+    # Bestaetigung der Adresse (Link aus der Mail) schaltet die Zusammenfuehrung frei
+    accounts.mark_email_verified(attacker["user"]["id"])
+    st, d, _ = _login(hosted, "google", {"id_token": keys.token(google_claims()), "university": "luh"})
+    assert st == 200 and d["created"] is False and d["user"]["id"] == attacker["user"]["id"]
+
+
+def test_password_reset_removes_linked_identities(hosted, keys):
+    """Ein vorab verknuepfter Anmeldeweg ueberlebt den Passwort-Reset der Adressinhaberin nicht."""
+    from app import accounts
+    reg = _register(hosted)
+    accounts.mark_email_verified(reg["user"]["id"])           # Verknuepfen braucht eine bestaetigte Adresse
+    st, d, _ = _j(asgi_call(hosted, "POST", "/api/account/link/google", body=json.dumps({"id_token": keys.token(google_claims(sub="g-att", email=None))}),
+                            headers=_bearer(reg["token"])))
+    assert st == 200 and d["linked"] is True
+    sent = {}
+    accounts.reset_sender = lambda email, token: sent.update(token=token)
+    asgi_call(hosted, "POST", "/api/account/password/reset-request", body=json.dumps({"email": "erika@beispiel.de"}))
+    st, _, _ = _j(asgi_call(hosted, "POST", "/api/account/password/reset", body=json.dumps({"token": sent["token"], "new_password": "inhaberin-neu-999"})))
+    assert st == 200
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM identities").fetchone()[0] == 0
+    # die alte Kennung meldet nicht mehr in das Konto an (stattdessen: Adresse vergeben bzw. neues Konto ohne Treffer)
+    st, d, _ = _login(hosted, "google", {"id_token": keys.token(google_claims(sub="g-att", email=None)), "university": "luh"})
+    assert st == 400 and d["code"] == "email_required"
+    st, d, _ = _j(asgi_call(hosted, "POST", "/api/account/login", body=json.dumps({"email": "erika@beispiel.de", "password": "inhaberin-neu-999"})))
+    assert st == 200
+
+
+def test_link_requires_verified_email(hosted, keys):
+    from app import accounts
+    reg = _register(hosted)
+    body = json.dumps({"id_token": keys.token(google_claims(sub="g-att", email=None))})
+    st, d, _ = _j(asgi_call(hosted, "POST", "/api/account/link/google", body=body, headers=_bearer(reg["token"])))
+    assert (st, d["code"]) == (403, "email_unverified") and "bestätigen" in d["detail"]
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM identities").fetchone()[0] == 0
+    accounts.mark_email_verified(reg["user"]["id"])
+    assert _j(asgi_call(hosted, "POST", "/api/account/link/google", body=body, headers=_bearer(reg["token"])))[0] == 200
+
+
+def test_list_and_unlink_identities(hosted, keys):
+    from app import accounts
+    reg = _register(hosted)
+    accounts.mark_email_verified(reg["user"]["id"])
+    h = _bearer(reg["token"])
+    assert _j(asgi_call(hosted, "GET", "/api/account/identities"))[0] == 401
+    assert _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))[1] == {"identities": []}
+    assert _j(asgi_call(hosted, "DELETE", "/api/account/identities/google", headers=h))[1]["code"] == "identity_not_found"
+    for prov, tok in (("google", keys.token(google_claims(sub="g-1", email=None))),
+                      ("apple", keys.token(apple_claims(), alg="ES256", kid="ec-1"))):
+        assert _j(asgi_call(hosted, "POST", f"/api/account/link/{prov}", body=json.dumps({"id_token": tok}), headers=h))[0] == 200
+    st, d, _ = _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))
+    assert st == 200 and [i["provider"] for i in d["identities"]] == ["apple", "google"]
+    assert all("subject" not in i for i in d["identities"]), "die Kennung des Anbieters wird nicht ausgeliefert"
+    assert _j(asgi_call(hosted, "DELETE", "/api/account/identities/google", headers=h))[:2] == (200, {"ok": True})
+    assert [i["provider"] for i in _j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))[1]["identities"]] == ["apple"]
+    # nach dem Entfernen meldet die Kennung nicht mehr in das Konto an
+    st, d, _ = _login(hosted, "google", {"id_token": keys.token(google_claims(sub="g-1", email=None)), "university": "luh"})
+    assert st == 400 and d["code"] == "email_required"
+    # fremde Konten sind nicht erreichbar: die Liste gehoert immer der Sitzung
+    other = _register(hosted, "other@beispiel.de", "anderes-pw-123")
+    assert _j(asgi_call(hosted, "GET", "/api/account/identities", headers=_bearer(other["token"])))[1] == {"identities": []}
+
+
+def test_unlink_last_login_method_of_passwordless_account_is_refused(hosted, keys):
+    st, d, _ = _login(hosted, "google", {"id_token": keys.token(google_claims()), "university": "luh"})
+    assert st == 201
+    h = _bearer(d["token"])
+    st, e, _ = _j(asgi_call(hosted, "DELETE", "/api/account/identities/google", headers=h))
+    assert (st, e["code"]) == (409, "last_login_method")
+    assert len(_j(asgi_call(hosted, "GET", "/api/account/identities", headers=h))[1]["identities"]) == 1

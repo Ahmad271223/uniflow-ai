@@ -13,7 +13,11 @@ Konfiguration (Umgebung des Dienstes, nie in der App):
 
 Regeln:
 - Ein Stripe-Abo gehoert genau einem Konto (`original_transaction_id` = Abo-ID, wie bei Apple).
-- Jedes Ereignis zaehlt hoechstens einmal (Tabelle stripe_events), Stripe schickt Ereignisse mehrfach.
+- Jedes Ereignis zaehlt hoechstens einmal (Tabelle stripe_events), Stripe schickt Ereignisse mehrfach. Die Ereignis-ID
+  gilt erst, wenn die Verarbeitung gelang: ID und Wirkung stehen in einer Transaktion, die Stripe-Abrufe laufen davor.
+  Schlaegt etwas fehl, ist das Ereignis nicht vermerkt und Stripes Wiederholung verarbeitet es erneut.
+- Abo-Ereignisse (created/updated/deleted) koennen in falscher Reihenfolge eintreffen: je (Konto, Abo) merkt
+  stripe_subscription_state das `created` des juengsten angewandten Ereignisses; ein aelteres ueberschreibt nichts.
 - Stand aus dem Abo-Objekt: active/trialing -> active; past_due -> billing_retry; unpaid/canceled/incomplete_expired
   -> expired; `cancel_at_period_end` -> laeuft bis `current_period_end`, verlaengert nicht.
 - Ein Ereignis mit unbekanntem Preis oder ohne zuordenbares Konto wird quittiert (200) und protokolliert, nie
@@ -284,10 +288,12 @@ def pending_plan_for(sub: dict, plan: str, now: datetime) -> str | None:
     return nxt if nxt and nxt != plan else None
 
 
-def apply_subscription(conn, sub: dict, now: datetime | None = None) -> dict:
+def apply_subscription(conn, sub: dict, now: datetime | None = None, event_created: int | None = None) -> dict:
     """Abo-Objekt von Stripe in eine Berechtigung (Quelle stripe) umsetzen. Liefert, was gesetzt wurde.
     Der Tarif folgt immer dem Preis des Postens (ein sofortiger Wechsel im Portal wirkt sofort); ein ueber einen
-    Schedule geplanter Wechsel zum Periodenende steht in `pending_plan`."""
+    Schedule geplanter Wechsel zum Periodenende steht in `pending_plan`.
+    `event_created` (Zeit des Ereignisses, nur bei Abo-Ereignissen mit eingebettetem Objekt): ein Ereignis, das
+    aelter ist als der fuer dieses Abo gemerkte Stand, wird uebersprungen; gleiche Zeit wird angewandt."""
     items = (sub.get("items") or {}).get("data") or []
     price = (items[0].get("price") or {}).get("id") if items else None
     plan = plan_for_price(price)
@@ -300,6 +306,12 @@ def apply_subscription(conn, sub: dict, now: datetime | None = None) -> dict:
     status = STATUS.get(sub.get("status") or "", None)
     if status is None:
         return {"applied": False, "reason": f"status_{sub.get('status')}", "subscription": sub.get("id"), "user_id": uid}
+    sid = sub.get("id") if isinstance(sub.get("id"), str) else None
+    if event_created is not None and sid:
+        last = conn.execute("SELECT event_created FROM stripe_subscription_state WHERE user_id=? AND subscription_id=?",
+                            (str(uid), sid)).fetchone()
+        if last and event_created < last[0]:
+            return {"applied": False, "reason": "stale_event", "subscription": sid, "user_id": uid}
     t = now or datetime.now(timezone.utc)
     expires = _iso(_period_end(sub))
     will_renew = status == "active" and not sub.get("cancel_at_period_end")
@@ -307,12 +319,81 @@ def apply_subscription(conn, sub: dict, now: datetime | None = None) -> dict:
     billing.set_entitlement(conn, uid, SOURCE, plan, original_transaction_id=sub.get("id"), expires_at=expires,
                             status=status, will_renew=will_renew, pending_plan=pending,
                             environment="livemode" if sub.get("livemode") else "test", now=now)
+    if event_created is not None and sid:
+        conn.execute("INSERT INTO stripe_subscription_state(user_id, subscription_id, event_created) VALUES (?,?,?) "
+                     "ON CONFLICT(user_id, subscription_id) DO UPDATE SET event_created=MAX(event_created, excluded.event_created)",
+                     (str(uid), sid, event_created))
     return {"applied": True, "user_id": uid, "plan": plan, "status": status, "expires_at": expires, "will_renew": will_renew,
             "pending_plan": pending, "subscription": sub.get("id")}
 
 
+SUBSCRIPTION_EVENTS = ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted")
+SCHEDULE_EVENTS = ("subscription_schedule.updated", "subscription_schedule.released", "subscription_schedule.canceled")
+
+
+def _with_schedule(sub: dict) -> dict:
+    """Schedule des Abos vorab laden (wie sonst pending_plan_for), damit unter der Schreibsperre kein Abruf mehr laeuft.
+    Nicht ladbar -> kein geplanter Wechsel (wie bisher)."""
+    ref = sub.get("schedule")
+    if not ref or (isinstance(ref, dict) and ref.get("phases") is not None):
+        return sub
+    sid = _object_id(ref)
+    if not sid:
+        return sub
+    try:
+        schedule = http_get(f"/subscription_schedules/{sid}")
+    except StripeError:
+        return {**sub, "schedule": None}
+    return {**sub, "schedule": {**schedule, "phases": schedule.get("phases") or []}}
+
+
+def _fetch_for_event(etype: str, obj: dict) -> dict | None:
+    """Alle Stripe-Abrufe, die ein Ereignis braucht, vor der Transaktion. Liefert das Abo, das angewandt wird."""
+    if etype == "checkout.session.completed":
+        sid = _object_id(obj.get("subscription")) if obj.get("mode") == "subscription" else None
+        return _with_schedule(http_get(f"/subscriptions/{sid}")) if sid else None
+    if etype in SCHEDULE_EVENTS:
+        # Wechsel zum Periodenende geplant, geaendert oder zurueckgenommen: das Abo traegt (oder verliert) den Schedule;
+        # es wird frisch geladen, damit `pending_plan` aus dem tatsaechlichen Stand folgt.
+        sid = _object_id(obj.get("subscription"))
+        return _with_schedule(http_get(f"/subscriptions/{sid}")) if sid else None
+    if etype in SUBSCRIPTION_EVENTS:
+        return _with_schedule(obj)
+    return None
+
+
+def _process_event(conn, event: dict, sub: dict | None, now: datetime | None) -> dict:
+    """Ereignis vermerken und anwenden (laeuft in der Transaktion von handle_event, ohne Stripe-Abrufe)."""
+    eid, etype = event["id"], event.get("type") or ""
+    stamp = (now or datetime.now(timezone.utc)).replace(microsecond=0).isoformat()
+    if conn.execute("INSERT OR IGNORE INTO stripe_events(id, type, created_at) VALUES (?,?,?)", (eid, etype, stamp)).rowcount == 0:
+        return {"received": True, "duplicate": True, "type": etype}
+    obj = (event.get("data") or {}).get("object") or {}
+    if etype == "checkout.session.completed":
+        if sub is None:
+            return {"received": True, "type": etype, "applied": False, "reason": "not_a_subscription"}
+        cid = obj.get("customer") if isinstance(obj.get("customer"), str) else None
+        uid = obj.get("client_reference_id")
+        if uid and cid and not user_for_customer(conn, cid):
+            conn.execute("INSERT OR IGNORE INTO stripe_customers(user_id, customer_id, created_at) VALUES (?,?,?)", (uid, cid, stamp))
+        if uid and not (sub.get("metadata") or {}).get("user_id"):
+            sub = {**sub, "metadata": {**(sub.get("metadata") or {}), "user_id": uid}}
+        return {"received": True, "type": etype, **apply_subscription(conn, sub, now)}
+    if etype in SUBSCRIPTION_EVENTS:
+        created = event.get("created")
+        created = created if isinstance(created, int) and not isinstance(created, bool) else None
+        return {"received": True, "type": etype, **apply_subscription(conn, sub, now, event_created=created)}
+    if etype in SCHEDULE_EVENTS:
+        if sub is None:
+            return {"received": True, "type": etype, "applied": False, "reason": "no_subscription"}
+        return {"received": True, "type": etype, **apply_subscription(conn, sub, now)}
+    return {"received": True, "type": etype, "applied": False, "reason": "ignored"}
+
+
 def handle_event(conn, payload: bytes, signature: str | None, now: datetime | None = None, secret: str | None = None) -> dict:
-    """POST /api/billing/stripe/webhook: Signatur pruefen, Ereignis hoechstens einmal verarbeiten."""
+    """POST /api/billing/stripe/webhook: Signatur pruefen, Ereignis hoechstens einmal verarbeiten.
+    Die Ereignis-ID wird erst mit der Wirkung festgeschrieben (BEGIN IMMEDIATE ... COMMIT); die Stripe-Abrufe laufen
+    davor. Ein Fehler (Stripe, Datenbank) rollt alles zurueck, Stripes Wiederholung verarbeitet das Ereignis erneut."""
     verify_signature(payload, signature, secret, now.timestamp() if now else None)
     try:
         event = json.loads(payload.decode("utf-8"))
@@ -321,31 +402,18 @@ def handle_event(conn, payload: bytes, signature: str | None, now: datetime | No
     eid, etype = event.get("id"), event.get("type") or ""
     if not isinstance(eid, str) or not eid:
         raise StripeError("payload_invalid", "Das Ereignis hat keine ID.", 400)
-    dup = conn.execute("INSERT OR IGNORE INTO stripe_events(id, type, created_at) VALUES (?,?,?)",
-                       (eid, etype, (now or datetime.now(timezone.utc)).replace(microsecond=0).isoformat())).rowcount == 0
-    if dup:
+    if conn.execute("SELECT 1 FROM stripe_events WHERE id=?", (eid,)).fetchone():
         return {"received": True, "duplicate": True, "type": etype}
-    obj = (event.get("data") or {}).get("object") or {}
-    if etype == "checkout.session.completed":
-        if obj.get("mode") != "subscription" or not obj.get("subscription"):
-            return {"received": True, "type": etype, "applied": False, "reason": "not_a_subscription"}
-        sid = obj["subscription"] if isinstance(obj["subscription"], str) else obj["subscription"].get("id")
-        cid = obj.get("customer") if isinstance(obj.get("customer"), str) else None
-        uid = obj.get("client_reference_id")
-        if uid and cid and not user_for_customer(conn, cid):
-            conn.execute("INSERT OR IGNORE INTO stripe_customers(user_id, customer_id, created_at) VALUES (?,?,?)",
-                         (uid, cid, (now or datetime.now(timezone.utc)).replace(microsecond=0).isoformat()))
-        sub = http_get(f"/subscriptions/{sid}")
-        if uid and not (sub.get("metadata") or {}).get("user_id"):
-            sub = {**sub, "metadata": {**(sub.get("metadata") or {}), "user_id": uid}}
-        return {"received": True, "type": etype, **apply_subscription(conn, sub, now)}
-    if etype in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
-        return {"received": True, "type": etype, **apply_subscription(conn, obj, now)}
-    if etype in ("subscription_schedule.updated", "subscription_schedule.released", "subscription_schedule.canceled"):
-        # Wechsel zum Periodenende geplant, geaendert oder zurueckgenommen: das Abo traegt (oder verliert) den Schedule;
-        # es wird frisch geladen, damit `pending_plan` aus dem tatsaechlichen Stand folgt.
-        sid = _object_id(obj.get("subscription"))
-        if not sid:
-            return {"received": True, "type": etype, "applied": False, "reason": "no_subscription"}
-        return {"received": True, "type": etype, **apply_subscription(conn, http_get(f"/subscriptions/{sid}"), now)}
-    return {"received": True, "type": etype, "applied": False, "reason": "ignored"}
+    sub = _fetch_for_event(etype, (event.get("data") or {}).get("object") or {})
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        out = _process_event(conn, event, sub, now)
+    except billing.BillingError:
+        # Dauerhafte Ablehnung (z. B. Abo gehoert einem anderen Konto): wiederholen aendert nichts, also vermerken.
+        conn.execute("COMMIT")
+        raise
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
+    return out

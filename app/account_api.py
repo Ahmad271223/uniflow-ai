@@ -163,6 +163,27 @@ def link(provider: str, request: Request, body: dict = Body(...)):
         raise _err(e)
 
 
+@router.get("/identities")
+def identities(request: Request):
+    """Mit dem Konto verknüpfte Anmeldungen (Google/Apple)."""
+    _hosted_only()
+    return {"identities": accounts.identities(_user(request)["id"])}
+
+
+@router.delete("/identities/{provider}")
+def unlink(provider: str, request: Request):
+    """Verknüpfte Anmeldung (Google/Apple) entfernen."""
+    _hosted_only()
+    u = _user(request)
+    try:
+        removed = accounts.unlink_provider(u["id"], provider)
+    except accounts.AccountError as e:
+        raise _err(e)
+    if not removed:
+        raise HTTPException(404, {"detail": "Diese Anmeldung ist nicht verknüpft.", "code": "identity_not_found"})
+    return {"ok": True}
+
+
 @router.get("/me")
 def me(request: Request):
     _hosted_only()
@@ -248,11 +269,29 @@ def verify_email_resend(request: Request):
     return {"ok": True, "already": False, "message": "Wir haben dir einen neuen Bestätigungslink geschickt."}
 
 
+def _from_foreign_site(request: Request) -> bool:
+    """Kommt die Anfrage von einer fremden Seite? Sec-Fetch-Site cross-site/same-site, oder Origin/Referer mit anderem
+    Host als dem Anfrage-Host. Ohne diese Kopfzeilen (native App, Skripte, Adresszeile) gilt sie nicht als fremd."""
+    from urllib.parse import urlsplit
+    if (request.headers.get("sec-fetch-site") or "").lower() in ("cross-site", "same-site"):
+        return True
+    host = (request.headers.get("host") or "").lower()
+    for name in ("origin", "referer"):
+        value = request.headers.get(name)
+        if value is not None and (value == "null" or urlsplit(value).netloc.lower() != host):
+            return True
+    return False
+
+
 @router.get("/export")
 def export(request: Request):
-    """Alle Daten des Kontos als ZIP (Auskunft und Datenübertragbarkeit, DSGVO Art. 15 und 20); hoechstens 3 je Tag."""
+    """Alle Daten des Kontos als ZIP (Auskunft und Datenübertragbarkeit, DSGVO Art. 15 und 20); hoechstens 3 je Tag.
+    Eine fremde Seite darf den Export nicht anstossen (Cookie ist SameSite=Lax, GET wird vom Herkunftsschutz nicht
+    geprueft): sie wird abgewiesen, bevor das Tageskontingent zaehlt."""
     _hosted_only()
     u = _user(request)
+    if _from_foreign_site(request):
+        raise HTTPException(403, {"detail": "Anfrage von fremder Seite abgelehnt.", "code": "cross_site"})
     try:
         accounts.hit_limit("export_user", u["id"])
     except accounts.AccountError as e:

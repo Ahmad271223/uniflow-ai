@@ -67,6 +67,8 @@ HOSTED_UNAVAILABLE = (
     ("POST", "/api/files/{id}/analyze", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate-week", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/timetable/import/preview", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/tasks/{id}/start-test", "KI-Funktionen kommen mit dem KI-Update."),
 )
 _HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
                           for m, p, why in HOSTED_UNAVAILABLE]
@@ -152,6 +154,9 @@ def _api_rate(user_id: str, now: float | None = None) -> int:
     return 0
 
 
+_FASTAPI_DOC_PATHS = ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")
+
+
 @app.middleware("http")
 async def hosted_guard(request, call_next):
     """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
@@ -159,6 +164,9 @@ async def hosted_guard(request, call_next):
     if not config.is_hosted():
         return await call_next(request)
     path = request.url.path
+    if path in _FASTAPI_DOC_PATHS:
+        # eingebaute Schnittstellenbeschreibung (Routenkarte, auch der Verwaltungs- und Agentenpfade): im Dienst aus
+        return JSONResponse({"detail": "Nicht gefunden."}, status_code=404)
     if path in ("/", "/index.html", "/login"):
         # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin
         user = accounts.authenticate(account_api.token_of(request))
@@ -962,6 +970,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     hosted = config.is_hosted()
     if hosted:
         entitlements.require(request, TUTOR_ENTITLEMENT.get(mode, "can_use_ai_explanations"))
+        entitlements.require_verified_for_ai(request)
     file_id = body.get("file_id")
     page = int(body.get("page") or 1)
     text = body.get("page_text") or ""
@@ -1030,10 +1039,10 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     try:
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
     except ai_backend.AIUnavailable as e:
-        entitlements.refund(rid)
+        entitlements.refund(request, "ai_assist", rid)
         raise HTTPException(e.status, {"detail": e.message, "code": e.code})
     except Exception:
-        entitlements.refund(rid)
+        entitlements.refund(request, "ai_assist", rid)
         raise
 
 
@@ -2388,9 +2397,11 @@ def api_grades_sync(show: bool = False):
 def api_qis_document(doc_id: int):
     with db.cursor() as conn:
         d = db.row(conn, "SELECT * FROM qis_documents WHERE id=?", (doc_id,))
-    if not d or not Path(d["local_path"]).exists():
+    from . import qis
+    path = qis.document_path(d["local_path"]) if d else None        # nur Dateien im QIS-Ordner des eigenen Kontos
+    if not path:
         raise HTTPException(404)
-    return FileResponse(d["local_path"], media_type="application/pdf", filename=Path(d["local_path"]).name)
+    return FileResponse(path, media_type="application/pdf", filename=path.name)
 
 
 @app.put("/api/credentials/{service}")

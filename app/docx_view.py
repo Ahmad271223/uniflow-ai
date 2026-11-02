@@ -25,6 +25,8 @@ PR = "http://schemas.openxmlformats.org/package/2006/relationships"
 MAX_BYTES = 60 << 20
 MAX_IMAGE = 8 << 20
 MAX_XML = 40 << 20
+MAX_IMAGES_TOTAL = 32 << 20     # Summe aller eingebetteten Bilder (je Verweis gezaehlt, ein Bild mehrfach zaehlt mehrfach)
+MAX_RATIO = 200                 # hoeher komprimierte Eintraege gelten als Zip-Bombe (echte PNG/JPEG/GIF liegen bei ~1-10)
 IMG_MIME = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif"}
 HEX = re.compile(r"^[0-9A-Fa-f]{6}$")
 
@@ -56,6 +58,7 @@ class Converter:
         self.styles = self._styles()
         self.numfmt = self._numbering()
         self.images = 0
+        self.image_bytes = 0
 
     def _read(self, name) -> bytes | None:
         try:
@@ -249,8 +252,10 @@ class Converter:
             info = self.z.getinfo(name)
         except KeyError:
             return ""
-        if info.file_size > MAX_IMAGE:
+        if (info.file_size > MAX_IMAGE or self.image_bytes + info.file_size > MAX_IMAGES_TOTAL
+                or info.file_size > MAX_RATIO * max(info.compress_size, 1024)):
             return '<span class="dx-missing">[Bild zu groß]</span>'
+        self.image_bytes += info.file_size
         self.images += 1
         data = base64.b64encode(self.z.read(name)).decode()
         return f'<img src="data:{IMG_MIME[ext]};base64,{data}" alt="">'

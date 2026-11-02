@@ -203,8 +203,9 @@ Ausgabenlimit setzen.
 |---|---|
 | `LERNAPP_OPENAI_API_KEY` | `sk-…` |
 | `LERNAPP_AI_MODEL` | z. B. `gpt-5-mini` (günstig) oder `gpt-5` |
-| `LERNAPP_AI_PRICE_IN_EUR` / `LERNAPP_AI_PRICE_OUT_EUR` | Preise je 1 Mio. Tokens aus der OpenAI-Preisliste, in Euro umgerechnet – nur damit die Budgets rechnen können |
+| `LERNAPP_AI_PRICE_IN_EUR` / `LERNAPP_AI_PRICE_OUT_EUR` | **Pflicht:** Preise je 1 Mio. Tokens aus der OpenAI-Preisliste, in Euro umgerechnet. Bei 0 oder leer sperrt der Dienst alle KI-Aufrufe (503 `ai_not_configured_prices`), weil die Budgets sonst nichts zählen |
 | `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_USER_BUDGET_EUR` | Monatsgrenze gesamt (Standard 50) und je Konto (Standard 2); erreicht = Sperre bis zum nächsten Monat |
+| `LERNAPP_AI_TRIAL_BUDGET_EUR` | Eigenes Monatsbudget für alle Probekonten zusammen (Standard 5), zusätzlich zum Gesamtbudget: die Probe verbraucht nie das Budget zahlender Konten. Studora-KI gibt es nur mit bestätigter E-Mail-Adresse (403 `email_unverified`) |
 
 ### 5.5 Registrierungen je IP (Hochschulnetz)
 
@@ -376,7 +377,7 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
 | Abgleich schlägt fehl, „browser“/„chromium“ im Log | Speicher: `docker stats` (Container `uniflow-jobs`); `LERNAPP_JOB_WORKERS=1` setzen oder Server vergrößern. Fehlerbilder liegen unter `/data/users/<ID>/logs/`. |
 | Abgleich bleibt „wartet (Platz 1)“ | Container `jobs` läuft nicht (`docker compose ps`). Die API legt die Jobs nur an; abgearbeitet werden sie in `jobs`. |
 | Stripe: Abschluss klappt, Tarif erscheint nicht | Webhook-Adresse oder `whsec_` falsch (Stripe-Dashboard → Webhooks → Zustellversuche zeigen 400). Testmodus und Livemodus haben getrennte Schlüssel und Webhooks. |
-| KI-Funktionen melden „nicht eingerichtet“ (503) | `LERNAPP_OPENAI_API_KEY` oder `LERNAPP_AI_MODEL` leer; nach dem Eintragen `docker compose up -d`. Bei „Budget erreicht“: `LERNAPP_AI_BUDGET_EUR` erhöhen oder bis Monatsanfang warten. |
+| KI-Funktionen melden „nicht eingerichtet“ (503) | `LERNAPP_OPENAI_API_KEY` oder `LERNAPP_AI_MODEL` leer; nach dem Eintragen `docker compose up -d`. Bei „Token-Preise fehlen“ (503 `ai_not_configured_prices`): `LERNAPP_AI_PRICE_IN_EUR` und `LERNAPP_AI_PRICE_OUT_EUR` eintragen. Bei „Budget erreicht“: `LERNAPP_AI_BUDGET_EUR` erhöhen oder bis Monatsanfang warten. |
 | Platte voll | `df -h /`, `docker system df`, `docker image prune -f`; Backups außer Haus und `BACKUP_KEEP_DAYS` prüfen. |
 | Löschfristen laufen nicht (keine tägliche Zeile in `retention.log`) | Sie laufen im Container `jobs` (`docker compose ps jobs` muss „healthy“ zeigen). Ohne Compose: `LERNAPP_JOBS` darf im API-Prozess nicht `off` sein, oder `python -m app.jobs` getrennt starten. |
 | Server kaputt / gehackt | Neuer Server, Abschnitte 3–6, dann Wiederherstellung (Abschnitt 9) mit demselben `LERNAPP_SECRET_KEY`. Danach alle Zugangsdaten (SSH, Stripe, OpenAI, Mail) erneuern. |

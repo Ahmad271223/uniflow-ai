@@ -9,6 +9,7 @@ Keine Bildschirmfotos: Notenspiegel und Fehlerseiten zeigen Stammdaten; protokol
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
@@ -27,12 +28,13 @@ PROFILES = {
     "hildesheim": {"base": universities.LSF_BASE, "start": lsf.LSF_START, "documents": False,
                    "cred_prefix": universities.PROFILES["hildesheim"]["cred_prefix"], "profile_dir": hildesheim.PROFILE_DIR},
 }
-_P = dict(PROFILES["luh"], key="luh")      # aktives Profil waehrend eines Laufs
 
 
 def use_profile(key: str) -> dict:
-    _P.clear(); _P.update(PROFILES.get(key, PROFILES["luh"]), key=key if key in PROFILES else "luh")
-    return _P
+    """Profil fuer genau einen Lauf: eine Kopie je Aufruf, die an login/fetch_*/_abs/_links weitergereicht wird.
+    Kein modulweiter Zustand, damit parallele Auftraege verschiedener Konten sich nicht gegenseitig umschalten."""
+    k = key if key in PROFILES else "luh"
+    return dict(PROFILES[k], key=k)
 
 
 def credentials_for(key: str) -> tuple[str, str]:
@@ -53,6 +55,17 @@ DOC_DIR = DATA_DIR / "qis"
 
 def _doc_dir():
     return config.data_dir() / "qis" if config.current_user_id() else DOC_DIR
+
+
+def document_path(local_path: str) -> Path | None:
+    """Gespeicherten Pfad eines Dokuments (Dateiname, oder aelterer absoluter Pfad) auflösen und nur zurueckgeben, wenn
+    die Datei im QIS-Ordner des aufrufenden Kontos liegt; sonst None (nie Dateien anderer Konten oder beliebige Pfade)."""
+    base = _doc_dir().resolve()
+    try:
+        p = (base / (local_path or "")).resolve()      # absoluter Pfad ersetzt base; Dateiname wird darunter aufgelöst
+        return p if p.is_relative_to(base) and p.is_file() else None
+    except (OSError, ValueError):
+        return None
 
 
 def _profile_dir(prof: dict):
@@ -86,13 +99,13 @@ def _click_text(page: Page, texts: list[str], timeout: int = 8000) -> bool:
     return False
 
 
-def login(page: Page, user: str, password: str) -> None:
-    if _P.get("key") == "hildesheim":
+def login(page: Page, user: str, password: str, prof: dict) -> None:
+    if prof.get("key") == "hildesheim":
         from . import lsf
         lsf.login(page, user, password, log)
         log("QIS: Login erfolgreich (CAS)")
         return
-    page.goto(_P["start"], wait_until="domcontentloaded")
+    page.goto(prof["start"], wait_until="domcontentloaded")
     page.wait_for_timeout(800)
     if page.locator("a:has-text('Abmelden'), a:has-text('Logout')").count():
         log("QIS: bereits angemeldet")
@@ -163,9 +176,9 @@ def _parse_tables(page: Page, abschluss: str) -> list[dict]:
     return rows_out
 
 
-def fetch_grades(page: Page) -> list[dict]:
+def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
     # LUH-QIS: Startseite "Meine Funktionen" mit Menue "Mein Studium" (Noten) und "Meine Bescheinigungen"
-    page.goto(_P["start"], wait_until="domcontentloaded"); page.wait_for_timeout(400)
+    page.goto(prof["start"], wait_until="domcontentloaded"); page.wait_for_timeout(400)
     _click_text(page, ["Meine Funktionen"], timeout=4000)
     found = False
     for menu in ("Mein Studium", "Prüfungsverwaltung", "Pruefungsverwaltung", "Studiumsverwaltung"):
@@ -176,7 +189,7 @@ def fetch_grades(page: Page) -> list[dict]:
     if not found and _click_text(page, ["Notenspiegel", "Leistungsübersicht", "Leistungsspiegel"], timeout=4000):
         found = True
     if not found:
-        menu_txt = ", ".join(t for t, _ in _links(page)[:40] if t)
+        menu_txt = ", ".join(t for t, _ in _links(page, prof)[:40] if t)
         raise RuntimeError(f"'Notenspiegel' nicht gefunden. Sichtbare Menuepunkte: {menu_txt[:300]}")
     # Keine Bildschirmfotos: die Seite zeigt Stammdaten (Name, Geburtsdatum, Anschrift, Matrikelnummer), die nie
     # gespeichert oder protokolliert werden (docs/AUFTRAG-HILDESHEIM-IPAD.md). Protokolliert wird nur die Struktur.
@@ -188,8 +201,8 @@ def fetch_grades(page: Page) -> list[dict]:
 
     def expand(depth: int, title: str) -> None:
         nonlocal grades
-        if _P.get("documents", True):          # Hildesheim: keine Bescheinigungen/Transcripts speichern
-            _click_pdf_links(page, title or "Notenspiegel")
+        if prof.get("documents", True):          # Hildesheim: keine Bescheinigungen/Transcripts speichern
+            _click_pdf_links(page, title or "Notenspiegel", prof, store)
         found = _parse_tables(page, title)
         if found:
             grades += found
@@ -210,7 +223,7 @@ def fetch_grades(page: Page) -> list[dict]:
                 continue
             seen_urls.add(h)
             try:
-                page.goto(_abs(h), wait_until="domcontentloaded"); page.wait_for_timeout(600)
+                page.goto(_abs(h, prof), wait_until="domcontentloaded"); page.wait_for_timeout(600)
             except Exception as e:  # noqa: BLE001
                 log(f"Notenspiegel-Unterseite uebersprungen ({t}): {e}"); continue
             log(f"QIS: Notenspiegel > {t}: {page.locator('table').count()} Tabellen")
@@ -232,8 +245,12 @@ DOC_KEYWORDS = ("bescheinigung", "transcript", "leistungsübersicht", "leistungs
 GENERIC = ("pdf", "drucken", "download", "herunterladen", "anzeigen", "öffnen", "oeffnen")
 
 
-DOCS: list[dict] = []      # in diesem Lauf gespeicherte PDFs
-HASHES: set[str] = set()   # Duplikate (gleicher Inhalt) vermeiden
+@dataclass
+class DocStore:
+    """PDFs eines einzelnen Laufs (je qis.run neu angelegt, nie modulweit): gespeicherte Dokumente und Inhalts-
+    pruefsummen gegen Duplikate. Nur Dateinamen im Kontoordner, `local_path` ist relativ zu `_doc_dir()`."""
+    docs: list[dict] = field(default_factory=list)
+    hashes: set[str] = field(default_factory=set)
 
 
 def _clean_title(t: str) -> str:
@@ -247,34 +264,34 @@ def _clean_title(t: str) -> str:
     return t[:90] or "Dokument"
 
 
-def _store_pdf(body: bytes, title: str) -> bool:
+def _store_pdf(body: bytes, title: str, store: DocStore) -> bool:
     import hashlib
     if not body or not body.startswith(b"%PDF"):
         return False
     h = hashlib.sha1(body).hexdigest()
-    if h in HASHES:
+    if h in store.hashes:
         return True
-    HASHES.add(h)
+    store.hashes.add(h)
     title = _clean_title(title)
-    if any(_title_key(d["title"]) == _title_key(title) for d in DOCS):
+    if any(_title_key(d["title"]) == _title_key(title) for d in store.docs):
         return True
     _doc_dir().mkdir(parents=True, exist_ok=True)
     fname = re.sub(r"[^\w\-]+", "_", title)[:60].strip("_") or "Dokument"
     path = _doc_dir() / f"{fname}.pdf"
     path.write_bytes(body)  # gleicher Titel -> Datei wird bei jedem Abruf aktualisiert
-    DOCS.append({"title": title, "local_path": str(path)})
+    store.docs.append({"title": title, "local_path": path.name})
     log(f"QIS-Dokument gespeichert: {title}")
     return True
 
 
-def _save_pdf(page: Page, url: str, title: str) -> bool:
+def _save_pdf(page: Page, url: str, title: str, store: DocStore) -> bool:
     """PDF per direktem Request laden (fuer Links, die sofort eine PDF liefern)."""
     try:
         resp = page.request.get(url, timeout=30000)
     except Exception as e:  # noqa: BLE001
         log(f"Bescheinigung uebersprungen ({title}): {e}"); return False
     body = resp.body() if resp.ok else b""
-    return _store_pdf(body, title)
+    return _store_pdf(body, title, store)
 
 
 def _title_key(t: str) -> str:
@@ -283,7 +300,7 @@ def _title_key(t: str) -> str:
     return parts[0] if len(parts) > 1 and parts[0] in parts[1:] else t
 
 
-def _click_pdf_links(page: Page, context: str) -> None:
+def _click_pdf_links(page: Page, context: str, prof: dict, store: DocStore) -> None:
     """PDF-Links auf der aktuellen Seite holen: Klick mit Download, Popup-Fenster oder Weiterleitung im HTML."""
     try:
         loc = page.locator("a:has-text('PDF'), a[href*='pdf' i], a:has(img[src*='pdf' i]), a:has(img[alt*='pdf' i])")
@@ -297,7 +314,7 @@ def _click_pdf_links(page: Page, context: str) -> None:
             if not text:
                 text = a.evaluate("el => (el.closest('td,li,p,div,span')?.innerText || '').trim()") or ""
             title = _clean_title(text) if text and _clean_title(text).lower() not in ("pdf", "dokument") else _clean_title(context)
-            if any(_title_key(d["title"]) == _title_key(title) for d in DOCS):
+            if any(_title_key(d["title"]) == _title_key(title) for d in store.docs):
                 continue
             href = a.get_attribute("href") or ""
             url_before = page.url; pages_before = set(page.context.pages)
@@ -334,7 +351,7 @@ def _click_pdf_links(page: Page, context: str) -> None:
                         continue
             if not body:
                 log(f"QIS: Antworten nach Klick auf '{title}': " + " | ".join(seen_resp[-6:]))
-            if _store_pdf(body, title):
+            if _store_pdf(body, title, store):
                 if page.url != url_before:
                     try:
                         page.go_back(wait_until="domcontentloaded"); page.wait_for_timeout(400)
@@ -347,11 +364,11 @@ def _click_pdf_links(page: Page, context: str) -> None:
                 try:
                     np_.wait_for_load_state("domcontentloaded", timeout=8000)
                     resp = np_.request.get(np_.url, timeout=30000)
-                    if not _store_pdf(resp.body() if resp.ok else b"", title):
+                    if not _store_pdf(resp.body() if resp.ok else b"", title, store):
                         html = np_.content()
                         m = re.search(r"""(?:url=|src=|href=)["']?([^"'> ]+\.pdf[^"'> ]*)""", html, flags=re.I)
                         if m:
-                            r2 = np_.request.get(_abs(m.group(1)), timeout=30000); _store_pdf(r2.body() if r2.ok else b"", title)
+                            r2 = np_.request.get(_abs(m.group(1), prof), timeout=30000); _store_pdf(r2.body() if r2.ok else b"", title, store)
                         else:
                             (config.log_dir() / "qis-pdf-link.html").write_text(html, encoding="utf-8")
                 finally:
@@ -359,14 +376,14 @@ def _click_pdf_links(page: Page, context: str) -> None:
                         np_.close()
                     except Exception:  # noqa: BLE001
                         pass
-            if any(_title_key(d["title"]) == _title_key(title) for d in DOCS):
+            if any(_title_key(d["title"]) == _title_key(title) for d in store.docs):
                 continue
             # Gleiche Seite navigiert oder HTML mit Weiterleitung zur PDF
             if page.url != url_before:
                 try:
                     page.wait_for_load_state("domcontentloaded", timeout=8000)
                     resp = page.request.get(page.url, timeout=30000)
-                    if not _store_pdf(resp.body() if resp.ok else b"", title):
+                    if not _store_pdf(resp.body() if resp.ok else b"", title, store):
                         html = page.content()
                         (config.log_dir() / "qis-pdf-link.html").write_text(html, encoding="utf-8")
                         log(f"QIS: PDF-Link '{title}' fuehrt zu HTML-Seite {page.url[:120]}")
@@ -375,8 +392,8 @@ def _click_pdf_links(page: Page, context: str) -> None:
                             if u.startswith("url="):
                                 u = u[4:]
                             try:
-                                r2 = page.request.get(_abs(u), timeout=30000)
-                                if _store_pdf(r2.body() if r2.ok else b"", title):
+                                r2 = page.request.get(_abs(u, prof), timeout=30000)
+                                if _store_pdf(r2.body() if r2.ok else b"", title, store):
                                     break
                             except Exception:  # noqa: BLE001
                                 continue
@@ -384,26 +401,26 @@ def _click_pdf_links(page: Page, context: str) -> None:
                     log(f"QIS: PDF-Link '{title}': {str(e).splitlines()[0][:80]}")
                 page.go_back(wait_until="domcontentloaded"); page.wait_for_timeout(400)
             elif href and not href.startswith(("javascript", "#")):
-                resp = page.request.get(_abs(href), timeout=30000)
+                resp = page.request.get(_abs(href, prof), timeout=30000)
                 body = resp.body() if resp.ok else b""
-                if not _store_pdf(body, title):
+                if not _store_pdf(body, title, store):
                     html = body.decode("utf-8", "ignore")
                     m = re.search(r"""(?:url=|src=|href=|action=)["']?([^"'> ]+(?:\.pdf|pdf)[^"'> ]*)""", html, flags=re.I)
-                    if m and _abs(m.group(1)) != _abs(href):
-                        r2 = page.request.get(_abs(m.group(1)), timeout=30000); _store_pdf(r2.body() if r2.ok else b"", title)
-                    if not any(_title_key(d["title"]) == _title_key(title) for d in DOCS):
+                    if m and _abs(m.group(1), prof) != _abs(href, prof):
+                        r2 = page.request.get(_abs(m.group(1), prof), timeout=30000); _store_pdf(r2.body() if r2.ok else b"", title, store)
+                    if not any(_title_key(d["title"]) == _title_key(title) for d in store.docs):
                         (config.log_dir() / "qis-pdf-link.html").write_text(html, encoding="utf-8")
                         log(f"QIS: PDF-Link '{title}' liefert keine PDF (HTML unter logs/qis-pdf-link.html)")
         except Exception as e:  # noqa: BLE001
             log(f"QIS: PDF-Link '{context}' uebersprungen ({str(e).splitlines()[0][:80]})")
 
 
-def _abs(href: str) -> str:
-    base = _P["base"]
+def _abs(href: str, prof: dict) -> str:
+    base = prof["base"]
     return href if href.startswith("http") else (base + href if href.startswith("/") else base + "/qisserver/" + href)
 
 
-def _links(page: Page) -> list[tuple[str, str]]:
+def _links(page: Page, prof: dict) -> list[tuple[str, str]]:
     out = []
     try:
         anchors = page.locator("a[href]")
@@ -419,7 +436,7 @@ def _links(page: Page) -> list[tuple[str, str]]:
                 continue
             if not href or href.startswith(("javascript", "#", "mailto")) or "logout" in href.lower() or "logout" in text.lower() or "abmeld" in text.lower():
                 continue
-            if href.startswith("http") and not href.startswith(_P["base"]):
+            if href.startswith("http") and not href.startswith(prof["base"]):
                 continue
             out.append((text, href))
     except Exception:  # noqa: BLE001
@@ -438,7 +455,7 @@ def _page_title(page: Page) -> str:
     return "Dokument"
 
 
-def fetch_documents(page: Page) -> list[dict]:
+def fetch_documents(page: Page, prof: dict, store: DocStore) -> list[dict]:
     """Bescheinigungen, Transcript of Records, Leistungsuebersichten usw. als PDF einsammeln.
 
     Durchsucht die QIS-Menues (Meine Funktionen, Pruefungsverwaltung, Studiumsverwaltung ...) nach Links, deren Text
@@ -454,21 +471,21 @@ def fetch_documents(page: Page) -> list[dict]:
                 queue.append((text, href, depth))
 
     def save_pdf(url: str, title: str) -> bool:
-        return _save_pdf(page, url, title)
+        return _save_pdf(page, url, title, store)
 
     for menu in ("Meine Funktionen", "Mein Studium", "Meine Bescheinigungen", "Prüfungsverwaltung", "Studiumsverwaltung", "Studienservice"):
         try:
-            page.goto(_P["start"], wait_until="domcontentloaded"); page.wait_for_timeout(300)
+            page.goto(prof["start"], wait_until="domcontentloaded"); page.wait_for_timeout(300)
             if _click_text(page, [menu], timeout=4000):
-                enqueue(_links(page), 1)
+                enqueue(_links(page, prof), 1)
         except Exception:  # noqa: BLE001
             continue
-    while queue and len(visited) < 18 and len(DOCS) < 25:
+    while queue and len(visited) < 18 and len(store.docs) < 25:
         text, href, depth = queue.pop(0)
         if href in visited:
             continue
         visited.add(href)
-        url = _abs(href)
+        url = _abs(href, prof)
         try:
             # Viele QIS-Links (verpublish/bafoeg...) liefern direkt eine PDF: erst per Request pruefen, sonst Seite oeffnen
             if save_pdf(url, text or "Dokument"):
@@ -481,18 +498,18 @@ def fetch_documents(page: Page) -> list[dict]:
                 log(f"QIS-Seite uebersprungen ({text}): {e}")
             continue
         heading = _page_title(page)
-        _click_pdf_links(page, text or heading)
-        for ltext, lhref in _links(page):
+        _click_pdf_links(page, text or heading, prof, store)
+        for ltext, lhref in _links(page, prof):
             low = (ltext or "").lower(); hl = lhref.lower()
             is_pdf = hl.endswith(".pdf") or "pdf" in hl or any(g in low for g in GENERIC[:1]) or "pdf" in low
             if not is_pdf or lhref in visited:
                 continue
             visited.add(lhref)
             title = ltext if ltext and not any(low.startswith(g) or low == g for g in GENERIC) else f"{heading} – {text}" if text and text.lower() != heading.lower() else heading
-            save_pdf(_abs(lhref), title)
+            save_pdf(_abs(lhref, prof), title)
         if depth < 2:
-            enqueue(_links(page), depth + 1)
-    return list(DOCS)
+            enqueue(_links(page, prof), depth + 1)
+    return list(store.docs)
 
 
 def store_grades(conn, grades: list[dict]) -> None:
@@ -533,7 +550,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
     with_documents = with_documents and prof["documents"]
     started = db.now_iso()
     ok, msg, grades, docs = False, "", [], []
-    DOCS.clear(); HASHES.clear()
+    store = DocStore()
     user, pw = credentials_for(prof["key"])
     if not user or not pw:
         msg = "Keine Zugangsdaten fuer QIS (Einstellungen > Zugang)." if prof["key"] == "luh" else             "Keine Zugangsdaten fuer das LSF (Einstellungen > Zugang: UNI-Account)."
@@ -543,10 +560,10 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
                 ctx = p.chromium.launch_persistent_context(str(_profile_dir(prof)), headless=not show_browser, locale="de-DE")
                 page = ctx.new_page()
                 try:
-                    login(page, user, pw)
-                    grades = fetch_grades(page)
+                    login(page, user, pw, prof)
+                    grades = fetch_grades(page, prof, store)
                     if with_documents:
-                        docs = fetch_documents(page)
+                        docs = fetch_documents(page, prof, store)
                     ok = True
                     msg = f"{len(grades)} Leistungen, {len(docs)} Bescheinigungen" + ("" if grades else " – im Notenspiegel stehen noch keine Leistungen")
                 except Exception as e:  # noqa: BLE001
@@ -562,7 +579,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
             conn.execute("DELETE FROM qis_documents")
             keep = {d["local_path"] for d in docs}
             for f in _doc_dir().glob("*.pdf"):
-                if str(f) not in keep:
+                if f.name not in keep:
                     f.unlink(missing_ok=True)
         for d in docs:
             conn.execute("INSERT INTO qis_documents(title, local_path, fetched_at) VALUES (?,?,?)", (d["title"], d["local_path"], db.now_iso()))

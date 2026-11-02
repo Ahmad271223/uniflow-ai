@@ -25,45 +25,43 @@ function featureRows(contract, key) {
   const order = contract.order, idx = order.indexOf(key);
   const own = Object.entries(contract.entitlements).filter(([, e]) => e.from === key);
   const rows = [];
-  if (idx > 0) rows.push(`<li class="muted">${icon("check", 13)} Alles aus ${esc(contract.plans[order[idx - 1]].name)}</li>`);
+  if (idx > 0) rows.push(`<li class="off">${icon("check", 13)} Alles aus ${esc(contract.plans[order[idx - 1]].name)}</li>`);
   for (const [name, e] of own) {
-    if (e.status === "available" && AI_FEATURES.has(name) && !contract.studora_ai_configured) rows.push(`<li class="muted">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">in Vorbereitung</span></li>`);
+    if (e.status === "available" && AI_FEATURES.has(name) && !contract.studora_ai_configured) rows.push(`<li class="off">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">in Vorbereitung</span></li>`);
     else if (e.status === "available") rows.push(`<li>${icon("check", 13)} ${esc(e.label)}</li>`);
-    else if (e.status === "coming_soon") rows.push(`<li class="muted">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">kommt bald</span></li>`);
-    else if (name === "chatgpt_connection_premium") rows.push(`<li class="muted">${icon("clock", 13)} Eigenes ChatGPT-Konto verbinden <span class="badge neutral">in Vorbereitung</span></li>`);
+    else if (e.status === "coming_soon") rows.push(`<li class="off">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">kommt bald</span></li>`);
+    else if (name === "chatgpt_connection_premium") rows.push(`<li class="off">${icon("clock", 13)} Eigenes ChatGPT-Konto verbinden <span class="badge neutral">in Vorbereitung</span></li>`);
   }
   return rows.join("");
 }
 
 function quotaBar(label, q) {
   if (!q) return "";
-  if (q.unlimited || q.limit === null) return `<div class="small">${esc(label)}: ${q.used} genutzt · unbegrenzt (Fair Use)</div>`;
+  if (q.unlimited || q.limit === null) return `<div class="abo-q"><span class="abo-q-l">${esc(label)}</span><b>${q.used} genutzt</b><span class="abo-q-n">unbegrenzt (Fair Use)</span></div>`;
   if (!q.limit) return "";
   const pct = Math.min(100, Math.round(100 * q.used / q.limit));
-  return `<div class="small" style="margin:.35rem 0">${esc(label)}: <b>${q.used} von ${q.limit}</b> in diesem Monat
-    <div style="height:6px;border-radius:4px;background:var(--surface-2);margin-top:.25rem"><div style="height:6px;border-radius:4px;width:${pct}%;background:${pct >= 100 ? "var(--bad)" : "var(--accent)"}"></div></div></div>`;
+  return `<div class="abo-q"><span class="abo-q-l">${esc(label)}</span><b>${q.used} von ${q.limit}</b><span class="abo-q-n">in diesem Monat</span><div class="abo-bar${pct >= 100 ? " full" : ""}"><i style="width:${pct}%"></i></div></div>`;
 }
 
 export async function viewAbo(_, params, view) {
   const [contract, me, gptLocal] = await Promise.all([api("/billing/plans"), api("/entitlements"), api("/integrations/chatgpt").catch(() => null)]);
   const labels = contract.quotas.labels, current = me.plan;
   const local = me.mode === "local";
-  const status = local
-    ? `<p class="muted small">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Claude-Zugang. Tarife gelten für Studora-Konten im Dienst und in der Apple-App.</p>`
-    : `<p class="small" style="margin:.2rem 0">${me.expires_at ? `${me.will_renew ? "Verlängert sich am" : "Läuft aus am"} <b>${new Date(me.expires_at).toLocaleDateString("de-DE")}</b>` : current === "free" ? "Kostenlos, ohne Laufzeit." : "Ohne Ablaufdatum."}
-       ${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>
-       ${quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new)}${quotaBar(labels.library_tests, me.quotas.library_tests)}${quotaBar(labels.ai_assist, me.quotas.ai_assist)}`;
   const gpt = contract.integrations.chatgpt;
   const web = contract.purchase.web || {}, viaStripe = me.source === "stripe";
   const tr = me.trial || {};
   const trial = local || !tr.granted ? "" : tr.active
-    ? `<div class="card" style="margin-bottom:1rem;border-color:var(--accent)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("sparkles", 18)}<div style="flex:1"><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><div class="small muted">Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen von ${esc(contract.plans[tr.plan]?.name || "Studora Pro AI")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</div></div></div></div>`
+    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen von ${esc(contract.plans[tr.plan]?.name || "Studora Pro AI")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</p></div></div>`
     : me.needs_plan_choice
-      ? `<div class="card" style="margin-bottom:1rem;border-color:var(--warn)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("alert", 18)}<div style="flex:1"><b>Deine Probe ist vorbei</b><div class="small muted">Wähle unten einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten und lesbar.</div></div><button class="btn sm" id="aboStayFree">Bei Free bleiben</button></div></div>`
+      ? `<div class="abo-note warn">${icon("alert", 18)}<div><b>Deine Probe ist vorbei</b><p>Wähle unten einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten und lesbar.</p></div><button class="btn sm" id="aboStayFree">Bei Free bleiben</button></div>`
       : "";
   const afterCheckout = params.checkout === "success"
-    ? `<p class="small" style="color:var(--ok);margin:.2rem 0">${icon("check", 14)} Zahlung abgeschlossen. Dein Tarif erscheint hier, sobald Stripe die Bestätigung geschickt hat (meist sofort).</p>`
-    : params.checkout === "cancel" ? `<p class="small muted" style="margin:.2rem 0">Abschluss abgebrochen, nichts wurde berechnet.</p>` : "";
+    ? `<p class="abo-flash ok">${icon("check", 14)} Zahlung abgeschlossen. Dein Tarif erscheint hier, sobald Stripe die Bestätigung geschickt hat (meist sofort).</p>`
+    : params.checkout === "cancel" ? `<p class="abo-flash">Abschluss abgebrochen, nichts wurde berechnet.</p>` : "";
+  const term = local
+    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Claude-Zugang. Tarife gelten für Studora-Konten im Dienst und in der Apple-App.</p>`
+    : `<p class="abo-term">${me.expires_at ? `${me.will_renew ? "Verlängert sich am" : "Läuft aus am"} <b>${new Date(me.expires_at).toLocaleDateString("de-DE")}</b>` : current === "free" ? "Kostenlos, ohne Laufzeit." : "Ohne Ablaufdatum."}${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>`;
+  const quotas = local ? "" : [quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new), quotaBar(labels.library_tests, me.quotas.library_tests), quotaBar(labels.ai_assist, me.quotas.ai_assist)].join("");
   const cards = contract.order.map(key => {
     const p = contract.plans[key], isCur = key === current;
     const q = p.quotas;
@@ -71,33 +69,34 @@ export async function viewAbo(_, params, view) {
       p.entitlements.can_annotate_pdf ? `${icon("pen", 13)} PDF-Bearbeitung und Apple Pencil` : `${icon("book", 13)} PDFs lesen, keine Bearbeitung`,
       ...[QUOTA_TXT(q, "ai_tests_new", labels), QUOTA_TXT(q, "library_tests", labels), QUOTA_TXT(q, "ai_assist", labels)]
         .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die Studora-KI eingerichtet ist)` : t),
-    ].filter(Boolean).map(t => `<div class="small">${t}</div>`).join("");
-    const highlight = key === "pro_ai" ? "border-color:var(--accent)" : "";
+    ].filter(Boolean).map(t => `<div>${t}</div>`).join("");
     const action = local ? "" : isCur ? `<span class="badge ok">Dein Tarif</span>${viaStripe ? ` <button class="btn sm" id="aboPortal">Abo verwalten</button>` : ""}`
-      : key === "free" ? `<span class="muted small">${viaStripe ? "Zurück zu Free: im Kundenportal kündigen (Abo verwalten)" : me.source === "app_store" ? "Zurück zu Free: Abo im App Store kündigen" : "Kostenlos, ohne Laufzeit"}</span>`
+      : key === "free" ? `<span class="plan-hint">${viaStripe ? "Zurück zu Free: im Kundenportal kündigen (Abo verwalten)" : me.source === "app_store" ? "Zurück zu Free: Abo im App Store kündigen" : "Kostenlos, ohne Laufzeit"}</span>`
       : web.available && (web.plans || []).includes(key) && !viaStripe ? `<button class="btn sm primary" data-buy="${key}">Abschließen</button>`
       : viaStripe ? `<button class="btn sm" data-portal="1">Wechseln (Abo verwalten)</button>`
       : `<button class="btn sm" disabled title="${esc(web.note || "")}">In der Apple-App abschließen</button>`;
-    return `<div class="card" style="display:flex;flex-direction:column;gap:.5rem;${highlight}">
-      <div class="card-head" style="margin:0"><h2>${esc(p.name)}</h2>${key === "pro_ai" ? `<span class="badge info">ohne eigenes ChatGPT</span>` : ""}</div>
-      <div><span style="font-size:1.6rem;font-weight:700">${euro(p.price_cents)}</span><span class="muted small"> / Monat</span></div>
-      <p class="muted small" style="margin:0">${esc(POSITION[key] || p.tagline)}</p>
-      <div style="display:grid;gap:.2rem">${facts}</div>
-      <ul style="list-style:none;padding:0;margin:.3rem 0;display:grid;gap:.3rem" class="small">${featureRows(contract, key)}</ul>
-      <div style="margin-top:auto">${action}</div></div>`;
+    return `<article class="plan${isCur ? " is-current" : ""}${key === "pro_ai" ? " is-top" : ""}">
+      <header><h2>${esc(p.name)}</h2></header>
+      <div class="plan-price"><b>${euro(p.price_cents)}</b><span> / Monat</span></div>
+      ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">ohne eigenes ChatGPT</span></div>` : ""}
+      ${action ? `<div class="plan-act">${action}</div>` : ""}
+      <p class="plan-pos">${esc(POSITION[key] || p.tagline)}</p>
+      <div class="plan-facts">${facts}</div>
+      <ul class="plan-list">${featureRows(contract, key)}</ul></article>`;
   }).join("");
-  view.innerHTML = `<div class="content" style="max-width:1180px">
+  view.innerHTML = `<div class="content abo" style="max-width:1180px">
     <div class="page-head"><div><h1>Abo & Tarife</h1><div class="sub">${local ? "Eigener PC" : `Dein Tarif: ${esc(me.plan_name)}`}</div></div></div>
-    ${trial}<div class="card" style="margin-bottom:1rem">${afterCheckout}${status}</div>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">${cards}</div>
-    <div class="grid cols-2" style="margin-top:1rem">
-      ${local && gptLocal?.available ? `<div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></div>
-        <p class="small muted">${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></div>`
-      : `<div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></div>
-        <p class="small muted">${esc(gpt.reason || "")} Sobald OpenAI Studora freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen Studora-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></div>`}
-      <div class="card"><div class="card-head"><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></div>
-        <p class="small muted">${esc(contract.purchase.apple.note)} ${esc(contract.purchase.web.note)}</p>
-        <p class="small muted">Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></div>
+    <section class="abo-now" aria-label="Aktueller Stand">${trial}${afterCheckout}${term}${quotas ? `<div class="abo-quotas">${quotas}</div>` : ""}</section>
+    <h2 class="abo-h">Tarif wählen</h2>
+    <div class="plans">${cards}</div>
+    <div class="abo-more">
+      ${local && gptLocal?.available ? `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></header>
+        <p>${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></section>`
+      : `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></header>
+        <p>${esc(gpt.reason || "")} Sobald OpenAI Studora freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen Studora-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></section>`}
+      <section class="abo-info"><header><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></header>
+        <p>${esc(contract.purchase.apple.note)} ${esc(contract.purchase.web.note)}</p>
+        <p>Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></section>
     </div></div>`;
   if (state.hosted) state.entitlements = me;
   if (params.checkout === "success" && me.source !== "stripe" && !viewAbo._retried) { viewAbo._retried = true; setTimeout(() => { if (location.hash.startsWith("#/abo")) state.route(); }, 4000); }

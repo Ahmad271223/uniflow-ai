@@ -531,6 +531,13 @@ def test_weekly_ask_uses_the_studora_ai_in_the_service(hosted, monkeypatch):
     from app import accounts, ai_backend, config, weekly
     u = accounts.register("ki@beispiel.de", "sehr-geheim-123", "luh")
     calls = []
+    with pytest.raises(weekly.WeeklyError, match="E-Mail-Adresse bestätigen"):       # unbestaetigt: nie KI im Dienst
+        t0 = config.set_user_context(u["id"], "luh")
+        try:
+            weekly._ask("Frage", "SYS")
+        finally:
+            config.reset_user_context(t0)
+    accounts.mark_email_verified(u["id"])
 
     class C:
         text = "ANTWORT"

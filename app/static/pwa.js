@@ -4,6 +4,7 @@
 // des Workers stehen in sw-policy.js.
 import { $, icon, toast, state } from "./core.js?v=32";
 import { notesQueue } from "./notes-queue.js?v=1";
+import { watchWorkerUpdate } from "./sw-update.js?v=2";
 
 const HINT_KEY = "pwa-hint-dismissed";
 let installPrompt = null;             // beforeinstallprompt (Edge, Chrome); Safari kennt das nicht
@@ -32,10 +33,8 @@ export async function registerWorker() {
   if (!("serviceWorker" in navigator)) return null;
   try {
     const reg = await navigator.serviceWorker.register("/sw.js");
-    reg.addEventListener("updatefound", () => {
-      const w = reg.installing;
-      w?.addEventListener("statechange", () => { if (w.state === "activated" && navigator.serviceWorker.controller) toast("Studora wurde aktualisiert"); });
-    });
+    // Nur bei einem echten Update eines schon aktiven Workers, nicht beim allerersten Aufruf (sw-update.js)
+    watchWorkerUpdate(reg, navigator.serviceWorker, () => toast("Studora wurde aktualisiert"));
     return reg;
   } catch (e) { console.warn("Service Worker nicht angemeldet:", e.message); return null; }
 }

@@ -38,6 +38,10 @@
     "count": 30,
     "minutes": 60
    },
+   "report_user": {
+    "count": 10,
+    "minutes": 1440
+   },
    "reset_email": {
     "count": 3,
     "minutes": 60
@@ -139,6 +143,18 @@
    "path": "/api/account/export",
    "public": false,
    "summary": "Alle Daten des Kontos als ZIP (Auskunft und Datenübertragbarkeit, DSGVO Art. 15 und 20); hoechstens 3 je Tag."
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/identities",
+   "public": false,
+   "summary": "Mit dem Konto verknüpfte Anmeldungen (Google/Apple)."
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/account/identities/{provider}",
+   "public": false,
+   "summary": "Verknüpfte Anmeldung (Google/Apple) entfernen."
   },
   {
    "method": "GET",

@@ -130,6 +130,7 @@ def create_library_test(request: Request, body: dict = Body(...)):
             return from_pool(found, len(found), 0, "library_tests")
         raise HTTPException(409, {"detail": "Zu diesem Thema gibt es noch nicht genug geprüfte Fragen.", "code": "not_enough_questions"})
 
+    entitlements.require_verified_for_ai(request)            # erzeugen kostet Studora-KI-Budget: nur mit bestaetigter E-Mail
     lock = test_library.topic_lock_key(req)
     for _ in range(2):
         if ai_backend.acquire(lock, user["id"]):
@@ -153,14 +154,14 @@ def create_library_test(request: Request, body: dict = Body(...)):
         try:
             generated = _generate(user["id"], req, missing + 2)       # zwei Reserve-Fragen gegen verworfene
         except ai_backend.AIUnavailable as e:
-            entitlements.refund(rid + ":ai")
+            entitlements.refund(request, "ai_tests_new", rid + ":ai")
             raise HTTPException(e.status, {"detail": e.message, "code": e.code})
         except Exception:
-            entitlements.refund(rid + ":ai")
+            entitlements.refund(request, "ai_tests_new", rid + ":ai")
             raise
         found = test_library.find(req, owner)
         if len(found) < MIN_TEST:
-            entitlements.refund(rid + ":ai")
+            entitlements.refund(request, "ai_tests_new", rid + ":ai")
             raise HTTPException(502, {"detail": "Die KI hat keine brauchbaren Fragen geliefert. Es wurde nichts berechnet.",
                                       "code": "generation_failed"})
         return from_pool(found, req["count"], generated, "ai_tests_new")

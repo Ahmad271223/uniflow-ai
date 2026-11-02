@@ -221,6 +221,7 @@ def build() -> dict:
                       "endpoints": ["GET /api/community/info", "POST /api/community/solutions", "GET /api/community/solutions?fingerprint=",
                                     "GET /api/community/solutions/{id}", "DELETE /api/community/solutions/{id}", "GET /api/community/mine",
                                     "POST /api/community/solutions/{id}/report", "POST /api/community/solutions/{id}/block",
+                                    "POST /api/community/{comments|questions|answers}/{id}/moderate",
                                     "DELETE /api/community/blocks/{pseudonym}", "GET /api/community/blocks",
                                     "GET /api/community/moderation", "POST /api/community/solutions/{id}/moderate",
                                     "POST /api/community/claims", "POST|DELETE /api/community/solutions/{id}/like",

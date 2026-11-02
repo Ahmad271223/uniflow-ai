@@ -124,3 +124,12 @@ def test_pin_not_in_settings_responses(app):
         assert st == 200 and b"654321" not in b, path
     st, _, b = asgi_call(app, "GET", "/api/network")
     assert b"654321" in b, "Anzeige am PC braucht die PIN weiterhin"
+
+
+# -- Dienstbetrieb: die eingebaute Schnittstellenbeschreibung von FastAPI ist ohne Sitzung nicht lesbar
+def test_hosted_hides_fastapi_docs(app, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, "MODE", "hosted")
+    for path in ("/openapi.json", "/docs", "/redoc"):
+        st, _, b = asgi_call(app, "GET", path, client=("203.0.113.9", 1))
+        assert st in (401, 404) and b"/api/" not in b, path
