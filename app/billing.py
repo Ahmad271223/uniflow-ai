@@ -76,6 +76,12 @@ CREATE TABLE IF NOT EXISTS stripe_events (
     type TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS stripe_subscription_state (
+    user_id TEXT NOT NULL,
+    subscription_id TEXT NOT NULL,        -- sub_…
+    event_created INTEGER NOT NULL,       -- `created` (Unix-Sekunden) des juengsten angewandten Abo-Ereignisses
+    PRIMARY KEY (user_id, subscription_id)
+);
 """
 
 ACTIVE_STATUSES = ("active", "grace", "billing_retry")
