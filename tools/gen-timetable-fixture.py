@@ -142,6 +142,30 @@ def _files_seed() -> list[tuple[str, list]]:
             for i, (fid, course, name, folder, when) in enumerate(SEED_FILES)]
 
 
+# Ankuendigungen mit Absagen (Wunsch des Inhabers 02.11.2026, announcements.mark_cancellations): Vorlesung ueber das
+# Modul (Nachricht im Uebungskurs), Betreff mit Ausfall und nur einem Tag, Uhrzeit (8 Uhr fuer 8:15; von vier
+# Pool-Gruppen nur die um 10 Uhr), Einzeltermin ohne Serie, Nachricht ohne Kurs (keine Zuordnung). Die Tage erkennt announcements.make beim Erzeugen.
+SEED_ANNOUNCEMENTS = [
+    ("sp-news-t1", "k-ma-ue", "Hinweis", "<p>Die Vorlesung am 9.11. fällt aus, die Übung am 12.11. findet statt.</p>", "2026-11-02T09:00:00+01:00"),
+    ("sp-news-t2", "k-ph", "Testphysik entfällt", "<p>Am Mittwoch, 11.11. bin ich verhindert.</p>", "2026-11-03T09:00:00+01:00"),
+    ("sp-news-t3", "k-ph", "Testphysik", "<p>Die Vorlesung am 25.11. um 8 Uhr entfällt.</p>", "2026-11-04T09:00:00+01:00"),
+    ("sp-news-t6", "k-prog-ue", "Pool", "<p>Am 3.11. um 10 Uhr entfällt die Gruppenübung.</p>", "2026-11-02T10:00:00+01:00"),
+    ("sp-news-t4", "k-block", "Blockseminar", "<p>Das Blockseminar am Sa., 7.11. findet nicht statt.</p>", "2026-11-01T09:00:00+01:00"),
+    ("sp-news-t5", None, "Allgemein", "<p>Am 9.11. fällt alles aus.</p>", "2026-11-01T09:00:00+01:00"),
+]
+
+
+def _announcements_seed() -> list[tuple[str, list]]:
+    """INSERT der Ankuendigungen mit den erkannten Tagen (app/announcements.py)"""
+    from app import announcements
+    out = []
+    for aid, course, title, html, posted in SEED_ANNOUNCEMENTS:
+        a = announcements.make(aid, "studip", course, title, html, "", posted, f"https://studip.example/{aid}")
+        out.append(("INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    [a["id"], "studip", course, a["title"], a["text"], "", posted, a["url"], json.dumps(a["dates"], ensure_ascii=False), "2026-11-04T10:00:00"]))
+    return out
+
+
 # auto_import direkt nach dem Speichern eines neuen Kurses mit Fach (noch ohne Modul): ensure_modules zuerst
 AUTO_EXTRA: list[tuple[str, list]] = [
     ("INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -180,6 +204,15 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/timetable/week?start=2026-10-26"},
     {"method": "GET", "path": "/api/timetable/week?start=2026-11-02"},
     {"method": "GET", "path": "/api/timetable/week?start=2027-01-25"},
+    # Absagen aus Ankuendigungen: Hinweis "Ausfall?", bestaetigen (cancelled), verwerfen (attend), zuruecksetzen
+    {"method": "GET", "path": "/api/timetable/week?start=2026-11-09"},
+    {"method": "GET", "path": "/api/timetable/week?start=2026-11-23"},
+    {"method": "POST", "path": "/api/timetable/attendance", "body": {"event_id": 2, "date": "2026-11-25", "mode": "cancelled"}},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-11-25"},
+    {"method": "POST", "path": "/api/timetable/attendance", "body": {"event_id": 2, "date": "2026-11-25", "mode": "today_attend"}},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-11-25"},
+    {"method": "POST", "path": "/api/timetable/attendance", "body": {"event_id": 2, "date": "2026-11-25", "mode": "reset"}},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-11-25"},
     {"method": "GET", "path": "/api/timetable/day?date=2026-10-25"},
     {"method": "GET", "path": "/api/timetable/day?date=2026-10-29"},
     {"method": "GET", "path": "/api/timetable/day?date=2026-11-03"},
@@ -393,6 +426,7 @@ def build(check: bool) -> int:
     src = SchemaSource()
     try:
         from app import server, timetable
+        SEED.extend(_announcements_seed())
         src.freeze(lambda: date(*TODAY), lambda: NOW)
         spec = importlib.util.spec_from_file_location("gen_local_backend_fixture", Path(__file__).with_name("gen-local-backend-fixture.py"))
         gen = importlib.util.module_from_spec(spec)

@@ -708,6 +708,8 @@ struct DatedEventDialog: View {
         UFDialog("\(e.s("title") ?? "Termin") \(e.s("start") ?? "")–\(e.s("end") ?? "")") {
             VStack(alignment: .leading, spacing: 6.4) {
                 if let room = e.s("room"), !room.isEmpty { Text(room).ufFont(13.12).foregroundStyle(UF.text2) }
+                // Absage aus einer Ankuendigung: nur Hinweis mit Quelle (ohne Serie keine Ausnahme fuer den Tag)
+                UFCancelHintBox(e: e, decide: nil)
                 Text(Self.text(date)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         } foot: {

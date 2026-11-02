@@ -131,7 +131,8 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     events = db.rows(conn, "SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
     dated = studip_dated(conn, start, end)
     if not events:
-        return [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"]
+        from . import announcements
+        return announcements.mark_cancellations(conn, [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"])
     ids = [e["id"] for e in events]
     exc = defaultdict(dict)
     for x in db.rows(conn, f"SELECT * FROM event_exceptions WHERE event_id IN ({','.join('?' * len(ids))})", ids):
@@ -188,7 +189,8 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     out = _merge_dated(conn, out, dated)
     if not include_skipped:
         out = [o for o in out if o["status"] != "nicht_teilnahme"]
-    return out
+    from . import announcements
+    return announcements.mark_cancellations(conn, out)          # Absagen aus Ankuendigungen als Hinweis am Termin
 
 
 def _matches(e: dict, d: date, t: dict) -> bool:

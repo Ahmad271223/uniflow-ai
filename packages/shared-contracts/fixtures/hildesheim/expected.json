@@ -1121,6 +1121,200 @@
      "snippet": "Keine Vorlesung am 24.12., stattdessen am 7. Januar 2027 von 10.15 bis 11.45 Uhr."
     }
    ]
+  },
+  {
+   "text": "Die Vorlesung fällt am Donnerstag, 12.11. leider aus.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "ausfall",
+     "snippet": "Die Vorlesung fällt am Donnerstag, 12.11. leider aus."
+    }
+   ]
+  },
+  {
+   "text": "Die Sitzung findet am Do., 12.11. nicht statt.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "ausfall",
+     "snippet": "Die Sitzung findet am Do., 12.11. nicht statt."
+    }
+   ]
+  },
+  {
+   "text": "Die Übung am Donnerstag, 12.11., entfällt.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "ausfall",
+     "snippet": "Die Übung am Donnerstag, 12.11., entfällt."
+    }
+   ]
+  },
+  {
+   "text": "Kein Tutorium am 12.11. um 16 Uhr.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": "16:00",
+     "kind": "ausfall",
+     "snippet": "Kein Tutorium am 12.11. um 16 Uhr."
+    }
+   ]
+  },
+  {
+   "text": "Keine Vorlesungen am 12. November.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "ausfall",
+     "snippet": "Keine Vorlesungen am 12. November."
+    }
+   ]
+  },
+  {
+   "text": "Keine Übungsblätter am 12.11.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "termin",
+     "snippet": "Keine Übungsblätter am 12.11."
+    }
+   ]
+  },
+  {
+   "text": "Liebe Studierende,\nam Donnerstag, den 12.11. muss die Übung leider ausfallen.",
+   "posted": "2026-11-02",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "ausfall",
+     "snippet": "am Donnerstag, den 12.11. muss die Übung leider ausfallen."
+    }
+   ]
+  }
+ ],
+ "announcement-make": [
+  {
+   "title": "Vorlesung entfällt",
+   "html": "<p>Liebe Studierende, am 12.11. bin ich auf einer Tagung.</p>",
+   "posted_at": "2026-11-02T09:00:00+01:00",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "ausfall",
+     "snippet": "Liebe Studierende, am 12.11. bin ich auf einer Tagung."
+    }
+   ]
+  },
+  {
+   "title": "Vorlesung entfällt",
+   "html": "<p>Am 12.11. bin ich weg, ab 19.11. wieder da.</p>",
+   "posted_at": "2026-11-02T09:00:00+01:00",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "termin",
+     "snippet": "Am 12.11. bin ich weg, ab 19.11."
+    },
+    {
+     "date": "2026-11-19",
+     "time": null,
+     "kind": "termin",
+     "snippet": "Am 12.11. bin ich weg, ab 19.11. wieder da."
+    }
+   ]
+  },
+  {
+   "title": "Übung verlegt",
+   "html": "<p>Neuer Termin: 13.11. um 10 Uhr.</p>",
+   "posted_at": "2026-11-02T09:00:00+01:00",
+   "dates": [
+    {
+     "date": "2026-11-13",
+     "time": "10:00",
+     "kind": "verlegt",
+     "snippet": "Neuer Termin: 13.11. um 10 Uhr."
+    }
+   ]
+  },
+  {
+   "title": "Hinweis",
+   "html": "<p>Am 12.11. bin ich weg.</p>",
+   "posted_at": "2026-11-02T09:00:00+01:00",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "termin",
+     "snippet": "Am 12.11. bin ich weg."
+    }
+   ]
+  }
+ ],
+ "cancel-targets": [
+  {
+   "snippet": "Die Vorlesung am 12.11. fällt aus, die Übung findet statt.",
+   "title": "",
+   "targets": [
+    "vorlesung"
+   ]
+  },
+  {
+   "snippet": "Die Übung am Donnerstag, 12.11., entfällt.",
+   "title": "",
+   "targets": [
+    "gruppenuebung",
+    "hoersaaluebung",
+    "tutorium",
+    "uebung"
+   ]
+  },
+  {
+   "snippet": "Keine Vorlesung und keine Übung am 12.11.",
+   "title": "",
+   "targets": [
+    "gruppenuebung",
+    "hoersaaluebung",
+    "tutorium",
+    "uebung",
+    "vorlesung"
+   ]
+  },
+  {
+   "snippet": "Am 12.11. bin ich auf einer Tagung.",
+   "title": "Seminar fällt aus",
+   "targets": [
+    "seminar"
+   ]
+  },
+  {
+   "snippet": "Die Sitzung am 12.11. fällt aus.",
+   "title": "Hinweis",
+   "targets": []
+  },
+  {
+   "snippet": "Das Praktikum (VL-Begleitung) entfällt am 3.12.",
+   "title": "",
+   "targets": [
+    "labor",
+    "vorlesung"
+   ]
   }
  ],
  "forum-discussion": [

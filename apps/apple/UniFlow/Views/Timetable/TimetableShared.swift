@@ -19,6 +19,110 @@ enum UFKind {
     static let daysLong = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 }
 
+// MARK: - Ausfall am Termin (Warnzeichen)
+
+/// Ausfall an einem Termin (Wunsch des Inhabers 02.11.2026): aus einer Ankuendigung erkannt (`cancel_hint`,
+/// app/announcements.py mark_cancellations, im Kern Announcements.markCancellations) oder als Ausfall eingetragen
+/// (Status "ausfall"; nicht die vorlesungsfreie Zeit, die zeigt der Tag gruen). Aus Text erkannt und nicht bestaetigt:
+/// "Ausfall?"; bestaetigt oder aus Stud.IP/LSF/eigener Eingabe: "fällt aus".
+enum UFCancel {
+    static let unsureText = "Ausfall?"
+    static let sureText = "fällt aus"
+
+    static func hint(_ e: JSONValue) -> JSONValue? {
+        guard let h = e["cancel_hint"], !h.isNull else { return nil }
+        return h
+    }
+
+    /// Text der Markierung oder nil (kein Ausfall)
+    static func label(_ e: JSONValue) -> String? {
+        if e.s("status") == "ausfall" { return e.s("exception") == "vorlesungsfrei" ? nil : sureText }
+        return hint(e) == nil ? nil : unsureText
+    }
+
+    /// nur ein Hinweis aus einer Ankuendigung, der Termin steht noch
+    static func unsure(_ e: JSONValue) -> Bool { label(e) == unsureText }
+
+    /// Quelle lesbar: Stud.IP-Ankündigung „Titel“ · Kurs
+    static func source(_ e: JSONValue) -> String? {
+        guard let h = hint(e) else { return nil }
+        let src = ["studip": "Stud.IP-Ankündigung", "learnweb": "Learnweb-Ankündigung"][h.s("source") ?? ""] ?? "Ankündigung"
+        var s = "\(src) „\(h.s("title") ?? "")“"
+        if let c = h.s("course_title"), !c.isEmpty { s += " · \(c)" }
+        return s
+    }
+
+    /// Kurztext fuer Hilfe und Vorlesen: "Ausfall? laut Stud.IP-Ankündigung „…“"
+    static func helpText(_ e: JSONValue) -> String? {
+        guard let l = label(e) else { return nil }
+        return source(e).map { "\(l) laut \($0)" } ?? l
+    }
+}
+
+/// Warnzeichen mit "Ausfall?" bzw. "fällt aus" in Warnfarbe; `pill`: auf eigener Flaeche (auf farbigen Terminkaesten)
+struct UFCancelMark: View {
+    let text: String
+    var size: CGFloat = 10.4
+    var pill = false
+    /// nur das Warnzeichen (schmale Kaesten)
+    var iconOnly = false
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: size, weight: .semibold))
+            if !iconOnly { Text(text).ufFont(size, 700).lineLimit(1) }
+        }
+        .foregroundStyle(UF.warn)
+        .padding(.vertical, pill ? 1.6 : 0).padding(.horizontal, pill ? 5 : 0)
+        .background { if pill { Capsule().fill(UF.warnSoft) } }
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text == UFCancel.unsureText ? "Möglicher Ausfall" : "Fällt aus")
+    }
+}
+
+/// Kasten im Termin-Panel: Quelle der Absage, Satz aus der Ankuendigung, Link; bei "Ausfall?" die Entscheidung
+/// ueber die vorhandenen Ausnahmen (cancelled bzw. today_attend), keine eigene Ablage
+struct UFCancelHintBox: View {
+    let e: JSONValue
+    /// nil: keine Entscheidung moeglich (Einzeltermin aus dem Stud.IP-Kalender ohne Serie)
+    var decide: ((String) -> Void)?
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        if let label = UFCancel.label(e), let h = UFCancel.hint(e) {
+            VStack(alignment: .leading, spacing: 6.4) {
+                UFCancelMark(text: label, size: 13.12)
+                if let src = UFCancel.source(e) {
+                    Text("laut \(src)").ufFont(13.12, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                }
+                if let sn = h.s("snippet"), !sn.isEmpty {
+                    Text("„\(sn)“").ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
+                if UFCancel.unsure(e) {
+                    Text(decide == nil ? "Aus dem Text erkannt, nicht sicher. Der Termin bleibt im Plan."
+                                       : "Aus dem Text erkannt, nicht sicher. Der Termin bleibt im Plan, bis du entscheidest.")
+                        .ufFont(11.84).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 8) {
+                    if UFCancel.unsure(e), let decide {
+                        UFButton("Fällt aus", icon: "alert", kind: .primary, size: .small) { decide("cancelled") }
+                        UFButton("Findet statt", icon: "check", size: .small) { decide("today_attend") }
+                    }
+                    if let u = UFDayExtras.safeURL(h.s("url")) {
+                        UFButton("Ankündigung öffnen", icon: "arrow-right", kind: .ghost, size: .small) { openURL(u) }
+                    }
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.warnSoft))
+            .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.warn.opacity(0.6), lineWidth: 1))
+            .accessibilityIdentifier("cancel-hint")
+        }
+    }
+}
+
 // MARK: - Termin-Drawer (openEvent)
 
 struct EventDrawer: View {
@@ -95,6 +199,9 @@ struct EventDrawer: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             UFButton(icon: "x", kind: .ghost) { close() }
         } content: {
+            // Absage aus einer Ankuendigung: Quelle und Entscheidung ("Fällt aus" / "Findet statt")
+            UFCancelHintBox(e: occ) { mode in Task { await attendance(mode) } }
+                .padding(.bottom, UFCancel.hint(occ) == nil ? 0 : 9.6)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Teilnahme: \(attendText(st, attend: attend))").ufFont(14.5, 700).foregroundStyle(UF.text)
                 if e.s("rrule") != "once" {

@@ -236,6 +236,23 @@ final class HildesheimPortFixtureTests: XCTestCase {
         }
     }
 
+    /// Absagen aus Ankuendigungen (02.11.2026): Art aus dem Betreff bei genau einem Tag, gemeinte Arten
+    func testAnnouncementCancellationsMatchPython() {
+        let make = expected["announcement-make"]?.array ?? []
+        let targets = expected["cancel-targets"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(make.count, 4)
+        XCTAssertGreaterThanOrEqual(targets.count, 6)
+        for c in make {
+            let a = Announcements.make(id: "x", source: "studip", courseID: "c", title: c["title"]?.string ?? "", bodyHTML: c["html"]?.string ?? "",
+                                       author: "", postedAt: c["posted_at"]?.string ?? "", url: nil, today: 0)
+            XCTAssertEqual(JSONValue.array(a.dates), c["dates"], "\(c["title"]?.string ?? ""): \(jsonDiff(.array(a.dates), c["dates"]) ?? "")")
+        }
+        for c in targets {
+            let got = Announcements.cancelTargets(snippet: c["snippet"]?.string, title: c["title"]?.string).sorted()
+            XCTAssertEqual(JSONValue.array(got.map(JSONValue.string)), c["targets"], c["snippet"]?.string ?? "")
+        }
+    }
+
     func testForumPagesMatchPython() throws {
         let page = try text("packages/shared-contracts/fixtures/hildesheim/learnweb-forum-discussion.html")
         let posts = Announcements.parseDiscussionHTML(page)

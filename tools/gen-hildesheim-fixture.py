@@ -137,7 +137,29 @@ def main(check: bool) -> bool:
             ("Die Klausur ist am 5.2.27 um 9 Uhr.", "2026-10-26"),
             ("Termin: 31.12. und 1.1.", "2026-12-01"),
             ("Ersatztermin am 30. Februar oder 7.1.", "2026-12-01"),
-            ("Keine Vorlesung am 24.12., stattdessen am 7. Januar 2027 von 10.15 bis 11.45 Uhr.", "2026-12-01"))],
+            ("Keine Vorlesung am 24.12., stattdessen am 7. Januar 2027 von 10.15 bis 11.45 Uhr.", "2026-12-01"),
+            # Absagen (02.11.2026): Datum zwischen Verb und Partikel, Wochentag davor (auch abgekuerzt), ohne Jahr
+            ("Die Vorlesung fällt am Donnerstag, 12.11. leider aus.", "2026-11-02"),
+            ("Die Sitzung findet am Do., 12.11. nicht statt.", "2026-11-02"),
+            ("Die Übung am Donnerstag, 12.11., entfällt.", "2026-11-02"),
+            ("Kein Tutorium am 12.11. um 16 Uhr.", "2026-11-02"),
+            ("Keine Vorlesungen am 12. November.", "2026-11-02"),
+            ("Keine Übungsblätter am 12.11.", "2026-11-02"),
+            ("Liebe Studierende,\nam Donnerstag, den 12.11. muss die Übung leider ausfallen.", "2026-11-02"))],
+        # Betreff mit Ausfall, Text nur mit dem Tag: genau ein Tag -> Art des Betreffs (make)
+        "announcement-make": [{"title": t, "html": h, "posted_at": p, "dates": announcements.make("x", "studip", "c", t, h, "", p, None)["dates"]}
+                              for t, h, p in (("Vorlesung entfällt", "<p>Liebe Studierende, am 12.11. bin ich auf einer Tagung.</p>", "2026-11-02T09:00:00+01:00"),
+                                              ("Vorlesung entfällt", "<p>Am 12.11. bin ich weg, ab 19.11. wieder da.</p>", "2026-11-02T09:00:00+01:00"),
+                                              ("Übung verlegt", "<p>Neuer Termin: 13.11. um 10 Uhr.</p>", "2026-11-02T09:00:00+01:00"),
+                                              ("Hinweis", "<p>Am 12.11. bin ich weg.</p>", "2026-11-02T09:00:00+01:00"))],
+        # welche Arten eine Absage meint (cancel_targets), sortiert
+        "cancel-targets": [{"snippet": s, "title": t, "targets": sorted(announcements.cancel_targets(s, t))} for s, t in (
+            ("Die Vorlesung am 12.11. fällt aus, die Übung findet statt.", ""),
+            ("Die Übung am Donnerstag, 12.11., entfällt.", ""),
+            ("Keine Vorlesung und keine Übung am 12.11.", ""),
+            ("Am 12.11. bin ich auf einer Tagung.", "Seminar fällt aus"),
+            ("Die Sitzung am 12.11. fällt aus.", "Hinweis"),
+            ("Das Praktikum (VL-Begleitung) entfällt am 3.12.", ""))],
         "forum-discussion": [{k: p[k] for k in ("id", "subject", "author", "posted_at")} | {"text": announcements.html_to_text(p["html"])}
                              for p in announcements.parse_discussion_html((D / "learnweb-forum-discussion.html").read_text(encoding="utf-8"))],
         "forum-view": announcements.discussion_links((D / "learnweb-forum-view.html").read_text(encoding="utf-8")),

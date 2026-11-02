@@ -1,7 +1,7 @@
 // Communities je Modul und Lerngruppe (wie CommunitySpacesCard auf dem iPad): beitreten, verlassen, Loesungen
 // ansehen. Der Schluessel einer Community entsteht aus Modulname bzw. Beitrittscode und oeffnet ihre Pakete auch ohne die
 // PDF; dann stehen die Notizen auf leeren Seiten. Codes bleiben in diesem Browser, der Dienst kennt nur den Gruppen-Schluessel.
-import { $, $$, api, esc, icon, toast, drawer, closeDrawer } from "./core.js?v=32";
+import { $, $$, api, esc, icon, toast, drawer, closeDrawer } from "./core.js?v=33";
 import * as S from "./solutions.js?v=2";
 
 const GROUPS = "community-groups";

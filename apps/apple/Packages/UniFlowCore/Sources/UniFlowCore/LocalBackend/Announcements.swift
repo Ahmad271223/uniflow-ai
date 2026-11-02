@@ -51,7 +51,11 @@ public enum Announcements {
     private static let timeRE = HText.regex(#"^[^.!?\n]{0,25}?\b(?:um|ab|von)?\s*(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h\b|-|–|bis)"#, [.caseInsensitive])
     /// `KINDS`: Reihenfolge = Vorrang
     private static let kinds: [(String, NSRegularExpression)] = [
-        ("ausfall", HText.regex(#"f(?:ä|ae)llt\s+(?:\w+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:\w+\s+)?nicht\s+statt|keine\s+(?:vorlesung|sitzung|veranstaltung|übung|uebung|seminar)"#, [.caseInsensitive])),
+        // "faellt am 12.11. aus", "findet am Do., 12.11. nicht statt": Datum zwischen Verb und Partikel; "kein Tutorium",
+        // "keine Vorlesungen", aber nicht "keine Uebungsblaetter"
+        ("ausfall", HText.regex(#"f(?:ä|ae)llt\s+(?:[\w.,]+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:[\w.,]+\s+){0,4}nicht\s+statt|"#
+                                + #"\bkeine?\s+(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"#,
+                                [.caseInsensitive])),
         ("verlegt", HText.regex(#"verlegt|verschoben|stattdessen|ersatztermin|nachgeholt|nachholtermin"#, [.caseInsensitive])),
         ("raum", HText.regex(#"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"#, [.caseInsensitive])),
         ("frist", HText.regex(#"abgabe|frist|deadline|einreichen|hochladen|bis\s+(?:zum|spätestens|spaetestens)"#, [.caseInsensitive])),
@@ -126,11 +130,22 @@ public enum Announcements {
         }
     }
 
+    /// `WEEKDAY_ABBR`
+    private static let weekdayAbbrs: Set<String> = ["mo", "di", "mi", "do", "fr", "sa", "so"]
+
+    /// `_weekday_abbr(text, dot)`: steht vor dem Punkt an `dot` ein abgekuerzter Wochentag ("Do.") als eigenes Wort?
+    private static func weekdayAbbr(_ s: Scalars, _ dot: Int) -> Bool {
+        guard dot >= 2, weekdayAbbrs.contains(PyText.lower(s.slice(dot - 2, dot))) else { return false }
+        if dot == 2 { return true }
+        let p = s.u[dot - 3].properties
+        return !(p.isAlphabetic || p.numericType != nil)               // str.isalnum
+    }
+
     /// `_sent_bounds`: Satzgrenzen um [start, end): Index vor dem Satzanfang, Index des Satzendes (Punkte in
     /// Datumsangaben zaehlen nicht)
     private static func sentenceBounds(_ s: Scalars, _ start: Int, _ end: Int) -> (Int, Int) {
         var a = ".!?\n".unicodeScalars.map { s.rfind($0, before: start) }.max() ?? -1
-        while a > 0, s.u[a] == ".", s.isDigit(a - 1) {      // "12.11." ist kein Satzende
+        while a > 0, s.u[a] == ".", s.isDigit(a - 1) || weekdayAbbr(s, a) {      // "12.11." und "Do., 12.11." sind kein Satzende
             a = ".!?\n".unicodeScalars.map { s.rfind($0, before: a) }.max() ?? -1
         }
         var candidates = "!?\n".unicodeScalars.map { s.find($0, from: end) }.filter { $0 != -1 }
@@ -356,9 +371,17 @@ public enum Announcements {
         let text = htmlToText(bodyHTML)
         let cleanTitle = htmlToText(title)
         let shortTitle = PyText.slice(cleanTitle, 0, 200)
+        var dates = extractDates("\(cleanTitle)\n\(text)", posted: postedDay(postedAt, today: today))
+        // Betreff "Vorlesung entfaellt", der Text nennt nur den Tag ("am 12.11. bin ich auf einer Tagung"): bei genau
+        // einem Tag gilt die Art des Betreffs (Ausfall, Verlegung); mehrere Tage bleiben offen, welcher gemeint ist
+        let titleKind = kind(of: cleanTitle)
+        if dates.count == 1, dates[0]["kind"]?.string == "termin", titleKind == "ausfall" || titleKind == "verlegt", var d = dates[0].object {
+            d["kind"] = .string(titleKind)
+            dates[0] = .object(d)
+        }
         return Item(id: id, source: source, courseID: courseID, title: shortTitle.isEmpty ? "Ankündigung" : shortTitle,
                     text: PyText.slice(text, 0, 6000), author: PyText.slice(author, 0, 120), postedAt: postedAt, url: url,
-                    discussion: discussion, dates: extractDates("\(cleanTitle)\n\(text)", posted: postedDay(postedAt, today: today)))
+                    discussion: discussion, dates: dates)
     }
 
     /// `from_moodle_discussion(d, course_id, base)`: REST mod_forum_get_forum_discussions -> Ankuendigung (erster
@@ -502,5 +525,105 @@ public enum Announcements {
             }
         }
         return out
+    }
+
+    // MARK: Absagen am Termin im Stundenplan
+
+    /// `CANCEL_TARGETS`: Art der Veranstaltung in einer Absage -> Arten der Termine im Stundenplan
+    private static let cancelTargetsTable: [(NSRegularExpression, [String])] = [
+        (HText.regex(#"vorlesung|\bvl\b"#, [.caseInsensitive]), ["vorlesung"]),
+        (HText.regex(#"(?:ü|ue)bung|tutori(?:um|en)"#, [.caseInsensitive]), ["uebung", "hoersaaluebung", "gruppenuebung", "tutorium"]),
+        (HText.regex(#"seminar"#, [.caseInsensitive]), ["seminar"]),
+        (HText.regex(#"labor|praktikum"#, [.caseInsensitive]), ["labor"]),
+    ]
+    /// `CANCEL_LABEL`: aus Text erkannt, nicht bestaetigt
+    public static let cancelLabel = "Ausfall?"
+    /// `CANCEL_CONFIRMED_LABEL`: der Termin ist als Ausfall eingetragen (Nutzer, Stud.IP, LSF)
+    public static let cancelConfirmedLabel = "fällt aus"
+    private static let minutesRE = HText.regex(#"^(\d{1,2}):(\d{2})"#)
+
+    /// `cancel_targets(snippet, title)`: welche Arten eine Absage meint: zuerst die Satzteile mit der Absage ("Die
+    /// Vorlesung am 12.11. faellt aus, die Uebung findet statt" -> Vorlesung), dann der ganze Satz, dann der Betreff.
+    /// Leer: die Nachricht nennt keine Art.
+    static func cancelTargets(snippet: String?, title: String?) -> Set<String> {
+        let ausfall = kinds[0].1
+        func has(_ re: NSRegularExpression, _ t: String) -> Bool { re.firstMatch(in: t, range: NSRange(location: 0, length: (t as NSString).length)) != nil }
+        let parts = (snippet ?? "").split(omittingEmptySubsequences: false, whereSeparator: { $0 == "," || $0 == ";" }).map(String.init).filter { has(ausfall, $0) }
+        for text in [parts.joined(separator: " "), snippet ?? "", title ?? ""] {
+            var found = Set<String>()
+            for (re, ks) in cancelTargetsTable where has(re, text) { found.formUnion(ks) }
+            if !found.isEmpty { return found }
+        }
+        return []
+    }
+
+    /// `_minutes(t)`: "HH:MM..." -> Minuten, sonst nil
+    private static func minutes(_ v: JSONValue?) -> Int? {
+        guard let t = v?.string else { return nil }
+        let ns = t as NSString
+        guard let m = minutesRE.firstMatch(in: t, range: NSRange(location: 0, length: ns.length)),
+              let h = Int(ns.substring(with: m.range(at: 1))), let mi = Int(ns.substring(with: m.range(at: 2))) else { return nil }
+        return h * 60 + mi
+    }
+
+    /// `mark_cancellations(conn, occ)`: Absagen aus Ankuendigungen an die betroffenen Termine haengen (Wunsch des
+    /// Inhabers 02.11.2026: steht irgendwo, dass eine Veranstaltung ausfaellt, ist der Termin im Planer markiert).
+    /// Zuordnung: Tag der Absage; derselbe Kurs wie die Ankuendigung oder dasselbe Modul (Learnweb-Kurs und
+    /// LSF-/Stud.IP-Serie haengen am Modul); mit Uhrzeit nur der Termin, der dann laeuft (oder bis 15 Minuten spaeter
+    /// beginnt: "10 Uhr" fuer 10:15, c. t.); nennt die Nachricht die Art (Vorlesung, Uebung, Tutorium, Seminar, Labor),
+    /// nur Termine dieser Art, sonst bei Terminen des Kurses selbst nur diese.
+    ///
+    /// Ein Text ist keine verlaessliche Absage: der Termin bekommt nur `cancel_hint` (Quelle, Satz, "Ausfall?"),
+    /// Status und belegte Zeit bleiben. Der Nutzer entscheidet ueber die vorhandenen Ausnahmen: "faellt aus"
+    /// (cancelled, dann `confirmed` und Label "faellt aus", die Zeit wird frei) oder "findet statt" (attend, dann kein
+    /// Hinweis mehr). Andere Ausnahmen zeigen keinen Hinweis. Die neueste Ankuendigung gewinnt.
+    static func markCancellations(_ c: SQLiteConnection, _ occ: [JSONValue]) throws -> [JSONValue] {
+        guard !occ.isEmpty else { return occ }
+        var out = occ.compactMap(\.object)
+        guard out.count == occ.count else { return occ }
+        let days = out.compactMap { $0["date"]?.string }
+        guard let lo = days.min(by: PyText.less), let hi = days.max(by: PyText.less) else { return occ }
+        let rows = try c.rows("""
+            SELECT a.id, a.source, a.course_id, a.title, a.url, a.posted_at, a.dates, c.title AS course_title, c.module_id
+                                        FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
+                                        WHERE a.course_id IS NOT NULL AND a.dates LIKE '%"ausfall"%' ORDER BY a.posted_at DESC, a.id
+            """)
+        for r in rows {
+            guard let text = r["dates"]?.string, let parsed = try? JSONValue.parse(Data(text.utf8)), let dates = parsed.array else { continue }
+            let courseID = r["course_id"] ?? .null
+            let moduleID = r["module_id"] ?? .null
+            for d in dates {
+                guard d.object != nil, d["kind"]?.string == "ausfall", let day = d["date"]?.string,
+                      !PyText.less(day, lo), !PyText.less(hi, day) else { continue }
+                var cand = out.indices.filter { i in
+                    let o = out[i]
+                    let exc = o["exception"] ?? .null
+                    return o["date"]?.string == day && (exc == .null || exc.string == "cancelled") && o["cancel_hint"] == nil
+                        && ((o["course_id"] ?? .null) == courseID || (moduleID != .null && (o["module_id"] ?? .null) == moduleID))
+                }
+                if let t = minutes(d["time"]) {
+                    cand = cand.filter { i in
+                        guard let s = minutes(out[i]["start"]) else { return false }
+                        return s - 15 <= t && t < max(s + 1, minutes(out[i]["end"]) ?? 0)
+                    }
+                }
+                let types = cancelTargets(snippet: d["snippet"]?.string, title: r["title"]?.string)
+                if !types.isEmpty {
+                    cand = cand.filter { i in types.contains(LocalTimetable.or(out[i]["kind"], "vorlesung").string ?? "") }
+                } else if cand.contains(where: { (out[$0]["course_id"] ?? .null) == courseID }) {
+                    cand = cand.filter { (out[$0]["course_id"] ?? .null) == courseID }
+                }
+                for i in cand {
+                    let confirmed = out[i]["exception"]?.string == "cancelled"
+                    out[i]["cancel_hint"] = [
+                        "announcement_id": r["id"] ?? .null, "title": r["title"] ?? .null, "snippet": d["snippet"] ?? .null,
+                        "url": r["url"] ?? .null, "source": r["source"] ?? .null, "course_title": r["course_title"] ?? .null,
+                        "posted_at": r["posted_at"] ?? .null, "confirmed": .bool(confirmed),
+                        "label": .string(confirmed ? cancelConfirmedLabel : cancelLabel),
+                    ]
+                }
+            }
+        }
+        return out.map(JSONValue.object)
     }
 }

@@ -3,7 +3,9 @@
 Lehrende schreiben Ausfaelle, Raumwechsel, Online-Termine oder Abgaben oft nur als Text in eine Ankuendigung
 (Befund 26.10.2026: Learnweb 27 von 89 Beitraegen mit Datum, Stud.IP 16 von 25). Diese Texte werden gespeichert und
 die darin genannten Tage erkannt (`extract_dates`). Die App zeigt sie als Hinweis an den Kalendertagen und auf der
-Startseite; sie aendert nie selbst Termine, denn ein Text ist keine verlaessliche Absage.
+Startseite; sie aendert nie selbst Termine, denn ein Text ist keine verlaessliche Absage. Erkannte Absagen haengen
+als Hinweis "Ausfall?" mit Quelle am betroffenen Termin (`mark_cancellations`); bestaetigen oder verwerfen kann sie
+nur der Nutzer ueber die Ausnahmen des Tages (event_exceptions).
 
 Quellen, alle nur lesend:
  - Learnweb mit Schluessel: REST mod_forum_get_forums_by_courses -> mod_forum_get_forum_discussions (Typ "news").
@@ -26,7 +28,10 @@ NUM_DATE_RE = re.compile(r"(?<![\d.])(\d{1,2})\.\s?(\d{1,2})\.(?:\s?(20\d{2})(?!
 NAME_DATE_RE = re.compile(r"(?<![\d.])(\d{1,2})\.\s?(" + "|".join(sorted(MONTHS, key=len, reverse=True)) + r")\.?(?:\s+((?:20)\d{2}))?(?![a-zäöü])", re.I)
 TIME_RE = re.compile(r"^[^.!?\n]{0,25}?\b(?:um|ab|von)?\s*(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h\b|-|–|bis)", re.I)
 KINDS = [  # Reihenfolge = Vorrang
-    ("ausfall", r"f(?:ä|ae)llt\s+(?:\w+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:\w+\s+)?nicht\s+statt|keine\s+(?:vorlesung|sitzung|veranstaltung|übung|uebung|seminar)"),
+    # "faellt am 12.11. aus", "findet am Do., 12.11. nicht statt": Datum zwischen Verb und Partikel; "kein Tutorium",
+    # "keine Vorlesungen", aber nicht "keine Uebungsblaetter"
+    ("ausfall", r"f(?:ä|ae)llt\s+(?:[\w.,]+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:[\w.,]+\s+){0,4}nicht\s+statt|"
+                r"\bkeine?\s+(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"),
     ("verlegt", r"verlegt|verschoben|stattdessen|ersatztermin|nachgeholt|nachholtermin"),
     ("raum", r"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"),
     ("frist", r"abgabe|frist|deadline|einreichen|hochladen|bis\s+(?:zum|spätestens|spaetestens)"),
@@ -58,10 +63,19 @@ def html_to_text(s: str | None) -> str:
     return re.sub(r"\s*\n\s*", "\n", t).strip()
 
 
+WEEKDAY_ABBR = ("mo", "di", "mi", "do", "fr", "sa", "so")
+
+
+def _weekday_abbr(text: str, dot: int) -> bool:
+    """Steht vor dem Punkt an `dot` ein abgekuerzter Wochentag ("Do.") als eigenes Wort?"""
+    return dot >= 2 and text[dot - 2:dot].lower() in WEEKDAY_ABBR and (dot == 2 or not text[dot - 3].isalnum())
+
+
 def _sent_bounds(text: str, start: int, end: int) -> tuple[int, int]:
     """Satzgrenzen um [start, end): Index vor dem Satzanfang, Index des Satzendes (Punkte in Datumsangaben zaehlen nicht)."""
     a = max(text.rfind(c, 0, start) for c in ".!?\n")
-    while a > 0 and text[a] == "." and text[a - 1].isdigit():     # "12.11." ist kein Satzende
+    # "12.11." und "Do., 12.11." sind kein Satzende
+    while a > 0 and text[a] == "." and (text[a - 1].isdigit() or _weekday_abbr(text, a)):
         a = max(text.rfind(c, 0, a) for c in ".!?\n")
     b_candidates = [i for i in (text.find(c, end) for c in "!?\n") if i != -1]
     m = re.search(r"\.(?:\s|$)(?![\d])", text[end:])
@@ -233,9 +247,14 @@ def _posted_date(posted_at: str) -> date:
 def make(aid: str, source: str, course_id: str | None, title: str, body_html: str, author: str, posted_at: str,
          url: str | None, discussion: str | None = None) -> dict:
     text = html_to_text(body_html)
+    dates = extract_dates(f"{html_to_text(title)}\n{text}", _posted_date(posted_at))
+    # Betreff "Vorlesung entfaellt", der Text nennt nur den Tag ("am 12.11. bin ich auf einer Tagung"): bei genau einem
+    # Tag gilt die Art des Betreffs (Ausfall, Verlegung); mehrere Tage bleiben offen, welcher gemeint ist
+    if len(dates) == 1 and dates[0]["kind"] == "termin" and _kind(html_to_text(title)) in ("ausfall", "verlegt"):
+        dates[0]["kind"] = _kind(html_to_text(title))
     return {"id": aid, "source": source, "course_id": course_id, "title": html_to_text(title)[:200] or "Ankündigung",
             "text": text[:6000], "author": (author or "")[:120], "posted_at": posted_at, "url": url,
-            "discussion": discussion, "dates": extract_dates(f"{html_to_text(title)}\n{text}", _posted_date(posted_at))}
+            "discussion": discussion, "dates": dates}
 
 
 def from_moodle_discussion(d: dict, course_id: str, base: str) -> dict:
@@ -325,3 +344,80 @@ def by_day(conn, start: date, end: date) -> dict[str, list[dict]]:
     for v in out.values():
         v.sort(key=lambda n: (n["time"] or "", n["title"]))
     return out
+
+
+# ----------------------------------------------------------------------------
+# Absagen am Termin im Stundenplan
+# ----------------------------------------------------------------------------
+
+# Art der Veranstaltung in einer Absage -> Arten der Termine im Stundenplan (course_events.kind, timetable.UNI_KINDS)
+CANCEL_TARGETS = [
+    (r"vorlesung|\bvl\b", ("vorlesung",)),
+    (r"(?:ü|ue)bung|tutori(?:um|en)", ("uebung", "hoersaaluebung", "gruppenuebung", "tutorium")),
+    (r"seminar", ("seminar",)),
+    (r"labor|praktikum", ("labor",)),
+]
+CANCEL_LABEL = "Ausfall?"            # aus Text erkannt, nicht bestaetigt
+CANCEL_CONFIRMED_LABEL = "fällt aus"  # der Termin ist als Ausfall eingetragen (Nutzer, Stud.IP, LSF)
+
+
+def cancel_targets(snippet: str | None, title: str | None) -> set[str]:
+    """Welche Arten eine Absage meint: zuerst die Satzteile mit der Absage ("Die Vorlesung am 12.11. faellt aus, die
+    Uebung findet statt" -> Vorlesung), dann der ganze Satz, dann der Betreff. Leer: die Nachricht nennt keine Art."""
+    ausfall = dict(KINDS)["ausfall"]
+    parts = [p for p in re.split(r"[,;]", snippet or "") if re.search(ausfall, p, re.I)]
+    for text in (" ".join(parts), snippet or "", title or ""):
+        found = {k for rx, kinds in CANCEL_TARGETS if re.search(rx, text, re.I) for k in kinds}
+        if found:
+            return found
+    return set()
+
+
+def _minutes(t) -> int | None:
+    m = re.match(r"^(\d{1,2}):(\d{2})", str(t or ""))
+    return int(m.group(1)) * 60 + int(m.group(2)) if m else None
+
+
+def mark_cancellations(conn, occ: list[dict]) -> list[dict]:
+    """Absagen aus Ankuendigungen an die betroffenen Termine haengen (Wunsch des Inhabers 02.11.2026: steht irgendwo,
+    dass eine Veranstaltung ausfaellt, ist der Termin im Planer markiert). Zuordnung: Tag der Absage; derselbe Kurs
+    wie die Ankuendigung oder dasselbe Modul (Learnweb-Kurs und LSF-/Stud.IP-Serie haengen am Modul); mit Uhrzeit nur
+    der Termin, der dann laeuft (oder bis 15 Minuten spaeter beginnt: "10 Uhr" fuer 10:15, c. t.); nennt die Nachricht die Art (Vorlesung, Uebung,
+    Tutorium, Seminar, Labor), nur Termine dieser Art, sonst bei Terminen des Kurses selbst nur diese.
+
+    Ein Text ist keine verlaessliche Absage: der Termin bekommt nur `cancel_hint` (Quelle, Satz, "Ausfall?"), Status
+    und belegte Zeit bleiben. Der Nutzer entscheidet ueber die vorhandenen Ausnahmen: "faellt aus" (cancelled, dann
+    `confirmed` und Label "faellt aus", die Zeit wird frei wie bei jedem Ausfall) oder "findet statt" (attend, dann
+    kein Hinweis mehr). Andere Ausnahmen (nicht besucht, verschoben, bearbeitet, vorlesungsfrei) zeigen keinen
+    Hinweis. Die neueste Ankuendigung gewinnt. Termine ohne Hinweis bleiben unveraendert (Antwortform wie bisher)."""
+    if not occ:
+        return occ
+    from . import db
+    lo, hi = min(o["date"] for o in occ), max(o["date"] for o in occ)
+    rows = db.rows(conn, """SELECT a.id, a.source, a.course_id, a.title, a.url, a.posted_at, a.dates, c.title AS course_title, c.module_id
+                            FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
+                            WHERE a.course_id IS NOT NULL AND a.dates LIKE '%"ausfall"%' ORDER BY a.posted_at DESC, a.id""")
+    for r in rows:
+        try:
+            dates = json.loads(r["dates"] or "[]")
+        except ValueError:
+            continue
+        for d in dates if isinstance(dates, list) else []:
+            if not isinstance(d, dict) or d.get("kind") != "ausfall" or not isinstance(d.get("date"), str) or not (lo <= d["date"] <= hi):
+                continue
+            cand = [o for o in occ if o["date"] == d["date"] and o.get("exception") in (None, "cancelled") and "cancel_hint" not in o
+                    and (o.get("course_id") == r["course_id"] or (r["module_id"] is not None and o.get("module_id") == r["module_id"]))]
+            t = _minutes(d.get("time"))
+            if t is not None:
+                cand = [o for o in cand if (s := _minutes(o.get("start"))) is not None and s - 15 <= t < max(s + 1, _minutes(o.get("end")) or 0)]
+            types = cancel_targets(d.get("snippet"), r["title"])
+            if types:
+                cand = [o for o in cand if (o.get("kind") or "vorlesung") in types]
+            elif any(o.get("course_id") == r["course_id"] for o in cand):
+                cand = [o for o in cand if o.get("course_id") == r["course_id"]]
+            for o in cand:
+                confirmed = o.get("exception") == "cancelled"
+                o["cancel_hint"] = {"announcement_id": r["id"], "title": r["title"], "snippet": d.get("snippet"), "url": r["url"],
+                                    "source": r["source"], "course_title": r["course_title"], "posted_at": r["posted_at"],
+                                    "confirmed": confirmed, "label": CANCEL_CONFIRMED_LABEL if confirmed else CANCEL_LABEL}
+    return occ

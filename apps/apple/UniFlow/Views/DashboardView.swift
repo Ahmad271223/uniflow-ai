@@ -200,6 +200,7 @@ struct DashboardView: View {
                         Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")").ufFont(13.12, 700).foregroundStyle(UF.text).frame(minWidth: 92, alignment: .leading)
                         Text(e.s("title") ?? "").ufFont(13.12).strikethrough(!attending)
                             .foregroundStyle(attending ? UF.text : UF.muted).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                        if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 11.52).help(UFCancel.helpText(e) ?? mark) }
                         Text(String((e.s("room") ?? "").prefix(22))).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1)
                     }
                     .padding(.vertical, 4.8)

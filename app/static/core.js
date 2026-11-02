@@ -31,6 +31,13 @@ const chipData = new Map();
 export const chipRef = (x, kind, date) => { const k = kind === "deadline" ? `dl-${x.id ?? x.deadline_id}-${date || x.date || ""}` : `an-${x.announcement_id ?? "x"}-${date || x.date || ""}-${x.time || ""}-${x.kind || ""}`; chipData.set(k, { ...x, date: date || x.date, _kind: kind }); return k; };
 export const dlChips = (dd, compact) => (dd.deadlines || []).map(x => `<a class="dl-chip" href="${esc(safeUrl(x.url))}" data-chip="${chipRef(x, "deadline", dd.date)}" style="--dc:${x.color || "var(--bad)"}" title="${esc(x.kind_label)} ${esc(x.time)} · ${esc(x.full_title || x.title)}${x.course_title ? " · " + esc(x.course_title) : ""}"><b>${esc(x.time)}</b> ${esc(compact ? x.kind_label : `${x.kind_label}: ${x.title}`)}</a>`).join("");
 // Termine aus Ankuendigungen der Lehrenden (Feld notices): Hinweis mit Art, Satz aus der Ankuendigung als Tooltip
+// Ausfall am Termin (Wunsch des Inhabers 02.11.2026): aus einer Ankuendigung erkannt (cancel_hint, app/announcements.py
+// mark_cancellations) -> "Ausfall?", eingetragen (Status ausfall) -> "fällt aus"; die vorlesungsfreie Zeit zeigt der Tag gruen
+export const cancelLabel = e => e.status === "ausfall" ? (e.exception === "vorlesungsfrei" ? "" : "fällt aus") : (e.cancel_hint ? "Ausfall?" : "");
+export const cancelUnsure = e => cancelLabel(e) === "Ausfall?";
+export const cancelSource = e => { const h = e.cancel_hint; return h ? `${{ studip: "Stud.IP-Ankündigung", learnweb: "Learnweb-Ankündigung" }[h.source] || "Ankündigung"} „${h.title}“${h.course_title ? " · " + h.course_title : ""}` : ""; };
+export const cancelMark = (e, iconOnly) => { const l = cancelLabel(e); if (!l) return ""; const src = cancelSource(e);
+  return `<span class="cx-mark" title="${esc(l + (src ? " laut " + src : ""))}" aria-label="${cancelUnsure(e) ? "Möglicher Ausfall" : "Fällt aus"}">${icon("alert", 11)}${iconOnly ? "" : " " + esc(l)}</span>`; };
 export const noteChips = (dd, compact) => (dd.notices || []).map(n => `<a class="note-chip k-${esc(n.kind)}" href="${esc(safeUrl(n.url))}" data-chip="${chipRef(n, "notice", dd.date)}" title="${esc(n.title)}${n.course_title ? " · " + esc(n.course_title) : ""}: ${esc(n.snippet)}">${icon("info", 11)} ${n.time ? `<b>${esc(n.time)}</b> ` : ""}${esc(compact ? n.kind_label : `${n.kind_label}: ${n.title}`)}</a>`).join("");
 const sourceLabel = url => { let h = ""; try { h = new URL(url).hostname; } catch {} return /studip/i.test(h) ? "Stud.IP" : /learnweb|moodle/i.test(h) ? "Learnweb" : h ? h.replace(/^www\./, "") : ""; };
 export function chipDetail(key) {

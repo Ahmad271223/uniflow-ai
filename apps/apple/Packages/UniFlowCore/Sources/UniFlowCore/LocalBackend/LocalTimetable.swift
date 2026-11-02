@@ -132,7 +132,9 @@ enum LocalTimetable {
     static func occurrences(_ c: SQLiteConnection, from start: Int, to end: Int, includeSkipped: Bool = true) throws -> [JSONValue] {
         let events = try c.rows("SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
         let dated = try studipDated(c, from: start, to: end)
-        if events.isEmpty { return dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" } }
+        if events.isEmpty {
+            return try Announcements.markCancellations(c, dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" })
+        }
         let ids = events.compactMap { $0["id"].flatMap(SQLiteValue.init(json:)) }
         // je Termin und Datum die Ausnahme; bei mehreren gilt wie im dict von Python die letzte
         var exc: [JSONValue: [String: [String: JSONValue]]] = [:]
@@ -214,7 +216,8 @@ enum LocalTimetable {
             d += 1
         }
         let merged = try mergeDated(c, out.compactMap(\.object), dated)
-        return includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" }
+        // Absagen aus Ankuendigungen als Hinweis am Termin (`announcements.mark_cancellations`)
+        return try Announcements.markCancellations(c, includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" })
     }
 
     /// `studip_dated(conn, start, end)`: die Termine, die Stud.IP dem Nutzer selbst in der Woche zeigt. Alle

@@ -313,6 +313,11 @@ struct TimetableEventBlock: View {
             .background(ausfall ? UF.surface2 : Color(hex: e.s("color")))
             .overlay(alignment: .leading) { if !ausfall { Rectangle().fill(Color.black.opacity(0.18)).frame(width: 3) } }
             .overlay { if ausfall { RoundedRectangle(cornerRadius: 8).strokeBorder(UF.lineStrong, style: StrokeStyle(lineWidth: 1, dash: [3, 2])) } }
+            // Ausfall aus einer Ankuendigung, noch nicht bestaetigt: Rahmen in Warnfarbe, der Termin steht noch
+            .overlay { if UFCancel.unsure(e) { RoundedRectangle(cornerRadius: 8).strokeBorder(UF.warn, lineWidth: 2) } }
+            .overlay(alignment: .topTrailing) {
+                if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 9.6, pill: true).padding(3) }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .ufShadow(.sm)
             .opacity(st == "nicht_teilnahme" ? 0.45 : st == "verschoben" ? 0.35 : 1)
@@ -320,7 +325,7 @@ struct TimetableEventBlock: View {
         }
         .buttonStyle(.plain)
         .offset(y: top)
-        .help(e.s("title") ?? "")
+        .help([e.s("title"), UFCancel.helpText(e)].compactMap { $0 }.joined(separator: " · "))
     }
 }
 

@@ -346,6 +346,11 @@ struct PlanEventBlock: View {
             .frame(width: f.w, height: f.h, alignment: .topLeading)
             .background(Color.mix(ec, 0.13, UF.surface))
             .overlay(alignment: .leading) { Rectangle().fill(ec).frame(width: 3) }
+            // Ausfall (aus einer Ankuendigung erkannt oder eingetragen): Warnzeichen, unbestaetigt mit Rahmen
+            .overlay { if UFCancel.unsure(e) { RoundedRectangle(cornerRadius: 10).strokeBorder(UF.warn, lineWidth: 2) } }
+            .overlay(alignment: .topTrailing) {
+                if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 9.6, pill: true, iconOnly: narrow).padding(3) }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .opacity(off ? 0.45 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 10))
@@ -354,7 +359,7 @@ struct PlanEventBlock: View {
         .offset(x: f.x, y: f.y)
         .zIndex(1)
         .help("\(e.s("title") ?? "") \(e.s("start") ?? "")–\(e.s("end") ?? "")\(e.s("room").map { " · \($0)" } ?? "")"
-              + (e.i("event_id") == nil ? " · aus deinem Stud.IP-Kalender" : ""))
+              + (e.i("event_id") == nil ? " · aus deinem Stud.IP-Kalender" : "") + (UFCancel.helpText(e).map { " · \($0)" } ?? ""))
     }
 
     /// Raumzeile wie die Web-App: alle Raeume (" · "), jeweils ohne den Teil nach dem Doppelpunkt
@@ -634,9 +639,13 @@ struct PlanDayTimeline: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(UFFmt.shortName(e.s("title"))).ufFont(15.68, 700).foregroundStyle(UF.text).lineLimit(1)
                     Text(line).ufFont(13.12).foregroundStyle(UF.text2)
+                    if let src = UFCancel.source(e) {                      // Quelle der Absage
+                        Text("laut \(src)").ufFont(11.84).foregroundStyle(UF.warn).lineLimit(1)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6.4) {                                     // .bd { flex: none }
+                    if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 11.52, pill: true) }
                     UFBadge(UFKind.label[kind] ?? kind, tint: ec)
                     if let m = e.s("module_name") { UFBadge(UFFmt.shortName(m), tone: .neutral) }
                 }
@@ -647,6 +656,7 @@ struct PlanDayTimeline: View {
             .frame(width: max(0, W - 68), height: h)
             .background(Color.mix(ec, 0.10, UF.surface))
             .overlay(alignment: .leading) { Rectangle().fill(ec).frame(width: 4) }
+            .overlay { if UFCancel.unsure(e) { RoundedRectangle(cornerRadius: 12).strokeBorder(UF.warn, lineWidth: 2) } }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .opacity(off ? 0.5 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 12))

@@ -2,10 +2,10 @@
 // Oben links der größte Block mit der wichtigsten Information und dem Hauptknopf, daneben "Heute für dich geplant";
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=32";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=35";
-import { openEvent } from "./views-tt.js?v=33";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=3";
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=33";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=36";
+import { openEvent } from "./views-tt.js?v=34";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=4";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -86,7 +86,7 @@ function planCard(d, ctx) {
       <div class="progress ok" role="progressbar" aria-valuenow="${done}" aria-valuemin="0" aria-valuemax="${p.tasks.length}" aria-label="${done} von ${p.tasks.length} Aufgaben erledigt"><i style="width:${p.tasks.length ? Math.round(100 * done / p.tasks.length) : 0}%"></i></div></div>`;
   }).join("");
   const events = evs.length ? `<div class="ov-sec"><h3>${icon("clock", 16)} An der Uni</h3><a class="small" href="#/timetable">Stundenplan</a></div>
-    ${evs.map(e => `<div class="ov-ev ${e.status !== "teilnahme" ? "ov-off" : ""}" data-ev="${e.event_id}" role="button" tabindex="0">${dot(e.color)}<b>${esc(e.start)}–${esc(e.end)}</b><span class="ov-ev-t">${esc(e.title)}</span>${e.room ? `<span class="ov-t2 ov-ev-r" title="${esc(e.room)}">${esc(e.room)}</span>` : ""}</div>`).join("")}` : "";
+    ${evs.map(e => `<div class="ov-ev ${e.status !== "teilnahme" ? "ov-off" : ""}" data-ev="${e.event_id}" role="button" tabindex="0">${dot(e.color)}<b>${esc(e.start)}–${esc(e.end)}</b><span class="ov-ev-t">${esc(e.title)}</span>${cancelMark(e)}${e.room ? `<span class="ov-t2 ov-ev-r" title="${esc(e.room)}">${esc(e.room)}</span>` : ""}</div>`).join("")}` : "";
   const nothing = !pk.length ? `<div class="ov-none"><p>Kein Lernpaket für heute.</p><button class="btn sm" id="genTodayBtn2">${icon("sparkles", 14)} Lernplan erstellen</button></div>` : "";
   return `<section class="ov-plan card"><div class="card-head"><h2>${icon("play", 18)} Heute für dich geplant</h2><a class="small" href="#/plan?view=day&date=${d.today.date}">Tagesansicht</a></div>${pkgs}${nothing}${events}</section>`;
 }

@@ -931,6 +931,96 @@
     "gelesen",
     "2026-10-24T08:00:00"
    ]
+  },
+  {
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "sp-news-t1",
+    "studip",
+    "k-ma-ue",
+    "Hinweis",
+    "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11. findet statt.",
+    "",
+    "2026-11-02T09:00:00+01:00",
+    "https://studip.example/sp-news-t1",
+    "[{\"date\": \"2026-11-09\", \"time\": null, \"kind\": \"ausfall\", \"snippet\": \"Die Vorlesung am 9.11. fällt aus, die Übung am 12.11.\"}, {\"date\": \"2026-11-12\", \"time\": null, \"kind\": \"ausfall\", \"snippet\": \"Die Vorlesung am 9.11. fällt aus, die Übung am 12.11. findet statt.\"}]",
+    "2026-11-04T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "sp-news-t2",
+    "studip",
+    "k-ph",
+    "Testphysik entfällt",
+    "Am Mittwoch, 11.11. bin ich verhindert.",
+    "",
+    "2026-11-03T09:00:00+01:00",
+    "https://studip.example/sp-news-t2",
+    "[{\"date\": \"2026-11-11\", \"time\": null, \"kind\": \"ausfall\", \"snippet\": \"Am Mittwoch, 11.11. bin ich verhindert.\"}]",
+    "2026-11-04T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "sp-news-t3",
+    "studip",
+    "k-ph",
+    "Testphysik",
+    "Die Vorlesung am 25.11. um 8 Uhr entfällt.",
+    "",
+    "2026-11-04T09:00:00+01:00",
+    "https://studip.example/sp-news-t3",
+    "[{\"date\": \"2026-11-25\", \"time\": \"08:00\", \"kind\": \"ausfall\", \"snippet\": \"Die Vorlesung am 25.11. um 8 Uhr entfällt.\"}]",
+    "2026-11-04T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "sp-news-t6",
+    "studip",
+    "k-prog-ue",
+    "Pool",
+    "Am 3.11. um 10 Uhr entfällt die Gruppenübung.",
+    "",
+    "2026-11-02T10:00:00+01:00",
+    "https://studip.example/sp-news-t6",
+    "[{\"date\": \"2026-11-03\", \"time\": \"10:00\", \"kind\": \"ausfall\", \"snippet\": \"Am 3.11. um 10 Uhr entfällt die Gruppenübung.\"}]",
+    "2026-11-04T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "sp-news-t4",
+    "studip",
+    "k-block",
+    "Blockseminar",
+    "Das Blockseminar am Sa., 7.11. findet nicht statt.",
+    "",
+    "2026-11-01T09:00:00+01:00",
+    "https://studip.example/sp-news-t4",
+    "[{\"date\": \"2026-11-07\", \"time\": null, \"kind\": \"ausfall\", \"snippet\": \"Das Blockseminar am Sa., 7.11. findet nicht statt.\"}]",
+    "2026-11-04T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "sp-news-t5",
+    "studip",
+    null,
+    "Allgemein",
+    "Am 9.11. fällt alles aus.",
+    "",
+    "2026-11-01T09:00:00+01:00",
+    "https://studip.example/sp-news-t5",
+    "[{\"date\": \"2026-11-09\", \"time\": null, \"kind\": \"ausfall\", \"snippet\": \"Am 9.11. fällt alles aus.\"}]",
+    "2026-11-04T10:00:00"
+   ]
   }
  ],
  "steps": [
@@ -1990,7 +2080,18 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": null,
-        "source": "studip-kalender"
+        "source": "studip-kalender",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t6",
+         "title": "Pool",
+         "snippet": "Am 3.11. um 10 Uhr entfällt die Gruppenübung.",
+         "url": "https://studip.example/sp-news-t6",
+         "source": "studip",
+         "course_title": "Gruppenübung Programmierkurs Beispiel",
+         "posted_at": "2026-11-02T10:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
        },
        {
         "event_id": 4,
@@ -2031,7 +2132,20 @@
       ],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t6",
+        "title": "Pool",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": "10:00",
+        "snippet": "Am 3.11. um 10 Uhr entfällt die Gruppenübung.",
+        "url": "https://studip.example/sp-news-t6",
+        "course_title": "Gruppenübung Programmierkurs Beispiel",
+        "color": "#333333",
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 570,
@@ -2195,13 +2309,37 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": null,
-        "source": "studip-kalender"
+        "source": "studip-kalender",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t4",
+         "title": "Blockseminar",
+         "snippet": "Das Blockseminar am Sa., 7.11. findet nicht statt.",
+         "url": "https://studip.example/sp-news-t4",
+         "source": "studip",
+         "course_title": "Blockseminar Beispiel",
+         "posted_at": "2026-11-01T09:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
        }
       ],
       "packages": [],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t4",
+        "title": "Blockseminar",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Das Blockseminar am Sa., 7.11. findet nicht statt.",
+        "url": "https://studip.example/sp-news-t4",
+        "course_title": "Blockseminar Beispiel",
+        "color": null,
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 480,
@@ -2496,6 +2634,1012 @@
   },
   {
    "method": "GET",
+   "path": "/api/timetable/week?start=2026-11-09",
+   "status": 200,
+   "response": {
+    "start": "2026-11-09",
+    "end": "2026-11-15",
+    "days": [
+     {
+      "date": "2026-11-09",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2026-11-09",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum A",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ma-3",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t1",
+         "title": "Hinweis",
+         "snippet": "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11.",
+         "url": "https://studip.example/sp-news-t1",
+         "source": "studip",
+         "course_title": "Übung zu Testmathematik I",
+         "posted_at": "2026-11-02T09:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t5",
+        "title": "Allgemein",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Am 9.11. fällt alles aus.",
+        "url": "https://studip.example/sp-news-t5",
+        "course_title": null,
+        "color": null,
+        "source": "studip"
+       },
+       {
+        "announcement_id": "sp-news-t1",
+        "title": "Hinweis",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11.",
+        "url": "https://studip.example/sp-news-t1",
+        "course_title": "Übung zu Testmathematik I",
+        "color": "#111111",
+        "source": "studip"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-10",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 4,
+        "date": "2026-11-10",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null,
+        "source": "personal"
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-11",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 2,
+        "date": "2026-11-11",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#ff0000",
+        "room": "Raum B",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "manual",
+        "studip_id": "se-ph-2",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t2",
+         "title": "Testphysik entfällt",
+         "snippet": "Am Mittwoch, 11.11. bin ich verhindert.",
+         "url": "https://studip.example/sp-news-t2",
+         "source": "studip",
+         "course_title": "Testphysik für Ingenieure",
+         "posted_at": "2026-11-03T09:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t2",
+        "title": "Testphysik entfällt",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Am Mittwoch, 11.11. bin ich verhindert.",
+        "url": "https://studip.example/sp-news-t2",
+        "course_title": "Testphysik für Ingenieure",
+        "color": "#222222",
+        "source": "studip"
+       }
+      ],
+      "free": [
+       {
+        "start": 605,
+        "end": 1260,
+        "minutes": 655,
+        "start_hm": "10:05",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-12",
+      "weekday": 3,
+      "events": [],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t1",
+        "title": "Hinweis",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11. findet statt.",
+        "url": "https://studip.example/sp-news-t1",
+        "course_title": "Übung zu Testmathematik I",
+        "color": "#111111",
+        "source": "studip"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-13",
+      "weekday": 4,
+      "events": [],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-14",
+      "weekday": 5,
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-bl-1",
+        "date": "2026-11-14",
+        "start": "09:00",
+        "end": "16:00",
+        "title": "Blockseminar Beispiel",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Seminarraum",
+        "lecturer": null,
+        "course_id": "k-block",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-15",
+      "weekday": 6,
+      "events": [
+       {
+        "event_id": 6,
+        "date": "2026-11-15",
+        "start": "09:00",
+        "end": "10:00",
+        "title": "Sonntagstermin",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "manual"
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-11-23",
+   "status": 200,
+   "response": {
+    "start": "2026-11-23",
+    "end": "2026-11-29",
+    "days": [
+     {
+      "date": "2026-11-23",
+      "weekday": 0,
+      "events": [],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 720,
+        "minutes": 240,
+        "start_hm": "08:00",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-24",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 4,
+        "date": "2026-11-24",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null,
+        "source": "personal"
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-25",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 2,
+        "date": "2026-11-25",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#ff0000",
+        "room": "Raum B",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "manual",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t3",
+         "title": "Testphysik",
+         "snippet": "Die Vorlesung am 25.11. um 8 Uhr entfällt.",
+         "url": "https://studip.example/sp-news-t3",
+         "source": "studip",
+         "course_title": "Testphysik für Ingenieure",
+         "posted_at": "2026-11-04T09:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t3",
+        "title": "Testphysik",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": "08:00",
+        "snippet": "Die Vorlesung am 25.11. um 8 Uhr entfällt.",
+        "url": "https://studip.example/sp-news-t3",
+        "course_title": "Testphysik für Ingenieure",
+        "color": "#222222",
+        "source": "studip"
+       }
+      ],
+      "free": [
+       {
+        "start": 605,
+        "end": 1260,
+        "minutes": 655,
+        "start_hm": "10:05",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-26",
+      "weekday": 3,
+      "events": [],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-27",
+      "weekday": 4,
+      "events": [],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-28",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-29",
+      "weekday": 6,
+      "events": [
+       {
+        "event_id": 6,
+        "date": "2026-11-29",
+        "start": "09:00",
+        "end": "10:00",
+        "title": "Sonntagstermin",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "manual"
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 125,
+    "windows": [
+     {
+      "start": 480,
+      "end": 1260,
+      "minutes": 780,
+      "start_hm": "08:00",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "materials": [
+     {
+      "id": "tf-ph-1",
+      "name": "Folien Einführung.pdf",
+      "chdate": 1792058400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1004,
+      "course_id": "k-ph",
+      "studip_folder": null,
+      "course_title": "Testphysik für Ingenieure",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 2,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": null,
+      "source": "studip"
+     }
+    ],
+    "event": {
+     "id": 2,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "Raum B",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "#ff0000",
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 2,
+    "date": "2026-11-25",
+    "mode": "cancelled"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2026-11-25",
+   "status": 200,
+   "response": {
+    "date": "2026-11-25",
+    "events": [
+     {
+      "event_id": 2,
+      "date": "2026-11-25",
+      "start": "08:15",
+      "end": "09:45",
+      "title": "Testphysik",
+      "kind": "vorlesung",
+      "module_id": 2,
+      "module_name": "Testphysik",
+      "color": "#ff0000",
+      "room": "Raum B",
+      "lecturer": "",
+      "course_id": "k-ph",
+      "status": "ausfall",
+      "permanent_skip": false,
+      "exception": "cancelled",
+      "source": "manual",
+      "cancel_hint": {
+       "announcement_id": "sp-news-t3",
+       "title": "Testphysik",
+       "snippet": "Die Vorlesung am 25.11. um 8 Uhr entfällt.",
+       "url": "https://studip.example/sp-news-t3",
+       "source": "studip",
+       "course_title": "Testphysik für Ingenieure",
+       "posted_at": "2026-11-04T09:00:00+01:00",
+       "confirmed": true,
+       "label": "fällt aus"
+      }
+     }
+    ],
+    "packages": [],
+    "free": [
+     {
+      "start": 480,
+      "end": 1260,
+      "minutes": 780,
+      "start_hm": "08:00",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [
+     {
+      "start": 605,
+      "end": 1260,
+      "minutes": 655,
+      "start_hm": "10:05",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "materials": [
+     {
+      "id": "tf-ph-1",
+      "name": "Folien Einführung.pdf",
+      "chdate": 1792058400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1004,
+      "course_id": "k-ph",
+      "studip_folder": null,
+      "course_title": "Testphysik für Ingenieure",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 2,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": null,
+      "source": "studip"
+     }
+    ],
+    "event": {
+     "id": 2,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "Raum B",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "#ff0000",
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 2,
+    "date": "2026-11-25",
+    "mode": "today_attend"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2026-11-25",
+   "status": 200,
+   "response": {
+    "date": "2026-11-25",
+    "events": [
+     {
+      "event_id": 2,
+      "date": "2026-11-25",
+      "start": "08:15",
+      "end": "09:45",
+      "title": "Testphysik",
+      "kind": "vorlesung",
+      "module_id": 2,
+      "module_name": "Testphysik",
+      "color": "#ff0000",
+      "room": "Raum B",
+      "lecturer": "",
+      "course_id": "k-ph",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": "attend",
+      "source": "manual"
+     }
+    ],
+    "packages": [],
+    "free": [
+     {
+      "start": 605,
+      "end": 1260,
+      "minutes": 655,
+      "start_hm": "10:05",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [],
+    "materials": [
+     {
+      "id": "tf-ph-1",
+      "name": "Folien Einführung.pdf",
+      "chdate": 1792058400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1004,
+      "course_id": "k-ph",
+      "studip_folder": null,
+      "course_title": "Testphysik für Ingenieure",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 2,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": null,
+      "source": "studip"
+     }
+    ],
+    "event": {
+     "id": 2,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "Raum B",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "#ff0000",
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 2,
+    "date": "2026-11-25",
+    "mode": "reset"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2026-11-25",
+   "status": 200,
+   "response": {
+    "date": "2026-11-25",
+    "events": [
+     {
+      "event_id": 2,
+      "date": "2026-11-25",
+      "start": "08:15",
+      "end": "09:45",
+      "title": "Testphysik",
+      "kind": "vorlesung",
+      "module_id": 2,
+      "module_name": "Testphysik",
+      "color": "#ff0000",
+      "room": "Raum B",
+      "lecturer": "",
+      "course_id": "k-ph",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null,
+      "source": "manual",
+      "cancel_hint": {
+       "announcement_id": "sp-news-t3",
+       "title": "Testphysik",
+       "snippet": "Die Vorlesung am 25.11. um 8 Uhr entfällt.",
+       "url": "https://studip.example/sp-news-t3",
+       "source": "studip",
+       "course_title": "Testphysik für Ingenieure",
+       "posted_at": "2026-11-04T09:00:00+01:00",
+       "confirmed": false,
+       "label": "Ausfall?"
+      }
+     }
+    ],
+    "packages": [],
+    "free": [
+     {
+      "start": 605,
+      "end": 1260,
+      "minutes": 655,
+      "start_hm": "10:05",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "GET",
    "path": "/api/timetable/day?date=2026-10-25",
    "status": 200,
    "response": {
@@ -2756,7 +3900,18 @@
       "status": "teilnahme",
       "permanent_skip": false,
       "exception": null,
-      "source": "studip-kalender"
+      "source": "studip-kalender",
+      "cancel_hint": {
+       "announcement_id": "sp-news-t6",
+       "title": "Pool",
+       "snippet": "Am 3.11. um 10 Uhr entfällt die Gruppenübung.",
+       "url": "https://studip.example/sp-news-t6",
+       "source": "studip",
+       "course_title": "Gruppenübung Programmierkurs Beispiel",
+       "posted_at": "2026-11-02T10:00:00+01:00",
+       "confirmed": false,
+       "label": "Ausfall?"
+      }
      },
      {
       "event_id": 4,
@@ -6684,13 +7839,49 @@
         "permanent_skip": false,
         "exception": null,
         "source": "studip",
-        "studip_id": "se-ma-3"
+        "studip_id": "se-ma-3",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t1",
+         "title": "Hinweis",
+         "snippet": "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11.",
+         "url": "https://studip.example/sp-news-t1",
+         "source": "studip",
+         "course_title": "Übung zu Testmathematik I",
+         "posted_at": "2026-11-02T09:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
        }
       ],
       "packages": [],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t5",
+        "title": "Allgemein",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Am 9.11. fällt alles aus.",
+        "url": "https://studip.example/sp-news-t5",
+        "course_title": null,
+        "color": null,
+        "source": "studip"
+       },
+       {
+        "announcement_id": "sp-news-t1",
+        "title": "Hinweis",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11.",
+        "url": "https://studip.example/sp-news-t1",
+        "course_title": "Übung zu Testmathematik I",
+        "color": "#111111",
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 570,
@@ -6836,7 +8027,20 @@
       "packages": [],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t2",
+        "title": "Testphysik entfällt",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Am Mittwoch, 11.11. bin ich verhindert.",
+        "url": "https://studip.example/sp-news-t2",
+        "course_title": "Testphysik für Ingenieure",
+        "color": "#222222",
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 485,
@@ -6876,7 +8080,20 @@
       "packages": [],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t1",
+        "title": "Hinweis",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Die Vorlesung am 9.11. fällt aus, die Übung am 12.11. findet statt.",
+        "url": "https://studip.example/sp-news-t1",
+        "course_title": "Übung zu Testmathematik I",
+        "color": "#111111",
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 480,
@@ -8088,7 +9305,18 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": null,
-        "source": "studip-kalender"
+        "source": "studip-kalender",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t6",
+         "title": "Pool",
+         "snippet": "Am 3.11. um 10 Uhr entfällt die Gruppenübung.",
+         "url": "https://studip.example/sp-news-t6",
+         "source": "studip",
+         "course_title": "Gruppenübung Programmierkurs Beispiel",
+         "posted_at": "2026-11-02T10:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
        },
        {
         "event_id": 4,
@@ -8129,7 +9357,20 @@
       ],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t6",
+        "title": "Pool",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": "10:00",
+        "snippet": "Am 3.11. um 10 Uhr entfällt die Gruppenübung.",
+        "url": "https://studip.example/sp-news-t6",
+        "course_title": "Gruppenübung Programmierkurs Beispiel",
+        "color": "#333333",
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 570,
@@ -8392,13 +9633,37 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": null,
-        "source": "studip-kalender"
+        "source": "studip-kalender",
+        "cancel_hint": {
+         "announcement_id": "sp-news-t4",
+         "title": "Blockseminar",
+         "snippet": "Das Blockseminar am Sa., 7.11. findet nicht statt.",
+         "url": "https://studip.example/sp-news-t4",
+         "source": "studip",
+         "course_title": "Blockseminar Beispiel",
+         "posted_at": "2026-11-01T09:00:00+01:00",
+         "confirmed": false,
+         "label": "Ausfall?"
+        }
        }
       ],
       "packages": [],
       "marks": [],
       "deadlines": [],
-      "notices": [],
+      "notices": [
+       {
+        "announcement_id": "sp-news-t4",
+        "title": "Blockseminar",
+        "kind": "ausfall",
+        "kind_label": "Ausfall?",
+        "time": null,
+        "snippet": "Das Blockseminar am Sa., 7.11. findet nicht statt.",
+        "url": "https://studip.example/sp-news-t4",
+        "course_title": "Blockseminar Beispiel",
+        "color": null,
+        "source": "studip"
+       }
+      ],
       "free": [
        {
         "start": 480,
@@ -12056,7 +13321,7 @@
     "created_at": "2026-10-02T09:00:00"
    },
    {
-    "id": 7,
+    "id": 9,
     "event_id": 5,
     "date": "2026-11-05",
     "type": "edit",
@@ -12067,7 +13332,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 9,
+    "id": 11,
     "event_id": 5,
     "date": "2026-11-12",
     "type": "moved",
@@ -12078,7 +13343,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 17,
+    "id": 19,
     "event_id": 16,
     "date": "2026-11-25",
     "type": "cancelled",
@@ -12089,7 +13354,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 18,
+    "id": 20,
     "event_id": 16,
     "date": "2026-11-11",
     "type": "attend",
@@ -12100,7 +13365,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 19,
+    "id": 21,
     "event_id": 16,
     "date": "2026-12-02",
     "type": "cancelled",
@@ -12111,7 +13376,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 20,
+    "id": 22,
     "event_id": 17,
     "date": "2026-12-24",
     "type": "cancelled",
@@ -12122,7 +13387,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 21,
+    "id": 23,
     "event_id": 17,
     "date": "2026-12-31",
     "type": "cancelled",
@@ -12133,7 +13398,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 22,
+    "id": 24,
     "event_id": 18,
     "date": "2026-12-22",
     "type": "cancelled",
@@ -12144,7 +13409,7 @@
     "created_at": "2026-10-25T14:30:05"
    },
    {
-    "id": 23,
+    "id": 25,
     "event_id": 19,
     "date": "2026-12-24",
     "type": "cancelled",
