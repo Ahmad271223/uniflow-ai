@@ -191,6 +191,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private let toolPicker: PKToolPicker
     /// Nur ein Editor zeigt die Palette (geteilte Ansicht: Uebung und Skript teilen sich eine Palette).
     private let ownsToolPicker: Bool
+    /// Palette soll zu sehen sein (Schreiben erlaubt); `restorePicker` holt sie dann zurueck
+    private var pickerWanted = false
     /// PDF-Seite (1-basiert), zu der beim ersten Anzeigen gesprungen wird (z. B. Skriptstelle).
     private var initialPDFPage: Int?
     private let anchor = ToolPickerAnchor()
@@ -370,12 +372,19 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         if ownsToolPicker {
             toolPicker.stateAutosaveName = "uniflow.toolpicker"
             toolPicker.setVisible(writable, forFirstResponder: anchor)
+            pickerWanted = writable
         }
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: .PDFViewScaleChanged, object: pdfView, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scaleChanged() }
         })
+        // nach dem Tippen (Tastatur weg) und nach dem Zurueckkehren in die App die Palette wieder zeigen
+        for name in [UIResponder.keyboardDidHideNotification, UIApplication.didBecomeActiveNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.restorePickerSoon() }
+            })
+        }
         observers.append(center.addObserver(forName: .PDFViewPageChanged, object: pdfView, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -1034,7 +1043,41 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func showToolPicker(_ visible: Bool) {
         guard ownsToolPicker else { return }
+        pickerWanted = visible
         toolPicker.setVisible(visible, forFirstResponder: anchor)
         if visible { anchor.becomeFirstResponder() }
     }
+
+    // MARK: Palette bleibt sichtbar
+
+    /// Die Palette haengt am Erstantwortgeber `anchor`. Nimmt ihn ein anderes Element (Textfeld der KI-Hilfe, Suche,
+    /// die PDF-Ansicht beim Antippen), verschwindet sie und kam bisher nicht wieder. Sie kehrt zurueck, sobald niemand
+    /// mehr tippt; beim Markieren von PDF-Text bleibt der Fokus bei der PDF-Ansicht.
+    func toolPickerVisibilityDidChange(_ toolPicker: PKToolPicker) {
+        if !toolPicker.isVisible { restorePickerSoon() }
+    }
+
+    func restorePickerSoon() {
+        guard ownsToolPicker, pickerWanted else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.restorePicker() }
+    }
+
+    func restorePicker() {
+        guard ownsToolPicker, pickerWanted, writable, view.window != nil, !toolPicker.isVisible || !anchor.isFirstResponder else { return }
+        guard !(objects.isActive && objects.tool == .markup), !(UIResponder.uf_current is UITextInput) else { return }
+        anchor.becomeFirstResponder()
+    }
+}
+
+extension UIResponder {
+    private static weak var ufFound: UIResponder?
+
+    /// Aktueller Erstantwortgeber der App (nil, wenn keiner)
+    static var uf_current: UIResponder? {
+        ufFound = nil
+        UIApplication.shared.sendAction(#selector(uf_capture), to: nil, from: nil, for: nil)
+        return ufFound
+    }
+
+    @objc private func uf_capture() { UIResponder.ufFound = self }
 }

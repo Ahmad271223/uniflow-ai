@@ -44,6 +44,11 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(TutorConnectState.reason(st(use: false)), .switchedOff)
         XCTAssertEqual(TutorConnectState.reason(st(model: "")), .noModel)
         XCTAssertEqual(TutorConnectState.reason(st()), .ready)
+        // Daneben ein leeres Blatt: alle Vorlagen des Editors, Titel nach der offenen Datei
+        XCTAssertEqual(CompanionPicker.blankTemplates.map(\.id), PageOrder.templates)
+        XCTAssertTrue(CompanionPicker.blankTemplates.contains { $0.id == "grid" && $0.name == "Kariert" })
+        XCTAssertEqual(CompanionPicker.sheetTitle(for: "Prog1-01-Introduction.pdf"), "Notizen – Prog1-01-Introduction")
+        XCTAssertEqual(CompanionPicker.sheetTitle(for: " "), "Notizen")
         XCTAssertEqual(TutorPanel.label(mode: "ask", input: "Warum?"), "Warum?")
         XCTAssertEqual(DocumentView.tutorWidth(1180), 377.6, accuracy: 0.1)
         XCTAssertEqual(DocumentView.tutorWidth(700), 300)

@@ -38,6 +38,30 @@ public enum SolutionBuilder {
     }
 
     /// Seiten in Anzeigereihenfolge (ohne Papierkorb).
+    /// Notizblatt neben der Folie mitteilen: haengt seine Leerseiten (mit Vorlage, Groesse und Objekten) hinten an
+    /// `doc` an. Eigene Schluessel "nb-<schluessel>", damit nichts mit den Seiten der Folie zusammenfaellt; andere
+    /// Seitenarten des Blatts (PDF, eingefuegte Bilder) bleiben weg.
+    public static func appendingNotebook(_ doc: AnnotationDocument, notebook: AnnotationDocument) -> AnnotationDocument {
+        var root = doc.root.object ?? [:]
+        var order = doc.pageOrder
+        var pages = doc.pages
+        var seen = Set(order.compactMap { $0["key"]?.string })
+        for entry in notebook.pageOrder where (entry["type"]?.string ?? "pdf") == "blank" {
+            guard let key = entry["key"]?.string else { continue }
+            var newKey = "nb-" + key
+            var n = 2
+            while seen.contains(newKey) { newKey = "nb\(n)-" + key; n += 1 }
+            seen.insert(newKey)
+            var e = entry.object ?? [:]
+            e["key"] = .string(newKey)
+            order.append(.object(e))
+            pages[newKey] = notebook.page(key) ?? .object(["objects": .array([])])
+        }
+        root["pageOrder"] = .array(order)
+        root["pages"] = .object(pages)
+        return AnnotationDocument(root: .object(root))
+    }
+
     public static func candidates(_ doc: AnnotationDocument) -> [Candidate] {
         var seen = Set<String>()
         return doc.pageOrder.compactMap { p in

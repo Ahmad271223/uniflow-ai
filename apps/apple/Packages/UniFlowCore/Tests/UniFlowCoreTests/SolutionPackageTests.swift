@@ -652,3 +652,28 @@ final class SolutionPackageTests: XCTestCase {
         await expectNotConnected { try await service.report(solutionID: package.header.solutionID, reason: .foreignMaterial, note: nil) }
     }
 }
+
+/// Notizblatt neben der Folie (2.11.2026): seine Leerseiten gehen beim Teilen als eigene Seiten mit
+final class SolutionNotebookTests: XCTestCase {
+    func testNotebookPagesAreAppendedAsBlankPagesWithTemplate() throws {
+        let slide = AnnotationDocument(root: [
+            "version": 2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "nb-b1", "type": "blank"]],
+            "pages": ["p1": ["objects": [["type": "stroke", "points": [1, 2, 3, 4]]]], "nb-b1": ["objects": []]],
+        ])
+        let notebook = AnnotationDocument(root: [
+            "version": 2,
+            "pageOrder": [["key": "b1", "type": "blank", "template": "grid", "w": 595, "h": 842], ["key": "x", "type": "pdf", "index": 1]],
+            "pages": ["b1": ["template": "grid", "objects": [["type": "stroke", "points": [5, 6, 7, 8]]]], "x": ["objects": []]],
+        ])
+        let merged = SolutionBuilder.appendingNotebook(slide, notebook: notebook)
+        XCTAssertEqual(merged.pageOrder.compactMap { $0["key"]?.string }, ["p1", "nb-b1", "nb2-b1"], "kein Zusammenfallen, PDF-Seiten des Blatts nicht")
+        XCTAssertEqual(merged.objects(page: "nb2-b1").count, 1)
+        XCTAssertEqual(merged.pageOrder.last?["template"]?.string, "grid")
+        let content = try SolutionBuilder.build(document: merged, selectedKeys: ["p1", "nb2-b1"], pdfPageCount: 1,
+                                                pdfPage: { _ in .init(width: 595, height: 842, rotation: 0) }, images: [:],
+                                                fingerprint: String(repeating: "a", count: 64), title: "Blatt", displayName: "Mira")
+        XCTAssertEqual(content.pages.map(\.kind), [.pdf, .blank])
+        XCTAssertEqual(content.pages.last?.template, "grid")
+        XCTAssertEqual(SolutionBuilder.appendingNotebook(slide, notebook: .empty()).pageOrder.count, 2, "ohne Blatt unveraendert")
+    }
+}

@@ -28,6 +28,8 @@ enum SolutionTexts {
 struct SolutionShareSheet: View {
     @ObservedObject var store: DocumentStore
     let api: APIClient
+    /// Notizblatt neben der Folie (geteilte Ansicht): seine Seiten gehen als eigene Seiten mit
+    var notebook: DocumentStore?
     let close: () -> Void
 
     @State private var source: SolutionSource?
@@ -283,7 +285,11 @@ struct SolutionShareSheet: View {
         }
         spaceKey = spaces.first { $0.key == courseKey }?.key ?? spaces.first?.key ?? ""
         do {
-            let s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
+            var s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
+            if let notebook, notebook.file.isNotebook {
+                let part = await notebook.notebookPart(loadImage: ShareExport.serverImageLoader(api))
+                s = s.appendingNotebook(part.document, images: part.images)
+            }
             let prepared = try await Task.detached(priority: .userInitiated) { try SolutionSharing.draft(s) }.value
             guard let all = prepared.content else {
                 loadError = prepared.unavailable
