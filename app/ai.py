@@ -14,7 +14,7 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
-from .config import CLAUDE_MODEL, CLAUDE_MODEL_MATERIAL, DATA_DIR, LOG_DIR
+from .config import CLAUDE_MODEL, CLAUDE_MODEL_MATERIAL, DATA_DIR, LOG_DIR, is_hosted
 
 # PDF-Eingabe: gekuerzte Kopien in einem eigenen Arbeitsordner. Claude darf nur dort lesen (Arbeitsordner der CLI),
 # alles ausserhalb verweigert die CLI; schreibende, ausfuehrende und Netz-Werkzeuge sind zusaetzlich gesperrt.
@@ -26,6 +26,30 @@ BLOCKED_TOOLS = ["Bash", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch
 
 class AIError(RuntimeError):
     pass
+
+
+# Umgebung des Kindprozesses `claude -p`: nur diese Variablen (Positivliste), damit Schluessel und Zugangsdaten des
+# Servers (LERNAPP_*, Stripe, OpenAI, Mail) nie in den Kindprozess gelangen. Namen ohne Beachtung der Gross-/Kleinschreibung.
+CHILD_ENV_NAMES = {"path", "home", "user", "username", "logname", "shell", "lang", "language", "tz", "term", "tmp", "temp", "tmpdir",
+                   "systemroot", "systemdrive", "windir", "comspec", "pathext", "userprofile", "appdata", "localappdata",
+                   "programdata", "programfiles", "programfiles(x86)", "homedrive", "homepath", "computername", "os",
+                   "http_proxy", "https_proxy", "no_proxy", "all_proxy", "ssl_cert_file", "ssl_cert_dir", "requests_ca_bundle",
+                   "node_extra_ca_certs", "node_options"}
+CHILD_ENV_PREFIXES = ("lc_", "xdg_", "anthropic_", "claude_")
+
+
+def _child_env() -> dict:
+    env = {k: v for k, v in os.environ.items()
+           if (k.lower() in CHILD_ENV_NAMES or k.lower().startswith(CHILD_ENV_PREFIXES)) and k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
+
+def _refuse_hosted() -> None:
+    """Im Dienst gibt es keine KI-Kommandozeile des Servers: dort laeuft Studora-KI nur ueber app/ai_backend.py (Konto, Tarif,
+    Budget, Protokoll)."""
+    if is_hosted():
+        raise AIError("Im Dienst gibt es die KI-Kommandozeile nicht; Studora-KI läuft dort nur über das Konto.")
 
 
 def _claude_bin() -> str:
@@ -75,12 +99,12 @@ def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[s
     Responses API (dann ohne Werkzeuge: Bilder und PDF-Seiten kann nur Claude lesen, Text geht ueber beide).
     allowed_tools: z. B. ["Read"], damit Claude eine Bilddatei (Stundenplan-Screenshot) lesen darf.
     cwd: Arbeitsordner der CLI (Lesen nur dort erlaubt); blocked_tools: ausdruecklich gesperrte Werkzeuge."""
+    _refuse_hosted()
     if uses_chatgpt():
         if allowed_tools or cwd:
             raise AIError("Bilder und PDF-Seiten liest nur Claude; mit ChatGPT wird der Text der Datei genutzt.")
         return ask_chatgpt(prompt, system)
-    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
-    env["PYTHONIOENCODING"] = "utf-8"
+    env = _child_env()
     cmd = [_claude_bin(), "-p", "--output-format", "json", "--model", model or CLAUDE_MODEL]
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
@@ -163,6 +187,7 @@ def ask_pdf(prompt: str, system: str, pdfs: list[tuple[str, int]], model: str | 
             labels: list[str] | None = None) -> str:
     """Wie ask(), aber Claude liest die PDF-Seiten selbst (Formeln, Skizzen, Handschrift).
     Die CLI laeuft im Arbeitsordner mit den Kopien; Lesen ausserhalb verweigert sie, andere Werkzeuge sind gesperrt."""
+    _refuse_hosted()
     with pdf_workspace(pdfs) as (work, files):
         # absolute Pfade: das Read-Werkzeug verlangt sie; mit "./datei.pdf" scheiterte das Lesen gelegentlich
         listing = "\n".join(f"- {work / n}{(' – ' + labels[i]) if labels and i < len(labels) and labels[i] else ''} (Seiten 1 bis {k} von {t})"

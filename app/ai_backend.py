@@ -10,12 +10,14 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
     LERNAPP_AI_PRICE_OUT_EUR   Preis je 1 Mio. Ausgabe-Tokens in EUR
     LERNAPP_AI_BUDGET_EUR      Gesamtbudget je Monat fuer alle Konten (Standard 50); erreicht -> Sperre
     LERNAPP_AI_USER_BUDGET_EUR Budget je Konto und Monat (Standard 2)
+    LERNAPP_AI_TRIAL_BUDGET_EUR eigenes Budget je Monat fuer alle Probekonten zusammen (Standard 5); die Probe frisst
+                               nie das Budget der zahlenden Konten
     LERNAPP_AI_RATE_PER_MINUTE Anfragen je Konto und Minute (Standard 6)
 
 Kostenkontrolle (Tabellen in accounts.db):
 - `ai_usage_log`: jede Anfrage mit Konto, Zweck, Modell, Tokens, Kosten. Vor dem Aufruf wird in einer
   Schreibtransaktion geprueft (Budget gesamt und je Konto, Rate-Limit) und eine Reservierung mit geschaetzten Kosten
-  eingetragen; danach werden die echten Tokens und Kosten nachgetragen. Gleichzeitige Anfragen koennen das Budget
+  eingetragen; Probekonten (nur die Probe aktiv) zaehlen in einem eigenen kleineren Becken (`trial=1`); danach werden die echten Tokens und Kosten nachgetragen. Gleichzeitige Anfragen koennen das Budget
   dadurch nicht gemeinsam ueberschreiten.
 - `ai_inflight`: Sperre je Generierungsschluessel (z. B. Fach+Thema+Schwierigkeit). Eine zweite gleiche Generierung
   wartet auf die erste und nutzt deren Ergebnis, statt doppelt zu bezahlen.
@@ -33,7 +35,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from . import billing
+from . import billing, config, db
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ai_usage_log (
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_log (
     input_tokens INTEGER DEFAULT 0,
     output_tokens INTEGER DEFAULT 0,
     cost_microeur INTEGER NOT NULL DEFAULT 0,  -- Millionstel EUR
+    trial INTEGER NOT NULL DEFAULT 0,          -- 1 = Probekonto (eigenes Budget-Becken)
     state TEXT NOT NULL DEFAULT 'reserved',    -- reserved | done | failed
     created_at TEXT NOT NULL
 );
@@ -110,8 +113,16 @@ def user_budget_microeur() -> int:
     return int(_env_float("LERNAPP_AI_USER_BUDGET_EUR", 2.0) * 1_000_000)
 
 
+def trial_budget_microeur() -> int:
+    return int(_env_float("LERNAPP_AI_TRIAL_BUDGET_EUR", 5.0) * 1_000_000)
+
+
 def rate_per_minute() -> int:
     return int(_env_float("LERNAPP_AI_RATE_PER_MINUTE", 6))
+
+
+def prices_set() -> bool:
+    return _env_float("LERNAPP_AI_PRICE_IN_EUR", 0.0) > 0 and _env_float("LERNAPP_AI_PRICE_OUT_EUR", 0.0) > 0
 
 
 def cost_microeur(input_tokens: int, output_tokens: int) -> int:
@@ -224,12 +235,36 @@ def available() -> bool:
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    if not any(r[1] == "trial" for r in conn.execute("PRAGMA table_info(ai_usage_log)")):       # Tabelle aus aelterem Stand
+        conn.execute("ALTER TABLE ai_usage_log ADD COLUMN trial INTEGER NOT NULL DEFAULT 0")
 
 
 def connect() -> sqlite3.Connection:
+    from . import accounts
     conn = billing.connect()
-    ensure_schema(conn)
+    db.schema_once(conn, "ai_backend", accounts.db_path(), ensure_schema)
     return conn
+
+
+def is_trial_account(conn: sqlite3.Connection, user_id: str, t: datetime) -> bool:
+    """Probekonto: die Probe ist aktiv und kein bezahlter oder von Hand gesetzter Tarif (auch nicht aus `users.plan`)."""
+    now_iso = t.isoformat()
+    trial = False
+    for source, plan, expires, status in conn.execute("SELECT source, plan, expires_at, status FROM entitlements WHERE user_id=?",
+                                                      (str(user_id),)):
+        if billing.normalize_plan(plan) not in (None, "free") and billing._row_active(status, expires, now_iso):
+            if source != "trial":
+                return False
+            trial = True
+    if not trial:
+        return False
+    try:
+        u = conn.execute("SELECT plan, plan_until FROM users WHERE id=?", (str(user_id),)).fetchone()
+    except sqlite3.OperationalError:                 # accounts.db ohne Konten-Tabelle (nur Abrechnung angelegt)
+        u = None
+    if u and billing.normalize_plan(u[0]) not in (None, "free") and (not u[1] or str(u[1])[:10] >= now_iso[:10]):
+        return False
+    return True
 
 
 def _now(now: datetime | None = None) -> datetime:
@@ -242,9 +277,14 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
     period = t.strftime("%Y-%m")
     conn.execute("BEGIN IMMEDIATE")
     try:
-        total = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed'",
-                             (period,)).fetchone()[0]
-        if total + RESERVE_MICROEUR > budget_microeur():
+        trial = 1 if user_id and is_trial_account(conn, user_id, t) else 0
+        # zwei Becken: Probekonten verbrauchen nur ihr eigenes kleines Budget, nie das der zahlenden Konten
+        pool = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed' AND trial=?",
+                            (period, trial)).fetchone()[0]
+        if trial:
+            if pool + RESERVE_MICROEUR > trial_budget_microeur():
+                raise AIUnavailable("ai_trial_budget_exhausted", "Das Probe-Kontingent der Studora-KI ist für diesen Monat ausgeschöpft.", 429)
+        elif pool + RESERVE_MICROEUR > budget_microeur():
             raise AIUnavailable("ai_budget_exhausted", "Das KI-Budget von Studora für diesen Monat ist ausgeschöpft.", 503)
         if user_id:
             mine = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND user_id=? AND state<>'failed'",
@@ -255,8 +295,8 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
                                   (user_id, (t - timedelta(seconds=60)).isoformat())).fetchone()[0]
             if recent >= rate_per_minute():
                 raise AIUnavailable("ai_rate_limited", "Zu viele KI-Anfragen in kurzer Zeit. Bitte gleich noch einmal.", 429)
-        cur = conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, state, created_at) VALUES (?,?,?,?,?,?)",
-                           (user_id, period, purpose, RESERVE_MICROEUR, "reserved", t.isoformat()))
+        cur = conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, trial, state, created_at) VALUES (?,?,?,?,?,?,?)",
+                           (user_id, period, purpose, RESERVE_MICROEUR, trial, "reserved", t.isoformat()))
         conn.execute("COMMIT")
         return cur.lastrowid
     except Exception:
@@ -284,6 +324,10 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
              cache: bool = False, now: datetime | None = None) -> Completion:
     """Eine Studora-KI-Anfrage mit Budget, Rate-Limit, Protokoll und optionalem Cache."""
     p = provider()                                   # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
+    if config.is_hosted() and not prices_set():
+        # ohne Token-Preise rechnet kein Budget (Kosten blieben 0): im Dienst lieber sperren als unbegrenzt ausgeben
+        raise AIUnavailable("ai_not_configured_prices", "Die Studora-KI ist noch nicht freigeschaltet: Die Token-Preise "
+                            "(LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR) fehlen auf dem Server.", 503)
     conn = connect()
     try:
         key = None
