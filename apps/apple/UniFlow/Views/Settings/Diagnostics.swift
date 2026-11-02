@@ -22,6 +22,7 @@ struct Diagnostics {
     static func collect(journal: URL? = nil, cache: URL? = nil) async -> Diagnostics {
         let info = Bundle.main.infoDictionary
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
+            + (buildStamp().map { " · Stand \($0)" } ?? "")
         let os = UIDevice.current.systemVersion
         let journal = journal ?? AppPaths.journal, cache = cache ?? ResponseCache.shared.root
         return await Task.detached(priority: .utility) {
@@ -36,6 +37,17 @@ struct Diagnostics {
                            journalBytes: folderSize(journal), cacheBytes: folderSize(cache),
                            documentsWithUnsent: scan.documentsWithUnsent, unsentPages: scan.unsentPages,
                            damaged: scan.damaged, unreadable: scan.unreadable)
+    }
+
+    /// Zeitpunkt des Builds (Aenderungsdatum der App-Datei): Testbuilds haben alle dieselbe Versionsnummer, so ist ein
+    /// neuer Stand auf dem Geraet erkennbar
+    nonisolated static func buildStamp(_ executable: URL? = Bundle.main.executableURL) -> String? {
+        guard let url = executable, let d = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "de_DE")
+        f.timeZone = TimeZone(identifier: "Europe/Berlin")
+        f.dateFormat = "dd.MM.yyyy HH:mm"
+        return f.string(from: d)
     }
 
     nonisolated static func folderSize(_ url: URL) -> Int64 {

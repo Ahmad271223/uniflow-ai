@@ -679,6 +679,9 @@ final class AuditRunde11AppTests: XCTestCase {
         let locked = journal.appendingPathComponent(LocalJournal.directory(documentID: "gesperrt", namespace: .local) + "/pages")
         try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        // Stand des Builds: Datum der App-Datei (Testbuilds haben alle dieselbe Versionsnummer)
+        XCTAssertNotNil(Diagnostics.buildStamp())
+        XCTAssertNil(Diagnostics.buildStamp(URL(fileURLWithPath: "/gibt/es/nicht")))
         let d = Diagnostics.collect(journal: journal, cache: cache, appVersion: "1.0 (1)", osVersion: "26.0")
         XCTAssertEqual(d.unreadable, ["local/gesperrt"], "nicht still uebersprungen")
         XCTAssertEqual(d.unsentPages, 1)

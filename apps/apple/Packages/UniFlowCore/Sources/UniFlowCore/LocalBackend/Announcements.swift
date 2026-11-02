@@ -54,7 +54,7 @@ public enum Announcements {
         // "faellt am 12.11. aus", "findet am Do., 12.11. nicht statt": Datum zwischen Verb und Partikel; "kein Tutorium",
         // "keine Vorlesungen", aber nicht "keine Uebungsblaetter"
         ("ausfall", HText.regex(#"f(?:ä|ae)llt\s+(?:[\w.,]+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:[\w.,]+\s+){0,4}nicht\s+statt|"#
-                                + #"\bkeine?\s+(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"#,
+                                + #"\bkeine?\s+[a-zäöüß]*?(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"#,
                                 [.caseInsensitive])),
         ("verlegt", HText.regex(#"verlegt|verschoben|stattdessen|ersatztermin|nachgeholt|nachholtermin"#, [.caseInsensitive])),
         ("raum", HText.regex(#"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"#, [.caseInsensitive])),
@@ -365,20 +365,33 @@ public enum Announcements {
         return d
     }
 
+    /// `dates_for(title, text, posted)`: Tage aus Betreff und Text. Betreff "Vorlesung entfaellt", der Text nennt nur den
+    /// Tag: bei genau einem Tag gilt die Art des Betreffs (Ausfall, Verlegung); mehrere Tage bleiben offen
+    static func datesFor(title: String, text: String, posted: Int) -> [JSONValue] {
+        var dates = extractDates("\(title)\n\(text)", posted: posted)
+        let titleKind = kind(of: title)
+        if dates.count == 1, dates[0]["kind"]?.string == "termin", titleKind == "ausfall" || titleKind == "verlegt", var d = dates[0].object {
+            d["kind"] = .string(titleKind)
+            dates[0] = .object(d)
+        }
+        return dates
+    }
+
+    /// `_posted_day_or_none`: Tag aus den ersten zehn Zeichen, sonst nil
+    static func postedDayOrNil(_ postedAt: String?) -> Int? {
+        guard let p = postedAt else { return nil }
+        let u = Array(p.unicodeScalars)
+        guard u.count >= 10, u.count == 10 || u[10] == "T" || u[10] == " " else { return nil }
+        return BerlinClock.parseISODate(String(String.UnicodeScalarView(u[0..<10])))
+    }
+
     /// `make(aid, source, course_id, title, body_html, author, posted_at, url, discussion)`
     public static func make(id: String, source: String, courseID: String?, title: String, bodyHTML: String, author: String,
                             postedAt: String, url: String?, discussion: String? = nil, today: Int) -> Item {
         let text = htmlToText(bodyHTML)
         let cleanTitle = htmlToText(title)
         let shortTitle = PyText.slice(cleanTitle, 0, 200)
-        var dates = extractDates("\(cleanTitle)\n\(text)", posted: postedDay(postedAt, today: today))
-        // Betreff "Vorlesung entfaellt", der Text nennt nur den Tag ("am 12.11. bin ich auf einer Tagung"): bei genau
-        // einem Tag gilt die Art des Betreffs (Ausfall, Verlegung); mehrere Tage bleiben offen, welcher gemeint ist
-        let titleKind = kind(of: cleanTitle)
-        if dates.count == 1, dates[0]["kind"]?.string == "termin", titleKind == "ausfall" || titleKind == "verlegt", var d = dates[0].object {
-            d["kind"] = .string(titleKind)
-            dates[0] = .object(d)
-        }
+        let dates = datesFor(title: cleanTitle, text: text, posted: postedDay(postedAt, today: today))
         return Item(id: id, source: source, courseID: courseID, title: shortTitle.isEmpty ? "Ankündigung" : shortTitle,
                     text: PyText.slice(text, 0, 6000), author: PyText.slice(author, 0, 120), postedAt: postedAt, url: url,
                     discussion: discussion, dates: dates)
@@ -584,12 +597,14 @@ public enum Announcements {
         let days = out.compactMap { $0["date"]?.string }
         guard let lo = days.min(by: PyText.less), let hi = days.max(by: PyText.less) else { return occ }
         let rows = try c.rows("""
-            SELECT a.id, a.source, a.course_id, a.title, a.url, a.posted_at, a.dates, c.title AS course_title, c.module_id
+            SELECT a.id, a.source, a.course_id, a.title, a.text, a.url, a.posted_at, c.title AS course_title, c.module_id
                                         FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
-                                        WHERE a.course_id IS NOT NULL AND a.dates LIKE '%"ausfall"%' ORDER BY a.posted_at DESC, a.id
+                                        WHERE a.course_id IS NOT NULL ORDER BY a.posted_at DESC, a.id
             """)
+        // Tage mit den Regeln von jetzt neu lesen (die gespeicherten stammen vom Abgleich, evtl. mit aelteren Regeln)
         for r in rows {
-            guard let text = r["dates"]?.string, let parsed = try? JSONValue.parse(Data(text.utf8)), let dates = parsed.array else { continue }
+            guard let posted = postedDayOrNil(r["posted_at"]?.string) else { continue }
+            let dates = datesFor(title: r["title"]?.string ?? "", text: r["text"]?.string ?? "", posted: posted)
             let courseID = r["course_id"] ?? .null
             let moduleID = r["module_id"] ?? .null
             for d in dates {

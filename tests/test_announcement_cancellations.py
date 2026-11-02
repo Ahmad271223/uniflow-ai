@@ -191,3 +191,14 @@ def test_web_marks_cancelled_events():
     assert plan.count("cancelMark(e") == 2 and "cx-unsure" in plan and "el.dataset.cx" in plan
     assert "cancelMark(e)" in home
     assert ".cx-mark" in css and "var(--warn)" in css.split(".cx-mark", 1)[1][:800]
+
+
+def test_compound_cancellation_and_old_stored_dates():
+    """iPad 2.11.2026: "Keine Hörsaalübung am 02.11." galt als Raum-Hinweis (Hörsaal) und war gespeichert; zusammengesetzte
+    Veranstaltungen sind ein Ausfall, und beim Markieren gelten die Regeln von jetzt, nicht der gespeicherte Stand."""
+    from datetime import date
+    from app.announcements import dates_for
+    d = dates_for("Keine Hörsaalübung am 02.11.", "Liebe Studierende, am 02.11. findet keine Hörsaalübungstatt.", date(2026, 10, 26))
+    assert d[0]["date"] == "2026-11-02" and d[0]["kind"] == "ausfall"
+    assert dates_for("Info", "keine Gruppenübungen am 3.11.", date(2026, 10, 26))[0]["kind"] == "ausfall"
+    assert dates_for("Info", "Es gibt keine Übungsblätter am 03.11.", date(2026, 10, 26))[0]["kind"] != "ausfall"

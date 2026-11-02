@@ -31,7 +31,7 @@ KINDS = [  # Reihenfolge = Vorrang
     # "faellt am 12.11. aus", "findet am Do., 12.11. nicht statt": Datum zwischen Verb und Partikel; "kein Tutorium",
     # "keine Vorlesungen", aber nicht "keine Uebungsblaetter"
     ("ausfall", r"f(?:ä|ae)llt\s+(?:[\w.,]+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:[\w.,]+\s+){0,4}nicht\s+statt|"
-                r"\bkeine?\s+(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"),
+                r"\bkeine?\s+[a-zäöüß]*?(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"),
     ("verlegt", r"verlegt|verschoben|stattdessen|ersatztermin|nachgeholt|nachholtermin"),
     ("raum", r"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"),
     ("frist", r"abgabe|frist|deadline|einreichen|hochladen|bis\s+(?:zum|spätestens|spaetestens)"),
@@ -237,6 +237,17 @@ def is_news_forum(body_class: str) -> bool:
 # Einheitliche Form und Speicher
 # ----------------------------------------------------------------------------
 
+def _posted_day_or_none(posted_at: str | None) -> date | None:
+    """Tag aus den ersten zehn Zeichen ("2026-11-02", danach "T" oder Leerzeichen), sonst None (wie Swift postedDay)."""
+    s = posted_at or ""
+    if len(s) < 10 or (len(s) > 10 and s[10] not in "T "):
+        return None
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        return None
+
+
 def _posted_date(posted_at: str) -> date:
     try:
         return datetime.fromisoformat(posted_at.replace("Z", "+00:00")).date()
@@ -244,14 +255,20 @@ def _posted_date(posted_at: str) -> date:
         return date.today()
 
 
+def dates_for(title: str, text: str, posted: date) -> list[dict]:
+    """Tage einer Ankuendigung aus Betreff und Text (reiner Text). Betreff "Vorlesung entfaellt", der Text nennt nur den
+    Tag ("am 12.11. bin ich auf einer Tagung"): bei genau einem Tag gilt die Art des Betreffs (Ausfall, Verlegung);
+    mehrere Tage bleiben offen, welcher gemeint ist."""
+    dates = extract_dates(f"{title}\n{text}", posted)
+    if len(dates) == 1 and dates[0]["kind"] == "termin" and _kind(title) in ("ausfall", "verlegt"):
+        dates[0]["kind"] = _kind(title)
+    return dates
+
+
 def make(aid: str, source: str, course_id: str | None, title: str, body_html: str, author: str, posted_at: str,
          url: str | None, discussion: str | None = None) -> dict:
     text = html_to_text(body_html)
-    dates = extract_dates(f"{html_to_text(title)}\n{text}", _posted_date(posted_at))
-    # Betreff "Vorlesung entfaellt", der Text nennt nur den Tag ("am 12.11. bin ich auf einer Tagung"): bei genau einem
-    # Tag gilt die Art des Betreffs (Ausfall, Verlegung); mehrere Tage bleiben offen, welcher gemeint ist
-    if len(dates) == 1 and dates[0]["kind"] == "termin" and _kind(html_to_text(title)) in ("ausfall", "verlegt"):
-        dates[0]["kind"] = _kind(html_to_text(title))
+    dates = dates_for(html_to_text(title), text, _posted_date(posted_at))
     return {"id": aid, "source": source, "course_id": course_id, "title": html_to_text(title)[:200] or "Ankündigung",
             "text": text[:6000], "author": (author or "")[:120], "posted_at": posted_at, "url": url,
             "discussion": discussion, "dates": dates}
@@ -394,14 +411,15 @@ def mark_cancellations(conn, occ: list[dict]) -> list[dict]:
         return occ
     from . import db
     lo, hi = min(o["date"] for o in occ), max(o["date"] for o in occ)
-    rows = db.rows(conn, """SELECT a.id, a.source, a.course_id, a.title, a.url, a.posted_at, a.dates, c.title AS course_title, c.module_id
+    # Tage mit den Regeln von jetzt neu lesen (die gespeicherten stammen vom Abgleich, evtl. mit aelteren Regeln)
+    rows = db.rows(conn, """SELECT a.id, a.source, a.course_id, a.title, a.text, a.url, a.posted_at, c.title AS course_title, c.module_id
                             FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
-                            WHERE a.course_id IS NOT NULL AND a.dates LIKE '%"ausfall"%' ORDER BY a.posted_at DESC, a.id""")
+                            WHERE a.course_id IS NOT NULL ORDER BY a.posted_at DESC, a.id""")
     for r in rows:
-        try:
-            dates = json.loads(r["dates"] or "[]")
-        except ValueError:
+        posted = _posted_day_or_none(r["posted_at"])
+        if posted is None:
             continue
+        dates = dates_for(r["title"] or "", r["text"] or "", posted)
         for d in dates if isinstance(dates, list) else []:
             if not isinstance(d, dict) or d.get("kind") != "ausfall" or not isinstance(d.get("date"), str) or not (lo <= d["date"] <= hi):
                 continue
