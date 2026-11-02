@@ -287,3 +287,20 @@ def test_community_contract_matches_python(hosted, monkeypatch):
     text = json.dumps(stored)
     assert "Bearer" not in text and "Studi-" not in text.replace("<pseudonym>", "").replace("Studi-<8 hex>", "")
     assert "sehr-geheim" not in text.replace('"password": "sehr-geheim-123"', ""), "nur das Beispiel-Passwort der Anfrage"
+
+
+def test_download_liefert_gespeicherten_text_unveraendert(hosted):
+    """Das Ansehen setzt den gespeicherten JSON-Text in die Antwort ein (Lasttest 02.11.2026): Inhalt, Typ und Zaehler
+    stimmen wie beim Einlesen und Neuschreiben, und ein beschaedigter Text kommt nicht als gueltige Antwort an."""
+    from app import community
+    a, ha = _user(hosted, "a2@beispiel.de")
+    b, hb = _user(hosted, "b2@beispiel.de")
+    _own_file(hosted, ha, FP_A); _own_file(hosted, hb, FP_A)
+    pkg = community.sample_package(FP_A, pages=2, display_name="Erika")
+    sid = _j(asgi_call(hosted, "POST", "/api/community/solutions", headers=ha, body=json.dumps({"package": pkg})))[1]["solution_id"]
+    st, hdr, raw = asgi_call(hosted, "GET", f"/api/community/solutions/{sid}", headers=hb)
+    assert st == 200 and json.loads(raw)["package"] == pkg
+    assert dict(hdr).get(b"content-type") == b"application/json"
+    assert json.loads(raw)["solution"]["solution_id"] == sid
+    st, d = _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_A, headers=hb))
+    assert d["solutions"][0]["downloads"] == 1

@@ -30,6 +30,8 @@ services:
       # Keine Arbeiter und kein Zeitplan in den API-Prozessen (uvicorn --workers 2 wuerde beides doppelt starten);
       # das macht der Dienst `jobs` unten. Ueberschreibt den Wert aus .env absichtlich.
       LERNAPP_JOBS: "off"
+      # Zahl der API-Prozesse (Standard 2); bei mehr Kernen UVICORN_WORKERS und API_MEMORY in deploy/.env erhoehen
+      WEB_CONCURRENCY: ${UVICORN_WORKERS:-2}
     volumes:
       - uniflow-data:/data      # accounts.db, secret.key (falls kein LERNAPP_SECRET_KEY), users/<id>/...
       - uniflow-logs:/logs      # access/access-YYYY-MM-DD.log (14 Tage), mail.log
@@ -39,7 +41,7 @@ services:
       resources:
         limits:
           # 2 API-Prozesse je 150–300 MB (Lasttest: 110–140 MB gemessen ohne Browser); kein Chromium in diesem Container
-          memory: 768M
+          memory: ${API_MEMORY:-768M}      # 150-300 MB je API-Prozess: bei UVICORN_WORKERS=32 etwa 10G
         reservations:
           memory: 256M
     stop_grace_period: 30s

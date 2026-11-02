@@ -2,7 +2,9 @@
 Fehler wie beim Konto: {"detail": "...", "code": "..."}."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, HTTPException, Request
+import json
+
+from fastapi import APIRouter, Body, HTTPException, Request, Response
 
 from . import community, config
 
@@ -158,8 +160,10 @@ def leaderboard(request: Request, limit: int = 50):
 def download(request: Request, solution_id: str):
     """Das Paket (verschluesselt) samt Kopfdaten; zaehlt als Download, ausser bei der eigenen Loesung."""
     u = _user(request)
-    pkg, summary = _run(community.get_package, u, solution_id)
-    return {"package": pkg, "solution": summary}
+    raw, summary = _run(community.get_package_raw, u, solution_id)
+    # Das Paket liegt schon als JSON-Text vor: nicht einlesen und neu schreiben, sondern in die Antwort einsetzen
+    body = '{"package":' + raw + ',"solution":' + json.dumps(summary, ensure_ascii=False) + '}'
+    return Response(body, media_type="application/json")
 
 
 @router.delete("/solutions/{solution_id}")
