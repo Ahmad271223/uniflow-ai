@@ -62,6 +62,12 @@ public enum SolutionBuilder {
         return AnnotationDocument(root: .object(root))
     }
 
+    /// Seite aus `appendingNotebook` ("nb-…", "nb2-…")
+    public static func isNotebookKey(_ key: String) -> Bool {
+        key.hasPrefix("nb-") || (key.hasPrefix("nb") && key.dropFirst(2).prefix(while: \.isNumber).count > 0
+                                 && key.dropFirst(2).drop(while: \.isNumber).hasPrefix("-"))
+    }
+
     public static func candidates(_ doc: AnnotationDocument) -> [Candidate] {
         var seen = Set<String>()
         return doc.pageOrder.compactMap { p in

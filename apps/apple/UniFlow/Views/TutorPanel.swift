@@ -58,7 +58,7 @@ struct TutorPanel: View {
             Spacer()
             if !messages.isEmpty {
                 Button("Neu") { messages = []; error = nil }
-                    .ufFont(13.12).accessibilityIdentifier("tutor.reset")
+                    .ufFont(13.12).disabled(busy).accessibilityIdentifier("tutor.reset")
             }
             Button { close() } label: { Image(systemName: "xmark").foregroundStyle(UF.muted) }
                 .accessibilityLabel("KI-Hilfe schließen").accessibilityIdentifier("tutor.close")
@@ -225,6 +225,10 @@ struct TutorPanel: View {
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
                                     sources: r["sources"]?.array ?? []))
         } catch {
+            // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), Eingabe zurueck ins Feld
+            if messages.last?.fromUser == true { messages.removeLast() }
+            input = typed
+            if mode == "check" { checking = true }
             self.error = error.localizedDescription
         }
     }
@@ -293,7 +297,7 @@ struct TutorConnectState: View {
             case .reauth: return ("Die Anmeldung bei ChatGPT ist abgelaufen.", "Neu verbinden")
             case .noSharing: return ("ChatGPT ist verbunden, aber die Freigabe für dein Abo fehlt. Ohne sie laufen keine Anfragen.", "Freigabe nachholen")
             case .switchedOff: return ("ChatGPT ist verbunden, aber „KI-Anfragen über mein ChatGPT“ ist ausgeschaltet.", "Einschalten")
-            case .noModel: return ("ChatGPT ist verbunden, aber es ist noch kein Modell gewählt.", "Modell wählen")
+            case .noModel: return ("ChatGPT ist verbunden, Studora richtet es gerade ein.", "Erneut versuchen")
             case .ready: return ("ChatGPT ist bereit.", nil)
             }
         }

@@ -2366,7 +2366,7 @@
    "shape": "/api/ai/tutor",
    "sources": [
     "UniFlow/Views/Modules/ModulesPage.swift",
-    "UniFlow/Views/TutorSheet.swift"
+    "UniFlow/Views/TutorPanel.swift"
    ],
    "request": {
     "path": "/api/ai/tutor",
@@ -2705,7 +2705,7 @@
    "shape": "/api/flashcards",
    "sources": [
     "UniFlow/Views/Exams/CardsPage.swift",
-    "UniFlow/Views/TutorSheet.swift"
+    "UniFlow/Views/TutorPanel.swift"
    ],
    "request": {
     "path": "/api/flashcards",
@@ -2979,6 +2979,7 @@
    "method": "POST",
    "shape": "/api/notebooks",
    "sources": [
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Views.swift"
    ],

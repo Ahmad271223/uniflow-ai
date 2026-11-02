@@ -12,7 +12,7 @@ public enum UniRules {
     private static let kindTutorial = PyRegex("Tutorium", ignoreCase: true)
     private static let kindOther = PyRegex("Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester", ignoreCase: true)
     private static let leadingNumber = PyRegex(#"^\d+\s+"#)
-    private static let leadingKind = PyRegex(#"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übungen|Übung|Uebung|Tutorium|Fragestunde)\s*(zu|zur|:)?\s*"#, ignoreCase: true)
+    private static let leadingKind = PyRegex(#"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Tutorien|Tutorium|Fragestunde)(?:en|n)?\b\s*(zur|zu|:)?\s*"#, ignoreCase: true)
     private static let trailingQuestions = PyRegex(#"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung).*$"#, ignoreCase: true)
     private static let bracketNote = PyRegex(#"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*)\)"#, ignoreCase: true)
     private static let trailingTranche = PyRegex(#",?\s*Tranche\s*\w+.*$"#, ignoreCase: true)

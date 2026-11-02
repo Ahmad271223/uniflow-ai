@@ -149,7 +149,9 @@ enum AIEndpoints: LocalEndpointModule {
                                                          [.text(fileID)])?["module_id"]
             guard let module, LocalModules.truthy(module), !PyText.strip(query).isEmpty else { return out }
             let res = try await ScriptSearch.search(moduleID: module, query: query, exclude: nil, limit: limit + 2,
-                                                    database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: ctx.ocr.provider)
+                                                    database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: nil)
+            // ohne OCR: die Frage wartet sonst auf die Texterkennung aller Skripte des Moduls; erkannte Seiten aus dem
+            // Hintergrund (Wochentests) stehen schon in page_texts
             for r in res["results"]?.array ?? [] {
                 if r["file_id"]?.string == fileID, Int(r["page"]?.double ?? -1) == page { continue }
                 let title = AIPrompts.truthy(r["title"].map(PyJSON.init)) ? r["title"]! : (r["name"] ?? .null)

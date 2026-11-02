@@ -8,6 +8,31 @@
    "kind": "vorlesung"
   },
   {
+   "title": "Fragestunden zu Testmathematik I",
+   "subject": "Testmathematik I",
+   "kind": "uebung"
+  },
+  {
+   "title": "Hörsaalübungen zu Testmathematik I",
+   "subject": "Testmathematik I",
+   "kind": "hoersaaluebung"
+  },
+  {
+   "title": "Vorlesungen Testmathematik I",
+   "subject": "Testmathematik I",
+   "kind": "vorlesung"
+  },
+  {
+   "title": "Vorlesungsbegleitende Übung Testmathematik I",
+   "subject": "Vorlesungsbegleitende Übung Testmathematik I",
+   "kind": "uebung"
+  },
+  {
+   "title": "Tutorien Testmathematik I",
+   "subject": "Testmathematik I",
+   "kind": "vorlesung"
+  },
+  {
    "title": "Hörsaalübung zu Testmathematik I",
    "subject": "Testmathematik I",
    "kind": "hoersaaluebung"
@@ -39,7 +64,7 @@
   },
   {
    "title": "Uebung zur Testmathematik I",
-   "subject": "r Testmathematik I",
+   "subject": "Testmathematik I",
    "kind": "uebung"
   },
   {
@@ -54,7 +79,7 @@
   },
   {
    "title": "Übungen zur Beispielchemie",
-   "subject": "r Beispielchemie",
+   "subject": "Beispielchemie",
    "kind": "uebung"
   },
   {

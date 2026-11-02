@@ -286,7 +286,8 @@ struct SolutionShareSheet: View {
         spaceKey = spaces.first { $0.key == courseKey }?.key ?? spaces.first?.key ?? ""
         do {
             var s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
-            if let notebook, notebook.file.isNotebook {
+            // nur ein Notizblatt desselben Moduls (z. B. "Leeres Blatt" daneben), nie ein fremdes Notizbuch
+            if let notebook, notebook.file.isNotebook, notebook.file.module_id == store.file.module_id {
                 let part = await notebook.notebookPart(loadImage: ShareExport.serverImageLoader(api))
                 s = s.appendingNotebook(part.document, images: part.images)
             }
@@ -298,7 +299,8 @@ struct SolutionShareSheet: View {
             source = s
             previewImages = try ForeignSolutionLayer.uiImages(all.images)
             draft = prepared
-            selected = prepared.selection
+            // Seiten des Notizblatts nicht vorauswaehlen: mitteilen nur, wenn man sie selbst ankreuzt
+            selected = prepared.selection.filter { !SolutionBuilder.isNotebookKey($0) }
         } catch {
             loadError = (error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht vorbereiten: \(error.localizedDescription)"
         }

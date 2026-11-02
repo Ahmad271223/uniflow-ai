@@ -60,7 +60,8 @@ public enum SearchEndpoints: LocalEndpointModule {
                 text = 0 < page && page <= pages.count ? pages[page - 1] : ""
             }
             return .json(try await ScriptSearch.search(moduleID: module, query: PyText.slice(text, 0, 6000), exclude: id,
-                                                       database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: ctx.ocr.provider))
+                                                       database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: nil))
+            // ohne OCR (Vorschlag beim Oeffnen, Vordergrund): erkannt wird im Hintergrund, die Ergebnisse stehen in page_texts
         }
 
         router.get("/api/files/{file_id}/pagetext") { req, ctx in

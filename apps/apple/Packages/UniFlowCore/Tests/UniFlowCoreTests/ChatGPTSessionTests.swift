@@ -467,3 +467,16 @@ final class ChatGPTSessionTests: XCTestCase {
     }
 }
 #endif
+
+/// Kein Modell waehlen muessen (2.11.2026): Studora nimmt das Hauptmodell des Abos
+final class ChatGPTPreferredModelTests: XCTestCase {
+    func testPicksTheMainChatModel() {
+        XCTAssertEqual(ChatGPTSession.preferredModel(["babbage-002", "gpt-4o-mini", "gpt-5", "gpt-5-2025-08-07", "gpt-4.1", "o3", "gpt-image-1",
+                                                      "gpt-4o-realtime-preview", "text-embedding-3-large"]), "gpt-5")
+        XCTAssertEqual(ChatGPTSession.preferredModel(["gpt-4.1", "gpt-4o", "gpt-10"]), "gpt-10", "Versionen numerisch, nicht alphabetisch")
+        XCTAssertEqual(ChatGPTSession.preferredModel(["o3", "o4-mini", "whisper-1"]), "o3")
+        XCTAssertEqual(ChatGPTSession.preferredModel(["eigenes-modell"]), "eigenes-modell")
+        XCTAssertNil(ChatGPTSession.preferredModel([]))
+        XCTAssertFalse(ChatGPTSession.fallbackModel.isEmpty)
+    }
+}

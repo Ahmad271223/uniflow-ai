@@ -50,6 +50,7 @@ def test_all_events_of_a_module_share_one_community():
         assert sf.community_module_key("luh", name) == c["key"]
         assert sf.community_secret("module", "luh", sf.normalized_course_name(name)).hex() == c["secret_hex"]
     assert sf.community_module_key("luh", " - ") is None
+    assert sf.normalized_course_name("Gru\u0308ndlagen") == "gruendlagen", "zerlegte Umlaute wie in Swift"
 
 
 def test_community_package_opens_with_the_secret_without_the_pdf():

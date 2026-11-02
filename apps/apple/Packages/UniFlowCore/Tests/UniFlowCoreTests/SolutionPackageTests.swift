@@ -675,5 +675,11 @@ final class SolutionNotebookTests: XCTestCase {
         XCTAssertEqual(content.pages.map(\.kind), [.pdf, .blank])
         XCTAssertEqual(content.pages.last?.template, "grid")
         XCTAssertEqual(SolutionBuilder.appendingNotebook(slide, notebook: .empty()).pageOrder.count, 2, "ohne Blatt unveraendert")
+        XCTAssertTrue(SolutionBuilder.isNotebookKey("nb-b1"))
+        XCTAssertTrue(SolutionBuilder.isNotebookKey("nb12-b1"))
+        XCTAssertFalse(SolutionBuilder.isNotebookKey("nbx-b1"))
+        XCTAssertFalse(SolutionBuilder.isNotebookKey("p1"))
+        // zerlegte Umlaute (NFD) ergeben denselben Modulschluessel wie in Python
+        XCTAssertEqual(CommunityKeys.normalizedCourseName("Gru\u{0308}ndlagen"), "gruendlagen")
     }
 }

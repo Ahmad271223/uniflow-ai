@@ -372,6 +372,25 @@ public actor ChatGPTSession {
         return ChatGPTProtocol.outputText(json)
     }
 
+    /// Modell, wenn der Nutzer keins waehlt (Wunsch des Inhabers: einfach das ChatGPT-Konto nutzen, nichts auswaehlen)
+    public static let fallbackModel = "gpt-5"
+
+    /// Hauptmodell aus der Liste des Abos: ein "gpt-"-Chatmodell ohne Spezialisierung (mini, Audio, Bild, Suche ...),
+    /// bevorzugt ohne Datumsangabe, die hoechste Version; sonst ein o-Modell; nil bei leerer Liste
+    public static func preferredModel(_ ids: [String]) -> String? {
+        let special = ["mini", "nano", "audio", "realtime", "search", "transcribe", "tts", "image", "embedding", "instruct",
+                       "moderation", "dall", "whisper", "codex", "preview", "davinci", "babbage", "computer", "vision", "oss"]
+        func plain(_ id: String) -> Bool { let l = id.lowercased(); return !special.contains { l.contains($0) } }
+        func dated(_ id: String) -> Bool { id.range(of: #"\d{4}-\d{2}-\d{2}|-\d{4}$"#, options: .regularExpression) != nil }
+        let newestFirst: (String, String) -> Bool = { a, b in
+            if dated(a) != dated(b) { return !dated(a) }
+            return a.compare(b, options: .numeric) == .orderedDescending
+        }
+        if let g = ids.filter({ $0.lowercased().hasPrefix("gpt-") && plain($0) }).sorted(by: newestFirst).first { return g }
+        if let o = ids.filter({ $0.range(of: #"^o\d"#, options: .regularExpression) != nil && plain($0) }).sorted(by: newestFirst).first { return o }
+        return ids.first
+    }
+
     /// Modelle des Abos (`GET /v1/models`), 10 Minuten gemerkt
     public func models(force: Bool = false) async throws -> [String] {
         if !force, let c = modelsCache, now() - c.at < 600 { return c.ids }

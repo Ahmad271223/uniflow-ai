@@ -38,7 +38,7 @@ public enum CommunityKeys {
     public static func normalizedCourseName(_ raw: String) -> String {
         var out = ""
         var pendingSpace = false
-        for ch in raw.lowercased() {
+        for ch in raw.precomposedStringWithCanonicalMapping.lowercased() {      // zerlegte Umlaute wie in Python (NFC)
             let mapped: String
             switch ch {
             case "ä": mapped = "ae"

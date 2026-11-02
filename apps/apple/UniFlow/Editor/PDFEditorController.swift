@@ -593,6 +593,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             return
         }
         parked.append(overlay)
+        // geparkt: zurueck auf Bildschirmaufloesung (gezoomte Kacheln kosten je Seite bis ~130 MB); beim Wiederanzeigen
+        // stellt `pdfView(_:overlayViewFor:)` den aktuellen Zoom ein
+        overlay.setRenderScale(screenScale, screen: screenScale)
         // der Verlauf bleibt: er haengt am Seitenschluessel und wirkt spaeter auf ein neues Overlay oder den Store
         while parked.count > parkedLimit || (!parked.isEmpty && parkedArea > Self.parkedAreaLimit) {
             toolPicker.removeObserver(parked.removeFirst().canvas)
@@ -798,6 +801,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
+        overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
         if overlay.loaded { commitPendingUndo(overlay) }
         if overlay.deferredReload {
             overlay.deferredReload = false
@@ -1064,7 +1068,14 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func restorePicker() {
         guard ownsToolPicker, pickerWanted, writable, view.window != nil, !toolPicker.isVisible || !anchor.isFirstResponder else { return }
-        guard !(objects.isActive && objects.tool == .markup), !(UIResponder.uf_current is UITextInput) else { return }
+        guard !(objects.isActive && objects.tool == .markup) else { return }
+        // nur zurueckholen, wenn niemand sonst den Fokus haelt (oder die PDF-Ansicht ihn beim Antippen nahm): ein
+        // geoeffnetes Menue ("Seite einfügen"), ein Textfeld oder ein Popover wuerde sonst sofort wieder geschlossen
+        if let current = UIResponder.uf_current {
+            guard let v = current as? UIView, v.isDescendant(of: view), !(current is UITextInput) else { return }
+        }
+        // ein Blatt (Teilen, Gliederung, Marker ...) liegt darueber: die Palette nicht darueberlegen
+        guard view.window?.rootViewController?.presentedViewController == nil else { return }
         anchor.becomeFirstResponder()
     }
 }

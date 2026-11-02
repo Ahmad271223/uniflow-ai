@@ -94,8 +94,9 @@ def derive_key(pdf: bytes, salt: bytes, info: bytes) -> bytes:
 
 def normalized_course_name(raw: str) -> str:
     """Wie CommunityKeys.normalizedCourseName: Kleinbuchstaben, Umlaute ausgeschrieben, nur Buchstaben und Ziffern."""
+    import unicodedata
     out, pending = "", False
-    for ch in raw.lower():
+    for ch in unicodedata.normalize("NFC", raw).lower():          # zerlegte Umlaute wie in Swift (Graphem-Cluster)
         mapped = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}.get(ch) or (ch if ch.isalnum() else "")
         if not mapped:
             pending = bool(out)

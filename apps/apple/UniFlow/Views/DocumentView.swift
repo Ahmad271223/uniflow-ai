@@ -468,7 +468,10 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
-                      pencilOnly: pencilOnly, canEdit: canWrite, onStore: { companionStore = $0 }) {
+                      pencilOnly: pencilOnly, canEdit: canWrite, onStore: { s, shown in
+                          // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
+                          if shown { companionStore = s } else if companionStore === s { companionStore = nil }
+                      }) {
             companion = nil
         }
         .id(c.id + "-" + String(c.pdfPage ?? -1))
@@ -1043,12 +1046,12 @@ struct CompanionView: View {
     let undoManager: UndoManager
     let pencilOnly: Bool
     let canEdit: Bool
-    /// meldet das offene Dokument an die Hauptansicht (nil beim Schliessen)
-    var onStore: (DocumentStore?) -> Void = { _ in }
+    /// meldet das offene Dokument an die Hauptansicht (sichtbar ja/nein)
+    var onStore: (DocumentStore, Bool) -> Void = { _, _ in }
     let onClose: () -> Void
 
     init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
-         pencilOnly: Bool, canEdit: Bool = true, onStore: @escaping (DocumentStore?) -> Void = { _ in }, onClose: @escaping () -> Void) {
+         pencilOnly: Bool, canEdit: Bool = true, onStore: @escaping (DocumentStore, Bool) -> Void = { _, _ in }, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
@@ -1085,11 +1088,11 @@ struct CompanionView: View {
         .task { await store.load() }
         .onAppear {
             store.setShown(true)
-            onStore(store)
+            onStore(store, true)
         }
         .onDisappear {
             store.setShown(false)
-            onStore(nil)
+            onStore(store, false)
             Task { await store.pause() }
         }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
