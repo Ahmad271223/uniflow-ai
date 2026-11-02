@@ -22,7 +22,8 @@
     "status": "teilnahme",
     "permanent_skip": false,
     "exception": null,
-    "source": "studip-kalender"
+    "source": "studip-kalender",
+    "session_topic": "Sensoren"
    },
    {
     "event_id": null,
@@ -60,7 +61,8 @@
     "status": "teilnahme",
     "permanent_skip": false,
     "exception": null,
-    "source": "studip-kalender"
+    "source": "studip-kalender",
+    "session_topic": "Kapitel 3: Messfehler und Unsicherheit"
    },
    {
     "event_id": null,
@@ -95,10 +97,54 @@
     "room": "Raum 002",
     "lecturer": null,
     "course_id": "w-rt-26",
-    "status": "teilnahme",
+    "status": "ausfall",
     "permanent_skip": false,
-    "exception": null,
-    "source": "studip-kalender"
+    "exception": "cancelled",
+    "source": "studip-kalender",
+    "session_topic": "Exkursion entfaellt",
+    "cancel_hint": {
+     "announcement_id": null,
+     "kind": "termin",
+     "title": "Testregelungstechnik II",
+     "snippet": "Exkursion entfaellt",
+     "url": null,
+     "source": "studip",
+     "course_title": "Testregelungstechnik II",
+     "posted_at": null,
+     "confirmed": true,
+     "label": "fällt aus"
+    }
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-rt-do",
+    "date": "2026-11-19",
+    "start": "10:00",
+    "end": "12:00",
+    "title": "Testregelungstechnik II",
+    "kind": "vorlesung",
+    "module_id": 2,
+    "module_name": "Testregelungstechnik II",
+    "color": "#e95905",
+    "room": "Raum 029",
+    "lecturer": null,
+    "course_id": "w-rt-26",
+    "status": "ausfall",
+    "permanent_skip": false,
+    "exception": "cancelled",
+    "source": "studip-kalender",
+    "cancel_hint": {
+     "announcement_id": null,
+     "kind": "termin",
+     "title": "Testregelungstechnik II",
+     "snippet": null,
+     "url": null,
+     "source": "studip",
+     "course_title": "Testregelungstechnik II",
+     "posted_at": null,
+     "confirmed": true,
+     "label": "fällt aus"
+    }
    }
   ],
   "occurrences": [
@@ -120,7 +166,8 @@
     "exception": null,
     "source": "studip",
     "note": "Skript mitbringen",
-    "studip_id": "e-ms-1"
+    "studip_id": "e-ms-1",
+    "session_topic": "Sensoren"
    },
    {
     "event_id": null,
@@ -158,7 +205,8 @@
     "status": "teilnahme",
     "permanent_skip": false,
     "exception": null,
-    "source": "studip-kalender"
+    "source": "studip-kalender",
+    "session_topic": "Kapitel 3: Messfehler und Unsicherheit"
    },
    {
     "event_id": null,
@@ -193,10 +241,23 @@
     "room": "Raum 002",
     "lecturer": null,
     "course_id": "w-rt-26",
-    "status": "teilnahme",
+    "status": "ausfall",
     "permanent_skip": false,
-    "exception": null,
-    "source": "studip-kalender"
+    "exception": "cancelled",
+    "source": "studip-kalender",
+    "session_topic": "Exkursion entfaellt",
+    "cancel_hint": {
+     "announcement_id": null,
+     "kind": "termin",
+     "title": "Testregelungstechnik II",
+     "snippet": "Exkursion entfaellt",
+     "url": null,
+     "source": "studip",
+     "course_title": "Testregelungstechnik II",
+     "posted_at": null,
+     "confirmed": true,
+     "label": "fällt aus"
+    }
    },
    {
     "event_id": 5,
@@ -250,7 +311,20 @@
     "status": "ausfall",
     "permanent_skip": false,
     "exception": "cancelled",
-    "source": "studip"
+    "source": "studip",
+    "studip_id": "e-rt-do",
+    "cancel_hint": {
+     "announcement_id": null,
+     "kind": "termin",
+     "title": "Testregelungstechnik II",
+     "snippet": null,
+     "url": null,
+     "source": "studip",
+     "course_title": "Testregelungstechnik II",
+     "posted_at": null,
+     "confirmed": true,
+     "label": "fällt aus"
+    }
    }
   ],
   "busy_2026_11_18": [
@@ -269,18 +343,32 @@
     "campus": true
    },
    {
-    "start": 795,
-    "end": 855,
-    "kind": "event",
-    "title": "Testregelungstechnik II",
-    "campus": true
-   },
-   {
     "start": 1080,
     "end": 1170,
     "kind": "event",
     "title": "Testlerngruppe",
     "campus": true
+   }
+  ],
+  "course_context": [
+   {
+    "module_id": 1,
+    "lecture_end": "2026-11-20T12:00:00",
+    "text": "Kursbeschreibung: Grundlagen der Messtechnik: Messfehler, Sensoren, Messketten.\nHinweise zum Kurs: Anmeldung zur Übung bis 01.11.\nSitzung am 18.11.: Kapitel 3: Messfehler und Unsicherheit"
+   },
+   {
+    "module_id": 1,
+    "lecture_end": "2026-11-10T12:00:00",
+    "text": "Kursbeschreibung: Grundlagen der Messtechnik: Messfehler, Sensoren, Messketten.\nHinweise zum Kurs: Anmeldung zur Übung bis 01.11."
+   },
+   {
+    "courses": [
+     "w-ms-26",
+     "w-rt-26"
+    ],
+    "start": "2026-11-16",
+    "end": "2026-11-22",
+    "text": "Sitzung am 16.11.: Sensoren"
    }
   ]
  },
@@ -498,7 +586,9 @@
      "type": "courses",
      "attributes": {
       "title": "Testmesstechnik I",
-      "course-number": "32975"
+      "course-number": "32975",
+      "description": "<p>Grundlagen der <b>Messtechnik</b>:&nbsp;Messfehler,\n Sensoren.</p>",
+      "miscellaneous": null
      },
      "relationships": {
       "start-semester": {
@@ -553,7 +643,9 @@
     "number": "32975",
     "semester": "WiSe 2024/25",
     "semester_end": "WiSe 2024/25",
-    "semester_ends_at": "2025-03-31T23:59:59+02:00"
+    "semester_ends_at": "2025-03-31T23:59:59+02:00",
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "w-offen",
@@ -561,7 +653,9 @@
     "number": null,
     "semester": "WiSe 2024/25",
     "semester_end": "unbegrenzt",
-    "semester_ends_at": null
+    "semester_ends_at": null,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "w-ohne",
@@ -569,7 +663,9 @@
     "number": null,
     "semester": "WiSe 2026/27",
     "semester_end": null,
-    "semester_ends_at": null
+    "semester_ends_at": null,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "w-neu",
@@ -577,7 +673,9 @@
     "number": "32975",
     "semester": "WiSe 2026/27",
     "semester_end": "WiSe 2026/27",
-    "semester_ends_at": "2027-03-31T23:59:59+02:00"
+    "semester_ends_at": "2027-03-31T23:59:59+02:00",
+    "description": "Grundlagen der Messtechnik: Messfehler,\nSensoren.",
+    "miscellaneous": ""
    }
   ]
  },
@@ -828,7 +926,7 @@
    "params": []
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-rt-1",
     "w-rt-26",
@@ -836,11 +934,13 @@
     "2026-11-18T11:30:00",
     "2026-11-18T13:00:00",
     "Raum 002",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-rt-2",
     "w-rt-26",
@@ -848,11 +948,13 @@
     "2026-11-18T13:15:00",
     "2026-11-18T14:15:00",
     "Raum 002",
+    "Exkursion entfaellt",
+    1,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-mt-1",
     "w-mt-26",
@@ -860,11 +962,13 @@
     "2026-11-18T10:00:00",
     "2026-11-18T10:45:00",
     "Raum E214: Großer Physiksaal",
+    "Kapitel 3: Messfehler und Unsicherheit",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-mt-24",
     "w-mt-24",
@@ -872,11 +976,13 @@
     "2024-11-20T10:00:00",
     "2024-11-20T10:45:00",
     "Raum E214: Großer Physiksaal",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ue-a",
     "w-ue-26",
@@ -884,11 +990,13 @@
     "2026-11-16T16:30:00",
     "2026-11-16T18:15:00",
     "Raum F303: Testsaal",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ue-b",
     "w-ue-26",
@@ -896,11 +1004,13 @@
     "2026-11-16T16:30:00",
     "2026-11-16T18:15:00",
     "Raum 031: e-Classroom",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ue-c",
     "w-ue-26",
@@ -908,11 +1018,13 @@
     "2026-11-16T16:30:00",
     "2026-11-16T18:15:00",
     "Raum F102",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ue-x",
     "w-ue-26",
@@ -920,11 +1032,13 @@
     "2026-11-17T08:00:00",
     "2026-11-17T09:30:00",
     "Raum B227",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ms-1",
     "w-ms-26",
@@ -932,11 +1046,13 @@
     "2026-11-16T15:30:00",
     "2026-11-16T17:00:00",
     "Raum 003",
+    "Sensoren",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ms-0",
     "w-ms-26",
@@ -944,11 +1060,13 @@
     "2026-11-09T15:30:00",
     "2026-11-09T17:00:00",
     "Raum 003",
+    "",
+    0,
     "2026-10-28T08:00:00"
    ]
   },
   {
-   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
    "params": [
     "e-ms-2",
     "w-ms-26",
@@ -956,7 +1074,45 @@
     "2026-11-30T15:30:00",
     "2026-11-30T17:00:00",
     "Raum 003",
+    "",
+    0,
     "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "e-ue-z",
+    "w-ue-26",
+    "Termin",
+    "2026-11-17T08:00:00",
+    "2026-11-17T09:30:00",
+    "Raum B227",
+    "",
+    1,
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "e-rt-do",
+    "w-rt-26",
+    "Termin",
+    "2026-11-19T10:00:00",
+    "2026-11-19T12:00:00",
+    "Raum 029",
+    "",
+    1,
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "UPDATE courses SET description=?, miscellaneous=? WHERE id=?",
+   "params": [
+    "Grundlagen der Messtechnik: Messfehler, Sensoren, Messketten.",
+    "Anmeldung zur Übung bis 01.11.",
+    "w-mt-26"
    ]
   },
   {
@@ -1019,6 +1175,13 @@
    "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
    "params": [
     "e-ms-2",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-rt-do",
     "2026-10-27T19:07:13"
    ]
   },

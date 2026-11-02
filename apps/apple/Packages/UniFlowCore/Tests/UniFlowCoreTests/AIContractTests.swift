@@ -57,8 +57,23 @@ final class AIContractTests: XCTestCase {
             if case .array(let src)? = g(a, "sources") { sources = src }
             let p = AIPrompts.tutor(mode: s(a, "mode"), pageText: s(a, "page_text"), selection: s(a, "selection"), question: s(a, "question"),
                                     ownSolution: s(a, "own_solution"), course: s(a, "course"), fileName: s(a, "file_name"),
-                                    page: g(a, "page"), sources: sources, history: AIPrompts.tutorHistory(g(a, "history")))
+                                    page: g(a, "page"), sources: sources, history: AIPrompts.tutorHistory(g(a, "history")),
+                                    studip: s(a, "studip"))
             same(p, s(c, "prompt"), "Tutor \(i) \(s(a, "mode"))")
+        }
+        XCTAssertTrue(cases.contains { PyText.contains(s($0, "prompt"), "AUS STUD.IP") }, "Fall mit Stud.IP-Kontext")
+    }
+
+    /// Kontextblock aus Stud.IP (`ai.studip_context`, 02.11.2026): Kursbeschreibung, Sonstiges, Sitzungsthemen, gekuerzt
+    func testStudIPContextMatchesPython() throws {
+        let cases = list(g(try contract(), "prompts"), "studip_context")
+        XCTAssertGreaterThanOrEqual(cases.count, 4)
+        for (i, c) in cases.enumerated() {
+            let a = g(c, "in")
+            func opt(_ k: String) -> String? { if case .string(let t)? = g(a, k) { return t }; return nil }
+            let sessions = list(a, "sessions").map { (date: s($0, "date"), topic: s($0, "topic")) }
+            same(AIPrompts.studipContext(courseDescription: opt("course_desc"), miscellaneous: opt("misc"), sessions: sessions),
+                 s(c, "out"), "Stud.IP-Kontext \(i)")
         }
     }
 

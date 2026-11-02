@@ -12,7 +12,7 @@ import Foundation
 // (store_events/store_schedule_entries schreiben nur dazu) ersetzt das Geraet seine Abbilder, damit in Stud.IP
 // Entferntes verschwindet; entfernt wird deshalb nur, was eine vollstaendig lesbare Antwort nicht mehr enthaelt.
 
-/// Einzeltermin eines Kurses (course-events) wie fetch_events in app/studip_sync.py.
+/// Einzeltermin eines Kurses (course-events) wie fetch_events/event_from_studip in app/studip_sync.py.
 public struct StudIPCourseEvent: Sendable, Equatable {
     public let id: String
     public let courseID: String
@@ -22,24 +22,31 @@ public struct StudIPCourseEvent: Sendable, Equatable {
     public let end: String
     /// erster Ort bis zum ersten Komma
     public let room: String
+    /// Sitzungsthema (Attribut `description`, Annahme fuer Stud.IP 6.x) als Text wie `studip_text`; "" ohne Thema
+    public let description: String
+    /// in Stud.IP abgesagt (`is-cancelled`): seit 02.11.2026 gespeichert, im Planer ein bestaetigter Ausfall
+    public let cancelled: Bool
 
-    public init(id: String, courseID: String, title: String, start: String, end: String, room: String) {
+    public init(id: String, courseID: String, title: String, start: String, end: String, room: String, description: String = "",
+                cancelled: Bool = false) {
         self.id = id
         self.courseID = courseID
         self.title = title
         self.start = start
         self.end = end
         self.room = room
+        self.description = description
+        self.cancelled = cancelled
     }
 
-    /// `data` von courses/{id}/events; abgesagte Termine (`is-cancelled`) fehlen wie auf dem PC
+    /// `data` von courses/{id}/events, abgesagte Termine mit `cancelled`
     public static func parse(_ data: [JSONValue], courseID: String) -> [StudIPCourseEvent] {
         read(data, courseID: courseID).events
     }
 
     /// Gelesene Einzeltermine eines Kurses und was sich nicht lesen liess. Lesbar ist ein Termin mit Kennung und
-    /// Beginn/Ende als Datum mit Uhrzeit; abgesagte zaehlen nicht (sie fehlen wie auf dem PC). Doppelte Kennungen
-    /// (z. B. Ueberlappung zweier Seiten) zaehlen einmal.
+    /// Beginn/Ende als Datum mit Uhrzeit; abgesagte zaehlen mit `cancelled` (Entscheidung des Inhabers 02.11.2026,
+    /// vorher fehlten sie wie auf dem PC). Doppelte Kennungen (z. B. Ueberlappung zweier Seiten) zaehlen einmal.
     public struct Read: Sendable, Equatable {
         public var events: [StudIPCourseEvent] = []
         /// Kennungen, deren Termin sich nicht lesen liess: ihr gespeicherter Stand bleibt
@@ -58,7 +65,6 @@ public struct StudIPCourseEvent: Sendable, Equatable {
             guard let id = e["id"]?.string, !id.isEmpty else { out.withoutID += 1; continue }
             guard seen.insert(id).inserted else { continue }
             let a = e["attributes"]
-            if LocalModules.truthy(a?["is-cancelled"]) { continue }
             func text(_ k: String) -> String { a?[k]?.string ?? "" }
             let start = PyText.slice(text("start"), 0, 19), end = PyText.slice(text("end"), 0, 19)
             guard LocalTimetableImport.isoDateTime(.string(start)) != nil, LocalTimetableImport.isoDateTime(.string(end)) != nil else {
@@ -66,9 +72,29 @@ public struct StudIPCourseEvent: Sendable, Equatable {
                 continue
             }
             let room = text("location").split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-            out.events.append(StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: start, end: end, room: PyText.strip(room)))
+            out.events.append(StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: start, end: end, room: PyText.strip(room),
+                                                description: StudIPText.clean(a?["description"]),
+                                                cancelled: LocalModules.truthy(a?["is-cancelled"])))
         }
         return out
+    }
+}
+
+/// Texte aus Stud.IP (Kursbeschreibung, Sitzungsthema) wie `studip_text` in app/studip_sync.py: HTML oder Text wie eine
+/// Ankuendigung (`Announcements.htmlToText`), gekuerzt; kein Text (fehlt, null, keine Zeichenkette) ist "".
+public enum StudIPText {
+    /// `STUDIP_TEXT_CHARS`
+    public static let maxChars = 2000
+
+    public static func clean(_ v: JSONValue?) -> String {
+        guard case .string(let s)? = v else { return "" }
+        return PyText.slice(Announcements.htmlToText(s), 0, maxChars)
+    }
+
+    /// `course_texts`: Feld vorhanden (auch null) -> Text, fehlt es (aeltere Stud.IP-Fassung) -> nil
+    static func field(_ attributes: JSONValue?, _ key: String) -> String? {
+        guard let o = attributes?.object, let v = o[key] else { return nil }
+        return clean(v)
     }
 }
 
@@ -84,12 +110,11 @@ extension StudIPClient {
         return StudIPCourseEvent.read(data, courseID: courseID)
     }
 
-    /// Ankuendigungen (News) eines Kurses wie `fetch_news` (courses/{id}/news, eine Seite mit 100). Nur lesend.
-    /// Ohne Liste `data` (Antwort unbrauchbar) ein Fehler: der Bestand des Kurses bleibt, statt geloescht zu werden.
+    /// Ankuendigungen (News) eines Kurses wie `fetch_news` (courses/{id}/news, alle Seiten ueber `links.next`). Nur
+    /// lesend. Ohne Liste `data` auf einer Seite (Antwort unbrauchbar) oder bei einer gescheiterten Folgeseite ein
+    /// Fehler: der Bestand des Kurses bleibt, statt geloescht zu werden.
     public func courseNews(courseID: String) async throws -> [JSONValue] {
-        let path = "jsonapi.php/v1/courses/\(courseID)/news?page[limit]=100"
-        guard let list = try await json(path)["data"]?.array else { throw StudIPError.badResponse("Antwort ohne Liste (\(Self.scrub(path)))") }
-        return list
+        try await list("jsonapi.php/v1/courses/\(courseID)/news?page[limit]=100").data
     }
 
     /// Basis fuer Links in Ankuendigungen (STUDIP_BASE am PC, ohne "/" am Ende)
@@ -289,9 +314,11 @@ public enum StudIPScheduleStore {
             }
             for e in list {
                 try c.execute("""
-                    INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)
-                    ON CONFLICT(id) DO UPDATE SET title=excluded.title, start=excluded.start, end=excluded.end, room=excluded.room, fetched_at=excluded.fetched_at
-                    """, [.text(e.id), .text(e.courseID), .text(e.title), .text(e.start), .text(e.end), .text(e.room), now])
+                    INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(id) DO UPDATE SET title=excluded.title, start=excluded.start, end=excluded.end, room=excluded.room,
+                    description=excluded.description, cancelled=excluded.cancelled, fetched_at=excluded.fetched_at
+                    """, [.text(e.id), .text(e.courseID), .text(e.title), .text(e.start), .text(e.end), .text(e.room), .text(e.description),
+                          .integer(e.cancelled ? 1 : 0), now])
                 events += 1
             }
         }

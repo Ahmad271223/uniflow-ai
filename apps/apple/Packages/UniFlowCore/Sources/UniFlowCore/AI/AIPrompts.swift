@@ -61,9 +61,56 @@ public enum AIPrompts {
         return Array(out.suffix(tutorHistoryTurns))
     }
 
+    // MARK: Kontext aus Stud.IP (`ai.studip_context`)
+
+    /// `ai.STUDIP_CONTEXT_CHARS` / `ai.STUDIP_CONTEXT_SESSIONS`
+    public static let studipContextChars = 700
+    static let studipContextSessions = 3
+
+    /// `_one_line(t, n)`: Leerraum (Leerzeichen, Tab, Zeilenwechsel) verdichtet, aussen ohne Leerzeichen, nach `n`
+    /// Zeichen gekuerzt mit " …"
+    static func oneLine(_ t: String?, _ n: Int) -> String {
+        var u = Array((t ?? "").unicodeScalars)
+        var out: [Unicode.Scalar] = []
+        var gap = false
+        for c in u {
+            if [" ", "\t", "\r", "\n", "\u{0C}", "\u{0B}"].contains(c) { gap = true; continue }
+            if gap, !out.isEmpty { out.append(" ") }
+            gap = false
+            out.append(c)
+        }
+        u = out
+        guard u.count > n else { return String(String.UnicodeScalarView(u)) }
+        var head = Array(u[0..<n])
+        while head.last == " " { head.removeLast() }
+        return String(String.UnicodeScalarView(head)) + " …"
+    }
+
+    /// `ai.studip_context(course_desc, misc, sessions)`: Kursbeschreibung, Sonstiges und bis zu drei Sitzungsthemen
+    /// (`date` ISO, `topic`) als Zeilen, hoechstens `studipContextChars` Zeichen; leer ohne Inhalt
+    public static func studipContext(courseDescription: String?, miscellaneous: String?, sessions: [(date: String, topic: String)]) -> String {
+        var lines: [String] = []
+        let d = oneLine(courseDescription, 300)
+        if !d.isEmpty { lines.append("Kursbeschreibung: \(d)") }
+        let m = oneLine(miscellaneous, 200)
+        if !m.isEmpty { lines.append("Hinweise zum Kurs: \(m)") }
+        for x in sessions.prefix(studipContextSessions) {
+            let t = oneLine(x.topic, 200)
+            guard !t.isEmpty else { continue }
+            let day = Array(x.date.unicodeScalars)
+            if day.count >= 10 {
+                lines.append("Sitzung am \(PyText.slice(x.date, 8, 10)).\(PyText.slice(x.date, 5, 7)).: \(t)")
+            } else {
+                lines.append("Sitzung: \(t)")
+            }
+        }
+        return head(lines.joined(separator: "\n"), studipContextChars)
+    }
+
+    /// `studip` (2.11.2026): Kursbeschreibung und Sitzungsthemen der Woche (`studipContext`), nur wenn vorhanden
     public static func tutor(mode: String, pageText: String, selection: String = "", question: String = "", ownSolution: String = "",
                              course: String = "", fileName: String = "", page: PyJSON? = nil, sources: [PyJSON]? = nil,
-                             history: [(role: String, text: String)] = []) -> String {
+                             history: [(role: String, text: String)] = [], studip: String = "") -> String {
         var parts = ["Kurs: \(course)", "Datei: \(fileName)" + (truthy(page) ? ", Seite \(str(page))" : ""), "",
                      "AUFGABE: \(tutorInstruction(mode))"]
         if !PyText.strip(selection).isEmpty {
@@ -80,6 +127,10 @@ public enum AIPrompts {
         }
         if !PyText.strip(question).isEmpty {
             parts += ["", "MEINE FRAGE: \(head(PyText.strip(question), 1000))"]
+        }
+        if !PyText.strip(studip).isEmpty {
+            parts += ["", "AUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle):",
+                      head(PyText.strip(studip), studipContextChars)]
         }
         let content = head(PyText.strip(pageText), 9000)
         parts += ["", "SEITENINHALT (Kontext):", "<<<", content.isEmpty ? "[kein Text extrahierbar]" : content, ">>>"]

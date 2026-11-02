@@ -108,7 +108,8 @@ final class TimetableLocalAppTests: XCTestCase {
         var progress: [String] = []
         let out = await StudIPScheduleSync(host: h).run(client: client, userID: "u-test", courses: Self.courses) { progress.append($0) }
         XCTAssertEqual(progress, ["Stundenplan wird geladen …"])
-        XCTAssertEqual(out.result, StudIPScheduleResult(newEvents: 8, pendingGroups: 3, cycles: 8, events: 7))
+        // events: 8 mit dem in Stud.IP abgesagten Termin (seit 02.11.2026 gespeichert, im Planer "fällt aus")
+        XCTAssertEqual(out.result, StudIPScheduleResult(newEvents: 8, pendingGroups: 3, cycles: 8, events: 8))
         // ohne users/{id}/events.ics (404 wie eine alte Stud.IP-Fassung): bisherige Regel mit Hinweis
         // Fixture: ein Termin ohne Kennung, ein eigener Eintrag ohne Uhrzeit (Pruefbericht 382, 421): genannt, nie still verworfen
         XCTAssertEqual(out.summary, ["8 Stundenplan-Termine", "Übungsgruppen zur Auswahl im Stundenplan", "Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt", "2 Stundenplan-Einträge aus Stud.IP nicht lesbar"])

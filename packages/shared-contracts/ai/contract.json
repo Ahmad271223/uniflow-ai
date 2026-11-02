@@ -171,6 +171,142 @@
      "sources": []
     },
     "prompt": "Kurs: K\nDatei: f.pdf\n\nAUFGABE: Gib NUR Hinweise zur Loesung der Aufgabe, keine fertige Loesung. Maximal 3 Hinweise, vom allgemeinen zum konkreten.\n\nMARKIERTER TEXT:\n<<<\nmarkiert\n>>>\n\nSEITENINHALT (Kontext):\n<<<\nAufgabe 2\n>>>"
+   },
+   {
+    "in": {
+     "mode": "explain",
+     "page_text": "Satz von Bolzano",
+     "course": "Testmathe I",
+     "file_name": "vl05.pdf",
+     "page": 2,
+     "sources": [
+      {
+       "n": 1,
+       "title": "Testskript Kapitel 2",
+       "page": 4,
+       "current": true,
+       "snippet": "wird nicht angehaengt"
+      },
+      {
+       "n": 2,
+       "name": "vl03.pdf",
+       "page": 12,
+       "snippet": "Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert "
+      },
+      {
+       "n": 3,
+       "title": "Uebungsblatt 3",
+       "page": 1
+      }
+     ],
+     "studip": "  Kursbeschreibung: Analysis fuer Ingenieure\nSitzung am 03.11.: Stetigkeit ä€😀  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "prompt": "Kurs: Testmathe I\nDatei: vl05.pdf, Seite 2\n\nAUFGABE: Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.\n\nAUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle):\nKursbeschreibung: Analysis fuer Ingenieure\nSitzung am 03.11.: Stetigkeit ä€😀  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\nSEITENINHALT (Kontext):\n<<<\nSatz von Bolzano\n>>>\n\nQUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als [Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen:\n[1] Testskript Kapitel 2, Seite 4 (diese Seite)\n[2] vl03.pdf, Seite 12: Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert \n[3] Uebungsblatt 3, Seite 1"
+   },
+   {
+    "in": {
+     "mode": "ask",
+     "page_text": "Aufgabe",
+     "question": "Warum?",
+     "course": "K",
+     "file_name": "f.pdf",
+     "studip": " \n "
+    },
+    "prompt": "Kurs: K\nDatei: f.pdf\n\nAUFGABE: Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.\n\nMEINE FRAGE: Warum?\n\nSEITENINHALT (Kontext):\n<<<\nAufgabe\n>>>"
+   }
+  ],
+  "studip_context": [
+   {
+    "in": {
+     "course_desc": "Grundlagen der Messtechnik:\n  Messfehler,\tSensoren.",
+     "misc": "Anmeldung bis 01.11.",
+     "sessions": [
+      {
+       "date": "2026-11-03",
+       "topic": "Kapitel 3"
+      },
+      {
+       "date": "2026-11-05",
+       "topic": "  "
+      },
+      {
+       "date": "2026-11-06T10:00:00",
+       "topic": "Sensoren\nund Messketten"
+      },
+      {
+       "date": "",
+       "topic": "ohne Datum"
+      },
+      {
+       "date": "2026-11-09",
+       "topic": "zu viel"
+      }
+     ]
+    },
+    "out": "Kursbeschreibung: Grundlagen der Messtechnik: Messfehler, Sensoren.\nHinweise zum Kurs: Anmeldung bis 01.11.\nSitzung am 03.11.: Kapitel 3\nSitzung am 06.11.: Sensoren und Messketten"
+   },
+   {
+    "in": {
+     "course_desc": "ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ",
+     "misc": null,
+     "sessions": [
+      {
+       "date": "2026-11-03",
+       "topic": "Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema "
+      }
+     ]
+    },
+    "out": "Kursbeschreibung: ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 Wort ä€😀 …\nSitzung am 03.11.: Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Thema Th …"
+   },
+   {
+    "in": {
+     "course_desc": "",
+     "misc": "  ",
+     "sessions": []
+    },
+    "out": ""
+   },
+   {
+    "in": {
+     "course_desc": null,
+     "misc": "Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis ",
+     "sessions": [
+      {
+       "date": "2026-11-03",
+       "topic": "T"
+      },
+      {
+       "date": "2026-11-03",
+       "topic": "T"
+      },
+      {
+       "date": "2026-11-03",
+       "topic": "T"
+      }
+     ]
+    },
+    "out": "Hinweise zum Kurs: Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis Hinweis …\nSitzung am 03.11.: T\nSitzung am 03.11.: T\nSitzung am 03.11.: T"
+   },
+   {
+    "in": {
+     "course_desc": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx yz",
+     "misc": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+     "sessions": [
+      {
+       "date": "2026-11-01",
+       "topic": "z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z "
+      },
+      {
+       "date": "2026-11-02",
+       "topic": "z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z "
+      },
+      {
+       "date": "2026-11-03",
+       "topic": "z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z "
+      }
+     ]
+    },
+    "out": "Kursbeschreibung: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx …\nHinweise zum Kurs: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\nSitzung am 01.11.: z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z z"
    }
   ],
   "analysis": [

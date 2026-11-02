@@ -343,9 +343,10 @@ enum LocalTimetableImport {
     /// Einzeltermine eines Kurses, dessen Kurszeiten dort ganz fehlen, kommen bis zur Antwort auf die Frage nicht vor;
     /// hat der Nutzer ihn uebernommen, gilt fuer ihn die bisherige Regel ohne Kalender. `clock` fuer `decided_at`.
     static func studipEntries(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [Entry] {
+        // abgesagte Termine zaehlen fuer die Serien nicht (ihre Luecke wird zum Ausfall der Serie, wie vor dem 02.11.2026)
         let rows = try c.rows("""
             SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind FROM studip_events s JOIN courses c ON c.id=s.course_id
-                                        WHERE c.active=1 AND c.kind != 'sonstiges' ORDER BY s.start
+                                        WHERE c.active=1 AND c.kind != 'sonstiges' AND COALESCE(s.cancelled, 0)=0 ORDER BY s.start
             """)
         let allCycles = try StudIPScheduleStore.cycleEntries(c, relevance: false)
         let cycles = try StudIPScheduleStore.relevant(c, allCycles)

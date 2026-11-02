@@ -123,7 +123,8 @@ def test_fetch_courses_reads_start_and_end_semester():
         request = Req()
 
     out = {c["id"]: c for c in studip_sync.fetch_courses(Page())}
-    assert out["c-alt"] == {"id": "c-alt", "title": "Alt Kurs", "number": "1", "semester": "SoSe 2023", "semester_end": "SoSe 2023", "semester_ends_at": "2023-09-30T23:59:59+02:00"}
+    assert out["c-alt"] == {"id": "c-alt", "title": "Alt Kurs", "number": "1", "semester": "SoSe 2023", "semester_end": "SoSe 2023", "semester_ends_at": "2023-09-30T23:59:59+02:00",
+                             "description": None, "miscellaneous": None}
     assert out["c-offen"]["semester_end"] == "unbegrenzt" and out["c-offen"]["semester_ends_at"] is None
     assert out["c-neu"]["semester_ends_at"].startswith("2027-03-31")
 

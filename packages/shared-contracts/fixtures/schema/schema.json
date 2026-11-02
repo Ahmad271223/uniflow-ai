@@ -110,7 +110,9 @@
           {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "semester_end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "semester_ends_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+          {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "description", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "miscellaneous", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -464,7 +466,9 @@
           {"name": "start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "room", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "description", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "cancelled", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -763,7 +767,7 @@
     ["weekly_mode", "marker"]
   ],
   "courses": [
-    {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0}
+    {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0, "description": null, "miscellaneous": null}
   ],
   "terms": [
     {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}

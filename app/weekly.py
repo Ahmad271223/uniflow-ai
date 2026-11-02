@@ -1012,7 +1012,11 @@ def build_context(conn, plan: dict, cands: dict, missing: list[str], n_questions
     from . import studip_texts
     query = topic or " ".join(x["text"] for x in lec[:3])[:700]
     studip = studip_texts.weekly_lines(conn, plan["module_id"], query)
-    return {"plan": plan, "module": mod, "lecture": lec, "prior": prior, "tasks": tasks, "missing": missing, "topic": topic, "studip": studip,
+    # Kursbeschreibung und Sitzungsthemen der Lehrwoche aus Stud.IP (02.11.2026); leer ohne Inhalt, dann bleibt der
+    # Prompt unveraendert
+    from . import course_context
+    studip_context = course_context.for_module_week(conn, plan["module_id"], plan.get("lecture_end"))
+    return {"plan": plan, "module": mod, "lecture": lec, "prior": prior, "tasks": tasks, "missing": missing, "topic": topic, "studip": studip, "studip_context": studip_context,
             "excluded": cands["excluded"][:50], "n": n_questions or s["questions"], "exam_reuse": (mod or {}).get("exam_reuse") or "paraphrase",
             "material_hash": _h([(x["file_id"], x["page"]) for x in lec], sorted(t["task_id"] for t in tasks), [t["text"] for t in tasks])}
 
@@ -1092,8 +1096,9 @@ def _gen_prompt(ctx: dict, kind: str = "WOCHENTEST", extra: str = "") -> str:
     reuse = ("Altklausuraufgaben duerfen woertlich uebernommen werden (Quelle angeben)." if ctx["exam_reuse"] == "original" else
              "Altklausuraufgaben NICHT woertlich uebernehmen: erstelle thematisch vergleichbare NEUE Aufgaben im gleichen Stil "
              "(andere Zahlen, anderer Kontext) und gib die Altklausur als Quelle an.")
+    studip = ("\nAUS STUD.IP (nur zur Einordnung; Aufgaben nur aus dem Material unten):\n" + ctx["studip_context"]) if ctx.get("studip_context") else ""
     return f"""### AUFTRAG: {kind}
-Modul: {ctx['module']['name']} · Lehrwoche {ctx['plan']['week_no']}{' · Thema: ' + ctx['topic'] if ctx['topic'] else ''}
+Modul: {ctx['module']['name']} · Lehrwoche {ctx['plan']['week_no']}{' · Thema: ' + ctx['topic'] if ctx['topic'] else ''}{studip}
 
 Erstelle GENAU {n} Aufgaben:
 {_rule_lines(ctx, kind, ex, reuse)}

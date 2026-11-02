@@ -109,7 +109,7 @@ final class StudIPCalendarTests: XCTestCase {
         let (d, r) = try await sync(backend)
         XCTAssertNil(d.calendarError)
         XCTAssertEqual(d.calendar?.count, 44, "Kurstermine ab jetzt samt Ausfall-Eintrag, ohne eigenen Termin")
-        XCTAssertEqual(r, StudIPScheduleResult(newEvents: 11, pendingGroups: 0, cycles: 19, events: 113, removedEvents: 0, openQuestions: 2))
+        XCTAssertEqual(r, StudIPScheduleResult(newEvents: 11, pendingGroups: 0, cycles: 19, events: 114, removedEvents: 0, openQuestions: 2))
         let v1 = try await series(backend)
         XCTAssertEqual(v1, withCalendar)
 

@@ -2,10 +2,10 @@
 // Oben links der größte Block mit der wichtigsten Information und dem Hauptknopf, daneben "Heute für dich geplant";
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
-import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=33";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=36";
-import { openEvent } from "./views-tt.js?v=34";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=4";
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=35";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=38";
+import { openEvent } from "./views-tt.js?v=36";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=6";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;

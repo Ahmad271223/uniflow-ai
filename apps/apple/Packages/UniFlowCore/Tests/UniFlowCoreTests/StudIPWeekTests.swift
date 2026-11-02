@@ -54,7 +54,8 @@ final class StudIPWeekTests: XCTestCase {
         let shown: JSONValue = .array(got.map { c in
             ["id": .string(c.id), "title": .string(c.title), "number": c.number.map(JSONValue.string) ?? .null,
              "semester": .string(c.semesterTitle ?? ""), "semester_end": c.semesterEnd.map(JSONValue.string) ?? .null,
-             "semester_ends_at": c.semesterEndsAt.map(JSONValue.string) ?? .null]
+             "semester_ends_at": c.semesterEndsAt.map(JSONValue.string) ?? .null,
+             "description": c.description.map(JSONValue.string) ?? .null, "miscellaneous": c.miscellaneous.map(JSONValue.string) ?? .null]
         })
         XCTAssertNil(jsonDiff(shown, fx["fetch_courses"]?["courses"]), jsonDiff(shown, fx["fetch_courses"]?["courses"]) ?? "")
     }
@@ -130,5 +131,27 @@ final class StudIPWeekTests: XCTestCase {
         XCTAssertFalse(list.contains { $0["studip_id"] == "e-ue-x" }, "andere Gruppe")
         XCTAssertFalse(list.contains { $0["start"] == "13:45" }, "veraltete Serie ohne Stud.IP-Termin")
         XCTAssertEqual(list.filter { $0["date"] == "2026-11-19" && $0["course_id"] == "w-rt-26" }.map { $0["status"]?.string ?? "" }, ["ausfall"])
+        // in Stud.IP abgesagt (02.11.2026): bleibt als bestaetigter Ausfall, andere Gruppe fehlt auch abgesagt
+        let cancelled = try XCTUnwrap(list.first { $0["studip_id"] == "e-rt-2" })
+        XCTAssertEqual(cancelled["status"], "ausfall")
+        XCTAssertEqual(cancelled["cancel_hint"]?["confirmed"], true)
+        XCTAssertEqual(cancelled["cancel_hint"]?["label"], "fällt aus")
+        XCTAssertFalse(list.contains { $0["studip_id"] == "e-ue-z" }, "abgesagter Termin einer anderen Gruppe")
+        XCTAssertEqual(list.first { $0["studip_id"] == "e-mt-1" }?["session_topic"], "Kapitel 3: Messfehler und Unsicherheit")
+
+        // Kontext fuer den Wochentest (course_context)
+        try await backend.context.database.withConnection { c in
+            for x in fx["week"]?["course_context"]?.array ?? [] {
+                let got: String
+                if let ids = x["courses"]?.array {
+                    got = try CourseContext.build(c, courseIDs: ids.compactMap(\.string),
+                                                  from: try XCTUnwrap(BerlinClock.parseISODate(x["start"]?.string ?? "")),
+                                                  to: try XCTUnwrap(BerlinClock.parseISODate(x["end"]?.string ?? "")))
+                } else {
+                    got = try CourseContext.forModuleWeek(c, moduleID: x["module_id"], lectureEnd: x["lecture_end"]?.string)
+                }
+                XCTAssertEqual(got, x["text"]?.string, x.jsonString())
+            }
+        }
     }
 }

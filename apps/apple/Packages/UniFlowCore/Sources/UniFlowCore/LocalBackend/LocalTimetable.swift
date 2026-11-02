@@ -244,10 +244,16 @@ enum LocalTimetable {
         for r in rows {
             guard let st = LocalTimetableImport.isoDateTime(r["start"]), let en = LocalTimetableImport.isoDateTime(r["end"]) else { continue }
             let di = iso(st.day)
-            // andere Gruppe oder Kurs ohne Kalendertermin: nicht im eigenen Kalender
-            if let cover, !cover.shows(id: r["id"]?.string, course: r["course_id"]?.string, start: st, end: en) { continue }
+            // andere Gruppe oder Kurs ohne Kalendertermin: nicht im eigenen Kalender (abgesagte nach dem Zeitschlitz)
+            let cancelled = LocalModules.truthy(r["cancelled"])
+            if let cover {
+                let id = r["id"]?.string, course = r["course_id"]?.string
+                let shown = cancelled ? cover.showsCancelled(id: id, course: course, start: st, end: en)
+                    : cover.shows(id: id, course: course, start: st, end: en)
+                if !shown { continue }
+            }
             let title = r["course_title"] ?? .null
-            let o: [String: JSONValue] = [
+            var o: [String: JSONValue] = [
                 "event_id": .null, "studip_id": r["id"] ?? .null, "date": .string(di), "start": .string(LocalFreeWindows.mh(st.minutes)),
                 "end": .string(LocalFreeWindows.mh(en.minutes)), "title": title,
                 "kind": .string(r["course_kind"] == "uebung" ? "uebung" : UniRules.eventKind(title.string ?? "")),
@@ -255,7 +261,16 @@ enum LocalTimetable {
                 "room": or(r["room"], ""), "lecturer": .null, "course_id": r["course_id"] ?? .null, "status": "teilnahme",
                 "permanent_skip": false, "exception": .null, "source": "studip-kalender",
             ]
-            let k: JSONValue = [o["course_id"] ?? .null, o["date"] ?? .null, o["start"] ?? .null, o["end"] ?? .null]
+            // Sitzungsthema nur, wenn vorhanden (Antwortform sonst unveraendert)
+            if LocalModules.truthy(r["description"]) { o["session_topic"] = r["description"] }
+            if cancelled {
+                // in Stud.IP abgesagt (02.11.2026): bestaetigter Ausfall, die Zeit wird frei (busy_blocks zaehlt nur Teilnahme)
+                o["status"] = "ausfall"
+                o["exception"] = "cancelled"
+                o["cancel_hint"] = studipCancelHint(courseTitle: title, description: r["description"])
+            }
+            // ein abgesagter und ein stattfindender Termin desselben Zeitpunkts bleiben getrennt
+            let k: JSONValue = [o["course_id"] ?? .null, o["date"] ?? .null, o["start"] ?? .null, o["end"] ?? .null, o["status"] ?? .null]
             guard let i = at[k] else {
                 at[k] = out.count
                 out.append(o)
@@ -268,6 +283,14 @@ enum LocalTimetable {
             }
         }
         return out
+    }
+
+    /// `studip_cancel_hint(course_title, description)`: Hinweis am Termin fuer einen in Stud.IP abgesagten Einzeltermin
+    /// in der Form von `Announcements.markCancellations` (Quelle "studip", Art "termin", bestaetigt, "fällt aus")
+    static func studipCancelHint(courseTitle: JSONValue, description: JSONValue?) -> JSONValue {
+        ["announcement_id": .null, "kind": "termin", "title": courseTitle,
+         "snippet": LocalModules.truthy(description) ? (description ?? .null) : .null, "url": .null, "source": "studip",
+         "course_title": courseTitle, "posted_at": .null, "confirmed": true, "label": .string(Announcements.cancelConfirmedLabel)]
     }
 
     /// `_same_slot(o, d)`: Serien-Vorkommen und Stud.IP-Einzeltermin meinen denselben Termin: gleicher Tag und Beginn
@@ -292,7 +315,8 @@ enum LocalTimetable {
     /// ("studip-manual"), eigene und andere Serien bleiben immer. Danach die uebrigen Einzeltermine, alles stabil nach
     /// Datum und Beginn sortiert.
     static func mergeDated(_ c: SQLiteConnection, _ out: [[String: JSONValue]], _ dated: [[String: JSONValue]]) throws -> [JSONValue] {
-        let known = Set(try c.rows("SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events GROUP BY course_id").map { $0["course_id"] ?? .null })
+        let known = Set(try c.rows("SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events WHERE COALESCE(cancelled, 0)=0 GROUP BY course_id")
+            .map { $0["course_id"] ?? .null })
         let cover = try StudIPCalendar.coverage(c)
         let since = cover.map { iso($0.fetched.day) }
         let mine = Set((cover?.courses ?? []).map(JSONValue.string))
@@ -304,6 +328,13 @@ enum LocalTimetable {
                 taken.insert(i)
                 o["studip_id"] = dated[i]["studip_id"] ?? .null
                 if !LocalModules.truthy(o["room"]), LocalModules.truthy(dated[i]["room"]) { o["room"] = dated[i]["room"] }
+                if LocalModules.truthy(dated[i]["session_topic"]), !LocalModules.truthy(o["session_topic"]) { o["session_topic"] = dated[i]["session_topic"] }
+                if let hint = dated[i]["cancel_hint"], LocalModules.truthy(hint), o["exception"] == nil || o["exception"] == .null || o["exception"] == "cancelled" {
+                    // in Stud.IP abgesagt: die Serie faellt an diesem Tag aus (eigene Ausnahmen des Nutzers bleiben)
+                    o["status"] = "ausfall"
+                    o["exception"] = "cancelled"
+                    o["cancel_hint"] = hint
+                }
                 res.append(.object(o))
                 continue
             }

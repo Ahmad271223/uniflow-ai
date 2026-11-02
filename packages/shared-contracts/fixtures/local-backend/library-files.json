@@ -804,6 +804,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 4,
      "new_count": 3
     },
@@ -821,6 +823,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     },
@@ -838,6 +842,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 3,
      "new_count": 3
     },
@@ -855,6 +861,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 2,
      "new_count": 0
     },
@@ -872,6 +880,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     },
@@ -889,6 +899,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     },
@@ -906,6 +918,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     }
@@ -4342,7 +4356,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    }
   },
   {
@@ -4363,7 +4379,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 1
+    "active_custom": 1,
+    "description": null,
+    "miscellaneous": null
    }
   },
   {
@@ -4880,6 +4898,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 1,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 4,
      "new_count": 2
     },
@@ -4897,6 +4917,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     },
@@ -4914,6 +4936,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 9,
      "new_count": 0
     },
@@ -4931,6 +4955,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 3,
      "new_count": 3
     },
@@ -4948,6 +4974,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     },
@@ -4965,6 +4993,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     },
@@ -4982,6 +5012,8 @@
      "semester_end": null,
      "semester_ends_at": null,
      "active_custom": 0,
+     "description": null,
+     "miscellaneous": null,
      "file_count": 1,
      "new_count": 1
     }
@@ -6352,7 +6384,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "k1",
@@ -6367,7 +6401,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 1
+    "active_custom": 1,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "k2",
@@ -6382,7 +6418,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "k3",
@@ -6397,7 +6435,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "k4",
@@ -6412,7 +6452,9 @@
     "module_id": 1,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "k5",
@@ -6427,7 +6469,9 @@
     "module_id": 1,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    },
    {
     "id": "k6",
@@ -6442,7 +6486,9 @@
     "module_id": null,
     "semester_end": null,
     "semester_ends_at": null,
-    "active_custom": 0
+    "active_custom": 0,
+    "description": null,
+    "miscellaneous": null
    }
   ],
   "folders": [

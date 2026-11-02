@@ -505,6 +505,12 @@ def _init_db(conn) -> None:
     # Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
     # eine Unix-Zeit (studip_sync.version_stamp)
     add_col("files", "revision", "INTEGER")
+    # Stud.IP (02.11.2026): Kursbeschreibung und Sonstiges des Kurses, Sitzungsthema und Ausfall je Einzeltermin
+    # (abgesagte Termine bleiben gespeichert und gelten im Planer als bestaetigter Ausfall)
+    add_col("courses", "description", "TEXT")
+    add_col("courses", "miscellaneous", "TEXT")
+    add_col("studip_events", "description", "TEXT")
+    add_col("studip_events", "cancelled", "INTEGER DEFAULT 0")
     # Fachfarben (27.10.2026, app/colors.py): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
     # Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
     # bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.

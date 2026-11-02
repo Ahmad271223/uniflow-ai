@@ -261,6 +261,8 @@ extension Weekly {
         var missing: [String], topic: String, excluded: [PyJSON], n: Int, examReuse: String, materialHash: String
         /// ergaenzend: passende Courseware- und Wiki-Texte aus Stud.IP (`StudIPTexts.weeklyLines`), nicht im material_hash
         var studip: [String] = []
+        /// Kursbeschreibung und Sitzungsthemen der Lehrwoche aus Stud.IP (`course_context.for_module_week`), "" ohne Inhalt
+        var studipContext = ""
         var moduleName: String { module?["name"]?.string ?? "None" }
     }
 
@@ -338,8 +340,12 @@ extension Weekly {
         let reuse = module?["exam_reuse"].flatMap { LocalModules.truthy(v($0)) ? $0.string : nil } ?? "paraphrase"
         let query = topic.isEmpty ? PyText.slice(lec.prefix(3).map(\.text).joined(separator: " "), 0, 700) : topic
         let studip = try StudIPTexts.weeklyLines(c, moduleID: v(plan["module_id"]), query: query)
-        return Context(plan: plan, module: module, lecture: lec, prior: prior, tasks: tasks, missing: missing, topic: topic,
-                       excluded: Array(excluded.prefix(50)), n: questions ?? st.questions, examReuse: reuse, materialHash: hash, studip: studip)
+        var ctx = Context(plan: plan, module: module, lecture: lec, prior: prior, tasks: tasks, missing: missing, topic: topic,
+                          excluded: Array(excluded.prefix(50)), n: questions ?? st.questions, examReuse: reuse, materialHash: hash, studip: studip)
+        // Kursbeschreibung und Sitzungsthemen der Lehrwoche aus Stud.IP (02.11.2026); leer ohne Inhalt, dann bleibt der
+        // Prompt unveraendert
+        ctx.studipContext = try CourseContext.forModuleWeek(c, moduleID: plan["module_id"], lectureEnd: plan["lecture_end"]?.string)
+        return ctx
     }
 
     static let system = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. Formeln als Text."
@@ -408,9 +414,10 @@ extension Weekly {
         let reuse = ctx.examReuse == "original" ? "Altklausuraufgaben duerfen woertlich uebernommen werden (Quelle angeben)."
             : "Altklausuraufgaben NICHT woertlich uebernehmen: erstelle thematisch vergleichbare NEUE Aufgaben im gleichen Stil (andere Zahlen, anderer Kontext) und gib die Altklausur als Quelle an."
         let week = pyStr(ctx.plan["week_no"].map(PyJSON.init))
+        let studip = ctx.studipContext.isEmpty ? "" : "\nAUS STUD.IP (nur zur Einordnung; Aufgaben nur aus dem Material unten):\n" + ctx.studipContext
         return """
             ### AUFTRAG: \(kind)
-            Modul: \(ctx.moduleName) · Lehrwoche \(week)\(ctx.topic.isEmpty ? "" : " · Thema: " + ctx.topic)
+            Modul: \(ctx.moduleName) · Lehrwoche \(week)\(ctx.topic.isEmpty ? "" : " · Thema: " + ctx.topic)\(studip)
 
             Erstelle GENAU \(ctx.n) Aufgaben:
             \(ruleLines(ctx, kind: kind, ex: examIDs(ctx), reuse: reuse))

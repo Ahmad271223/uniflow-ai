@@ -55,7 +55,83 @@ public enum StudIPLibrary {
     /// Kurse eines Durchgangs wie `upsert_course` (`UniStore.upsertCourse`, mit Semesterregel); `today` wie
     /// `study.today()`, ohne Angabe der Tag von `startedAt`
     public static func storeCourses(_ c: SQLiteConnection, _ courses: [StudIPCourse], startedAt: String, today: String? = nil) throws {
-        for course in courses { try UniStore.upsertCourse(c, courseRow(course), now: startedAt, today: today) }
+        for course in courses {
+            try UniStore.upsertCourse(c, courseRow(course), now: startedAt, today: today)
+            try storeCourseTexts(c, course)
+        }
+    }
+
+    /// Kursbeschreibung und Sonstiges wie `store_course_texts` in app/studip_sync.py; nil laesst den gespeicherten Text
+    public static func storeCourseTexts(_ c: SQLiteConnection, _ course: StudIPCourse) throws {
+        guard course.description != nil || course.miscellaneous != nil else { return }
+        try c.execute("UPDATE courses SET description=COALESCE(?, description), miscellaneous=COALESCE(?, miscellaneous) WHERE id=?",
+                      [SQLiteValue(course.description), SQLiteValue(course.miscellaneous), .text(course.id)])
+    }
+
+    // MARK: Links (Dateien "Link/Webadresse")
+
+    /// Links nur auf dem Geraet (wie studip_cycle_dates erst bei Bedarf angelegt): Stud.IP-Dateien ohne Download, aber
+    /// mit Adresse. Die Dateiliste bietet sie zum Oeffnen im Browser an; in `files` stehen sie weiter als nicht
+    /// herunterladbare Datei.
+    static let linkTable = """
+        CREATE TABLE IF NOT EXISTS studip_file_links (
+            id TEXT PRIMARY KEY,               -- FileRef-ID
+            course_id TEXT NOT NULL,
+            name TEXT,
+            folder TEXT,
+            url TEXT NOT NULL,
+            fetched_at TEXT
+        )
+        """
+
+    public struct FileLink: Sendable, Equatable, Identifiable {
+        public let id: String
+        public let courseID: String
+        public let courseTitle: String
+        public let folder: String
+        public let name: String
+        public let url: String
+
+        public init(id: String, courseID: String, courseTitle: String, folder: String, name: String, url: String) {
+            self.id = id
+            self.courseID = courseID
+            self.courseTitle = courseTitle
+            self.folder = folder
+            self.name = name
+            self.url = url
+        }
+    }
+
+    /// Links eines Kurses nach seiner Dateiliste: neue und geaenderte eintragen; nur mit vollstaendig gelesener Liste
+    /// (`complete`, kein Ordner uebersprungen) verschwinden Links, die Stud.IP nicht mehr liefert.
+    public static func storeLinks(_ c: SQLiteConnection, courseID: String, _ files: [StudIPFile], complete: Bool, now: String) throws {
+        let links = files.filter { $0.courseID == courseID && $0.linkURL != nil }
+        if links.isEmpty, !complete { return }
+        try c.executeScript(linkTable)
+        if complete {
+            let keep = Set(links.map(\.id))
+            for r in try c.rows("SELECT id FROM studip_file_links WHERE course_id=?", [.text(courseID)]) {
+                guard let id = r["id"]?.string, !keep.contains(id) else { continue }
+                try c.execute("DELETE FROM studip_file_links WHERE id=?", [.text(id)])
+            }
+        }
+        for f in links {
+            try c.execute("INSERT OR REPLACE INTO studip_file_links(id, course_id, name, folder, url, fetched_at) VALUES (?,?,?,?,?,?)",
+                          [.text(f.id), .text(courseID), .text(f.name), .text(f.folderPath), .text(f.linkURL ?? ""), .text(now)])
+        }
+    }
+
+    /// Gespeicherte Links nach Kurs, Ordner und Name; leer, solange es die Tabelle nicht gibt
+    public static func links(_ c: SQLiteConnection) throws -> [FileLink] {
+        guard try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='studip_file_links'") != nil else { return [] }
+        return try c.rows("""
+            SELECT l.id, l.course_id, COALESCE(c.title, 'Kurs') AS course_title, COALESCE(l.folder, '') AS folder, COALESCE(l.name, '') AS name, l.url
+            FROM studip_file_links l LEFT JOIN courses c ON c.id=l.course_id ORDER BY course_title, folder, name, l.id
+            """).compactMap { r in
+            guard let id = r["id"]?.string, let url = r["url"]?.string else { return nil }
+            return FileLink(id: id, courseID: r["course_id"]?.string ?? "", courseTitle: r["course_title"]?.string ?? "Kurs",
+                            folder: r["folder"]?.string ?? "", name: r["name"]?.string ?? "", url: url)
+        }
     }
 
     /// Vollstaendige Dateiliste eines Kurses (`UniStore.storeFiles`). Rueckgabe: Dateien, die wie in Python geladen

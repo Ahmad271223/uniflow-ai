@@ -111,6 +111,12 @@ public enum Migrations {
         // Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
         // eine Unix-Zeit (studip_sync.version_stamp, UniStore.versionStamp)
         .addColumn("files", "revision", "INTEGER"),
+        // Stud.IP (02.11.2026): Kursbeschreibung und Sonstiges des Kurses, Sitzungsthema und Ausfall je Einzeltermin
+        // (abgesagte Termine bleiben gespeichert und gelten im Planer als bestaetigter Ausfall)
+        .addColumn("courses", "description", "TEXT"),
+        .addColumn("courses", "miscellaneous", "TEXT"),
+        .addColumn("studip_events", "description", "TEXT"),
+        .addColumn("studip_events", "cancelled", "INTEGER DEFAULT 0"),
         // Fachfarben (27.10.2026, ModuleColors): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
         // Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
         // bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.

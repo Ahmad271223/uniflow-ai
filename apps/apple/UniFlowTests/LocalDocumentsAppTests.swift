@@ -469,6 +469,43 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(d3["exists"], true)
     }
 
+    /// Gesperrter Unterordner (403) laesst den Kurs nicht ausfallen (02.11.2026): der Rest wird gelesen und geladen,
+    /// die Zusammenfassung nennt "1 Ordner nicht lesbar"; eine Datei "Link/Webadresse" steht als Link in der Liste
+    /// (statt "nicht herunterladbar"); geladene Dateien des Kurses gelten nicht als "in Stud.IP nicht mehr vorhanden"
+    func testForbiddenSubfolderIsSkippedAndLinksAreListed() async throws {
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let stud = fakeStudIP(pdf: pdf)
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        // zweiter Lauf: d1 liegt jetzt in einem gesperrten Unterordner, dazu ein Link und ein lesbarer Unterordner
+        stud.json("/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"l1","attributes":{"name":"Aufzeichnung","filesize":0,"chdate":"2026-10-19T11:00:00+02:00","is-downloadable":false,"url":"https://video.example.org/v/1"}}]}
+            """#)
+        stud.json("/jsonapi.php/v1/folders/r1/folders?page[limit]=200", #"""
+            {"data":[{"id":"tut","attributes":{"name":"Nur Tutoren","folder-type":"StandardFolder"}},{"id":"ue","attributes":{"name":"Übungen","folder-type":"StandardFolder"}}]}
+            """#)
+        stud.set("/jsonapi.php/v1/folders/tut/file-refs?page[limit]=500", HTTPReply(status: 403, contentType: "application/vnd.api+json"))
+        stud.json("/jsonapi.php/v1/folders/ue/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"d4","attributes":{"name":"Blatt 4.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-20T10:00:00+02:00"}}]}
+            """#)
+        stud.json("/jsonapi.php/v1/folders/ue/folders?page[limit]=200", #"{"data":[]}"#)
+        stud.set("/jsonapi.php/v1/file-refs/d4/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.contains("1 neu/geändert"), summary)
+        XCTAssertTrue(summary.contains("1 Ordner nicht lesbar"), summary)
+        XCTAssertTrue(summary.contains("1 Link"), summary)
+        XCTAssertFalse(summary.contains("nicht herunterladbar"), summary)
+        XCTAssertFalse(summary.contains("Kurs nicht lesbar"), summary)
+        XCTAssertFalse(summary.contains("nicht mehr vorhanden"), "Kurs nicht ganz gelesen: d1 gilt nicht als entfernt – \(summary)")
+        XCTAssertEqual(sync.links.map(\.url), ["https://video.example.org/v/1"])
+        XCTAssertEqual(sync.links.first?.courseTitle, "Testkurs Numerik")
+        XCTAssertTrue(sync.entries.contains { $0.id == "d4" && $0.folder == "Übungen" })
+    }
+
     /// Ist kein einziger Kurs lesbar, gilt der Lauf als gescheitert (Meldung mit "Erneut versuchen")
     func testSyncFailsWhenNoCourseIsReadable() async throws {
         let dev = try device()

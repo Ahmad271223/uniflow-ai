@@ -1,13 +1,13 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=33";
-import { viewDashboard as viewHome } from "./views-home.js?v=3";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=45";
-import { viewFiles } from "./views-lib.js?v=44";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=36";
-import { viewTimetable, openEvent } from "./views-tt.js?v=34";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=54";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=34";
-import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=4";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=34";
+import { viewDashboard as viewHome } from "./views-home.js?v=4";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=46";
+import { viewFiles } from "./views-lib.js?v=45";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=37";
+import { viewTimetable, openEvent } from "./views-tt.js?v=35";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=55";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=35";
+import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=5";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];

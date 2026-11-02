@@ -77,9 +77,13 @@ public struct StudIPCourse: Sendable, Equatable, Codable {
     public let semesterEnd: String?
     /// Ende dieses Semesters (Attribut `end`, ISO mit Versatz) oder nil
     public let semesterEndsAt: String?
+    /// Kursbeschreibung und Sonstiges als Text (`course_texts` in app/studip_sync.py); nil, wenn Stud.IP das Feld nicht
+    /// liefert (dann bleibt der gespeicherte Text). Annahme: Attribute `description` und `miscellaneous` (Stud.IP 6.x)
+    public let description: String?
+    public let miscellaneous: String?
 
     public init(id: String, title: String, number: String? = nil, semesterTitle: String? = nil, semesterStart: String? = nil,
-                semesterEnd: String? = nil, semesterEndsAt: String? = nil) {
+                semesterEnd: String? = nil, semesterEndsAt: String? = nil, description: String? = nil, miscellaneous: String? = nil) {
         self.id = id
         self.title = title
         self.number = number
@@ -87,6 +91,8 @@ public struct StudIPCourse: Sendable, Equatable, Codable {
         self.semesterStart = semesterStart
         self.semesterEnd = semesterEnd
         self.semesterEndsAt = semesterEndsAt
+        self.description = description
+        self.miscellaneous = miscellaneous
     }
 }
 
@@ -101,9 +107,12 @@ public struct StudIPFile: Sendable, Equatable, Codable {
     public let isDownloadable: Bool
     /// Ordnerpfad im Kurs ohne Wurzelordner, z. B. "Vorlesung/Folien".
     public let folderPath: String
+    /// Datei "Link/Webadresse": nicht herunterladbar, aber mit Adresse (nur http/https); die Dateiliste bietet sie
+    /// zum Oeffnen im Browser an. nil fuer alle anderen Dateien
+    public let linkURL: String?
 
     public init(id: String, courseID: String, name: String, size: Int, mimeType: String? = nil, changed: String,
-                isDownloadable: Bool = true, folderPath: String = "") {
+                isDownloadable: Bool = true, folderPath: String = "", linkURL: String? = nil) {
         self.id = id
         self.courseID = courseID
         self.name = name
@@ -112,6 +121,32 @@ public struct StudIPFile: Sendable, Equatable, Codable {
         self.changed = changed
         self.isDownloadable = isDownloadable
         self.folderPath = folderPath
+        self.linkURL = linkURL
+    }
+
+    /// Adresse einer nicht herunterladbaren Datei (Stud.IP "Link/Webadresse"). Annahme (Stud.IP 6.x JSON:API, nicht an
+    /// der LUH geprueft): die Adresse steht in `attributes.url`, `attributes.external-url` oder `meta.url`; fehlt sie
+    /// oder ist sie kein http(s)-Link, bleibt die Datei "nicht herunterladbar" wie bisher.
+    static func linkURL(_ ref: JSONValue) -> String? {
+        let candidates = [ref["attributes"]?["url"], ref["attributes"]?["external-url"], ref["meta"]?["url"]]
+        for c in candidates {
+            guard let s = c?.string?.trimmingCharacters(in: .whitespacesAndNewlines), let u = URL(string: s),
+                  let scheme = u.scheme?.lowercased(), scheme == "https" || scheme == "http", u.host?.isEmpty == false else { continue }
+            return s
+        }
+        return nil
+    }
+}
+
+/// Dateiliste eines Kurses mit den Unterordnern, die sich nicht lesen liessen (403/404): ihre Dateien fehlen in der
+/// Liste, der Rest des Kurses ist gelesen.
+public struct StudIPFileListing: Sendable, Equatable {
+    public var files: [StudIPFile] = []
+    public var unreadableFolders = 0
+
+    public init(files: [StudIPFile] = [], unreadableFolders: Int = 0) {
+        self.files = files
+        self.unreadableFolders = unreadableFolders
     }
 }
 
@@ -271,15 +306,23 @@ public actor StudIPClient {
             }
             return StudIPCourse(id: id, title: title.isEmpty ? "Kurs" : title, number: (number?.isEmpty ?? true) ? nil : number,
                                 semesterTitle: semID.flatMap { semesters[$0]?["title"]?.string }, semesterStart: semID.flatMap { semesters[$0]?["start"]?.string },
-                                semesterEnd: semesterEnd, semesterEndsAt: end?["end"]?.string)
+                                semesterEnd: semesterEnd, semesterEndsAt: end?["end"]?.string,
+                                description: StudIPText.field(a, "description"), miscellaneous: StudIPText.field(a, "miscellaneous"))
         }
     }
 
     /// Alle Dateien eines Kurses ueber den Ordnerbaum (Wurzelordner -> Unterordner, hoechstens 6 Ebenen tief).
     public func files(courseID: String) async throws -> [StudIPFile] {
+        try await fileListing(courseID: courseID).files
+    }
+
+    /// Dateien eines Kurses ueber den Ordnerbaum, alle Seiten (`links.next`). Ein Unterordner, den Stud.IP mit 403 oder
+    /// 404 ablehnt (z. B. nur fuer Lehrende), wird uebersprungen und gezaehlt; der Rest des Kurses wird weiter gelesen
+    /// (wie `if fr.ok` in fetch_folder_paths). Wurzelordner, abgelaufene Sitzung, Netz und andere Fehler wie bisher.
+    public func fileListing(courseID: String) async throws -> StudIPFileListing {
         let (tops, _) = try await list("jsonapi.php/v1/courses/\(courseID)/folders?page[limit]=200")
         let roots = tops.filter { $0["attributes"]?["folder-type"]?.string == "RootFolder" }
-        var out: [StudIPFile] = []
+        var out = StudIPFileListing()
         var seen = Set<String>()
         for root in (roots.isEmpty ? Array(tops.prefix(1)) : roots) {
             guard let id = root["id"]?.string else { continue }
@@ -288,20 +331,39 @@ public actor StudIPClient {
         return out
     }
 
+    /// Ordner, den Stud.IP nicht zeigt: 403 (keine Berechtigung) oder 404 (entfernt, versteckt)
+    static func isUnreadableFolder(_ error: Error) -> Bool {
+        if case StudIPError.http(let status, _)? = error as? StudIPError { return status == 403 || status == 404 }
+        return false
+    }
+
     private func walk(folderID: String, path: String, depth: Int, courseID: String,
-                      seen: inout Set<String>, into out: inout [StudIPFile]) async throws {
+                      seen: inout Set<String>, into out: inout StudIPFileListing) async throws {
         guard depth <= 6, !seen.contains(folderID) else { return }
         seen.insert(folderID)
-        let (refs, _) = try await list("jsonapi.php/v1/folders/\(folderID)/file-refs?page[limit]=500")
+        let refs: [JSONValue]
+        do {
+            refs = try await list("jsonapi.php/v1/folders/\(folderID)/file-refs?page[limit]=500").data
+        } catch where depth > 0 && Self.isUnreadableFolder(error) {
+            out.unreadableFolders += 1                    // Ordner gesperrt: weder Dateien noch Unterordner
+            return
+        }
         for r in refs {
             guard let id = r["id"]?.string else { continue }
             let a = r["attributes"]
             let changed = a?["chdate"]?.string ?? a?["chdate"]?.double.map { JSONValue.format($0) } ?? ""
-            out.append(StudIPFile(id: id, courseID: courseID, name: a?["name"]?.string ?? id, size: a?["filesize"]?.int ?? 0,
-                                  mimeType: a?["mime-type"]?.string, changed: changed,
-                                  isDownloadable: a?["is-downloadable"]?.bool ?? true, folderPath: path))
+            let downloadable = a?["is-downloadable"]?.bool ?? true
+            out.files.append(StudIPFile(id: id, courseID: courseID, name: a?["name"]?.string ?? id, size: a?["filesize"]?.int ?? 0,
+                                        mimeType: a?["mime-type"]?.string, changed: changed, isDownloadable: downloadable,
+                                        folderPath: path, linkURL: downloadable ? nil : StudIPFile.linkURL(r)))
         }
-        let (subs, _) = try await list("jsonapi.php/v1/folders/\(folderID)/folders?page[limit]=200")
+        let subs: [JSONValue]
+        do {
+            subs = try await list("jsonapi.php/v1/folders/\(folderID)/folders?page[limit]=200").data
+        } catch where depth > 0 && Self.isUnreadableFolder(error) {
+            out.unreadableFolders += 1                    // Dateien gelesen, Unterordner nicht
+            return
+        }
         for s in subs {
             guard let id = s["id"]?.string else { continue }
             let name = (s["attributes"]?["name"]?.string ?? "").trimmingCharacters(in: .whitespaces)

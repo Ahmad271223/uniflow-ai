@@ -970,21 +970,24 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     file_id = body.get("file_id")
     page = int(body.get("page") or 1)
     text = body.get("page_text") or ""
-    course, fname = "", ""
+    course, fname, studip = "", "", ""
     if file_id:
         with db.cursor() as conn:
             f = db.row(conn, "SELECT f.name, c.title AS course_title FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", (file_id,))
+            # Kursbeschreibung und Sitzungsthemen der Woche aus Stud.IP (02.11.2026), nur wenn vorhanden
+            from . import course_context
+            studip = course_context.for_file(conn, file_id, date.today())
         if f:
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
     sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
     if hosted:
-        answer = _tutor_hosted(request, body, mode, text, course, fname, page, sources)
+        answer = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip)
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
-                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")))
+                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip)
         except ai.AIError as e:
             raise HTTPException(500, str(e))
     cards = None
@@ -1032,13 +1035,13 @@ def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: 
 
 
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
-                  sources: list[dict] | None = None) -> str:
+                  sources: list[dict] | None = None, studip: str = "") -> str:
     """Studora-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
     from . import ai, ai_backend
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     entitlements.consume(request, "ai_assist", rid)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
-                             body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")))
+                             body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip)
     try:
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
     except ai_backend.AIUnavailable as e:

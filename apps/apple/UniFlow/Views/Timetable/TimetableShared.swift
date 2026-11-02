@@ -43,9 +43,13 @@ enum UFCancel {
     /// nur ein Hinweis aus einer Ankuendigung, der Termin steht noch
     static func unsure(_ e: JSONValue) -> Bool { label(e) == unsureText }
 
-    /// Quelle lesbar: Stud.IP-Ankündigung „Titel“ · Kurs
+    /// Quelle eines in Stud.IP abgesagten Einzeltermins (`cancel_hint` mit Art "termin", 02.11.2026)
+    static let studipDateSource = "Stud.IP (Termin abgesagt)"
+
+    /// Quelle lesbar: Stud.IP-Ankündigung „Titel“ · Kurs; in Stud.IP abgesagter Termin: "Stud.IP (Termin abgesagt)"
     static func source(_ e: JSONValue) -> String? {
         guard let h = hint(e) else { return nil }
+        if h.s("kind") == "termin" { return studipDateSource }
         let src = ["studip": "Stud.IP-Ankündigung", "learnweb": "Learnweb-Ankündigung"][h.s("source") ?? ""] ?? "Ankündigung"
         var s = "\(src) „\(h.s("title") ?? "")“"
         if let c = h.s("course_title"), !c.isEmpty { s += " · \(c)" }
@@ -96,7 +100,8 @@ struct UFCancelHintBox: View {
                 if let src = UFCancel.source(e) {
                     Text("laut \(src)").ufFont(13.12, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                 }
-                if let sn = h.s("snippet"), !sn.isEmpty {
+                // bei einem in Stud.IP abgesagten Termin steht der Text schon als Sitzungsthema da
+                if h.s("kind") != "termin", let sn = h.s("snippet"), !sn.isEmpty {
                     Text("„\(sn)“").ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                 }
                 if UFCancel.unsure(e) {
@@ -119,6 +124,49 @@ struct UFCancelHintBox: View {
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.warnSoft))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.warn.opacity(0.6), lineWidth: 1))
             .accessibilityIdentifier("cancel-hint")
+        }
+    }
+}
+
+// MARK: - Sitzungsthema (Stud.IP, Termin-Attribut description)
+
+/// Sitzungsthema eines Termins (`session_topic`, aus Stud.IP, 02.11.2026): dezent in einer Zeile, bei langem Text zum
+/// Aufklappen. Ohne Thema nichts.
+struct UFSessionTopic: View {
+    let e: JSONValue
+    var size: CGFloat = 13.12
+    @State private var open = false
+
+    /// Thema oder nil (leer)
+    static func text(_ e: JSONValue) -> String? {
+        guard let t = e.s("session_topic")?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t
+    }
+
+    /// passt nicht in eine Zeile: aufklappbar
+    static func isLong(_ t: String) -> Bool { t.count > 70 || t.contains("\n") }
+
+    var body: some View {
+        if let t = Self.text(e) {
+            let long = Self.isLong(t)
+            Button { if long { open.toggle() } } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    UFIcon("book", size: size - 1).foregroundStyle(UF.muted)
+                    Text("Thema: \(open ? t : t.replacingOccurrences(of: "\n", with: " "))")
+                        .ufFont(size).foregroundStyle(UF.text2)
+                        .lineLimit(open ? nil : 1)
+                        .fixedSize(horizontal: false, vertical: open)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if long { UFIcon("chevron-down", size: size - 1).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 180 : 0)) }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!long)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Sitzungsthema: \(t)")
+            .accessibilityHint(long ? (open ? "Zuklappen" : "Ganz anzeigen") : "")
+            .accessibilityIdentifier("session-topic")
         }
     }
 }
@@ -199,6 +247,8 @@ struct EventDrawer: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             UFButton(icon: "x", kind: .ghost) { close() }
         } content: {
+            // Sitzungsthema aus Stud.IP (eine Zeile, aufklappbar)
+            UFSessionTopic(e: occ).padding(.bottom, UFSessionTopic.text(occ) == nil ? 0 : 9.6)
             // Absage aus einer Ankuendigung: Quelle und Entscheidung ("Fällt aus" / "Findet statt")
             UFCancelHintBox(e: occ) { mode in Task { await attendance(mode) } }
                 .padding(.bottom, UFCancel.hint(occ) == nil ? 0 : 9.6)

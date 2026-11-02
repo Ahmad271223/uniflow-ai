@@ -14,7 +14,9 @@ Inhalt:
 - seed + week: Stud.IP-Einzeltermine, eigener Kalender (Abruf 27.10.2026), Serien (passend mit Notiz, veraltet,
   von Hand bestaetigt, persoenlich, mit gespeichertem Ausfall), dann timetable.studip_dated und timetable.occurrences
   fuer 16.-22.11.2026. Erwartet: Woche wie Stud.IP, derselbe Termin in drei Raeumen = ein Eintrag mit allen Raeumen,
-  andere Gruppe fehlt, veraltete Serie fehlt, Ausfall bleibt sichtbar.
+  andere Gruppe fehlt, veraltete Serie fehlt, Ausfall bleibt sichtbar; Sitzungsthemen am Termin, in Stud.IP
+  abgesagte Termine als bestaetigter Ausfall (Zeit frei), abgesagter Termin einer anderen Gruppe fehlt.
+- course_context: Kursbeschreibung und Sitzungsthemen fuer den Wochentest (app/course_context.py)
 
 Aufruf im Projektordner: python tools/gen-studip-week-fixture.py [--check]
 """
@@ -53,7 +55,9 @@ API_RESPONSE = {"data": [
      "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s24"}}, "end-semester": {"data": None}}},
     {"id": "w-ohne", "type": "courses", "attributes": {"title": "Testkurs alte Fassung"},
      "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s26"}}}},
-    {"id": "w-neu", "type": "courses", "attributes": {"title": "Testmesstechnik I", "course-number": "32975"},
+    {"id": "w-neu", "type": "courses", "attributes": {"title": "Testmesstechnik I", "course-number": "32975",
+                                                      "description": "<p>Grundlagen der <b>Messtechnik</b>:&nbsp;Messfehler,\n Sensoren.</p>",
+                                                      "miscellaneous": None},
      "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s26"}}, "end-semester": {"data": {"type": "semesters", "id": "s26"}}}},
 ], "included": [
     {"type": "semesters", "id": "s24", "attributes": {"title": "WiSe 2024/25", "start": "2024-10-01T00:00:00+02:00", "end": "2025-03-31T23:59:59+02:00",
@@ -91,8 +95,14 @@ EVENTS = [
     ("e-ms-1", "w-ms-26", "2026-11-16T15:30:00", "2026-11-16T17:00:00", "Raum 003"),
     ("e-ms-0", "w-ms-26", "2026-11-09T15:30:00", "2026-11-09T17:00:00", "Raum 003"),
     ("e-ms-2", "w-ms-26", "2026-11-30T15:30:00", "2026-11-30T17:00:00", "Raum 003"),
+    ("e-ue-z", "w-ue-26", "2026-11-17T08:00:00", "2026-11-17T09:30:00", "Raum B227"),     # andere Gruppe, abgesagt
+    ("e-rt-do", "w-rt-26", "2026-11-19T10:00:00", "2026-11-19T12:00:00", "Raum 029"),     # abgesagt, Serie mit Ausfall
 ]
-CALENDAR = ["e-rt-1", "e-rt-2", "e-mt-1", "e-ue-a", "e-ue-b", "e-ue-c", "e-ms-1", "e-ms-0", "e-ms-2"]
+# Sitzungsthemen (Termin-Attribut description) und in Stud.IP abgesagte Termine (is-cancelled, seit 02.11.2026 gespeichert)
+TOPICS = {"e-mt-1": "Kapitel 3: Messfehler und Unsicherheit", "e-ms-1": "Sensoren", "e-rt-2": "Exkursion entfaellt"}
+CANCELLED = {"e-rt-2", "e-ue-z", "e-rt-do"}
+COURSE_TEXTS = ("w-mt-26", "Grundlagen der Messtechnik: Messfehler, Sensoren, Messketten.", "Anmeldung zur Übung bis 01.11.")
+CALENDAR = ["e-rt-1", "e-rt-2", "e-mt-1", "e-ue-a", "e-ue-b", "e-ue-c", "e-ms-1", "e-ms-0", "e-ms-2", "e-rt-do"]
 SERIES_SQL = """INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, source, attend)
                 VALUES ((SELECT module_id FROM courses WHERE id=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"""
 SERIES = [
@@ -168,7 +178,9 @@ def build(check: bool) -> int:
                 seed.append({"sql": " ".join(sql.split()), "params": list(params)})
 
             for e in EVENTS:
-                run("INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)", [e[0], e[1], "Termin", e[2], e[3], e[4], NOW])
+                run("INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [e[0], e[1], "Termin", e[2], e[3], e[4], TOPICS.get(e[0], ""), int(e[0] in CANCELLED), NOW])
+            run("UPDATE courses SET description=?, miscellaneous=? WHERE id=?", [COURSE_TEXTS[1], COURSE_TEXTS[2], COURSE_TEXTS[0]])
             for i in CALENDAR:
                 run("INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)", [i, CAL_FETCHED])
             for s in SERIES:
@@ -183,6 +195,14 @@ def build(check: bool) -> int:
             out["week"]["studip_dated"] = timetable.studip_dated(conn, start, end)
             out["week"]["occurrences"] = timetable.occurrences(conn, start, end)
             out["week"]["busy_2026_11_18"] = timetable.busy_blocks(conn, date(2026, 11, 18), db.get_settings(conn), include_packages=False)
+            # Kontext fuer den Wochentest des Moduls von w-mt-26 (Lehrwoche bis Fr 20.11.) und fuer einen anderen Kurs
+            from app import course_context
+            mod = db.row(conn, "SELECT module_id FROM courses WHERE id='w-mt-26'")["module_id"]
+            out["week"]["course_context"] = [
+                {"module_id": mod, "lecture_end": "2026-11-20T12:00:00", "text": course_context.for_module_week(conn, mod, "2026-11-20T12:00:00")},
+                {"module_id": mod, "lecture_end": "2026-11-10T12:00:00", "text": course_context.for_module_week(conn, mod, "2026-11-10T12:00:00")},
+                {"courses": ["w-ms-26", "w-rt-26"], "start": WEEK[0], "end": WEEK[1],
+                 "text": course_context.build(conn, ["w-ms-26", "w-rt-26"], date.fromisoformat(WEEK[0]), date.fromisoformat(WEEK[1]))}]
         ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)
         return 0 if ok or not check else 1
     finally:

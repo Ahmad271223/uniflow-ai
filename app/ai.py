@@ -298,18 +298,46 @@ def tutor_history(raw) -> list[dict]:
 
 def tutor(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
           course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
-          history: list[dict] | None = None) -> str:
-    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history),
+          history: list[dict] | None = None, studip: str = "") -> str:
+    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history, studip),
                TUTOR_SYSTEM)
+
+
+# Kontext aus Stud.IP (02.11.2026): Kursbeschreibung, Sonstiges und Sitzungsthemen, sparsam gekuerzt
+STUDIP_CONTEXT_CHARS = 700
+STUDIP_CONTEXT_SESSIONS = 3
+_WS = re.compile(r"[ \t\r\n\f\v]+")
+
+
+def _one_line(t, n: int) -> str:
+    """Text in einer Zeile (Leerraum verdichtet), nach `n` Zeichen gekuerzt (Auslassung am Ende)"""
+    t = _WS.sub(" ", t if isinstance(t, str) else "").strip(" ")
+    return t if len(t) <= n else t[:n].rstrip(" ") + " …"
+
+
+def studip_context(course_desc: str | None, misc: str | None, sessions: list[dict] | None) -> str:
+    """Kontextblock aus Stud.IP fuer Tutor und Wochentest (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai):
+    Kursbeschreibung, Sonstiges, bis zu STUDIP_CONTEXT_SESSIONS Sitzungsthemen ({date, topic}); leer ohne Inhalt."""
+    lines = []
+    if d := _one_line(course_desc, 300):
+        lines.append(f"Kursbeschreibung: {d}")
+    if m := _one_line(misc, 200):
+        lines.append(f"Hinweise zum Kurs: {m}")
+    for x in (sessions or [])[:STUDIP_CONTEXT_SESSIONS]:
+        day = str(x.get("date") or "")
+        if t := _one_line(x.get("topic"), 200):
+            lines.append(f"Sitzung am {day[8:10]}.{day[5:7]}.: {t}" if len(day) >= 10 else f"Sitzung: {t}")
+    return "\n".join(lines)[:STUDIP_CONTEXT_CHARS]
 
 
 def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
                  course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
-                 history: list[dict] | None = None) -> str:
+                 history: list[dict] | None = None, studip: str = "") -> str:
     """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die Studora-KI im Dienst (app/ai_backend.py).
     `sources` (28.10.2026): nummerierte Stellen aus den eigenen Unterlagen (diese Seite und passende Seiten aus dem
     Modul); die Antwort belegt Aussagen daraus mit [Nummer], die Oberflaeche macht daraus Links zur Seite.
-    `history` (2.11.2026): bisheriges Gespraech im Editor (`tutor_history`), damit Rueckfragen anschliessen."""
+    `history` (2.11.2026): bisheriges Gespraech im Editor (`tutor_history`), damit Rueckfragen anschliessen.
+    `studip` (2.11.2026): Kursbeschreibung und Sitzungsthemen der Woche (`studip_context`), nur wenn vorhanden."""
     instr = TUTOR_MODES.get(mode, TUTOR_MODES["explain"])
     parts = [f"Kurs: {course}", f"Datei: {file_name}" + (f", Seite {page}" if page else ""), "", f"AUFGABE: {instr}"]
     if selection.strip():
@@ -322,6 +350,9 @@ def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str =
             parts.append(("Ich: " if h["role"] == "user" else "KI: ") + h["text"].strip()[:TUTOR_HISTORY_CHARS])
     if question.strip():
         parts += ["", f"MEINE FRAGE: {question.strip()[:1000]}"]
+    if studip.strip():
+        parts += ["", "AUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle):",
+                  studip.strip()[:STUDIP_CONTEXT_CHARS]]
     parts += ["", "SEITENINHALT (Kontext):", "<<<", (page_text or "").strip()[:9000] or "[kein Text extrahierbar]", ">>>"]
     if sources and mode != "flashcards":
         parts += ["", "QUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als "

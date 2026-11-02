@@ -107,7 +107,8 @@ enum StudIPCalendar {
         let inCalendar = Set(ids)
         // Einzeltermine der Kurse: welche Kurse geladen sind, welche Tage und Beginnzeiten im Kalender stehen
         var loaded = Set<String>(), byTime = Set<String>(), byRoom = Set<String>()
-        for r in try c.rows("SELECT id, course_id, start, room FROM studip_events") {
+        // abgesagte Termine zaehlen nicht (wie vor dem 02.11.2026, als sie nicht gespeichert wurden)
+        for r in try c.rows("SELECT id, course_id, start, room FROM studip_events WHERE COALESCE(cancelled, 0)=0") {
             guard let course = r["course_id"]?.string, let st = LocalTimetableImport.isoDateTime(r["start"]) else { continue }
             loaded.insert(course)
             guard let id = r["id"]?.string, inCalendar.contains(id) else { continue }
@@ -193,6 +194,15 @@ enum StudIPCalendar {
         /// eigenen). Was vor dem ersten Abruf begann (auch am Abruftag, ob der Export begonnene Termine enthaelt, ist
         /// nicht sicher), entscheidet der Zeitschlitz: derselbe Kurs, Wochentag, Beginn und Ende wie ein Kalendertermin
         /// heisst eigener Termin; ein Kurs ganz ohne Kalendertermin faellt weg.
+        /// Abgesagter Einzeltermin (`calendar_shows_cancelled`): ob der Export Ausfaelle enthaelt, ist nicht sicher
+        /// (Annahme: nein). Er gehoert dazu, wenn er im Kalender steht oder im Zeitschlitz eines Kalendertermins
+        /// desselben Kurses liegt, unabhaengig vom Zeitpunkt des Abrufs.
+        func showsCancelled(id: String?, course: String?, start: Time, end: Time) -> Bool {
+            if let id, ids.contains(id) { return true }
+            guard let course, courses.contains(course) else { return false }
+            return slots.contains(Self.slot(course: course, start: start, end: end))
+        }
+
         func shows(id: String?, course: String?, start: Time, end: Time) -> Bool {
             if let id, ids.contains(id) { return true }
             if let since, !Self.before(start, since) { return false }

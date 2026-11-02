@@ -58,18 +58,28 @@ def studip_dated(conn, start: date, end: date) -> list[dict]:
         except (ValueError, TypeError):
             continue
         di = st.date().isoformat()
-        if cov is not None and not calendar_shows(cov, r["id"], r["course_id"], st, en):
+        cancelled = bool(r["cancelled"])
+        if cov is not None and not (calendar_shows_cancelled(cov, r["id"], r["course_id"], st, en) if cancelled
+                                    else calendar_shows(cov, r["id"], r["course_id"], st, en)):
             continue                                                    # andere Gruppe oder Kurs ohne Kalendertermin
         title = r["course_title"]
-        out.append({"event_id": None, "studip_id": r["id"], "date": di, "start": st.strftime("%H:%M"), "end": en.strftime("%H:%M"), "title": title,
-                    "kind": "uebung" if r["course_kind"] == "uebung" else guess_kind(title), "module_id": r["module_id"], "module_name": r["module_name"],
-                    "color": r["module_color"] or "#4f5bd5", "room": r["room"] or "", "lecturer": None, "course_id": r["course_id"],
-                    "status": "teilnahme", "permanent_skip": False, "exception": None, "source": "studip-kalender"})
+        o = {"event_id": None, "studip_id": r["id"], "date": di, "start": st.strftime("%H:%M"), "end": en.strftime("%H:%M"), "title": title,
+             "kind": "uebung" if r["course_kind"] == "uebung" else guess_kind(title), "module_id": r["module_id"], "module_name": r["module_name"],
+             "color": r["module_color"] or "#4f5bd5", "room": r["room"] or "", "lecturer": None, "course_id": r["course_id"],
+             "status": "teilnahme", "permanent_skip": False, "exception": None, "source": "studip-kalender"}
+        if r["description"]:
+            o["session_topic"] = r["description"]                   # nur mit Thema (Antwortform sonst unveraendert)
+        if cancelled:
+            # in Stud.IP abgesagt (02.11.2026): bestaetigter Ausfall, die Zeit wird frei (busy_blocks zaehlt nur Teilnahme)
+            o["status"], o["exception"] = "ausfall", "cancelled"
+            o["cancel_hint"] = studip_cancel_hint(title, r["description"])
+        out.append(o)
     # Derselbe Termin eines Kurses in mehreren Raeumen (Stud.IP legt je Raum einen Termin an, z. B. eine Uebung in
-    # drei Hoersaelen): ein Kasten mit allen Raeumen statt drei schmaler Kaesten nebeneinander
+    # drei Hoersaelen): ein Kasten mit allen Raeumen statt drei schmaler Kaesten nebeneinander; ein abgesagter und ein
+    # stattfindender Termin bleiben getrennt
     merged: dict[tuple, dict] = {}
     for o in out:
-        k = (o["course_id"], o["date"], o["start"], o["end"])
+        k = (o["course_id"], o["date"], o["start"], o["end"], o["status"])
         if k not in merged:
             merged[k] = o
             continue
@@ -77,6 +87,15 @@ def studip_dated(conn, start: date, end: date) -> list[dict]:
         if o["room"] and o["room"] not in rooms:
             merged[k]["room"] = " · ".join(rooms + [o["room"]])
     return list(merged.values())
+
+
+def studip_cancel_hint(course_title: str | None, description: str | None) -> dict:
+    """Hinweis am Termin fuer einen in Stud.IP abgesagten Einzeltermin, in der Form von announcements.mark_cancellations
+    (Quelle "studip", Art "termin" statt einer Ankuendigung, bestaetigt, Label "faellt aus")"""
+    from . import announcements
+    return {"announcement_id": None, "kind": "termin", "title": course_title, "snippet": description or None, "url": None,
+            "source": "studip", "course_title": course_title, "posted_at": None, "confirmed": True,
+            "label": announcements.CANCEL_CONFIRMED_LABEL}
 
 
 def _same_slot(o: dict, d: dict) -> bool:
@@ -99,7 +118,7 @@ def _merge_dated(conn, out: list[dict], dated: list[dict]) -> list[dict]:
     eigenen Kalendertermin gehoert (andere Gruppe, fruehere Veranstaltung); an Tagen ohne Stud.IP-Termin bleibt nur ein
     gespeicherter Ausfall oder eine eigene Ausnahme sichtbar. Von Hand bestaetigte und eigene Serien bleiben immer."""
     known = {r["course_id"]: (r["lo"][:10], r["hi"][:10]) for r in db.rows(
-        conn, "SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events GROUP BY course_id")}
+        conn, "SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events WHERE COALESCE(cancelled, 0)=0 GROUP BY course_id")}
     cov = calendar_coverage(conn)
     since = cov["fetched"].date().isoformat() if cov else None          # ab dem Abruftag, nicht erst ab dem Tag danach
     mine = cov["courses"] if cov else set()
@@ -112,6 +131,11 @@ def _merge_dated(conn, out: list[dict], dated: list[dict]) -> list[dict]:
             o["studip_id"] = match["studip_id"]
             if not o.get("room") and match["room"]:
                 o["room"] = match["room"]
+            if match.get("session_topic") and not o.get("session_topic"):
+                o["session_topic"] = match["session_topic"]
+            if match.get("cancel_hint") and o.get("exception") in (None, "cancelled"):
+                # in Stud.IP abgesagt: die Serie faellt an diesem Tag aus (eigene Ausnahmen des Nutzers bleiben)
+                o["status"], o["exception"], o["cancel_hint"] = "ausfall", "cancelled", match["cancel_hint"]
             res.append(o)
             continue
         if o.get("source") == "studip" and c in known and o.get("exception") != "moved_here":
@@ -535,8 +559,10 @@ def merge_weekly(entries: list[dict]) -> list[dict]:
 
 
 def studip_entries(conn) -> list[dict]:
+    # abgesagte Termine zaehlen fuer die Serien nicht (wie vor dem 02.11.2026, als sie gar nicht gespeichert wurden):
+    # ihre Luecke wird zum Ausfall der Serie (exdates)
     rows = db.rows(conn, """SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind FROM studip_events s JOIN courses c ON c.id=s.course_id
-                            WHERE c.active=1 AND c.kind != 'sonstiges' ORDER BY s.start""")
+                            WHERE c.active=1 AND c.kind != 'sonstiges' AND COALESCE(s.cancelled, 0)=0 ORDER BY s.start""")
     entries = []
     for r in rows:
         try:
@@ -705,6 +731,15 @@ def calendar_coverage(conn) -> dict | None:
         courses.add(x["course_id"])
         slots.add(_slot(x["course_id"], st, en))
     return {"ids": ids, "fetched": fetched, "since": since, "slots": slots, "courses": courses}
+
+
+def calendar_shows_cancelled(cov: dict, studip_id: str | None, course: str | None, st: datetime, en: datetime) -> bool:
+    """Abgesagter Einzeltermin: ob der eigene Kalender ihn kennt, ist nicht sicher (Annahme: der Export laesst
+    Ausfaelle weg). Er gehoert dazu, wenn er im Kalender steht oder im Zeitschlitz eines Kalendertermins desselben
+    Kurses liegt, unabhaengig vom Zeitpunkt des Abrufs (wie StudIPCalendar.Coverage.showsCancelled)."""
+    if studip_id and studip_id in cov["ids"]:
+        return True
+    return bool(course) and course in cov["courses"] and _slot(course, st, en) in cov["slots"]
 
 
 def calendar_shows(cov: dict, studip_id: str | None, course: str | None, st: datetime, en: datetime) -> bool:

@@ -40,11 +40,16 @@ enum AIEndpoints: LocalEndpointModule {
                     pageText = 1 <= page && page <= pages.count ? pages[page - 1] : ""
                 }
             }
+            // Kursbeschreibung und Sitzungsthemen der Woche aus Stud.IP (02.11.2026, `course_context.for_file`); Zusatz,
+            // ein Fehler laesst ihn weg
+            let today = LocalTimetable.today(ctx.clock)
+            let studip = fileID == nil ? "" : ((try? await ctx.database.withConnection { try CourseContext.forFile($0, fileID: fileID, today: today) }) ?? "")
             let sources = mode == "flashcards" ? [] : try await tutorSources(fileID: fileID, fileName: fileName, page: page, text: pageText,
                                                                               selection: text("selection"), question: text("question"), ctx: ctx)
             let prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
                                          ownSolution: text("own_solution"), course: course, fileName: fileName, page: .int(String(page)),
-                                         sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")))
+                                         sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")),
+                                         studip: studip)
             let answer: String
             do {
                 answer = try await ai.answer(system: AIPromptTexts.tutorSystem, prompt: prompt)

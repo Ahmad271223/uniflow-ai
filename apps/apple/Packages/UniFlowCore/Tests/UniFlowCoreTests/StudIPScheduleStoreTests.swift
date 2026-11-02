@@ -157,13 +157,15 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(d.cycles?.count, 8)
         XCTAssertEqual(d.personal?.map { $0["id"]?.string ?? "" }, ["pe-1", "pe-2", "pe-3"])
         XCTAssertEqual(d.courseTypes, ["c-ana": 1, "c-ana-ue": 3, "c-prog": 1, "c-sem": 2, "c-erst": 7])
-        // abgesagte Termine und Eintraege ohne ID fehlen wie in fetch_events; Raum bis zum ersten Komma
+        // Eintraege ohne ID fehlen wie in fetch_events; abgesagte bleiben seit 02.11.2026 mit `cancelled` (bestaetigter
+        // Ausfall im Planer); Raum bis zum ersten Komma
         let ana = try XCTUnwrap(d.events["c-ana"])
-        XCTAssertEqual(ana.map(\.id), ["ev-ana-1", "ev-ana-2", "ev-ana-3", "ev-ana-k"])
+        XCTAssertEqual(ana.map(\.id), ["ev-ana-1", "ev-ana-2", "ev-ana-3", "ev-ana-4", "ev-ana-k"])
+        XCTAssertEqual(ana.map(\.cancelled), [false, false, false, true, false])
         XCTAssertEqual(ana[0], StudIPCourseEvent(id: "ev-ana-1", courseID: "c-ana", title: "Sitzung 1", start: "2026-10-12T10:00:00",
                                                  end: "2026-10-12T11:30:00", room: "Hörsaal Test 1 (9999 - A001)"))
         XCTAssertEqual(ana[2].start, "2026-10-26T10:00:00", "Ortszeit wie geliefert, die ersten 19 Zeichen")
-        XCTAssertEqual(ana[3].room, "Halle Test")
+        XCTAssertEqual(ana[4].room, "Halle Test")
         XCTAssertEqual(d.events["c-sem"]?.map(\.room), ["Seminarraum Test", "Seminarraum Test", ""])
         XCTAssertEqual(d.events["c-ana-ue"], [])
         XCTAssertNil(d.events["c-prog"], "nicht geladen: das Gespeicherte bleibt")
@@ -187,7 +189,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         let (d, _) = try await download()
         let r = try await store(d, backend)
-        XCTAssertEqual(r, StudIPScheduleResult(newEvents: 8, pendingGroups: 3, cycles: 8, events: 7))
+        XCTAssertEqual(r, StudIPScheduleResult(newEvents: 8, pendingGroups: 3, cycles: 8, events: 8))
 
         let s = try await series(backend)
         XCTAssertEqual(s, [
@@ -212,7 +214,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(personal.map { "\($0["id"]?.string ?? "")|\($0["weekday"]?.int ?? -1)|\($0["start"]?.string ?? "")-\($0["end"]?.string ?? "")" },
                        ["pe-1|2|18:00-19:30", "pe-2|6|17:00-19:00"])
         let events = try await backend.context.database.scalar("SELECT COUNT(*) FROM studip_events")
-        XCTAssertEqual(events, .integer(7))
+        XCTAssertEqual(events, .integer(8), "mit dem abgesagten Termin (cancelled=1)")
         // Import im Protokoll wie auto_import
         let imports = try await backend.context.database.rows("SELECT source, status, confirmed FROM schedule_imports")
         XCTAssertEqual(imports.map { "\($0["source"]?.string ?? "")|\($0["status"]?.string ?? "")|\($0["confirmed"]?.int ?? 0)" }, ["studip-auto|auto|1"])
@@ -310,7 +312,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
         let after = try await series(backend)
         XCTAssertEqual(after, before, "nichts doppelt, nichts entfernt")
         let kept = try await backend.context.database.rows("SELECT course_id, COUNT(*) AS n FROM studip_events GROUP BY course_id ORDER BY course_id")
-        XCTAssertEqual(kept.map { "\($0["course_id"]?.string ?? "")=\($0["n"]?.int ?? 0)" }, ["c-ana=4", "c-sem=1"])
+        XCTAssertEqual(kept.map { "\($0["course_id"]?.string ?? "")=\($0["n"]?.int ?? 0)" }, ["c-ana=5", "c-sem=1"])
         let cycles = try await backend.context.database.scalar("SELECT COUNT(*) FROM studip_cycle_dates")
         XCTAssertEqual(cycles, .integer(8))
         let personal = try await backend.context.database.scalar("SELECT COUNT(*) FROM studip_schedule_entries")
@@ -448,7 +450,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
         let res = try await choose(backend, room: "Pool Test B")
         XCTAssertEqual(res["new"], 1)
         let r2 = try await store(d, backend)
-        XCTAssertEqual(r2, StudIPScheduleResult(newEvents: 0, pendingGroups: 0, cycles: 8, events: 7))
+        XCTAssertEqual(r2, StudIPScheduleResult(newEvents: 0, pendingGroups: 0, cycles: 8, events: 8))
         let status = await call(backend, "GET", "/api/timetable/auto-status")
         XCTAssertEqual(status.json?["pending_groups"], 0)
         XCTAssertEqual(status.json?["courses"], [])
@@ -740,7 +742,8 @@ final class StudIPScheduleIntegrityTests: XCTestCase {
         XCTAssertEqual(sem, ["ev-sem-1", "ev-sem-2", "ev-sem-3"], "Kurs nur mit Terminen ohne Kennung: kein Kursverlust")
         let ana = try await backend.context.database.rows("SELECT id, start FROM studip_events WHERE course_id='c-ana' ORDER BY id")
         XCTAssertEqual(ana.map { "\($0["id"]?.string ?? "")=\($0["start"]?.string ?? "")" },
-                       ["ev-ana-1=2026-10-12T10:00:00", "ev-ana-2=2026-10-19T10:00:00", "ev-ana-3=2026-10-26T10:00:00", "ev-ana-k=2027-02-10T09:00:00"])
+                       ["ev-ana-1=2026-10-12T10:00:00", "ev-ana-2=2026-10-19T10:00:00", "ev-ana-3=2026-10-26T10:00:00",
+                        "ev-ana-4=2026-11-02T10:00:00", "ev-ana-k=2027-02-10T09:00:00"])
 
         // vollstaendige Antwort ohne pe-2 und ohne ev-sem-3: das verschwindet wie bisher
         let without = try scheduleReply([(#""id": "pe-2""#, #""id": "pe-9""#)])
@@ -842,9 +845,9 @@ final class StudIPScheduleIntegrityTests: XCTestCase {
             """#)])
         let (d, _) = try await download(["/jsonapi.php/v1/courses/c-ana/events?page[offset]=3&page[limit]=200": overlap,
                                          "/jsonapi.php/v1/users/u-test/schedule": cycleTwice])
-        XCTAssertEqual(d.events["c-ana"]?.map(\.id), ["ev-ana-1", "ev-ana-2", "ev-ana-3", "ev-ana-k"])
+        XCTAssertEqual(d.events["c-ana"]?.map(\.id), ["ev-ana-1", "ev-ana-2", "ev-ana-3", "ev-ana-4", "ev-ana-k"])
         let r = try await store(d, backend)
-        XCTAssertEqual(r.events, 7)
+        XCTAssertEqual(r.events, 8)
         XCTAssertEqual(r.newEvents, 8, "wie ohne Doppel")
         let cycles = try await backend.context.database.scalar("SELECT COUNT(*) FROM studip_cycle_dates")
         XCTAssertEqual(cycles, .integer(8))
@@ -917,10 +920,18 @@ final class StudIPScheduleIntegrityTests: XCTestCase {
             ], "links": {}}
             """#)
         let (d, _) = try await download(["/jsonapi.php/v1/courses/c-sem/events?page[limit]=200": sem])
-        XCTAssertEqual(d.events["c-sem"]?.map(\.id), ["ev-sem-1", "ev-sem-3", "ev-sem-5"])
+        XCTAssertEqual(d.events["c-sem"]?.map(\.id), ["ev-sem-1", "ev-sem-2", "ev-sem-3", "ev-sem-5"])
+        XCTAssertEqual(d.events["c-sem"]?.filter(\.cancelled).map(\.id), ["ev-sem-2"])
         _ = try await store(d, backend)
         let cancelled = await day(backend, "2026-10-20")
         XCTAssertEqual(cancelled, ["Testprogrammierung teilnahme", "Testseminar Beispiel ausfall"])
+        // der abgesagte Einzeltermin liegt auf der Serie: bestaetigter Ausfall laut Stud.IP am Termin (02.11.2026)
+        let r = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", "2026-10-20")]))
+        let hint = r.json?["events"]?.array?.first { $0["title"] == "Testseminar Beispiel" }?["cancel_hint"]
+        XCTAssertEqual(hint?["source"], "studip")
+        XCTAssertEqual(hint?["kind"], "termin")
+        XCTAssertEqual(hint?["confirmed"], true)
+        XCTAssertEqual(hint?["label"], "fällt aus")
         let normal = await day(backend, "2026-10-27")
         XCTAssertEqual(normal, ["Testprogrammierung teilnahme", "Testseminar Beispiel teilnahme"])
     }

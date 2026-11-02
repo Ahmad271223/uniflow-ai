@@ -477,6 +477,9 @@
        "created_at": {
         "type": "string"
        },
+       "description": {
+        "type": "null"
+       },
        "file_count": {
         "type": "number"
        },
@@ -485,6 +488,9 @@
        },
        "kind": {
         "type": "string"
+       },
+       "miscellaneous": {
+        "type": "null"
        },
        "module_id": {
         "type": "null"

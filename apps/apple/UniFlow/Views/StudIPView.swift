@@ -10,6 +10,7 @@ struct StudIPView: View {
     @State private var showLogin = false
     @State private var preview: URL?
     @State private var confirmSignOut = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         UFContent(maxWidth: 860) {
@@ -173,17 +174,39 @@ struct StudIPView: View {
     private struct EntryGroup: Identifiable {
         let id: String
         let entries: [StudIPLibrary.DownloadedFile]
+        /// Dateien "Link/Webadresse" des Kurses (oeffnen im Browser)
+        var links: [StudIPLibrary.FileLink] = []
     }
 
     private var groups: [EntryGroup] {
         let byCourse = Dictionary(grouping: studip.entries, by: { $0.courseTitle })
-        return byCourse.keys.sorted().map { EntryGroup(id: $0, entries: byCourse[$0] ?? []) }
+        let linksByCourse = Dictionary(grouping: studip.links, by: { $0.courseTitle })
+        return Set(byCourse.keys).union(linksByCourse.keys).sorted().map {
+            EntryGroup(id: $0, entries: byCourse[$0] ?? [], links: linksByCourse[$0] ?? [])
+        }
+    }
+
+    /// Link sicher oeffnen: nur http(s) (Stud.IP liefert die Adresse, `StudIPFile.linkURL` prueft sie schon beim Lesen)
+    static func linkTarget(_ l: StudIPLibrary.FileLink) -> URL? {
+        guard let u = URL(string: l.url), let scheme = u.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return nil }
+        return u
     }
 
     private func groupCard(_ g: EntryGroup) -> some View {
         UFCard {
-            UFCardHead(g.id, icon: "folder") { UFBadge("\(g.entries.count)", tone: .neutral) }
+            UFCardHead(g.id, icon: "folder") { UFBadge("\(g.entries.count + g.links.count)", tone: .neutral) }
             VStack(alignment: .leading, spacing: 0) {
+                ForEach(g.links, id: \.id) { l in
+                    Button { if let u = Self.linkTarget(l) { openURL(u) } } label: {
+                        UFItemRow(l.name, sub: ([l.folder, "Link · " + (Self.linkTarget(l)?.host ?? "Webadresse")].filter { !$0.isEmpty }).joined(separator: " · ")) {
+                            UFIcon("file", size: 18).foregroundStyle(UF.muted)
+                        } trailing: {
+                            UFIcon("arrow-right", size: 16).foregroundStyle(UF.accent)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(l.name), Link im Browser öffnen")
+                }
                 ForEach(g.entries, id: \.id) { e in
                     Button { preview = studip.fileURL(e) } label: {
                         UFItemRow(e.name, sub: e.folder.isEmpty ? nil : e.folder) {

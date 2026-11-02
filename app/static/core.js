@@ -35,7 +35,12 @@ export const dlChips = (dd, compact) => (dd.deadlines || []).map(x => `<a class=
 // mark_cancellations) -> "Ausfall?", eingetragen (Status ausfall) -> "fällt aus"; die vorlesungsfreie Zeit zeigt der Tag gruen
 export const cancelLabel = e => e.status === "ausfall" ? (e.exception === "vorlesungsfrei" ? "" : "fällt aus") : (e.cancel_hint ? "Ausfall?" : "");
 export const cancelUnsure = e => cancelLabel(e) === "Ausfall?";
-export const cancelSource = e => { const h = e.cancel_hint; return h ? `${{ studip: "Stud.IP-Ankündigung", learnweb: "Learnweb-Ankündigung" }[h.source] || "Ankündigung"} „${h.title}“${h.course_title ? " · " + h.course_title : ""}` : ""; };
+// in Stud.IP abgesagter Einzeltermin (cancel_hint mit kind "termin", timetable.studip_cancel_hint, 02.11.2026)
+export const cancelSource = e => { const h = e.cancel_hint; return h ? h.kind === "termin" ? "Stud.IP (Termin abgesagt)" : `${{ studip: "Stud.IP-Ankündigung", learnweb: "Learnweb-Ankündigung" }[h.source] || "Ankündigung"} „${h.title}“${h.course_title ? " · " + h.course_title : ""}` : ""; };
+// Sitzungsthema aus Stud.IP (session_topic, 02.11.2026): dezent in einer Zeile, lange Themen zum Aufklappen
+export const topicLine = e => { const t = String(e.session_topic || "").trim(); if (!t) return ""; const one = t.replace(/\s+/g, " ");
+  return t.length > 70 || t.includes("\n") ? `<details class="small muted tp-line"><summary>Thema: ${esc(one.slice(0, 70))} …</summary><div style="white-space:pre-line">${esc(t)}</div></details>`
+    : `<div class="small muted tp-line">Thema: ${esc(one)}</div>`; };
 export const cancelMark = (e, iconOnly) => { const l = cancelLabel(e); if (!l) return ""; const src = cancelSource(e);
   return `<span class="cx-mark" title="${esc(l + (src ? " laut " + src : ""))}" aria-label="${cancelUnsure(e) ? "Möglicher Ausfall" : "Fällt aus"}">${icon("alert", 11)}${iconOnly ? "" : " " + esc(l)}</span>`; };
 export const noteChips = (dd, compact) => (dd.notices || []).map(n => `<a class="note-chip k-${esc(n.kind)}" href="${esc(safeUrl(n.url))}" data-chip="${chipRef(n, "notice", dd.date)}" title="${esc(n.title)}${n.course_title ? " · " + esc(n.course_title) : ""}: ${esc(n.snippet)}">${icon("info", 11)} ${n.time ? `<b>${esc(n.time)}</b> ` : ""}${esc(compact ? n.kind_label : `${n.kind_label}: ${n.title}`)}</a>`).join("");

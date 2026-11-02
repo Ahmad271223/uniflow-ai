@@ -45,12 +45,31 @@ def _tutor_cases(ai) -> list[dict]:
                      {"role": "user", "text": "Danke"}]},
         {"mode": "hints", "page_text": "  Aufgabe 2  ", "selection": "  markiert  ", "course": "K", "file_name": "f.pdf",
          "page": 0, "sources": []},
+        # Kontext aus Stud.IP (02.11.2026): Kursbeschreibung und Sitzungsthemen, gekuerzt
+        {"mode": "explain", "page_text": "Satz von Bolzano", "course": "Testmathe I", "file_name": "vl05.pdf", "page": 2, "sources": src,
+         "studip": "  Kursbeschreibung: Analysis fuer Ingenieure\nSitzung am 03.11.: Stetigkeit ä€😀  " + "x" * 800},
+        {"mode": "ask", "page_text": "Aufgabe", "question": "Warum?", "course": "K", "file_name": "f.pdf", "studip": " \n "},
     ]
     out = []
     for i in inputs:
         args = {k: v for k, v in i.items() if k != "mode"}
         out.append({"in": i, "prompt": ai.tutor_prompt(i["mode"], args.pop("page_text"), **args)})
     return out
+
+
+def _studip_context_cases(ai) -> list[dict]:
+    """Kontextblock aus Stud.IP (ai.studip_context): Kursbeschreibung, Sonstiges, Sitzungsthemen, Kuerzungen"""
+    inputs = [
+        {"course_desc": "Grundlagen der Messtechnik:\n  Messfehler,\tSensoren.", "misc": "Anmeldung bis 01.11.",
+         "sessions": [{"date": "2026-11-03", "topic": "Kapitel 3"}, {"date": "2026-11-05", "topic": "  "},
+                      {"date": "2026-11-06T10:00:00", "topic": "Sensoren\nund Messketten"}, {"date": "", "topic": "ohne Datum"},
+                      {"date": "2026-11-09", "topic": "zu viel"}]},
+        {"course_desc": "ä€😀 Wort " * 80, "misc": None, "sessions": [{"date": "2026-11-03", "topic": "Thema " * 60}]},
+        {"course_desc": "", "misc": "  ", "sessions": []},
+        {"course_desc": None, "misc": "Hinweis " * 40, "sessions": [{"date": "2026-11-03", "topic": "T"}] * 3},
+        {"course_desc": "x" * 299 + " yz", "misc": "y" * 200, "sessions": [{"date": "2026-11-0" + str(i), "topic": "z " * 150} for i in range(1, 4)]},
+    ]
+    return [{"in": i, "out": ai.studip_context(i["course_desc"], i["misc"], i["sessions"])} for i in inputs]
 
 
 def _test_cases(ai) -> list[dict]:
@@ -220,7 +239,7 @@ def main() -> int:
                   "analysis_fields": ai.ANALYSIS_FIELDS, "week_test_difficulty": ai.WEEK_TEST_DIFFICULTY,
                   "week_test_total": ai.WEEK_TEST_TOTAL, "week_test_types": list(ai.WEEK_TEST_TYPES),
                   "tutor_history_turns": ai.TUTOR_HISTORY_TURNS, "tutor_history_chars": ai.TUTOR_HISTORY_CHARS},
-        "prompts": {"tutor": _tutor_cases(ai),
+        "prompts": {"tutor": _tutor_cases(ai), "studip_context": _studip_context_cases(ai),
                     "analysis": [{"in": {"course": c, "file_name": f, "text": t}, "prompt": ai.analysis_prompt(c, f, t)}
                                  for c, f, t in [("Testmathe I", "vl01.pdf", "Folgen und Reihen"), ("Testkurs", "leer.pdf", "  \n"),
                                                  ("K \"zitiert\"", "a b.pdf", "x" * 50)]],

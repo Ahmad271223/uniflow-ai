@@ -168,6 +168,8 @@ final class StudIPSync: ObservableObject {
     @Published private(set) var courses: [StudIPCourse] = []
     /// geladene Dateien aus der Datenbank (`StudIPLibrary.downloadedFiles`, das eine Register; vorher index.json)
     @Published private(set) var entries: [StudIPLibrary.DownloadedFile] = []
+    /// Dateien "Link/Webadresse" (nicht herunterladbar, mit Adresse), zum Oeffnen im Browser
+    @Published private(set) var links: [StudIPLibrary.FileLink] = []
     @Published private(set) var lastRun: Date?
     @Published private(set) var lastSummary: String?
     /// Zahl der beendeten Abgleiche dieses App-Laufs; Seiten mit `ufReload` laden bei jeder Aenderung neu
@@ -301,6 +303,7 @@ final class StudIPSync: ObservableObject {
     func refreshEntries() async {
         guard let prefix = host.files?.stored(root), let backend = try? await host.backend() else { entries = []; return }
         entries = (try? await backend.context.database.withConnection { try StudIPLibrary.downloadedFiles($0, under: prefix + "/") }) ?? []
+        links = (try? await backend.context.database.withConnection { try StudIPLibrary.links($0) }) ?? []
     }
 
     var isRunning: Bool { if case .running = phase { return true }; return false }
@@ -542,12 +545,17 @@ final class StudIPSync: ObservableObject {
             var wanted: [StudIPFile] = []
             var checked = Set<String>()
             var unreadable: [Error] = []
+            /// Unterordner, die Stud.IP nicht zeigt (403/404), und Kurse mit solchen Ordnern (nicht vollstaendig gelesen)
+            var skippedFolders = 0, partial = Set<String>()
             for (i, c) in chosen.enumerated() {
                 try Task.checkCancellation()
                 phase = .running("Dateiliste \(i + 1) von \(chosen.count): \(c.title)")
                 let files: [StudIPFile]
                 do {
-                    files = try await client.files(courseID: c.id)
+                    let listing = try await client.fileListing(courseID: c.id)
+                    files = listing.files
+                    skippedFolders += listing.unreadableFolders
+                    if listing.unreadableFolders > 0 { partial.insert(c.id) }
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Fehler bei Dateiliste"): naechster Kurs; seine Dateien bleiben unveraendert
                     unreadable.append(e)
@@ -561,8 +569,10 @@ final class StudIPSync: ObservableObject {
                 remote += files
                 checked.insert(c.id)
                 // je Kurs sofort in die Datenbank: ein spaeterer Fehler verliert die schon gelesenen Kurse nicht
+                let complete = !partial.contains(c.id)
                 wanted += try await db.transaction {
-                    try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
+                    try StudIPLibrary.storeLinks($0, courseID: c.id, files, complete: complete, now: started)
+                    return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
                 }
             }
             // kein einziger Kurs lesbar (z. B. Stud.IP gestoert): Fehlerlauf statt "0 neue Dateien"
@@ -571,7 +581,7 @@ final class StudIPSync: ObservableObject {
             let prefix = (localFiles.stored(root) ?? "StudIP") + "/"
             let remoteIDs = Set(remote.map(\.id))
             let gone = try await db.withConnection {
-                try StudIPLibrary.goneRemotely($0, remoteIDs: remoteIDs, checkedCourses: checked, under: prefix)
+                try StudIPLibrary.goneRemotely($0, remoteIDs: remoteIDs, checkedCourses: checked.subtracting(partial), under: prefix)
             }
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
@@ -625,14 +635,17 @@ final class StudIPSync: ObservableObject {
             let texts = timetable.sessionExpired || rec?.sessionExpired == true || scope == .lists ? nil
                 : await StudIPTextsSync(host: host).run(client: client, courses: chosen) { phase = .running($0) }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
+            let linkCount = remote.filter { $0.linkURL != nil }.count
             let waiting = download.count - toLoad.count
             let waitingText = "\(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download"
             var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
             if waiting > 0 { parts.append(waitingText) }
-            if notDownloadable > 0 { parts.append("\(notDownloadable) nicht herunterladbar") }
+            if linkCount > 0 { parts.append("\(linkCount) \(linkCount == 1 ? "Link" : "Links")") }
+            if notDownloadable > linkCount { parts.append("\(notDownloadable - linkCount) nicht herunterladbar") }
             if failed > 0 { parts.append("\(failed) nicht geladen (Fehler)") }
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
+            if skippedFolders > 0 { parts.append("\(skippedFolders) Ordner nicht lesbar") }
             if let n = Self.newCoursesNote(selection.newUnselected.count) { parts.append(n) }
             if let n = Self.olderCoursesNote(older) { parts.append(n) }
             parts += timetable.summary

@@ -174,6 +174,9 @@ def fetch_courses(page: Page) -> list[dict]:
                 "semester": sems.get(sem_id, {}).get("title", ""),
                 "semester_end": end.get("title", "") if end else ("unbegrenzt" if end_rel and end_rel.get("data") is None else None),
                 "semester_ends_at": end.get("end") if end else None,
+                # Annahme (Stud.IP 6.x, Kurs-Ressource): `description` und `miscellaneous` als HTML oder Text; fehlt ein
+                # Feld, bleibt der gespeicherte Text (None)
+                **course_texts(a),
             })
         url = j.get("links", {}).get("next")
         if url and url.startswith("/"):
@@ -181,8 +184,53 @@ def fetch_courses(page: Page) -> list[dict]:
     return out
 
 
+def api_list(page: Page, url: str, max_pages: int = 50) -> list[dict] | None:
+    """Alle Seiten einer JSON:API-Liste (`links.next`, wie StudIPClient.list im Swift-Kern). None, wenn eine Seite nicht
+    lesbar ist (HTTP-Fehler, keine Liste `data`): der Aufrufer laesst dann seinen Bestand stehen."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    while url and url not in seen and len(seen) < max_pages:
+        seen.add(url)
+        r = page.request.get(url, headers={"Accept": "application/vnd.api+json"})
+        if not r.ok:
+            return None
+        j = r.json()
+        if not isinstance(j.get("data"), list):
+            return None
+        out += j["data"]
+        url = (j.get("links") or {}).get("next")
+        if url and url.startswith("/"):
+            url = STUDIP_BASE + url
+    return out
+
+
+# Laenge gespeicherter Texte aus Stud.IP (Kursbeschreibung, Sitzungsthema); die KI bekommt davon nur einen Ausschnitt
+STUDIP_TEXT_CHARS = 2000
+
+
+def studip_text(v) -> str:
+    """Text eines Stud.IP-Feldes (HTML oder Text) wie eine Ankuendigung (announcements.html_to_text), gekuerzt"""
+    from . import announcements
+    return announcements.html_to_text(v if isinstance(v, str) else "")[:STUDIP_TEXT_CHARS]
+
+
+def course_texts(a: dict) -> dict:
+    """Kursbeschreibung und Sonstiges aus den Attributen eines Kurses; fehlt ein Feld (aeltere Fassung), None"""
+    return {k: (studip_text(a.get(f)) if f in a else None) for k, f in (("description", "description"), ("miscellaneous", "miscellaneous"))}
+
+
+def event_from_studip(e: dict, course_id: str) -> dict:
+    """Einzeltermin aus courses/{id}/events (gleich gelesen wie StudIPCourseEvent.read im Swift-Kern).
+    Abgesagte Termine (`is-cancelled`) bleiben seit 02.11.2026 mit `cancelled` = 1 (Entscheidung des Inhabers: im
+    Planer als bestaetigter Ausfall). Annahme: `description` ist das Sitzungsthema (Stud.IP 6.x, course-dates/events)."""
+    a = e.get("attributes") or {}
+    return {"id": e["id"], "course_id": course_id, "title": a.get("title") or "", "start": (a.get("start") or "")[:19],
+            "end": (a.get("end") or "")[:19], "room": (a.get("location") or "").split(",")[0].strip(),
+            "description": studip_text(a.get("description")), "cancelled": 1 if a.get("is-cancelled") else 0}
+
+
 def fetch_events(page: Page, course_id: str) -> list[dict]:
-    """Termine (Sitzungen) eines Kurses aus der JSON-API: Titel, Beginn, Ende, Raum."""
+    """Termine (Sitzungen) eines Kurses aus der JSON-API: Titel, Beginn, Ende, Raum, Sitzungsthema, Ausfall."""
     out = []
     url = f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/events?page[limit]=200"
     while url:
@@ -191,11 +239,7 @@ def fetch_events(page: Page, course_id: str) -> list[dict]:
             break
         j = resp.json()
         for e in j.get("data", []):
-            a = e.get("attributes", {})
-            if a.get("is-cancelled"):
-                continue
-            out.append({"id": e["id"], "course_id": course_id, "title": a.get("title") or "", "start": (a.get("start") or "")[:19],
-                        "end": (a.get("end") or "")[:19], "room": (a.get("location") or "").split(",")[0].strip()})
+            out.append(event_from_studip(e, course_id))
         url = j.get("links", {}).get("next")
         if url and url.startswith("/"):
             url = STUDIP_BASE + url
@@ -203,12 +247,13 @@ def fetch_events(page: Page, course_id: str) -> list[dict]:
 
 
 def fetch_news(page: Page, course_id: str) -> list[dict] | None:
-    """Ankuendigungen (News) eines Kurses; None, wenn Stud.IP sie nicht liefert (dann bleibt der Bestand)."""
+    """Ankuendigungen (News) eines Kurses, alle Seiten (`links.next`); None, wenn Stud.IP sie nicht vollstaendig
+    liefert (dann bleibt der Bestand)."""
     from . import announcements
-    r = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/news?page[limit]=100", headers={"Accept": "application/vnd.api+json"})
-    if not r.ok:
+    data = api_list(page, f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/news?page[limit]=100")
+    if data is None:
         return None
-    return [announcements.from_studip_news(n, course_id, STUDIP_BASE) for n in r.json().get("data", [])]
+    return [announcements.from_studip_news(n, course_id, STUDIP_BASE) for n in data]
 
 
 def _api_get(page: Page, path: str) -> tuple[int, dict | None]:
@@ -271,9 +316,18 @@ def store_schedule_entries(conn, entries: list[dict]) -> None:
 
 def store_events(conn, events: list[dict]) -> None:
     for e in events:
-        conn.execute("""INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)
-                        ON CONFLICT(id) DO UPDATE SET title=excluded.title, start=excluded.start, end=excluded.end, room=excluded.room, fetched_at=excluded.fetched_at""",
-                     (e["id"], e["course_id"], e["title"], e["start"], e["end"], e["room"], db.now_iso()))
+        conn.execute("""INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(id) DO UPDATE SET title=excluded.title, start=excluded.start, end=excluded.end, room=excluded.room,
+                        description=excluded.description, cancelled=excluded.cancelled, fetched_at=excluded.fetched_at""",
+                     (e["id"], e["course_id"], e["title"], e["start"], e["end"], e["room"], e.get("description") or "",
+                      int(bool(e.get("cancelled"))), db.now_iso()))
+
+
+def store_course_texts(conn, c: dict) -> None:
+    """Kursbeschreibung und Sonstiges (course_texts) speichern; None laesst den gespeicherten Text stehen"""
+    if c.get("description") is not None or c.get("miscellaneous") is not None:
+        conn.execute("UPDATE courses SET description=COALESCE(?, description), miscellaneous=COALESCE(?, miscellaneous) WHERE id=?",
+                     (c.get("description"), c.get("miscellaneous"), c["id"]))
 
 
 def fetch_files(page: Page, course_id: str) -> list[dict]:
@@ -302,32 +356,39 @@ def fetch_files(page: Page, course_id: str) -> list[dict]:
 
 
 def fetch_folder_paths(page: Page, course_id: str) -> dict[str, str]:
-    """Ordnerpfad je Datei (FileRef-ID) ueber die JSON-API: /courses/{id}/folders -> /folders/{id}/folders|file-refs."""
-    hdr = {"Accept": "application/vnd.api+json"}
+    """Ordnerpfad je Datei (FileRef-ID) ueber die JSON-API: /courses/{id}/folders -> /folders/{id}/folders|file-refs,
+    alle Seiten (`links.next`). Nicht lesbare Unterordner (z. B. 403/404) werden uebersprungen und gezaehlt, der Rest
+    des Kurses wird weiter gelesen (wie StudIPClient.walk im Swift-Kern)."""
     out: dict[str, str] = {}
-    r = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/folders?page[limit]=200", headers=hdr)
-    if not r.ok:
+    tops = api_list(page, f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/folders?page[limit]=200")
+    if tops is None:
         return out
-    tops = r.json().get("data", [])
     roots = [f for f in tops if (f.get("attributes") or {}).get("folder-type") == "RootFolder"] or tops[:1]
     seen: set[str] = set()
+    skipped = [0]
 
     def walk(fid: str, path: str, depth: int) -> None:
         if fid in seen or depth > 6:
             return
         seen.add(fid)
-        fr = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/folders/{fid}/file-refs?page[limit]=500", headers=hdr)
-        if fr.ok:
-            for x in fr.json().get("data", []):
-                out[x["id"]] = path
-        sub = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/folders/{fid}/folders?page[limit]=200", headers=hdr)
-        if sub.ok:
-            for x in sub.json().get("data", []):
-                name = ((x.get("attributes") or {}).get("name") or "").strip()
-                walk(x["id"], f"{path}/{name}" if path else name, depth + 1)
+        refs = api_list(page, f"{STUDIP_BASE}/jsonapi.php/v1/folders/{fid}/file-refs?page[limit]=500")
+        if refs is None:
+            skipped[0] += 1                                   # Ordner gesperrt: weder Dateien noch Unterordner
+            return
+        for x in refs:
+            out[x["id"]] = path
+        subs = api_list(page, f"{STUDIP_BASE}/jsonapi.php/v1/folders/{fid}/folders?page[limit]=200")
+        if subs is None:
+            skipped[0] += 1                                   # Dateien gelesen, Unterordner nicht
+            return
+        for x in subs:
+            name = ((x.get("attributes") or {}).get("name") or "").strip()
+            walk(x["id"], f"{path}/{name}" if path else name, depth + 1)
 
     for root in roots:
         walk(root["id"], "", 0)
+    if skipped[0]:
+        log(f"{skipped[0]} Ordner nicht lesbar ({course_id[:8]}…)")
     return out
 
 
@@ -742,6 +803,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                     log(f"Persoenlicher Stundenplan nicht gelesen: {e}")
                 for c in courses:
                     upsert_course(conn, c, started)
+                    store_course_texts(conn, c)
                 # Termine, Ankuendigungen und Dateien nur fuer aktuelle Kurse (app/semesters.py); alte Semester bleiben
                 # als Kurs bekannt, kosten aber keinen Abruf, keinen Download und keine KI-Analyse mehr
                 active_ids = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=1")}
