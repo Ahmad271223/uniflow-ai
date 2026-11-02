@@ -102,9 +102,9 @@ def test_qis_profile_credentials(tmp_env):
     assert not qis.configured("hildesheim")
     p = qis.use_profile("hildesheim")
     assert p["base"] == "https://lsf.uni-hildesheim.de" and p["documents"] is False
-    assert qis._abs("rds?state=x") == "https://lsf.uni-hildesheim.de/qisserver/rds?state=x"
-    qis.use_profile("luh")
-    assert qis._abs("rds?state=x").startswith("https://qis.verwaltung.uni-hannover.de/")
+    assert qis._abs("rds?state=x", p) == "https://lsf.uni-hildesheim.de/qisserver/rds?state=x"
+    assert qis._abs("rds?state=x", qis.use_profile("luh")).startswith("https://qis.verwaltung.uni-hannover.de/")
+    assert qis._abs("rds?state=x", p).startswith("https://lsf.uni-hildesheim.de/"), "kein gemeinsamer Zustand zwischen den Profilen"
 
 
 def test_settings_university_switch_needs_restart(app, uni, tmp_env):

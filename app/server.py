@@ -2394,9 +2394,11 @@ def api_grades_sync(show: bool = False):
 def api_qis_document(doc_id: int):
     with db.cursor() as conn:
         d = db.row(conn, "SELECT * FROM qis_documents WHERE id=?", (doc_id,))
-    if not d or not Path(d["local_path"]).exists():
+    from . import qis
+    path = qis.document_path(d["local_path"]) if d else None        # nur Dateien im QIS-Ordner des eigenen Kontos
+    if not path:
         raise HTTPException(404)
-    return FileResponse(d["local_path"], media_type="application/pdf", filename=Path(d["local_path"]).name)
+    return FileResponse(path, media_type="application/pdf", filename=path.name)
 
 
 @app.put("/api/credentials/{service}")
