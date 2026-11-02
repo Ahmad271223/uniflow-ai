@@ -11,6 +11,7 @@ final class EditorDeviceFixesTests: XCTestCase {
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 0.5), 2, "nie unter dem Bildschirm")
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 8), 8, "Speicher begrenzt")
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: .nan), 2)
+        XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 2.1), PDFEditorController.renderScale(screen: 2, zoom: 2.9), "kleiner Pinch: kein Neuzeichnen")
     }
 
     func testSetRenderScaleZoomsTheCanvasItself() {
@@ -27,7 +28,10 @@ final class EditorDeviceFixesTests: XCTestCase {
         v.setRenderScale(4, screen: 2)
         XCTAssertEqual(v.canvas.zoomScale, 5, "ein laufender Strich bleibt unberuehrt")
         v.isDrawing = false
+        v.setRenderScale(8, screen: 2)
+        XCTAssertEqual(v.canvas.zoomScale, 5, "leicht herausgezoomt bleiben die feineren Kacheln")
         v.setRenderScale(2)
+        XCTAssertEqual(v.canvas.zoomScale, 1)
         XCTAssertGreaterThanOrEqual(v.objectsView.subviews.first?.contentScaleFactor ?? 0, UIScreen.main.scale * 2, "Text nie groeber als vorher")
     }
 

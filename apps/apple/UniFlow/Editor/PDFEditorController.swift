@@ -120,7 +120,9 @@ final class PageInkView: UIView {
         objectsView.setRenderScale(scale)
         guard !isDrawing else { return }
         let zoom = max(1, scale / screen)
-        guard abs(zoom - canvas.zoomScale) > 0.001 else { return }
+        // Der Wechsel zeichnet alle Striche neu. Beim Herauszoomen reichen die feineren Kacheln, bis es deutlich weniger wird
+        guard abs(zoom - canvas.zoomScale) > 0.001, zoom > canvas.zoomScale || zoom <= canvas.zoomScale / 2 || zoom == 1 else { return }
+        coverDuringRedraw()
         let size = geometry.pageSize
         canvas.transform = .identity
         canvas.minimumZoomScale = min(zoom, canvas.zoomScale)
@@ -133,6 +135,19 @@ final class PageInkView: UIView {
         canvas.contentSize = canvas.bounds.size
         canvas.contentOffset = .zero
         canvas.transform = CGAffineTransform(scaleX: 1 / zoom, y: 1 / zoom)
+    }
+
+    /// PencilKit verwirft beim Zoomwechsel seine Kacheln und zeichnet sie neu: Bis dahin steht ein Bild der Tinte darueber,
+    /// sonst verschwindet sie kurz.
+    private func coverDuringRedraw() {
+        guard window != nil, !canvas.drawing.strokes.isEmpty, let cover = canvas.snapshotView(afterScreenUpdates: false) else { return }
+        cover.transform = canvas.transform
+        cover.center = canvas.center
+        cover.isUserInteractionEnabled = false
+        content.addSubview(cover)
+        UIView.animate(withDuration: 0.15, delay: 0.35, options: [.allowUserInteraction], animations: { cover.alpha = 0 }) { _ in
+            cover.removeFromSuperview()
+        }
     }
 
     override func layoutSubviews() {
@@ -453,7 +468,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Faktor fuer die Zeichenflaeche: Bildschirm mal PDF-Zoom, begrenzt (je Seite eine Metal-Flaeche im Speicher)
     nonisolated static func renderScale(screen: CGFloat, zoom: CGFloat, limit: CGFloat = 8) -> CGFloat {
         guard zoom.isFinite, zoom > 0 else { return screen }
-        return min(limit, max(screen, (screen * zoom * 4).rounded(.up) / 4))
+        // feste Stufen: jeder Wechsel zeichnet die Tinte neu, das soll nicht bei jedem kleinen Pinch passieren
+        let step = [1, 1.5, 2, 3, 4].first { $0 >= zoom } ?? 4
+        return min(limit, screen * step)
     }
 
     private var currentRenderScale: CGFloat {
@@ -542,6 +559,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let overlay: PageInkView
         if let i = parked.firstIndex(where: { $0.pageIndex == index && $0.generation == shownLayoutVersion }) {
             overlay = parked.remove(at: i)
+            overlay.setRenderScale(currentRenderScale, screen: screenScale)     // Zoom kann sich seit dem Parken geaendert haben
             if overlay.foreignReleased { applyForeign(overlay) }      // nach einer Speicherwarnung neu aufbauen
         } else {
             let box = page.bounds(for: .cropBox).size
@@ -647,6 +665,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Canvas entstanden sind, bleiben erhalten.
     private func apply(_ drawing: PKDrawing, to overlay: PageInkView, remote: Bool = false) {
         if overlay.isDrawing { overlay.deferredReload = true; return }
+        // Neu setzen baut alle Striche neu auf (sie verschwinden kurz): gleicher Stand bleibt stehen
+        if overlay.loaded, drawing == overlay.canvas.drawing { return }
         var next = drawing
         if !overlay.loaded, !overlay.canvas.drawing.strokes.isEmpty { next.append(overlay.canvas.drawing) }
         if remote, overlay.loaded,
