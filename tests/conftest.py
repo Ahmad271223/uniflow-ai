@@ -63,3 +63,11 @@ def _community_legacy_publish(monkeypatch):
     """Tests der Regeln rund um eine Loesung veroeffentlichen ohne Community; die Pflicht prueft test_community_groups.py."""
     from app import community
     monkeypatch.setattr(community, "LEGACY_PUBLISH", True)
+
+
+@pytest.fixture(autouse=True)
+def _ai_prices(monkeypatch):
+    """Im Dienst sperrt ai_backend.complete ohne Token-Preise (fail closed); die Tests setzen winzige Preise (Kosten
+    runden auf 0), einzelne Tests ueberschreiben sie."""
+    monkeypatch.setenv("LERNAPP_AI_PRICE_IN_EUR", "0.001")
+    monkeypatch.setenv("LERNAPP_AI_PRICE_OUT_EUR", "0.001")

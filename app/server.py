@@ -67,6 +67,8 @@ HOSTED_UNAVAILABLE = (
     ("POST", "/api/files/{id}/analyze", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate-week", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/timetable/import/preview", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/tasks/{id}/start-test", "KI-Funktionen kommen mit dem KI-Update."),
 )
 _HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
                           for m, p, why in HOSTED_UNAVAILABLE]
@@ -968,6 +970,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     hosted = config.is_hosted()
     if hosted:
         entitlements.require(request, TUTOR_ENTITLEMENT.get(mode, "can_use_ai_explanations"))
+        entitlements.require_verified_for_ai(request)
     file_id = body.get("file_id")
     page = int(body.get("page") or 1)
     text = body.get("page_text") or ""

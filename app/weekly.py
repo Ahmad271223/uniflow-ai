@@ -31,7 +31,7 @@ import uuid
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
-from . import ai, db, scriptsearch, study
+from . import ai, config, db, entitlements, scriptsearch, study
 
 LOCAL_USER = "local"
 LECTURE_TYPES = ("vorlesung", "skript")
@@ -943,6 +943,10 @@ def process_plan(plan_id: int, now: datetime | None = None, log=print) -> dict |
             if not reuse and quota is not None and (why := quota.check()):
                 conn.execute("UPDATE wt_plans SET status='wartet', last_error=? WHERE id=?", (why, plan_id))
                 return {"result": "waiting", "plan_id": plan_id, "missing": ["kontingent"]}
+            if not reuse and config.is_hosted() and not entitlements.email_verified(config.current_user_id()):
+                conn.execute("UPDATE wt_plans SET status='wartet', last_error=? WHERE id=?",
+                             ("Für KI-Tests bitte zuerst die E-Mail-Adresse bestätigen.", plan_id))
+                return {"result": "waiting", "plan_id": plan_id, "missing": ["email"]}
             ctx = build_context(conn, plan, cands, missing)
         d = reuse or generate_weekly(ctx, now, log)
         if not reuse and quota is not None:
@@ -1011,11 +1015,12 @@ def build_context(conn, plan: dict, cands: dict, missing: list[str], n_questions
 
 # ============================================================================ KI-Erzeugung + Pruefung
 def _ask(prompt: str, system: str = "") -> str:      # in Tests ersetzt
-    from . import ai, config
     if config.is_hosted():
         # Dienst: Studora-KI mit Budget und Protokoll je Konto (app/ai_backend.py); ein Fehler dort (Budget, Rate,
         # nicht eingerichtet) laesst den Plan "fehlgeschlagen" mit Grund, wie jeder andere KI-Fehler
         from . import ai_backend
+        if not entitlements.email_verified(config.current_user_id()):
+            raise WeeklyError("Studora-KI: Bitte zuerst die E-Mail-Adresse bestätigen.")
         try:
             return ai_backend.complete(config.current_user_id(), "weekly_test", system, prompt).text
         except ai_backend.AIUnavailable as e:

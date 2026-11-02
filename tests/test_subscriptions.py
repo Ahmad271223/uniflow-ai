@@ -57,12 +57,14 @@ def end_trial(user_id):
         conn.close()
 
 
-def user(app, email, plan="free", uni="luh", admin=False):
+def user(app, email, plan="free", uni="luh", admin=False, verified=True):
     from app import accounts
     st, d = _j(asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni})))
     assert st == 201, d
     # jedes neue Konto hat 7 Tage Probe (plans.TRIAL); die Tarif-Tests meinen den Stand danach
     end_trial(d["user"]["id"])
+    if verified:                       # Studora-KI gibt es nur mit bestaetigter E-Mail-Adresse (entitlements.require_verified_for_ai)
+        d["user"] = accounts.mark_email_verified(d["user"]["id"])
     if plan != "free":
         accounts.set_plan(d["user"]["id"], plan)
     if admin:

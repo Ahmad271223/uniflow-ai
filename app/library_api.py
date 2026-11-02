@@ -130,6 +130,7 @@ def create_library_test(request: Request, body: dict = Body(...)):
             return from_pool(found, len(found), 0, "library_tests")
         raise HTTPException(409, {"detail": "Zu diesem Thema gibt es noch nicht genug geprüfte Fragen.", "code": "not_enough_questions"})
 
+    entitlements.require_verified_for_ai(request)            # erzeugen kostet Studora-KI-Budget: nur mit bestaetigter E-Mail
     lock = test_library.topic_lock_key(req)
     for _ in range(2):
         if ai_backend.acquire(lock, user["id"]):

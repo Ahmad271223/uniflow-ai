@@ -61,6 +61,33 @@ def require(request: Request, entitlement: str) -> dict | None:
     return user
 
 
+def _unverified() -> HTTPException:
+    return HTTPException(403, {"detail": "Bitte zuerst die E-Mail-Adresse bestätigen.", "code": "email_unverified"})
+
+
+def email_verified(user_id: str | None) -> bool:
+    """Ist die E-Mail-Adresse des Kontos bestaetigt? (Konto aus accounts.db; ohne Konto: nein)"""
+    if not user_id:
+        return False
+    from . import accounts
+    with accounts.cursor() as conn:
+        r = conn.execute("SELECT email_verified FROM users WHERE id=? AND status='active'", (user_id,)).fetchone()
+    return bool(r and r["email_verified"])
+
+
+def require_verified_for_ai(request: Request) -> dict | None:
+    """Studora-KI im Dienst nur mit bestaetigter E-Mail-Adresse (403 email_unverified): ein unbestaetigtes Wegwerfkonto
+    mit Probe soll kein KI-Budget verbrauchen. Lokal (eigener PC) gibt es keine Konten und keine Pruefung."""
+    if not config.is_hosted():
+        return None
+    user = user_of(request)
+    if not user:
+        raise HTTPException(401, {"detail": "Anmeldung erforderlich.", "code": "unauthenticated"})
+    if not user.get("email_verified"):
+        raise _unverified()
+    return user
+
+
 def consume(request: Request, feature: str, request_id: str) -> billing.ConsumeResult:
     """Ein Element eines Monatskontingents verbrauchen; 429 quota_exhausted, wenn es aufgebraucht ist.
     Die Anfrage-ID gilt je Konto, Monat und Funktion. Eine schon gezaehlte ID wird mit 409 duplicate_request abgewiesen:
