@@ -38,6 +38,10 @@
     "count": 30,
     "minutes": 60
    },
+   "report_user": {
+    "count": 10,
+    "minutes": 1440
+   },
    "reset_email": {
     "count": 3,
     "minutes": 60
