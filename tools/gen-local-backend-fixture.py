@@ -473,6 +473,7 @@ def timetable_free(src: SchemaSource, app) -> dict:
 # "." ohne Zeilenende); dazu Zeichen, bei denen ICU sonst anders zaehlt (\v, U+001C, NBSP, zerlegte Umlaute, "SS"
 # statt "ß", arabisch-indische Ziffern)
 CLASSIFY_TITLES = [
+    "Vorlesung: Testmathematik I", "Hörsaalübung zu Testmathematik I", "Testmathematik I - Gruppenübung 3", "Testmathematik I (Vorlesung)", "Testmathematik I (Übung)",
     "Grundlagen der Beispieltechnik", "Übung zu Grundlagen der Beispieltechnik", "Uebung zur Testmathematik I",
     "Übung: Probeinformatik", "Übung", "Übungen zur Beispielchemie", "Gruppenübung Testmathematik I",
     "Gruppenuebung zu Testmathematik II", "Hörsaalübung Testmathematik I", "Zentralübung Beispielphysik",

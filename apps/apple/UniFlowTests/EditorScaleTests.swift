@@ -453,7 +453,7 @@ final class EditorScaleTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 50_000_000)
                 if let o = installedOverlay(editor, page: 0) {
                     overlay = o
-                    onScreen = o.canvas.convert(CGRect(x: 0, y: 0, width: 100, height: 1), to: shown.window).width / 100
+                    onScreen = o.content.convert(CGRect(x: 0, y: 0, width: 100, height: 1), to: shown.window).width / 100
                 }
             } while abs(onScreen - expected) > 0.05 * expected && Uhr.now() < deadline
             m.add("\(name): Zoom setzen (Hauptthread)", set, "s")
@@ -537,8 +537,8 @@ final class EditorScaleTests: XCTestCase {
             let overlay = try await waitForOverlay(editor, page: index, timeout: 20)
             m.add("\(f.name): Seite geladen", Uhr.since(t), "s")
             XCTAssertEqual(overlay.geometry.pageSize, CGSize(width: f.w, height: f.h), f.name)
-            XCTAssertEqual(overlay.canvas.bounds.size, CGSize(width: f.w, height: f.h), "\(f.name): Canvas in Seitenpunkten")
-            let width = overlay.canvas.convert(overlay.canvas.bounds, to: shown.window).width
+            XCTAssertEqual(overlay.canvas.frame.size, CGSize(width: f.w, height: f.h), "\(f.name): Canvas in Seitenpunkten")
+            let width = overlay.content.convert(overlay.content.bounds, to: shown.window).width
             m.add("\(f.name): Breite im Fenster", Double(width), "pt")
             let c = CGPoint(x: f.w / 2, y: f.h / 2)
             drawStroke(editor, on: overlay, Handschrift.line(from: CGPoint(x: c.x - 40, y: c.y), to: CGPoint(x: c.x + 40, y: c.y)))
@@ -944,7 +944,7 @@ final class EditorScaleTests: XCTestCase {
         repeat {
             try await Task.sleep(nanoseconds: 400_000_000)
             let ruleRect = overlay.content.convert(Skript.rule, to: window).insetBy(dx: 0, dy: -12)
-            let inkRect = overlay.canvas.convert(CGRect(x: Skript.rule.minX + 40, y: Skript.inkY - 3, width: Skript.rule.width - 80, height: 6),
+            let inkRect = overlay.content.convert(CGRect(x: Skript.rule.minX + 40, y: Skript.inkY - 3, width: Skript.rule.width - 80, height: 6),
                                                  to: window).insetBy(dx: 0, dy: -12)
             autoreleasepool {
                 guard let image = Bild.snapshot(window) else { return }

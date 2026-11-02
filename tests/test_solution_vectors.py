@@ -39,6 +39,19 @@ def test_open_reseal_and_reject():
             sf.open_package(n["package"], pdf)
 
 
+def test_all_events_of_a_module_share_one_community():
+    from app import solution_format as sf
+    from app.studip_sync import classify
+    cases = json.loads(FIX.read_text(encoding="utf-8"))["community"]["module_cases"]
+    assert len({c["key"] for c in cases[:6]}) == 1 and cases[0]["module"] == "Programmieren I", "Vorlesung, Uebung, Tutorium: eine Community"
+    assert cases[6]["key"] != cases[0]["key"]
+    for c in cases:
+        name = classify(c["title"])[0]
+        assert sf.community_module_key("luh", name) == c["key"]
+        assert sf.community_secret("module", "luh", sf.normalized_course_name(name)).hex() == c["secret_hex"]
+    assert sf.community_module_key("luh", " - ") is None
+
+
 def test_community_package_opens_with_the_secret_without_the_pdf():
     from cryptography.exceptions import InvalidTag
     from app import community, solution_format as sf

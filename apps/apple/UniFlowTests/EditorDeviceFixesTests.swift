@@ -9,20 +9,36 @@ final class EditorDeviceFixesTests: XCTestCase {
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 1), 2)
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 1.4), 3)
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 0.5), 2, "nie unter dem Bildschirm")
-        XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 8), 5, "Speicher begrenzt")
+        XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: 8), 8, "Speicher begrenzt")
         XCTAssertEqual(PDFEditorController.renderScale(screen: 2, zoom: .nan), 2)
     }
 
-    func testSetRenderScaleReachesCanvasObjectsAndSubviews() {
+    func testSetRenderScaleZoomsTheCanvasItself() {
         let v = PageInkView(pageIndex: 0, geometry: PageGeometry(pageSize: CGSize(width: 600, height: 800)))
         v.canvas.addSubview(UIView())
         v.objectsView.show(template: nil, placeholder: nil, objects: [["id": "t", "type": "text", "text": "Hallo", "x": 1, "y": 2]], images: [:])
-        v.setRenderScale(4)
-        XCTAssertEqual(v.canvas.contentScaleFactor, 4)
-        XCTAssertEqual(v.canvas.subviews.first?.contentScaleFactor, 4)
-        XCTAssertEqual(v.objectsView.subviews.first?.contentScaleFactor, 4)
+        v.setRenderScale(10, screen: 2)
+        XCTAssertEqual(v.canvas.zoomScale, 5, "PencilKit rendert fertige Striche nur nach seinem eigenen Zoom")
+        XCTAssertEqual(v.canvas.bounds.size, CGSize(width: 3000, height: 4000))
+        XCTAssertEqual(v.canvas.frame, CGRect(x: 0, y: 0, width: 600, height: 800), "Die Canvas bleibt so gross wie die Seite")
+        XCTAssertEqual(v.canvas.contentOffset, .zero)
+        XCTAssertEqual(v.objectsView.subviews.first?.contentScaleFactor, 10)
+        v.isDrawing = true
+        v.setRenderScale(4, screen: 2)
+        XCTAssertEqual(v.canvas.zoomScale, 5, "ein laufender Strich bleibt unberuehrt")
+        v.isDrawing = false
         v.setRenderScale(2)
         XCTAssertGreaterThanOrEqual(v.objectsView.subviews.first?.contentScaleFactor ?? 0, UIScreen.main.scale * 2, "Text nie groeber als vorher")
+    }
+
+    func testCanvasPointsStayPagePointsWhenZoomed() {
+        let v = PageInkView(pageIndex: 0, geometry: PageGeometry(pageSize: CGSize(width: 600, height: 800)))
+        v.setRenderScale(8, screen: 2)
+        // Inhaltspunkt der Canvas (Seitenpunkte) -> Ansicht der Canvas -> Seite
+        let onCanvas = CGPoint(x: 150 * v.canvas.zoomScale, y: 200 * v.canvas.zoomScale)
+        let onPage = v.canvas.convert(onCanvas, to: v.content)
+        XCTAssertEqual(onPage.x, 150, accuracy: 0.01)
+        XCTAssertEqual(onPage.y, 200, accuracy: 0.01)
     }
 
     /// Objekte stehen in Seitenpunkten: Bei skalierter Seite ergibt derselbe Finger-Weg den halben Weg auf der Seite

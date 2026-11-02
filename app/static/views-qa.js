@@ -1,6 +1,6 @@
 // Community Teil 2 in der Oberflaeche (28.10.2026): Fragen je Kurs mit Antworten, Lesezeichen, Mitteilungen.
 // Gleich im Browser (Dienst) und in der Windows-App (Weiterleitung ueber das Studora-Konto, app/service_link.py).
-// Der Kurs-Schluessel entsteht im eigenen Backend aus der Kurs-ID (/api/courses/community-keys), wie auf dem iPad.
+// Der Schluessel entsteht im eigenen Backend aus dem Modul des Kurses (/api/courses/community-keys), wie auf dem iPad.
 import { icon } from "./icons.js?v=31";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -29,7 +29,8 @@ function reasonPick() {
 /** Liste mit "Neue Frage" und "Mehr laden". opts: {courseKey?, fingerprint?, page?, compact?, onOpen?} */
 export async function renderQuestions(el, opts = {}) {
   let courses = [];
-  try { courses = await courseKeys(); } catch (e) { el.innerHTML = `<p class="small muted">${esc(e.message)}</p>`; return; }
+  // alle Veranstaltungen eines Moduls teilen einen Schluessel: eine Zeile je Modul
+  try { courses = [...new Map((await courseKeys()).filter(c => c.key).map(c => [c.key, { ...c, title: c.module || c.title }])).values()]; } catch (e) { el.innerHTML = `<p class="small muted">${esc(e.message)}</p>`; return; }
   if (!courses.length) { el.innerHTML = `<p class="small muted">Noch keine Kurse. Nach dem ersten Abgleich mit Stud.IP oder Learnweb erscheinen hier deine Kurse.</p>`; return; }
   let key = opts.courseKey || (() => { try { return localStorage.getItem("qa-course"); } catch { return null; } })();
   if (!courses.some(c => c.key === key)) key = courses[0].key;

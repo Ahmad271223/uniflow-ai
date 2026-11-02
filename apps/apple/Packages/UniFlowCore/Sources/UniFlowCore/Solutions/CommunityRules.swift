@@ -23,6 +23,14 @@ public enum CommunityKeys {
         return SolutionSHA256.hex(Data(("uniflow.community.coursename.v1\u{0}" + university + "\u{0}" + name).utf8))
     }
 
+    /// Community eines Moduls: Vorlesung, Uebung, Hoersaaluebung und Tutorium desselben Moduls landen in einer Community,
+    /// fuer alle gleich. Das Modul kommt aus dem Titel, nicht aus dem lokal aenderbaren Fach. nil ohne Modulnamen.
+    public static func moduleKey(university: String, courseTitle: String) -> String? {
+        courseKey(university: university, courseName: moduleName(courseTitle: courseTitle))
+    }
+
+    public static func moduleName(courseTitle: String) -> String { UniRules.classify(courseTitle).subject }
+
     /// Kursname fuer den Schluessel: Kleinbuchstaben, Umlaute und Eszett ausgeschrieben (ae, oe, ue, ss), nur
     /// Buchstaben und Ziffern, dazwischen je ein Leerzeichen ("Analysis I (WS 2026/27)" und "analysis i - ws 2026/27"
     /// ergeben dasselbe).
@@ -59,6 +67,12 @@ public enum CommunityKeys {
     /// das hier nur, wer die Kurs-ID kennt.
     public static func secret(university: String, courseID: String) -> Data {
         secret("course", university, courseID)
+    }
+
+    /// Schluesselmaterial einer Modul-Community (`moduleKey`). Der Modulname ist kein Geheimnis: Das schuetzt vor dem
+    /// Dienst nur, solange er den Namen nicht erraet; die Sichtbarkeit regelt die Mitgliedschaft.
+    public static func secret(university: String, moduleName: String) -> Data {
+        secret("module", university, normalizedCourseName(moduleName))
     }
 
     /// Schluesselmaterial einer Lerngruppe aus dem Beitrittscode

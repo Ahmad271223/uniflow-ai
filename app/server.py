@@ -582,23 +582,19 @@ def mark_seen():
 # Kurse & Dateien
 # ----------------------------------------------------------------------------
 
-def community_course_key(university: str, course_id: str) -> str:
-    """Kurs-Schluessel der Community wie CommunityKeys.courseKey auf dem iPad (app/community_qa.py)."""
-    import hashlib
-    return hashlib.sha256(("uniflow.community.course.v1\0" + university + "\0" + course_id).encode("utf-8")).hexdigest()
-
-
 @app.get("/api/courses/community-keys")
 def courses_community_keys():
-    """Eigene aktive Kurse mit Community-Schluessel (Fragen je Kurs) und `secret` (oeffnet die Pakete der Community). Auf
+    """Eigene aktive Kurse mit dem Community-Schluessel ihres Moduls (alle Veranstaltungen eines Moduls teilen ihn) und `secret` (oeffnet die Pakete der Community). Auf
     dem eigenen Geraet bekommt der Dienst nur den Schluessel, nie Kurs-ID, Namen oder `secret`."""
-    from .solution_format import community_secret
+    from .solution_format import community_module_key, community_secret, normalized_course_name
+    from .studip_sync import classify
     uni = config.university()
     with db.cursor() as conn:
         rows = db.rows(conn, """SELECT id, title, semester, subject FROM courses
                                 WHERE id NOT IN ('__user__') AND COALESCE(active, 1)=1 ORDER BY subject, title""")
     return {"university": uni, "courses": [{"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
-                                            "key": community_course_key(uni, r["id"]), "secret": community_secret("course", uni, r["id"]).hex()} for r in rows]}
+                                            "module": classify(r["title"])[0], "key": community_module_key(uni, classify(r["title"])[0]),
+                                            "secret": community_secret("module", uni, normalized_course_name(classify(r["title"])[0])).hex()} for r in rows]}
 
 
 @app.get("/api/files/by-fingerprint/{sha}")

@@ -42,6 +42,10 @@ test("Community-Paket: mit dem Schluessel der Community, ohne die PDF", async ()
   const pkg = await S.seal(c.content, null, { salt: bytes(c.salt), nonce: bytes(c.nonce), secret });
   assert.equal(S.encodePackage(pkg), c.package_text);
   await assert.rejects(S.openPackage(c.package, null), e => e.code === "decryptionFailed");
+  for (const m of c.module_cases) {
+    const name = m.module.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    assert.equal(Buffer.from(await S.communitySecret("module", c.university, name)).toString("hex"), m.secret_hex);
+  }
   const other = await S.communitySecret("course", c.university, "anderer-kurs");
   await assert.rejects(S.openPackage(c.package, null, null, other), e => e.code === "decryptionFailed");
 });

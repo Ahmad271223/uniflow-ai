@@ -61,7 +61,7 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 // Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit Studora-Konto), alle 2 Minuten
 window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
   b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
-async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=2"); window.updateBell(await unreadCount()); } catch {} }
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=3"); window.updateBell(await unreadCount()); } catch {} }
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
 

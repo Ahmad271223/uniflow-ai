@@ -112,16 +112,27 @@ final class PageInkView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
-    /// Die Seite wird per Transform vergroessert (Seitenpunkte bleiben die Koordinaten). Damit die Tinte nicht wie ein
-    /// hochgezogenes Bild wirkt, rendert die Canvas in der Aufloesung der Anzeige; PencilKit zeichnet in eigenen
-    /// Unteransichten, darum gilt der Faktor fuer alle.
-    func setRenderScale(_ scale: CGFloat) {
-        func walk(_ v: UIView) {
-            v.contentScaleFactor = scale
-            v.subviews.forEach(walk)
-        }
-        walk(canvas)
+    /// PDFKit vergroessert die Seite von aussen. Fertige Striche rendert PencilKit nur nach seinem eigenen Zoom, ein
+    /// hoeherer `contentScaleFactor` wirkt nur auf den laufenden Strich (gemessen: Kante 23 statt 3 Pixel bei Zoom 5).
+    /// Darum zoomt die Canvas selbst und wird per Transform wieder auf Seitengroesse gebracht; die Striche bleiben in
+    /// Seitenpunkten. Waehrend eines Strichs bleibt alles, sonst bricht er ab.
+    func setRenderScale(_ scale: CGFloat, screen: CGFloat = UIScreen.main.scale) {
         objectsView.setRenderScale(scale)
+        guard !isDrawing else { return }
+        let zoom = max(1, scale / screen)
+        guard abs(zoom - canvas.zoomScale) > 0.001 else { return }
+        let size = geometry.pageSize
+        canvas.transform = .identity
+        canvas.minimumZoomScale = min(zoom, canvas.zoomScale)
+        canvas.maximumZoomScale = max(zoom, canvas.zoomScale)
+        canvas.bounds = CGRect(x: 0, y: 0, width: size.width * zoom, height: size.height * zoom)
+        canvas.center = CGPoint(x: size.width / 2, y: size.height / 2)
+        canvas.zoomScale = zoom
+        canvas.minimumZoomScale = zoom
+        canvas.maximumZoomScale = zoom
+        canvas.contentSize = canvas.bounds.size
+        canvas.contentOffset = .zero
+        canvas.transform = CGAffineTransform(scaleX: 1 / zoom, y: 1 / zoom)
     }
 
     override func layoutSubviews() {
@@ -336,7 +347,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.backgroundColor = .secondarySystemBackground
         pdfView.autoScales = true                     // nur fuer das erste Einpassen, danach aus
         pdfView.pageOverlayViewProvider = self        // vor dem Setzen des Dokuments
-        pdfView.isInMarkupMode = true                 // Overlays bekommen die Stifteingabe, keine Textauswahl
+        pdfView.isInMarkupMode = true                 // Overlays bekommen die Stifteingabe; aus nur bei "Text markieren"
         showLayout()
 
         toolPicker.addObserver(self)
@@ -440,14 +451,16 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     /// Faktor fuer die Zeichenflaeche: Bildschirm mal PDF-Zoom, begrenzt (je Seite eine Metal-Flaeche im Speicher)
-    nonisolated static func renderScale(screen: CGFloat, zoom: CGFloat, limit: CGFloat = 5) -> CGFloat {
+    nonisolated static func renderScale(screen: CGFloat, zoom: CGFloat, limit: CGFloat = 8) -> CGFloat {
         guard zoom.isFinite, zoom > 0 else { return screen }
         return min(limit, max(screen, (screen * zoom * 4).rounded(.up) / 4))
     }
 
     private var currentRenderScale: CGFloat {
-        Self.renderScale(screen: view.window?.screen.scale ?? UIScreen.main.scale, zoom: pdfView.scaleFactor)
+        Self.renderScale(screen: screenScale, zoom: pdfView.scaleFactor)
     }
+
+    private var screenScale: CGFloat { view.window?.screen.scale ?? UIScreen.main.scale }
 
     /// Erst nach dem Zoomen: Waehrend des Pinchens wuerde jede Aenderung die Zeichenflaeche neu anlegen
     private func scheduleRenderScale() {
@@ -456,7 +469,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard let self, !Task.isCancelled else { return }
             let s = self.currentRenderScale
-            self.allOverlays.forEach { $0.setRenderScale(s) }
+            self.allOverlays.forEach { $0.setRenderScale(s, screen: self.screenScale) }
         }
     }
 
@@ -595,7 +608,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     private func configure(_ overlay: PageInkView) {
-        overlay.setRenderScale(currentRenderScale)
+        overlay.setRenderScale(currentRenderScale, screen: screenScale)
         let c = overlay.canvas
         c.drawingPolicy = drawingPolicy
         c.delegate = self

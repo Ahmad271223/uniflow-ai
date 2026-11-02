@@ -469,9 +469,9 @@ def classify(title: str) -> tuple[str, str]:
         kind = "sonstiges"
     s = t
     s = re.sub(r"^\d+\s+", "", s)                                   # Nummer vorne
-    s = re.sub(r"^(Gruppenübung|Übung|Uebung|Tutorium)\s*(zu|zur|:)?\s*", "", s, flags=re.I)
-    s = re.sub(r"\s*[-–]\s*(Fragestunden|Tutorium).*$", "", s, flags=re.I)
-    s = re.sub(r"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik)\)", "", s, flags=re.I)
+    s = re.sub(r"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übungen|Übung|Uebung|Tutorium|Fragestunde)\s*(zu|zur|:)?\s*", "", s, flags=re.I)
+    s = re.sub(r"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung).*$", "", s, flags=re.I)
+    s = re.sub(r"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*)\)", "", s, flags=re.I)
     s = re.sub(r",?\s*Tranche\s*\w+.*$", "", s, flags=re.I)
     s = re.sub(r"\s+", " ", s).strip(" -:,(")
     return s, kind

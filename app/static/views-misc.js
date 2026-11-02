@@ -219,7 +219,7 @@ export async function viewCommunity(_, params, view) {
   if (tab !== "overview") {
     view.innerHTML = `<div class="content" style="max-width:960px">${head}${tabs}<div class="card" id="qaPanel"></div></div>`;
     bindTabs();
-    const q = await import("./views-qa.js?v=2"); const el = $("#qaPanel", view);
+    const q = await import("./views-qa.js?v=3"); const el = $("#qaPanel", view);
     if (tab === "questions") q.renderQuestions(el); else if (tab === "bookmarks") q.renderBookmarks(el); else q.renderNotifications(el, n => window.updateBell?.(n));
     return;
   }
@@ -241,7 +241,7 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=1").then(m => m.renderSpaces($("#spacesCard", view)));
+  import("./community-spaces.js?v=2").then(m => m.renderSpaces($("#spacesCard", view)));
   if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=3").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));

@@ -1,5 +1,5 @@
-// Communities je Kurs und Lerngruppe (1.11.2026, wie CommunitySpacesCard auf dem iPad): beitreten, verlassen, Loesungen
-// ansehen. Der Schluessel einer Community entsteht aus Kurs-ID bzw. Beitrittscode und oeffnet ihre Pakete auch ohne die
+// Communities je Modul und Lerngruppe (wie CommunitySpacesCard auf dem iPad): beitreten, verlassen, Loesungen
+// ansehen. Der Schluessel einer Community entsteht aus Modulname bzw. Beitrittscode und oeffnet ihre Pakete auch ohne die
 // PDF; dann stehen die Notizen auf leeren Seiten. Codes bleiben in diesem Browser, der Dienst kennt nur den Gruppen-Schluessel.
 import { $, $$, api, esc, icon, toast, drawer, closeDrawer } from "./core.js?v=32";
 import * as S from "./solutions.js?v=2";
@@ -13,9 +13,11 @@ function saveGroups(list) { try { localStorage.setItem(GROUPS, JSON.stringify(li
 /** Kurse aus dem Abgleich und Lerngruppen dieses Browsers, zusammengefuehrt mit dem Stand des Dienstes. */
 export async function loadSpaces() {
   const { university, courses } = await api("/courses/community-keys");
-  await api("/community/claims", { method: "POST", body: { fingerprints: [], course_keys: courses.map(c => c.key) } });
+  await api("/community/claims", { method: "POST", body: { fingerprints: [], course_keys: courses.map(c => c.key).filter(Boolean) } });
   const rows = new Map((await api("/community/communities")).communities.map(r => [r.community_key, r]));
-  const spaces = courses.map(c => ({ key: c.key, kind: "course", name: c.title, secret: hexBytes(c.secret), ...stateOf(rows.get(c.key)) }));
+  // alle Veranstaltungen eines Moduls teilen sich eine Community
+  const modules = [...new Map(courses.filter(c => c.key).map(c => [c.key, c])).values()];
+  const spaces = modules.map(c => ({ key: c.key, kind: "course", name: c.module || c.title, secret: hexBytes(c.secret), ...stateOf(rows.get(c.key)) }));
   for (const g of storedGroups()) {
     const key = await groupKey(university, g.code); const r = rows.get(key);
     if (r?.joined) spaces.push({ key, kind: "group", name: r.name || g.name, code: g.code, secret: await S.communitySecret("group", university, g.code), ...stateOf(r) });

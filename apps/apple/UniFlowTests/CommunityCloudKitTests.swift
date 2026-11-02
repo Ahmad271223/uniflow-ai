@@ -533,7 +533,7 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(CommunityTexts.matches(1), "1 Lösung aus der Community zu diesem Blatt")
         XCTAssertEqual(CommunityTexts.matches(3), "3 Lösungen aus der Community zu diesem Blatt")
         XCTAssertEqual(CommunityTexts.owner("_abcdef0123456789"), "Nutzer …456789")
-        XCTAssertTrue(CommunityTexts.visibility(.module).contains("Kurs"))
+        XCTAssertTrue(CommunityTexts.visibility(.module).contains("Modul"))
         XCTAssertTrue(CommunityTexts.visibility(.studyGroup).contains("Lerngruppe"))
         XCTAssertTrue(CommunityTexts.visibility(.anonymous).contains("ohne Pseudonym"))
         XCTAssertEqual(SolutionTexts.communityConfirmTitle, "In der Community veröffentlichen")
@@ -567,10 +567,10 @@ final class CommunityCloudKitTests: XCTestCase {
         let eve = try device(cloud, courses: ["kurs-7"], courseNames: ["Analysis II"])
         let none = try await eve.service.findMatching(fingerprint: fp)
         XCTAssertEqual(none, [])
-        // Schluessel eines Moduls aus der Detailansicht: Kurs-IDs und Name, ohne Dubletten und ohne den Pseudokurs
-        let detail: JSONValue = ["module": ["name": "Analysis I"], "courses": [["id": "kurs-7"], ["id": "__user__"], ["id": "kurs-7"]]]
-        XCTAssertEqual(CommunityCourses.courseKeys(module: detail, university: "luh"),
-                       [CommunityKeys.courseKey(university: "luh", courseID: "kurs-7"), nameKey])
+        // Schluessel eines Moduls aus der Detailansicht: Vorlesung und Uebung ergeben einen, ohne den Pseudokurs
+        let detail: JSONValue = ["module": ["name": "Analysis I"], "courses": [["id": "kurs-7", "title": "Analysis I"], ["id": "__user__", "title": "Eigene"],
+                                                                               ["id": "kurs-8", "title": "Übung: Analysis I"]]]
+        XCTAssertEqual(CommunityCourses.courseKeys(module: detail, university: "luh"), [nameKey])
         XCTAssertEqual(CommunityCourses.courseKeys(module: ["module": ["name": "  "]], university: "luh"), [])
     }
 
@@ -644,21 +644,20 @@ final class CommunityCloudKitTests: XCTestCase {
             try c.execute("INSERT INTO files(id, course_id, name, folder_id) VALUES ('f-own', '__user__', 'Notizbuch', 9)")
             try c.execute("INSERT INTO files(id, course_id, name, folder_id) VALUES ('f-loose', '__user__', 'Lose.pdf', NULL)")
         }
-        let idKey = CommunityKeys.courseKey(university: "luh", courseID: "kurs-1")
-        let titleKey = try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Lineare Algebra (WS 2026/27)"))
+        let titleKey = try XCTUnwrap(CommunityKeys.moduleKey(university: "luh", courseTitle: "Lineare Algebra (WS 2026/27)"))
         let moduleKey = try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Analysis I"))
-        // Datei aus dem Abgleich: Kurs-ID; eigenes Dokument: Modulname; ohne beides: nichts
+        // Datei aus dem Abgleich: Modul ihres Kurses; eigenes Dokument: Modulname; ohne beides: nichts
         let studip = await CommunityCourses.courseKey(fileID: "f-studip", host: host, university: "luh")
-        XCTAssertEqual(studip, idKey)
+        XCTAssertEqual(studip, titleKey)
         let own = await CommunityCourses.courseKey(fileID: "f-own", host: host, university: "luh")
         XCTAssertEqual(own, moduleKey)
         let loose = await CommunityCourses.courseKey(fileID: "f-loose", host: host, university: "luh")
         XCTAssertNil(loose)
         let unknown = await CommunityCourses.courseKey(fileID: "nope", host: host, university: "luh")
         XCTAssertNil(unknown)
-        // der Suchende kennt Kurs-IDs, Kurstitel und Modulnamen, nicht den Pseudokurs
+        // der Suchende kennt die Module seiner Kurse und seine Modulnamen, nicht den Pseudokurs
         let keys = await CommunityCourses.courseKeys(host: host, university: "luh")
-        XCTAssertEqual(keys, [idKey, titleKey, moduleKey])
+        XCTAssertEqual(keys, [titleKey, moduleKey])
         XCTAssertFalse(keys.contains(CommunityKeys.courseKey(university: "luh", courseID: "__user__")))
     }
 

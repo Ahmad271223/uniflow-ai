@@ -334,7 +334,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         let drawn = try XCTUnwrap(overlay.canvas.drawing.strokes.last)
         let pk = centerline(drawn)
         let model = try objectBounds(object)
-        let inWindow = overlay.canvas.convert(pk, to: window)
+        let inWindow = overlay.content.convert(pk, to: window)
         try writeJSON([
             "pdfSeite": 1, "seitenSchluessel": key,
             "koordinaten": "Punkte der angezeigten Seite, Ursprung oben links, ohne Zoom (wie das Notizmodell)",
@@ -1046,7 +1046,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
     /// Fensterlage des zuletzt gezeichneten eigenen Strichs (Mittellinie) auf der Canvas.
     private func ownStrokeWindowRect(_ overlay: PageInkView, window: UIWindow) throws -> CGRect {
         let last = try XCTUnwrap(overlay.canvas.drawing.strokes.last, "eigener Strich auf der Canvas")
-        return overlay.canvas.convert(centerline(last), to: window)
+        return overlay.content.convert(centerline(last), to: window)
     }
 
     private func assertBounds(_ got: CGRect, _ want: [String: Any], _ tolerance: Double, _ what: String,

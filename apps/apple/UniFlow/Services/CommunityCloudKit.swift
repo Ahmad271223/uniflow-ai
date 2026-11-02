@@ -69,17 +69,16 @@ final class CommunityMembership: CommunityGroupStore, @unchecked Sendable {
 /// Kurs-ID, ein eigenes Dokument den seines Moduls (Name); wer sucht, kennt die Schluessel aller Kurs-IDs,
 /// Kurstitel und Modulnamen seiner Datenbank.
 enum CommunityCourses {
-    /// Kurs-Schluessel des Suchenden: Kurs-IDs (Stud.IP bzw. Learnweb), Kurstitel und Modulnamen, ohne den
-    /// Pseudokurs der eigenen Uploads
+    /// Community-Schluessel des Suchenden: Module seiner Veranstaltungen und seine Modulnamen, ohne den Pseudokurs der
+    /// eigenen Uploads
     static func courseKeys(host: LocalBackendHost, university: String) async -> Set<String> {
         guard let backend = try? await host.backend() else { return [] }
         let rows = (try? await backend.context.database.withConnection { c in
-            try (c.rows("SELECT id, title FROM courses WHERE id <> '__user__'"), c.rows("SELECT name FROM modules"))
+            try (c.rows("SELECT title FROM courses WHERE id <> '__user__'"), c.rows("SELECT name FROM modules"))
         }) ?? ([], [])
         var keys = Set<String>()
         for r in rows.0 {
-            if let id = r["id"]?.string { keys.insert(CommunityKeys.courseKey(university: university, courseID: id)) }
-            if let t = r["title"]?.string, let k = CommunityKeys.courseKey(university: university, courseName: t) { keys.insert(k) }
+            if let t = r["title"]?.string, let k = CommunityKeys.moduleKey(university: university, courseTitle: t) { keys.insert(k) }
         }
         for r in rows.1 {
             if let n = r["name"]?.string, let k = CommunityKeys.courseKey(university: university, courseName: n) { keys.insert(k) }
@@ -102,14 +101,15 @@ enum CommunityCourses {
         return Array(Set(rows.compactMap { $0["sha"]?.string }).sorted().prefix(ServiceCommunityService.maxClaims))
     }
 
-    /// Alle Kurse des Containers als Communities, ohne den Pseudokurs der eigenen Uploads
+    /// Eine Community je Modul des Containers (alle Veranstaltungen zusammen), ohne den Pseudokurs der eigenen Uploads
     static func spaces(host: LocalBackendHost, university: String) async -> [CommunitySpace] {
         guard let backend = try? await host.backend() else { return [] }
-        let rows = (try? await backend.context.database.withConnection { try $0.rows("SELECT id, title FROM courses WHERE id <> '__user__' ORDER BY title") }) ?? []
+        let rows = (try? await backend.context.database.withConnection { try $0.rows("SELECT title FROM courses WHERE id <> '__user__' ORDER BY title") }) ?? []
+        var seen = Set<String>()
         return rows.compactMap { r in
-            guard let id = r["id"]?.string else { return nil }
-            return CommunitySpace.course(university: university, id: id, title: r["title"]?.string ?? id)
-        }
+            guard let t = r["title"]?.string, let space = CommunitySpace.module(university: university, courseTitle: t) else { return nil }
+            return seen.insert(space.key).inserted ? space : nil
+        }.sorted { $0.name < $1.name }
     }
 
     /// Lokale Datei zu einem Fingerabdruck, um eine Loesung ueber der eigenen PDF zu zeigen
@@ -120,28 +120,30 @@ enum CommunityCourses {
         }) ?? nil
     }
 
-    /// Kurs-Schluessel einer Datei: aus der Kurs-ID (Abgleich) oder, bei eigenen Dokumenten, aus dem Namen des
-    /// Moduls (ueber den Ordner); nil ohne Kurs und Modul oder bei unbekannter Datei
+    /// Community-Schluessel einer Datei: aus dem Modul ihres Kurses (Abgleich) oder, bei eigenen Dokumenten, aus dem
+    /// Namen des Moduls (ueber den Ordner); nil ohne Kurs und Modul oder bei unbekannter Datei
     static func courseKey(fileID: String, host: LocalBackendHost, university: String) async -> String? {
         guard let backend = try? await host.backend() else { return nil }
         let row = try? await backend.context.database.withConnection { c in
             try c.rows("""
-                SELECT f.course_id AS course_id, m.name AS module_name FROM files f
+                SELECT f.course_id AS course_id, c.title AS course_title, m.name AS module_name FROM files f
+                LEFT JOIN courses c ON c.id = f.course_id
                 LEFT JOIN folders fo ON fo.id = f.folder_id LEFT JOIN modules m ON m.id = fo.module_id WHERE f.id=?
                 """, [.text(fileID)]).first
         }
         guard let row else { return nil }
-        if let id = row["course_id"]?.string, id != "__user__" { return CommunityKeys.courseKey(university: university, courseID: id) }
+        if row["course_id"]?.string != "__user__", let t = row["course_title"]?.string,
+           let key = CommunityKeys.moduleKey(university: university, courseTitle: t) { return key }
         guard let name = row["module_name"]?.string else { return nil }
         return CommunityKeys.courseKey(university: university, courseName: name)
     }
 
-    /// Kurs-Schluessel eines Moduls aus seiner Detailansicht (`/api/modules/{id}`): alle Kurs-IDs des Moduls und
-    /// sein Name (eigene Dokumente), ohne Dubletten
+    /// Community-Schluessel eines Moduls aus seiner Detailansicht (`/api/modules/{id}`): aus den Titeln seiner Kurse und
+    /// seinem Namen (eigene Dokumente), ohne Dubletten
     static func courseKeys(module d: JSONValue, university: String) -> [String] {
         var keys: [String] = []
-        for id in d.list("courses").compactMap({ $0.s("id") }) where id != "__user__" {
-            keys.append(CommunityKeys.courseKey(university: university, courseID: id))
+        for c in d.list("courses") where c.s("id") != "__user__" {
+            if let t = c.s("title"), let k = CommunityKeys.moduleKey(university: university, courseTitle: t) { keys.append(k) }
         }
         if let name = d["module"]?.s("name"), let k = CommunityKeys.courseKey(university: university, courseName: name) { keys.append(k) }
         var seen = Set<String>()

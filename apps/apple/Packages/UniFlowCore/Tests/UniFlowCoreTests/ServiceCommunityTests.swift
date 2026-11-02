@@ -105,6 +105,15 @@ final class ServiceCommunityTests: XCTestCase {
         XCTAssertEqual(hex(CommunityKeys.secret(university: uni, courseID: try XCTUnwrap(c["course_id"]?.string))), c["secret_hex"]?.string)
         XCTAssertEqual(hex(CommunityKeys.secret(university: uni, groupCode: try XCTUnwrap(c["code"]?.string))), c["group_secret_hex"]?.string)
 
+        for m in c["module_cases"]?.array ?? [] {
+            let title = try XCTUnwrap(m["title"]?.string)
+            XCTAssertEqual(CommunityKeys.moduleName(courseTitle: title), m["module"]?.string)
+            XCTAssertEqual(CommunityKeys.moduleKey(university: uni, courseTitle: title), m["key"]?.string, title)
+            let space = try XCTUnwrap(CommunitySpace.module(university: uni, courseTitle: title))
+            XCTAssertEqual(space.secret.map(hex), m["secret_hex"]?.string, title)
+        }
+        XCTAssertNil(CommunitySpace.module(university: uni, courseTitle: " - "))
+
         let pack = try SolutionPackage.decode(try XCTUnwrap(c["package_text"]?.string).data(using: .utf8)!)
         XCTAssertTrue(pack.header.isCommunityPackage)
         XCTAssertEqual(String(decoding: pack.encoded(), as: UTF8.self), c["package_text"]?.string, "Kopf bleibt byte-gleich")

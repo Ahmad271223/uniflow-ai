@@ -106,7 +106,9 @@ final class EditorStep6Tests: XCTestCase {
         let editor = PDFEditorController(store: store)                  // zeigt den Aufbau mit der gedrehten Seite
         editor.loadViewIfNeeded()
         editor.objects.setActive(true)
+        XCTAssertTrue(editor.pdfView.isInMarkupMode)
         editor.objects.tool = .markup
+        XCTAssertFalse(editor.pdfView.isInMarkupMode, "im Markup-Modus nimmt PDFKit keine Textauswahl an")
         let doc = try XCTUnwrap(editor.pdfView.document)
         editor.objects.applyMarkup(.highlight)                           // ohne Auswahl
         try await Task.sleep(nanoseconds: 100_000_000)

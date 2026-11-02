@@ -403,6 +403,50 @@
   "code": "ABCDEFGH",
   "secret_hex": "11dd68c6a8749b3ad0f126d06989eb68a93747d08a3f4b100180e6444bdbdb8e",
   "group_secret_hex": "6a8f5d94c14287b669b7a1775fcd7fa9c9a5fac754c5e9c07108708c60ae8132",
+  "module_cases": [
+   {
+    "title": "Programmieren I",
+    "module": "Programmieren I",
+    "key": "30b41549f8aeda9aeb175b361e3b6e9a0122739cb55226e7d82df9113e560da1",
+    "secret_hex": "7ec8fb990939a60cd2aef41425fbcf267578cf6426abd9da5b8b3c509534529c"
+   },
+   {
+    "title": "Übung: Programmieren I",
+    "module": "Programmieren I",
+    "key": "30b41549f8aeda9aeb175b361e3b6e9a0122739cb55226e7d82df9113e560da1",
+    "secret_hex": "7ec8fb990939a60cd2aef41425fbcf267578cf6426abd9da5b8b3c509534529c"
+   },
+   {
+    "title": "Hörsaalübung Programmieren I",
+    "module": "Programmieren I",
+    "key": "30b41549f8aeda9aeb175b361e3b6e9a0122739cb55226e7d82df9113e560da1",
+    "secret_hex": "7ec8fb990939a60cd2aef41425fbcf267578cf6426abd9da5b8b3c509534529c"
+   },
+   {
+    "title": "Tutorium zu Programmieren I",
+    "module": "Programmieren I",
+    "key": "30b41549f8aeda9aeb175b361e3b6e9a0122739cb55226e7d82df9113e560da1",
+    "secret_hex": "7ec8fb990939a60cd2aef41425fbcf267578cf6426abd9da5b8b3c509534529c"
+   },
+   {
+    "title": "Programmieren I - Gruppenübung 3",
+    "module": "Programmieren I",
+    "key": "30b41549f8aeda9aeb175b361e3b6e9a0122739cb55226e7d82df9113e560da1",
+    "secret_hex": "7ec8fb990939a60cd2aef41425fbcf267578cf6426abd9da5b8b3c509534529c"
+   },
+   {
+    "title": "Programmieren I (Vorlesung)",
+    "module": "Programmieren I",
+    "key": "30b41549f8aeda9aeb175b361e3b6e9a0122739cb55226e7d82df9113e560da1",
+    "secret_hex": "7ec8fb990939a60cd2aef41425fbcf267578cf6426abd9da5b8b3c509534529c"
+   },
+   {
+    "title": "Signale und Systeme (für Elektrotechnik)",
+    "module": "Signale und Systeme",
+    "key": "5acd80f04e12947b8e8db3952735f4c8aa9d81f846fd8886c1b9d5f4b5e4a141",
+    "secret_hex": "d7057a006a827c07e8cb5ddb8b8adafe53c4ba5fef3dc3a8079a2f4f7e8c07fc"
+   }
+  ],
   "salt": "ERERERERERERERERERERERERERERERERERERERERERE=",
   "nonce": "IiIiIiIiIiIiIiIi",
   "plaintext": "{\"createdAt\":\"2026-10-28T10:00:00Z\",\"displayName\":\"\",\"document\":{\"pageCount\":1,\"sha256\":\"97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad\"},\"format\":\"uniflow-solution-content\",\"formatVersion\":1,\"images\":{},\"missingImages\":[],\"pages\":[{\"extraRotation\":0,\"height\":842,\"key\":\"p1\",\"kind\":\"pdf\",\"objects\":[{\"color\":\"#f5b400\",\"id\":\"s\",\"opacity\":0.35,\"points\":[1,2,3,4],\"tool\":\"marker\",\"type\":\"stroke\",\"width\":16}],\"pdfIndex\":1,\"rotation\":0,\"width\":595}],\"solutionId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\",\"title\":\"\"}",

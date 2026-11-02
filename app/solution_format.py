@@ -92,8 +92,28 @@ def derive_key(pdf: bytes, salt: bytes, info: bytes) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=info).derive(pdf)
 
 
+def normalized_course_name(raw: str) -> str:
+    """Wie CommunityKeys.normalizedCourseName: Kleinbuchstaben, Umlaute ausgeschrieben, nur Buchstaben und Ziffern."""
+    out, pending = "", False
+    for ch in raw.lower():
+        mapped = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}.get(ch) or (ch if ch.isalnum() else "")
+        if not mapped:
+            pending = bool(out)
+        else:
+            out += (" " if pending else "") + mapped
+            pending = False
+    return out
+
+
+def community_module_key(university: str, module_name: str) -> str | None:
+    """Community eines Moduls wie CommunityKeys.moduleKey: eine fuer alle Veranstaltungen des Moduls."""
+    name = normalized_course_name(module_name)
+    return hashlib.sha256(f"uniflow.community.coursename.v1\0{university}\0{name}".encode()).hexdigest() if name else None
+
+
 def community_secret(scope: str, university: str, value: str) -> bytes:
-    """Schluesselmaterial einer Community; `scope` = course (Kurs-ID) oder group (normalisierter Code)."""
+    """Schluesselmaterial einer Community; `scope` = module (normalisierter Modulname), course (Kurs-ID) oder group
+    (normalisierter Code)."""
     return hashlib.sha256(f"uniflow.community.secret.v1\0{scope}\0{university}\0{value}".encode()).digest()
 
 

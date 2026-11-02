@@ -12,13 +12,13 @@ import UniFlowCore
 /// Feste Texte (auch fuer Tests).
 enum CommunityTexts {
     static let copyright = "In der Community erscheinen nur deine eigenen Notizen – kein Originalmaterial deiner Hochschule (Folien, Aufgabenstellungen, Skripte). Mit dem Veröffentlichen bestätigst du, dass alles von dir stammt."
-    static let visibilityModule = "Sichtbar für alle an deiner Hochschule, die denselben Kurs in Stud.IP bzw. Learnweb haben. Eine Bestätigung der Hochschule gibt es nicht."
+    static let visibilityModule = "Sichtbar für alle an deiner Hochschule, die dasselbe Modul in Stud.IP bzw. Learnweb haben. Eine Bestätigung der Hochschule gibt es nicht."
     static let visibilityGroup = "Sichtbar nur für Mitglieder der gewählten Lerngruppe (wer den Beitrittscode kennt)."
     static let visibilityAnonymous = "Sichtbar für alle an deiner Hochschule, die dieselbe PDF haben – ohne Pseudonym."
     static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Community und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Lesen können die Lösung die Mitglieder der Community."
     static let visibilityMembers = "Sichtbar für die Mitglieder dieser Community. Wer dieselbe PDF hat, sieht deine Notizen darüber, alle anderen auf leeren Seiten."
     static let commentsNotice = "Alle Mitglieder dieser Community sehen deine Kommentare unter deinem Pseudonym. Tippe auf eine Seite, um eine Stelle zu kommentieren. Schreiben geht ab Plus mit bestätigter E-Mail-Adresse."
-    static let noCommunity = "Du bist noch in keiner Community. Tritt unter „Community“ dem Kurs bei, dann kannst du hier teilen."
+    static let noCommunity = "Du bist noch in keiner Community. Tritt unter „Community“ dem Modul bei, dann kannst du hier teilen."
     static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Schlüssel deiner Kurse und die Fingerabdrücke deiner PDFs. Kurs-IDs und Beitrittscodes bleiben auf dem Gerät. Andere sehen nie deine E-Mail-Adresse. Lesen können die Lösung die Mitglieder der Community."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
     /// Einstellungen und Community-Seite ohne iCloud-Container: ehrlich, mit dem Weg, der bleibt
@@ -75,9 +75,9 @@ enum CommunityJoinLink {
     }
 }
 
-// MARK: - Communities (je Kurs und Lerngruppe)
+// MARK: - Communities (je Modul und Lerngruppe)
 
-/// Alle Kurse aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen
+/// Alle Module aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen
 struct CommunitySpacesCard: View {
     private var service: CommunityService { SolutionSharing.community }
     @State private var spaces: [CommunitySpace]?
@@ -88,11 +88,11 @@ struct CommunitySpacesCard: View {
     var body: some View {
         UFCard {
             UFCardHead("Deine Communities", icon: "users")
-            Text("Jeder Kurs hat seine eigene Community. Tritt bei, dann siehst und teilst du dort Lösungen.")
+            Text("Jedes Modul hat eine Community für Vorlesung, Übungen und Tutorien. Tritt bei, dann siehst und teilst du dort Lösungen.")
                 .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
             if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
             if let spaces {
-                if spaces.isEmpty { Text("Noch keine Kurse. Gleiche zuerst deine Hochschule ab.").ufFont(13.12).foregroundStyle(UF.muted) }
+                if spaces.isEmpty { Text("Noch keine Module. Gleiche zuerst deine Hochschule ab.").ufFont(13.12).foregroundStyle(UF.muted) }
                 ForEach(spaces) { s in
                     UFItemRow(s.name, sub: Self.detail(s),
                               leading: { UFIcon(s.kind == .group ? "users" : "book", size: 18).foregroundStyle(UF.muted) },
@@ -117,7 +117,7 @@ struct CommunitySpacesCard: View {
     }
 
     static func detail(_ s: CommunitySpace) -> String {
-        var parts = [s.kind == .group ? "Lerngruppe" : "Kurs"]
+        var parts = [s.kind == .group ? "Lerngruppe" : "Modul"]
         if let m = s.members { parts.append(m == 1 ? "1 Mitglied" : "\(m) Mitglieder") }
         if let n = s.solutions { parts.append(n == 1 ? "1 Lösung" : "\(n) Lösungen") }
         return parts.joined(separator: " · ")
@@ -735,7 +735,7 @@ struct CommunityModulePanel: View {
         }
     }
 
-    /// Kurs-Schluessel des Moduls (Kurs-IDs und Modulname, eine Stelle: CommunityCourses)
+    /// Community-Schluessel des Moduls (Kurstitel und Modulname, eine Stelle: CommunityCourses)
     private var courseKeys: [String] {
         account.university.map { CommunityCourses.courseKeys(module: module, university: $0.rawValue) } ?? []
     }

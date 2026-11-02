@@ -1,5 +1,12 @@
 # Lösung teilen: Format, Ablauf, Sicherheit und Grenzen
 
+> **Stand 2.11.2026, Entscheidung des Inhabers:** Es gibt eine Community je **Modul**, nicht je Veranstaltung: Vorlesung,
+> Übung, Hörsaalübung und Tutorium von Programmieren I sind eine Community. Das Modul kommt aus dem Kurstitel
+> (`UniRules.classify` / `studip_sync.classify`, nicht aus dem lokal änderbaren Fach), Schlüssel `CommunityKeys.moduleKey`,
+> Schlüsselmaterial `secret(university:moduleName:)` (Scope `module`). Sie gilt semesterübergreifend. Der Modulname ist
+> kein Geheimnis wie die Kurs-ID: Der Dienst könnte den Schlüssel aus einem erratenen Namen bilden; die Sichtbarkeit regelt
+> die Mitgliedschaft. Wo unten „je Kurs“ oder Kurs-ID steht, gilt das für die Fassung vom 1.11.
+>
 > **Stand 1.11.2026, Entscheidung des Inhabers:** Die Community besteht aus einer Community je Kurs und aus Lerngruppen.
 > Man tritt bei, Lösungen sehen nur Mitglieder. Community-Pakete haben `keyMaterial` = `community-secret`: Der Schlüssel
 > kommt aus Kurs-ID bzw. Beitrittscode, nicht aus der PDF. Wer dieselbe PDF hat, sieht die Lösung als Ebene darüber, alle

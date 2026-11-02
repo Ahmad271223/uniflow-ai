@@ -45,8 +45,8 @@ final class PDFLayoutTests: XCTestCase {
         let overlay = PageInkView(pageIndex: 0, geometry: PageGeometry(pageSize: CGSize(width: 600, height: 800)))
         overlay.frame = CGRect(x: 0, y: 0, width: 1200, height: 1600)     // PDFKit liefert das Overlay doppelt so gross
         overlay.layoutIfNeeded()
-        XCTAssertEqual(overlay.canvas.bounds.size, CGSize(width: 600, height: 800))
-        let p = overlay.canvas.convert(CGPoint(x: 300, y: 400), to: overlay)
+        XCTAssertEqual(overlay.canvas.frame.size, CGSize(width: 600, height: 800))
+        let p = overlay.content.convert(CGPoint(x: 300, y: 400), to: overlay)
         XCTAssertEqual(p.x, 600, accuracy: 0.01)
         XCTAssertEqual(p.y, 800, accuracy: 0.01)
         overlay.frame = CGRect(x: 0, y: 0, width: 600, height: 800)

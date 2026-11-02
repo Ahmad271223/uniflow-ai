@@ -46,8 +46,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     var tool: Tool = .select {
         didSet {
             if tool != .select { clearSelection() }
-            // Text markieren: die PDF-Ansicht waehlt Text selbst aus (Overlays lassen die Beruehrung durch)
+            // Text markieren: die PDF-Ansicht waehlt Text selbst aus (Overlays lassen die Beruehrung durch); im
+            // Markup-Modus nimmt sie keine Auswahl an
             controller?.allOverlays.forEach { $0.isUserInteractionEnabled = tool != .markup }
+            controller?.pdfView.isInMarkupMode = tool != .markup
             if tool != .markup { controller?.pdfView.clearSelection() }
         }
     }
@@ -157,6 +159,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// Neu angelegte Overlays im Objektmodus ohne Eingabe auf der Canvas
     func prepare(_ overlay: PageInkView) {
         if isActive { overlay.canvas.isUserInteractionEnabled = false }
+        overlay.isUserInteractionEnabled = tool != .markup
     }
 
     // MARK: Treffer

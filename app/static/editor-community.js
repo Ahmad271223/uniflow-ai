@@ -8,7 +8,7 @@
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
 import * as S from "./solutions.js?v=2";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=1";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=2";
 import { renderLinkCard } from "./studora-link.js?v=3";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -326,7 +326,7 @@ class Community {
     const box = $(".com-qa", this.el); if (!box) return;
     try {
       const f = await (await fetch(`/api/files/${encodeURIComponent(this.ed.fileId)}`)).json();
-      const q = await import("./views-qa.js?v=2");
+      const q = await import("./views-qa.js?v=3");
       const courses = await q.courseKeys(); const c = courses.find(x => x.course_id === f.course_id);
       if (!c) { box.textContent = "Diese Datei gehört zu keinem deiner Kurse; Fragen gibt es je Kurs."; return; }
       const pg = this.ed.pages[this.ed.currentPage];

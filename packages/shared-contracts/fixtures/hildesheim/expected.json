@@ -1377,7 +1377,7 @@
   },
   {
    "title": "Hörsaalübung Mathe",
-   "subject": "Hörsaalübung Mathe",
+   "subject": "Mathe",
    "kind": "hoersaaluebung",
    "event_kind": "uebung"
   },
@@ -1419,7 +1419,7 @@
   },
   {
    "title": "Fragestunde Numerik",
-   "subject": "Fragestunde Numerik",
+   "subject": "Numerik",
    "kind": "uebung",
    "event_kind": "vorlesung"
   }

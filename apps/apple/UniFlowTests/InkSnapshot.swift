@@ -23,17 +23,18 @@ enum InkSnapshot {
     }
 
     private static func draw(_ canvas: PKCanvasView, of root: UIView, scale: CGFloat, in cg: CGContext) {
-        let o = canvas.convert(CGPoint.zero, to: root)
-        let x = canvas.convert(CGPoint(x: 1, y: 0), to: root), y = canvas.convert(CGPoint(x: 0, y: 1), to: root)
+        let page = canvas.superview ?? canvas                 // Seitenpunkte; die Canvas selbst ist gezoomt
+        let o = page.convert(CGPoint.zero, to: root)
+        let x = page.convert(CGPoint(x: 1, y: 0), to: root), y = page.convert(CGPoint(x: 0, y: 1), to: root)
         let t = CGAffineTransform(a: x.x - o.x, b: x.y - o.y, c: y.x - o.x, d: y.y - o.y, tx: o.x, ty: o.y)
         let zoom = sqrt(abs(t.a * t.d - t.b * t.c))
         var image = UIImage()
         UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            image = canvas.drawing.image(from: canvas.bounds, scale: max(1, scale * zoom))
+            image = canvas.drawing.image(from: page.bounds, scale: max(1, scale * zoom))
         }
         cg.saveGState()
         cg.concatenate(t)
-        image.draw(in: canvas.bounds)
+        image.draw(in: page.bounds)
         cg.restoreGState()
     }
 }

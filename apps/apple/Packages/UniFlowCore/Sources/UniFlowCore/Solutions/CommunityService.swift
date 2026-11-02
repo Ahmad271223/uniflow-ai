@@ -123,6 +123,13 @@ public struct CommunitySpace: Equatable, Sendable, Identifiable, Hashable {
                        secret: CommunityKeys.secret(university: university, courseID: id))
     }
 
+    /// Community eines Moduls aus dem Titel einer seiner Veranstaltungen; nil ohne Modulnamen
+    public static func module(university: String, courseTitle: String) -> CommunitySpace? {
+        let name = CommunityKeys.moduleName(courseTitle: courseTitle)
+        guard let key = CommunityKeys.moduleKey(university: university, courseTitle: courseTitle) else { return nil }
+        return CommunitySpace(key: key, kind: .course, name: name, secret: CommunityKeys.secret(university: university, moduleName: name))
+    }
+
     /// Community einer Lerngruppe
     public static func group(_ g: CommunityStudyGroup) -> CommunitySpace {
         CommunitySpace(key: g.groupKey, kind: .group, name: g.name, joined: true,

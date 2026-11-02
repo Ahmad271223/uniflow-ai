@@ -135,9 +135,9 @@ final class StudIPLibraryTests: XCTestCase {
         // Was der Vergleich bedeutet: ein Modul je Fach, Kurse eines Fachs zusammen, Dateien nach Woche und Art
         let mods = await backend.handle(LocalRequest(method: "GET", path: "/api/modules")).json?.array ?? []
         XCTAssertEqual(mods.compactMap { $0["name"]?.string },
-                       ["Testmathematik I", "Hörsaalübung Testmathematik I", "Grundlagen der Beispieltechnik"],
-                       "Begrüßung ohne Modul; Hörsaalübung bleibt wie in Python ein eigenes Modul")
-        XCTAssertEqual(mods.first?["courses"], 3)
+                       ["Testmathematik I", "Grundlagen der Beispieltechnik"],
+                       "Begrüßung ohne Modul; die Hörsaalübung gehört zum Modul")
+        XCTAssertEqual(mods.first?["courses"], 4)
         let math = await backend.handle(LocalRequest(method: "GET", path: "/api/modules/\(mods.first?["id"]?.int ?? 0)")).json
         let weeks = math?["weeks"]?.array ?? []
         func ids(_ i: Int, _ key: String) -> [String] {

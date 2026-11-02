@@ -3,6 +3,31 @@
  "timezone": "Europe/Berlin",
  "classify": [
   {
+   "title": "Vorlesung: Testmathematik I",
+   "subject": "Testmathematik I",
+   "kind": "vorlesung"
+  },
+  {
+   "title": "Hörsaalübung zu Testmathematik I",
+   "subject": "Testmathematik I",
+   "kind": "hoersaaluebung"
+  },
+  {
+   "title": "Testmathematik I - Gruppenübung 3",
+   "subject": "Testmathematik I",
+   "kind": "gruppenuebung"
+  },
+  {
+   "title": "Testmathematik I (Vorlesung)",
+   "subject": "Testmathematik I",
+   "kind": "vorlesung"
+  },
+  {
+   "title": "Testmathematik I (Übung)",
+   "subject": "Testmathematik I",
+   "kind": "uebung"
+  },
+  {
    "title": "Grundlagen der Beispieltechnik",
    "subject": "Grundlagen der Beispieltechnik",
    "kind": "vorlesung"
@@ -29,7 +54,7 @@
   },
   {
    "title": "Übungen zur Beispielchemie",
-   "subject": "en zur Beispielchemie",
+   "subject": "r Beispielchemie",
    "kind": "uebung"
   },
   {
@@ -39,22 +64,22 @@
   },
   {
    "title": "Gruppenuebung zu Testmathematik II",
-   "subject": "Gruppenuebung zu Testmathematik II",
+   "subject": "Testmathematik II",
    "kind": "gruppenuebung"
   },
   {
    "title": "Hörsaalübung Testmathematik I",
-   "subject": "Hörsaalübung Testmathematik I",
+   "subject": "Testmathematik I",
    "kind": "hoersaaluebung"
   },
   {
    "title": "Zentralübung Beispielphysik",
-   "subject": "Zentralübung Beispielphysik",
+   "subject": "Beispielphysik",
    "kind": "hoersaaluebung"
   },
   {
    "title": "Hoersaaluebung Beispielphysik",
-   "subject": "Hoersaaluebung Beispielphysik",
+   "subject": "Beispielphysik",
    "kind": "hoersaaluebung"
   },
   {
@@ -84,7 +109,7 @@
   },
   {
    "title": "Fragestunde Testmathematik",
-   "subject": "Fragestunde Testmathematik",
+   "subject": "Testmathematik",
    "kind": "uebung"
   },
   {
@@ -179,7 +204,7 @@
   },
   {
    "title": "Labor-Übung Beispieltechnik",
-   "subject": "Labor-Übung Beispieltechnik",
+   "subject": "Labor",
    "kind": "uebung"
   },
   {
@@ -244,7 +269,7 @@
   },
   {
    "title": "Vorlesung mit Zeilenwechsel",
-   "subject": "Vorlesung mit Zeilenwechsel",
+   "subject": "mit Zeilenwechsel",
    "kind": "vorlesung"
   },
   {
@@ -2667,7 +2692,7 @@
     "Zentralübung Testmathematik I",
     null,
     "WiSe 2026/27",
-    "Zentralübung Testmathematik I",
+    "Testmathematik I",
     "hoersaaluebung",
     1,
     "2026-10-01T08:00:00"
@@ -3529,6 +3554,7 @@
      "ids": [
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-06"
      ]
     },
@@ -3538,6 +3564,7 @@
      "ids": [
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-06"
      ]
     },
@@ -3824,110 +3851,6 @@
      "day": "2026-04-20",
      "week": 0,
      "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-09-20",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-09-30",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-01",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-02",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-09",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-12",
-     "week": 1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-15",
-     "week": 1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-21",
-     "week": 2,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-28",
-     "week": 3,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-11-04",
-     "week": 4,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-11-11",
-     "week": 5,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-12-02",
-     "week": 8,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2027-04-14",
-     "week": 27,
-     "ids": [
-      "f-zu-01"
-     ]
-    }
-   ]
-  },
-  {
-   "today": "2026-09-15",
-   "module_id": 5,
-   "days": [
-    {
-     "day": "2026-04-20",
-     "week": 0,
-     "ids": [
       "f-pi-01",
       "f-pi-03",
       "f-pi-02",
@@ -4057,7 +3980,7 @@
   },
   {
    "today": "2026-09-15",
-   "module_id": 6,
+   "module_id": 5,
    "days": [
     {
      "day": "2026-04-20",
@@ -4170,88 +4093,88 @@
       "f-alt-01",
       "f-alt-02"
      ]
+    }
+   ]
+  },
+  {
+   "today": "2026-09-15",
+   "module_id": 6,
+   "days": [
+    {
+     "day": "2026-04-20",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-09-20",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-09-30",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-01",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-02",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-09",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-12",
+     "week": 1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-15",
+     "week": 1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-21",
+     "week": 2,
+     "ids": []
+    },
+    {
+     "day": "2026-10-28",
+     "week": 3,
+     "ids": []
+    },
+    {
+     "day": "2026-11-04",
+     "week": 4,
+     "ids": []
+    },
+    {
+     "day": "2026-11-11",
+     "week": 5,
+     "ids": []
+    },
+    {
+     "day": "2026-12-02",
+     "week": 8,
+     "ids": []
+    },
+    {
+     "day": "2027-04-14",
+     "week": 27,
+     "ids": []
     }
    ]
   },
   {
    "today": "2026-09-15",
    "module_id": 7,
-   "days": [
-    {
-     "day": "2026-04-20",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-09-20",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-09-30",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-01",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-02",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-09",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-12",
-     "week": 1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-15",
-     "week": 1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-21",
-     "week": 2,
-     "ids": []
-    },
-    {
-     "day": "2026-10-28",
-     "week": 3,
-     "ids": []
-    },
-    {
-     "day": "2026-11-04",
-     "week": 4,
-     "ids": []
-    },
-    {
-     "day": "2026-11-11",
-     "week": 5,
-     "ids": []
-    },
-    {
-     "day": "2026-12-02",
-     "week": 8,
-     "ids": []
-    },
-    {
-     "day": "2027-04-14",
-     "week": 27,
-     "ids": []
-    }
-   ]
-  },
-  {
-   "today": "2026-09-15",
-   "module_id": 8,
    "days": [
     {
      "day": "2026-04-20",
@@ -4614,6 +4537,7 @@
      "ids": [
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-06"
      ]
     },
@@ -4623,6 +4547,7 @@
      "ids": [
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-06"
      ]
     },
@@ -4899,110 +4824,6 @@
      "day": "2026-04-20",
      "week": -1,
      "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-09-20",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-09-30",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-01",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-02",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-09",
-     "week": 0,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-12",
-     "week": 1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-15",
-     "week": 1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-21",
-     "week": 2,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-28",
-     "week": 3,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-11-04",
-     "week": 4,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-11-11",
-     "week": 5,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-12-02",
-     "week": 8,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2027-04-14",
-     "week": 27,
-     "ids": [
-      "f-zu-01"
-     ]
-    }
-   ]
-  },
-  {
-   "today": "2026-11-20",
-   "module_id": 5,
-   "days": [
-    {
-     "day": "2026-04-20",
-     "week": -1,
-     "ids": [
       "f-pi-01",
       "f-pi-03",
       "f-pi-02",
@@ -5132,7 +4953,7 @@
   },
   {
    "today": "2026-11-20",
-   "module_id": 6,
+   "module_id": 5,
    "days": [
     {
      "day": "2026-04-20",
@@ -5245,88 +5066,88 @@
       "f-alt-01",
       "f-alt-02"
      ]
+    }
+   ]
+  },
+  {
+   "today": "2026-11-20",
+   "module_id": 6,
+   "days": [
+    {
+     "day": "2026-04-20",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-09-20",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-09-30",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-01",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-02",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-09",
+     "week": 0,
+     "ids": []
+    },
+    {
+     "day": "2026-10-12",
+     "week": 1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-15",
+     "week": 1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-21",
+     "week": 2,
+     "ids": []
+    },
+    {
+     "day": "2026-10-28",
+     "week": 3,
+     "ids": []
+    },
+    {
+     "day": "2026-11-04",
+     "week": 4,
+     "ids": []
+    },
+    {
+     "day": "2026-11-11",
+     "week": 5,
+     "ids": []
+    },
+    {
+     "day": "2026-12-02",
+     "week": 8,
+     "ids": []
+    },
+    {
+     "day": "2027-04-14",
+     "week": 27,
+     "ids": []
     }
    ]
   },
   {
    "today": "2026-11-20",
    "module_id": 7,
-   "days": [
-    {
-     "day": "2026-04-20",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-09-20",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-09-30",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-01",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-02",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-09",
-     "week": 0,
-     "ids": []
-    },
-    {
-     "day": "2026-10-12",
-     "week": 1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-15",
-     "week": 1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-21",
-     "week": 2,
-     "ids": []
-    },
-    {
-     "day": "2026-10-28",
-     "week": 3,
-     "ids": []
-    },
-    {
-     "day": "2026-11-04",
-     "week": 4,
-     "ids": []
-    },
-    {
-     "day": "2026-11-11",
-     "week": 5,
-     "ids": []
-    },
-    {
-     "day": "2026-12-02",
-     "week": 8,
-     "ids": []
-    },
-    {
-     "day": "2027-04-14",
-     "week": 27,
-     "ids": []
-    }
-   ]
-  },
-  {
-   "today": "2026-11-20",
-   "module_id": 8,
    "days": [
     {
      "day": "2026-04-20",
@@ -5639,11 +5460,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5653,11 +5474,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5667,11 +5488,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5681,11 +5502,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5695,11 +5516,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5709,11 +5530,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5723,11 +5544,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5737,11 +5558,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5751,11 +5572,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5765,11 +5586,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5779,11 +5600,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5793,11 +5614,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -5807,11 +5628,11 @@
       "f-ma-04",
       "f-ma-01",
       "f-ma-05",
+      "f-zu-01",
       "f-ma-12",
       "f-ma-02",
       "f-ma-06",
-      "f-ma-07",
-      "f-ma-03"
+      "f-ma-07"
      ]
     },
     {
@@ -6108,110 +5929,6 @@
      "day": "2026-04-20",
      "week": -1,
      "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-09-20",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-09-30",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-01",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-02",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-09",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-12",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-15",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-21",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-10-28",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-11-04",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-11-11",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2026-12-02",
-     "week": -1,
-     "ids": [
-      "f-zu-01"
-     ]
-    },
-    {
-     "day": "2027-04-14",
-     "week": 1,
-     "ids": [
-      "f-zu-01"
-     ]
-    }
-   ]
-  },
-  {
-   "today": "2027-05-04",
-   "module_id": 5,
-   "days": [
-    {
-     "day": "2026-04-20",
-     "week": -1,
-     "ids": [
       "f-pi-01",
       "f-pi-03",
       "f-pi-02"
@@ -6336,7 +6053,7 @@
   },
   {
    "today": "2027-05-04",
-   "module_id": 6,
+   "module_id": 5,
    "days": [
     {
      "day": "2026-04-20",
@@ -6449,88 +6166,88 @@
       "f-alt-01",
       "f-alt-02"
      ]
+    }
+   ]
+  },
+  {
+   "today": "2027-05-04",
+   "module_id": 6,
+   "days": [
+    {
+     "day": "2026-04-20",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-09-20",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-09-30",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-01",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-02",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-09",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-12",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-15",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-21",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-10-28",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-11-04",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-11-11",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2026-12-02",
+     "week": -1,
+     "ids": []
+    },
+    {
+     "day": "2027-04-14",
+     "week": 1,
+     "ids": []
     }
    ]
   },
   {
    "today": "2027-05-04",
    "module_id": 7,
-   "days": [
-    {
-     "day": "2026-04-20",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-09-20",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-09-30",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-01",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-02",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-09",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-12",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-15",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-21",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-10-28",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-11-04",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-11-11",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2026-12-02",
-     "week": -1,
-     "ids": []
-    },
-    {
-     "day": "2027-04-14",
-     "week": 1,
-     "ids": []
-    }
-   ]
-  },
-  {
-   "today": "2027-05-04",
-   "module_id": 8,
    "days": [
     {
      "day": "2026-04-20",
@@ -6945,10 +6662,10 @@
        "color_custom": 0,
        "expected_materials": null,
        "exam_reuse": "paraphrase",
-       "file_count": 14,
-       "new_count": 11,
+       "file_count": 15,
+       "new_count": 12,
        "open_tasks": 2,
-       "progress": 33,
+       "progress": 30,
        "next_package": {
         "date": "2026-11-21",
         "title": "Testmathematik I – Nachholen"
@@ -6959,7 +6676,7 @@
        "topics": [
         "42"
        ],
-       "courses": 3,
+       "courses": 4,
        "weeks": 5
       },
       {
@@ -7028,42 +6745,13 @@
       },
       {
        "id": 4,
-       "name": "Zentralübung Testmathematik I",
+       "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
        "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
        "sort": 3,
-       "created_at": "2026-11-20T10:00:00",
-       "active_custom": 0,
-       "active": 1,
-       "weekly_test": 1,
-       "test_minutes": null,
-       "color_custom": 0,
-       "expected_materials": null,
-       "exam_reuse": "paraphrase",
-       "file_count": 1,
-       "new_count": 1,
-       "open_tasks": 0,
-       "progress": 0,
-       "next_package": null,
-       "next_event": null,
-       "task_count": 0,
-       "test_count": 0,
-       "topics": [],
-       "courses": 1,
-       "weeks": 1
-      },
-      {
-       "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
-       "color": "#e95905",
-       "icon": null,
-       "priority": 2,
-       "exam_date": null,
-       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -7085,14 +6773,14 @@
        "weeks": 3
       },
       {
-       "id": 6,
+       "id": 5,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#167535",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 5,
+       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -7114,14 +6802,14 @@
        "weeks": 0
       },
       {
-       "id": 7,
+       "id": 6,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#834bbf",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 6,
+       "sort": 5,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -7143,14 +6831,14 @@
        "weeks": 0
       },
       {
-       "id": 8,
+       "id": 7,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#b9454c",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 7,
+       "sort": 6,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -7202,6 +6890,12 @@
         "id": "k-ma-gu",
         "title": "Gruppenübung Testmathematik I",
         "kind": "gruppenuebung",
+        "number": null
+       },
+       {
+        "id": "k-ma-zu",
+        "title": "Zentralübung Testmathematik I",
+        "kind": "hoersaaluebung",
         "number": null
        },
        {
@@ -7288,7 +6982,7 @@
         "week": 1,
         "label": "Woche 1 · 12.10. – 18.10.",
         "topic": "42",
-        "count": 3,
+        "count": 4,
         "vorlesungen": [
          {
           "id": "f-ma-01",
@@ -7341,6 +7035,32 @@
           "has_notes": null,
           "ai_doc_type": "uebung",
           "sub_label": "Gruppenübung",
+          "week_hint": 1,
+          "source": "studip"
+         },
+         {
+          "id": "f-zu-01",
+          "name": "ZÜ01.pdf",
+          "chdate": 1792137600,
+          "status": "neu",
+          "favorite": 0,
+          "last_opened": null,
+          "size": 1000,
+          "course_id": "k-ma-zu",
+          "studip_folder": "Zentralübung",
+          "course_title": "Zentralübung Testmathematik I",
+          "course_kind": "hoersaaluebung",
+          "subject": "Testmathematik I",
+          "module_id": 1,
+          "doc_type": "uebung",
+          "ai_title": null,
+          "difficulty": null,
+          "est_minutes": null,
+          "topics": null,
+          "summary": null,
+          "has_notes": null,
+          "ai_doc_type": null,
+          "sub_label": "Hörsaalübung",
           "week_hint": 1,
           "source": "studip"
          }
@@ -7786,6 +7506,32 @@
         "source": "studip"
        },
        {
+        "id": "f-zu-01",
+        "name": "ZÜ01.pdf",
+        "chdate": 1792137600,
+        "status": "neu",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-ma-zu",
+        "studip_folder": "Zentralübung",
+        "course_title": "Zentralübung Testmathematik I",
+        "course_kind": "hoersaaluebung",
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": "uebung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Hörsaalübung",
+        "week_hint": 1,
+        "source": "studip"
+       },
+       {
         "id": "f-ma-12",
         "name": "Fragen.pdf",
         "chdate": 1792362600,
@@ -8046,8 +7792,8 @@
         "source": "studip"
        }
       ],
-      "progress": 33,
-      "new_count": 11,
+      "progress": 30,
+      "new_count": 12,
       "open_tasks": 2,
       "next_package": {
        "date": "2026-11-21",
@@ -8782,121 +8528,13 @@
      "response": {
       "module": {
        "id": 4,
-       "name": "Zentralübung Testmathematik I",
+       "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
        "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
        "sort": 3,
-       "created_at": "2026-11-20T10:00:00",
-       "active_custom": 0,
-       "active": 1,
-       "weekly_test": 1,
-       "test_minutes": null,
-       "color_custom": 0,
-       "expected_materials": null,
-       "exam_reuse": "paraphrase"
-      },
-      "courses": [
-       {
-        "id": "k-ma-zu",
-        "title": "Zentralübung Testmathematik I",
-        "kind": "hoersaaluebung",
-        "number": null
-       }
-      ],
-      "weeks": [
-       {
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10.",
-        "topic": "",
-        "count": 1,
-        "vorlesungen": [],
-        "uebungen": [
-         {
-          "id": "f-zu-01",
-          "name": "ZÜ01.pdf",
-          "chdate": 1792137600,
-          "status": "neu",
-          "favorite": 0,
-          "last_opened": null,
-          "size": 1000,
-          "course_id": "k-ma-zu",
-          "studip_folder": "Zentralübung",
-          "course_title": "Zentralübung Testmathematik I",
-          "course_kind": "hoersaaluebung",
-          "subject": "Zentralübung Testmathematik I",
-          "module_id": 4,
-          "doc_type": "uebung",
-          "ai_title": null,
-          "difficulty": null,
-          "est_minutes": null,
-          "topics": null,
-          "summary": null,
-          "has_notes": null,
-          "ai_doc_type": null,
-          "sub_label": "Hörsaalübung",
-          "week_hint": 1,
-          "source": "studip"
-         }
-        ],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [],
-        "sonstiges": []
-       }
-      ],
-      "files": [
-       {
-        "id": "f-zu-01",
-        "name": "ZÜ01.pdf",
-        "chdate": 1792137600,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-ma-zu",
-        "studip_folder": "Zentralübung",
-        "course_title": "Zentralübung Testmathematik I",
-        "course_kind": "hoersaaluebung",
-        "subject": "Zentralübung Testmathematik I",
-        "module_id": 4,
-        "doc_type": "uebung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Hörsaalübung",
-        "week_hint": 1,
-        "source": "studip"
-       }
-      ],
-      "progress": 0,
-      "new_count": 1,
-      "open_tasks": 0,
-      "next_package": null,
-      "notes": []
-     }
-    },
-    {
-     "method": "GET",
-     "path": "/api/modules/5",
-     "raw": null,
-     "status": 200,
-     "response": {
-      "module": {
-       "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
-       "color": "#e95905",
-       "icon": null,
-       "priority": 2,
-       "exam_date": null,
-       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -8940,7 +8578,7 @@
           "course_title": "Probeinformatik",
           "course_kind": "vorlesung",
           "subject": "Probeinformatik",
-          "module_id": 5,
+          "module_id": 4,
           "doc_type": "vorlesung",
           "ai_title": null,
           "difficulty": null,
@@ -8979,7 +8617,7 @@
           "course_title": "Probeinformatik",
           "course_kind": "vorlesung",
           "subject": "Probeinformatik",
-          "module_id": 5,
+          "module_id": 4,
           "doc_type": "vorlesung",
           "ai_title": null,
           "difficulty": null,
@@ -9007,7 +8645,7 @@
           "course_title": "Tutorium Probeinformatik",
           "course_kind": "tutorium",
           "subject": "Probeinformatik",
-          "module_id": 5,
+          "module_id": 4,
           "doc_type": "uebung",
           "ai_title": null,
           "difficulty": null,
@@ -9045,7 +8683,7 @@
           "course_title": "Probeinformatik",
           "course_kind": "vorlesung",
           "subject": "Probeinformatik",
-          "module_id": 5,
+          "module_id": 4,
           "doc_type": "vorlesung",
           "ai_title": null,
           "difficulty": null,
@@ -9088,7 +8726,7 @@
           "course_title": "Probeinformatik",
           "course_kind": "vorlesung",
           "subject": "Probeinformatik",
-          "module_id": 5,
+          "module_id": 4,
           "doc_type": "klausur",
           "ai_title": null,
           "difficulty": null,
@@ -9119,7 +8757,7 @@
         "course_title": "Probeinformatik",
         "course_kind": "vorlesung",
         "subject": "Probeinformatik",
-        "module_id": 5,
+        "module_id": 4,
         "doc_type": "vorlesung",
         "ai_title": null,
         "difficulty": null,
@@ -9145,7 +8783,7 @@
         "course_title": "Probeinformatik",
         "course_kind": "vorlesung",
         "subject": "Probeinformatik",
-        "module_id": 5,
+        "module_id": 4,
         "doc_type": "vorlesung",
         "ai_title": null,
         "difficulty": null,
@@ -9171,7 +8809,7 @@
         "course_title": "Tutorium Probeinformatik",
         "course_kind": "tutorium",
         "subject": "Probeinformatik",
-        "module_id": 5,
+        "module_id": 4,
         "doc_type": "uebung",
         "ai_title": null,
         "difficulty": null,
@@ -9197,7 +8835,7 @@
         "course_title": "Probeinformatik",
         "course_kind": "vorlesung",
         "subject": "Probeinformatik",
-        "module_id": 5,
+        "module_id": 4,
         "doc_type": "klausur",
         "ai_title": null,
         "difficulty": null,
@@ -9223,7 +8861,7 @@
         "course_title": "Probeinformatik",
         "course_kind": "vorlesung",
         "subject": "Probeinformatik",
-        "module_id": 5,
+        "module_id": 4,
         "doc_type": "vorlesung",
         "ai_title": null,
         "difficulty": null,
@@ -9246,19 +8884,19 @@
     },
     {
      "method": "GET",
-     "path": "/api/modules/6",
+     "path": "/api/modules/5",
      "raw": null,
      "status": 200,
      "response": {
       "module": {
-       "id": 6,
+       "id": 5,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#167535",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 5,
+       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9296,7 +8934,7 @@
           "course_title": "Altes Fach vom Sommer",
           "course_kind": "vorlesung",
           "subject": "Altes Fach vom Sommer",
-          "module_id": 6,
+          "module_id": 5,
           "doc_type": "vorlesung",
           "ai_title": null,
           "difficulty": null,
@@ -9324,7 +8962,7 @@
           "course_title": "Altes Fach vom Sommer",
           "course_kind": "vorlesung",
           "subject": "Altes Fach vom Sommer",
-          "module_id": 6,
+          "module_id": 5,
           "doc_type": "uebung",
           "ai_title": null,
           "difficulty": null,
@@ -9358,7 +8996,7 @@
         "course_title": "Altes Fach vom Sommer",
         "course_kind": "vorlesung",
         "subject": "Altes Fach vom Sommer",
-        "module_id": 6,
+        "module_id": 5,
         "doc_type": "vorlesung",
         "ai_title": null,
         "difficulty": null,
@@ -9384,7 +9022,7 @@
         "course_title": "Altes Fach vom Sommer",
         "course_kind": "vorlesung",
         "subject": "Altes Fach vom Sommer",
-        "module_id": 6,
+        "module_id": 5,
         "doc_type": "uebung",
         "ai_title": null,
         "difficulty": null,
@@ -9407,19 +9045,19 @@
     },
     {
      "method": "GET",
-     "path": "/api/modules/7",
+     "path": "/api/modules/6",
      "raw": null,
      "status": 200,
      "response": {
       "module": {
-       "id": 7,
+       "id": 6,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#834bbf",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 6,
+       "sort": 5,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9448,19 +9086,19 @@
     },
     {
      "method": "GET",
-     "path": "/api/modules/8",
+     "path": "/api/modules/7",
      "raw": null,
      "status": 200,
      "response": {
       "module": {
-       "id": 8,
+       "id": 7,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#b9454c",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 7,
+       "sort": 6,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9485,6 +9123,15 @@
       "open_tasks": 0,
       "next_package": null,
       "notes": []
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/modules/8",
+     "raw": null,
+     "status": 404,
+     "response": {
+      "detail": "Not Found"
      }
     },
     {
@@ -9551,10 +9198,10 @@
        "color_custom": 0,
        "expected_materials": null,
        "exam_reuse": "paraphrase",
-       "file_count": 14,
-       "new_count": 11,
+       "file_count": 15,
+       "new_count": 12,
        "open_tasks": 2,
-       "progress": 33,
+       "progress": 30,
        "next_package": null,
        "next_event": null,
        "task_count": 5,
@@ -9562,7 +9209,7 @@
        "topics": [
         "42"
        ],
-       "courses": 3,
+       "courses": 4,
        "weeks": 5
       },
       {
@@ -9631,42 +9278,13 @@
       },
       {
        "id": 4,
-       "name": "Zentralübung Testmathematik I",
+       "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
        "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
        "sort": 3,
-       "created_at": "2026-11-20T10:00:00",
-       "active_custom": 0,
-       "active": 1,
-       "weekly_test": 1,
-       "test_minutes": null,
-       "color_custom": 0,
-       "expected_materials": null,
-       "exam_reuse": "paraphrase",
-       "file_count": 1,
-       "new_count": 1,
-       "open_tasks": 0,
-       "progress": 0,
-       "next_package": null,
-       "next_event": null,
-       "task_count": 0,
-       "test_count": 0,
-       "topics": [],
-       "courses": 1,
-       "weeks": 1
-      },
-      {
-       "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
-       "color": "#e95905",
-       "icon": null,
-       "priority": 2,
-       "exam_date": null,
-       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9688,14 +9306,14 @@
        "weeks": 3
       },
       {
-       "id": 6,
+       "id": 5,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#167535",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 5,
+       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9717,14 +9335,14 @@
        "weeks": 0
       },
       {
-       "id": 7,
+       "id": 6,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#834bbf",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 6,
+       "sort": 5,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9746,14 +9364,14 @@
        "weeks": 0
       },
       {
-       "id": 8,
+       "id": 7,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#b9454c",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 7,
+       "sort": 6,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -9805,6 +9423,12 @@
         "id": "k-ma-gu",
         "title": "Gruppenübung Testmathematik I",
         "kind": "gruppenuebung",
+        "number": null
+       },
+       {
+        "id": "k-ma-zu",
+        "title": "Zentralübung Testmathematik I",
+        "kind": "hoersaaluebung",
         "number": null
        },
        {
@@ -9891,7 +9515,7 @@
         "week": 1,
         "label": "Woche 1 · 12.10. – 18.10.",
         "topic": "42",
-        "count": 3,
+        "count": 4,
         "vorlesungen": [
          {
           "id": "f-ma-01",
@@ -9944,6 +9568,32 @@
           "has_notes": null,
           "ai_doc_type": "uebung",
           "sub_label": "Gruppenübung",
+          "week_hint": 1,
+          "source": "studip"
+         },
+         {
+          "id": "f-zu-01",
+          "name": "ZÜ01.pdf",
+          "chdate": 1792137600,
+          "status": "neu",
+          "favorite": 0,
+          "last_opened": null,
+          "size": 1000,
+          "course_id": "k-ma-zu",
+          "studip_folder": "Zentralübung",
+          "course_title": "Zentralübung Testmathematik I",
+          "course_kind": "hoersaaluebung",
+          "subject": "Testmathematik I",
+          "module_id": 1,
+          "doc_type": "uebung",
+          "ai_title": null,
+          "difficulty": null,
+          "est_minutes": null,
+          "topics": null,
+          "summary": null,
+          "has_notes": null,
+          "ai_doc_type": null,
+          "sub_label": "Hörsaalübung",
           "week_hint": 1,
           "source": "studip"
          }
@@ -10389,6 +10039,32 @@
         "source": "studip"
        },
        {
+        "id": "f-zu-01",
+        "name": "ZÜ01.pdf",
+        "chdate": 1792137600,
+        "status": "neu",
+        "favorite": 0,
+        "last_opened": null,
+        "size": 1000,
+        "course_id": "k-ma-zu",
+        "studip_folder": "Zentralübung",
+        "course_title": "Zentralübung Testmathematik I",
+        "course_kind": "hoersaaluebung",
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": "uebung",
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "topics": null,
+        "summary": null,
+        "has_notes": null,
+        "ai_doc_type": null,
+        "sub_label": "Hörsaalübung",
+        "week_hint": 1,
+        "source": "studip"
+       },
+       {
         "id": "f-ma-12",
         "name": "Fragen.pdf",
         "chdate": 1792362600,
@@ -10649,8 +10325,8 @@
         "source": "studip"
        }
       ],
-      "progress": 33,
-      "new_count": 11,
+      "progress": 30,
+      "new_count": 12,
       "open_tasks": 2,
       "next_package": null,
       "notes": [
@@ -11368,16 +11044,16 @@
        "color_custom": 0,
        "expected_materials": null,
        "exam_reuse": "paraphrase",
-       "file_count": 14,
-       "new_count": 11,
+       "file_count": 15,
+       "new_count": 12,
        "open_tasks": 2,
-       "progress": 33,
+       "progress": 30,
        "next_package": null,
        "next_event": null,
        "task_count": 5,
        "test_count": 1,
        "topics": [],
-       "courses": 3,
+       "courses": 4,
        "weeks": 0
       },
       {
@@ -11440,42 +11116,13 @@
       },
       {
        "id": 4,
-       "name": "Zentralübung Testmathematik I",
+       "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
        "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
        "sort": 3,
-       "created_at": "2026-11-20T10:00:00",
-       "active_custom": 0,
-       "active": 1,
-       "weekly_test": 1,
-       "test_minutes": null,
-       "color_custom": 0,
-       "expected_materials": null,
-       "exam_reuse": "paraphrase",
-       "file_count": 1,
-       "new_count": 1,
-       "open_tasks": 0,
-       "progress": 0,
-       "next_package": null,
-       "next_event": null,
-       "task_count": 0,
-       "test_count": 0,
-       "topics": [],
-       "courses": 1,
-       "weeks": 0
-      },
-      {
-       "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
-       "color": "#e95905",
-       "icon": null,
-       "priority": 2,
-       "exam_date": null,
-       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -11497,14 +11144,14 @@
        "weeks": 1
       },
       {
-       "id": 6,
+       "id": 5,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#167535",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 5,
+       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -11526,14 +11173,14 @@
        "weeks": 0
       },
       {
-       "id": 7,
+       "id": 6,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#834bbf",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 6,
+       "sort": 5,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -11555,14 +11202,14 @@
        "weeks": 0
       },
       {
-       "id": 8,
+       "id": 7,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#b9454c",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 7,
+       "sort": 6,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -11593,8 +11240,8 @@
      "response": {
       "module": {
        "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
+       "name": "Altes Fach vom Sommer",
+       "semester": "SoSe 2026",
        "color": "#e95905",
        "icon": null,
        "priority": 2,
@@ -11611,103 +11258,32 @@
       },
       "courses": [
        {
-        "id": "k-pi-t",
-        "title": "Tutorium Probeinformatik",
-        "kind": "tutorium",
-        "number": null
-       },
-       {
-        "id": "k-pi-v",
-        "title": "Probeinformatik",
+        "id": "k-alt",
+        "title": "Altes Fach vom Sommer",
         "kind": "vorlesung",
         "number": null
        }
       ],
       "weeks": [
        {
-        "week": 1,
-        "label": "Woche 1 · 12.04. – 18.04.",
-        "topic": "",
-        "count": 1,
-        "vorlesungen": [
-         {
-          "id": "f-pi-05",
-          "name": "Nachtrag.pdf",
-          "chdate": 1807610400,
-          "status": "neu",
-          "favorite": 0,
-          "last_opened": null,
-          "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Vorlesung",
-          "course_title": "Probeinformatik",
-          "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
-          "module_id": 5,
-          "doc_type": "vorlesung",
-          "ai_title": null,
-          "difficulty": null,
-          "est_minutes": null,
-          "topics": null,
-          "summary": null,
-          "has_notes": null,
-          "ai_doc_type": null,
-          "sub_label": "Vorlesung",
-          "week_hint": null,
-          "source": "studip"
-         }
-        ],
-        "uebungen": [],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [],
-        "sonstiges": []
-       },
-       {
         "week": -1,
         "label": "Ältere Unterlagen",
         "topic": "",
-        "count": 3,
+        "count": 2,
         "vorlesungen": [
          {
-          "id": "f-pi-03",
-          "name": "02A.pdf",
-          "chdate": 1792404000,
-          "status": "neu",
+          "id": "f-alt-01",
+          "name": "VL01.pdf",
+          "chdate": 1776153600,
+          "status": "erledigt",
           "favorite": 0,
           "last_opened": null,
           "size": 1000,
-          "course_id": "k-pi-v",
+          "course_id": "k-alt",
           "studip_folder": "Vorlesung",
-          "course_title": "Probeinformatik",
+          "course_title": "Altes Fach vom Sommer",
           "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
-          "module_id": 5,
-          "doc_type": "vorlesung",
-          "ai_title": null,
-          "difficulty": null,
-          "est_minutes": null,
-          "topics": null,
-          "summary": null,
-          "has_notes": null,
-          "ai_doc_type": null,
-          "sub_label": "Vorlesung",
-          "week_hint": 2,
-          "source": "studip"
-         },
-         {
-          "id": "f-pi-01",
-          "name": "Prog1-01-Intro.pdf",
-          "chdate": 1791972000,
-          "status": "neu",
-          "favorite": 0,
-          "last_opened": null,
-          "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Vorlesungsfolien",
-          "course_title": "Probeinformatik",
-          "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
+          "subject": "Altes Fach vom Sommer",
           "module_id": 5,
           "doc_type": "vorlesung",
           "ai_title": null,
@@ -11724,18 +11300,18 @@
         ],
         "uebungen": [
          {
-          "id": "f-pi-02",
-          "name": "tut2.pdf",
-          "chdate": 1792576800,
+          "id": "f-alt-02",
+          "name": "Blatt 1.pdf",
+          "chdate": 1776672000,
           "status": "neu",
           "favorite": 0,
           "last_opened": null,
           "size": 1000,
-          "course_id": "k-pi-t",
-          "studip_folder": "Tutorium",
-          "course_title": "Tutorium Probeinformatik",
-          "course_kind": "tutorium",
-          "subject": "Probeinformatik",
+          "course_id": "k-alt",
+          "studip_folder": null,
+          "course_title": "Altes Fach vom Sommer",
+          "course_kind": "vorlesung",
+          "subject": "Altes Fach vom Sommer",
           "module_id": 5,
           "doc_type": "uebung",
           "ai_title": null,
@@ -11745,8 +11321,8 @@
           "summary": null,
           "has_notes": null,
           "ai_doc_type": null,
-          "sub_label": "Tutorium",
-          "week_hint": 2,
+          "sub_label": "Übung",
+          "week_hint": 1,
           "source": "studip"
          }
         ],
@@ -11754,61 +11330,22 @@
         "skripte": [],
         "klausuren": [],
         "sonstiges": []
-       },
-       {
-        "week": -2,
-        "label": "Klausuren & Altklausuren",
-        "topic": "",
-        "count": 1,
-        "vorlesungen": [],
-        "uebungen": [],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [
-         {
-          "id": "f-pi-04",
-          "name": "Kurztest 1.pdf",
-          "chdate": 1793617200,
-          "status": "neu",
-          "favorite": 0,
-          "last_opened": null,
-          "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Kurztests",
-          "course_title": "Probeinformatik",
-          "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
-          "module_id": 5,
-          "doc_type": "klausur",
-          "ai_title": null,
-          "difficulty": null,
-          "est_minutes": null,
-          "topics": null,
-          "summary": null,
-          "has_notes": null,
-          "ai_doc_type": null,
-          "sub_label": "Klausur",
-          "week_hint": null,
-          "source": "studip"
-         }
-        ],
-        "sonstiges": []
        }
       ],
       "files": [
        {
-        "id": "f-pi-01",
-        "name": "Prog1-01-Intro.pdf",
-        "chdate": 1791972000,
-        "status": "neu",
+        "id": "f-alt-01",
+        "name": "VL01.pdf",
+        "chdate": 1776153600,
+        "status": "erledigt",
         "favorite": 0,
         "last_opened": null,
         "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Vorlesungsfolien",
-        "course_title": "Probeinformatik",
+        "course_id": "k-alt",
+        "studip_folder": "Vorlesung",
+        "course_title": "Altes Fach vom Sommer",
         "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
+        "subject": "Altes Fach vom Sommer",
         "module_id": 5,
         "doc_type": "vorlesung",
         "ai_title": null,
@@ -11823,44 +11360,18 @@
         "source": "studip"
        },
        {
-        "id": "f-pi-03",
-        "name": "02A.pdf",
-        "chdate": 1792404000,
+        "id": "f-alt-02",
+        "name": "Blatt 1.pdf",
+        "chdate": 1776672000,
         "status": "neu",
         "favorite": 0,
         "last_opened": null,
         "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Vorlesung",
-        "course_title": "Probeinformatik",
+        "course_id": "k-alt",
+        "studip_folder": null,
+        "course_title": "Altes Fach vom Sommer",
         "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
-        "module_id": 5,
-        "doc_type": "vorlesung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": 2,
-        "source": "studip"
-       },
-       {
-        "id": "f-pi-02",
-        "name": "tut2.pdf",
-        "chdate": 1792576800,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-pi-t",
-        "studip_folder": "Tutorium",
-        "course_title": "Tutorium Probeinformatik",
-        "course_kind": "tutorium",
-        "subject": "Probeinformatik",
+        "subject": "Altes Fach vom Sommer",
         "module_id": 5,
         "doc_type": "uebung",
         "ai_title": null,
@@ -11870,65 +11381,13 @@
         "summary": null,
         "has_notes": null,
         "ai_doc_type": null,
-        "sub_label": "Tutorium",
-        "week_hint": 2,
-        "source": "studip"
-       },
-       {
-        "id": "f-pi-04",
-        "name": "Kurztest 1.pdf",
-        "chdate": 1793617200,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Kurztests",
-        "course_title": "Probeinformatik",
-        "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
-        "module_id": 5,
-        "doc_type": "klausur",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Klausur",
-        "week_hint": null,
-        "source": "studip"
-       },
-       {
-        "id": "f-pi-05",
-        "name": "Nachtrag.pdf",
-        "chdate": 1807610400,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Vorlesung",
-        "course_title": "Probeinformatik",
-        "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
-        "module_id": 5,
-        "doc_type": "vorlesung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": null,
+        "sub_label": "Übung",
+        "week_hint": 1,
         "source": "studip"
        }
       ],
-      "progress": 0,
-      "new_count": 5,
+      "progress": 50,
+      "new_count": 1,
       "open_tasks": 0,
       "next_package": null,
       "notes": []
@@ -11945,14 +11404,14 @@
      "raw": "{\"name\": \"  Eigenes Fach  \", \"semester\": \"WiSe 2026/27\"}",
      "status": 200,
      "response": {
-      "id": 9,
+      "id": 8,
       "name": "Eigenes Fach",
       "semester": "WiSe 2026/27",
-      "color": "#1f9682",
+      "color": "#b9454c",
       "icon": null,
       "priority": 2,
       "exam_date": null,
-      "sort": 8,
+      "sort": 7,
       "created_at": "2026-11-20T11:00:00",
       "active_custom": 0,
       "active": 1,
@@ -11969,14 +11428,14 @@
      "raw": "{\"name\": \"Zweites Fach\", \"color\": \"#123456\"}",
      "status": 200,
      "response": {
-      "id": 10,
+      "id": 9,
       "name": "Zweites Fach",
       "semester": null,
       "color": "#123456",
       "icon": null,
       "priority": 2,
       "exam_date": null,
-      "sort": 9,
+      "sort": 8,
       "created_at": "2026-11-20T11:00:00",
       "active_custom": 0,
       "active": 1,
@@ -11993,14 +11452,14 @@
      "raw": "{\"name\": \"Drittes Fach\", \"color\": \"\", \"semester\": null}",
      "status": 200,
      "response": {
-      "id": 11,
+      "id": 10,
       "name": "Drittes Fach",
       "semester": null,
-      "color": "#896301",
+      "color": "#1f9682",
       "icon": null,
       "priority": 2,
       "exam_date": null,
-      "sort": 10,
+      "sort": 9,
       "created_at": "2026-11-20T11:00:00",
       "active_custom": 0,
       "active": 1,
@@ -12463,42 +11922,13 @@
       },
       {
        "id": 4,
-       "name": "Zentralübung Testmathematik I",
+       "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
        "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
        "sort": 3,
-       "created_at": "2026-11-20T10:00:00",
-       "active_custom": 0,
-       "active": 1,
-       "weekly_test": 1,
-       "test_minutes": null,
-       "color_custom": 0,
-       "expected_materials": null,
-       "exam_reuse": "paraphrase",
-       "file_count": 1,
-       "new_count": 1,
-       "open_tasks": 0,
-       "progress": 0,
-       "next_package": null,
-       "next_event": null,
-       "task_count": 0,
-       "test_count": 0,
-       "topics": [],
-       "courses": 2,
-       "weeks": 1
-      },
-      {
-       "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
-       "color": "#e95905",
-       "icon": null,
-       "priority": 2,
-       "exam_date": null,
-       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -12520,14 +11950,14 @@
        "weeks": 3
       },
       {
-       "id": 6,
+       "id": 5,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#167535",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 5,
+       "sort": 4,
        "created_at": "2026-11-20T10:00:00",
        "active_custom": 0,
        "active": 1,
@@ -12549,8 +11979,37 @@
        "weeks": 0
       },
       {
-       "id": 7,
+       "id": 6,
        "name": "Grundlagen der Prüfungstechnik",
+       "semester": "WiSe 2026/27",
+       "color": "#167535",
+       "icon": null,
+       "priority": 2,
+       "exam_date": null,
+       "sort": 5,
+       "created_at": "2026-11-20T10:00:00",
+       "active_custom": 0,
+       "active": 1,
+       "weekly_test": 1,
+       "test_minutes": null,
+       "color_custom": 0,
+       "expected_materials": null,
+       "exam_reuse": "paraphrase",
+       "file_count": 0,
+       "new_count": 0,
+       "open_tasks": 0,
+       "progress": 0,
+       "next_package": null,
+       "next_event": null,
+       "task_count": 0,
+       "test_count": 0,
+       "topics": [],
+       "courses": 1,
+       "weeks": 0
+      },
+      {
+       "id": 7,
+       "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
        "color": "#834bbf",
        "icon": null,
@@ -12579,14 +12038,14 @@
       },
       {
        "id": 8,
-       "name": "Grundlagen der Prüfungstechnik",
+       "name": "Eigenes Fach",
        "semester": "WiSe 2026/27",
        "color": "#b9454c",
        "icon": null,
        "priority": 2,
        "exam_date": null,
        "sort": 7,
-       "created_at": "2026-11-20T10:00:00",
+       "created_at": "2026-11-20T11:00:00",
        "active_custom": 0,
        "active": 1,
        "weekly_test": 1,
@@ -12603,7 +12062,7 @@
        "task_count": 0,
        "test_count": 0,
        "topics": [],
-       "courses": 1,
+       "courses": 0,
        "weeks": 0
       },
       {
@@ -12623,10 +12082,10 @@
        "color_custom": 1,
        "expected_materials": null,
        "exam_reuse": "paraphrase",
-       "file_count": 14,
-       "new_count": 11,
+       "file_count": 15,
+       "new_count": 12,
        "open_tasks": 2,
-       "progress": 33,
+       "progress": 30,
        "next_package": {
         "date": "2026-11-21",
         "title": "Testmathematik I – Nachholen"
@@ -12637,47 +12096,18 @@
        "topics": [
         "42"
        ],
-       "courses": 4,
+       "courses": 6,
        "weeks": 5
       },
       {
        "id": 9,
-       "name": "Eigenes Fach",
-       "semester": "WiSe 2026/27",
-       "color": "#1f9682",
-       "icon": null,
-       "priority": 2,
-       "exam_date": null,
-       "sort": 8,
-       "created_at": "2026-11-20T11:00:00",
-       "active_custom": 0,
-       "active": 1,
-       "weekly_test": 1,
-       "test_minutes": null,
-       "color_custom": 0,
-       "expected_materials": null,
-       "exam_reuse": "paraphrase",
-       "file_count": 0,
-       "new_count": 0,
-       "open_tasks": 0,
-       "progress": 0,
-       "next_package": null,
-       "next_event": null,
-       "task_count": 0,
-       "test_count": 0,
-       "topics": [],
-       "courses": 0,
-       "weeks": 0
-      },
-      {
-       "id": 10,
        "name": "Zweites Fach",
        "semester": null,
        "color": "#123456",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 9,
+       "sort": 8,
        "created_at": "2026-11-20T11:00:00",
        "active_custom": 0,
        "active": 1,
@@ -12699,14 +12129,14 @@
        "weeks": 0
       },
       {
-       "id": 11,
+       "id": 10,
        "name": "Drittes Fach",
        "semester": null,
-       "color": "#896301",
+       "color": "#1f9682",
        "icon": null,
        "priority": 2,
        "exam_date": null,
-       "sort": 10,
+       "sort": 9,
        "created_at": "2026-11-20T11:00:00",
        "active_custom": 0,
        "active": 1,
@@ -13452,8 +12882,8 @@
      "response": {
       "module": {
        "id": 5,
-       "name": "Probeinformatik",
-       "semester": "WiSe 2026/27",
+       "name": "Altes Fach vom Sommer",
+       "semester": "SoSe 2026",
        "color": "#e95905",
        "icon": null,
        "priority": 2,
@@ -13470,32 +12900,32 @@
       },
       "courses": [
        {
-        "id": "k-pi-v",
-        "title": "Probeinformatik",
+        "id": "k-alt",
+        "title": "Altes Fach vom Sommer",
         "kind": "vorlesung",
         "number": null
        }
       ],
       "weeks": [
        {
-        "week": 1,
-        "label": "Woche 1 · 12.10. – 18.10.",
+        "week": -1,
+        "label": "Ältere Unterlagen",
         "topic": "",
-        "count": 1,
+        "count": 2,
         "vorlesungen": [
          {
-          "id": "f-pi-01",
-          "name": "Prog1-01-Intro.pdf",
-          "chdate": 1791972000,
-          "status": "neu",
+          "id": "f-alt-01",
+          "name": "VL01.pdf",
+          "chdate": 1776153600,
+          "status": "erledigt",
           "favorite": 0,
           "last_opened": null,
           "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Vorlesungsfolien",
-          "course_title": "Probeinformatik",
+          "course_id": "k-alt",
+          "studip_folder": "Vorlesung",
+          "course_title": "Altes Fach vom Sommer",
           "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
+          "subject": "Altes Fach vom Sommer",
           "module_id": 5,
           "doc_type": "vorlesung",
           "ai_title": null,
@@ -13510,33 +12940,22 @@
           "source": "studip"
          }
         ],
-        "uebungen": [],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [],
-        "sonstiges": []
-       },
-       {
-        "week": 2,
-        "label": "Woche 2 · 19.10. – 25.10.",
-        "topic": "",
-        "count": 1,
-        "vorlesungen": [
+        "uebungen": [
          {
-          "id": "f-pi-03",
-          "name": "02A.pdf",
-          "chdate": 1792404000,
+          "id": "f-alt-02",
+          "name": "Blatt 1.pdf",
+          "chdate": 1776672000,
           "status": "neu",
           "favorite": 0,
           "last_opened": null,
           "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Vorlesung",
-          "course_title": "Probeinformatik",
+          "course_id": "k-alt",
+          "studip_folder": null,
+          "course_title": "Altes Fach vom Sommer",
           "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
+          "subject": "Altes Fach vom Sommer",
           "module_id": 5,
-          "doc_type": "vorlesung",
+          "doc_type": "uebung",
           "ai_title": null,
           "difficulty": null,
           "est_minutes": null,
@@ -13544,110 +12963,31 @@
           "summary": null,
           "has_notes": null,
           "ai_doc_type": null,
-          "sub_label": "Vorlesung",
-          "week_hint": 2,
+          "sub_label": "Übung",
+          "week_hint": 1,
           "source": "studip"
          }
         ],
-        "uebungen": [],
         "loesungen": [],
         "skripte": [],
         "klausuren": [],
-        "sonstiges": []
-       },
-       {
-        "week": 27,
-        "label": "Woche 27 · 12.04. – 18.04.",
-        "topic": "",
-        "count": 1,
-        "vorlesungen": [
-         {
-          "id": "f-pi-05",
-          "name": "Nachtrag.pdf",
-          "chdate": 1807610400,
-          "status": "neu",
-          "favorite": 0,
-          "last_opened": null,
-          "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Vorlesung",
-          "course_title": "Probeinformatik",
-          "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
-          "module_id": 5,
-          "doc_type": "vorlesung",
-          "ai_title": null,
-          "difficulty": null,
-          "est_minutes": null,
-          "topics": null,
-          "summary": null,
-          "has_notes": null,
-          "ai_doc_type": null,
-          "sub_label": "Vorlesung",
-          "week_hint": null,
-          "source": "studip"
-         }
-        ],
-        "uebungen": [],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [],
-        "sonstiges": []
-       },
-       {
-        "week": -2,
-        "label": "Klausuren & Altklausuren",
-        "topic": "",
-        "count": 1,
-        "vorlesungen": [],
-        "uebungen": [],
-        "loesungen": [],
-        "skripte": [],
-        "klausuren": [
-         {
-          "id": "f-pi-04",
-          "name": "Kurztest 1.pdf",
-          "chdate": 1793617200,
-          "status": "neu",
-          "favorite": 0,
-          "last_opened": null,
-          "size": 1000,
-          "course_id": "k-pi-v",
-          "studip_folder": "Kurztests",
-          "course_title": "Probeinformatik",
-          "course_kind": "vorlesung",
-          "subject": "Probeinformatik",
-          "module_id": 5,
-          "doc_type": "klausur",
-          "ai_title": null,
-          "difficulty": null,
-          "est_minutes": null,
-          "topics": null,
-          "summary": null,
-          "has_notes": null,
-          "ai_doc_type": null,
-          "sub_label": "Klausur",
-          "week_hint": null,
-          "source": "studip"
-         }
-        ],
         "sonstiges": []
        }
       ],
       "files": [
        {
-        "id": "f-pi-01",
-        "name": "Prog1-01-Intro.pdf",
-        "chdate": 1791972000,
-        "status": "neu",
+        "id": "f-alt-01",
+        "name": "VL01.pdf",
+        "chdate": 1776153600,
+        "status": "erledigt",
         "favorite": 0,
         "last_opened": null,
         "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Vorlesungsfolien",
-        "course_title": "Probeinformatik",
+        "course_id": "k-alt",
+        "studip_folder": "Vorlesung",
+        "course_title": "Altes Fach vom Sommer",
         "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
+        "subject": "Altes Fach vom Sommer",
         "module_id": 5,
         "doc_type": "vorlesung",
         "ai_title": null,
@@ -13662,20 +13002,20 @@
         "source": "studip"
        },
        {
-        "id": "f-pi-03",
-        "name": "02A.pdf",
-        "chdate": 1792404000,
+        "id": "f-alt-02",
+        "name": "Blatt 1.pdf",
+        "chdate": 1776672000,
         "status": "neu",
         "favorite": 0,
         "last_opened": null,
         "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Vorlesung",
-        "course_title": "Probeinformatik",
+        "course_id": "k-alt",
+        "studip_folder": null,
+        "course_title": "Altes Fach vom Sommer",
         "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
+        "subject": "Altes Fach vom Sommer",
         "module_id": 5,
-        "doc_type": "vorlesung",
+        "doc_type": "uebung",
         "ai_title": null,
         "difficulty": null,
         "est_minutes": null,
@@ -13683,65 +13023,13 @@
         "summary": null,
         "has_notes": null,
         "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": 2,
-        "source": "studip"
-       },
-       {
-        "id": "f-pi-04",
-        "name": "Kurztest 1.pdf",
-        "chdate": 1793617200,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Kurztests",
-        "course_title": "Probeinformatik",
-        "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
-        "module_id": 5,
-        "doc_type": "klausur",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Klausur",
-        "week_hint": null,
-        "source": "studip"
-       },
-       {
-        "id": "f-pi-05",
-        "name": "Nachtrag.pdf",
-        "chdate": 1807610400,
-        "status": "neu",
-        "favorite": 0,
-        "last_opened": null,
-        "size": 1000,
-        "course_id": "k-pi-v",
-        "studip_folder": "Vorlesung",
-        "course_title": "Probeinformatik",
-        "course_kind": "vorlesung",
-        "subject": "Probeinformatik",
-        "module_id": 5,
-        "doc_type": "vorlesung",
-        "ai_title": null,
-        "difficulty": null,
-        "est_minutes": null,
-        "topics": null,
-        "summary": null,
-        "has_notes": null,
-        "ai_doc_type": null,
-        "sub_label": "Vorlesung",
-        "week_hint": null,
+        "sub_label": "Übung",
+        "week_hint": 1,
         "source": "studip"
        }
       ],
-      "progress": 0,
-      "new_count": 4,
+      "progress": 50,
+      "new_count": 1,
       "open_tasks": 0,
       "next_package": null,
       "notes": []
@@ -13808,7 +13096,7 @@
    },
    {
     "id": 4,
-    "name": "Zentralübung Testmathematik I",
+    "name": "Probeinformatik",
     "semester": "WiSe 2026/27",
     "color": "#175ee8",
     "icon": null,
@@ -13826,8 +13114,8 @@
    },
    {
     "id": 5,
-    "name": "Probeinformatik",
-    "semester": "WiSe 2026/27",
+    "name": "Altes Fach vom Sommer",
+    "semester": "SoSe 2026",
     "color": "#e95905",
     "icon": null,
     "priority": 2,
@@ -13844,8 +13132,8 @@
    },
    {
     "id": 6,
-    "name": "Altes Fach vom Sommer",
-    "semester": "SoSe 2026",
+    "name": "Grundlagen der Prüfungstechnik",
+    "semester": "WiSe 2026/27",
     "color": "#167535",
     "icon": null,
     "priority": 2,
@@ -13862,7 +13150,7 @@
    },
    {
     "id": 7,
-    "name": "Grundlagen der Prüfungstechnik",
+    "name": "Grundlagen der Prüfungstechnik",
     "semester": "WiSe 2026/27",
     "color": "#834bbf",
     "icon": null,
@@ -13880,14 +13168,14 @@
    },
    {
     "id": 8,
-    "name": "Grundlagen der Prüfungstechnik",
+    "name": "Eigenes Fach",
     "semester": "WiSe 2026/27",
     "color": "#b9454c",
     "icon": null,
     "priority": 2,
     "exam_date": null,
     "sort": 7,
-    "created_at": "2026-11-20T10:00:00",
+    "created_at": "2026-11-20T11:00:00",
     "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
@@ -13898,31 +13186,13 @@
    },
    {
     "id": 9,
-    "name": "Eigenes Fach",
-    "semester": "WiSe 2026/27",
-    "color": "#1f9682",
-    "icon": null,
-    "priority": 2,
-    "exam_date": null,
-    "sort": 8,
-    "created_at": "2026-11-20T11:00:00",
-    "active_custom": 0,
-    "active": 1,
-    "weekly_test": 1,
-    "test_minutes": null,
-    "color_custom": 0,
-    "expected_materials": null,
-    "exam_reuse": "paraphrase"
-   },
-   {
-    "id": 10,
     "name": "Zweites Fach",
     "semester": null,
     "color": "#123456",
     "icon": null,
     "priority": 2,
     "exam_date": null,
-    "sort": 9,
+    "sort": 8,
     "created_at": "2026-11-20T11:00:00",
     "active_custom": 0,
     "active": 1,
@@ -13933,14 +13203,14 @@
     "exam_reuse": "paraphrase"
    },
    {
-    "id": 11,
+    "id": 10,
     "name": "Drittes Fach",
     "semester": null,
-    "color": "#896301",
+    "color": "#1f9682",
     "icon": null,
     "priority": 2,
     "exam_date": null,
-    "sort": 10,
+    "sort": 9,
     "created_at": "2026-11-20T11:00:00",
     "active_custom": 0,
     "active": 1,
@@ -13962,7 +13232,7 @@
     "id": "k-alt",
     "subject": "Altes Fach vom Sommer",
     "kind": "vorlesung",
-    "module_id": 6
+    "module_id": 5
    },
    {
     "id": "k-bt-u",
@@ -13996,9 +13266,9 @@
    },
    {
     "id": "k-leer",
-    "subject": "Zentralübung Testmathematik I",
+    "subject": "Testmathematik I",
     "kind": "uebung",
-    "module_id": 4
+    "module_id": 1
    },
    {
     "id": "k-ma-fs",
@@ -14020,9 +13290,9 @@
    },
    {
     "id": "k-ma-zu",
-    "subject": "Zentralübung Testmathematik I",
+    "subject": "Testmathematik I",
     "kind": "hoersaaluebung",
-    "module_id": 4
+    "module_id": 1
    },
    {
     "id": "k-ohne",
@@ -14040,19 +13310,19 @@
     "id": "k-pi-v",
     "subject": "Probeinformatik",
     "kind": "vorlesung",
-    "module_id": 5
+    "module_id": 4
    },
    {
     "id": "k-pt-u",
     "subject": "Grundlagen der Prüfungstechnik",
     "kind": "uebung",
-    "module_id": 8
+    "module_id": 7
    },
    {
     "id": "k-pt-v",
     "subject": "Grundlagen der Prüfungstechnik",
     "kind": "vorlesung",
-    "module_id": 7
+    "module_id": 6
    }
   ],
   "study_packages": [
