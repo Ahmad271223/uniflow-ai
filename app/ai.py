@@ -327,7 +327,11 @@ def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str =
         parts += ["", "QUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als "
                       "[Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen:"]
         for src in sources:
-            line = f"[{src['n']}] {src.get('title') or src.get('name')}, Seite {src['page']}" + (" (diese Seite)" if src.get("current") else "")
+            if src.get("studip_id"):
+                # Lerntext aus Stud.IP (Courseware, Wiki, Forum; app/studip_texts.py): ohne Seitenzahl
+                line = f"[{src['n']}] {src.get('title') or src.get('name')} (Stud.IP)"
+            else:
+                line = f"[{src['n']}] {src.get('title') or src.get('name')}, Seite {src['page']}" + (" (diese Seite)" if src.get("current") else "")
             if src.get("snippet") and not src.get("current"):
                 line += f": {str(src['snippet'])[:400]}"
             parts.append(line)

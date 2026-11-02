@@ -1086,9 +1086,10 @@ export class PdfEditor {
         // Quellen mit Seite (28.10.2026): [n] in der Antwort springt zur Seite, darunter die Liste
         const src = Array.isArray(j.sources) ? j.sources : []; const known = new Set(src.map(x => String(x.n)));
         const html = md(j.answer).replace(/\[(\d{1,2})\]/g, (m, n) => known.has(n) ? `<a href="#" class="ed-src" data-src="${n}">[${n}]</a>` : m);
-        const list = src.filter(x => x.cited || x.current).map(x => `<li><a href="#" class="ed-src" data-src="${x.n}">[${x.n}] ${esc(x.title || x.name || "Datei")}, Seite ${x.page}</a>${x.current ? ` <span class="muted">(diese Seite)</span>` : ""}</li>`).join("");
+        const list = src.filter(x => x.cited || x.current).map(x => `<li><a href="#" class="ed-src" data-src="${x.n}">[${x.n}] ${esc(x.title || x.name || "Datei")}${x.studip_id ? " (Stud.IP)" : `, Seite ${x.page}`}</a>${x.current ? ` <span class="muted">(diese Seite)</span>` : ""}</li>`).join("");
         out.innerHTML = html + (list ? `<div class="ed-ai-src"><b>Quellen</b><ul>${list}</ul></div>` : "") + `<div class="ed-ai-actions"><button class="btn sm ed-ai-insert">Als Textfeld einfügen</button></div>`;
         $$(".ed-src", out).forEach(a => a.onclick = e => { e.preventDefault(); const x = src.find(s => String(s.n) === a.dataset.src); if (!x) return;
+          if (x.studip_id) { if (/^https?:\/\//.test(x.url || "")) window.open(x.url, "_blank", "noopener"); return; }
           if (x.file_id === this.fileId) { const i = this.pages.findIndex(p => p.type === "pdf" && p.index === +x.page); if (i >= 0) this.goToPage(i); }
           else location.hash = `#/doc/${encodeURIComponent(x.file_id)}?page=${x.page}`; });
       }

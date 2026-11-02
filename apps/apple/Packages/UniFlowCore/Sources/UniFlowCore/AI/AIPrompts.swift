@@ -87,8 +87,11 @@ public enum AIPrompts {
             parts += ["", "QUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als "
                           + "[Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen:"]
             for src in sources {
-                var line = "[\(str(get(src, "n")))] \(str(or(get(src, "title"), get(src, "name")))), Seite \(str(get(src, "page")))"
-                    + (truthy(get(src, "current")) ? " (diese Seite)" : "")
+                // Lerntext aus Stud.IP (Courseware, Wiki, Forum; StudIPTexts): ohne Seitenzahl
+                var line = truthy(get(src, "studip_id"))
+                    ? "[\(str(get(src, "n")))] \(str(or(get(src, "title"), get(src, "name")))) (Stud.IP)"
+                    : "[\(str(get(src, "n")))] \(str(or(get(src, "title"), get(src, "name")))), Seite \(str(get(src, "page")))"
+                        + (truthy(get(src, "current")) ? " (diese Seite)" : "")
                 if truthy(get(src, "snippet")), !truthy(get(src, "current")) {
                     line += ": \(head(str(get(src, "snippet")), 400))"
                 }

@@ -21,6 +21,7 @@ struct TutorPanel: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufChatGPTLink) private var chatgpt
+    @Environment(\.openURL) private var openURL
 
     /// Alle Modi in der Reihenfolge von `ai.TUTOR_MODES`; "ask" ist das Eingabefeld, die anderen sind Schnellknoepfe
     static let modes: [(key: String, label: String)] = [
@@ -183,8 +184,16 @@ struct TutorPanel: View {
                 ForEach(cited.indices, id: \.self) { i in
                     let s = cited[i]
                     let p = Int(s["page"]?.double ?? 1)
-                    let label = "[\(Int(s["n"]?.double ?? 0))] \(s.s("title") ?? s.s("name") ?? ""), Seite \(p)"
-                    if (s.s("file_id") ?? fileID) == fileID {
+                    // Lerntext aus Stud.IP (Courseware, Wiki, Forum): ohne Seite, Antippen oeffnet Stud.IP
+                    let studip = s.s("studip_id") != nil
+                    let label = "[\(Int(s["n"]?.double ?? 0))] \(s.s("title") ?? s.s("name") ?? "")" + (studip ? " (Stud.IP)" : ", Seite \(p)")
+                    if studip {
+                        if let u = s.s("url").flatMap(UFDayExtras.safeURL) {
+                            Button { openURL(u) } label: { Text(label).ufFont(12.8).foregroundStyle(UF.accentText) }.buttonStyle(.plain)
+                        } else {
+                            Text(label).ufFont(12.8).foregroundStyle(UF.text2)
+                        }
+                    } else if (s.s("file_id") ?? fileID) == fileID {
                         Button { open(fileID, p) } label: { Text(label).ufFont(12.8).foregroundStyle(UF.accentText) }
                             .buttonStyle(.plain)
                     } else {

@@ -366,6 +366,8 @@ struct ModulePage: View {
                 // Lernfortschritt & Wochentests (#wtBox): erstellt die KI, darum lokal nur mit ChatGPT-Abo (wie der
                 // Modul-Dialog: sonst weder anbieten noch ankuendigen)
                 if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
+                // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
+                if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
                 if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Keine Dokumente.") } }
                 ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
             } else if tab == "recordings" {

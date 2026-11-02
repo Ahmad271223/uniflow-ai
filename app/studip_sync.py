@@ -15,7 +15,7 @@ import re
 import sys
 import time
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -779,6 +779,17 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         log(f"Stud.IP-Kalender nicht gelesen: {e}")
                 if not calendar_ok:
                     log("Stud.IP-Kalender nicht gelesen: eigene Uebungsgruppen nicht sicher bekannt")
+
+                # Lernstoff aus Stud.IP (app/studip_texts.py): Courseware-Fristen, Courseware, Wiki, Forum, nur lesend,
+                # hoechstens 200 Anfragen; Fehler hier halten den Datei-Abgleich nicht an
+                progress.report("Courseware, Wiki und Forum lesen …")
+                try:
+                    from . import studip_texts
+                    r = studip_texts.run(conn, studip_texts.playwright_get(page, STUDIP_BASE), courses, STUDIP_BASE,
+                                         date.today(), db.now_iso())
+                    log(f"Stud.IP-Lerntexte: {r['texts']} neu/geaendert, {r['deadlines']} Courseware-Fristen, {r['requests']} Anfragen")
+                except Exception as e:  # noqa: BLE001
+                    log(f"Courseware/Wiki/Forum nicht gelesen: {e}")
 
                 total = sum(pending_downloads(conn, files) for _, files, _ in listed)
                 done = {"n": 0}

@@ -618,6 +618,9 @@ final class StudIPSync: ObservableObject {
             // kurzen Hintergrundlauf auch nicht (eine Seite je Kurs sprengte die rund 30 Sekunden)
             let rec = timetable.sessionExpired || scope == .lists ? nil
                 : await recordings.refresh(client: client, courses: chosen) { phase = .running($0) }
+            // Lernstoff aus Stud.IP (Courseware-Fristen, Courseware, Wiki, Forum; StudIPTextsSync), nur im vollen Lauf
+            let texts = timetable.sessionExpired || rec?.sessionExpired == true || scope == .lists ? nil
+                : await StudIPTextsSync(host: host).run(client: client, courses: chosen) { phase = .running($0) }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
             let waiting = download.count - toLoad.count
             let waitingText = "\(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download"
@@ -631,7 +634,8 @@ final class StudIPSync: ObservableObject {
             if let n = Self.olderCoursesNote(older) { parts.append(n) }
             parts += timetable.summary
             parts += rec?.summary ?? []
-            let expired = timetable.sessionExpired || rec?.sessionExpired == true
+            parts += texts?.summary ?? []
+            let expired = timetable.sessionExpired || rec?.sessionExpired == true || texts?.sessionExpired == true
             if scope == .full {
                 finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
                 // alle Dateien geladen oder als Fehler gezaehlt: nichts wartet mehr auf den naechsten Abgleich

@@ -1,0 +1,1394 @@
+{
+ "base": "https://studip.test",
+ "routes": {
+  "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-ana&include=task-group,structural-element&page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "t1",
+      "type": "courseware-tasks",
+      "attributes": {
+       "submission-date": "2026-11-12T23:59:00+01:00",
+       "submitted": false
+      },
+      "relationships": {
+       "task-group": {
+        "data": {
+         "type": "courseware-task-groups",
+         "id": "g1"
+        }
+       }
+      }
+     },
+     {
+      "id": "t2",
+      "type": "courseware-tasks",
+      "attributes": {
+       "submission-date": "2026-11-05T12:00:00+01:00",
+       "submitted": true
+      },
+      "relationships": {
+       "task-group": {
+        "data": {
+         "type": "courseware-task-groups",
+         "id": "g1"
+        }
+       }
+      }
+     },
+     {
+      "id": "t3",
+      "type": "courseware-tasks",
+      "attributes": {
+       "submission-date": "2026-11-19T10:00:00+01:00",
+       "renewal": "granted",
+       "renewal-date": "2026-11-26T11:30:00Z"
+      },
+      "relationships": {
+       "structural-element": {
+        "data": {
+         "type": "courseware-structural-elements",
+         "id": "e-task"
+        }
+       }
+      }
+     },
+     {
+      "id": "t4",
+      "type": "courseware-tasks",
+      "attributes": {
+       "submitted": false
+      },
+      "relationships": {
+       "task-group": {
+        "data": {
+         "type": "courseware-task-groups",
+         "id": "g4"
+        }
+       }
+      }
+     },
+     {
+      "id": "t5",
+      "type": "courseware-tasks",
+      "attributes": {
+       "submission-date": "bald"
+      }
+     }
+    ],
+    "links": {},
+    "included": [
+     {
+      "id": "g1",
+      "type": "courseware-task-groups",
+      "attributes": {
+       "title": "Übungsblatt  3"
+      }
+     },
+     {
+      "id": "g4",
+      "type": "courseware-task-groups",
+      "attributes": {
+       "title": "Projekt",
+       "end-date": "2026-12-01"
+      }
+     },
+     {
+      "id": "e-task",
+      "type": "courseware-structural-elements",
+      "attributes": {
+       "title": "Hausaufgabe Reihen",
+       "chdate": "2026-10-01T09:00:00+02:00"
+      }
+     }
+    ]
+   }
+  },
+  "/jsonapi.php/v1/courses/c-ana/courseware-units?include=structural-element&page[limit]=50": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "u1",
+      "type": "courseware-units",
+      "relationships": {
+       "structural-element": {
+        "data": {
+         "type": "courseware-structural-elements",
+         "id": "e-root"
+        }
+       }
+      }
+     },
+     {
+      "id": "u2",
+      "type": "courseware-units",
+      "relationships": {}
+     }
+    ],
+    "links": {},
+    "included": [
+     {
+      "id": "e-root",
+      "type": "courseware-structural-elements",
+      "attributes": {
+       "title": "Analysis I – Lernmodul",
+       "chdate": "2026-10-30T10:00:00+01:00"
+      }
+     }
+    ]
+   }
+  },
+  "/jsonapi.php/v1/courseware-structural-elements/e-root/containers?include=blocks&page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "k1",
+      "type": "courseware-containers"
+     },
+     {
+      "id": "k2",
+      "type": "courseware-containers"
+     }
+    ],
+    "links": {},
+    "included": [
+     {
+      "id": "b3",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "code",
+       "payload": {
+        "content": "def lim(a):\n    return a[-1]\n",
+        "lang": "python"
+       }
+      },
+      "relationships": {
+       "container": {
+        "data": {
+         "type": "courseware-containers",
+         "id": "k2"
+        }
+       }
+      }
+     },
+     {
+      "id": "b1",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "text",
+       "payload": {
+        "text": "<p>Der <b>Grenzwert</b> einer Folge&nbsp;ist eindeutig.</p><ul><li>Konvergenz</li></ul>"
+       }
+      },
+      "relationships": {
+       "container": {
+        "data": {
+         "type": "courseware-containers",
+         "id": "k1"
+        }
+       }
+      }
+     },
+     {
+      "id": "b2",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "headline",
+       "payload": "{\"title\": \"Folgen und Grenzwerte\", \"subtitle\": \"Woche 2\"}"
+      },
+      "relationships": {
+       "container": {
+        "data": {
+         "type": "courseware-containers",
+         "id": "k1"
+        }
+       }
+      }
+     },
+     {
+      "id": "b4",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "download",
+       "payload": {
+        "title": "Skript Kapitel 2.pdf",
+        "file_id": "f9"
+       }
+      },
+      "relationships": {
+       "container": {
+        "data": {
+         "type": "courseware-containers",
+         "id": "k2"
+        }
+       }
+      }
+     },
+     {
+      "id": "b5",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "video",
+       "payload": {
+        "title": "Video"
+       }
+      },
+      "relationships": {
+       "container": {
+        "data": {
+         "type": "courseware-containers",
+         "id": "k2"
+        }
+       }
+      }
+     },
+     {
+      "id": "b6",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "key-point",
+       "payload": {
+        "text": "Merke: jede konvergente Folge ist beschraenkt."
+       }
+      }
+     }
+    ]
+   }
+  },
+  "/jsonapi.php/v1/courseware-structural-elements/e-root/children?page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "e-ch1",
+      "type": "courseware-structural-elements",
+      "attributes": {
+       "title": "Kapitel 1: Folgen",
+       "chdate": "2026-10-31T08:00:00+01:00"
+      }
+     },
+     {
+      "id": "e-ch2",
+      "type": "courseware-structural-elements",
+      "attributes": {
+       "title": "Leere Seite",
+       "chdate": "2026-10-31T08:00:00+01:00"
+      }
+     }
+    ],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/courseware-structural-elements/e-ch1/containers?include=blocks&page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "k3",
+      "type": "courseware-containers"
+     }
+    ],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/courseware-containers/k3/blocks?page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "b7",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "text",
+       "payload": {
+        "text": "<p>Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen.</p>"
+       }
+      }
+     },
+     {
+      "id": "b8",
+      "type": "courseware-blocks",
+      "attributes": {
+       "block-type": "katex",
+       "payload": {
+        "formula": "\\lim_{n\\to\\infty} a_n = a"
+       }
+      }
+     }
+    ],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/courseware-structural-elements/e-ch1/children?page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/courseware-structural-elements/e-ch2/containers?include=blocks&page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/courseware-structural-elements/e-ch2/children?page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "w1",
+      "type": "wiki-pages",
+      "attributes": {
+       "keyword": "Klausurinfos",
+       "chdate": "2026-10-20T12:00:00+02:00",
+       "content": "!!Klausur\n**Termin** am [[Termine|10.02.2027]], Hilfsmittel: ein Blatt.  \n\n%%Grenzwert%% und Folge"
+      }
+     }
+    ],
+    "links": {
+     "next": "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[offset]=1&page[limit]=100"
+    }
+   }
+  },
+  "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[offset]=1&page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "w2",
+      "type": "wiki-pages",
+      "attributes": {
+       "name": "Literatur",
+       "chdate": 1761900000
+      }
+     },
+     {
+      "id": "w3",
+      "type": "wiki-pages",
+      "attributes": {
+       "keyword": "Leer",
+       "content": "   "
+      }
+     }
+    ],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/wiki-pages/w2": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "w2",
+     "type": "wiki-pages",
+     "attributes": {
+      "content-html": "<h2>Literatur</h2><p>Forster: Analysis 1, Kapitel Folge und Grenzwert</p>"
+     }
+    }
+   }
+  },
+  "/jsonapi.php/v1/courses/c-ana/forum-categories?page[limit]=50": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "cat1",
+      "type": "forum-categories",
+      "attributes": {
+       "title": "Allgemein"
+      }
+     }
+    ],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/forum-categories/cat1/entries?page[limit]=50": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "f1",
+      "type": "forum-entries",
+      "attributes": {
+       "title": "Frage zu Blatt 3",
+       "chdate": "2026-11-01T18:00:00+01:00",
+       "content": "[quote=Max Mustermann]alter Text[/quote] Wie zeige ich die Konvergenz der Folge? @lisa.m"
+      },
+      "relationships": {
+       "author": {
+        "data": {
+         "type": "users",
+         "id": "u-max"
+        }
+       }
+      }
+     }
+    ],
+    "links": {}
+   }
+  },
+  "/jsonapi.php/v1/forum-entries/f1/entries?page[limit]=100": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "p1",
+      "type": "forum-entries",
+      "attributes": {
+       "title": "Re: Frage zu Blatt 3",
+       "content-html": "<blockquote>Max Mustermann schrieb: alter Text</blockquote><p>Mit dem Cauchy-Kriterium f&uuml;r die Folge.</p>"
+      },
+      "relationships": {
+       "author": {
+        "data": {
+         "type": "users",
+         "id": "u-max"
+        }
+       }
+      }
+     }
+    ],
+    "links": {},
+    "included": [
+     {
+      "id": "u-max",
+      "type": "users",
+      "attributes": {
+       "formatted-name": "Max Mustermann"
+      }
+     }
+    ]
+   }
+  },
+  "/jsonapi.php/v1/courses/c-prog/courseware-units?include=structural-element&page[limit]=50": {
+   "status": 404,
+   "body": {
+    "errors": [
+     {
+      "status": "404"
+     }
+    ]
+   }
+  },
+  "/jsonapi.php/v1/courses/c-prog/wiki-pages?page[limit]=100": {
+   "status": 403,
+   "body": {
+    "errors": [
+     {
+      "status": "403"
+     }
+    ]
+   }
+  },
+  "/jsonapi.php/v1/courses/c-prog/forum-categories?page[limit]=50": {
+   "status": 500,
+   "body": {
+    "errors": [
+     {
+      "status": "500"
+     }
+    ]
+   }
+  }
+ },
+ "courses": [
+  {
+   "id": "c-ana",
+   "title": "Testanalysis I"
+  },
+  {
+   "id": "c-prog",
+   "title": "Testprogrammierung"
+  }
+ ],
+ "max_requests": 200,
+ "runs": [
+  {
+   "name": "erst",
+   "today": "2026-11-02",
+   "now": "2026-11-02T09:00:00",
+   "budget": 200,
+   "replace": {},
+   "log": [
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-ana&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch1/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-containers/k3/blocks?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch1/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch2/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch2/children?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[offset]=1&page[limit]=100",
+    "/jsonapi.php/v1/wiki-pages/w2",
+    "/jsonapi.php/v1/courses/c-ana/forum-categories?page[limit]=50",
+    "/jsonapi.php/v1/forum-categories/cat1/entries?page[limit]=50",
+    "/jsonapi.php/v1/forum-entries/f1/entries?page[limit]=100",
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-prog&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-prog/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courses/c-prog/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-prog/forum-categories?page[limit]=50"
+   ],
+   "requests": 19,
+   "stopped": false,
+   "result": {
+    "texts": 5,
+    "deadlines": 3
+   },
+   "texts": [
+    {
+     "id": "cw-e-ch1",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Kapitel 1: Folgen",
+     "text": "Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen.\n\n\\lim_{n\\to\\infty} a_n = a",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-ch1",
+     "changed": "2026-10-31T08:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "cw-e-root",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Analysis I – Lernmodul",
+     "text": "Der Grenzwert einer Folge ist eindeutig.\nKonvergenz\n\nFolgen und Grenzwerte\nWoche 2\n\ndef lim(a):\n    return a[-1]\n\n[Datei: Skript Kapitel 2.pdf]\n\nMerke: jede konvergente Folge ist beschraenkt.",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root",
+     "changed": "2026-10-30T10:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "forum-f1",
+     "course_id": "c-ana",
+     "kind": "forum",
+     "title": "Frage zu Blatt 3",
+     "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+     "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
+     "changed": "2026-11-01T18:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "wiki-w1",
+     "course_id": "c-ana",
+     "kind": "wiki",
+     "title": "Klausurinfos",
+     "text": "Klausur\nTermin am 10.02.2027, Hilfsmittel: ein Blatt.\nGrenzwert und Folge",
+     "url": "https://studip.test/dispatch.php/course/wiki/page/w1?cid=c-ana",
+     "changed": "2026-10-20T12:00:00+02:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "wiki-w2",
+     "course_id": "c-ana",
+     "kind": "wiki",
+     "title": "Literatur",
+     "text": "Literatur\nForster: Analysis 1, Kapitel Folge und Grenzwert",
+     "url": "https://studip.test/dispatch.php/course/wiki/page/w2?cid=c-ana",
+     "changed": "1761900000",
+     "fetched_at": "2026-11-02T09:00:00"
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "sp-cw-t1",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Übungsblatt 3",
+     "full_title": "Übungsblatt 3 · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-12T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "sp-cw-t3",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Hausaufgabe Reihen",
+     "full_title": "Hausaufgabe Reihen · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-26T12:30",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "sp-cw-t4",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Projekt",
+     "full_title": "Projekt · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-12-01T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-02T09:00:00"
+    }
+   ],
+   "state": [
+    {
+     "key": "absent|courseware|c-prog",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks|c-prog",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki|c-prog",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "tasks_path",
+     "value": "1"
+    }
+   ],
+   "courses": "main"
+  },
+  {
+   "name": "zweit",
+   "today": "2026-11-03",
+   "now": "2026-11-03T09:00:00",
+   "budget": 200,
+   "replace": {},
+   "log": [
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-ana&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch1/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch2/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch2/children?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[offset]=1&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/forum-categories?page[limit]=50",
+    "/jsonapi.php/v1/forum-categories/cat1/entries?page[limit]=50",
+    "/jsonapi.php/v1/courses/c-prog/forum-categories?page[limit]=50"
+   ],
+   "requests": 11,
+   "stopped": false,
+   "result": {
+    "texts": 0,
+    "deadlines": 3
+   },
+   "texts": [
+    {
+     "id": "cw-e-ch1",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Kapitel 1: Folgen",
+     "text": "Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen.\n\n\\lim_{n\\to\\infty} a_n = a",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-ch1",
+     "changed": "2026-10-31T08:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "cw-e-root",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Analysis I – Lernmodul",
+     "text": "Der Grenzwert einer Folge ist eindeutig.\nKonvergenz\n\nFolgen und Grenzwerte\nWoche 2\n\ndef lim(a):\n    return a[-1]\n\n[Datei: Skript Kapitel 2.pdf]\n\nMerke: jede konvergente Folge ist beschraenkt.",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root",
+     "changed": "2026-10-30T10:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "forum-f1",
+     "course_id": "c-ana",
+     "kind": "forum",
+     "title": "Frage zu Blatt 3",
+     "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+     "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
+     "changed": "2026-11-01T18:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "wiki-w1",
+     "course_id": "c-ana",
+     "kind": "wiki",
+     "title": "Klausurinfos",
+     "text": "Klausur\nTermin am 10.02.2027, Hilfsmittel: ein Blatt.\nGrenzwert und Folge",
+     "url": "https://studip.test/dispatch.php/course/wiki/page/w1?cid=c-ana",
+     "changed": "2026-10-20T12:00:00+02:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "wiki-w2",
+     "course_id": "c-ana",
+     "kind": "wiki",
+     "title": "Literatur",
+     "text": "Literatur\nForster: Analysis 1, Kapitel Folge und Grenzwert",
+     "url": "https://studip.test/dispatch.php/course/wiki/page/w2?cid=c-ana",
+     "changed": "1761900000",
+     "fetched_at": "2026-11-02T09:00:00"
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "sp-cw-t1",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Übungsblatt 3",
+     "full_title": "Übungsblatt 3 · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-12T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-03T09:00:00"
+    },
+    {
+     "id": "sp-cw-t3",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Hausaufgabe Reihen",
+     "full_title": "Hausaufgabe Reihen · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-26T12:30",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-03T09:00:00"
+    },
+    {
+     "id": "sp-cw-t4",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Projekt",
+     "full_title": "Projekt · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-12-01T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-03T09:00:00"
+    }
+   ],
+   "state": [
+    {
+     "key": "absent|courseware|c-prog",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks|c-prog",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki|c-prog",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "tasks_path",
+     "value": "1"
+    }
+   ],
+   "courses": "main"
+  },
+  {
+   "name": "spaeter",
+   "today": "2026-11-22",
+   "now": "2026-11-22T09:00:00",
+   "budget": 200,
+   "replace": {
+    "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[limit]=100": {
+     "status": 200,
+     "body": {
+      "data": [
+       {
+        "id": "w1",
+        "type": "wiki-pages",
+        "attributes": {
+         "keyword": "Klausurinfos",
+         "chdate": "2026-10-20T12:00:00+02:00",
+         "content": "!!Klausur\n**Termin** am [[Termine|10.02.2027]], Hilfsmittel: ein Blatt.  \n\n%%Grenzwert%% und Folge"
+        }
+       }
+      ],
+      "links": {}
+     }
+    }
+   },
+   "log": [
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-ana&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch1/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-containers/k3/blocks?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch1/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch2/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch2/children?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/forum-categories?page[limit]=50",
+    "/jsonapi.php/v1/forum-categories/cat1/entries?page[limit]=50",
+    "/jsonapi.php/v1/forum-entries/f1/entries?page[limit]=100",
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-prog&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-prog/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courses/c-prog/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/c-prog/forum-categories?page[limit]=50"
+   ],
+   "requests": 17,
+   "stopped": false,
+   "result": {
+    "texts": 3,
+    "deadlines": 3
+   },
+   "texts": [
+    {
+     "id": "cw-e-ch1",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Kapitel 1: Folgen",
+     "text": "Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen.\n\n\\lim_{n\\to\\infty} a_n = a",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-ch1",
+     "changed": "2026-10-31T08:00:00+01:00",
+     "fetched_at": "2026-11-22T09:00:00"
+    },
+    {
+     "id": "cw-e-root",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Analysis I – Lernmodul",
+     "text": "Der Grenzwert einer Folge ist eindeutig.\nKonvergenz\n\nFolgen und Grenzwerte\nWoche 2\n\ndef lim(a):\n    return a[-1]\n\n[Datei: Skript Kapitel 2.pdf]\n\nMerke: jede konvergente Folge ist beschraenkt.",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root",
+     "changed": "2026-10-30T10:00:00+01:00",
+     "fetched_at": "2026-11-22T09:00:00"
+    },
+    {
+     "id": "forum-f1",
+     "course_id": "c-ana",
+     "kind": "forum",
+     "title": "Frage zu Blatt 3",
+     "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+     "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
+     "changed": "2026-11-01T18:00:00+01:00",
+     "fetched_at": "2026-11-22T09:00:00"
+    },
+    {
+     "id": "wiki-w1",
+     "course_id": "c-ana",
+     "kind": "wiki",
+     "title": "Klausurinfos",
+     "text": "Klausur\nTermin am 10.02.2027, Hilfsmittel: ein Blatt.\nGrenzwert und Folge",
+     "url": "https://studip.test/dispatch.php/course/wiki/page/w1?cid=c-ana",
+     "changed": "2026-10-20T12:00:00+02:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "sp-cw-t1",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Übungsblatt 3",
+     "full_title": "Übungsblatt 3 · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-12T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-22T09:00:00"
+    },
+    {
+     "id": "sp-cw-t3",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Hausaufgabe Reihen",
+     "full_title": "Hausaufgabe Reihen · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-26T12:30",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-22T09:00:00"
+    },
+    {
+     "id": "sp-cw-t4",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Projekt",
+     "full_title": "Projekt · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-12-01T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-22T09:00:00"
+    }
+   ],
+   "state": [
+    {
+     "key": "absent|courseware|c-prog",
+     "value": "2026-12-06"
+    },
+    {
+     "key": "absent|tasks|c-prog",
+     "value": "2026-12-06"
+    },
+    {
+     "key": "absent|wiki|c-prog",
+     "value": "2026-12-06"
+    },
+    {
+     "key": "tasks_path",
+     "value": "1"
+    }
+   ],
+   "courses": "main"
+  },
+  {
+   "name": "knapp",
+   "today": "2026-11-02",
+   "now": "2026-11-02T09:00:00",
+   "budget": 5,
+   "replace": {},
+   "log": [
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=c-ana&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/c-ana/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/containers?include=blocks&page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-root/children?page[limit]=100",
+    "/jsonapi.php/v1/courseware-structural-elements/e-ch1/containers?include=blocks&page[limit]=100"
+   ],
+   "requests": 5,
+   "stopped": true,
+   "result": {
+    "texts": 1,
+    "deadlines": 3
+   },
+   "texts": [
+    {
+     "id": "cw-e-root",
+     "course_id": "c-ana",
+     "kind": "courseware",
+     "title": "Analysis I – Lernmodul",
+     "text": "Der Grenzwert einer Folge ist eindeutig.\nKonvergenz\n\nFolgen und Grenzwerte\nWoche 2\n\ndef lim(a):\n    return a[-1]\n\n[Datei: Skript Kapitel 2.pdf]\n\nMerke: jede konvergente Folge ist beschraenkt.",
+     "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root",
+     "changed": "2026-10-30T10:00:00+01:00",
+     "fetched_at": "2026-11-02T09:00:00"
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "sp-cw-t1",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Übungsblatt 3",
+     "full_title": "Übungsblatt 3 · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-12T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "sp-cw-t3",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Hausaufgabe Reihen",
+     "full_title": "Hausaufgabe Reihen · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-11-26T12:30",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-02T09:00:00"
+    },
+    {
+     "id": "sp-cw-t4",
+     "source": "studip",
+     "course_id": "c-ana",
+     "title": "Projekt",
+     "full_title": "Projekt · Stud.IP Courseware",
+     "kind": "abgabe",
+     "module": "courseware",
+     "due_at": "2026-12-01T23:59",
+     "url": "https://studip.test/dispatch.php/course/courseware/tasks?cid=c-ana",
+     "overdue": 0,
+     "fetched_at": "2026-11-02T09:00:00"
+    }
+   ],
+   "state": [
+    {
+     "key": "tasks_path",
+     "value": "1"
+    }
+   ],
+   "courses": "main"
+  },
+  {
+   "name": "fehlt",
+   "today": "2026-11-02",
+   "now": "2026-11-02T09:00:00",
+   "budget": 200,
+   "replace": {},
+   "log": [
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=x-1&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/x-1/courseware-task-groups?page[limit]=100",
+    "/jsonapi.php/v1/courses/x-1/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courses/x-1/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/x-1/forum-categories?page[limit]=50",
+    "/jsonapi.php/v1/courseware-tasks?filter[cid]=x-2&include=task-group,structural-element&page[limit]=100",
+    "/jsonapi.php/v1/courses/x-2/courseware-task-groups?page[limit]=100",
+    "/jsonapi.php/v1/courses/x-2/courseware-units?include=structural-element&page[limit]=50",
+    "/jsonapi.php/v1/courses/x-2/wiki-pages?page[limit]=100",
+    "/jsonapi.php/v1/courses/x-2/forum-categories?page[limit]=50"
+   ],
+   "requests": 10,
+   "stopped": false,
+   "result": {
+    "texts": 0,
+    "deadlines": 0
+   },
+   "texts": [],
+   "deadlines": [],
+   "state": [
+    {
+     "key": "absent|courseware",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|courseware|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|courseware|x-2",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|forum",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|forum|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|forum|x-2",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks|x-2",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki|x-2",
+     "value": "2026-11-16"
+    }
+   ],
+   "courses": "absent"
+  },
+  {
+   "name": "fehlt-danach",
+   "today": "2026-11-03",
+   "now": "2026-11-03T09:00:00",
+   "budget": 200,
+   "replace": {},
+   "log": [],
+   "requests": 0,
+   "stopped": false,
+   "result": {
+    "texts": 0,
+    "deadlines": 0
+   },
+   "texts": [],
+   "deadlines": [],
+   "state": [
+    {
+     "key": "absent|courseware",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|courseware|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|courseware|x-2",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|forum",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|forum|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|forum|x-2",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|tasks|x-2",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki|x-1",
+     "value": "2026-11-16"
+    },
+    {
+     "key": "absent|wiki|x-2",
+     "value": "2026-11-16"
+    }
+   ],
+   "courses": "absent"
+  }
+ ],
+ "module_id": 1,
+ "overview": {
+  "groups": [
+   {
+    "kind": "courseware",
+    "label": "Courseware",
+    "count": 2,
+    "changed": "2026-10-31",
+    "items": [
+     {
+      "id": "cw-e-ch1",
+      "title": "Kapitel 1: Folgen",
+      "course_title": "Testanalysis I",
+      "changed": "2026-10-31",
+      "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-ch1"
+     },
+     {
+      "id": "cw-e-root",
+      "title": "Analysis I – Lernmodul",
+      "course_title": "Testanalysis I",
+      "changed": "2026-10-30",
+      "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root"
+     }
+    ]
+   },
+   {
+    "kind": "wiki",
+    "label": "Wiki",
+    "count": 2,
+    "changed": "2026-10-20",
+    "items": [
+     {
+      "id": "wiki-w1",
+      "title": "Klausurinfos",
+      "course_title": "Testanalysis I",
+      "changed": "2026-10-20",
+      "url": "https://studip.test/dispatch.php/course/wiki/page/w1?cid=c-ana"
+     },
+     {
+      "id": "wiki-w2",
+      "title": "Literatur",
+      "course_title": "Testanalysis I",
+      "changed": "2025-10-31",
+      "url": "https://studip.test/dispatch.php/course/wiki/page/w2?cid=c-ana"
+     }
+    ]
+   },
+   {
+    "kind": "forum",
+    "label": "Forum",
+    "count": 1,
+    "changed": "2026-11-01",
+    "items": [
+     {
+      "id": "forum-f1",
+      "title": "Frage zu Blatt 3",
+      "course_title": "Testanalysis I",
+      "changed": "2026-11-01",
+      "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1"
+     }
+    ]
+   }
+  ],
+  "total": 5
+ },
+ "item": {
+  "id": "forum-f1",
+  "kind": "forum",
+  "title": "Frage zu Blatt 3",
+  "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+  "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
+  "changed": "2026-11-01",
+  "course_title": "Testanalysis I",
+  "kind_label": "Forum"
+ },
+ "search": {
+  "Konvergenz der Folge Grenzwert": [
+   {
+    "id": "cw-e-root",
+    "kind": "courseware",
+    "kind_label": "Courseware",
+    "title": "Analysis I – Lernmodul",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root",
+    "score": 3005,
+    "snippet": "Der Grenzwert einer Folge ist eindeutig. Konvergenz Folgen und Grenzwerte Woche 2 def lim(a): return a[-1] [Datei: Skript Kapitel 2.pdf] Merke: jede konvergente Folge ist…"
+   },
+   {
+    "id": "cw-e-ch1",
+    "kind": "courseware",
+    "kind_label": "Courseware",
+    "title": "Kapitel 1: Folgen",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-ch1",
+    "score": 2004,
+    "snippet": "Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen. \\lim_{n\\to\\infty} a_n = a"
+   },
+   {
+    "id": "forum-f1",
+    "kind": "forum",
+    "kind_label": "Forum",
+    "title": "Frage zu Blatt 3",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
+    "score": 2003,
+    "snippet": "Wie zeige ich die Konvergenz der Folge? @… --- Re: Frage zu Blatt 3 Mit dem Cauchy-Kriterium für die Folge."
+   }
+  ],
+  "Klausur Termin Hilfsmittel": [
+   {
+    "id": "wiki-w1",
+    "kind": "wiki",
+    "kind_label": "Wiki",
+    "title": "Klausurinfos",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/dispatch.php/course/wiki/page/w1?cid=c-ana",
+    "score": 2002,
+    "snippet": "Klausur Termin am 10.02.2027, Hilfsmittel: ein Blatt. Grenzwert und Folge"
+   }
+  ],
+  "Grenzwert": [
+   {
+    "id": "cw-e-root",
+    "kind": "courseware",
+    "kind_label": "Courseware",
+    "title": "Analysis I – Lernmodul",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-root",
+    "score": 1002,
+    "snippet": "Der Grenzwert einer Folge ist eindeutig. Konvergenz Folgen und Grenzwerte Woche 2 def lim(a): return a[-1] [Datei: Skript Kapitel 2.pdf] Merke: jede konvergente Folge ist…"
+   },
+   {
+    "id": "wiki-w1",
+    "kind": "wiki",
+    "kind_label": "Wiki",
+    "title": "Klausurinfos",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/dispatch.php/course/wiki/page/w1?cid=c-ana",
+    "score": 1001,
+    "snippet": "…sur Termin am 10.02.2027, Hilfsmittel: ein Blatt. Grenzwert und Folge"
+   },
+   {
+    "id": "wiki-w2",
+    "kind": "wiki",
+    "kind_label": "Wiki",
+    "title": "Literatur",
+    "course_title": "Testanalysis I",
+    "url": "https://studip.test/dispatch.php/course/wiki/page/w2?cid=c-ana",
+    "score": 1001,
+    "snippet": "Literatur Forster: Analysis 1, Kapitel Folge und Grenzwert"
+   }
+  ],
+  "xyz quark": []
+ },
+ "tutor_sources": [
+  {
+   "n": 3,
+   "studip_id": "forum-f1",
+   "kind": "forum",
+   "title": "Forum: Frage zu Blatt 3",
+   "name": "Frage zu Blatt 3",
+   "page": null,
+   "snippet": "Wie zeige ich die Konvergenz der Folge? @… --- Re: Frage zu Blatt 3 Mit dem Cauchy-Kriterium für die Folge.",
+   "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
+   "current": false
+  },
+  {
+   "n": 4,
+   "studip_id": "cw-e-ch1",
+   "kind": "courseware",
+   "title": "Courseware: Kapitel 1: Folgen",
+   "name": "Kapitel 1: Folgen",
+   "page": null,
+   "snippet": "Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen. \\lim_{n\\to\\infty} a_n = a",
+   "url": "https://studip.test/dispatch.php/course/courseware/?cid=c-ana#/structural_element/e-ch1",
+   "current": false
+  }
+ ],
+ "weekly_lines": [
+  "Courseware „Analysis I – Lernmodul“: Der Grenzwert einer Folge ist eindeutig. Konvergenz Folgen und Grenzwerte Woche 2 def lim(a): return a[-1] [Datei: Skript Kapitel 2.pdf] Merke: jede konvergente Folge ist beschraenkt.",
+  "Courseware „Kapitel 1: Folgen“: Eine Folge heisst Cauchy-Folge, wenn ... Konvergenz der Folge folgt im Vollstaendigen. \\lim_{n\\to\\infty} a_n = a"
+ ],
+ "absent_courses": [
+  {
+   "id": "x-1",
+   "title": "Kurs eins"
+  },
+  {
+   "id": "x-2",
+   "title": "Kurs zwei"
+  }
+ ],
+ "cases": {
+  "berlin_local": {
+   "2026-11-12T23:59:00+01:00": "2026-11-12T23:59",
+   "2026-07-01T10:00:00Z": "2026-07-01T12:00",
+   "2026-11-12T08:15": "2026-11-12T08:15",
+   "2026-11-12": "2026-11-12T23:59",
+   "2026-13-01": null,
+   "morgen": null,
+   "2026-10-25T01:30:00Z": "2026-10-25T02:30"
+  },
+  "markup": {
+   "!!!Titel\n**fett** [[Seite|Text]] [[Ziel]]": "Titel\nfett Text Ziel",
+   "  a \t b \n\n c  ": "a b\nc"
+  },
+  "anonymize": {
+   "[QUOTE=Anna]x[/quote]Danke @anna.b, gut": " Danke @…, gut",
+   "Mail an a@b.de": "Mail an a@b.de"
+  },
+  "cut": {
+   "kurz": "kurz",
+   "ein ziemlich langer Satz hier": "ein …"
+  }
+ }
+}

@@ -59,9 +59,17 @@ public enum SearchEndpoints: LocalEndpointModule {
                 let pages = try await ScriptSearch.pageTexts(fileID: id ?? "", ctx: ctx, ocrScope: .pages([page]))
                 text = 0 < page && page <= pages.count ? pages[page - 1] : ""
             }
-            return .json(try await ScriptSearch.search(moduleID: module, query: PyText.slice(text, 0, 6000), exclude: id,
-                                                       database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: nil))
+            var res = try await ScriptSearch.search(moduleID: module, query: PyText.slice(text, 0, 6000), exclude: id,
+                                                    database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: nil)
             // ohne OCR (Vorschlag beim Oeffnen, Vordergrund): erkannt wird im Hintergrund, die Ergebnisse stehen in page_texts
+            // passende Lerntexte aus Stud.IP (Courseware, Wiki, Forum) nur, wenn es welche gibt (wie api_related)
+            let query = PyText.slice(text, 0, 6000)
+            let hits = try await ctx.database.withConnection { try StudIPTexts.search($0, moduleID: module, query: query, limit: 2) }
+            if !hits.isEmpty, case .object(var o) = res {
+                o["studip"] = .array(hits)
+                res = .object(o)
+            }
+            return .json(res)
         }
 
         router.get("/api/files/{file_id}/pagetext") { req, ctx in

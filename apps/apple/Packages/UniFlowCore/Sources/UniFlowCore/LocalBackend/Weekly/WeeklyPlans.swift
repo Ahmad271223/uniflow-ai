@@ -259,6 +259,8 @@ extension Weekly {
         var module: [String: JSONValue]?
         var lecture: [Lecture], prior: [Lecture], tasks: [TaskRef]
         var missing: [String], topic: String, excluded: [PyJSON], n: Int, examReuse: String, materialHash: String
+        /// ergaenzend: passende Courseware- und Wiki-Texte aus Stud.IP (`StudIPTexts.weeklyLines`), nicht im material_hash
+        var studip: [String] = []
         var moduleName: String { module?["name"]?.string ?? "None" }
     }
 
@@ -334,8 +336,10 @@ extension Weekly {
         let hash = h(.array(lec.map { .array([.string($0.fileID), i($0.page)]) }), .array(tasks.map(\.taskID).sorted().map(i)),
                      .array(tasks.map { .string($0.text) }))
         let reuse = module?["exam_reuse"].flatMap { LocalModules.truthy(v($0)) ? $0.string : nil } ?? "paraphrase"
+        let query = topic.isEmpty ? PyText.slice(lec.prefix(3).map(\.text).joined(separator: " "), 0, 700) : topic
+        let studip = try StudIPTexts.weeklyLines(c, moduleID: v(plan["module_id"]), query: query)
         return Context(plan: plan, module: module, lecture: lec, prior: prior, tasks: tasks, missing: missing, topic: topic,
-                       excluded: Array(excluded.prefix(50)), n: questions ?? st.questions, examReuse: reuse, materialHash: hash)
+                       excluded: Array(excluded.prefix(50)), n: questions ?? st.questions, examReuse: reuse, materialHash: hash, studip: studip)
     }
 
     static let system = "Du erstellst Pruefungsaufgaben fuer ein Ingenieur-/Informatikstudium an der Leibniz Universitaet Hannover. Antworte ausschliesslich mit gueltigem JSON ohne Markdown-Zaeune. Formeln als Text."
@@ -370,6 +374,10 @@ extension Weekly {
                 if !t.solution.isEmpty { l += "\n    Musterloesung: " + t.solution }
                 lines.append(l)
             }
+        }
+        if !ctx.studip.isEmpty {
+            lines += ["", "ERGAENZEND AUS STUD.IP (Courseware und Wiki der Kurse; nur zum Abgleich, nichts darueber hinaus abfragen, keine refs):"]
+            lines += ctx.studip.map { "- " + $0 }
         }
         return lines.joined(separator: "\n")
     }

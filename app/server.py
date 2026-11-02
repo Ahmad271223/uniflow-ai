@@ -1021,6 +1021,13 @@ def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: 
                     "page": r["page"], "snippet": r.get("snippet"), "current": False})
         if len(out) > limit:
             break
+    # dazu hoechstens zwei passende Lerntexte aus Stud.IP (Courseware, Wiki, Forum; app/studip_texts.py)
+    try:
+        from . import studip_texts
+        with db.cursor() as conn:
+            out += studip_texts.tutor_sources(conn, m["module_id"], query, len(out) + 1)
+    except Exception:                                    # noqa: BLE001
+        pass
     return out
 
 
@@ -2434,7 +2441,31 @@ def api_related(body: dict = Body(...)):
         if not text and page:
             pages = scriptsearch.page_texts(conn, fid)
             text = pages[page - 1] if 0 < page <= len(pages) else ""
-        return scriptsearch.search(conn, f["module_id"], text[:6000], exclude=fid)
+        res = scriptsearch.search(conn, f["module_id"], text[:6000], exclude=fid)
+        # passende Lerntexte aus Stud.IP (Courseware, Wiki, Forum) nur, wenn es welche gibt
+        from . import studip_texts
+        if hits := studip_texts.search(conn, f["module_id"], text[:6000], limit=2):
+            res["studip"] = hits
+        return res
+
+
+@app.get("/api/modules/{module_id}/studip")
+def api_module_studip(module_id: int):
+    """Bereich "Aus Stud.IP" der Modulansicht: Courseware, Wiki, Forum mit Anzahl und letzter Aenderung"""
+    from . import studip_texts
+    with db.cursor() as conn:
+        return studip_texts.overview(conn, module_id)
+
+
+@app.get("/api/studip-texts/{text_id}")
+def api_studip_text(text_id: str):
+    """Ein Lerntext aus Stud.IP zum Lesen (Text, Herkunft, Link)"""
+    from . import studip_texts
+    with db.cursor() as conn:
+        d = studip_texts.item(conn, text_id)
+    if not d:
+        raise HTTPException(404, "Text nicht gefunden")
+    return d
 
 
 @app.get("/api/network")

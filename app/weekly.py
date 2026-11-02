@@ -1008,7 +1008,11 @@ def build_context(conn, plan: dict, cands: dict, missing: list[str], n_questions
               "exam_term": c.get("exam_term"), "points": c.get("points"), "difficulty": c.get("difficulty"), "text": _short(c["text"], 1400),
               "solution": _short(c.get("solution_text") or "", 900), "file_id": c["file_id"], "page_from": c["page_from"]} for i, c in enumerate(picked)]
     topic = " · ".join(dict.fromkeys(sg.get("topic") for sg in covj["new"] if sg.get("topic")))[:160]
-    return {"plan": plan, "module": mod, "lecture": lec, "prior": prior, "tasks": tasks, "missing": missing, "topic": topic,
+    # ergaenzend: passende Courseware- und Wiki-Texte aus Stud.IP (app/studip_texts.py), gekuerzt, nicht im material_hash
+    from . import studip_texts
+    query = topic or " ".join(x["text"] for x in lec[:3])[:700]
+    studip = studip_texts.weekly_lines(conn, plan["module_id"], query)
+    return {"plan": plan, "module": mod, "lecture": lec, "prior": prior, "tasks": tasks, "missing": missing, "topic": topic, "studip": studip,
             "excluded": cands["excluded"][:50], "n": n_questions or s["questions"], "exam_reuse": (mod or {}).get("exam_reuse") or "paraphrase",
             "material_hash": _h([(x["file_id"], x["page"]) for x in lec], sorted(t["task_id"] for t in tasks), [t["text"] for t in tasks])}
 
@@ -1054,6 +1058,9 @@ def _materials_block(ctx: dict) -> str:
             lines.append(f"[{t['id']}] {SOURCE_TXT.get(t['source'], t['source'])}{' ' + t['exam_term'] if t.get('exam_term') else ''}"
                          f"{' (' + str(t['points']) + ' P.)' if t.get('points') else ''}: {t['text']}"
                          + (f"\n    Musterloesung: {t['solution']}" if t.get("solution") else ""))
+    if ctx.get("studip"):
+        lines += ["", "ERGAENZEND AUS STUD.IP (Courseware und Wiki der Kurse; nur zum Abgleich, nichts darueber hinaus abfragen, keine refs):"]
+        lines += [f"- {x}" for x in ctx["studip"]]
     return "\n".join(lines)
 
 

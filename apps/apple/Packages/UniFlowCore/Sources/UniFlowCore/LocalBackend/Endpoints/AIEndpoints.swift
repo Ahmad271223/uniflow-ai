@@ -159,6 +159,9 @@ enum AIEndpoints: LocalEndpointModule {
                             "title": title, "page": r["page"] ?? .null, "snippet": r["snippet"] ?? .null, "current": false])
                 if out.count > limit { break }
             }
+            // dazu hoechstens zwei passende Lerntexte aus Stud.IP (Courseware, Wiki, Forum; StudIPTexts)
+            let start = out.count + 1
+            out += (try? await ctx.database.withConnection { try StudIPTexts.tutorSources($0, moduleID: module, query: query, start: start) }) ?? []
         } catch {
             return out                                    // Quellen sind Zusatz, der Tutor laeuft auch ohne
         }
