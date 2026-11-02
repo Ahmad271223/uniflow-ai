@@ -5,7 +5,8 @@
   die Kurs-ID nicht kennt (kein Kursmitglied), kann den Schluessel nicht bilden (Entscheidung des Inhabers vom
   26.10.2026). Optional mit Bezug auf eine PDF (Fingerabdruck) und Seite. Antworten mit "hilfreich"-Stimmen; wer die
   Frage gestellt hat, kann eine Antwort als Loesung markieren. Melden wie bei Kommentaren (ab 3 Meldungen verborgen),
-  gesperrte Autoren und eigene Sperrliste gelten auch hier.
+  gesperrte Autoren und eigene Sperrliste gelten auch hier. Melden verlangt eine bestaetigte E-Mail-Adresse, die
+  Sichtbarkeit der Frage und ist je Konto und Tag begrenzt (`report_user`); die Moderation kann Verborgenes freigeben.
 - **Lesezeichen** fuer Loesungen und Fragen (privat).
 - **Benachrichtigungen** im Konto (keine Push-Nachricht): Kommentar oder Antwort auf eigene Loesung, Antwort auf
   eigenen Kommentar, Like auf eigene Loesung (gebuendelt je Loesung und Tag), Antwort auf eigene Frage, eigene Antwort
@@ -313,13 +314,17 @@ def delete(user: dict, kind: str, target_id: str) -> dict:
 def report(user: dict, kind: str, target_id: str, reason: str) -> dict:
     if reason not in community.REPORT_REASONS:
         raise CommunityError("reason_invalid", "Unbekannter Meldegrund.")
+    _require_verified(user, "Beiträge zu melden")
     with cursor() as conn:
         t = "questions" if kind == "question" else "answers"
         r = conn.execute(f"SELECT * FROM {t} WHERE id=? AND status='active'", (str(target_id),)).fetchone()
         if not r:
             raise CommunityError("not_found", "Nicht gefunden.", 404)
+        _visible_question(conn, user, r["id"] if kind == "question" else r["question_id"])
         if r["author_id"] == user["id"]:
             raise CommunityError("own_post", "Den eigenen Beitrag kannst du löschen statt melden.")
+        if not conn.execute("SELECT 1 FROM qa_reports WHERE kind=? AND target_id=? AND reporter_id=?", (kind, r["id"], user["id"])).fetchone():
+            _limit("report_user", user["id"])
         cur = conn.execute("INSERT OR IGNORE INTO qa_reports(kind, target_id, reporter_id, reason, created_at) VALUES (?,?,?,?,?)",
                            (kind, r["id"], user["id"], reason, _now()))
         if cur.rowcount:
@@ -327,6 +332,50 @@ def report(user: dict, kind: str, target_id: str, reason: str) -> dict:
             conn.execute(f"UPDATE {t} SET report_count=?, status=CASE WHEN ? >= ? THEN 'hidden' ELSE status END WHERE id=?",
                          (n, n, REPORTS_TO_HIDE, r["id"]))
     return {"reported": True}
+
+
+def moderation_posts(user: dict) -> dict:
+    """Nur Admin: gemeldete oder verborgene Kommentare, Fragen und Antworten, je Meldung mit Angaben zum Meldenden."""
+    community.require_admin(user)
+    out = {}
+    with cursor() as conn:
+        specs = (("comments", "comment", "text", "comment_reports", "comment_id", "solution_id"),
+                 ("questions", "question", "title", "qa_reports", "target_id", "course_key"),
+                 ("answers", "answer", "body", "qa_reports", "target_id", "question_id"))
+        for table, kind, text_col, rep_table, rep_col, ctx_col in specs:
+            rows = conn.execute(f"SELECT * FROM {table} WHERE status='hidden' OR (status='active' AND report_count>0) "
+                                "ORDER BY status='hidden' DESC, report_count DESC, created_at DESC").fetchall()
+            items = []
+            for r in rows:
+                where = f"{rep_col}=?" + (" AND kind=?" if rep_table == "qa_reports" else "")
+                args = (r["id"], kind) if rep_table == "qa_reports" else (r["id"],)
+                reps = [{"reason": x["reason"], "created_at": x["created_at"], "reporter": community.reporter_info(x["reporter_id"])}
+                        for x in conn.execute(f"SELECT reason, created_at, reporter_id FROM {rep_table} WHERE {where} ORDER BY created_at, rowid", args)]
+                items.append({"id": r["id"], "kind": kind, "status": r["status"], "pseudonym": r["pseudonym"], "text": (r[text_col] or "")[:300],
+                              "context": r[ctx_col], "created_at": r["created_at"], "report_count": r["report_count"], "reports": reps})
+            out[table] = items
+    return out
+
+
+def moderate_post(user: dict, kind: str, target_id: str, action: str) -> dict:
+    """Nur Admin: verborgenen Kommentar, verborgene Frage oder Antwort wiederherstellen (Meldungen werden geloescht,
+    wie bei `community.moderate` 'restore' fuer Loesungen)."""
+    community.require_admin(user)
+    if action != "restore":
+        raise CommunityError("action_invalid", "Unbekannte Aktion.")
+    t = {"comment": "comments", "question": "questions", "answer": "answers"}.get(kind)
+    if not t:
+        raise CommunityError("kind_invalid", "Unbekannter Beitrag.")
+    with cursor() as conn:
+        r = conn.execute(f"SELECT id FROM {t} WHERE id=? AND status='hidden'", (str(target_id),)).fetchone()
+        if not r:
+            raise CommunityError("not_found", "Kein verborgener Beitrag mit dieser Kennung.", 404)
+        conn.execute(f"UPDATE {t} SET status='active', report_count=0 WHERE id=?", (r["id"],))
+        if kind == "comment":
+            conn.execute("DELETE FROM comment_reports WHERE comment_id=?", (r["id"],))
+        else:
+            conn.execute("DELETE FROM qa_reports WHERE kind=? AND target_id=?", (kind, r["id"]))
+    return {"action": action, "kind": kind, "id": r["id"], "status": "active"}
 
 
 # ---------------------------------------------------------------- Lesezeichen

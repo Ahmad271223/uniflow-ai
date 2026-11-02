@@ -17,7 +17,11 @@ Hochschul-Quelle stehen). Lesen und Schreiben brauchen den Tarif Plus (Entscheid
 Zentrale Ablage `community.db` und Paketdateien unter `community/` neben den Nutzerordnern. Autoren erscheinen
 nur mit einem stabilen Pseudonym (HMAC aus Konto-ID und Dienst-Geheimnis), nie mit Konto-ID oder E-Mail.
 Melden: eine Meldung je Konto und Loesung; ab REPORTS_TO_HIDE verschiedenen Meldungen ist die Loesung verborgen,
-bis ein Admin entscheidet. Sperren: ein Konto blendet alle Loesungen eines Pseudonyms fuer sich aus. Admin:
+bis ein Admin entscheidet. Melden (Loesung, Kommentar, Frage, Antwort) verlangt wie Liken und Kommentieren eine
+bestaetigte E-Mail-Adresse und die Sichtbarkeit des Beitrags fuer das Konto und ist je Konto und Tag begrenzt
+(`report_user`); gezaehlt werden daher nur Meldungen solcher Konten, Wegwerf-Konten koennen nichts verbergen. Die
+Moderation sieht je Meldung Pseudonym, Kontoalter und Bestaetigungsstand des Meldenden und kann Verborgenes wieder
+freigeben. Sperren: ein Konto blendet alle Loesungen eines Pseudonyms fuer sich aus. Admin:
 verbergen, wiederherstellen, entfernen, Autor sperren.
 """
 from __future__ import annotations
@@ -581,14 +585,14 @@ def withdraw(user: dict, solution_id: str) -> dict:
 def report(user: dict, solution_id: str, reason: str, note: str | None) -> dict:
     if reason not in REPORT_REASONS:
         raise CommunityError("reason_invalid", "Unbekannter Meldegrund.")
+    _require_verified(user, "Lösungen zu melden")
     with cursor() as conn:
-        r = conn.execute("SELECT * FROM solutions WHERE id=?", (solution_id.lower(),)).fetchone()
-        if not r or r["status"] not in ("active", "hidden"):
-            raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
+        r = _visible_solution(conn, user, solution_id)
         if r["author_id"] == user["id"]:
             raise CommunityError("own_solution", "Die eigene Lösung lässt sich nicht melden, aber zurückziehen.")
         if conn.execute("SELECT 1 FROM reports WHERE solution_id=? AND reporter_id=?", (r["id"], user["id"])).fetchone():
             raise CommunityError("already_reported", "Du hast diese Lösung schon gemeldet.", 409)
+        _limit("report_user", user["id"])
         conn.execute("INSERT INTO reports(solution_id, reporter_id, reason, note, created_at) VALUES (?,?,?,?,?)",
                      (r["id"], user["id"], reason, (note or "")[:500] or None, _now()))
         n = conn.execute("SELECT COUNT(*) FROM reports WHERE solution_id=?", (r["id"],)).fetchone()[0]
@@ -630,14 +634,26 @@ def require_admin(user: dict) -> None:
         raise CommunityError("forbidden", "Nur für Moderation.", 403)
 
 
+def reporter_info(reporter_id: str) -> dict:
+    """Fuer die Moderation: wer hat gemeldet (Pseudonym, Kontoalter in Tagen, E-Mail bestaetigt), nie Konto-ID oder E-Mail."""
+    u = accounts.get_user(reporter_id)
+    age = None
+    if u:
+        try:
+            age = max(0, (accounts.now() - datetime.fromisoformat(u["created_at"].replace("Z", "+00:00"))).days)
+        except (KeyError, ValueError):
+            pass
+    return {"pseudonym": pseudonym(reporter_id), "account_age_days": age, "email_verified": bool(u and u["email_verified"])}
+
+
 def moderation_queue(user: dict) -> list[dict]:
     require_admin(user)
     with cursor() as conn:
         rows = conn.execute("SELECT * FROM solutions WHERE report_count>0 OR status IN ('hidden','removed') ORDER BY status='hidden' DESC, report_count DESC, published_at DESC").fetchall()
         out = []
         for r in rows:
-            reps = [{"reason": x["reason"], "note": x["note"], "created_at": x["created_at"]}
-                    for x in conn.execute("SELECT reason, note, created_at FROM reports WHERE solution_id=? ORDER BY id", (r["id"],))]
+            reps = [{"reason": x["reason"], "note": x["note"], "created_at": x["created_at"], "reporter": reporter_info(x["reporter_id"])}
+                    for x in conn.execute("SELECT reason, note, created_at, reporter_id FROM reports WHERE solution_id=? ORDER BY id", (r["id"],))]
             s = _summary(r, user["id"])
             s["reports"] = reps
             s["author_banned"] = bool(conn.execute("SELECT 1 FROM bans WHERE author_id=?", (r["author_id"],)).fetchone())
@@ -835,17 +851,19 @@ def delete_comment(user: dict, comment_id: str) -> dict:
 def report_comment(user: dict, comment_id: str, reason: str) -> dict:
     if reason not in REPORT_REASONS:
         raise CommunityError("reason_invalid", "Unbekannter Meldegrund.")
+    _require_verified(user, "Kommentare zu melden")
     with cursor() as conn:
         c = conn.execute("SELECT * FROM comments WHERE id=? AND status='active'", (comment_id,)).fetchone()
         if not c:
             raise CommunityError("not_found", "Kommentar nicht gefunden.", 404)
+        _visible_solution(conn, user, c["solution_id"])
         if c["author_id"] == user["id"]:
             raise CommunityError("own_comment", "Den eigenen Kommentar kannst du löschen statt melden.")
-        try:
-            conn.execute("INSERT INTO comment_reports(comment_id, reporter_id, reason, created_at) VALUES (?,?,?,?)",
-                         (c["id"], user["id"], reason, _now()))
-        except sqlite3.IntegrityError:
+        if conn.execute("SELECT 1 FROM comment_reports WHERE comment_id=? AND reporter_id=?", (c["id"], user["id"])).fetchone():
             raise CommunityError("already_reported", "Du hast diesen Kommentar schon gemeldet.", 409)
+        _limit("report_user", user["id"])
+        conn.execute("INSERT INTO comment_reports(comment_id, reporter_id, reason, created_at) VALUES (?,?,?,?)",
+                     (c["id"], user["id"], reason, _now()))
         n = conn.execute("SELECT COUNT(*) FROM comment_reports WHERE comment_id=?", (c["id"],)).fetchone()[0]
         hidden = n >= REPORTS_TO_HIDE
         conn.execute("UPDATE comments SET report_count=?, status=? WHERE id=?", (n, "hidden" if hidden else "active", c["id"]))
