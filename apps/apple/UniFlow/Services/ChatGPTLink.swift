@@ -274,16 +274,18 @@ final class ChatGPTLink: ObservableObject {
 
     func loadModels() async {
         guard let session, status?.connected == true else { return }
+        let rejected = Set(await session.rejectedModels)
         do {
             models = try await session.models()
             // ohne Wahl: das Hauptmodell des Abos, damit die KI gleich arbeitet (aenderbar, aber nie noetig)
-            if (status?.model ?? "").isEmpty {
-                try await session.setModel(ChatGPTSession.preferredModel(models) ?? ChatGPTSession.fallbackModel)
+            if (status?.model ?? "").isEmpty, let first = ChatGPTSession.modelCandidates(listed: models, excluding: rejected).first {
+                try await session.setModel(first)
             }
             await refresh()
         } catch let e as AIError {
             // Liste nicht lesbar (z. B. ohne Freigabe fuer /v1/models): trotzdem nutzbar mit dem Standardmodell
-            if (status?.model ?? "").isEmpty, status?.connected == true { try? await session.setModel(ChatGPTSession.fallbackModel) }
+            if (status?.model ?? "").isEmpty, status?.connected == true,
+               let first = ChatGPTSession.modelCandidates(listed: [], excluding: rejected).first { try? await session.setModel(first) }
             else { message = e.message }
             await refresh()
         } catch {

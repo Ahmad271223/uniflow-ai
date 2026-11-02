@@ -38,6 +38,9 @@ public struct ChatGPTState: Codable, Equatable, Sendable {
     public var useForAI: Bool = true
     public var needsReauth: Bool = false
     public var lastError: String?
+    /// Modelle, die ChatGPT fuer dieses Konto abgelehnt hat ("not supported when using Codex with a ChatGPT account");
+    /// werden nicht erneut gewaehlt. Optional, damit aeltere gespeicherte Staende lesbar bleiben.
+    public var rejectedModels: [String]?
 
     public init(hostID: String) { self.hostID = hostID }
     public static func new() -> ChatGPTState { ChatGPTState(hostID: "urn:uuid:\(UUID().uuidString.lowercased())") }
@@ -170,6 +173,9 @@ public actor ChatGPTSession {
             self.lastError = lastError
         }
     }
+
+    /// Vom Konto abgelehnte Modelle (werden nicht erneut gewaehlt)
+    public var rejectedModels: [String] { state.rejectedModels ?? [] }
 
     public var status: Status {
         let c = state.credentials
@@ -357,10 +363,15 @@ public actor ChatGPTSession {
         }
         let token = try await accessToken()
         var r = try await respond(token: token, system: system, prompt: prompt, schema: schema)
-        // Modell abgelehnt (gibt es im Abo nicht oder nicht mehr): einmal mit dem Hauptmodell der Liste neu versuchen
-        if Self.isModelRejection(status: r.status, body: r.body), let ids = try? await models(force: true),
-           let other = Self.preferredModel(ids.filter { $0 != state.model }) {
-            try setModel(other)
+        // Modell abgelehnt (mit dem ChatGPT-Konto sind nur bestimmte Modelle erlaubt, und die Liste aendert sich):
+        // das Modell merken und der Reihe nach die naechsten Kandidaten versuchen, bis eines antwortet
+        var attempts = 0
+        while Self.isModelRejection(status: r.status, body: r.body), attempts < 4 {
+            attempts += 1
+            try rememberRejected(state.model)
+            let listed = (try? await models(force: attempts == 1)) ?? []
+            guard let next = Self.modelCandidates(listed: listed, excluding: Set(state.rejectedModels ?? [])).first else { break }
+            try setModel(next)
             r = try await respond(token: token, system: system, prompt: prompt, schema: schema)
         }
         guard (200..<300).contains(r.status) else {
@@ -387,8 +398,39 @@ public actor ChatGPTSession {
         return String(decoding: body.prefix(2000), as: UTF8.self).lowercased().contains("model")
     }
 
+    private func rememberRejected(_ model: String) throws {
+        guard !model.isEmpty else { return }
+        var list = state.rejectedModels ?? []
+        guard !list.contains(model) else { return }
+        list.append(model)
+        state.rejectedModels = Array(list.suffix(20))
+        try persist()
+    }
+
     /// Modell, wenn der Nutzer keins waehlt (Wunsch des Inhabers: einfach das ChatGPT-Konto nutzen, nichts auswaehlen)
-    public static let fallbackModel = "gpt-5"
+    public static var fallbackModel: String { fallbackModels[0] }
+
+    /// Feste Kandidaten, wenn die Liste des Abos fehlt oder nichts Passendes enthaelt: neueste Chatmodelle zuerst,
+    /// dann die Codex-Fassungen, zuletzt gpt-5 (beobachtet 2.11.2026: mit dem ChatGPT-Konto abgelehnt). Welche das
+    /// Konto wirklich annimmt, zeigt erst die Antwort; abgelehnte landen in `rejectedModels`.
+    public static let fallbackModels = ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5.5-codex", "gpt-5.1-codex", "gpt-5-codex",
+                                        "codex-mini-latest", "gpt-5"]
+
+    /// Reihenfolge der Versuche: aus der Liste des Abos erst das Hauptmodell (`preferredModel`), dann die Codex-
+    /// Fassungen, dann die festen Kandidaten; ohne Doppelte und ohne schon abgelehnte
+    public static func modelCandidates(listed: [String], excluding: Set<String>) -> [String] {
+        var out: [String] = []
+        var rest = listed
+        while let p = preferredModel(rest) {
+            out.append(p)
+            rest.removeAll { $0 == p }
+            if out.count >= 3 { break }
+        }
+        out += listed.filter { $0.lowercased().contains("codex") }.sorted { $0.compare($1, options: .numeric) == .orderedDescending }
+        out += fallbackModels
+        var seen = Set<String>()
+        return out.filter { !excluding.contains($0) && seen.insert($0).inserted }
+    }
 
     /// Hauptmodell aus der Liste des Abos: ein "gpt-"-Chatmodell ohne Spezialisierung (mini, Audio, Bild, Suche ...),
     /// bevorzugt ohne Datumsangabe, die hoechste Version; sonst ein o-Modell; nil bei leerer Liste

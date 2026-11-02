@@ -405,6 +405,33 @@ final class ChatGPTSessionTests: XCTestCase {
         XCTAssertTrue(st.needsReauth && !st.enabledForAI, "401: neu verbinden")
     }
 
+    /// iPad 2.11.2026: "The 'gpt-5' model is not supported when using Codex with a ChatGPT account" (400): die Sitzung
+    /// merkt sich das Modell, probiert die naechsten Kandidaten und bleibt beim ersten, das antwortet
+    func testRejectedModelIsRememberedAndTheNextCandidateIsTried() async throws {
+        let (s, fake, store) = await make()
+        _ = try await connect(s, fake)
+        try await s.setModel("gpt-5")
+        await fake.on(ChatGPTConstants.modelsURL) { _ in (403, Data("{}".utf8)) }        // Liste nicht lesbar: feste Kandidaten
+        await fake.on(ChatGPTConstants.responsesURL) { req in
+            let model = (try? JSONValue.parse(req.body ?? Data()))?["model"]?.string ?? ""
+            if model == "gpt-5.5" { return (200, json(["output": [["type": "message", "content": [["type": "output_text", "text": .string("OK von \(model)")]]]]])) }
+            return (400, Data(#"{"detail":"The '\#(model)' model is not supported when using Codex with a ChatGPT account.","error":{"code":"model_not_found"}}"#.utf8))
+        }
+        let answer = try await s.complete(system: "S", prompt: "P")
+        XCTAssertEqual(answer, "OK von gpt-5.5")
+        let st = await s.status
+        XCTAssertEqual(st.model, "gpt-5.5")
+        let rejected = await s.rejectedModels
+        XCTAssertEqual(rejected, ["gpt-5"])
+        let persisted = store.load()
+        XCTAssertEqual(persisted?.rejectedModels, ["gpt-5"], "abgelehnt bleibt gemerkt")
+        // naechste Anfrage geht direkt an das funktionierende Modell
+        _ = try await s.complete(system: "S", prompt: "P2")
+        let req = await fake.last(ChatGPTConstants.responsesURL)
+        let sent = try JSONValue.parse(req?.body ?? Data())
+        XCTAssertEqual(sent["model"], "gpt-5.5")
+    }
+
     func testWithoutUsageScopeNoRequests() async throws {
         let (s, fake, _) = await make()
         _ = try await connect(s, fake, scope: "openid email offline_access")
@@ -478,6 +505,12 @@ final class ChatGPTPreferredModelTests: XCTestCase {
         XCTAssertEqual(ChatGPTSession.preferredModel(["eigenes-modell"]), "eigenes-modell")
         XCTAssertNil(ChatGPTSession.preferredModel([]))
         XCTAssertFalse(ChatGPTSession.fallbackModel.isEmpty)
+        // Reihenfolge der Versuche: Hauptmodell, dann Codex-Fassungen, dann feste Kandidaten; abgelehnte nie wieder
+        let c = ChatGPTSession.modelCandidates(listed: ["gpt-5", "gpt-5-codex", "gpt-4.1", "whisper-1"], excluding: ["gpt-5"])
+        XCTAssertEqual(c.first, "gpt-4.1")
+        XCTAssertTrue(c.contains("gpt-5-codex") && c.contains("gpt-5.5") && !c.contains("gpt-5") && !c.contains("whisper-1"))
+        XCTAssertEqual(Set(c).count, c.count, "keine Doppelten")
+        XCTAssertEqual(ChatGPTSession.modelCandidates(listed: [], excluding: []).first, "gpt-5.5", "ohne Liste die festen Kandidaten")
         XCTAssertTrue(ChatGPTSession.isModelRejection(status: 404, body: Data(#"{"error":{"message":"The model `gpt-5` does not exist","code":"model_not_found"}}"#.utf8)))
         XCTAssertFalse(ChatGPTSession.isModelRejection(status: 503, body: Data("model".utf8)), "Ausfall bei OpenAI ist kein Modellproblem")
         XCTAssertFalse(ChatGPTSession.isModelRejection(status: 400, body: Data(#"{"error":"input too long"}"#.utf8)))
