@@ -162,8 +162,8 @@ Bei 3.000 Pro-AI-Kunden mit 3,99 € brutto kostet die KI also etwa 500 € bis 
 | Nr. | Was | Wer | Aufwand |
 | --- | --- | --- | --- |
 | 1 | **Erledigt:** Ansehen einer Lösung 1,5- bis 3-mal schneller; Messwerkzeug im Repo | Cloud | fertig |
-| 2 | Arbeiterzahl einstellbar machen (`--workers` fest 2) und RAM-Grenzen je Arbeiter in `docker-compose.yml` anpassen | Cloud | klein, aber nur mit Docker prüfbar |
-| 3 | **Echter Lasttest mit 2.000 Anfragen je Sekunde** auf einem gemieteten Rechner (z. B. k6), einen Nachmittag lang | du entscheidest, Cloud baut das Skript | wenige Euro, **braucht dein OK** |
+| 2 | **Erledigt:** Arbeiterzahl und Speichergrenze einstellbar (`UVICORN_WORKERS`, `API_MEMORY` in `deploy/.env`; Standard unverändert 2 und 768M). Mit `docker compose config` geprüft, echter Start mit vielen Prozessen nicht | Cloud | fertig |
+| 3 | **Vorbereitet:** Lasttest mit bis zu 3.000 Anfragen je Sekunde auf einem gemieteten Rechner (`tools/lasttest-aufbau.py`, `tools/lasttest-k6.js`, Plan `docs/LASTTEST-PLAN-GROSS.md`), ca. 5–15 € für einen Nachmittag | **dein OK** nötig, dann Start | offen |
 | 4 | `register_ip` (30 je Stunde je Adresse) anheben, sonst sperrt das eduroam-NAT neue Studenten (`LERNAPP_LIMIT_REGISTER_IP`) | du (Einstellung) | klein |
 | 5 | Pakete aus dem Objektspeicher mit zeitlich begrenzten Links ausliefern; Antwort und Zähler trennen (Vertrag ändert sich, Apps müssen mit) | Cloud + Mac | mittel, erst bei Bedarf |
 | 6 | Ab etwa 5.000 gleichzeitig: Konten auf mehrere Rechner verteilen (nach Konto-Nummer) und `accounts.db` in eine echte Datenbank (PostgreSQL) | Cloud | groß, **ein Rechner ist bis dahin einfacher** |

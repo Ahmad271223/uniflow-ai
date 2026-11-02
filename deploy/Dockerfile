@@ -59,4 +59,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 # Gemeinsame (Sitzungen, Warteschlange, Zeitplan-Merkmale) steht in accounts.db. ABER: LERNAPP_JOBS=inproc wuerde den
 # Job-Runner in jedem Prozess starten, darum setzt docker-compose.yml fuer die API LERNAPP_JOBS=off und startet die
 # Jobs aus demselben Image als eigenen Dienst `jobs` (python -m app.jobs). Ohne Compose: --workers 1 oder Jobs getrennt.
-CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8765", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]
+# Zahl der API-Prozesse: uvicorn liest sie aus WEB_CONCURRENCY (Standard 2); docker-compose.yml setzt sie aus UVICORN_WORKERS in
+# deploy/.env (docs/SKALIERUNG-GROSS.md: ca. ein Prozess je Rechenkern, 95 Anfragen je Sekunde und Prozess gemessen).
+ENV WEB_CONCURRENCY=2
+CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8765", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]

@@ -99,9 +99,11 @@ def test_dockerfile_runs_two_api_workers_and_compose_moves_jobs_to_own_service()
     Image mit denselben Volumes, der .env, Chromium-/dev/shm und einem Healthcheck ueber das Lebenszeichen."""
     import yaml
     df = read("Dockerfile")
-    assert '"--workers", "2"' in df, "CMD uvicorn --workers 2"
+    assert "ENV WEB_CONCURRENCY=2" in df and '"--workers"' not in df, "zwei API-Prozesse ueber WEB_CONCURRENCY (einstellbar)"
     c = yaml.safe_load(read("docker-compose.yml"))
     app, jobs = c["services"]["app"], c["services"]["jobs"]
+    assert app["environment"]["WEB_CONCURRENCY"] == "${UVICORN_WORKERS:-2}", "Prozesszahl aus deploy/.env"
+    assert app["deploy"]["resources"]["limits"]["memory"] == "${API_MEMORY:-768M}", "Speichergrenze waechst mit"
     assert str(app["environment"]["LERNAPP_JOBS"]).lower() == "off", "API-Prozesse ohne Job-Runner"
     assert jobs["image"] == app["image"] and "build" not in jobs and jobs.get("pull_policy") == "never"
     assert jobs["command"] == ["python", "-m", "app.jobs"]
@@ -117,7 +119,8 @@ def test_dockerfile_runs_two_api_workers_and_compose_moves_jobs_to_own_service()
     assert c["services"]["caddy"]["depends_on"]["app"]["condition"] == "service_healthy"
     # Speicher: beide Container zusammen muessen auf den 4-GB-Server passen (Checkliste Abschnitt 1)
     def mb(v: str) -> int:
-        return int(v.rstrip("M"))
+        m = re.fullmatch(r"\$\{API_MEMORY:-(\d+)M\}", v)       # einstellbar, Standard fuer den 4-GB-Server
+        return int(m.group(1)) if m else int(v.rstrip("M"))
     total = mb(app["deploy"]["resources"]["limits"]["memory"]) + mb(jobs["deploy"]["resources"]["limits"]["memory"])
     assert 2048 <= total <= 3072, total
     for svc in (app, jobs):

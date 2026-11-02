@@ -4,7 +4,7 @@
 Misst nur die Arbeit des Dienstes (Datenbank, Datei lesen, Antwort bauen), nicht TLS und Leitung. Legt in einem
 Wegwerf-Ordner eine eigene Datenbank mit 5000 Mitgliedern und Paketen verschiedener Groesse an und fasst nichts
 Echtes an. Aufruf:  python3 tools/lasttest-community.py [ordner]   (Standard: ein neuer Ordner in /tmp)
-Ergebnis 02.11.2026 (4 Kerne, Cloud-Rechner): docs/SKALIERUNG-20000.md, Abschnitt 4.
+Ergebnis 02.11.2026 (4 Kerne, Cloud-Rechner): docs/SKALIERUNG-GROSS.md, Abschnitt 4.
 """
 import base64
 import json
