@@ -564,3 +564,85 @@ def test_plan_table_matches_the_order():
     for low, high in zip(plans.ORDER, plans.ORDER[1:]):
         assert all(plans.has(high, e) for e in plans.ENTITLEMENTS if plans.has(low, e)), f"{high} enthält alles aus {low}"
     assert not plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"]
+
+
+# ---------------------------------------------------------------- Anfrage-ID gilt je Konto, Monat und Funktion
+
+def _tutor(app, headers, rid, text="Matrizen"):
+    return _j(asgi_call(app, "POST", "/api/ai/tutor", headers=headers,
+                        body=json.dumps({"mode": "explain", "page_text": text, "request_id": rid})))
+
+
+def _prefill(user_id, feature, n, prefix, plan):
+    from app import billing
+    conn = billing.connect()
+    try:
+        for i in range(n):
+            assert billing.consume(conn, user_id, feature, f"{prefix}{i}", legacy={"plan": plan, "plan_until": None}).ok
+    finally:
+        conn.close()
+
+
+def test_replayed_request_id_gets_409_and_no_provider_call_tutor(hosted):
+    from app import ai_backend
+    fake = FakeAI()
+    ai_backend.set_provider(fake)
+    u, h = user(hosted, "wdh-tutor@beispiel.de", plan="pro_ai")
+    _prefill(u["id"], "ai_assist", 150, "r", "pro_ai")
+    assert _tutor(hosted, h, "frisch")[1]["code"] == "quota_exhausted"
+    st, d = _tutor(hosted, h, "r7")
+    assert (st, d["code"]) == (409, "duplicate_request")
+    assert fake.calls == 0 and ent(hosted, h)["quotas"]["ai_assist"]["used"] == 150
+    # auch mit freiem Kontingent: Wiederholung derselben ID = 409, nicht zweiter Aufruf und nicht zweite Abbuchung
+    u2, h2 = user(hosted, "wdh-tutor2@beispiel.de", plan="pro_ai")
+    assert _tutor(hosted, h2, "x1")[0] == 200 and fake.calls == 1
+    assert _tutor(hosted, h2, "x1")[1]["code"] == "duplicate_request" and fake.calls == 1
+    assert ent(hosted, h2)["quotas"]["ai_assist"]["used"] == 1
+
+
+def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted):
+    from app import ai_backend
+    fake = FakeAI()
+    ai_backend.set_provider(fake)
+    _, h = user(hosted, "wdh-lib@beispiel.de", plan="plus")
+    for i, topic in enumerate(("Determinanten", "Basiswechsel", "Orthogonalprojektion")):
+        st, d = library_test(hosted, h, topic, request_id=f"lib-{i}")
+        assert st == 200 and d["charged"] == "ai_tests_new", d
+    calls = fake.calls
+    st, d = library_test(hosted, h, "Eigenwerte", request_id="lib-new")
+    assert (st, d["code"]) == (429, "quota_exhausted")
+    st, d = library_test(hosted, h, "Eigenwerte", request_id="lib-1")
+    assert (st, d["code"]) == (409, "duplicate_request")
+    assert fake.calls == calls
+    q = ent(hosted, h)["quotas"]["ai_tests_new"]
+    assert (q["used"], q["limit"]) == (3, 3)
+
+
+def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_own_row(hosted):
+    from app import ai_backend, billing
+
+    class Failing:
+        def complete(self, system, prompt, schema=None):
+            raise ai_backend.AIUnavailable("ai_provider_unreachable", "simuliert", 502)
+
+    ai_backend.set_provider(FakeAI())
+    ua, ha = user(hosted, "scope-a@beispiel.de", plan="pro_ai")
+    ub, hb = user(hosted, "scope-b@beispiel.de", plan="pro_ai")
+    assert _tutor(hosted, ha, "a1")[0] == 200
+    # B nutzt die ID von A: eine eigene, neue Anfrage (zählt bei B), A bleibt unberührt
+    assert _tutor(hosted, hb, "a1")[0] == 200
+    assert ent(hosted, ha)["quotas"]["ai_assist"]["used"] == 1 and ent(hosted, hb)["quotas"]["ai_assist"]["used"] == 1
+    # B ist erschöpft: die ID von A hilft nicht
+    _prefill(ub["id"], "ai_assist", 149, "b", "pro_ai")
+    assert _tutor(hosted, hb, "a2")[1]["code"] == "quota_exhausted"
+    # fehlschlagender Anbieter bei C mit der ID von A und B: nur C bucht zurück
+    ai_backend.set_provider(Failing())
+    _, hc = user(hosted, "scope-c@beispiel.de", plan="pro_ai")
+    assert _tutor(hosted, hc, "a1", "Eigenwerte")[0] == 502         # anderer Text: kein Treffer im Antwort-Cache
+    conn = billing.connect()
+    try:
+        owners = sorted(r[0] for r in conn.execute("SELECT user_id FROM usage_requests WHERE request_id='a1'"))
+    finally:
+        conn.close()
+    assert owners == sorted([ua["id"], ub["id"]]), "Zeilen von A und B bleiben bestehen"
+    assert ent(hosted, ha)["quotas"]["ai_assist"]["used"] == 1

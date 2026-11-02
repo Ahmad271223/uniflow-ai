@@ -64,7 +64,7 @@ def test_refund_returns_quota(db_path):
     for i in range(3):
         assert billing.consume(c, "u3", "ai_tests_new", f"x{i}", NOW).ok
     assert not billing.consume(c, "u3", "ai_tests_new", "x9", NOW).ok
-    assert billing.refund(c, "x1")
+    assert billing.refund(c, "u3", "ai_tests_new", "x1")
     assert billing.consume(c, "u3", "ai_tests_new", "x10", NOW).ok
 
 
@@ -93,3 +93,62 @@ def test_legacy_plan_names_and_manual_plan():
     billing.ensure_schema(c)
     assert billing.current_plan(c, "u", NOW, legacy={"plan": "plus", "plan_until": "2026-10-25"}) == "plus", "bis einschliesslich"
     assert billing.current_plan(c, "u", NOW, legacy={"plan": "plus", "plan_until": "2026-10-24"}) == "free"
+
+
+def test_request_id_is_scoped_to_user_period_and_feature(db_path):
+    c = connect(db_path)
+    for u in ("ua", "ub"):
+        billing.set_entitlement(c, u, "manual", "pro_ai", now=NOW)
+    assert billing.consume(c, "ua", "ai_assist", "gleich", NOW).ok
+    b = billing.consume(c, "ub", "ai_assist", "gleich", NOW)
+    assert b.ok and not b.duplicate and b.used == 1, "dieselbe ID bei einem anderen Konto ist eine neue Anfrage"
+    f = billing.consume(c, "ua", "ai_tests_new", "gleich", NOW)
+    assert f.ok and not f.duplicate, "dieselbe ID bei einer anderen Funktion ist eine neue Anfrage"
+    n = billing.consume(c, "ua", "ai_assist", "gleich", NOW + timedelta(days=10))
+    assert n.ok and not n.duplicate and n.used == 1, "im neuen Monat zählt die ID wieder"
+    assert billing.consume(c, "ua", "ai_assist", "gleich", NOW + timedelta(days=10)).duplicate
+
+
+def test_foreign_request_id_does_not_bypass_exhausted_quota(db_path):
+    c = connect(db_path)
+    billing.set_entitlement(c, "ua", "manual", "plus", now=NOW)
+    billing.set_entitlement(c, "ub", "manual", "plus", now=NOW)
+    for i in range(3):
+        assert billing.consume(c, "ua", "ai_tests_new", f"k{i}", NOW).ok
+        assert billing.consume(c, "ub", "ai_tests_new", f"b{i}", NOW).ok
+    r = billing.consume(c, "ub", "ai_tests_new", "k1", NOW)       # fremde ID, eigenes Kontingent leer
+    assert not r.ok and not r.duplicate
+
+
+def test_refund_touches_only_the_callers_own_row(db_path):
+    c = connect(db_path)
+    billing.set_entitlement(c, "ua", "manual", "pro_ai", now=NOW)
+    billing.set_entitlement(c, "ub", "manual", "pro_ai", now=NOW)
+    assert billing.consume(c, "ua", "ai_assist", "a1", NOW).ok
+    assert not billing.refund(c, "ub", "ai_assist", "a1"), "fremde ID: nichts zurückgenommen"
+    assert not billing.refund(c, "ua", "ai_tests_new", "a1"), "andere Funktion: nichts zurückgenommen"
+    assert billing.used(c, "ua", "ai_assist", NOW) == 1
+    assert c.execute("SELECT COUNT(*) FROM usage_requests WHERE request_id='a1'").fetchone()[0] == 1
+    assert billing.refund(c, "ua", "ai_assist", "a1")
+    assert billing.used(c, "ua", "ai_assist", NOW) == 0
+
+
+def test_old_usage_requests_table_is_migrated_keeping_rows(tmp_path):
+    p = tmp_path / "alt.db"
+    c = sqlite3.connect(p, isolation_level=None)
+    c.executescript("""
+        CREATE TABLE usage (user_id TEXT NOT NULL, period TEXT NOT NULL, feature TEXT NOT NULL,
+                            count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, period, feature));
+        CREATE TABLE usage_requests (request_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, period TEXT NOT NULL,
+                                     feature TEXT NOT NULL, created_at TEXT NOT NULL);
+        INSERT INTO usage VALUES ('ua', '2026-10', 'ai_assist', 1);
+        INSERT INTO usage_requests VALUES ('alt-1', 'ua', '2026-10', 'ai_assist', '2026-10-25T12:00:00+00:00');
+    """)
+    billing.ensure_schema(c)
+    billing.ensure_schema(c)                                      # zweimal: ohne Wirkung
+    pk = {r[1]: r[5] for r in c.execute("PRAGMA table_info(usage_requests)")}
+    assert pk["request_id"] > 0 and pk["user_id"] > 0 and pk["period"] > 0 and pk["feature"] > 0
+    assert c.execute("SELECT user_id, period, feature FROM usage_requests WHERE request_id='alt-1'").fetchone() == ("ua", "2026-10", "ai_assist")
+    assert c.execute("SELECT name FROM sqlite_master WHERE name='idx_usage_requests_user'").fetchone()
+    billing.set_entitlement(c, "ua", "manual", "pro_ai", now=NOW)
+    assert billing.consume(c, "ua", "ai_assist", "alt-1", NOW).duplicate, "vorhandene Zeile gilt weiter als gezählt"

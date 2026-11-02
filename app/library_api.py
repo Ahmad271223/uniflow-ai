@@ -153,14 +153,14 @@ def create_library_test(request: Request, body: dict = Body(...)):
         try:
             generated = _generate(user["id"], req, missing + 2)       # zwei Reserve-Fragen gegen verworfene
         except ai_backend.AIUnavailable as e:
-            entitlements.refund(rid + ":ai")
+            entitlements.refund(request, "ai_tests_new", rid + ":ai")
             raise HTTPException(e.status, {"detail": e.message, "code": e.code})
         except Exception:
-            entitlements.refund(rid + ":ai")
+            entitlements.refund(request, "ai_tests_new", rid + ":ai")
             raise
         found = test_library.find(req, owner)
         if len(found) < MIN_TEST:
-            entitlements.refund(rid + ":ai")
+            entitlements.refund(request, "ai_tests_new", rid + ":ai")
             raise HTTPException(502, {"detail": "Die KI hat keine brauchbaren Fragen geliefert. Es wurde nichts berechnet.",
                                       "code": "generation_failed"})
         return from_pool(found, req["count"], generated, "ai_tests_new")

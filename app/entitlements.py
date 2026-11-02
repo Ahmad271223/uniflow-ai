@@ -63,6 +63,9 @@ def require(request: Request, entitlement: str) -> dict | None:
 
 def consume(request: Request, feature: str, request_id: str) -> billing.ConsumeResult:
     """Ein Element eines Monatskontingents verbrauchen; 429 quota_exhausted, wenn es aufgebraucht ist.
+    Die Anfrage-ID gilt je Konto, Monat und Funktion. Eine schon gezaehlte ID wird mit 409 duplicate_request abgewiesen:
+    Wiederholt ein Client dieselbe Anfrage (z. B. nach einem Netzfehler), wird nicht ein zweites Mal abgebucht und der
+    Aufrufer ruft den Anbieter nicht erneut auf; der Client sendet fuer einen neuen Versuch eine neue ID.
     Lokal (eigener PC) gibt es keine Kontingente."""
     if not config.is_hosted():
         return billing.ConsumeResult(ok=True, used=0, limit=0)
@@ -78,15 +81,21 @@ def consume(request: Request, feature: str, request_id: str) -> billing.ConsumeR
         label = plans.QUOTA_LABELS.get(feature, feature)
         raise HTTPException(429, {"detail": f"{label}: Kontingent für diesen Monat aufgebraucht ({r.used} von {r.limit}).",
                                   "code": "quota_exhausted", "feature": feature, "used": r.used, "limit": r.limit})
+    if r.duplicate:
+        raise HTTPException(409, {"detail": "Diese Anfrage wurde schon verarbeitet.", "code": "duplicate_request"})
     return r
 
 
-def refund(request_id: str) -> None:
+def refund(request: Request, feature: str, request_id: str) -> None:
+    """Verbrauch des angemeldeten Kontos zuruecknehmen (nur dessen eigene Zeile, nie die eines anderen Kontos)."""
     if not config.is_hosted():
+        return
+    user = user_of(request)
+    if not user:
         return
     conn = billing.connect()
     try:
-        billing.refund(conn, request_id)
+        billing.refund(conn, user["id"], feature, request_id)
     finally:
         conn.close()
 

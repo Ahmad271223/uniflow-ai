@@ -1030,10 +1030,10 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     try:
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
     except ai_backend.AIUnavailable as e:
-        entitlements.refund(rid)
+        entitlements.refund(request, "ai_assist", rid)
         raise HTTPException(e.status, {"detail": e.message, "code": e.code})
     except Exception:
-        entitlements.refund(rid)
+        entitlements.refund(request, "ai_assist", rid)
         raise
 
 
