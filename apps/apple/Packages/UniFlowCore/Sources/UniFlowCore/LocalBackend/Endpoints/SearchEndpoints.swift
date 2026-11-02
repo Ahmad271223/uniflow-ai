@@ -56,11 +56,11 @@ public enum SearchEndpoints: LocalEndpointModule {
             }
             let id = fid.string
             if text.isEmpty, page != 0 {
-                let pages = try await ScriptSearch.pageTexts(fileID: id ?? "", database: ctx.database, files: ctx.files, clock: ctx.clock)
+                let pages = try await ScriptSearch.pageTexts(fileID: id ?? "", ctx: ctx, ocrScope: .pages([page]))
                 text = 0 < page && page <= pages.count ? pages[page - 1] : ""
             }
             return .json(try await ScriptSearch.search(moduleID: module, query: PyText.slice(text, 0, 6000), exclude: id,
-                                                       database: ctx.database, files: ctx.files, cache: ctx.scriptIndex))
+                                                       database: ctx.database, files: ctx.files, cache: ctx.scriptIndex, ocr: ctx.ocr.provider))
         }
 
         router.get("/api/files/{file_id}/pagetext") { req, ctx in
@@ -78,7 +78,8 @@ public enum SearchEndpoints: LocalEndpointModule {
             }
             let pages: [String]
             do {
-                pages = try await ScriptSearch.pageTexts(fileID: id, database: ctx.database, files: ctx.files, clock: ctx.clock)
+                // nur die gefragte Seite erkennen (beim Oeffnen fragt die App Seite 1, nicht alle)
+                pages = try await ScriptSearch.pageTexts(fileID: id, ctx: ctx, ocrScope: .pages([page]))
             } catch is CancellationError {
                 throw CancellationError()
             } catch {

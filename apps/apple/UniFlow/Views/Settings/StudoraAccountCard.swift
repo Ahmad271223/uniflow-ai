@@ -23,6 +23,12 @@ struct StudoraAccountCard: View {
             if let m = link.message {
                 Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("account.message")
+                // Handlung zum Fehlercode (ServiceErrorText.action); der Link steht unten schon, wenn unbestaetigt
+                if link.messageAction == .verifyEmail, link.user?.emailVerified != false { resendButton }
+            }
+            if let n = link.notice {
+                Text(n).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("account.notice")
             }
         }
         .task { await link.refresh() }
@@ -66,7 +72,9 @@ struct StudoraAccountCard: View {
         VStack(alignment: .leading, spacing: 9.6) {
             Text(u.email).ufFont(14.5, 650).foregroundStyle(UF.text)
             if !u.emailVerified {
-                Text("E-Mail noch nicht bestätigt: bitte den Link in der Willkommensmail öffnen.").ufFont(12.8).foregroundStyle(UF.warn)
+                Text("E-Mail noch nicht bestätigt: bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen Studora-KI und Schreiben in der Community nicht.")
+                    .ufFont(12.8).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
+                resendButton
             }
             HStack(spacing: 9.6) {
                 Text(Self.syncText(link.lastSync)).ufFont(12.8).foregroundStyle(link.lastSync?.ok == false ? UF.bad : UF.muted)
@@ -106,6 +114,12 @@ struct StudoraAccountCard: View {
                 .textContentType(.password).textFieldStyle(.roundedBorder)
         }
         .padding(.top, 8)
+    }
+
+    private var resendButton: some View {
+        UFButton("Bestätigungslink erneut senden", icon: "refresh",size: .small) { Task { await link.resendVerification() } }
+            .disabled(link.busy)
+            .accessibilityIdentifier("account.resendVerification")
     }
 
     private struct ExportItem: Identifiable {

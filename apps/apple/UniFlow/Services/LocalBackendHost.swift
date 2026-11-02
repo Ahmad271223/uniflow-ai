@@ -111,6 +111,8 @@ final class LocalBackendHost: @unchecked Sendable {
         try? fm.setAttributes(protection, ofItemAtPath: directory.path)
         try? DataContainerLayout.setExcludedFromBackup(directory, false)        // ausdruecklich ins Backup
         let backend = try await LocalBackend.open(path: database.path, clock: clock, files: files, university: university)
+        // Texterkennung (Vision) fuer Seiten ohne Textebene, nur mit Dateiablage; erkannt wird erst bei Bedarf je Seite
+        if files != nil { backend.context.ocr.set(VisionPageOCR()) }
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
     }

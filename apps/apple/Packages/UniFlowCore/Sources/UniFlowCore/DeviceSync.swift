@@ -136,7 +136,7 @@ public actor DeviceSync {
             try await pull(core)
         } catch let e as AccountError {
             core.stats.ok = false
-            core.stats.error = e.message
+            core.stats.error = e.userMessage
         } catch {
             core.stats.ok = false
             core.stats.error = "Abgleich fehlgeschlagen: \(error.localizedDescription)"

@@ -40,7 +40,8 @@ enum WeeklyEndpoints: LocalEndpointModule {
             guard let page = try intQuery(req, "page") else {
                 throw LocalHTTPError.validation(type: "missing", loc: ["query", "page"], msg: "Field required", input: .null)
             }
-            try await Weekly.ensurePages([fileID], ctx)
+            // Vorschau der markierten Seite: nur sie erkennen, wenn sie keine Textebene hat
+            try await Weekly.ensurePages([fileID], ctx, ocr: .pages([page]))
             let now = Weekly.now(ctx), date = req.query("lecture_date")
             do {
                 return .json(.object(try await ctx.database.withConnection { c in

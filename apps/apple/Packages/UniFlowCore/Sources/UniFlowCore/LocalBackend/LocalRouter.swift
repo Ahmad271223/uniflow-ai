@@ -15,6 +15,8 @@ public struct LocalContext: Sendable {
     let scriptIndex = ScriptSearch.IndexCache()
     /// KI des Nutzers (ChatGPT), von der App gesetzt; nil = keine KI
     public let ai = LocalAI()
+    /// Texterkennung fuer PDF-Seiten ohne Textebene (Vision), von der App gesetzt; nil = nur die Textebene
+    public let ocr = LocalOCR()
     /// Hintergrundauftrag wie `_run_bg` (Wochentests erzeugen), Stand unter `/api/bg`
     public let jobs = LocalBackgroundJob()
 

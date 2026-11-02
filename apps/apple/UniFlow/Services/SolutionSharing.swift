@@ -36,6 +36,13 @@ struct SolutionSource: Sendable {
         self.title = title
     }
 
+    /// Mit den Seiten des Notizblatts daneben (`SolutionBuilder.appendingNotebook`); Bilder beider zusammen
+    func appendingNotebook(_ notebook: AnnotationDocument, images more: [String: SolutionImage]) -> SolutionSource {
+        SolutionSource(document: SolutionBuilder.appendingNotebook(document, notebook: notebook), originalPDF: originalPDF,
+                       pdfPageCount: pdfPageCount, pageInfos: pageInfos, fingerprint: fingerprint,
+                       images: images.merging(more) { mine, _ in mine }, title: title)
+    }
+
     /// Aus einer geladenen PDF und eigenen Bildern (Tests und einfache Aufrufer; bettet sofort ein).
     init(document: AnnotationDocument, originalPDF: Data, pdf: PDFDocument, fingerprint: String, images: [String: UIImage],
          title: String) {
@@ -411,6 +418,17 @@ extension DocumentStore {
         return SolutionSource(document: doc, originalPDF: data, pdfPageCount: pdf.pageCount,
                               pageInfos: SolutionSharing.pageInfos(pdf), fingerprint: fp, images: embedded,
                               title: ShareExport.cleanTitle(file.displayTitle))
+    }
+
+    /// Notizblatt daneben (Notizbuch der geteilten Ansicht) fuer `SolutionSource.appendingNotebook`: Seiten und
+    /// eingebettete Bilder, ausstehende Striche verarbeitet
+    func notebookPart(loadImage: ShareExport.ImageLoader?) async -> (document: AnnotationDocument, images: [String: SolutionImage]) {
+        let doc = SolutionSharing.withObjectsForLegacyStrokes(await pageStructureDocument())
+        let keys = SolutionBuilder.candidates(doc).map(\.key)
+        let loaded = await ShareExport.completeImages(images, sources: SolutionBuilder.imageSources(doc, keys: keys), load: loadImage)
+        let own = loaded.images
+        let embedded = await Task.detached(priority: .userInitiated) { SolutionSharing.embed(own) }.value
+        return (doc, embedded)
     }
 
     /// Passende empfangene Loesungen dieses Dokuments. Lesen und Entschluesseln (HKDF ueber die ganze PDF) laufen

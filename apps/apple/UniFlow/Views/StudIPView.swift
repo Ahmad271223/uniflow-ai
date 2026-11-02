@@ -244,7 +244,8 @@ struct StudIPLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
-        StudIPWebView(url: DebugUniStub.loginPage("studip", real: base.appendingPathComponent("dispatch.php/login")), dataStore: dataStore,
+        // direkt ins WebSSO der LUH: gilt die Uni-Anmeldung noch, ist man ohne Eingabe drin; sonst setzt iOS das Passwort ein
+        StudIPWebView(url: DebugUniStub.loginPage("studip", real: StudIPSync.ssoLoginURL(base: base)), dataStore: dataStore,
                       load: load) { webView in check(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -287,8 +288,7 @@ struct StudIPLoginPane<Bottom: View>: View {
         checking = true
         checkFailed = false
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
-            let host = base.host ?? ""
-            let mine = cookies.filter { host.hasSuffix($0.domain.hasPrefix(".") ? String($0.domain.dropFirst()) : $0.domain) }
+            let mine = StudIPSync.ownCookies(cookies, host: base.host ?? "")
             Task { @MainActor in
                 var ok = await StudIPSync.sessionIsValid(mine)
                 if !ok {
@@ -446,5 +446,44 @@ struct StudIPWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load?.failed(error) }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { onPageLoaded(webView) }
+    }
+}
+
+/// Unsichtbare Anmeldung fuer `StudIPSync.renewSilently`: dieselbe Konfiguration wie die sichtbare Anmeldeansicht
+/// (Datenspeicher des Containers, keine Skripte), sehr klein und durchsichtig im Fenster, damit WebKit normal laedt.
+/// Erfolg, sobald eine Stud.IP-Seite ausserhalb des Logins mit gueltiger Sitzung erreicht ist; Abbruch, wenn die Seite
+/// beim Uni-Login stehen bleibt (dort braeuchte es das Passwort) oder nach `timeout`.
+@MainActor
+enum StudIPSilentLogin {
+    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20) async -> [HTTPCookie]? {
+        guard let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return nil }
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4), configuration: StudIPWebView.loginConfiguration(dataStore: dataStore))
+        web.alpha = 0.01
+        web.isUserInteractionEnabled = false
+        web.accessibilityElementsHidden = true
+        window.addSubview(web)
+        defer {
+            web.stopLoading()
+            web.removeFromSuperview()
+        }
+        web.load(URLRequest(url: url))
+        let host = StudIPSync.base.host ?? ""
+        let deadline = Date().addingTimeInterval(timeout)
+        var checked: URL?
+        var stable: (url: URL, since: Date)?
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !web.isLoading, let u = web.url else { continue }
+            if stable?.url != u { stable = (u, Date()) }
+            if u.host == host {
+                guard !u.path.contains("Shibboleth.sso"), checked != u else { continue }
+                checked = u
+                let mine = StudIPSync.ownCookies(await dataStore.httpCookieStore.allCookies(), host: host)
+                if await StudIPSync.sessionIsValid(mine) { return mine }
+            } else if let s = stable, Date().timeIntervalSince(s.since) > 4 {
+                return nil                                         // Uni-Login wartet auf das Passwort
+            }
+        }
+        return nil
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import UIKit
 import UniFlowCore
 import WebKit
 
@@ -344,6 +345,41 @@ final class StudIPSync: ObservableObject {
         }
     }
 
+    /// Direkter Einstieg ins WebSSO der LUH (ueberspringt die Hochschulauswahl), wie `SHIB_LOGIN_URL` in
+    /// app/studip_sync.py
+    static let ssoEntityID = "https://sso.idm.uni-hannover.de/idp/shibboleth"
+    static func ssoLoginURL(base: URL = base) -> URL {
+        let root = base.absoluteString.hasSuffix("/") ? String(base.absoluteString.dropLast()) : base.absoluteString
+        let target = root + "/dispatch.php/login?sso=shib&again=yes&cancel_login=1"
+        let enc = { (s: String) in s.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? s }
+        return URL(string: root + "/Shibboleth.sso/Login?target=" + enc(target) + "&entityID=" + enc(ssoEntityID))!
+    }
+
+    /// Cookies der Stud.IP-Adresse aus allen Cookies der Webansicht
+    static func ownCookies(_ all: [HTTPCookie], host: String = base.host ?? "") -> [HTTPCookie] {
+        all.filter { host.hasSuffix($0.domain.hasPrefix(".") ? String($0.domain.dropFirst()) : $0.domain) }
+    }
+
+    /// Letzter stiller Erneuerungsversuch; hoechstens alle 10 Minuten (sonst laeuft er bei jeder Rueckkehr in die App)
+    private var lastSilentRenew: Date?
+
+    /// Abgelaufene Stud.IP-Sitzung ohne Passwort erneuern: Die Uni-Anmeldung (WebSSO) liegt im eigenen Datenspeicher
+    /// der Anmeldeansicht und gilt meist laenger als die Stud.IP-Sitzung. Eine unsichtbare Webansicht oeffnet den
+    /// WebSSO-Einstieg; gilt die Uni-Anmeldung noch, kommt sie ohne Eingabe bei Stud.IP an, die neuen Cookies werden
+    /// gespeichert und der Abgleich startet. Sonst bleibt es bei "Erneut anmelden" (dort setzt iOS das gespeicherte
+    /// Passwort ein). Nur mit offener App, nie im Hintergrund; die App sieht kein Passwort.
+    @discardableResult
+    func renewSilently() async -> Bool {
+        guard phase == .needsLogin, offersStudIP, !Self.isUnderTest(), DebugUniStub.studipTransport() == nil,
+              UIApplication.shared.applicationState == .active else { return false }
+        if let t = lastSilentRenew, Date().timeIntervalSince(t) < 600 { return false }
+        lastSilentRenew = Date()
+        guard let fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: websiteDataStore),
+              phase == .needsLogin else { return false }
+        signedIn(cookies: fresh)                                   // speichert und startet den Abgleich
+        return true
+    }
+
     /// Prueft mit den Cookies aus der Webansicht, ob Stud.IP die Sitzung annimmt.
     static func sessionIsValid(_ cookies: [HTTPCookie]) async -> Bool {
         let t = URLSessionStudIPTransport(cookies: cookies, host: base.host ?? "")
@@ -407,6 +443,8 @@ final class StudIPSync: ObservableObject {
     /// Beim Oeffnen: hoechstens alle 30 Minuten; warten Dateien aus einem Lauf nur mit Listen (Hintergrund), sofort
     func runIfDue() {
         guard Self.automaticRunAllowed() else { return }
+        // abgelaufen: beim Oeffnen still erneuern (gelingt, solange die Uni-Anmeldung im WebSSO noch gilt)
+        if phase == .needsLogin { Task { await renewSilently() }; return }
         guard phase == .idle || isFailed else { return }
         if let last = lastRun, !downloadsPending, Date().timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
@@ -609,6 +647,7 @@ final class StudIPSync: ObservableObject {
             // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
             phase = expired ? .needsLogin : .idle
             setFlag(Keys.sessionExpired, expired)
+            if expired { Task { await renewSilently() } }
             return expired ? .sessionExpired : .completed
         } catch where Self.isCancellation(error) || Task.isCancelled {
             // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
@@ -621,6 +660,7 @@ final class StudIPSync: ObservableObject {
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))
             phase = .needsLogin
             setFlag(Keys.sessionExpired, true)
+            Task { await renewSilently() }
             return .sessionExpired
         } catch {
             await refreshEntries()

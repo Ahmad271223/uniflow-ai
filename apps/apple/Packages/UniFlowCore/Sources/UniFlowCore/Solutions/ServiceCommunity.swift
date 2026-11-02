@@ -54,7 +54,8 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
 
     // MARK: Anfragen
 
-    static func serviceError(_ error: Error) -> Error {
+    /// `report`: Anfrage war eine Meldung; dann ist 429 `rate_limited` die Tagesgrenze `report_user`
+    static func serviceError(_ error: Error, report: Bool = false) -> Error {
         guard let e = error as? AccountError else { return error }
         switch (e.status, e.code) {
         case (0, _): return CommunityServiceError.offline
@@ -64,12 +65,17 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
         case (_, "not_owner"): return CommunityServiceError.notOwner
         case (_, "file_not_owned"): return CommunityServiceError.fileNotOwned
         case (_, "not_a_member"): return CommunityServiceError.notAMember
-        default: return CommunityServiceError.server(e.message)
+        case (_, "email_unverified"): return CommunityServiceError.emailUnverified
+        case (_, "rate_limited") where report: return CommunityServiceError.service(ServiceErrorText.reportLimit(retryAfter: e.retryAfter))
+        case (_, "rate_limited"): return CommunityServiceError.service(e.userMessage)
+        default:
+            // Texte bekannter Codes stehen in ServiceErrorText, sonst die Meldung des Dienstes
+            return ServiceErrorText.known(code: e.code) != nil ? CommunityServiceError.service(e.userMessage) : CommunityServiceError.server(e.message)
         }
     }
 
-    private func call(_ method: String, _ path: String, body: JSONValue? = nil) async throws -> JSONValue {
-        do { return try await transport.community(method, path, body: body) } catch { throw Self.serviceError(error) }
+    private func call(_ method: String, _ path: String, body: JSONValue? = nil, report: Bool = false) async throws -> JSONValue {
+        do { return try await transport.community(method, path, body: body) } catch { throw Self.serviceError(error, report: report) }
     }
 
     private static func query(_ s: String) -> String {
@@ -177,7 +183,7 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
     public func report(solutionID: String, reason: CommunityReportReason, note: String?) async throws {
         var body: [String: JSONValue] = ["reason": .string(reason.rawValue)]
         if let note { body["note"] = .string(note) }
-        _ = try await call("POST", "/solutions/\(Self.query(solutionID))/report", body: .object(body))
+        _ = try await call("POST", "/solutions/\(Self.query(solutionID))/report", body: .object(body), report: true)
     }
 
     public func block(owner: String) async throws {
@@ -222,7 +228,7 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
     }
 
     public func reportComment(id: String, reason: CommunityReportReason) async throws {
-        _ = try await call("POST", "/comments/\(Self.query(id))/report", body: .object(["reason": .string(reason.rawValue)]))
+        _ = try await call("POST", "/comments/\(Self.query(id))/report", body: .object(["reason": .string(reason.rawValue)]), report: true)
     }
 
     public func setLiked(solutionID: String, _ liked: Bool) async throws -> Int {

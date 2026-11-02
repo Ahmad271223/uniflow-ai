@@ -180,6 +180,14 @@ public actor StudoraAccount {
         return (u, sessions)
     }
 
+    /// Bestaetigungslink erneut senden (`POST /api/account/verify-email/resend`, hoechstens 5 je Stunde).
+    /// Rueckgabe: Text fuer die Oberflaeche; schon bestaetigt meldet der Dienst `already`.
+    public func resendVerification() async throws -> String {
+        let j = json(try await request("POST", "/api/account/verify-email/resend"))
+        if j["already"]?.bool == true { return "Deine E-Mail-Adresse ist schon bestätigt." }
+        return j["message"]?.string ?? "Wir haben dir einen neuen Bestätigungslink geschickt."
+    }
+
     /// Tarif und Probe des Kontos
     public func planStatus() async throws -> PlanStatus {
         let j = json(try await request("GET", "/api/entitlements"))

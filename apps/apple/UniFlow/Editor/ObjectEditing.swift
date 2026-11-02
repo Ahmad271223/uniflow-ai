@@ -50,7 +50,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             // Markup-Modus nimmt sie keine Auswahl an
             controller?.allOverlays.forEach { $0.isUserInteractionEnabled = tool != .markup }
             controller?.pdfView.isInMarkupMode = tool != .markup
-            if tool != .markup { controller?.pdfView.clearSelection() }
+            if tool != .markup {
+                controller?.pdfView.clearSelection()
+                controller?.restorePickerSoon()                     // die PDF-Ansicht hatte den Fokus
+            }
         }
     }
     /// PDF-Text ist ausgewaehlt (Leiste zeigt Markieren/Unterstreichen/Durchstreichen)

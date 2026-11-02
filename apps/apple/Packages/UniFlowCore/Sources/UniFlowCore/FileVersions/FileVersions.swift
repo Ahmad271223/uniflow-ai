@@ -265,7 +265,12 @@ public struct FileVersionKeeper: Sendable {
             }
             kept = stored
             // Seitentexte: gespeichert und so alt wie die alte Fassung, sonst aus der aufbewahrten Kopie
-            if case .fresh(let pages)? = try? await database.withConnection({ try ScriptSearch.storedPages($0, fileID: fileID, files: files) }) {
+            // (Textebene: erkannter Text einer Seite ohne Textebene zaehlt fuer die Zuordnung nicht, `PageOCRStore`)
+            if case .fresh(let pages)? = try? await database.withConnection({ c -> ScriptSearch.StoredPages in
+                let s = try ScriptSearch.storedPages(c, fileID: fileID, files: files)
+                if case .fresh(let p) = s { return .fresh(try PageOCRStore.embedded(c, fileID: fileID, pages: p)) }
+                return s
+            }) {
                 texts = pages
             } else if ScriptSearch.hasPDFSuffix(oldPath) {
                 texts = files.tools.pdfPageTexts(target)
@@ -273,10 +278,11 @@ public struct FileVersionKeeper: Sendable {
         } else {
             // alte Datei fehlt (z. B. nach "Dateien löschen"): nur noch gespeicherte Seitentexte derselben Fassung
             let stamp: SQLiteValue = LocalModules.truthy(chdate) ? chdate : .integer(0)
-            let rows = try await database.withConnection {
-                try $0.query("SELECT text FROM page_texts WHERE file_id=? AND COALESCE(chdate, 0)=? ORDER BY page", [.text(fileID), stamp])
+            let stored = try await database.withConnection { c -> [String] in
+                let rows = try c.query("SELECT text FROM page_texts WHERE file_id=? AND COALESCE(chdate, 0)=? ORDER BY page", [.text(fileID), stamp])
+                return try PageOCRStore.embedded(c, fileID: fileID, pages: rows.map { $0["text"]?.string ?? "" })
             }
-            texts = rows.isEmpty ? nil : rows.map { $0["text"]?.string ?? "" }
+            texts = stored.isEmpty ? nil : stored
         }
         return Kept(name: file["name"]?.string, size: file["size"]?.int, mime: file["mime"]?.string, chdate: chdate.int,
                     sha256: oldSHA, keptPath: kept, pageTexts: texts)
@@ -296,7 +302,10 @@ public struct FileVersionKeeper: Sendable {
             let copies = Set(p.copies.map(\.fileID)).union(try UniStore.sharingCopies(c, fileID: fileID)).sorted()
             // Seitentexte: die der Datei gehoeren zur alten Fassung (auch bei gleicher Aenderungszeit), die der Kopien
             // ebenso (ihre Aenderungszeit bleibt die vom Duplizieren); die neuen gleich mit der neuen Aenderungszeit
-            for id in [fileID] + copies { try c.execute("DELETE FROM page_texts WHERE file_id=?", [.text(id)]) }
+            for id in [fileID] + copies {
+                try c.execute("DELETE FROM page_texts WHERE file_id=?", [.text(id)])
+                try PageOCRStore.delete(c, fileID: id)
+            }
             if let texts = p.newTexts, let chdate = try c.queryOne("SELECT chdate FROM files WHERE id=?", [.text(fileID)])?["chdate"] {
                 try ScriptSearch.storePages(c, fileID: fileID, pages: texts, chdate: chdate)
             }

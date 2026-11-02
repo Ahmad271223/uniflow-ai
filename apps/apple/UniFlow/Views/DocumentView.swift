@@ -112,6 +112,8 @@ struct DocumentView: View {
     @State private var showInfo = false
     @State private var showTrash = false
     @State private var choosingCompanion = false
+    /// Dokument der geteilten Ansicht (ein Notizblatt daneben geht beim Teilen der Loesung mit)
+    @State private var companionStore: DocumentStore?
     @State private var addingText = false
     // Seitenwerkzeuge (Editor-Schritt 5)
     @State private var goingToPage = false
@@ -322,7 +324,7 @@ struct DocumentView: View {
         .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
-            CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id) { f in
+            CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle) { f in
                 companion = Companion(file: f, pdfPage: nil)
             }
         }
@@ -466,7 +468,7 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
-                      pencilOnly: pencilOnly, canEdit: canWrite) {
+                      pencilOnly: pencilOnly, canEdit: canWrite, onStore: { companionStore = $0 }) {
             companion = nil
         }
         .id(c.id + "-" + String(c.pdfPage ?? -1))
@@ -882,7 +884,7 @@ struct DocumentView: View {
     private func solutionSheetView(_ sheet: SolutionSheet) -> some View {
         switch sheet {
         case .share:
-            SolutionShareSheet(store: store, api: api) { solutionSheet = nil }
+            SolutionShareSheet(store: store, api: api, notebook: companionStore) { solutionSheet = nil }
         case .shared:
             SharedSolutionsSheet { solutionSheet = nil }
         case .preview(let id):
@@ -1041,10 +1043,12 @@ struct CompanionView: View {
     let undoManager: UndoManager
     let pencilOnly: Bool
     let canEdit: Bool
+    /// meldet das offene Dokument an die Hauptansicht (nil beim Schliessen)
+    var onStore: (DocumentStore?) -> Void = { _ in }
     let onClose: () -> Void
 
     init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
-         pencilOnly: Bool, canEdit: Bool = true, onClose: @escaping () -> Void) {
+         pencilOnly: Bool, canEdit: Bool = true, onStore: @escaping (DocumentStore?) -> Void = { _ in }, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
@@ -1052,6 +1056,7 @@ struct CompanionView: View {
         self.undoManager = undoManager
         self.pencilOnly = pencilOnly
         self.canEdit = canEdit
+        self.onStore = onStore
         self.onClose = onClose
     }
 
@@ -1078,58 +1083,164 @@ struct CompanionView: View {
             }
         }
         .task { await store.load() }
-        .onAppear { store.setShown(true) }
+        .onAppear {
+            store.setShown(true)
+            onStore(store)
+        }
         .onDisappear {
             store.setShown(false)
+            onStore(nil)
             Task { await store.pause() }
         }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
     }
 }
 
-/// Auswahl des zweiten Dokuments (Dokumente desselben Moduls zuerst).
+/// "Daneben öffnen": ein leeres Blatt mit Vorlage (mitschreiben, ohne auf die Folie zu schreiben) oder ein vorhandenes
+/// Dokument (Dokumente desselben Moduls zuerst). Das Blatt ist ein Notizbuch im Modul der offenen Datei.
 struct CompanionPicker: View {
     let api: APIClient
     let moduleID: Int?
     let excluding: String
+    /// Titel der offenen Datei, fuer den Namen des neuen Blatts
+    var sourceTitle = ""
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var files: [LibFile] = []
     @State private var query = ""
     @State private var error: String?
+    @State private var creating: String?
+
+    /// Vorlagen fuer das leere Blatt in der Reihenfolge der Auswahl im Editor
+    static var blankTemplates: [(id: String, name: String)] { PaperTemplate.choices }
+
+    /// Titel des neuen Blatts
+    static func sheetTitle(for source: String) -> String {
+        let base = (source as NSString).deletingPathExtension.trimmingCharacters(in: .whitespaces)
+        return base.isEmpty ? "Notizen" : "Notizen – \(base)"
+    }
 
     var body: some View {
         NavigationStack {
-            List(filtered) { f in
-                Button {
-                    onPick(f)
-                    dismiss()
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text(f.displayTitle).lineLimit(2)
-                        Text([f.subject, f.sub_label].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
-                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    blankSection
+                    documentSection
                 }
+                .padding(20)
             }
-            .overlay { if let error { ContentUnavailableView("Nicht geladen", systemImage: "wifi.exclamationmark", description: Text(error)) } }
-            .searchable(text: $query, prompt: "Skript suchen")
+            .background(UF.bg)
             .navigationTitle("Daneben öffnen")
-            .toolbar { Button("Abbrechen") { dismiss() } }
-            .task {
-                do {
-                    let lib = try await api.json("/api/library", as: LibraryResponse.self)
-                    files = lib.files.filter { $0.isPDF && $0.id != excluding }
-                        .sorted { ($0.module_id == moduleID ? 0 : 1, $0.displayTitle) < ($1.module_id == moduleID ? 0 : 1, $1.displayTitle) }
-                } catch let e {
-                    error = e.localizedDescription
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
+            .task { await loadFiles() }
+        }
+    }
+
+    private var blankSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Leeres Blatt").ufFont(17, 700).foregroundStyle(UF.text)
+            Text("Zum Mitschreiben neben der Folie, ohne auf sie zu schreiben. Das Blatt landet bei deinen Notizen im Modul.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 12) {
+                ForEach(Self.blankTemplates, id: \.id) { t in
+                    Button { Task { await createBlank(t.id) } } label: {
+                        VStack(spacing: 8) {
+                            UFTemplatePreview(template: t.id)
+                                .frame(width: 58, height: 76)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(UF.line, lineWidth: 1))
+                                .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+                                .overlay { if creating == t.id { ProgressView() } }
+                            Text(t.name).ufFont(13.12, 600).foregroundStyle(UF.text)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(creating != nil)
+                    .accessibilityIdentifier("companion.blank.\(t.id)")
                 }
             }
+        }
+    }
+
+    private var documentSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Dokument").ufFont(17, 700).foregroundStyle(UF.text)
+            UFTextInput("Skript oder Blatt suchen", text: $query)
+            if let error {
+                Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(spacing: 0) {
+                ForEach(Array(filtered.enumerated()), id: \.element.id) { i, f in
+                    if i > 0 { Divider().padding(.leading, 48) }
+                    Button { onPick(f); dismiss() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: f.isNotebook ? "note.text" : "doc.richtext")
+                                .font(.system(size: 18)).foregroundStyle(f.module_id == moduleID ? UF.accent : UF.muted)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(f.displayTitle).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
+                                Text([f.subject, f.sub_label].compactMap { $0 }.joined(separator: " · "))
+                                    .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
         }
     }
 
     private var filtered: [LibFile] {
         let q = query.lowercased()
         return q.isEmpty ? files : files.filter { ($0.displayTitle + " " + $0.name).lowercased().contains(q) }
+    }
+
+    private func library() async throws -> [LibFile] {
+        try await api.json("/api/library", as: LibraryResponse.self).files
+    }
+
+    private func loadFiles() async {
+        do {
+            files = try await library().filter { $0.opensInEditor && $0.id != excluding }
+                .sorted { ($0.module_id == moduleID ? 0 : 1, $0.displayTitle) < ($1.module_id == moduleID ? 0 : 1, $1.displayTitle) }
+        } catch let e {
+            error = e.localizedDescription
+        }
+    }
+
+    /// Neues Notizbuch mit Vorlage im Modul der offenen Datei, dann daneben oeffnen
+    private func createBlank(_ template: String) async {
+        guard Entitlements.shared.allows(NotebookDialog.feature) else {
+            error = "Notizblätter gibt es ab \(UFPlan.plus.name)."
+            return
+        }
+        creating = template
+        defer { creating = nil }
+        var fields = NotebookDialog.fields(kind: "notebook", title: Self.sheetTitle(for: sourceTitle), template: template,
+                                           format: PageFormats.defaultNotebook, orientation: .portrait)
+        if let moduleID { fields["module_id"] = "\(moduleID)" }
+        do {
+            let r = try await api.form("/api/notebooks", fields: fields)
+            guard let id = r.s("id"), let f = try await library().first(where: { $0.id == id }) else {
+                error = "Das Blatt wurde angelegt, ließ sich aber nicht öffnen. Du findest es in der Bibliothek."
+                return
+            }
+            onPick(f)
+            dismiss()
+        } catch let e {
+            error = e.localizedDescription
+        }
     }
 }
 

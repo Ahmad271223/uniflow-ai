@@ -32,6 +32,23 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(h.last?.s("role"), "assistant")
         XCTAssertEqual(h.last?.s("text"), "F – A")
         XCTAssertEqual(TutorPanel.label(mode: "steps", input: ""), "Aufgabe lösen")
+        // verbunden heisst nicht bereit: die Leiste nennt den fehlenden Schritt
+        func st(_ c: Bool = true, reauth: Bool = false, sharing: Bool = true, use: Bool = true, model: String = "gpt-x") -> ChatGPTSession.Status {
+            ChatGPTSession.Status(connected: c, sharing: sharing, needsReauth: reauth, email: nil, name: nil, model: model, useForAI: use,
+                                  registered: true, lastError: nil)
+        }
+        XCTAssertEqual(TutorConnectState.reason(nil), .notConnected)
+        XCTAssertEqual(TutorConnectState.reason(st(false)), .notConnected)
+        XCTAssertEqual(TutorConnectState.reason(st(reauth: true)), .reauth)
+        XCTAssertEqual(TutorConnectState.reason(st(sharing: false)), .noSharing)
+        XCTAssertEqual(TutorConnectState.reason(st(use: false)), .switchedOff)
+        XCTAssertEqual(TutorConnectState.reason(st(model: "")), .noModel)
+        XCTAssertEqual(TutorConnectState.reason(st()), .ready)
+        // Daneben ein leeres Blatt: alle Vorlagen des Editors, Titel nach der offenen Datei
+        XCTAssertEqual(CompanionPicker.blankTemplates.map(\.id), PageOrder.templates)
+        XCTAssertTrue(CompanionPicker.blankTemplates.contains { $0.id == "grid" && $0.name == "Kariert" })
+        XCTAssertEqual(CompanionPicker.sheetTitle(for: "Prog1-01-Introduction.pdf"), "Notizen – Prog1-01-Introduction")
+        XCTAssertEqual(CompanionPicker.sheetTitle(for: " "), "Notizen")
         XCTAssertEqual(TutorPanel.label(mode: "ask", input: "Warum?"), "Warum?")
         XCTAssertEqual(DocumentView.tutorWidth(1180), 377.6, accuracy: 0.1)
         XCTAssertEqual(DocumentView.tutorWidth(700), 300)

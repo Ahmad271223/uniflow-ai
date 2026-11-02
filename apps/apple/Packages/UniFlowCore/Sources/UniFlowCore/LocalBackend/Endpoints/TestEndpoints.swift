@@ -227,7 +227,8 @@ enum WeekTests {
     /// Text einer Datei: Auszug aus der Datenbank, sonst die gespeicherten Seitentexte (hoechstens 3500 Zeichen)
     static func text(ctx: LocalContext, fileID: String, excerpt: JSONValue?) async -> String {
         if let e = excerpt?.string, !e.isEmpty { return e }
-        let pages = (try? await ScriptSearch.pageTexts(fileID: fileID, database: ctx.database, files: ctx.files, clock: ctx.clock)) ?? []
+        // 3500 Zeichen: die ersten Seiten reichen, auch mit Texterkennung
+        let pages = (try? await ScriptSearch.pageTexts(fileID: fileID, ctx: ctx, ocrScope: .leading(5))) ?? []
         return PyText.slice(pages.joined(separator: "\n"), 0, 3500)
     }
 

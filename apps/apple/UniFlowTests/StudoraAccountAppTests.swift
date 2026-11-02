@@ -32,4 +32,22 @@ final class StudoraAccountAppTests: XCTestCase {
         XCTAssertNil(problem)
         XCTAssertNil(store.load(), "Konto löschen in der App entfernt die Studora-Anmeldung")
     }
+
+    /// Antworten des Dienstes ueber APIClient (PC-Modus) zeigen dieselben Texte wie das Konto (ServiceErrorText)
+    func testAPIErrorUsesTheServiceErrorTexts() {
+        let codes = ["email_unverified", "duplicate_request", "ai_trial_budget_exhausted", "ai_not_configured_prices",
+                     "email_taken", "last_login_method", "cross_site"]
+        for code in codes {
+            let flat = APIError(status: 403, body: Data(#"{"detail": "Dienst-Text", "code": "\#(code)"}"#.utf8))
+            XCTAssertEqual(flat.code, code)
+            XCTAssertEqual(flat.errorDescription, ServiceErrorText.known(code: code), code)
+            // FastAPI HTTPException mit Objekt: {"detail": {"detail", "code"}}
+            let nested = APIError(status: 403, body: Data(#"{"detail": {"detail": "Dienst-Text", "code": "\#(code)"}}"#.utf8))
+            XCTAssertEqual(nested.errorDescription, ServiceErrorText.known(code: code), code)
+        }
+        let unknown = APIError(status: 400, body: Data(#"{"detail": "Dienst-Text", "code": "voellig_neu"}"#.utf8))
+        XCTAssertEqual(unknown.errorDescription, "Dienst-Text", "unbekannter Code: Meldung des Dienstes")
+        let own = APIError(status: 403, message: "", text: "Eigener Text")
+        XCTAssertEqual(own.errorDescription, "Eigener Text", "eigene Meldung der App geht vor")
+    }
 }

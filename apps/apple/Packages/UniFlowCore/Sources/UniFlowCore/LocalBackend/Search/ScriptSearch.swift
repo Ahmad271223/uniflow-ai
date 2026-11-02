@@ -166,6 +166,7 @@ public enum ScriptSearch {
         guard let now = try c.queryOne("SELECT chdate FROM files WHERE id=?", [.text(fileID)]),
               (now["chdate"]?.double ?? 0) == (chdate.double ?? 0) else { return false }
         try c.execute("DELETE FROM page_texts WHERE file_id=?", [.text(fileID)])
+        try PageOCRStore.delete(c, fileID: fileID)
         let stamp: SQLiteValue = LocalModules.truthy(chdate) ? chdate : .integer(0)
         for (i, t) in pages.enumerated() {
             try c.execute("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
@@ -178,18 +179,33 @@ public enum ScriptSearch {
     /// der App) und gespeichert. Leer ohne gueltige gespeicherte Texte und ohne lokale PDF, oder wenn sie sich nicht
     /// lesen laesst. Geraet: neu gelesene Texte pruefen gleich auf Abgaben und Pruefungstermine (`DueStore.refreshFile`,
     /// `clock` fuer das laufende Semester).
-    public static func pageTexts(fileID: String, database: SQLiteDatabase, files: LocalFiles?, clock: UniFlowClock = .system) async throws -> [String] {
+    ///
+    /// Geraet: mit `ocr` werden fast leere Seiten in `ocrScope` (Scans, Folien als Bild) per Texterkennung ergaenzt,
+    /// einmal je Seite und Fassung (`PageOCRStore`); ohne `ocr` (Standard) bleibt es bei der Textebene der PDF.
+    public static func pageTexts(fileID: String, database: SQLiteDatabase, files: LocalFiles?, clock: UniFlowClock = .system,
+                                 ocr: PageOCR? = nil, ocrScope: OCRScope = .all) async throws -> [String] {
         let state = try await database.withConnection { try storedPages($0, fileID: fileID, files: files) }
+        var pages: [String]
         switch state {
         case .unavailable: return []
-        case .fresh(let pages): return pages
+        case .fresh(let stored): pages = stored
         case .read(let url, let chdate):
-            guard let pages = files?.tools.pdfPageTexts(url) else { return [] }
+            guard let read = files?.tools.pdfPageTexts(url) else { return [] }
             try await database.transaction { c in
-                if try storePages(c, fileID: fileID, pages: pages, chdate: chdate) { try DueStore.refreshFile(c, fileID: fileID, clock: clock) }
+                if try storePages(c, fileID: fileID, pages: read, chdate: chdate) { try DueStore.refreshFile(c, fileID: fileID, clock: clock) }
             }
-            return pages
+            pages = read
         }
+        guard let ocr, let files, ocrScope != .none else { return pages }
+        pages = try await PageOCRStore.fill(fileID: fileID, pages: pages, scope: ocrScope, ocr: ocr, database: database,
+                                            files: files, clock: clock)
+        return pages
+    }
+
+    /// `pageTexts` mit der Texterkennung des Geraets (`LocalContext.ocr`)
+    static func pageTexts(fileID: String, ctx: LocalContext, files: LocalFiles? = nil, ocrScope: OCRScope) async throws -> [String] {
+        try await pageTexts(fileID: fileID, database: ctx.database, files: files ?? ctx.files, clock: ctx.clock,
+                            ocr: ctx.ocr.provider, ocrScope: ocrScope)
     }
 
     // MARK: Index je Modul (BM25)
@@ -292,7 +308,9 @@ public enum ScriptSearch {
     }
 
     /// `_index(conn, module_id)`: Seiten mit mindestens fuenf Woertern, Dokumenthaeufigkeit, mittlere Laenge
-    static func index(moduleID: SQLiteValue, database: SQLiteDatabase, files: LocalFiles?, cache: IndexCache) async throws -> Index {
+    /// Mit `ocr` werden fast leere Seiten der Quellen erkannt (einmal je Seite, `PageOCRStore`).
+    static func index(moduleID: SQLiteValue, database: SQLiteDatabase, files: LocalFiles?, cache: IndexCache,
+                      ocr: PageOCR? = nil) async throws -> Index {
         let (srcs, stamps) = try await database.withConnection { c -> ([[String: JSONValue]], [String]) in
             let s = try sources(c, moduleID: moduleID)
             var stamps: [String] = []
@@ -303,12 +321,13 @@ public enum ScriptSearch {
             }
             return (s, stamps)
         }
-        let key = (moduleID.json?.jsonString() ?? "null") + "\u{1E}" + stamps.sorted().joined(separator: "\u{1E}")
+        // mit Texterkennung ein eigener Eintrag (sonst gaelte ein Index ohne erkannte Seiten weiter)
+        let key = (moduleID.json?.jsonString() ?? "null") + "\u{1E}" + stamps.sorted().joined(separator: "\u{1E}") + (ocr == nil ? "" : "\u{1E}ocr")
         return try await cache.index(key) {
             var docs: [Doc] = []
             for f in srcs {
                 try Task.checkCancellation()
-                let pages = try await pageTexts(fileID: f["id"]?.string ?? "", database: database, files: files)
+                let pages = try await pageTexts(fileID: f["id"]?.string ?? "", database: database, files: files, ocr: ocr, ocrScope: .all)
                 for (i, text) in pages.enumerated() {
                     let toks = tokens(text)
                     if toks.count < 5 { continue }
@@ -326,10 +345,10 @@ public enum ScriptSearch {
 
     /// `search(conn, module_id, query, exclude, limit)`
     static func search(moduleID: SQLiteValue, query: String, exclude: String?, limit: Int = 3,
-                       database: SQLiteDatabase, files: LocalFiles?, cache: IndexCache) async throws -> JSONValue {
+                       database: SQLiteDatabase, files: LocalFiles?, cache: IndexCache, ocr: PageOCR? = nil) async throws -> JSONValue {
         let q = tokens(query)
         if q.isEmpty { return ["terms": [], "results": []] }
-        let idx = try await index(moduleID: moduleID, database: database, files: files, cache: cache)
+        let idx = try await index(moduleID: moduleID, database: database, files: files, cache: cache, ocr: ocr)
         if idx.n == 0 { return ["terms": [], "results": [], "note": "keine Vorlesungs- oder Skriptseiten im Modul"] }
         // Counter(q): Haeufigkeit je Wort in der Reihenfolge des ersten Auftretens
         var order: [String] = []

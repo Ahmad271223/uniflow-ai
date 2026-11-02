@@ -188,9 +188,13 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertNil(CommunityCloudFactory.containerIdentifier(info: [CommunityCloudFactory.infoKey: "$(UF_CLOUDKIT_CONTAINER)"]))
         XCTAssertNil(CommunityCloudFactory.containerIdentifier(info: [CommunityCloudFactory.infoKey: "de.uniflow.ai"]))
         XCTAssertEqual(CommunityCloudFactory.containerIdentifier(info: [CommunityCloudFactory.infoKey: " iCloud.de.uniflow.ai "]), "iCloud.de.uniflow.ai")
-        // dieser Testlauf hat keinen Container (kein Team): der Dienst der App ist "nicht verbunden"
-        XCTAssertNil(CommunityCloudFactory.containerIdentifier())
-        XCTAssertFalse(SolutionSharing.community.isConnected)
+        // Ohne Team hat der Build keinen Container: der Dienst der App ist "nicht verbunden". Mit Team (Config/Team.xcconfig,
+        // nicht im Repo) setzt der Build den Container; dann nur pruefen, dass es der richtige ist
+        if let id = CommunityCloudFactory.containerIdentifier() {
+            XCTAssertEqual(id, "iCloud.de.uniflow.ai", "mit Team: Container aus der Build-Einstellung")
+        } else {
+            XCTAssertFalse(SolutionSharing.community.isConnected)
+        }
     }
 
     // MARK: Veroeffentlichen
