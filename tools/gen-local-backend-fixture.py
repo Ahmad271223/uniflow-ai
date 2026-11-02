@@ -89,6 +89,8 @@ SAMPLES: dict[str, dict] = {
     "POST /api/related": {"path": "/api/related", "body": {"file_id": "f1", "text": "Eigenwerte"}},
     "GET /api/modules": {"path": "/api/modules"},
     "GET /api/modules/{}": {"path": "/api/modules/1"},
+    "GET /api/modules/{}/studip": {"path": "/api/modules/1/studip"},
+    "GET /api/studip-texts/{}": {"path": "/api/studip-texts/gibt-es-nicht"},
     "POST /api/modules": {"path": "/api/modules", "body": {"name": "Testmodul"}},
     "PATCH /api/modules/{}": {"path": "/api/modules/1", "body": {"active": 1}},
     "POST /api/modules/auto-assign": {"path": "/api/modules/auto-assign"},

@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 104,
+ "count": 106,
  "paths": [
   {
    "method": "DELETE",
@@ -1223,6 +1223,34 @@
   },
   {
    "method": "GET",
+   "shape": "/api/modules/{}/studip",
+   "sources": [
+    "UniFlow/Views/Modules/StudIPTextsCard.swift"
+   ],
+   "request": {
+    "path": "/api/modules/1/studip"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "groups": {
+       "type": "array",
+       "item": null
+      },
+      "total": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/news",
    "sources": [
     "UniFlow/Views/DashboardView.swift"
@@ -1591,6 +1619,30 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/studip-texts/{}",
+   "sources": [
+    "UniFlow/Views/Modules/StudIPTextsCard.swift"
+   ],
+   "request": {
+    "path": "/api/studip-texts/gibt-es-nicht"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
