@@ -39,8 +39,12 @@ from pathlib import Path
 
 from . import accounts, config, db
 
-FORMAT, FORMAT_VERSION = "uniflow-solution", 1
-MAX_PACKAGE_BYTES = ((48 << 20) + 16 + 2) // 3 * 4 + (1 << 20)      # wie SolutionLimits.maxPackageBytes (rund 65 MB)
+# Version 2 (2.11.2026): Striche als ganze Zahlen, Klartext mit raw DEFLATE gepackt (app/solution_format.py). Neue
+# Pakete sind immer Version 2; Version 1 bleibt gueltig (schon veroeffentlichte und alte App-Staende).
+FORMAT, FORMAT_VERSION = "uniflow-solution", 2
+FORMAT_VERSIONS = (1, 2)
+MAX_PLAINTEXT_BYTES = 48 << 20                                       # wie SolutionLimits.maxPlaintextBytes
+MAX_PACKAGE_BYTES = (MAX_PLAINTEXT_BYTES + 16 + 2) // 3 * 4 + (1 << 20)   # wie SolutionLimits.maxPackageBytes (rund 65 MB)
 MAX_PAGES = 2_000
 MAX_DISPLAY_NAME, MAX_TITLE = 60, 200
 REPORTS_TO_HIDE = 3
@@ -291,7 +295,7 @@ def validate_package(pkg) -> dict:
     v = pkg.get("formatVersion")
     if not isinstance(v, int) or isinstance(v, bool):
         bad("Formatversion")
-    if v != FORMAT_VERSION:
+    if v not in FORMAT_VERSIONS:
         raise CommunityError("unsupported_version", f"Diese Lösung hat Formatversion {v} – bitte Studora aktualisieren.")
     h = pkg.get("header")
     if not isinstance(h, dict) or set(h) != HEADER_KEYS:
@@ -327,8 +331,11 @@ def validate_package(pkg) -> dict:
         if not isinstance(c.get(k), int) or isinstance(c.get(k), bool) or c[k] < 0:
             bad(k)
     e = h.get("encryption")
-    if not isinstance(e, dict) or set(e) != {"cipher", "kdf", "keyMaterial", "salt", "nonce", "plaintextBytes"}:
+    enc_keys = {"cipher", "kdf", "keyMaterial", "salt", "nonce", "plaintextBytes"} | ({"compression", "compressedBytes"} if v == 2 else set())
+    if not isinstance(e, dict) or set(e) != enc_keys:
         bad("encryption")
+    if v == 2 and e.get("compression") != "deflate-raw":
+        bad("Kompression")
     if e.get("cipher") != "AES-256-GCM" or e.get("kdf") != "HKDF-SHA256" or e.get("keyMaterial") not in KEY_MATERIALS:
         bad("Verschlüsselung")
     if _b64len(str(e.get("salt")), "salt") != 32 or _b64len(str(e.get("nonce")), "nonce") != 12:
@@ -338,8 +345,12 @@ def validate_package(pkg) -> dict:
         raise CommunityError("too_large", "Die Lösung ist zu groß.", 413)
     n = _b64len(ct, "ciphertext")
     pb = e.get("plaintextBytes")
-    if not isinstance(pb, int) or isinstance(pb, bool) or pb < 0 or pb != n - 16:
+    if not isinstance(pb, int) or isinstance(pb, bool) or not (1 <= pb <= MAX_PLAINTEXT_BYTES) or (v == 1 and pb != n - 16):
         bad("plaintextBytes")
+    if v == 2:
+        cb = e.get("compressedBytes")
+        if not isinstance(cb, int) or isinstance(cb, bool) or not (1 <= cb <= MAX_PLAINTEXT_BYTES) or cb != n - 16:
+            bad("compressedBytes")
     return {"id": sid.lower(), "fingerprint": fp, "display_name": name, "created_at": created, "page_count": pc, "pages": pages,
             "key_material": e["keyMaterial"]}
 
@@ -919,7 +930,7 @@ def _can_comment(user: dict) -> bool:
 
 def sample_package(fingerprint: str, pages: int = 2, page_count: int = 12, display_name: str = "", solution_id: str | None = None,
                    created_at: str = "2026-10-26T10:00:00Z", key_material: str = "original-pdf-bytes") -> dict:
-    """Syntaktisch gueltiges Paket fuer Tests und den Vertrag (Chiffrat ist Zufall, nicht entschluesselbar)."""
+    """Syntaktisch gueltiges Paket (Version 2) fuer Tests und den Vertrag (Chiffrat ist Zufall, nicht entschluesselbar)."""
     import os
     ct = os.urandom(48)
     return {"format": FORMAT, "formatVersion": FORMAT_VERSION,
@@ -928,5 +939,6 @@ def sample_package(fingerprint: str, pages: int = 2, page_count: int = 12, displ
                        "contents": {"pages": pages, "images": 0, "missingImages": 0},
                        "encryption": {"cipher": "AES-256-GCM", "kdf": "HKDF-SHA256", "keyMaterial": key_material,
                                       "salt": base64.b64encode(os.urandom(32)).decode(), "nonce": base64.b64encode(os.urandom(12)).decode(),
-                                      "plaintextBytes": len(ct) - 16}},
+                                      "plaintextBytes": 4 * (len(ct) - 16), "compression": "deflate-raw",
+                                      "compressedBytes": len(ct) - 16}},
             "ciphertext": base64.b64encode(ct).decode()}

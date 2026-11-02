@@ -195,9 +195,10 @@ def build() -> dict:
     call("Ohne Sitzung", "GET", "/api/community/info")
 
     checks = []
-    for name, mut, code in (("gueltig", lambda p: None, None), ("formatVersion 2", lambda p: p.update(formatVersion=2), "unsupported_version"),
+    for name, mut, code in (("gueltig", lambda p: None, None), ("formatVersion 3", lambda p: p.update(formatVersion=3), "unsupported_version"),
                             ("Zusatzfeld oben", lambda p: p.update(extra=1), "package_invalid"), ("pages 0", lambda p: p["header"]["contents"].update(pages=0), "package_invalid"),
-                            ("plaintextBytes passt nicht", lambda p: p["header"]["encryption"].update(plaintextBytes=1), "package_invalid"),
+                            ("compressedBytes passt nicht", lambda p: p["header"]["encryption"].update(compressedBytes=1), "package_invalid"),
+                            ("unbekannte Kompression", lambda p: p["header"]["encryption"].update(compression="zstd"), "package_invalid"),
                             ("kein Paket", lambda p: p.update(format="x"), "not_a_solution")):
         p = json.loads(json.dumps(pkg)); mut(p)
         try:

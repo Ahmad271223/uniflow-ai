@@ -12,7 +12,7 @@
    "other"
   ],
   "format": "uniflow-solution",
-  "format_version": 1,
+  "format_version": 2,
   "max_package_bytes": 68157464,
   "pseudonym": "Studi-<8 hex>, stabil je Konto, nie Konto-ID oder E-Mail",
   "endpoints": [
@@ -62,7 +62,7 @@
    "ok": true,
    "package": {
     "format": "uniflow-solution",
-    "formatVersion": 1,
+    "formatVersion": 2,
     "header": {
      "solutionId": "<solution-id>",
      "createdAt": "2026-10-26T10:00:00Z",
@@ -82,16 +82,53 @@
       "keyMaterial": "original-pdf-bytes",
       "salt": "<base64>",
       "nonce": "<base64>",
-      "plaintextBytes": 32
+      "plaintextBytes": 128,
+      "compression": "deflate-raw",
+      "compressedBytes": 32
      }
     },
     "ciphertext": "<base64>"
    }
   },
   {
-   "case": "formatVersion 2",
+   "case": "formatVersion 3",
    "ok": false,
    "code": "unsupported_version",
+   "status": 400,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 3,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 128,
+      "compression": "deflate-raw",
+      "compressedBytes": 32
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  },
+  {
+   "case": "Zusatzfeld oben",
+   "ok": false,
+   "code": "package_invalid",
    "status": 400,
    "package": {
     "format": "uniflow-solution",
@@ -115,40 +152,9 @@
       "keyMaterial": "original-pdf-bytes",
       "salt": "<base64>",
       "nonce": "<base64>",
-      "plaintextBytes": 32
-     }
-    },
-    "ciphertext": "<base64>"
-   }
-  },
-  {
-   "case": "Zusatzfeld oben",
-   "ok": false,
-   "code": "package_invalid",
-   "status": 400,
-   "package": {
-    "format": "uniflow-solution",
-    "formatVersion": 1,
-    "header": {
-     "solutionId": "<solution-id>",
-     "createdAt": "2026-10-26T10:00:00Z",
-     "displayName": "Erika",
-     "document": {
-      "sha256": "<base64>",
-      "pageCount": 12
-     },
-     "contents": {
-      "pages": 2,
-      "images": 0,
-      "missingImages": 0
-     },
-     "encryption": {
-      "cipher": "AES-256-GCM",
-      "kdf": "HKDF-SHA256",
-      "keyMaterial": "original-pdf-bytes",
-      "salt": "<base64>",
-      "nonce": "<base64>",
-      "plaintextBytes": 32
+      "plaintextBytes": 128,
+      "compression": "deflate-raw",
+      "compressedBytes": 32
      }
     },
     "ciphertext": "<base64>",
@@ -162,7 +168,7 @@
    "status": 400,
    "package": {
     "format": "uniflow-solution",
-    "formatVersion": 1,
+    "formatVersion": 2,
     "header": {
      "solutionId": "<solution-id>",
      "createdAt": "2026-10-26T10:00:00Z",
@@ -182,20 +188,22 @@
       "keyMaterial": "original-pdf-bytes",
       "salt": "<base64>",
       "nonce": "<base64>",
-      "plaintextBytes": 32
+      "plaintextBytes": 128,
+      "compression": "deflate-raw",
+      "compressedBytes": 32
      }
     },
     "ciphertext": "<base64>"
    }
   },
   {
-   "case": "plaintextBytes passt nicht",
+   "case": "compressedBytes passt nicht",
    "ok": false,
    "code": "package_invalid",
    "status": 400,
    "package": {
     "format": "uniflow-solution",
-    "formatVersion": 1,
+    "formatVersion": 2,
     "header": {
      "solutionId": "<solution-id>",
      "createdAt": "2026-10-26T10:00:00Z",
@@ -215,7 +223,44 @@
       "keyMaterial": "original-pdf-bytes",
       "salt": "<base64>",
       "nonce": "<base64>",
-      "plaintextBytes": 1
+      "plaintextBytes": 128,
+      "compression": "deflate-raw",
+      "compressedBytes": 1
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  },
+  {
+   "case": "unbekannte Kompression",
+   "ok": false,
+   "code": "package_invalid",
+   "status": 400,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 2,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 128,
+      "compression": "zstd",
+      "compressedBytes": 32
      }
     },
     "ciphertext": "<base64>"
@@ -228,7 +273,7 @@
    "status": 400,
    "package": {
     "format": "x",
-    "formatVersion": 1,
+    "formatVersion": 2,
     "header": {
      "solutionId": "<solution-id>",
      "createdAt": "2026-10-26T10:00:00Z",
@@ -248,7 +293,9 @@
       "keyMaterial": "original-pdf-bytes",
       "salt": "<base64>",
       "nonce": "<base64>",
-      "plaintextBytes": 32
+      "plaintextBytes": 128,
+      "compression": "deflate-raw",
+      "compressedBytes": 32
      }
     },
     "ciphertext": "<base64>"
@@ -432,7 +479,7 @@
     ],
     "reports_to_hide": 3,
     "format": "uniflow-solution",
-    "format_version": 1,
+    "format_version": 2,
     "max_package_bytes": 68157464,
     "pseudonym": "<pseudonym>",
     "admin": false,
@@ -448,7 +495,7 @@
    "request": {
     "package": {
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "solutionId": "<solution-id>",
       "createdAt": "2026-10-26T10:00:00Z",
@@ -468,7 +515,9 @@
        "keyMaterial": "original-pdf-bytes",
        "salt": "<base64>",
        "nonce": "<base64>",
-       "plaintextBytes": 32
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
       }
      },
      "ciphertext": "<base64>"
@@ -491,7 +540,7 @@
    "request": {
     "package": {
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "solutionId": "<solution-id>",
       "createdAt": "2026-10-26T10:00:00Z",
@@ -511,7 +560,9 @@
        "keyMaterial": "original-pdf-bytes",
        "salt": "<base64>",
        "nonce": "<base64>",
-       "plaintextBytes": 32
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
       }
      },
      "ciphertext": "<base64>"
@@ -531,7 +582,7 @@
    "request": {
     "package": {
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "solutionId": "<solution-id-2>",
       "createdAt": "2026-10-26T10:00:00Z",
@@ -551,7 +602,9 @@
        "keyMaterial": "original-pdf-bytes",
        "salt": "<base64>",
        "nonce": "<base64>",
-       "plaintextBytes": 32
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
       }
      },
      "ciphertext": "<base64>"
@@ -571,7 +624,7 @@
    "request": {
     "package": {
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "solutionId": "<solution-id>",
       "createdAt": "2026-10-26T10:00:00Z",
@@ -591,7 +644,9 @@
        "keyMaterial": "original-pdf-bytes",
        "salt": "<base64>",
        "nonce": "<base64>",
-       "plaintextBytes": 32
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
       }
      },
      "ciphertext": "<base64>",
@@ -612,7 +667,7 @@
    "request": {
     "package": {
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "solutionId": "<solution-id>",
       "createdAt": "2026-10-26T10:00:00Z",
@@ -632,7 +687,9 @@
        "keyMaterial": "original-pdf-bytes",
        "salt": "<base64>",
        "nonce": "<base64>",
-       "plaintextBytes": 32
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
       }
      },
      "ciphertext": "<base64>"
@@ -699,7 +756,7 @@
     "package": {
      "ciphertext": "<base64>",
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "contents": {
        "images": 0,
@@ -714,10 +771,12 @@
       },
       "encryption": {
        "cipher": "AES-256-GCM",
+       "compressedBytes": 32,
+       "compression": "deflate-raw",
        "kdf": "HKDF-SHA256",
        "keyMaterial": "original-pdf-bytes",
        "nonce": "<base64>",
-       "plaintextBytes": 32,
+       "plaintextBytes": 128,
        "salt": "<base64>"
       },
       "solutionId": "<solution-id>"
@@ -1463,7 +1522,7 @@
    "request": {
     "package": {
      "format": "uniflow-solution",
-     "formatVersion": 1,
+     "formatVersion": 2,
      "header": {
       "solutionId": "<solution-id-3>",
       "createdAt": "2026-10-26T10:00:00Z",
@@ -1483,7 +1542,9 @@
        "keyMaterial": "community-secret",
        "salt": "<base64>",
        "nonce": "<base64>",
-       "plaintextBytes": 32
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
       }
      },
      "ciphertext": "<base64>"

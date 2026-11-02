@@ -309,10 +309,12 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   innerhalb derselben Hochschule. Das ersetzt nicht den Beleg der Kursmitgliedschaft durch die Hochschule
   (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7), beschränkt die Community aber auf Dateien, die das Konto selbst über
   Stud.IP oder Learnweb bekommen hat – wer die PDF nicht hat, kann das Paket ohnehin nicht öffnen.
-- **Paket**: der Dienst speichert das Paket `uniflow-solution` Version 1 unverändert
+- **Paket**: der Dienst speichert das Paket `uniflow-solution` Version 2 (oder alt Version 1) unverändert
   (`community/<solutionId>.uniflowsolution` neben den Nutzerordnern) und prüft nur Form und Kopf wie
   `SolutionPackage.decode`: genaue Feldmengen, UUID, Datum, `document.sha256` 64 Hex, `pages` 1…2000 (0 = „ohne eigene
-  Notizen“), `plaintextBytes` = Chiffrat − 16, Salz 32 B, Nonce 12 B, Grenze rund 65 MB (413 `too_large`); Fehlercodes
+  Notizen“), Version 1: `plaintextBytes` = Chiffrat − 16; Version 2 (2.11.2026, gepackt): `compression` =
+  `deflate-raw`, `compressedBytes` = Chiffrat − 16, `plaintextBytes` 1…48 MB; Salz 32 B, Nonce 12 B, Grenze rund
+  65 MB (413 `too_large`); `info.format_version` = 2 (geschriebene Version); Fehlercodes
   `not_a_solution`, `unsupported_version`, `package_invalid`. Er entschlüsselt nie (Schlüssel aus der Original-PDF).
 - **Pseudonym** `Studi-<8 hex>` = HMAC-SHA256(Dienst-Geheimnis, Konto-ID), stabil je Konto; Antworten enthalten nie
   Konto-ID oder E-Mail.

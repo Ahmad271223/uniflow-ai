@@ -75,6 +75,10 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
 
 ## 3. Format `uniflow-solution`, Formatversion 1
 
+> **Stand 2.11.2026:** Geschrieben wird nur noch **Formatversion 2** (Abschnitt 3a: Striche als ganze Zahlen, Klartext
+> gepackt, Pakete rund sechsmal kleiner). Version 1 wird weiter gelesen. Dieser Abschnitt beschreibt Version 1 und
+> alles, was in beiden Versionen gleich ist.
+
 Kern: `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Solutions/` (Foundation-only, baut und testet unter Linux).
 
 Datei `*.uniflowsolution` (UTF-8-JSON, sortierte Schlüssel, Dokumenttyp `de.uniflow.solution`):
@@ -139,14 +143,96 @@ Verschlüsselter Inhalt (`SolutionContent`):
 Prüfungen beim Öffnen (`SolutionPackage.decode`/`open`, dieselben Regeln schon beim Erzeugen): Formatkennung,
 Version (ganzzahlig und als `Int` darstellbar, sonst „Kopf: Formatversion“; andere Version: „bitte UniFlow
 aktualisieren“ – nie ein Absturz bei Werten wie `1e300`), oberste Ebene genau `format`, `formatVersion`, `header`,
-`ciphertext` (jedes weitere Feld wird abgewiesen), Kopf genau in der Form von Version 1 (zusätzliche Felder abgewiesen),
-UUID, Datum, Hex-Fingerabdruck, Salz/Nonce-Länge, angegebene Größe = Chiffratgröße, alle Zahlen endlich
+`ciphertext` (jedes weitere Feld wird abgewiesen), Kopf genau in der Form seiner Version (zusätzliche Felder abgewiesen),
+UUID, Datum, Hex-Fingerabdruck, Salz/Nonce-Länge, angegebene Größe = Chiffratgröße (Version 2: `compressedBytes`), alle Zahlen endlich
 (`1e999` wird abgewiesen), Grenzen (65 MB Datei, 48 MB Inhalt, 2 000 Seiten, 20 000 Objekte je Seite, 200 Bilder à
 10 MB), Seiten (Art, PDF-Seite im Bereich, Größe, Drehung Vielfaches von 90), Bilder (PNG/JPEG nach den ersten Bytes),
 Inhalt passt zum Kopf. In der App zusätzlich vor dem Anzeigen: Pixelmaße jedes Bildes aus dem Bildkopf
 (`CGImageSourceCopyPropertiesAtIndex`, ohne zu dekodieren) höchstens 8 192 Pixel je Kante und 16,7 Megapixel – ein
 kleines, stark komprimiertes PNG kann sonst beim Entpacken Gigabyte belegen. Ist ein Bild zu groß oder unlesbar, wird
 die ganze Lösung abgewiesen.
+
+## 3a. Formatversion 2: Striche als ganze Zahlen, gepackt (Entscheidung des Inhabers, 2.11.2026)
+
+Ziel: geteilte Lösungen viel kleiner ohne sichtbaren Qualitätsverlust. Eine realistische Lösung mit 15 Seiten war in
+Version 1 rund 5 MB groß, weil jeder Strichpunkt als Dezimalzahl mit zwei Nachkommastellen im JSON stand und das
+Chiffrat noch einmal als Base64 (+33 %) in der Datei liegt.
+
+**Schreiben immer Version 2, Lesen Version 1 und 2** – in allen drei Umsetzungen: Python-Referenz
+`app/solution_format.py` (`FORMAT_VERSION = 2`, `READ_VERSIONS`), Browser/Windows `app/static/solutions.js`,
+iPad `SolutionPackage.swift` mit `SolutionWire.swift` und `SolutionDeflate.swift`. Der Dienst
+(`community.validate_package`) nimmt beide Versionen an und speichert das Paket unverändert.
+
+Datei (Unterschiede zu Version 1 als Kommentar):
+
+```json
+{
+  "format": "uniflow-solution",
+  "formatVersion": 2,
+  "header": {
+    "solutionId": "…", "createdAt": "…", "displayName": "", "document": { … }, "contents": { … },
+    "encryption": { "cipher": "AES-256-GCM", "kdf": "HKDF-SHA256", "keyMaterial": "original-pdf-bytes",
+                    "salt": "<Base64, 32 Byte>", "nonce": "<Base64, 12 Byte>",
+                    "plaintextBytes": 41200,            // Groesse des ENTPACKTEN Klartexts
+                    "compression": "deflate-raw",       // neu, Pflicht in Version 2
+                    "compressedBytes": 7311 }           // neu: gepackte Groesse = Chiffrat ohne 16-Byte-Tag
+  },
+  "ciphertext": "<Base64: AES-GCM(raw DEFLATE(Klartext)) + Tag>"
+}
+```
+
+- **Verschlüsselung** wie Version 1, nur mit der Version im Namen: HKDF-Info `uniflow-solution/v2|<lösungs-id>`, AAD
+  = kanonisches JSON von `{"format","formatVersion":2,"header"}` (der Kopf mit `compression` und `compressedBytes` ist
+  damit authentifiziert). Verschlüsselt werden die **gepackten** Bytes.
+- **Packen**: der kanonische Klartext (UTF-8, sortierte Schlüssel wie bisher) wird **vor** dem Verschlüsseln mit raw
+  DEFLATE (RFC 1951, ohne zlib-Kopf) gepackt: Python `zlib` mit `wbits=-15`, Browser
+  `CompressionStream("deflate-raw")`, iPad `Compression`-Framework `COMPRESSION_ZLIB`. Die gepackten Bytes sind je
+  Umsetzung verschieden; gleich (byte-gleich geprüft) ist der Klartext vor dem Packen.
+- **Entpacken mit harter Obergrenze** (Zip-Bomben): `plaintextBytes` liegt zwischen 1 und `maxPlaintextBytes`
+  (48 MB) und ist authentifiziert; entpackt wird als Strom und abgebrochen, sobald mehr als `plaintextBytes` Byte
+  entstehen (Fehler „Die Lösung ist zu groß.“, `tooLarge`). Weniger Bytes, kaputte oder abgeschnittene Daten:
+  „beschädigt (Inhalt: Größe/Kompression)“. Zusatzbytes nach dem letzten DEFLATE-Block weisen Python, Browser und
+  der Swift-Ersatz für Linux ab; das Compression-Framework ignoriert sie – unkritisch, weil das Gepackte per AES-GCM
+  authentifiziert ist. `compressedBytes` liegt zwischen 1 und 48 MB, die Dateigrenze (65 MB) bleibt.
+- **Inhalt** (`"format": "uniflow-solution-content", "formatVersion": 2`): wie Version 1, nur Objekte mit
+  `"type": "stroke"` tragen statt der Zahlenlisten
+  - `pointsDelta` statt `points`: jede Koordinate in Seitenpunkten × 10, gerundet mit `floor(v × 10 + 0,5)`
+    (0,1 Punkt genau, höchstens 0,05 Punkt Abweichung), dann Differenz zum Wert **zwei** Stellen davor (x zu x,
+    y zu y); die ersten beiden Werte stehen absolut. Beispiel `[10, 20, 30.5, 40.25]` → `[100, 200, 205, 203]`.
+  - `widthsDelta` statt `widths` (Breite je Punkt, Apple Pencil): × 100 (0,01 Punkt), Differenz zum Vorgänger.
+  - Eine Liste, die nicht nur aus endlichen Zahlen mit |Wert × Faktor| ≤ 10¹⁰ besteht, bleibt unverändert unter
+    `points`/`widths`. Alle übrigen Felder (auch unbekannte) und alle anderen Objekttypen bleiben 1:1.
+  - `pointsDelta`/`widthsDelta` sind reserviert: ein Strich, der sie im Notizmodell schon hat, lässt sich nicht teilen;
+    beim Öffnen ist ein Strich mit `points` **und** `pointsDelta`, mit Nicht-Ganzzahlen oder mit Werten über 10¹⁰
+    beschädigt.
+- **Nach dem Öffnen** entsteht wieder der Inhalt der Version 1 (`formatVersion: 1` im Speicher, Punkte als
+  Zahlenliste in Seitenpunkten, Wert ÷ Faktor). Editor, Leser, Ebenen, Miniaturen und `SolutionContent` bleiben
+  unverändert; alle Prüfungen von Abschnitt 3 laufen danach wie bisher. Was der Empfänger erhält, liefert
+  `SolutionWire.normalized` bzw. `solution_format.normalized`; ein zweites Teilen ändert daran nichts mehr.
+
+Gemessen (Python-Referenz, 15 PDF-Seiten, glatte Zufallsstriche mit Apple-Pencil-Breiten je Punkt, Punkte mit zwei
+Nachkommastellen wie im Editor, Größe der Datei `*.uniflowsolution`):
+
+| Striche × Punkte je Seite | Version 1 | Version 2 | Faktor | nur DEFLATE, ohne Ganzzahlen |
+|---|---:|---:|---:|---:|
+| 80 × 30 | 1 185 693 B | 196 178 B | 6,0 | ≈ 406 700 B |
+| 250 × 40 | 4 622 214 B | 741 431 B | 6,2 | ≈ 1 623 900 B |
+| 500 × 50 | 11 089 962 B | 1 747 144 B | 6,3 | ≈ 3 963 300 B |
+
+Höchste Abweichung eines Punktes: 0,050 Punkt (≈ 0,018 mm).
+
+**Alte App-Stände** (nur Version 1) melden bei einem neuen Paket „Diese Lösung hat Formatversion 2 – bitte Studora
+aktualisieren.“ (`unsupportedVersion`, im Browser derselbe Text) – kein Absturz, nichts wird gespeichert. Ein
+älterer Dienst lehnt das Hochladen mit `unsupported_version` ab; der neue Dienst nimmt beide Versionen an.
+
+Testvektoren: `tools/gen-solution-vectors.py` → `packages/shared-contracts/fixtures/solutions/vectors.json` mit
+Version-2-Fällen (Python-Pakete öffnen, Klartext vor dem Packen byte-gleich, `packed` = zlib-Ausgabe zum Entpacken
+ohne AES, hin und zurück je Sprache), einem alten Paket der Version 1 (`legacy`, öffnet unverändert),
+Einzelstrichen (`stroke_cases`) und Negativfällen (u. a. Zip-Bombe: Kopf sagt 4 096 Byte, entpackt wären es mehr
+als 48 MB → `tooLarge`; entpackt kleiner; unbekannte Kompression; Version 1 als Version 2 ausgegeben; Strich mit
+`points` und `pointsDelta`). Geprüft von `tests/test_solution_vectors.py`, `tests/js/solutions.test.mjs`, Swift-Kern
+`SolutionFormatV2Tests` (auch der Linux-Ersatz `SolutionDeflate.inflatePortable`) und App `SolutionVectorsAppTests`
+(CryptoKit).
 
 ## 4. Ablauf beim Empfänger (lokal, ohne Server)
 
@@ -419,7 +505,7 @@ Community-Dienst in Python gebaut (`app/community.py`, `app/community_api.py`, V
 Moderation über Admin-Konten, Autoren mit stabilem Pseudonym (HMAC). Er ist **nicht** in die iPad-App eingebaut
 (V1 = CloudKit, kein PC-Server). Für Windows/Android oder einen Umzug weg von CloudKit könnte derselbe
 `CommunityService` auf diesen Dienst zeigen (Supabase oder eigener Server): das Paketformat ist dasselbe
-(`uniflow-solution` Version 1, der Dienst prüft nur den Kopf und speichert das Paket unverändert), die Schlüssel
+(`uniflow-solution` Version 2, Version 1 weiter lesbar; der Dienst prüft nur den Kopf und speichert das Paket unverändert), die Schlüssel
 (`CommunityKeys`, feste Testvektoren) und Regeln (`CommunityRules`) liegen im Kern und gelten für jeden Dienst; es
 fehlen dort heute Sichtbarkeit Modul/Lerngruppe/anonym, Kurs-Schlüssel, Lerngruppen und die Kursansicht.
 

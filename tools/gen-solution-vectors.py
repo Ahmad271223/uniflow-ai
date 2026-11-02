@@ -1,12 +1,16 @@
 """Schreibt packages/shared-contracts/fixtures/solutions/vectors.json: gemeinsame Testvektoren fuer Loesungspakete
-"uniflow-solution" Version 1 (Windows/Web: app/static/solutions.js, iPad: SolutionPackage.swift + SolutionCrypto.swift,
-Referenz: app/solution_format.py).
+"uniflow-solution" Version 2 (geschrieben) und Version 1 (nur gelesen) (Windows/Web: app/static/solutions.js, iPad:
+SolutionPackage.swift + SolutionCrypto.swift, Referenz: app/solution_format.py).
 
-Jeder Fall enthaelt die PDF-Bytes (Base64; frei erfunden, nur Schluesselmaterial), festes Salz und Nonce, den Inhalt,
-das erwartete kanonische Klartext-JSON, die AAD, den abgeleiteten Schluessel und das fertige Paket. Pruefen:
-1. Paket mit der PDF oeffnen ergibt genau den Inhalt;
-2. Inhalt mit Salz/Nonce versiegeln ergibt byte-gleich das Paket (kanonisches JSON, AAD, HKDF, AES-GCM);
-3. die Negativfaelle scheitern mit dem genannten Fehler.
+Jeder Fall enthaelt die PDF-Bytes (Base64; frei erfunden, nur Schluesselmaterial), festes Salz und Nonce, den Inhalt
+(`content`, wie ihn der Absender baut), den kanonischen Klartext von Version 2 vor dem Packen (`plaintext`), den
+Inhalt nach dem Oeffnen (`opened`, Striche auf 0,1 Punkt), die AAD, den abgeleiteten Schluessel und das fertige Paket.
+Die gepackten Bytes (raw DEFLATE) muessen zwischen den Sprachen NICHT gleich sein. Pruefen:
+1. Paket aus Python oeffnen ergibt genau `opened`; alte Pakete (`legacy`, Version 1) ergeben genau `content`;
+2. eigener Klartext von Version 2 aus `content` ist byte-gleich `plaintext`, AAD und Schluessel wie Python;
+3. selbst versiegeln und wieder oeffnen ergibt `opened` (Hin und zurueck je Sprache);
+4. `packed` (zlib-Ausgabe im Chiffrat) entpackt genau `plaintext`; `stroke_cases`: einzelne Striche -> Version 2 (`wire`) -> geoeffnet (`opened`);
+5. die Negativfaelle scheitern mit dem genannten Fehler (u. a. entpackt groesser als angegeben).
 
 Aufruf aus dem Repo-Wurzelverzeichnis:  python tools/gen-solution-vectors.py [--check]
 """
@@ -50,6 +54,8 @@ def content_full(fp: str) -> dict:
              "objects": [
                  {"id": "s1", "type": "stroke", "tool": "pen", "color": "#1d2130", "width": 2.2, "opacity": 1,
                   "points": [10, 20, 30.5, 40.25, 50.125, 60], "widths": [2, 2.4, 2.1], "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1},
+                 {"id": "s2", "type": "stroke", "tool": "pen", "color": "#1d2130", "width": 1,
+                  "points": [-0.05, -0.04, -0.15, 1e-07, 14400.04, 0.25, 7], "widths": [0.005, -0.015, 1e12]},
                  {"id": "t1", "type": "text", "x": 100, "y": 120.5, "text": "a² + b² = c²\n\tZeile 2 \u0001 \\ / \"Zitat\" 😀 %PDF- im Freitext",
                   "fontFamily": "Arial", "fontSize": 14, "fill": "#e5322d", "bg": "", "width": 220, "rotation": 0, "scaleX": 1, "scaleY": 1},
                  {"id": "i1", "type": "image", "src": "/api/files/abc/assets/bild.png", "x": 20, "y": 300, "width": 64, "height": 64,
@@ -75,17 +81,45 @@ def content_anon(fp: str) -> dict:
             "images": {}, "missingImages": []}
 
 
-def case(name: str, pdf: bytes, make, salt: bytes, nonce: bytes) -> dict:
+def case(name: str, pdf: bytes, make, salt: bytes, nonce: bytes, version: int = sf.FORMAT_VERSION) -> dict:
     fp = hashlib.sha256(pdf).hexdigest()
     content = make(fp)
-    pkg = sf.seal(content, pdf, salt, nonce)
-    assert sf.open_package(pkg, pdf) == content
-    return {"name": name, "pdf": base64.b64encode(pdf).decode(), "sha256": fp,
+    pkg = sf.seal(content, pdf, salt, nonce, version=version)
+    opened = sf.normalized(content) if version == 2 else content
+    assert sf.open_package(pkg, pdf) == opened
+    out = {"name": name, "formatVersion": version, "pdf": base64.b64encode(pdf).decode(), "sha256": fp,
             "salt": base64.b64encode(salt).decode(), "nonce": base64.b64encode(nonce).decode(),
-            "key_hex": sf.derive_key(pdf, salt, sf.key_info(content["solutionId"])).hex(),
-            "info": sf.key_info(content["solutionId"]).decode(),
-            "aad": sf.aad(pkg["header"]).decode(), "plaintext": sf.canonical(content),
-            "content": content, "package": pkg, "package_text": sf.canonical(pkg)}
+            "key_hex": sf.derive_key(pdf, salt, sf.key_info(content["solutionId"], version)).hex(),
+            "info": sf.key_info(content["solutionId"], version).decode(),
+            "aad": sf.aad(pkg["header"], version).decode(), "plaintext": sf.plaintext_of(content, version).decode(),
+            "content": content, "opened": opened, "package": pkg, "package_text": sf.canonical(pkg)}
+    if version == 2:
+        # gepackter Klartext aus zlib (im Chiffrat), fuer Entpack-Tests ohne AES (Swift-Kern unter Linux)
+        out["packed"] = base64.b64encode(sf.deflate(sf.plaintext_of(content))).decode()
+    return out
+
+
+def seal_raw(pdf: bytes, header: dict, body: bytes) -> dict:
+    """Version 2 mit beliebigem gepacktem Klartext (Negativfaelle), ehrlich verschluesselt."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    e = header["encryption"]
+    e["compressedBytes"] = len(body)
+    key = sf.derive_key(pdf, base64.b64decode(e["salt"]), sf.key_info(header["solutionId"]))
+    ct = AESGCM(key).encrypt(base64.b64decode(e["nonce"]), body, sf.aad(header))
+    return {"format": sf.FORMAT, "formatVersion": 2, "header": header, "ciphertext": base64.b64encode(ct).decode()}
+
+
+def stroke_cases() -> list:
+    objs = [{"type": "stroke", "points": [10, 20, 30.5, 40.25, 50.125, 60], "widths": [2, 2.4, 2.1]},
+            {"type": "stroke", "points": [-0.05, -0.04, -0.15, 1e-07, 14400.04, 0.25, 7], "widths": [0.005, -0.015]},
+            {"type": "stroke", "points": [], "widths": []},
+            {"type": "stroke", "points": [1e12, 5], "widths": [1, "x"], "tool": "pen"},
+            {"type": "shape", "shape": "line", "points": [0.123, 4.567]}]
+    out = []
+    for o in objs:
+        wire = sf.encode_object(o)
+        out.append({"object": o, "wire": wire, "opened": json.loads(sf.canonical(sf.decode_object(json.loads(sf.canonical(wire)))))})
+    return out
 
 
 def render() -> str:
@@ -93,6 +127,8 @@ def render() -> str:
     c1 = case("drei Seiten: PDF, gedrehte PDF-Seite, Leerseite, Bild, fehlendes Bild, Sonderzeichen", pdf_a, content_full,
               bytes(range(32)), bytes(range(100, 112)))
     c2 = case("anonym, eine Seite, Textmarker", pdf_b, content_anon, b"\xff" * 32, b"\x00" * 12)
+    legacy = case("Version 1 (alt, ungepackt): drei Seiten wie oben, Punkte unveraendert", pdf_a, content_full,
+                  bytes(range(32)), bytes(range(100, 112)), version=1)
     tampered = json.loads(json.dumps(c1["package"]))
     tampered["header"]["displayName"] = "Jemand anderes"
     flipped = json.loads(json.dumps(c2["package"]))
@@ -101,29 +137,62 @@ def render() -> str:
     flipped["ciphertext"] = base64.b64encode(bytes(ct)).decode()
     extra = json.loads(json.dumps(c2["package"]))
     extra["header"]["note"] = "zusätzlich"
+    zstd = json.loads(json.dumps(c2["package"]))
+    zstd["header"]["encryption"]["compression"] = "zstd"
+    legacy_v2 = json.loads(json.dumps(legacy["package"]))
+    legacy_v2["formatVersion"] = 2
+    # Zip-Bombe: Kopf sagt 4096 Byte, entpackt waeren es mehr als maxPlaintextBytes
+    bomb_header = json.loads(json.dumps(c2["package"]["header"]))
+    bomb_header["encryption"]["plaintextBytes"] = 4096
+    bomb = seal_raw(pdf_b, bomb_header, sf.deflate(b" " * (sf.MAX_PLAINTEXT_BYTES + 1)))
+    short_header = json.loads(json.dumps(c2["package"]["header"]))
+    short_header["encryption"]["plaintextBytes"] += 1
+    short = seal_raw(pdf_b, short_header, sf.deflate(c2["plaintext"].encode()))
+    both = json.loads(c2["plaintext"])
+    both["pages"][0]["objects"][0]["points"] = [1, 2]
+    both_text = sf.canonical(both).encode()
+    both_header = json.loads(json.dumps(c2["package"]["header"]))
+    both_header["encryption"]["plaintextBytes"] = len(both_text)
+    both_pkg = seal_raw(pdf_b, both_header, sf.deflate(both_text))
     negative = [
         {"name": "Kopf veraendert (Anzeigename): AAD passt nicht", "pdf_of": 0, "package": tampered, "error": "decryptionFailed"},
         {"name": "Chiffrat veraendert", "pdf_of": 1, "package": flipped, "error": "decryptionFailed"},
         {"name": "andere PDF", "pdf_of": 1, "package": c1["package"], "error": "fingerprintMismatch"},
         {"name": "unbekanntes Feld im Kopf", "pdf_of": 1, "package": extra, "error": "invalidHeader"},
+        {"name": "unbekannte Kompression", "pdf_of": 1, "package": zstd, "error": "invalidHeader"},
+        {"name": "Version 1 als Version 2 ausgegeben (Kopf ohne Kompression)", "pdf_of": 0, "package": legacy_v2, "error": "invalidHeader"},
+        {"name": "Zip-Bombe: entpackt groesser als plaintextBytes (und als maxPlaintextBytes)", "pdf_of": 1, "package": bomb, "error": "tooLarge"},
+        {"name": "entpackt kleiner als plaintextBytes", "pdf_of": 1, "package": short, "error": "invalidContent"},
+        {"name": "Strich mit points und pointsDelta zugleich", "pdf_of": 1, "package": both_pkg, "error": "invalidContent"},
     ]
+    for n in negative:
+        try:
+            sf.open_package(n["package"], pdf_a if n["pdf_of"] == 0 else pdf_b)
+        except Exception:
+            pass
+        else:
+            raise AssertionError(n["name"])
     from app.studip_sync import classify
     secret = sf.community_secret("course", "luh", "kurs-beispiel")
     group_secret = sf.community_secret("group", "luh", "ABCDEFGH")
     content = content_anon(hashlib.sha256(pdf_b).hexdigest())
     pkg = sf.seal(content, None, b"\x11" * 32, b"\x22" * 12, secret)
-    assert sf.open_package(pkg, secret=secret) == content
+    assert sf.open_package(pkg, secret=secret) == sf.normalized(content)
     community = {"university": "luh", "course_id": "kurs-beispiel", "code": "ABCDEFGH", "secret_hex": secret.hex(), "group_secret_hex": group_secret.hex(),
                  "module_cases": [{"title": t, "module": classify(t)[0], "key": sf.community_module_key("luh", classify(t)[0]),
                                    "secret_hex": sf.community_secret("module", "luh", sf.normalized_course_name(classify(t)[0])).hex()}
                                   for t in ("Programmieren I", "Übung: Programmieren I", "Hörsaalübung Programmieren I", "Tutorium zu Programmieren I",
                                             "Programmieren I - Gruppenübung 3", "Programmieren I (Vorlesung)", "Signale und Systeme (für Elektrotechnik)")],
                  "salt": base64.b64encode(b"\x11" * 32).decode(), "nonce": base64.b64encode(b"\x22" * 12).decode(),
-                 "plaintext": sf.canonical(content), "content": content, "package": pkg, "package_text": sf.canonical(pkg)}
+                 "plaintext": sf.plaintext_of(content).decode(), "content": content, "opened": sf.normalized(content),
+                 "package": pkg, "package_text": sf.canonical(pkg)}
     data = {"_hinweis": "Erzeugt mit tools/gen-solution-vectors.py (Referenz app/solution_format.py); nicht von Hand aendern. "
                         "Pruefen: tests/test_solution_vectors.py (Python), tests/js/solutions.test.mjs (Browser), "
-                        "Swift: SolutionPackage.open/seal mit festem Salz und Nonce.",
-            "format": sf.FORMAT, "formatVersion": sf.FORMAT_VERSION, "cases": [c1, c2], "negative": negative,
+                        "Swift: SolutionPackageTests/ServiceCommunityTests (Kern) und SolutionVectorsAppTests (App). "
+                        "Gepackte Bytes sind je Sprache verschieden: geprueft werden Oeffnen der Python-Pakete, Klartext vor dem Packen "
+                        "und Hin und zurueck.",
+            "format": sf.FORMAT, "formatVersion": sf.FORMAT_VERSION, "readVersions": list(sf.READ_VERSIONS),
+            "cases": [c1, c2], "legacy": [legacy], "stroke_cases": stroke_cases(), "negative": negative,
             "community": community}
     return json.dumps(data, ensure_ascii=False, indent=1) + "\n"
 

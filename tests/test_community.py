@@ -81,13 +81,27 @@ def test_validate_package_accepts_sample_and_rejects_broken():
             community.validate_package(p)
         return x.value.code
     assert broken(lambda p: p.update(format="x")) == "not_a_solution"
-    assert broken(lambda p: p.update(formatVersion=2)) == "unsupported_version"
+    assert broken(lambda p: p.update(formatVersion=3)) == "unsupported_version"
+    assert broken(lambda p: p.update(formatVersion=1)) == "package_invalid", "Version 1 hat keine Kompressionsfelder"
     assert broken(lambda p: p.update(formatVersion=1.0)) == "package_invalid"
     assert broken(lambda p: p.update(extra=1)) == "package_invalid"
     assert broken(lambda p: p["header"].update(fremd=1)) == "package_invalid"
     assert broken(lambda p: p["header"]["document"].update(sha256="zz")) == "package_invalid"
     assert broken(lambda p: p["header"]["contents"].update(pages=0)) == "package_invalid"
-    assert broken(lambda p: p["header"]["encryption"].update(plaintextBytes=5)) == "package_invalid"
+    assert broken(lambda p: p["header"]["encryption"].update(compressedBytes=5)) == "package_invalid"
+    assert broken(lambda p: p["header"]["encryption"].update(plaintextBytes=0)) == "package_invalid"
+    assert broken(lambda p: p["header"]["encryption"].update(plaintextBytes=(48 << 20) + 1)) == "package_invalid"
+    assert broken(lambda p: p["header"]["encryption"].update(compression="zstd")) == "package_invalid"
+    assert broken(lambda p: p["header"]["encryption"].pop("compressedBytes")) == "package_invalid"
+    v1 = community.sample_package(FP_A)
+    for k in ("compression", "compressedBytes"):
+        v1["header"]["encryption"].pop(k)
+    v1["formatVersion"] = 1
+    v1["header"]["encryption"]["plaintextBytes"] = 32
+    assert community.validate_package(v1)["fingerprint"] == FP_A, "alte Pakete (Version 1) bleiben gueltig"
+    v1["header"]["encryption"]["plaintextBytes"] = 31
+    with pytest.raises(community.CommunityError):
+        community.validate_package(v1)
     assert broken(lambda p: p["header"]["encryption"].update(salt="QUJD")) == "package_invalid"
     assert broken(lambda p: p.update(ciphertext="nicht base64!")) == "package_invalid"
     assert broken(lambda p: p["header"].update(displayName="x" * 61)) == "package_invalid"

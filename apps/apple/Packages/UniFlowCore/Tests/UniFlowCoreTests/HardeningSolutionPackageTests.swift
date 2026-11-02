@@ -261,7 +261,8 @@ final class HardeningSolutionPackageTests: XCTestCase {
             if i % 25 == 0 {
                 let sealed = try SolutionPackage.seal(content, originalPDF: pdf, cipher: cipher, salt: rng.bytes(32), nonce: rng.bytes(12))
                 try second.importPackage(sealed.encoded())
-                XCTAssertEqual(try second.package(sealed.header.solutionID).open(originalPDF: Data(pdf), cipher: cipher), content, "Inhalt \(i)")
+                XCTAssertEqual(try second.package(sealed.header.solutionID).open(originalPDF: Data(pdf), cipher: cipher), try SolutionWire.normalized(content),
+                               "Inhalt \(i): Version 2 rundet Striche auf 0,1 Punkt")
             }
         }
         XCTAssertEqual(second.allEntries().count, 12)

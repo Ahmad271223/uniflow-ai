@@ -27,16 +27,56 @@ def test_open_reseal_and_reject():
     from cryptography.exceptions import InvalidTag
     from app import solution_format as sf
     v = json.loads(FIX.read_text(encoding="utf-8"))
-    for c in v["cases"]:
+    assert v["formatVersion"] == 2 and v["readVersions"] == [1, 2]
+    for c in v["cases"] + v["legacy"]:
         pdf = base64.b64decode(c["pdf"])
-        assert sf.open_package(c["package"], pdf) == c["content"]
-        pkg = sf.seal(c["content"], pdf, base64.b64decode(c["salt"]), base64.b64decode(c["nonce"]))
+        assert c["package"]["formatVersion"] == c["formatVersion"]
+        assert sf.open_package(c["package"], pdf) == c["opened"]
+        assert sf.plaintext_of(c["content"], c["formatVersion"]).decode() == c["plaintext"]
+        pkg = sf.seal(c["content"], pdf, base64.b64decode(c["salt"]), base64.b64decode(c["nonce"]), version=c["formatVersion"])
         assert sf.canonical(pkg) == c["package_text"]
         assert sf.derive_key(pdf, base64.b64decode(c["salt"]), c["info"].encode()).hex() == c["key_hex"]
+    assert v["legacy"][0]["opened"] == v["legacy"][0]["content"], "alte Pakete: Punkte unveraendert"
+    for c in v["cases"]:
+        assert sf.inflate(base64.b64decode(c["packed"]), len(c["plaintext"].encode())).decode() == c["plaintext"]
     for n in v["negative"]:
         pdf = base64.b64decode(v["cases"][n["pdf_of"]]["pdf"])
-        with pytest.raises((InvalidTag, ValueError, KeyError)):
+        with pytest.raises((InvalidTag, ValueError, KeyError)) as x:
             sf.open_package(n["package"], pdf)
+        if n["error"] in ("tooLarge", "invalidContent"):
+            assert str(x.value).startswith(n["error"]), n["name"]
+
+
+def test_stroke_cases_and_precision():
+    from app import solution_format as sf
+    v = json.loads(FIX.read_text(encoding="utf-8"))
+    for c in v["stroke_cases"]:
+        assert sf.encode_object(c["object"]) == c["wire"]
+        assert sf.decode_object(c["wire"]) == c["opened"]
+    for c in v["cases"]:
+        for pa, pb in zip(c["content"]["pages"], c["opened"]["pages"]):
+            for a, b in zip(pa["objects"], pb["objects"]):
+                if a["type"] == "stroke" and "pointsDelta" in sf.encode_object(a):
+                    assert len(a["points"]) == len(b["points"]) and max((abs(x - y) for x, y in zip(a["points"], b["points"])), default=0) <= 0.05 + 1e-9
+    with pytest.raises(ValueError):
+        sf.encode_object({"type": "stroke", "pointsDelta": [1]})
+    with pytest.raises(ValueError):
+        sf.decode_object({"type": "stroke", "pointsDelta": [1.5]})
+    with pytest.raises(ValueError):
+        sf.decode_object({"type": "stroke", "pointsDelta": [sf.MAX_QUANT, 0, 1]})
+
+
+def test_inflate_has_a_hard_limit():
+    from app import solution_format as sf
+    data = sf.deflate(b"a" * 100_000)
+    assert len(data) < 1000
+    assert sf.inflate(data, 100_000) == b"a" * 100_000
+    with pytest.raises(ValueError, match="tooLarge"):
+        sf.inflate(data, 99_999)
+    with pytest.raises(ValueError, match="invalidContent"):
+        sf.inflate(data[:-3], 100_000)
+    with pytest.raises(ValueError, match="invalidContent"):
+        sf.inflate(data + b"x", 100_000)
 
 
 def test_all_events_of_a_module_share_one_community():
@@ -59,7 +99,7 @@ def test_community_package_opens_with_the_secret_without_the_pdf():
     c = json.loads(FIX.read_text(encoding="utf-8"))["community"]
     secret = sf.community_secret("course", c["university"], c["course_id"])
     assert secret.hex() == c["secret_hex"]
-    assert sf.open_package(c["package"], secret=secret) == c["content"]
+    assert sf.open_package(c["package"], secret=secret) == c["opened"]
     assert sf.canonical(sf.seal(c["content"], None, base64.b64decode(c["salt"]), base64.b64decode(c["nonce"]), secret)) == c["package_text"]
     with pytest.raises(InvalidTag):
         sf.open_package(c["package"], secret=sf.community_secret("course", c["university"], "anderer-kurs"))
@@ -75,8 +115,12 @@ def test_service_accepts_real_packages():
         info = community.validate_package(c["package"])
         assert info["id"] == c["content"]["solutionId"] and info["fingerprint"] == c["sha256"]
         assert info["pages"] == len(c["content"]["pages"])
-    with pytest.raises(community.CommunityError):
-        community.validate_package(v["negative"][3]["package"])
+    for c in v["legacy"]:
+        assert community.validate_package(c["package"])["id"] == c["content"]["solutionId"], "alte Pakete bleiben gueltig"
+    for n in v["negative"]:
+        if n["error"] == "invalidHeader":
+            with pytest.raises(community.CommunityError):
+                community.validate_package(n["package"])
 
 
 def test_canonical_matches_swift_rules():

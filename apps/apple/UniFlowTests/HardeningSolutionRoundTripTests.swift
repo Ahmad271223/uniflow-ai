@@ -365,9 +365,11 @@ final class HardeningSolutionRoundTripTests: XCTestCase {
             XCTAssertEqual(layer.displayName, content.displayName)
             XCTAssertEqual(layer.pages.map(\.key), c.expectedKeys, "Dokument \(i): Seitenauswahl")
 
-            // jede Anmerkung exakt gleich: Werte (==) und Bytes der kanonischen Form (auch NFC/NFD und -0)
+            // jede Anmerkung exakt gleich: Werte (==) und Bytes der kanonischen Form (auch NFC/NFD und -0); Striche wie
+            // Formatversion 2 sie uebertraegt (Punkte auf 0,1 Punkt, Breiten auf 0,01 Punkt)
+            let expected = try SolutionWire.normalized(content)
             for page in layer.pages {
-                let own = c.doc.objects(page: page.key)
+                let own = expected.pages.first { $0.key == page.key }?.objects ?? []
                 XCTAssertEqual(page.objects, own, "Dokument \(i), Seite \(page.key)")
                 XCTAssertEqual(JSONValue.array(page.objects).serialized(sortedKeys: true), JSONValue.array(own).serialized(sortedKeys: true),
                                "Dokument \(i), Seite \(page.key): byte-gleich")
@@ -390,8 +392,8 @@ final class HardeningSolutionRoundTripTests: XCTestCase {
             totals.pages += layer.pages.count
             // Bilder: vorhandene gleich, fehlende gezaehlt
             let opened = try receiver.package(entry.solutionID).open(originalPDF: copy, cipher: cipher)
-            XCTAssertEqual(opened, content, "Dokument \(i)")
-            XCTAssertEqual(opened.json.serialized(sortedKeys: true), plain, "Dokument \(i): Klartext byte-gleich")
+            XCTAssertEqual(opened, expected, "Dokument \(i)")
+            XCTAssertEqual(opened.json.serialized(sortedKeys: true), expected.json.serialized(sortedKeys: true), "Dokument \(i): Klartext byte-gleich")
             XCTAssertEqual(opened.missingImages, c.expectedMissing, "Dokument \(i)")
             for (src, img) in opened.images { XCTAssertEqual(img, c.images[src], "Dokument \(i), \(src)") }
             XCTAssertEqual(Set(layer.images.keys), Set(opened.images.keys))
@@ -586,18 +588,18 @@ final class HardeningSolutionRoundTripTests: XCTestCase {
         }
         XCTAssertTrue(lib.allEntries().isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: lib.root.appendingPathComponent("received").path), "nichts abgelegt")
-        // Chiffrat gekuerzt und Groesse im Kopf passend gemacht: lesbar, aber nicht zu oeffnen
+        // Chiffrat gekuerzt und gepackte Groesse im Kopf passend gemacht: lesbar, aber nicht zu oeffnen
         var short = try JSONValue.parse(original)
         let cut = package.ciphertext.dropLast(5)
         short["ciphertext"] = .string(Data(cut).base64EncodedString())
-        short["header"]?["encryption"]?["plaintextBytes"] = .number(Double(cut.count - 16))
+        short["header"]?["encryption"]?["compressedBytes"] = .number(Double(cut.count - 16))
         let shortPackage = try SolutionPackage.decode(short.serialized(sortedKeys: true))
         XCTAssertThrowsError(try shortPackage.open(originalPDF: pdf, cipher: cipher)) { XCTAssertEqual($0 as? SolutionError, .decryptionFailed) }
         // nur das Tag (Klartext 0 Byte) und kuerzer als das Tag
         for keep in [16, 15, 0] {
             var t = try JSONValue.parse(original)
             t["ciphertext"] = .string(Data(package.ciphertext.prefix(keep)).base64EncodedString())
-            t["header"]?["encryption"]?["plaintextBytes"] = .number(Double(keep - 16))
+            t["header"]?["encryption"]?["compressedBytes"] = .number(Double(keep - 16))
             XCTAssertThrowsError(try SolutionPackage.decode(t.serialized(sortedKeys: true)).open(originalPDF: pdf, cipher: cipher), "\(keep)")
         }
     }
@@ -837,7 +839,9 @@ final class HardeningSolutionRoundTripTests: XCTestCase {
         let layer = try SolutionSharing.layer(try SolutionSharing.package(content, originalPDF: pdf).open(originalPDF: pdf, cipher: cipher),
                                               visible: true, pdf: PDFDocument(data: pdf)!)
         let page = try XCTUnwrap(layer.byPDFIndex[1])
-        XCTAssertEqual(page.objects, objects)
+        // Formatversion 2: Striche mit kleinen Werten als ganze Zahlen auf 0,1 Punkt, Grenzwerte bleiben unveraendert
+        XCTAssertEqual(page.objects, try objects.map { try SolutionWire.decodeObject(try JSONValue.parse(try SolutionWire.encodeObject($0).serialized())) })
+        XCTAssertEqual(page.objects.filter { $0["type"]?.string != "stroke" }, objects.filter { $0["type"]?.string != "stroke" })
         for rotation in [0, 90, 180, 270] {
             let view = ForeignLayerView(solutionID: layer.id, page: page, images: layer.images, targetRotation: rotation, label: layer.label)
             view.layoutIfNeeded()

@@ -1,19 +1,29 @@
-// Loesungspakete "uniflow-solution" Version 1 im Browser (Windows-App, Web), byte-gleich mit dem iPad
-// (apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Solutions/SolutionPackage.swift, SolutionCrypto.swift).
+// Loesungspakete "uniflow-solution" im Browser (Windows-App, Web): Version 2 schreiben, Versionen 1 und 2 lesen, wie
+// das iPad (apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Solutions/SolutionPackage.swift, SolutionCrypto.swift).
 // Ohne DOM: laeuft auch unter Node (tests/js/solutions.test.mjs) gegen die gemeinsamen Testvektoren
 // packages/shared-contracts/fixtures/solutions/vectors.json.
 //
 // - Schluessel: HKDF-SHA256 ueber die VOLLSTAENDIGEN Bytes der Original-PDF, Salz 32 Byte (Kopf),
-//   Info "uniflow-solution/v1|<loesungs-id klein>"; AES-256-GCM, Nonce 12 Byte, Chiffrat + 16 Byte Tag.
+//   Info "uniflow-solution/v<formatVersion>|<loesungs-id klein>"; AES-256-GCM, Nonce 12 Byte, Chiffrat + 16 Byte Tag.
 // - AAD: {"format","formatVersion","header"} kanonisch (sortierte Schluessel, keine Leerzeichen, Zeichen wie
 //   JSONValue.serialized in Swift: nur " \ \n \r \t und uebrige Steuerzeichen als \u00xx maskiert).
+// - Version 2 (2.11.2026, docs/LOESUNGEN-TEILEN.md 3a): Striche als ganze Zahlen (`pointsDelta` = Koordinate x 10,
+//   `widthsDelta` = Breite x 100, jeweils als Differenz), Klartext vor dem Verschluesseln mit raw DEFLATE gepackt
+//   (CompressionStream "deflate-raw"); beim Entpacken nie mehr als `plaintextBytes`. Nach dem Oeffnen wieder
+//   Objekte wie in Version 1 (Punkte als Zahlenliste), Editor und Leser bleiben unveraendert.
 // - Inhalt: eigene Notizobjekte je Seite 1:1, nie PDF-Bytes. Empfaenger pruefen Seitenzahl, Seitengroesse und
 //   /Rotate gegen die eigene PDF; passt etwas nicht, wird keine Ebene gezeigt (auch nicht teilweise).
 
 export const FORMAT = "uniflow-solution";
 export const CONTENT_FORMAT = "uniflow-solution-content";
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;            // geschrieben wird immer Version 2
+export const READ_VERSIONS = [1, 2];
+export const CONTENT_VERSION = 1;           // Inhalt nach dem Oeffnen (Punkte als Zahlenliste)
+export const COMPRESSION = "deflate-raw";
 export const TAG_BYTES = 16;
+// Feld im Speicher, Feld in Version 2, Faktor, Abstand der Differenz (wie DELTA_FIELDS in app/solution_format.py)
+const DELTA_FIELDS = [["points", "pointsDelta", 10, 2], ["widths", "widthsDelta", 100, 1]];
+const MAX_QUANT = 1e10;
 export const LIMITS = {
   maxPlaintextBytes: 48 << 20, maxPages: 2000, maxObjectsPerPage: 20000, maxObjects: 200000, maxImages: 200,
   maxImageBytes: 10 << 20, maxPDFPages: 100000, maxPageSide: 14400, maxDisplayName: 60, maxTitle: 200,
@@ -96,7 +106,7 @@ export async function sha256Hex(bytes) {
   return [...h].map(x => x.toString(16).padStart(2, "0")).join("");
 }
 export function randomBytes(n) { const u = new Uint8Array(n); globalThis.crypto.getRandomValues(u); return u; }
-export const keyInfo = id => utf8(`${FORMAT}/v${FORMAT_VERSION}|${String(id).toLowerCase()}`);
+export const keyInfo = (id, version = FORMAT_VERSION) => utf8(`${FORMAT}/v${version}|${String(id).toLowerCase()}`);
 
 /** Schluesselmaterial einer Community (1.11.2026): `scope` course (Kurs-ID) oder group (normalisierter Code). */
 export async function communitySecret(scope, university, value) {
@@ -165,7 +175,7 @@ function validatePage(p, pdfPageCount) {
 /** Inhalt lesen und vollstaendig pruefen (SolutionContent(json:)). Bilder bleiben Base64 ({mime, data}). */
 export function validateContent(j) {
   if (!isObj(j) || j.format !== CONTENT_FORMAT) fail("invalidContent", "Formatkennung");
-  const v = exactInt(j.formatVersion); if (v === null) fail("invalidContent", "Formatversion"); if (v !== FORMAT_VERSION) fail("unsupportedVersion", v);
+  const v = exactInt(j.formatVersion); if (v === null) fail("invalidContent", "Formatversion"); if (v !== CONTENT_VERSION) fail("unsupportedVersion", v);
   checkFinite(j);
   if (!isUUID(j.solutionId)) fail("invalidContent", "Lösungs-ID");
   if (!isDate(j.createdAt)) fail("invalidContent", "Erstellungsdatum");
@@ -195,7 +205,7 @@ export function validateContent(j) {
   }
   if (!Array.isArray(j.missingImages) || j.missingImages.some(s => typeof s !== "string")) fail("invalidContent", "fehlende Bilder");
   checkNoPDF(j.missingImages, "src"); checkNoPDF(Object.keys(images), "src");
-  return { format: CONTENT_FORMAT, formatVersion: FORMAT_VERSION, solutionId: j.solutionId.toLowerCase(), createdAt: j.createdAt, title: j.title,
+  return { format: CONTENT_FORMAT, formatVersion: CONTENT_VERSION, solutionId: j.solutionId.toLowerCase(), createdAt: j.createdAt, title: j.title,
            displayName: j.displayName, document: { sha256: j.document.sha256, pageCount: count }, pages: pages.map(pageJSON), images, missingImages: j.missingImages.slice() };
 }
 function pageJSON(p) {
@@ -205,21 +215,96 @@ function pageJSON(p) {
   return o;
 }
 
+// ---------------------------------------------------------------- Version 2: Striche als ganze Zahlen, raw DEFLATE
+
+/** Wie Python `math.floor(v * scale + 0.5)` und Swift `(v * scale + 0.5).rounded(.down)`. */
+const quantize = (v, scale) => Math.floor(v * scale + 0.5);
+const encodable = (a, scale) => Array.isArray(a) && a.every(x => typeof x === "number" && Number.isFinite(x) && Math.abs(x) * scale <= MAX_QUANT);
+
+/** Strich im Speicher -> Version 2; andere Objekte und nicht kodierbare Listen bleiben unveraendert. */
+export function encodeObject(o) {
+  if (!isObj(o) || o.type !== "stroke") return o;
+  if (DELTA_FIELDS.some(([, d]) => d in o)) fail("invalidContent", "reserviertes Feld");
+  const out = { ...o };
+  for (const [field, dfield, scale, step] of DELTA_FIELDS) {
+    if (!(field in o) || !encodable(o[field], scale)) continue;
+    const q = o[field].map(x => quantize(x, scale));
+    out[dfield] = q.map((v, i) => v - (i >= step ? q[i - step] : 0)); delete out[field];
+  }
+  return out;
+}
+/** Strich aus Version 2 -> Punkte als Zahlenliste in Seitenpunkten. */
+export function decodeObject(o) {
+  if (!isObj(o) || o.type !== "stroke") return o;
+  const out = { ...o };
+  for (const [field, dfield, scale, step] of DELTA_FIELDS) {
+    if (!(dfield in o)) continue;
+    const a = o[dfield];
+    if (field in o || !Array.isArray(a)) fail("invalidContent", "Strich");
+    const q = [];
+    for (let i = 0; i < a.length; i++) {
+      const d = a[i];
+      if (typeof d !== "number" || !Number.isInteger(d) || Math.abs(d) > 2 * MAX_QUANT) fail("invalidContent", "Strich");
+      const v = d + (i >= step ? q[i - step] : 0);
+      if (Math.abs(v) > MAX_QUANT) fail("invalidContent", "Strich");
+      q.push(v);
+    }
+    out[field] = q.map(v => v / scale); delete out[dfield];
+  }
+  return out;
+}
+const mapObjects = (c, fn, version) => ({ ...c, formatVersion: version,
+  ...(Array.isArray(c.pages) ? { pages: c.pages.map(p => (isObj(p) && Array.isArray(p.objects) ? { ...p, objects: p.objects.map(fn) } : p)) } : {}) });
+/** Inhalt im Speicher (Version 1) -> Klartext von Version 2. */
+export const encodeContent = c => mapObjects(c, encodeObject, 2);
+/** Klartext von Version 2 -> Inhalt im Speicher (Version 1). */
+export function decodeContent(j) {
+  if (!isObj(j) || j.format !== CONTENT_FORMAT) fail("invalidContent", "Formatkennung");
+  const v = exactInt(j.formatVersion); if (v === null) fail("invalidContent", "Formatversion"); if (v !== 2) fail("unsupportedVersion", v);
+  return mapObjects(j, decodeObject, CONTENT_VERSION);
+}
+/** Kanonischer Klartext von Version 2 vor dem Packen (byte-gleich mit Python und Swift). */
+export const plaintextBytes = content => utf8(canonical(encodeContent(content)));
+
+/** Bytes durch einen (De-)Kompressionsstrom; mehr als `limit` Byte heraus: tooLarge (Schutz vor Zip-Bomben). */
+async function pipe(u8, stream, limit) {
+  const writer = stream.writable.getWriter(), reader = stream.readable.getReader();
+  const written = writer.write(u8).then(() => writer.close()).catch(() => {});
+  const parts = []; let total = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > limit) { reader.cancel().catch(() => {}); fail("tooLarge"); }
+      parts.push(value);
+    }
+  } catch (e) { if (e instanceof SolutionError) throw e; fail("invalidContent", "Kompression"); }
+  await written;
+  const out = new Uint8Array(total); let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
+}
+const needStreams = () => { if (typeof CompressionStream === "undefined" || typeof DecompressionStream === "undefined") throw new SolutionError("noCompression", "Packen ist in diesem Browser nicht verfügbar – bitte aktualisieren."); };
+export async function deflateRaw(u8) { needStreams(); return pipe(u8, new CompressionStream(COMPRESSION), Infinity); }
+export async function inflateRaw(u8, limit) { needStreams(); return pipe(u8, new DecompressionStream(COMPRESSION), limit); }
+
 // ---------------------------------------------------------------- Kopf, Paket
 
-function headerJSON(c, salt, nonce, plaintextBytes) {
+function headerJSON(c, salt, nonce, plaintextBytes, compressedBytes) {
+  const encryption = { cipher: "AES-256-GCM", kdf: "HKDF-SHA256", keyMaterial: "original-pdf-bytes", salt: b64encode(salt), nonce: b64encode(nonce), plaintextBytes };
+  if (compressedBytes != null) Object.assign(encryption, { compression: COMPRESSION, compressedBytes });
   return { solutionId: c.solutionId, createdAt: c.createdAt, displayName: c.displayName,
            document: { sha256: c.document.sha256, pageCount: c.document.pageCount },
-           contents: { pages: c.pages.length, images: Object.keys(c.images).length, missingImages: c.missingImages.length },
-           encryption: { cipher: "AES-256-GCM", kdf: "HKDF-SHA256", keyMaterial: "original-pdf-bytes", salt: b64encode(salt), nonce: b64encode(nonce), plaintextBytes } };
+           contents: { pages: c.pages.length, images: Object.keys(c.images).length, missingImages: c.missingImages.length }, encryption };
 }
-export const aadBytes = header => utf8(canonical({ format: FORMAT, formatVersion: FORMAT_VERSION, header }));
+export const aadBytes = (header, version = FORMAT_VERSION) => utf8(canonical({ format: FORMAT, formatVersion: version, header }));
 
-/** Kopf pruefen wie SolutionPackage.decode (ohne PDF). Liefert {header, sealed, salt, nonce}. */
+/** Kopf pruefen wie SolutionPackage.decode (ohne PDF). Liefert {version, header, sealed, salt, nonce}. */
 export function decodePackage(pkg) {
   if (typeof pkg === "string") { try { pkg = JSON.parse(pkg); } catch { fail("notASolution"); } }
   if (!isObj(pkg) || pkg.format !== FORMAT) fail("notASolution");
-  const v = exactInt(pkg.formatVersion); if (v === null) fail("invalidHeader", "Formatversion"); if (v !== FORMAT_VERSION) fail("unsupportedVersion", v);
+  const v = exactInt(pkg.formatVersion); if (v === null) fail("invalidHeader", "Formatversion"); if (!READ_VERSIONS.includes(v)) fail("unsupportedVersion", v);
   if (Object.keys(pkg).sort().join() !== "ciphertext,format,formatVersion,header") fail("invalidHeader", "unbekannte Felder");
   checkFinite(pkg);
   const h = pkg.header; if (!isObj(h)) fail("invalidHeader", "fehlt");
@@ -235,13 +320,19 @@ export function decodePackage(pkg) {
   const salt = b64decode(e.salt); if (!salt || salt.length !== 32) fail("invalidHeader", "Salz");
   const nonce = b64decode(e.nonce); if (!nonce || nonce.length !== 12) fail("invalidHeader", "Nonce");
   const size = exactInt(e.plaintextBytes); if (size === null || size < 1 || size > LIMITS.maxPlaintextBytes) fail("invalidHeader", "Größe");
+  let packed = size;
+  if (v === 2) {
+    if (e.compression !== COMPRESSION) fail("invalidHeader", "Kompression");
+    packed = exactInt(e.compressedBytes); if (packed === null || packed < 1 || packed > LIMITS.maxPlaintextBytes) fail("invalidHeader", "Größe");
+  }
   const header = { solutionId: h.solutionId.toLowerCase(), createdAt: h.createdAt, displayName: h.displayName, document: { sha256: h.document.sha256, pageCount: count },
                    contents: { pages, images, missingImages: missing }, encryption: { cipher: e.cipher, kdf: e.kdf, keyMaterial: e.keyMaterial, salt: b64encode(salt), nonce: b64encode(nonce), plaintextBytes: size } };
-  // Kopf genau in der Form von Version 1 (die AAD wird aus dem geprueften Kopf gebildet)
+  if (v === 2) Object.assign(header.encryption, { compression: COMPRESSION, compressedBytes: packed });
+  // Kopf genau in der Form seiner Version (die AAD wird aus dem geprueften Kopf gebildet)
   if (canonical(header) !== canonical(h)) fail("invalidHeader", "unbekannte Felder");
   const sealed = b64decode(pkg.ciphertext); if (!sealed) fail("invalidHeader", "Chiffrat");
-  if (sealed.length !== size + TAG_BYTES) fail("invalidHeader", "Größe");
-  return { header, sealed, salt, nonce };
+  if (sealed.length !== packed + TAG_BYTES) fail("invalidHeader", "Größe");
+  return { version: v, header, sealed, salt, nonce };
 }
 
 /** Inhalt mit der Original-PDF verschluesseln (SolutionPackage.seal). `salt`/`nonce` nur fuer Testvektoren. */
@@ -249,31 +340,35 @@ export async function seal(content, pdfBytes, { salt, nonce, secret } = {}) {
   if (!secret && await sha256Hex(pdfBytes) !== content.document.sha256) fail("fingerprintMismatch");
   const checked = validateContent(content);
   if (canonical(checked) !== canonical(content)) fail("invalidContent", "nicht verlustfrei");
-  const plaintext = utf8(canonical(content));
+  const plaintext = plaintextBytes(content);
   if (plaintext.length > LIMITS.maxPlaintextBytes) fail("tooLarge");
+  const packed = await deflateRaw(plaintext);
+  if (packed.length > LIMITS.maxPlaintextBytes) fail("tooLarge");
   salt = salt || randomBytes(32); nonce = nonce || randomBytes(12);
-  const header = headerJSON(content, salt, nonce, plaintext.length);
+  const header = headerJSON(content, salt, nonce, plaintext.length, packed.length);
   if (secret) header.encryption.keyMaterial = "community-secret";
   const key = await aesKey(secret || pdfBytes, salt, keyInfo(header.solutionId));
-  const ct = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv: nonce, additionalData: aadBytes(header), tagLength: 128 }, key, plaintext));
-  if (ct.length !== plaintext.length + TAG_BYTES) fail("invalidContent", "Verschlüsselung");
+  const ct = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv: nonce, additionalData: aadBytes(header), tagLength: 128 }, key, packed));
+  if (ct.length !== packed.length + TAG_BYTES) fail("invalidContent", "Verschlüsselung");
   return { format: FORMAT, formatVersion: FORMAT_VERSION, header, ciphertext: b64encode(ct) };
 }
 export const encodePackage = pkg => canonical(pkg);
 
 /** Mit der eigenen PDF entschluesseln und pruefen (SolutionPackage.open). Fingerabdruck falsch: gar nicht erst. */
 export async function openPackage(pkg, pdfBytes, fingerprint = null, secret = null) {
-  const { header, sealed, salt, nonce } = decodePackage(pkg);
+  const { version, header, sealed, salt, nonce } = decodePackage(pkg);
   const community = header.encryption.keyMaterial === "community-secret";
   if (community ? !secret : (fingerprint || await sha256Hex(pdfBytes)) !== header.document.sha256) fail(community ? "decryptionFailed" : "fingerprintMismatch");
   let plain;
   try {
-    const key = await aesKey(community ? secret : pdfBytes, salt, keyInfo(header.solutionId));
-    plain = new Uint8Array(await subtle().decrypt({ name: "AES-GCM", iv: nonce, additionalData: aadBytes(header), tagLength: 128 }, key, sealed));
+    const key = await aesKey(community ? secret : pdfBytes, salt, keyInfo(header.solutionId, version));
+    plain = new Uint8Array(await subtle().decrypt({ name: "AES-GCM", iv: nonce, additionalData: aadBytes(header, version), tagLength: 128 }, key, sealed));
   } catch { fail("decryptionFailed"); }
+  // harte Obergrenze: nie mehr entpacken als der (authentifizierte) Kopf angibt
+  if (version === 2) plain = await inflateRaw(plain, header.encryption.plaintextBytes);
   if (plain.length !== header.encryption.plaintextBytes) fail("invalidContent", "Größe");
   let j; try { j = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plain)); } catch { fail("invalidContent", "JSON"); }
-  const c = validateContent(j);
+  const c = validateContent(version === 2 ? decodeContent(j) : j);
   if (c.solutionId !== header.solutionId || c.document.sha256 !== header.document.sha256 || c.document.pageCount !== header.document.pageCount ||
       c.createdAt !== header.createdAt || c.displayName !== header.displayName || c.pages.length !== header.contents.pages ||
       Object.keys(c.images).length !== header.contents.images || c.missingImages.length !== header.contents.missingImages) fail("invalidContent", "passt nicht zum Kopf");
@@ -330,7 +425,7 @@ export function buildContent({ model, selectedKeys, pdfPageCount, pdfPage, image
     const img = images[src];
     if (img && sniffImage(img.data) === img.mime) embedded[src] = { mime: img.mime, data: b64encode(img.data) }; else missing.push(src);
   }
-  const content = { format: CONTENT_FORMAT, formatVersion: FORMAT_VERSION, solutionId: String(solutionId).toLowerCase(),
+  const content = { format: CONTENT_FORMAT, formatVersion: CONTENT_VERSION, solutionId: String(solutionId).toLowerCase(),
                     createdAt: typeof createdAt === "string" ? createdAt : timestamp(createdAt), title: [...String(title).trim()].slice(0, LIMITS.maxTitle).join(""),
                     displayName: [...String(displayName).trim()].slice(0, LIMITS.maxDisplayName).join(""),
                     document: { sha256: String(fingerprint).toLowerCase(), pageCount: pdfPageCount }, pages, images: embedded, missingImages: missing };

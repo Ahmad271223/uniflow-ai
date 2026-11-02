@@ -11,21 +11,52 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const V = JSON.parse(readFileSync(join(root, "packages/shared-contracts/fixtures/solutions/vectors.json"), "utf8"));
 const bytes = b64 => S.b64decode(b64);
 
-for (const c of V.cases) {
-  test(`oeffnen: ${c.name}`, async () => {
+assert.equal(V.formatVersion, S.FORMAT_VERSION);
+assert.deepEqual(V.readVersions, S.READ_VERSIONS);
+
+for (const c of [...V.cases, ...V.legacy]) {
+  test(`oeffnen (Version ${c.formatVersion}): ${c.name}`, async () => {
     const pdf = bytes(c.pdf);
     assert.equal(await S.sha256Hex(pdf), c.sha256);
     const content = await S.openPackage(c.package, pdf);
-    assert.equal(S.canonical(content), c.plaintext);
-    assert.equal(new TextDecoder().decode(S.aadBytes(c.package.header)), c.aad);
-    assert.equal(new TextDecoder().decode(S.keyInfo(c.content.solutionId)), c.info);
-  });
-  test(`versiegeln byte-gleich: ${c.name}`, async () => {
-    const pkg = await S.seal(c.content, bytes(c.pdf), { salt: bytes(c.salt), nonce: bytes(c.nonce) });
-    assert.equal(S.encodePackage(pkg), c.package_text);
-    assert.equal(S.canonical(c.content), c.plaintext, "kanonisches JSON wie Swift und Python");
+    assert.equal(S.canonical(content), S.canonical(c.opened));
+    assert.equal(new TextDecoder().decode(S.aadBytes(c.package.header, c.formatVersion)), c.aad);
+    assert.equal(new TextDecoder().decode(S.keyInfo(c.content.solutionId, c.formatVersion)), c.info);
   });
 }
+for (const c of V.cases) {
+  test(`versiegeln, Klartext byte-gleich, hin und zurueck: ${c.name}`, async () => {
+    assert.equal(new TextDecoder().decode(S.plaintextBytes(c.content)), c.plaintext, "kanonischer Klartext von Version 2 wie Python und Swift");
+    const pdf = bytes(c.pdf);
+    const pkg = await S.seal(c.content, pdf, { salt: bytes(c.salt), nonce: bytes(c.nonce) });
+    assert.equal(pkg.formatVersion, 2);
+    const e = pkg.header.encryption, pe = c.package.header.encryption;
+    assert.deepEqual({ ...pkg.header, encryption: { ...e, compressedBytes: 0 } }, { ...c.package.header, encryption: { ...pe, compressedBytes: 0 } }, "Kopf wie Python bis auf die gepackte Groesse");
+    assert.equal(e.plaintextBytes, pe.plaintextBytes);
+    assert.ok(e.compressedBytes < e.plaintextBytes, "gepackt kleiner");
+    assert.equal(S.canonical(await S.openPackage(JSON.parse(S.encodePackage(pkg)), pdf)), S.canonical(c.opened));
+  });
+}
+
+test("Striche: Ganzzahlen und Differenzen wie Python", () => {
+  for (const c of V.stroke_cases) {
+    assert.equal(S.canonical(S.encodeObject(c.object)), S.canonical(c.wire));
+    assert.equal(S.canonical(S.decodeObject(c.wire)), S.canonical(c.opened));
+  }
+  assert.throws(() => S.encodeObject({ type: "stroke", pointsDelta: [1] }), e => e.code === "invalidContent");
+  assert.throws(() => S.decodeObject({ type: "stroke", pointsDelta: [1.5] }), e => e.code === "invalidContent");
+  assert.throws(() => S.decodeObject({ type: "stroke", pointsDelta: [1e10, 0, 1] }), e => e.code === "invalidContent");
+});
+
+test("raw DEFLATE: harte Obergrenze beim Entpacken", async () => {
+  const big = new Uint8Array(100000).fill(97);
+  const packed = await S.deflateRaw(big);
+  assert.ok(packed.length < 1000);
+  assert.equal((await S.inflateRaw(packed, 100000)).length, 100000);
+  await assert.rejects(S.inflateRaw(packed, 99999), e => e.code === "tooLarge");
+  await assert.rejects(S.inflateRaw(packed.subarray(0, packed.length - 3), 100000), e => e.code === "invalidContent");
+  await assert.rejects(S.inflateRaw(new Uint8Array([...packed, 1, 2, 3]), 100000), e => e.code === "invalidContent");
+});
 
 for (const n of V.negative) {
   test(`abweisen: ${n.name}`, async () => {
@@ -38,9 +69,10 @@ test("Community-Paket: mit dem Schluessel der Community, ohne die PDF", async ()
   const secret = await S.communitySecret("course", c.university, c.course_id);
   assert.equal(Buffer.from(secret).toString("hex"), c.secret_hex);
   assert.equal(Buffer.from(await S.communitySecret("group", c.university, c.code)).toString("hex"), c.group_secret_hex);
-  assert.equal(S.canonical(await S.openPackage(c.package, null, null, secret)), c.plaintext);
+  assert.equal(S.canonical(await S.openPackage(c.package, null, null, secret)), S.canonical(c.opened));
   const pkg = await S.seal(c.content, null, { salt: bytes(c.salt), nonce: bytes(c.nonce), secret });
-  assert.equal(S.encodePackage(pkg), c.package_text);
+  assert.equal(pkg.header.encryption.keyMaterial, "community-secret");
+  assert.equal(S.canonical(await S.openPackage(pkg, null, null, secret)), S.canonical(c.opened));
   await assert.rejects(S.openPackage(c.package, null), e => e.code === "decryptionFailed");
   for (const m of c.module_cases) {
     const name = m.module.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^\p{L}\p{N}]+/gu, " ").trim();

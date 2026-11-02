@@ -2,7 +2,7 @@
 // ansehen. Der Schluessel einer Community entsteht aus Modulname bzw. Beitrittscode und oeffnet ihre Pakete auch ohne die
 // PDF; dann stehen die Notizen auf leeren Seiten. Codes bleiben in diesem Browser, der Dienst kennt nur den Gruppen-Schluessel.
 import { $, $$, api, esc, icon, toast, drawer, closeDrawer } from "./core.js?v=33";
-import * as S from "./solutions.js?v=2";
+import * as S from "./solutions.js?v=3";
 
 const GROUPS = "community-groups";
 export async function groupKey(university, code) { return S.sha256Hex(S.utf8(`uniflow.community.group.v1\0${university}\0${code}`)); }

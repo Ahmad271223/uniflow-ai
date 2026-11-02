@@ -341,8 +341,8 @@ final class SolutionPackageTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: receiver.root.appendingPathComponent("received/\(content.solutionID).uniflowsolution")), file,
                        "gespeichert wie empfangen (verschluesselt)")
         let opened = try receiver.package(content.solutionID).open(originalPDF: Data(pdf), cipher: cipher)
-        XCTAssertEqual(opened, content)
-        for page in opened.pages { XCTAssertEqual(page.objects, doc.objects(page: page.key)) }
+        XCTAssertEqual(opened, try SolutionWire.normalized(content), "Version 2: Striche auf 0,1 Punkt")
+        for page in opened.pages { XCTAssertEqual(page.objects, try doc.objects(page: page.key).map { try SolutionWire.decodeObject(try JSONValue.parse(try SolutionWire.encodeObject($0).serialized())) }) }
     }
 
     func testOtherPDFNeverOpens() throws {
@@ -412,7 +412,7 @@ final class SolutionPackageTests: XCTestCase {
         assertRejected(mutate(package) { $0["header"]?["solutionId"] = "keine-uuid" }, pdf: pdf, .invalidHeader("Lösungs-ID"))
         assertRejected(mutate(package) { $0["header"]?["encryption"]?["cipher"] = "ROT13" }, pdf: pdf, .invalidHeader("Verfahren"))
         // Version (auch Werte, die sich nicht als Int darstellen lassen: kein Absturz, sondern abgewiesen)
-        assertRejected(mutate(package) { $0["formatVersion"] = 2 }, pdf: pdf, .unsupportedVersion(2))
+        assertRejected(mutate(package) { $0["formatVersion"] = 3 }, pdf: pdf, .unsupportedVersion(3))
         for v in [1e300, -1e300, 1e18, -9.3e18, 1.5, 9.0e15] {
             assertRejected(mutate(package) { $0["formatVersion"] = .number(v) }, pdf: pdf, .invalidHeader("Formatversion"))
         }
@@ -421,8 +421,8 @@ final class SolutionPackageTests: XCTestCase {
             assertRejected(Data(text.utf8), pdf: pdf, .invalidHeader("Formatversion"))
         }
         assertRejected(mutate(package) { $0["format"] = "etwas-anderes" }, pdf: pdf, .notASolution)
-        // Groesse: angegebene Klartextgroesse, abgeschnittenes Chiffrat, zu grosse Datei
-        assertRejected(mutate(package) { $0["header"]?["encryption"]?["plaintextBytes"] = .number(Double(package.header.plaintextBytes + 1)) },
+        // Groesse: angegebene gepackte Groesse (Version 2), abgeschnittenes Chiffrat, zu grosse Datei
+        assertRejected(mutate(package) { $0["header"]?["encryption"]?["compressedBytes"] = .number(Double(package.header.compressedBytes! + 1)) },
                        pdf: pdf, .invalidHeader("Größe"))
         var short = package
         short.ciphertext = short.ciphertext.dropLast(3)
@@ -438,7 +438,8 @@ final class SolutionPackageTests: XCTestCase {
         assertRejected(Data(inf.utf8), pdf: pdf, .nonFiniteNumber)
     }
 
-    /// Gueltig verschluesselter, aber boesartiger Inhalt (wie von einem fremden Programm erzeugt).
+    /// Gueltig verschluesselter, aber boesartiger Inhalt (wie von einem fremden Programm erzeugt), als Paket der
+    /// Formatversion 1 (ungepackt; alte Pakete werden weiter gelesen und gleich streng geprueft).
     private func sealRaw(_ plaintext: Data, pdf: Data, id: String = "6f1c1c0e-6a63-4c38-9a0b-6c0f0f7b9a11",
                          pages: Int = 1, images: Int = 0) throws -> Data {
         let header = SolutionHeader(solutionID: id, createdAt: "2026-10-25T10:00:00Z", displayName: "",
@@ -446,7 +447,7 @@ final class SolutionPackageTests: XCTestCase {
                                     missingImageCount: 0, salt: Data(repeating: 1, count: 32), nonce: Data(repeating: 2, count: 12),
                                     plaintextBytes: plaintext.count)
         var p = SolutionPackage(header: header, ciphertext: Data())
-        p.ciphertext = try cipher.seal(plaintext, keyMaterial: pdf, salt: header.salt, info: SolutionPackage.keyInfo(solutionID: id),
+        p.ciphertext = try cipher.seal(plaintext, keyMaterial: pdf, salt: header.salt, info: SolutionPackage.keyInfo(solutionID: id, version: 1),
                                        nonce: header.nonce, aad: p.authenticatedHeader)
         return p.encoded()
     }

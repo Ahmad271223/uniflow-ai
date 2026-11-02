@@ -1,6 +1,6 @@
 import Foundation
 
-// Loesungspaket "uniflow-solution", Formatversion 1 (docs/LOESUNGEN-TEILEN.md).
+// Loesungspaket "uniflow-solution", Formatversion 2 (geschrieben) und 1 (nur gelesen) (docs/LOESUNGEN-TEILEN.md).
 //
 // Ein Paket enthaelt AUSSCHLIESSLICH eigene Anmerkungen (Objekte je Seite wie im Notizmodell, ohne `pkdrawing`) und
 // eingebettete eigene Bilder, nie die Original-PDF, Seitenbilder oder PDF-Bytes. Die Zuordnung zur Original-PDF des
@@ -8,10 +8,12 @@ import Foundation
 // PDF-Seitenindex.
 //
 // Datei (*.uniflowsolution, UTF-8-JSON):
-//   { "format": "uniflow-solution", "formatVersion": 1, "header": {...}, "ciphertext": "<Base64>" }
+//   { "format": "uniflow-solution", "formatVersion": 2, "header": {...}, "ciphertext": "<Base64>" }
 // Kopf (Klartext, als AAD authentifiziert): Loesungs-ID, Erstellungsdatum, Anzeigename, Fingerabdruck und Seitenzahl
-// des Originals, Anzahl Seiten/Bilder/fehlender Bilder, Verfahren, Salz, Nonce, Klartextgroesse.
-// Inhalt (verschluesselt): `SolutionContent` als JSON.
+// des Originals, Anzahl Seiten/Bilder/fehlender Bilder, Verfahren, Salz, Nonce, Klartextgroesse; ab Version 2 dazu
+// Kompression ("deflate-raw") und gepackte Groesse.
+// Inhalt (verschluesselt): `SolutionContent` als JSON; Version 2 mit Strichen als ganzen Zahlen (`SolutionWire`) und
+// vor dem Verschluesseln mit raw DEFLATE gepackt (`SolutionDeflate`), beim Entpacken nie mehr als `plaintextBytes`.
 //
 // Sicherheit und Grenzen (ehrlich): Der Schluessel wird per HKDF-SHA256 aus den VOLLSTAENDIGEN Bytes der Original-PDF
 // abgeleitet (zufaelliges Salz, Info = Formatkennung + Loesungs-ID), nie aus dem Fingerabdruck, denn der steht im
@@ -319,6 +321,8 @@ public enum SolutionValidator {
 /// Entschluesselter Inhalt eines Pakets.
 public struct SolutionContent: Equatable, Sendable {
     public static let format = "uniflow-solution-content"
+    /// Form im Speicher und in Version-1-Paketen (Punkte als Zahlenliste); Version 2 entsteht erst beim Versiegeln.
+    public static let formatVersion = 1
 
     public var solutionID: String
     /// ISO 8601 (UTC, Sekunden)
@@ -352,7 +356,7 @@ public struct SolutionContent: Equatable, Sendable {
 
     public var json: JSONValue {
         .object([
-            "format": .string(SolutionContent.format), "formatVersion": .number(Double(SolutionPackage.formatVersion)),
+            "format": .string(SolutionContent.format), "formatVersion": .number(Double(SolutionContent.formatVersion)),
             "solutionId": .string(solutionID), "createdAt": .string(createdAt), "title": .string(title),
             "displayName": .string(displayName),
             "document": .object(["sha256": .string(fingerprint), "pageCount": .number(Double(pdfPageCount))]),
@@ -368,7 +372,7 @@ public struct SolutionContent: Equatable, Sendable {
             throw SolutionError.invalidContent("Formatkennung")
         }
         guard let v = SolutionValidator.exactInt(json["formatVersion"]) else { throw SolutionError.invalidContent("Formatversion") }
-        guard v == SolutionPackage.formatVersion else { throw SolutionError.unsupportedVersion(v) }
+        guard v == SolutionContent.formatVersion else { throw SolutionError.unsupportedVersion(v) }
         try SolutionValidator.checkFinite(json)
         guard let id = json["solutionId"]?.string, SolutionValidator.isUUID(id) else { throw SolutionError.invalidContent("Lösungs-ID") }
         guard let created = json["createdAt"]?.string, SolutionValidator.parseDate(created) != nil else {
@@ -429,6 +433,8 @@ public struct SolutionHeader: Equatable, Sendable {
     public static let keyMaterialName = "original-pdf-bytes"
     /// Community-Paket: Schluessel aus Kurs-ID bzw. Code, Mitglieder oeffnen es auch ohne die PDF
     public static let communityKeyMaterialName = "community-secret"
+    /// Ab Formatversion 2: Klartext mit raw DEFLATE gepackt.
+    public static let compressionName = "deflate-raw"
 
     public var solutionID: String
     public var createdAt: String
@@ -440,27 +446,40 @@ public struct SolutionHeader: Equatable, Sendable {
     public var missingImageCount: Int
     public var salt: Data
     public var nonce: Data
+    /// Version 1: Klartextgroesse = Chiffrat ohne Tag. Version 2: Groesse des entpackten Klartexts (harte Obergrenze
+    /// beim Entpacken).
     public var plaintextBytes: Int
     public var keyMaterial = SolutionHeader.keyMaterialName
+    /// Gepackte Groesse (Chiffrat ohne Tag), nur Version 2; `nil` = Version 1 (ungepackt).
+    public var compressedBytes: Int?
 
     public var isCommunityPackage: Bool { keyMaterial == SolutionHeader.communityKeyMaterialName }
+    /// Formatversion, die dieser Kopf beschreibt.
+    public var formatVersion: Int { compressedBytes == nil ? 1 : 2 }
 
     public var json: JSONValue {
-        .object([
+        var encryption: [String: JSONValue] = [
+            "cipher": .string(SolutionHeader.cipherName), "kdf": .string(SolutionHeader.kdfName),
+            "keyMaterial": .string(keyMaterial),
+            "salt": .string(salt.base64EncodedString()), "nonce": .string(nonce.base64EncodedString()),
+            "plaintextBytes": .number(Double(plaintextBytes)),
+        ]
+        if let compressedBytes {
+            encryption["compression"] = .string(SolutionHeader.compressionName)
+            encryption["compressedBytes"] = .number(Double(compressedBytes))
+        }
+        return .object([
             "solutionId": .string(solutionID), "createdAt": .string(createdAt), "displayName": .string(displayName),
             "document": .object(["sha256": .string(fingerprint), "pageCount": .number(Double(pdfPageCount))]),
             "contents": .object(["pages": .number(Double(pageCount)), "images": .number(Double(imageCount)),
                                  "missingImages": .number(Double(missingImageCount))]),
-            "encryption": .object([
-                "cipher": .string(SolutionHeader.cipherName), "kdf": .string(SolutionHeader.kdfName),
-                "keyMaterial": .string(keyMaterial),
-                "salt": .string(salt.base64EncodedString()), "nonce": .string(nonce.base64EncodedString()),
-                "plaintextBytes": .number(Double(plaintextBytes)),
-            ]),
+            "encryption": .object(encryption),
         ])
     }
 
-    init(json h: JSONValue) throws {
+    /// Kopf lesen; `version` 1 ohne, 2 mit Kompressionsangaben (fehlen sie, wird abgewiesen; ueberzaehlige Felder
+    /// faengt der Vergleich mit `json` in `SolutionPackage.decode`).
+    init(json h: JSONValue, version: Int = SolutionPackage.formatVersion) throws {
         guard case .object = h else { throw SolutionError.invalidHeader("fehlt") }
         guard let id = h["solutionId"]?.string, SolutionValidator.isUUID(id) else { throw SolutionError.invalidHeader("Lösungs-ID") }
         guard let created = h["createdAt"]?.string, SolutionValidator.parseDate(created) != nil else {
@@ -495,13 +514,23 @@ public struct SolutionHeader: Equatable, Sendable {
         guard let size = SolutionValidator.exactInt(e?["plaintextBytes"]), size >= 1, size <= SolutionLimits.maxPlaintextBytes else {
             throw SolutionError.invalidHeader("Größe")
         }
+        var packed: Int?
+        if version >= 2 {
+            guard e?["compression"]?.string == SolutionHeader.compressionName else { throw SolutionError.invalidHeader("Kompression") }
+            guard let c = SolutionValidator.exactInt(e?["compressedBytes"]), c >= 1, c <= SolutionLimits.maxPlaintextBytes else {
+                throw SolutionError.invalidHeader("Größe")
+            }
+            packed = c
+        }
         self.init(solutionID: id.lowercased(), createdAt: created, displayName: name, fingerprint: fp, pdfPageCount: count,
-                  pageCount: pages, imageCount: images, missingImageCount: missing, salt: salt, nonce: nonce, plaintextBytes: size)
+                  pageCount: pages, imageCount: images, missingImageCount: missing, salt: salt, nonce: nonce, plaintextBytes: size,
+                  compressedBytes: packed)
         keyMaterial = material
     }
 
     public init(solutionID: String, createdAt: String, displayName: String, fingerprint: String, pdfPageCount: Int,
-                pageCount: Int, imageCount: Int, missingImageCount: Int, salt: Data, nonce: Data, plaintextBytes: Int) {
+                pageCount: Int, imageCount: Int, missingImageCount: Int, salt: Data, nonce: Data, plaintextBytes: Int,
+                compressedBytes: Int? = nil) {
         self.solutionID = solutionID
         self.createdAt = createdAt
         self.displayName = displayName
@@ -513,13 +542,16 @@ public struct SolutionHeader: Equatable, Sendable {
         self.salt = salt
         self.nonce = nonce
         self.plaintextBytes = plaintextBytes
+        self.compressedBytes = compressedBytes
     }
 }
 
 /// Verschluesseltes Loesungspaket (Inhalt der Datei *.uniflowsolution).
 public struct SolutionPackage: Equatable, Sendable {
     public static let format = "uniflow-solution"
-    public static let formatVersion = 1
+    /// Geschrieben wird immer Version 2; gelesen werden `readableVersions`.
+    public static let formatVersion = 2
+    public static let readableVersions: Set<Int> = [1, 2]
     public static let fileExtension = "uniflowsolution"
     /// Exportierter Dokumenttyp der App (project.yml, UTExportedTypeDeclarations).
     public static let typeIdentifier = "de.uniflow.solution"
@@ -534,24 +566,27 @@ public struct SolutionPackage: Equatable, Sendable {
         self.ciphertext = ciphertext
     }
 
+    /// Formatversion dieses Pakets (aus dem Kopf: mit Kompressionsangaben 2, sonst 1).
+    public var formatVersion: Int { header.formatVersion }
+
     /// HKDF-Info: Formatkennung + Version + Loesungs-ID (ein Schluessel je Paket, auch bei gleichem Salz).
-    public static func keyInfo(solutionID: String) -> Data {
-        Data("\(format)/v\(formatVersion)|\(solutionID.lowercased())".utf8)
+    public static func keyInfo(solutionID: String, version: Int = formatVersion) -> Data {
+        Data("\(format)/v\(version)|\(solutionID.lowercased())".utf8)
     }
 
     /// Alles ausser dem Chiffrat, kanonisch (sortierte Schluessel): Zusatzdaten (AAD) der Verschluesselung. Jede
     /// Aenderung an Kopf, Format oder Version laesst die Entschluesselung scheitern.
-    public var authenticatedHeader: Data { SolutionPackage.aad(header: header.json) }
+    public var authenticatedHeader: Data { SolutionPackage.aad(header: header.json, version: formatVersion) }
 
-    static func aad(header: JSONValue) -> Data {
-        JSONValue.object(["format": .string(format), "formatVersion": .number(Double(formatVersion)), "header": header])
+    static func aad(header: JSONValue, version: Int = formatVersion) -> Data {
+        JSONValue.object(["format": .string(format), "formatVersion": .number(Double(version)), "header": header])
             .serialized(sortedKeys: true)
     }
 
     /// Datei-Inhalt (UTF-8-JSON, sortierte Schluessel).
     public func encoded() -> Data {
         JSONValue.object([
-            "format": .string(SolutionPackage.format), "formatVersion": .number(Double(SolutionPackage.formatVersion)),
+            "format": .string(SolutionPackage.format), "formatVersion": .number(Double(formatVersion)),
             "header": header.json, "ciphertext": .string(ciphertext.base64EncodedString()),
         ]).serialized(sortedKeys: true)
     }
@@ -567,20 +602,20 @@ public struct SolutionPackage: Equatable, Sendable {
         guard let root = try? JSONValue.parse(data), case .object(let fields) = root else { throw SolutionError.notASolution }
         guard root["format"]?.string == format else { throw SolutionError.notASolution }
         guard let v = SolutionValidator.exactInt(root["formatVersion"]) else { throw SolutionError.invalidHeader("Formatversion") }
-        guard v == formatVersion else { throw SolutionError.unsupportedVersion(v) }
+        guard readableVersions.contains(v) else { throw SolutionError.unsupportedVersion(v) }
         // nur die Felder, die das Format kennt: alles ausser dem Chiffrat ist damit authentifiziert (AAD), es gibt
         // keinen unbemerkten Traeger fuer weitere Daten
         guard Set(fields.keys) == rootFields else { throw SolutionError.invalidHeader("unbekannte Felder") }
         try SolutionValidator.checkFinite(root)
         guard let rawHeader = root["header"] else { throw SolutionError.invalidHeader("fehlt") }
-        let header = try SolutionHeader(json: rawHeader)
-        // Kopf genau in der Form von Version 1: zusaetzliche oder anders geschriebene Felder werden abgewiesen (die AAD
+        let header = try SolutionHeader(json: rawHeader, version: v)
+        // Kopf genau in der Form seiner Version: zusaetzliche oder anders geschriebene Felder werden abgewiesen (die AAD
         // wird aus dem geprueften Kopf neu gebildet und deckt damit genau diese Felder ab)
-        guard rawHeader == header.json else { throw SolutionError.invalidHeader("unbekannte Felder") }
+        guard rawHeader == header.json, header.formatVersion == v else { throw SolutionError.invalidHeader("unbekannte Felder") }
         guard let b64 = root["ciphertext"]?.string, let sealed = Data(base64Encoded: b64) else {
             throw SolutionError.invalidHeader("Chiffrat")
         }
-        guard sealed.count == header.plaintextBytes + tagBytes else { throw SolutionError.invalidHeader("Größe") }
+        guard sealed.count == (header.compressedBytes ?? header.plaintextBytes) + tagBytes else { throw SolutionError.invalidHeader("Größe") }
         return SolutionPackage(header: header, ciphertext: sealed)
     }
 
@@ -603,20 +638,24 @@ public struct SolutionPackage: Equatable, Sendable {
         // dieselben Pruefungen wie beim Oeffnen: was geteilt wird, muss sich auch oeffnen lassen
         let checked = try SolutionContent(json: content.json)
         guard checked == content else { throw SolutionError.invalidContent("nicht verlustfrei") }
-        let plaintext = content.json.serialized(sortedKeys: true)
+        // Version 2: Striche als ganze Zahlen, kanonisch, dann raw DEFLATE
+        let plaintext = try SolutionWire.encodeContent(content.json).serialized(sortedKeys: true)
         guard plaintext.count <= SolutionLimits.maxPlaintextBytes else { throw SolutionError.tooLarge }
+        let packed = try SolutionDeflate.deflate(plaintext)
+        guard packed.count <= SolutionLimits.maxPlaintextBytes else { throw SolutionError.tooLarge }
         // keine pauschale Textsuche nach "%PDF-" mehr: eigener Freitext darf das enthalten; PDF-Daten in Verweisen und
         // Bildern sind oben schon abgewiesen (SolutionValidator.checkNoPDF, Bild nur PNG/JPEG)
         var header = SolutionHeader(
             solutionID: content.solutionID, createdAt: content.createdAt, displayName: content.displayName,
             fingerprint: content.fingerprint, pdfPageCount: content.pdfPageCount, pageCount: content.pages.count,
             imageCount: content.images.count, missingImageCount: content.missingImages.count,
-            salt: salt ?? randomBytes(32), nonce: nonce ?? randomBytes(12), plaintextBytes: plaintext.count)
+            salt: salt ?? randomBytes(32), nonce: nonce ?? randomBytes(12), plaintextBytes: plaintext.count,
+            compressedBytes: packed.count)
         header.keyMaterial = name
-        let aad = SolutionPackage.aad(header: header.json)
-        let sealed = try cipher.seal(plaintext, keyMaterial: material, salt: header.salt,
-                                     info: keyInfo(solutionID: header.solutionID), nonce: header.nonce, aad: aad)
-        guard sealed.count == plaintext.count + tagBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
+        let aad = SolutionPackage.aad(header: header.json, version: header.formatVersion)
+        let sealed = try cipher.seal(packed, keyMaterial: material, salt: header.salt,
+                                     info: keyInfo(solutionID: header.solutionID, version: header.formatVersion), nonce: header.nonce, aad: aad)
+        guard sealed.count == packed.count + tagBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
         return SolutionPackage(header: header, ciphertext: sealed)
     }
 
@@ -635,16 +674,22 @@ public struct SolutionPackage: Equatable, Sendable {
     }
 
     private func open(material: Data, cipher: SolutionCipher) throws -> SolutionContent {
-        let plaintext: Data
+        var plaintext: Data
         do {
             plaintext = try cipher.open(ciphertext, keyMaterial: material, salt: header.salt,
-                                        info: SolutionPackage.keyInfo(solutionID: header.solutionID), nonce: header.nonce,
-                                        aad: authenticatedHeader)
+                                        info: SolutionPackage.keyInfo(solutionID: header.solutionID, version: formatVersion),
+                                        nonce: header.nonce, aad: authenticatedHeader)
         } catch {
             throw SolutionError.decryptionFailed
         }
+        if let packed = header.compressedBytes {
+            guard plaintext.count == packed else { throw SolutionError.invalidContent("Größe") }
+            // harte Obergrenze: nie mehr entpacken als der authentifizierte Kopf angibt (<= maxPlaintextBytes)
+            plaintext = try SolutionDeflate.inflate(plaintext, limit: header.plaintextBytes)
+        }
         guard plaintext.count == header.plaintextBytes else { throw SolutionError.invalidContent("Größe") }
-        guard let json = try? JSONValue.parse(plaintext) else { throw SolutionError.invalidContent("JSON") }
+        guard var json = try? JSONValue.parse(plaintext) else { throw SolutionError.invalidContent("JSON") }
+        if formatVersion == 2 { json = try SolutionWire.decodeContent(json) }
         let content = try SolutionContent(json: json)
         guard content.solutionID == header.solutionID, content.fingerprint == header.fingerprint,
               content.pdfPageCount == header.pdfPageCount, content.createdAt == header.createdAt,
