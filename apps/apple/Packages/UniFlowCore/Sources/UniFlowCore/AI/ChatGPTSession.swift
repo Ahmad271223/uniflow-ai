@@ -356,13 +356,12 @@ public actor ChatGPTSession {
                           ? "Bitte in den Einstellungen ein ChatGPT-Modell wählen." : "KI über ChatGPT ist nicht verbunden.")
         }
         let token = try await accessToken()
-        let body = ChatGPTProtocol.responsesBody(model: state.model, system: system, prompt: prompt, schema: schema).serialized()
-        let r: (status: Int, body: Data)
-        do {
-            r = try await http.send(AIHTTPRequest(method: "POST", url: ChatGPTConstants.responsesURL,
-                                                  headers: ["Authorization": "Bearer \(token)", "Content-Type": "application/json"], body: body))
-        } catch {
-            throw ChatGPTProtocol.error(status: 0)
+        var r = try await respond(token: token, system: system, prompt: prompt, schema: schema)
+        // Modell abgelehnt (gibt es im Abo nicht oder nicht mehr): einmal mit dem Hauptmodell der Liste neu versuchen
+        if Self.isModelRejection(status: r.status, body: r.body), let ids = try? await models(force: true),
+           let other = Self.preferredModel(ids.filter { $0 != state.model }) {
+            try setModel(other)
+            r = try await respond(token: token, system: system, prompt: prompt, schema: schema)
         }
         guard (200..<300).contains(r.status) else {
             if r.status == 401 { try markReauth("Responses API 401") }
@@ -370,6 +369,22 @@ public actor ChatGPTSession {
         }
         guard let json = try? JSONValue.parse(r.body) else { throw AIError("ai_provider_error", "ChatGPT antwortete unlesbar.") }
         return ChatGPTProtocol.outputText(json)
+    }
+
+    private func respond(token: String, system: String, prompt: String, schema: JSONValue?) async throws -> (status: Int, body: Data) {
+        let body = ChatGPTProtocol.responsesBody(model: state.model, system: system, prompt: prompt, schema: schema).serialized()
+        do {
+            return try await http.send(AIHTTPRequest(method: "POST", url: ChatGPTConstants.responsesURL,
+                                                     headers: ["Authorization": "Bearer \(token)", "Content-Type": "application/json"], body: body))
+        } catch {
+            throw ChatGPTProtocol.error(status: 0)
+        }
+    }
+
+    /// Antwort "Modell unbekannt/nicht erlaubt" der Responses API (400/404 mit "model" im Fehlertext)
+    public static func isModelRejection(status: Int, body: Data) -> Bool {
+        guard status == 400 || status == 404 else { return false }
+        return String(decoding: body.prefix(2000), as: UTF8.self).lowercased().contains("model")
     }
 
     /// Modell, wenn der Nutzer keins waehlt (Wunsch des Inhabers: einfach das ChatGPT-Konto nutzen, nichts auswaehlen)

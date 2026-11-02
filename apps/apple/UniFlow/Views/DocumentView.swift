@@ -18,6 +18,21 @@ final class EditorBridge: ObservableObject {
     @Published var objectTool: ObjectEditing.Tool = .select
     @Published var objectSelection = 0
     @Published var textSelected = false
+    /// Markierter PDF-Text soll an die KI-Hilfe (Leiste "Text markieren": "KI erklärt", "KI löst")
+    @Published var tutorRequest: TutorRequest?
+
+    struct TutorRequest: Equatable {
+        let id = UUID()
+        let mode: String
+        let selection: String
+    }
+
+    /// Markierten Text an die KI-Hilfe geben (oeffnet sie und fragt sofort)
+    func askTutor(_ mode: String) {
+        let text = controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty else { return }
+        tutorRequest = TutorRequest(mode: mode, selection: text)
+    }
 
     func setObjectMode(_ on: Bool) {
         controller?.objects.setActive(on)
@@ -243,7 +258,7 @@ struct DocumentView: View {
                    page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
-                   close: { showTutor = false })
+                   close: { showTutor = false }, request: $bridge.tutorRequest)
     }
 
     private var isExercise: Bool {
@@ -308,6 +323,7 @@ struct DocumentView: View {
             }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
+        .onChange(of: bridge.tutorRequest) { _, r in if r != nil { showTutor = true } }
         .sheet(item: $markerPage) { mp in
             LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
                                goTo: { pdfPage in
@@ -1630,6 +1646,11 @@ struct ObjectToolbar: View {
                             .accessibilityIdentifier("objects.markup.highlight")
                         Button("Unterstreichen") { bridge.controller?.objects.applyMarkup(.underline) }
                         Button("Durchstreichen") { bridge.controller?.objects.applyMarkup(.strike) }
+                        Divider().frame(height: 24)
+                        Button { bridge.askTutor("explain") } label: { Label("KI erklärt", systemImage: "sparkles") }
+                            .accessibilityIdentifier("objects.markup.tutorExplain")
+                        Button { bridge.askTutor("steps") } label: { Label("KI löst", systemImage: "sparkles") }
+                            .accessibilityIdentifier("objects.markup.tutorSolve")
                     } else {
                         Text("Text in der PDF auswählen (gedrückt halten und ziehen)").font(.callout).foregroundStyle(.secondary)
                     }

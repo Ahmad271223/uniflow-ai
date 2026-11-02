@@ -15,6 +15,8 @@ struct TutorPanel: View {
     /// Sprung zu einer Seite dieses Dokuments (1 = erste); Quellen aus anderen Dokumenten stehen als Text da
     let open: (_ fileID: String, _ page: Int) -> Void
     let close: () -> Void
+    /// Frage aus "Text markieren" (markierter Text und Modus); wird gesendet und danach geleert
+    var request: Binding<EditorBridge.TutorRequest?> = .constant(nil)
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufAIEnabled) private var aiEnabled
@@ -49,6 +51,11 @@ struct TutorPanel: View {
             if aiEnabled { conversation } else { notConnected }
         }
         .background(UF.surface)
+        .task(id: request.wrappedValue?.id) {
+            guard aiEnabled, let r = request.wrappedValue else { return }
+            request.wrappedValue = nil
+            await send(mode: r.mode, selection: r.selection)
+        }
     }
 
     private var header: some View {
@@ -206,15 +213,16 @@ struct TutorPanel: View {
         }
     }
 
-    private func send(mode: String) async {
+    private func send(mode: String, selection given: String? = nil) async {
         guard let api = session.api, !busy else { return }
         let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        let page = page(), selection = selection()
+        let page = page(), selection = given ?? selection()
         var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode),
                                          "history": Self.history(messages)]
         if mode == "check" { body["own_solution"] = .string(typed) } else if !typed.isEmpty { body["question"] = .string(typed) }
         if !selection.isEmpty { body["selection"] = .string(selection) }
-        messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed)))
+        messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed)
+                                + (given.map { "\n„\(String($0.prefix(160)))\($0.count > 160 ? " …" : "")“" } ?? "")))
         input = ""
         if mode == "check" { checking = false }
         busy = true

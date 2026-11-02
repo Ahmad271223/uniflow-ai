@@ -478,5 +478,8 @@ final class ChatGPTPreferredModelTests: XCTestCase {
         XCTAssertEqual(ChatGPTSession.preferredModel(["eigenes-modell"]), "eigenes-modell")
         XCTAssertNil(ChatGPTSession.preferredModel([]))
         XCTAssertFalse(ChatGPTSession.fallbackModel.isEmpty)
+        XCTAssertTrue(ChatGPTSession.isModelRejection(status: 404, body: Data(#"{"error":{"message":"The model `gpt-5` does not exist","code":"model_not_found"}}"#.utf8)))
+        XCTAssertFalse(ChatGPTSession.isModelRejection(status: 503, body: Data("model".utf8)), "Ausfall bei OpenAI ist kein Modellproblem")
+        XCTAssertFalse(ChatGPTSession.isModelRejection(status: 400, body: Data(#"{"error":"input too long"}"#.utf8)))
     }
 }

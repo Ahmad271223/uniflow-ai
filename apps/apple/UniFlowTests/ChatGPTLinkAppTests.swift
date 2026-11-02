@@ -44,6 +44,9 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(TutorConnectState.reason(st(use: false)), .switchedOff)
         XCTAssertEqual(TutorConnectState.reason(st(model: "")), .noModel)
         XCTAssertEqual(TutorConnectState.reason(st()), .ready)
+        // KI-Fehler des Endpunkts ({"detail": {"detail", "code"}}): der Text von ChatGPT, nicht "Service Unavailable"
+        let nested = APIError(status: 503, body: Data(#"{"detail": {"detail": "ChatGPT antwortete mit Fehler 404: model_not_found", "code": "ai_provider_error"}}"#.utf8))
+        XCTAssertEqual(nested.errorDescription, "ChatGPT antwortete mit Fehler 404: model_not_found")
         // Daneben ein leeres Blatt: alle Vorlagen des Editors, Titel nach der offenen Datei
         XCTAssertEqual(CompanionPicker.blankTemplates.map(\.id), PageOrder.templates)
         XCTAssertTrue(CompanionPicker.blankTemplates.contains { $0.id == "grid" && $0.name == "Kariert" })

@@ -54,6 +54,8 @@ struct APIError: LocalizedError {
     static func detail(in body: Data) -> String? {
         guard let v = try? JSONValue.parse(body), let d = v["detail"] else { return nil }
         if let s = d.string, !s.isEmpty { return String(s.prefix(detailLimit)) }
+        // HTTPException mit Objekt ({"detail": {"detail": "…", "code": "…"}}, z. B. KI-Fehler): der Text steckt eine Ebene tiefer
+        if let s = (d["detail"]?.string ?? d["message"]?.string), !s.isEmpty { return String(s.prefix(detailLimit)) }
         let msgs = (d.array ?? []).compactMap { $0["msg"]?.string ?? $0.string }.filter { !$0.isEmpty }
         return msgs.isEmpty ? nil : String(msgs.prefix(3).joined(separator: "; ").prefix(detailLimit))
     }
