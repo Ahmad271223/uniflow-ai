@@ -45,8 +45,25 @@ public enum AIPrompts {
             ?? AIPromptTexts.tutorModes.first { $0.key == "explain" }!.text
     }
 
+    /// `ai.TUTOR_HISTORY_TURNS` / `ai.TUTOR_HISTORY_CHARS`
+    public static let tutorHistoryTurns = 6
+    static let tutorHistoryChars = 1500
+
+    /// `ai.tutor_history`: nur {role, text} mit Text, die letzten `tutorHistoryTurns`; role user oder assistant
+    public static func tutorHistory(_ raw: PyJSON?) -> [(role: String, text: String)] {
+        guard case .array(let items)? = raw else { return [] }
+        let out: [(role: String, text: String)] = items.compactMap { item in
+            guard case .object(let members) = item, case .string(let t)? = members.first(where: { $0.key == "text" })?.value,
+                  !PyText.strip(t).isEmpty else { return nil }
+            let role = members.first(where: { $0.key == "role" })?.value
+            return (role == .string("user") ? "user" : "assistant", t)
+        }
+        return Array(out.suffix(tutorHistoryTurns))
+    }
+
     public static func tutor(mode: String, pageText: String, selection: String = "", question: String = "", ownSolution: String = "",
-                             course: String = "", fileName: String = "", page: PyJSON? = nil, sources: [PyJSON]? = nil) -> String {
+                             course: String = "", fileName: String = "", page: PyJSON? = nil, sources: [PyJSON]? = nil,
+                             history: [(role: String, text: String)] = []) -> String {
         var parts = ["Kurs: \(course)", "Datei: \(fileName)" + (truthy(page) ? ", Seite \(str(page))" : ""), "",
                      "AUFGABE: \(tutorInstruction(mode))"]
         if !PyText.strip(selection).isEmpty {
@@ -54,6 +71,12 @@ public enum AIPrompts {
         }
         if !PyText.strip(ownSolution).isEmpty {
             parts += ["", "MEINE LOESUNG:", "<<<", head(PyText.strip(ownSolution), 4000), ">>>"]
+        }
+        if !history.isEmpty {
+            parts += ["", "BISHERIGES GESPRAECH (aeltestes zuerst; schliesst meine Frage daran an, beziehe dich darauf):"]
+            for h in history {
+                parts.append((h.role == "user" ? "Ich: " : "KI: ") + head(PyText.strip(h.text), tutorHistoryChars))
+            }
         }
         if !PyText.strip(question).isEmpty {
             parts += ["", "MEINE FRAGE: \(head(PyText.strip(question), 1000))"]

@@ -43,7 +43,7 @@ enum AIEndpoints: LocalEndpointModule {
                                                                               selection: text("selection"), question: text("question"), ctx: ctx)
             let prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
                                          ownSolution: text("own_solution"), course: course, fileName: fileName, page: .int(String(page)),
-                                         sources: sources.map(PyJSON.init))
+                                         sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")))
             let answer: String
             do {
                 answer = try await ai.answer(system: AIPromptTexts.tutorSystem, prompt: prompt)

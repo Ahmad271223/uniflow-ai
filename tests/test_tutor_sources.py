@@ -38,3 +38,22 @@ def test_tutor_gets_numbered_sources_and_reports_which_were_cited(app, monkeypat
             conn.execute("DELETE FROM files WHERE id='q-blatt'")
             conn.execute("DELETE FROM courses WHERE id='q-kurs'")
             conn.execute("DELETE FROM modules WHERE id=?", (mid,))
+
+
+def test_tutor_follow_up_carries_the_conversation(app, monkeypatch):
+    """Gespraech im Editor (2.11.2026): Rueckfragen schicken den Verlauf mit; Unbrauchbares faellt heraus, hoechstens
+    TUTOR_HISTORY_TURNS Beitraege gehen in den Prompt."""
+    from app import ai
+    seen = {}
+    monkeypatch.setattr(ai, "ask", lambda prompt, system: seen.setdefault("prompt", prompt) and "Weil der Faktor nicht null ist.")
+    history = [{"role": "user", "text": f"Frage {i}"} for i in range(8)] + [
+        {"role": "assistant", "text": "Schritt 1: kuerzen"}, {"role": "user", "text": "   "}, "kaputt", {"text": 5}]
+    st, _, b = asgi_call(app, "POST", "/api/ai/tutor", body=json.dumps({"mode": "ask", "page_text": "Aufgabe 4", "question": "Warum darf ich kuerzen?",
+                                                                       "history": history}))
+    assert st == 200, b
+    p = seen["prompt"]
+    assert "BISHERIGES GESPRAECH" in p and "KI: Schritt 1: kuerzen" in p and "Ich: Frage 7" in p
+    assert "Ich: Frage 2" not in p, "nur die letzten Beitraege"
+    assert p.index("BISHERIGES GESPRAECH") < p.index("MEINE FRAGE: Warum darf ich kuerzen?")
+    assert ai.TUTOR_MODES["ask"] in p
+    assert ai.tutor_history("kein Verlauf") == [] and ai.tutor_history([{"role": "x", "text": "a"}]) == [{"role": "assistant", "text": "a"}]

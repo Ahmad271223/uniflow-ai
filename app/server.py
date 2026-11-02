@@ -984,7 +984,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
-                              body.get("own_solution") or "", course, fname, page, sources)
+                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")))
         except ai.AIError as e:
             raise HTTPException(500, str(e))
     cards = None
@@ -1031,7 +1031,7 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     entitlements.consume(request, "ai_assist", rid)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
-                             body.get("own_solution") or "", course, fname, page, sources)
+                             body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")))
     try:
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
     except ai_backend.AIUnavailable as e:

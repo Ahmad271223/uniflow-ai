@@ -269,6 +269,7 @@ TUTOR_SYSTEM = ("Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechni
                 "Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt.")
 
 TUTOR_MODES = {
+    "ask": "Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.",
     "explain": "Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.",
     "explain_simple": "Erklaere so einfach wie moeglich, als waere ich Anfaenger. Keine Fachbegriffe ohne Erklaerung.",
     "summary": "Fasse die Seite in 5-8 Stichpunkten zusammen und nenne, was man danach koennen muss.",
@@ -281,22 +282,44 @@ TUTOR_MODES = {
 }
 
 
+# Gespraech im Editor: so viele Beitraege und Zeichen je Beitrag gehen als Verlauf in den Prompt
+TUTOR_HISTORY_TURNS = 6
+TUTOR_HISTORY_CHARS = 1500
+
+
+def tutor_history(raw) -> list[dict]:
+    """Verlauf aus der Anfrage: nur {role, text} mit Text, die letzten TUTOR_HISTORY_TURNS; role user oder assistant."""
+    if not isinstance(raw, list):
+        return []
+    out = [{"role": "user" if h.get("role") == "user" else "assistant", "text": h["text"]}
+           for h in raw if isinstance(h, dict) and isinstance(h.get("text"), str) and h["text"].strip()]
+    return out[-TUTOR_HISTORY_TURNS:]
+
+
 def tutor(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
-          course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None) -> str:
-    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources), TUTOR_SYSTEM)
+          course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
+          history: list[dict] | None = None) -> str:
+    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history),
+               TUTOR_SYSTEM)
 
 
 def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
-                 course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None) -> str:
+                 course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
+                 history: list[dict] | None = None) -> str:
     """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die Studora-KI im Dienst (app/ai_backend.py).
     `sources` (28.10.2026): nummerierte Stellen aus den eigenen Unterlagen (diese Seite und passende Seiten aus dem
-    Modul); die Antwort belegt Aussagen daraus mit [Nummer], die Oberflaeche macht daraus Links zur Seite."""
+    Modul); die Antwort belegt Aussagen daraus mit [Nummer], die Oberflaeche macht daraus Links zur Seite.
+    `history` (2.11.2026): bisheriges Gespraech im Editor (`tutor_history`), damit Rueckfragen anschliessen."""
     instr = TUTOR_MODES.get(mode, TUTOR_MODES["explain"])
     parts = [f"Kurs: {course}", f"Datei: {file_name}" + (f", Seite {page}" if page else ""), "", f"AUFGABE: {instr}"]
     if selection.strip():
         parts += ["", "MARKIERTER TEXT:", "<<<", selection.strip()[:4000], ">>>"]
     if own_solution.strip():
         parts += ["", "MEINE LOESUNG:", "<<<", own_solution.strip()[:4000], ">>>"]
+    if history:
+        parts += ["", "BISHERIGES GESPRAECH (aeltestes zuerst; schliesst meine Frage daran an, beziehe dich darauf):"]
+        for h in history:
+            parts.append(("Ich: " if h["role"] == "user" else "KI: ") + h["text"].strip()[:TUTOR_HISTORY_CHARS])
     if question.strip():
         parts += ["", f"MEINE FRAGE: {question.strip()[:1000]}"]
     parts += ["", "SEITENINHALT (Kontext):", "<<<", (page_text or "").strip()[:9000] or "[kein Text extrahierbar]", ">>>"]

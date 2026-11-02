@@ -1,125 +1,241 @@
 import SwiftUI
 import UniFlowCore
 
-/// KI im Editor wie die Seitenleiste "KI" der Web-App (`POST /api/ai/tutor`): Modi wie `ai.TUTOR_MODES`, eigene Frage,
-/// eigene Lösung zum Prüfen; Antwort mit Quellen aus den eigenen Unterlagen ([n] → Seite). Läuft über das
-/// ChatGPT-Abo des Nutzers (lokales Backend, `LocalContext.ai`); gesendet wird nur nach dem Antippen.
-struct TutorSheet: View {
+/// KI-Hilfe im Editor als Seitenleiste neben der PDF (`POST /api/ai/tutor`): ein Gespraech zur offenen Seite mit freier
+/// Frage und Schnellknoepfen fuer die Modi aus `ai.TUTOR_MODES` (Aufgabe loesen, Hinweise, Loesung pruefen ...).
+/// Rueckfragen schicken die letzten Beitraege als `history` mit, markierter PDF-Text geht als `selection` mit. Antworten
+/// mit Quellen aus den eigenen Unterlagen ([n] -> Seite). Laeuft ueber das ChatGPT-Abo des Nutzers (lokales Backend,
+/// `LocalContext.ai`); gesendet wird nur nach dem Antippen. Ohne verbundene KI erklaert die Leiste den Weg dorthin.
+struct TutorPanel: View {
     let fileID: String
-    /// Seite der PDF (1 = erste), wie `page_texts`
-    let page: Int
+    /// Seite der PDF beim Senden (1 = erste), wie `page_texts`
+    let page: () -> Int
+    /// Markierter PDF-Text beim Senden ("" ohne Markierung)
+    let selection: () -> String
     /// Sprung zu einer Seite dieses Dokuments (1 = erste); Quellen aus anderen Dokumenten stehen als Text da
     let open: (_ fileID: String, _ page: Int) -> Void
+    let close: () -> Void
     @EnvironmentObject private var session: Session
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufAIEnabled) private var aiEnabled
 
+    /// Alle Modi in der Reihenfolge von `ai.TUTOR_MODES`; "ask" ist das Eingabefeld, die anderen sind Schnellknoepfe
     static let modes: [(key: String, label: String)] = [
-        ("explain", "Erklären"), ("explain_simple", "Einfach erklären"), ("summary", "Zusammenfassen"), ("steps", "Schritt für Schritt"),
-        ("hints", "Nur Hinweise"), ("check", "Lösung prüfen"), ("similar", "Ähnliche Aufgabe"), ("terms", "Fachbegriffe"),
-        ("flashcards", "Karteikarten"),
+        ("ask", "Frage"), ("explain", "Erklären"), ("explain_simple", "Einfach erklären"), ("summary", "Zusammenfassen"),
+        ("steps", "Aufgabe lösen"), ("hints", "Nur Hinweise"), ("check", "Lösung prüfen"), ("similar", "Ähnliche Aufgabe"),
+        ("terms", "Fachbegriffe"), ("flashcards", "Karteikarten"),
     ]
 
-    @State private var mode = "explain"
-    @State private var question = ""
-    @State private var solution = ""
+    struct Message: Identifiable {
+        let id = UUID()
+        let fromUser: Bool
+        let text: String
+        var cards: [JSONValue] = []
+        var sources: [JSONValue] = []
+        var saved = false
+    }
+
+    @State private var messages: [Message] = []
+    @State private var input = ""
+    @State private var checking = false
     @State private var busy = false
-    @State private var answer: String?
-    @State private var cards: [JSONValue] = []
-    @State private var sources: [JSONValue] = []
     @State private var error: String?
-    @State private var saved = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Seite \(page) · über dein ChatGPT").ufFont(12.8).foregroundStyle(UF.muted)
-                    UFFlexWrap(gap: 6.4) {
-                        ForEach(Self.modes, id: \.key) { m in
-                            UFChip(text: m.label, on: mode == m.key) { mode = m.key }
-                                .accessibilityIdentifier("tutor.mode.\(m.key)")
+        VStack(spacing: 0) {
+            header
+            Divider()
+            if aiEnabled { conversation } else { notConnected }
+        }
+        .background(UF.surface)
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles").foregroundStyle(UF.accent)
+            Text("KI-Hilfe").ufFont(15.2, 700).foregroundStyle(UF.text)
+            Spacer()
+            if !messages.isEmpty {
+                Button("Neu") { messages = []; error = nil }
+                    .ufFont(13.12).accessibilityIdentifier("tutor.reset")
+            }
+            Button { close() } label: { Image(systemName: "xmark").foregroundStyle(UF.muted) }
+                .accessibilityLabel("KI-Hilfe schließen").accessibilityIdentifier("tutor.close")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+    }
+
+    private var notConnected: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Verbinde dein ChatGPT, dann kannst du hier Fragen zur Seite stellen, Aufgaben lösen lassen, Hinweise bekommen und deine Lösung prüfen.")
+                .ufFont(13.76).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            UFButton("ChatGPT verbinden", icon: "sparkles", kind: .primary) { router.go(.settings(tab: "advanced")) }
+                .accessibilityIdentifier("tutor.connect")
+            Spacer()
+        }
+        .padding(16)
+    }
+
+    private var conversation: some View {
+        VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if messages.isEmpty {
+                            Text("Frag etwas zur offenen Seite oder tipp unten auf eine Aktion. Markierter Text wird mitgeschickt.")
+                                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        }
+                        ForEach($messages) { $m in bubble($m).id(m.id) }
+                        if busy {
+                            HStack(spacing: 8) { ProgressView(); Text("Die KI liest die Seite …").ufFont(13.12).foregroundStyle(UF.muted) }
+                                .id("busy")
+                        }
+                        if let error {
+                            Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("tutor.error")
                         }
                     }
-                    if mode == "check" {
-                        UFField("Meine Lösung") { UFTextArea(placeholder: "Deinen Rechenweg oder deine Antwort eintragen", text: $solution) }
-                    }
-                    UFField("Meine Frage (optional)") { UFTextInput("z. B. Warum gilt hier das Quotientenkriterium?", text: $question) }
-                    UFButton(busy ? "Die KI liest die Seite …" : "Fragen", icon: "sparkles", kind: .primary) { Task { await ask() } }
-                        .disabled(busy || (mode == "check" && solution.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-                        .accessibilityIdentifier("tutor.ask")
-                    if let error {
-                        Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
-                            .accessibilityIdentifier("tutor.error")
-                    }
-                    if let answer { result(answer) }
+                    .padding(14)
                 }
-                .padding(20)
+                .onChange(of: messages.count) { _, _ in
+                    withAnimation { proxy.scrollTo(busy ? "busy" : messages.last?.id as AnyHashable?, anchor: .bottom) }
+                }
+                .onChange(of: busy) { _, now in
+                    if now { withAnimation { proxy.scrollTo("busy", anchor: .bottom) } }
+                }
             }
-            .navigationTitle("KI")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() } } }
+            Divider()
+            composer
         }
     }
 
-    @ViewBuilder private func result(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if mode == "flashcards", !cards.isEmpty {
-                ForEach(cards.indices, id: \.self) { i in
-                    UFCard {
-                        Text(cards[i].s("question") ?? "").ufFont(14.5, 650).foregroundStyle(UF.text)
-                        Text(cards[i].s("answer") ?? "").ufFont(13.76).foregroundStyle(UF.text2)
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Self.modes.filter { $0.key != "ask" }, id: \.key) { m in
+                        UFChip(text: m.label, on: m.key == "check" && checking) {
+                            if m.key == "check" { checking.toggle() } else { Task { await send(mode: m.key) } }
+                        }
+                        .disabled(busy)
+                        .accessibilityIdentifier("tutor.mode.\(m.key)")
                     }
                 }
-                UFButton(saved ? "In Karteikarten gespeichert" : "Als Karteikarten speichern", icon: "cards", size: .small) {
-                    Task { await saveCards() }
-                }
-                .disabled(saved)
-            } else {
-                Text((try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text))
-                    .ufFont(14.5).foregroundStyle(UF.text).textSelection(.enabled)
-                    .accessibilityIdentifier("tutor.answer")
             }
-            let cited = sources.filter { $0["cited"]?.bool == true }
-            if !cited.isEmpty {
-                Text("Quellen").ufFont(12.8, 700).foregroundStyle(UF.muted).padding(.top, 4)
+            HStack(alignment: .bottom, spacing: 8) {
+                UFTextArea(placeholder: checking ? "Deine Lösung oder deinen Rechenweg eintragen" : "Frage stellen, z. B. Wie löse ich Aufgabe 2?",
+                           text: $input, minHeight: 44)
+                    .accessibilityIdentifier("tutor.input")
+                UFButton(nil, icon: "arrow-right", kind: .primary) { Task { await send(mode: checking ? "check" : "ask") } }
+                    .disabled(busy || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel(checking ? "Lösung prüfen" : "Senden")
+                    .accessibilityIdentifier("tutor.ask")
+            }
+            Text("Seite \(page()) · über dein ChatGPT").ufFont(11.5).foregroundStyle(UF.muted)
+        }
+        .padding(12)
+    }
+
+    @ViewBuilder private func bubble(_ m: Binding<Message>) -> some View {
+        let msg = m.wrappedValue
+        if msg.fromUser {
+            HStack {
+                Spacer(minLength: 30)
+                Text(msg.text).ufFont(13.76).foregroundStyle(UF.text)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(UF.accentSoft, in: RoundedRectangle(cornerRadius: 12))
+                    .textSelection(.enabled)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                if !msg.cards.isEmpty {
+                    ForEach(msg.cards.indices, id: \.self) { i in
+                        UFCard {
+                            Text(msg.cards[i].s("question") ?? "").ufFont(13.76, 650).foregroundStyle(UF.text)
+                            Text(msg.cards[i].s("answer") ?? "").ufFont(13.12).foregroundStyle(UF.text2)
+                        }
+                    }
+                    UFButton(msg.saved ? "In Karteikarten gespeichert" : "Als Karteikarten speichern", icon: "cards", size: .small) {
+                        Task { await saveCards(m) }
+                    }
+                    .disabled(msg.saved)
+                } else {
+                    Text((try? AttributedString(markdown: msg.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+                         ?? AttributedString(msg.text))
+                        .ufFont(13.76).foregroundStyle(UF.text).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("tutor.answer")
+                }
+                sourceLinks(msg.sources.filter { $0["cited"]?.bool == true })
+            }
+        }
+    }
+
+    @ViewBuilder private func sourceLinks(_ cited: [JSONValue]) -> some View {
+        if !cited.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Quellen").ufFont(12, 700).foregroundStyle(UF.muted)
                 ForEach(cited.indices, id: \.self) { i in
                     let s = cited[i]
                     let p = Int(s["page"]?.double ?? 1)
                     let label = "[\(Int(s["n"]?.double ?? 0))] \(s.s("title") ?? s.s("name") ?? ""), Seite \(p)"
                     if (s.s("file_id") ?? fileID) == fileID {
-                        Button { open(fileID, p); dismiss() } label: { Text(label).ufFont(13.12).foregroundStyle(UF.accentText) }
+                        Button { open(fileID, p) } label: { Text(label).ufFont(12.8).foregroundStyle(UF.accentText) }
                             .buttonStyle(.plain)
                     } else {
-                        Text(label).ufFont(13.12).foregroundStyle(UF.text2)
+                        Text(label).ufFont(12.8).foregroundStyle(UF.text2)
                     }
                 }
             }
         }
     }
 
-    private func ask() async {
-        guard let api = session.api else { return }
+    /// Bisheriges Gespraech fuer `history` (der Dienst nimmt die letzten Beitraege)
+    static func history(_ messages: [Message]) -> JSONValue {
+        .array(messages.suffix(AIPrompts.tutorHistoryTurns).map { m in
+            ["role": .string(m.fromUser ? "user" : "assistant"),
+             "text": .string(m.cards.isEmpty ? m.text : m.cards.map { "\($0.s("question") ?? "") – \($0.s("answer") ?? "")" }.joined(separator: "\n"))]
+        })
+    }
+
+    /// Text, der im Verlauf fuer einen Schnellknopf steht
+    static func label(mode: String, input: String) -> String {
+        let name = modes.first { $0.key == mode }?.label ?? mode
+        switch mode {
+        case "ask": return input
+        case "check": return "Lösung prüfen:\n" + input
+        default: return input.isEmpty ? name : "\(name): \(input)"
+        }
+    }
+
+    private func send(mode: String) async {
+        guard let api = session.api, !busy else { return }
+        let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let page = page(), selection = selection()
+        var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode),
+                                         "history": Self.history(messages)]
+        if mode == "check" { body["own_solution"] = .string(typed) } else if !typed.isEmpty { body["question"] = .string(typed) }
+        if !selection.isEmpty { body["selection"] = .string(selection) }
+        messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed)))
+        input = ""
+        if mode == "check" { checking = false }
         busy = true
         error = nil
-        saved = false
         defer { busy = false }
         do {
-            var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode)]
-            if !question.isEmpty { body["question"] = .string(question) }
-            if mode == "check" { body["own_solution"] = .string(solution) }
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
-            answer = r.s("answer") ?? ""
-            cards = r["cards"]?.array ?? []
-            sources = r["sources"]?.array ?? []
+            messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
+                                    sources: r["sources"]?.array ?? []))
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    private func saveCards() async {
-        guard let api = session.api, !cards.isEmpty else { return }
+    private func saveCards(_ m: Binding<Message>) async {
+        guard let api = session.api, !m.wrappedValue.cards.isEmpty else { return }
         do {
-            _ = try await api.value("/api/flashcards", method: "POST", body: ["file_id": .string(fileID), "cards": .array(cards)])
-            saved = true
+            _ = try await api.value("/api/flashcards", method: "POST", body: ["file_id": .string(fileID), "cards": .array(m.wrappedValue.cards)])
+            m.wrappedValue.saved = true
         } catch {
             self.error = error.localizedDescription
         }

@@ -107,7 +107,7 @@ struct DocumentView: View {
     @State private var showSidebar = false
     @State private var showSearch = false
     @State private var showTutor = false
-    /// KI ueber das ChatGPT-Abo verbunden (Knopf "KI" in der Leiste)
+    /// KI ueber das ChatGPT-Abo verbunden (Vorlesungsmarker; die KI-Hilfe zeigt ohne Verbindung den Weg dorthin)
     @Environment(\.ufAIEnabled) private var aiEnabled
     @State private var showInfo = false
     @State private var showTrash = false
@@ -231,6 +231,19 @@ struct DocumentView: View {
     /// Tarif mit Schreiben (sonst Schloss mit Weg zur Abo-Seite)
     private var planAllowsWriting: Bool { entitlements.notes.canEdit }
 
+    /// Breite der KI-Hilfe: genug zum Lesen, die PDF behaelt den Grossteil
+    static func tutorWidth(_ total: CGFloat) -> CGFloat { min(400, max(300, total * 0.32)) }
+
+    /// KI-Hilfe neben der PDF; Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem
+    /// Schluessel, beides beim Senden
+    private var tutorPanel: some View {
+        TutorPanel(fileID: store.file.id,
+                   page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
+                   selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
+                   open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
+                   close: { showTutor = false })
+    }
+
     private var isExercise: Bool {
         let f = store.file
         if ["uebung", "loesung", "klausur"].contains(f.doc_type ?? "") { return true }
@@ -251,6 +264,10 @@ struct DocumentView: View {
                             PageSidebar(store: store, bridge: bridge, markers: markers).frame(width: 200)
                             Divider()
                         }
+                        if showTutor, scriptLeft {
+                            tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
+                            Divider()
+                        }
                         if let c = companion, scriptLeft {
                             companionPane(c).frame(width: geo.size.width * splitFraction)
                             splitHandle(width: geo.size.width)
@@ -259,6 +276,10 @@ struct DocumentView: View {
                         if let c = companion, !scriptLeft {
                             splitHandle(width: geo.size.width)
                             companionPane(c).frame(width: geo.size.width * splitFraction)
+                        }
+                        if showTutor, !scriptLeft {
+                            Divider()
+                            tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                         }
                         if showSidebar, !scriptLeft {
                             Divider()
@@ -285,13 +306,6 @@ struct DocumentView: View {
             }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
-        .sheet(isPresented: $showTutor) {
-            // Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem Schluessel
-            TutorSheet(fileID: store.file.id, page: store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex
-                       ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex)) { id, page in
-                if id == store.file.id { bridge.controller?.goToPage(page - 1) }
-            }
-        }
         .sheet(item: $markerPage) { mp in
             LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
                                goTo: { pdfPage in
@@ -585,10 +599,8 @@ struct DocumentView: View {
                 .accessibilityIdentifier("doc.lectureMarker")
             }
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
-            if aiEnabled {
-                Button { showTutor = true } label: { Label("KI", systemImage: "sparkles") }
-                    .accessibilityIdentifier("doc.tutor")
-            }
+            Button { showTutor.toggle() } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
+                .accessibilityIdentifier("doc.tutor")
             Button {
                 if companion != nil { companion = nil }
                 else if entitlements.allows(.splitView) { choosingCompanion = true }

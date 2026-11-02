@@ -22,7 +22,19 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(DocumentView.pdfPage(key: "blank-1", index: 4), 5, "eingefuegte Seite: Position")
         XCTAssertEqual(DocumentView.pdfPage(key: nil, index: 0), 1)
         XCTAssertEqual(DocumentView.pdfPage(key: "p0", index: 2), 3, "kein gueltiger Seitenschluessel")
-        XCTAssertEqual(TutorSheet.modes.map(\.key), AIPrompts.tutorModeKeys, "dieselben Modi wie app/ai.py")
+        XCTAssertEqual(TutorPanel.modes.map(\.key), AIPrompts.tutorModeKeys, "dieselben Modi wie app/ai.py")
+        // Gespraech: die letzten Beitraege gehen als Verlauf mit, Karteikarten als Text
+        var msgs = (0..<8).map { TutorPanel.Message(fromUser: $0 % 2 == 0, text: "B\($0)") }
+        msgs.append(TutorPanel.Message(fromUser: false, text: "", cards: [["question": "F", "answer": "A"]]))
+        let h = TutorPanel.history(msgs).array ?? []
+        XCTAssertEqual(h.count, AIPrompts.tutorHistoryTurns)
+        XCTAssertEqual(h.first?.s("text"), "B3")
+        XCTAssertEqual(h.last?.s("role"), "assistant")
+        XCTAssertEqual(h.last?.s("text"), "F – A")
+        XCTAssertEqual(TutorPanel.label(mode: "steps", input: ""), "Aufgabe lösen")
+        XCTAssertEqual(TutorPanel.label(mode: "ask", input: "Warum?"), "Warum?")
+        XCTAssertEqual(DocumentView.tutorWidth(1180), 377.6, accuracy: 0.1)
+        XCTAssertEqual(DocumentView.tutorWidth(700), 300)
     }
 
     func testKeychainKeepsEachAppleUserApart() throws {

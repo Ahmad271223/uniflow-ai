@@ -4,6 +4,7 @@
   "system": "Du bist ein Lerncoach fuer ein Informatik-/Elektrotechnik-Studium (Leibniz Universitaet Hannover, 1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune.",
   "tutor_system": "Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester (Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt.",
   "tutor_modes": {
+   "ask": "Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.",
    "explain": "Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.",
    "explain_simple": "Erklaere so einfach wie moeglich, als waere ich Anfaenger. Keine Fachbegriffe ohne Erklaerung.",
    "summary": "Fasse die Seite in 5-8 Stichpunkten zusammen und nenne, was man danach koennen muss.",
@@ -25,7 +26,9 @@
    "mc",
    "short",
    "calc"
-  ]
+  ],
+  "tutor_history_turns": 6,
+  "tutor_history_chars": 1500
  },
  "prompts": {
   "tutor": [
@@ -131,6 +134,31 @@
      ]
     },
     "prompt": "Kurs: Testkurs\nDatei: k.pdf, Seite 2\n\nAUFGABE: Erstelle 6-10 Karteikarten aus dem Seiteninhalt. Antworte NUR mit JSON: [{\"question\": \"...\", \"answer\": \"...\"}]\n\nSEITENINHALT (Kontext):\n<<<\nBegriffe\n>>>"
+   },
+   {
+    "in": {
+     "mode": "ask",
+     "page_text": "Aufgabe 4: Berechne den Grenzwert.",
+     "question": "Und warum darf ich hier kuerzen?",
+     "course": "Testmathe I",
+     "file_name": "blatt4.pdf",
+     "page": 2,
+     "history": [
+      {
+       "role": "user",
+       "text": "Loese Aufgabe 4"
+      },
+      {
+       "role": "assistant",
+       "text": "  Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀 "
+      },
+      {
+       "role": "user",
+       "text": "Danke"
+      }
+     ]
+    },
+    "prompt": "Kurs: Testmathe I\nDatei: blatt4.pdf, Seite 2\n\nAUFGABE: Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar.\n\nBISHERIGES GESPRAECH (aeltestes zuerst; schliesst meine Frage daran an, beziehe dich darauf):\nIch: Loese Aufgabe 4\nKI: Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schritt 1: ä€😀   Schr\nIch: Danke\n\nMEINE FRAGE: Und warum darf ich hier kuerzen?\n\nSEITENINHALT (Kontext):\n<<<\nAufgabe 4: Berechne den Grenzwert.\n>>>"
    },
    {
     "in": {

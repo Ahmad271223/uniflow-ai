@@ -39,6 +39,10 @@ def _tutor_cases(ai) -> list[dict]:
         {"mode": "summary", "page_text": long, "selection": "  \n ", "course": "Testkurs", "file_name": "s.pdf", "page": 1,
          "sources": src},
         {"mode": "flashcards", "page_text": "Begriffe", "course": "Testkurs", "file_name": "k.pdf", "page": 2, "sources": src},
+        {"mode": "ask", "page_text": "Aufgabe 4: Berechne den Grenzwert.", "question": "Und warum darf ich hier kuerzen?",
+         "course": "Testmathe I", "file_name": "blatt4.pdf", "page": 2,
+         "history": [{"role": "user", "text": "Loese Aufgabe 4"}, {"role": "assistant", "text": "  Schritt 1: ä€😀 " * 200},
+                     {"role": "user", "text": "Danke"}]},
         {"mode": "hints", "page_text": "  Aufgabe 2  ", "selection": "  markiert  ", "course": "K", "file_name": "f.pdf",
          "page": 0, "sources": []},
     ]
@@ -214,7 +218,8 @@ def main() -> int:
         "_hinweis": "Erzeugt mit tools/gen-ai-contract.py aus app/ai.py und app/chatgpt_login.py; nicht von Hand aendern.",
         "texts": {"system": ai.SYSTEM, "tutor_system": ai.TUTOR_SYSTEM, "tutor_modes": ai.TUTOR_MODES,
                   "analysis_fields": ai.ANALYSIS_FIELDS, "week_test_difficulty": ai.WEEK_TEST_DIFFICULTY,
-                  "week_test_total": ai.WEEK_TEST_TOTAL, "week_test_types": list(ai.WEEK_TEST_TYPES)},
+                  "week_test_total": ai.WEEK_TEST_TOTAL, "week_test_types": list(ai.WEEK_TEST_TYPES),
+                  "tutor_history_turns": ai.TUTOR_HISTORY_TURNS, "tutor_history_chars": ai.TUTOR_HISTORY_CHARS},
         "prompts": {"tutor": _tutor_cases(ai),
                     "analysis": [{"in": {"course": c, "file_name": f, "text": t}, "prompt": ai.analysis_prompt(c, f, t)}
                                  for c, f, t in [("Testmathe I", "vl01.pdf", "Folgen und Reihen"), ("Testkurs", "leer.pdf", "  \n"),

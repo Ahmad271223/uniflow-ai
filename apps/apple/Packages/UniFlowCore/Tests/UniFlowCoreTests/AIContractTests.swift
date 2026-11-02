@@ -43,6 +43,8 @@ final class AIContractTests: XCTestCase {
         for (m, p) in zip(AIPromptTexts.tutorModes, modes) { same(m.text, PyText.str(p.value), m.key) }
         XCTAssertEqual(AIPromptTexts.weekTestDifficulty.map { "\($0.level)=\($0.count)" }, diff.map { "\($0.key)=\(PyText.str($0.value))" })
         XCTAssertEqual(g(t, "week_test_total"), .int(String(AIPromptTexts.weekTestTotal)))
+        XCTAssertEqual(g(t, "tutor_history_turns"), .int(String(AIPrompts.tutorHistoryTurns)))
+        XCTAssertEqual(g(t, "tutor_history_chars"), .int(String(AIPrompts.tutorHistoryChars)))
         XCTAssertEqual(list(t, "week_test_types"), AIPromptTexts.weekTestTypes.map { .string($0) })
     }
 
@@ -55,7 +57,7 @@ final class AIContractTests: XCTestCase {
             if case .array(let src)? = g(a, "sources") { sources = src }
             let p = AIPrompts.tutor(mode: s(a, "mode"), pageText: s(a, "page_text"), selection: s(a, "selection"), question: s(a, "question"),
                                     ownSolution: s(a, "own_solution"), course: s(a, "course"), fileName: s(a, "file_name"),
-                                    page: g(a, "page"), sources: sources)
+                                    page: g(a, "page"), sources: sources, history: AIPrompts.tutorHistory(g(a, "history")))
             same(p, s(c, "prompt"), "Tutor \(i) \(s(a, "mode"))")
         }
     }

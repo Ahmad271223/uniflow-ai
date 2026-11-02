@@ -11,6 +11,7 @@ enum AIPromptTexts {
 
     /// `ai.TUTOR_MODES` in der Reihenfolge von Python
     static let tutorModes: [(key: String, text: String)] = [
+        (#"ask"#, #"Beantworte meine Frage zur Seite bzw. zum markierten Text. Ist es eine Aufgabe, loese sie nachvollziehbar."#),
         (#"explain"#, #"Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel."#),
         (#"explain_simple"#, #"Erklaere so einfach wie moeglich, als waere ich Anfaenger. Keine Fachbegriffe ohne Erklaerung."#),
         (#"summary"#, #"Fasse die Seite in 5-8 Stichpunkten zusammen und nenne, was man danach koennen muss."#),
