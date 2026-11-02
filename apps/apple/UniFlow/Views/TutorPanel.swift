@@ -18,6 +18,7 @@ struct TutorPanel: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufChatGPTLink) private var chatgpt
 
     /// Alle Modi in der Reihenfolge von `ai.TUTOR_MODES`; "ask" ist das Eingabefeld, die anderen sind Schnellknoepfe
     static let modes: [(key: String, label: String)] = [
@@ -65,15 +66,12 @@ struct TutorPanel: View {
         .padding(.horizontal, 14).padding(.vertical, 10)
     }
 
-    private var notConnected: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Verbinde dein ChatGPT, dann kannst du hier Fragen zur Seite stellen, Aufgaben lösen lassen, Hinweise bekommen und deine Lösung prüfen.")
-                .ufFont(13.76).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-            UFButton("ChatGPT verbinden", icon: "sparkles", kind: .primary) { router.go(.settings(tab: "advanced")) }
-                .accessibilityIdentifier("tutor.connect")
-            Spacer()
+    @ViewBuilder private var notConnected: some View {
+        if let chatgpt {
+            TutorConnectState(link: chatgpt) { router.go(.settings(tab: "advanced")) }
+        } else {
+            TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { router.go(.settings(tab: "advanced")) }
         }
-        .padding(16)
     }
 
     private var conversation: some View {
@@ -238,6 +236,86 @@ struct TutorPanel: View {
             m.wrappedValue.saved = true
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+}
+
+/// Warum die KI-Hilfe noch nicht fragen kann, mit dem passenden Knopf direkt in der Leiste. "Verbunden" allein reicht
+/// nicht: Freigabe, Schalter "KI-Anfragen", ein Modell und eine gueltige Anmeldung gehoeren dazu (`enabledForAI`).
+struct TutorConnectState: View {
+    @ObservedObject var link: ChatGPTLink
+    let openSettings: () -> Void
+    @State private var busy = false
+
+    enum Reason: Equatable { case notConnected, reauth, noSharing, switchedOff, noModel, ready }
+
+    static func reason(_ s: ChatGPTSession.Status?) -> Reason {
+        guard let s, s.connected else { return .notConnected }
+        if s.needsReauth { return .reauth }
+        if !s.sharing { return .noSharing }
+        if !s.useForAI { return .switchedOff }
+        if s.model.isEmpty { return .noModel }
+        return .ready
+    }
+
+    var body: some View {
+        let reason = Self.reason(link.status)
+        Content(reason: reason, message: link.message, busy: busy || link.connecting, fix: fix(reason), openSettings: openSettings)
+            .task {
+                await link.refresh()
+                if Self.reason(link.status) == .noModel { await link.loadModels() }   // waehlt das erste Modell
+            }
+    }
+
+    private func fix(_ r: Reason) -> (() -> Void)? {
+        let run: (@escaping () async -> Void) -> () -> Void = { work in
+            { Task { busy = true; await work(); busy = false } }
+        }
+        switch r {
+        case .reauth: return run { await link.connect() }
+        case .noSharing: return run { await link.connect(reconsent: true) }
+        case .switchedOff: return run { await link.setUseForAI(true) }
+        case .noModel: return run { await link.loadModels() }
+        case .notConnected, .ready: return nil
+        }
+    }
+
+    struct Content: View {
+        let reason: Reason
+        let message: String?
+        let busy: Bool
+        let fix: (() -> Void)?
+        let openSettings: () -> Void
+
+        static func text(_ r: Reason) -> (info: String, action: String?) {
+            switch r {
+            case .notConnected: return ("Verbinde dein ChatGPT, dann kannst du hier Fragen zur Seite stellen, Aufgaben lösen lassen, Hinweise bekommen und deine Lösung prüfen.", nil)
+            case .reauth: return ("Die Anmeldung bei ChatGPT ist abgelaufen.", "Neu verbinden")
+            case .noSharing: return ("ChatGPT ist verbunden, aber die Freigabe für dein Abo fehlt. Ohne sie laufen keine Anfragen.", "Freigabe nachholen")
+            case .switchedOff: return ("ChatGPT ist verbunden, aber „KI-Anfragen über mein ChatGPT“ ist ausgeschaltet.", "Einschalten")
+            case .noModel: return ("ChatGPT ist verbunden, aber es ist noch kein Modell gewählt.", "Modell wählen")
+            case .ready: return ("ChatGPT ist bereit.", nil)
+            }
+        }
+
+        var body: some View {
+            let t = Self.text(reason)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(t.info).ufFont(13.76).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("tutor.state")
+                if let action = t.action, let fix {
+                    UFButton(busy ? "Einen Moment …" : action, icon: "sparkles", kind: .primary) { fix() }
+                        .disabled(busy).accessibilityIdentifier("tutor.fix")
+                }
+                if let message {
+                    Text(message).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                }
+                UFButton(reason == .notConnected ? "ChatGPT verbinden" : "Einstellungen öffnen", icon: "settings",
+                         kind: reason == .notConnected ? .primary : .normal) { openSettings() }
+                    .accessibilityIdentifier("tutor.connect")
+                Spacer()
+            }
+            .padding(16)
         }
     }
 }

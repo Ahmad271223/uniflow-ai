@@ -156,6 +156,19 @@ public actor ChatGPTSession {
         public var lastError: String?
         /// KI-Anfragen ueber ChatGPT moeglich (`enabled_for_ai`)
         public var enabledForAI: Bool { connected && sharing && useForAI && !model.isEmpty && !needsReauth }
+
+        public init(connected: Bool, sharing: Bool, needsReauth: Bool, email: String?, name: String?, model: String, useForAI: Bool,
+                    registered: Bool, lastError: String?) {
+            self.connected = connected
+            self.sharing = sharing
+            self.needsReauth = needsReauth
+            self.email = email
+            self.name = name
+            self.model = model
+            self.useForAI = useForAI
+            self.registered = registered
+            self.lastError = lastError
+        }
     }
 
     public var status: Status {
