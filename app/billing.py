@@ -53,11 +53,12 @@ CREATE TABLE IF NOT EXISTS usage (
     PRIMARY KEY (user_id, period, feature)
 );
 CREATE TABLE IF NOT EXISTS usage_requests (
-    request_id TEXT PRIMARY KEY,
+    request_id TEXT NOT NULL,             -- vom Client gewaehlt: gilt nur je Konto, Zeitraum und Funktion
     user_id TEXT NOT NULL,
     period TEXT NOT NULL,
     feature TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, period, feature, request_id)
 );
 CREATE INDEX IF NOT EXISTS idx_usage_requests_user ON usage_requests(user_id, period);
 CREATE TABLE IF NOT EXISTS plan_choices (
@@ -88,7 +89,34 @@ def period_of(now: datetime | None = None) -> str:
     return _now(now).strftime("%Y-%m")
 
 
+def _migrate_usage_requests(conn: sqlite3.Connection) -> None:
+    """Fruehere Fassung: PRIMARY KEY (request_id) allein, also kontenuebergreifend. Die Zeilen wandern unveraendert in
+    die Tabelle mit zusammengesetztem Schluessel (Konto, Zeitraum, Funktion, Anfrage-ID); Zaehler bleiben unberuehrt."""
+    def old_layout() -> bool:
+        cols = {r[1]: r[5] for r in conn.execute("PRAGMA table_info(usage_requests)")}
+        return bool(cols) and cols.get("request_id") == 1 and not cols.get("user_id")
+    if not old_layout():
+        return
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        if old_layout():             # ein anderer Prozess kann inzwischen umgestellt haben
+            conn.execute("""CREATE TABLE usage_requests_new (
+                request_id TEXT NOT NULL, user_id TEXT NOT NULL, period TEXT NOT NULL, feature TEXT NOT NULL,
+                created_at TEXT NOT NULL, PRIMARY KEY (user_id, period, feature, request_id))""")
+            conn.execute("INSERT OR IGNORE INTO usage_requests_new(request_id, user_id, period, feature, created_at) "
+                         "SELECT request_id, user_id, period, feature, created_at FROM usage_requests")
+            conn.execute("DROP TABLE usage_requests")
+            conn.execute("ALTER TABLE usage_requests_new RENAME TO usage_requests")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
+    if conn.in_transaction:
+        conn.commit()
+    _migrate_usage_requests(conn)
     conn.executescript(SCHEMA)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(entitlements)")}
     for col, decl in (("will_renew", "INTEGER NOT NULL DEFAULT 1"), ("pending_plan", "TEXT"), ("environment", "TEXT")):
@@ -157,6 +185,11 @@ def used(conn: sqlite3.Connection, user_id, feature: str, now: datetime | None =
 def consume(conn: sqlite3.Connection, user_id, feature: str, request_id: str,
             now: datetime | None = None, legacy: dict | None = None, plan: str | None = None) -> ConsumeResult:
     """Ein Kontingent-Element verbrauchen (z. B. einen KI-Test). Sicher gegen parallele Anfragen und Wiederholungen.
+    Die Anfrage-ID gilt nur fuer dieses Konto, diesen Monat und diese Funktion; dieselbe ID bei einem anderen Konto
+    oder einer anderen Funktion ist eine neue Anfrage. Eine schon gezaehlte ID zaehlt nie ein zweites Mal und liefert
+    `duplicate=True` (ok=True, ohne Grenzpruefung). Der Aufrufer darf dafuer keine weitere Leistung erbringen:
+    entitlements.consume antwortet dann mit 409 duplicate_request (Wiederholung nach Netzfehler = 409 statt zweiter
+    Abbuchung oder zweitem Anbieter-Aufruf).
     `conn` muss im Autocommit-Modus sein (isolation_level=None), damit die Transaktion hier gesteuert wird."""
     if not request_id:
         raise ValueError("request_id fehlt")
@@ -167,7 +200,8 @@ def consume(conn: sqlite3.Connection, user_id, feature: str, request_id: str,
     try:
         p = plan or current_plan(conn, uid, t, legacy)
         limit = plans.quota_limit(p, feature)
-        seen = conn.execute("SELECT 1 FROM usage_requests WHERE request_id=?", (request_id,)).fetchone()
+        seen = conn.execute("SELECT 1 FROM usage_requests WHERE user_id=? AND period=? AND feature=? AND request_id=?",
+                            (uid, period, feature, request_id)).fetchone()
         row = conn.execute("SELECT count FROM usage WHERE user_id=? AND period=? AND feature=?", (uid, period, feature)).fetchone()
         n = row[0] if row else 0
         if seen:
@@ -188,16 +222,21 @@ def consume(conn: sqlite3.Connection, user_id, feature: str, request_id: str,
         raise
 
 
-def refund(conn: sqlite3.Connection, request_id: str) -> bool:
-    """Verbrauch zuruecknehmen, wenn die Leistung fehlschlug (z. B. KI-Test konnte nicht erstellt werden)."""
+def refund(conn: sqlite3.Connection, user_id, feature: str, request_id: str) -> bool:
+    """Verbrauch zuruecknehmen, wenn die Leistung fehlschlug (z. B. KI-Test konnte nicht erstellt werden).
+    Beruehrt nur die Zeile dieses Kontos und dieser Funktion (juengster Zeitraum), nie die eines anderen Kontos."""
+    uid = str(user_id)
     conn.execute("BEGIN IMMEDIATE")
     try:
-        r = conn.execute("SELECT user_id, period, feature FROM usage_requests WHERE request_id=?", (request_id,)).fetchone()
+        r = conn.execute("SELECT period FROM usage_requests WHERE user_id=? AND feature=? AND request_id=? "
+                         "ORDER BY period DESC LIMIT 1", (uid, feature, request_id)).fetchone()
         if not r:
             conn.execute("ROLLBACK")
             return False
-        conn.execute("DELETE FROM usage_requests WHERE request_id=?", (request_id,))
-        conn.execute("UPDATE usage SET count = MAX(count - 1, 0) WHERE user_id=? AND period=? AND feature=?", r)
+        conn.execute("DELETE FROM usage_requests WHERE user_id=? AND period=? AND feature=? AND request_id=?",
+                     (uid, r[0], feature, request_id))
+        conn.execute("UPDATE usage SET count = MAX(count - 1, 0) WHERE user_id=? AND period=? AND feature=?",
+                     (uid, r[0], feature))
         conn.execute("COMMIT")
         return True
     except Exception:
