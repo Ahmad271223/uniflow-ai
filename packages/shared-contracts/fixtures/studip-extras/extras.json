@@ -1382,7 +1382,7 @@
     "text": "Hallo zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "title": "(ohne Betreff)",
     "url": "https://studip.test/dispatch.php/messages/overview",
-    "who": "Max Probe"
+    "who": "Absender"
    },
    {
     "at": "2026-10-19T12:00:00+02:00",
@@ -1725,7 +1725,7 @@
     "dates": [],
     "id": "sp-msg-m3",
     "preview": "Hallo zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    "sender": "Max Probe",
+    "sender": "Absender",
     "sent_at": "2026-10-20T12:00:00+02:00",
     "subject": "(ohne Betreff)",
     "url": "https://studip.test/dispatch.php/messages/overview"

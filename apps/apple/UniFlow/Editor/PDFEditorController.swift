@@ -91,7 +91,12 @@ final class PageInkView: UIView {
         foreignView.subviews.forEach { $0.removeFromSuperview() }
         views.forEach { foreignView.addSubview($0) }
         foreignReleased = false
+        // neue Ebenen in der aktuellen Aufloesung (sonst grob, bis der Zoom das naechste Mal wechselt)
+        if lastRenderScale > 0 { views.forEach { $0.setRenderScale(lastRenderScale, zoom: canvas.zoomScale) } }
     }
+
+    /// zuletzt gesetzte Aufloesung (`setRenderScale`), fuer spaeter angelegte fremde Ebenen
+    private(set) var lastRenderScale: CGFloat = 0
 
     /// Fremde Ebenen freigeben (Speicherwarnung); die Auswahl der Ebenen bleibt im Editor.
     func releaseForeign() {
@@ -118,10 +123,13 @@ final class PageInkView: UIView {
     /// Seitenpunkten. Waehrend eines Strichs bleibt alles, sonst bricht er ab.
     func setRenderScale(_ scale: CGFloat, screen: CGFloat = UIScreen.main.scale) {
         objectsView.setRenderScale(scale)
-        guard !isDrawing else { return }
+        lastRenderScale = scale
         let zoom = max(1, scale / screen)
         // Der Wechsel zeichnet alle Striche neu. Beim Herauszoomen reichen die feineren Kacheln, bis es deutlich weniger wird
-        guard abs(zoom - canvas.zoomScale) > 0.001, zoom > canvas.zoomScale || zoom <= canvas.zoomScale / 2 || zoom == 1 else { return }
+        let current = canvas.zoomScale
+        let change = abs(zoom - current) > 0.001 && (zoom > current || zoom <= current / 2 || zoom == 1)
+        foreignLayerViews.forEach { $0.setRenderScale(scale, zoom: change ? zoom : current) }   // importierte Loesungen ebenso
+        guard !isDrawing, change else { return }
         coverDuringRedraw()
         let size = geometry.pageSize
         canvas.transform = .identity
@@ -1063,25 +1071,39 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         if !toolPicker.isVisible { restorePickerSoon() }
     }
 
-    func restorePickerSoon() {
-        guard ownsToolPicker, pickerWanted else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.restorePicker() }
+    /// Nach dem Verschwinden mehrfach versuchen (0,3 s, dann je 1 s): ein Menue oder Textfeld ist dann irgendwann zu
+    func restorePickerSoon(attempt: Int = 0) {
+        guard ownsToolPicker, pickerWanted, attempt < 10 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.3 : 1.0)) { [weak self] in
+            guard let self else { return }
+            if !self.restorePicker() { self.restorePickerSoon(attempt: attempt + 1) }
+        }
     }
 
-    func restorePicker() {
-        guard ownsToolPicker, pickerWanted, writable, view.window != nil, !toolPicker.isVisible || !anchor.isFirstResponder else { return }
-        guard !(objects.isActive && objects.tool == .markup) else { return }
-        // nur zurueckholen, wenn niemand sonst den Fokus haelt (oder die PDF-Ansicht ihn beim Antippen nahm): ein
-        // geoeffnetes Menue ("Seite einfügen"), ein Textfeld oder ein Popover wuerde sonst sofort wieder geschlossen
-        if let current = UIResponder.uf_current {
-            // eigene Ansicht oder eine Zeichenflaeche (auch die des Dokuments daneben in der geteilten Ansicht, die beim
-            // Schreiben den Fokus nimmt); Menues, Popover und Textfelder nicht
-            guard let v = current as? UIView, !(current is UITextInput),
-                  v.isDescendant(of: view) || Self.isInsideEditor(v) else { return }
-        }
-        // ein Blatt (Teilen, Gliederung, Marker ...) liegt darueber: die Palette nicht darueberlegen
-        guard view.window?.rootViewController?.presentedViewController == nil else { return }
+    /// true: Palette steht (oder soll gerade nicht stehen); false: spaeter noch einmal versuchen
+    @discardableResult
+    func restorePicker() -> Bool {
+        guard ownsToolPicker, pickerWanted, writable, view.window != nil else { return true }
+        if toolPicker.isVisible, anchor.isFirstResponder || Self.isInsideEditor(UIResponder.uf_current as? UIView ?? UIView()) { return true }
+        guard !(objects.isActive && objects.tool == .markup) else { return true }
+        // Textfeld (KI-Hilfe, Suche, Textobjekt), ein Blatt (Teilen, Gliederung, Marker) oder ein Menue bzw. Popover
+        // (eigenes Fenster ueber der App): nicht dazwischenfunken, spaeter erneut
+        if UIResponder.uf_current is UITextInput { return false }
+        guard view.window?.rootViewController?.presentedViewController == nil else { return false }
+        if Self.otherWindowOpen(over: view.window) { return false }
         anchor.becomeFirstResponder()
+        return toolPicker.isVisible
+    }
+
+    /// Ein weiteres sichtbares Fenster ueber dem der App (Menue, Popover, Kontextmenue); Tastatur und die Palette
+    /// selbst zaehlen nicht
+    static func otherWindowOpen(over window: UIWindow?) -> Bool {
+        guard let window, let scene = window.windowScene else { return false }
+        return scene.windows.contains { w in
+            guard w !== window, !w.isHidden, w.alpha > 0, w.windowLevel > window.windowLevel else { return false }
+            let name = String(describing: type(of: w))
+            return !name.contains("Keyboard") && !name.contains("TextEffects") && !name.contains("ToolPicker") && !name.contains("PK")
+        }
     }
 }
 

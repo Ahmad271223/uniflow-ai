@@ -250,16 +250,21 @@ struct UFLogoMenu: View {
 
     var body: some View {
         if let menu {
-            Menu {
-                ForEach(menu.items, id: \.title) { item in Button(item.title) { menu.go(item.route) } }
-                Divider()
-                Button("Einstellungen") { menu.go(.settings()) }
-            } label: {
+            // Tipp: zurueck zur Uebersicht (Wunsch des Inhabers: aus dem Dokument immer wieder nach Studora); gedrueckt
+            // halten: alle Bereiche
+            Button { menu.go(.dashboard) } label: {
                 RoundedRectangle(cornerRadius: 8).fill(UF.logoGradient)
                     .frame(width: 28, height: 28)
                     .overlay(UFIcon("graduation", size: 16).foregroundStyle(.white))
             }
-            .accessibilityLabel("Studora-Menü")
+            .buttonStyle(.plain)
+            .contextMenu {
+                ForEach(menu.items, id: \.title) { item in Button(item.title) { menu.go(item.route) } }
+                Divider()
+                Button("Einstellungen") { menu.go(.settings()) }
+            }
+            .accessibilityLabel("Zur Übersicht")
+            .accessibilityHint("Gedrückt halten für alle Bereiche")
             .accessibilityIdentifier("doc.logoMenu")
         }
     }

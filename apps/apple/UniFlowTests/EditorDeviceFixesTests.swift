@@ -55,6 +55,22 @@ final class EditorDeviceFixesTests: XCTestCase {
         XCTAssertEqual(p.y, 100, accuracy: 0.001)
     }
 
+    /// Importierte Loesungen: ihre Canvas zoomt wie die eigene, sonst wirkt die fremde Tinte beim Hineinzoomen grob
+    func testForeignLayerZoomsLikeTheOwnCanvas() throws {
+        let page = SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 600, height: 800, rotation: 0, extraRotation: 0,
+                                objects: [["type": "stroke", "points": [10, 10, 50, 50, 90, 20], "color": "#000000", "width": 2]])
+        let layer = ForeignLayerView(solutionID: "s", page: page, images: [:], targetRotation: 0, label: "Test")
+        layer.setRenderScale(8, zoom: 4)
+        XCTAssertEqual(layer.ink.zoomScale, 4)
+        XCTAssertEqual(layer.ink.frame.size.width, 600, accuracy: 0.01, "bleibt so gross wie die Seite")
+        let v = PageInkView(pageIndex: 0, geometry: PageGeometry(pageSize: CGSize(width: 600, height: 800)))
+        v.setRenderScale(6, screen: 2)
+        v.setForeign([layer])
+        XCTAssertEqual(layer.ink.zoomScale, 3, "neue Ebene uebernimmt den aktuellen Zoom")
+        v.setRenderScale(2, screen: 2)
+        XCTAssertEqual(layer.ink.zoomScale, 1)
+    }
+
     func testPreviewMoveFollowsTheFingerAndGoesBack() {
         let view = PageObjectsView(frame: CGRect(x: 0, y: 0, width: 600, height: 800))
         view.show(template: nil, placeholder: nil, objects: [["id": "t", "type": "text", "text": "Hallo", "x": 10, "y": 20]], images: [:])

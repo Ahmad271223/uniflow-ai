@@ -88,7 +88,11 @@ public enum StudIPText {
 
     public static func clean(_ v: JSONValue?) -> String {
         guard case .string(let s)? = v else { return "" }
-        return PyText.slice(Announcements.htmlToText(s), 0, maxChars)
+        var lines: [String] = []
+        for ln in Announcements.htmlToText(s).split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
+            if lines.last.map({ PyText.strip($0) != PyText.strip(ln) }) ?? true { lines.append(ln) }   // gleiche Zeile nur einmal
+        }
+        return PyText.slice(lines.joined(separator: "\n"), 0, maxChars)
     }
 
     /// `course_texts`: Feld vorhanden (auch null) -> Text, fehlt es (aeltere Stud.IP-Fassung) -> nil

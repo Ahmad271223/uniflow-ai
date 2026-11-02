@@ -211,7 +211,12 @@ STUDIP_TEXT_CHARS = 2000
 def studip_text(v) -> str:
     """Text eines Stud.IP-Feldes (HTML oder Text) wie eine Ankuendigung (announcements.html_to_text), gekuerzt"""
     from . import announcements
-    return announcements.html_to_text(v if isinstance(v, str) else "")[:STUDIP_TEXT_CHARS]
+    text = announcements.html_to_text(v if isinstance(v, str) else "")
+    lines: list[str] = []
+    for ln in text.split("\n"):                                   # gleiche Zeile direkt hintereinander nur einmal
+        if not lines or lines[-1].strip() != ln.strip():
+            lines.append(ln)
+    return "\n".join(lines)[:STUDIP_TEXT_CHARS]
 
 
 def course_texts(a: dict) -> dict:

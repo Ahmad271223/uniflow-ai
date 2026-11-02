@@ -173,6 +173,27 @@ final class ForeignLayerView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
+    /// Wie `PageInkView.setRenderScale`: PencilKit rendert fertige Striche nur nach dem eigenen Zoom der Canvas. Die
+    /// Canvas der fremden Ebene zoomt darum selbst und wird per Transform wieder auf Seitengroesse gebracht; Text und
+    /// Formen bekommen die Aufloesung der Anzeige. Sonst wirkt eine importierte Loesung beim Hineinzoomen grob.
+    func setRenderScale(_ scale: CGFloat, zoom: CGFloat) {
+        objectsView.setRenderScale(scale)
+        let z = max(1, zoom)
+        guard abs(z - ink.zoomScale) > 0.001 else { return }
+        let size = content.bounds.size
+        ink.transform = .identity
+        ink.minimumZoomScale = min(z, ink.zoomScale)
+        ink.maximumZoomScale = max(z, ink.zoomScale)
+        ink.bounds = CGRect(x: 0, y: 0, width: size.width * z, height: size.height * z)
+        ink.center = CGPoint(x: size.width / 2, y: size.height / 2)
+        ink.zoomScale = z
+        ink.minimumZoomScale = z
+        ink.maximumZoomScale = z
+        ink.contentSize = ink.bounds.size
+        ink.contentOffset = .zero
+        ink.transform = CGAffineTransform(scaleX: 1 / z, y: 1 / z)
+    }
+
     /// Striche der Seite wie auf der Canvas des Absenders; Erstellzeiten nur zur Unterscheidung
     static func drawing(_ objects: [JSONValue]) -> PKDrawing {
         let start = Date(timeIntervalSince1970: 0)

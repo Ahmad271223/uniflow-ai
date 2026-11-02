@@ -152,7 +152,7 @@ def global_news(data, base: str) -> list[dict]:
 
 
 def sender_label(m: dict, users: dict) -> str:
-    """Absender einer Nachricht: Systemnachricht "Stud.IP", sonst die Rolle, sonst hoechstens der Name."""
+    """Absender einer Nachricht: Systemnachricht "Stud.IP", sonst die Rolle, sonst "Absender" (nie der Name)."""
     s = _rel(m, "sender")
     if s is None or (isinstance(s, dict) and s.get("id") == SYSTEM_SENDER):
         return "Stud.IP"
@@ -160,10 +160,7 @@ def sender_label(m: dict, users: dict) -> str:
         return ""
     a = users.get(str(s.get("id")), {})
     role = ROLE_LABELS.get(_str(a.get("permission")).lower())
-    if role:
-        return role
-    name = _str(a.get("formatted-name")).strip() or " ".join(x for x in (_str(a.get("given-name")).strip(), _str(a.get("family-name")).strip()) if x)
-    return name[:80]
+    return role or "Absender"
 
 
 def parse_messages(data, included, base: str, today: date) -> list[dict]:

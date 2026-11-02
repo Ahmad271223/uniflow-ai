@@ -977,6 +977,15 @@ def test_deadlines_in_dashboard_and_api(app, monkeypatch):
     from app import db, study
     db.init_db()
     monkeypatch.setattr(study, "today", lambda: date(2026, 10, 26))
+    # upcoming_deadlines vergleicht am heutigen Tag mit der Uhrzeit (datetime.now): auch die festhalten, sonst faellt
+    # die Frist vom 02.11. nach diesem Datum aus dem Test
+    from datetime import datetime as _dt
+
+    class _Now(_dt):
+        @classmethod
+        def now(cls, tz=None):
+            return _dt(2026, 10, 26, 10, 0)
+    monkeypatch.setattr(study, "datetime", _Now)
     with db.cursor() as conn:
         conn.execute("DELETE FROM deadlines")
         conn.execute("INSERT OR REPLACE INTO courses(id, title, kind, active, created_at) VALUES ('lw-843', 'Statistik', 'vorlesung', 1, '2026-10-26')")

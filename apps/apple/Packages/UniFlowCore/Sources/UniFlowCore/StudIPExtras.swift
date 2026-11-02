@@ -125,16 +125,14 @@ public enum StudIPExtras {
         }
     }
 
-    /// `sender_label(m, users)`: Systemnachricht "Stud.IP", sonst die Rolle, sonst hoechstens der Name
+    /// `sender_label(m, users)`: Systemnachricht "Stud.IP", sonst die Rolle, sonst "Absender" (nie der Name)
     static func senderLabel(_ m: JSONValue, users: [String: JSONValue]) -> String {
         guard let s = rel(m, "sender") else { return "" }
         guard let ref = s else { return "Stud.IP" }
         if ref["id"]?.string == systemSender { return "Stud.IP" }
         let a = users[StudIPTerms.id(ref) ?? ""] ?? .object([:])
         if let role = roleLabels[PyText.lower(str(a["permission"]))] { return role }
-        var name = PyText.strip(str(a["formatted-name"]))
-        if name.isEmpty { name = [PyText.strip(str(a["given-name"])), PyText.strip(str(a["family-name"]))].filter { !$0.isEmpty }.joined(separator: " ") }
-        return PyText.slice(name, 0, 80)
+        return "Absender"                                     // ohne Rolle nie der Name (2.11.2026: keine Personennamen speichern)
     }
 
     /// `parse_messages(data, included, base, today)`. Annahme (Stud.IP 5, MessageSchema): subject, message (HTML),

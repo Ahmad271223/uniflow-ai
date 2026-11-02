@@ -95,7 +95,7 @@ def test_messages_keep_only_list_fields_and_role():
     assert m1["url"].endswith("/dispatch.php/messages/overview")   # Posteingang, nie die Einzelansicht
     assert [(d["date"], d["kind"]) for d in m1["dates"]] == [("2026-11-12", "ausfall"), ("2026-11-19", "frist")]
     assert all("snippet" not in d for d in m1["dates"])
-    assert len(msgs[2]["preview"]) == 160 and msgs[2]["sender"] == "Max Probe"
+    assert len(msgs[2]["preview"]) == 160 and msgs[2]["sender"] == "Absender"
 
 
 def test_activity_skips_participants_and_news_and_names():
