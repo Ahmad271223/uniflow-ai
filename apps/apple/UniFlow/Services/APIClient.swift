@@ -10,12 +10,16 @@ struct APIError: LocalizedError {
     /// "detail" aus dem ganzen Antworttext (`init(status:body:)`): vorher wurde erst gekuerzt und dann gelesen, ein
     /// laengerer Text (z. B. eine Liste von Pruefungsfehlern) war dann kein JSON mehr und die Meldung ging verloren
     var detail: String? = nil
+    /// stabiler Fehlercode der Antwort (`{"detail", "code"}`), z. B. `email_unverified`
+    var code: String? = nil
 
     /// wie api() in core.js: Text aus "detail" der Antwort, sonst der HTTP-Statustext (z. B. "Not Found"). Eine eigene
     /// Meldung (`text`) geht vor: vorher zeigte der Editor fuer eine Nicht-PDF "No Error" und fuer eine nicht geladene
     /// Datei "Not Found".
     var errorDescription: String? {
         if let text { return text }
+        // Texte bekannter Codes des Dienstes: ServiceErrorText (UniFlowCore), sonst "detail" der Antwort
+        if let code, let known = ServiceErrorText.known(code: code) { return known }
         if let detail, !detail.isEmpty { return detail }
         if let d = Self.detail(in: Data(message.utf8)) { return d }
         return status > 0 ? HTTPURLResponse.localizedString(forStatusCode: status).capitalized : message
@@ -30,6 +34,7 @@ struct APIError: LocalizedError {
         self.status = status
         self.message = String(String(decoding: body, as: UTF8.self).prefix(Self.messageLimit))
         self.detail = Self.detail(in: body)
+        self.code = Self.code(in: body)
     }
 
     init(status: Int, message: String, text: String? = nil, detail: String? = nil) {
@@ -37,6 +42,12 @@ struct APIError: LocalizedError {
         self.message = message
         self.text = text
         self.detail = detail
+    }
+
+    /// "code" einer Antwort: oben oder in "detail" (FastAPI HTTPException mit Objekt)
+    static func code(in body: Data) -> String? {
+        guard let v = try? JSONValue.parse(body) else { return nil }
+        return v["code"]?.string ?? v["detail"]?["code"]?.string
     }
 
     /// "detail" einer FastAPI-Antwort: Text, oder bei Pruefungsfehlern (422) die Meldungen der Liste ("msg")

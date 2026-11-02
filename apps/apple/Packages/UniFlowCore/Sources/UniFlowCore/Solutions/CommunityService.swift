@@ -345,7 +345,14 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     case invalidGroupCode
     case groupNotFound
     case invalidGroupName
+    /// Schreiben, Liken und Melden verlangen eine bestaetigte E-Mail-Adresse (403 `email_unverified`)
+    case emailUnverified
+    /// bekannter Code des Dienstes mit eigenem Text aus `ServiceErrorText` (z. B. Tagesgrenze beim Melden)
+    case service(String)
     case server(String)
+
+    /// Handlung zur Meldung (z. B. E-Mail bestaetigen in den Kontoeinstellungen)
+    public var action: ServiceErrorAction? { self == .emailUnverified ? .verifyEmail : nil }
 
     public var errorDescription: String? {
         switch self {
@@ -365,6 +372,8 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .invalidGroupCode: return "Ein Beitrittscode hat 8 Zeichen (Buchstaben und Ziffern)."
         case .groupNotFound: return "Keine Lerngruppe mit diesem Code an deiner Hochschule."
         case .invalidGroupName: return "Gib der Lerngruppe einen Namen (höchstens 60 Zeichen)."
+        case .emailUnverified: return ServiceErrorText.known(code: "email_unverified")
+        case .service(let m): return m
         case .server(let m): return "Community-Dienst: \(m)"
         }
     }

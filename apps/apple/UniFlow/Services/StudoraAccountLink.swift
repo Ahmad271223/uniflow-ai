@@ -69,6 +69,10 @@ final class StudoraAccountLink: ObservableObject {
     }
     @Published private(set) var busy = false
     @Published var message: String?
+    /// Handlung zur letzten Fehlermeldung (z. B. Bestaetigungslink erneut senden)
+    @Published private(set) var messageAction: ServiceErrorAction?
+    /// Rueckmeldung ohne Fehler (z. B. "Link geschickt")
+    @Published private(set) var notice: String?
 
     /// Geraete-Abgleich (Vertrag G2): laeuft gerade, letztes Ergebnis in diesem Prozess
     @Published private(set) var syncing = false
@@ -151,8 +155,11 @@ final class StudoraAccountLink: ObservableObject {
         busy = true
         message = nil
         defer { busy = false }
+        messageAction = nil
         do { try await op(account) } catch let e as AccountError {
-            message = e.retryAfter.map { "\(e.message) (in \(max(1, $0 / 60)) min erneut versuchen)" } ?? e.message
+            // Texte der Fehlercodes: ServiceErrorText (UniFlowCore), mit Retry-After
+            message = e.userMessage
+            messageAction = e.action
             if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil }
         } catch {
             message = error.localizedDescription
@@ -178,6 +185,16 @@ final class StudoraAccountLink: ObservableObject {
     func login(email: String, password: String) async {
         await run { a in _ = try await a.login(email: email, password: password) }
         await refresh()
+    }
+
+    /// Bestaetigungslink fuer die E-Mail-Adresse erneut senden
+    func resendVerification() async {
+        notice = nil
+        var text: String?
+        await run { a in text = try await a.resendVerification() }
+        notice = text
+        // nur nach Erfolg neu laden: refresh() setzt die Fehlermeldung zurueck
+        if text != nil { await refresh() }
     }
 
     func revoke(_ id: Int) async {
