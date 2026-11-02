@@ -163,6 +163,27 @@ def link(provider: str, request: Request, body: dict = Body(...)):
         raise _err(e)
 
 
+@router.get("/identities")
+def identities(request: Request):
+    """Mit dem Konto verknüpfte Anmeldungen (Google/Apple)."""
+    _hosted_only()
+    return {"identities": accounts.identities(_user(request)["id"])}
+
+
+@router.delete("/identities/{provider}")
+def unlink(provider: str, request: Request):
+    """Verknüpfte Anmeldung (Google/Apple) entfernen."""
+    _hosted_only()
+    u = _user(request)
+    try:
+        removed = accounts.unlink_provider(u["id"], provider)
+    except accounts.AccountError as e:
+        raise _err(e)
+    if not removed:
+        raise HTTPException(404, {"detail": "Diese Anmeldung ist nicht verknüpft.", "code": "identity_not_found"})
+    return {"ok": True}
+
+
 @router.get("/me")
 def me(request: Request):
     _hosted_only()
