@@ -3,7 +3,9 @@ import UniFlowCore
 
 /// Übersicht 1:1 nach viewDashboard() in app/static/app.js: Begruessung mit Datum, Kennzahlen (heute geplant,
 /// Aufgaben erledigt, nachzuholen), "Heute für dich geplant" mit Lernpaketen, "Heute an der Uni", "Nächste Termine",
-/// "Diese Woche" mit Wochenstreifen, "Neu aus Stud.IP". Daten: GET /api/dashboard.
+/// "Diese Woche" mit Wochenstreifen, "Neu aus Stud.IP". Daten: GET /api/dashboard. Dazu die Karte "Neuigkeiten"
+/// (Ankuendigungen, Nachrichten, Aenderungen gebuendelt, `NewsCard`) aus GET /api/news; sie ersetzt die fruehere Karte
+/// "Ankündigungen".
 struct DashboardView: View {
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @StateObject private var data: RemoteData
@@ -22,6 +24,9 @@ struct DashboardView: View {
     @State private var day = UFFmt.todayISO()
     /// Ausfaelle laut Stud.IP von heute: in "Heute an der Uni" ausgeblendet wie in Stud.IP (`StudIPCancelled`)
     @State private var studipCancelled: Set<String> = []
+    /// Neuigkeiten (GET /api/news) und die Liste "Alle anzeigen"
+    @State private var news: [JSONValue] = []
+    @State private var showNews = false
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -40,6 +45,9 @@ struct DashboardView: View {
                     Task { await load() }
                 }
         }
+            .ufModal(isPresented: $showNews) {
+                NewsAllList(items: news, today: data.value?["today"]?.s("date") ?? day) { showNews = false }
+            }
             .ufModal(isPresented: $showGenerate) {
                 GeneratePlanDialog(api: api, start: UFFmt.todayISO()) { showGenerate = false }
             }
@@ -59,6 +67,7 @@ struct DashboardView: View {
         let device = day
         studipCancelled = await StudIPCancelled.keys(api, from: device, to: device)
         await data.load()
+        news = (try? await api?.value("/api/news"))?.list("items") ?? []
         if let shown = data.value?["today"]?.s("date"), shown != device {
             studipCancelled = await StudIPCancelled.keys(api, from: shown, to: shown)
         }
@@ -116,7 +125,7 @@ struct DashboardView: View {
                 }, right: {
                     upcomingCard(d.list("upcoming"))
                     DueListCard()                                                  // Abgaben & Prüfungen (nur lokal)
-                    if !d.list("announcements").isEmpty { announcementsCard(d.list("announcements")) }
+                    if !news.isEmpty { NewsCard(items: news, today: todayDate) { showNews = true } }   // Neuigkeiten
                     weekCard(d["week"] ?? .null, today: todayDate)
                     newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0)
                 })
@@ -255,50 +264,6 @@ struct DashboardView: View {
         }
         let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
         return "\(UFFmt.short(u.s("date"))) · \(kind)"
-    }
-
-    /// Karte "Ankuendigungen" wie im Web: Titel, Datum, Kurs, Quelle, erkannte Termine als Chips, Text aufklappbar,
-    /// Link oeffnet das Learnweb bzw. Stud.IP (nur http/https)
-    private func announcementsCard(_ list: [JSONValue]) -> some View {
-        UFCard {
-            UFCardHead("Ankündigungen", icon: "info") { Text("\(list.count)").ufFont(13.12).foregroundStyle(UF.muted) }
-            let rows = Row.rows(Array(list.prefix(5)))
-            ForEach(rows) { row in
-                let a = row.value
-                let source = a.s("source") == "studip" ? "Stud.IP" : "Learnweb"
-                var sub = UFFmt.short(a.s("posted_at").map { String($0.prefix(10)) })
-                let _ = { if let c = a.s("course_title"), !c.isEmpty { sub += " · \(UFFmt.shortName(c))" } }()
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 6.4) {
-                        Text(a.s("text") ?? "").ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-                        if let url = UFDayExtras.safeURL(a.s("url")) {
-                            Button("Im \(source) öffnen") { openURL(url) }.ufFont(12.8).foregroundStyle(UF.accentText).buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 4.8)
-                } label: {
-                    VStack(alignment: .leading, spacing: 2.4) {
-                        Text(a.s("title") ?? "Ankündigung").ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(2)
-                        Text("\(sub) · \(source)").ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
-                        let upcoming = a.list("upcoming").prefix(3)
-                        if !upcoming.isEmpty {
-                            let notices: [JSONValue] = upcoming.map { x in
-                                let kind = x.s("kind") ?? ""
-                                let label = ["ausfall": "Ausfall?", "verlegt": "Verlegung?", "raum": "Raum", "pruefung": "Prüfung",
-                                             "frist": "Frist", "online": "Online"][kind] ?? "Termin"
-                                return .object(["kind_label": .string("\(UFFmt.short(x.s("date"))) \(label)"), "time": x["time"] ?? .null,
-                                                "title": a["title"] ?? .null, "url": a["url"] ?? .null, "course_title": a["course_title"] ?? .null,
-                                                "snippet": x["snippet"] ?? .null, "kind": x["kind"] ?? .null])
-                            }
-                            UFDayExtraChips(dd: .object(["notices": .array(notices)]), stacked: false).padding(.top, 2.4)
-                        }
-                    }
-                    .padding(.vertical, 4.8)
-                }
-                .tint(UF.muted)
-                .ufBorderBottom(row.id != rows.last?.id)
-            }
-        }
     }
 
     private func weekCard(_ w: JSONValue, today: String) -> some View {

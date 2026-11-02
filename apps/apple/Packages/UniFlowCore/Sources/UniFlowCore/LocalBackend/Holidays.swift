@@ -78,8 +78,9 @@ public enum Holidays {
     }
 
     /// `day_marks(start, end, university)`: Markierungen je Tag im Zeitraum: feiertag | pause (Weihnachtspause,
-    /// Exkursionswoche) | vorlesungsfrei. Nur Tage mit Markierung stehen im Ergebnis; Feiertage zuerst.
-    public static func dayMarks(from start: Int, to end: Int, university: String) -> [String: [JSONValue]] {
+    /// Exkursionswoche) | vorlesungsfrei. Nur Tage mit Markierung stehen im Ergebnis; Feiertage zuerst. Mit `studip`
+    /// (`StudIPTerms.load`) gelten die Vorlesungszeiten aus Stud.IP, dessen vorlesungsfreie Zeiten sind Unterbrechungen.
+    public static func dayMarks(from start: Int, to end: Int, university: String, studip: StudIPTerms.Stored? = nil) -> [String: [JSONValue]] {
         guard start <= end else { return [:] }
         var out: [String: [JSONValue]] = [:]
         func add(_ day: Int, _ kind: String, _ label: String) {
@@ -92,12 +93,20 @@ public enum Holidays {
                 if let d = BerlinClock.parseISODate(day) { add(d, "feiertag", name) }
             }
         }
-        let sems = semesters[university] ?? []
+        let sems = studip.map { StudIPTerms.mergedSemesters(university: university, studip: $0) } ?? (semesters[university] ?? [])
         for s in sems {
             for b in s.breaks {
                 guard let a = BerlinClock.parseISODate(b.from), let z = BerlinClock.parseISODate(b.to), a <= z else { continue }
                 for d in a...z { add(d, "pause", b.label) }
             }
+        }
+        // vorlesungsfreie Zeiten aus Stud.IP, nur im Zeitraum; gleiche Bezeichnung am selben Tag nur einmal
+        for b in StudIPTerms.holidayBreaks(studip) {
+            guard let a0 = BerlinClock.parseISODate(b.from), let z0 = BerlinClock.parseISODate(b.to) else { continue }
+            let a = max(a0, start), z = min(z0, end)
+            guard a <= z else { continue }
+            let mark: JSONValue = ["kind": "pause", "label": .string(b.label)]
+            for d in a...z where !(out[BerlinClock.isoDate(d)] ?? []).contains(mark) { add(d, "pause", b.label) }
         }
         for (prev, next) in zip(sems, sems.dropFirst()) {
             guard let a = BerlinClock.parseISODate(prev.end), let z = BerlinClock.parseISODate(next.start), a + 1 <= z - 1 else { continue }
@@ -127,7 +136,7 @@ public enum Holidays {
     /// Lernkalender und Stundenplan
     static func calendarExtras(_ c: SQLiteConnection, from start: Int, to end: Int,
                                university: String? = nil) throws -> (marks: [String: [JSONValue]], deadlines: [String: [JSONValue]]) {
-        let marks = dayMarks(from: start, to: end, university: try university ?? Self.university(c))
+        let marks = dayMarks(from: start, to: end, university: try university ?? Self.university(c), studip: try StudIPTerms.load(c))
         var byDay: [String: [JSONValue]] = [:]
         for r in try c.rows("""
             SELECT d.id, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color

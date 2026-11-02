@@ -554,9 +554,12 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     drop = _replaceable(conn, start, end) if replace else []
     planned, done_weeks = _planned_files(conn, drop), _planned_file_weeks(conn, drop)
     sem = semester_start(conn)
+    # Ferien: an freien Tagen der Stoff der letzten Vorlesungswoche davor (app/studip_terms.py)
+    from . import config, studip_terms
+    free = studip_terms.free_days(start, end, config.university(), studip_terms.load(conn))
     per_week: dict[int, tuple[dict, list[int]]] = {}         # Lehrwoche -> Warteschlangen und Reihenfolge
     for i in range(days):
-        lw = day_week(sem, start + timedelta(days=i))
+        lw = studip_terms.lecture_week(sem, start + timedelta(days=i), free)
         if lw >= 1 and lw not in per_week:
             q, order = _queues(conn, planned, s, lw, done_weeks)
             per_week[lw] = (q, list(order))
@@ -574,7 +577,7 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
         d = start + timedelta(days=i)
         if d < t0 or d.weekday() not in s["learn_days"] or existing_days.get(d.isoformat()):
             continue
-        queues, rr = per_week.get(day_week(sem, d), ({}, []))
+        queues, rr = per_week.get(studip_terms.lecture_week(sem, d, free), ({}, []))
         picked: list[tuple[dict, int]] = []
         day_used = 0
         attempts = 0

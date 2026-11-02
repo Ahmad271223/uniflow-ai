@@ -1697,6 +1697,15 @@ def api_announcements(days: int = 30):
         return {"announcements": announcements.recent(conn, days=max(1, min(days, 365)), limit=50, today=study.today())}
 
 
+@app.get("/api/news")
+def api_news(limit: int = 50):
+    """Neuigkeiten fuer die Uebersicht: Ankuendigungen (Kurs und Stud.IP-weit), Nachrichten (nur lokal) und Aenderungen
+    in Kursen, neueste zuerst (app/studip_extras.py)."""
+    from . import studip_extras
+    with db.cursor() as conn:
+        return {"items": studip_extras.feed_for(conn, study.today(), limit=max(1, min(limit, 100)))}
+
+
 @app.get("/api/modules")
 def api_modules():
     with db.cursor() as conn:

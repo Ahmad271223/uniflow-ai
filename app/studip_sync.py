@@ -211,6 +211,15 @@ def fetch_news(page: Page, course_id: str) -> list[dict] | None:
     return [announcements.from_studip_news(n, course_id, STUDIP_BASE) for n in r.json().get("data", [])]
 
 
+def _api_get(page: Page, path: str) -> tuple[int, dict | None]:
+    """JSON:API-Abruf fuer app/studip_extras.py: (HTTP-Status, JSON oder None), nur lesend."""
+    r = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/{path}", headers={"Accept": "application/vnd.api+json"})
+    try:
+        return r.status, (r.json() if r.ok else None)
+    except Exception:  # noqa: BLE001 - kein JSON (z. B. Anmeldeseite)
+        return r.status, None
+
+
 def fetch_schedule_entries(page: Page, uid: str) -> list[dict]:
     """Persoenliche Eintraege aus dem Stud.IP-Stundenplan des Nutzers (selbst angelegte Termine)."""
     resp = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/schedule", headers={"Accept": "application/vnd.api+json"})
@@ -779,6 +788,14 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         log(f"Stud.IP-Kalender nicht gelesen: {e}")
                 if not calendar_ok:
                     log("Stud.IP-Kalender nicht gelesen: eigene Uebungsgruppen nicht sicher bekannt")
+                # Semester, Stud.IP-weite Ankuendigungen, Nachrichten, Aenderungen, Sprechstunden (app/studip_extras.py)
+                if uid:
+                    try:
+                        from . import studip_extras, study
+                        r = studip_extras.sync(lambda p: _api_get(page, p), conn, uid, STUDIP_BASE, study.today(), db.now_iso())
+                        log(f"Stud.IP-Ergaenzungen: {r}")
+                    except Exception as e:  # noqa: BLE001 - Ergaenzung, der Abgleich laeuft weiter
+                        log(f"Stud.IP-Ergaenzungen nicht gelesen: {e}")
 
                 # Lernstoff aus Stud.IP (app/studip_texts.py): Courseware-Fristen, Courseware, Wiki, Forum, nur lesend,
                 # hoechstens 200 Anfragen; Fehler hier halten den Datei-Abgleich nicht an

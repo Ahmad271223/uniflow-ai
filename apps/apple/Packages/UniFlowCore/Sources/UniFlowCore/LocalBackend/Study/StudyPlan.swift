@@ -447,9 +447,11 @@ enum StudyPlan {
         let drop = replace ? try replaceable(c, from: start, to: end) : []
         let planned = try plannedFiles(c, excluding: drop), doneWeeks = try plannedFileWeeks(c, excluding: drop)
         let sem = try LocalModules.Dates(c, clock: clock).start
+        // Ferien: an freien Tagen der Stoff der letzten Vorlesungswoche davor (`StudIPTerms`, app/studip_terms.py)
+        let free = StudIPTerms.freeDays(from: start, to: end, university: try Holidays.university(c), studip: try StudIPTerms.load(c))
         var perWeek: [Int: (queues: [Int64: Queue], rr: [Int64])] = [:]       // Lehrwoche -> Warteschlangen, Reihenfolge
         for i in 0..<max(0, days) {
-            let lw = StudyWeeks.dayWeek(start: sem, day: start + i, today: today)
+            let lw = StudIPTerms.lectureWeek(semesterStart: sem, day: start + i, today: today, free: free)
             if lw >= 1 && perWeek[lw] == nil {
                 let (q, order) = try queues(c, planned: planned, settings: s, today: today, clock: clock, week: lw, doneWeeks: doneWeeks)
                 perWeek[lw] = (q, order)
@@ -472,7 +474,7 @@ enum StudyPlan {
         for i in 0..<max(0, days) {
             let d = start + i
             if d < today || !s.isLearnDay(d) || existing.contains(iso(d)) { continue }
-            let lw = StudyWeeks.dayWeek(start: sem, day: d, today: today)
+            let lw = StudIPTerms.lectureWeek(semesterStart: sem, day: d, today: today, free: free)
             let queues = perWeek[lw]?.queues ?? [:]
             var rr = perWeek[lw]?.rr ?? []
             defer { if perWeek[lw] != nil { perWeek[lw]!.rr = rr } }

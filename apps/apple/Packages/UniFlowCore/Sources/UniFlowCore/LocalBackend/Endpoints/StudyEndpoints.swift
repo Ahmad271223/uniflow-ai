@@ -83,6 +83,23 @@ public enum StudyEndpoints: LocalEndpointModule {
             let list = try await ctx.database.withConnection { try Announcements.recent($0, days: span, limit: 50, today: T.today(clock)) }
             return .json(["announcements": .array(list)])
         }
+
+        // Neuigkeiten fuer die Uebersicht: Ankuendigungen (Kurs und Stud.IP-weit), Nachrichten (nur auf dem Geraet) und
+        // Aenderungen in Kursen, neueste zuerst (api_news, StudIPExtras.feedFor)
+        router.get("/api/news") { req, ctx in
+            var limit = 50
+            if let raw = req.query("limit") {
+                guard let n = Int(raw.trimmingCharacters(in: .whitespaces)) else {
+                    throw LocalHTTPError.validation(type: "int_parsing", loc: ["query", "limit"],
+                                                    msg: "Input should be a valid integer, unable to parse string as an integer", input: .string(raw))
+                }
+                limit = n
+            }
+            let span = max(1, min(limit, 100))
+            let clock = ctx.clock
+            let list = try await ctx.database.withConnection { try StudIPExtras.feedFor($0, today: T.today(clock), limit: span) }
+            return .json(["items": .array(list)])
+        }
     }
 
     // MARK: Kalender

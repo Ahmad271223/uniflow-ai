@@ -70,9 +70,10 @@ def _span(a: str, b: str):
         d += timedelta(days=1)
 
 
-def day_marks(start: date, end: date, university: str) -> dict[str, list[dict]]:
+def day_marks(start: date, end: date, university: str, studip: dict | None = None) -> dict[str, list[dict]]:
     """Markierungen je Tag im Zeitraum: feiertag | pause (Weihnachtspause, Exkursionswoche) | vorlesungsfrei.
-    Nur Tage mit Markierung stehen im Ergebnis; Feiertage zuerst."""
+    Nur Tage mit Markierung stehen im Ergebnis; Feiertage zuerst. Mit `studip` (app/studip_terms.load) gelten die
+    Vorlesungszeiten aus Stud.IP und dessen vorlesungsfreie Zeiten kommen als Unterbrechung dazu."""
     lo, hi = start.isoformat(), end.isoformat()
     out: dict[str, list[dict]] = {}
 
@@ -83,11 +84,20 @@ def day_marks(start: date, end: date, university: str) -> dict[str, list[dict]]:
     for y in range(start.year, end.year + 1):
         for day, name in public_holidays(y).items():
             add(day, "feiertag", name)
-    sems = SEMESTERS.get(university, [])
+    if studip:
+        from . import studip_terms
+        sems = studip_terms.merged_semesters(university, studip)
+    else:
+        sems = SEMESTERS.get(university, [])
     for _, _, _, breaks in sems:
         for a, b, label in breaks:
             for day in _span(a, b):
                 add(day, "pause", label)
+    if studip:
+        for a, b, label in studip_terms.holiday_breaks(studip):
+            for day in _span(max(a, lo), min(b, hi)):
+                if {"kind": "pause", "label": label} not in out.get(day, []):
+                    add(day, "pause", label)
     for (_, _, end_prev, _), (_, start_next, _, _) in zip(sems, sems[1:]):
         a = (date.fromisoformat(end_prev) + timedelta(days=1)).isoformat()
         b = (date.fromisoformat(start_next) - timedelta(days=1)).isoformat()
@@ -112,8 +122,8 @@ def lecture_free(day: date, university: str) -> bool:
 
 def calendar_extras(conn, start: date, end: date, university: str | None = None) -> tuple[dict, dict]:
     """(Markierungen je Tag, Learnweb-Fristen je Tag) fuer Lernkalender und Stundenplan."""
-    from . import config, db
-    marks = day_marks(start, end, university or config.university())
+    from . import config, db, studip_terms
+    marks = day_marks(start, end, university or config.university(), studip=studip_terms.load(conn))
     by_day: dict[str, list[dict]] = {}
     for r in db.rows(conn, """SELECT d.id, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color
                               FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id

@@ -133,7 +133,9 @@ enum LocalTimetable {
         let events = try c.rows("SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
         let dated = try studipDated(c, from: start, to: end)
         if events.isEmpty {
-            return try Announcements.markCancellations(c, dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" })
+            // dazu eigene Sprechstunden aus Stud.IP (`studip_extras.with_consultations`)
+            return try StudIPExtras.withConsultations(c, try Announcements.markCancellations(
+                c, dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" }), from: start, to: end)
         }
         let ids = events.compactMap { $0["id"].flatMap(SQLiteValue.init(json:)) }
         // je Termin und Datum die Ausnahme; bei mehreren gilt wie im dict von Python die letzte
@@ -148,7 +150,7 @@ enum LocalTimetable {
         // Feiertage: an Feiertagen, in Unterbrechungen und in der vorlesungsfreien Zeit fallen Uni-Veranstaltungen
         // aus (Holidays wie app/holidays.py). Serien mit Daten aus der Quelle (LSF-EXDATE, Stud.IP-Einzeltermine)
         // regeln das selbst; persoenliche Termine nie.
-        let free = Holidays.dayMarks(from: start, to: end, university: try Holidays.university(c))
+        let free = Holidays.dayMarks(from: start, to: end, university: try Holidays.university(c), studip: try StudIPTerms.load(c))
         var notes: [JSONValue: JSONValue] = [:]
         for r in try c.rows("SELECT event_id, note FROM event_notes") { notes[r["event_id"] ?? .null] = r["note"] ?? .null }
         var out: [JSONValue] = []
@@ -217,7 +219,8 @@ enum LocalTimetable {
         }
         let merged = try mergeDated(c, out.compactMap(\.object), dated)
         // Absagen aus Ankuendigungen als Hinweis am Termin (`announcements.mark_cancellations`)
-        return try Announcements.markCancellations(c, includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" })
+        let marked = try Announcements.markCancellations(c, includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" })
+        return try StudIPExtras.withConsultations(c, marked, from: start, to: end)   // eigene Sprechstunden (nur lesend)
     }
 
     /// `studip_dated(conn, start, end)`: die Termine, die Stud.IP dem Nutzer selbst in der Woche zeigt. Alle

@@ -131,8 +131,9 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     events = db.rows(conn, "SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
     dated = studip_dated(conn, start, end)
     if not events:
-        from . import announcements
-        return announcements.mark_cancellations(conn, [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"])
+        from . import announcements, studip_extras
+        return studip_extras.with_consultations(conn, announcements.mark_cancellations(
+            conn, [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"]), start, end)   # + Sprechstunden
     ids = [e["id"] for e in events]
     exc = defaultdict(dict)
     for x in db.rows(conn, f"SELECT * FROM event_exceptions WHERE event_id IN ({','.join('?' * len(ids))})", ids):
@@ -141,8 +142,8 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     # Serien ohne eigene Daten (z. B. persoenliche Stud.IP-Stundenplan-Eintraege) kennen weder Ferien noch Feiertage:
     # an Feiertagen, in Unterbrechungen und in der vorlesungsfreien Zeit fallen Uni-Veranstaltungen aus (app/holidays.py).
     # Serien mit Daten aus der Quelle (LSF-EXDATE, Stud.IP-Einzeltermine) regeln das selbst; persoenliche Termine nie.
-    from . import config, holidays
-    free = holidays.day_marks(start, end, config.university())
+    from . import config, holidays, studip_terms
+    free = holidays.day_marks(start, end, config.university(), studip=studip_terms.load(conn))   # mit Stud.IP-Semestern
     notes = {r["event_id"]: r["note"] for r in db.rows(conn, "SELECT event_id, note FROM event_notes")}
     out = []
     d = start
@@ -189,8 +190,9 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     out = _merge_dated(conn, out, dated)
     if not include_skipped:
         out = [o for o in out if o["status"] != "nicht_teilnahme"]
-    from . import announcements
-    return announcements.mark_cancellations(conn, out)          # Absagen aus Ankuendigungen als Hinweis am Termin
+    from . import announcements, studip_extras
+    out = announcements.mark_cancellations(conn, out)           # Absagen aus Ankuendigungen als Hinweis am Termin
+    return studip_extras.with_consultations(conn, out, start, end)   # eigene Sprechstunden aus Stud.IP (nur lesend)
 
 
 def _matches(e: dict, d: date, t: dict) -> bool:

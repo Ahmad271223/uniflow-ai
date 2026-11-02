@@ -1,0 +1,1986 @@
+{
+ "activity": {
+  "items": [
+   {
+    "at": "2026-11-02T07:00:00+01:00",
+    "course_id": "k-vl",
+    "id": "a1",
+    "type": "documents",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   },
+   {
+    "at": "2026-11-02T07:30:00+01:00",
+    "course_id": "k-vl",
+    "id": "a2",
+    "type": "documents",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   },
+   {
+    "at": "2026-11-01T18:00:00+01:00",
+    "course_id": "k-vl",
+    "id": "a3",
+    "type": "forum",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   }
+  ],
+  "response": {
+   "data": [
+    {
+     "attributes": {
+      "activity-type": "documents",
+      "mkdate": "2026-11-02T07:00:00+01:00",
+      "title": "Erika Test hat eine Datei hochgeladen"
+     },
+     "id": "a1",
+     "relationships": {
+      "context": {
+       "data": {
+        "id": "k-vl",
+        "type": "courses"
+       }
+      }
+     },
+     "type": "activities"
+    },
+    {
+     "attributes": {
+      "activity-type": "documents",
+      "mkdate": "2026-11-02T07:30:00+01:00"
+     },
+     "id": "a2",
+     "relationships": {
+      "context": {
+       "data": {
+        "id": "k-vl",
+        "type": "courses"
+       }
+      }
+     },
+     "type": "activities"
+    },
+    {
+     "attributes": {
+      "activity-type": "forum",
+      "mkdate": "2026-11-01T18:00:00+01:00"
+     },
+     "id": "a3",
+     "relationships": {
+      "context": {
+       "data": {
+        "id": "k-vl",
+        "type": "courses"
+       }
+      }
+     },
+     "type": "activities"
+    },
+    {
+     "attributes": {
+      "activity-type": "participants",
+      "mkdate": "2026-11-02T09:00:00+01:00"
+     },
+     "id": "a4",
+     "relationships": {
+      "context": {
+       "data": {
+        "id": "k-vl",
+        "type": "courses"
+       }
+      }
+     },
+     "type": "activities"
+    },
+    {
+     "attributes": {
+      "activity-type": "news",
+      "mkdate": "2026-11-02T09:00:00+01:00"
+     },
+     "id": "a5",
+     "relationships": {
+      "context": {
+       "data": {
+        "id": "k-vl",
+        "type": "courses"
+       }
+      }
+     },
+     "type": "activities"
+    },
+    {
+     "attributes": {
+      "activity-type": "wiki",
+      "mkdate": "2026-11-02T09:00:00+01:00"
+     },
+     "id": "a6",
+     "relationships": {
+      "context": {
+       "data": {
+        "id": "i1",
+        "type": "institutes"
+       }
+      }
+     },
+     "type": "activities"
+    }
+   ]
+  }
+ },
+ "base": "https://studip.test",
+ "bookings": {
+  "items": [
+   {
+    "end": "2026-11-05T14:15:00",
+    "id": "b1",
+    "room": "Raum 101 (Testgebäude)",
+    "start": "2026-11-05T14:00:00"
+   },
+   {
+    "end": "2026-11-07T16:15:00",
+    "id": "b2",
+    "room": "",
+    "start": "2026-11-07T16:00:00"
+   }
+  ],
+  "response": {
+   "data": [
+    {
+     "attributes": {
+      "reason": "Frage zur Hausarbeit"
+     },
+     "id": "b1",
+     "relationships": {
+      "slot": {
+       "data": {
+        "id": "sl1",
+        "type": "consultation-slots"
+       }
+      }
+     },
+     "type": "consultation-bookings"
+    },
+    {
+     "id": "b2",
+     "relationships": {
+      "slot": {
+       "data": {
+        "id": "sl2",
+        "type": "consultation-slots"
+       }
+      }
+     },
+     "type": "consultation-bookings"
+    },
+    {
+     "id": "b3",
+     "relationships": {
+      "slot": {
+       "data": {
+        "id": "fehlt",
+        "type": "consultation-slots"
+       }
+      }
+     },
+     "type": "consultation-bookings"
+    }
+   ],
+   "included": [
+    {
+     "attributes": {
+      "end-time": "2026-11-05T14:15:00+01:00",
+      "start-time": "2026-11-05T14:00:00+01:00"
+     },
+     "id": "sl1",
+     "relationships": {
+      "block": {
+       "data": {
+        "id": "bl1",
+        "type": "consultation-blocks"
+       }
+      }
+     },
+     "type": "consultation-slots"
+    },
+    {
+     "attributes": {
+      "end": 1794064500,
+      "start": 1794063600
+     },
+     "id": "sl2",
+     "type": "consultation-slots"
+    },
+    {
+     "attributes": {
+      "room": "Raum 101 (Testgebäude)"
+     },
+     "id": "bl1",
+     "type": "consultation-blocks"
+    }
+   ]
+  }
+ },
+ "day_marks": [
+  {
+   "from": "2026-11-16",
+   "plain": {},
+   "studip": {
+    "2026-11-18": [
+     {
+      "kind": "pause",
+      "label": "Hochschultag"
+     }
+    ]
+   },
+   "to": "2026-11-20"
+  },
+  {
+   "from": "2026-12-20",
+   "plain": {
+    "2026-12-23": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-24": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-25": [
+     {
+      "kind": "feiertag",
+      "label": "1. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-26": [
+     {
+      "kind": "feiertag",
+      "label": "2. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-27": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-28": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-29": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-30": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-31": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-01": [
+     {
+      "kind": "feiertag",
+      "label": "Neujahr"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-02": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-03": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-04": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-05": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ]
+   },
+   "studip": {
+    "2026-12-23": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-24": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-25": [
+     {
+      "kind": "feiertag",
+      "label": "1. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-26": [
+     {
+      "kind": "feiertag",
+      "label": "2. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-27": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-28": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-29": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-30": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-31": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-01": [
+     {
+      "kind": "feiertag",
+      "label": "Neujahr"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-02": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-03": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-04": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-05": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ]
+   },
+   "to": "2027-01-15"
+  },
+  {
+   "from": "2027-01-25",
+   "plain": {
+    "2027-01-31": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-01": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-02": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-03": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-04": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-05": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-06": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-11": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-12": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-13": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-14": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-15": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-16": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-17": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-18": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-19": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-20": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-21": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-22": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-23": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-24": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-25": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-26": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-27": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-28": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-01": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-02": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-03": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-04": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-05": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-06": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-11": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-12": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-13": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-14": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-15": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-16": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-17": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-18": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-19": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-20": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-21": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-22": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-23": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-24": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-25": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-26": [
+     {
+      "kind": "feiertag",
+      "label": "Karfreitag"
+     },
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-27": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-28": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-29": [
+     {
+      "kind": "feiertag",
+      "label": "Ostermontag"
+     },
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-30": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-31": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-01": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-02": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-03": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-04": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ]
+   },
+   "studip": {
+    "2027-02-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-11": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-12": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-13": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-14": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-15": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-16": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-17": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-18": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-19": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-20": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-21": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-22": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-23": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-24": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-25": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-26": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-27": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-28": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-01": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-02": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-03": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-04": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-05": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-06": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-11": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-12": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-13": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-14": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-15": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-16": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-17": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-18": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-19": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-20": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-21": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-22": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-23": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-24": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-25": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-26": [
+     {
+      "kind": "feiertag",
+      "label": "Karfreitag"
+     },
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-27": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-28": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-29": [
+     {
+      "kind": "feiertag",
+      "label": "Ostermontag"
+     },
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-30": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-03-31": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-01": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-02": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-03": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-04": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-05": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-06": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-04-11": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ]
+   },
+   "to": "2027-04-20"
+  }
+ ],
+ "feed": {
+  "activity": [
+   {
+    "at": "2026-11-02T07:00:00+01:00",
+    "color": "#4f5bd5",
+    "course_id": "k-vl",
+    "course_title": "Testmathematik",
+    "id": "a1",
+    "type": "documents",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   },
+   {
+    "at": "2026-11-02T07:30:00+01:00",
+    "color": "#4f5bd5",
+    "course_id": "k-vl",
+    "course_title": "Testmathematik",
+    "id": "a2",
+    "type": "documents",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   },
+   {
+    "at": "2026-11-01T18:00:00+01:00",
+    "color": "#4f5bd5",
+    "course_id": "k-vl",
+    "course_title": "Testmathematik",
+    "id": "a3",
+    "type": "forum",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   }
+  ],
+  "course_news": {
+   "attributes": {
+    "content": "<p>Die Vorlesung am 12.11. fällt aus.</p>",
+    "publication-start": "2026-11-02T09:00:00+01:00",
+    "title": "Vorlesung entfällt"
+   },
+   "id": "kn1",
+   "type": "news"
+  },
+  "items": [
+   {
+    "at": "2026-11-02T09:00:00+01:00",
+    "chips": [
+     {
+      "date": "2026-11-12",
+      "kind": "ausfall",
+      "label": "Ausfall? 12.11."
+     }
+    ],
+    "color": "#4f5bd5",
+    "id": "sp-news-kn1",
+    "kind": "ankuendigung",
+    "source": "studip",
+    "text": "Die Vorlesung am 12.11. fällt aus.",
+    "title": "Vorlesung entfällt",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl",
+    "who": "Testmathematik"
+   },
+   {
+    "at": "2026-11-02T08:15:00+01:00",
+    "chips": [
+     {
+      "date": "2026-11-12",
+      "kind": "ausfall",
+      "label": "Ausfall? 12.11."
+     },
+     {
+      "date": "2026-11-19",
+      "kind": "frist",
+      "label": "Frist 19.11."
+     }
+    ],
+    "color": null,
+    "id": "sp-msg-m1",
+    "kind": "nachricht",
+    "source": "studip",
+    "text": "Liebe Studierende, das Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.",
+    "title": "Tutorium entfällt",
+    "url": "https://studip.test/dispatch.php/messages/overview",
+    "who": "Lehrende"
+   },
+   {
+    "at": "2026-11-02T07:30:00+01:00",
+    "chips": [],
+    "color": "#4f5bd5",
+    "id": "act-k-vl-2026-11-02",
+    "kind": "aenderung",
+    "source": "studip",
+    "text": "",
+    "title": "Neu: 2 Dateien",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl",
+    "who": "Testmathematik"
+   },
+   {
+    "at": "2026-11-01T18:00:00+01:00",
+    "chips": [],
+    "color": "#4f5bd5",
+    "id": "act-k-vl-2026-11-01",
+    "kind": "aenderung",
+    "source": "studip",
+    "text": "",
+    "title": "Neu: 1 Forumsbeitrag",
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl",
+    "who": "Testmathematik"
+   },
+   {
+    "at": "2026-11-01T10:00:00+01:00",
+    "chips": [
+     {
+      "date": "2027-01-15",
+      "kind": "frist",
+      "label": "Frist 15.01."
+     }
+    ],
+    "color": null,
+    "id": "sp-news-g1",
+    "kind": "ankuendigung",
+    "source": "studip",
+    "text": "Bitte bis zum 15.01.2027 zurückmelden (Frist).",
+    "title": "Rückmeldung zum SoSe 2027",
+    "url": "https://studip.test/dispatch.php/start",
+    "who": "Stud.IP-weit"
+   },
+   {
+    "at": "2026-10-31T12:00:00+01:00",
+    "chips": [],
+    "color": null,
+    "id": "sp-msg-m2",
+    "kind": "nachricht",
+    "source": "studip",
+    "text": "Text",
+    "title": "Ihre Bescheinigung",
+    "url": "https://studip.test/dispatch.php/messages/overview",
+    "who": "Stud.IP"
+   },
+   {
+    "at": "2026-10-30T08:00:00+01:00",
+    "chips": [],
+    "color": null,
+    "id": "sp-news-k1",
+    "kind": "ankuendigung",
+    "source": "studip",
+    "text": "x",
+    "title": "Steht auch im Kurs",
+    "url": "https://studip.test/dispatch.php/start",
+    "who": "Stud.IP-weit"
+   },
+   {
+    "at": "2026-10-20T12:00:00+02:00",
+    "chips": [],
+    "color": null,
+    "id": "sp-msg-m3",
+    "kind": "nachricht",
+    "source": "studip",
+    "text": "Hallo zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "title": "(ohne Betreff)",
+    "url": "https://studip.test/dispatch.php/messages/overview",
+    "who": "Max Probe"
+   },
+   {
+    "at": "2026-10-19T12:00:00+02:00",
+    "chips": [],
+    "color": null,
+    "id": "sp-msg-m4",
+    "kind": "nachricht",
+    "source": "studip",
+    "text": "",
+    "title": "Ohne Absender",
+    "url": "https://studip.test/dispatch.php/messages/overview",
+    "who": "Stud.IP"
+   }
+  ],
+  "news": [
+   {
+    "author": "",
+    "color": "#4f5bd5",
+    "course_id": "k-vl",
+    "course_title": "Testmathematik",
+    "dates": [
+     {
+      "date": "2026-11-12",
+      "kind": "ausfall",
+      "snippet": "Die Vorlesung am 12.11. fällt aus.",
+      "time": null
+     }
+    ],
+    "discussion": null,
+    "id": "sp-news-kn1",
+    "posted_at": "2026-11-02T09:00:00+01:00",
+    "source": "studip",
+    "text": "Die Vorlesung am 12.11. fällt aus.",
+    "title": "Vorlesung entfällt",
+    "upcoming": [],
+    "url": "https://studip.test/dispatch.php/course/overview?cid=k-vl"
+   },
+   {
+    "author": "",
+    "color": null,
+    "course_id": null,
+    "course_title": null,
+    "dates": [
+     {
+      "date": "2027-01-15",
+      "kind": "frist",
+      "snippet": "Bitte bis zum 15.01.2027 zurückmelden (Frist).",
+      "time": null
+     }
+    ],
+    "discussion": null,
+    "id": "sp-news-g1",
+    "posted_at": "2026-11-01T10:00:00+01:00",
+    "source": "studip",
+    "text": "Bitte bis zum 15.01.2027 zurückmelden (Frist).",
+    "title": "Rückmeldung zum SoSe 2027",
+    "upcoming": [],
+    "url": "https://studip.test/dispatch.php/start"
+   },
+   {
+    "author": "",
+    "color": null,
+    "course_id": null,
+    "course_title": null,
+    "dates": [],
+    "discussion": null,
+    "id": "sp-news-k1",
+    "posted_at": "2026-10-30T08:00:00+01:00",
+    "source": "studip",
+    "text": "x",
+    "title": "Steht auch im Kurs",
+    "upcoming": [],
+    "url": "https://studip.test/dispatch.php/start"
+   }
+  ]
+ },
+ "generator": "tools/gen-studip-extras-fixture.py",
+ "global_news": {
+  "items": [
+   {
+    "author": "",
+    "course_id": null,
+    "dates": [
+     {
+      "date": "2027-01-15",
+      "kind": "frist",
+      "snippet": "Bitte bis zum 15.01.2027 zurückmelden (Frist).",
+      "time": null
+     }
+    ],
+    "discussion": null,
+    "id": "sp-news-g1",
+    "posted_at": "2026-11-01T10:00:00+01:00",
+    "source": "studip",
+    "text": "Bitte bis zum 15.01.2027 zurückmelden (Frist).",
+    "title": "Rückmeldung zum SoSe 2027",
+    "url": "https://studip.test/dispatch.php/start"
+   },
+   {
+    "author": "",
+    "course_id": null,
+    "dates": [],
+    "discussion": null,
+    "id": "sp-news-k1",
+    "posted_at": "2026-10-30T08:00:00+01:00",
+    "source": "studip",
+    "text": "x",
+    "title": "Steht auch im Kurs",
+    "url": "https://studip.test/dispatch.php/start"
+   }
+  ],
+  "response": {
+   "data": [
+    {
+     "attributes": {
+      "content": "<p>Bitte bis zum 15.01.2027 zurückmelden (Frist).</p>",
+      "publication-start": "2026-11-01T10:00:00+01:00",
+      "title": "Rückmeldung zum SoSe 2027"
+     },
+     "id": "g1",
+     "type": "news"
+    },
+    {
+     "attributes": {
+      "content": "x",
+      "mkdate": "2026-10-30T08:00:00+01:00",
+      "title": "Steht auch im Kurs"
+     },
+     "id": "k1",
+     "type": "news"
+    },
+    {
+     "attributes": {
+      "title": "ohne Kennung"
+     },
+     "type": "news"
+    }
+   ]
+  }
+ },
+ "holidays": {
+  "parsed": [
+   {
+    "end": "2026-11-18",
+    "id": "h1",
+    "start": "2026-11-18",
+    "title": "Hochschultag"
+   },
+   {
+    "end": "2027-01-05",
+    "id": "h2",
+    "start": "2026-12-23",
+    "title": "Weihnachtspause"
+   }
+  ],
+  "response": {
+   "data": [
+    {
+     "attributes": {
+      "end": "2026-11-18T23:59:59+01:00",
+      "start": "2026-11-18T00:00:00+01:00",
+      "title": "Hochschultag"
+     },
+     "id": "h1",
+     "type": "holidays"
+    },
+    {
+     "attributes": {
+      "begin": "2026-12-23",
+      "end": "2027-01-05",
+      "name": "Weihnachtspause"
+     },
+     "id": "h2",
+     "type": "holidays"
+    },
+    {
+     "attributes": {
+      "end": "2027-01-09",
+      "start": "2027-01-10",
+      "title": "Rueckwaerts"
+     },
+     "id": "h3",
+     "type": "holidays"
+    }
+   ]
+  }
+ },
+ "lecture_week": {
+  "days": [
+   {
+    "day": "2026-12-21",
+    "plain_week": 11,
+    "week": 11
+   },
+   {
+    "day": "2026-12-23",
+    "plain_week": 11,
+    "week": 11
+   },
+   {
+    "day": "2026-12-28",
+    "plain_week": 12,
+    "week": 11
+   },
+   {
+    "day": "2027-01-05",
+    "plain_week": 13,
+    "week": 11
+   },
+   {
+    "day": "2027-01-06",
+    "plain_week": 13,
+    "week": 13
+   },
+   {
+    "day": "2027-01-11",
+    "plain_week": 14,
+    "week": 14
+   },
+   {
+    "day": "2027-02-10",
+    "plain_week": 18,
+    "week": 17
+   }
+  ],
+  "semester_start": "2026-10-12"
+ },
+ "merged_semesters": [
+  [
+   "SoSe 2026",
+   "2026-04-07",
+   "2026-07-18",
+   [
+    [
+     "2026-05-26",
+     "2026-05-30",
+     "Exkursionswoche"
+    ]
+   ]
+  ],
+  [
+   "WiSe 2026/27",
+   "2026-10-12",
+   "2027-02-06",
+   [
+    [
+     "2026-12-23",
+     "2027-01-05",
+     "Weihnachtspause"
+    ]
+   ]
+  ],
+  [
+   "SoSe 2027",
+   "2027-04-12",
+   "2027-07-24",
+   [
+    [
+     "2027-05-18",
+     "2027-05-23",
+     "Exkursionswoche"
+    ]
+   ]
+  ],
+  [
+   "WiSe 2027/28",
+   "2027-10-11",
+   "2028-01-29",
+   [
+    [
+     "2027-12-24",
+     "2028-01-08",
+     "Weihnachtspause"
+    ]
+   ]
+  ],
+  [
+   "SoSe 2028",
+   "2028-04-18",
+   "2028-07-29",
+   [
+    [
+     "2028-06-06",
+     "2028-06-10",
+     "Exkursionswoche"
+    ]
+   ]
+  ],
+  [
+   "WiSe 2028/29",
+   "2028-10-09",
+   "2029-01-27",
+   [
+    [
+     "2028-12-25",
+     "2029-01-06",
+     "Weihnachtspause"
+    ]
+   ]
+  ],
+  [
+   "WiSe 2031/32",
+   "2031-10-13",
+   "2032-01-31",
+   []
+  ]
+ ],
+ "messages": {
+  "items": [
+   {
+    "dates": [
+     {
+      "date": "2026-11-12",
+      "kind": "ausfall",
+      "time": null
+     },
+     {
+      "date": "2026-11-19",
+      "kind": "frist",
+      "time": "12:00"
+     }
+    ],
+    "id": "sp-msg-m1",
+    "preview": "Liebe Studierende, das Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.",
+    "sender": "Lehrende",
+    "sent_at": "2026-11-02T08:15:00+01:00",
+    "subject": "Tutorium entfällt",
+    "url": "https://studip.test/dispatch.php/messages/overview"
+   },
+   {
+    "dates": [],
+    "id": "sp-msg-m2",
+    "preview": "Text",
+    "sender": "Stud.IP",
+    "sent_at": "2026-10-31T12:00:00+01:00",
+    "subject": "Ihre Bescheinigung",
+    "url": "https://studip.test/dispatch.php/messages/overview"
+   },
+   {
+    "dates": [],
+    "id": "sp-msg-m3",
+    "preview": "Hallo zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "sender": "Max Probe",
+    "sent_at": "2026-10-20T12:00:00+02:00",
+    "subject": "(ohne Betreff)",
+    "url": "https://studip.test/dispatch.php/messages/overview"
+   },
+   {
+    "dates": [],
+    "id": "sp-msg-m4",
+    "preview": "",
+    "sender": "Stud.IP",
+    "sent_at": "2026-10-19T12:00:00+02:00",
+    "subject": "Ohne Absender",
+    "url": "https://studip.test/dispatch.php/messages/overview"
+   }
+  ],
+  "response": {
+   "data": [
+    {
+     "attributes": {
+      "is-read": false,
+      "message": "<p>Liebe Studierende,<br>das Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.</p>",
+      "mkdate": "2026-11-02T08:15:00+01:00",
+      "subject": "Tutorium entfällt"
+     },
+     "id": "m1",
+     "relationships": {
+      "sender": {
+       "data": {
+        "id": "u-doz",
+        "type": "users"
+       }
+      }
+     },
+     "type": "messages"
+    },
+    {
+     "attributes": {
+      "message": "Text",
+      "mkdate": "2026-10-31T12:00:00+01:00",
+      "subject": "Ihre Bescheinigung"
+     },
+     "id": "m2",
+     "relationships": {
+      "sender": {
+       "data": {
+        "id": "____%system%____",
+        "type": "users"
+       }
+      }
+     },
+     "type": "messages"
+    },
+    {
+     "attributes": {
+      "message": "Hallo   \n zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "mkdate": "2026-10-20T12:00:00+02:00",
+      "subject": ""
+     },
+     "id": "m3",
+     "relationships": {
+      "sender": {
+       "data": {
+        "id": "u-anon",
+        "type": "users"
+       }
+      }
+     },
+     "type": "messages"
+    },
+    {
+     "attributes": {
+      "message": "",
+      "mkdate": "2026-10-19T12:00:00+02:00",
+      "subject": "Ohne Absender"
+     },
+     "id": "m4",
+     "relationships": {
+      "sender": {
+       "data": null
+      }
+     },
+     "type": "messages"
+    }
+   ],
+   "included": [
+    {
+     "attributes": {
+      "formatted-name": "Prof. Erika Test",
+      "permission": "dozent"
+     },
+     "id": "u-doz",
+     "type": "users"
+    },
+    {
+     "attributes": {
+      "family-name": "Probe",
+      "given-name": "Max"
+     },
+     "id": "u-anon",
+     "type": "users"
+    }
+   ]
+  }
+ },
+ "remember": [
+  {
+   "after": {
+    "inbox": "2026-11-02"
+   },
+   "missing": {},
+   "name": "inbox",
+   "status": 404
+  },
+  {
+   "after": {
+    "inbox": "2026-11-02"
+   },
+   "missing": {},
+   "name": "inbox",
+   "status": 403
+  },
+  {
+   "after": {},
+   "missing": {
+    "inbox": "2026-09-01"
+   },
+   "name": "inbox",
+   "status": 200
+  },
+  {
+   "after": {
+    "inbox": "2026-09-01"
+   },
+   "missing": {
+    "inbox": "2026-09-01"
+   },
+   "name": "inbox",
+   "status": 500
+  }
+ ],
+ "semesters": {
+  "parsed": [
+   {
+    "end": null,
+    "id": "kaputt",
+    "lectures_end": null,
+    "lectures_start": null,
+    "start": null,
+    "title": "Ohne Daten"
+   },
+   {
+    "end": null,
+    "id": "s31",
+    "lectures_end": "2032-01-31",
+    "lectures_start": "2031-10-13",
+    "start": null,
+    "title": "WiSe 2031/32"
+   },
+   {
+    "end": "2027-03-31",
+    "id": "s26",
+    "lectures_end": "2027-02-06",
+    "lectures_start": "2026-10-12",
+    "start": "2026-10-01",
+    "title": "WiSe 2026/27"
+   },
+   {
+    "end": "2027-09-30",
+    "id": "s27",
+    "lectures_end": "2027-07-24",
+    "lectures_start": "2027-04-12",
+    "start": "2027-04-01",
+    "title": "SoSe 2027"
+   }
+  ],
+  "response": {
+   "data": [
+    {
+     "attributes": {
+      "end": "2027-09-30T23:59:59+02:00",
+      "end-of-lectures": "2027-07-24T23:59:59+02:00",
+      "start": "2027-04-01T00:00:00+02:00",
+      "start-of-lectures": "2027-04-12T00:00:00+02:00",
+      "title": "SoSe 2027"
+     },
+     "id": "s27",
+     "type": "semesters"
+    },
+    {
+     "attributes": {
+      "end": "2027-03-31T23:59:59+02:00",
+      "end-of-lectures": "2027-02-06T23:59:59+01:00",
+      "start": "2026-10-01T00:00:00+02:00",
+      "start-of-lectures": "2026-10-12T00:00:00+02:00",
+      "title": "WiSe 2026/27"
+     },
+     "id": "s26",
+     "type": "semesters"
+    },
+    {
+     "attributes": {
+      "end-of-lectures": "2032-01-31T23:59:59+01:00",
+      "start-of-lectures": "2031-10-13T00:00:00+02:00",
+      "title": "WiSe 2031/32"
+     },
+     "id": "s31",
+     "type": "semesters"
+    },
+    {
+     "attributes": {
+      "start": 1790000000,
+      "title": "Ohne Daten"
+     },
+     "id": "kaputt",
+     "type": "semesters"
+    },
+    {
+     "attributes": {
+      "title": "ohne Kennung"
+     },
+     "type": "semesters"
+    }
+   ]
+  }
+ },
+ "should_ask": [
+  {
+   "ask": true,
+   "missing": {},
+   "name": "holidays",
+   "today": "2026-11-02"
+  },
+  {
+   "ask": false,
+   "missing": {
+    "holidays": "2026-10-20"
+   },
+   "name": "holidays",
+   "today": "2026-11-02"
+  },
+  {
+   "ask": true,
+   "missing": {
+    "holidays": "2026-10-03"
+   },
+   "name": "holidays",
+   "today": "2026-11-02"
+  },
+  {
+   "ask": true,
+   "missing": {
+    "holidays": 5
+   },
+   "name": "holidays",
+   "today": "2026-11-02"
+  }
+ ],
+ "today": "2026-11-02"
+}

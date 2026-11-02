@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 103,
+ "count": 104,
  "paths": [
   {
    "method": "DELETE",
@@ -1213,6 +1213,31 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/news",
+   "sources": [
+    "UniFlow/Views/DashboardView.swift"
+   ],
+   "request": {
+    "path": "/api/news"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "items": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {

@@ -700,8 +700,11 @@ struct DatedEventDialog: View {
     let date: String
     @Environment(\.ufClose) private var close
 
-    static func text(_ date: String) -> String {
-        "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit."
+    static func text(_ date: String, source: String? = nil) -> String {
+        if source == "studip-sprechstunde" {                         // eigene Buchung (StudIPExtras), nur lesend
+            return "Deine gebuchte Sprechstunde aus Stud.IP (\(UFFmt.date(date))). Ändern oder absagen kannst du sie nur in Stud.IP; sie zählt als belegte Zeit."
+        }
+        return "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit."
     }
 
     var body: some View {
@@ -710,7 +713,7 @@ struct DatedEventDialog: View {
                 if let room = e.s("room"), !room.isEmpty { Text(room).ufFont(13.12).foregroundStyle(UF.text2) }
                 // Absage aus einer Ankuendigung: nur Hinweis mit Quelle (ohne Serie keine Ausnahme fuer den Tag)
                 UFCancelHintBox(e: e, decide: nil)
-                Text(Self.text(date)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                Text(Self.text(date, source: e.s("source"))).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         } foot: {
             UFButton("Schließen") { close() }

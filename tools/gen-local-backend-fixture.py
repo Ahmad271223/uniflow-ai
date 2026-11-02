@@ -63,6 +63,7 @@ PREPARED = {
 MP = "uniflow-fixture"
 SAMPLES: dict[str, dict] = {
     "GET /api/dashboard": {"path": "/api/dashboard"},
+    "GET /api/news": {"path": "/api/news"},
     "GET /api/bg": {"path": "/api/bg"},
     "GET /api/sync/status": {"path": "/api/sync/status"},
     "POST /api/sync": {"path": "/api/sync?ai=false", "python": False,

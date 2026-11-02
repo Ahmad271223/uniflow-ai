@@ -613,6 +613,9 @@ final class StudIPSync: ObservableObject {
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
             try Task.checkCancellation()
+            // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden (StudIPExtrasSync)
+            let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid)
+            try Task.checkCancellation()
             // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
             // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen, im
             // kurzen Hintergrundlauf auch nicht (eine Seite je Kurs sprengte die rund 30 Sekunden)
@@ -635,7 +638,7 @@ final class StudIPSync: ObservableObject {
             parts += timetable.summary
             parts += rec?.summary ?? []
             parts += texts?.summary ?? []
-            let expired = timetable.sessionExpired || rec?.sessionExpired == true || texts?.sessionExpired == true
+            let expired = timetable.sessionExpired || rec?.sessionExpired == true || texts?.sessionExpired == true || extrasExpired
             if scope == .full {
                 finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
                 // alle Dateien geladen oder als Fehler gezaehlt: nichts wartet mehr auf den naechsten Abgleich
