@@ -867,3 +867,24 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
   .mod2:active { transform: none; }
   .uf-shimmer { color: var(--muted); background: none; }
 }
+
+/* Neuigkeiten, Schwarzes Brett, "Aus Stud.IP" (news.js, bulletin.js, studip-texts.js) */
+.news-item summary { display: flex; align-items: flex-start; gap: .65rem; }
+.news-ic { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
+.news-ic.tone-info { background: var(--info-soft); color: var(--info-text); } .news-ic.tone-ok { background: var(--ok-soft); color: var(--ok-text); } .news-ic.tone-warn { background: var(--warn-soft); color: var(--warn-text); }
+.news-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.news-top { display: flex; align-items: center; gap: .4rem; color: var(--text-2); font-size: .8125rem; } .news-who { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; } .news-time { color: var(--muted); white-space: nowrap; }
+.news-top > svg { color: var(--muted); transition: transform .22s cubic-bezier(.2, 0, 0, 1); } .news-item[open] .news-top > svg { transform: rotate(180deg); }
+.news-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .15rem; }
+.news-more { padding-left: 2.1rem; } .news-more .body { max-width: 70ch; }
+.news-bulletin { display: flex; align-items: center; gap: .5rem; min-height: 44px; border-top: 1px solid var(--line); color: var(--accent-text); font-size: .8125rem; font-weight: 600; } .news-bulletin span { flex: 1; } .news-bulletin:hover { text-decoration: none; }
+.bb-card { margin-top: 1rem; }
+.bb-entry { padding: .55rem .2rem; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 6px; } .bb-entry:last-child { border-bottom: 0; } .bb-entry:hover { background: var(--surface-2); }
+.bb-head { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; } .bb-title { overflow-wrap: anywhere; } .bb-date { color: var(--muted); font-size: .8125rem; white-space: nowrap; }
+.bb-text, .bb-reader { white-space: pre-line; overflow-wrap: anywhere; font-size: .8125rem; line-height: 1.5; max-width: 70ch; margin-top: .25rem; } .bb-reader { font-size: .9rem; line-height: 1.65; max-height: 60vh; overflow: auto; }
+.st-card { margin-bottom: 1rem; }
+.st-head, .st-line, .st-item { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 44px; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.st-head > svg { color: var(--muted); transition: transform .2s ease; } .st-head[aria-expanded="true"] > svg { transform: rotate(90deg); } .st-head .muted { margin-left: auto; text-align: right; }
+.st-group { border-top: 1px solid var(--line); } .st-line > span { flex: 1; font-variant-numeric: tabular-nums; } .st-line[aria-expanded="true"] > svg:last-child { transform: rotate(90deg); }
+.st-items { padding: 0 0 .4rem 1.6rem; } .st-item { flex-direction: column; align-items: flex-start; gap: .1rem; padding: .35rem 0; } .st-item b { font-weight: 550; overflow-wrap: anywhere; }
+.st-comment { margin-bottom: .8rem; }

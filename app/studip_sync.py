@@ -903,6 +903,14 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         log(f"Stud.IP-Ergaenzungen: {r}")
                     except Exception as e:  # noqa: BLE001 - Ergaenzung, der Abgleich laeuft weiter
                         log(f"Stud.IP-Ergaenzungen nicht gelesen: {e}")
+                # Schwarzes Brett (nur lokal, nur mit Plugin, hoechstens alle 6 Stunden; app/studip_bulletin.py)
+                try:
+                    from . import studip_bulletin
+                    if studip_bulletin.sync_allowed():
+                        r = studip_bulletin.run(conn, studip_bulletin.playwright_get(page, STUDIP_BASE), date.today().isoformat(), db.now_iso())
+                        log(f"Schwarzes Brett: {r}")
+                except Exception as e:  # noqa: BLE001 - Ergaenzung, der Abgleich laeuft weiter
+                    log(f"Schwarzes Brett nicht gelesen: {e}")
 
                 # Lernstoff aus Stud.IP (app/studip_texts.py): Courseware-Fristen, Courseware, Wiki, Forum, nur lesend,
                 # hoechstens 200 Anfragen; Fehler hier halten den Datei-Abgleich nicht an

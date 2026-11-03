@@ -1,0 +1,3027 @@
+{
+ "base": "https://studip.test",
+ "plugin": [
+  {
+   "name": "kein-plugin",
+   "today": "2026-11-02",
+   "now": "2026-11-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list"
+   ],
+   "skipped": false,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [],
+   "entries": null,
+   "stored": 0,
+   "missing": {
+    "bulletin": "2026-11-02"
+   },
+   "rows": [],
+   "settings": [
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{\"bulletin\": \"2026-11-02\"}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [],
+    "entries": [],
+    "new_count": 0,
+    "fetched_at": null,
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "gemerkt-29",
+   "today": "2026-12-01",
+   "now": "2026-12-01T12:00:00",
+   "requested": [],
+   "skipped": true,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [],
+   "entries": null,
+   "stored": null,
+   "missing": {
+    "bulletin": "2026-11-02"
+   },
+   "rows": [],
+   "settings": [
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{\"bulletin\": \"2026-11-02\"}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [],
+    "entries": [],
+    "new_count": 0,
+    "fetched_at": null,
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "gemerkt-30",
+   "today": "2026-12-02",
+   "now": "2026-12-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list",
+    "/plugins.php/schwarzesbrettplugin/rss/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/20",
+    "/plugins.php/schwarzesbrettplugin/rss/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/20",
+    "/plugins.php/schwarzesbrettplugin/rss/cccccccccccccccccccccccccccccccc/20"
+   ],
+   "skipped": false,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [
+    {
+     "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "title": "Biete",
+     "count": 1234
+    },
+    {
+     "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "title": "Jobs an der Uni",
+     "count": 7
+    },
+    {
+     "id": "cccccccccccccccccccccccccccccccc",
+     "title": "Wohnliches",
+     "count": 0
+    }
+   ],
+   "entries": 3,
+   "stored": 3,
+   "missing": {},
+   "rows": [
+    {
+     "id": "sb-a1",
+     "topic": "Biete",
+     "title": "Biete 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-12-02T12:00:00"
+    },
+    {
+     "id": "sb-b1",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-12-02T12:00:00"
+    },
+    {
+     "id": "sb-c1",
+     "topic": "Wohnliches",
+     "title": "Wohnen 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-12-02T12:00:00"
+    }
+   ],
+   "settings": [
+    {
+     "key": "studip_bulletin_fetched_at",
+     "value": "2026-12-02T12:00:00"
+    },
+    {
+     "key": "studip_bulletin_topics",
+     "value": "[{\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"title\": \"Biete\", \"total\": 1234}, {\"id\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", \"title\": \"Jobs an der Uni\", \"total\": 7}, {\"id\": \"cccccccccccccccccccccccccccccccc\", \"title\": \"Wohnliches\", \"total\": 0}]"
+    },
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [
+     {
+      "title": "Biete",
+      "count": 1,
+      "total": 1234
+     },
+     {
+      "title": "Jobs an der Uni",
+      "count": 1,
+      "total": 7
+     },
+     {
+      "title": "Wohnliches",
+      "count": 1,
+      "total": 0
+     }
+    ],
+    "entries": [
+     {
+      "id": "sb-a1",
+      "topic": "Biete",
+      "title": "Biete 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-b1",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-c1",
+      "topic": "Wohnliches",
+      "title": "Wohnen 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+      "posted_at": "2026-11-02T09:01:00"
+     }
+    ],
+    "new_count": 0,
+    "fetched_at": "2026-12-02T12:00:00",
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "ohne-themen",
+   "today": "2026-11-02",
+   "now": "2026-11-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list"
+   ],
+   "skipped": false,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [],
+   "entries": null,
+   "stored": 0,
+   "missing": {
+    "bulletin": "2026-11-02"
+   },
+   "rows": [],
+   "settings": [
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{\"bulletin\": \"2026-11-02\"}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [],
+    "entries": [],
+    "new_count": 0,
+    "fetched_at": null,
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "sitzung",
+   "today": "2026-11-02",
+   "now": "2026-11-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list"
+   ],
+   "skipped": false,
+   "session_expired": true,
+   "feed_unavailable": false,
+   "topics": [],
+   "entries": null,
+   "stored": 0,
+   "missing": {},
+   "rows": [],
+   "settings": [
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [],
+    "entries": [],
+    "new_count": 0,
+    "fetched_at": null,
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "passwortfeld",
+   "today": "2026-11-02",
+   "now": "2026-11-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list"
+   ],
+   "skipped": false,
+   "session_expired": true,
+   "feed_unavailable": false,
+   "topics": [],
+   "entries": null,
+   "stored": 0,
+   "missing": {},
+   "rows": [],
+   "settings": [
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [],
+    "entries": [],
+    "new_count": 0,
+    "fetched_at": null,
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "rss-aus",
+   "today": "2026-11-02",
+   "now": "2026-11-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list",
+    "/plugins.php/schwarzesbrettplugin/rss/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/20"
+   ],
+   "skipped": false,
+   "session_expired": false,
+   "feed_unavailable": true,
+   "topics": [
+    {
+     "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "title": "Biete",
+     "count": 1234
+    },
+    {
+     "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "title": "Jobs an der Uni",
+     "count": 7
+    },
+    {
+     "id": "cccccccccccccccccccccccccccccccc",
+     "title": "Wohnliches",
+     "count": 0
+    }
+   ],
+   "entries": null,
+   "stored": 0,
+   "missing": {},
+   "rows": [],
+   "settings": [
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [],
+    "entries": [],
+    "new_count": 0,
+    "fetched_at": null,
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  }
+ ],
+ "per_topic": 20,
+ "min_hours": 6,
+ "new_days": 7,
+ "list_html": "<!DOCTYPE html><html><head><title>Schwarzes Brett</title></head><body>\n<div id=\"content\"><h2>Themenübersicht</h2>\n<ul class=\"sb-categories\">\n    <li><a href=\"https://studip.test/plugins.php/schwarzesbrettplugin/category/view/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" class=\"category seen\">\n        Biete\n        (1.234)\n        <img src=\"x.svg\" title=\"Dinge, die du loswerden willst\" alt=\"\">\n    </a><div class=\"options\"><a href=\"https://studip.test/plugins.php/schwarzesbrettplugin/rss/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"><img src=\"rss.svg\"></a></div></li>\n    <li><a href=\"https://studip.test/plugins.php/schwarzesbrettplugin/category/view/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\" class=\"category unseen\">Jobs an der Uni (7)</a></li>\n    <li><a href=\"/plugins.php/schwarzesbrettplugin/category/view/cccccccccccccccccccccccccccccccc\" class=\"category seen\">Wohnliches</a>\n        <ul><li><a href=\"/plugins.php/schwarzesbrettplugin/category/view/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\">doppelt</a></li></ul></li>\n</ul>\n<h2>Die 20 neuesten Anzeigen</h2>\n<ul class=\"sb-articles\">\n    <li data-article-id=\"dddddddddddddddddddddddddddddddd\" class=\"article seen\"><a href=\"/plugins.php/schwarzesbrettplugin/article/view/dddddddddddddddddddddddddddddddd\" data-dialog>Suche WG-Zimmer</a>\n        <a href=\"/plugins.php/schwarzesbrettplugin/category/view/cccccccccccccccccccccccccccccccc\">Wohnliches</a></li>\n</ul></div></body></html>",
+ "tooltip_html": "<ul class=\"sb-categories\"><li><a href=\"plugins.php/schwarzesbrettplugin/category/view/0123456789abcdef0123456789abcdef\">Umfragen (5) <span class=\"tooltip\">Umfragen und Befragungen</span></a></li>\n<li><a href=\"plugins.php/schwarzesbrettplugin/category/view/fedcba9876543210fedcba9876543210\">Studentische Arbeiten (43) Hier können Angebote eingestellt werden.</a></li></ul>",
+ "not_a_list_html": "<html><body><ul class=\"sb-articles\"><li><a href=\"/x/category/view/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\">x</a></li></ul></body></html>",
+ "feed_xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\"><channel><title>Stud.IP Schwarzes Brett - Biete</title><link>https://studip.test/plugins.php/schwarzesbrettplugin/category</link>\n<description><![CDATA[]]></description><lastBuildDate>Mon, 02 Nov 2026 10:00:00 +0100</lastBuildDate>\n<item><title>Fahrrad &amp; Helm zu verkaufen</title><link>https://studip.test/plugins.php/schwarzesbrettplugin/article/view/e1</link><description><![CDATA[<p>Gut erhaltenes <b>Rad</b>,<br>28 Zoll.&nbsp;Preis VB.</p><p>Nur Abholung.</p>]]></description><pubDate>Mon, 02 Nov 2026 10:15:00 +0100</pubDate><guid isPermaLink=\"false\">e1</guid></item>\n<item><title>Sehr lang</title><link>https://studip.test/plugins.php/schwarzesbrettplugin/article/view/e2</link><description><![CDATA[<p>Wort1 Wort2 Wort3 Wort4 Wort5 Wort6 Wort7 Wort8 Wort9 Wort10 Wort11 Wort12 Wort13 Wort14 Wort15 Wort16 Wort17 Wort18 Wort19 Wort20 Wort21 Wort22 Wort23 Wort24 Wort25 Wort26 Wort27 Wort28 Wort29 Wort30 Wort31 Wort32 Wort33 Wort34 Wort35 Wort36 Wort37 Wort38 Wort39 Wort40 Wort41 Wort42 Wort43 Wort44 Wort45 Wort46 Wort47 Wort48 Wort49 Wort50 Wort51 Wort52 Wort53 Wort54 Wort55 Wort56 Wort57 Wort58 Wort59 Wort60 Wort61 Wort62 Wort63 Wort64 Wort65 Wort66 Wort67 Wort68 Wort69 Wort70 Wort71 Wort72 Wort73 Wort74 Wort75 Wort76 Wort77 Wort78 Wort79 Wort80 Wort81 Wort82 Wort83 Wort84 Wort85 Wort86 Wort87 Wort88 Wort89 Wort90 Wort91 Wort92 Wort93 Wort94 Wort95 Wort96 Wort97 Wort98 Wort99 Wort100 Wort101 Wort102 Wort103 Wort104 Wort105 Wort106 Wort107 Wort108 Wort109 Wort110 Wort111 Wort112 Wort113 Wort114 Wort115 Wort116 Wort117 Wort118 Wort119 Wort120 Wort121 Wort122 Wort123 Wort124 Wort125 Wort126 Wort127 Wort128 Wort129 Wort130 Wort131 Wort132 Wort133 Wort134 Wort135 Wort136 Wort137 Wort138 Wort139 Wort140 Wort141 Wort142 Wort143 Wort144 Wort145 Wort146 Wort147 Wort148 Wort149 Wort150 Wort151 Wort152 Wort153 Wort154 Wort155 Wort156 Wort157 Wort158 Wort159 Wort160 Wort161 Wort162 Wort163 Wort164 Wort165 Wort166 Wort167 Wort168 Wort169 Wort170 Wort171 Wort172 Wort173 Wort174 Wort175 Wort176 Wort177 Wort178 Wort179 Wort180 Wort181 Wort182 Wort183 Wort184 Wort185 Wort186 Wort187 Wort188 Wort189 Wort190 Wort191 Wort192 Wort193 Wort194 Wort195 Wort196 Wort197 Wort198 Wort199 Wort200 Wort201 Wort202 Wort203 Wort204 Wort205 Wort206 Wort207 Wort208 Wort209 Wort210 Wort211 Wort212 Wort213 Wort214 Wort215 Wort216 Wort217 Wort218 Wort219 Wort220 Wort221 Wort222 Wort223 Wort224 Wort225 Wort226 Wort227 Wort228 Wort229 Wort230 Wort231 Wort232 Wort233 Wort234 Wort235 Wort236 Wort237 Wort238 Wort239 Wort240 Wort241 Wort242 Wort243 Wort244 Wort245 Wort246 Wort247 Wort248 Wort249 Wort250 Wort251 Wort252 Wort253 Wort254 Wort255 Wort256 Wort257 Wort258 Wort259 Wort260 Wort261 Wort262 Wort263 Wort264 Wort265 Wort266 Wort267 Wort268 Wort269 Wort270 Wort271 Wort272 Wort273 Wort274 Wort275 Wort276 Wort277 Wort278 Wort279 Wort280 Wort281 Wort282 Wort283 Wort284 Wort285 Wort286 Wort287 Wort288 Wort289 Wort290 Wort291 Wort292 Wort293 Wort294 Wort295 Wort296 Wort297 Wort298 Wort299 Wort300</p><p>Letzter Absatz.</p>]]></description><pubDate>Sun, 12 Jul 2026 10:00:00 +0200</pubDate></item>\n<item><title></title><link>https://studip.test/x</link><description><![CDATA[ohne Titel]]></description><pubDate>Mon, 02 Nov 2026 10:15:00 +0100</pubDate><guid isPermaLink=\"false\">e3</guid></item>\n<item><title>Doppelt</title><link>https://studip.test/y</link><description><![CDATA[doppelte guid]]></description><pubDate>Mon, 02 Nov 2026 10:15:00 +0100</pubDate><guid isPermaLink=\"false\">e1</guid></item>\n<item><title>GMT-Zeit</title><link>javascript:alert(1)</link><description><![CDATA[<script>x</script>Text]]></description><pubDate>Tue, 03 Nov 2026 09:00:00 GMT</pubDate><guid isPermaLink=\"false\">e4</guid></item>\n</channel></rss>",
+ "topics": {
+  "list": [
+   {
+    "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "title": "Biete",
+    "count": 1234
+   },
+   {
+    "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "title": "Jobs an der Uni",
+    "count": 7
+   },
+   {
+    "id": "cccccccccccccccccccccccccccccccc",
+    "title": "Wohnliches",
+    "count": 0
+   }
+  ],
+  "tooltip": [
+   {
+    "id": "0123456789abcdef0123456789abcdef",
+    "title": "Umfragen",
+    "count": 5
+   },
+   {
+    "id": "fedcba9876543210fedcba9876543210",
+    "title": "Studentische Arbeiten",
+    "count": 43
+   }
+  ],
+  "not_a_list": []
+ },
+ "feed": [
+  {
+   "id": "sb-e1",
+   "topic": "Biete",
+   "title": "Fahrrad & Helm zu verkaufen",
+   "text": "Gut erhaltenes Rad,\n28 Zoll. Preis VB.\nNur Abholung.",
+   "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/e1",
+   "posted_at": "2026-11-02T10:15:00"
+  },
+  {
+   "id": "sb-e2",
+   "topic": "Biete",
+   "title": "Sehr lang",
+   "text": "Wort1 Wort2 Wort3 Wort4 Wort5 Wort6 Wort7 Wort8 Wort9 Wort10 Wort11 Wort12 Wort13 Wort14 Wort15 Wort16 Wort17 Wort18 Wort19 Wort20 Wort21 Wort22 Wort23 Wort24 Wort25 Wort26 Wort27 Wort28 Wort29 Wort30 Wort31 Wort32 Wort33 Wort34 Wort35 Wort36 Wort37 Wort38 Wort39 Wort40 Wort41 Wort42 Wort43 Wort44 Wort45 Wort46 Wort47 Wort48 Wort49 Wort50 Wort51 Wort52 Wort53 Wort54 Wort55 Wort56 Wort57 Wort58 Wort59 Wort60 Wort61 Wort62 Wort63 Wort64 Wort65 Wort66 Wort67 Wort68 Wort69 Wort70 Wort71 Wort72 Wort73 Wort74 Wort75 Wort76 Wort77 Wort78 Wort79 Wort80 Wort81 Wort82 Wort83 Wort84 Wort85 Wort86 Wort87 Wort88 Wort89 Wort90 Wort91 Wort92 Wort93 Wort94 Wort95 Wort96 Wort97 Wort98 Wort99 Wort100 Wort101 Wort102 Wort103 Wort104 Wort105 Wort106 Wort107 Wort108 Wort109 Wort110 Wort111 Wort112 Wort113 Wort114 Wort115 Wort116 Wort117 Wort118 Wort119 Wort120 Wort121 Wort122 Wort123 Wort124 Wort125 Wort126 Wort127 Wort128 Wort129 Wort130 Wort131 Wort132 Wort133 Wort134 Wort135 Wort136 Wort137 Wort138 Wort139 Wort140 Wort141 Wort142 Wort143 Wort144 Wort145 Wort146 Wort147 Wort148 Wort149 Wort150 Wort151 Wort152 Wort153 Wort154 Wort155 Wort156 Wort157 Wort158 Wort159 Wort160 Wort161 Wort162 Wort163 Wort164 Wort165 Wort166 Wort167 Wort168 Wort169 Wort170 Wort171 Wort172 Wort173 Wort174 Wort175 Wort176 Wort177 Wort178 Wort179 Wort180 Wort181 Wort182 Wort183 Wort184 Wort185 Wort186 Wort187 Wort188 Wort189 Wort190 Wort191 Wort192 Wort193 Wort194 Wort195 Wort196 Wort197 Wort198 Wort199 Wort200 Wort201 Wort202 Wort203 Wort204 Wort205 Wort206 Wort207 Wort208 Wort209 Wort210 Wort211 Wort212 Wort213 Wort214 Wort215 Wort216 Wort217 Wort218 Wort219 Wort220 Wort221 Wort222 Wort223 Wort224 Wort225 Wort226 Wort227 Wort228 Wort229 Wort230 Wort231 Wort232 Wort233 Wort234 Wort235 Wort236 Wort237 Wort238 Wort239 Wort240 Wort241 Wort242 Wort243 Wort244 Wort245 Wort246 Wort247 Wort248 Wort249 Wort250 Wort251 Wort252 Wort253 Wort254 Wort255 Wort256 Wort257 Wort258 Wort259 Wort260 Wort261 Wort262 Wort263 Wort264 Wort265 Wort266 Wort267 Wort268 Wort269 Wort270 Wort271 Wort272 Wort273 Wort274 Wort275 Wort276 Wort277 Wort278 Wort279 Wort280 Wort281 Wort282 Wort283 Wort284 Wort285 Wort286 Wort287 Wort288 Wort289 Wort290 Wort291 Wort292 Wort293 Wort294 Wort295 Wort296 Wort297 Wort298 Wort299 Wort300\nLetzter Absatz.",
+   "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/e2",
+   "posted_at": "2026-07-12T10:00:00"
+  },
+  {
+   "id": "sb-e4",
+   "topic": "Biete",
+   "title": "GMT-Zeit",
+   "text": "xText",
+   "url": "",
+   "posted_at": "2026-11-03T10:00:00"
+  }
+ ],
+ "local_time": {
+  "Mon, 02 Nov 2026 10:15:00 +0100": "2026-11-02T10:15:00",
+  "Sun, 12 Jul 2026 10:00:00 +0200": "2026-07-12T10:00:00",
+  "Tue, 03 Nov 2026 09:00:00 GMT": "2026-11-03T10:00:00",
+  "irgendwann": null,
+  "2 Nov 2026 23:30:00 -0500": "2026-11-03T05:30:00",
+  "Mon, 02 Nov 26 08:05 +0100": "2026-11-02T08:05:00",
+  "Sun, 25 Oct 2026 01:30:00 +0000": "2026-10-25T02:30:00",
+  "Mon, 32 Nov 2026 10:00:00 +0100": null,
+  "Mon, 02 Foo 2026 10:00:00 +0100": null,
+  "Mon, 02 Nov 2026 25:00:00 +0100": null,
+  "Mon, 02 Nov 2026 10:00:75 +0100": "2026-11-02T10:00:59"
+ },
+ "board_url": {
+  "https://studip.test/": "https://studip.test/plugins.php/schwarzesbrettplugin/category/list",
+  "https://studip.test": "https://studip.test/plugins.php/schwarzesbrettplugin/category/list"
+ },
+ "overview_topic": {
+  "available": true,
+  "topics": [
+   {
+    "title": "Biete",
+    "count": 20,
+    "total": 1234
+   },
+   {
+    "title": "Jobs an der Uni",
+    "count": 20,
+    "total": 7
+   },
+   {
+    "title": "Wohnliches",
+    "count": 20,
+    "total": 0
+   }
+  ],
+  "entries": [
+   {
+    "id": "sb-b1",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 1",
+    "text": "Text 1",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+    "posted_at": "2026-11-02T09:01:00"
+   },
+   {
+    "id": "sb-b2",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 2",
+    "text": "Text 2",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+    "posted_at": "2026-11-02T08:02:00"
+   },
+   {
+    "id": "sb-b3",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 3",
+    "text": "Text 3",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+    "posted_at": "2026-11-02T07:03:00"
+   },
+   {
+    "id": "sb-b4",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 4",
+    "text": "Text 4",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b4",
+    "posted_at": "2026-11-02T06:04:00"
+   },
+   {
+    "id": "sb-b5",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 5",
+    "text": "Text 5",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b5",
+    "posted_at": "2026-11-02T05:05:00"
+   },
+   {
+    "id": "sb-b6",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 6",
+    "text": "Text 6",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b6",
+    "posted_at": "2026-11-02T04:06:00"
+   },
+   {
+    "id": "sb-b7",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 7",
+    "text": "Text 7",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b7",
+    "posted_at": "2026-11-02T03:07:00"
+   },
+   {
+    "id": "sb-b8",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 8",
+    "text": "Text 8",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b8",
+    "posted_at": "2026-11-02T02:08:00"
+   },
+   {
+    "id": "sb-b20",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 20",
+    "text": "Text 20",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b20",
+    "posted_at": "2026-11-02T01:20:00"
+   },
+   {
+    "id": "sb-b19",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 19",
+    "text": "Text 19",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b19",
+    "posted_at": "2026-11-02T01:19:00"
+   },
+   {
+    "id": "sb-b18",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 18",
+    "text": "Text 18",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b18",
+    "posted_at": "2026-11-02T01:18:00"
+   },
+   {
+    "id": "sb-b17",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 17",
+    "text": "Text 17",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b17",
+    "posted_at": "2026-11-02T01:17:00"
+   },
+   {
+    "id": "sb-b16",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 16",
+    "text": "Text 16",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b16",
+    "posted_at": "2026-11-02T01:16:00"
+   },
+   {
+    "id": "sb-b15",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 15",
+    "text": "Text 15",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b15",
+    "posted_at": "2026-11-02T01:15:00"
+   },
+   {
+    "id": "sb-b14",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 14",
+    "text": "Text 14",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b14",
+    "posted_at": "2026-11-02T01:14:00"
+   },
+   {
+    "id": "sb-b13",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 13",
+    "text": "Text 13",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b13",
+    "posted_at": "2026-11-02T01:13:00"
+   },
+   {
+    "id": "sb-b12",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 12",
+    "text": "Text 12",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b12",
+    "posted_at": "2026-11-02T01:12:00"
+   },
+   {
+    "id": "sb-b11",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 11",
+    "text": "Text 11",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b11",
+    "posted_at": "2026-11-02T01:11:00"
+   },
+   {
+    "id": "sb-b10",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 10",
+    "text": "Text 10",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b10",
+    "posted_at": "2026-11-02T01:10:00"
+   },
+   {
+    "id": "sb-b9",
+    "topic": "Jobs an der Uni",
+    "title": "Jobs 9",
+    "text": "Text 9",
+    "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b9",
+    "posted_at": "2026-11-02T01:09:00"
+   }
+  ],
+  "new_count": 60,
+  "fetched_at": "2026-11-02T12:00:00",
+  "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+ },
+ "item": {
+  "id": "sb-a3",
+  "topic": "Biete",
+  "title": "Biete 3",
+  "text": "Text 3",
+  "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+  "posted_at": "2026-11-02T07:03:00"
+ },
+ "item_missing": null,
+ "runs": [
+  {
+   "name": "erst",
+   "today": "2026-11-02",
+   "now": "2026-11-02T12:00:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list",
+    "/plugins.php/schwarzesbrettplugin/rss/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/20",
+    "/plugins.php/schwarzesbrettplugin/rss/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/20",
+    "/plugins.php/schwarzesbrettplugin/rss/cccccccccccccccccccccccccccccccc/20"
+   ],
+   "skipped": false,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [
+    {
+     "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "title": "Biete",
+     "count": 1234
+    },
+    {
+     "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "title": "Jobs an der Uni",
+     "count": 7
+    },
+    {
+     "id": "cccccccccccccccccccccccccccccccc",
+     "title": "Wohnliches",
+     "count": 0
+    }
+   ],
+   "entries": 60,
+   "stored": 60,
+   "missing": {},
+   "rows": [
+    {
+     "id": "sb-a1",
+     "topic": "Biete",
+     "title": "Biete 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a10",
+     "topic": "Biete",
+     "title": "Biete 10",
+     "text": "Text 10",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a10",
+     "posted_at": "2026-11-02T01:10:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a11",
+     "topic": "Biete",
+     "title": "Biete 11",
+     "text": "Text 11",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a11",
+     "posted_at": "2026-11-02T01:11:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a12",
+     "topic": "Biete",
+     "title": "Biete 12",
+     "text": "Text 12",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a12",
+     "posted_at": "2026-11-02T01:12:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a13",
+     "topic": "Biete",
+     "title": "Biete 13",
+     "text": "Text 13",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a13",
+     "posted_at": "2026-11-02T01:13:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a14",
+     "topic": "Biete",
+     "title": "Biete 14",
+     "text": "Text 14",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a14",
+     "posted_at": "2026-11-02T01:14:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a15",
+     "topic": "Biete",
+     "title": "Biete 15",
+     "text": "Text 15",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a15",
+     "posted_at": "2026-11-02T01:15:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a16",
+     "topic": "Biete",
+     "title": "Biete 16",
+     "text": "Text 16",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a16",
+     "posted_at": "2026-11-02T01:16:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a17",
+     "topic": "Biete",
+     "title": "Biete 17",
+     "text": "Text 17",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a17",
+     "posted_at": "2026-11-02T01:17:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a18",
+     "topic": "Biete",
+     "title": "Biete 18",
+     "text": "Text 18",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a18",
+     "posted_at": "2026-11-02T01:18:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a19",
+     "topic": "Biete",
+     "title": "Biete 19",
+     "text": "Text 19",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a19",
+     "posted_at": "2026-11-02T01:19:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a2",
+     "topic": "Biete",
+     "title": "Biete 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a20",
+     "topic": "Biete",
+     "title": "Biete 20",
+     "text": "Text 20",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a20",
+     "posted_at": "2026-11-02T01:20:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a3",
+     "topic": "Biete",
+     "title": "Biete 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a4",
+     "topic": "Biete",
+     "title": "Biete 4",
+     "text": "Text 4",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a4",
+     "posted_at": "2026-11-02T06:04:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a5",
+     "topic": "Biete",
+     "title": "Biete 5",
+     "text": "Text 5",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a5",
+     "posted_at": "2026-11-02T05:05:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a6",
+     "topic": "Biete",
+     "title": "Biete 6",
+     "text": "Text 6",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a6",
+     "posted_at": "2026-11-02T04:06:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a7",
+     "topic": "Biete",
+     "title": "Biete 7",
+     "text": "Text 7",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a7",
+     "posted_at": "2026-11-02T03:07:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a8",
+     "topic": "Biete",
+     "title": "Biete 8",
+     "text": "Text 8",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a8",
+     "posted_at": "2026-11-02T02:08:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a9",
+     "topic": "Biete",
+     "title": "Biete 9",
+     "text": "Text 9",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a9",
+     "posted_at": "2026-11-02T01:09:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b1",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b10",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 10",
+     "text": "Text 10",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b10",
+     "posted_at": "2026-11-02T01:10:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b11",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 11",
+     "text": "Text 11",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b11",
+     "posted_at": "2026-11-02T01:11:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b12",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 12",
+     "text": "Text 12",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b12",
+     "posted_at": "2026-11-02T01:12:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b13",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 13",
+     "text": "Text 13",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b13",
+     "posted_at": "2026-11-02T01:13:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b14",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 14",
+     "text": "Text 14",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b14",
+     "posted_at": "2026-11-02T01:14:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b15",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 15",
+     "text": "Text 15",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b15",
+     "posted_at": "2026-11-02T01:15:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b16",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 16",
+     "text": "Text 16",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b16",
+     "posted_at": "2026-11-02T01:16:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b17",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 17",
+     "text": "Text 17",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b17",
+     "posted_at": "2026-11-02T01:17:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b18",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 18",
+     "text": "Text 18",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b18",
+     "posted_at": "2026-11-02T01:18:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b19",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 19",
+     "text": "Text 19",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b19",
+     "posted_at": "2026-11-02T01:19:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b2",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b20",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 20",
+     "text": "Text 20",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b20",
+     "posted_at": "2026-11-02T01:20:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b3",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b4",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 4",
+     "text": "Text 4",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b4",
+     "posted_at": "2026-11-02T06:04:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b5",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 5",
+     "text": "Text 5",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b5",
+     "posted_at": "2026-11-02T05:05:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b6",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 6",
+     "text": "Text 6",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b6",
+     "posted_at": "2026-11-02T04:06:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b7",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 7",
+     "text": "Text 7",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b7",
+     "posted_at": "2026-11-02T03:07:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b8",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 8",
+     "text": "Text 8",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b8",
+     "posted_at": "2026-11-02T02:08:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b9",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 9",
+     "text": "Text 9",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b9",
+     "posted_at": "2026-11-02T01:09:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c1",
+     "topic": "Wohnliches",
+     "title": "Wohnen 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c10",
+     "topic": "Wohnliches",
+     "title": "Wohnen 10",
+     "text": "Text 10",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c10",
+     "posted_at": "2026-11-02T01:10:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c11",
+     "topic": "Wohnliches",
+     "title": "Wohnen 11",
+     "text": "Text 11",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c11",
+     "posted_at": "2026-11-02T01:11:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c12",
+     "topic": "Wohnliches",
+     "title": "Wohnen 12",
+     "text": "Text 12",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c12",
+     "posted_at": "2026-11-02T01:12:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c13",
+     "topic": "Wohnliches",
+     "title": "Wohnen 13",
+     "text": "Text 13",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c13",
+     "posted_at": "2026-11-02T01:13:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c14",
+     "topic": "Wohnliches",
+     "title": "Wohnen 14",
+     "text": "Text 14",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c14",
+     "posted_at": "2026-11-02T01:14:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c15",
+     "topic": "Wohnliches",
+     "title": "Wohnen 15",
+     "text": "Text 15",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c15",
+     "posted_at": "2026-11-02T01:15:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c16",
+     "topic": "Wohnliches",
+     "title": "Wohnen 16",
+     "text": "Text 16",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c16",
+     "posted_at": "2026-11-02T01:16:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c17",
+     "topic": "Wohnliches",
+     "title": "Wohnen 17",
+     "text": "Text 17",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c17",
+     "posted_at": "2026-11-02T01:17:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c18",
+     "topic": "Wohnliches",
+     "title": "Wohnen 18",
+     "text": "Text 18",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c18",
+     "posted_at": "2026-11-02T01:18:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c19",
+     "topic": "Wohnliches",
+     "title": "Wohnen 19",
+     "text": "Text 19",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c19",
+     "posted_at": "2026-11-02T01:19:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c2",
+     "topic": "Wohnliches",
+     "title": "Wohnen 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c20",
+     "topic": "Wohnliches",
+     "title": "Wohnen 20",
+     "text": "Text 20",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c20",
+     "posted_at": "2026-11-02T01:20:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c3",
+     "topic": "Wohnliches",
+     "title": "Wohnen 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c4",
+     "topic": "Wohnliches",
+     "title": "Wohnen 4",
+     "text": "Text 4",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c4",
+     "posted_at": "2026-11-02T06:04:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c5",
+     "topic": "Wohnliches",
+     "title": "Wohnen 5",
+     "text": "Text 5",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c5",
+     "posted_at": "2026-11-02T05:05:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c6",
+     "topic": "Wohnliches",
+     "title": "Wohnen 6",
+     "text": "Text 6",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c6",
+     "posted_at": "2026-11-02T04:06:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c7",
+     "topic": "Wohnliches",
+     "title": "Wohnen 7",
+     "text": "Text 7",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c7",
+     "posted_at": "2026-11-02T03:07:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c8",
+     "topic": "Wohnliches",
+     "title": "Wohnen 8",
+     "text": "Text 8",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c8",
+     "posted_at": "2026-11-02T02:08:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c9",
+     "topic": "Wohnliches",
+     "title": "Wohnen 9",
+     "text": "Text 9",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c9",
+     "posted_at": "2026-11-02T01:09:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    }
+   ],
+   "settings": [
+    {
+     "key": "studip_bulletin_fetched_at",
+     "value": "2026-11-02T12:00:00"
+    },
+    {
+     "key": "studip_bulletin_topics",
+     "value": "[{\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"title\": \"Biete\", \"total\": 1234}, {\"id\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", \"title\": \"Jobs an der Uni\", \"total\": 7}, {\"id\": \"cccccccccccccccccccccccccccccccc\", \"title\": \"Wohnliches\", \"total\": 0}]"
+    },
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [
+     {
+      "title": "Biete",
+      "count": 20,
+      "total": 1234
+     },
+     {
+      "title": "Jobs an der Uni",
+      "count": 20,
+      "total": 7
+     },
+     {
+      "title": "Wohnliches",
+      "count": 20,
+      "total": 0
+     }
+    ],
+    "entries": [
+     {
+      "id": "sb-a1",
+      "topic": "Biete",
+      "title": "Biete 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-b1",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-c1",
+      "topic": "Wohnliches",
+      "title": "Wohnen 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-a2",
+      "topic": "Biete",
+      "title": "Biete 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-b2",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-c2",
+      "topic": "Wohnliches",
+      "title": "Wohnen 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-a3",
+      "topic": "Biete",
+      "title": "Biete 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-b3",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-c3",
+      "topic": "Wohnliches",
+      "title": "Wohnen 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-a4",
+      "topic": "Biete",
+      "title": "Biete 4",
+      "text": "Text 4",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a4",
+      "posted_at": "2026-11-02T06:04:00"
+     },
+     {
+      "id": "sb-b4",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 4",
+      "text": "Text 4",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b4",
+      "posted_at": "2026-11-02T06:04:00"
+     },
+     {
+      "id": "sb-c4",
+      "topic": "Wohnliches",
+      "title": "Wohnen 4",
+      "text": "Text 4",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c4",
+      "posted_at": "2026-11-02T06:04:00"
+     },
+     {
+      "id": "sb-a5",
+      "topic": "Biete",
+      "title": "Biete 5",
+      "text": "Text 5",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a5",
+      "posted_at": "2026-11-02T05:05:00"
+     },
+     {
+      "id": "sb-b5",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 5",
+      "text": "Text 5",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b5",
+      "posted_at": "2026-11-02T05:05:00"
+     },
+     {
+      "id": "sb-c5",
+      "topic": "Wohnliches",
+      "title": "Wohnen 5",
+      "text": "Text 5",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c5",
+      "posted_at": "2026-11-02T05:05:00"
+     },
+     {
+      "id": "sb-a6",
+      "topic": "Biete",
+      "title": "Biete 6",
+      "text": "Text 6",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a6",
+      "posted_at": "2026-11-02T04:06:00"
+     },
+     {
+      "id": "sb-b6",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 6",
+      "text": "Text 6",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b6",
+      "posted_at": "2026-11-02T04:06:00"
+     },
+     {
+      "id": "sb-c6",
+      "topic": "Wohnliches",
+      "title": "Wohnen 6",
+      "text": "Text 6",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c6",
+      "posted_at": "2026-11-02T04:06:00"
+     },
+     {
+      "id": "sb-a7",
+      "topic": "Biete",
+      "title": "Biete 7",
+      "text": "Text 7",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a7",
+      "posted_at": "2026-11-02T03:07:00"
+     },
+     {
+      "id": "sb-b7",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 7",
+      "text": "Text 7",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b7",
+      "posted_at": "2026-11-02T03:07:00"
+     },
+     {
+      "id": "sb-c7",
+      "topic": "Wohnliches",
+      "title": "Wohnen 7",
+      "text": "Text 7",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c7",
+      "posted_at": "2026-11-02T03:07:00"
+     },
+     {
+      "id": "sb-a8",
+      "topic": "Biete",
+      "title": "Biete 8",
+      "text": "Text 8",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a8",
+      "posted_at": "2026-11-02T02:08:00"
+     },
+     {
+      "id": "sb-b8",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 8",
+      "text": "Text 8",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b8",
+      "posted_at": "2026-11-02T02:08:00"
+     },
+     {
+      "id": "sb-c8",
+      "topic": "Wohnliches",
+      "title": "Wohnen 8",
+      "text": "Text 8",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c8",
+      "posted_at": "2026-11-02T02:08:00"
+     },
+     {
+      "id": "sb-a20",
+      "topic": "Biete",
+      "title": "Biete 20",
+      "text": "Text 20",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a20",
+      "posted_at": "2026-11-02T01:20:00"
+     },
+     {
+      "id": "sb-b20",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 20",
+      "text": "Text 20",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b20",
+      "posted_at": "2026-11-02T01:20:00"
+     },
+     {
+      "id": "sb-c20",
+      "topic": "Wohnliches",
+      "title": "Wohnen 20",
+      "text": "Text 20",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c20",
+      "posted_at": "2026-11-02T01:20:00"
+     },
+     {
+      "id": "sb-a19",
+      "topic": "Biete",
+      "title": "Biete 19",
+      "text": "Text 19",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a19",
+      "posted_at": "2026-11-02T01:19:00"
+     },
+     {
+      "id": "sb-b19",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 19",
+      "text": "Text 19",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b19",
+      "posted_at": "2026-11-02T01:19:00"
+     },
+     {
+      "id": "sb-c19",
+      "topic": "Wohnliches",
+      "title": "Wohnen 19",
+      "text": "Text 19",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c19",
+      "posted_at": "2026-11-02T01:19:00"
+     },
+     {
+      "id": "sb-a18",
+      "topic": "Biete",
+      "title": "Biete 18",
+      "text": "Text 18",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a18",
+      "posted_at": "2026-11-02T01:18:00"
+     },
+     {
+      "id": "sb-b18",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 18",
+      "text": "Text 18",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b18",
+      "posted_at": "2026-11-02T01:18:00"
+     },
+     {
+      "id": "sb-c18",
+      "topic": "Wohnliches",
+      "title": "Wohnen 18",
+      "text": "Text 18",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c18",
+      "posted_at": "2026-11-02T01:18:00"
+     },
+     {
+      "id": "sb-a17",
+      "topic": "Biete",
+      "title": "Biete 17",
+      "text": "Text 17",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a17",
+      "posted_at": "2026-11-02T01:17:00"
+     },
+     {
+      "id": "sb-b17",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 17",
+      "text": "Text 17",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b17",
+      "posted_at": "2026-11-02T01:17:00"
+     },
+     {
+      "id": "sb-c17",
+      "topic": "Wohnliches",
+      "title": "Wohnen 17",
+      "text": "Text 17",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c17",
+      "posted_at": "2026-11-02T01:17:00"
+     },
+     {
+      "id": "sb-a16",
+      "topic": "Biete",
+      "title": "Biete 16",
+      "text": "Text 16",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a16",
+      "posted_at": "2026-11-02T01:16:00"
+     },
+     {
+      "id": "sb-b16",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 16",
+      "text": "Text 16",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b16",
+      "posted_at": "2026-11-02T01:16:00"
+     },
+     {
+      "id": "sb-c16",
+      "topic": "Wohnliches",
+      "title": "Wohnen 16",
+      "text": "Text 16",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c16",
+      "posted_at": "2026-11-02T01:16:00"
+     },
+     {
+      "id": "sb-a15",
+      "topic": "Biete",
+      "title": "Biete 15",
+      "text": "Text 15",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a15",
+      "posted_at": "2026-11-02T01:15:00"
+     },
+     {
+      "id": "sb-b15",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 15",
+      "text": "Text 15",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b15",
+      "posted_at": "2026-11-02T01:15:00"
+     },
+     {
+      "id": "sb-c15",
+      "topic": "Wohnliches",
+      "title": "Wohnen 15",
+      "text": "Text 15",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c15",
+      "posted_at": "2026-11-02T01:15:00"
+     },
+     {
+      "id": "sb-a14",
+      "topic": "Biete",
+      "title": "Biete 14",
+      "text": "Text 14",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a14",
+      "posted_at": "2026-11-02T01:14:00"
+     },
+     {
+      "id": "sb-b14",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 14",
+      "text": "Text 14",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b14",
+      "posted_at": "2026-11-02T01:14:00"
+     },
+     {
+      "id": "sb-c14",
+      "topic": "Wohnliches",
+      "title": "Wohnen 14",
+      "text": "Text 14",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c14",
+      "posted_at": "2026-11-02T01:14:00"
+     },
+     {
+      "id": "sb-a13",
+      "topic": "Biete",
+      "title": "Biete 13",
+      "text": "Text 13",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a13",
+      "posted_at": "2026-11-02T01:13:00"
+     },
+     {
+      "id": "sb-b13",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 13",
+      "text": "Text 13",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b13",
+      "posted_at": "2026-11-02T01:13:00"
+     },
+     {
+      "id": "sb-c13",
+      "topic": "Wohnliches",
+      "title": "Wohnen 13",
+      "text": "Text 13",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c13",
+      "posted_at": "2026-11-02T01:13:00"
+     },
+     {
+      "id": "sb-a12",
+      "topic": "Biete",
+      "title": "Biete 12",
+      "text": "Text 12",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a12",
+      "posted_at": "2026-11-02T01:12:00"
+     },
+     {
+      "id": "sb-b12",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 12",
+      "text": "Text 12",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b12",
+      "posted_at": "2026-11-02T01:12:00"
+     },
+     {
+      "id": "sb-c12",
+      "topic": "Wohnliches",
+      "title": "Wohnen 12",
+      "text": "Text 12",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c12",
+      "posted_at": "2026-11-02T01:12:00"
+     },
+     {
+      "id": "sb-a11",
+      "topic": "Biete",
+      "title": "Biete 11",
+      "text": "Text 11",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a11",
+      "posted_at": "2026-11-02T01:11:00"
+     },
+     {
+      "id": "sb-b11",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 11",
+      "text": "Text 11",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b11",
+      "posted_at": "2026-11-02T01:11:00"
+     },
+     {
+      "id": "sb-c11",
+      "topic": "Wohnliches",
+      "title": "Wohnen 11",
+      "text": "Text 11",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c11",
+      "posted_at": "2026-11-02T01:11:00"
+     },
+     {
+      "id": "sb-a10",
+      "topic": "Biete",
+      "title": "Biete 10",
+      "text": "Text 10",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a10",
+      "posted_at": "2026-11-02T01:10:00"
+     },
+     {
+      "id": "sb-b10",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 10",
+      "text": "Text 10",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b10",
+      "posted_at": "2026-11-02T01:10:00"
+     },
+     {
+      "id": "sb-c10",
+      "topic": "Wohnliches",
+      "title": "Wohnen 10",
+      "text": "Text 10",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c10",
+      "posted_at": "2026-11-02T01:10:00"
+     },
+     {
+      "id": "sb-a9",
+      "topic": "Biete",
+      "title": "Biete 9",
+      "text": "Text 9",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a9",
+      "posted_at": "2026-11-02T01:09:00"
+     },
+     {
+      "id": "sb-b9",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 9",
+      "text": "Text 9",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b9",
+      "posted_at": "2026-11-02T01:09:00"
+     },
+     {
+      "id": "sb-c9",
+      "topic": "Wohnliches",
+      "title": "Wohnen 9",
+      "text": "Text 9",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c9",
+      "posted_at": "2026-11-02T01:09:00"
+     }
+    ],
+    "new_count": 60,
+    "fetched_at": "2026-11-02T12:00:00",
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "bald",
+   "today": "2026-11-02",
+   "now": "2026-11-02T17:00:00",
+   "requested": [],
+   "skipped": true,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [],
+   "entries": null,
+   "stored": null,
+   "missing": {},
+   "rows": [
+    {
+     "id": "sb-a1",
+     "topic": "Biete",
+     "title": "Biete 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a10",
+     "topic": "Biete",
+     "title": "Biete 10",
+     "text": "Text 10",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a10",
+     "posted_at": "2026-11-02T01:10:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a11",
+     "topic": "Biete",
+     "title": "Biete 11",
+     "text": "Text 11",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a11",
+     "posted_at": "2026-11-02T01:11:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a12",
+     "topic": "Biete",
+     "title": "Biete 12",
+     "text": "Text 12",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a12",
+     "posted_at": "2026-11-02T01:12:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a13",
+     "topic": "Biete",
+     "title": "Biete 13",
+     "text": "Text 13",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a13",
+     "posted_at": "2026-11-02T01:13:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a14",
+     "topic": "Biete",
+     "title": "Biete 14",
+     "text": "Text 14",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a14",
+     "posted_at": "2026-11-02T01:14:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a15",
+     "topic": "Biete",
+     "title": "Biete 15",
+     "text": "Text 15",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a15",
+     "posted_at": "2026-11-02T01:15:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a16",
+     "topic": "Biete",
+     "title": "Biete 16",
+     "text": "Text 16",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a16",
+     "posted_at": "2026-11-02T01:16:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a17",
+     "topic": "Biete",
+     "title": "Biete 17",
+     "text": "Text 17",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a17",
+     "posted_at": "2026-11-02T01:17:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a18",
+     "topic": "Biete",
+     "title": "Biete 18",
+     "text": "Text 18",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a18",
+     "posted_at": "2026-11-02T01:18:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a19",
+     "topic": "Biete",
+     "title": "Biete 19",
+     "text": "Text 19",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a19",
+     "posted_at": "2026-11-02T01:19:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a2",
+     "topic": "Biete",
+     "title": "Biete 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a20",
+     "topic": "Biete",
+     "title": "Biete 20",
+     "text": "Text 20",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a20",
+     "posted_at": "2026-11-02T01:20:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a3",
+     "topic": "Biete",
+     "title": "Biete 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a4",
+     "topic": "Biete",
+     "title": "Biete 4",
+     "text": "Text 4",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a4",
+     "posted_at": "2026-11-02T06:04:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a5",
+     "topic": "Biete",
+     "title": "Biete 5",
+     "text": "Text 5",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a5",
+     "posted_at": "2026-11-02T05:05:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a6",
+     "topic": "Biete",
+     "title": "Biete 6",
+     "text": "Text 6",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a6",
+     "posted_at": "2026-11-02T04:06:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a7",
+     "topic": "Biete",
+     "title": "Biete 7",
+     "text": "Text 7",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a7",
+     "posted_at": "2026-11-02T03:07:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a8",
+     "topic": "Biete",
+     "title": "Biete 8",
+     "text": "Text 8",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a8",
+     "posted_at": "2026-11-02T02:08:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-a9",
+     "topic": "Biete",
+     "title": "Biete 9",
+     "text": "Text 9",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a9",
+     "posted_at": "2026-11-02T01:09:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b1",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b10",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 10",
+     "text": "Text 10",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b10",
+     "posted_at": "2026-11-02T01:10:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b11",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 11",
+     "text": "Text 11",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b11",
+     "posted_at": "2026-11-02T01:11:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b12",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 12",
+     "text": "Text 12",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b12",
+     "posted_at": "2026-11-02T01:12:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b13",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 13",
+     "text": "Text 13",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b13",
+     "posted_at": "2026-11-02T01:13:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b14",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 14",
+     "text": "Text 14",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b14",
+     "posted_at": "2026-11-02T01:14:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b15",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 15",
+     "text": "Text 15",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b15",
+     "posted_at": "2026-11-02T01:15:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b16",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 16",
+     "text": "Text 16",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b16",
+     "posted_at": "2026-11-02T01:16:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b17",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 17",
+     "text": "Text 17",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b17",
+     "posted_at": "2026-11-02T01:17:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b18",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 18",
+     "text": "Text 18",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b18",
+     "posted_at": "2026-11-02T01:18:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b19",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 19",
+     "text": "Text 19",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b19",
+     "posted_at": "2026-11-02T01:19:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b2",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b20",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 20",
+     "text": "Text 20",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b20",
+     "posted_at": "2026-11-02T01:20:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b3",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b4",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 4",
+     "text": "Text 4",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b4",
+     "posted_at": "2026-11-02T06:04:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b5",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 5",
+     "text": "Text 5",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b5",
+     "posted_at": "2026-11-02T05:05:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b6",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 6",
+     "text": "Text 6",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b6",
+     "posted_at": "2026-11-02T04:06:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b7",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 7",
+     "text": "Text 7",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b7",
+     "posted_at": "2026-11-02T03:07:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b8",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 8",
+     "text": "Text 8",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b8",
+     "posted_at": "2026-11-02T02:08:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-b9",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 9",
+     "text": "Text 9",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b9",
+     "posted_at": "2026-11-02T01:09:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c1",
+     "topic": "Wohnliches",
+     "title": "Wohnen 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c10",
+     "topic": "Wohnliches",
+     "title": "Wohnen 10",
+     "text": "Text 10",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c10",
+     "posted_at": "2026-11-02T01:10:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c11",
+     "topic": "Wohnliches",
+     "title": "Wohnen 11",
+     "text": "Text 11",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c11",
+     "posted_at": "2026-11-02T01:11:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c12",
+     "topic": "Wohnliches",
+     "title": "Wohnen 12",
+     "text": "Text 12",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c12",
+     "posted_at": "2026-11-02T01:12:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c13",
+     "topic": "Wohnliches",
+     "title": "Wohnen 13",
+     "text": "Text 13",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c13",
+     "posted_at": "2026-11-02T01:13:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c14",
+     "topic": "Wohnliches",
+     "title": "Wohnen 14",
+     "text": "Text 14",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c14",
+     "posted_at": "2026-11-02T01:14:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c15",
+     "topic": "Wohnliches",
+     "title": "Wohnen 15",
+     "text": "Text 15",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c15",
+     "posted_at": "2026-11-02T01:15:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c16",
+     "topic": "Wohnliches",
+     "title": "Wohnen 16",
+     "text": "Text 16",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c16",
+     "posted_at": "2026-11-02T01:16:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c17",
+     "topic": "Wohnliches",
+     "title": "Wohnen 17",
+     "text": "Text 17",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c17",
+     "posted_at": "2026-11-02T01:17:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c18",
+     "topic": "Wohnliches",
+     "title": "Wohnen 18",
+     "text": "Text 18",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c18",
+     "posted_at": "2026-11-02T01:18:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c19",
+     "topic": "Wohnliches",
+     "title": "Wohnen 19",
+     "text": "Text 19",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c19",
+     "posted_at": "2026-11-02T01:19:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c2",
+     "topic": "Wohnliches",
+     "title": "Wohnen 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c20",
+     "topic": "Wohnliches",
+     "title": "Wohnen 20",
+     "text": "Text 20",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c20",
+     "posted_at": "2026-11-02T01:20:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c3",
+     "topic": "Wohnliches",
+     "title": "Wohnen 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c4",
+     "topic": "Wohnliches",
+     "title": "Wohnen 4",
+     "text": "Text 4",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c4",
+     "posted_at": "2026-11-02T06:04:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c5",
+     "topic": "Wohnliches",
+     "title": "Wohnen 5",
+     "text": "Text 5",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c5",
+     "posted_at": "2026-11-02T05:05:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c6",
+     "topic": "Wohnliches",
+     "title": "Wohnen 6",
+     "text": "Text 6",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c6",
+     "posted_at": "2026-11-02T04:06:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c7",
+     "topic": "Wohnliches",
+     "title": "Wohnen 7",
+     "text": "Text 7",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c7",
+     "posted_at": "2026-11-02T03:07:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c8",
+     "topic": "Wohnliches",
+     "title": "Wohnen 8",
+     "text": "Text 8",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c8",
+     "posted_at": "2026-11-02T02:08:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    },
+    {
+     "id": "sb-c9",
+     "topic": "Wohnliches",
+     "title": "Wohnen 9",
+     "text": "Text 9",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c9",
+     "posted_at": "2026-11-02T01:09:00",
+     "fetched_at": "2026-11-02T12:00:00"
+    }
+   ],
+   "settings": [
+    {
+     "key": "studip_bulletin_fetched_at",
+     "value": "2026-11-02T12:00:00"
+    },
+    {
+     "key": "studip_bulletin_topics",
+     "value": "[{\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"title\": \"Biete\", \"total\": 1234}, {\"id\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", \"title\": \"Jobs an der Uni\", \"total\": 7}, {\"id\": \"cccccccccccccccccccccccccccccccc\", \"title\": \"Wohnliches\", \"total\": 0}]"
+    },
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [
+     {
+      "title": "Biete",
+      "count": 20,
+      "total": 1234
+     },
+     {
+      "title": "Jobs an der Uni",
+      "count": 20,
+      "total": 7
+     },
+     {
+      "title": "Wohnliches",
+      "count": 20,
+      "total": 0
+     }
+    ],
+    "entries": [
+     {
+      "id": "sb-a1",
+      "topic": "Biete",
+      "title": "Biete 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-b1",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-c1",
+      "topic": "Wohnliches",
+      "title": "Wohnen 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-a2",
+      "topic": "Biete",
+      "title": "Biete 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-b2",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-c2",
+      "topic": "Wohnliches",
+      "title": "Wohnen 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-a3",
+      "topic": "Biete",
+      "title": "Biete 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-b3",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-c3",
+      "topic": "Wohnliches",
+      "title": "Wohnen 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-a4",
+      "topic": "Biete",
+      "title": "Biete 4",
+      "text": "Text 4",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a4",
+      "posted_at": "2026-11-02T06:04:00"
+     },
+     {
+      "id": "sb-b4",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 4",
+      "text": "Text 4",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b4",
+      "posted_at": "2026-11-02T06:04:00"
+     },
+     {
+      "id": "sb-c4",
+      "topic": "Wohnliches",
+      "title": "Wohnen 4",
+      "text": "Text 4",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c4",
+      "posted_at": "2026-11-02T06:04:00"
+     },
+     {
+      "id": "sb-a5",
+      "topic": "Biete",
+      "title": "Biete 5",
+      "text": "Text 5",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a5",
+      "posted_at": "2026-11-02T05:05:00"
+     },
+     {
+      "id": "sb-b5",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 5",
+      "text": "Text 5",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b5",
+      "posted_at": "2026-11-02T05:05:00"
+     },
+     {
+      "id": "sb-c5",
+      "topic": "Wohnliches",
+      "title": "Wohnen 5",
+      "text": "Text 5",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c5",
+      "posted_at": "2026-11-02T05:05:00"
+     },
+     {
+      "id": "sb-a6",
+      "topic": "Biete",
+      "title": "Biete 6",
+      "text": "Text 6",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a6",
+      "posted_at": "2026-11-02T04:06:00"
+     },
+     {
+      "id": "sb-b6",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 6",
+      "text": "Text 6",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b6",
+      "posted_at": "2026-11-02T04:06:00"
+     },
+     {
+      "id": "sb-c6",
+      "topic": "Wohnliches",
+      "title": "Wohnen 6",
+      "text": "Text 6",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c6",
+      "posted_at": "2026-11-02T04:06:00"
+     },
+     {
+      "id": "sb-a7",
+      "topic": "Biete",
+      "title": "Biete 7",
+      "text": "Text 7",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a7",
+      "posted_at": "2026-11-02T03:07:00"
+     },
+     {
+      "id": "sb-b7",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 7",
+      "text": "Text 7",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b7",
+      "posted_at": "2026-11-02T03:07:00"
+     },
+     {
+      "id": "sb-c7",
+      "topic": "Wohnliches",
+      "title": "Wohnen 7",
+      "text": "Text 7",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c7",
+      "posted_at": "2026-11-02T03:07:00"
+     },
+     {
+      "id": "sb-a8",
+      "topic": "Biete",
+      "title": "Biete 8",
+      "text": "Text 8",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a8",
+      "posted_at": "2026-11-02T02:08:00"
+     },
+     {
+      "id": "sb-b8",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 8",
+      "text": "Text 8",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b8",
+      "posted_at": "2026-11-02T02:08:00"
+     },
+     {
+      "id": "sb-c8",
+      "topic": "Wohnliches",
+      "title": "Wohnen 8",
+      "text": "Text 8",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c8",
+      "posted_at": "2026-11-02T02:08:00"
+     },
+     {
+      "id": "sb-a20",
+      "topic": "Biete",
+      "title": "Biete 20",
+      "text": "Text 20",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a20",
+      "posted_at": "2026-11-02T01:20:00"
+     },
+     {
+      "id": "sb-b20",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 20",
+      "text": "Text 20",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b20",
+      "posted_at": "2026-11-02T01:20:00"
+     },
+     {
+      "id": "sb-c20",
+      "topic": "Wohnliches",
+      "title": "Wohnen 20",
+      "text": "Text 20",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c20",
+      "posted_at": "2026-11-02T01:20:00"
+     },
+     {
+      "id": "sb-a19",
+      "topic": "Biete",
+      "title": "Biete 19",
+      "text": "Text 19",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a19",
+      "posted_at": "2026-11-02T01:19:00"
+     },
+     {
+      "id": "sb-b19",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 19",
+      "text": "Text 19",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b19",
+      "posted_at": "2026-11-02T01:19:00"
+     },
+     {
+      "id": "sb-c19",
+      "topic": "Wohnliches",
+      "title": "Wohnen 19",
+      "text": "Text 19",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c19",
+      "posted_at": "2026-11-02T01:19:00"
+     },
+     {
+      "id": "sb-a18",
+      "topic": "Biete",
+      "title": "Biete 18",
+      "text": "Text 18",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a18",
+      "posted_at": "2026-11-02T01:18:00"
+     },
+     {
+      "id": "sb-b18",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 18",
+      "text": "Text 18",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b18",
+      "posted_at": "2026-11-02T01:18:00"
+     },
+     {
+      "id": "sb-c18",
+      "topic": "Wohnliches",
+      "title": "Wohnen 18",
+      "text": "Text 18",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c18",
+      "posted_at": "2026-11-02T01:18:00"
+     },
+     {
+      "id": "sb-a17",
+      "topic": "Biete",
+      "title": "Biete 17",
+      "text": "Text 17",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a17",
+      "posted_at": "2026-11-02T01:17:00"
+     },
+     {
+      "id": "sb-b17",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 17",
+      "text": "Text 17",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b17",
+      "posted_at": "2026-11-02T01:17:00"
+     },
+     {
+      "id": "sb-c17",
+      "topic": "Wohnliches",
+      "title": "Wohnen 17",
+      "text": "Text 17",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c17",
+      "posted_at": "2026-11-02T01:17:00"
+     },
+     {
+      "id": "sb-a16",
+      "topic": "Biete",
+      "title": "Biete 16",
+      "text": "Text 16",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a16",
+      "posted_at": "2026-11-02T01:16:00"
+     },
+     {
+      "id": "sb-b16",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 16",
+      "text": "Text 16",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b16",
+      "posted_at": "2026-11-02T01:16:00"
+     },
+     {
+      "id": "sb-c16",
+      "topic": "Wohnliches",
+      "title": "Wohnen 16",
+      "text": "Text 16",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c16",
+      "posted_at": "2026-11-02T01:16:00"
+     },
+     {
+      "id": "sb-a15",
+      "topic": "Biete",
+      "title": "Biete 15",
+      "text": "Text 15",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a15",
+      "posted_at": "2026-11-02T01:15:00"
+     },
+     {
+      "id": "sb-b15",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 15",
+      "text": "Text 15",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b15",
+      "posted_at": "2026-11-02T01:15:00"
+     },
+     {
+      "id": "sb-c15",
+      "topic": "Wohnliches",
+      "title": "Wohnen 15",
+      "text": "Text 15",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c15",
+      "posted_at": "2026-11-02T01:15:00"
+     },
+     {
+      "id": "sb-a14",
+      "topic": "Biete",
+      "title": "Biete 14",
+      "text": "Text 14",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a14",
+      "posted_at": "2026-11-02T01:14:00"
+     },
+     {
+      "id": "sb-b14",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 14",
+      "text": "Text 14",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b14",
+      "posted_at": "2026-11-02T01:14:00"
+     },
+     {
+      "id": "sb-c14",
+      "topic": "Wohnliches",
+      "title": "Wohnen 14",
+      "text": "Text 14",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c14",
+      "posted_at": "2026-11-02T01:14:00"
+     },
+     {
+      "id": "sb-a13",
+      "topic": "Biete",
+      "title": "Biete 13",
+      "text": "Text 13",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a13",
+      "posted_at": "2026-11-02T01:13:00"
+     },
+     {
+      "id": "sb-b13",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 13",
+      "text": "Text 13",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b13",
+      "posted_at": "2026-11-02T01:13:00"
+     },
+     {
+      "id": "sb-c13",
+      "topic": "Wohnliches",
+      "title": "Wohnen 13",
+      "text": "Text 13",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c13",
+      "posted_at": "2026-11-02T01:13:00"
+     },
+     {
+      "id": "sb-a12",
+      "topic": "Biete",
+      "title": "Biete 12",
+      "text": "Text 12",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a12",
+      "posted_at": "2026-11-02T01:12:00"
+     },
+     {
+      "id": "sb-b12",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 12",
+      "text": "Text 12",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b12",
+      "posted_at": "2026-11-02T01:12:00"
+     },
+     {
+      "id": "sb-c12",
+      "topic": "Wohnliches",
+      "title": "Wohnen 12",
+      "text": "Text 12",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c12",
+      "posted_at": "2026-11-02T01:12:00"
+     },
+     {
+      "id": "sb-a11",
+      "topic": "Biete",
+      "title": "Biete 11",
+      "text": "Text 11",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a11",
+      "posted_at": "2026-11-02T01:11:00"
+     },
+     {
+      "id": "sb-b11",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 11",
+      "text": "Text 11",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b11",
+      "posted_at": "2026-11-02T01:11:00"
+     },
+     {
+      "id": "sb-c11",
+      "topic": "Wohnliches",
+      "title": "Wohnen 11",
+      "text": "Text 11",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c11",
+      "posted_at": "2026-11-02T01:11:00"
+     },
+     {
+      "id": "sb-a10",
+      "topic": "Biete",
+      "title": "Biete 10",
+      "text": "Text 10",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a10",
+      "posted_at": "2026-11-02T01:10:00"
+     },
+     {
+      "id": "sb-b10",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 10",
+      "text": "Text 10",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b10",
+      "posted_at": "2026-11-02T01:10:00"
+     },
+     {
+      "id": "sb-c10",
+      "topic": "Wohnliches",
+      "title": "Wohnen 10",
+      "text": "Text 10",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c10",
+      "posted_at": "2026-11-02T01:10:00"
+     },
+     {
+      "id": "sb-a9",
+      "topic": "Biete",
+      "title": "Biete 9",
+      "text": "Text 9",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a9",
+      "posted_at": "2026-11-02T01:09:00"
+     },
+     {
+      "id": "sb-b9",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 9",
+      "text": "Text 9",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b9",
+      "posted_at": "2026-11-02T01:09:00"
+     },
+     {
+      "id": "sb-c9",
+      "topic": "Wohnliches",
+      "title": "Wohnen 9",
+      "text": "Text 9",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c9",
+      "posted_at": "2026-11-02T01:09:00"
+     }
+    ],
+    "new_count": 60,
+    "fetched_at": "2026-11-02T12:00:00",
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  },
+  {
+   "name": "spaeter",
+   "today": "2026-11-02",
+   "now": "2026-11-02T18:30:00",
+   "requested": [
+    "/plugins.php/schwarzesbrettplugin/category/list",
+    "/plugins.php/schwarzesbrettplugin/rss/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/20",
+    "/plugins.php/schwarzesbrettplugin/rss/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/20",
+    "/plugins.php/schwarzesbrettplugin/rss/cccccccccccccccccccccccccccccccc/20"
+   ],
+   "skipped": false,
+   "session_expired": false,
+   "feed_unavailable": false,
+   "topics": [
+    {
+     "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "title": "Biete",
+     "count": 1234
+    },
+    {
+     "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "title": "Jobs an der Uni",
+     "count": 7
+    },
+    {
+     "id": "cccccccccccccccccccccccccccccccc",
+     "title": "Wohnliches",
+     "count": 0
+    }
+   ],
+   "entries": 9,
+   "stored": 9,
+   "missing": {},
+   "rows": [
+    {
+     "id": "sb-a1",
+     "topic": "Biete",
+     "title": "Biete 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-a2",
+     "topic": "Biete",
+     "title": "Biete 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-a3",
+     "topic": "Biete",
+     "title": "Biete 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-b1",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-b2",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-b3",
+     "topic": "Jobs an der Uni",
+     "title": "Jobs 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-c1",
+     "topic": "Wohnliches",
+     "title": "Wohnen 1",
+     "text": "Text 1",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+     "posted_at": "2026-11-02T09:01:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-c2",
+     "topic": "Wohnliches",
+     "title": "Wohnen 2",
+     "text": "Text 2",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c2",
+     "posted_at": "2026-11-02T08:02:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    },
+    {
+     "id": "sb-c3",
+     "topic": "Wohnliches",
+     "title": "Wohnen 3",
+     "text": "Text 3",
+     "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c3",
+     "posted_at": "2026-11-02T07:03:00",
+     "fetched_at": "2026-11-02T18:30:00"
+    }
+   ],
+   "settings": [
+    {
+     "key": "studip_bulletin_fetched_at",
+     "value": "2026-11-02T18:30:00"
+    },
+    {
+     "key": "studip_bulletin_topics",
+     "value": "[{\"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"title\": \"Biete\", \"total\": 1234}, {\"id\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", \"title\": \"Jobs an der Uni\", \"total\": 7}, {\"id\": \"cccccccccccccccccccccccccccccccc\", \"title\": \"Wohnliches\", \"total\": 0}]"
+    },
+    {
+     "key": "studip_missing_endpoints",
+     "value": "{}"
+    }
+   ],
+   "overview": {
+    "available": true,
+    "topics": [
+     {
+      "title": "Biete",
+      "count": 3,
+      "total": 1234
+     },
+     {
+      "title": "Jobs an der Uni",
+      "count": 3,
+      "total": 7
+     },
+     {
+      "title": "Wohnliches",
+      "count": 3,
+      "total": 0
+     }
+    ],
+    "entries": [
+     {
+      "id": "sb-a1",
+      "topic": "Biete",
+      "title": "Biete 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-b1",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-c1",
+      "topic": "Wohnliches",
+      "title": "Wohnen 1",
+      "text": "Text 1",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c1",
+      "posted_at": "2026-11-02T09:01:00"
+     },
+     {
+      "id": "sb-a2",
+      "topic": "Biete",
+      "title": "Biete 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-b2",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-c2",
+      "topic": "Wohnliches",
+      "title": "Wohnen 2",
+      "text": "Text 2",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c2",
+      "posted_at": "2026-11-02T08:02:00"
+     },
+     {
+      "id": "sb-a3",
+      "topic": "Biete",
+      "title": "Biete 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/a3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-b3",
+      "topic": "Jobs an der Uni",
+      "title": "Jobs 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/b3",
+      "posted_at": "2026-11-02T07:03:00"
+     },
+     {
+      "id": "sb-c3",
+      "topic": "Wohnliches",
+      "title": "Wohnen 3",
+      "text": "Text 3",
+      "url": "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/c3",
+      "posted_at": "2026-11-02T07:03:00"
+     }
+    ],
+    "new_count": 9,
+    "fetched_at": "2026-11-02T18:30:00",
+    "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+   }
+  }
+ ],
+ "hosts": {
+  "hildesheim": {
+   "available": false,
+   "topics": [],
+   "entries": [],
+   "new_count": 0,
+   "fetched_at": null,
+   "url": null
+  },
+  "dienst": {
+   "available": false,
+   "topics": [],
+   "entries": [],
+   "new_count": 0,
+   "fetched_at": null,
+   "url": "https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/category/list"
+  },
+  "dienst_item": null,
+  "dienst_sync_allowed": false
+ }
+}

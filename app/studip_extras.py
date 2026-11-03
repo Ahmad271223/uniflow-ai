@@ -268,7 +268,7 @@ def activity_title(types: list[str]) -> str:
     return "Neu: " + ", ".join(parts)
 
 
-def feed(news: list[dict], messages: list[dict], activity: list[dict], today: str, limit: int = 50) -> list[dict]:
+def feed(news: list[dict], messages: list[dict], activity: list[dict], today: str, limit: int = 50, extra: list[dict] | None = None) -> list[dict]:
     """Eine Liste fuer die Karte "Neuigkeiten": Ankuendigungen (Kurs und Stud.IP-weit, aus announcements.recent),
     Nachrichten und Aenderungen (je Kurs und Tag zusammengefasst, mit course_title), neueste zuerst.
     Zeile: {id, kind (ankuendigung | nachricht | aenderung), who, title, at, url, text, chips, source, color}."""
@@ -291,6 +291,7 @@ def feed(news: list[dict], messages: list[dict], activity: list[dict], today: st
         out.append({"id": f"act-{cid}-{day}", "kind": "aenderung", "who": xs[0].get("course_title") or "Kurs",
                     "title": activity_title([x["type"] for x in xs]), "at": latest, "url": xs[0].get("url"), "text": "",
                     "chips": [], "source": "studip", "color": xs[0].get("color")})
+    out += extra or []          # fertige Zeilen (Blubber, app/studip_blubber.py; Abgleich vorerst aus), werden mitsortiert
     out.sort(key=lambda x: x["at"], reverse=True)
     return out[:limit]
 
@@ -399,7 +400,8 @@ def feed_for(conn, today: date, limit: int = 50) -> list[dict]:
                                  JOIN courses c ON c.id=x.course_id LEFT JOIN modules m ON m.id=c.module_id
                                  WHERE c.active=1 AND substr(x.at, 1, 10) >= ? ORDER BY x.at, x.id""", (since,)).fetchall():
             activity.append({"id": r[0], "course_id": r[1], "type": r[2], "at": r[3], "url": r[4], "course_title": r[5], "color": r[6]})
-    return feed(news, messages, activity, t, limit)
+    from . import studip_blubber
+    return feed(news, messages, activity, t, limit, extra=studip_blubber.feed_lines(conn, today))
 
 
 # ----------------------------------------------------------------------------
