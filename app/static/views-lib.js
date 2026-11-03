@@ -1,9 +1,9 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
-import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=39";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=58";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=40";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=59";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 import { currentHeading, courseIdOf, findCourse } from "./older-semesters.js?v=1";
-import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=1";
+import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=2";
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
 const CHIPS = [["all", "Alle"], ["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["notes", "Notizen"], ["sonstiges", "Sonstiges"]];
