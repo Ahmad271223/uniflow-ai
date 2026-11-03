@@ -302,10 +302,17 @@ auf dem Gerät. Endpunkte des lokalen Backends: `GET /api/studip/bulletin?topic=
 Brett“ unter Uni & Noten (`Views/Services/BulletinCard.swift`, nur mit Anzeigen), eine Zeile „Schwarzes Brett: N neue
 Anzeigen“ in der Karte „Neuigkeiten“ der Übersicht.
 
-**Keine Python-Entsprechung:** Der PC-Server liest Stud.IP ausschließlich über die JSON:API (`app/studip_extras.py`,
-`_api_get`), eine HTML/RSS-Lesung gibt es dort nicht; die Fixtures `studip-extras` bleiben unverändert. Tests: Kern
+**Python-Fassung (Windows/Web, ab 03.11.2026):** `app/studip_bulletin.py` rechnet wie der Kern (Themenliste, Feed, 20 je
+Thema, ganzer Text ohne Autoren, 30-Tage-Merker, 6 Stunden Abstand, Sitzung abgelaufen, RSS aus); der Abgleich
+(`studip_sync.run_studip_sync`) liest das Brett nach den Ergänzungen über die angemeldete Browsersitzung – nur lokal und nur
+bei der LUH, im gehosteten Dienst nie. Die Routen `GET /api/studip/bulletin?topic=` und `/api/studip/bulletin/{id}`
+(`app/server.py`) antworten in derselben Form wie das lokale Backend; die Oberfläche (`app/static/bulletin.js`: Karte unter
+„Uni & Noten“ mit Leser; `news.js`: Karte „Neuigkeiten“ mit der Zeile „Schwarzes Brett: N neue Anzeigen“) ist die Web-Fassung
+von `BulletinCard`/`NewsCard`. Vertrag für den Kern: `packages/shared-contracts/fixtures/studip-bulletin/bulletin.json`
+(`tools/gen-studip-bulletin-fixture.py`: Seiten, Feeds, Abrufe nacheinander, Merker, Antworten der Endpunkte). Tests: Kern
 `StudIPBulletinTests` (Themenliste, Feed, 20 je Thema, 30-Tage-Merker, Mindestabstand, Sitzung, Endpunkte,
-Hildesheim), App `BulletinAppTests` (Karte, Chips, Neuigkeiten-Zeile, Abgleich mit festen Antworten).
+Hildesheim), App `BulletinAppTests` (Karte, Chips, Neuigkeiten-Zeile, Abgleich mit festen Antworten); Python
+`tests/test_studip_bulletin.py`, Web `tests/js/studip-inhalte.test.mjs` und `tests/test_studip_inhalte_browser.py`.
 
 **Geräte-Probe (Koordinator, echtes Konto):** `UniFlowTests/StudIPDeviceProbeTests/testBulletinBoardAndForumOnTheDevice`
 läuft nur mit Umgebungsvariable `UF_DEVICE_PROBE=1` (Xcode-Schema → Test → Environment, bzw.
@@ -360,9 +367,12 @@ Zeile `kind: "blubber"` („Blubber in Analysis I: 3 neue Beiträge“, Stud.IP-
 Oberfläche: Zeile „Blubber“ im Bereich „Aus Stud.IP“ der Modulansicht (`StudIPTextsCard`, Leser `StudIPBlubberReader`
 mit „In Stud.IP öffnen“), Art „Blubber“ in der Karte „Neuigkeiten“ und ihrer Liste.
 
-**Keine Python-Entsprechung:** Der PC-Server liest Blubber nicht; `StudIPExtras.feed` bekommt die Zeilen über den
-Parameter `extra` (Standard leer), die Fixture `studip-extras` und `tests/test_studip_extras.py` bleiben unverändert.
-Tests: Kern `StudIPBlubberTests`, App `BlubberAppTests`; Geräte-Probe `StudIPDeviceProbeTests/testBlubberCountsOnTheDevice`
+**Python-Fassung (vorbereitet, aus):** `app/studip_blubber.py` enthält Lesen, Speichern, die Antworten von `GET
+/api/studip/blubber` und `/api/studip/blubber/{id}` und die Neuigkeiten-Zeilen (`feed_lines`, über den neuen Parameter
+`extra` von `studip_extras.feed`), aber `SYNC_ENABLED = False`: nichts im Abgleich ruft es, und `fetch` fragt Stud.IP auch
+direkt aufgerufen nie, solange der Schalter aus ist (`tests/test_studip_blubber.py`). Die Web-Oberfläche zeigt die Gruppe
+„Blubber“ in „Aus Stud.IP“ nur, wenn Beiträge gespeichert sind (`app/static/studip-texts.js`). Die Fixture `studip-extras`
+bleibt unverändert. Tests: Kern `StudIPBlubberTests`, App `BlubberAppTests`; Geräte-Probe `StudIPDeviceProbeTests/testBlubberCountsOnTheDevice`
 (nur Zahlen). Hinweis: Die Discovery-Probe vom 03.11.2026 fragte `courses/{id}/blubber-threads` für zwei Kurse ab –
 das kann dort einen leeren Standard-Thread angelegt haben (Stud.IP räumt leere Threads nach einer Stunde selbst auf);
 die Probe schließt Blubber-Kurs-Routen jetzt aus.

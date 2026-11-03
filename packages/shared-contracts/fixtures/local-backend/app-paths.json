@@ -1695,15 +1695,26 @@
    "request": {
     "path": "/api/studip/blubber"
    },
-   "expect": {
+   "python": {
     "status": 200,
-    "type": "object",
-    "keys": [
-     "count",
-     "fetched_at",
-     "threads"
-    ],
-    "reason": "nur auf dem Geraet (StudIPBlubberEndpoints, Abgleich vorerst aus)"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "count": {
+       "type": "number"
+      },
+      "fetched_at": {
+       "type": "null"
+      },
+      "threads": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {
@@ -1715,9 +1726,19 @@
    "request": {
     "path": "/api/studip/blubber/x1"
    },
-   "expect": {
+   "python": {
     "status": 404,
-    "reason": "nur auf dem Geraet; unbekannter Thread 404"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -1730,18 +1751,36 @@
    "request": {
     "path": "/api/studip/bulletin"
    },
-   "expect": {
+   "python": {
     "status": 200,
-    "type": "object",
-    "keys": [
-     "available",
-     "entries",
-     "fetched_at",
-     "new_count",
-     "topics",
-     "url"
-    ],
-    "reason": "nur auf dem Geraet (StudIPBulletinEndpoints)"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "available": {
+       "type": "bool"
+      },
+      "entries": {
+       "type": "array",
+       "item": null
+      },
+      "fetched_at": {
+       "type": "null"
+      },
+      "new_count": {
+       "type": "number"
+      },
+      "topics": {
+       "type": "array",
+       "item": null
+      },
+      "url": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {
@@ -1753,9 +1792,19 @@
    "request": {
     "path": "/api/studip/bulletin/x1"
    },
-   "expect": {
+   "python": {
     "status": 404,
-    "reason": "nur auf dem Geraet; unbekannte Anzeige 404"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {

@@ -229,17 +229,13 @@ SAMPLES: dict[str, dict] = {
     "GET /api/older-semesters/courses/{}/files": {"path": "/api/older-semesters/courses/k1/files", "python": False,
                                                   "expect": {"status": 404,
                                                              "reason": "nur auf dem Geraet; ohne Kurs 404"}},
-    # Schwarzes Brett und Blubber aus Stud.IP: nur auf dem Geraet (StudIPBulletinEndpoints, StudIPBlubberEndpoints)
-    "GET /api/studip/bulletin": {"path": "/api/studip/bulletin", "python": False,
-                                 "expect": {"status": 200, "type": "object", "keys": ["available", "entries", "fetched_at", "new_count", "topics", "url"],
-                                            "reason": "nur auf dem Geraet (StudIPBulletinEndpoints)"}},
-    "GET /api/studip/bulletin/{}": {"path": "/api/studip/bulletin/x1", "python": False,
-                                    "expect": {"status": 404, "reason": "nur auf dem Geraet; unbekannte Anzeige 404"}},
-    "GET /api/studip/blubber": {"path": "/api/studip/blubber", "python": False,
-                                "expect": {"status": 200, "type": "object", "keys": ["count", "fetched_at", "threads"],
-                                           "reason": "nur auf dem Geraet (StudIPBlubberEndpoints, Abgleich vorerst aus)"}},
-    "GET /api/studip/blubber/{}": {"path": "/api/studip/blubber/x1", "python": False,
-                                   "expect": {"status": 404, "reason": "nur auf dem Geraet; unbekannter Thread 404"}},
+    # Schwarzes Brett aus Stud.IP: Geraet (StudIPBulletinEndpoints) und PC-Server (app/studip_bulletin.py) antworten gleich;
+    # die Inhalte vergleicht tools/gen-studip-bulletin-fixture.py. Blubber ebenso (app/studip_blubber.py), dort ist der Abgleich
+    # vorerst aus (SYNC_ENABLED), die Antworten sind ohne Daten leer
+    "GET /api/studip/bulletin": {"path": "/api/studip/bulletin"},
+    "GET /api/studip/bulletin/{}": {"path": "/api/studip/bulletin/x1"},
+    "GET /api/studip/blubber": {"path": "/api/studip/blubber"},
+    "GET /api/studip/blubber/{}": {"path": "/api/studip/blubber/x1"},
     # Demo-Inhalte fuer die App-Pruefung (app/demo.py, DemoEndpoints); Inhalte und Tabellen vergleicht
     # tools/gen-demo-fixture.py, hier nur die Form. Ausschalten, damit die Beispielanfrage nichts anlegt
     "GET /api/demo": {"path": "/api/demo"},

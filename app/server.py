@@ -1870,6 +1870,46 @@ def api_news(limit: int = 50):
         return {"items": studip_extras.feed_for(conn, study.today(), limit=max(1, min(limit, 100)))}
 
 
+@app.get("/api/studip/bulletin")
+def api_studip_bulletin(topic: str | None = None):
+    """Schwarzes Brett aus Stud.IP (nur lokal, nur Hochschulen mit dem Plugin): Themen mit Anzahl, Anzeigen neueste
+    zuerst, `new_count` der letzten sieben Tage (app/studip_bulletin.py, gleiche Form wie auf dem iPad)."""
+    from . import studip_bulletin
+    with db.cursor() as conn:
+        return studip_bulletin.overview(conn, topic, study.today())
+
+
+@app.get("/api/studip/bulletin/{entry_id}")
+def api_studip_bulletin_entry(entry_id: str):
+    """Eine Anzeige des Schwarzen Bretts zum Lesen"""
+    from . import studip_bulletin
+    with db.cursor() as conn:
+        d = studip_bulletin.item(conn, entry_id)
+    if not d:
+        raise HTTPException(404, "Anzeige nicht gefunden")
+    return d
+
+
+@app.get("/api/studip/blubber")
+def api_studip_blubber(course: str | None = None, module: int | None = None):
+    """Blubber (Kurs-Chats) aus Stud.IP, VORBEREITET: der Abgleich ist aus (app/studip_blubber.py SYNC_ENABLED), darum
+    ohne gespeicherte Beitraege leer. Threads mit Anzahl, neuen Beitraegen und Vorschau, neuester zuerst."""
+    from . import studip_blubber
+    with db.cursor() as conn:
+        return studip_blubber.overview(conn, course, module, study.today())
+
+
+@app.get("/api/studip/blubber/{thread_id}")
+def api_studip_blubber_thread(thread_id: str):
+    """Ein Blubber-Thread zum Lesen: Beitraege mit Rolle statt Name, aelteste zuerst"""
+    from . import studip_blubber
+    with db.cursor() as conn:
+        d = studip_blubber.thread(conn, thread_id)
+    if not d:
+        raise HTTPException(404, "Blubber nicht gefunden")
+    return d
+
+
 @app.get("/api/modules")
 def api_modules():
     with db.cursor() as conn:
