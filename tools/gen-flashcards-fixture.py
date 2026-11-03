@@ -10,6 +10,8 @@ Inhalt je Szenario:
   dem genau gesendeten Rumpf (`raw`), Status und Antwort (bei 500 keine, Starlette antwortet mit Text)
 - tables_after: Tabelle flashcards nach allen Anfragen
 
+Versteckte Karten (Trainer, hidden != 0) sind nie faellig: `?due=true` laesst sie weg, die Liste ohne due zeigt sie.
+
 Leitner wie im Server: richtig -> naechstes Fach bis 5 (Abstaende 1, 2, 4, 8, 16 Tage), falsch -> Fach 1. Die Uhr
 geht ueber mehrere Tage und einen Jahreswechsel. Keine KI, nur selbst angelegte Karten.
 Der Server laeuft nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
@@ -187,7 +189,22 @@ TRAINER_STEPS = [
     (T0, "POST", "/api/flashcards/2/review", {"correct": True}),                                      # Urteil right, Fach 2
     (T0, "GET", "/api/flashcards", None),
     (T0, "GET", "/api/flashcards?due=true", None),
+    # versteckt = nie faellig: raus aus "Heute faellig", in der Liste bleibt die Karte; wieder zeigen holt sie zurueck
+    (T0, "PATCH", "/api/flashcards/1", {"hidden": True}),
+    (T0, "GET", "/api/flashcards?due=true", None),
+    (T0, "GET", "/api/flashcards", None),
+    (T0, "GET", "/api/flashcards?due=true&file_id=f-la1", None),
+    ("2026-11-05T08:00:00", "GET", "/api/flashcards?due=true", None),                                 # Karte 2 faellig
+    ("2026-11-05T08:00:00", "PATCH", "/api/flashcards/1", {"hidden": False}),
+    ("2026-11-05T08:00:00", "GET", "/api/flashcards?due=true", None),
 ]
+
+# Versteckt mit Werten von aussen (Abgleich, alte Daten): NULL zaehlt als nicht versteckt, alles ausser 0 als versteckt
+HIDDEN_CARDS = [  # id, versteckt als SQL
+    (1, "NULL"), (2, "0"), (3, "1"), (4, "2"), (5, "''"), (6, "'ja'"), (7, "0.0"), (8, "-1"),
+]
+H0 = "2026-11-03T12:00:00"
+HIDDEN_STEPS = [(H0, "GET", "/api/flashcards?due=true", None), (H0, "GET", "/api/flashcards", None)]
 
 
 def edge_seed() -> list[tuple[str, list]]:
@@ -196,6 +213,15 @@ def edge_seed() -> list[tuple[str, list]]:
         seed.append((f"INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) "
                      f"VALUES ({cid}, ?, ?, ?, ?, ?, {box}, {due})",
                      [fid, None, f"Grenzfall {cid}", f"Fach {box}", "2026-10-20T08:00:00"]))
+    return seed
+
+
+def hidden_seed() -> list[tuple[str, list]]:
+    seed = base_seed()
+    for cid, hidden in HIDDEN_CARDS:
+        seed.append((f"INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) "
+                     f"VALUES ({cid}, NULL, NULL, ?, ?, ?, 1, '2026-11-01', {hidden})",
+                     [f"Versteckt {cid}", f"hidden {hidden}", "2026-10-20T08:00:00"]))
     return seed
 
 
@@ -232,7 +258,8 @@ def main() -> int:
         with berlin_time():
             scenarios = [run(src, gen, server, "haupt", base_seed(), MAIN_STEPS),
                          run(src, gen, server, "grenzen", edge_seed(), EDGE_STEPS),
-                         run(src, gen, server, "trainer", base_seed(), TRAINER_STEPS)]
+                         run(src, gen, server, "trainer", base_seed(), TRAINER_STEPS),
+                         run(src, gen, server, "versteckt", hidden_seed(), HIDDEN_STEPS)]
     finally:
         src.cleanup()
     out = without_sync({"generator": "tools/gen-flashcards-fixture.py", "intervals": [1, 2, 4, 8, 16], "scenarios": scenarios})

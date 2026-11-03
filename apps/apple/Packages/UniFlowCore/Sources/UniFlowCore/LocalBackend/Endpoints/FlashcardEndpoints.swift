@@ -25,7 +25,8 @@ enum FlashcardEndpoints: LocalEndpointModule {
                 params.append(.text(fileID))
             }
             if due {
-                sql += " AND (fc.due IS NULL OR fc.due <= ?)"
+                // versteckte Karten (Trainer) sind nie faellig; die Liste ohne due zeigt sie weiter
+                sql += " AND (fc.due IS NULL OR fc.due <= ?) AND COALESCE(fc.hidden, 0) = 0"
                 params.append(.text(ctx.clock.today))
             }
             sql += " ORDER BY fc.id DESC"

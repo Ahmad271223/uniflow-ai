@@ -4021,6 +4021,159 @@
      "raw": null,
      "status": 200,
      "response": []
+    },
+    {
+     "now": "2026-11-03T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/1",
+     "raw": "{\"hidden\": true}",
+     "status": 200,
+     "response": {
+      "id": 1,
+      "file_id": "f-la1",
+      "subject": "Lineare Algebra Test",
+      "question": "Begriff A",
+      "answer": "Definition A",
+      "created_at": "2026-11-03T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 1,
+      "hidden": 1,
+      "last_result": "wrong"
+     }
+    },
+    {
+     "now": "2026-11-03T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": []
+    },
+    {
+     "now": "2026-11-03T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Begriff B",
+       "answer": "Definition B",
+       "created_at": "2026-11-03T10:00:00",
+       "box": 2,
+       "due": "2026-11-05",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "right",
+       "file_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Begriff A",
+       "answer": "Definition A",
+       "created_at": "2026-11-03T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 1,
+       "hidden": 1,
+       "last_result": "wrong",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-03T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true&file_id=f-la1",
+     "raw": null,
+     "status": 200,
+     "response": []
+    },
+    {
+     "now": "2026-11-05T08:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Begriff B",
+       "answer": "Definition B",
+       "created_at": "2026-11-03T10:00:00",
+       "box": 2,
+       "due": "2026-11-05",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "right",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-05T08:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/1",
+     "raw": "{\"hidden\": false}",
+     "status": 200,
+     "response": {
+      "id": 1,
+      "file_id": "f-la1",
+      "subject": "Lineare Algebra Test",
+      "question": "Begriff A",
+      "answer": "Definition A",
+      "created_at": "2026-11-03T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 1,
+      "hidden": 0,
+      "last_result": "wrong"
+     }
+    },
+    {
+     "now": "2026-11-05T08:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Begriff B",
+       "answer": "Definition B",
+       "created_at": "2026-11-03T10:00:00",
+       "box": 2,
+       "due": "2026-11-05",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "right",
+       "file_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Begriff A",
+       "answer": "Definition A",
+       "created_at": "2026-11-03T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 1,
+       "hidden": 0,
+       "last_result": "wrong",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
     }
    ],
    "tables_after": {
@@ -4050,6 +4203,437 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right"
+     }
+    ]
+   }
+  },
+  {
+   "name": "versteckt",
+   "seed": [
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-la",
+      "Lineare Algebra Test",
+      "WiSe 2026/27",
+      "Lineare Algebra Test",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-an",
+      "Analysis Beispiel",
+      "WiSe 2026/27",
+      "Analysis Beispiel",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-frei",
+      "Freies Seminar Beispiel",
+      "WiSe 2026/27",
+      null,
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-la1",
+      "k-la",
+      "LA_Vorlesung_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-an1",
+      "k-an",
+      "Analysis_Blatt_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-frei",
+      "k-frei",
+      "Seminar_Einfuehrung.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "5",
+      "k-la",
+      "LA_Zusatz.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (1, NULL, NULL, ?, ?, ?, 1, '2026-11-01', NULL)",
+     "params": [
+      "Versteckt 1",
+      "hidden NULL",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (2, NULL, NULL, ?, ?, ?, 1, '2026-11-01', 0)",
+     "params": [
+      "Versteckt 2",
+      "hidden 0",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (3, NULL, NULL, ?, ?, ?, 1, '2026-11-01', 1)",
+     "params": [
+      "Versteckt 3",
+      "hidden 1",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (4, NULL, NULL, ?, ?, ?, 1, '2026-11-01', 2)",
+     "params": [
+      "Versteckt 4",
+      "hidden 2",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (5, NULL, NULL, ?, ?, ?, 1, '2026-11-01', '')",
+     "params": [
+      "Versteckt 5",
+      "hidden ''",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (6, NULL, NULL, ?, ?, ?, 1, '2026-11-01', 'ja')",
+     "params": [
+      "Versteckt 6",
+      "hidden 'ja'",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (7, NULL, NULL, ?, ?, ?, 1, '2026-11-01', 0.0)",
+     "params": [
+      "Versteckt 7",
+      "hidden 0.0",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due, hidden) VALUES (8, NULL, NULL, ?, ?, ?, 1, '2026-11-01', -1)",
+     "params": [
+      "Versteckt 8",
+      "hidden -1",
+      "2026-10-20T08:00:00"
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "now": "2026-11-03T12:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 7",
+       "answer": "hidden 0.0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 2,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 2",
+       "answer": "hidden 0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 1,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 1",
+       "answer": "hidden NULL",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": null,
+       "last_result": null,
+       "file_name": null
+      }
+     ]
+    },
+    {
+     "now": "2026-11-03T12:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 8",
+       "answer": "hidden -1",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": -1,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 7",
+       "answer": "hidden 0.0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 6,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 6",
+       "answer": "hidden 'ja'",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": "ja",
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 5",
+       "answer": "hidden ''",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": "",
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 4",
+       "answer": "hidden 2",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 2,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 3",
+       "answer": "hidden 1",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 1,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 2,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 2",
+       "answer": "hidden 0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "file_name": null
+      },
+      {
+       "id": 1,
+       "file_id": null,
+       "subject": null,
+       "question": "Versteckt 1",
+       "answer": "hidden NULL",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": null,
+       "last_result": null,
+       "file_name": null
+      }
+     ]
+    }
+   ],
+   "tables_after": {
+    "flashcards": [
+     {
+      "id": 1,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 1",
+      "answer": "hidden NULL",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": null,
+      "last_result": null
+     },
+     {
+      "id": 2,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 2",
+      "answer": "hidden 0",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null
+     },
+     {
+      "id": 3,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 3",
+      "answer": "hidden 1",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 1,
+      "last_result": null
+     },
+     {
+      "id": 4,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 4",
+      "answer": "hidden 2",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 2,
+      "last_result": null
+     },
+     {
+      "id": 5,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 5",
+      "answer": "hidden ''",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": "",
+      "last_result": null
+     },
+     {
+      "id": 6,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 6",
+      "answer": "hidden 'ja'",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": "ja",
+      "last_result": null
+     },
+     {
+      "id": 7,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 7",
+      "answer": "hidden 0.0",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null
+     },
+     {
+      "id": 8,
+      "file_id": null,
+      "subject": null,
+      "question": "Versteckt 8",
+      "answer": "hidden -1",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": -1,
+      "last_result": null
      }
     ]
    }

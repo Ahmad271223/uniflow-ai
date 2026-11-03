@@ -1187,8 +1187,8 @@ def list_flashcards(file_id: str | None = None, due: bool = False):
     params: list = []
     if file_id:
         sql += " AND fc.file_id=?"; params.append(file_id)
-    if due:
-        sql += " AND (fc.due IS NULL OR fc.due <= ?)"; params.append(date.today().isoformat())
+    if due:  # versteckte Karten (Trainer) sind nie faellig; Liste ohne due zeigt sie weiter
+        sql += " AND (fc.due IS NULL OR fc.due <= ?) AND COALESCE(fc.hidden, 0) = 0"; params.append(date.today().isoformat())
     sql += " ORDER BY fc.id DESC"
     with db.cursor() as conn:
         return db.rows(conn, sql, params)

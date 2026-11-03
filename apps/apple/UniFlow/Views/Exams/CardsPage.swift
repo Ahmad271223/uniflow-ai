@@ -175,8 +175,11 @@ final class FlashcardDeck: ObservableObject {
 
     var dueIDs: Set<Int> { Set(due.compactMap { $0.i("id") }) }
 
-    /// Naechster Termin, wenn heute nichts faellig ist (alle Termine liegen dann in der Zukunft)
-    var nextDue: String? { all.compactMap { $0.s("due") }.filter { !$0.isEmpty }.min() }
+    /// Naechster Termin, wenn heute nichts faellig ist (alle Termine liegen dann in der Zukunft). Versteckte Karten
+    /// zaehlen nicht: sie sind nie faellig (der Server laesst sie bei ?due=true weg).
+    var nextDue: String? {
+        all.filter { ($0.i("hidden") ?? 0) == 0 }.compactMap { $0.s("due") }.filter { !$0.isEmpty }.min()
+    }
 
     /// Titel des Dokuments einer Karte (Bibliothek), sonst der Dateiname aus der Antwort
     func fileTitle(_ card: JSONValue) -> String? {
@@ -441,10 +444,13 @@ struct CardsPage: View {
 
     private func subline(_ c: JSONValue, due: Set<Int>) -> String {
         var parts = [c.s("answer") ?? "", "Fach \(c.i("box") ?? 1)"]
-        parts.append(c.i("id").map { due.contains($0) } == true ? "heute fällig" : "fällig am \(UFFmt.date(c.s("due")))")
+        // versteckt: nie faellig, also kein Termin (der Termin bleibt gespeichert und gilt wieder nach "Zeigen")
+        if (c.i("hidden") ?? 0) == 0 {
+            parts.append(c.i("id").map { due.contains($0) } == true ? "heute fällig" : "fällig am \(UFFmt.date(c.s("due")))")
+        }
         if let f = deck.fileTitle(c) { parts.append(f) }
         if (c.i("bookmarked") ?? 0) != 0 { parts.append("Lesezeichen") }
-        if (c.i("hidden") ?? 0) != 0 { parts.append("versteckt") }
+        if (c.i("hidden") ?? 0) != 0 { parts.append("versteckt, nicht in „Heute fällig“") }
         return parts.joined(separator: " · ")
     }
 

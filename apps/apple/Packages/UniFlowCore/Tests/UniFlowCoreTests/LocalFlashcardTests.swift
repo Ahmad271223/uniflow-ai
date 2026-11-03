@@ -44,7 +44,7 @@ final class LocalFlashcardTests: XCTestCase {
     func testScenariosMatchPythonServer() async throws {
         let fx = try fixture()
         let scenarios = fx["scenarios"]?.array ?? []
-        XCTAssertEqual(scenarios.map { $0["name"]?.string ?? "" }, ["haupt", "grenzen", "trainer"])
+        XCTAssertEqual(scenarios.map { $0["name"]?.string ?? "" }, ["haupt", "grenzen", "trainer", "versteckt"])
         XCTAssertEqual(fx["intervals"], .array(FlashcardEndpoints.intervals.map { .number(Double($0)) }))
         var problems: [String] = []
         var checked = 0
@@ -169,6 +169,30 @@ final class LocalFlashcardTests: XCTestCase {
         XCTAssertEqual(due.json?.array?.map { $0["question"]?.string ?? "" }, ["Mit Datei"])
         let bad = await call(b, "GET", "/api/flashcards?due=bald")
         XCTAssertEqual(bad.status, 422)
+    }
+
+    /// Versteckte Karten (Trainer) sind nie faellig: "Heute faellig" und alle Zaehler (?due=true) lassen sie weg,
+    /// die Liste ohne due zeigt sie weiter; Fach und Termin bleiben, wieder zeigen macht sie wieder faellig
+    func testHiddenCardsAreNeverDue() async throws {
+        let clock = SettableClock("2026-11-03T10:00:00")
+        let b = try await backend(clock)
+        _ = await call(b, "POST", "/api/flashcards", #"{"cards": [{"question": "Sichtbar", "answer": "a"}, {"question": "Versteckt", "answer": "b"}]}"#)
+        var due = await call(b, "GET", "/api/flashcards?due=true")
+        XCTAssertEqual(due.json?.array?.count, 2)
+        let hide = await call(b, "PATCH", "/api/flashcards/2", #"{"hidden": true}"#)
+        XCTAssertEqual(hide.json?["hidden"], 1)
+        XCTAssertEqual(hide.json?["due"], "2026-11-03", "Termin bleibt")
+        due = await call(b, "GET", "/api/flashcards?due=true")
+        XCTAssertEqual(due.json?.array?.map { $0["question"]?.string ?? "" }, ["Sichtbar"])
+        let all = await call(b, "GET", "/api/flashcards")
+        XCTAssertEqual(all.json?.array?.map { $0["question"]?.string ?? "" }, ["Versteckt", "Sichtbar"], "Liste zeigt versteckte Karten")
+        // NULL von aussen zaehlt als nicht versteckt
+        try await b.context.database.transaction { c in _ = try c.execute("UPDATE flashcards SET hidden=NULL WHERE id=1") }
+        due = await call(b, "GET", "/api/flashcards?due=true")
+        XCTAssertEqual(due.json?.array?.map { $0["question"]?.string ?? "" }, ["Sichtbar"])
+        _ = await call(b, "PATCH", "/api/flashcards/2", #"{"hidden": false}"#)
+        due = await call(b, "GET", "/api/flashcards?due=true")
+        XCTAssertEqual(due.json?.array?.count, 2, "wieder gezeigt: wieder faellig")
     }
 
     func testDeleteAndNotFound() async throws {

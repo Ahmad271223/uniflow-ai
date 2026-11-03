@@ -377,7 +377,7 @@ final class FlashcardsAppTests: XCTestCase {
     }
 
     /// Lesezeichen und Verstecken: gespeichert, versteckte Karte verlaesst den Durchgang und erscheint nur mit
-    /// "Versteckte Karten"; die Wiederholung "Heute fällig" bleibt unveraendert
+    /// "Versteckte Karten"; wieder gezeigt ist sie wieder in "Heute fällig"
     func testTrainerBookmarkAndHide() async throws {
         let (api, _, _) = try await seededAPI(cards: [("Begriff A", "Definition A", nil), ("Begriff B", "Definition B", nil)])
         let deck = FlashcardDeck(api: api)
@@ -405,9 +405,32 @@ final class FlashcardsAppTests: XCTestCase {
         try await trainer.toggleHidden()
         XCTAssertTrue(trainer.empty, "wieder gezeigt: passt nicht mehr zu 'Versteckte Karten'")
         try await deck.load()
-        XCTAssertEqual(deck.due.count, 2, "Heute fällig unveraendert")
+        XCTAssertEqual(deck.due.count, 2, "wieder gezeigt: wieder in Heute fällig")
         try await deck.setFlag(deck.all.first { $0.s("question") == "Begriff B" }!, "bookmarked", true)
         XCTAssertEqual(deck.all.filter { $0.i("bookmarked") == 1 }.count, 2)
+    }
+
+    /// Versteckte Karten sind nie faellig: nicht in "Heute fällig" und nicht in der Wiederholung, aber in der Liste;
+    /// der naechste Termin zaehlt sie nicht mit
+    func testHiddenCardIsNotDue() async throws {
+        let (api, _, _) = try await seededAPI(cards: [("Sichtbare Frage", "a", nil), ("Versteckte Frage", "b", nil)])
+        let deck = FlashcardDeck(api: api)
+        try await deck.load()
+        let hidden = try XCTUnwrap(deck.all.first { $0.s("question") == "Versteckte Frage" })
+        try await deck.setFlag(hidden, "hidden", true)
+        XCTAssertEqual(deck.due.compactMap { $0.s("question") }, ["Sichtbare Frage"])
+        XCTAssertEqual(deck.all.count, 2, "Liste zeigt die versteckte Karte")
+        deck.startReview()
+        XCTAssertEqual(deck.queue.compactMap { $0.s("question") }, ["Sichtbare Frage"])
+        deck.endSession()
+        // versteckte Karte mit altem Termin: kein "naechster Termin" in der Vergangenheit
+        let visible = try XCTUnwrap(deck.all.first { $0.s("question") == "Sichtbare Frage" }?.i("id"))
+        _ = try await api.value("/api/flashcards/\(visible)/review", method: "POST", body: ["correct": true])
+        try await deck.load()
+        XCTAssertEqual(deck.due, [])
+        XCTAssertEqual(deck.nextDue, "2026-10-28", "nur die sichtbare Karte zaehlt")
+        let counter = try await api.value("/api/flashcards?due=true").items
+        XCTAssertEqual(counter.count, 0, "Zaehler (Tests-Seite) ohne versteckte Karten")
     }
 
     /// Pruefpunkt 270 fuer den Trainer: neue Datenquelle beendet den Durchgang, spaete Antworten zaehlen nicht
@@ -633,6 +656,24 @@ final class FlashcardsAppTests: XCTestCase {
         let stored = try awaiting { try await self.cards(api) }
         XCTAssertEqual(stored.map { $0.i("box") ?? 0 }, [2, 1])
         XCTAssertEqual(stored.map { $0.s("due") ?? "" }, ["2026-10-28", "2026-10-27"])
+    }
+
+    func testHiddenCardIsNotInDueTodayOnThePage() throws {
+        let (api, _, _) = try awaiting {
+            try await self.seededAPI(cards: [("Sichtbare Frage", "Antwort A", nil), ("Versteckte Frage", "Antwort B", nil)])
+        }
+        try awaiting {
+            let stored = try await self.cards(api)
+            let id = try XCTUnwrap(stored.first { $0.s("question") == "Versteckte Frage" }?.i("id"))
+            _ = try await api.value("/api/flashcards/\(id)", method: "PATCH", body: ["hidden": true])
+        }
+        let page = try show(gated(.plus), api: api)
+        XCTAssertTrue(pump { self.shows(page.view, "Heute fällig (1)") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Versteckte Frage"), "in der Liste: \(dump(page.view))")
+        XCTAssertTrue(shows(page.view, "versteckt, nicht in „Heute fällig“"), dump(page.view))
+        XCTAssertTrue(tap("Wiederholen", in: page.view), dump(page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Karte 1 von 1") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Frage: Sichtbare Frage"), dump(page.view))
     }
 
     func testDeleteAsksFirst() throws {
