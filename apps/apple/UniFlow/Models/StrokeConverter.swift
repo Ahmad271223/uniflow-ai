@@ -112,6 +112,13 @@ enum StrokeConverter {
     /// Deckkraft des Textmarkers im Web-Editor, die dem PencilKit-Marker mit voller Farbe entspricht.
     static let markerOpacity = 0.35
 
+    /// Neigungsrichtung der Marker-Punkte aus dem JSON. PencilKit zeichnet den Marker als schraege Keilspitze, deren
+    /// Lage nur am Azimut haengt (die Hoehe wirkt nicht). Mit Azimut 0 lag die Spitze laengs zu waagerechten Strichen:
+    /// gemessen bei Breite 15 nur 7 pt dick mit runden, weichen Enden (Azimut pi/2: 20 pt). Bei pi/4 ist ein Strich
+    /// waagerecht wie senkrecht so dick wie gespeichert (15 pt) und sieht aus wie mit dem Stift gezogen
+    /// (ForeignMarkerTests).
+    static let markerAzimuth: CGFloat = .pi / 4
+
     /// Tintenarten, die ab iOS 17 sicher wiederhergestellt werden koennen (`pkInk`).
     static let restorableInks: Set<PKInk.InkType> = [.pen, .pencil, .marker, .monoline, .fountainPen, .watercolor, .crayon]
 
@@ -310,16 +317,17 @@ enum StrokeConverter {
         let t = CGAffineTransform(translationX: x, y: y).rotated(by: rot).scaledBy(x: sx, y: sy)
         let n = pts.count / 2
         let scale = max(abs(sx), abs(sy))
+        let type = inkType(forWebTool: tool, pkInk: o["pkInk"]?.string)
+        let azimuth = type == .marker ? markerAzimuth : 0
         var points: [PKStrokePoint] = []
         points.reserveCapacity(n)
         for i in 0..<n {
             let p = CGPoint(x: pts[2 * i], y: pts[2 * i + 1]).applying(t)
             let w = CGFloat(((widths?.count == n) ? widths![i] : width) * scale)
             points.append(PKStrokePoint(location: p, timeOffset: TimeInterval(i) * 0.008, size: CGSize(width: w, height: w),
-                                        opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2))
+                                        opacity: 1, force: 1, azimuth: azimuth, altitude: .pi / 2))
         }
         let base = UIColor(hex: o["color"]?.string) ?? .black
-        let type = inkType(forWebTool: tool, pkInk: o["pkInk"]?.string)
         let ink = PKInk(type, color: base.withAlphaComponent(CGFloat(inkAlpha(opacity: opacity, tool: tool))))
         return PKStroke(ink: ink, path: PKStrokePath(controlPoints: points, creationDate: created))
     }
