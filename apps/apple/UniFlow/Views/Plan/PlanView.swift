@@ -93,6 +93,8 @@ struct PlanView: View {
             UFPageHead("Lernkalender", sub: session.api?.isLocal == true ? "Dein Wochenplan – perfekt auf Vorlesungen und Übungen abgestimmt."
                                                                        : "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.") {
                 UFButton("Lernpaket", icon: "plus") { actions.addPackage(date: Fmt.isoDay(d.view == "day" ? d.date : d.start)) }
+                // Verfuegbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten) gehoert zu den Lernslots: seit 03.11.2026 hier statt im Stundenplan
+                UFButton("Verfügbarkeit", icon: "clock") { actions.availability() }
                 UFButton("Lernkombination", icon: "settings") { actions.config() }
                 UFButton("Woche retten", icon: "life-buoy") { Task { await actions.suggest(["rescue": true]) } }
                     .disabled(backlog.isEmpty)

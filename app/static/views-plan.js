@@ -1,5 +1,6 @@
-// Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=37";
+// Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination,
+// persoenliche Verfuegbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten; seit 03.11.2026 hier statt im Stundenplan)
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=38";
 import { tinyNames } from "./plan-names.js?v=30";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
@@ -27,7 +28,7 @@ export async function viewPlan(_, params, view) {
   const days = cal.days.map(filt);
   view.innerHTML = `<div class="content wide" style="max-width:1600px;padding:1.3rem 1.5rem 3rem">
     <div class="page-head"><div><h1>Lernkalender</h1><div class="sub">Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.</div></div>
-      <div class="actions"><button class="btn" id="addPkgBtn">${icon("plus", 15)} Lernpaket</button><button class="btn" id="cfgBtn">${icon("settings", 15)} Lernkombination</button><button class="btn" id="rescueBtn" ${backlog.length ? "" : "disabled"} title="${backlog.length ? "" : "Nichts nachzuholen"}">${icon("life-buoy", 15)} Woche retten</button><button class="btn primary" id="genBtn">${icon("sparkles", 15)} Plan erstellen</button></div></div>
+      <div class="actions"><button class="btn" id="addPkgBtn">${icon("plus", 15)} Lernpaket</button><button class="btn" id="availBtn">${icon("clock", 15)} Verfügbarkeit</button><button class="btn" id="cfgBtn">${icon("settings", 15)} Lernkombination</button><button class="btn" id="rescueBtn" ${backlog.length ? "" : "disabled"} title="${backlog.length ? "" : "Nichts nachzuholen"}">${icon("life-buoy", 15)} Woche retten</button><button class="btn primary" id="genBtn">${icon("sparkles", 15)} Plan erstellen</button></div></div>
     ${backlog.length ? `<div class="card" style="border-color:transparent;background:var(--bad-soft);margin-bottom:1rem"><div class="row wrap"><b style="color:var(--bad-text)">${icon("alert", 16)} ${backlog.length} Aufgabe${backlog.length > 1 ? "n müssen" : " muss"} nachgeholt werden</b><span class="spacer"></span><button class="btn sm" id="catchNow">Jetzt nachholen</button><button class="btn sm primary" id="catchPlan">Neu einplanen</button><button class="btn sm ghost" id="catchSkip">Bewusst überspringen</button></div></div>` : ""}
     <div class="cal2 ${["week", "3days"].includes(planState.view) ? "wk" : ""} ${sideOff() ? "side-off" : ""}" id="cal2"><div class="cal2-main">
       <div class="cal2-bar"><div class="seg pill">${[["day", "Tag"], ["3days", "3 Tage"], ["week", "Woche"], ["month", "Monat"], ["list", "Liste"]].map(([k, l]) => `<button class="${planState.view === k ? "active" : ""}" data-view="${k}">${k === "list" ? icon("list", 14) + " " : ""}${l}</button>`).join("")}</div>
@@ -50,10 +51,30 @@ export async function viewPlan(_, params, view) {
   $("#modSel").onchange = e => { planState.module = e.target.value; go(planState.view, planState.date); };
   $("#genBtn").onclick = () => generatePlan(iso(planState.view === "week" ? start : d));
   $("#cfgBtn").onclick = $("#cfgBtn2").onclick = () => configDialog(); $("#addPkgBtn").onclick = () => addPackageDialog(iso(planState.view === "day" ? d : start));
+  $("#availBtn").onclick = () => availabilityDialog();
   $("#rescueBtn").onclick = () => suggestFlow({ rescue: true });
   $("#catchPlan")?.addEventListener("click", () => suggestFlow({})); $("#catchNow")?.addEventListener("click", () => go("list", planState.date));
   $("#catchSkip")?.addEventListener("click", async () => { if (confirm(`${backlog.length} offene Aufgaben als bewusst übersprungen markieren?`)) { await api("/tasks/skip", { method: "POST", body: { task_ids: backlog.map(b => b.id) } }); toast("Übersprungen"); state.route(); } });
   bindCalendar(body);
+}
+
+// ---------------------------------------------------------------- Verfuegbarkeit
+/** Persoenliche Verfuegbarkeit (learn_start/learn_end, Fahrtzeit, Mindestslot, Pause, Tageslimit, lernfreie Tage,
+ * Sperrzeiten): Grundlage der Lernslots, deshalb Teil des Lernkalenders (bis 03.11.2026 im Stundenplan) */
+export async function availabilityDialog() {
+  const s = await api("/settings");
+  const m = modal(`<h3>${icon("clock", 18)} Persönliche Verfügbarkeit</h3><p class="muted small">Freie Kalenderzeit ist nicht automatisch Lernzeit: Fahrtzeiten, Sperrzeiten und Mindestlänge werden abgezogen.</p>
+    <div class="grid cols-2"><label class="field">Früheste Lernzeit<input class="input" type="time" id="avS" value="${s.learn_start}"></label><label class="field">Späteste Lernzeit<input class="input" type="time" id="avE" value="${s.learn_end}"></label>
+    <label class="field">Fahrtzeit Zuhause ↔ Uni (Minuten)<input class="input" type="number" id="avT" value="${s.travel_minutes}" step="5"></label><label class="field">Mindestdauer eines Lernslots (Minuten)<input class="input" type="number" id="avM" value="${s.min_slot_minutes}" step="5"></label>
+    <label class="field">Pause zwischen Aufgaben (Minuten)<input class="input" type="number" id="avB" value="${s.break_minutes}" step="5"></label><label class="field">Maximale Lernzeit pro Tag (Minuten)<input class="input" type="number" id="avD" value="${s.minutes_per_day}" step="15"></label></div>
+    <label class="field">Lernfreie Wochentage<div class="row wrap" id="avDays">${DAYS.map((d, i) => `<button type="button" class="chip ${s.free_days.includes(i) ? "on" : ""}" data-d="${i}">${d}</button>`).join("")}</div></label>
+    <label class="field">Sperrzeiten (z. B. Job, Sport, Mittag)<div id="avBlocked" class="stack"></div><button class="btn sm" id="avAddB">${icon("plus", 14)} Sperrzeit</button></label>
+    <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="avOk">Speichern</button></div>`);
+  let blocked = [...(s.blocked_times || [])];
+  const renderB = () => { $("#avBlocked", m).innerHTML = blocked.map((b, i) => `<div class="row"><select class="input" data-bk="weekday" data-i="${i}" style="width:auto">${DAYS.map((d, k) => `<option value="${k}" ${b.weekday == k ? "selected" : ""}>${d}</option>`).join("")}</select><input class="input" type="time" data-bk="start" data-i="${i}" value="${b.start}" style="width:auto"><input class="input" type="time" data-bk="end" data-i="${i}" value="${b.end}" style="width:auto"><input class="input" data-bk="title" data-i="${i}" value="${esc(b.title || "")}" placeholder="Bezeichnung"><button class="btn ghost icon sm" data-bdel="${i}">${icon("x", 14)}</button></div>`).join("") || `<span class="muted small">Keine Sperrzeiten.</span>`; $$("[data-bk]", m).forEach(el => el.onchange = () => { blocked[+el.dataset.i][el.dataset.bk] = el.dataset.bk === "weekday" ? +el.value : el.value; }); $$("[data-bdel]", m).forEach(b => b.onclick = () => { blocked.splice(+b.dataset.bdel, 1); renderB(); }); };
+  renderB(); $("#avAddB", m).onclick = () => { blocked.push({ weekday: 0, start: "12:00", end: "13:00", title: "" }); renderB(); };
+  $$("#avDays .chip", m).forEach(c => c.onclick = () => c.classList.toggle("on"));
+  $("#avOk", m).onclick = async () => { await api("/settings", { method: "PUT", body: { learn_start: $("#avS", m).value, learn_end: $("#avE", m).value, travel_minutes: $("#avT", m).value, min_slot_minutes: $("#avM", m).value, break_minutes: $("#avB", m).value, hours_per_day: (+$("#avD", m).value / 60).toFixed(2), free_days: $$("#avDays .chip.on", m).map(c => +c.dataset.d), blocked_times: blocked } }); m.remove(); toast("Verfügbarkeit gespeichert"); state.route(); };
 }
 
 // ---------------------------------------------------------------- Wochenraster
@@ -117,7 +138,7 @@ export function bindCalendar(body) {
   // "Uhrzeiten vergeben": die Tage der Pakete ohne Uhrzeit, von Hand gesetzte Uhrzeiten bleiben (only_unset)
   $("#reslotWeek", body)?.addEventListener("click", async e => { await api("/timetable/reslot", { method: "POST", body: { dates: e.currentTarget.dataset.dates.split(","), only_unset: true } }); toast("Uhrzeiten vergeben"); state.route(); });
   $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => {
-    if (el.dataset.ev) return import("./views-tt.js?v=40").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
+    if (el.dataset.ev) return import("./views-tt.js?v=41").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
     // Einzeltermin aus dem Stud.IP-Kalender ohne eigene Serie: nur anzeigen
     modal(`<h3>${esc(el.title.split(" · ")[0])}</h3>${el.dataset.cx ? `<p class="small cx-box card flat">${icon("alert", 14)} ${esc(el.dataset.cx)}</p>` : ""}<p class="small muted">Termin aus deinem Stud.IP-Kalender (${fmtDate(el.dataset.date)}). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.</p><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   });
@@ -148,7 +169,7 @@ function weekSide(days, backlog, monthCal, d) {
 }
 function bindSide(view, dateStr, days) {
   $$("#calSide [data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
-  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=40")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=40")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
+  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=41")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
   $$("#calSide [data-taskdone]", view).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.taskdone}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt"); state.route(); });
   $("#calSide #addTaskBtn", view)?.addEventListener("click", () => addPackageDialog(dateStr));
   $$("#calSide [data-use]", view).forEach(b => b.onclick = () => useFreeWindow(dateStr, b.dataset.use));

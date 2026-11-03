@@ -2,9 +2,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UniFlowCore
 
-/// Stundenplan 1:1 nach viewTimetable() in app/static/views-tt.js: Kopf mit Verfügbarkeit/Termin/Import,
-/// Wochennavigation mit Legende, Raster nur mit den Hochschulterminen der Woche (Lernslots, freie Fenster,
-/// Sperrzeiten und Lernslot-Konflikte zeigt der Lernkalender). Doppeltippen legt einen Termin an. Daten: GET /api/timetable/week.
+/// Stundenplan 1:1 nach viewTimetable() in app/static/views-tt.js: Kopf mit Termin/Import, Wochennavigation mit
+/// Legende, Raster nur mit den Hochschulterminen der Woche. Alles zu Lernslots (Verfügbarkeit, freie Fenster,
+/// Sperrzeiten, Konflikte, Neu legen) steht im Lernkalender (03.11.2026). Doppeltippen legt einen Termin an.
+/// Daten: GET /api/timetable/week.
 struct TimetableView: View {
     let date: String?
     @EnvironmentObject private var session: Session
@@ -72,7 +73,6 @@ struct TimetableView: View {
         let term = w["term"] ?? .null
         UFContent(wide: true, maxWidth: 1600, insets: EdgeInsets(top: 19.2, leading: 22.4, bottom: 19.2, trailing: 22.4)) {
             UFPageHead("Stundenplan", sub: "\(term.s("name") ?? "") · \(UFFmt.date(term.s("start"))) – \(UFFmt.date(term.s("end")))") {
-                UFButton("Verfügbarkeit", icon: "clock", size: .small) { actions.availability() }
                 UFButton("Termin", icon: "plus", size: .small) { actions.eventDialog(nil) }
                 UFButton("Stundenplan importieren", icon: "download", kind: .primary, size: .small) { overlay.modal { TimetableImportDialog() } }
             }
@@ -458,7 +458,6 @@ struct TimetablePreviewDialog: View {
     let r: JSONValue
     let source: String
     @EnvironmentObject private var session: Session
-    @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
@@ -595,6 +594,7 @@ struct TimetablePreviewDialog: View {
         return HStack(alignment: .center, spacing: 4) {
             Button { e.wrappedValue.selected.toggle() } label: {
                 Image(systemName: e.wrappedValue.selected ? "checkmark.square.fill" : "square").foregroundStyle(e.wrappedValue.selected ? UF.accent : UF.muted)
+                    .ufHitArea(slop: EdgeInsets(top: .infinity, leading: .infinity, bottom: .infinity, trailing: 2))
             }
             .buttonStyle(.plain).frame(width: 22)
             VStack(alignment: .leading, spacing: 1) {
@@ -638,11 +638,23 @@ struct TimetablePreviewDialog: View {
                                                  "remove_ids": .array(remove.sorted().map { .number(Double($0)) })])
             close()
             let removedN = res.i("removed") ?? 0
-            toast.show("\(res.i("new") ?? 0) neu, \(res.i("updated") ?? 0) aktualisiert\(removedN > 0 ? ", \(removedN) entfernt" : "")")
-            let conflicts = res.list("conflicts")
-            if !conflicts.isEmpty { overlay.modal { TimetableConflictsDialog(conflicts: conflicts) } }
-            router.reload()
+            let summary = "\(res.i("new") ?? 0) neu, \(res.i("updated") ?? 0) aktualisiert\(removedN > 0 ? ", \(removedN) entfernt" : "")"
+            // Lernslots, die jetzt mit Terminen zusammenfallen, legt der Lernkalender neu (03.11.2026: kein Dialog und
+            // kein reslot mehr im Stundenplan) – eine Zeile, und die Ansicht wechselt dorthin
+            let conflicts = res.list("conflicts").count
+            if conflicts > 0 {
+                toast.show("\(summary) · \(Self.conflictHint(conflicts))", seconds: 6)
+                router.go(.plan())
+            } else {
+                toast.show(summary)
+                router.reload()
+            }
         } catch { toast.show(error.localizedDescription) }
+    }
+
+    /// Hinweis nach dem Import, wenn Lernslots mit den neuen Terminen zusammenfallen (importConflictHint in views-tt.js)
+    static func conflictHint(_ n: Int) -> String {
+        "\(n) Lernslot\(n == 1 ? " überschneidet" : "s überschneiden") sich – im Lernkalender neu legen"
     }
 }
 
@@ -655,38 +667,5 @@ struct UFSmallInput: View {
             .padding(.vertical, 3.2 + ufB).padding(.horizontal, 4.8 + ufB)
             .background(RoundedRectangle(cornerRadius: 6).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(UF.line, lineWidth: 1))
-    }
-}
-
-/// Modal "N Lernslots kollidieren jetzt mit Terminen"
-struct TimetableConflictsDialog: View {
-    let conflicts: [JSONValue]
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var toast: UFToastCenter
-    @EnvironmentObject private var router: UFRouter
-    @Environment(\.ufClose) private var close
-
-    var body: some View {
-        UFDialog("\(conflicts.count) Lernslots kollidieren jetzt mit Terminen", icon: "alert") {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(conflicts.prefix(8).indices, id: \.self) { i in
-                    let x = conflicts[i]
-                    Text("•  \(UFFmt.short(x.s("date"))): \(UFFmt.shortName(x.s("subject"))) \(x.s("slot") ?? "") ↔ \(x.s("event") ?? "") \(x.s("event_time") ?? "")")
-                        .ufFont(13.12).foregroundStyle(UF.text)
-                }
-            }
-            .padding(.leading, 16)
-        } foot: {
-            UFButton("Später") { close() }
-            UFButton("Lernslots neu legen", kind: .primary) {
-                Task {
-                    guard let api = session.api else { return }
-                    if await toast.attempt("Lernslots neu legen", { _ = try await api.value("/api/timetable/reslot", method: "POST", body: [:]) }) {
-                        close()
-                        router.reload()
-                    }
-                }
-            }
-        }
     }
 }

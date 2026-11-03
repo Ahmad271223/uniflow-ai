@@ -1,7 +1,7 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=37";
-import { PdfEditor } from "./editor.js?v=55";
-import { setupLectureMarker } from "./views-weekly.js?v=6";
+import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=38";
+import { PdfEditor } from "./editor.js?v=56";
+import { setupLectureMarker } from "./views-weekly.js?v=7";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };

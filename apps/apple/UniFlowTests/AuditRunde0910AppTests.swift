@@ -291,6 +291,42 @@ final class AuditRunde0910AppTests: XCTestCase {
         XCTAssertTrue(pump { self.shows(page.view, "Vorlesung/Übung") }, texts(page.view).joined(separator: "\n"))
         XCTAssertFalse(shows(page.view, "Konfliktprüfung nicht möglich: Testfehler 500"), texts(page.view).joined(separator: "\n"))
         XCTAssertFalse(shows(page.view, "Lernslot"), texts(page.view).joined(separator: "\n"))
+        XCTAssertEqual(t.count("/api/timetable/conflicts"), 0, "der Stundenplan fragt keine Konflikte mehr ab")
+        XCTAssertFalse(shows(page.view, "Verfügbarkeit"), "Verfuegbarkeit gehoert zum Lernkalender: \(texts(page.view))")
+        XCTAssertTrue(shows(page.view, "Termin") && shows(page.view, "Stundenplan importieren"), texts(page.view).joined(separator: "\n"))
+    }
+
+    /// 03.11.2026: faellt nach einem Import ein Lernslot mit einem neuen Termin zusammen, meldet der Stundenplan das in
+    /// einer Zeile und wechselt in den Lernkalender (dort "Uhrzeiten vergeben"); der Dialog "Lernslots kollidieren" mit
+    /// "Lernslots neu legen" (POST /api/timetable/reslot aus dem Stundenplan) ist weg
+    func testImportConflictsBecomeOneLineAndOpenPlanner() throws {
+        XCTAssertTrue(Self.accessibilityAutomation(true))
+        defer { Self.accessibilityAutomation(false) }
+        let t = FakeTransport()
+        t.answer("/api/timetable/import/confirm", ["new": 1, "updated": 0, "removed": 0,
+                                                   "conflicts": [["date": "2026-10-26", "subject": "Testmathematik I", "slot": "10:00–11:30", "event": "Testphysik", "event_time": "10:00–11:30"]]])
+        let api = APIClient(base: APIClient.localBase, transport: t)
+        let preview: JSONValue = ["import_id": .null, "modules": [],
+                                  "entries": [["title": "Testphysik", "kind": "vorlesung", "weekday": 0, "start_time": "10:00", "end_time": "11:30", "room": "", "module_id": .null]],
+                                  "diff": ["new": [["title": "Testphysik", "weekday": 0]], "changed": [], "same": [], "removed": []]]
+        let page = try show(TimetablePreviewDialog(r: preview, source: "ics"), api: api)
+        XCTAssertTrue(pump { self.shows(page.view, "Übernehmen") }, texts(page.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Übernehmen", in: page.view), texts(page.view).joined(separator: "\n"))
+        XCTAssertTrue(pump { t.count("/api/timetable/import/confirm") == 1 && page.toast.message != nil }, page.toast.message ?? "keine Meldung")
+        XCTAssertEqual(page.toast.message, "1 neu, 0 aktualisiert · 1 Lernslot überschneidet sich – im Lernkalender neu legen")
+        XCTAssertEqual(page.router.route, .plan(), "oeffnet den Lernkalender")
+        XCTAssertFalse(shows(page.view, "kollidieren"), "kein Dialog mehr: \(texts(page.view))")
+        XCTAssertEqual(t.count("/api/timetable/reslot"), 0, "Neu legen nur im Lernkalender")
+        XCTAssertEqual(TimetablePreviewDialog.conflictHint(3), "3 Lernslots überschneiden sich – im Lernkalender neu legen")
+
+        // ohne Konflikte nur die Zusammenfassung, die Ansicht bleibt
+        t.answer("/api/timetable/import/confirm", ["new": 2, "updated": 1, "removed": 0, "conflicts": []])
+        let plain = try show(TimetablePreviewDialog(r: preview, source: "ics"), api: api)
+        XCTAssertTrue(pump { self.shows(plain.view, "Übernehmen") })
+        XCTAssertTrue(tap("Übernehmen", in: plain.view))
+        XCTAssertTrue(pump { plain.toast.message != nil })
+        XCTAssertEqual(plain.toast.message, "2 neu, 1 aktualisiert")
+        XCTAssertEqual(plain.router.route, .dashboard, "bleibt, wo sie war")
     }
 
     /// 311/312: "Termin nicht gefunden" (geloescht) und "Termin laden fehlgeschlagen" (Fehlerantwort) sind zwei

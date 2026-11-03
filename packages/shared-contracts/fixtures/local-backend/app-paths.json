@@ -3756,8 +3756,7 @@
    "method": "POST",
    "shape": "/api/timetable/reslot",
    "sources": [
-    "UniFlow/Views/Plan/PlanGrids.swift",
-    "UniFlow/Views/Timetable/TimetableView.swift"
+    "UniFlow/Views/Plan/PlanGrids.swift"
    ],
    "request": {
     "path": "/api/timetable/reslot",

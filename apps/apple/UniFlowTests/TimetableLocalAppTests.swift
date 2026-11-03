@@ -336,8 +336,9 @@ final class TimetableLocalAppTests: XCTestCase {
     func testTimetablePageShowsStudIPWeekLocally() throws {
         let (api, recorder, _) = try awaiting { try await self.syncedAPI() }
         let titles = ["Testanalysis I", "Testprogrammierung", "Testseminar Beispiel", "Übung Testanalysis I", "Chorprobe"]
+        // 03.11.2026: der Stundenplan fragt keine Lernslot-Konflikte mehr ab (nur noch /api/timetable/week)
         let shown = try render(TimetableView(date: "2026-10-26"), api: api, recorder: recorder, expected: titles) { calls in
-            calls.contains { $0.path == "/api/timetable/week" } && calls.contains { $0.path == "/api/timetable/conflicts" }
+            calls.contains { $0.path == "/api/timetable/week" }
         }
         let calls = recorder.calls
         XCTAssertTrue(calls.contains { $0.path == "/api/timetable/week" && $0.status == 200 }, "\(calls)")
@@ -350,6 +351,8 @@ final class TimetableLocalAppTests: XCTestCase {
             XCTAssertTrue(all.contains(title), "\(title) fehlt: \(all)")
         }
         XCTAssertFalse(all.contains("Noch kein Stundenplan"), all)
+        XCTAssertFalse(calls.contains { $0.path == "/api/timetable/conflicts" }, "Konflikte prueft der Lernkalender: \(calls)")
+        XCTAssertFalse(all.contains("Verfügbarkeit"), "Verfuegbarkeit steht im Lernkalender: \(all)")
     }
 
     /// Gruppenauswahl wie in der Web-App: die Vorschau "aus Stud.IP" zeigt die parallelen Gruppen mit Hinweis

@@ -286,6 +286,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
         let overlay = UFOverlay()
         let plan = try show(PlanView(params: (view: "week", date: "2026-10-26", module: nil)), api: api, overlay: overlay)
         XCTAssertTrue(pump { self.shows(plan, "Plan erstellen") && recorder.calls.contains { $0.path == "/api/timetable/week" } })
+        XCTAssertTrue(shows(plan, "Verfügbarkeit"), "Verfuegbarkeit (Lernzeiten, Sperrzeiten) im Kopf des Lernkalenders: \(texts(plan))")
         XCTAssertTrue(tap("Plan erstellen", in: plan))
         XCTAssertTrue(pump { self.shows(plan, "Lernplan erstellen") && recorder.calls.contains { $0.path == "/api/calendar/feasibility" } })
         settle()
@@ -325,6 +326,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
         let lines = monday.map { "\($0.start)–\($0.end) · \($0.title)" }
         XCTAssertTrue(pump { self.shows(tt, "Testmathematik I") && self.shows(tt, "Übung zu Testmathematik I") }, texts(tt).joined(separator: "\n"))
         XCTAssertFalse(lines.contains { l in self.shows(tt, l) }, "keine Lernslots im Stundenplan: \(texts(tt))")
+        XCTAssertFalse(shows(tt, "Verfügbarkeit"), "Verfuegbarkeit nur im Lernkalender: \(texts(tt))")
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
     }
 

@@ -1,6 +1,7 @@
-// Stundenplan: Wochenraster nur mit Hochschulterminen (Lernslots, Frei, Sperrzeiten im Lernkalender), Termin-Panel mit Teilnahme, Import-Vorschau, Verfügbarkeit
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=37";
-import { useFreeWindow } from "./views-plan.js?v=40";
+// Stundenplan: Wochenraster nur mit Hochschulterminen, Termin-Panel mit Teilnahme, Import-Vorschau. Alles zu Lernslots
+// (Verfügbarkeit, freie Fenster, Sperrzeiten, Konflikte, Neu legen) steht im Lernkalender (views-plan.js).
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=38";
+import { useFreeWindow } from "./views-plan.js?v=41";
 
 let ttDate = todayISO();
 export async function viewTimetable(_, params, view) {
@@ -15,7 +16,7 @@ export async function viewTimetable(_, params, view) {
   const hasEvents = allEv.length > 0;
   view.innerHTML = `<div class="content wide" style="max-width:1600px;margin:0 auto;padding:1.2rem 1.4rem">
     <div class="page-head"><div><h1>Stundenplan</h1><div class="sub">${esc(w.term.name)} · ${fmtDate(w.term.start)} – ${fmtDate(w.term.end)}</div></div>
-      <div class="actions"><button class="btn sm" id="ttAvail">${icon("clock", 14)} Verfügbarkeit</button><button class="btn sm" id="ttAdd">${icon("plus", 14)} Termin</button><button class="btn primary sm" id="ttImport">${icon("download", 14)} Stundenplan importieren</button></div></div>
+      <div class="actions"><button class="btn sm" id="ttAdd">${icon("plus", 14)} Termin</button><button class="btn primary sm" id="ttImport">${icon("download", 14)} Stundenplan importieren</button></div></div>
     <div class="row wrap" style="margin-bottom:.7rem"><button class="btn icon sm" id="ttPrev" title="Vorherige Woche" aria-label="Vorherige Woche">${icon("chevron-left", 16)}</button><b style="min-width:220px;text-align:center">${fmtDate(start, { day: "numeric", month: "long" })} – ${fmtDate(addDays(start, 6), { day: "numeric", month: "long", year: "numeric" })}</b><button class="btn icon sm" id="ttNext" title="Nächste Woche" aria-label="Nächste Woche">${icon("chevron-right", 16)}</button><button class="btn sm ghost" id="ttToday">Heute</button><span class="spacer"></span>
       <div class="tt-legend"><span><i style="background:var(--accent)"></i> Vorlesung/Übung</span><span><i style="background:var(--ok-soft);border:1px solid var(--ok)"></i> Feiertag / vorlesungsfrei</span></div></div>
     ${hasEvents ? "" : `<div class="card" style="margin-bottom:.8rem"><b>Noch kein Stundenplan.</b> <span class="muted">${emptyHint}</span></div>`}
@@ -26,7 +27,7 @@ export async function viewTimetable(_, params, view) {
       </div>`).join("")}</div></div>
     <p class="muted small" style="margin-top:.6rem">Klick auf einen Termin: Teilnahme ändern, bearbeiten, Unterlagen öffnen. Nicht besuchte Veranstaltungen geben Zeit frei, die du für Lernblöcke nutzen kannst.</p></div>`;
   $("#ttPrev").onclick = () => { location.hash = `#/timetable?date=${iso(addDays(start, -7))}`; }; $("#ttNext").onclick = () => { location.hash = `#/timetable?date=${iso(addDays(start, 7))}`; }; $("#ttToday").onclick = () => { location.hash = `#/timetable?date=${todayISO()}`; };
-  $("#ttImport").onclick = () => importDialog(); $("#ttAdd").onclick = () => eventDialog(null); $("#ttAvail").onclick = () => availabilityDialog();
+  $("#ttImport").onclick = () => importDialog(); $("#ttAdd").onclick = () => eventDialog(null);
   $$("[data-ev]", view).forEach(el => el.onclick = () => openEvent(+el.dataset.ev, el.dataset.date));
   $$(".tt-col", view).forEach(col => col.ondblclick = e => { const rect = col.getBoundingClientRect(); const m = Math.round((lo + (e.clientY - rect.top) / H * 60) / 15) * 15; eventDialog(null, { weekday: parseISO(col.dataset.date).getDay() === 0 ? 6 : parseISO(col.dataset.date).getDay() - 1, start_time: mh(m), end_time: mh(m + 90), date_from: col.dataset.date }); });
 }
@@ -81,22 +82,6 @@ export async function eventDialog(e, preset = {}) {
   };
 }
 
-export async function availabilityDialog() {
-  const s = await api("/settings");
-  const m = modal(`<h3>${icon("clock", 18)} Persönliche Verfügbarkeit</h3><p class="muted small">Freie Kalenderzeit ist nicht automatisch Lernzeit: Fahrtzeiten, Sperrzeiten und Mindestlänge werden abgezogen.</p>
-    <div class="grid cols-2"><label class="field">Früheste Lernzeit<input class="input" type="time" id="avS" value="${s.learn_start}"></label><label class="field">Späteste Lernzeit<input class="input" type="time" id="avE" value="${s.learn_end}"></label>
-    <label class="field">Fahrtzeit Zuhause ↔ Uni (Minuten)<input class="input" type="number" id="avT" value="${s.travel_minutes}" step="5"></label><label class="field">Mindestdauer eines Lernslots (Minuten)<input class="input" type="number" id="avM" value="${s.min_slot_minutes}" step="5"></label>
-    <label class="field">Pause zwischen Aufgaben (Minuten)<input class="input" type="number" id="avB" value="${s.break_minutes}" step="5"></label><label class="field">Maximale Lernzeit pro Tag (Minuten)<input class="input" type="number" id="avD" value="${s.minutes_per_day}" step="15"></label></div>
-    <label class="field">Lernfreie Wochentage<div class="row wrap" id="avDays">${DAYS.map((d, i) => `<button type="button" class="chip ${s.free_days.includes(i) ? "on" : ""}" data-d="${i}">${d}</button>`).join("")}</div></label>
-    <label class="field">Sperrzeiten (z. B. Job, Sport, Mittag)<div id="avBlocked" class="stack"></div><button class="btn sm" id="avAddB">${icon("plus", 14)} Sperrzeit</button></label>
-    <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="avOk">Speichern</button></div>`);
-  let blocked = [...(s.blocked_times || [])];
-  const renderB = () => { $("#avBlocked", m).innerHTML = blocked.map((b, i) => `<div class="row"><select class="input" data-bk="weekday" data-i="${i}" style="width:auto">${DAYS.map((d, k) => `<option value="${k}" ${b.weekday == k ? "selected" : ""}>${d}</option>`).join("")}</select><input class="input" type="time" data-bk="start" data-i="${i}" value="${b.start}" style="width:auto"><input class="input" type="time" data-bk="end" data-i="${i}" value="${b.end}" style="width:auto"><input class="input" data-bk="title" data-i="${i}" value="${esc(b.title || "")}" placeholder="Bezeichnung"><button class="btn ghost icon sm" data-bdel="${i}">${icon("x", 14)}</button></div>`).join("") || `<span class="muted small">Keine Sperrzeiten.</span>`; $$("[data-bk]", m).forEach(el => el.onchange = () => { blocked[+el.dataset.i][el.dataset.bk] = el.dataset.bk === "weekday" ? +el.value : el.value; }); $$("[data-bdel]", m).forEach(b => b.onclick = () => { blocked.splice(+b.dataset.bdel, 1); renderB(); }); };
-  renderB(); $("#avAddB", m).onclick = () => { blocked.push({ weekday: 0, start: "12:00", end: "13:00", title: "" }); renderB(); };
-  $$("#avDays .chip", m).forEach(c => c.onclick = () => c.classList.toggle("on"));
-  $("#avOk", m).onclick = async () => { await api("/settings", { method: "PUT", body: { learn_start: $("#avS", m).value, learn_end: $("#avE", m).value, travel_minutes: $("#avT", m).value, min_slot_minutes: $("#avM", m).value, break_minutes: $("#avB", m).value, hours_per_day: (+$("#avD", m).value / 60).toFixed(2), free_days: $$("#avDays .chip.on", m).map(c => +c.dataset.d), blocked_times: blocked } }); m.remove(); toast("Verfügbarkeit gespeichert"); state.route(); };
-}
-
 export async function importDialog() {
   const m = modal(`<h3>${icon("download", 18)} Stundenplan importieren</h3><p class="muted small">Du siehst zuerst eine bearbeitbare Vorschau. Erst nach Bestätigung werden die Termine übernommen.</p>
     <div class="stack"><button class="btn primary" data-src="studip">${icon("sync", 16)} Aus Stud.IP übernehmen (Termine deiner Kurse)</button><button class="btn" data-src="ics">${icon("calendar", 16)} Kalenderdatei (ICS)</button><button class="btn" data-src="pdf">${icon("file-text", 16)} PDF-Stundenplan (Texterkennung + KI)</button><button class="btn" data-src="image">${icon("image", 16)} Screenshot / Foto (KI-Bildanalyse)</button><button class="btn" data-src="text">${icon("type", 16)} Text einfügen (KI)</button><button class="btn" data-src="manual">${icon("plus", 16)} Manuell eingeben</button></div>
@@ -126,8 +111,14 @@ function previewDialog(r, src) {
     const chosen = entries.filter(e => e.selected); if (!chosen.length) return toast("Nichts ausgewählt");
     const diff = r.diff; const withIds = chosen.map(e => { if (e.existing_id != null) return e; const ch = diff.changed.find(c => c._i === undefined && c.title === e.title && c.weekday === e.weekday) || diff.same.find(c => c.title === e.title && c.weekday === e.weekday); return { ...e, existing_id: ch?.existing_id }; });
     const res = await api("/timetable/import/confirm", { method: "POST", body: { entries: withIds, source: src, import_id: r.import_id, remove_ids: $$("[data-rm]:checked", m).map(c => +c.dataset.rm) } });
-    m.remove(); toast(`${res.new} neu, ${res.updated} aktualisiert${res.removed ? `, ${res.removed} entfernt` : ""}`);
-    if (res.conflicts?.length) { const c = modal(`<h3>${icon("alert", 18)} ${res.conflicts.length} Lernslots kollidieren jetzt mit Terminen</h3><ul class="small">${res.conflicts.slice(0, 8).map(x => `<li>${fmtShort(x.date)}: ${esc(shortName(x.subject))} ${x.slot} ↔ ${esc(x.event)} ${x.event_time}</li>`).join("")}</ul><div class="modal-foot"><button class="btn" data-close>Später</button><button class="btn primary" id="cfOk">Lernslots neu legen</button></div>`); $("#cfOk", c).onclick = async () => { await api("/timetable/reslot", { method: "POST", body: {} }); c.remove(); state.route(); }; }
-    state.route();
+    m.remove();
+    const summary = `${res.new} neu, ${res.updated} aktualisiert${res.removed ? `, ${res.removed} entfernt` : ""}`;
+    // Lernslots, die jetzt mit Terminen zusammenfallen, legt der Lernkalender neu (03.11.2026: kein Dialog und kein
+    // reslot mehr im Stundenplan) – eine Zeile, und die Ansicht wechselt dorthin
+    if (res.conflicts?.length) { toast(`${summary} · ${importConflictHint(res.conflicts.length)}`, 6000); location.hash = "#/plan"; return; }
+    toast(summary); state.route();
   };
 }
+
+/** Hinweis nach dem Import, wenn Lernslots mit den neuen Terminen zusammenfallen (Zeile der Meldung) */
+export function importConflictHint(n) { return `${n} Lernslot${n === 1 ? " überschneidet" : "s überschneiden"} sich – im Lernkalender neu legen`; }
