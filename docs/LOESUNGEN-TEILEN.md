@@ -393,6 +393,77 @@ anderer Drehung bildet die Stelle mit `SolutionGeometry.transform` ab, genau wie
 seine Klickstelle mit der Umkehrung zurück. Kommentare an Stellen gibt es nur auf PDF-Seiten, die zur Lösung gehören.
 Ohne `anchor` ist es ein allgemeiner Kommentar.
 
+## 6b. Korrekturvorschläge und Community-Seite im Dienst (Web und Windows, 3.11.2026)
+
+Gegenstück zu `CommunityCorrection.swift` (iPad, CloudKit-Typ `Correction`, `docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`).
+Ein Mitglied markiert auf einer fremden, geteilten Lösung (Striche, Randnotizen an einer Stelle, Begleittext) und schickt
+das dem Ersteller; die Lösung bleibt unverändert. **Der Dienst speichert dieselbe Form wie CloudKit, nur mit Dienst-Namen:**
+
+| CloudKit `Correction` | Dienst (`app/community_corrections.py`) | Hinweis |
+|---|---|---|
+| `solutionID` | `solution_id` | Ziel-Lösung (klein geschrieben) |
+| `payload` | `payload` | Chiffrat (Base64) mit dem Community-Geheimnis, der Dienst sieht den Inhalt nie |
+| `createdAt` | `created_at` | UTC, Sekunden |
+| `createdOrder` | `order` | feinere Reihenfolge bei gleicher Sekunde |
+| `ownerRecordName` (Verfasser) | `mine`, `pseudonym` | nie Konto-ID oder E-Mail nach außen |
+| `solutionOwner` | `for_me` | „an meine Lösung gerichtet“ |
+| Datensatzname | `id` | UUID (klein), steckt in den Zusatzdaten des Chiffrats |
+| (lokal je Gerät: gesehen/ignoriert) | `status` = `open` \| `seen` \| `ignored` | **beim Dienst** je Konto, gilt auf allen Geräten; nur für den Ersteller der Lösung gesetzt (sonst `null`) |
+
+**Chiffrat** (`payload`, Referenz `app/community_corrections.py`, Browser `app/static/community-corrections.js`, Swift
+`CommunityCorrections.seal`): Base64 aus Version (1 Byte, = 1), Salz (32), Nonce (12), AES-256-GCM-Chiffrat samt Tag. Klartext
+= kanonisches JSON `uniflow-community-correction` Version 2 (`correctionID`, `solutionID`, `pseudonym`, `createdAt`, `note`,
+`pages[]`: Lösungsseite mit Schlüssel `c<pdfIndex>`, Art `pdf`, `width`/`height` = CropBox ohne Drehung, `rotation` = angezeigte
+Drehung beim Korrigierenden, `extraRotation` 0, `objects` = nur Striche als ganze Zahlen wie Formatversion 2, dazu `notes[]` mit
+`id`, `x`, `y` in 0..1 der angezeigten Seite und `text`), mit raw DEFLATE gepackt. Schlüssel: HKDF-SHA256 aus dem
+Community-Geheimnis, Salz wie im Chiffrat, Info `uniflow-community-correction/v1|<solution_id>`; Zusatzdaten
+`uniflow-community-correction/v1|<solution_id>|<id>` (kein Umhängen). Gemeinsame Vektoren:
+`packages/shared-contracts/fixtures/community/correction-vectors.json` (`tools/gen-correction-vectors.py`; geprüft in
+`tests/test_community_corrections.py` und `tests/js/community-corrections.test.mjs`; Swift kann die Datei in
+`CommunityCorrectionTests` nachrechnen – gepackte Bytes dürfen sich je Sprache unterscheiden, geprüft wird Öffnen und Klartext).
+
+**Endpunkte** (alle nur mit Sitzung, Fehler `{detail, code}`; Fälle in `fixtures/community/contract.json`):
+- `POST /api/community/solutions/{id}/corrections {id, payload}` → 201 mit der Korrektur. Tarif wie Teilen (403
+  `plan_required`), bestätigte E-Mail (403 `email_unverified`), Mitglied der Community der Lösung (sonst 404), nie zur eigenen
+  Lösung (400 `own_solution`), 400 `payload_invalid`, 413 `too_large` (> 750 000 Zeichen), 409 `correction_exists`,
+  429 `corrections_limit` (höchstens 5 aktive je Konto und Lösung, 50 je Lösung) und `rate_limited` (`correction_user`,
+  20 je Tag). Der Ersteller bekommt eine Benachrichtigung (`kind` = `correction`).
+- `GET /api/community/solutions/{id}/corrections` → `{corrections}` für alle Mitglieder, neueste zuerst, mit `payload`; ohne
+  gesperrte, verborgene und gelöschte Korrekturen; zusammen höchstens 16 Mio. Zeichen Chiffrat (die ältesten fallen weg).
+- `GET /api/community/corrections/inbox?limit=&count_only=` → `{open, seen, items}`: Korrekturen an eigene Lösungen (nicht
+  ignoriert), je Eintrag `title`, `fingerprint`, `community_key`, **ohne** `payload`. `open` ist die Zahl am Menüpunkt
+  „Community“ (gelesen: nicht geöffnet, nicht ignoriert); `count_only=true` liefert nur `open` und `seen` (sparsames Abfragen).
+- `GET /api/community/corrections/{id}` → die Korrektur mit `payload`, `title`, `fingerprint`, `community_key`.
+- `POST /api/community/corrections/{id}/status {status}` → `{id, status, open, seen}`; nur der Ersteller der Lösung
+  (sonst 404). Öffnen = `seen`, „Ignorieren“ = `ignored`; `ignored` blendet nur im Posteingang aus, unter der Diskussion
+  bleibt die Korrektur für alle.
+- `DELETE /api/community/corrections/{id}` → nur der Verfasser (oder Moderation): Zurücknehmen, das Chiffrat wird geleert.
+- `POST /api/community/corrections/{id}/report {reason}` → wie Kommentare: bestätigte E-Mail, `report_user` 10 je Tag, ab 3
+  verschiedenen Meldungen verborgen; Moderation: `GET /api/community/moderation` nennt `corrections` (ohne Inhalt),
+  `POST /api/community/corrections/{id}/moderate {action: restore}` gibt frei.
+- Konto löschen entfernt Korrekturen des Kontos und alle zu seinen Lösungen; der Datenexport enthält
+  `community/meine-korrekturen.json`.
+
+**Weitere Dienst-Ergänzungen dieser Runde (rückwärtskompatibel, nur neue Felder und Parameter):** Likes auf Fragen
+(`POST|DELETE /api/community/questions/{id}/like`, Fragen tragen `likes` und `liked_by_me`; wie `post:<id>` in CloudKit),
+Filter `?unanswered=true` bei `GET …/courses/{course_key}/questions`, `module_id` je Kurs in `GET /api/courses/community-keys`
+und `content_sha256` je Datei im Moduldetail (die Seite ordnet geteilte Lösungen über den Fingerabdruck dem Blatt ihrer Woche zu).
+
+**Oberfläche (Web und Windows, `app/static/community-channel.js`, `community-corrections-ui.js`, `community-editor-tools.js`):**
+- Community als eigene Seite `#/community?space=<Schlüssel>`: Kopf in der Fachfarbe, Reiter „Diskussion“ (neueste geteilte
+  Notizen als Reihe, Fragen und Antworten mit Likes, „Beantwortet“, Filter Neueste/Unbeantwortet) und „Dokumente (N)“ (Wochen als
+  Karten je Vorlesung, Hörsaalübung, Übung, Gruppenübung, Tutorium, Klausur, eigene Notizen – auch ohne Geteiltes, „Noch niemand
+  geteilt“ – oder Liste mit Sortierung Relevanz/Neueste). Karte → wer hat geteilt → Person → Notizen als Seite mit Pfeilen
+  (Tasten ← →) zur nächsten und vorherigen Person; Reiter „Dokument“ und „Diskussion (N)“; Knöpfe Like, Merken, „Korrektur
+  vorschlagen“, „In meiner PDF öffnen“.
+- Korrektur schreiben im Editor („Korrektur vorschlagen“ bei fremden Notizen, nicht bei eigenen): die Lösung liegt als Ebene
+  über der eigenen PDF, eigene Ebene mit Stift, Marker, Randnotiz, Begleittext; Entwurf je Lösung im Browser; „Schicken“
+  versiegelt im Browser mit dem Community-Geheimnis. Fehlt die PDF: „Lade die PDF, um zu korrigieren.“
+- Ersteller: Hinweis „Deine Lösung „<Titel>“ hat einen Korrekturhinweis von <Name> bekommen“ mit Öffnen / Ignorieren auf der
+  Übersicht, in der Community und im Editor, Gruppe „Gesehen (N)“, Abzeichen mit der Zahl am Menüpunkt „Community“.
+- „Daneben ansehen“ im Editor: fremde Lösung neben dem Dokument, nur ansehen, die eigene PDF-Seite darunter, scharf in
+  Spaltenbreite.
+
 ## 7. Online-Community über CloudKit (S9b)
 
 Entscheidung des Inhabers vom 26.10.2026: **CloudKit für V1**, später Supabase oder ein eigener Dienst. Code:

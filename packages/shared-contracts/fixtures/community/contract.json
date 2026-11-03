@@ -43,6 +43,14 @@
    "PATCH|DELETE /api/community/answers/{id}",
    "POST|DELETE /api/community/answers/{id}/vote",
    "POST /api/community/{questions|answers}/{id}/report-post",
+   "POST|DELETE /api/community/questions/{id}/like",
+   "GET /api/community/courses/{course_key}/questions?unanswered=true",
+   "POST /api/community/solutions/{id}/corrections {id, payload}",
+   "GET /api/community/solutions/{id}/corrections",
+   "GET /api/community/corrections/inbox?limit=&count_only=",
+   "GET|DELETE /api/community/corrections/{id}",
+   "POST /api/community/corrections/{id}/status {open|seen|ignored}",
+   "POST /api/community/corrections/{id}/report",
    "GET /api/community/bookmarks",
    "POST|DELETE /api/community/bookmarks/{solution|question}/{id}",
    "GET /api/community/notifications?unread=",
@@ -54,7 +62,8 @@
    "reply",
    "like",
    "answer",
-   "accepted"
+   "accepted",
+   "correction"
   ],
   "one_solution_per_pdf": "je Konto, Fingerabdruck und Community eine Loesung: POST antwortet sonst 409 already_published mit solution_id; PUT ersetzt das Paket der eigenen Loesung (ID, Likes, Kommentare bleiben, updated_at neu)"
  },
@@ -313,6 +322,10 @@
    "status": 409,
    "message": "Du hast diese Lösung schon gemeldet."
   },
+  "correction_exists": {
+   "status": 409,
+   "message": "Diese Korrektur gibt es schon."
+  },
   "course_not_owned": {
    "status": 403,
    "message": "Diesen Kurs gibt es nicht in deinem Hochschul-Abgleich."
@@ -341,6 +354,10 @@
    "status": 403,
    "message": "Nur der Autor kann seine Lösung aktualisieren."
   },
+  "own_post": {
+   "status": 400,
+   "message": "Die eigene Frage lässt sich nicht liken."
+  },
   "own_solution": {
    "status": 400,
    "message": "Die eigene Lösung lässt sich nicht liken."
@@ -348,6 +365,10 @@
   "package_invalid": {
    "status": 400,
    "message": "Die Lösung ist beschädigt (Kopf: Felder)."
+  },
+  "payload_invalid": {
+   "status": 400,
+   "message": "Die Korrektur ist beschädigt."
   },
   "plan_required": {
    "status": 403,
@@ -1134,6 +1155,8 @@
     "accepted_answer": null,
     "mine": true,
     "status": "active",
+    "likes": 0,
+    "liked_by_me": false,
     "bookmarked": false
    }
   },
@@ -1175,6 +1198,8 @@
       "accepted_answer": null,
       "mine": false,
       "status": "active",
+      "likes": 0,
+      "liked_by_me": false,
       "bookmarked": false
      }
     ],
@@ -1252,6 +1277,8 @@
     "accepted_answer": "<answer-id>",
     "mine": false,
     "status": "active",
+    "likes": 0,
+    "liked_by_me": false,
     "bookmarked": false,
     "answer_list": [
      {
@@ -1938,7 +1965,8 @@
       ]
      }
     ],
-    "answers": []
+    "answers": [],
+    "corrections": []
    }
   },
   {
@@ -2048,6 +2076,311 @@
    "response": {
     "detail": "Anmeldung erforderlich.",
     "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Korrektur: Leser meldet den Kurs",
+   "method": "POST",
+   "path": "/api/community/claims",
+   "auth": true,
+   "request": {
+    "fingerprints": [],
+    "course_keys": [
+     "<course-key>"
+    ]
+   },
+   "status": 200,
+   "response": {
+    "accepted": 0,
+    "ignored": 0,
+    "total": 1,
+    "courses": 1
+   }
+  },
+  {
+   "step": "Korrektur: Leser tritt der Community bei",
+   "method": "POST",
+   "path": "/api/community/communities/<course-key>/join",
+   "auth": true,
+   "request": {
+    "kind": "course"
+   },
+   "status": 200,
+   "response": {
+    "joined": true,
+    "community_key": "<course-key>"
+   }
+  },
+  {
+   "step": "Korrektur vorschlagen",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id-3>/corrections",
+   "auth": true,
+   "request": {
+    "id": "<correction-id>",
+    "payload": "<base64>"
+   },
+   "status": 201,
+   "response": {
+    "id": "<correction-id>",
+    "solution_id": "<solution-id-3>",
+    "pseudonym": "<pseudonym>",
+    "created_at": "<zeit-utc>",
+    "order": 1,
+    "mine": true,
+    "for_me": false,
+    "status": null,
+    "payload": "<base64>"
+   }
+  },
+  {
+   "step": "Korrektur vorschlagen: gleiche Kennung",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id-3>/corrections",
+   "auth": true,
+   "request": {
+    "id": "<correction-id>",
+    "payload": "<base64>"
+   },
+   "status": 409,
+   "response": {
+    "detail": "Diese Korrektur gibt es schon.",
+    "code": "correction_exists"
+   }
+  },
+  {
+   "step": "Korrektur vorschlagen ohne Plus",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id-3>/corrections",
+   "auth": true,
+   "request": {
+    "id": "<correction-id>",
+    "payload": "<base64>"
+   },
+   "status": 403,
+   "response": {
+    "detail": "Eigene Lösungen teilen gibt es ab StudiNow Plus.",
+    "code": "plan_required"
+   }
+  },
+  {
+   "step": "Korrektur zur eigenen Loesung",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id-3>/corrections",
+   "auth": true,
+   "request": {
+    "id": "<solution-id>",
+    "payload": "<base64>"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Zu deiner eigenen Lösung brauchst du keinen Korrekturvorschlag.",
+    "code": "own_solution"
+   }
+  },
+  {
+   "step": "Korrektur: Chiffrat beschaedigt",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id-3>/corrections",
+   "auth": true,
+   "request": {
+    "id": "<solution-id>",
+    "payload": "AAAA"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Die Korrektur ist beschädigt.",
+    "code": "payload_invalid"
+   }
+  },
+  {
+   "step": "Korrekturen zur Loesung",
+   "method": "GET",
+   "path": "/api/community/solutions/<solution-id-3>/corrections",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "corrections": [
+     {
+      "id": "<correction-id>",
+      "solution_id": "<solution-id-3>",
+      "pseudonym": "<pseudonym>",
+      "created_at": "<zeit-utc>",
+      "order": 1,
+      "mine": false,
+      "for_me": true,
+      "status": "open",
+      "payload": "<base64>"
+     }
+    ]
+   }
+  },
+  {
+   "step": "Posteingang des Erstellers",
+   "method": "GET",
+   "path": "/api/community/corrections/inbox",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "open": 1,
+    "seen": 0,
+    "items": [
+     {
+      "id": "<correction-id>",
+      "solution_id": "<solution-id-3>",
+      "pseudonym": "<pseudonym>",
+      "created_at": "<zeit-utc>",
+      "order": 1,
+      "mine": false,
+      "for_me": true,
+      "status": "open",
+      "title": "Blatt 4 (ergänzt)",
+      "fingerprint": "<base64>",
+      "community_key": "<course-key>"
+     }
+    ]
+   }
+  },
+  {
+   "step": "Posteingang: nur die Zahlen",
+   "method": "GET",
+   "path": "/api/community/corrections/inbox?count_only=true",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "open": 1,
+    "seen": 0
+   }
+  },
+  {
+   "step": "Korrektur ansehen (mit Chiffrat)",
+   "method": "GET",
+   "path": "/api/community/corrections/<correction-id>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "id": "<correction-id>",
+    "solution_id": "<solution-id-3>",
+    "pseudonym": "<pseudonym>",
+    "created_at": "<zeit-utc>",
+    "order": 1,
+    "mine": false,
+    "for_me": true,
+    "status": "open",
+    "payload": "<base64>",
+    "title": "Blatt 4 (ergänzt)",
+    "fingerprint": "<base64>",
+    "community_key": "<course-key>"
+   }
+  },
+  {
+   "step": "Korrektur als gesehen markieren",
+   "method": "POST",
+   "path": "/api/community/corrections/<correction-id>/status",
+   "auth": true,
+   "request": {
+    "status": "seen"
+   },
+   "status": 200,
+   "response": {
+    "id": "<correction-id>",
+    "status": "seen",
+    "open": 0,
+    "seen": 1
+   }
+  },
+  {
+   "step": "Gesehen: nicht der Verfasser",
+   "method": "POST",
+   "path": "/api/community/corrections/<correction-id>/status",
+   "auth": true,
+   "request": {
+    "status": "seen"
+   },
+   "status": 404,
+   "response": {
+    "detail": "Korrektur nicht gefunden.",
+    "code": "not_found"
+   }
+  },
+  {
+   "step": "Korrektur melden",
+   "method": "POST",
+   "path": "/api/community/corrections/<correction-id>/report",
+   "auth": true,
+   "request": {
+    "reason": "spam"
+   },
+   "status": 200,
+   "response": {
+    "reported": true,
+    "hidden": false,
+    "reports": 1
+   }
+  },
+  {
+   "step": "Korrektur zuruecknehmen: nicht der Verfasser",
+   "method": "DELETE",
+   "path": "/api/community/corrections/<correction-id>",
+   "auth": true,
+   "request": null,
+   "status": 403,
+   "response": {
+    "detail": "Nur der Verfasser kann das.",
+    "code": "not_owner"
+   }
+  },
+  {
+   "step": "Korrektur zuruecknehmen",
+   "method": "DELETE",
+   "path": "/api/community/corrections/<correction-id>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "deleted": true,
+    "id": "<correction-id>"
+   }
+  },
+  {
+   "step": "Frage liken",
+   "method": "POST",
+   "path": "/api/community/questions/<question-id>/like",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "question_id": "<question-id>",
+    "liked": true,
+    "likes": 1
+   }
+  },
+  {
+   "step": "Frage liken: die eigene",
+   "method": "POST",
+   "path": "/api/community/questions/<question-id>/like",
+   "auth": true,
+   "request": null,
+   "status": 400,
+   "response": {
+    "detail": "Die eigene Frage lässt sich nicht liken.",
+    "code": "own_post"
+   }
+  },
+  {
+   "step": "Fragen ohne Antwort",
+   "method": "GET",
+   "path": "/api/community/courses/<course-key>/questions?unanswered=true",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "questions": [],
+    "next": null
    }
   }
  ]

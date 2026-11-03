@@ -1,0 +1,192 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-correction-vectors.py (Referenz app/community_corrections.py); nicht von Hand aendern. Pruefen: tests/test_community_corrections.py (Python), tests/js/community-corrections.test.mjs (Browser). Gepackte Bytes sind je Sprache verschieden: geprueft werden Oeffnen der Python-Chiffrate, Klartext vor dem Packen und Hin und zurueck.",
+ "format": "uniflow-community-correction",
+ "contentVersion": 2,
+ "payloadVersion": 1,
+ "secret": "869eb1ca42691d37d7e6beae37dc8e350433c68f261bb41fc0ca78c39d015451",
+ "solutionID": "6f1c1c0e-0000-4000-8000-000000000003",
+ "cases": [
+  {
+   "name": "Striche und Randnotiz auf zwei Seiten, eine gedrehte",
+   "correction": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "solution_id": "6f1c1c0e-0000-4000-8000-000000000003",
+    "created_at": "2026-11-03T10:00:00Z",
+    "pseudonym": "Ben",
+    "note": "  Aufgabe 2b: Vorzeichen  ",
+    "pages": [
+     {
+      "pdfIndex": 5,
+      "width": 595.28,
+      "height": 841.89,
+      "rotation": 90,
+      "strokes": [
+       {
+        "id": "s2",
+        "type": "stroke",
+        "tool": "marker",
+        "color": "#ffd60a",
+        "width": 14,
+        "opacity": 0.35,
+        "points": [
+         100,
+         200,
+         180,
+         200.5
+        ],
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+       }
+      ],
+      "notes": []
+     },
+     {
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "strokes": [
+       {
+        "id": "s1",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#e5322d",
+        "width": 2.2,
+        "opacity": 1,
+        "points": [
+         10.04,
+         20,
+         11.5,
+         20.75,
+         13.04,
+         21.5
+        ],
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+       }
+      ],
+      "notes": [
+       {
+        "id": "n1",
+        "x": 0.25,
+        "y": 0.75,
+        "text": "hier fehlt ein Minus – äöü"
+       }
+      ]
+     }
+    ]
+   },
+   "salt": "ERERERERERERERERERERERERERERERERERERERERERE=",
+   "nonce": "IiIiIiIiIiIiIiIi",
+   "plaintext": "{\"correctionID\":\"00000000-0000-4000-8000-000000000001\",\"createdAt\":\"2026-11-03T10:00:00Z\",\"format\":\"uniflow-community-correction\",\"formatVersion\":2,\"note\":\"Aufgabe 2b: Vorzeichen\",\"pages\":[{\"extraRotation\":0,\"height\":842,\"key\":\"c3\",\"kind\":\"pdf\",\"notes\":[{\"id\":\"n1\",\"text\":\"hier fehlt ein Minus – äöü\",\"x\":0.25,\"y\":0.75}],\"objects\":[{\"color\":\"#e5322d\",\"id\":\"s1\",\"opacity\":1,\"pointsDelta\":[100,200,15,8,15,7],\"rotation\":0,\"scaleX\":1,\"scaleY\":1,\"tool\":\"pen\",\"type\":\"stroke\",\"width\":2.2,\"x\":0,\"y\":0}],\"pdfIndex\":3,\"rotation\":0,\"width\":595},{\"extraRotation\":0,\"height\":841.89,\"key\":\"c5\",\"kind\":\"pdf\",\"notes\":[],\"objects\":[{\"color\":\"#ffd60a\",\"id\":\"s2\",\"opacity\":0.35,\"pointsDelta\":[1000,2000,800,5],\"rotation\":0,\"scaleX\":1,\"scaleY\":1,\"tool\":\"marker\",\"type\":\"stroke\",\"width\":14,\"x\":0,\"y\":0}],\"pdfIndex\":5,\"rotation\":90,\"width\":595.28}],\"pseudonym\":\"Ben\",\"solutionID\":\"6f1c1c0e-0000-4000-8000-000000000003\"}",
+   "info": "uniflow-community-correction/v1|6f1c1c0e-0000-4000-8000-000000000003",
+   "aad": "uniflow-community-correction/v1|6f1c1c0e-0000-4000-8000-000000000003|00000000-0000-4000-8000-000000000001",
+   "payload": "ARERERERERERERERERERERERERERERERERERERERERERIiIiIiIiIiIiIiIiI4Iwy+cWbj4zy4U/oBl/PUoEuV8kC1Idmc9prkfTn7/6aZ3qxPuIOk9sHukDMm/GL2WANOPVad65a3SJvSe4NwFhOGJbADGubUL/EiEf3ZsQPJBQP/xifBFr5Q3/GoxA1gt3PjbmrY7jrDc4kVtJpihf7L9LSKZ0G79fCFjJi9zDdCdEJ2L/etrFzqWkOTvDAEnboOwyVkVbfZNCtIFiLX6h6Y/bWrjf3oNvXSaaCJDhY+uyiknfJnUgYz407F4gs2H9b8onIRD57h6LE3WUSbWMLEW+ak5PYpBQ5ivKnulLIWPO9+n6UbmDilQDWTwklFZuYV1BXk4t8O67yjLibLIeSad5z7sQPl4tHFQqcg90j0zuYCmpdoCbLlZVwXlDzj14ZPmRUeHof5cw4txtc+7rjsab/MIwN1leas06NhA85NCXGDqeyZG7fo0DrKXmKbxGR+gknZNUC/kKSfwOkFVWnhOj0YKImnQXqTQ1x2SgamPowLJiFsUB7dgRiuupmB02H90qt4nyXkmH8kyH4aUmfX7mTQMAjTHf/yf+tp6nbT9YXTasCRc8vQoQ8AzwhLWWfABJuBZkjUK+q+YJ8JDpuuRN6TNwYHmy",
+   "opened": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "solution_id": "6f1c1c0e-0000-4000-8000-000000000003",
+    "pseudonym": "Ben",
+    "created_at": "2026-11-03T10:00:00Z",
+    "note": "Aufgabe 2b: Vorzeichen",
+    "pages": [
+     {
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "strokes": [
+       {
+        "color": "#e5322d",
+        "id": "s1",
+        "opacity": 1,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "tool": "pen",
+        "type": "stroke",
+        "width": 2.2,
+        "x": 0,
+        "y": 0,
+        "points": [
+         10.0,
+         20.0,
+         11.5,
+         20.8,
+         13.0,
+         21.5
+        ]
+       }
+      ],
+      "notes": [
+       {
+        "id": "n1",
+        "text": "hier fehlt ein Minus – äöü",
+        "x": 0.25,
+        "y": 0.75
+       }
+      ]
+     },
+     {
+      "pdfIndex": 5,
+      "width": 595.28,
+      "height": 841.89,
+      "rotation": 90,
+      "strokes": [
+       {
+        "color": "#ffd60a",
+        "id": "s2",
+        "opacity": 0.35,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "tool": "marker",
+        "type": "stroke",
+        "width": 14,
+        "x": 0,
+        "y": 0,
+        "points": [
+         100.0,
+         200.0,
+         180.0,
+         200.5
+        ]
+       }
+      ],
+      "notes": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "nur Begleittext",
+   "correction": {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "solution_id": "6f1c1c0e-0000-4000-8000-000000000003",
+    "created_at": "2026-11-03T10:00:00Z",
+    "pseudonym": "",
+    "note": "Sieht gut aus, nur Tippfehler in 3a.",
+    "pages": []
+   },
+   "salt": "EhISEhISEhISEhISEhISEhISEhISEhISEhISEhISEhI=",
+   "nonce": "IyMjIyMjIyMjIyMj",
+   "plaintext": "{\"correctionID\":\"00000000-0000-4000-8000-000000000002\",\"createdAt\":\"2026-11-03T10:00:00Z\",\"format\":\"uniflow-community-correction\",\"formatVersion\":2,\"note\":\"Sieht gut aus, nur Tippfehler in 3a.\",\"pages\":[],\"pseudonym\":\"\",\"solutionID\":\"6f1c1c0e-0000-4000-8000-000000000003\"}",
+   "info": "uniflow-community-correction/v1|6f1c1c0e-0000-4000-8000-000000000003",
+   "aad": "uniflow-community-correction/v1|6f1c1c0e-0000-4000-8000-000000000003|00000000-0000-4000-8000-000000000002",
+   "payload": "ARISEhISEhISEhISEhISEhISEhISEhISEhISEhISEhISIyMjIyMjIyMjIyMj+CmmYl9GttHZir1NH1YW6VAYCjX5fzPRq/F8DAfNiuk1nJbCnWpa6yJ0W4NOnQ8fKxH5hKgv8UL5Oi4MmigkkhSxi8N443TpJdHytjBPvm9EGsQwzooetb2W0fupwTFF7Fxh2TMyS2yL6BkFNS1VyVPzPpV1h3WuAWCOUNIv3KGtafTYLcF4Cd2w4RATjkxZqKkWqOb73wbsDzNd5a0+NnDeuocGmeTVrRqaZuFKwCiV38C6iHsQxfDEY+/L68oE",
+   "opened": {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "solution_id": "6f1c1c0e-0000-4000-8000-000000000003",
+    "pseudonym": "",
+    "created_at": "2026-11-03T10:00:00Z",
+    "note": "Sieht gut aus, nur Tippfehler in 3a.",
+    "pages": []
+   }
+  }
+ ]
+}

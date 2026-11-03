@@ -70,6 +70,8 @@ async function pollBell() { try { const { unreadCount } = await import("./views-
 setTimeout(askOlderSemesters, 6000);   // einmalige Frage "Auch frühere Semester laden?" (older-semesters-ui.js)
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
+// Abzeichen mit der Zahl offener Korrekturhinweise am Menuepunkt "Community" (03.11.2026, wie auf dem iPad), sparsam geholt
+import("./community-corrections-ui.js?v=1").then(m => m.startBadgePolling()).catch(() => {});
 
 function accountMenu() {
   const a = state.account;
@@ -119,7 +121,17 @@ document.addEventListener("click", async e => {
 });
 
 // Übersicht (Startseite): views-home.js; die Hinweiskarte der Probe (Dienst) kommt von hier
-function viewDashboard(p, q, v) { return viewHome(p, q, v, trialHint); }
+async function viewDashboard(p, q, v) {
+  await viewHome(p, q, v, trialHint);
+  // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
+  try {
+    const U = await import("./community-corrections-ui.js?v=1"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
+    (await import("./community-logic.js?v=1")).ensureCss();
+    const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
+    await U.renderInbox(box, { toast, onChange: () => route() });
+    if (!box.innerHTML) box.remove();
+  } catch { /* Community nicht verfuegbar */ }
+}
 
 // ---------------------------------------------------------------- Start
 async function start() {

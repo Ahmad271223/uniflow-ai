@@ -215,9 +215,11 @@ from . import community_qa  # noqa: E402
 
 
 @router.get("/courses/{course_key}/questions")
-def qa_list(request: Request, course_key: str, limit: int = 30, before: str | None = None, fingerprint: str | None = None):
-    """Fragen eines Kurses (Schluessel wie CommunityKeys.courseKey), neueste Aktivitaet zuerst; `next` fuer die naechste Seite."""
-    return _run(community_qa.list_questions, _user(request), config.university(), course_key, limit, before, fingerprint)
+def qa_list(request: Request, course_key: str, limit: int = 30, before: str | None = None, fingerprint: str | None = None,
+            unanswered: bool = False):
+    """Fragen eines Kurses (Schluessel wie CommunityKeys.courseKey), neueste Aktivitaet zuerst; `next` fuer die naechste Seite.
+    `unanswered=true`: nur Fragen ohne Antwort (Filter der Community-Seite)."""
+    return _run(community_qa.list_questions, _user(request), config.university(), course_key, limit, before, fingerprint, unanswered)
 
 
 @router.post("/courses/{course_key}/questions", status_code=201)
@@ -245,6 +247,17 @@ def qa_delete(request: Request, qid: str):
 @router.post("/questions/{qid}/answers", status_code=201)
 def qa_answer(request: Request, qid: str, body: dict = Body(...)):
     return _run(community_qa.answer, _user(request), qid, body.get("body"))
+
+
+@router.post("/questions/{qid}/like")
+def qa_like(request: Request, qid: str):
+    """Gefaellt mir fuer eine Frage (nicht die eigene; bestaetigte E-Mail)."""
+    return _run(community_qa.like_question, _user(request), qid, True)
+
+
+@router.delete("/questions/{qid}/like")
+def qa_unlike(request: Request, qid: str):
+    return _run(community_qa.like_question, _user(request), qid, False)
 
 
 @router.post("/questions/{qid}/accept")
@@ -285,7 +298,7 @@ def qa_report(request: Request, kind: str, target_id: str, body: dict = Body(...
 def qa_moderate(request: Request, kind: str, target_id: str, body: dict = Body(...)):
     """Nur Admin: verborgenen Kommentar, verborgene Frage oder Antwort wiederherstellen ({action: restore});
     kind = comments | questions | answers."""
-    k = {"comments": "comment", "questions": "question", "answers": "answer"}.get(kind)
+    k = {"comments": "comment", "questions": "question", "answers": "answer", "corrections": "correction"}.get(kind)
     if not k:
         raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
     return _run(community_qa.moderate_post, _user(request), k, target_id, body.get("action") or "")
@@ -316,3 +329,50 @@ def notif_read(request: Request, body: dict = Body(default={})):
     """{ids?: [...]} oder alles gelesen."""
     ids = body.get("ids") if isinstance(body, dict) else None
     return community_qa.mark_read(_user(request), ids if isinstance(ids, list) else None)
+
+
+# ---------------------------------------------------------------- Korrekturvorschlaege (03.11.2026, app/community_corrections.py)
+
+from . import community_corrections  # noqa: E402
+
+
+@router.post("/solutions/{solution_id}/corrections", status_code=201)
+def correction_send(request: Request, solution_id: str, body: dict = Body(...)):
+    """{id, payload}: Korrektur an den Ersteller der Loesung. `id` = UUID, `payload` = Chiffrat (Base64) wie
+    `CommunityCorrections.seal`. Ab StudiNow Plus (Tarif wie Teilen), bestaetigte E-Mail, `correction_user` je Tag."""
+    u = _user(request)
+    return _run(community_corrections.send, u, solution_id, body.get("id"), body.get("payload"))
+
+
+@router.get("/solutions/{solution_id}/corrections")
+def correction_list(request: Request, solution_id: str):
+    """Korrekturen zu einer Loesung (alle Mitglieder), neueste zuerst, mit Chiffrat."""
+    return {"corrections": _run(community_corrections.for_solution, _user(request), solution_id)}
+
+
+@router.get("/corrections/inbox")
+def correction_inbox(request: Request, limit: int = 50, count_only: bool = False):
+    """Posteingang des Erstellers: Korrekturhinweise an eigene Loesungen (ohne Chiffrat), `open` = Zahl am Menuepunkt,
+    `seen` = Gruppe "Gesehen". `count_only=true` liefert nur die Zahlen."""
+    return community_corrections.inbox(_user(request), limit, count_only)
+
+
+@router.get("/corrections/{correction_id}")
+def correction_get(request: Request, correction_id: str):
+    return _run(community_corrections.get, _user(request), correction_id)
+
+
+@router.post("/corrections/{correction_id}/status")
+def correction_status(request: Request, correction_id: str, body: dict = Body(...)):
+    """Nur der Ersteller der Loesung: {status: open | seen | ignored}; gilt fuer alle Geraete des Kontos."""
+    return _run(community_corrections.set_status, _user(request), correction_id, body.get("status"))
+
+
+@router.delete("/corrections/{correction_id}")
+def correction_delete(request: Request, correction_id: str):
+    return _run(community_corrections.delete, _user(request), correction_id)
+
+
+@router.post("/corrections/{correction_id}/report")
+def correction_report(request: Request, correction_id: str, body: dict = Body(...)):
+    return _run(community_corrections.report, _user(request), correction_id, body.get("reason"))
