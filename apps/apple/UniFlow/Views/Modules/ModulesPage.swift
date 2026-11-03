@@ -131,7 +131,17 @@ struct UFAutoGrid<Content: View>: View {
     }
 }
 
-/// .mod2 (iPad, Design 3.11.2026): flache Karte mit Haarlinie, Radius --r-lg; Modulfarbe nur auf Kuerzel und Fortschritt
+enum ModuleDeco {
+    /// DECO in views-misc.js: Deko-Icon nach dem Modulnamen
+    static func icon(_ name: String?) -> String {
+        let n = (name ?? "").lowercased()
+        let table: [(String, String)] = [("mathe", "grid"), ("elektro", "sparkles"), ("signal", "rotate"), ("programm", "type"),
+                                         ("datenstruktur", "layers"), ("algorithm", "layers"), ("einf", "columns"), ("digital", "cards")]
+        return table.first { n.contains($0.0) }?.1 ?? "book"
+    }
+}
+
+/// .mod2: Verlauf 160deg (Modulfarbe 14 % -> --surface bei 72 %), Rahmen Farbe 22 % in --line, Radius 18
 struct ModuleCard: View {
     let m: JSONValue
     let open: () -> Void
@@ -147,57 +157,55 @@ struct ModuleCard: View {
         let courses = m.i("courses") ?? 0
         let desc = topics.isEmpty ? "Vorlesung, Übungen und Material – \(courses) Veranstaltung\(courses == 1 ? "" : "en") aus Stud.IP." : topics.joined(separator: ", ")
         let progress = m.i("progress") ?? 0
-        // Ruhige Karte: flache Flaeche mit Haarlinie, die Modulfarbe nur auf Kuerzel, Fortschritt und neuen Inhalten
-        // (Daten statt Dekor: kein Farbverlauf, kein Deko-Symbol)
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top, spacing: 12.8) {                    // .hd
-                    RoundedRectangle(cornerRadius: 10).fill(mc).frame(width: 44, height: 44)
-                        .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(15.2, 700)).foregroundStyle(.white))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 3.2) {
-                        Text(m.s("name") ?? "").ufFont(17.6, 650, lh: 1.25, em: -0.01).foregroundStyle(UF.text)
-                            .fixedSize(horizontal: false, vertical: true)           // umbrechen statt kuerzen
-                        Text(desc).ufFont(13.12, lh: 1.45).foregroundStyle(UF.muted).lineLimit(2)
-                            .frame(minHeight: 13.12 * 2.9, alignment: .topLeading)  // zwei Zeilen, damit die Karten fluchten
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 12.8) {                                     // .hd
+                    RoundedRectangle(cornerRadius: 12).fill(mc).frame(width: 48, height: 48)
+                        .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(16, 700)).foregroundStyle(.white))
+                    Text(m.s("name") ?? "").ufFont(17.92, 700, lh: 1.2).foregroundStyle(UF.text)
+                        .fixedSize(horizontal: false, vertical: true)               // umbrechen statt kuerzen
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.bottom, 16)
-                HStack(alignment: .firstTextBaseline) {                     // .pr
-                    (Text("\(progress)%").font(.uf(13.12, 650)).foregroundColor(UF.text) + Text(" bearbeitet"))
-                        .monospacedDigit()
+                .padding(.trailing, 40).padding(.bottom, 9.6)
+                Text(desc).ufFont(13.76).foregroundStyle(UF.text2).lineLimit(2)        // .desc: min-height 2.6em
+                    .frame(minHeight: 13.76 * 2.6, alignment: .topLeading)
+                    .padding(.bottom, 12.8)
+                HStack {                                                    // .pr
+                    (Text("\(progress)%").font(.uf(12.8, 700)).foregroundColor(UF.text) + Text(" bearbeitet"))
                     Spacer()
                     if let n = m.i("new_count"), n > 0 {
-                        Text("\(n) neue Inhalte").font(.uf(13.12, 650)).foregroundStyle(mc)
+                        Text("\(n) neue Inhalte").font(.uf(12.8, 700)).foregroundStyle(mc)
                     } else {
                         Text(m.s("exam_date").map { "Klausur " + UFFmt.date($0) } ?? "aktuell").foregroundStyle(UF.muted)
                     }
                 }
-                .ufFont(13.12).foregroundStyle(UF.text2).padding(.bottom, 7.2)
-                UFProgress(value: Double(progress) / 100, color: mc, track: UF.surface2, height: 6)
-                next(mc).padding(.top, 16).padding(.bottom, 14.4)
-                // Kennzahlen als Schrift in einer Zeile, getrennt durch eine Haarlinie (keine Symbol-Kacheln)
-                HStack(spacing: 20) {                                       // .stats
-                    stat(m.i("file_count") ?? 0, "Dateien")
-                    stat(m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben")
+                .ufFont(12.8).foregroundStyle(UF.text2).padding(.bottom, 5.6)
+                UFProgress(value: Double(progress) / 100, color: mc, track: Color.mix(mc, 0.15, UF.surface), height: 7)
+                next(mc).padding(.vertical, 14.4)
+                HStack {                                                    // .stats
+                    stat("file-text", m.i("file_count") ?? 0, "Dateien")
+                    Spacer(minLength: 8)
+                    stat("tasks", m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben")
                     if showsTests {
+                        Spacer(minLength: 8)
                         let t = m.i("test_count") ?? 0
-                        stat(t, "Wochentest\(t == 1 ? "" : "s")")
+                        stat("exam", t, "Wochentest\(t == 1 ? "" : "s")")
                     }
-                    Spacer(minLength: 0)
                 }
-                .padding(.top, 12.8)
-                .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
             }
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.vertical, 19.2 + ufB).padding(.horizontal, 20.8 + ufB)
+            .padding(.top, 19.2 + ufB).padding(.bottom, 17.6 + ufB).padding(.horizontal, 20.8 + ufB)
             .frame(maxWidth: .infinity, maxHeight: fills ? .infinity : nil, alignment: .topLeading)
-            .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
-            .overlay(RoundedRectangle(cornerRadius: UF.rLg).strokeBorder(UF.line, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: UF.rLg))
+            .background(LinearGradient(stops: [.init(color: Color.mix(mc, 0.14, UF.surface), location: 0), .init(color: UF.surface, location: 0.72)],
+                                       startPoint: UnitPoint(x: 0.33, y: 0), endPoint: UnitPoint(x: 0.67, y: 1)))
+            .overlay(alignment: .topTrailing) {                            // .deco: rechts 1rem, oben .9rem, Deckkraft .18
+                UFIcon(ModuleDeco.icon(m.s("name")), size: 44).foregroundStyle(mc).opacity(0.18).padding(.top, 14.4).padding(.trailing, 16)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.mix(mc, 0.22, UF.line), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 18))
         }
-        .buttonStyle(ModuleCardPressStyle(radius: UF.rLg))
+        .buttonStyle(.plain)
     }
 
     /// .next: Nächster Termin, sonst nächster Lernblock, sonst Hinweis
@@ -222,17 +230,19 @@ struct ModuleCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             if nx != nil || np != nil { UFIcon("chevron-right", size: 16).foregroundStyle(UF.accentText) }
         }
-        // eine Tonstufe statt Rahmen-in-Rahmen
-        .padding(.vertical, 10.4).padding(.horizontal, 12.8)
-        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
+        .padding(.vertical, 9.6 + ufB).padding(.horizontal, 12.8 + ufB)
+        .background(RoundedRectangle(cornerRadius: 12).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(UF.line, lineWidth: 1))
     }
 
-    /// "12 Dateien": Zahl in Textfarbe, Bezeichnung gedimmt, Ziffern gleich breit
-    private func stat(_ n: Int, _ label: String) -> some View {
-        (Text("\(n)").font(.uf(14.5, 650)).foregroundColor(UF.text) + Text(" \(label)").foregroundColor(UF.muted))
-            .ufFont(13.12)
-            .monospacedDigit()
-            .lineLimit(1)
+    private func stat(_ icon: String, _ n: Int, _ label: String) -> some View {
+        HStack(spacing: 7.2) {
+            UFIcon(icon, size: 18).foregroundStyle(UF.text2)
+            VStack(alignment: .leading, spacing: 1.6) {
+                Text("\(n)").font(.uf(16.8, 700)).foregroundStyle(UF.text)
+                Text(label).ufFont(11.52).foregroundStyle(UF.muted)
+            }
+        }
     }
 }
 

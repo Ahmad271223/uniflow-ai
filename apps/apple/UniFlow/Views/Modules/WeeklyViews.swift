@@ -151,7 +151,7 @@ struct WeeklyTestsCard: View {
                 UFIcon("alert", size: 14)
                 Text("\(review) Marker nach Dokumentänderung prüfen – der betroffene Stoff zählt bis dahin nicht.")
             }
-            .ufFont(13.6).foregroundStyle(UF.warn)
+            .ufFont(13.6).foregroundStyle(UF.warnText)
             .padding(.vertical, 8.8).padding(.horizontal, 12.8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.warnSoft))
