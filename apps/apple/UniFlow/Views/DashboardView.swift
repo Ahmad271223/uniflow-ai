@@ -28,6 +28,8 @@ struct DashboardView: View {
     /// Neuigkeiten (GET /api/news) und die Liste "Alle anzeigen"
     @State private var news: [JSONValue] = []
     @State private var showNews = false
+    /// neue Anzeigen im Schwarzen Brett (GET /api/studip/bulletin, nur lokal; eine Zeile in der Karte "Neuigkeiten")
+    @State private var bulletinNew = 0
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -69,6 +71,7 @@ struct DashboardView: View {
         studipCancelled = await StudIPCancelled.keys(api, from: device, to: device)
         await data.load()
         news = (try? await api?.value("/api/news"))?.list("items") ?? []
+        bulletinNew = api?.isLocal == true ? (try? await api?.value("/api/studip/bulletin"))?.i("new_count") ?? 0 : 0
         if let shown = data.value?["today"]?.s("date"), shown != device {
             studipCancelled = await StudIPCancelled.keys(api, from: shown, to: shown)
         }
@@ -132,7 +135,10 @@ struct DashboardView: View {
                 }, right: {
                     upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4)
                     DueListCard().ufAppear("dashboard", index: 5)                 // Abgaben & Prüfungen (nur lokal)
-                    if !news.isEmpty { NewsCard(items: news, today: todayDate) { showNews = true }.ufAppear("dashboard", index: 6) }   // Neuigkeiten
+                    if !news.isEmpty {                                                   // Neuigkeiten (+ Schwarzes Brett, eine Zeile)
+                        NewsCard(items: news, today: todayDate, bulletinNew: bulletinNew, openBulletin: { router.go(.services) }) { showNews = true }
+                            .ufAppear("dashboard", index: 6)
+                    }
                     weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 7)
                     newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0).ufAppear("dashboard", index: 8)
                 })

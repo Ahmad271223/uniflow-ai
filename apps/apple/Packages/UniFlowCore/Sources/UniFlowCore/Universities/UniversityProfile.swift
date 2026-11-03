@@ -106,6 +106,9 @@ public struct UniversityProfile: Sendable, Hashable {
     public let tokenServices: [String]
     /// Dienste-Liste fuer `/api/services` (LUH: SERVICES in app/server.py, Hildesheim: HILDESHEIM_SERVICES)
     public let services: [UniversityServiceLink]
+    /// Schwarzes Brett (Stud.IP-Plugin "SchwarzesBrettPlugin", `StudIPBulletin`): LUH ja, Hildesheim nein (kein Stud.IP).
+    /// Ob das Plugin wirklich da ist, prueft der Abgleich zusaetzlich (studip_missing_endpoints, 30 Tage).
+    public let hasBulletinBoard: Bool
 
     // Datenadressen (nil, wenn die Hochschule den Dienst nicht hat)
     public let studipBase: URL?
@@ -241,6 +244,7 @@ extension UniversityProfile {
                                   url: "https://www.luis.uni-hannover.de/de/services/kurse-beratung-und-support/it-support",
                                   desc: "WLAN, VPN, Software, Zugänge", login: "–", icon: "settings", connected: false, connector: false),
         ],
+        hasBulletinBoard: true,
         studipBase: luhStudIP, casBase: nil, learnwebBase: nil, lsfBase: nil)
 
     public static let hildesheim = UniversityProfile(
@@ -274,6 +278,7 @@ extension UniversityProfile {
             UniversityServiceLink(key: "uni", name: "Uni Hildesheim", url: "https://www.uni-hildesheim.de/",
                                   desc: "Webseite der Universität", login: "–", icon: "info", connected: false, connector: false),
         ],
+        hasBulletinBoard: false,
         studipBase: nil,
         casBase: hildesheimCAS, learnwebBase: hildesheimLearnweb, lsfBase: hildesheimLSF)
 }

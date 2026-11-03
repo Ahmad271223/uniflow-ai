@@ -285,7 +285,12 @@ public enum StudIPTexts {
         return (known, state)
     }
 
-    enum Failure: Error { case absent, failed, stop, stopAll }
+    /// `noForum`: `courses/{id}/forum-categories` antwortet 404, solange ein Kurs noch keine Forum-Kategorie hat (Stud.IP
+    /// legt sie erst beim ersten Oeffnen des Forums an; JsonApi ForumCategoriesIndex wirft RecordNotFound bei leerer
+    /// Liste, geprueft 03.11.2026 am Stud.IP-Quelltext). Das ist kein fehlendes Forum: je Kurs gemerkt wie "nicht
+    /// vorhanden", zaehlt aber nicht fuer "an der Hochschule nicht vorhanden" (sonst war das Forum nach zwei leeren
+    /// Kursen 14 Tage lang ueberall aus).
+    enum Failure: Error { case absent, failed, stop, stopAll, noForum }
 
     static func day(_ s: String) -> Int? { BerlinClock.parseISODate(PyText.slice(s, 0, 10)) }
 
@@ -310,6 +315,8 @@ public enum StudIPTexts {
         var limit: Int
         var out = Download()
         var res = CourseResult(courseID: "")
+        /// HTTP-Status der letzten fehlgeschlagenen Anfrage (`Failure.absent` unterscheidet 404 von 403)
+        var lastStatus = 0
 
         init(client: StudIPClient, known: Known, state: [String: String], today: Int, base: String, budget: Int) {
             self.client = client
@@ -330,7 +337,12 @@ public enum StudIPTexts {
                 switch e {
                 case .sessionExpired: throw e
                 case .requestLimit: throw Failure.stopAll
-                case .http(let status, _) where absentStatus.contains(status): throw Failure.absent
+                case .http(let status, _) where absentStatus.contains(status):
+                    lastStatus = status
+                    throw Failure.absent
+                case .http(let status, _):
+                    lastStatus = status
+                    throw Failure.failed
                 default: throw Failure.failed
                 }
             } catch let e as URLError {
@@ -398,6 +410,10 @@ public enum StudIPTexts {
                         if state["absent|\(feature)|\(c.id)"] != nil { out.stateDel.append("absent|\(feature)|\(c.id)") }
                     } catch Failure.absent {
                         missing[feature, default: 0] += 1
+                        out.stateSet["absent|\(feature)|\(c.id)"] = until
+                        state["absent|\(feature)|\(c.id)"] = until
+                    } catch Failure.noForum {
+                        // noch keine Forum-Kategorie im Kurs: bis zur Nachpruefung nicht wieder fragen, zaehlt nicht fuer die Hochschule
                         out.stateSet["absent|\(feature)|\(c.id)"] = until
                         state["absent|\(feature)|\(c.id)"] = until
                     } catch Failure.failed, Failure.stop {
@@ -568,7 +584,12 @@ public enum StudIPTexts {
         }
 
         func forum(_ cid: String) async throws {
-            let (cats, _) = try await list("\(api)courses/\(cid)/forum-categories?page[limit]=50")
+            let cats: [JSONValue]
+            do {
+                cats = try await list("\(api)courses/\(cid)/forum-categories?page[limit]=50").data
+            } catch Failure.absent where lastStatus == 404 {
+                throw Failure.noForum
+            }
             var complete = true
             var count = 0
             do {

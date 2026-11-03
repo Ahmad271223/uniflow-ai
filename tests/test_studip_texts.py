@@ -34,8 +34,10 @@ def test_fixture_runs_say_what_the_owner_asked_for():
     assert "wiki-w2" not in [t["id"] for t in later["texts"]] and later["result"]["texts"] == 3
     # Grenze: Teilstand, nichts geloescht
     assert runs["knapp"]["requests"] == 5 and runs["knapp"]["stopped"]
-    # nirgends vorhanden: an der Hochschule gemerkt, danach keine Anfrage
-    assert {s["key"] for s in runs["fehlt"]["state"]} >= {"absent|tasks", "absent|courseware", "absent|wiki", "absent|forum"}
+    # nirgends vorhanden: an der Hochschule gemerkt, danach keine Anfrage. Forum: 404 heisst "noch keine Kategorie im
+    # Kurs" (je Kurs gemerkt), nie "an der Hochschule nicht vorhanden"
+    assert {s["key"] for s in runs["fehlt"]["state"]} >= {"absent|tasks", "absent|courseware", "absent|wiki", "absent|forum|x-1", "absent|forum|x-2"}
+    assert "absent|forum" not in {s["key"] for s in runs["fehlt"]["state"]}
     assert runs["fehlt-danach"]["requests"] == 0
     # Datenschutz: kein Autorenname, kein Zitat mit Namen, keine Erwaehnung
     forum = next(t for t in first["texts"] if t["kind"] == "forum")

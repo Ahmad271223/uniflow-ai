@@ -139,6 +139,9 @@ struct ServicesPage: View {
                 }
             }
 
+            // Schwarzes Brett aus Stud.IP (nur Hochschulen mit dem Plugin, nur mit Anzeigen; sonst nichts)
+            BulletinCard()
+
             UFCardHead("Uni-Dienste", icon: "layers").padding(.top, 22.4)
             UFGridLayout(minWidth: 250) {                                                  // .grid.auto
                 ForEach(svc.list("services").indices, id: \.self) { i in

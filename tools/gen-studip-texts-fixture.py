@@ -10,7 +10,8 @@ Laeufe:
 - zweit (am Folgetag): unveraendert -> keine Inhalte neu; nicht vorhandene Funktionen werden nicht gefragt.
 - spaeter (+20 Tage): Inhalte werden wieder geprueft, die zweite Wiki-Seite ist weg (Liste ohne Folgeseite).
 - knapp: Anfragegrenze 5 -> Teilstand, nichts geloescht.
-- fehlt: zwei Kurse ohne jede Funktion -> an der Hochschule nicht vorhanden; der naechste Lauf fragt nichts.
+- fehlt: zwei Kurse ohne jede Funktion -> an der Hochschule nicht vorhanden (Forum nur je Kurs: 404 heisst dort "noch
+  keine Kategorie", nie "an der Hochschule nicht vorhanden"); der naechste Lauf fragt nichts.
 
 Aufruf im Projektordner: python tools/gen-studip-texts-fixture.py [--check]
 """

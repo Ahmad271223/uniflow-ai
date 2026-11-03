@@ -22,7 +22,9 @@ ANNAHMEN zur JSON:API (Stud.IP 5.x/6.x, an der LUH erst mit echtem Konto pruefba
   `courseware-containers/{id}/blocks`. Block: `block-type` und `payload` (Objekt oder JSON-Text).
 - Wiki: `courses/{id}/wiki-pages` mit `keyword`|`name`|`title`, `content-html`|`content`, `chdate`.
 - Forum: `courses/{id}/forum-categories`, `forum-categories/{id}/entries`, `forum-entries/{id}/entries` mit `title`,
-  `content-html`|`content`, `chdate`. Beziehungen zu Personen (author) werden nie gelesen.
+  `content-html`|`content`, `chdate`. Beziehungen zu Personen (author) werden nie gelesen. Pfade am Stud.IP-Quelltext
+  bestaetigt (lib/classes/JsonApi/RouteMap.php, 03.11.2026); 404 der Kategorienliste heisst "noch keine Kategorie"
+  (NoForum), 404 der Antworten "keine Antworten".
 - Links (nur zum Oeffnen in Stud.IP): Pfade unter dispatch.php/plugins.php wie unten, nicht belegt.
 Der Swift-Kern (StudIPTexts.swift) rechnet gleich; Vertrag packages/shared-contracts/fixtures/studip-texts.
 """
@@ -90,6 +92,12 @@ class Failed(Exception):
     """Anderer Fehler: Gespeichertes bleibt, nichts wird als "nicht vorhanden" gemerkt."""
 
 
+class NoForum(Exception):
+    """`courses/{id}/forum-categories` antwortet 404, solange der Kurs noch keine Forum-Kategorie hat (Stud.IP legt sie
+    erst beim ersten Oeffnen des Forums an; JsonApi ForumCategoriesIndex wirft RecordNotFound bei leerer Liste, geprueft
+    03.11.2026 am Stud.IP-Quelltext). Kein fehlendes Forum: je Kurs gemerkt, zaehlt nicht fuer die Hochschule."""
+
+
 class Stop(Exception):
     """Anfragen dieses Kurses bzw. Abgleichs aufgebraucht (oder kein Netz): Gespeichertes bleibt."""
 
@@ -103,6 +111,7 @@ class Api:
         self.limit = budget
         self.used = 0
         self.log: list[str] = []
+        self.last_status = 0
 
     @staticmethod
     def norm(path: str) -> str:
@@ -115,6 +124,7 @@ class Api:
         self.used += 1
         self.log.append(p)
         status, body = self._get(p)
+        self.last_status = status
         if status == 401:
             raise SessionExpired()
         if status in ABSENT_STATUS:
@@ -397,6 +407,10 @@ def fetch(get, courses: list[dict], known: dict, state: dict, today: date, base:
                     out["state_del"].append(f"absent|{feature}|{cid}")
             except Absent:
                 mark_absent(feature, cid)
+            except NoForum:
+                # noch keine Forum-Kategorie im Kurs: bis zur Nachpruefung nicht wieder fragen, zaehlt nicht fuer die Hochschule
+                out["state_set"][f"absent|{feature}|{cid}"] = until
+                st[f"absent|{feature}|{cid}"] = until
             except (Failed, Stop):
                 pass
     for f in FEATURES:
@@ -537,7 +551,12 @@ def _posting(a: dict) -> str:
 
 
 def _fetch_forum(api: Api, cid: str, res: dict, known, today, base, st, out) -> None:
-    cats, _ = api.list(f"{API}courses/{cid}/forum-categories?page[limit]=50")
+    try:
+        cats, _ = api.list(f"{API}courses/{cid}/forum-categories?page[limit]=50")
+    except Absent:
+        if api.last_status == 404:
+            raise NoForum() from None
+        raise
     link = links(base)["forum"]
     complete = True
     count = 0

@@ -276,3 +276,48 @@ Web-App: Markiert die Vorschau andere Zeilen, ist eine Zeile ohne Schlüssel neu
 Titel und Wochentag und träfe beim zweiten Termin desselben Kurses am selben Tag die Serie des ersten. Nur eine
 Vorschau ganz ohne Markierung (älterer PC-Server) sucht wie bisher. Tests: `StudIPCalendarSingleDatesTests`,
 `StudIPScheduleStoreTests.testGroupOnLectureDayKeepsLecture` (Kern), `TimetableLocalAppTests.testPreviewRowUsesItsOwnExistingID` (App).
+
+## 11. Schwarzes Brett (03.11.2026, nur iPad)
+
+Auftrag des Inhabers: „Schwarzes Brett mit einbinden, wenn eine Uni das hat.“ Die LUH betreibt das Stud.IP-Plugin
+„SchwarzesBrettPlugin“ (Kleinanzeigen in Themen wie Biete, Suche, Jobs an der Uni, Wohnliches; Quelltext-Linie
+`tleilax/SchwarzesBrettPlugin`, Trails-Controller `category`, `article`, `rss`). Die JSON:API kennt das Brett nicht.
+
+**Wie die App liest (nur GET, mit dem Sitzungs-Cookie des `StudIPClient`):**
+
+| Schritt | Adresse | Antwort |
+| --- | --- | --- |
+| Themenliste | `plugins.php/schwarzesbrettplugin/category/list` | HTML, `<ul class="sb-categories">` mit `category/view/{id}` je Thema, Titel und „(Anzahl)“ |
+| Anzeigen je Thema | `plugins.php/schwarzesbrettplugin/rss/{thema}/20` | RSS 2.0: `title`, `link` (`article/view/{id}`), `description` (HTML in CDATA), `pubDate`, `guid` – **keine Autoren** |
+
+Ohne Anmeldung leitet die LUH beide Adressen auf `dispatch.php/login` um (geprüft 03.11.2026 mit curl; das Plugin
+erlaubt `nobody` zwar für `rss`, Stud.IP verlangt für `plugins.php` aber die Sitzung). Darum läuft der Abruf im
+Abgleich nach den übrigen Ergänzungen (`StudIPExtrasSync.bulletin`, Kern `StudIPBulletin`), nur an Hochschulen mit
+`UniversityProfile.hasBulletinBoard` (LUH ja, Hildesheim nein), höchstens alle sechs Stunden, eine Anfrage für die
+Themen und eine je Thema. Fehlt das Plugin (404/403 oder keine Themenliste), merkt sich das die App unter
+`studip_missing_endpoints` („bulletin“) und fragt erst nach 30 Tagen wieder. Gespeichert werden je Thema die
+neuesten 20 Anzeigen in `studip_bulletin` (id, topic, title, text ≤ 400 Zeichen, url, posted_at, fetched_at), nur
+auf dem Gerät. Endpunkte des lokalen Backends: `GET /api/studip/bulletin?topic=` (Themen mit Anzahl, Anzeigen,
+`new_count` der letzten sieben Tage, `available`) und `GET /api/studip/bulletin/{id}`. Oberfläche: Karte „Schwarzes
+Brett“ unter Uni & Noten (`Views/Services/BulletinCard.swift`, nur mit Anzeigen), eine Zeile „Schwarzes Brett: N neue
+Anzeigen“ in der Karte „Neuigkeiten“ der Übersicht.
+
+**Keine Python-Entsprechung:** Der PC-Server liest Stud.IP ausschließlich über die JSON:API (`app/studip_extras.py`,
+`_api_get`), eine HTML/RSS-Lesung gibt es dort nicht; die Fixtures `studip-extras` bleiben unverändert. Tests: Kern
+`StudIPBulletinTests` (Themenliste, Feed, 20 je Thema, 30-Tage-Merker, Mindestabstand, Sitzung, Endpunkte,
+Hildesheim), App `BulletinAppTests` (Karte, Chips, Neuigkeiten-Zeile, Abgleich mit festen Antworten).
+
+**Geräte-Probe (Koordinator, echtes Konto):** `UniFlowTests/StudIPDeviceProbeTests/testBulletinBoardAndForumOnTheDevice`
+läuft nur mit Umgebungsvariable `UF_DEVICE_PROBE=1` (Xcode-Schema → Test → Environment, bzw.
+`TEST_RUNNER_UF_DEVICE_PROBE=1 xcodebuild test … -only-testing:UniFlowTests/StudIPDeviceProbeTests`) und nur mit
+angemeldetem LUH-Container; sie schreibt Themen, Anzahl und die ersten drei Titel je Thema sowie je Kurs die Antworten
+der Forum-Routen (`[Probe] …` im Testprotokoll) und verändert nichts.
+
+**Forum des Lernstoffs (Befund 03.11.2026):** Die Pfade `courses/{id}/forum-categories`, `forum-categories/{id}/entries`,
+`forum-entries/{id}/entries` sind richtig (Stud.IP-Quelltext `lib/classes/JsonApi/RouteMap.php`). Aber
+`ForumCategoriesIndex` antwortet **404**, solange ein Kurs noch keine Forum-Kategorie hat (Stud.IP legt sie erst beim
+ersten Öffnen des Forums an), und `ForumEntryEntriesIndex` 404 bei einem Thema ohne Antworten. Bisher zählte das
+404 der Kategorienliste als „Forum nicht vorhanden“: nach zwei leeren Kursen ohne einen Treffer galt das Forum 14
+Tage lang an der ganzen Hochschule als fehlend – so kam das Forum auf dem Testkonto leer. Jetzt (Python und Swift,
+Fixture `studip-texts` neu erzeugt): 404 der Kategorienliste wird nur je Kurs gemerkt (`absent|forum|{kurs}`), nie
+für die Hochschule; 403 (Forum im Kurs aus) wie bisher.

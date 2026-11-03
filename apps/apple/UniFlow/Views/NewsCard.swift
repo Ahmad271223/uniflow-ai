@@ -11,6 +11,9 @@ struct NewsCard: View {
     let items: [JSONValue]
     /// Tag fuer "heute"/"gestern" ("YYYY-MM-DD")
     let today: String
+    /// Schwarzes Brett (03.11.2026): neue Anzeigen der letzten Tage als eine Zeile unter den Neuigkeiten; 0 = keine Zeile
+    var bulletinNew = 0
+    var openBulletin: () -> Void = {}
     var showAll: () -> Void
 
     var body: some View {
@@ -22,7 +25,23 @@ struct NewsCard: View {
             }
             let rows = Row.rows(Array(items.prefix(5)))
             ForEach(rows) { row in
-                NewsRow(item: row.value, today: today).ufBorderBottom(row.id != rows.last?.id)
+                NewsRow(item: row.value, today: today).ufBorderBottom(row.id != rows.last?.id || bulletinNew > 0)
+            }
+            if bulletinNew > 0 {
+                Button { openBulletin() } label: {
+                    HStack(spacing: 8) {
+                        UFIcon(BulletinText.icon, size: 14).foregroundStyle(UF.accentText)
+                        Text(BulletinText.newLine(bulletinNew)).ufFont(12.8, 600).foregroundStyle(UF.accentText).lineLimit(1)
+                        Spacer(minLength: 4)
+                        UFIcon("chevron-right", size: 12).foregroundStyle(UF.muted)
+                    }
+                    .padding(.vertical, 11)                                   // Zeile mindestens 44 pt hoch
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(BulletinText.newLine(bulletinNew))
+                .accessibilityHint("Schwarzes Brett unter Uni & Noten öffnen")
+                .accessibilityIdentifier("news.bulletin")
             }
         }
     }

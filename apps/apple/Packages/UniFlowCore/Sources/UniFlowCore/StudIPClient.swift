@@ -228,7 +228,8 @@ public actor StudIPClient {
         return p.contains("/dispatch.php/login") || p.contains("/idp/") || (u.host ?? "").hasPrefix("sso.")
     }
 
-    func json(_ pathOrLink: String) async throws -> JSONValue {
+    /// Eine JSON:API-Antwort (nur GET); oeffentlich fuer Pruefungen auf dem Geraet (Geraete-Probe in den App-Tests)
+    public func json(_ pathOrLink: String) async throws -> JSONValue {
         let r = try await send(pathOrLink, accept: Self.jsonAPI)
         if r.contentType.lowercased().contains("text/html") { throw StudIPError.sessionExpired }
         do { return try JSONValue.parse(r.body) } catch { throw StudIPError.badResponse("kein JSON (\(Self.scrub(pathOrLink)))") }
