@@ -84,6 +84,7 @@ final class BackgroundSyncAppTests: XCTestCase {
         var report = BackgroundSyncReport()
         var waitsForCancel = false
         var lastSignIn: Date?
+        var loginNeededSources: [String] = []
         /// wartet, bis der Test `release` setzt (Lauf, der nach dem Loeschen des Containers endet)
         var holds = false
         var release = false
@@ -715,7 +716,9 @@ final class BackgroundSyncAppTests: XCTestCase {
     /// Der lange Lauf prueft die Wochentests auch ohne Stud.IP-Sitzung und mit ausgeschaltetem Abgleich; der kurze
     /// nie. Ein veroeffentlichter Test bringt die Mitteilung "Neuer Wochentest verfügbar" (eigene Kennung, Gruppe des
     /// Containers, ohne Fach); ohne KI oder ohne faelligen Plan laeuft der Takt nicht.
-    /// Anmeldung 6 Stunden her: beim Oeffnen eine Frage, danach 6 Stunden Ruhe; Mitteilung am naechsten Termin 8/15/20 Uhr
+    /// Anmeldung 6 Stunden her und abgelaufen (still nicht erneuerbar): beim Oeffnen eine Frage, danach 6 Stunden Ruhe;
+    /// Mitteilung am naechsten Termin 8/15/20 Uhr. Eine gueltige Anmeldung loest keine Frage und keine Mitteilung aus
+    /// (3.11.2026: Studierende bleiben angemeldet, solange die Uni-Anmeldung gilt).
     func testLoginReminderAsksAfterSixHoursAndPlansOneNotice() async throws {
         let m = manager()
         let (a, _) = try ready(m, .luh)
@@ -729,6 +732,15 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertNil(b.loginReminderSource())
         await b.schedule()
         XCTAssertNil(n.planned[id])
+
+        // Anmeldung 7 Stunden her, aber gueltig: keine Frage, keine Mitteilung
+        fake.lastSignIn = now.addingTimeInterval(-7 * 3600)
+        XCTAssertNil(b.loginReminderSource(), "gueltige Anmeldung: nicht nach 6 Stunden fragen")
+        await b.schedule()
+        XCTAssertNil(n.planned[id])
+
+        // ab hier abgelaufen und still nicht erneuerbar
+        fake.loginNeededSources = ["Stud.IP"]
 
         // vor 5 Stunden und 59 Minuten: noch nicht fragen
         fake.lastSignIn = now.addingTimeInterval(-(6 * 3600 - 60))

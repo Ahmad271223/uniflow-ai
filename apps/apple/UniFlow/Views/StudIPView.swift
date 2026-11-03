@@ -43,7 +43,7 @@ struct StudIPView: View {
 
     // MARK: Konto und Abgleich
 
-    static let accountText = "Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. Studora speichert nur das Sitzungs-Cookie im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), nie Benutzername oder Passwort – die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck."
+    static let accountText = "Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. Studora speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck."
     static let signOutMessage = "Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     private var accountCard: some View {
@@ -483,6 +483,7 @@ struct StudIPWebView: UIViewRepresentable {
 @MainActor
 enum StudIPSilentLogin {
     static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20) async -> [HTTPCookie]? {
+        await UniWebSessions.ready(dataStore)                     // Uni-Anmeldung von vor dem Neustart zuerst zurueck
         guard let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return nil }
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4), configuration: StudIPWebView.loginConfiguration(dataStore: dataStore))
         web.alpha = 0.01
@@ -512,5 +513,67 @@ enum StudIPSilentLogin {
             }
         }
         return nil
+    }
+}
+
+/// Unsichtbare Anmeldung bei Learnweb oder LSF fuer `HildesheimConnection.renewSilently` und das Mitverbinden des
+/// zweiten Dienstes: derselbe Ablauf wie die sichtbare Anmeldeansicht (`HildesheimLogin`: Startseite, Moodle-SSO mit
+/// Schluessel bzw. Sitzung, Erkennung der angemeldeten Seite) in einer sehr kleinen, durchsichtigen Webansicht mit
+/// der Konfiguration der Anmeldeansicht (Datenspeicher des Containers, keine Skripte ausser dem Lesen des
+/// Seiteninhalts wie dort). Gilt die CAS-Anmeldung, leitet das CAS ohne Eingabe weiter. Bleibt die Seite beim CAS
+/// stehen (dort braeuchte es das Passwort) oder anderswo ohne Fortschritt, wird abgebrochen; nie wird etwas eingetippt.
+@MainActor
+enum HildesheimSilentLogin {
+    /// Zaehlt die fertig geladenen Seiten der unsichtbaren Webansicht
+    private final class Pages { var finished = 0 }
+
+    static func attempt(_ target: HildesheimConnection.Source, connection: HildesheimConnection, timeout: TimeInterval = 25) async -> Bool {
+        await UniWebSessions.ready(connection.websiteDataStore)
+        let login = HildesheimLogin(target: target, connection: connection)
+        await login.prepare()
+        guard case .page(let url) = login.stage,
+              let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return false }
+        let pages = Pages()
+        let coordinator = StudIPWebView.Coordinator(onPageLoaded: { _ in pages.finished += 1 }, intercept: { login.intercept($0) })
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4),
+                            configuration: StudIPWebView.loginConfiguration(dataStore: connection.websiteDataStore))
+        web.navigationDelegate = coordinator
+        web.alpha = 0.01
+        web.isUserInteractionEnabled = false
+        web.accessibilityElementsHidden = true
+        window.addSubview(web)
+        defer {
+            web.stopLoading()
+            web.navigationDelegate = nil
+            web.removeFromSuperview()
+        }
+        web.load(URLRequest(url: url))
+        let deadline = Date().addingTimeInterval(timeout)
+        var handled = 0
+        var stable: (url: URL, since: Date)?
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            switch login.stage {
+            case .done: return true
+            case .failed: return false
+            default: break
+            }
+            guard !web.isLoading, let u = web.url else { continue }
+            if pages.finished > handled {
+                handled = pages.finished
+                let html: String = await withCheckedContinuation { done in
+                    web.evaluateJavaScript("document.documentElement.outerHTML", in: nil, in: .defaultClient) { result in
+                        done.resume(returning: (try? result.get()) as? String ?? "")
+                    }
+                }
+                login.pageLoaded(url: web.url, html: html)
+                if login.stage == .done { return true }
+            }
+            if stable?.url != u { stable = (u, Date()); continue }
+            let waited = Date().timeIntervalSince(stable?.since ?? Date())
+            // CAS-Anmeldeseite: wartet auf das Passwort; anderswo ohne Weiterleitung: kein Fortschritt mehr
+            if HildesheimCAS.isCASPage(u.absoluteString) ? waited > 3 : waited > 6 { return false }
+        }
+        return login.stage == .done
     }
 }

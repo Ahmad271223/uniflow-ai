@@ -155,17 +155,24 @@ struct UniFlowApp: App {
             } else {
                 weeklyTicker.pause()
             }
-            // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8)
-            if phase == .background { Task { await background.schedule() } }
+            // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8) und die Uni-Anmeldung
+            // der Webansicht merken: beendet iOS die App, ist sie beim naechsten Oeffnen wieder da (`UniWebSessions`)
+            if phase == .background {
+                Task { await containers.saveWebSessions() }
+                Task { await background.schedule() }
+            }
         }
     }
 
-    /// Letzte Anmeldung 6 Stunden her: um eine neue bitten (`LoginReminder`), "OK" fuehrt zu den Anmeldungen
+    /// Abgelaufene Anmeldung: zuerst still ueber das WebSSO bzw. CAS erneuern; nur wenn das nicht reicht (die Uni will
+    /// das Passwort) und die letzte Frage 6 Stunden her ist, um eine neue bitten (`LoginReminder`), "OK" fuehrt zu den
+    /// Anmeldungen. Eine gueltige Anmeldung fuehrt zu keiner Frage mehr (vorher alle 6 Stunden, auch ohne Grund).
     private func askForLoginIfDue() {
-        guard let source = background.loginReminderSource() else { return }
-        background.markLoginAsked()
         Task {
-            if await overlay.confirm("Bitte neu anmelden\n\nDeine letzte Anmeldung bei \(source) liegt mehr als 6 Stunden zurück. Melde dich neu an, damit der Abgleich weiterläuft.") {
+            await containers.renewExpiredSessions()
+            guard let source = background.loginReminderSource() else { return }
+            background.markLoginAsked()
+            if await overlay.confirm("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.") {
                 router.go(.settings(tab: "account"))
             }
         }

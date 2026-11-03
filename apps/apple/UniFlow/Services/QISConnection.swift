@@ -117,6 +117,8 @@ final class QISConnection: ObservableObject {
     func signedIn() {
         defaults.set(true, forKey: Keys.connected)
         set(.connected)
+        let store = websiteDataStore
+        Task { await UniWebSessions.save(store) }              // QIS-Sitzung ueber Neustarts merken (`UniWebSessions`)
         guard syncsAfterSignIn, !isRunning else { return }
         Task { await run(force: true) }
     }
@@ -134,10 +136,13 @@ final class QISConnection: ObservableObject {
         lastMessage = nil
         lastCount = nil
         set(.notConnected)
+        await UniWebSessions.ready(websiteDataStore)           // erst die zurueckgesetzte Anmeldung, dann loeschen
         let store = websiteDataStore.httpCookieStore
         for c in await store.allCookies() where Self.qisDomains.contains(where: { c.domain.lowercased().hasSuffix($0) }) {
             await store.deleteCookie(c)
         }
+        // Gemerktes ohne die QIS-Cookies neu schreiben (die Anmeldung fuer Stud.IP bleibt)
+        await UniWebSessions.save(websiteDataStore)
     }
 
     // MARK: Abruf

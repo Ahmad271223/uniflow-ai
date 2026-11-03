@@ -51,11 +51,15 @@ struct StudIPCookieStore: Sendable {
         let path: String
         let expires: Date?
         let secure: Bool
+        /// seit 3.11.2026 (Anmeldung der Webansicht ueber Neustarts, `UniWebSessions`); aeltere Eintraege ohne
+        var httpOnly: Bool? = nil
+        var sameSite: String? = nil
     }
 
     func save(_ cookies: [HTTPCookie]) throws {
         let stored = cookies.map {
-            StoredCookie(name: $0.name, value: $0.value, domain: $0.domain, path: $0.path, expires: $0.expiresDate, secure: $0.isSecure)
+            StoredCookie(name: $0.name, value: $0.value, domain: $0.domain, path: $0.path, expires: $0.expiresDate, secure: $0.isSecure,
+                         httpOnly: $0.isHTTPOnly ? true : nil, sameSite: $0.sameSitePolicy?.rawValue)
         }
         try saveRaw(try JSONEncoder().encode(stored))
     }
@@ -66,6 +70,8 @@ struct StudIPCookieStore: Sendable {
             var p: [HTTPCookiePropertyKey: Any] = [.name: s.name, .value: s.value, .domain: s.domain, .path: s.path]
             if let e = s.expires { p[.expires] = e }
             if s.secure { p[.secure] = "TRUE" }
+            if s.httpOnly == true { p[HTTPCookiePropertyKey("HttpOnly")] = "TRUE" }
+            if let same = s.sameSite { p[.sameSitePolicy] = same }
             return HTTPCookie(properties: p)
         }
     }
@@ -342,6 +348,8 @@ final class StudIPSync: ObservableObject {
             setFlag(Keys.sessionExpired, false)
             defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
             phase = .idle
+            let store = websiteDataStore
+            Task { await UniWebSessions.save(store) }          // Uni-Anmeldung (WebSSO) ueber Neustarts merken
             Task { await run() }
         } catch {
             phase = .failed(error.localizedDescription)
@@ -371,16 +379,27 @@ final class StudIPSync: ObservableObject {
     /// WebSSO-Einstieg; gilt die Uni-Anmeldung noch, kommt sie ohne Eingabe bei Stud.IP an, die neuen Cookies werden
     /// gespeichert und der Abgleich startet. Sonst bleibt es bei "Erneut anmelden" (dort setzt iOS das gespeicherte
     /// Passwort ein). Nur mit offener App, nie im Hintergrund; die App sieht kein Passwort.
+    /// Laufender stiller Versuch: ein zweiter Aufruf (Oeffnen der App und Bitte um Anmeldung zugleich) wartet auf ihn
+    private var renewing: Task<Bool, Never>?
+
     @discardableResult
     func renewSilently() async -> Bool {
+        if let renewing { return await renewing.value }
         guard phase == .needsLogin, offersStudIP, !Self.isUnderTest(), DebugUniStub.studipTransport() == nil,
               UIApplication.shared.applicationState == .active else { return false }
         if let t = lastSilentRenew, Date().timeIntervalSince(t) < 600 { return false }
         lastSilentRenew = Date()
-        guard let fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: websiteDataStore),
-              phase == .needsLogin else { return false }
-        signedIn(cookies: fresh)                                   // speichert und startet den Abgleich
-        return true
+        let store = websiteDataStore
+        let task = Task { @MainActor () -> Bool in
+            guard let fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store),
+                  self.phase == .needsLogin else { return false }
+            self.signedIn(cookies: fresh)                          // speichert und startet den Abgleich
+            return true
+        }
+        renewing = task
+        let ok = await task.value
+        renewing = nil
+        return ok
     }
 
     /// Prueft mit den Cookies aus der Webansicht, ob Stud.IP die Sitzung annimmt.
@@ -403,6 +422,7 @@ final class StudIPSync: ObservableObject {
         cookies.clear()
         setFlag(Keys.sessionExpired, false)
         defaults.removeObject(forKey: LoginReminder.lastLoginKey)
+        await UniWebSessions.forget(websiteDataStore)            // gemerkte Uni-Anmeldung zuerst (nie wiederverwenden)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         phase = .signedOut
     }

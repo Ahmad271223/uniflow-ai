@@ -201,6 +201,12 @@ final class HildesheimConnection: ObservableObject {
 
     private func afterSignIn(_ s: Source) {
         defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
+        let store = websiteDataStore
+        Task { await UniWebSessions.save(store) }              // CAS-Anmeldung ueber Neustarts merken
+        // eine Anmeldung fuer beide Dienste: dieselbe CAS-Sitzung verbindet den anderen gleich mit (ohne Eingabe)
+        if let other = Source.allCases.first(where: { $0 != s && !isConnected($0) }), silentLoginAllowed {
+            Task { _ = await silentLogin(other) }
+        }
         if isRunning {
             connectedDuringRun.insert(s)
             return
@@ -244,6 +250,7 @@ final class HildesheimConnection: ObservableObject {
     func finishPendingSignOut() async -> String? {
         guard defaults.bool(forKey: Keys.signOutPending) else { return nil }
         tokens.deleteAll(for: .hildesheim)
+        await UniWebSessions.forget(websiteDataStore)            // gemerkte CAS-Anmeldung zuerst (nie wiederverwenden)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         let keyLeft = tokens.token(.hildesheim, service: Self.tokenService) != nil
         let cookiesLeft = !(await websiteDataStore.httpCookieStore.allCookies()).isEmpty
@@ -275,8 +282,65 @@ final class HildesheimConnection: ObservableObject {
     func runIfDue() {
         // dieselbe Regel wie beim Stud.IP-Abgleich: nie automatisch unter XCTest, -UFNoStudIPSync oder Startargumenten
         guard StudIPSync.automaticRunAllowed(), anyConnected, !isRunning else { return }
+        // abgelaufen: zuerst still ueber die CAS-Sitzung erneuern (die Anmeldung startet dann selbst den Abgleich)
+        let expired = expiredSources
+        if !expired.isEmpty, silentLoginAllowed {
+            Task {
+                let left = await renewSilently()
+                if left.count == expired.count, !isRunning { runWhenDue() }
+            }
+            return
+        }
+        runWhenDue()
+    }
+
+    private func runWhenDue() {
         if let last = lastRun, !downloadsPending, clock.now.timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
+    }
+
+    // MARK: Stille Erneuerung
+
+    /// Verbundene Quellen mit abgelaufener Anmeldung
+    var expiredSources: [Source] { Source.allCases.filter { isConnected($0) && state($0) == .needsLogin } }
+
+    /// Unsichtbare Anmeldung moeglich: nie unter XCTest, nie mit der Debug-Nachbildung, nicht angehalten
+    private var silentLoginAllowed: Bool { !StudIPSync.isUnderTest() && !DebugUniStub.isActive && !stopped }
+
+    /// Letzter stiller Erneuerungsversuch; hoechstens alle 10 Minuten (wie Stud.IP)
+    private var lastSilentRenew: Date?
+
+    /// Abgelaufene Learnweb-/LSF-Anmeldung ohne Passwort erneuern: Die CAS-Anmeldung liegt im Datenspeicher des
+    /// Containers (ueber Neustarts: `UniWebSessions`) und gilt meist laenger als die Sitzung von LSF bzw. Learnweb.
+    /// Eine unsichtbare Webansicht oeffnet die Anmeldeseite des Dienstes (`HildesheimSilentLogin`); gilt die
+    /// CAS-Anmeldung, kommt sie ohne Eingabe an, und die Quelle ist wieder verbunden (der Abgleich startet). Sonst
+    /// bleibt es bei "Anmeldung nötig" (dort setzt iOS das gespeicherte Passwort ein). Nur mit offener App.
+    /// Rueckgabe: Quellen, die weiter eine Anmeldung brauchen.
+    @discardableResult
+    func renewSilently() async -> [Source] {
+        if let renewing { return await renewing.value }
+        let expired = expiredSources
+        guard !expired.isEmpty, silentLoginAllowed, UIApplication.shared.applicationState == .active else { return expired }
+        if let t = lastSilentRenew, Date().timeIntervalSince(t) < 600 { return expired }
+        lastSilentRenew = Date()
+        let task = Task { @MainActor () -> [Source] in
+            var left: [Source] = []
+            for s in expired where !(await self.silentLogin(s)) { left.append(s) }
+            return left
+        }
+        renewing = task
+        let left = await task.value
+        renewing = nil
+        return left
+    }
+
+    /// Laufender stiller Versuch (ein zweiter Aufruf wartet auf ihn)
+    private var renewing: Task<[Source], Never>?
+
+    /// Eine Quelle unsichtbar anmelden (nur mit offener App und gueltiger CAS-Anmeldung)
+    private func silentLogin(_ s: Source) async -> Bool {
+        guard silentLoginAllowed, UIApplication.shared.applicationState == .active else { return false }
+        return await HildesheimSilentLogin.attempt(s, connection: self)
     }
 
     /// Quellen, die ein Lauf bewertet: alle verbundenen; im Hintergrund nur die ohne bekannte abgelaufene Anmeldung
@@ -322,6 +386,9 @@ final class HildesheimConnection: ObservableObject {
         if !connectedDuringRun.isEmpty {
             connectedDuringRun = []
             if syncsAfterSignIn, !stopped { Task { await run() } }
+        } else if !background, !expiredSources.isEmpty, silentLoginAllowed {
+            // Sitzung im Lauf abgelaufen: still ueber die CAS-Anmeldung erneuern (hoechstens alle 10 Minuten)
+            Task { await self.renewSilently() }
         }
         return report
     }

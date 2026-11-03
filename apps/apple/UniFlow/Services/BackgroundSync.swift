@@ -200,16 +200,21 @@ protocol BackgroundSyncable: AnyObject {
     func runInBackground(_ kind: BackgroundSyncKind) async -> BackgroundSyncReport
     /// Letzte Anmeldung bei der Hochschule (`LoginReminder`), nil: keine bekannt
     var lastSignIn: Date? { get }
+    /// Quellen, deren Anmeldung abgelaufen ist und sich nicht still erneuern liess (nur dann bittet `LoginReminder`)
+    var loginNeededSources: [String] { get }
 }
 
 extension BackgroundSyncable {
     var lastSignIn: Date? { nil }
+    var loginNeededSources: [String] { [] }
 }
 
 extension StudIPSync: BackgroundSyncable {
     var fileSource: String { "Stud.IP" }
 
     var usableSources: [String] { offersStudIP && hasStoredSession && !sessionKnownExpired ? ["Stud.IP"] : [] }
+
+    var loginNeededSources: [String] { offersStudIP && hasStoredSession && sessionKnownExpired ? ["Stud.IP"] : [] }
 
     /// Mit dem Sitzungs-Cookie aus dem Schluesselbund, nie unter XCTest (Tests rufen die Fassung mit Client)
     func runInBackground(_ kind: BackgroundSyncKind) async -> BackgroundSyncReport {
@@ -242,6 +247,8 @@ extension HildesheimConnection: BackgroundSyncable {
     var fileSource: String { "Learnweb" }
 
     var usableSources: [String] { sources(background: true).sorted { $0.rawValue < $1.rawValue }.map(\.rawValue) }
+
+    var loginNeededSources: [String] { expiredSources.map(\.rawValue) }
 
     /// Nur die Quellen ohne bekannte abgelaufene Anmeldung (`sources(background:)`); welche in diesem Lauf abliefen,
     /// zeigt der Stand danach
@@ -379,11 +386,13 @@ final class BackgroundSyncController: ObservableObject {
         return submitted
     }
 
-    /// Quelle, bei der sich der Nutzer neu anmelden soll (`LoginReminder`); nil: nichts zu fragen
+    /// Quelle, bei der sich der Nutzer neu anmelden soll (`LoginReminder`); nil: nichts zu fragen. Seit 3.11.2026 nur,
+    /// wenn eine Anmeldung wirklich abgelaufen ist und die stille Erneuerung ueber das WebSSO bzw. CAS nicht half
+    /// (`loginNeededSources`); eine gueltige Anmeldung loest nach 6 Stunden keine Frage mehr aus.
     func loginReminderSource() -> String? {
-        guard let c = reminderContainer(), let t = target(c),
+        guard let c = reminderContainer(), let t = target(c), let source = t.loginNeededSources.first,
               LoginReminder.due(lastLogin: t.lastSignIn, lastAsked: BackgroundSyncState(defaults: c.defaults).loginAsked, now: now()) else { return nil }
-        return t.fileSource
+        return source
     }
 
     /// Gefragt: die naechste Frage und Mitteilung erst nach weiteren 6 Stunden
@@ -401,13 +410,14 @@ final class BackgroundSyncController: ObservableObject {
     /// Hoechstens eine vorgemerkte Mitteilung; jeder Wechsel in den Hintergrund ersetzt sie mit dem neuen Stand
     private func scheduleLoginReminder() async {
         let id = SystemBackgroundNotifier.prefix + "login.reminder"
-        guard let c = reminderContainer(), let t = target(c), settings.notify, await notifier.isAllowed(),
+        guard let c = reminderContainer(), let t = target(c), let source = t.loginNeededSources.first, settings.notify,
+              await notifier.isAllowed(),
               let at = LoginReminder.noticeDate(lastLogin: t.lastSignIn, lastAsked: BackgroundSyncState(defaults: c.defaults).loginAsked,
                                                 now: now(), timeZone: timeZone()) else {
             notifier.cancel(id: id)
             return
         }
-        await notifier.schedule(BackgroundNotice.loginReminder(t.fileSource), id: id,
+        await notifier.schedule(BackgroundNotice.loginReminder(source), id: id,
                                 thread: SystemBackgroundNotifier.prefix + c.layout.identifier.uuidString, at: at)
     }
 
