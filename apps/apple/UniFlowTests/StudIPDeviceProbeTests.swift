@@ -26,8 +26,11 @@ final class StudIPDeviceProbeTests: XCTestCase {
         let dirs = (try? FileManager.default.contentsOfDirectory(at: ContainerPaths.base, includingPropertiesForKeys: nil)) ?? []
         for dir in dirs {
             guard let id = UUID(uuidString: dir.lastPathComponent) else { continue }
-            let cookies = StudIPCookieStore(container: id).load().filter { $0.domain.contains("uni-hannover") }
-            if cookies.contains(where: { $0.name == "Seminar_Session" }) { return cookies }
+            let all = StudIPCookieStore(container: id).load()
+            say("Container \(id.uuidString.prefix(8)): \(all.count) Cookies")
+            let cookies = all.filter { $0.domain.contains("uni-hannover") }
+            // LUH heisst das Sitzungs-Cookie Studip_Session (03.11.2026), andere Stud.IP-Fassungen Seminar_Session
+            if cookies.contains(where: { $0.name == "Seminar_Session" || $0.name == "Studip_Session" }) { return cookies }
         }
         return []
     }
@@ -49,6 +52,16 @@ final class StudIPDeviceProbeTests: XCTestCase {
 
     func testBulletinBoardAndForumOnTheDevice() async throws {
         let client = try client()
+
+        // 0. Nachrichten (nur Liste, nie Einzelansicht; nur Anzahl und Absender-Art, kein Inhalt)
+        do {
+            let uid = try await client.currentUserID()
+            let j = try await client.json("jsonapi.php/v1/users/\(uid)/inbox?page[limit]=100")
+            let data = j["data"]?.array ?? []
+            let unread = data.filter { $0["attributes"]?["is-read"]?.bool == false }.count
+            let system = data.filter { ($0["relationships"]?["sender"]?["data"]?["id"]?.string ?? "").contains("system") }.count
+            say("Nachrichten: \(data.count) in der Liste (Gesamt laut Stud.IP \(j["meta"]?["page"]?["total"]?.int ?? -1)), ungelesen \(unread), Systemnachrichten \(system)")
+        } catch { say("Nachrichten: \(status(error))") }
 
         // 1. Schwarzes Brett
         let d = await StudIPBulletin.fetch(client: client, missing: [:], lastFetchedAt: nil, clock: .system)

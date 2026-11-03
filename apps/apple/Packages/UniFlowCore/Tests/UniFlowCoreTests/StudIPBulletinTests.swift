@@ -262,4 +262,15 @@ final class StudIPBulletinTests: XCTestCase {
         let d2 = try await StudIPTexts.fetch(client: client(StubTransport(routes)), courses: courses, known: [:], state: [:], today: "2026-11-02", base: "https://studip.test")
         XCTAssertEqual(d2.stateSet["absent|forum"], "2026-11-16")
     }
+
+    /// LUH: Hinweistext im Link hinter der Anzahl (Info-Symbol) gehoert nicht zum Titel
+    func testTopicWithTooltipTextAfterCount() {
+        let html = """
+        <ul class="sb-categories"><li><a href="plugins.php/schwarzesbrettplugin/category/view/0123456789abcdef0123456789abcdef">Umfragen (5) <span class="tooltip">Umfragen und Befragungen</span></a></li>
+        <li><a href="plugins.php/schwarzesbrettplugin/category/view/fedcba9876543210fedcba9876543210">Studentische Arbeiten (43) Hier können Angebote eingestellt werden.</a></li></ul>
+        """
+        let t = StudIPBulletin.parseTopics(html: html)
+        XCTAssertEqual(t.map(\.title), ["Umfragen", "Studentische Arbeiten"])
+        XCTAssertEqual(t.map(\.count), [5, 43])
+    }
 }

@@ -95,7 +95,9 @@ public enum StudIPBulletin {
     // MARK: Lesen der Themenliste (HTML)
 
     private static let topicHref = PyRegex(#"/category/(?:view/)?([0-9a-f]{32})(?:[/?#]|$)"#)
-    private static let topicCount = PyRegex(#"\(([\d.  ]+)\)\s*$"#)
+    /// erste "(N)" im Linktext; danach kann ein Hinweistext des Themas folgen ("Umfragen (5) Umfragen und Befragungen",
+    /// an der LUH 03.11.2026), der nicht zum Titel gehoert
+    private static let topicCount = PyRegex(#"\(([\d.  ]+)\)"#)
     private static let anySpace = PyRegex(#"\s+"#)
 
     /// Themen aus der Seite `category/list`: Links `<a href=".../category/view/{id}" class="category ...">Titel (Anzahl)</a>`
