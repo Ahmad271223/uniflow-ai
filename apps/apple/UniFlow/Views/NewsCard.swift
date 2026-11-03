@@ -3,7 +3,8 @@ import UniFlowCore
 
 /// Karte "Neuigkeiten" auf der Uebersicht (Auftrag des Inhabers 02.11.2026: "alles schlau einbauen, nicht ueberladen").
 /// Eine Karte statt vieler: Ankuendigungen (Kurs und Stud.IP-weit, auch Learnweb), Nachrichten (nur auf diesem Geraet)
-/// und Aenderungen in Kursen (Activity-Stream), die neuesten fuenf. Je Zeile ein Symbol nach Art, Kurs bzw. Absender,
+/// und Aenderungen in Kursen (Activity-Stream), seit 03.11.2026 auch Blubber (je Thread mit neuen Beitraegen der
+/// letzten sieben Tage eine Zeile, StudIPBlubber, nur lokal), die neuesten fuenf. Je Zeile ein Symbol nach Art, Kurs bzw. Absender,
 /// Betreff, Zeit und erkannte Hinweise als Chips ("Frist 12.11.", "Ausfall? 12.11."). Antippen klappt den Text auf, mit
 /// Link nach Stud.IP bzw. Learnweb (nur http/https). "Alle anzeigen" oeffnet eine schlichte Liste mit Filter-Chips.
 /// Daten: GET /api/news (StudIPExtras.feedFor). Nachrichten gehen von hier nie an die KI oder einen Dienst.
@@ -59,6 +60,7 @@ struct NewsRow: View {
         switch kind {
         case "nachricht": return ("note", .info, "Nachricht")
         case "aenderung": return ("refresh", .ok, "Änderung")
+        case "blubber": return ("users", .warn, "Blubber")                  // je Thread "Blubber in Kurs: N neue Beiträge"
         default: return ("bell", .accent, "Ankündigung")
         }
     }
@@ -152,7 +154,7 @@ struct NewsAllList: View {
     @State var filter = ""
 
     static let filters: [(key: String, label: String)] = [("", "Alle"), ("ankuendigung", "Ankündigungen"),
-                                                          ("nachricht", "Nachrichten"), ("aenderung", "Änderungen")]
+                                                          ("nachricht", "Nachrichten"), ("aenderung", "Änderungen"), ("blubber", "Blubber")]
 
     static func filtered(_ items: [JSONValue], _ filter: String) -> [JSONValue] {
         filter.isEmpty ? items : items.filter { $0.s("kind") == filter }
@@ -162,7 +164,7 @@ struct NewsAllList: View {
         UFDialog("Neuigkeiten", icon: "bell") {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6.4) {
-                    ForEach(Self.filters, id: \.key) { f in
+                    ForEach(Self.filters.filter { $0.key != "blubber" || items.contains { $0.s("kind") == "blubber" } }, id: \.key) { f in
                         let n = Self.filtered(items, f.key).count
                         UFChip(text: f.key.isEmpty ? f.label : "\(f.label) \(n)", on: filter == f.key) { filter = f.key }
                     }

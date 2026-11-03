@@ -251,8 +251,10 @@ public enum StudIPExtras {
     }
 
     /// `feed(news, messages, activity, today, limit)`: Karte "Neuigkeiten", neueste zuerst. Zeile:
-    /// {id, kind (ankuendigung | nachricht | aenderung), who, title, at, url, text, chips, source, color}
-    public static func feed(news: [JSONValue], messages: [JSONValue], activity: [JSONValue], today: String, limit: Int = 50) -> [JSONValue] {
+    /// {id, kind (ankuendigung | nachricht | aenderung | blubber), who, title, at, url, text, chips, source, color}.
+    /// `extra`: fertige Zeilen ohne Python-Entsprechung (Blubber, nur Geraet, `StudIPBlubber.feedLines`), werden mitsortiert.
+    public static func feed(news: [JSONValue], messages: [JSONValue], activity: [JSONValue], today: String, limit: Int = 50,
+                            extra: [JSONValue] = []) -> [JSONValue] {
         var out: [JSONValue] = []
         for a in news {
             var who = a["course_title"]?.string ?? ""
@@ -287,6 +289,7 @@ public enum StudIPExtras {
                         "at": .string(latest), "url": first["url"] ?? .null, "text": "", "chips": .array([]), "source": "studip",
                         "color": first["color"] ?? .null])
         }
+        out += extra
         let sorted = LocalTimetable.stableSorted(out) { a, b in PyText.less(str(b["at"]), str(a["at"])) }
         return Array(sorted.prefix(limit))
     }
@@ -390,7 +393,9 @@ public enum StudIPExtras {
                                  "url": r["url"] ?? .null, "course_title": r["title"] ?? .null, "color": r["color"] ?? .null])
             }
         }
-        return feed(news: news, messages: messages, activity: activity, today: BerlinClock.isoDate(today), limit: limit)
+        // Blubber (nur Geraet, keine Python-Entsprechung): eine Zeile je Thread mit neuen Beitraegen
+        let blubber = try StudIPBlubber.feedLines(c, today: today)
+        return feed(news: news, messages: messages, activity: activity, today: BerlinClock.isoDate(today), limit: limit, extra: blubber)
     }
 
     // MARK: Abruf und Speichern (Geraet)

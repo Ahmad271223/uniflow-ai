@@ -7,6 +7,8 @@ import UniFlowCore
 /// Hochschule nicht anbietet, merkt sich der Kern und fragt sie erst nach 30 Tagen wieder.
 /// Seit 03.11.2026 dazu das Schwarze Brett (`StudIPBulletin`), nur an Hochschulen mit dem Plugin
 /// (`UniversityProfile.hasBulletinBoard`), hoechstens alle sechs Stunden, je Thema die neuesten 20 Anzeigen.
+/// Dazu Blubber (`StudIPBlubber`): eine Liste aller eigenen Threads, davon die der gewaehlten Kurse und der
+/// Stud.IP-weite, je geaendertem Thread die neuesten 20 Beitraege (hoechstens 12 Threads je Lauf), Rolle statt Name.
 ///
 /// Fehler hier brechen den Abgleich nie ab: `run` wirft nicht, was nicht geladen werden konnte, bleibt wie gespeichert.
 struct StudIPExtrasSync {
@@ -19,14 +21,31 @@ struct StudIPExtrasSync {
     /// Liefert true, wenn die Stud.IP-Sitzung dabei abgelaufen ist
     @MainActor
     @discardableResult
-    func run(client: StudIPClient, userID: String) async -> Bool {
+    func run(client: StudIPClient, userID: String, courses: [StudIPCourse] = []) async -> Bool {
         guard let backend = try? await host.backend() else { return false }
         let clock = backend.context.clock
         let missing = (try? await backend.context.database.withConnection { try StudIPExtras.loadMissing($0) }) ?? [:]
         let download = await StudIPExtras.fetch(client: client, userID: userID, missing: missing, clock: clock)
         try? await backend.context.database.transaction { try StudIPExtras.store(download, in: $0, clock: clock) }
         if download.sessionExpired { return true }
-        return await bulletin(client: client, backend: backend)
+        if await bulletin(client: client, backend: backend) { return true }
+        // Blubber vorerst aus (StudIPBlubber.syncEnabled)
+        guard StudIPBlubber.syncEnabled else { return false }
+        return await blubber(client: client, userID: userID, courses: courses, backend: backend)
+    }
+
+    /// Blubber der gewaehlten aktuellen Kurse (nur lesend, nur Liste und Kommentare, nie `courses/{id}/blubber-threads`,
+    /// das in Stud.IP einen Thread anlegen kann). Liefert true bei abgelaufener Sitzung.
+    @MainActor
+    func blubber(client: StudIPClient, userID: String, courses: [StudIPCourse], backend: LocalBackend) async -> Bool {
+        let clock = backend.context.clock
+        let db = backend.context.database
+        let missing = (try? await db.withConnection { try StudIPExtras.loadMissing($0) }) ?? [:]
+        let known = (try? await db.withConnection { try StudIPBlubber.known($0) }) ?? [:]
+        let d = await StudIPBlubber.fetch(client: client, userID: userID, courseIDs: courses.map(\.id), missing: missing, known: known,
+                                          today: clock.today)
+        try? await db.transaction { try StudIPBlubber.store(d, in: $0, clock: clock) }
+        return d.sessionExpired
     }
 
     /// Schwarzes Brett: nur mit Plugin laut Hochschulprofil; der Kern merkt sich ein fehlendes Plugin (30 Tage) und den

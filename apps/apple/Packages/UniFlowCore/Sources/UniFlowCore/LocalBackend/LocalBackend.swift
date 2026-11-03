@@ -26,6 +26,7 @@ public final class LocalBackend: Sendable {
         DueEndpoints.self,
         StudIPTextEndpoints.self,
         StudIPBulletinEndpoints.self,
+        StudIPBlubberEndpoints.self,
         OlderSemesterEndpoints.self,
         DemoEndpoints.self,
         PendingOverviewEndpoints.self,

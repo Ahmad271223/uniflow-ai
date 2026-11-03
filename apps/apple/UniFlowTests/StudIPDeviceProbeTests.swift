@@ -13,6 +13,8 @@ import UniFlowCore
 /// 2. Forum der JSON:API: je Kurs `courses/{id}/forum-categories` (Status, Anzahl), je Kategorie `forum-categories/{id}/entries`,
 ///    je Thema `forum-entries/{id}/entries` – damit der Koordinator sieht, warum das Forum leer kam (404 = noch keine
 ///    Kategorie im Kurs, 403 = Forum im Kurs aus).
+/// 3. Blubber (`testBlubberCountsOnTheDevice`): nur Zahlen – Threads je Kontext-Art, je Thread der gewaehlten Kurse die
+///    Zahl der Beitraege. Nie `courses/{id}/blubber-threads` (legt in Stud.IP einen Thread an, wenn der Kurs keinen hat).
 /// Ausgabe im Testprotokoll, jede Zeile mit "[Probe]". Keine Personennamen (Titel von Anzeigen und Kursen, Zahlen, Status).
 final class StudIPDeviceProbeTests: XCTestCase {
 
@@ -112,6 +114,44 @@ final class StudIPDeviceProbeTests: XCTestCase {
         say("Forum: \(withCategories) Kurse mit Kategorien, \(entriesTotal) Themen insgesamt")
     }
 
+    /// Blubber: nur Zahlen, nur die Routen, die die App nutzt (`blubber-threads`, `blubber-threads/{id}/comments`), ohne
+    /// Text und ohne Namen. Danach einmal der Abruf der App (`StudIPBlubber.fetch`) ohne Speichern.
+    func testBlubberCountsOnTheDevice() async throws {
+        // GET blubber-threads raeumt in Stud.IP leere Threads auf: nur, wenn Blubber eingeschaltet ist
+        guard StudIPBlubber.syncEnabled else { throw XCTSkip("Blubber ist aus (StudIPBlubber.syncEnabled)") }
+        let client = try client()
+        let uid = try await client.currentUserID()
+        let courses = try await client.courses(userID: uid)
+        let ids = Set(courses.map(\.id))
+        do {
+            let j = try await client.json("jsonapi.php/v1/blubber-threads?page[limit]=\(StudIPBlubber.maxThreads * 3)")
+            let data = j["data"]?.array ?? []
+            var kinds: [String: Int] = [:]
+            for t in data { kinds[t["attributes"]?["context-type"]?.string ?? "?", default: 0] += 1 }
+            say("Blubber: blubber-threads 200, \(data.count) Threads (" + kinds.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ") + ")")
+            var asked = 0
+            for t in data {
+                guard let tid = t["id"]?.string, asked < StudIPBlubber.maxThreads else { continue }
+                let cid = t["relationships"]?["context"]?["data"]?["id"]?.string ?? ""
+                guard tid == "global" || ids.contains(cid) else { continue }
+                asked += 1
+                let title = courses.first { $0.id == cid }?.title ?? "Stud.IP-weit"
+                do {
+                    let c = try await client.json("jsonapi.php/v1/blubber-threads/\(tid)/comments?page[limit]=100")
+                    say("Blubber „\(title)“: \(c["data"]?.array?.count ?? -1) Beiträge (Seite), letzte Aktivität \(t["attributes"]?["latest-activity"]?.string ?? "?")")
+                } catch {
+                    say("Blubber „\(title)“: comments \(status(error))")
+                }
+            }
+        } catch {
+            say("Blubber: blubber-threads \(status(error))")
+        }
+        let d = await StudIPBlubber.fetch(client: client, userID: uid, courseIDs: Array(ids), missing: [:], known: [:], today: UniFlowClock.system.today)
+        say("Blubber-Abruf der App: \(d.threads?.count ?? -1) Threads, \(d.posts.values.reduce(0) { $0 + $1.count }) Beiträge, \(d.requests) Anfragen"
+            + (d.sessionExpired ? " – Sitzung abgelaufen" : "") + (d.missing[StudIPBlubber.missingName] != nil ? " – Route fehlt (404/403)" : ""))
+        XCTAssertFalse(d.sessionExpired, "Stud.IP-Sitzung abgelaufen: in der App neu anmelden")
+    }
+
     /// Alle JSON:API-Routen dieser Stud.IP-Installation (discovery) und je Route, ob sie fuer dieses Konto antwortet
     /// (nur GET mit page[limit]=1, nur Status und Anzahl, kein Inhalt). Keine HTML-Seiten: Kurs- und Startseiten
     /// koennten in Stud.IP "gesehen"-Marken setzen.
@@ -137,6 +177,9 @@ final class StudIPDeviceProbeTests: XCTestCase {
             guard tried < 220 else { say("… Abbruch nach 220 Abrufen"); break }
             var path = g.hasPrefix("/") ? String(g.dropFirst()) : g
             if path.hasPrefix("v1/") { path = String(path.dropFirst(3)) }
+            // courses/{id}/blubber-threads legt in Stud.IP den Standard-Thread des Kurses an, wenn es keinen gibt
+            // (BlubberThread::findByContext): kein reiner Lesezugriff, darum nie
+            if path.contains("blubber-threads"), path.hasPrefix("courses/") || path.hasPrefix("institutes/") { continue }
             if path.contains("{") || path.contains(":") || path.contains("(") {
                 // nur Nutzer- und Kurs-Muster mit genau einem Platzhalter einsetzen
                 let placeholders = path.components(separatedBy: "/").filter { $0.hasPrefix("{") || $0.hasPrefix(":") || $0.hasPrefix("(") }

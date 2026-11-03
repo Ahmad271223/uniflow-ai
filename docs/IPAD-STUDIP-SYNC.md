@@ -321,3 +321,48 @@ ersten Öffnen des Forums an), und `ForumEntryEntriesIndex` 404 bei einem Thema 
 Tage lang an der ganzen Hochschule als fehlend – so kam das Forum auf dem Testkonto leer. Jetzt (Python und Swift,
 Fixture `studip-texts` neu erzeugt): 404 der Kategorienliste wird nur je Kurs gemerkt (`absent|forum|{kurs}`), nie
 für die Hochschule; 403 (Forum im Kurs aus) wie bisher.
+
+## 12. Blubber (03.11.2026, nur iPad)
+
+Die Geräte-Probe (Discovery) zeigte, dass die App Blubber (Kurs-Chats von Stud.IP) nicht las. Seit 03.11.2026 liest
+der Abgleich der Ergänzungen (`StudIPExtrasSync.blubber`, Kern `StudIPBlubber`) sie mit, nur lesend und nur auf dem
+Gerät (Tabelle `studip_blubber`: id, course_id – NULL für den Stud.IP-weiten Thread –, thread_id, author_role, text
+≤ 400 Zeichen, posted_at, url, fetched_at; nicht im Geräte-Abgleich, nicht in der Community, keine Quelle der KI).
+
+**Welche Routen (geprüft am Stud.IP-Quelltext, gitlab.studip.de/studip/studip, main, Stand 03.11.2026):**
+
+| Route | Verhalten in Stud.IP | App |
+| --- | --- | --- |
+| `courses/{id}/blubber-threads` | `ThreadsIndex` → `BlubberThread::findBySeminar` → `findByContext`: **legt den Standard-Thread des Kurses an**, wenn es keinen gibt (`$coursethread->store()`, Verfasser = anfragender Nutzer) | **nie** |
+| `blubber-threads` | `findMyGlobalThreads`: alle eigenen Threads (Kurse, Einrichtungen, Stud.IP-weit, Erwähnungen, privat), nach letzter Aktivität; räumt vorab leere, über eine Stunde alte Threads ohne Beitrag auf (wie beim Öffnen von Blubber im Browser) | eine Anfrage je Abgleich |
+| `blubber-threads/{id}/comments` | `CommentsByThreadIndex`: reine Abfrage (`findBySQL`) | je geändertem Thread eine |
+| `studip/blubber-threads`, `users/{id}/blubber-threads` | öffentliche bzw. private Threads einzelner Personen | nie |
+
+Gesehen-Marken: Das Schema liest `visited-at` (`getLastVisit` → `object_get_visit`, nur SELECT) und
+`unseen-comments` (`countUnseenComments`, nur COUNT). Gesetzt werden sie ausschließlich von `markAsRead` (Browser:
+`blubber/index`, `course/messenger/course`) und von `PATCH blubber-threads/{id}` mit `visited-at` (`ThreadsUpdate`) –
+beides ruft die App nie auf.
+
+**Ablauf:** `blubber-threads?page[limit]=40&include=author`, davon nur Threads der gewählten aktuellen Kurse und der
+Stud.IP-weite Thread `global`; private Gespräche, Einrichtungen und fremde öffentliche Threads nie. Je Thread, dessen
+`latest-activity` sich seit dem letzten Lesen geändert hat (gemerkt in `settings.studip_blubber_activity`),
+`blubber-threads/{id}/comments?sort=-mkdate&page[limit]=20&include=author`, höchstens 12 je Lauf. Antwortet die Liste
+404/403, merkt sich die App das unter `studip_missing_endpoints` („blubber“) für 30 Tage. Autoren nur als Rolle:
+„du“ (eigene Beiträge), sonst die globale Rolle wie bei den Nachrichten (Lehrende, Tutor/in, Studierende, Verwaltung,
+Stud.IP-Team), ohne Angabe „Teilnehmende“. Erwähnungen (`[Name]…/dispatch.php/profile?username=…`, `@name`,
+`@"Vorname Nachname"`) und Zitate fallen aus dem Text; der Thread-Name (bei öffentlichen/privaten Threads ein
+Personenname) wird nicht gelesen.
+
+**Lokale Endpunkte:** `GET /api/studip/blubber?course=&module=` (Threads mit `count`, `new_count` der letzten sieben
+Tage ohne eigene Beiträge, `changed`, `preview` „Rolle: Text“, `url`) und `GET /api/studip/blubber/{thread_id}`
+(Beiträge älteste zuerst mit `role`). `/api/news` (`StudIPExtras.feedFor`) bekommt je Thread mit neuen Beiträgen eine
+Zeile `kind: "blubber"` („Blubber in Analysis I: 3 neue Beiträge“, Stud.IP-weit „Blubber Stud.IP-weit: …“).
+Oberfläche: Zeile „Blubber“ im Bereich „Aus Stud.IP“ der Modulansicht (`StudIPTextsCard`, Leser `StudIPBlubberReader`
+mit „In Stud.IP öffnen“), Art „Blubber“ in der Karte „Neuigkeiten“ und ihrer Liste.
+
+**Keine Python-Entsprechung:** Der PC-Server liest Blubber nicht; `StudIPExtras.feed` bekommt die Zeilen über den
+Parameter `extra` (Standard leer), die Fixture `studip-extras` und `tests/test_studip_extras.py` bleiben unverändert.
+Tests: Kern `StudIPBlubberTests`, App `BlubberAppTests`; Geräte-Probe `StudIPDeviceProbeTests/testBlubberCountsOnTheDevice`
+(nur Zahlen). Hinweis: Die Discovery-Probe vom 03.11.2026 fragte `courses/{id}/blubber-threads` für zwei Kurse ab –
+das kann dort einen leeren Standard-Thread angelegt haben (Stud.IP räumt leere Threads nach einer Stunde selbst auf);
+die Probe schließt Blubber-Kurs-Routen jetzt aus.
