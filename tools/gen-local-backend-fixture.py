@@ -215,8 +215,9 @@ SAMPLES: dict[str, dict] = {
                                          "reason": "nur auf dem Geraet (DueEndpoints)"}},
     "PATCH /api/due/{}": {"path": "/api/due/due-0000000000000000", "body": {"hidden": True}, "python": False,
                           "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne erkannten Termin 404"}},
-    # Fruehere Semester in der Bibliothek gibt es nur auf dem Geraet (OlderSemesterEndpoints, a0d6277); die PC-Fassung
-    # kennt sie nicht (am PC 404, die App fragt nur lokal). Auf leerer Datenbank: kein frueheres Semester, kein Kurs
+    # Fruehere Semester in der Bibliothek (OlderSemesterEndpoints, a0d6277). Die PC-/Web-Fassung hat dieselben Routen
+    # (app/older_semesters_api.py, tests/test_older_semesters.py), laeuft hier aber nicht mit: der Abgleich der Hochschule
+    # startet im Hintergrund. Auf leerer Datenbank: kein frueheres Semester, kein Kurs
     "GET /api/older-semesters": {"path": "/api/older-semesters", "python": False,
                                  "expect": {"status": 200, "type": "object", "keys": ["choice", "current", "semesters"],
                                             "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},

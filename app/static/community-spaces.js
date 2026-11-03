@@ -1,7 +1,7 @@
 // Communities je Modul und Lerngruppe (wie CommunitySpacesCard auf dem iPad): beitreten, verlassen, Loesungen
 // ansehen. Der Schluessel einer Community entsteht aus Modulname bzw. Beitrittscode und oeffnet ihre Pakete auch ohne die
 // PDF; dann stehen die Notizen auf leeren Seiten. Codes bleiben in diesem Browser, der Dienst kennt nur den Gruppen-Schluessel.
-import { $, $$, api, esc, icon, toast, drawer, closeDrawer } from "./core.js?v=39";
+import { $, $$, api, esc, icon, toast, showError, drawer, closeDrawer } from "./core.js?v=39";
 import * as S from "./solutions.js?v=6";
 
 const GROUPS = "community-groups";
@@ -94,7 +94,7 @@ export async function renderSpaces(el) {
     ${older.length ? `<button class="btn sm ghost" id="spOlder" aria-expanded="${showOlder}" style="margin-top:.3rem">${icon(showOlder ? "eye-off" : "clock", 14)} ${showOlder ? "Frühere Kurse ausblenden" : `Frühere Kurse (${older.length})`}</button>` : ""}
     <div class="row wrap" style="gap:.4rem;margin-top:.6rem"><input class="input" id="grpName" placeholder="Name der neuen Lerngruppe" maxlength="60" style="max-width:220px"><button class="btn sm" id="grpNew">Anlegen</button>
     <input class="input" id="grpCode" placeholder="Beitrittscode" maxlength="9" style="max-width:150px"><button class="btn sm" id="grpJoin">Beitreten</button></div>`;
-  const run = async fn => { try { await fn(); reload(); } catch (e) { toast(e.message, 4000); } };
+  const run = async fn => { try { await fn(); reload(); } catch (e) { showError(e, 4000); } };
   const byKey = k => spaces.find(s => s.key === k);
   $("#spOlder", el)?.addEventListener("click", () => { showOlder = !showOlder; reload(); });
   $$("[data-open]", el).forEach(b => b.onclick = () => showSpace(byKey(b.dataset.open), spaces));

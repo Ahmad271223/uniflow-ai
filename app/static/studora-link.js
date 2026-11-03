@@ -2,6 +2,7 @@
 // Wird in der Community-Seite und in der Community-Leiste des Editors gezeigt. Das Passwort geht nur einmal ueber das
 // lokale Backend an den Dienst; gespeichert wird allein das Sitzungs-Token auf diesem PC.
 import { icon } from "./icons.js?v=31";
+import { serviceError, resendNote } from "./service-errors.js?v=1";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -10,7 +11,7 @@ const PLAN = { free: "StudiNow Free", plus: "StudiNow Plus", pro_connect: "Studi
 async function call(path, body) {
   const r = await fetch("/api/studora" + path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   let d = null; try { d = await r.json(); } catch {}
-  if (!r.ok) { const e = new Error(d?.detail || `Fehler ${r.status}`); e.code = d?.code; throw e; }
+  if (!r.ok) throw serviceError(r.status, d, { retryAfter: parseInt(r.headers.get("Retry-After") ?? "", 10) });   // Texte der Fehlercodes: service-errors.js
   return d;
 }
 export const linkStatus = (refresh = true) => call(`/status?refresh=${refresh}`);
@@ -26,7 +27,7 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
     el.innerHTML = `<div class="sl-card">
       <div class="row" style="gap:.5rem;align-items:center"><span class="badge ok">${icon("check", 12)} Verbunden</span><b class="sl-mail">${esc(u.email || "")}</b></div>
       <div class="small muted" style="margin:.35rem 0">${esc(PLAN[u.plan] || u.plan || "")}${u.university ? ` · ${esc(u.university === "luh" ? "Leibniz Universität Hannover" : u.university === "hildesheim" ? "Universität Hildesheim" : u.university)}` : ""}${st.offline ? " · Dienst gerade nicht erreichbar" : ""}</div>
-      ${u.email_verified === false ? `<div class="sl-warn small">${icon("alert", 13)} E-Mail noch nicht bestätigt: Teilen, Liken und Kommentieren gehen erst danach. <button class="btn ghost sm" data-sl="resend">Mail erneut senden</button></div>` : ""}
+      ${u.email_verified === false ? `<div class="sl-warn small">${icon("alert", 13)} E-Mail noch nicht bestätigt: bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen StudiNow-KI und Schreiben in der Community nicht. <button class="btn ghost sm" data-sl="resend">Bestätigungslink erneut senden</button></div>` : ""}
       ${st.university_mismatch ? `<div class="sl-warn small">${icon("alert", 13)} ${esc(st.university_mismatch)}</div>` : ""}
       <div class="small muted">${esc(claims)}</div>
       <div class="sl-sync small" style="margin-top:.5rem"></div>
@@ -56,7 +57,7 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       e.target.disabled = false; showSync(); };
     $('[data-sl="claims"]', el).onclick = async e => { e.target.disabled = true; try { const c = await call("/claims", {}); msg.textContent = `${c.sent} PDFs gemeldet.`; } catch (x) { msg.textContent = x.message; } e.target.disabled = false; };
     $('[data-sl="logout"]', el).onclick = async () => { if (!confirm("Vom StudiNow-Konto abmelden? Deine Notizen auf diesem PC bleiben erhalten.")) return; const s = await call("/logout", {}); onChange?.(s); renderLinkCard(el, { onChange, compact }); };
-    const rs = $('[data-sl="resend"]', el); if (rs) rs.onclick = async () => { try { await call("/verify-email/resend", {}); msg.textContent = "Bestätigungsmail gesendet."; } catch (x) { msg.textContent = x.message; } };
+    const rs = $('[data-sl="resend"]', el); if (rs) rs.onclick = async () => { try { msg.textContent = resendNote(await call("/verify-email/resend", {})); } catch (x) { msg.textContent = x.message; } };
     return st;
   }
   el.innerHTML = `<form class="sl-card sl-form" autocomplete="on">

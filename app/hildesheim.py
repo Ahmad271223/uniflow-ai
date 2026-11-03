@@ -90,31 +90,41 @@ def active_courses(courses: list[dict]) -> list[dict]:
     return [c for c in courses if c["id"] not in off]
 
 
-def sync_learnweb(page, client, courses: list[dict], token: str, started: str, new_files: list[str]) -> int:
+def sync_learnweb(page, client, courses: list[dict], token: str, started: str, new_files: list[str],
+                  older_only: bool = False) -> int:
     """Learnweb-Kurse speichern und Dateien holen. Seit 28.10.2026 (Entscheidung des Inhabers) wie bei Stud.IP nur fuer
-    aktive Kurse: Kurse frueherer Semester bleiben bekannt, kosten aber keinen Abruf und keinen Download mehr."""
+    aktive Kurse: Kurse frueherer Semester bleiben bekannt, kosten aber keinen Abruf und keinen Download mehr.
+    Ausnahme: Dateien frueherer Semester auf Wunsch (app/older_semesters.py: Frage nach dem ersten Abgleich, "Dateien
+    laden" in der Bibliothek, Einstellung unter Module). `older_only`: nur diese, die aktiven Kurse bleiben unberuehrt."""
+    from . import older_semesters
     courses = visible_courses(courses)
     with db.cursor() as conn:
         for c in courses:
             upsert_course(conn, c, started)
         conn.commit()
     kept = active_courses(courses)
-    if len(kept) < len(courses):
-        log(f"Learnweb: {len(courses) - len(kept)} Kurse aus frueheren Semestern uebersprungen.")
-    courses = kept
+    with db.cursor() as conn:
+        wanted = older_semesters.pending(conn)
+    keep_ids = {c["id"] for c in kept}
+    older = [c for c in courses if c["id"] in wanted and c["id"] not in keep_ids]
+    if len(kept) < len(courses) and not older_only:
+        log(f"Learnweb: {len(courses) - len(kept) - len(older)} Kurse aus frueheren Semestern uebersprungen.")
+    complete: set[str] = set()
     with db.cursor() as conn:
         # Jeder Kurs wird einzeln gespeichert: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
-        for c in courses:
+        for c in ([] if older_only else kept) + older:
             try:
                 files = client.files(c["moodle_id"])
                 folders = {f["id"]: f["folder"] for f in files if f.get("folder")}
                 store_course_files(conn, c, files, folders, lambda url, target, size: _download(page, url, target, token, size),
                                    started, new_files)
+                complete.add(c["id"])
                 conn.commit()
             except Exception as e:  # noqa: BLE001
                 conn.commit()
                 log(f"Fehler im Kurs {c['title']}: {e}")
-    return len(courses)
+        older_semesters.finish(conn, [c["id"] for c in older if c["id"] in complete], db.now_iso())
+    return len(older) if older_only else len(kept)
 
 
 def store_deadlines(conn, items: list[dict], fetched_at: str, window_from: str) -> dict:
@@ -169,7 +179,9 @@ def sync_lsf_plan(page, user: str, pw: str) -> str:
     return f"Stundenplan: {r['new']} neu, {r['kept']} unveraendert, {r['removed']} entfernt"
 
 
-def run_sync(show_browser: bool = False) -> dict:
+def run_sync(show_browser: bool = False, older_only: bool = False) -> dict:
+    """`older_only`: nur die Dateien gewuenschter Kurse frueherer Semester (app/older_semesters.py), ohne Fristen,
+    Ankuendigungen und Stundenplan."""
     db.init_db()
     started = db.now_iso()
     new_files: list[str] = []
@@ -199,26 +211,28 @@ def run_sync(show_browser: bool = False) -> dict:
                         filestream.save_cookies("LEARNWEB_COOKIES", ctx.cookies())   # Dienst: CAS-Sitzung fuer das Durchreichen
                     except Exception as e:  # noqa: BLE001
                         log(f"Learnweb-Sitzung nicht gemerkt: {e}")
-                n = sync_learnweb(page, client, courses, used_token, started, new_files)
-                parts.append(f"{len(new_files)} neue/geaenderte Dateien aus {n} Learnweb-Kursen")
-                try:
-                    parts.append(sync_deadlines(client))
-                except Exception as e:  # noqa: BLE001 - Fristen sind eine Ergaenzung, der Sync laeuft weiter
-                    parts.append(f"Learnweb-Fristen: FEHLER {e}")
-                    log(f"Learnweb-Fristen: {e}")
-                try:
-                    parts.append(sync_announcements(client, courses))
-                except Exception as e:  # noqa: BLE001 - ebenso Ergaenzung
-                    parts.append(f"Learnweb-Ankuendigungen: FEHLER {e}")
-                    log(f"Learnweb-Ankuendigungen: {e}")
-                if (user and pw) or (session and not used_token):
-                    try:        # mit Sitzung: klappt, solange die CAS-Anmeldung aus dem Fenster noch gilt
-                        parts.append(sync_lsf_plan(page, user, pw))
-                    except Exception as e:  # noqa: BLE001
-                        parts.append(f"LSF-Stundenplan: FEHLER {e}")
-                        log(f"LSF-Stundenplan: {e}")
-                else:
-                    parts.append("LSF-Stundenplan uebersprungen (kein UNI-Account hinterlegt)")
+                n = sync_learnweb(page, client, courses, used_token, started, new_files, **({"older_only": True} if older_only else {}))
+                parts.append(f"{len(new_files)} neue/geaenderte Dateien aus {n} Learnweb-Kursen"
+                             + (" früherer Semester" if older_only else ""))
+                if not older_only:
+                    try:
+                        parts.append(sync_deadlines(client))
+                    except Exception as e:  # noqa: BLE001 - Fristen sind eine Ergaenzung, der Sync laeuft weiter
+                        parts.append(f"Learnweb-Fristen: FEHLER {e}")
+                        log(f"Learnweb-Fristen: {e}")
+                    try:
+                        parts.append(sync_announcements(client, courses))
+                    except Exception as e:  # noqa: BLE001 - ebenso Ergaenzung
+                        parts.append(f"Learnweb-Ankuendigungen: FEHLER {e}")
+                        log(f"Learnweb-Ankuendigungen: {e}")
+                    if (user and pw) or (session and not used_token):
+                        try:        # mit Sitzung: klappt, solange die CAS-Anmeldung aus dem Fenster noch gilt
+                            parts.append(sync_lsf_plan(page, user, pw))
+                        except Exception as e:  # noqa: BLE001
+                            parts.append(f"LSF-Stundenplan: FEHLER {e}")
+                            log(f"LSF-Stundenplan: {e}")
+                    else:
+                        parts.append("LSF-Stundenplan uebersprungen (kein UNI-Account hinterlegt)")
             finally:
                 ctx.close()
         ok = True

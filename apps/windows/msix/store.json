@@ -2,8 +2,8 @@
   "_hinweis": "Werte aus Partner Center, Produkt -> Produktverwaltung -> Produktidentität. Bis der Name reserviert ist, gelten die Testwerte; ein Paket mit Testwerten nimmt der Store nicht an. Siehe apps/windows/msix/README.md.",
   "identity_name": "UniFlow.Test",
   "publisher": "CN=UniFlow Test",
-  "publisher_display_name": "UniFlow (Test)",
-  "display_name": "UniFlow",
+  "publisher_display_name": "StudiNow (Test)",
+  "display_name": "StudiNow",
   "description": "Studium, Unterlagen und Lernplan an einem Ort",
   "store_ready": false
 }

@@ -2,13 +2,15 @@
 // „Mit Google/Apple anmelden“ (nur wenn /api/account/providers den Anbieter meldet; die SDKs kommen von
 // accounts.google.com bzw. appleid.cdn-apple.com, erlaubt durch die CSP der Anmeldeseite in app/server.py).
 // Ruft nur die oeffentlichen Kontopfade (Vertrag G1); die Sitzung kommt als HttpOnly-Cookie vom Server. Kein Inline-Skript (CSP).
+import { serviceError } from "./service-errors.js?v=1";
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
 const post = async (path, body) => {
   const r = await fetch("/api/account" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   let d = null; try { d = await r.json(); } catch {}
-  if (!r.ok) throw new Error((d && d.detail) || `Fehler ${r.status}`);
+  if (!r.ok) throw serviceError(r.status, d, { retryAfter: parseInt(r.headers.get("Retry-After") ?? "", 10) });   // Texte der Fehlercodes: service-errors.js
   return d;
 };
 const say = (id, text, ok) => { const m = $("#" + id); m.textContent = text; m.className = "msg " + (ok ? "ok" : "bad"); };

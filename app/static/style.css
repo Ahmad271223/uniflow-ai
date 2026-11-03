@@ -867,3 +867,24 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
   .mod2:active { transform: none; }
   .uf-shimmer { color: var(--muted); background: none; }
 }
+
+/* Frühere Semester in der Bibliothek (app/static/older-semesters.js) */
+.older-cur { font-size: 1.02rem; margin: 0 0 .7rem; }
+.older-sem { margin-top: 1.4rem; display: grid; gap: .6rem; }
+.older-sem h2 { font-size: 1.02rem; margin: 0; }
+.older-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r, 14px); padding: .35rem .9rem; }
+.older-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.older-toggle { display: flex; align-items: center; gap: .6rem; flex: 1; min-width: 220px; min-height: 44px; border: 0; background: transparent; color: var(--text); cursor: pointer; text-align: left; font: inherit; padding: 0; }
+.older-ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); }
+.older-t { display: grid; gap: .1rem; }
+.older-courses { padding: .2rem 0 .3rem 1.6rem; }
+.older-course { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding: .25rem 0; }
+.older-course:last-child { border-bottom: 0; }
+.older-ct { display: grid; gap: .1rem; flex: 1; min-width: 200px; min-height: 44px; align-content: center; color: var(--text); text-decoration: none; }
+a.older-ct:hover { text-decoration: none; color: var(--accent-text); }
+.older-card .btn, .older-head-card .btn { min-height: 44px; }
+.older-head-card { margin-bottom: 1rem; }
+.older-missing { margin-top: .7rem; display: grid; gap: .1rem; }
+.older-file { display: flex; align-items: center; gap: .5rem; color: var(--text-2); font-size: .85rem; padding: .25rem 0; }
+
+.sync-chip .bad { color: var(--warn-text); }

@@ -1,4 +1,10 @@
-# UniFlow für Windows (Tauri + mitgeliefertes Backend)
+# StudiNow für Windows (Tauri + mitgeliefertes Backend)
+
+Sichtbarer Name ist StudiNow (Fenstertitel, Startseite, Store-Anzeigename). Interne Kennungen bleiben bewusst: `identifier`
+`de.uniflow.desktop` (Datenordner), `productName` `UniFlow` (Programmordner `%LOCALAPPDATA%\UniFlow`, Installer
+`UniFlow_<version>_x64-setup.exe`, Startmenü-Eintrag des NSIS-Installers) und die Dateinamen `uniflow-backend.exe` und
+`uniflow-desktop.exe`. `productName` zu ändern verschöbe den Programmordner und bräche die Übernahme alter Daten
+(`app/desktop.py` `LEGACY_FOLDER`, `tests/test_desktop.py`); das ist eine eigene Entscheidung.
 
 **Stand 26.10.2026:** Die App bringt ihr Backend mit. Kein `Start-iPad.cmd`, kein Python auf dem PC nötig.
 
@@ -112,6 +118,11 @@ Stud.IP liefert alle je belegten Veranstaltungen. Die App erkennt am Semester in
 Semestertitel), ob ein Kurs noch läuft (`app/semesters.py`): nur aktuelle Kurse sind aktiv, bekommen Termine, Dateien
 und KI-Analysen und landen im Plan; Module ohne aktiven Kurs sind aus, ihre Unterlagen bleiben in der Bibliothek.
 Einstellungen → Module: jeder Kurs hat einen Schalter, eigene Entscheidungen überschreibt der Abgleich nicht.
+
+Die Dateien früherer Semester lädt der Abgleich nur auf Wunsch (`app/older_semesters.py`, wie auf dem iPad): Nach dem ersten
+Abgleich, der frühere Kurse findet, fragt die App einmal „Auch frühere Semester laden?“. In der Bibliothek stehen sie unter
+„Frühere Semester“ je Semester, mit „Dateien laden“ je Kurs oder Semester (`POST /api/older-semesters/request`, Abgleich nur für
+diese Kurse); Einstellungen → Module: „Dateien früherer Semester mitladen“. Kurse früherer Semester bleiben als Kurs gespeichert.
 
 ## Konto entfernen (Laptop weitergeben, anderer Account)
 

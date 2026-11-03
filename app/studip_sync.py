@@ -790,13 +790,99 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
 # Hauptablauf
 # ----------------------------------------------------------------------------
 
-def run_sync(show_browser: bool = False) -> dict:
-    """Dateien, Kurse und Termine der gewaehlten Uni holen (LUH: Stud.IP, Hildesheim: Learnweb + LSF)."""
+def sync_older_files(page: Page, conn, courses: list[dict], started: str, new_files: list[str]) -> int:
+    """Dateien frueherer Semester auf Wunsch (app/older_semesters.py: Frage nach dem ersten Abgleich, "Dateien laden" in
+    der Bibliothek, Einstellung unter Module): nur Dateiliste, Ordner und Downloads, keine Termine und Ankuendigungen.
+    Ein Kurs gilt erst als geladen, wenn Liste, Ordner und alle Dateien da sind; sonst versucht es der naechste Abgleich
+    erneut. Rueckgabe: Zahl der Kurse, deren Dateien abgefragt wurden."""
+    from . import older_semesters
+    wanted = older_semesters.pending(conn)
+    active = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=1")}
+    older = [c for c in courses if c["id"] in wanted and c["id"] not in active]
+    if not older:
+        return 0
+    listed: list[tuple[dict, list[dict], dict[str, str]]] = []
+    complete: set[str] = set()
+    for i, c in enumerate(older, 1):
+        progress.report(f"Frühere Semester, Kurs {i} von {len(older)}: Dateiliste – {c['title'][:50]}")
+        try:
+            files = fetch_files(page, c["id"])
+        except Exception as e:  # noqa: BLE001
+            log(f"Fehler bei Dateiliste {c['title']}: {e}")
+            continue
+        try:
+            folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
+            complete.add(c["id"])
+        except Exception as e:  # noqa: BLE001
+            log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
+        listed.append((c, files, folder_paths))
+    total = sum(pending_downloads(conn, files) for _, files, _ in listed)
+    done = {"n": 0}
+    for c, files, folder_paths in listed:
+        def fetch_one(url, target, size, c=c):
+            done["n"] += 1
+            progress.report(f"Frühere Semester, Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
+            download(page, url, target, size)
+        store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+    older_semesters.finish(conn, [c["id"] for c, _, _ in listed if c["id"] in complete], db.now_iso())
+    log(f"Frühere Semester: Dateien von {len(listed)} von {len(older)} Kursen abgefragt.")
+    return len(listed)
+
+
+def run_studip_older_files(show_browser: bool = False) -> dict:
+    """Nur die Dateien der gewuenschten Kurse frueherer Semester (Bibliothek: "Dateien laden"): Anmeldung, Kursliste,
+    Dateilisten, Downloads; ohne Stundenplan, Ankuendigungen, Lerntexte und KI. Stand und Meldung des letzten vollen
+    Abgleichs (sync_log) bleiben bis auf den eigenen Eintrag unveraendert."""
+    db.init_db()
+    started = db.now_iso()
+    new_files: list[str] = []
+    ok, message = False, ""
+    try:
+        with sync_playwright() as p:
+            ctx: BrowserContext = p.chromium.launch_persistent_context(
+                str(_profile_dir()), headless=not show_browser, accept_downloads=True, locale="de-DE")
+            page = ctx.new_page()
+            progress.report("Anmeldung bei Stud.IP …")
+            try:
+                from . import unilogin
+                unilogin.restore(ctx, "STUDIP_COOKIES")
+            except Exception as e:  # noqa: BLE001
+                log(f"Gemerkte Sitzung nicht eingesetzt: {e}")
+            login(page)
+            try:
+                from . import filestream
+                filestream.save_studip_cookies(ctx.cookies())
+            except Exception as e:  # noqa: BLE001
+                log(f"Sitzung nicht gemerkt: {e}")
+            progress.report("Kurse lesen …")
+            courses = fetch_courses(page)
+            with db.cursor() as conn:
+                for c in courses:
+                    upsert_course(conn, c, started)
+                n = sync_older_files(page, conn, courses, started, new_files)
+            ctx.close()
+        ok = True
+        message = f"{len(new_files)} Dateien aus {n} Kursen früherer Semester geladen"
+    except Exception as e:  # noqa: BLE001
+        message = f"FEHLER: {e}"
+        log(message)
+    finally:
+        with db.cursor() as conn:
+            conn.execute("INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES (?,?,?,?,?)",
+                         (started, db.now_iso(), int(ok), len(new_files), message))
+    return {"ok": ok, "new_files": new_files, "message": message}
+
+
+def run_sync(show_browser: bool = False, older_only: bool = False) -> dict:
+    """Dateien, Kurse und Termine der gewaehlten Uni holen (LUH: Stud.IP, Hildesheim: Learnweb + LSF).
+    `older_only`: nur die Dateien gewuenschter Kurse frueherer Semester (app/older_semesters.py)."""
     from . import universities
     db.init_db()
     if universities.current_key() == "hildesheim":
         from . import hildesheim
-        res = hildesheim.run_sync(show_browser=show_browser)
+        res = hildesheim.run_sync(show_browser=show_browser, **({"older_only": True} if older_only else {}))
+    elif older_only:
+        res = run_studip_older_files(show_browser=show_browser)
     else:
         res = run_studip_sync(show_browser=show_browser)
     if not config.is_hosted():
@@ -850,6 +936,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                     store_course_texts(conn, c)
                 # Termine, Ankuendigungen und Dateien nur fuer aktuelle Kurse (app/semesters.py); alte Semester bleiben
                 # als Kurs bekannt, kosten aber keinen Abruf, keinen Download und keine KI-Analyse mehr
+                all_courses = courses
                 active_ids = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=1")}
                 skipped = [c for c in courses if c["id"] not in active_ids]
                 if skipped:
@@ -922,6 +1009,8 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         progress.report(f"Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
                         download(page, url, target, size)
                     store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+                # Dateien frueherer Semester nur auf Wunsch (Frage nach dem ersten Abgleich, Bibliothek, Einstellung)
+                sync_older_files(page, conn, all_courses, started, new_files)
             ctx.close()
         ok = True
         message = f"{len(new_files)} neue/geaenderte Dateien"

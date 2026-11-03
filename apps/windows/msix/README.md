@@ -1,4 +1,4 @@
-# UniFlow im Microsoft Store (MSIX)
+# StudiNow im Microsoft Store (MSIX)
 
 **Stand 27.10.2026:** Der Workflow `windows.yml` baut neben dem NSIS-Installer ein MSIX-Paket aus derselben App
 (`scripts/build-msix.ps1`), installiert eine testsignierte Fassung auf dem Runner, startet das Backend im Paketkontext
@@ -31,7 +31,7 @@ die NSIS-Fassung deinstallieren, damit nicht zwei UniFlow im Startmenü stehen.
 1. **Konto:** <https://storedeveloper.microsoft.com> → als Einzelperson registrieren (Microsoft-Konto,
    Identitätsprüfung). Laut Microsoft für Einzelpersonen kostenlos; beim Anlegen prüfen.
 2. **App anlegen und Namen reservieren:** Partner Center → Apps und Spiele → Neues Produkt → MSIX- oder PWA-App →
-   Namen eingeben (z. B. „UniFlow“; ist er vergeben, einen anderen wählen – der reservierte Name ist der Anzeigename
+   Namen eingeben (z. B. „StudiNow“; ist er vergeben, einen anderen wählen – der reservierte Name ist der Anzeigename
    im Store und muss zu `display_name` in `store.json` passen).
 3. **Produktidentität kopieren:** Produktverwaltung → Produktidentität. Drei Werte an die PC-Sitzung geben oder selbst
    in `store.json` eintragen und `store_ready` auf `true` setzen:
