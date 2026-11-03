@@ -715,18 +715,27 @@ def mark_seen():
 # ----------------------------------------------------------------------------
 
 @app.get("/api/courses/community-keys")
-def courses_community_keys():
+def courses_community_keys(all: bool = False):
     """Eigene aktive Kurse mit dem Community-Schluessel ihres Moduls (alle Veranstaltungen eines Moduls teilen ihn) und `secret` (oeffnet die Pakete der Community). Auf
-    dem eigenen Geraet bekommt der Dienst nur den Schluessel, nie Kurs-ID, Namen oder `secret`."""
+    dem eigenen Geraet bekommt der Dienst nur den Schluessel, nie Kurs-ID, Namen oder `secret`.
+    `all=true` (Community-Liste, 03.11.2026 wie CommunitySpacesCard auf dem iPad): auch Kurse frueherer Semester. `active`
+    sagt es je Kurs, `current` je Modul: mindestens ein Kurs des Moduls liegt im aktuellen Semester."""
     from .solution_format import community_module_key, community_secret, normalized_course_name
     from .studip_sync import classify
     uni = config.university()
     with db.cursor() as conn:
-        rows = db.rows(conn, """SELECT id, title, semester, subject FROM courses
-                                WHERE id NOT IN ('__user__') AND COALESCE(active, 1)=1 ORDER BY subject, title""")
-    return {"university": uni, "courses": [{"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
-                                            "module": classify(r["title"])[0], "key": community_module_key(uni, classify(r["title"])[0]),
-                                            "secret": community_secret("module", uni, normalized_course_name(classify(r["title"])[0])).hex()} for r in rows]}
+        rows = db.rows(conn, f"""SELECT id, title, semester, subject, COALESCE(active, 1) AS active FROM courses
+                                 WHERE id NOT IN ('__user__'){"" if all else " AND COALESCE(active, 1)=1"} ORDER BY subject, title""")
+    out = []
+    for r in rows:
+        module = classify(r["title"])[0]
+        out.append({"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
+                    "module": module, "key": community_module_key(uni, module), "active": 1 if r["active"] else 0,
+                    "secret": community_secret("module", uni, normalized_course_name(module)).hex()})
+    current = {c["key"] for c in out if c["active"]}
+    for c in out:
+        c["current"] = c["key"] in current
+    return {"university": uni, "courses": out}
 
 
 @app.get("/api/files/by-fingerprint/{sha}")

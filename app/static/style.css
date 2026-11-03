@@ -229,6 +229,33 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 .exam-focus .sidebar, .exam-focus .header { display: none; } .exam-focus .shell { grid-template-columns: 1fr; }
 .fc-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1.6rem; min-height: 180px; display: flex; flex-direction: column; justify-content: center; text-align: center; font-size: 1.05rem; cursor: pointer; }
 .fc-card .ans { margin-top: .8rem; color: var(--accent-text); }
+/* Karteikarten "Frei üben" (Trainer wie FlashcardTrainerView auf dem iPad) */
+.fc-count { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: .8rem 0; font-variant-numeric: tabular-nums; }
+.fc-pill { display: inline-flex; align-items: center; gap: .4rem; min-height: 36px; padding: 0 .8rem; border-radius: 999px; font-size: .8rem; font-weight: 500; border: 1.5px solid; }
+.fc-pill b { font-size: .95rem; font-weight: 700; }
+.fc-pill.bad { color: var(--bad-text); border-color: var(--bad); background: color-mix(in srgb, var(--bad-soft) 60%, transparent); }
+.fc-pill.ok { color: var(--ok-text); border-color: var(--ok); background: color-mix(in srgb, var(--ok-soft) 60%, transparent); }
+.fc-pos { font-size: .95rem; }
+.fc-stage { overflow: hidden; padding: .3rem; margin: 0 -.3rem; }
+.fc-big { position: relative; display: flex; align-items: center; justify-content: center; min-height: 300px; padding: 3.5rem 1.75rem; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 4px 16px rgba(0,0,0,.08); cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: transform .25s ease, border-color .15s; }
+.fc-big.dragging { transition: none; }
+.fc-big:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fc-big.lean-ok { border: 2px solid var(--ok); } .fc-big.lean-bad { border: 2px solid var(--bad); }
+.fc-text { font-size: 1.3rem; font-weight: 600; color: var(--text); white-space: normal; overflow-wrap: anywhere; }
+.fc-big.def .fc-text { font-size: 1.1rem; font-weight: 400; color: var(--text-2); }
+.fc-side { position: absolute; top: .9rem; left: 1.1rem; font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fc-badge { position: absolute; top: .75rem; left: 50%; transform: translateX(-50%); font-size: .82rem; font-weight: 650; border-radius: 999px; padding: .25rem .75rem; }
+.fc-badge:empty { display: none; }
+.lean-ok .fc-badge { color: var(--ok-text); background: var(--ok-soft); } .lean-bad .fc-badge { color: var(--bad-text); background: var(--bad-soft); }
+.fc-tools { position: absolute; top: .25rem; right: .25rem; display: flex; align-items: center; }
+.fc-tools .btn, .fc-bar .btn { min-height: 44px; }
+.fc-bar { margin-top: .9rem; gap: .6rem; flex-wrap: wrap; } .fc-bar .btn { min-height: 48px; padding: 0 1rem; }
+.btn.fc-on { color: var(--accent-text); background: var(--accent-soft); }
+.item.fc-hidden .title { color: var(--muted); }
+.fc-opt { margin-top: .9rem; display: flex; flex-direction: column; gap: .45rem; }
+.fc-opt > small { font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fc-opt .chip { min-height: 44px; padding: 0 .9rem; }
+.fc-seg { display: flex; } .fc-seg button { flex: 1; justify-content: center; min-height: 44px; }
 
 /* ---------- Editor-Ansicht ---------- */
 .doc-view { display: flex; flex-direction: column; height: calc(100vh - var(--header)); }

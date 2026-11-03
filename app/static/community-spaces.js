@@ -12,12 +12,15 @@ function saveGroups(list) { try { localStorage.setItem(GROUPS, JSON.stringify(li
 
 /** Kurse aus dem Abgleich und Lerngruppen dieses Browsers, zusammengefuehrt mit dem Stand des Dienstes. */
 export async function loadSpaces() {
-  const { university, courses } = await api("/courses/community-keys");
-  await api("/community/claims", { method: "POST", body: { fingerprints: [], course_keys: courses.map(c => c.key).filter(Boolean) } });
+  // auch fruehere Semester (eingeklappt unter "Frühere Kurse"); `current` = ein Kurs des Moduls ist aktiv
+  const { university, courses } = await api("/courses/community-keys?all=true");
+  // aktuelle Module zuerst melden: die Tagesgrenze neuer Schluessel laesst sonst eher fruehere durch
+  const claimKeys = [...new Set([...courses.filter(c => c.current), ...courses.filter(c => !c.current)].map(c => c.key).filter(Boolean))];
+  await api("/community/claims", { method: "POST", body: { fingerprints: [], course_keys: claimKeys } });
   const rows = new Map((await api("/community/communities")).communities.map(r => [r.community_key, r]));
   // alle Veranstaltungen eines Moduls teilen sich eine Community
   const modules = [...new Map(courses.filter(c => c.key).map(c => [c.key, c])).values()];
-  const spaces = modules.map(c => ({ key: c.key, kind: "course", name: c.module || c.title, secret: hexBytes(c.secret), ...stateOf(rows.get(c.key)) }));
+  const spaces = modules.map(c => ({ key: c.key, kind: "course", name: c.module || c.title, current: c.current !== false, secret: hexBytes(c.secret), ...stateOf(rows.get(c.key)) }));
   for (const g of storedGroups()) {
     const key = await groupKey(university, g.code); const r = rows.get(key);
     if (r?.joined) spaces.push({ key, kind: "group", name: r.name || g.name, code: g.code, secret: await S.communitySecret("group", university, g.code), ...stateOf(r) });
@@ -69,20 +72,31 @@ async function showSpace(space, spaces) {
   } catch (e) { box.textContent = e.message; }
 }
 
+/** Sichtbare Communities: Lerngruppen und Module des aktuellen Semesters, mit `showOlder` auch fruehere (wie
+ *  CommunitySpacesCard auf dem iPad). `older` = Module nur frueherer Semester (Zahl am Knopf). */
+export function visibleSpaces(spaces, showOlder) {
+  const older = spaces.filter(s => s.kind === "course" && s.current === false);
+  return { older, shown: showOlder ? spaces : spaces.filter(s => s.kind === "group" || s.current !== false) };
+}
+let showOlder = false;
+
 /** Karte "Deine Communities" auf der Community-Seite. */
 export async function renderSpaces(el) {
   el.innerHTML = `<p class="small muted">Wird geladen …</p>`;
   let data;
   try { data = await loadSpaces(); } catch (e) { el.innerHTML = `<p class="small">${esc(e.message)}</p>`; return; }
   const { university, spaces } = data; const reload = () => renderSpaces(el);
-  const line = s => `<div class="row wrap" style="justify-content:space-between;padding:.35rem 0"><span>${icon(s.kind === "group" ? "users" : "book", 15)} <b>${esc(s.name)}</b> <span class="tiny muted">${s.members} Mitglieder · ${s.solutions} Lösungen${s.code ? ` · Code ${esc(s.code)}` : ""}</span></span>
+  const { older, shown } = visibleSpaces(spaces, showOlder);
+  const line = s => `<div class="row wrap" style="justify-content:space-between;padding:.35rem 0"><span>${icon(s.kind === "group" ? "users" : "book", 15)} <b>${esc(s.name)}</b> <span class="tiny muted">${s.kind === "course" && s.current === false ? "früheres Semester · " : ""}${s.members} Mitglieder · ${s.solutions} Lösungen${s.code ? ` · Code ${esc(s.code)}` : ""}</span></span>
     <span class="row" style="gap:.3rem">${s.joined ? `<button class="btn sm" data-open="${s.key}">Öffnen</button><button class="btn sm ghost" data-leave="${s.key}">Verlassen</button>` : `<button class="btn sm primary" data-join="${s.key}">Beitreten</button>`}</span></div>`;
   el.innerHTML = `<p class="small muted" style="margin-top:0">Jeder Kurs hat seine eigene Community. Tritt bei, dann siehst und teilst du dort Lösungen.</p>
-    ${spaces.map(line).join("") || `<p class="small muted">Noch keine Kurse. Gleiche zuerst deine Hochschule ab.</p>`}
+    ${shown.map(line).join("") || (older.length ? "" : `<p class="small muted">Noch keine Kurse. Gleiche zuerst deine Hochschule ab.</p>`)}
+    ${older.length ? `<button class="btn sm ghost" id="spOlder" aria-expanded="${showOlder}" style="margin-top:.3rem">${icon(showOlder ? "eye-off" : "clock", 14)} ${showOlder ? "Frühere Kurse ausblenden" : `Frühere Kurse (${older.length})`}</button>` : ""}
     <div class="row wrap" style="gap:.4rem;margin-top:.6rem"><input class="input" id="grpName" placeholder="Name der neuen Lerngruppe" maxlength="60" style="max-width:220px"><button class="btn sm" id="grpNew">Anlegen</button>
     <input class="input" id="grpCode" placeholder="Beitrittscode" maxlength="9" style="max-width:150px"><button class="btn sm" id="grpJoin">Beitreten</button></div>`;
   const run = async fn => { try { await fn(); reload(); } catch (e) { toast(e.message, 4000); } };
   const byKey = k => spaces.find(s => s.key === k);
+  $("#spOlder", el)?.addEventListener("click", () => { showOlder = !showOlder; reload(); });
   $$("[data-open]", el).forEach(b => b.onclick = () => showSpace(byKey(b.dataset.open), spaces));
   $$("[data-join]", el).forEach(b => b.onclick = () => run(() => api(`/community/communities/${b.dataset.join}/join`, { method: "POST", body: { kind: "course" } })));
   $$("[data-leave]", el).forEach(b => b.onclick = () => run(async () => {

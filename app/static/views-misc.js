@@ -3,6 +3,7 @@ import { renderWeeklyBox } from "./views-weekly.js?v=8";
 import { installCard, bindInstallBanner } from "./pwa.js?v=8";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=37";
+import * as FC from "./flashcards.js?v=2";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -79,7 +80,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=54"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=55"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -129,19 +130,113 @@ async function runTest(id, params, view) {
   render();
   if (!t.submitted_at) { const end = new Date(t.started_at).getTime() + t.duration_min * 60000; clearInterval(timerInt); const tick = () => { const left = Math.max(0, end - Date.now()); const el = $("#timer"); if (!el) { clearInterval(timerInt); return; } el.textContent = `⏱ ${Math.floor(left / 60000)}:${String(Math.floor(left % 60000 / 1000)).padStart(2, "0")}`; el.classList.toggle("low", left < 5 * 60000); if (left <= 0) { clearInterval(timerInt); toast("Zeit abgelaufen – bitte abgeben."); } }; tick(); timerInt = setInterval(tick, 1000); }
 }
+// Karteikarten: "Heute fällig" (Leitner, POST /review) und "Frei üben" (Trainer wie FlashcardTrainer.swift, flashcards.js):
+// der Trainer speichert nur last_result, Lesezeichen und "versteckt" per PATCH, nie Fach oder Termin.
+let cardKeys = null;
+const SWIPE = 110;                                                            // ab dieser Strecke zaehlt Wischen als Antwort
 export async function viewCards(_, __, view) {
-  const [due, all] = await Promise.all([api("/flashcards?due=true"), api("/flashcards")]);
+  let [due, all] = await Promise.all([api("/flashcards?due=true"), api("/flashcards")]);
   let i = 0, shown = false;
-  const list = () => `<div class="card" style="margin-top:1rem"><div class="card-head"><h2>Alle Karten</h2><span class="muted small">${all.length}</span></div><div class="list">${all.map(c => `<div class="item"><div class="main"><div class="title">${esc(c.question)}</div><div class="sub">${esc(c.answer)} · Fach ${c.box} · fällig ${fmtDate(c.due)}</div></div><button class="btn ghost icon sm" data-delcard="${c.id}">${icon("trash", 14)}</button></div>`).join("") || `<div class="empty small">Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste.</div>`}</div></div>`;
+  const trainer = FC.createTrainer({ patch: (id, body) => api(`/flashcards/${id}`, { method: "PATCH", body }) });
+  const reload = async () => { [due, all] = await Promise.all([api("/flashcards?due=true"), api("/flashcards")]); i = 0; shown = false; render(); };
+  const attempt = async (what, fn) => { try { await fn(); } catch (e) { toast(`${what}: ${e.message}`, 4000); } render(); };
+  const sub = c => [esc(c.answer), `Fach ${c.box}`, ...(FC.isHidden(c) ? [] : [`fällig ${fmtDate(c.due)}`]), ...(FC.isBookmarked(c) ? ["Lesezeichen"] : []), ...(FC.isHidden(c) ? ["versteckt, nicht in „Heute fällig“"] : [])].join(" · ");
+  const list = () => `<div class="card" style="margin-top:1rem"><div class="card-head"><h2>Alle Karten</h2><span class="muted small">${all.length}</span></div><div class="list">${all.map(c => `<div class="item${FC.isHidden(c) ? " fc-hidden" : ""}"><div class="main"><div class="title">${esc(c.question)}</div><div class="sub">${sub(c)}</div></div>
+    <button class="btn ghost icon sm${FC.isBookmarked(c) ? " fc-on" : ""}" data-mark="${c.id}" aria-pressed="${FC.isBookmarked(c)}" title="${FC.isBookmarked(c) ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" aria-label="${FC.isBookmarked(c) ? "Lesezeichen entfernen" : "Lesezeichen setzen"}: ${esc(c.question)}">${icon("bookmark", 14)}</button>
+    <button class="btn ghost icon sm" data-hide="${c.id}" title="${FC.isHidden(c) ? "Wieder zeigen" : "Verstecken"}" aria-label="${FC.isHidden(c) ? "Karte wieder zeigen" : "Karte verstecken"}: ${esc(c.question)}">${icon(FC.isHidden(c) ? "eye" : "eye-off", 14)}</button>
+    <button class="btn ghost icon sm" data-delcard="${c.id}" title="Karte löschen" aria-label="Karte löschen: ${esc(c.question)}">${icon("trash", 14)}</button></div>`).join("") || `<div class="empty small">Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste.</div>`}</div></div>`;
+  const practice = () => { const n = FC.progressCounts(all), marks = all.filter(FC.isBookmarked).length;
+    return `<div class="card" style="margin-top:1rem"><div class="card-head"><h2>${icon("layers", 18)} Frei üben</h2></div><p class="small" style="margin:0">Alle Karten im eigenen Tempo: umdrehen, nach rechts wischen (→) für gewusst, nach links (←) für nicht gewusst. Ändert den Wiederholungsplan nicht.</p>
+      <p class="muted small" style="margin:.3rem 0 0">${n.right} richtig · ${n.wrong} falsch · ${n.unlearned} noch nicht gelernt${marks ? ` · ${marks} mit Lesezeichen` : ""}${n.hidden ? ` · ${n.hidden} versteckt` : ""}</p>
+      <div class="row wrap" style="margin-top:.8rem"><button class="btn primary sm" id="fcPlay" ${all.length ? "" : "disabled"}>${icon("play", 14)} Üben</button><button class="btn ghost sm" id="fcOpts" ${all.length ? "" : "disabled"}>${icon("filter", 14)} Optionen</button></div></div>`; };
+  const counters = () => `<div class="fc-count"><span class="fc-pill bad">Nicht gewusst <b>${trainer.unknown}</b></span><b class="fc-pos" aria-label="Karte ${Math.min(trainer.position + 1, trainer.cards.length)} von ${trainer.cards.length}">${trainer.progressText}</b><span class="fc-pill ok">Gewusst <b>${trainer.known}</b></span></div>`;
+  const trainerHtml = () => {
+    const c = trainer.current, head = `<div class="row" style="gap:.4rem"><button class="btn ghost icon" id="trEnd" title="Üben beenden" aria-label="Üben beenden">${icon("arrow-left", 18)}</button><b style="font-size:.95rem">Frei üben</b><span class="spacer"></span><button class="btn ghost icon" id="trRestart" title="Neu starten" aria-label="Neu starten" ${trainer.busy || !trainer.source.length ? "disabled" : ""}>${icon("refresh", 18)}</button><button class="btn ghost icon" id="trOpts" title="Optionen" aria-label="Optionen">${icon("filter", 18)}</button></div>`;
+    if (trainer.empty) return `<div class="card" id="fcTr">${head}<div class="empty">${icon("filter", 32)}<div>${trainer.options.scope === "bookmarked" ? "Keine Karte mit Lesezeichen passt zu diesen Optionen." : "Keine Karte passt zu diesen Optionen."}</div><button class="btn sm" id="trOpts2">${icon("filter", 14)} Optionen</button></div></div>`;
+    if (trainer.finished) { const n = trainer.known + trainer.unknown;
+      return `<div class="card" id="fcTr">${head}${counters()}<h3 style="margin:.6rem 0 .2rem">Durchgang geschafft</h3><p class="small" style="margin:0">${n} ${n === 1 ? "Karte" : "Karten"} geübt: ${trainer.known} gewusst, ${trainer.unknown} nicht gewusst.</p><p class="muted small" style="margin:.2rem 0 0">Der Wiederholungsplan („Heute fällig“) bleibt davon unverändert.</p>
+        <div class="row wrap" style="margin-top:.9rem">${trainer.unknown ? `<button class="btn primary sm" id="trUnknown">${icon("play", 14)} Nicht gewusste üben (${trainer.unknown})</button>` : ""}<button class="btn sm" id="trRestart2">${icon("refresh", 14)} Neu starten</button><button class="btn sm" id="trPrev" ${trainer.canGoBack ? "" : "disabled"}>${icon("undo", 14)} Vorherige</button><button class="btn sm" id="trDone">${icon("check", 14)} Fertig</button></div></div>`; }
+    const def = trainer.showsDefinition, text = def ? c.answer : c.question, marked = FC.isBookmarked(c), hid = FC.isHidden(c);
+    return `<div class="card" id="fcTr">${head}${counters()}
+      <div class="fc-stage"><div class="fc-big${def ? " def" : ""}" id="trCard" role="button" tabindex="0" aria-label="${def ? "Definition" : "Begriff"}: ${esc(text)}. Leertaste dreht die Karte."><span class="fc-side">${def ? "Definition" : "Begriff"}</span><span class="fc-badge" aria-hidden="true"></span>
+        <div class="fc-tools"><button class="btn ghost icon sm${marked ? " fc-on" : ""}" id="trMark" aria-pressed="${marked}" title="${marked ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" aria-label="${marked ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" ${trainer.busy ? "disabled" : ""}>${icon("bookmark", 16)}</button><button class="btn ghost sm" id="trHide" ${trainer.busy ? "disabled" : ""}>${hid ? "Wieder zeigen" : "Verstecken"}</button></div>
+        <div class="fc-text">${esc(text).replace(/\n/g, "<br>")}</div></div></div>
+      <p class="muted small" style="text-align:center;margin:.6rem 0 0" aria-hidden="true">Klicken oder Leertaste zum Umdrehen · → bzw. nach rechts wischen: gewusst · ← bzw. nach links: nicht gewusst</p>
+      <div class="row fc-bar"><button class="btn" id="trPrev" ${trainer.canGoBack ? "" : "disabled"}>${icon("undo", 15)} Vorherige</button><span class="spacer"></span><button class="btn danger" id="trNo" ${trainer.busy ? "disabled" : ""}>${icon("x", 15)} Nicht gewusst</button><button class="btn ok" id="trYes" ${trainer.busy ? "disabled" : ""}>${icon("check", 15)} Gewusst</button></div></div>`;
+  };
+  const answer = known => { if (trainer.busy || !trainer.current) return; const p = trainer.answer(known); render(); attempt("Antwort speichern", () => p); };
+  const previous = () => { if (!trainer.canGoBack) return; const p = trainer.previous(); render(); attempt("Zurücknehmen", () => p); };
+  const flip = () => { if (!trainer.current) return; trainer.flip(); render(); $("#trCard", view)?.focus(); };
+  const close = () => { trainer.end(); reload().catch(e => toast(e.message, 4000)); };
+  const options = () => {
+    let draft = { ...trainer.options, progress: [...trainer.options.progress] };
+    const n = FC.progressCounts(trainer.source), marks = trainer.source.filter(FC.isBookmarked).length;
+    const seg = (key, opts) => `<div class="seg pill fc-seg" role="radiogroup">${opts.map(([v, t]) => `<button type="button" role="radio" aria-checked="${draft[key] === v}" class="${draft[key] === v ? "active" : ""}" data-k="${key}" data-v="${v}">${t}</button>`).join("")}</div>`;
+    const html = () => `<h3>${icon("filter", 18)} Optionen</h3>
+      <div class="fc-opt"><small>Lernen</small>${seg("scope", [["all", "Alle"], ["bookmarked", `Lesezeichen (${marks})`]])}</div>
+      <div class="fc-opt"><small>Nach Fortschritt filtern</small><div class="row wrap" style="gap:.4rem">${FC.PROGRESS.map(p => `<button type="button" class="chip${draft.progress.includes(p) ? " on" : ""}" aria-pressed="${draft.progress.includes(p)}" data-p="${p}">${draft.progress.includes(p) ? icon("check", 13) : ""} ${FC.PROGRESS_TXT[p]} (${n[p]})</button>`).join("")}</div></div>
+      <div class="fc-opt"><small>Reihenfolge</small>${seg("order", [["original", "Original"], ["random", "Zufällig"]])}</div>
+      <div class="fc-opt"><small>Zuerst zeigen</small>${seg("firstSide", [["term", "Begriff"], ["definition", "Definition"]])}</div>
+      ${(() => { const k = FC.selectCards(draft, trainer.source, x => x).length; return `<p class="small ${k ? "muted" : ""}" style="margin:.8rem 0 0;${k ? "" : "color:var(--bad-text)"}">${k === 1 ? "1 Karte passt." : `${k} Karten passen.`}</p>`; })()}
+      <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn" data-reset ${FC.sameOptions(draft, FC.defaultOptions()) ? "disabled" : ""}>Zurücksetzen</button><button class="btn primary" data-apply>${icon("check", 14)} Filter anwenden</button></div>`;
+    const m = modal(html()), box = $(".modal-box", m);
+    const bind = () => {
+      $$("[data-close]", box).forEach(b => b.onclick = () => m.remove());
+      $$("[data-k]", box).forEach(b => b.onclick = () => { draft[b.dataset.k] = b.dataset.v; redraw(); });
+      $$("[data-p]", box).forEach(b => b.onclick = () => { const p = b.dataset.p; draft.progress = draft.progress.includes(p) ? draft.progress.filter(x => x !== p) : [...draft.progress, p]; redraw(); });
+      $("[data-reset]", box).onclick = () => { draft = FC.defaultOptions(); redraw(); };
+      $("[data-apply]", box).onclick = () => { trainer.apply(draft); m.remove(); render(); };
+    };
+    const redraw = () => { box.innerHTML = html(); bind(); };
+    bind();
+  };
+  const bindSwipe = card => {
+    let x0 = null, y0 = 0, dx = 0, id = null;
+    const set = d => { card.style.transform = d ? `translateX(${d}px) rotate(${matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : d / 30}deg)` : ""; const lean = d / SWIPE; card.classList.toggle("lean-ok", lean > .25); card.classList.toggle("lean-bad", lean < -.25); $(".fc-badge", card).textContent = lean > .25 ? "Gewusst" : lean < -.25 ? "Nicht gewusst" : ""; };
+    card.addEventListener("pointerdown", e => { if (e.button || e.target.closest(".fc-tools")) return; x0 = e.clientX; y0 = e.clientY; dx = 0; id = e.pointerId; });
+    card.addEventListener("pointermove", e => { if (x0 === null || e.pointerId !== id) return; const w = e.clientX - x0, h = e.clientY - y0; if (Math.abs(w) < 18 || Math.abs(w) <= Math.abs(h) || trainer.busy) return; if (!card.hasPointerCapture(id)) card.setPointerCapture(id); dx = w; card.classList.add("dragging"); set(dx); });
+    const up = e => { if (x0 === null || e.pointerId !== id) return; x0 = null; card.classList.remove("dragging"); const d = dx; dx = 0;
+      if (Math.abs(d) >= SWIPE && !trainer.busy) { answer(d > 0); return; } set(0); if (Math.abs(d) < 8 && e.type === "pointerup") flip(); };
+    card.addEventListener("pointerup", up); card.addEventListener("pointercancel", up);
+  };
   const render = () => {
     const c = due[i];
+    const review = c ? `<p class="muted small">Karte ${i + 1} von ${due.length} · Fach ${c.box} · ${esc(c.subject || "")}</p><div class="fc-card" id="fc"><div>${esc(c.question)}</div>${shown ? `<div class="ans">${esc(c.answer)}</div>` : `<div class="muted small" style="margin-top:.6rem">Klicken zum Aufdecken</div>`}</div><div class="row" style="justify-content:center;margin-top:.7rem" ${shown ? "" : "hidden"}><button class="btn danger" id="fcW">Falsch</button><button class="btn ok" id="fcR">Richtig</button></div>` : `<div class="card empty">${icon("check", 36)}<div>Heute nichts fällig.</div></div>`;
     view.innerHTML = `<div class="content" style="max-width:820px"><div class="page-head"><div><h1>Karteikarten</h1><div class="sub">${due.length} fällig · Leitner-System: richtig = seltener, falsch = morgen wieder.</div></div><a class="btn sm" href="#/exams">${icon("arrow-left", 14)} Tests</a></div>
-      ${c ? `<p class="muted small">Karte ${i + 1} von ${due.length} · Fach ${c.box} · ${esc(c.subject || "")}</p><div class="fc-card" id="fc"><div>${esc(c.question)}</div>${shown ? `<div class="ans">${esc(c.answer)}</div>` : `<div class="muted small" style="margin-top:.6rem">Klicken zum Aufdecken</div>`}</div><div class="row" style="justify-content:center;margin-top:.7rem" ${shown ? "" : "hidden"}><button class="btn danger" id="fcW">Falsch</button><button class="btn ok" id="fcR">Richtig</button></div>` : `<div class="card empty">${icon("check", 36)}<div>Heute nichts fällig.</div></div>`}${list()}</div>`;
+      ${trainer.active ? trainerHtml() : `${review}${practice()}${list()}`}</div>`;
+    if (trainer.active) {
+      $("#trEnd", view).onclick = close; $("#trDone", view)?.addEventListener("click", close);
+      $("#trRestart", view).onclick = () => { trainer.restart(); render(); }; $("#trRestart2", view)?.addEventListener("click", () => { trainer.restart(); render(); });
+      $("#trOpts", view).onclick = options; $("#trOpts2", view)?.addEventListener("click", options);
+      $("#trUnknown", view)?.addEventListener("click", () => { trainer.practiceUnknown(); render(); });
+      $("#trPrev", view)?.addEventListener("click", previous);
+      $("#trNo", view)?.addEventListener("click", () => answer(false)); $("#trYes", view)?.addEventListener("click", () => answer(true));
+      $("#trMark", view)?.addEventListener("click", () => { const p = trainer.toggleBookmark(); render(); attempt("Lesezeichen", () => p); });
+      $("#trHide", view)?.addEventListener("click", () => { const hiding = !FC.isHidden(trainer.current); const p = trainer.toggleHidden(); render(); attempt(hiding ? "Verstecken" : "Wieder zeigen", async () => { await p; toast(hiding ? "Karte versteckt" : "Karte wird wieder gezeigt"); }); });
+      const card = $("#trCard", view); if (card) { bindSwipe(card); card.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); flip(); } }); }
+      return;
+    }
     $("#fc")?.addEventListener("click", () => { shown = true; render(); });
     $("#fcW")?.addEventListener("click", async () => { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct: false } }); i++; shown = false; render(); });
     $("#fcR")?.addEventListener("click", async () => { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct: true } }); i++; shown = false; render(); });
+    $("#fcPlay", view)?.addEventListener("click", () => { trainer.start(all); render(); });
+    $("#fcOpts", view)?.addEventListener("click", () => { trainer.start(all); render(); options(); });
+    const flag = (cid, key) => { const card = all.find(x => x.id === +cid); if (!card) return; attempt(key === "hidden" ? "Verstecken" : "Lesezeichen", async () => { const saved = await api(`/flashcards/${cid}`, { method: "PATCH", body: { [key]: key === "hidden" ? !FC.isHidden(card) : !FC.isBookmarked(card) } }); Object.assign(card, { bookmarked: saved.bookmarked, hidden: saved.hidden }); if (key === "hidden") { due = await api("/flashcards?due=true"); i = 0; shown = false; } }); };
+    $$("[data-mark]", view).forEach(b => b.onclick = () => flag(b.dataset.mark, "bookmarked"));
+    $$("[data-hide]", view).forEach(b => b.onclick = () => flag(b.dataset.hide, "hidden"));
     $$("[data-delcard]", view).forEach(b => b.onclick = async () => { await api(`/flashcards/${b.dataset.delcard}`, { method: "DELETE" }); state.route(); });
   };
+  // Tastatur im Trainer: ← nicht gewusst, → gewusst, Leertaste dreht, Strg/Cmd+Z = Vorherige (nicht in Eingabefeldern, nicht bei offenem Dialog)
+  if (cardKeys) document.removeEventListener("keydown", cardKeys);
+  cardKeys = e => {
+    if (!view.isConnected || !$("#fcTr", view)) return;
+    if (e.target.closest?.("input, textarea, select, [contenteditable]") || document.querySelector("#overlay .modal")) return;
+    if (e.key === "ArrowRight" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); answer(true); }
+    else if (e.key === "ArrowLeft" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); answer(false); }
+    else if (e.key === " " && !e.target.closest?.("button")) { e.preventDefault(); flip(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); previous(); }
+  };
+  document.addEventListener("keydown", cardKeys);
   render();
 }
 
@@ -246,7 +341,7 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=10").then(m => m.renderSpaces($("#spacesCard", view)));
+  import("./community-spaces.js?v=11").then(m => m.renderSpaces($("#spacesCard", view)));
   if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=3").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
