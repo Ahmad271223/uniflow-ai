@@ -1,3 +1,4 @@
+import PDFKit
 import XCTest
 import UniFlowCore
 @testable import UniFlow
@@ -73,6 +74,24 @@ final class EditorDeviceFixesTests: XCTestCase {
         XCTAssertEqual(f.zoomScale, 1)
         v.setForeign([])
         XCTAssertNil(v.foreignInk)
+    }
+
+    /// "Daneben ansehen": die Seite der Loesung mit der eigenen PDF darunter (nicht weiss), in der Breite der Spalte
+    func testSolutionSideImageDrawsThePDFBehindTheNotes() throws {
+        let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+            ctx.beginPage()
+            UIColor.black.setFill()
+            ctx.fill(CGRect(x: 50, y: 50, width: 495, height: 200))
+        }
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let p0 = try XCTUnwrap(pdf.page(at: 0))
+        let b = p0.bounds(for: .cropBox).size
+        let page = SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: Double(b.width), height: Double(b.height), rotation: p0.rotation,
+                                extraRotation: 0, objects: [])
+        let plain = SolutionPreview.image(page, images: [:], width: 400, scale: 1)
+        let withPDF = SolutionPreview.image(page, images: [:], width: 400, scale: 1, pdfPage: p0)
+        XCTAssertEqual(withPDF.size.width, 400)
+        XCTAssertNotEqual(plain.pngData(), withPDF.pngData(), "die PDF erscheint unter den Notizen")
     }
 
     func testPreviewMoveFollowsTheFingerAndGoesBack() {

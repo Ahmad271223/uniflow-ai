@@ -127,6 +127,8 @@ struct DocumentView: View {
     @State private var showInfo = false
     @State private var showTrash = false
     @State private var choosingCompanion = false
+    /// Loesung zum Ansehen neben dem Dokument (statt eines zweiten Dokuments)
+    @State private var solutionSide: ForeignSolutionLayer?
     /// Dokument der geteilten Ansicht (ein Notizblatt daneben geht beim Teilen der Loesung mit)
     @State private var companionStore: DocumentStore?
     @State private var addingText = false
@@ -285,14 +287,14 @@ struct DocumentView: View {
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                             Divider()
                         }
-                        if let c = companion, scriptLeft {
-                            companionPane(c).frame(width: geo.size.width * splitFraction)
+                        if hasSidePane, scriptLeft {
+                            sidePane.frame(width: geo.size.width * splitFraction)
                             splitHandle(width: geo.size.width)
                         }
                         primaryPane
-                        if let c = companion, !scriptLeft {
+                        if hasSidePane, !scriptLeft {
                             splitHandle(width: geo.size.width)
-                            companionPane(c).frame(width: geo.size.width * splitFraction)
+                            sidePane.frame(width: geo.size.width * splitFraction)
                         }
                         if showTutor, !scriptLeft {
                             Divider()
@@ -313,6 +315,7 @@ struct DocumentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(fullScreen ? .hidden : .visible, for: .navigationBar)
         .toolbar { toolbar }
+        .toolbar(removing: .sidebarToggle)                  // eigener Knopf "Seiten"; zwei gleiche Symbole verwirrten
         .overlay(alignment: .bottom) {
             if bridge.objectMode { ObjectToolbar(bridge: bridge).padding(.bottom, 12) }
         }
@@ -341,6 +344,7 @@ struct DocumentView: View {
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle) { f in
+                solutionSide = nil
                 companion = Companion(file: f, pdfPage: nil)
             }
         }
@@ -482,6 +486,18 @@ struct DocumentView: View {
         }
     }
 
+    private var hasSidePane: Bool { companion != nil || solutionSide != nil }
+
+    /// Rechte bzw. linke Spalte der geteilten Ansicht: ein zweites Dokument oder eine Loesung zum Ansehen
+    @ViewBuilder private var sidePane: some View {
+        if let s = solutionSide {
+            SolutionSidePane(layer: s, pdf: store.originalPDF) { solutionSide = nil }
+                .id("solution-" + s.id)
+        } else if let c = companion {
+            companionPane(c)
+        }
+    }
+
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
                       pencilOnly: pencilOnly, canEdit: canWrite, onStore: { s, shown in
@@ -528,6 +544,7 @@ struct DocumentView: View {
                 }
                 Button("Daneben öffnen") {
                     if entitlements.allows(.splitView) {
+                        solutionSide = nil
                         companion = Companion(file: libFile(id: s.fileID, title: s.title), pdfPage: s.page)
                     } else {
                         lockedFeature = .splitView
@@ -588,7 +605,7 @@ struct DocumentView: View {
         ToolbarItemGroup(placement: .topBarLeading) {
             UFLogoMenu()                                       // die App-Leiste ist im Editor aus (mehr Platz zum Schreiben)
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
-                Label("Seiten", systemImage: scriptLeft ? "sidebar.left" : "sidebar.right")
+                Label("Seiten", systemImage: "rectangle.stack")
             }
             Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
                 .disabled(!canWrite)
@@ -624,12 +641,12 @@ struct DocumentView: View {
             Button { showTutor.toggle() } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
                 .accessibilityIdentifier("doc.tutor")
             Button {
-                if companion != nil { companion = nil }
+                if hasSidePane { companion = nil; solutionSide = nil }
                 else if entitlements.allows(.splitView) { choosingCompanion = true }
                 else { lockedFeature = .splitView }
             } label: {
-                Label(companion == nil ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
-                      systemImage: companion == nil && !entitlements.allows(.splitView) ? "lock" : "rectangle.split.2x1")
+                Label(!hasSidePane ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
+                      systemImage: !hasSidePane && !entitlements.allows(.splitView) ? "lock" : "rectangle.split.2x1")
             }
             Button { pencilOnly.toggle() } label: {
                 Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
@@ -853,6 +870,9 @@ struct DocumentView: View {
                         Menu {
                             Button { setVisible(layer, !layer.visible) } label: {
                                 Label(layer.visible ? "Ausblenden" : "Einblenden", systemImage: layer.visible ? "eye.slash" : "eye")
+                            }
+                            Button { companion = nil; solutionSide = layer } label: {
+                                Label("Daneben ansehen", systemImage: "rectangle.split.2x1")
                             }
                             Button { solutionSheet = .preview(layer.id) } label: {
                                 Label("Vorschau ohne Original", systemImage: "rectangle.on.rectangle")

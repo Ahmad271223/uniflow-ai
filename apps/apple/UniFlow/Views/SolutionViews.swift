@@ -1,3 +1,4 @@
+import PDFKit
 import SwiftUI
 import UniFlowCore
 
@@ -657,5 +658,78 @@ struct PDFExportNoticeDialog: View {
             UFButton("Abbrechen", action: cancel)
             UFButton("Exportieren", icon: "download", kind: .primary, action: export)
         }
+    }
+}
+
+// MARK: - Loesung daneben ansehen
+
+/// Eine fremde Loesung in der geteilten Ansicht neben dem eigenen Dokument: nur ansehen (nicht ueber die eigene Seite
+/// gelegt), je Seite die eigene PDF-Seite darunter, eigene Seiten der Loesung auf ihrer Vorlage. Bilder werden je Seite
+/// in der Breite der Spalte gezeichnet, also scharf.
+struct SolutionSidePane: View {
+    let layer: ForeignSolutionLayer
+    let pdf: PDFDocument?
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2").foregroundStyle(UF.accent)
+                Text(layer.label).font(.caption).bold().lineLimit(1)
+                Spacer()
+                Text("nur ansehen").font(.caption).foregroundStyle(.secondary)
+                Button { onClose() } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Schließen")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(.bar)
+            GeometryReader { geo in
+                ScrollView {
+                    LazyVStack(spacing: 14) {
+                        ForEach(layer.pages, id: \.key) { page in
+                            SolutionSidePage(page: page, images: layer.images,
+                                             pdfPage: page.pdfIndex.flatMap { pdf?.page(at: $0 - 1) },
+                                             width: max(200, geo.size.width - 24))
+                        }
+                    }
+                    .padding(12)
+                }
+            }
+            .background(Color(uiColor: .secondarySystemBackground))
+        }
+    }
+}
+
+private struct SolutionSidePage: View {
+    let page: SolutionPage
+    let images: [String: UIImage]
+    let pdfPage: PDFPage?
+    let width: CGFloat
+    @State private var image: UIImage?
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Group {
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFit()
+                        .overlay(Rectangle().stroke(UF.line))
+                        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                } else {
+                    ProgressView().frame(height: width * 1.3)
+                }
+            }
+            Text(page.pdfIndex.map { "PDF-Seite \($0)" } ?? "Eigene Seite der Lösung").font(.caption2).foregroundStyle(.secondary)
+        }
+        .task(id: "\(page.key)-\(Int(width))") {
+            let p = page, imgs = images, pp = pdfPage, w = width
+            let scale = UIScreen.main.scale
+            image = await Task.detached(priority: .userInitiated) {
+                Box(SolutionPreview.image(p, images: imgs, width: w, scale: scale, pdfPage: pp))
+            }.value.image
+        }
+    }
+
+    private struct Box: @unchecked Sendable {
+        let image: UIImage
+        init(_ i: UIImage) { image = i }
     }
 }

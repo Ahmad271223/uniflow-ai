@@ -85,7 +85,9 @@ enum SolutionPreview {
     static let widthRange: ClosedRange<CGFloat> = 1...2_048
     static let scaleRange: ClosedRange<CGFloat> = 1...3
 
-    static func image(_ page: SolutionPage, images: [String: UIImage], width requested: CGFloat, scale requestedScale: CGFloat = 2) -> UIImage {
+    /// - Parameter pdfPage: eigene PDF-Seite als Hintergrund ("Daneben ansehen"), sonst weiss (Vorschau ohne Original)
+    static func image(_ page: SolutionPage, images: [String: UIImage], width requested: CGFloat, scale requestedScale: CGFloat = 2,
+                      pdfPage: PDFPage? = nil) -> UIImage {
         let width = requested.isFinite ? min(widthRange.upperBound, max(widthRange.lowerBound, requested)) : widthRange.lowerBound
         let scale = requestedScale.isFinite ? min(scaleRange.upperBound, max(scaleRange.lowerBound, requestedScale)) : 2
         let (w, h) = page.displaySize
@@ -99,6 +101,11 @@ enum SolutionPreview {
         return UIGraphicsImageRenderer(size: out, format: format).image { ctx in
             UIColor.white.setFill()
             ctx.fill(CGRect(origin: .zero, size: out))
+            if let pdfPage, page.kind == .pdf {
+                // PDF in voller Aufloesung des Bildes (Thumbnail beachtet die Drehung der Seite wie displaySize)
+                pdfPage.thumbnail(of: CGSize(width: out.width * scale, height: out.height * scale), for: .cropBox)
+                    .draw(in: CGRect(origin: .zero, size: out))
+            }
             ctx.cgContext.scaleBy(x: s, y: s)
             if page.kind == .blank { PageRenderer.drawTemplate(page.template, size: size, in: ctx.cgContext) }
             PageRenderer.drawObjects(page.objects, images: images, in: ctx.cgContext)
