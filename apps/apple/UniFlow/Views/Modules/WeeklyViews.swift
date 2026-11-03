@@ -102,11 +102,26 @@ struct WeeklyTestsCard: View {
                 }
             }
             if let error {
-                Text("Wochentests nicht geladen: \(error)").ufFont(13.12).foregroundStyle(UF.muted)
+                // Fehler: Grund und erneut laden (derselbe Abruf)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    UFIcon("alert", size: 14).foregroundStyle(UF.bad)
+                    Text("Wochentests nicht geladen: \(error)").ufFont(13.12).foregroundStyle(UF.text2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    UFButton("Erneut laden", icon: "refresh", kind: .ghost, size: .small) { Task { await load() } }
+                }
             } else if let d {
                 content(d)
             } else {
-                Text("Lade Wochentests…").ufFont(13.12).foregroundStyle(UF.muted)
+                // Laden: drei Zeilen in der Hoehe der fertigen Wochenzeilen
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack(spacing: 11.2) { UFSkeleton().frame(width: 72, height: 16); UFSkeleton().frame(height: 16) }
+                    }
+                }
+                .padding(.vertical, 6)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Lade Wochentests")
             }
         }
         .padding(.bottom, 14.4)
@@ -137,9 +152,9 @@ struct WeeklyTestsCard: View {
                 Text("\(review) Marker nach Dokumentänderung prüfen – der betroffene Stoff zählt bis dahin nicht.")
             }
             .ufFont(13.6).foregroundStyle(UF.warn)
-            .padding(.vertical, 7.2).padding(.horizontal, 11.2)
+            .padding(.vertical, 8.8).padding(.horizontal, 12.8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 10).fill(UF.warnSoft))
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.warnSoft))
             .padding(.bottom, 8)
         }
         VStack(spacing: 0) {
@@ -204,7 +219,7 @@ struct WeeklyTestsCard: View {
         }
         return ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 11.2) {
-                Text(label).ufFont(13.6, 600).foregroundStyle(UF.text2).frame(width: 92, alignment: .leading)
+                Text(label).ufFont(13.6, 600).monospacedDigit().foregroundStyle(UF.text2).frame(width: 92, alignment: .leading)
                 info.frame(maxWidth: .infinity, alignment: .leading)
                 actions(w, p).fixedSize()
             }
@@ -292,7 +307,7 @@ struct WeeklyDefDialog: View {
             } else if let d {
                 details(d)
             } else {
-                Text("Lade…").ufFont(14.4).foregroundStyle(UF.muted)
+                HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Lädt …").ufFont(14.4).foregroundStyle(UF.muted) }
             }
         } foot: {
             UFButton("Schließen") { close() }
@@ -399,7 +414,7 @@ struct WeeklyDefDialog: View {
                             Text("\(Int((r.n("score") ?? 0).rounded()))/\(Int((r.n("max_score") ?? 0).rounded())) (\(WeeklyText.number(r.n("percent"))) %)")
                             Text(r.n("duration_sec").map { $0 > 0 ? "\(Int(($0 / 60).rounded())) min" : "–" } ?? "–")
                         }
-                        .ufFont(13.6).foregroundStyle(UF.text)
+                        .ufFont(13.6).monospacedDigit().foregroundStyle(UF.text)
                     }
                 }
                 Text("Alle Teilnehmer dieser Version haben dieselben Aufgaben und Bewertungskriterien. Nachträge zählen nicht.")
@@ -664,12 +679,12 @@ struct LectureMarkerSheet: View {
         let review = LectureMarkers.reviewFlag(m)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: review ? "exclamationmark.triangle" : "flag").foregroundStyle(review ? Color.orange : Color.accentColor)
+                Image(systemName: review ? "exclamationmark.triangle" : "flag").foregroundStyle(review ? UF.warn : UF.accent)
                 Text(WeeklyText.range(m)).bold()
                 Text("· \(UFFmt.date(m.s("lecture_date")))\(m.s("topic").flatMap { $0.isEmpty ? nil : " · " + $0 } ?? "")")
                     .foregroundStyle(.secondary).lineLimit(1)
             }
-            if review, let note = m.s("review_note"), !note.isEmpty { Text(note).font(.caption).foregroundStyle(.orange) }
+            if review, let note = m.s("review_note"), !note.isEmpty { Text(note).font(.caption).foregroundStyle(UF.warn) }
             HStack(spacing: 8) {
                 Button { dismiss(); goTo(m.i("page") ?? 1) } label: { Label("Zur Seite", systemImage: "arrow.left") }
                 if m.i("page") != current {

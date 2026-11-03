@@ -52,14 +52,14 @@ struct StudIPTextsCard: View {
         UFCard {
             Button { withAnimation(UF.motion(.default)) { expanded.toggle() } } label: {
                 HStack(spacing: 9.6) {
-                    UFIcon(expanded ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.text)
+                    UFIcon(expanded ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.muted)
                     Text(StudIPTextsText.title).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
                     Spacer(minLength: 8)
                     if !expanded {
                         Text(StudIPTextsText.summary(groups)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)                                      // Kopfzeile mindestens 44 pt hoch
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -80,10 +80,10 @@ struct StudIPTextsCard: View {
             Button { openKind = open ? nil : kind } label: {
                 HStack(spacing: 9.6) {
                     UFIcon(StudIPTextsText.icons[kind] ?? "file", size: 15).foregroundStyle(UF.text2)
-                    Text(StudIPTextsText.line(g)).ufFont(13.6).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(StudIPTextsText.line(g)).ufFont(13.6).monospacedDigit().foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
                     UFIcon(open ? "chevron-down" : "chevron-right", size: 13).foregroundStyle(UF.muted)
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, 11)                                     // Zeile mindestens 44 pt hoch
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -102,10 +102,10 @@ struct StudIPTextsCard: View {
                     .ufFont(12).foregroundStyle(UF.muted).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 25).padding(.vertical, 5)
+            .padding(.leading, 25).padding(.vertical, 7.2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ModuleRowPressStyle())
         .accessibilityIdentifier("studip.texts.item.\(x.s("id") ?? "")")
     }
 }
@@ -125,13 +125,18 @@ struct StudIPTextReader: View {
                 if let d {
                     Text([d.s("kind_label"), d.s("course_title"), d.s("changed").map { "geändert " + UFFmt.short($0) }].compactMap { $0 }
                         .joined(separator: " · ")).ufFont(12.16).foregroundStyle(UF.muted)
+                    // Lesetext: Grundschrift mit grosszuegigem Zeilenabstand, Zeilen hoechstens etwa 75 Zeichen lang
                     ScrollView {
-                        Text(d.s("text") ?? "").ufFont(14).foregroundStyle(UF.text).textSelection(.enabled)
+                        Text(d.s("text") ?? "").ufFont(14.5, lh: 1.65).foregroundStyle(UF.text).textSelection(.enabled)
+                            .frame(maxWidth: 640, alignment: .leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxHeight: 460)
                 } else if let error {
-                    Text(error).ufFont(13.12).foregroundStyle(UF.muted)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        UFIcon("alert", size: 14).foregroundStyle(UF.bad)
+                        Text(error).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    }
                 } else {
                     UFSkeleton().frame(height: 120)
                 }

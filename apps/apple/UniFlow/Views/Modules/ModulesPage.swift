@@ -18,8 +18,16 @@ struct ModulesPage: View {
 
     var body: some View {
         Group {
-            if let mods { content(mods) } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
-                UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
+            if let mods { content(mods) } else if let error {
+                // Fehler: Grund und der Weg, es noch einmal zu versuchen (derselbe Ladevorgang)
+                UFContent { UFCard { UFEmpty(icon: "alert", text: error) { UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await load() } } } } }
+            } else {
+                // Laden: Platzhalter in der Form der fertigen Seite (Kopf, zwei Karten), damit nichts springt
+                UFContent {
+                    UFSkeleton().frame(width: 280, height: 30).padding(.bottom, 10)
+                    UFSkeleton().frame(maxWidth: 520).frame(height: 16).padding(.bottom, 28)
+                    HStack(spacing: 19.2) { UFSkeleton().frame(height: 260); UFSkeleton().frame(height: 260) }
+                }
             }
         }
         .task { await load() }
@@ -51,7 +59,7 @@ struct ModulesPage: View {
             if mods.isEmpty, !courses.isEmpty {
                 LocalCoursesCard(courses: courses) { router.go(.files(path: LibraryCourses.path($0))) }
             } else if mods.isEmpty {
-                UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Erst synchronisieren.") }
+                UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Nach dem ersten Abgleich mit Stud.IP erscheinen sie hier.") }
             } else if mode == "cards" {
                 UFAutoGrid(min: 300, spacing: 19.2) {
                     ForEach(Row.rows(mods)) { row in ModuleCard(m: row.value) { router.go(.module(row.value.i("id") ?? 0)) } }
@@ -64,7 +72,6 @@ struct ModulesPage: View {
                 .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
                 .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: UF.r))
-                .ufShadow(.sm)
             }
             // Opencast-Aufzeichnungen aus Kursen ohne Modul (lokal; die uebrigen stehen im Moduldetail)
             if session.api?.isLocal == true { RecordingsUnassignedSection().padding(.top, 24) }
@@ -89,21 +96,22 @@ struct LocalCoursesCard: View {
                     let sub = [c.s("semester"), c.s("number")].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
                     Button { if let id = c.s("id") { open(id) } } label: {
                         HStack(spacing: 9.6) {
-                            RoundedRectangle(cornerRadius: 6).fill(UF.accent).frame(width: 36, height: 36)
-                                .overlay(UFIcon("folder", size: 18).foregroundStyle(.white))
+                            // Ordner neutral (Farbe gehoert den Daten, nicht dem Rahmen)
+                            RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2).frame(width: 36, height: 36)
+                                .overlay(UFIcon("folder", size: 18).foregroundStyle(UF.text2))
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(c.s("title") ?? "").ufFont(14.08, 700).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
-                                if !sub.isEmpty { Text(sub).ufFont(11.84).foregroundStyle(UF.muted) }
+                                Text(c.s("title") ?? "").ufFont(14.5, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                if !sub.isEmpty { Text(sub).ufFont(12.48).foregroundStyle(UF.muted) }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             let n = c.i("file_count") ?? 0
-                            Text("\(n) \(n == 1 ? "Datei" : "Dateien") · \(c.i("new_count") ?? 0) neu").ufFont(13.12).foregroundStyle(UF.muted).fixedSize()
-                            UFIcon("chevron-right", size: 16).foregroundStyle(UF.text).frame(width: 36)
+                            Text("\(n) \(n == 1 ? "Datei" : "Dateien") · \(c.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).fixedSize()
+                            UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 28)
                         }
-                        .padding(.vertical, 7.2).padding(.horizontal, 8)
+                        .padding(.vertical, 9.6).padding(.horizontal, 8)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ModuleRowPressStyle())
                     .ufBorderBottom()
                 }
             }
@@ -123,17 +131,7 @@ struct UFAutoGrid<Content: View>: View {
     }
 }
 
-enum ModuleDeco {
-    /// DECO in views-misc.js: Deko-Icon nach dem Modulnamen
-    static func icon(_ name: String?) -> String {
-        let n = (name ?? "").lowercased()
-        let table: [(String, String)] = [("mathe", "grid"), ("elektro", "sparkles"), ("signal", "rotate"), ("programm", "type"),
-                                         ("datenstruktur", "layers"), ("algorithm", "layers"), ("einf", "columns"), ("digital", "cards")]
-        return table.first { n.contains($0.0) }?.1 ?? "book"
-    }
-}
-
-/// .mod2: Verlauf 160deg (Modulfarbe 14 % -> --surface bei 72 %), Rahmen Farbe 22 % in --line, Radius 18
+/// .mod2 (iPad, Design 3.11.2026): flache Karte mit Haarlinie, Radius --r-lg; Modulfarbe nur auf Kuerzel und Fortschritt
 struct ModuleCard: View {
     let m: JSONValue
     let open: () -> Void
@@ -149,55 +147,57 @@ struct ModuleCard: View {
         let courses = m.i("courses") ?? 0
         let desc = topics.isEmpty ? "Vorlesung, Übungen und Material – \(courses) Veranstaltung\(courses == 1 ? "" : "en") aus Stud.IP." : topics.joined(separator: ", ")
         let progress = m.i("progress") ?? 0
+        // Ruhige Karte: flache Flaeche mit Haarlinie, die Modulfarbe nur auf Kuerzel, Fortschritt und neuen Inhalten
+        // (Daten statt Dekor: kein Farbverlauf, kein Deko-Symbol)
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 12.8) {                                     // .hd
-                    RoundedRectangle(cornerRadius: 12).fill(mc).frame(width: 48, height: 48)
-                        .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(16, 700)).foregroundStyle(.white))
-                    Text(m.s("name") ?? "").ufFont(17.92, 700, lh: 1.2).foregroundStyle(UF.text)
-                        .fixedSize(horizontal: false, vertical: true)               // umbrechen statt kuerzen
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(alignment: .top, spacing: 12.8) {                    // .hd
+                    RoundedRectangle(cornerRadius: 10).fill(mc).frame(width: 44, height: 44)
+                        .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(15.2, 700)).foregroundStyle(.white))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3.2) {
+                        Text(m.s("name") ?? "").ufFont(17.6, 650, lh: 1.25, em: -0.01).foregroundStyle(UF.text)
+                            .fixedSize(horizontal: false, vertical: true)           // umbrechen statt kuerzen
+                        Text(desc).ufFont(13.12, lh: 1.45).foregroundStyle(UF.muted).lineLimit(2)
+                            .frame(minHeight: 13.12 * 2.9, alignment: .topLeading)  // zwei Zeilen, damit die Karten fluchten
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.trailing, 40).padding(.bottom, 9.6)
-                Text(desc).ufFont(13.76).foregroundStyle(UF.text2).lineLimit(2)        // .desc: min-height 2.6em
-                    .frame(minHeight: 13.76 * 2.6, alignment: .topLeading)
-                    .padding(.bottom, 12.8)
-                HStack {                                                    // .pr
-                    (Text("\(progress)%").font(.uf(12.8, 700)).foregroundColor(UF.text) + Text(" bearbeitet"))
+                .padding(.bottom, 16)
+                HStack(alignment: .firstTextBaseline) {                     // .pr
+                    (Text("\(progress)%").font(.uf(13.12, 650)).foregroundColor(UF.text) + Text(" bearbeitet"))
+                        .monospacedDigit()
                     Spacer()
                     if let n = m.i("new_count"), n > 0 {
-                        Text("\(n) neue Inhalte").font(.uf(12.8, 700)).foregroundStyle(mc)
+                        Text("\(n) neue Inhalte").font(.uf(13.12, 650)).foregroundStyle(mc)
                     } else {
                         Text(m.s("exam_date").map { "Klausur " + UFFmt.date($0) } ?? "aktuell").foregroundStyle(UF.muted)
                     }
                 }
-                .ufFont(12.8).foregroundStyle(UF.text2).padding(.bottom, 5.6)
-                UFProgress(value: Double(progress) / 100, color: mc, track: Color.mix(mc, 0.15, UF.surface), height: 7)
-                next(mc).padding(.vertical, 14.4)
-                HStack {                                                    // .stats
-                    stat("file-text", m.i("file_count") ?? 0, "Dateien")
-                    Spacer(minLength: 8)
-                    stat("tasks", m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben")
+                .ufFont(13.12).foregroundStyle(UF.text2).padding(.bottom, 7.2)
+                UFProgress(value: Double(progress) / 100, color: mc, track: UF.surface2, height: 6)
+                next(mc).padding(.top, 16).padding(.bottom, 14.4)
+                // Kennzahlen als Schrift in einer Zeile, getrennt durch eine Haarlinie (keine Symbol-Kacheln)
+                HStack(spacing: 20) {                                       // .stats
+                    stat(m.i("file_count") ?? 0, "Dateien")
+                    stat(m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben")
                     if showsTests {
-                        Spacer(minLength: 8)
                         let t = m.i("test_count") ?? 0
-                        stat("exam", t, "Wochentest\(t == 1 ? "" : "s")")
+                        stat(t, "Wochentest\(t == 1 ? "" : "s")")
                     }
+                    Spacer(minLength: 0)
                 }
+                .padding(.top, 12.8)
+                .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
             }
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 19.2 + ufB).padding(.bottom, 17.6 + ufB).padding(.horizontal, 20.8 + ufB)
+            .padding(.vertical, 19.2 + ufB).padding(.horizontal, 20.8 + ufB)
             .frame(maxWidth: .infinity, maxHeight: fills ? .infinity : nil, alignment: .topLeading)
-            .background(LinearGradient(stops: [.init(color: Color.mix(mc, 0.14, UF.surface), location: 0), .init(color: UF.surface, location: 0.72)],
-                                       startPoint: UnitPoint(x: 0.33, y: 0), endPoint: UnitPoint(x: 0.67, y: 1)))
-            .overlay(alignment: .topTrailing) {                            // .deco: rechts 1rem, oben .9rem, Deckkraft .18
-                UFIcon(ModuleDeco.icon(m.s("name")), size: 44).foregroundStyle(mc).opacity(0.18).padding(.top, 14.4).padding(.trailing, 16)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.mix(mc, 0.22, UF.line), lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 18))
+            .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: UF.rLg).strokeBorder(UF.line, lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: UF.rLg))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ModuleCardPressStyle(radius: UF.rLg))
     }
 
     /// .next: Nächster Termin, sonst nächster Lernblock, sonst Hinweis
@@ -222,19 +222,17 @@ struct ModuleCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             if nx != nil || np != nil { UFIcon("chevron-right", size: 16).foregroundStyle(UF.accentText) }
         }
-        .padding(.vertical, 9.6 + ufB).padding(.horizontal, 12.8 + ufB)
-        .background(RoundedRectangle(cornerRadius: 12).fill(UF.surface))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(UF.line, lineWidth: 1))
+        // eine Tonstufe statt Rahmen-in-Rahmen
+        .padding(.vertical, 10.4).padding(.horizontal, 12.8)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
     }
 
-    private func stat(_ icon: String, _ n: Int, _ label: String) -> some View {
-        HStack(spacing: 7.2) {
-            UFIcon(icon, size: 18).foregroundStyle(UF.text2)
-            VStack(alignment: .leading, spacing: 1.6) {
-                Text("\(n)").font(.uf(16.8, 700)).foregroundStyle(UF.text)
-                Text(label).ufFont(11.52).foregroundStyle(UF.muted)
-            }
-        }
+    /// "12 Dateien": Zahl in Textfarbe, Bezeichnung gedimmt, Ziffern gleich breit
+    private func stat(_ n: Int, _ label: String) -> some View {
+        (Text("\(n)").font(.uf(14.5, 650)).foregroundColor(UF.text) + Text(" \(label)").foregroundColor(UF.muted))
+            .ufFont(13.12)
+            .monospacedDigit()
+            .lineLimit(1)
     }
 }
 
@@ -248,23 +246,24 @@ struct ModuleListRow: View {
         let topics = m.list("topics").compactMap(\.string).joined(separator: ", ")
         Button(action: open) {
             HStack(spacing: 9.6) {
-                RoundedRectangle(cornerRadius: 6).fill(Color(hex: m.s("color"))).frame(width: 36, height: 36)
-                    .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(14.08)).foregroundStyle(.white))
+                RoundedRectangle(cornerRadius: UF.rSm).fill(Color(hex: m.s("color"))).frame(width: 36, height: 36)
+                    .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(13.6, 700)).foregroundStyle(.white))
                     .frame(width: 44, alignment: .leading)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(m.s("name") ?? "").ufFont(14.08, 700).foregroundStyle(UF.text)
-                    Text(topics.isEmpty ? "\(m.i("courses") ?? 0) Veranstaltungen" : topics).ufFont(11.84).foregroundStyle(UF.muted)
+                    Text(m.s("name") ?? "").ufFont(14.5, 600).foregroundStyle(UF.text)
+                    Text(topics.isEmpty ? "\(m.i("courses") ?? 0) Veranstaltungen" : topics).ufFont(12.48).foregroundStyle(UF.muted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).foregroundStyle(UF.text).frame(width: 120, alignment: .leading)
-                Text("\(m.i("file_count") ?? 0) Dateien · \(m.i("new_count") ?? 0) neu").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
-                Text(nx.map { "\(UFFmt.short($0.s("date"))) \($0.s("start") ?? "")" } ?? "–").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
-                UFIcon("chevron-right", size: 16).foregroundStyle(UF.text).frame(width: 36)
+                Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text).frame(width: 120, alignment: .leading)
+                Text("\(m.i("file_count") ?? 0) Dateien · \(m.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
+                Text(nx.map { "\(UFFmt.short($0.s("date"))) \($0.s("start") ?? "")" } ?? "–").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
+                UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 36)
             }
-            .padding(.vertical, 7.2).padding(.horizontal, 8)
+            .padding(.vertical, 9.6).padding(.horizontal, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ModuleRowPressStyle(radius: 0))
         .ufBorderBottom()
     }
 }
@@ -291,8 +290,20 @@ struct ModulePage: View {
 
     var body: some View {
         Group {
-            if let d { content(d) } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
-                UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
+            if let d { content(d) } else if let error {
+                UFContent { UFCard { UFEmpty(icon: "alert", text: error) { UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await load() } } } } }
+            } else {
+                // Platzhalter in der Form der Seite: Kopf, Kennzahlenleiste, Reiter, erster Block
+                UFContent {
+                    HStack(spacing: 16) {
+                        UFSkeleton().frame(width: 46, height: 46)
+                        VStack(alignment: .leading, spacing: 8) { UFSkeleton().frame(width: 320, height: 30); UFSkeleton().frame(width: 220, height: 16) }
+                    }
+                    .padding(.bottom, 22)
+                    UFSkeleton().frame(height: 96).padding(.bottom, 20)
+                    UFSkeleton().frame(height: 40).padding(.bottom, 16)
+                    UFSkeleton().frame(height: 240)
+                }
             }
         }
         .task(id: id) { await load() }
@@ -323,34 +334,36 @@ struct ModulePage: View {
         let progress = d.i("progress") ?? 0
         UFContent {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .bottom, spacing: 16) { head(d, m).fixedSize(horizontal: true, vertical: false); Spacer(minLength: 0); actions.fixedSize() }
+                HStack(alignment: .center, spacing: 16) { head(d, m).fixedSize(horizontal: true, vertical: false); Spacer(minLength: 0); actions.fixedSize() }
                 VStack(alignment: .leading, spacing: 16) { head(d, m); actions }
             }
-            .padding(.bottom, 19.2)
-            UFGrid(columns: 3) {
-                UFCard {
+            .padding(.bottom, 22.4)
+            // Kennzahlen als Schrift in einer Leiste, getrennt durch Haarlinien (statt drei einzelner Kacheln, die
+            // auf dem iPad hochkant als 2 + 1 umbrachen)
+            let cells: [AnyView] = [
+                AnyView(VStack(alignment: .leading, spacing: 0) {
                     UFKPI(value: "\(progress)%", label: "Lernfortschritt")
-                    UFProgress(value: Double(progress) / 100).padding(.top, 6.4)
-                }
-                UFCard {
-                    UFKPI(value: cur.map { ($0.s("label") ?? "").components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "–" } ?? "–",
-                          label: "Aktuelle Lehrwoche" + (cur?.s("topic").flatMap { $0.isEmpty ? nil : " · " + $0 } ?? ""))
-                }
-                UFCard {
-                    VStack(alignment: .leading, spacing: 2.4) {
-                        Text(np.map { UFFmt.short($0.s("date")) } ?? "–").ufFont(21.6, 700).foregroundStyle(UF.text)
-                        HStack(spacing: 0) {
-                            Text(np?.s("title") ?? "Kein Lernblock geplant").foregroundStyle(UF.muted)
-                            if let np {
-                                Text(" · ").foregroundStyle(UF.muted)
-                                Button("öffnen") { router.go(.plan(view: "day", date: np.s("date"))) }.font(.uf(12.8, 600)).foregroundStyle(UF.accentText).buttonStyle(.plain)
-                            }
+                    UFProgress(value: Double(progress) / 100).padding(.top, 8)
+                }),
+                // fehlender Wert: grauer Strich statt eines Strichs in voller Textfarbe (liest sich sonst wie Laden)
+                AnyView(VStack(alignment: .leading, spacing: 2.4) {
+                    Text(cur.map { ($0.s("label") ?? "").components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "–" } ?? "–")
+                        .ufFont(21.6, 700).foregroundStyle(cur == nil ? UF.muted : UF.text)
+                    Text("Aktuelle Lehrwoche" + (cur?.s("topic").flatMap { $0.isEmpty ? nil : " · " + $0 } ?? "")).ufFont(12.8).foregroundStyle(UF.muted)
+                }),
+                AnyView(VStack(alignment: .leading, spacing: 2.4) {
+                    Text(np.map { UFFmt.short($0.s("date")) } ?? "–").ufFont(21.6, 700).foregroundStyle(np == nil ? UF.muted : UF.text)
+                    HStack(spacing: 0) {
+                        Text(np?.s("title") ?? "Kein Lernblock geplant").foregroundStyle(UF.muted).lineLimit(1)
+                        if let np {
+                            Text(" · ").foregroundStyle(UF.muted)
+                            Button("öffnen") { router.go(.plan(view: "day", date: np.s("date"))) }.font(.uf(12.8, 600)).foregroundStyle(UF.accentText).buttonStyle(.plain)
                         }
-                        .ufFont(12.8)
                     }
-                }
-            }
-            .padding(.bottom, 16)
+                    .ufFont(12.8)
+                }),
+            ]
+            ModuleKPIStrip(cells: cells).padding(.bottom, 20)
             // Aufzeichnungen (Opencast) gibt es nur lokal: der Stud.IP-Abgleich des iPads holt sie
             // (nur an Hochschulen mit Stud.IP)
             let recordings: [(value: String, label: String)] = session.api?.isLocal == true && studip.offersStudIP
@@ -368,7 +381,7 @@ struct ModulePage: View {
                 if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
                 // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
                 if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
-                if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Keine Dokumente.") } }
+                if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
                 ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
             } else if tab == "recordings" {
                 RecordingsPanel(moduleID: id, focusWeek: focusWeek)
@@ -378,16 +391,24 @@ struct ModulePage: View {
                 let key = ["lectures": "vorlesung", "exercises": "uebung", "solutions": "loesung", "scripts": "skript", "exams": "klausur"][tab]
                 let files = tab == "notes" ? d.list("notes")
                     : d.list("files").filter { ($0.s("doc_type") ?? "sonstiges") == key }.sorted { ($0.n("chdate") ?? 0) > ($1.n("chdate") ?? 0) }
-                UFCard { docList(files) }
+                let names = ["lectures": "Vorlesungen", "exercises": "Übungen", "solutions": "Lösungen", "scripts": "Skripte",
+                             "exams": "Klausuren", "notes": "Notizen"]
+                UFCard {
+                    docList(files, empty: "Keine \(names[tab] ?? "Dokumente") in diesem Modul.",
+                            icon: tab == "notes" ? "note" : ShellState.typeIcon[key ?? ""] ?? "file")
+                }
             }
         }
     }
 
     private func head(_ d: JSONValue, _ m: JSONValue) -> some View {
         let kinds = d.list("courses").map { UFKind.text($0.s("kind")) }.joined(separator: ", ")
-        return HStack(spacing: 16) {                                         // .mod-head
+        return HStack(alignment: .top, spacing: 16) {                        // .mod-head
+            // Kuerzel oben buendig mit der ersten Titelzeile (bei grosser Schrift bricht der Titel um)
             RoundedRectangle(cornerRadius: 12).fill(Color(hex: m.s("color"))).frame(width: 46, height: 46)
                 .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(17.6, 700)).foregroundStyle(.white))
+                .accessibilityHidden(true)
+                .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2.4) {
                 Text(m.s("name") ?? "").ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
                 Text("\(d.list("courses").count) Veranstaltungen: \(kinds)\(m.s("exam_date").map { " · Klausur " + UFFmt.date($0) } ?? "")")
@@ -405,11 +426,16 @@ struct ModulePage: View {
         }
     }
 
-    @ViewBuilder private func docList(_ files: [JSONValue]) -> some View {
+    @ViewBuilder private func docList(_ files: [JSONValue], empty: String, icon: String) -> some View {
         if files.isEmpty {
-            Text("Nichts vorhanden.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
+            // leer: Rahmen bleibt, ein Satz sagt, was hier fehlt
+            UFEmpty(icon: icon, text: empty, small: true)
         } else if mode == "list" {
-            ForEach(Row.rows(files)) { row in UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
+            // Zeilen durch Haarlinien getrennt (Tabelle aus Linien und Ausrichtung)
+            let rows = Row.rows(files)
+            ForEach(rows) { row in
+                UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) }.ufBorderBottom(row.id != rows.last?.id)
+            }
         } else {
             UFAutoGrid(min: 210, spacing: 11.2) {
                 ForEach(Row.rows(files)) { row in UFDocCard(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
@@ -425,7 +451,8 @@ struct ModulePage: View {
         let fallback = ["vorlesungen": "Vorlesung", "uebungen": "Übung", "loesungen": "Lösung", "skripte": "Skript", "klausuren": "Klausur", "sonstiges": "Sonstiges"]
         return UFCard {
             HStack(spacing: 9.6) {
-                UFIcon("chevron-down", size: 16).foregroundStyle(UF.text)
+                // Pfeil zeigt den Zustand: nach unten offen, nach rechts zugeklappt
+                UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.muted)
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)
                     .foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
                 if let n = recordingCounts[wk], n > 0 {
@@ -433,7 +460,7 @@ struct ModulePage: View {
                     UFChip(text: RecordingText.count(n), icon: "play") { focusWeek = wk; tab = "recordings" }
                         .accessibilityHint("Zeigt die Aufzeichnungen dieser Woche")
                 }
-                Text("\(w.i("count") ?? 0) Dokumente").ufFont(12.8).foregroundStyle(UF.muted)
+                Text("\(w.i("count") ?? 0) Dokumente").ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
                 // KI-Zusammenfassung mit dem PC-Server oder ueber das ChatGPT-Abo des Nutzers (LocalContext.ai)
                 if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true || aiEnabled {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }
@@ -442,6 +469,8 @@ struct ModulePage: View {
             .padding(.vertical, 8)
             .contentShape(Rectangle())
             .onTapGesture { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
+            // VoiceOver: Auf-/Zuklappen als benannte Aktion (die Kopfzeile ist kein eigener Knopf)
+            .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
             if open {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(groupsOrder, id: \.self) { k in
@@ -454,9 +483,9 @@ struct ModulePage: View {
                             }
                             ForEach(labels, id: \.self) { lab in
                                 let group = fs.filter { ($0.s("sub_label") ?? fallback[k] ?? k) == lab }
-                                (Text(lab) + Text(group.count > 1 ? " · \(group.count)" : "").font(.uf(13.6, 400)).foregroundColor(UF.muted))
-                                    .ufFont(13.6, 650, em: -0.01).foregroundStyle(UF.text2)
-                                    .padding(.top, 8).padding(.bottom, 3.2)
+                                (Text(lab) + Text(group.count > 1 ? " · \(group.count)" : "").font(.uf(12.8, 400)).foregroundColor(UF.muted))
+                                    .ufFont(12.8, 600).foregroundStyle(UF.text2)
+                                    .padding(.top, 12).padding(.bottom, 2).padding(.leading, 8)
                                 ForEach(Row.rows(group)) { row in UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
                             }
                         }
@@ -497,6 +526,10 @@ struct UFIconSegmented<Value: Hashable>: View {
 struct UFDocRow: View {
     let f: JSONValue
     let open: () -> Void
+    /// Dynamic Type: die zusammengesetzte Zeile skaliert wie `ufFont` (vorher feste Groessen)
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private func size(_ s: CGFloat) -> CGFloat { UFScaledFont.scaled(s, typeSize) }
 
     var body: some View {
         let st = f.s("status")
@@ -505,11 +538,13 @@ struct UFDocRow: View {
             + (f.i("est_minutes").map { " · ca. \($0) min" } ?? "") + (f["has_notes"].map { !$0.isNull && $0.int != 0 } == true ? " · mit Notizen" : "")
         Button(action: open) {
             HStack(spacing: 9.6) {
-                UFIcon(ShellState.typeIcon[f.s("doc_type") ?? ""] ?? "file", size: 17).foregroundStyle(UF.accentText).frame(width: 24)
-                (Text(f.s("ai_title") ?? f.s("name") ?? "").font(.uf(14.5, 500)).foregroundColor(st == "erledigt" ? UF.muted : UF.accentText)
+                // Typ-Symbol gedimmt; Titel in Textfarbe statt Linkfarbe (eine Liste aus lauter blauen Zeilen hat
+                // keine Hierarchie), nur "Neu" traegt den Akzent
+                UFIcon(ShellState.typeIcon[f.s("doc_type") ?? ""] ?? "file", size: 17).foregroundStyle(UF.text2).frame(width: 24)
+                (Text(f.s("ai_title") ?? f.s("name") ?? "").font(.uf(size(14.5), 500)).foregroundColor(st == "erledigt" ? UF.muted : UF.text)
                     .strikethrough(st == "erledigt")
-                 + Text(st == "neu" ? "  Neu  " : "").font(.uf(10.88, 600)).foregroundColor(UF.accentText)
-                 + Text(sub).font(.uf(12.48)).foregroundColor(UF.muted))
+                 + Text(st == "neu" ? "  Neu  " : "  ").font(.uf(size(11.52), 650)).foregroundColor(UF.accentText)
+                 + Text(sub).font(.uf(size(12.48))).foregroundColor(UF.muted))
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 4.8) {
@@ -517,10 +552,10 @@ struct UFDocRow: View {
                     UFDiffBadge(level: f.i("difficulty"))
                 }
             }
-            .padding(.vertical, 7.2).padding(.horizontal, 8)
+            .padding(.vertical, 10).padding(.horizontal, 8)                // Zeile mindestens 44 pt hoch
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ModuleRowPressStyle())
         .help(f.s("name") ?? "")
     }
 }
@@ -540,17 +575,67 @@ struct UFDocCard: View {
                     UFDiffBadge(level: f.i("difficulty"))
                 }
                 Text(f.s("ai_title") ?? f.s("name") ?? "").ufFont(14.5, 550, lh: 1.3).foregroundStyle(UF.text)
-                Text("\(UFFmt.date(UFFmt.isoFromUnix(f.n("chdate"))))\(f.i("est_minutes").map { " · \($0) min" } ?? "")").ufFont(13.12).foregroundStyle(UF.muted)
-                if let s = f.s("summary"), !s.isEmpty { Text(s).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(3) }
+                Text("\(UFFmt.date(UFFmt.isoFromUnix(f.n("chdate"))))\(f.i("est_minutes").map { " · \($0) min" } ?? "")").ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
+                if let s = f.s("summary"), !s.isEmpty { Text(s).ufFont(13.12).foregroundStyle(UF.text2).lineLimit(3) }
             }
             .fixedSize(horizontal: false, vertical: true)
-            .padding(12.8 + ufB)
+            .padding(14.4 + ufB)
             .frame(maxWidth: .infinity, maxHeight: fills ? .infinity : nil, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ModuleCardPressStyle(radius: UF.r))
+    }
+}
+
+/// Rueckmeldung beim Antippen einer Zeile: Flaeche --surface-2 dahinter, ohne Groessen- oder Lageaenderung
+struct ModuleRowPressStyle: ButtonStyle {
+    var radius: CGFloat = UF.rSm
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(RoundedRectangle(cornerRadius: radius).fill(configuration.isPressed ? UF.surface2 : .clear))
+    }
+}
+
+/// Rueckmeldung beim Antippen einer Karte: kurz leicht abgedunkelt (Textfarbe 5 %), ohne Groessenaenderung
+struct ModuleCardPressStyle: ButtonStyle {
+    var radius: CGFloat = UF.r
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay(RoundedRectangle(cornerRadius: radius).fill(UF.text.opacity(configuration.isPressed ? 0.05 : 0)).allowsHitTesting(false))
+    }
+}
+
+/// Kennzahlen des Moduls in einer Karte, durch Haarlinien geteilt: nebeneinander, wenn jede Zelle mindestens 200 pt
+/// bekommt, sonst untereinander (Dynamic Type, schmale Fenster)
+struct ModuleKPIStrip: View {
+    let cells: [AnyView]
+
+    var body: some View {
+        UFCard(padded: false) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 0) {
+                    ForEach(cells.indices, id: \.self) { i in
+                        cell(i).frame(minWidth: 200, maxWidth: .infinity, alignment: .topLeading)
+                            .overlay(alignment: .leading) { if i > 0 { Rectangle().fill(UF.line).frame(width: 1) } }
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(cells.indices, id: \.self) { i in
+                        cell(i).frame(maxWidth: .infinity, alignment: .leading)
+                            .overlay(alignment: .top) { if i > 0 { Rectangle().fill(UF.line).frame(height: 1) } }
+                    }
+                }
+            }
+        }
+    }
+
+    private func cell(_ i: Int) -> some View {
+        cells[i].padding(.vertical, 16).padding(.horizontal, 20)
     }
 }
 
@@ -687,9 +772,14 @@ struct WeekSummaryDialog: View {
         UFDialog("Zusammenfassung: \(w.s("label") ?? "")", icon: "sparkles") {
             if let out {
                 Text(failed ? AttributedString(out) : ((try? AttributedString(markdown: out, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(out)))
-                    .ufFont(14.5).foregroundStyle(UF.text)
+                    .ufFont(14.5, lh: 1.6).foregroundStyle(failed ? UF.bad : UF.text)
+                    .frame(maxWidth: 680, alignment: .leading)                  // Lesbare Zeilenlaenge
             } else {
-                Text("⏳ Die KI liest die Vorlesungsfolien dieser Woche…").ufFont(14.5).foregroundStyle(UF.muted)
+                // Ladezustand mit Systemanzeige statt Emoji
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text("Die KI liest die Vorlesungsfolien dieser Woche …").ufFont(14.5).foregroundStyle(UF.muted)
+                }
             }
         } foot: {
             UFButton("Schließen") { close() }

@@ -80,6 +80,41 @@ enum CommunityJoinLink {
     }
 }
 
+// MARK: - Zustaende (Hinweis, Laden)
+
+/// Rueckmeldung im Ablauf (Fehler oder Erfolg): Symbol im Ton, Text in Textfarbe, blasse Flaeche im Ton – statt
+/// einer nackten roten oder gruenen Zeile, die neben Fliesstext leicht untergeht
+struct CommunityNotice: View {
+    let text: String
+    var tone: UFTone = .bad
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            UFIcon(tone == .ok ? "check" : "alert", size: 14).foregroundStyle(tone.fg)
+            Text(text).ufFont(13.12, 500).foregroundStyle(UF.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 8.8).padding(.horizontal, 12.8)
+        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(tone.bg))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Laden mit Satz, was gerade passiert (statt eines einzelnen Kreisels ohne Kontext)
+struct CommunityLoading: View {
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView().controlSize(.small)
+            Text(text).ufFont(13.12).foregroundStyle(UF.muted)
+        }
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 // MARK: - Communities (je Modul und Lerngruppe)
 
 /// Alle Module aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen
@@ -95,9 +130,10 @@ struct CommunitySpacesCard: View {
             UFCardHead("Deine Communities", icon: "users")
             Text("Jedes Modul hat eine Community für Vorlesung, Übungen und Tutorien. Tritt bei, dann siehst und teilst du dort Lösungen.")
                 .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
-            if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+            if let error { CommunityNotice(text: error) }
             if let spaces {
-                if spaces.isEmpty { Text("Noch keine Module. Gleiche zuerst deine Hochschule ab.").ufFont(13.12).foregroundStyle(UF.muted) }
+                if spaces.isEmpty { UFEmpty(icon: "book", text: "Noch keine Module. Gleiche zuerst deine Hochschule ab.", small: true) }
+                // Zeilen durch Haarlinien getrennt
                 ForEach(spaces) { s in
                     UFItemRow(s.name, sub: Self.detail(s),
                               leading: { UFIcon(s.kind == .group ? "users" : "book", size: 18).foregroundStyle(UF.muted) },
@@ -111,9 +147,10 @@ struct CommunitySpacesCard: View {
                                       }
                                   }
                               })
+                    .ufBorderBottom(s.id != spaces.last?.id)
                 }
             } else if error == nil {
-                ProgressView().controlSize(.small)
+                CommunityLoading(text: "Communities werden geladen …")
             }
         }
         .padding(.bottom, 16)
@@ -160,12 +197,20 @@ struct CommunitySpaceSheet: View {
         NavigationStack {
             UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 12) {
-                    if let notice { Text(notice).ufFont(13.12, 600).foregroundStyle(UF.ok) }
-                    if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+                    if let notice { CommunityNotice(text: notice, tone: .ok) }
+                    if let error { CommunityNotice(text: error) }
                     if let items {
-                        if items.isEmpty { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
-                        ForEach(items, id: \.solutionID) { s in row(s) }
-                    } else if error == nil { ProgressView().controlSize(.small) }
+                        // eine Liste in einer Karte, Zeilen durch Haarlinien getrennt (wie die Treffer im Dokument)
+                        UFCard(padded: items.isEmpty) {
+                            if items.isEmpty { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
+                            VStack(spacing: 0) {
+                                ForEach(items, id: \.solutionID) { s in
+                                    row(s).ufBorderBottom(s.solutionID != items.last?.solutionID)
+                                }
+                            }
+                            .padding(.horizontal, items.isEmpty ? 0 : 10).padding(.vertical, items.isEmpty ? 0 : 4)
+                        }
+                    } else if error == nil { CommunityLoading(text: "Lösungen werden geladen …") }
                 }
             }
             .navigationTitle(space.name)
@@ -192,14 +237,21 @@ struct CommunitySpaceSheet: View {
         UFItemRow(s.title.isEmpty ? "Lösung" : s.title, sub: detail(s),
                   leading: { UFIcon("layers", size: 18).foregroundStyle(UF.muted) },
                   trailing: {
+                      // eine sichtbare Handlung je Zeile; Seltenes (Zurueckziehen, Melden, Blockieren) unter "Mehr"
+                      // wie bei den Treffern im Dokument
                       HStack(spacing: 8) {
                           UFButton("Ansehen", size: .small) { reading = s }
-                          if s.isOwn {
-                              UFButton("Zurückziehen", kind: .danger, size: .small) { withdraw(s) }
-                          } else {
-                              UFButton("Melden", size: .small) { reporting = s }
-                              UFButton("Blockieren", size: .small) { block(s) }
+                          Menu {
+                              if s.isOwn {
+                                  Button(role: .destructive) { withdraw(s) } label: { Label("Zurückziehen", systemImage: "trash") }
+                              } else {
+                                  Button { reporting = s } label: { Label("Melden …", systemImage: "flag") }
+                                  Button(role: .destructive) { block(s) } label: { Label("Blockieren", systemImage: "hand.raised") }
+                              }
+                          } label: {
+                              UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 44, height: 44)
                           }
+                          .accessibilityLabel("Mehr")
                       }
                   })
     }
@@ -266,7 +318,7 @@ struct CommunityReaderSheet: View {
         NavigationStack {
             UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 16) {
-                    if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+                    if let error { CommunityNotice(text: error) }
                     if let localFile {
                         UFCard {
                             Text("Du hast dieselbe PDF. Im Dokument liegt die Lösung als Ebene darüber.").ufFont(13.12).foregroundStyle(UF.text2)
@@ -287,7 +339,7 @@ struct CommunityReaderSheet: View {
                                 editing = nil
                             } : nil)
                         }
-                    } else if error == nil { ProgressView().controlSize(.small) }
+                    } else if error == nil { CommunityLoading(text: "Lösung wird geladen …") }
                     if service.isAccountService { commentsCard }
                 }
             }
@@ -316,7 +368,9 @@ struct CommunityReaderSheet: View {
             }
             Text(CommunityTexts.commentsNotice).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
             if comments.isEmpty { Text("Noch keine Kommentare.").ufFont(13.12).foregroundStyle(UF.muted) }
-            ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in commentRow(c, number: i + 1) }
+            ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in
+                commentRow(c, number: i + 1).ufBorderBottom(c.id != comments.last?.id)
+            }
             if let target = composerTitle { Text(target).ufFont(12.8, 600).foregroundStyle(UF.text2).padding(.top, 8) }
             UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70).padding(.top, 8)
             HStack(spacing: 8) {
@@ -343,28 +397,30 @@ struct CommunityReaderSheet: View {
                 Text(c.pseudonym + (c.byAuthor ? " · Autor" : "") + (c.edited ? " · bearbeitet" : "")).ufFont(12.8, 600).foregroundStyle(UF.text2)
                 Text(ForeignSolutionLayer.date(c.createdAt)).ufFont(11.84).foregroundStyle(UF.muted)
             }
-            Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5).foregroundStyle(c.deleted ? UF.muted : UF.text)
+            Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
                 .fixedSize(horizontal: false, vertical: true)
             if !c.deleted {
-                HStack(spacing: 8) {
-                    UFButton("Antworten", size: .small) {
+                // Aktionen je Kommentar zurueckhaltend (ohne Rahmen), damit der Text fuehrt
+                HStack(spacing: 4) {
+                    UFButton("Antworten", kind: .ghost, size: .small) {
                         resetComposer()
                         replyTo = c
                     }
                     if c.isMine {
-                        UFButton("Bearbeiten", size: .small) {
+                        UFButton("Bearbeiten", kind: .ghost, size: .small) {
                             resetComposer()
                             editing = c
                             draft = c.text
                         }
                     } else {
-                        UFButton("Melden", size: .small) { report(c) }
+                        UFButton("Melden", kind: .ghost, size: .small) { report(c) }
                     }
                     if c.isMine || solution.isOwn { UFButton("Löschen", kind: .danger, size: .small) { remove(c) } }
                 }
+                .padding(.leading, -8)                                     // Text der Geisterknoepfe fluchtet mit dem Kommentar
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 9.6)
         .padding(.leading, c.parentID == nil ? 0 : 20)
     }
 
@@ -456,7 +512,12 @@ struct CommunityReaderPage: View {
                     }
                     .accessibilityLabel("Seite mit \(page.objects.count) Notizobjekten")
                     .accessibilityHint(tapped == nil ? "" : "Tippen kommentiert diese Stelle")
-            } else { ProgressView().controlSize(.small) }
+            } else {
+                // Platz der Seite freihalten, solange das Bild entsteht (kein Springen)
+                RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2).aspectRatio(1 / 1.414, contentMode: .fit)
+                    .overlay(ProgressView().controlSize(.small))
+                    .accessibilityLabel("Seite wird geladen")
+            }
         }
         .task(id: page.key) {
             let page = self.page, images = self.images
@@ -541,8 +602,8 @@ struct CommunitySolutionsSheet: View {
                 Text("Lösungen anderer zu genau dieser PDF. „Laden und anzeigen“ legt sie als eigene, nicht bearbeitbare Ebene über deine PDF – deine Notizen bleiben unverändert.")
                     .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             }
-            if let notice { Text(notice).ufFont(13.12, 600).foregroundStyle(UF.ok) }
-            if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }
+            if let notice { CommunityNotice(text: notice, tone: .ok) }
+            if let error { CommunityNotice(text: error) }
             UFCard(padded: false) {
                 if let items {
                     if items.isEmpty {
@@ -595,7 +656,7 @@ struct CommunitySolutionsSheet: View {
                                          Button(role: .destructive) { blocking = s } label: { Label("Nutzer blockieren …", systemImage: "hand.raised") }
                                      }
                                  } label: {
-                                     UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 32, height: 32)
+                                     UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 44, height: 44)    // Tippflaeche 44 pt
                                  }
                                  .accessibilityLabel("Mehr")
                              }
@@ -670,7 +731,7 @@ struct CommunityReportDialog: View {
                     UFSelect(options: CommunityReportReason.allCases.map { ($0, $0.title) }, selection: $reason, fill: true)
                 }
                 UFField("Hinweis (optional)") { UFTextArea(placeholder: "Was ist das Problem?", text: $note, minHeight: 80) }
-                if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad) }
+                if let error { CommunityNotice(text: error) }
             }
             .fixedSize(horizontal: false, vertical: true)
         } foot: {
@@ -717,7 +778,7 @@ struct CommunityModulePanel: View {
                     }
                     Text("Veröffentlichte Lösungen zu den Dateien dieses Moduls, nach Lehrwoche. Öffne das passende Blatt – dort liegt die Lösung unter „Ebenen“.")
                         .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-                    if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).padding(.top, 8).fixedSize(horizontal: false, vertical: true) }
+                    if let error { CommunityNotice(text: error).padding(.top, 8) }
                 }
                 if let items {
                     if items.isEmpty {
@@ -726,14 +787,26 @@ struct CommunityModulePanel: View {
                         ForEach(CommunityRules.byWeek(items), id: \.week) { block in
                             UFCard {
                                 Text(weekLabel(block.week)).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text).padding(.vertical, 8)
+                                    .accessibilityAddTraits(.isHeader)
                                 VStack(spacing: 0) {
-                                    ForEach(block.solutions, id: \.solutionID) { s in row(s) }
+                                    ForEach(block.solutions, id: \.solutionID) { s in
+                                        row(s).ufBorderBottom(s.solutionID != block.solutions.last?.solutionID)
+                                    }
                                 }
                             }
                         }
                     }
                 } else if error == nil {
-                    UFCard { UFSkeleton().frame(height: 120) }
+                    // Laden: Platzhalter in Form eines Wochenblocks (Ueberschrift, zwei Zeilen)
+                    UFCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            UFSkeleton().frame(width: 180, height: 18)
+                            UFSkeleton().frame(height: 40)
+                            UFSkeleton().frame(height: 40)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Lösungen werden geladen")
+                    }
                 }
             }
             .task(id: courseKeys) { await load() }
@@ -821,9 +894,9 @@ struct CommunitySettingsCard: View {
                             .fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
                     }
                     Text(CommunityTexts.privacy(service)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-                    if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).padding(.top, 8).fixedSize(horizontal: false, vertical: true) }
+                    if let error { CommunityNotice(text: error).padding(.top, 8) }
 
-                    UFCardHead("Pseudonym", icon: "user").padding(.top, 16)
+                    sectionHead("Pseudonym")
                     if canShare {
                         HStack(spacing: 9.6) {
                             UFTextInput("Leer lassen = anonym", text: $pseudonym).frame(maxWidth: 260)
@@ -840,7 +913,7 @@ struct CommunitySettingsCard: View {
                         shareHint(CommunityTexts.pseudonymPlusHint)
                     }
 
-                    UFCardHead("Lerngruppen", icon: "users").padding(.top, 16)
+                    sectionHead("Lerngruppen")
                     if groups.isEmpty {
                         Text("Du bist in keiner Lerngruppe. Lege eine an und gib den Code weiter, oder tritt mit einem Code bei.")
                             .ufFont(13.12).foregroundStyle(UF.muted)
@@ -871,7 +944,7 @@ struct CommunitySettingsCard: View {
                     .padding(.top, 8)
                     if !canShare { shareHint(CommunityTexts.createGroupPlusHint).padding(.top, 8) }
 
-                    UFCardHead("Sperrliste", icon: "alert").padding(.top, 16)
+                    sectionHead("Sperrliste")
                     if blocked.isEmpty {
                         Text("Niemand blockiert. Blockieren kannst du bei einer Lösung unter „Mehr“.").ufFont(13.12).foregroundStyle(UF.muted)
                     }
@@ -897,6 +970,17 @@ struct CommunitySettingsCard: View {
                 }
             }
         }
+    }
+
+    /// Unterabschnitt der Karte: eine Stufe unter dem Kartentitel (h3), getrennt durch eine Haarlinie – vorher hatten
+    /// Karte und Abschnitte dieselbe Titelgroesse mit Symbol, die Hierarchie war flach
+    private func sectionHead(_ title: String) -> some View {
+        Text(title).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 16).padding(.bottom, 8)
+            .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
+            .padding(.top, 19.2)
+            .accessibilityAddTraits(.isHeader)
     }
 
     /// Teilen (Pseudonym, Lerngruppe anlegen) im aktuellen Tarif erlaubt?
