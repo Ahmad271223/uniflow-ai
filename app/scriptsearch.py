@@ -13,7 +13,7 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-from . import config, db, study
+from . import config, db, pageocr, study
 
 import logging
 logging.getLogger("pypdf").setLevel(logging.ERROR)
@@ -114,6 +114,7 @@ def store_pages(conn, file_id: str, pages: list[str], chdate) -> None:
     das Geraet liest den Text selbst). Der BM25-Index je Modul wird verworfen, damit /api/related die Seiten sieht."""
     ensure_table(conn)
     conn.execute("DELETE FROM page_texts WHERE file_id=?", (file_id,))
+    pageocr.delete(conn, file_id)                      # erkannter Text gehoert zur alten Fassung (app/pageocr.py)
     conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
                      [(file_id, i + 1, t or "", chdate, search_form(t or "")) for i, t in enumerate(pages)])
     with _LOCK:
@@ -134,9 +135,34 @@ def index_bytes(conn, file_id: str, data: bytes, chdate) -> list[str]:
     return pages
 
 
-def page_texts(conn, file_id: str) -> list[str]:
+def page_texts(conn, file_id: str, ocr: "pageocr.Scope | None" = None, cancel=None) -> list[str]:
     """Alle Seitentexte einer Datei (aus dem Zwischenspeicher, sonst neu gelesen; im Dienst ohne Datei auf der Platte
-    ueber app/filestream.py, das die Seitentexte beim Durchreichen ablegt)."""
+    ueber app/filestream.py, das die Seitentexte beim Durchreichen ablegt).
+
+    Mit `ocr` (pageocr.Scope) werden fast leere Seiten in diesem Umfang (Scans, Folien als Bild) per Texterkennung
+    ergaenzt, einmal je Seite und Fassung (app/pageocr.py); ohne `ocr` (Standard), ohne Motor oder im gehosteten Dienst
+    (LERNAPP_OCR nicht on) bleibt es bei der Textebene der PDF. `cancel`: Funktion, die True liefert, wenn abgebrochen
+    werden soll (pageocr.OCRCancelled)."""
+    pages = _page_texts(conn, file_id)
+    if not pages or ocr is None or ocr.is_none:
+        return pages
+    engine = pageocr.engine()
+    if engine is None:
+        return pages
+    return pageocr.fill(conn, file_id, pages, ocr, engine, cancel, on_change=_drop_cache)
+
+
+def text_layer(conn, file_id: str, pages: list[str]) -> list[str]:
+    """Seitentexte ohne erkannten Text (nur Textebene): Seitenzuordnung und Dokumentversion einer neuen Fassung."""
+    return pageocr.embedded(conn, file_id, pages)
+
+
+def _drop_cache() -> None:
+    with _LOCK:
+        _CACHE.clear()
+
+
+def _page_texts(conn, file_id: str) -> list[str]:
     ensure_table(conn)
     f = db.row(conn, "SELECT local_path, chdate, name, download_url, course_id FROM files WHERE id=?", (file_id,))
     if not f:
@@ -179,8 +205,13 @@ def _sources(conn, module_id: int, exclude: str | None) -> list[dict]:
     return out
 
 
-def _index(conn, module_id: int) -> dict:
+def _index(conn, module_id: int, ocr: "pageocr.Scope | None" = None, cancel=None) -> dict:
+    """Index je Modul. Mit `ocr` (z. B. Scope.all() im Hintergrund der Wochentests) werden fast leere Seiten der Quellen
+    vorher erkannt (einmal je Seite); der Index ist danach neu, weil die Erkennung den Zwischenspeicher verwirft."""
     srcs = _sources(conn, module_id, None)
+    if ocr is not None and not ocr.is_none and pageocr.active():
+        for f in srcs:
+            page_texts(conn, f["id"], ocr, cancel)
     key = (module_id, tuple(sorted((f["id"], f.get("chdate") or 0) for f in srcs)))
     with _LOCK:
         if key in _CACHE:

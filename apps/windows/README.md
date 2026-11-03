@@ -6,6 +6,9 @@
 
 - `backend/` – PyInstaller-Paket des Python-Servers (`uniflow-backend.spec`, Einstieg `entry.py` → `app/desktop.py`).
   Ordner-Paket (`dist/uniflow-backend/`), Chromium für Playwright als `ms-playwright` daneben (legt der Workflow hinein).
+  Texterkennung für Scan-Seiten (`app/pageocr.py`, [docs/OCR-WINDOWS.md](../../docs/OCR-WINDOWS.md)): das Paket enthält `pypdfium2`
+  (Seiten rendern); `tesseract.exe` mit `tessdata` (deu, eng) soll als Ordner `tesseract` neben die exe (wie `ms-playwright`) –
+  **Workflow-Schritt noch offen, nicht gebaut und nicht unter Windows geprüft**. Ohne den Ordner bleibt die Erkennung aus.
 - `src-tauri/` – das Fenster (Rust, Tauri 2). Beim Start wird `backend/uniflow-backend.exe` aus den Ressourcen
   gestartet, mit der eigenen Prozess-ID als Elternprozess. Das Backend bindet einen freien Port auf `127.0.0.1`
   (der Port ist offen, bevor die Datei existiert), schreibt `%LOCALAPPDATA%\de.uniflow.desktop\backend.json` und übergibt den
@@ -133,5 +136,7 @@ liest weiter nur Claude. „Trennen“ löscht das Token. Details: `docs/KI-CHAT
 ## Offen
 
 
+- Texterkennung: Ordner `tesseract` (Programm, DLLs, `tessdata`, Lizenztexte) in den Windows-Workflow aufnehmen und auf echtem
+  Windows mit einem Scan prüfen (siehe docs/OCR-WINDOWS.md).
 - Automatische Updates (Tauri-Updater braucht einen signierten Endpunkt) und Code-Signing.
 - Größe: Chromium macht den Großteil des Installers aus (etwa 150 MB gepackt).
