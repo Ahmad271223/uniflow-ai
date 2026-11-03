@@ -651,18 +651,29 @@ final class CommunityCloudKitTests: XCTestCase {
         }
         let titleKey = try XCTUnwrap(CommunityKeys.moduleKey(university: "luh", courseTitle: "Lineare Algebra (WS 2026/27)"))
         let moduleKey = try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Analysis I"))
-        // Datei aus dem Abgleich: Modul ihres Kurses; eigenes Dokument: Modulname; ohne beides: nichts
+        // Datei aus dem Abgleich: Modul ihres Kurses; eigenes Dokument nur in einem Modul aus dem Abgleich (03.11.2026:
+        // nur wer das Modul hat oder hatte), "Analysis I" ist selbst angelegt; ohne beides: nichts
         let studip = await CommunityCourses.courseKey(fileID: "f-studip", host: host, university: "luh")
         XCTAssertEqual(studip, titleKey)
         let own = await CommunityCourses.courseKey(fileID: "f-own", host: host, university: "luh")
-        XCTAssertEqual(own, moduleKey)
+        XCTAssertNil(own)
         let loose = await CommunityCourses.courseKey(fileID: "f-loose", host: host, university: "luh")
         XCTAssertNil(loose)
         let unknown = await CommunityCourses.courseKey(fileID: "nope", host: host, university: "luh")
         XCTAssertNil(unknown)
-        // der Suchende kennt die Module seiner Kurse und seine Modulnamen, nicht den Pseudokurs
+        // der Suchende kennt nur die Module seiner Kurse aus dem Abgleich, keine selbst angelegten Modulnamen
         let keys = await CommunityCourses.courseKeys(host: host, university: "luh")
-        XCTAssertEqual(keys, [titleKey, moduleKey])
+        XCTAssertEqual(keys, [titleKey])
+        XCTAssertFalse(keys.contains(moduleKey))
+        // eigenes Dokument in einem Modul mit dem Namen eines Abgleich-Moduls: dessen Community
+        let synced = CommunityKeys.moduleName(courseTitle: "Lineare Algebra (WS 2026/27)")
+        try await backend.context.database.withConnection { c in
+            try c.execute("INSERT INTO modules(id, name, created_at) VALUES (6, ?, '2026-10-26')", [.text(synced)])
+            try c.execute("INSERT INTO folders(id, name, parent_id, module_id, created_at) VALUES (10, 'Notizen', NULL, 6, '2026-10-26')")
+            try c.execute("INSERT INTO files(id, course_id, name, folder_id) VALUES ('f-own2', '__user__', 'Notizbuch 2', 10)")
+        }
+        let own2 = await CommunityCourses.courseKey(fileID: "f-own2", host: host, university: "luh")
+        XCTAssertEqual(own2, titleKey)
         XCTAssertFalse(keys.contains(CommunityKeys.courseKey(university: "luh", courseID: "__user__")))
     }
 

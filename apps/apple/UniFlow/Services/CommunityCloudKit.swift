@@ -70,21 +70,15 @@ final class CommunityMembership: CommunityGroupStore, @unchecked Sendable {
 /// Kurs-ID, ein eigenes Dokument den seines Moduls (Name); wer sucht, kennt die Schluessel aller Kurs-IDs,
 /// Kurstitel und Modulnamen seiner Datenbank.
 enum CommunityCourses {
-    /// Community-Schluessel des Suchenden: Module seiner Veranstaltungen und seine Modulnamen, ohne den Pseudokurs der
-    /// eigenen Uploads
+    /// Community-Schluessel des Suchenden: nur Module seiner Veranstaltungen aus dem Uni-Abgleich, auch aus frueheren
+    /// Semestern (Entscheidung des Inhabers 03.11.2026: "nur wer das Modul hat oder mal hatte"). Selbst angelegte
+    /// Modulnamen zaehlen nicht mehr, sonst kaeme jeder mit einem gleichnamigen Modul hinein.
     static func courseKeys(host: LocalBackendHost, university: String) async -> Set<String> {
         guard let backend = try? await host.backend() else { return [] }
         let rows = (try? await backend.context.database.withConnection { c in
-            try (c.rows("SELECT title FROM courses WHERE id <> '__user__'"), c.rows("SELECT name FROM modules"))
-        }) ?? ([], [])
-        var keys = Set<String>()
-        for r in rows.0 {
-            if let t = r["title"]?.string, let k = CommunityKeys.moduleKey(university: university, courseTitle: t) { keys.insert(k) }
-        }
-        for r in rows.1 {
-            if let n = r["name"]?.string, let k = CommunityKeys.courseKey(university: university, courseName: n) { keys.insert(k) }
-        }
-        return keys
+            try c.rows("SELECT title FROM courses WHERE id <> '__user__'")
+        }) ?? []
+        return Set(rows.compactMap { r in r["title"]?.string.flatMap { CommunityKeys.moduleKey(university: university, courseTitle: $0) } })
     }
 
     /// PDFs aus dem eigenen Abgleich (`service_link.local_fingerprints`): Dateien mit Quelle, ohne eigene und geloeschte
@@ -135,8 +129,10 @@ enum CommunityCourses {
         guard let row else { return nil }
         if row["course_id"]?.string != "__user__", let t = row["course_title"]?.string,
            let key = CommunityKeys.moduleKey(university: university, courseTitle: t) { return key }
-        guard let name = row["module_name"]?.string else { return nil }
-        return CommunityKeys.courseKey(university: university, courseName: name)
+        // eigenes Dokument: nur in die Community eines Moduls aus dem eigenen Abgleich
+        guard let name = row["module_name"]?.string, let key = CommunityKeys.courseKey(university: university, courseName: name),
+              await courseKeys(host: host, university: university).contains(key) else { return nil }
+        return key
     }
 
     /// Community-Schluessel eines Moduls aus seiner Detailansicht (`/api/modules/{id}`): aus den Titeln seiner Kurse und
@@ -432,7 +428,13 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         return await courses().map { var s = $0; s.joined = joined.contains(s.key); return s } + membership.groups().map(CommunitySpace.group)
     }
 
-    func join(_ space: CommunitySpace) async throws { membership.setJoined(space.key, true) }
+    /// Beitreten nur zu Modulen aus dem eigenen Uni-Abgleich (auch fruehere Semester); Lerngruppen ueber den Code
+    func join(_ space: CommunitySpace) async throws {
+        guard await courses().contains(where: { $0.key == space.key }) else {
+            throw CommunityServiceError.service("Diesen Kurs gibt es nicht in deinem Hochschul-Abgleich.")      // wie course_not_owned beim Dienst
+        }
+        membership.setJoined(space.key, true)
+    }
     func leave(_ space: CommunitySpace) async throws { membership.setJoined(space.key, false) }
 
     /// Lerngruppen-Loesungen stehen ebenfalls unter `courseKey`: dieses Feld hat in Production den Such-Index
