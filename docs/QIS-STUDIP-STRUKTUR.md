@@ -78,3 +78,21 @@ Opencast“; Anmeldeseite statt Inhalt = Sitzung abgelaufen.
 BigBlueButton-Räume (Meetings) enthalten an der LUH keine Aufzeichnungen und werden nicht gelesen.
 Ob der Opencast-Host die MP4-Links ohne Anmeldung ausliefert, ist noch nicht am Gerät gemessen; die App fällt bei
 401/403 auf die Player-Seite in der Webansicht zurück. Videos gehören den Lehrenden: nur privat ansehen, nicht teilen.
+
+**Weitere Quellen und Varianten (03.11.2026, Meldung eines Studenten „die App zeigt die Vorlesungsvideos nicht“):**
+Der Quelltext des LUH-Plugins `opencastpluginluh` ist nicht öffentlich (kein Treffer auf GitHub); das freie Plugin ist
+`elan-ev/studip-opencast-plugin` (https://github.com/elan-ev/studip-opencast-plugin, „OpencastV3“, Pfad
+`plugins.php/opencastv3/…`, ältere Fassungen `plugins.php/opencast/…`, Routen unter
+https://elan-ev.github.io/studip-opencast-plugin/studip_opencast_routes.html). Die App liest deshalb tolerant:
+
+| Quelle | Wie | Code |
+|---|---|---|
+| LUH-Plugin, weitere Seiten | Links derselben Seite unter `plugins.php/opencastpluginluh/` mit demselben `cid` (Seitenzahlen, Reiter für Serien/Playlists; nicht Player, Upload, anderer Kurs), höchstens 8, jedes Video einmal | `OpencastParser.furtherPages`, `StudIPClient.opencastListing` |
+| LUH-Plugin, Seite ohne Tabelle | `<video>`/`<source>` (mp4, webm, m3u8, https), Player-`<iframe>` (Opencast/Engage, auf dem Stud.IP-Host als Player-Seite, sonst Link), Videoliste als JSON im `<script>` (Felder wie die API des Plugins V3) | `OpencastParser.looseVideos`, `embeddedVideos` |
+| Opencast-Plugin V3 | GET `plugins.php/opencastv3/api/courses/{id}/videos?offset&limit=100` (`{videos, count}`, Videos aller mit dem Kurs verknüpften Playlists), Player `plugins.php/opencastv3/redirect/perform/video/{token}`; gefragt, wenn das LUH-Plugin im Kurs fehlt (einmal je 7 Tage) oder der Kursüberblick auf das Plugin verweist | `OpencastV3`, `StudIPClient.opencastV3Listing` |
+| Videodateien im Dateibaum | aus der Dateiliste des Abgleichs (mp4, m4v, mov, webm, mkv oder `video/*`), Stream und Laden über `file-refs/{id}/content` mit dem Sitzungs-Cookie, Größe aus der Liste; der Abgleich lädt Videodateien nicht mehr von selbst | `OpencastFileVideos`, `OpencastStore.storeFileVideos` |
+| Courseware-Blöcke | video (`file_id` → JSON:API, `url` → Plattform), link (nur Videoplattformen), iframe, embed, audio mit Datei, `plugin-opencast-video` (token); Eintrag öffnet seine Seite in Stud.IP, Links den Browser | `CoursewareMedia`, Hook in `StudIPTexts.elementText`/`store` |
+| Kursbeschreibung, Sonstiges | Links auf Videoplattformen (YouTube, Vimeo, Panopto, ILIAS, TIB AV, Opencast/Engage, BBB-Wiedergabe, Zoom-Aufzeichnungen, mp4) beim Lesen, nicht gespeichert | `VideoLinks`, `OpencastStore.entries` |
+
+Alle landen in `opencast_videos` mit `source` (opencast | file | courseware; Links nur beim Lesen); Geräte-Probe:
+`StudIPDeviceProbeTests.testRecordingsOnTheDevice` (nur GET).

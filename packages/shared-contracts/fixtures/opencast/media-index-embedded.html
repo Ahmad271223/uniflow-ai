@@ -1,0 +1,26 @@
+<!-- Erfundene Seite ohne table.media-table: ein <video> mit Quelle, eine Videoliste als JSON im <script> (Aufbau der
+     API des Opencast-Plugins V3) und ein Player-iframe des Plugins V3 auf dem Stud.IP-Host (Aufbau angenommen, 03.11.2026) -->
+<html><head><title>Aufzeichnungen - Leibniz Universität Hannover</title></head><body><div id="layout_content">
+<h1>Vorlesung: Testfach Analysis - Aufzeichnungen</h1>
+<div class="oc-video-wrapper">
+    <video id="emb-0005" title="5. Vorlesung – Mitschnitt" poster="https://oc.example.test/t/emb-0005.jpg" controls>
+        <source src="https://oc.example.test/v/emb-0005.mp4" type="video/mp4">
+        <source src="https://oc.example.test/v/emb-0005.webm" type="video/webm">
+    </video>
+</div>
+<script type="text/javascript">
+    var STUDIP = STUDIP || {};
+    var ocVideos = [{"id": 11, "token": "tok-0006", "episode": "ep-0006", "title": "6. Vorlesung – Reihen", "description": "",
+        "duration": 5400000, "presenters": "Prof. Dr. Erika Beispiel", "created": "2026-11-13T10:15:00+01:00", "mkdate": 1794006900,
+        "preview": {"search": "https://oc.example.test/t/ep-0006-search.jpg", "player": "https://oc.example.test/t/ep-0006.jpg", "has_previews": true},
+        "publication": {"downloads": {"presenter": {"412000000": {"url": "https://oc.example.test/v/ep-0006-1080.mp4", "info": "1920 * 1080 px"},
+                                                    "180000000": {"url": "https://oc.example.test/v/ep-0006-720.mp4", "info": "1280 * 720 px"}},
+                                      "presentation": {"90000000": {"url": "https://oc.example.test/v/ep-0006-folien-720.mp4", "info": "1280 * 720 px"}},
+                                      "audio": {"20000000": {"url": "https://oc.example.test/v/ep-0006.mp3", "info": "128 kbit/s mp3"}}},
+                        "track_link": "https://oc.example.test/play/ep-0006"},
+        "trashed": false, "courses": ["k1"], "tags": []}];
+    STUDIP.ocVideos = ocVideos;
+</script>
+<iframe id="emb-0007" title="7. Vorlesung – Livestream-Aufzeichnung" src="https://studip.example.test/plugins.php/opencastv3/redirect/perform/video/tok-0007" allowfullscreen></iframe>
+<iframe src="https://www.example.org/werbung" title="Fremd"></iframe>
+</div></body></html>

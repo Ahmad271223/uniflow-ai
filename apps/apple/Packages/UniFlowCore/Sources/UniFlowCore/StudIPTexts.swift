@@ -71,6 +71,10 @@ public enum StudIPTexts {
         /// nil = Aufgaben nicht gelesen (Bestand bleibt)
         public var deadlines: [Deadline]?
         public var deadlinesComplete = false
+        /// Videos, Links auf Videoplattformen und Dateien aus Video-/Link-/iframe-Bloecken der gelesenen Courseware-Seiten
+        /// (`CoursewareMedia`, fuer die Aufzeichnungen); `mediaElements`: Seiten, deren Bloecke gelesen wurden
+        public var media: [OpencastVideo] = []
+        public var mediaElements: [String] = []
 
         mutating func unsee(_ kind: String, _ id: String) {
             if let i = seen[kind]?.firstIndex(of: id) { seen[kind]?.remove(at: i) }
@@ -468,10 +472,12 @@ public enum StudIPTexts {
             }
         }
 
-        func elementText(_ eid: String) async throws -> String {
+        /// Text einer Seite; ihre Medienbloecke (Video, Link, iframe, Embed) landen in `res.media` (Aufzeichnungen)
+        func elementText(_ eid: String, title: String = "") async throws -> String {
             let (containers, inc) = try await list("\(api)courseware-structural-elements/\(eid)/containers?include=blocks&page[limit]=100")
             let blocks = inc.filter { $0.object != nil && $0["type"]?.string == "courseware-blocks" }
             var parts: [String] = []
+            var ordered: [JSONValue] = []
             if !blocks.isEmpty {
                 var keys: [String] = [], byContainer: [String: [JSONValue]] = [:], loose: [JSONValue] = []
                 for b in blocks {
@@ -482,7 +488,6 @@ public enum StudIPTexts {
                         loose.append(b)
                     }
                 }
-                var ordered: [JSONValue] = []
                 for ct in containers where ct.object != nil {
                     if let id = ct["id"]?.string, let list = byContainer.removeValue(forKey: id) { ordered += list }
                 }
@@ -493,9 +498,14 @@ public enum StudIPTexts {
                 for ct in containers {
                     guard ct.object != nil, let id = ct["id"]?.string else { continue }
                     let (data, _) = try await list("\(api)courseware-containers/\(id)/blocks?page[limit]=100")
-                    parts += data.filter { $0.object != nil }.map(blockText)
+                    let list = data.filter { $0.object != nil }
+                    ordered += list
+                    parts += list.map(blockText)
                 }
             }
+            res.mediaElements.append(eid)
+            res.media += CoursewareMedia.videos(blocks: ordered, courseID: res.courseID, elementID: eid,
+                                                elementTitle: title.isEmpty ? "Courseware" : title, base: base)
             return parts.filter { !PyText.strip($0).isEmpty }.joined(separator: "\n\n")
         }
 
@@ -518,7 +528,7 @@ public enum StudIPTexts {
                 if !fresh(rid, ch) {
                     var body: String?
                     do {
-                        body = try await elementText(eid)
+                        body = try await elementText(eid, title: t)
                     } catch Failure.absent {
                         body = ""
                     } catch Failure.failed {
@@ -674,6 +684,11 @@ public enum StudIPTexts {
                     guard let id = r["id"]?.string, !keep.contains(id) else { continue }
                     try c.execute("DELETE FROM studip_texts WHERE id=?", [.text(id)])
                 }
+            }
+            // Videos, Links und Dateien aus den Bloecken der gelesenen Seiten in die Aufzeichnungen
+            if !res.mediaElements.isEmpty || res.complete["courseware"] == true {
+                try OpencastStore.storeCoursewareVideos(c, courseID: cid, res.media, readElements: res.mediaElements,
+                                                        seenElements: res.seen["courseware"] ?? [], complete: res.complete["courseware"] == true, now: now)
             }
             if let list = res.deadlines {
                 for x in list {

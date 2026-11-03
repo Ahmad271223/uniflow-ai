@@ -18,6 +18,17 @@ public struct HTTPReply: Sendable {
         self.finalURL = finalURL
         self.body = body
     }
+
+    /// Erfolg mit JSON-Inhalt (Inhaltstyp `application/json` bzw. `application/vnd.api+json`; ohne Inhaltstyp zaehlt
+    /// ein Koerper, der mit `{` oder `[` beginnt)
+    public var isJSON: Bool {
+        guard (200..<300).contains(status) else { return false }
+        let t = contentType.lowercased()
+        if t.contains("json") { return true }
+        guard t.isEmpty || !t.contains("html") else { return false }
+        let head = String(decoding: body.prefix(64), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        return head.hasPrefix("{") || head.hasPrefix("[")
+    }
 }
 
 /// Transport fuer Stud.IP-Anfragen: die App setzt das Sitzungs-Cookie, Tests liefern feste Antworten.
@@ -219,6 +230,15 @@ public actor StudIPClient {
         let r = try await perform(pathOrLink, anyStatus: true) { try await transport.get($0, accept: "text/html") }
         if OpencastParser.looksLikeLoginPage(String(decoding: r.body.prefix(400_000), as: UTF8.self)) { throw StudIPError.sessionExpired }
         return r
+    }
+
+    /// JSON-Antwort eines Plugins mit jedem HTTP-Status (z. B. die Routen des Opencast-Plugins V3 unter
+    /// `plugins.php/opencastv3/api/...`): ein Kurs ohne das Plugin antwortet mit 404 oder einer HTML-Seite, das ist kein
+    /// Fehler und keine abgelaufene Sitzung. Nur die Weiterleitung auf die Anmeldung heisst "Sitzung abgelaufen".
+    /// Der Aufrufer prueft Status und Inhaltstyp (`HTTPReply.isJSON`). Nur lesend, mit denselben Pausen wie die JSON:API.
+    public func jsonPage(_ pathOrLink: String) async throws -> HTTPReply {
+        let transport = self.transport
+        return try await perform(pathOrLink, anyStatus: true) { try await transport.get($0, accept: "application/json, text/html;q=0.5") }
     }
 
     /// Abgelaufene Sitzung: Stud.IP leitet Seitenaufrufe auf die Anmeldung (bzw. die SSO-Seite) um.

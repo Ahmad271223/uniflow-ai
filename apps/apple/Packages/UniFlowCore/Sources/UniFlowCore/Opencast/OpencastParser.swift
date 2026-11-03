@@ -22,9 +22,11 @@ public struct OpencastMedia: Sendable, Equatable, Codable {
     }
 }
 
-/// Eine Aufzeichnung aus der Opencast-Tabelle eines Kurses.
+/// Eine Aufzeichnung eines Kurses: aus der Opencast-Tabelle (LUH-Plugin), dem Opencast-Plugin V3, einer Videodatei im
+/// Dateibaum, einem Courseware-Block oder einem Link in der Kursbeschreibung (`source`).
 public struct OpencastVideo: Sendable, Equatable, Codable, Identifiable {
-    /// Kennung der Zeile (UUID oder kurze Kennung wie "Xyzab-12345-6789")
+    /// Kennung der Zeile (UUID oder kurze Kennung wie "Xyzab-12345-6789"); bei anderen Quellen mit Vorsatz
+    /// ("file:<FileRef>", "cw:<Element>:<Block>", "link:<n>")
     public let id: String
     public let title: String
     public let description: String?
@@ -35,13 +37,22 @@ public struct OpencastVideo: Sendable, Equatable, Codable, Identifiable {
     /// Erstellt am, Unix-Zeit (wie `files.chdate`)
     public let created: Int?
     public let thumbnailURL: URL?
-    /// Stud.IP-Player-Seite (Ersatzweg zum Abspielen in der Webansicht)
+    /// Stud.IP-Seite zum Abspielen in der Webansicht mit der Stud.IP-Sitzung (Player des Plugins, Courseware-Seite)
     public let playerURL: URL?
-    /// nach Bildhoehe absteigend (1080p, 720p, 480p)
+    /// nach Bildhoehe absteigend (1080p, 720p, 480p); Videodateien aus Stud.IP als "Original"
     public let media: [OpencastMedia]
+    /// Quelle: opencast (LUH-Plugin und Plugin V3), file (Dateibaum), courseware (Block), link (Kursbeschreibung)
+    public let source: String
+    /// Adresse ausserhalb von Stud.IP (Videoplattform), zum Oeffnen im Browser
+    public let linkURL: URL?
+    /// Groesse der Videodatei in Byte, wenn die Liste sie nennt (Dateibaum); sonst fragt die App den Server
+    public let size: Int64?
+
+    public static let sourceOpencast = "opencast", sourceFile = "file", sourceCourseware = "courseware", sourceLink = "link"
 
     public init(id: String, title: String, description: String? = nil, duration: Int? = nil, author: String? = nil,
-                created: Int? = nil, thumbnailURL: URL? = nil, playerURL: URL? = nil, media: [OpencastMedia] = []) {
+                created: Int? = nil, thumbnailURL: URL? = nil, playerURL: URL? = nil, media: [OpencastMedia] = [],
+                source: String = OpencastVideo.sourceOpencast, linkURL: URL? = nil, size: Int64? = nil) {
         self.id = id
         self.title = title
         self.description = description
@@ -51,9 +62,23 @@ public struct OpencastVideo: Sendable, Equatable, Codable, Identifiable {
         self.thumbnailURL = thumbnailURL
         self.playerURL = playerURL
         self.media = media
+        self.source = source
+        self.linkURL = linkURL
+        self.size = size
     }
 
     public func media(_ quality: String) -> OpencastMedia? { media.first { $0.quality == quality } }
+
+    /// Videodatei aus Stud.IP (Dateibaum oder Courseware-Datei ueber die JSON:API): Abspielen und Laden brauchen die
+    /// Stud.IP-Sitzung; Dateien eines Videoservers nicht
+    public var needsStudIPSession: Bool { source == Self.sourceFile || media.contains { $0.url.path.lowercased().contains("/jsonapi.php/") } }
+
+    /// Dateiendung einer geladenen Fassung: bei Dateien aus Stud.IP die des Dateinamens (Titel), sonst mp4
+    public var fileExtension: String {
+        guard source == Self.sourceFile else { return "mp4" }
+        let ext = (title as NSString).pathExtension.lowercased()
+        return ext.isEmpty || ext.count > 5 ? "mp4" : ext
+    }
 }
 
 /// Ergebnis der Seite media/index eines Kurses.
@@ -77,13 +102,178 @@ public enum OpencastParser {
         "dispatch.php/course/overview?cid=\(courseID)"
     }
 
-    /// Seite media/index lesen. `pageURL` loest relative Links auf.
+    /// Seite media/index lesen. `pageURL` loest relative Links auf. Neben der Tabelle `table.media-table` zaehlen auch
+    /// Videos ausserhalb der Tabelle (`<video>`/`<source>`, Player-`<iframe>`) und eine Videoliste als JSON in einem
+    /// `<script>` (Aufbau wie die API des Opencast-Plugins V3): Seiten ohne Tabelle, aber mit solchen Videos, sind eine
+    /// Liste, keine unklare Seite.
     public static func parse(html: String, status: Int, pageURL: URL? = nil) -> OpencastListing {
         let tokens = HTMLTokenizer.tokens(html)
         let hasTable = tokens.contains { if case .start("table", let a) = $0 { return hasClass(a, "media-table") }; return false }
-        if hasTable, (200..<300).contains(status) { return .videos(videos(in: tokens, pageURL: pageURL)) }
+        if (200..<300).contains(status) {
+            var list = hasTable ? videos(in: tokens, pageURL: pageURL) : []
+            var seen = Set(list.map(\.id))
+            for v in embeddedVideos(in: tokens, pageURL: pageURL) + looseVideos(in: tokens, pageURL: pageURL) where seen.insert(v.id).inserted {
+                list.append(v)
+            }
+            if hasTable || !list.isEmpty { return .videos(list) }
+        }
         if saysNavigationMissing(html) || status == 404 { return .noOpencast }
         return .unrecognized
+    }
+
+    /// Weitere Listenseiten desselben Kurses im LUH-Plugin (Seitenzahlen, Reiter fuer Serien/Playlists): Links auf dem
+    /// Stud.IP-Host unter `plugins.php/opencastpluginluh/` mit demselben `cid`, ohne Player, Download und die Seite selbst.
+    /// Rueckgabe: Pfade mit Abfrage (hoechstens `maxFurtherPages`), in der Reihenfolge der Seite.
+    public static let maxFurtherPages = 8
+
+    public static func furtherPages(html: String, courseID: String, pageURL: URL?) -> [String] {
+        let pageHost = pageURL?.host?.lowercased()
+        var own = pageURL.map { stripFragment($0).absoluteString } ?? ""
+        if own.hasSuffix("/") { own.removeLast() }
+        var out: [String] = [], seen = Set<String>()
+        for a in HTMLScanner.scan(html).anchors {
+            guard let u = resolve(a.href, pageURL), let host = u.host?.lowercased(), pageHost == nil || host == pageHost,
+                  let c = URLComponents(url: u, resolvingAgainstBaseURL: false) else { continue }
+            let p = c.path.lowercased()
+            guard p.contains("/plugins.php/opencastpluginluh/"), !p.contains("/media/player/"), !p.contains("/download"),
+                  !p.contains("/upload"), !p.contains("/delete"), !p.contains("/edit"),
+                  c.queryItems?.first(where: { $0.name == "cid" })?.value == courseID else { continue }
+            var key = stripFragment(u).absoluteString
+            if key.hasSuffix("/") { key.removeLast() }
+            guard key != own, seen.insert(key).inserted else { continue }
+            let path = String(c.path.drop { $0 == "/" }) + (c.query.map { "?" + $0 } ?? "")
+            out.append(path)
+            if out.count >= maxFurtherPages { break }
+        }
+        return out
+    }
+
+    /// Kursueberblick: Link auf das Opencast-Plugin V3 (`plugins.php/opencastv3/…` bzw. aeltere Fassung `plugins.php/opencast/…`)
+    public static func courseHasOpencastV3(overviewHTML: String) -> Bool {
+        HTMLScanner.scan(overviewHTML).anchors.contains { a in OpencastV3.isPluginLink(a.href) }
+    }
+
+    /// Links im Kursueberblick, die mit Opencast oder Aufzeichnungen zu tun haben (Beschriftung und Adresse; Geraete-Probe)
+    public static func opencastLinks(overviewHTML: String) -> [(label: String, href: String)] {
+        HTMLScanner.scan(overviewHTML).anchors.compactMap { a in
+            let h = a.href.lowercased(), l = a.label.lowercased()
+            guard h.contains("opencast") || l.contains("aufzeichnung") || l.contains("video") else { return nil }
+            return (a.label, a.href)
+        }
+    }
+
+    // MARK: Videos ausserhalb der Tabelle
+
+    /// `<video src>`/`<video><source src>` mit Videodatei (mp4, m3u8, webm, mov; https) und Player-`<iframe>` (Opencast-
+    /// oder Engage-Player) ausserhalb von `tr.media-table-row`. Titel aus `title`, `aria-label`, `data-title`, sonst der
+    /// Dateiname. Kennung: `id`/`data-id` des Elements, sonst der Dateiname der Adresse.
+    static func looseVideos(in tokens: [HTMLToken], pageURL: URL?) -> [OpencastVideo] {
+        var out: [OpencastVideo] = []
+        var seen = Set<String>()
+        var inRow = 0, inVideo: (attrs: [String: String], sources: [URL])?
+        func finishVideo() {
+            guard let v = inVideo else { return }
+            inVideo = nil
+            let urls = (v.attrs["src"].flatMap { resolve($0, pageURL) }.map { [$0] } ?? []) + v.sources
+            guard let first = urls.first(where: { isHTTPS($0) && isVideoFileURL($0) }) else { return }
+            let name = first.lastPathComponent
+            let id = [v.attrs["id"], v.attrs["data-id"], v.attrs["data-episode"], v.attrs["data-video-id"]].compactMap { $0 }
+                .first { !$0.isEmpty } ?? name
+            let title = [v.attrs["title"], v.attrs["aria-label"], v.attrs["data-title"]].compactMap { $0.map(QISParser.clean) }
+                .first { !$0.isEmpty } ?? name
+            guard seen.insert(id).inserted else { return }
+            let media = urls.filter { isHTTPS($0) && isVideoFileURL($0) }.enumerated().map { i, u in
+                OpencastMedia(quality: i == 0 ? "Original" : "Original \(i + 1)", height: 0, url: u)
+            }
+            out.append(OpencastVideo(id: id, title: title, thumbnailURL: v.attrs["poster"].flatMap { resolve($0, pageURL) }.flatMap { isHTTPS($0) ? $0 : nil },
+                                     media: media))
+        }
+        for t in tokens {
+            switch t {
+            case .start("tr", let a) where hasClass(a, "media-table-row"): inRow += 1
+            case .end("tr") where inRow > 0: inRow -= 1
+            case .start("video", let a) where inRow == 0:
+                finishVideo()
+                inVideo = (a, [])
+            case .start("source", let a):
+                if inVideo != nil, let u = a["src"].flatMap({ resolve($0, pageURL) }) { inVideo?.sources.append(u) }
+            case .end("video"): finishVideo()
+            case .start("iframe", let a) where inRow == 0:
+                guard let u = a["src"].flatMap({ resolve($0, pageURL) }), isHTTPS(u) else { continue }
+                let s = u.absoluteString.lowercased()
+                guard s.contains("opencast") || s.contains("engage") || s.contains("/play/") || s.contains("/player/") || s.contains("watch") else { continue }
+                let id = [a["id"], a["data-id"]].compactMap { $0 }.first { !$0.isEmpty } ?? u.lastPathComponent
+                guard seen.insert(id).inserted else { continue }
+                let title = [a["title"], a["aria-label"]].compactMap { $0.map(QISParser.clean) }.first { !$0.isEmpty } ?? "Video"
+                let own = pageURL?.host?.lowercased() == u.host?.lowercased()
+                out.append(OpencastVideo(id: id, title: title, playerURL: own ? stripFragment(u) : nil, linkURL: own ? nil : u))
+            default: break
+            }
+        }
+        finishVideo()
+        return out
+    }
+
+    /// Videodatei nach der Adresse (ohne Abfrage): mp4, m4v, webm, mov, m3u8
+    static func isVideoFileURL(_ u: URL) -> Bool {
+        ["mp4", "m4v", "webm", "mov", "m3u8"].contains(u.pathExtension.lowercased())
+    }
+
+    /// Videoliste als JSON in einem `<script>` der Seite: eine Liste von Objekten mit `title` und `token`/`episode`/
+    /// `publication` (Aufbau der API des Opencast-Plugins V3), auch als Wert eines Schluessels `videos`. Hoechstens
+    /// `maxEmbeddedCandidates` Fundstellen je Seite, jede hoechstens 2 MB.
+    static let maxEmbeddedCandidates = 20
+
+    static func embeddedVideos(in tokens: [HTMLToken], pageURL: URL?) -> [OpencastVideo] {
+        var out: [OpencastVideo] = []
+        var seen = Set<String>()
+        var tried = 0
+        for case .raw("script", let text) in tokens {
+            let b = Array(text.utf8)
+            var i = 0
+            while i + 1 < b.count, tried < maxEmbeddedCandidates {
+                guard b[i] == UInt8(ascii: "["), b[i + 1] == UInt8(ascii: "{") else { i += 1; continue }
+                tried += 1
+                guard let end = balancedEnd(b, from: i) else { i += 1; continue }
+                let slice = Data(b[i...end])
+                i = end + 1
+                guard let json = try? JSONValue.parse(slice), let list = json.array,
+                      list.contains(where: { OpencastV3.looksLikeVideo($0) }) else { continue }
+                for v in OpencastV3.videos(from: json, courseID: cidOf(pageURL) ?? "", base: pageURL, prefix: nil) where seen.insert(v.id).inserted {
+                    out.append(v)
+                }
+            }
+        }
+        return out
+    }
+
+    /// Ende einer in `[` beginnenden JSON-Liste (Klammern ausserhalb von Zeichenketten gezaehlt), nil ohne Ende oder
+    /// ab 2 MB
+    static func balancedEnd(_ b: [UInt8], from start: Int) -> Int? {
+        var depth = 0, inString = false, escaped = false
+        var i = start
+        let limit = min(b.count, start + 2_000_000)
+        while i < limit {
+            let c = b[i]
+            if inString {
+                if escaped { escaped = false } else if c == UInt8(ascii: "\\") { escaped = true } else if c == UInt8(ascii: "\"") { inString = false }
+            } else {
+                switch c {
+                case UInt8(ascii: "\""): inString = true
+                case UInt8(ascii: "["), UInt8(ascii: "{"): depth += 1
+                case UInt8(ascii: "]"), UInt8(ascii: "}"):
+                    depth -= 1
+                    if depth == 0 { return i }
+                default: break
+                }
+            }
+            i += 1
+        }
+        return nil
+    }
+
+    static func cidOf(_ u: URL?) -> String? {
+        u.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "cid" }?.value }
     }
 
     /// Die ausdrueckliche Meldung des Plugins in Kursen ohne Reiter ("navigation item ... not found")

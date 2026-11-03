@@ -257,8 +257,10 @@ final class StudIPSync: ObservableObject {
         self.university = university
         self.cookies = cookies ?? ActiveContainer.current?.cookies ?? StudIPCookieStore(account: "ohne-container")
         self.websiteDataStore = websiteDataStore ?? .nonPersistent()
+        // Videodateien aus Stud.IP (Dateibaum, Courseware) laufen ueber die JSON:API mit dem Sitzungs-Cookie dieses Containers
+        let cookieStore = self.cookies
         recordings = RecordingLibrary(root: self.root.appendingPathComponent(RecordingFiles.folder, isDirectory: true), host: host,
-                                      container: container)
+                                      container: container, cookies: { url in Self.ownCookies(cookieStore.load(), host: url.host ?? "") })
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
         knownCourses = defaults.stringArray(forKey: "uniflow.studip.knownCourses").map(Set.init)
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
@@ -520,6 +522,9 @@ final class StudIPSync: ObservableObject {
         if await demoActive() { return nil }
         // waehrend der Pruefung angehalten, schon ein Lauf oder abgemeldet (dann gehoert `client` zur alten Sitzung)
         guard !isRunning, !stopped, signOuts == signOutsBefore else { return nil }
+        // gleicht ein anderes Objekt desselben Containers noch ab (Wechsel A → B → A), keinen zweiten Lauf (P2-2)
+        guard ContainerRuns.claim(root, by: self) else { return nil }
+        defer { ContainerRuns.release(root, by: self) }
         phase = .running("Kurse werden geladen …")
         let task = Task { await self.perform(client: client, scope: scope, olderOnly: olderOnly) }
         current = task
@@ -562,7 +567,8 @@ final class StudIPSync: ObservableObject {
             courses = list.sorted { ($0.semesterStart ?? "", $0.title) > ($1.semesterStart ?? "", $1.title) }
             try? JSONEncoder().encode(courses).write(to: root.appendingPathComponent("courses.json"), options: .atomic)
             // neue Kurse des juengsten Semesters kommen dazu, aeltere werden gemeldet; Abgewaehltes bleibt abgewaehlt
-            let selection = StudIPImport.selection(courses: list, selected: selectedCourses, known: knownCourses)
+            // Kurse, die laut Semesterregel laufen (auch "unbegrenzt"), zaehlen wie das juengste Semester (Riesentest 03.11.2026)
+            let selection = StudIPImport.selection(courses: list, selected: selectedCourses, known: knownCourses, today: clock.today)
             if selection.selected != selectedCourses { selectedCourses = selection.selected }
             knownCourses = selection.known
 
@@ -618,6 +624,8 @@ final class StudIPSync: ObservableObject {
                 let complete = !partial.contains(c.id)
                 wanted += try await db.transaction {
                     try StudIPLibrary.storeLinks($0, courseID: c.id, files, complete: complete, now: started)
+                    // Videodateien zusaetzlich als Aufzeichnungen (Stream und Laden auf Wunsch, `OpencastStore`)
+                    try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
                     return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
                 }
             }
@@ -629,7 +637,9 @@ final class StudIPSync: ObservableObject {
             let gone = try await db.withConnection {
                 try StudIPLibrary.goneRemotely($0, remoteIDs: remoteIDs, checkedCourses: checked.subtracting(partial), under: prefix)
             }
-            let download = wanted.filter(\.isDownloadable)
+            // Videodateien laedt der Abgleich nicht (Entscheidung 7: grosse Dateien nur auf Wunsch); sie stehen bei den
+            // Aufzeichnungen mit "Abspielen" (Stream) und "Laden"
+            let download = wanted.filter { $0.isDownloadable && !OpencastFileVideos.isVideo($0) }
             var failed = 0
             /// Kurse mit einer nicht geladenen Datei (ein frueheres Semester gilt dann nicht als fertig geladen)
             var failedCourses = Set<String>()

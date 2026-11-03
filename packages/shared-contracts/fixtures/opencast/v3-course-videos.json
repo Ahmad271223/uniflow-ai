@@ -1,0 +1,36 @@
+{
+  "videos": [
+    {
+      "id": 21, "token": "tok-0021", "config_id": 1, "episode": "ep-0021",
+      "title": "Vorlesung 3: Grenzwerte", "description": "Mitschnitt vom 06.11.",
+      "duration": 5339000, "views": 12,
+      "preview": {"search": "https://oc.example.test/t/ep-0021-search.jpg", "player": "https://oc.example.test/t/ep-0021.jpg", "has_previews": true},
+      "publication": {
+        "downloads": {
+          "presenter": {
+            "412000000": {"url": "https://oc.example.test/v/ep-0021-1080.mp4", "info": "1920 * 1080 px"},
+            "180000000": {"url": "https://oc.example.test/v/ep-0021-720.mp4", "info": "1280 * 720 px"},
+            "90000000": {"url": "http://oc.example.test/v/ep-0021-480.mp4", "info": "854 * 480 px"}
+          },
+          "presentation": {"95000000": {"url": "https://oc.example.test/v/ep-0021-folien.mp4", "info": "1280 * 720 px"}},
+          "audio": {"20000000": {"url": "https://oc.example.test/v/ep-0021.mp3", "info": "128 kbit/s mp3"}}
+        },
+        "annotation_tool": false, "track_link": "https://oc.example.test/play/ep-0021", "livestream_link": ""
+      },
+      "visibility": "visible", "created": "2026-11-06T10:00:00+01:00", "presenters": "Prof. Dr. Erika Beispiel", "contributors": "",
+      "chdate": 1793955600, "mkdate": 1793955600, "perm": "read", "courses": ["k1"], "tags": [], "trashed": false, "available": true
+    },
+    {
+      "id": 22, "token": "tok-0022", "config_id": 1, "episode": "ep-0022",
+      "title": "Zentralübung 02", "description": null, "duration": 2148000,
+      "preview": null, "publication": {"downloads": [], "annotation_tool": false, "track_link": "https://oc.example.test/play/ep-0022"},
+      "created": null, "presenters": "", "mkdate": 1793350800, "perm": "read", "courses": ["k1"], "tags": [], "trashed": false, "available": true
+    },
+    {
+      "id": 23, "token": "tok-0023", "episode": "ep-0023", "title": "Gelöschtes Video", "duration": 10000,
+      "publication": {"downloads": {"presenter": {"1": {"url": "https://oc.example.test/v/weg.mp4", "info": "1280 * 720 px"}}}},
+      "mkdate": 1793350800, "trashed": true, "available": true
+    }
+  ],
+  "count": 3
+}

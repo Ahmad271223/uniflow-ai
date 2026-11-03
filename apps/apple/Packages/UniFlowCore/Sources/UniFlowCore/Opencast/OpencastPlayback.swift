@@ -90,9 +90,10 @@ public enum RecordingFiles {
     /// Zwischenordner fuer Fortsetzungsdaten abgebrochener Downloads
     public static let partialFolder = ".laden"
 
-    /// "<Kurs>/<Video>-<Qualitaet>.mp4", relativ zum Ordner `folder`
-    public static func relativePath(courseID: String, videoID: String, quality: String) -> String {
-        "\(StudIPImport.safeFileName(courseID))/\(StudIPImport.safeFileName("\(videoID)-\(quality)")).mp4"
+    /// "<Kurs>/<Video>-<Qualitaet>.mp4", relativ zum Ordner `folder`; Dateien aus Stud.IP mit ihrer eigenen Endung
+    /// (`OpencastVideo.fileExtension`, z. B. mov)
+    public static func relativePath(courseID: String, videoID: String, quality: String, ext: String = "mp4") -> String {
+        "\(StudIPImport.safeFileName(courseID))/\(StudIPImport.safeFileName("\(videoID)-\(quality)")).\(ext)"
     }
 
     /// Name der Fortsetzungsdaten (und ihrer Begleitdatei) eines Downloads im Zwischenordner

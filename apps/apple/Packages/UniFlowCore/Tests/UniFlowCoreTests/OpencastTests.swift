@@ -251,11 +251,13 @@ final class OpencastFetchTests: XCTestCase {
         XCTAssertEqual(f.failed, ["c-erst"])
         XCTAssertFalse(f.sessionExpired)
         XCTAssertFalse(f.unreachable)
-        // nur die Listen: nie eine Videodatei, nie der Videoserver (Laden nur auf Wunsch)
+        // nur die Listen: nie eine Videodatei, nie der Videoserver (Laden nur auf Wunsch); ein Kurs ohne das LUH-Plugin
+        // wird einmal (je 7 Tage) beim Opencast-Plugin V3 gefragt (beide Pfade, hier 404)
         let urls = try XCTUnwrap(t).requested
         XCTAssertEqual(urls.map(\.path), ["/plugins.php/opencastpluginluh/media/index", "/plugins.php/opencastpluginluh/media/index",
-                                          "/plugins.php/opencastpluginluh/media/index", "/plugins.php/opencastpluginluh/media/index",
-                                          "/dispatch.php/course/overview"])
+                                          "/plugins.php/opencastpluginluh/media/index",
+                                          "/plugins.php/opencastv3/api/courses/c-prog/videos", "/plugins.php/opencast/api/courses/c-prog/videos",
+                                          "/plugins.php/opencastpluginluh/media/index", "/dispatch.php/course/overview"])
         XCTAssertTrue(urls.allSatisfy { $0.host == "studip.example.test" && $0.pathExtension != "mp4" })
     }
 

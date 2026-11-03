@@ -92,11 +92,15 @@ final class RecordingLibrary: ObservableObject {
     private var thumbnails: [URL: UIImage] = [:]
     /// angehalten (Container wird geloescht, `StudIPSync.stop`): kein neuer Download
     private(set) var stopped = false
+    /// Sitzungs-Cookies des Containers fuer eine Adresse (nur Stud.IP): Videodateien aus dem Dateibaum und der Courseware
+    /// kommen ueber die JSON:API, die den Cookie verlangt; der Videoserver bekommt nie einen
+    private let cookieSource: (URL) -> [HTTPCookie]
 
-    init(root: URL, host: LocalBackendHost, container: DataContainerLayout? = nil) {
+    init(root: URL, host: LocalBackendHost, container: DataContainerLayout? = nil, cookies: @escaping (URL) -> [HTTPCookie] = { _ in [] }) {
         self.root = root
         self.host = host
         self.container = container
+        self.cookieSource = cookies
         let d = RecordingDownloadDelegate()
         delegate = d
         let config = URLSessionConfiguration.ephemeral
@@ -114,7 +118,32 @@ final class RecordingLibrary: ObservableObject {
     var partialFolder: URL { root.appendingPathComponent(RecordingFiles.partialFolder, isDirectory: true) }
 
     func target(_ e: OpencastEntry, quality: String) -> URL {
-        root.appendingPathComponent(RecordingFiles.relativePath(courseID: e.courseID, videoID: e.video.id, quality: quality))
+        root.appendingPathComponent(RecordingFiles.relativePath(courseID: e.courseID, videoID: e.video.id, quality: quality, ext: e.video.fileExtension))
+    }
+
+    /// Cookies des Containers fuer diese Adresse (Stud.IP-Host), sonst leer
+    func cookies(for url: URL) -> [HTTPCookie] { cookieSource(url).filter { Self.matches($0, url) } }
+
+    /// Wert des Cookie-Headers fuer eine Anfrage an `url` (nil ohne passende Cookies)
+    nonisolated static func cookieHeader(_ cookies: [HTTPCookie], for url: URL) -> String? {
+        let matching = cookies.filter { matches($0, url) }
+        guard !matching.isEmpty, let h = HTTPCookie.requestHeaderFields(with: matching)["Cookie"], !h.isEmpty else { return nil }
+        return h
+    }
+
+    /// Cookie gilt fuer den Host der Adresse (Domain mit oder ohne fuehrenden Punkt)
+    nonisolated static func matches(_ c: HTTPCookie, _ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        let d = (c.domain.hasPrefix(".") ? String(c.domain.dropFirst()) : c.domain).lowercased()
+        return host == d || host.hasSuffix("." + d)
+    }
+
+    /// Anfrage an eine Videoadresse: mit dem Sitzungs-Cookie nur fuer Dateien aus Stud.IP (`needsStudIPSession`)
+    private func request(_ url: URL, for video: OpencastVideo, timeout: TimeInterval = 60) -> URLRequest {
+        var r = URLRequest(url: url)
+        r.timeoutInterval = timeout
+        if video.needsStudIPSession, let h = Self.cookieHeader(cookies(for: url), for: url) { r.setValue(h, forHTTPHeaderField: "Cookie") }
+        return r
     }
 
     func resumeURL(_ e: OpencastEntry, quality: String) -> URL {
@@ -212,8 +241,8 @@ final class RecordingLibrary: ObservableObject {
     /// Sitzung der Vorschaubilder und Videos (Tests: kein Zwischenspeicher, keine Cookies)
     var sessionConfiguration: URLSessionConfiguration { session.configuration }
 
-    func probe(_ url: URL) async -> Probe {
-        var r = URLRequest(url: url)
+    func probe(_ url: URL, for video: OpencastVideo? = nil) async -> Probe {
+        var r = video.map { request(url, for: $0, timeout: 20) } ?? URLRequest(url: url)
         r.httpMethod = "HEAD"
         r.timeoutInterval = 20
         guard let (_, response) = try? await session.data(for: r), let http = response as? HTTPURLResponse else { return Probe(status: nil, size: nil) }
@@ -258,7 +287,7 @@ final class RecordingLibrary: ObservableObject {
             task = session.downloadTask(withResumeData: data)
         } else {
             Self.discardResume(resume)
-            task = session.downloadTask(with: d.url)
+            task = session.downloadTask(with: request(d.url, for: e.video))
         }
         delegate.register(task.taskIdentifier, job: .init(key: e.id, courseID: e.courseID, videoID: e.video.id, quality: d.quality,
                                                           url: d.url, target: target, resume: resume, previous: localFile(e)?.url))

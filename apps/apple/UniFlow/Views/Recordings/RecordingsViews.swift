@@ -123,6 +123,24 @@ struct RecordingWeekBlocks: View {
 enum RecordingText {
     static func count(_ n: Int) -> String { n == 1 ? "1 Aufzeichnung" : "\(n) Aufzeichnungen" }
 
+    /// Herkunft ausser Opencast: "Datei in Stud.IP", "Courseware", "Link"
+    static func sourceLabel(_ v: OpencastVideo) -> String? {
+        switch v.source {
+        case OpencastVideo.sourceFile: return "Datei in Stud.IP"
+        case OpencastVideo.sourceCourseware: return "Courseware"
+        case OpencastVideo.sourceLink: return "Link"
+        default: return nil
+        }
+    }
+
+    /// Beschriftung des Hauptknopfs: Abspielen (Videodatei), In Stud.IP öffnen (Seite), Link öffnen (Browser); nil ohne Weg
+    static func primaryAction(_ v: OpencastVideo) -> String? {
+        if !v.media.isEmpty { return "Abspielen" }
+        if v.playerURL != nil { return "In Stud.IP öffnen" }
+        if v.linkURL != nil { return "Link öffnen" }
+        return nil
+    }
+
     /// "1:28 h", "36 min"
     static func duration(_ seconds: Int?) -> String? {
         guard let s = seconds, s > 0 else { return nil }
@@ -143,10 +161,11 @@ struct RecordingRow: View {
     var showCourse = false
     @ObservedObject var library: RecordingLibrary
     let play: () -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         let v = entry.video
-        let meta = [entry.label, RecordingText.duration(v.duration), RecordingText.date(v.created), v.author].compactMap { $0 }
+        let meta = [entry.label, RecordingText.sourceLabel(v), RecordingText.duration(v.duration), RecordingText.date(v.created), v.author].compactMap { $0 }
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 12.8) {
                 RecordingThumbnail(url: v.thumbnailURL, library: library, action: play)
@@ -179,9 +198,20 @@ struct RecordingRow: View {
         }
     }
 
+    /// Videodatei: Abspielen und Laden; Courseware-Block: seine Seite in Stud.IP (Webansicht mit Sitzung); Link: Browser
     private var actions: some View {
-        HStack(spacing: 8) {
-            UFButton("Abspielen", icon: "play", kind: .primary, size: .small, action: play)
+        let v = entry.video
+        let primary = RecordingText.primaryAction(v)
+        return HStack(spacing: 8) {
+            if primary == "Link öffnen", let link = v.linkURL {
+                UFButton("Link öffnen", icon: "arrow-right", kind: .primary, size: .small) { openURL(link) }
+                    .accessibilityHint("Öffnet die Videoplattform im Browser")
+            } else if let primary {
+                UFButton(primary, icon: "play", kind: .primary, size: .small, action: play)
+                if let link = v.linkURL {
+                    UFButton("Link öffnen", icon: "arrow-right", kind: .ghost, size: .small) { openURL(link) }
+                }
+            }
             RecordingDownloadControl(entry: entry, library: library)
         }
     }
@@ -293,19 +323,25 @@ struct RecordingDownloadControl: View {
             library.start(entry, media: d)
             return
         }
-        asking = true
-        let probe = await library.probe(d.url)
-        asking = false
-        if probe.needsLogin {
-            toast.show("Der Videoserver verlangt eine Anmeldung – laden geht nicht, abspielen geht über Stud.IP.", seconds: 4)
-            return
+        // Groesse: aus der Dateiliste (Dateibaum), sonst per HEAD beim Server (Stud.IP-Dateien mit Sitzung)
+        var size = entry.video.size
+        if size == nil {
+            asking = true
+            let probe = await library.probe(d.url, for: entry.video)
+            asking = false
+            if probe.needsLogin {
+                toast.show(entry.video.needsStudIPSession ? "Stud.IP verlangt eine neue Anmeldung, bevor die Datei geladen werden kann."
+                           : "Der Videoserver verlangt eine Anmeldung – laden geht nicht, abspielen geht über Stud.IP.", seconds: 4)
+                return
+            }
+            // keine Antwort oder Fehlerstatus: der Download koennte gar nicht starten, also keine Rueckfrage zur Groesse
+            if let problem = probe.failure {
+                toast.show(problem, seconds: 4)
+                return
+            }
+            size = probe.size
         }
-        // keine Antwort oder Fehlerstatus: der Download koennte gar nicht starten, also keine Rueckfrage zur Groesse
-        if let problem = probe.failure {
-            toast.show(problem, seconds: 4)
-            return
-        }
-        switch RecordingDownloadPolicy.decide(title: entry.video.title, quality: d.quality, size: probe.size, freeBytes: library.freeBytes()) {
+        switch RecordingDownloadPolicy.decide(title: entry.video.title, quality: d.quality, size: size, freeBytes: library.freeBytes()) {
         case .refuse(let message):
             toast.show(message, seconds: 4)
         case .confirm(let question):
@@ -338,7 +374,7 @@ struct RecordingsUnassignedSection: View {
                         Text("Aufzeichnungen ohne Modul").ufFont(17.6, 650, em: -0.01)
                     }
                     .foregroundStyle(UF.text)
-                    Text("Opencast-Aufzeichnungen aus Stud.IP-Kursen, die keinem Modul zugeordnet sind.")
+                    Text("Aufzeichnungen und Videos aus Stud.IP-Kursen, die keinem Modul zugeordnet sind.")
                         .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 2.4).padding(.bottom, 12.8)
                     UFAutoGrid(min: 260, spacing: 12.8) {
                         ForEach(groups) { g in
@@ -588,9 +624,11 @@ struct RecordingPlayerView: View {
             play(url, local: true, quality: q, saved: current.position)
         case .stream(let url, let q):
             mode = .loading
-            let probe = await library.probe(url)
+            let probe = await library.probe(url, for: current.video)
             if probe.needsLogin {
-                fallback("Der Videoserver verlangt eine Anmeldung (HTTP \(probe.status ?? 0)). Die Aufzeichnung läuft deshalb über die Stud.IP-Seite mit deiner Stud.IP-Sitzung.")
+                fallback(current.video.needsStudIPSession
+                         ? "Stud.IP verlangt eine neue Anmeldung (HTTP \(probe.status ?? 0)). Melde dich erneut bei Stud.IP an, dann läuft die Datei."
+                         : "Der Videoserver verlangt eine Anmeldung (HTTP \(probe.status ?? 0)). Die Aufzeichnung läuft deshalb über die Stud.IP-Seite mit deiner Stud.IP-Sitzung.")
                 return
             }
             // offline oder Server nicht erreichbar: klare Meldung statt der Stud.IP-Seite, die dann ebenfalls leer bliebe
@@ -600,15 +638,21 @@ struct RecordingPlayerView: View {
             }
             play(url, local: false, quality: q, saved: current.position)
         case .webPlayer(let url):
-            mode = .web(url, message: "Für diese Aufzeichnung gibt es keine direkte Videodatei; sie läuft über die Stud.IP-Seite.")
+            mode = .web(url, message: current.video.source == OpencastVideo.sourceCourseware
+                        ? "Dieses Video steht in der Courseware des Kurses; hier öffnet sich seine Seite in Stud.IP."
+                        : "Für diese Aufzeichnung gibt es keine direkte Videodatei; sie läuft über die Stud.IP-Seite.")
         case .unavailable:
-            mode = .failed("Diese Aufzeichnung lässt sich nicht abspielen: Stud.IP nennt weder Videodatei noch Player-Seite.")
+            mode = .failed(current.video.linkURL != nil ? "Dieses Video liegt auf einer anderen Plattform. Öffne den Link im Browser."
+                           : "Diese Aufzeichnung lässt sich nicht abspielen: Stud.IP nennt weder Videodatei noch Player-Seite.")
         }
     }
 
     private func play(_ url: URL, local: Bool, quality q: String, saved: Double?) {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
-        let item = AVPlayerItem(url: url)
+        // Dateien aus Stud.IP (JSON:API) brauchen das Sitzungs-Cookie des Containers; der Videoserver bekommt keins
+        let cookies = !local && entry.video.needsStudIPSession ? library.cookies(for: url) : []
+        let item = cookies.isEmpty ? AVPlayerItem(url: url)
+            : AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: cookies]))
         let p = AVPlayer(playerItem: item)
         let duration = entry.video.duration.map(Double.init)
         statusObserver = item.observe(\.status, options: [.new]) { item, _ in

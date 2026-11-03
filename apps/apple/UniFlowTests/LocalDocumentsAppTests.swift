@@ -584,8 +584,9 @@ final class LocalDocumentsAppTests: XCTestCase {
         let dev = try device()
         let pdf = makePDF("Blatt")
         let stud = fakeStudIP(pdf: pdf)
+        // grosse Datei, aber kein Video: Videodateien laedt der Abgleich seit 03.11.2026 nicht von selbst (Aufzeichnungen, "Laden")
         stud.json("/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500", #"""
-            {"data":[{"id":"d1","attributes":{"name":"Vorlesung.mp4","filesize":800000000,"mime-type":"video/mp4","chdate":"2026-10-19T10:00:00+02:00"}},
+            {"data":[{"id":"d1","attributes":{"name":"Vorlesung.zip","filesize":800000000,"mime-type":"application/zip","chdate":"2026-10-19T10:00:00+02:00"}},
                      {"id":"d3","attributes":{"name":"Blatt 4.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-19T12:00:00+02:00"}}]}
             """#)
         stud.fail("/jsonapi.php/v1/file-refs/d1/content", URLError(.timedOut))
@@ -600,7 +601,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         let d1 = try await dev.api.value("/api/files/d1")
         XCTAssertEqual(d1["exists"], false)
 
-        stud.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 200, contentType: "video/mp4", body: Data("Film".utf8)))
+        stud.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 200, contentType: "application/zip", body: Data("PK-Archiv".utf8)))
         let before = stud.downloads.count
         await sync.run(client: client(stud))
         XCTAssertEqual(Array(stud.downloads.dropFirst(before)), ["/jsonapi.php/v1/file-refs/d1/content"])

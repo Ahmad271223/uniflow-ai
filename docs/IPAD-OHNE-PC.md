@@ -795,7 +795,8 @@ Datei fortschreiben.
 6. **Backup:** Notizen, Plan und Einstellungen ins iCloud-Backup; Stud.IP-Dateien, alte Fassungen und Seitentexte
    ausgenommen.
 7. **Große Dateien** (z. B. Videos über 100 MB) werden nur auf Wunsch geladen. Umgesetzt für die Opencast-Aufzeichnungen
-   (`RecordingDownloadPolicy`); Stud.IP-Dateien lädt der Abgleich weiterhin alle (Oberfläche dafür fehlt noch).
+   (`RecordingDownloadPolicy`) und seit 03.11.2026 für Videodateien im Dateibaum (sie stehen bei den Aufzeichnungen mit
+   „Abspielen“ als Stream und „Laden“, `OpencastFileVideos`); andere Stud.IP-Dateien lädt der Abgleich weiterhin alle.
 
 **Offen:**
 

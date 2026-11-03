@@ -184,12 +184,105 @@ public enum OpencastStore {
             position REAL,                        -- gemerkte Stelle beim Abspielen (Sekunden)
             local_path TEXT,                      -- geladene Datei relativ zum Container (nur auf Wunsch)
             local_quality TEXT,
+            source TEXT NOT NULL DEFAULT 'opencast', -- opencast | file (Dateibaum) | courseware (Block) | link
+            link_url TEXT,                        -- Adresse ausserhalb von Stud.IP (Videoplattform)
+            size INTEGER,                         -- Groesse der Videodatei laut Liste (Dateibaum)
             PRIMARY KEY (course_id, id)
         );
         """
 
+    /// Spalten, die seit dem 03.11.2026 dazukamen (Tabellen aelterer Geraete bekommen sie per ALTER TABLE)
+    static let addedColumns: [(String, String)] = [("source", "TEXT NOT NULL DEFAULT 'opencast'"), ("link_url", "TEXT"), ("size", "INTEGER")]
+
     static func tableExists(_ c: SQLiteConnection) throws -> Bool {
         try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='opencast_videos'") != nil
+    }
+
+    /// Tabellen anlegen bzw. um die neuen Spalten ergaenzen (vor jedem Schreiben)
+    public static func ensureTables(_ c: SQLiteConnection) throws {
+        try c.executeScript(tables)
+        let have = Set(try c.columnNames("opencast_videos"))
+        for (name, type) in addedColumns where !have.contains(name) {
+            try c.execute("ALTER TABLE opencast_videos ADD COLUMN \(name) \(type)")
+        }
+    }
+
+    /// Zeile eines Videos schreiben (neu oder aktualisiert; gemerkte Stelle und geladene Datei bleiben). Rueckgabe: neu?
+    @discardableResult
+    static func upsert(_ c: SQLiteConnection, courseID: String, _ v: OpencastVideo, existing: Set<String>, now: String) throws -> Bool {
+        try c.execute("""
+            INSERT INTO opencast_videos(course_id, id, title, description, duration, author, created, thumbnail_url, player_url,
+                                        media, first_seen, fetched_at, gone, source, link_url, size)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)
+            ON CONFLICT(course_id, id) DO UPDATE SET title=excluded.title, description=excluded.description,
+                duration=excluded.duration, author=excluded.author, created=excluded.created,
+                thumbnail_url=excluded.thumbnail_url, player_url=excluded.player_url, media=excluded.media,
+                fetched_at=excluded.fetched_at, gone=0, source=excluded.source, link_url=excluded.link_url,
+                size=COALESCE(excluded.size, size)
+            """, [.text(courseID), .text(v.id), .text(v.title), SQLiteValue(v.description), SQLiteValue(v.duration),
+                  SQLiteValue(v.author), SQLiteValue(v.created), SQLiteValue(v.thumbnailURL?.absoluteString),
+                  SQLiteValue(v.playerURL?.absoluteString), .text(mediaJSON(v.media)), .text(now), .text(now),
+                  .text(v.source), SQLiteValue(v.linkURL?.absoluteString), SQLiteValue(v.size)])
+        return !existing.contains(v.id)
+    }
+
+    /// Nicht mehr gelistete Videos einer Quelle: ohne geladene Datei weg, sonst `gone`
+    static func retire(_ c: SQLiteConnection, courseID: String, ids: [String]) throws {
+        for id in ids.sorted() {
+            try c.execute("DELETE FROM opencast_videos WHERE course_id=? AND id=? AND local_path IS NULL", [.text(courseID), .text(id)])
+            try c.execute("UPDATE opencast_videos SET gone=1 WHERE course_id=? AND id=?", [.text(courseID), .text(id)])
+        }
+    }
+
+    static func ids(_ c: SQLiteConnection, courseID: String, source: String) throws -> Set<String> {
+        Set(try c.query("SELECT id FROM opencast_videos WHERE course_id=? AND source=?", [.text(courseID), .text(source)]).compactMap { $0[0].string })
+    }
+
+    /// Videodateien aus dem Dateibaum eines Kurses (nach seiner Dateiliste im Abgleich). `complete`: Liste vollstaendig
+    /// gelesen (kein Ordner uebersprungen), dann verschwinden Dateien, die Stud.IP nicht mehr liefert. Eine vom Abgleich
+    /// frueher geladene Datei (`files.local_path`) gilt als geladene Fassung "Original". Tabellen nur anlegen, wenn es
+    /// Videodateien gibt. Rueckgabe: Zahl der neuen Videodateien.
+    @discardableResult
+    public static func storeFileVideos(_ c: SQLiteConnection, courseID: String, _ files: [StudIPFile], complete: Bool, now: String,
+                                       base: URL) throws -> Int {
+        let videos = files.filter { $0.courseID == courseID && OpencastFileVideos.isVideo($0) }
+        let exists = try tableExists(c)
+        if videos.isEmpty, !complete || !exists { return 0 }
+        try ensureTables(c)
+        let existing = try ids(c, courseID: courseID, source: OpencastVideo.sourceFile)
+        var new = 0
+        for f in videos {
+            let v = OpencastFileVideos.video(f, base: base)
+            if try upsert(c, courseID: courseID, v, existing: existing, now: now) { new += 1 }
+            // schon vom Abgleich geladen (vor dem 03.11.2026 lud er jede Datei): als Fassung "Original" uebernehmen
+            if let path = try c.scalar("SELECT local_path FROM files WHERE id=? AND local_path IS NOT NULL", [.text(f.id)])?.string {
+                try c.execute("UPDATE opencast_videos SET local_path=?, local_quality='Original' WHERE course_id=? AND id=? AND local_path IS NULL",
+                              [.text(path), .text(courseID), .text(v.id)])
+            }
+        }
+        if complete { try retire(c, courseID: courseID, ids: Array(existing.subtracting(videos.map { OpencastFileVideos.id(fileID: $0.id) }))) }
+        return new
+    }
+
+    /// Medien aus der Courseware eines Kurses (`CoursewareMedia`, im Abgleich der Lerntexte). `readElements`: Seiten, deren
+    /// Bloecke gelesen wurden (ihre Liste ist massgeblich; unveraenderte Seiten werden nicht erneut gelesen, ihre Eintraege
+    /// bleiben); `seenElements`: alle in Stud.IP gesehenen Seiten; `complete`: Courseware vollstaendig gelesen, dann
+    /// verschwinden Eintraege von Seiten, die es nicht mehr gibt.
+    public static func storeCoursewareVideos(_ c: SQLiteConnection, courseID: String, _ videos: [OpencastVideo], readElements: [String],
+                                             seenElements: [String], complete: Bool, now: String) throws {
+        let exists = try tableExists(c)
+        if videos.isEmpty, !exists { return }
+        try ensureTables(c)
+        let existing = try ids(c, courseID: courseID, source: OpencastVideo.sourceCourseware)
+        for v in videos { try upsert(c, courseID: courseID, v, existing: existing, now: now) }
+        let listed = Set(videos.map(\.id))
+        let read = Set(readElements), seen = Set(seenElements)
+        let gone = existing.filter { id in
+            guard !listed.contains(id) else { return false }
+            let element = id.split(separator: ":").dropFirst().first.map(String.init) ?? ""
+            return read.contains(element) || (complete && !seen.contains("cw-" + element))
+        }
+        try retire(c, courseID: courseID, ids: Array(gone))
     }
 
     // MARK: Abruf
@@ -235,7 +328,7 @@ public enum OpencastStore {
     /// (gemerkte Stelle und geladene Datei bleiben); nicht mehr gelistete Videos verschwinden, ausser es gibt eine
     /// geladene Datei (dann `gone`, sichtbar und abspielbar, bis der Nutzer sie entfernt).
     public static func store(_ f: OpencastFetch, in c: SQLiteConnection, clock: UniFlowClock) throws -> OpencastStoreResult {
-        try c.executeScript(tables)
+        try ensureTables(c)
         let now = clock.nowISO
         var newVideos = 0, videos = 0
         for (courseID, listing) in f.listings.sorted(by: { $0.key < $1.key }) {
@@ -249,27 +342,16 @@ public enum OpencastStore {
                 INSERT INTO opencast_courses(course_id, status, checked_at) VALUES (?,?,?)
                 ON CONFLICT(course_id) DO UPDATE SET status=excluded.status, checked_at=excluded.checked_at
                 """, [.text(courseID), .text(status), .integer(Int64(f.checkedAt))])
-            let existing = Set(try c.query("SELECT id FROM opencast_videos WHERE course_id=?", [.text(courseID)]).compactMap { $0[0].string })
+            // nur die Opencast-Zeilen des Kurses; Videodateien und Courseware-Medien gehoeren anderen Abrufen
+            let existing = try ids(c, courseID: courseID, source: OpencastVideo.sourceOpencast)
             for v in list {
-                if !existing.contains(v.id) { newVideos += 1 }
+                let row = OpencastVideo(id: v.id, title: v.title, description: v.description, duration: v.duration, author: v.author,
+                                        created: v.created, thumbnailURL: v.thumbnailURL, playerURL: v.playerURL, media: v.media,
+                                        source: OpencastVideo.sourceOpencast, linkURL: v.linkURL, size: v.size)
+                if try upsert(c, courseID: courseID, row, existing: existing, now: now) { newVideos += 1 }
                 videos += 1
-                try c.execute("""
-                    INSERT INTO opencast_videos(course_id, id, title, description, duration, author, created, thumbnail_url, player_url,
-                                                media, first_seen, fetched_at, gone)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)
-                    ON CONFLICT(course_id, id) DO UPDATE SET title=excluded.title, description=excluded.description,
-                        duration=excluded.duration, author=excluded.author, created=excluded.created,
-                        thumbnail_url=excluded.thumbnail_url, player_url=excluded.player_url, media=excluded.media,
-                        fetched_at=excluded.fetched_at, gone=0
-                    """, [.text(courseID), .text(v.id), .text(v.title), SQLiteValue(v.description), SQLiteValue(v.duration),
-                          SQLiteValue(v.author), SQLiteValue(v.created), SQLiteValue(v.thumbnailURL?.absoluteString),
-                          SQLiteValue(v.playerURL?.absoluteString), .text(mediaJSON(v.media)), .text(now), .text(now)])
             }
-            let listed = Set(list.map(\.id))
-            for id in existing.subtracting(listed).sorted() {
-                try c.execute("DELETE FROM opencast_videos WHERE course_id=? AND id=? AND local_path IS NULL", [.text(courseID), .text(id)])
-                try c.execute("UPDATE opencast_videos SET gone=1 WHERE course_id=? AND id=?", [.text(courseID), .text(id)])
-            }
+            try retire(c, courseID: courseID, ids: Array(existing.subtracting(list.map(\.id))))
         }
         return OpencastStoreResult(newVideos: newVideos, videos: videos)
     }
@@ -330,24 +412,40 @@ public enum OpencastStore {
         WHERE c.active=1
         """
 
-    /// Aufzeichnungen der aktiven Kurse eines Moduls (`moduleID`), der Kurse ohne Modul (`.null`) oder aller (nil)
+    /// Aufzeichnungen der aktiven Kurse eines Moduls (`moduleID`), der Kurse ohne Modul (`.null`) oder aller (nil):
+    /// die gespeicherten Zeilen (Opencast, Dateibaum, Courseware) und dazu die Links auf Videoplattformen aus
+    /// Beschreibung und Sonstiges der Kurse (nicht gespeichert, bei jedem Lesen aus `courses`)
     static func entries(_ c: SQLiteConnection, moduleID: SQLiteValue?, dates: LocalModules.Dates) throws -> [OpencastEntry] {
-        guard try tableExists(c) else { return [] }
-        var sql = entrySQL
+        var sql = entrySQL, courseSQL = "SELECT id, title, module_id, description, miscellaneous FROM courses c WHERE c.active=1"
         var params: [SQLiteValue] = []
         switch moduleID {
         case nil: break
-        case .null?: sql += " AND c.module_id IS NULL"
-        case let m?: sql += " AND c.module_id=?"; params.append(m)
+        case .null?: sql += " AND c.module_id IS NULL"; courseSQL += " AND c.module_id IS NULL"
+        case let m?: sql += " AND c.module_id=?"; courseSQL += " AND c.module_id=?"; params.append(m)
         }
-        return try c.query(sql + " ORDER BY v.created, v.title, v.id", params).map { try entry($0, dates: dates) }
+        var out: [OpencastEntry] = []
+        if try tableExists(c) { out = try c.query(sql + " ORDER BY v.created, v.title, v.id", params).map { try entry($0, dates: dates) } }
+        let hasTexts = (try? c.columnNames("courses").contains("description")) ?? false
+        guard hasTexts else { return out }
+        for r in try c.query(courseSQL + " ORDER BY c.title, c.id", params) {
+            let text = [r["description"]?.string, r["miscellaneous"]?.string].compactMap { $0 }.joined(separator: "\n")
+            guard !text.isEmpty else { continue }
+            for v in VideoLinks.videos(in: text) {
+                let w = try week(v, dates: dates)
+                out.append(OpencastEntry(courseID: r["id"]?.string ?? "", courseTitle: r["title"]?.string ?? "", moduleID: r["module_id"]?.int,
+                                         video: v, week: w.week, kind: w.kind, label: w.label))
+            }
+        }
+        return out
     }
 
     static func entry(_ r: SQLiteRow, dates: LocalModules.Dates) throws -> OpencastEntry {
         let v = OpencastVideo(id: r["id"]?.string ?? "", title: r["title"]?.string ?? "", description: r["description"]?.string,
                               duration: r["duration"]?.int, author: r["author"]?.string, created: r["created"]?.int,
                               thumbnailURL: r["thumbnail_url"]?.string.flatMap(URL.init(string:)),
-                              playerURL: r["player_url"]?.string.flatMap(URL.init(string:)), media: media(json: r["media"]?.string))
+                              playerURL: r["player_url"]?.string.flatMap(URL.init(string:)), media: media(json: r["media"]?.string),
+                              source: r["source"]?.string ?? OpencastVideo.sourceOpencast,
+                              linkURL: r["link_url"]?.string.flatMap(URL.init(string:)), size: r["size"]?.int.map(Int64.init))
         let w = try week(v, dates: dates)
         return OpencastEntry(courseID: r["course_id"]?.string ?? "", courseTitle: r["course_title"]?.string ?? "",
                              moduleID: r["module_id"]?.int, video: v, week: w.week, kind: w.kind, label: w.label,
@@ -398,7 +496,6 @@ public enum OpencastStore {
 
     /// Aufzeichnungen eines Moduls nach Lehrwoche (Bereich "Aufzeichnungen" im Moduldetail)
     public static func moduleBlocks(_ c: SQLiteConnection, moduleID: Int, clock: UniFlowClock) throws -> [OpencastWeekBlock] {
-        guard try tableExists(c) else { return [] }
         let dates = try LocalModules.Dates(c, clock: clock)
         return blocks(try entries(c, moduleID: .integer(Int64(moduleID)), dates: dates), start: dates.start)
     }
@@ -410,7 +507,6 @@ public enum OpencastStore {
 
     /// Kurse ohne Modul mit Aufzeichnungen (nach Kurstitel), je Kurs nach Lehrwoche
     public static func unassigned(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [OpencastCourseGroup] {
-        guard try tableExists(c) else { return [] }
         let dates = try LocalModules.Dates(c, clock: clock)
         let all = try entries(c, moduleID: .null, dates: dates)
         var order: [String] = []
@@ -445,7 +541,8 @@ public enum OpencastStore {
         guard let module = f.json["module_id"]?.int else { return nil }
         let dates = try LocalModules.Dates(c, clock: clock)
         let week = try LocalModules.week(f, dates: dates)
-        let entries = try entries(c, moduleID: .integer(Int64(module)), dates: dates)
+        // Links aus der Kursbeschreibung sind keine Aufzeichnung einer Lehrwoche (kein sicherer Treffer)
+        let entries = try entries(c, moduleID: .integer(Int64(module)), dates: dates).filter { $0.video.source != OpencastVideo.sourceLink }
         guard !entries.isEmpty else { return nil }
         let title = try c.scalar("SELECT title FROM files WHERE id=?", [.text(fileID)])?.string
         let docText = [f.json["name"]?.string, title, f.json["ai_title"]?.string, text].compactMap { $0 }.joined(separator: "\n")
@@ -576,9 +673,25 @@ extension StudIPClient {
         let html = String(decoding: r.body, as: UTF8.self)
         switch OpencastParser.parse(html: html, status: r.status, pageURL: page) {
         case .videos(let v):
-            return .videos(v)
+            // weitere Listenseiten desselben Kurses (Seitenzahlen, Reiter fuer Serien/Playlists), jede einmal
+            var all = v
+            var seen = Set(v.map(\.id)), visited: Set<String> = [OpencastParser.mediaIndexPath(courseID: courseID)]
+            var queue = OpencastParser.furtherPages(html: html, courseID: courseID, pageURL: page)
+            while let path = queue.first, visited.count <= OpencastParser.maxFurtherPages {
+                queue.removeFirst()
+                guard visited.insert(path).inserted else { continue }
+                let more = try await htmlPage(path)
+                let moreHTML = String(decoding: more.body, as: UTF8.self)
+                let morePage = more.finalURL.flatMap { $0.host?.lowercased() == base.host?.lowercased() ? $0 : nil } ?? URL(string: path, relativeTo: base)?.absoluteURL ?? base
+                guard case .videos(let list) = OpencastParser.parse(html: moreHTML, status: more.status, pageURL: morePage) else { continue }
+                all += list.filter { seen.insert($0.id).inserted }
+                queue += OpencastParser.furtherPages(html: moreHTML, courseID: courseID, pageURL: morePage).filter { !visited.contains($0) }
+            }
+            return .videos(all)
         case .noOpencast:
-            return knownAvailable && !OpencastParser.saysNavigationMissing(html) ? nil : .noOpencast
+            if knownAvailable, !OpencastParser.saysNavigationMissing(html) { return nil }
+            // Kurs ohne das LUH-Plugin: vielleicht das Opencast-Plugin V3 (eigene Pfade, JSON)
+            return try await opencastV3Listing(courseID: courseID) ?? .noOpencast
         case .unrecognized:
             guard !knownAvailable else { return nil }
             // Seite sagt nichts Eindeutiges: nur der sichere Kursueberblick ohne Navigationslink "Aufzeichnungen" heisst
@@ -587,6 +700,10 @@ extension StudIPClient {
             let overview = String(decoding: o.body, as: UTF8.self)
             guard (200..<300).contains(o.status),
                   OpencastParser.isCourseOverview(html: overview, finalURL: o.finalURL, courseID: courseID) else { return nil }
+            if OpencastParser.courseHasOpencastV3(overviewHTML: overview) {
+                let prefix = OpencastParser.opencastLinks(overviewHTML: overview).compactMap { OpencastV3.prefix(of: $0.href) }.first
+                if let v3 = try await opencastV3Listing(courseID: courseID, preferredPrefix: prefix) { return v3 }
+            }
             return OpencastParser.courseHasRecordings(overviewHTML: overview) ? nil : .noOpencast
         }
     }
