@@ -157,7 +157,8 @@ struct CommunitySpacesCard: View {
         }
         .padding(.bottom, 16)
         .task { await reload() }
-        .sheet(item: $open) { s in CommunitySpaceSheet(space: s, service: service) { open = nil } }
+        // ganze Seite statt schmalem Formular-Fenster (03.11.2026: der Kanal braucht die Breite fuer die Kartenreihen)
+        .fullScreenCover(item: $open) { s in CommunitySpaceSheet(space: s, service: service) { open = nil } }
     }
 
     static func detail(_ s: CommunitySpace) -> String {
@@ -189,7 +190,10 @@ struct CommunitySpaceSheet: View {
     let space: CommunitySpace
     let service: CommunityService
     let close: () -> Void
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var account: AccountStore
     @State private var items: [CommunitySolutionSummary]?
+    @State private var module: JSONValue?
     @State private var error: String?
 
     var body: some View {
@@ -198,11 +202,13 @@ struct CommunitySpaceSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if let error { CommunityNotice(text: error) }
                     if let items {
-                        if items.isEmpty {
+                        let weeks = module?.list("weeks") ?? []
+                        if items.isEmpty && CommunityChannel.skeleton(weeks: weeks).isEmpty {
                             UFCard { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
                         } else {
-                            // Kanal wie Studydrive, nach Lehrwoche (CommunityChannelView)
-                            CommunityChannelView(service: service, solutions: Binding(get: { self.items ?? [] }, set: { self.items = $0 }))
+                            // Kanal wie Studydrive, nach Lehrwoche: alle Blaetter des eigenen Moduls, dazu das Geteilte
+                            CommunityChannelView(service: service, solutions: Binding(get: { self.items ?? [] }, set: { self.items = $0 }),
+                                                 files: module?.list("files") ?? [], weeks: weeks)
                         }
                     } else if error == nil { CommunityLoading(text: "Lösungen werden geladen …") }
                 }
@@ -226,6 +232,10 @@ struct CommunitySpaceSheet: View {
     }
 
     private func load() async {
+        // eigenes Modul zur Community: seine Wochen und Blaetter bilden den Kanal (auch ohne Geteiltes)
+        if space.kind == .course, module == nil, let api = session.api, let uni = account.university?.rawValue {
+            module = await CommunityChannel.module(for: space.key, university: uni, api: api)
+        }
         do { items = try await service.solutions(in: space); error = nil } catch { self.error = CommunityTexts.message(error) }
     }
 }
@@ -718,7 +728,7 @@ struct CommunityModulePanel: View {
                     if let error { CommunityNotice(text: error).padding(.top, 8) }
                 }
                 if let items {
-                    if items.isEmpty {
+                    if items.isEmpty && CommunityChannel.skeleton(weeks: weeks).isEmpty {
                         UFCard { UFEmpty(icon: "users", text: "Noch keine Lösungen aus der Community zu diesem Modul.", small: true) }
                     } else {
                         // Kanal wie Studydrive, nach Lehrwoche (CommunityChannelView)

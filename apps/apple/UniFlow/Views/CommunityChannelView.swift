@@ -109,6 +109,7 @@ struct CommunityChannelItem: Identifiable, Equatable {
 
     /// "2 Personen · 3 Kommentare" (Kommentare nur, wenn der Dienst sie kennt)
     func detail(discussion: Bool) -> String {
+        if people.isEmpty { return "Noch niemand geteilt" }
         var parts = [people.count == 1 ? "1 Person" : "\(people.count) Personen"]
         if discussion { parts.append(commentCount == 1 ? "1 Kommentar" : "\(commentCount) Kommentare") }
         return parts.joined(separator: " · ")
@@ -129,7 +130,8 @@ enum CommunityChannel {
 
     /// Loesungen zu Blaettern buendeln (gleicher Fingerabdruck oder gleicher Titel = dasselbe Blatt), nach Lehrwoche
     /// ordnen (ohne Woche zuletzt), in der Woche nach Art und Titel.
-    static func build(_ list: [CommunitySolutionSummary], file: (CommunitySolutionSummary) -> CommunityChannelFile? = { _ in nil }) -> [CommunityChannelWeek] {
+    static func build(_ list: [CommunitySolutionSummary], file: (CommunitySolutionSummary) -> CommunityChannelFile? = { _ in nil },
+                      skeleton: [(file: CommunityChannelFile, week: Int)] = []) -> [CommunityChannelWeek] {
         var groups: [[CommunitySolutionSummary]] = []
         var byPrint: [String: Int] = [:], byTitle: [String: Int] = [:]
         for s in list {
@@ -154,7 +156,19 @@ enum CommunityChannel {
                                         kind: .classify(subLabel: own?.subLabel, docType: own?.docType, title: title),
                                         title: title, week: weeks.min() ?? 0, people: sorted, file: own)
         }
-        return Dictionary(grouping: items, by: \.week).map { week, items in
+        // Blaetter des Moduls ohne geteilte Notizen stehen trotzdem in ihrer Woche (03.11.2026: der Kanal zeigt die
+        // Woche wie im Modul, nicht nur das Geteilte)
+        var all = items
+        var covered = Set(items.map { titleKey($0.title) })
+        for id in items.compactMap({ $0.file?.id }) { covered.insert("id:" + id) }
+        for (f, week) in skeleton {
+            let t = titleKey(f.title)
+            guard !t.isEmpty, !covered.contains(t), !covered.contains("id:" + f.id) else { continue }
+            covered.insert(t)
+            all.append(CommunityChannelItem(id: "m:\(f.id)", kind: .classify(subLabel: f.subLabel, docType: f.docType, title: f.title),
+                                            title: f.title, week: week, people: [], file: f))
+        }
+        return Dictionary(grouping: all, by: \.week).map { week, items in
             CommunityChannelWeek(week: week, items: items.sorted {
                 $0.kind != $1.kind ? $0.kind < $1.kind : $0.title.localizedStandardCompare($1.title) == .orderedAscending
             })
@@ -174,16 +188,42 @@ enum CommunityChannel {
     static func moduleFiles(_ files: [JSONValue]) -> [String: CommunityChannelFile] {
         var out: [String: CommunityChannelFile] = [:]
         for f in files {
-            guard let id = f.s("id") else { continue }
-            let title = f.s("ai_title") ?? f.s("title") ?? f.s("name") ?? ""
-            let key = titleKey(title)
+            guard let c = channelFile(f) else { continue }
+            let key = titleKey(c.title)
             guard !key.isEmpty, out[key] == nil else { continue }
-            let name = (f.s("name") ?? "").lowercased()
-            out[key] = CommunityChannelFile(id: id, title: title, subLabel: f.s("sub_label"), docType: f.s("doc_type"),
-                                            version: f.s("edited_at") ?? "\(Int(f.n("chdate") ?? 0))",
-                                            isPDF: name.isEmpty || name.hasSuffix(".pdf"))
+            out[key] = c
         }
         return out
+    }
+
+    static func channelFile(_ f: JSONValue) -> CommunityChannelFile? {
+        guard let id = f.s("id") else { return nil }
+        let title = f.s("ai_title") ?? f.s("title") ?? f.s("name") ?? ""
+        let name = (f.s("name") ?? "").lowercased()
+        return CommunityChannelFile(id: id, title: title, subLabel: f.s("sub_label"), docType: f.s("doc_type"),
+                                    version: f.s("edited_at") ?? "\(Int(f.n("chdate") ?? 0))",
+                                    isPDF: name.isEmpty || name.hasSuffix(".pdf"))
+    }
+
+    /// Blaetter je Lehrwoche aus den Wochen des Moduls (Vorlesungen, Uebungen, Skripte, Klausuren; ohne fertige
+    /// Loesungen und Sonstiges)
+    static func skeleton(weeks: [JSONValue]) -> [(file: CommunityChannelFile, week: Int)] {
+        weeks.flatMap { w in
+            ["vorlesungen", "uebungen", "skripte", "klausuren"].flatMap { g in
+                w.list(g).compactMap { f in channelFile(f).map { (file: $0, week: max(0, w.i("week") ?? 0)) } }
+            }
+        }
+    }
+
+    /// Moduldetail (`/api/modules/{id}`) zur Community einer Modul-Community: das Modul, dessen Kurse denselben
+    /// Schluessel ergeben; nil, wenn es lokal keins gibt
+    static func module(for key: String, university: String, api: APIClient) async -> JSONValue? {
+        guard let list = try? await api.value("/api/modules") else { return nil }
+        for m in list.items {
+            guard let id = m.i("id"), let d = try? await api.value("/api/modules/\(id)") else { continue }
+            if CommunityCourses.courseKeys(module: d, university: university).contains(key) { return d }
+        }
+        return nil
     }
 
     /// Eigene Dateien zu den Fingerabdruecken (lokale Datenbank), eingeordnet wie in der Bibliothek
@@ -225,7 +265,8 @@ struct CommunityChannelView: View {
 
     var body: some View {
         let byTitle = CommunityChannel.moduleFiles(files)
-        let sections = CommunityChannel.build(solutions) { s in local[s.fingerprint] ?? byTitle[CommunityChannel.titleKey(s.title)] }
+        let sections = CommunityChannel.build(solutions, file: { s in local[s.fingerprint] ?? byTitle[CommunityChannel.titleKey(s.title)] },
+                                              skeleton: CommunityChannel.skeleton(weeks: weeks))
         VStack(alignment: .leading, spacing: 28) {
             if let notice { CommunityNotice(text: notice, tone: .ok) }
             ForEach(Array(sections.enumerated()), id: \.element.id) { i, w in
@@ -370,6 +411,11 @@ struct CommunityContributorsSheet: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    if item.people.isEmpty {
+                        UFCard {
+                            UFEmpty(icon: "users", text: "Noch niemand hat Notizen zu diesem Blatt geteilt. Öffne die PDF und teile deine über „Teilen“ → Community.", small: true)
+                        }
+                    } else {
                     Text(item.people.count == 1 ? "1 Person hat Notizen geteilt" : "\(item.people.count) Personen haben Notizen geteilt")
                         .ufFont(13.6, 650).foregroundStyle(UF.text2).accessibilityAddTraits(.isHeader)
                     UFCard(padded: false) {
@@ -379,6 +425,7 @@ struct CommunityContributorsSheet: View {
                             }
                         }
                         .padding(.horizontal, 10).padding(.vertical, 4)
+                    }
                     }
                 }
             }

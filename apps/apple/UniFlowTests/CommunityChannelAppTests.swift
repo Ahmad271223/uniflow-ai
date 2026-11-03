@@ -89,6 +89,24 @@ final class CommunityChannelAppTests: XCTestCase {
         XCTAssertEqual(CommunityChannel.weekLabel(5, weeks: []), "Woche 5")
     }
 
+    /// Blaetter des eigenen Moduls stehen auch ohne Geteiltes in ihrer Woche; Geteiltes zum selben Blatt doppelt nicht
+    func testModuleWeeksShowSheetsWithoutSharedNotes() {
+        let weeks: [JSONValue] = [
+            ["week": 1, "label": "Woche 1", "vorlesungen": [["id": "v1", "title": "Vorlesung 1", "name": "VL1.pdf", "sub_label": "Vorlesung"]],
+             "uebungen": [["id": "u1", "title": "Übungsblatt 1", "name": "U1.pdf", "sub_label": "Übung"]],
+             "loesungen": [["id": "l1", "title": "Lösung 1", "name": "L1.pdf"]]],
+            ["week": 2, "label": "Woche 2", "vorlesungen": [["id": "v2", "title": "Vorlesung 2", "name": "VL2.pdf", "sub_label": "Vorlesung"]]],
+        ]
+        let skeleton = CommunityChannel.skeleton(weeks: weeks)
+        XCTAssertEqual(skeleton.map(\.file.id), ["v1", "u1", "v2"], "ohne fertige Lösungen")
+        let built = CommunityChannel.build([solution("1", "Lea", title: "Vorlesung 2", fingerprint: "fX", week: 2)], skeleton: skeleton)
+        XCTAssertEqual(built.map(\.week), [1, 2])
+        XCTAssertEqual(built[0].items.map(\.title), ["Vorlesung 1", "Übungsblatt 1"])
+        XCTAssertEqual(built[0].items.first?.detail(discussion: true), "Noch niemand geteilt")
+        XCTAssertEqual(built[1].items.count, 1, "geteilte Vorlesung 2 nicht doppelt")
+        XCTAssertEqual(built[1].items.first?.people.count, 1)
+    }
+
     // MARK: Ansicht
 
     func testChannelShowsWeeksAndCategoryCards() throws {
@@ -180,6 +198,7 @@ final class CommunityChannelAppTests: XCTestCase {
         let root = view
             .modifier(UFModalHost(overlay: overlay))
             .environmentObject(Session(local: api, defaults: defaults))
+            .environmentObject(AccountStore(secrets: ContainerTestBed.MemorySecrets(), defaults: defaults, checker: ContainerTestBed.Authorized(), observeRevocation: false))
             .environmentObject(UFRouter())
             .environmentObject(ShellState())
             .environmentObject(overlay)
