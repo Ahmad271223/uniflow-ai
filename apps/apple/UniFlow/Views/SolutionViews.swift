@@ -10,6 +10,10 @@ enum SolutionTexts {
     static let ownNotesOnly = "Geteilt werden nur deine eigenen Notizen – keine Folien, keine Aufgabenstellungen, keine PDF. Teile nur, was du selbst erstellt hast."
     static let examRules = "Bewertete Abgaben (z. B. Hausübungen, Testate, Klausuren): Es gilt die Prüfungsordnung deiner Hochschule. Teile Lösungen dazu nur, wenn es ausdrücklich erlaubt ist."
     static let communityConfirmTitle = "In der Community veröffentlichen"
+    /// Erneut teilen zu derselben PDF in derselben Community (03.11.2026): eine Loesung je PDF, sonst aktualisieren
+    static let updateTitle = "Lösung aktualisieren"
+    static let updateQuestion = CommunityServiceError.updateQuestion
+    static let updateExplain = "Deine neuen Seiten kommen zur bisherigen Lösung dazu; Seiten, die schon darin sind, werden durch die neue Fassung ersetzt. Likes und Kommentare bleiben erhalten."
 
     /// Was ausser den Notizen im Paket steht (Pruefbericht 409): Titel und Zeitpunkt, dazu das Pseudonym
     static func sentAlong(title: String) -> String {
@@ -50,6 +54,9 @@ struct SolutionShareSheet: View {
     @State private var confirmingPublish = false
     @State private var publishing = false
     @State private var published: CommunityPublication?
+    /// eigene Loesung zu dieser PDF in der gewaehlten Community: Frage "Aktualisieren?"
+    @State private var updateID: String?
+    @State private var updated = false
 
     /// Dienst des aktiven Containers (Tests geben einen eigenen mit)
     var community: CommunityService = SolutionSharing.community
@@ -66,6 +73,7 @@ struct SolutionShareSheet: View {
         .task { await load() }
         .sheet(item: $shareFile) { f in ActivityView(items: [f.url]) }
         .ufModal(isPresented: $confirmingPublish) { publishDialog }
+        .ufModal(isPresented: Binding(get: { updateID != nil }, set: { if !$0 { updateID = nil } })) { updateDialog }
     }
 
     /// Der Knopf "In der Community veroeffentlichen" ist nur ab Plus zu sehen (die ganze Seite steht hinter
@@ -194,8 +202,9 @@ struct SolutionShareSheet: View {
 
     private func publishedCard(_ p: CommunityPublication) -> some View {
         UFCard {
-            UFCardHead("Veröffentlicht", icon: "check")
-            Text("Deine Lösung ist in der Community – \(CommunityTexts.publishedAt(SolutionPackage.timestamp(p.publishedAt))). \(CommunityTexts.visibilityMembers)")
+            UFCardHead(updated ? "Aktualisiert" : "Veröffentlicht", icon: "check")
+            Text(updated ? "Deine Lösung ist aktualisiert: die neuen Seiten sind dazugekommen, Likes und Kommentare sind geblieben. \(CommunityTexts.visibilityMembers)"
+                         : "Deine Lösung ist in der Community – \(CommunityTexts.publishedAt(SolutionPackage.timestamp(p.publishedAt))). \(CommunityTexts.visibilityMembers)")
                 .ufFont(14.5).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
             Text("Zurückziehen kannst du sie jederzeit unter „Meine geteilten Lösungen“.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 6)
@@ -248,6 +257,25 @@ struct SolutionShareSheet: View {
             UFButton("Veröffentlichen", icon: "users", kind: .primary) {
                 confirmingPublish = false
                 publish()
+            }
+        }
+    }
+
+    /// Frage, wenn es zu dieser PDF in dieser Community schon eine eigene Loesung gibt
+    private var updateDialog: some View {
+        UFDialog(SolutionTexts.updateTitle, icon: "users") {
+            VStack(alignment: .leading, spacing: 9.6) {
+                Text(SolutionTexts.updateQuestion).foregroundStyle(UF.text)
+                Text(SolutionTexts.updateExplain)
+            }
+            .ufFont(13.12).foregroundStyle(UF.text2)
+            .fixedSize(horizontal: false, vertical: true)
+        } foot: {
+            UFButton("Abbrechen") { updateID = nil }
+            UFButton("Aktualisieren", icon: "users", kind: .primary) {
+                let id = updateID
+                updateID = nil
+                if let id { update(id) }
             }
         }
     }
@@ -324,23 +352,54 @@ struct SolutionShareSheet: View {
         }
     }
 
-    /// Inhalt und Siegel wie beim Teilen als Datei, dann zum Dienst (Kopie unter "Meine geteilten Lösungen").
+    private func publishOptions(_ space: CommunitySpace, title: String) -> CommunityPublishOptions {
+        let group = space.kind == .group
+        return CommunityPublishOptions(visibility: group ? .studyGroup : .module, courseKey: space.key, groupKey: group ? space.key : nil,
+                                       title: title, week: week, communityKey: space.key)
+    }
+
+    /// Inhalt und Siegel wie beim Teilen als Datei, dann zum Dienst (Kopie unter "Meine geteilten Lösungen"). Gibt es
+    /// zu dieser PDF in dieser Community schon eine eigene Loesung, kommt stattdessen die Frage "Aktualisieren?".
     private func publish() {
-        guard let source, canPublish else { return }
+        guard let source, canPublish, let space else { return }
         publishing = true
         shareError = nil
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         SolutionDisplayName.save(name)
         let keys = Array(selected)
-        guard let space else { return }
-        let group = space.kind == .group
-        let options = CommunityPublishOptions(visibility: group ? .studyGroup : .module, courseKey: space.key, groupKey: group ? space.key : nil,
-                                              title: source.title, week: week, communityKey: space.key)
+        let options = publishOptions(space, title: source.title)
         let service = community
         Task {
             do {
-                published = try await SolutionSharing.publishToCommunity(source, keys: keys, displayName: CommunityRules.effectiveDisplayName(name, visibility: .module),
-                                                                         options: options, space: space, service: service)
+                switch try await SolutionSharing.publishOrAskUpdate(source, keys: keys, displayName: CommunityRules.effectiveDisplayName(name, visibility: .module),
+                                                                    options: options, space: space, service: service) {
+                case .published(let p):
+                    published = p
+                    await CommunityMatches.shared.invalidate()
+                case .askUpdate(let id):
+                    updateID = id
+                }
+            } catch {
+                shareError = CommunityTexts.message(error)
+            }
+            publishing = false
+        }
+    }
+
+    /// "Aktualisieren": bisherige Loesung laden, mit der neuen Auswahl zusammenfuehren und das Paket ersetzen
+    private func update(_ existingID: String) {
+        guard let source, let space, !publishing else { return }
+        publishing = true
+        shareError = nil
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let keys = Array(selected)
+        let options = publishOptions(space, title: source.title)
+        let service = community
+        Task {
+            do {
+                published = try await SolutionSharing.updateInCommunity(source, keys: keys, displayName: CommunityRules.effectiveDisplayName(name, visibility: .module),
+                                                                        options: options, space: space, existingID: existingID, service: service)
+                updated = true
                 await CommunityMatches.shared.invalidate()
             } catch {
                 shareError = CommunityTexts.message(error)

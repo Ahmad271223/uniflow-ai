@@ -7,8 +7,8 @@
 // `anchor` = {x, y} in 0..1 von links oben in der Anzeige des Absenders (dieselben Koordinaten wie die Objekte,
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
-import * as S from "./solutions.js?v=3";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=6";
+import * as S from "./solutions.js?v=4";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=7";
 import { renderLinkCard } from "./studora-link.js?v=3";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -20,7 +20,7 @@ const REASONS = { offensive: "anstößig", spam: "Spam", foreignMaterial: "Fremd
 async function capi(path, { method = "GET", body } = {}) {
   const r = await fetch("/api/community" + path, { method, headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
   let d = null; try { d = await r.json(); } catch {}
-  if (!r.ok) { const e = new Error(d?.detail || `Community-Fehler ${r.status}`); e.code = d?.code || (r.status === 501 ? "not_hosted" : "http_" + r.status); e.status = r.status; throw e; }
+  if (!r.ok) { const e = new Error(d?.detail || `Community-Fehler ${r.status}`); e.code = d?.code || (r.status === 501 ? "not_hosted" : "http_" + r.status); e.status = r.status; e.data = d; throw e; }
   return d;
 }
 
@@ -383,9 +383,11 @@ class Community {
             msg(`Datei erstellt: ${content.pages.length} Seiten${content.missingImages.length ? `, ${content.missingImages.length} Bild(er) nicht verfügbar` : ""}.`);
           } else {
             const space = this.shareSpace(); if (!space) throw new Error("Tritt zuerst einer Community bei.");
-            const sealed = await S.seal(content, null, { secret: space.secret });
-            await capi("/solutions", { method: "POST", body: { package: sealed, title: content.title || null, community_key: space.key } });
-            msg(`Veröffentlicht in „${space.name}“.`); this.tab = "list"; await this.load();
+            // hoechstens eine Loesung je PDF und Community: sonst fragen und mit der bisherigen zusammenfuehren
+            const r = await S.shareToCommunity({ content, space, call: (path, o) => capi(path, o), confirmUpdate: async () => confirm(S.UPDATE_QUESTION) });
+            if (r.cancelled) { msg("Abgebrochen – deine bisherige Lösung bleibt unverändert."); b.disabled = false; return; }
+            msg(r.updated ? `Aktualisiert in „${space.name}“: jetzt ${r.pages} Seite${r.pages === 1 ? "" : "n"}.` : `Veröffentlicht in „${space.name}“.`);
+            this.tab = "list"; await this.load();
           }
         } catch (e) { msg(e.message); }
         b.disabled = false;

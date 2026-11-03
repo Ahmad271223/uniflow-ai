@@ -195,4 +195,53 @@ public enum SolutionBuilder {
         _ = try SolutionContent(json: content.json)
         return content
     }
+
+    // MARK: Zusammenfuehren (03.11.2026)
+
+    /// Eine Loesung je Konto, PDF und Community: teilt jemand erneut zu derselben PDF, fuehrt die App die neue Fassung
+    /// mit der bisherigen Loesung zusammen (Referenz app/solution_format.merge_contents, Browser `mergeContent`;
+    /// gemeinsame Faelle packages/shared-contracts/fixtures/solutions/merge-cases.json).
+    ///
+    /// - Dieselbe PDF-Seite (`pdfIndex`) oder derselbe Seitenschluessel: die neue Fassung ersetzt die alte; andere
+    ///   Seiten kommen dazu, die bisherigen bleiben.
+    /// - Reihenfolge nach PDF-Seite; eine Leerseite steht hinter der PDF-Seite, der sie in ihrer Fassung folgte (davor:
+    ///   ganz vorn), Seiten eines Notizblatts (`isNotebookKey`) ganz hinten; bei Gleichstand erst die bisherigen, dann
+    ///   die neuen, je in ihrer Reihenfolge.
+    /// - ID und Erstellungsdatum der bisherigen Loesung bleiben (Likes und Kommentare beim Dienst haengen an der ID);
+    ///   Titel, Anzeigename und Seitenzahl der PDF kommen aus der neuen Fassung. Bilder: nur die von den Seiten
+    ///   benutzten (neue Fassung zuerst), fehlende sortiert in `missingImages`.
+    public static func merge(previous: SolutionContent, new: SolutionContent) throws -> SolutionContent {
+        guard previous.fingerprint == new.fingerprint else { throw SolutionError.fingerprintMismatch }
+        let newPDF = Set(new.pages.compactMap(\.pdfIndex))
+        let newKeys = Set(new.pages.map(\.key))
+        func replaced(_ p: SolutionPage) -> Bool { (p.pdfIndex.map(newPDF.contains) ?? false) || newKeys.contains(p.key) }
+        let ranked = mergeRanks(previous.pages, source: 0).filter { !replaced($0.page) } + mergeRanks(new.pages, source: 1)
+        let pages = ranked.sorted { $0.rank.lexicographicallyPrecedes($1.rank) }.map(\.page)
+        var used = Set<String>()
+        for p in pages {
+            for o in p.objects where o["type"]?.string == "image" {
+                if let s = o["src"]?.string, !s.isEmpty { used.insert(s) }
+            }
+        }
+        var images: [String: SolutionImage] = [:]
+        for s in used { if let img = new.images[s] ?? previous.images[s] { images[s] = img } }
+        let merged = SolutionContent(solutionID: previous.solutionID, createdAt: previous.createdAt, title: new.title,
+                                     displayName: new.displayName, fingerprint: new.fingerprint, pdfPageCount: new.pdfPageCount,
+                                     pages: pages, images: images, missingImages: used.filter { images[$0] == nil }.sorted())
+        // dieselben Grenzen wie beim Empfaenger (z. B. hoechstens 2000 Seiten)
+        _ = try SolutionContent(json: merged.json)
+        return merged
+    }
+
+    /// Rang je Seite einer Fassung: (Anker-PDF-Seite, PDF vor Leerseite, bisherige vor neuer, Position)
+    private static func mergeRanks(_ pages: [SolutionPage], source: Double) -> [(rank: [Double], page: SolutionPage)] {
+        var anchor = 0.0
+        return pages.enumerated().map { i, p in
+            if let index = p.pdfIndex {
+                anchor = Double(index)
+                return ([anchor, 0, source, Double(i)], p)
+            }
+            return ([isNotebookKey(p.key) ? .infinity : anchor, 1, source, Double(i)], p)
+        }
+    }
 }

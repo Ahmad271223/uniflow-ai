@@ -432,6 +432,83 @@ export function buildContent({ model, selectedKeys, pdfPageCount, pdfPage, image
   return validateContent(content);
 }
 
+// ---------------------------------------------------------------- Zusammenfuehren (03.11.2026)
+// Eine Loesung je Konto, PDF und Community: teilt jemand erneut zu derselben PDF, fragt die Seite "Aktualisieren?" und
+// fuehrt die neuen Seiten mit der bisherigen Loesung zusammen (Referenz app/solution_format.merge_contents, Swift
+// SolutionBuilder.merge; gemeinsame Faelle packages/shared-contracts/fixtures/solutions/merge-cases.json).
+
+/** Seite aus einem mitgeteilten Notizblatt ("nb-…", "nb2-…"), wie SolutionBuilder.isNotebookKey. */
+export const isNotebookKey = key => /^nb\d*-/.test(key);
+
+function mergeRanks(pages, source) {
+  let anchor = 0;
+  return pages.map((p, i) => {
+    if (p.kind === "pdf") { anchor = p.pdfIndex; return { rank: [anchor, 0, source, i], p }; }
+    return { rank: [isNotebookKey(p.key) ? Infinity : anchor, 1, source, i], p };
+  });
+}
+function pageImageSources(pages) {
+  const out = new Set();
+  for (const p of pages) for (const o of p.objects || []) if (o && o.type === "image" && typeof o.src === "string" && o.src) out.add(o.src);
+  return [...out].sort();
+}
+
+/**
+ * Bisherige Loesung `previous` und neue Fassung `next` (geoeffneter Inhalt) zusammenfuehren: dieselbe PDF-Seite oder
+ * derselbe Seitenschluessel wird ersetzt, andere Seiten kommen dazu; Reihenfolge nach PDF-Seite (Leerseiten hinter der
+ * PDF-Seite, der sie folgten, Notizblatt hinten). ID und Erstellungsdatum bleiben, Titel und Name kommen aus `next`.
+ */
+export function mergeContent(previous, next) {
+  if (previous.document.sha256 !== next.document.sha256) fail("fingerprintMismatch");
+  const newPdf = new Set(next.pages.filter(p => p.kind === "pdf").map(p => p.pdfIndex));
+  const newKeys = new Set(next.pages.map(p => p.key));
+  const replaced = p => (p.kind === "pdf" && newPdf.has(p.pdfIndex)) || newKeys.has(p.key);
+  const ranked = [...mergeRanks(previous.pages, 0).filter(x => !replaced(x.p)), ...mergeRanks(next.pages, 1)];
+  const cmp = (a, b) => { for (let i = 0; i < 4; i++) if (a.rank[i] !== b.rank[i]) return a.rank[i] < b.rank[i] ? -1 : 1; return 0; };
+  const pages = ranked.sort(cmp).map(x => x.p);
+  const used = pageImageSources(pages), images = {};
+  for (const src of used) { const img = next.images?.[src] || previous.images?.[src]; if (img) images[src] = img; }
+  return validateContent({ ...next, solutionId: previous.solutionId, createdAt: previous.createdAt, pages, images,
+                           missingImages: used.filter(s => !images[s]) });
+}
+
+export const UPDATE_QUESTION = "Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?";
+
+/**
+ * In eine Community veroeffentlichen, hoechstens eine Loesung je PDF: gibt es schon eine eigene (vorher gefragt bei
+ * `/mine`, sonst 409 `already_published`), fragt `confirmUpdate()`; bei Ja wird die bisherige Loesung geladen, mit dem
+ * Community-Schluessel geoeffnet, zusammengefuehrt, neu versiegelt und per PUT ersetzt. `call(path, {method, body})`
+ * spricht /api/community an und wirft Fehler mit `code` und `data` (Antwort des Dienstes).
+ * Ergebnis: {published | updated | cancelled, solutionId, pages}.
+ */
+export async function shareToCommunity({ content, space, call, confirmUpdate }) {
+  const title = content.title || null;
+  const own = async () => {
+    const mine = (await call("/mine")).solutions || [];
+    return mine.filter(s => s.fingerprint === content.document.sha256 && s.community_key === space.key && ["active", "hidden"].includes(s.status))
+      .sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)))[0]?.solution_id || null;
+  };
+  let existing = await own();
+  if (!existing) {
+    try {
+      const sealed = await seal(content, null, { secret: space.secret });
+      const r = await call("/solutions", { method: "POST", body: { package: sealed, title, community_key: space.key } });
+      return { published: true, solutionId: r?.solution_id || content.solutionId, pages: content.pages.length };
+    } catch (e) {
+      if (e.code !== "already_published") throw e;
+      existing = e.data?.solution_id || await own();
+      if (!existing) throw e;
+    }
+  }
+  if (!(await confirmUpdate())) return { cancelled: true, solutionId: existing, pages: 0 };
+  const { package: pkg } = await call(`/solutions/${existing}`);
+  const previous = await openPackage(pkg, null, null, space.secret);
+  const merged = mergeContent(previous, content);
+  const sealed = await seal(merged, null, { secret: space.secret });
+  await call(`/solutions/${existing}`, { method: "PUT", body: { package: sealed, title, community_key: space.key } });
+  return { updated: true, solutionId: existing, pages: merged.pages.length };
+}
+
 // ---------------------------------------------------------------- Anzeige beim Empfaenger (SolutionGeometry)
 
 /** Seitenbox ohne Drehung -> angezeigte Seite (im Uhrzeigersinn), Matrix [a, b, c, d, tx, ty]. */

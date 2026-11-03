@@ -295,3 +295,60 @@ def open_package(pkg: dict, pdf: bytes | None = None, secret: bytes | None = Non
         raise ValueError("invalidContent: Groesse")
     content = json.loads(body)
     return decode_content(content) if version == 2 else content
+
+
+# ---------------------------------------------------------------- Zusammenfuehren (03.11.2026)
+# Eine Loesung je Konto, PDF und Community: teilt jemand erneut zu derselben PDF, fuehrt der Client die neuen Seiten mit
+# der bisherigen Loesung zusammen (Swift `SolutionBuilder.merge`, Browser `mergeContent` in app/static/solutions.js).
+# Regeln (gemeinsame Faelle: packages/shared-contracts/fixtures/solutions/merge-cases.json):
+# - dieselbe PDF-Seite (pdfIndex) oder derselbe Seitenschluessel: die neue Fassung ersetzt die alte, sonst kommt die
+#   Seite dazu, alte Seiten bleiben;
+# - Reihenfolge nach PDF-Seite; eine Leerseite steht hinter der PDF-Seite, der sie in ihrer Fassung folgte (vor der
+#   ersten: ganz vorn), Seiten eines Notizblatts ("nb-...") ganz hinten; bei Gleichstand erst die alten, dann die neuen,
+#   je in ihrer Reihenfolge;
+# - ID und Erstellungsdatum bleiben die der bisherigen Loesung, Titel, Anzeigename und Seitenzahl der PDF kommen aus der
+#   neuen Fassung; Bilder: die von den Seiten benutzten (neue Fassung zuerst), fehlende sortiert in missingImages.
+
+def is_notebook_key(key: str) -> bool:
+    """Seite aus einem mitgeteilten Notizblatt ("nb-...", "nb2-..."), wie SolutionBuilder.isNotebookKey."""
+    if key.startswith("nb-"):
+        return True
+    rest = key[2:] if key.startswith("nb") else ""
+    digits = len(rest) - len(rest.lstrip("0123456789"))
+    return digits > 0 and rest[digits:].startswith("-")
+
+
+def _merge_ranks(pages: list, source: int) -> list:
+    """(Rang, Seite) je Seite einer Fassung; Rang = (Anker-PDF-Seite, PDF vor Leerseite, alt vor neu, Position)."""
+    out, anchor = [], 0
+    for i, p in enumerate(pages):
+        if p["kind"] == "pdf":
+            anchor = p["pdfIndex"]
+            out.append(((anchor, 0, source, i), p))
+        else:
+            out.append(((math.inf if is_notebook_key(p["key"]) else anchor, 1, source, i), p))
+    return out
+
+
+def _image_sources(pages: list) -> list:
+    out = set()
+    for p in pages:
+        for o in p["objects"]:
+            if isinstance(o, dict) and o.get("type") == "image" and isinstance(o.get("src"), str) and o["src"]:
+                out.add(o["src"])
+    return sorted(out)
+
+
+def merge_contents(previous: dict, new: dict) -> dict:
+    """Bisherige Loesung `previous` und neue Fassung `new` (beide geoeffneter Inhalt, Version 1) zusammenfuehren."""
+    if previous["document"]["sha256"] != new["document"]["sha256"]:
+        raise ValueError("fingerprintMismatch")
+    new_pdf = {p["pdfIndex"] for p in new["pages"] if p["kind"] == "pdf"}
+    new_keys = {p["key"] for p in new["pages"]}
+    replaced = lambda p: (p["kind"] == "pdf" and p["pdfIndex"] in new_pdf) or p["key"] in new_keys  # noqa: E731
+    ranked = [x for x in _merge_ranks(previous["pages"], 0) if not replaced(x[1])] + _merge_ranks(new["pages"], 1)
+    pages = [p for _, p in sorted(ranked, key=lambda x: x[0])]
+    used = _image_sources(pages)
+    images = {s: new["images"].get(s) or previous["images"][s] for s in used if s in new["images"] or s in previous["images"]}
+    return {**new, "solutionId": previous["solutionId"], "createdAt": previous["createdAt"], "pages": pages,
+            "images": images, "missingImages": [s for s in used if s not in images]}

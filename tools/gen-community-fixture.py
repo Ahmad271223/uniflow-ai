@@ -179,6 +179,16 @@ def build() -> dict:
     pkg2 = community.sample_package("d" * 64, solution_id="6f1c1c0e-0000-4000-8000-000000000003", key_material="community-secret")
     ids[pkg2["header"]["solutionId"]] = "<solution-id-3>"
     call("In die Community veroeffentlichen", "POST", "/api/community/solutions", {"package": pkg2, "title": "Blatt 4", "community_key": key}, token=ta)
+    # Eine Loesung je Konto, PDF und Community (03.11.2026): zweite Loesung abgewiesen mit der vorhandenen ID, der Client
+    # fuehrt zusammen und ersetzt das Paket (gleiche ID, neue Seiten)
+    dup = community.sample_package("d" * 64, solution_id="6f1c1c0e-0000-4000-8000-000000000004", key_material="community-secret")
+    ids[dup["header"]["solutionId"]] = "<solution-id-4>"
+    call("Zweite Loesung zu derselben PDF in derselben Community", "POST", "/api/community/solutions", {"package": dup, "title": "Blatt 4", "community_key": key}, token=ta)
+    merged = community.sample_package("d" * 64, pages=4, solution_id=pkg2["header"]["solutionId"], key_material="community-secret")
+    call("Eigene Loesung aktualisieren (zusammengefuehrtes Paket)", "PUT", f"/api/community/solutions/{pkg2['header']['solutionId']}",
+         {"package": merged, "title": "Blatt 4 (ergänzt)", "community_key": key}, token=ta)
+    call("Fremde Loesung aktualisieren", "PUT", f"/api/community/solutions/{pkg2['header']['solutionId']}", {"package": merged}, token=tl)
+    call("Aktualisieren mit anderer Kopf-ID", "PUT", f"/api/community/solutions/{pkg2['header']['solutionId']}", {"package": dup}, token=ta)
     call("Community ohne Mitgliedschaft lesen", "GET", f"/api/community/communities/{key}/solutions", token=tl)
     call("Community lesen", "GET", f"/api/community/communities/{key}/solutions", token=ta)
     call("Lerngruppe anlegen", "POST", "/api/community/groups", {"group_key": group, "name": "Mathe-Runde"}, token=ta)
@@ -220,7 +230,7 @@ def build() -> dict:
                       "format_version": community.FORMAT_VERSION, "max_package_bytes": community.MAX_PACKAGE_BYTES,
                       "pseudonym": "Studi-<8 hex>, stabil je Konto, nie Konto-ID oder E-Mail",
                       "endpoints": ["GET /api/community/info", "POST /api/community/solutions", "GET /api/community/solutions?fingerprint=",
-                                    "GET /api/community/solutions/{id}", "DELETE /api/community/solutions/{id}", "GET /api/community/mine",
+                                    "GET /api/community/solutions/{id}", "PUT /api/community/solutions/{id}", "DELETE /api/community/solutions/{id}", "GET /api/community/mine",
                                     "POST /api/community/solutions/{id}/report", "POST /api/community/solutions/{id}/block",
                                     "POST /api/community/{comments|questions|answers}/{id}/moderate",
                                     "DELETE /api/community/blocks/{pseudonym}", "GET /api/community/blocks",
@@ -235,7 +245,9 @@ def build() -> dict:
                                     "GET /api/community/bookmarks", "POST|DELETE /api/community/bookmarks/{solution|question}/{id}",
                                     "GET /api/community/notifications?unread=", "POST /api/community/notifications/read"],
                       "course_key": "SHA-256 hex von 'uniflow.community.course.v1\\0<hochschule>\\0<kurs-id>' (wie CommunityKeys.courseKey)",
-                      "notification_kinds": ["comment", "reply", "like", "answer", "accepted"]},
+                      "notification_kinds": ["comment", "reply", "like", "answer", "accepted"],
+                      "one_solution_per_pdf": "je Konto, Fingerabdruck und Community eine Loesung: POST antwortet sonst 409 already_published "
+                                              "mit solution_id; PUT ersetzt das Paket der eigenen Loesung (ID, Likes, Kommentare bleiben, updated_at neu)"},
             "package-checks": checks, "errors": dict(sorted(errors.items())), "flows": flows}
 
 

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/community", tags=["community"])
 
 
 def _err(e: community.CommunityError) -> HTTPException:
-    return HTTPException(e.status, {"detail": e.message, "code": e.code})
+    return HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
 
 
 def _user(request: Request) -> dict:
@@ -46,6 +46,17 @@ def publish(request: Request, body: dict = Body(...)):
         raise HTTPException(403, {"detail": "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Willkommensmail, "
                                             "neu anfordern unter Konto).", "code": "email_unverified"})
     return _run(community.publish, u, config.university(), body.get("package"), body.get("title"), body.get("community_key"))
+
+
+@router.put("/solutions/{solution_id}")
+def update(request: Request, solution_id: str, body: dict = Body(...)):
+    """Paket der eigenen Loesung ersetzen: {package, title?, community_key?}. Nur der Autor; Kopf-ID, Fingerabdruck und
+    Community bleiben gleich. Der Client hat die Seiten vorher zusammengefuehrt (Antwort auf 409 `already_published`)."""
+    u = _user(request)
+    if not u.get("email_verified"):
+        raise HTTPException(403, {"detail": "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Willkommensmail, "
+                                            "neu anfordern unter Konto).", "code": "email_unverified"})
+    return _run(community.update, u, config.university(), solution_id, body.get("package"), body.get("title"), body.get("community_key"))
 
 
 @router.get("/solutions")

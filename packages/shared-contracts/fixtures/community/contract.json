@@ -20,6 +20,7 @@
    "POST /api/community/solutions",
    "GET /api/community/solutions?fingerprint=",
    "GET /api/community/solutions/{id}",
+   "PUT /api/community/solutions/{id}",
    "DELETE /api/community/solutions/{id}",
    "GET /api/community/mine",
    "POST /api/community/solutions/{id}/report",
@@ -54,7 +55,8 @@
    "like",
    "answer",
    "accepted"
-  ]
+  ],
+  "one_solution_per_pdf": "je Konto, Fingerabdruck und Community eine Loesung: POST antwortet sonst 409 already_published mit solution_id; PUT ersetzt das Paket der eigenen Loesung (ID, Likes, Kommentare bleiben, updated_at neu)"
  },
  "package-checks": [
   {
@@ -303,6 +305,10 @@
   }
  ],
  "errors": {
+  "already_published": {
+   "status": 409,
+   "message": "Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?"
+  },
   "already_reported": {
    "status": 409,
    "message": "Du hast diese Lösung schon gemeldet."
@@ -333,7 +339,7 @@
   },
   "not_owner": {
    "status": 403,
-   "message": "Nur der Autor kann eine Lösung zurückziehen."
+   "message": "Nur der Autor kann seine Lösung aktualisieren."
   },
   "own_solution": {
    "status": 400,
@@ -350,6 +356,10 @@
   "solution_exists": {
    "status": 409,
    "message": "Diese Lösung wurde schon von einem anderen Konto veröffentlicht."
+  },
+  "solution_mismatch": {
+   "status": 400,
+   "message": "Das neue Paket gehört zu einer anderen Lösung (Kopf: solutionId)."
   },
   "unauthenticated": {
    "status": 401,
@@ -718,6 +728,7 @@
       "title": "Blatt 3",
       "created_at": "2026-10-26T10:00:00Z",
       "published_at": "<zeit-utc>",
+      "updated_at": null,
       "page_count": 12,
       "pages": 2,
       "downloads": 0,
@@ -790,6 +801,7 @@
      "title": "Blatt 3",
      "created_at": "2026-10-26T10:00:00Z",
      "published_at": "<zeit-utc>",
+     "updated_at": null,
      "page_count": 12,
      "pages": 2,
      "downloads": 0,
@@ -820,6 +832,7 @@
       "title": "Blatt 3",
       "created_at": "2026-10-26T10:00:00Z",
       "published_at": "<zeit-utc>",
+      "updated_at": null,
       "page_count": 12,
       "pages": 2,
       "downloads": 1,
@@ -1042,6 +1055,7 @@
       "title": "Blatt 3",
       "created_at": "2026-10-26T10:00:00Z",
       "published_at": "<zeit-utc>",
+      "updated_at": null,
       "page_count": 12,
       "pages": 2,
       "downloads": 1,
@@ -1561,6 +1575,181 @@
    }
   },
   {
+   "step": "Zweite Loesung zu derselben PDF in derselben Community",
+   "method": "POST",
+   "path": "/api/community/solutions",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 2,
+     "header": {
+      "solutionId": "<solution-id-4>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "community-secret",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    },
+    "title": "Blatt 4",
+    "community_key": "<course-key>"
+   },
+   "status": 409,
+   "response": {
+    "detail": "Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?",
+    "code": "already_published",
+    "solution_id": "<solution-id-3>"
+   }
+  },
+  {
+   "step": "Eigene Loesung aktualisieren (zusammengefuehrtes Paket)",
+   "method": "PUT",
+   "path": "/api/community/solutions/<solution-id-3>",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 2,
+     "header": {
+      "solutionId": "<solution-id-3>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 4,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "community-secret",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    },
+    "title": "Blatt 4 (ergänzt)",
+    "community_key": "<course-key>"
+   },
+   "status": 200,
+   "response": {
+    "solution_id": "<solution-id-3>",
+    "updated_at": "<zeit-utc>",
+    "pages": 4,
+    "pseudonym": "<pseudonym>"
+   }
+  },
+  {
+   "step": "Fremde Loesung aktualisieren",
+   "method": "PUT",
+   "path": "/api/community/solutions/<solution-id-3>",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 2,
+     "header": {
+      "solutionId": "<solution-id-3>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 4,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "community-secret",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    }
+   },
+   "status": 403,
+   "response": {
+    "detail": "Nur der Autor kann seine Lösung aktualisieren.",
+    "code": "not_owner"
+   }
+  },
+  {
+   "step": "Aktualisieren mit anderer Kopf-ID",
+   "method": "PUT",
+   "path": "/api/community/solutions/<solution-id-3>",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 2,
+     "header": {
+      "solutionId": "<solution-id-4>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "community-secret",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 128,
+       "compression": "deflate-raw",
+       "compressedBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    }
+   },
+   "status": 400,
+   "response": {
+    "detail": "Das neue Paket gehört zu einer anderen Lösung (Kopf: solutionId).",
+    "code": "solution_mismatch"
+   }
+  },
+  {
    "step": "Community ohne Mitgliedschaft lesen",
    "method": "GET",
    "path": "/api/community/communities/<course-key>/solutions",
@@ -1586,11 +1775,12 @@
       "fingerprint": "<base64>",
       "display_name": "",
       "pseudonym": "<pseudonym>",
-      "title": "Blatt 4",
+      "title": "Blatt 4 (ergänzt)",
       "created_at": "2026-10-26T10:00:00Z",
       "published_at": "<zeit-utc>",
+      "updated_at": "<zeit-utc>",
       "page_count": 12,
-      "pages": 2,
+      "pages": 4,
       "downloads": 0,
       "status": "active",
       "mine": true,
@@ -1701,6 +1891,7 @@
       "title": "Blatt 3",
       "created_at": "2026-10-26T10:00:00Z",
       "published_at": "<zeit-utc>",
+      "updated_at": null,
       "page_count": 12,
       "pages": 2,
       "downloads": 1,
@@ -1770,6 +1961,7 @@
      "title": "Blatt 3",
      "created_at": "2026-10-26T10:00:00Z",
      "published_at": "<zeit-utc>",
+     "updated_at": null,
      "page_count": 12,
      "pages": 2,
      "downloads": 1,
@@ -1799,6 +1991,7 @@
      "title": "Blatt 3",
      "created_at": "2026-10-26T10:00:00Z",
      "published_at": "<zeit-utc>",
+     "updated_at": null,
      "page_count": 12,
      "pages": 2,
      "downloads": 1,

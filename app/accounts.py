@@ -42,6 +42,8 @@ LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60),
           "comment_user": (30, 60), "like_user": (120, 60),
           # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)
           "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440),
+          # Eigene Loesung aktualisieren (Paket ersetzen, 03.11.2026): grosszuegiger als Neues, aber begrenzt
+          "update_user": (60, 1440),
           # Melden (Loesung, Kommentar, Frage, Antwort): ab drei Meldungen wird ein Beitrag verborgen, daher knapp je Tag
           "report_user": (10, 1440)}
 PASSWORD_MIN = 10

@@ -150,9 +150,33 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
     public func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
         guard let key = options.communityKey, package.header.isCommunityPackage else { throw CommunityServiceError.visibilityUnsupported }
         let body = JSONValue.object(["package": try JSONValue.parse(package.encoded()), "title": .string(options.title), "community_key": .string(key)])
-        let r = try await call("POST", "/solutions", body: body)
+        let r: JSONValue
+        do { r = try await transport.community("POST", "/solutions", body: body) } catch let e as AccountError where e.code == "already_published" {
+            // 409 nennt die vorhandene Loesung; die Kennung steht auch in /mine (die Fehlerform traegt keine Zusatzfelder)
+            guard let own = try await ownSolution(fingerprint: package.header.fingerprint, communityKey: key) else { throw Self.serviceError(e) }
+            throw CommunityServiceError.alreadyPublished(own.solutionID)
+        } catch { throw Self.serviceError(error) }
         guard let id = r["solution_id"]?.string else { throw CommunityServiceError.server("Antwort ohne Kennung.") }
         return CommunityPublication(solutionID: id, publishedAt: r["published_at"]?.string.flatMap(SolutionValidator.parseDate) ?? Date())
+    }
+
+    /// Eigene Loesung zu PDF und Community aus `/mine` (aktiv oder verborgen, die zuletzt veroeffentlichte)
+    public func ownSolution(fingerprint: String, communityKey: String) async throws -> CommunitySolutionSummary? {
+        let rows = (try await call("GET", "/mine"))["solutions"]?.array ?? []
+        let fp = fingerprint.lowercased()
+        return rows.filter { $0["fingerprint"]?.string == fp && $0["community_key"]?.string == communityKey
+                             && ["active", "hidden"].contains($0["status"]?.string ?? "") }
+            .max { ($0["published_at"]?.string ?? "") < ($1["published_at"]?.string ?? "") }
+            .flatMap(summary)
+    }
+
+    /// PUT /solutions/{id}: Paket der eigenen Loesung ersetzen
+    public func update(solutionID: String, package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
+        guard let key = options.communityKey, package.header.isCommunityPackage else { throw CommunityServiceError.visibilityUnsupported }
+        let body = JSONValue.object(["package": try JSONValue.parse(package.encoded()), "title": .string(options.title), "community_key": .string(key)])
+        let r = try await call("PUT", "/solutions/" + Self.query(solutionID), body: body)
+        return CommunityPublication(solutionID: r["solution_id"]?.string ?? solutionID,
+                                    publishedAt: r["updated_at"]?.string.flatMap(SolutionValidator.parseDate) ?? Date())
     }
 
     /// Loesungen zu einer PDF aus den eigenen Communities

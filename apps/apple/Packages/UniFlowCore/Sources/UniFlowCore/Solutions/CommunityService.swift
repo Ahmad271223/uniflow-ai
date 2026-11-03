@@ -32,8 +32,15 @@ public protocol CommunityService: Sendable {
     func reportComment(id: String, reason: CommunityReportReason) async throws
     /// Gefaellt mir setzen oder entfernen; Ergebnis ist die neue Anzahl
     func setLiked(solutionID: String, _ liked: Bool) async throws -> Int
-    /// Paket veroeffentlichen; Ergebnis ist die Kennung beim Dienst.
+    /// Paket veroeffentlichen; Ergebnis ist die Kennung beim Dienst. Gibt es zu derselben PDF in derselben Community
+    /// schon eine eigene Loesung, wirft der Dienst `alreadyPublished(id)` (eine Loesung je PDF, 03.11.2026).
     func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication
+    /// Eigene Loesung zu dieser PDF (Fingerabdruck) in dieser Community, nil = noch keine (fuer die Frage
+    /// "Aktualisieren?" vor dem Veroeffentlichen)
+    func ownSolution(fingerprint: String, communityKey: String) async throws -> CommunitySolutionSummary?
+    /// Paket der eigenen Loesung ersetzen (vorher in der App zusammengefuehrt, `SolutionBuilder.merge`); Kopf-ID,
+    /// Fingerabdruck und Community bleiben, Likes und Kommentare ebenso.
+    func update(solutionID: String, package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication
     /// Veroeffentlichte Loesungen zu einer Original-PDF (Fingerabdruck dient nur der Zuordnung), schon gefiltert
     /// nach Hochschule, Sichtbarkeit, Zurueckgezogen und eigener Sperrliste.
     func findMatching(fingerprint: String) async throws -> [CommunitySolutionSummary]
@@ -68,6 +75,11 @@ extension CommunityService {
     }
 
     public func comments(solutionID: String) async throws -> [CommunityComment] { throw CommunityServiceError.notConnected }
+    /// Aeltere Umsetzungen kennen keine eigene Loesung: dann entscheidet der Dienst beim Veroeffentlichen
+    public func ownSolution(fingerprint: String, communityKey: String) async throws -> CommunitySolutionSummary? { nil }
+    public func update(solutionID: String, package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
+        throw CommunityServiceError.notConnected
+    }
     public func addComment(solutionID: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment { throw CommunityServiceError.notConnected }
     public func editComment(id: String, text: String) async throws -> CommunityComment { throw CommunityServiceError.notConnected }
     public func deleteComment(id: String) async throws { throw CommunityServiceError.notConnected }
@@ -347,9 +359,14 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     case invalidGroupName
     /// Schreiben, Liken und Melden verlangen eine bestaetigte E-Mail-Adresse (403 `email_unverified`)
     case emailUnverified
+    /// zu dieser PDF gibt es in dieser Community schon eine eigene Loesung (Kennung); die App fragt "Aktualisieren?"
+    case alreadyPublished(String)
     /// bekannter Code des Dienstes mit eigenem Text aus `ServiceErrorText` (z. B. Tagesgrenze beim Melden)
     case service(String)
     case server(String)
+
+    /// Frage beim erneuten Teilen zu derselben PDF (Dialog, Web und Dienst gleich)
+    public static let updateQuestion = "Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?"
 
     /// Handlung zur Meldung (z. B. E-Mail bestaetigen in den Kontoeinstellungen)
     public var action: ServiceErrorAction? { self == .emailUnverified ? .verifyEmail : nil }
@@ -373,6 +390,7 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .groupNotFound: return "Keine Lerngruppe mit diesem Code an deiner Hochschule."
         case .invalidGroupName: return "Gib der Lerngruppe einen Namen (höchstens 60 Zeichen)."
         case .emailUnverified: return ServiceErrorText.known(code: "email_unverified")
+        case .alreadyPublished: return CommunityServiceError.updateQuestion
         case .service(let m): return m
         case .server(let m): return "Community-Dienst: \(m)"
         }

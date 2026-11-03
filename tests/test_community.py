@@ -229,15 +229,18 @@ def test_report_hides_after_three_and_block_hides_author(hosted):
     st, d = _j(asgi_call(hosted, "POST", "/api/community/solutions", headers=ha, body=json.dumps({"package": pkg})))
     assert (st, d["code"]) == (403, "solution_blocked")
     # Sperren eines Autors fuer mich: zweite Loesung des Autors verschwindet nur fuer den Sperrenden
-    pkg2 = community.sample_package(FP_A)
+    # (zweite Loesung zu einer anderen PDF: zu derselben PDF gibt es je Konto nur eine, 03.11.2026)
+    for h in [ha, *readers]:
+        _own_file(hosted, h, FP_B, file_id="f-uni-b")
+    pkg2 = community.sample_package(FP_B)
     sid2 = _j(asgi_call(hosted, "POST", "/api/community/solutions", headers=ha, body=json.dumps({"package": pkg2})))[1]["solution_id"]
     st, d = _j(asgi_call(hosted, "POST", f"/api/community/solutions/{sid2}/block", headers=readers[0]))
     assert st == 200 and d["blocked"].startswith("Studi-")
-    assert _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_A, headers=readers[0]))[1]["solutions"] == []
-    assert [s["solution_id"] for s in _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_A, headers=readers[1]))[1]["solutions"]] == [sid2]
+    assert _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_B, headers=readers[0]))[1]["solutions"] == []
+    assert [s["solution_id"] for s in _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_B, headers=readers[1]))[1]["solutions"]] == [sid2]
     assert _j(asgi_call(hosted, "GET", "/api/community/blocks", headers=readers[0]))[1] == {"blocked": [d["blocked"]]}
     st, d2 = _j(asgi_call(hosted, "DELETE", f"/api/community/blocks/{d['blocked']}", headers=readers[0]))
-    assert st == 200 and [s["solution_id"] for s in _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_A, headers=readers[0]))[1]["solutions"]] == [sid2]
+    assert st == 200 and [s["solution_id"] for s in _j(asgi_call(hosted, "GET", "/api/community/solutions?fingerprint=" + FP_B, headers=readers[0]))[1]["solutions"]] == [sid2]
     assert _j(asgi_call(hosted, "POST", f"/api/community/solutions/{sid2}/block", headers=ha))[1]["code"] == "own_solution"
 
 

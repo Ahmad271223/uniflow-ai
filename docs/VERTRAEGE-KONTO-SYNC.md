@@ -298,7 +298,9 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
     Tag gebündelt mit `count` –, `answer`, `accepted`; bei Lösungen mit `fingerprint` und `title`), `POST /notifications/read
     {ids?}`. Gelesene werden nach 90 Tagen gelöscht.
   - **Seitenweise:** `GET /solutions?fingerprint=&limit=&offset=` liefert `total`. **Spam-Grenze** fürs Veröffentlichen:
-    20 neue Lösungen je Tag (`publish_user`).
+    20 neue Lösungen je Tag (`publish_user`). **Eine Lösung je PDF und Community** (3.11.2026): ein zweites
+    `POST /solutions` antwortet 409 `already_published` mit `solution_id`; `PUT /solutions/{id}` ersetzt das Paket der
+    eigenen Lösung (Client führt zusammen; ID, Likes, Kommentare bleiben, `updated_at` neu; 60 je Tag, `update_user`).
 - **Stelle eines Kommentars:** `page_key` = Seitenschlüssel im Paket, `anchor` = 0..1 von links oben in der Anzeige
   des Absenders (Koordinaten der Objekte geteilt durch `displaySize`); Empfänger mit anderer Drehung bilden sie wie
   die Objekte ab (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 6a). Testvektoren für Pakete:

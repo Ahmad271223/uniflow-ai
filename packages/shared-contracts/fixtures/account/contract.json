@@ -50,6 +50,10 @@
     "count": 30,
     "minutes": 60
    },
+   "update_user": {
+    "count": 60,
+    "minutes": 1440
+   },
    "verify_user": {
     "count": 5,
     "minutes": 60

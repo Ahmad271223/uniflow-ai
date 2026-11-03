@@ -1,0 +1,1687 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-solution-merge-cases.py (Referenz app/solution_format.merge_contents); nicht von Hand aendern. Pruefen: tests/test_solution_merge.py (Python), tests/js/solutions.test.mjs (Browser), SolutionMergeTests (Swift-Kern).",
+ "rules": [
+  "dieselbe PDF-Seite (pdfIndex) oder derselbe Seitenschluessel: die neue Fassung ersetzt die alte",
+  "andere Seiten kommen dazu, alte bleiben",
+  "Reihenfolge nach PDF-Seite; Leerseite hinter der PDF-Seite, der sie in ihrer Fassung folgte (davor: vorn); Notizblatt-Seiten (nb-…) hinten; bei Gleichstand alt vor neu, je in ihrer Reihenfolge",
+  "solutionId und createdAt der bisherigen Loesung; Titel, Anzeigename, Seitenzahl aus der neuen Fassung",
+  "Bilder: nur die von den Seiten benutzten (neue Fassung zuerst); fehlende sortiert in missingImages"
+ ],
+ "cases": [
+  {
+   "name": "andere Folie kommt dazu, bisherige bleibt",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p3-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "keys": [
+    "p1",
+    "p3"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p3-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   }
+  },
+  {
+   "name": "dieselbe PDF-Seite wird ersetzt (auch mit anderem Schluessel)",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "alt",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "q2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "neu",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "keys": [
+    "p1",
+    "q2"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "q2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "neu",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   }
+  },
+  {
+   "name": "Reihenfolge nach PDF-Seite",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p5",
+      "kind": "pdf",
+      "pdfIndex": 5,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p5-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p4",
+      "kind": "pdf",
+      "pdfIndex": 4,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p4-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "keys": [
+    "p1",
+    "p2",
+    "p4",
+    "p5"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p4",
+      "kind": "pdf",
+      "pdfIndex": 4,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p4-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p5",
+      "kind": "pdf",
+      "pdfIndex": 5,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p5-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   }
+  },
+  {
+   "name": "Leerseiten: gleicher Schluessel ersetzt, neue folgt ihrer PDF-Seite",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "b1",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "alt",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p3-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "b1",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "neu",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "b2",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "b2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "keys": [
+    "p1",
+    "p2",
+    "b1",
+    "b2",
+    "p3"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "b1",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "neu",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "b2",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "b2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p3-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   }
+  },
+  {
+   "name": "Leerseite vor der ersten PDF-Seite vorn, Notizblatt hinten",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "b0",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "b0-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "nb-x",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "nb-x-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "nb2-y",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "nb2-y-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "keys": [
+    "b0",
+    "p1",
+    "p2",
+    "nb-x",
+    "nb2-y"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "b0",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "b0-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "nb-x",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "nb-x-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "nb2-y",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "grid",
+      "objects": [
+       {
+        "id": "nb2-y-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   }
+  },
+  {
+   "name": "PDF-Seite ersetzt eine alte Seite mit demselben Schluessel",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 4,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "keys": [
+    "p1",
+    "p2"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 4,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p2-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   }
+  },
+  {
+   "name": "Bilder der bleibenden Seiten bleiben, ersetzte fallen weg; Titel neu, ID und Datum alt",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i1",
+        "type": "image",
+        "src": "a.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i2",
+        "type": "image",
+        "src": "b.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     }
+    ],
+    "images": {
+     "a.png": {
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUg=="
+     }
+    },
+    "missingImages": [
+     "b.png"
+    ]
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3 (ergänzt)",
+    "displayName": "Lea M.",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i3",
+        "type": "image",
+        "src": "c.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     },
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i4",
+        "type": "image",
+        "src": "d.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     }
+    ],
+    "images": {
+     "c.png": {
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUg=="
+     }
+    },
+    "missingImages": [
+     "d.png"
+    ]
+   },
+   "keys": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "merged": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3 (ergänzt)",
+    "displayName": "Lea M.",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i1",
+        "type": "image",
+        "src": "a.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     },
+     {
+      "key": "p2",
+      "kind": "pdf",
+      "pdfIndex": 2,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i3",
+        "type": "image",
+        "src": "c.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     },
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "i4",
+        "type": "image",
+        "src": "d.png",
+        "x": 10,
+        "y": 10,
+        "w": 40,
+        "h": 30
+       }
+      ]
+     }
+    ],
+    "images": {
+     "a.png": {
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUg=="
+     },
+     "c.png": {
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUg=="
+     }
+    },
+    "missingImages": [
+     "d.png"
+    ]
+   }
+  },
+  {
+   "name": "andere PDF: kein Zusammenfuehren",
+   "previous": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000a1",
+    "createdAt": "2026-10-30T09:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "new": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c1c0e-0000-4000-8000-0000000000b2",
+    "createdAt": "2026-11-03T12:00:00Z",
+    "title": "Blatt 3",
+    "displayName": "Lea",
+    "document": {
+     "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "pageCount": 12
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "p1-s",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#000000",
+        "width": 4,
+        "points": [
+         10,
+         10,
+         50,
+         50
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "error": "fingerprintMismatch"
+  }
+ ]
+}

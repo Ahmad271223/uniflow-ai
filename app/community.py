@@ -17,7 +17,12 @@ Hochschul-Quelle stehen). Lesen und Schreiben brauchen den Tarif Plus (Entscheid
 Zentrale Ablage `community.db` und Paketdateien unter `community/` neben den Nutzerordnern. Autoren erscheinen
 nur mit einem stabilen Pseudonym (HMAC aus Konto-ID und Dienst-Geheimnis), nie mit Konto-ID oder E-Mail.
 Melden: eine Meldung je Konto und Loesung; ab REPORTS_TO_HIDE verschiedenen Meldungen ist die Loesung verborgen,
-bis ein Admin entscheidet. Melden (Loesung, Kommentar, Frage, Antwort) verlangt wie Liken und Kommentieren eine
+bis ein Admin entscheidet.
+Eine Loesung je Konto, PDF und Community (03.11.2026): wer zu derselben PDF (Fingerabdruck) in derselben Community schon
+eine Loesung hat, bekommt beim Veroeffentlichen 409 `already_published` mit deren `solution_id`. Der Client fuehrt dann
+die Seiten zusammen (das Paket ist Ende-zu-Ende verschluesselt, der Dienst kann es nicht) und ersetzt das Paket der
+eigenen Loesung mit `update` (PUT): ID, Likes, Kommentare und Sichtbarkeit bleiben, `updated_at` wird neu gesetzt.
+Schon vorhandene Doppel bleiben stehen. Melden (Loesung, Kommentar, Frage, Antwort) verlangt wie Liken und Kommentieren eine
 bestaetigte E-Mail-Adresse und die Sichtbarkeit des Beitrags fuer das Konto und ist je Konto und Tag begrenzt
 (`report_user`); gezaehlt werden daher nur Meldungen solcher Konten, Wegwerf-Konten koennen nichts verbergen. Die
 Moderation sieht je Meldung Pseudonym, Kontoalter und Bestaetigungsstand des Meldenden und kann Verborgenes wieder
@@ -163,9 +168,10 @@ CREATE TABLE IF NOT EXISTS study_groups (
 
 
 class CommunityError(ValueError):
-    def __init__(self, code: str, message: str, status: int = 400):
+    def __init__(self, code: str, message: str, status: int = 400, extra: dict | None = None):
         super().__init__(message)
         self.code, self.message, self.status = code, message, status
+        self.extra = extra or {}                 # weitere Felder der Fehlerantwort (z. B. solution_id bei already_published)
 
 
 def _schema(conn) -> None:
@@ -175,6 +181,8 @@ def _schema(conn) -> None:
     if "community_key" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
         conn.execute("ALTER TABLE solutions ADD COLUMN community_key TEXT")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_community ON solutions(community_key, status)")
+    if "updated_at" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
+        conn.execute("ALTER TABLE solutions ADD COLUMN updated_at TEXT")     # letztes Ersetzen des Pakets (update), sonst NULL
 
 
 def _now() -> str:
@@ -359,7 +367,8 @@ def validate_package(pkg) -> dict:
 
 def _summary(r, me: str, reported: set[str] | None = None, conn=None) -> dict:
     out = {"solution_id": r["id"], "fingerprint": r["fingerprint"], "display_name": r["display_name"], "pseudonym": r["pseudonym"],
-           "title": r["title"], "created_at": r["created_at"], "published_at": r["published_at"], "page_count": r["page_count"],
+           "title": r["title"], "created_at": r["created_at"], "published_at": r["published_at"], "updated_at": r["updated_at"],
+           "page_count": r["page_count"],
            "pages": r["pages"], "downloads": r["downloads"], "status": r["status"], "mine": r["author_id"] == me, "community_key": r["community_key"],
            "reported_by_me": r["id"] in (reported or set())}
     if conn is not None:
@@ -480,6 +489,11 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
             raise CommunityError("author_banned", "Dein Konto darf keine Lösungen mehr veröffentlichen.", 403)
         cur = conn.execute("SELECT author_id, status FROM solutions WHERE id=?", (info["id"],)).fetchone()
         if not cur:
+            other = own_solution(conn, user["id"], info["fingerprint"], key)
+            if other:
+                # eine Loesung je PDF und Community: der Client fragt "Aktualisieren?" und ersetzt dann per PUT
+                raise CommunityError("already_published", "Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?", 409,
+                                     {"solution_id": other["id"]})
             _limit("publish_user", user["id"])                 # Spam-Grenze, erneutes Veroeffentlichen zaehlt nicht
         if cur and cur["author_id"] != user["id"]:
             raise CommunityError("solution_exists", "Diese Lösung wurde schon von einem anderen Konto veröffentlicht.", 409)
@@ -496,6 +510,62 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
                      (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
                       info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
     return {"solution_id": info["id"], "published_at": now, "pseudonym": pseudonym(user["id"]), "republished": bool(cur)}
+
+
+def own_solution(conn, author_id: str, fingerprint: str, community_key: str | None):
+    """Eigene Loesung zu dieser PDF in dieser Community (aktiv oder verborgen), die zuletzt veroeffentlichte; bei alten
+    Doppeln (vor dem 03.11.2026) gilt diese. Zurueckgezogene und entfernte zaehlen nicht."""
+    return conn.execute("""SELECT * FROM solutions WHERE author_id=? AND fingerprint=? AND community_key IS ? AND status IN ('active','hidden')
+                           ORDER BY published_at DESC, id LIMIT 1""", (author_id, fingerprint, community_key)).fetchone()
+
+
+def update(user: dict, university: str, solution_id: str, pkg, title: str | None = None, community_key=None) -> dict:
+    """Paket der EIGENEN Loesung ersetzen (zusammengefuehrt beim Client). Dieselben Pruefungen wie beim Veroeffentlichen;
+    Kopf-ID, Fingerabdruck und Community muessen gleich bleiben. ID, Likes, Kommentare, Sichtbarkeit und
+    `published_at` bleiben, `updated_at` wird neu gesetzt."""
+    require_plan(user)
+    info = validate_package(pkg)
+    sid = str(solution_id or "").lower()
+    with cursor() as conn:
+        r = conn.execute("SELECT * FROM solutions WHERE id=?", (sid,)).fetchone()
+        if not r or r["status"] in ("withdrawn",):
+            raise CommunityError("not_found", "Lösung nicht gefunden.", 404)
+        if r["author_id"] != user["id"]:
+            raise CommunityError("not_owner", "Nur der Autor kann seine Lösung aktualisieren.", 403)
+        if r["status"] in ("hidden", "removed"):
+            raise CommunityError("solution_blocked", "Diese Lösung ist gesperrt und kann nicht aktualisiert werden.", 403)
+        if conn.execute("SELECT 1 FROM bans WHERE author_id=?", (user["id"],)).fetchone():
+            raise CommunityError("author_banned", "Dein Konto darf keine Lösungen mehr veröffentlichen.", 403)
+        if info["id"] != r["id"]:
+            raise CommunityError("solution_mismatch", "Das neue Paket gehört zu einer anderen Lösung (Kopf: solutionId).")
+        if info["fingerprint"] != r["fingerprint"]:
+            raise CommunityError("solution_mismatch", "Das neue Paket gehört zu einer anderen PDF.")
+        if community_key and _community_key(community_key) != r["community_key"]:
+            raise CommunityError("solution_mismatch", "Die Community einer Lösung lässt sich nicht ändern.")
+        if r["community_key"]:
+            if info["key_material"] != "community-secret":
+                raise CommunityError("package_invalid", "Die Lösung ist beschädigt (Kopf: Verschlüsselung).")
+            if not _member(conn, user, r["community_key"]):
+                raise CommunityError("not_a_member", "Tritt zuerst dieser Community bei.", 403)
+        elif not LEGACY_PUBLISH:
+            raise CommunityError("community_required", "Wähle eine Community aus.")
+        else:
+            require_file(info["fingerprint"])
+    raw = json.dumps(pkg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if len(raw) > MAX_PACKAGE_BYTES:
+        raise CommunityError("too_large", "Die Lösung ist zu groß.", 413)
+    _limit("update_user", user["id"])
+    title = (title or "").strip()[:MAX_TITLE] or None
+    now = _now()
+    package_dir().mkdir(parents=True, exist_ok=True)
+    target = package_dir() / f"{sid}.uniflowsolution"
+    tmp = target.with_name(target.name + ".neu")
+    tmp.write_text(raw, encoding="utf-8")
+    tmp.replace(target)                                  # nie ein halb geschriebenes Paket beim Laden
+    with cursor() as conn:
+        conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?
+                        WHERE id=?""", (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, sid))
+    return {"solution_id": sid, "updated_at": now, "pages": info["pages"], "pseudonym": pseudonym(user["id"])}
 
 
 def find(user: dict, university: str, fingerprint: str) -> list[dict]:

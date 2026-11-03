@@ -773,6 +773,70 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(still.map(\.id), [pub.solutionID])
     }
 
+    // MARK: Eine Loesung je PDF und Community (03.11.2026)
+
+    /// Erneut teilen zu derselben PDF: der Dialog fragt "Aktualisieren?" statt eine zweite Loesung anzulegen; mit Ja
+    /// kommen die neuen Seiten zur bisherigen Loesung dazu (gleiche ID, gleicher Datensatz).
+    func testSharingAgainAsksToUpdateAndMergesIntoTheSameSolution() async throws {
+        XCTAssertEqual(SolutionTexts.updateQuestion, "Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?")
+        XCTAssertEqual(CommunityServiceError.alreadyPublished("x").errorDescription, SolutionTexts.updateQuestion)
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let d = try device(cloud)
+        let pdf = makePDFData()
+        let doc = AnnotationDocument(root: try JSONValue.parse(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"p2","type":"pdf","index":2}],
+         "pages":{"p1":{"objects":[{"id":"s1","type":"stroke","tool":"pen","color":"#000000","width":4,"points":[10,10,50,50]}]},
+                  "p2":{"objects":[{"id":"t2","type":"text","text":"Seite 2","x":100,"y":100,"fontSize":16}]}}}
+        """#))
+        let src = SolutionSource(document: doc, originalPDF: pdf, pdf: PDFDocument(data: pdf)!, fingerprint: cipher.sha256Hex(pdf),
+                                 images: [:], title: "Übungsblatt 3")
+        let space = CommunitySpace.course(university: "luh", id: "kurs-1", title: "Lineare Algebra")
+        let options = CommunityPublishOptions(visibility: .module, courseKey: space.key, title: "Übungsblatt 3", communityKey: space.key)
+        // erstes Mal: veroeffentlicht, keine Frage
+        guard case .published(let first) = try await SolutionSharing.publishOrAskUpdate(src, keys: ["p1"], displayName: "Lea", options: options,
+                                                                                       space: space, service: d.service, library: d.library) else {
+            return XCTFail("erstes Teilen fragt nicht")
+        }
+        let own = try await d.service.ownSolution(fingerprint: src.fingerprint, communityKey: space.key)
+        XCTAssertEqual(own?.solutionID, first.solutionID)
+        let elsewhere = try await d.service.ownSolution(fingerprint: src.fingerprint, communityKey: courseKey("kurs-2"))
+        XCTAssertNil(elsewhere, "andere Community: keine eigene Loesung")
+        // zweites Mal (andere Seite): Frage, nichts gesendet, keine zweite Kopie
+        let saved = cloud.saved
+        let step = try await SolutionSharing.publishOrAskUpdate(src, keys: ["p2"], displayName: "Lea", options: options,
+                                                                space: space, service: d.service, library: d.library)
+        XCTAssertEqual(step, .askUpdate(solutionID: first.solutionID))
+        XCTAssertEqual(cloud.saved, saved)
+        XCTAssertEqual(d.library.sharedEntries().map(\.solutionID), [first.solutionID])
+        // auch ohne Pruefung vorab weist der Dienst ein Doppel ab, die angelegte Kopie verschwindet wieder
+        await expect(.alreadyPublished(first.solutionID)) {
+            _ = try await SolutionSharing.publishToCommunity(src, keys: ["p2"], displayName: "Lea", options: options, space: space,
+                                                              service: d.service, library: d.library)
+        }
+        XCTAssertEqual(cloud.all(CommunityRecordType.solution).count, 1)
+        XCTAssertEqual(d.library.sharedEntries().map(\.solutionID), [first.solutionID])
+        // Aktualisieren: gleicher Datensatz, beide Seiten, gleiche ID, Kurs und Sichtbarkeit bleiben
+        let pub = try await SolutionSharing.updateInCommunity(src, keys: ["p2"], displayName: "Lea", options: options, space: space,
+                                                              existingID: first.solutionID, service: d.service, library: d.library)
+        XCTAssertEqual(pub.solutionID, first.solutionID)
+        let records = cloud.all(CommunityRecordType.solution)
+        XCTAssertEqual(records.count, 1)
+        let r = try XCTUnwrap(records.first)
+        XCTAssertEqual(r["pageCount"]?.int, 2)
+        XCTAssertEqual(r["courseKey"]?.string, space.key)
+        XCTAssertEqual(r["visibility"]?.string, "modul")
+        let stored = try SolutionPackage.decode(try Data(contentsOf: try XCTUnwrap(r["package"]?.asset)))
+        let opened = try stored.open(communitySecret: try XCTUnwrap(space.secret), cipher: cipher)
+        XCTAssertEqual(opened.solutionID, first.solutionID)
+        XCTAssertEqual(opened.pages.map(\.key), ["p1", "p2"])
+        XCTAssertEqual(d.library.sharedEntries().map(\.pageCount), [2], "Kopie unter Meine geteilten Lösungen ersetzt")
+        XCTAssertNotNil(d.library.sharedEntries().first?.publishedAt)
+        // nur der Autor ersetzt sein Paket
+        cloud.user = "_user-bob"
+        let bob = try device(cloud)
+        await expect(.notOwner) { _ = try await bob.service.update(solutionID: first.solutionID, package: stored, options: options) }
+    }
+
     // MARK: Dokument fuer den Import
 
     private func makeStore(pdf: Data) async throws -> DocumentStore {

@@ -311,6 +311,11 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         }
         let (cloud, user) = try await signedIn()
         let h = package.header
+        // eine Loesung je PDF und Community (03.11.2026): die App fragt dann "Aktualisieren?" und ersetzt das Paket
+        if let key = Self.communityKey(options), let own = try await ownListing(cloud, user: user, fingerprint: h.fingerprint, communityKey: key),
+           own.solutionID != h.solutionID.lowercased() {
+            throw CommunityServiceError.alreadyPublished(own.solutionID)
+        }
         let name = CommunityRules.effectiveDisplayName(h.displayName, visibility: options.visibility)
         // das Paket als Datei fuer das Asset (nur das verschluesselte Paket, keine PDF), im Zwischenspeicher des
         // Containers (AppTemp: weg nach dem Upload, spaetestens beim naechsten Start)
@@ -340,6 +345,64 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
             throw Self.serviceError(error)
         }
         return CommunityPublication(solutionID: h.solutionID, publishedAt: now)
+    }
+
+    /// Community eines Datensatzes: Lerngruppe ueber `groupKey`, sonst der Kurs-Schluessel; anonym gehoert zu keiner
+    static func communityKey(_ options: CommunityPublishOptions) -> String? {
+        let key = options.communityKey ?? (options.visibility == .studyGroup ? options.groupKey : options.courseKey)
+        return options.visibility == .anonymous || (key ?? "").isEmpty ? nil : key
+    }
+
+    /// Eigene, nicht zurueckgezogene Loesung zu PDF und Community (Kurs- oder Gruppen-Schluessel); die neueste
+    private func ownListing(_ cloud: CommunityCloud, user: String, fingerprint: String, communityKey: String) async throws -> CommunityListing? {
+        let records: [CommunityRecord]
+        do {
+            records = try await cloud.query(CommunityQuery(type: CommunityRecordType.solution,
+                                                           equals: [Field.fingerprint: .string(fingerprint.lowercased()),
+                                                                    Field.university: .string(university.rawValue)]), in: .publicDB)
+        } catch {
+            throw Self.serviceError(error)
+        }
+        return records.compactMap { Self.listing($0, me: user) }
+            .filter { $0.ownerRecordName == user && !$0.withdrawn && $0.visibility != .anonymous
+                      && ($0.visibility == .studyGroup ? $0.groupKey : $0.courseKey) == communityKey }
+            .max { ($0.createdAt, $0.solutionID) < ($1.createdAt, $1.solutionID) }
+    }
+
+    func ownSolution(fingerprint: String, communityKey: String) async throws -> CommunitySolutionSummary? {
+        let (cloud, user) = try await signedIn()
+        return try await ownListing(cloud, user: user, fingerprint: fingerprint, communityKey: communityKey)
+            .map { CommunitySolutionSummary(listing: $0, isOwn: true) }
+    }
+
+    /// Paket der eigenen Loesung ersetzen: derselbe Datensatz (ID, Sichtbarkeit, Kurs, Erstellungsdatum bleiben),
+    /// neues Asset, Seitenzahl, Titel und Pseudonym; das Aenderungsdatum fuehrt CloudKit selbst.
+    func update(solutionID: String, package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
+        let (cloud, user) = try await signedIn()
+        let id = solutionID.lowercased(), h = package.header
+        guard h.solutionID == id else { throw SolutionError.conflictingSolution }
+        let dir = try AppTemp.fresh("community-upload")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        do {
+            guard var record = try await cloud.fetch(name: id, type: CommunityRecordType.solution, in: .publicDB),
+                  let listing = Self.listing(record, me: user), !listing.withdrawn else {
+                throw CommunityServiceError.notFound
+            }
+            guard listing.ownerRecordName == user else { throw CommunityServiceError.notOwner }
+            guard listing.fingerprint == h.fingerprint else { throw SolutionError.fingerprintMismatch }
+            let file = dir.appendingPathComponent(SolutionLibrary.fileName(id))
+            try package.encoded().write(to: file, options: .atomic)
+            record[Field.package] = .asset(file)
+            record[Field.pageCount] = .int(h.pageCount)
+            record[Field.displayName] = .string(CommunityRules.effectiveDisplayName(h.displayName, visibility: listing.visibility))
+            if !options.title.isEmpty { record[Field.title] = .string(String(options.title.prefix(SolutionLimits.maxTitle))) }
+            try await cloud.save(record, in: .publicDB)
+        } catch let e as SolutionError {
+            throw e
+        } catch {
+            throw Self.serviceError(error)
+        }
+        return CommunityPublication(solutionID: id, publishedAt: Date())
     }
 
     func findMatching(fingerprint: String) async throws -> [CommunitySolutionSummary] {
@@ -544,7 +607,57 @@ extension SolutionSharing {
             try library.recordShared(SolutionSharing.package(built, originalPDF: source.originalPDF), title: source.title)
             return try SolutionPackage.seal(built, communitySecret: secret, cipher: SolutionSharing.cipher)
         }.value
-        let publication = try await service.publish(sealed, options: options)
+        let publication: CommunityPublication
+        do {
+            publication = try await service.publish(sealed, options: options)
+        } catch CommunityServiceError.alreadyPublished(let id) {
+            // nichts Neues veroeffentlicht: die eben angelegte Kopie wieder weg, die Frage stellt der Dialog
+            try? library.removeShared(sealed.header.solutionID)
+            throw CommunityServiceError.alreadyPublished(id)
+        }
+        try library.setPublished(publication.solutionID, at: publication.publishedAt)
+        return publication
+    }
+
+    /// Ergebnis von `publishOrAskUpdate`: veroeffentlicht oder (schon eine eigene Loesung zu dieser PDF) fragen
+    enum CommunityShareStep: Equatable {
+        case published(CommunityPublication)
+        case askUpdate(solutionID: String)
+    }
+
+    /// Veroeffentlichen mit vorheriger Pruefung: gibt es zu dieser PDF in dieser Community schon eine eigene Loesung,
+    /// nichts senden und fragen ("Aktualisieren?"); meldet erst der Dienst das Doppel (409), ebenso.
+    static func publishOrAskUpdate(_ source: SolutionSource, keys: [String], displayName: String, options: CommunityPublishOptions,
+                                   space: CommunitySpace, service: CommunityService, library: SolutionLibrary = library) async throws -> CommunityShareStep {
+        // Pruefung vorab ist nur eine Hilfe (ohne Netz oder iCloud entscheidet der Dienst beim Veroeffentlichen)
+        if let own = (try? await service.ownSolution(fingerprint: source.fingerprint, communityKey: space.key)) ?? nil {
+            return .askUpdate(solutionID: own.solutionID)
+        }
+        do {
+            return .published(try await publishToCommunity(source, keys: keys, displayName: displayName, options: options, space: space,
+                                                           service: service, library: library))
+        } catch CommunityServiceError.alreadyPublished(let id) {
+            return .askUpdate(solutionID: id)
+        }
+    }
+
+    /// Erneut teilen zu derselben PDF ("Aktualisieren?" mit Ja): bisherige eigene Loesung laden und mit dem Schluessel
+    /// der Community oeffnen, die neue Fassung damit zusammenfuehren (`SolutionBuilder.merge`: andere Seiten kommen
+    /// dazu, dieselbe Seite wird ersetzt), unter der bisherigen ID neu versiegeln und das Paket beim Dienst ersetzen.
+    /// Likes, Kommentare und Sichtbarkeit bleiben; die Kopie unter "Meine geteilten Lösungen" wird ersetzt.
+    static func updateInCommunity(_ source: SolutionSource, keys: [String], displayName: String, options: CommunityPublishOptions,
+                                  space: CommunitySpace, existingID: String, service: CommunityService,
+                                  library: SolutionLibrary = library) async throws -> CommunityPublication {
+        guard let secret = space.secret else { throw CommunityServiceError.notAMember }
+        let previousPackage = try await service.download(solutionID: existingID)
+        let sealed = try await Task.detached(priority: .userInitiated) {
+            let previous = try previousPackage.open(communitySecret: secret, cipher: SolutionSharing.cipher)
+            let built = try SolutionSharing.content(source, keys: keys, displayName: displayName)
+            let merged = try SolutionBuilder.merge(previous: previous, new: built)
+            try library.recordShared(SolutionSharing.package(merged, originalPDF: source.originalPDF), title: source.title)
+            return try SolutionPackage.seal(merged, communitySecret: secret, cipher: SolutionSharing.cipher)
+        }.value
+        let publication = try await service.update(solutionID: existingID, package: sealed, options: options)
         try library.setPublished(publication.solutionID, at: publication.publishedAt)
         return publication
     }

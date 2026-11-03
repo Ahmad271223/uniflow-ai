@@ -322,6 +322,8 @@ zurückholen – das steht so im Blatt.
 | `report(solutionID:reason:note:)` | melden (fremdes Material, bewertete Abgabe, beleidigend, Spam, sonstiges) |
 | `block(owner:)`, `unblock`, `blockedOwners()` | eigene Sperrliste (privat) |
 | `createStudyGroup(name:)`, `joinStudyGroup(code:)`, `leaveStudyGroup`, `studyGroups()` | Lerngruppen |
+| `ownSolution(fingerprint:communityKey:)` | eigene Lösung zu dieser PDF in dieser Community (für die Frage „Aktualisieren?“) |
+| `update(solutionID:package:options:)` | Paket der eigenen Lösung ersetzen (vorher in der App zusammengeführt) |
 
 Die neuen Aufrufe haben Standardimplementierungen („nicht verbunden“), `publish(_:)` ohne Optionen bleibt als
 Kurzform. Umsetzungen: `NotConnectedCommunityService` (Kern: wirft, sendet nichts) und `CloudKitCommunityService`
@@ -330,6 +332,28 @@ Kurzform. Umsetzungen: `NotConnectedCommunityService` (Kern: wirft, sendet nicht
 normalisierten Kursnamen, eigener Namensraum, für eigene Dokumente), `CommunityKeys.groupKey(university:code:)`,
 Beitrittscodes (8 Zeichen ohne 0/O/1/I), `CommunityRules.isVisible`/`visible` (Filter), `effectiveDisplayName`
 (anonym = nie ein Pseudonym), `validate` (Optionen), `byWeek`.
+
+### 6.1 Eine Lösung je PDF und Community (Wunsch des Inhabers, 3.11.2026)
+
+Ein Konto hat zu einer PDF (Fingerabdruck) in einer Community höchstens eine Lösung. Teilt es erneut, fragt die App
+bzw. die Seite „Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisieren?“ (Aktualisieren / Abbrechen).
+
+- **Prüfen:** vorab über die eigenen Lösungen (`GET /api/community/mine`, CloudKit: eigene Datensätze zu Fingerabdruck
+  und Kurs- bzw. Gruppen-Schlüssel); meldet erst der Dienst das Doppel, antwortet `POST /api/community/solutions` mit
+  **409 `already_published`** und `solution_id` der vorhandenen (aktiven oder verborgenen) Lösung.
+- **Zusammenführen** (der Dienst kann es nicht, die Pakete sind Ende-zu-Ende verschlüsselt): bisherige Lösung laden, mit
+  dem Community-Schlüssel öffnen, mit der neuen Fassung zusammenführen (`SolutionBuilder.merge`, Browser
+  `mergeContent`, Referenz `app/solution_format.merge_contents`, gemeinsame Fälle
+  `packages/shared-contracts/fixtures/solutions/merge-cases.json`), unter der **bisherigen ID** neu versiegeln.
+  Regeln: dieselbe PDF-Seite (`pdfIndex`) oder derselbe Seitenschlüssel wird durch die neue Fassung ersetzt, andere
+  Seiten kommen dazu; Reihenfolge nach PDF-Seite, eine Leerseite hinter der PDF-Seite, der sie folgte, Notizblatt-Seiten
+  (`nb-…`) hinten; ID und Erstellungsdatum bleiben, Titel und Pseudonym kommen aus der neuen Fassung.
+- **Ersetzen:** `PUT /api/community/solutions/{id}` mit `{package, title?, community_key?}` – nur der Autor (sonst 403
+  `not_owner`, unbekannt 404), dieselben Prüfungen wie beim Veröffentlichen (Kopf, Größe, Tarif, bestätigte E-Mail,
+  Mitgliedschaft, Community-Schlüssel), Kopf-ID, Fingerabdruck und Community unverändert (sonst 400 `solution_mismatch`),
+  gesperrte Lösungen 403 `solution_blocked`, Grenze `update_user` 60 je Tag. ID, Likes, Kommentare (an `page_key`) und
+  Sichtbarkeit bleiben, `published_at` auch; neu ist `updated_at`. CloudKit: derselbe Datensatz bekommt das neue Asset.
+- Schon vorhandene Doppel bleiben stehen; gefragt wird nach der zuletzt veröffentlichten.
 
 ## 6a. Windows-App und Web: Community im Editor (28.10.2026)
 
