@@ -111,4 +111,50 @@ final class StudIPDeviceProbeTests: XCTestCase {
         }
         say("Forum: \(withCategories) Kurse mit Kategorien, \(entriesTotal) Themen insgesamt")
     }
+
+    /// Alle JSON:API-Routen dieser Stud.IP-Installation (discovery) und je Route, ob sie fuer dieses Konto antwortet
+    /// (nur GET mit page[limit]=1, nur Status und Anzahl, kein Inhalt). Keine HTML-Seiten: Kurs- und Startseiten
+    /// koennten in Stud.IP "gesehen"-Marken setzen.
+    func testStudIPSurveyOnTheDevice() async throws {
+        let client = try client()
+        let uid = try await client.currentUserID()
+        let disco = try await client.json("jsonapi.php/v1/discovery")
+        var routes: [(String, String)] = []
+        for r in disco["data"]?.array ?? [] {
+            let path = r["attributes"]?["pattern"]?.string ?? r["id"]?.string ?? ""
+            let methods = r["attributes"]?["methods"]?.array?.compactMap(\.string).joined(separator: ",") ?? (r["attributes"]?["method"]?.string ?? "")
+            routes.append((path, methods))
+        }
+        if routes.isEmpty { say("Discovery: Format unbekannt: \(String(describing: disco).prefix(400))") }
+        let gets = routes.filter { $0.1.uppercased().contains("GET") || $0.1.isEmpty }.map(\.0)
+        say("Discovery: \(routes.count) Routen, davon GET \(gets.count)")
+        for g in gets.sorted() { say("Route GET \(g)") }
+        // Kurse fuer Kurs-Routen: zwei aktuelle
+        let courses = (try? await client.courses(userID: uid)) ?? []
+        let sample = courses.prefix(2).map(\.id)
+        var tried = 0
+        for g in gets.sorted() {
+            guard tried < 220 else { say("… Abbruch nach 220 Abrufen"); break }
+            var path = g.hasPrefix("/") ? String(g.dropFirst()) : g
+            if path.hasPrefix("v1/") { path = String(path.dropFirst(3)) }
+            if path.contains("{") || path.contains(":") || path.contains("(") {
+                // nur Nutzer- und Kurs-Muster mit genau einem Platzhalter einsetzen
+                let placeholders = path.components(separatedBy: "/").filter { $0.hasPrefix("{") || $0.hasPrefix(":") || $0.hasPrefix("(") }
+                guard placeholders.count == 1 else { continue }
+                if path.hasPrefix("users/") { path = path.replacingOccurrences(of: placeholders[0], with: uid) }
+                else if path.hasPrefix("courses/"), let c = sample.first { path = path.replacingOccurrences(of: placeholders[0], with: c) }
+                else { continue }
+            }
+            tried += 1
+            let sep = path.contains("?") ? "&" : "?"
+            do {
+                let j = try await client.json("jsonapi.php/v1/\(path)\(sep)page[limit]=1")
+                let total = j["meta"]?["page"]?["total"]?.int
+                let n = j["data"]?.array?.count
+                say("OK  \(g) → " + (total.map { "\($0) Einträge" } ?? n.map { "\($0) Einträge (Seite)" } ?? "Objekt"))
+            } catch {
+                say("--  \(g) → \(status(error))")
+            }
+        }
+    }
 }
