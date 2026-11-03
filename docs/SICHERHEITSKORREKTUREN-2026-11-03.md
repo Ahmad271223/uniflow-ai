@@ -21,6 +21,6 @@ Behebt die belegten Funde der Sicherheitsprüfung vom 03.11.2026 (Nummern wie im
 - `claude -p` braucht eine CLI mit `--tools` (seit Claude Code 2.0); `--setting-sources user` lädt weiter die Nutzer-Einstellungen (Anmeldung, Umgebung), aber keine Projekt-Einstellungen. Der leere Temp-Ordner als Arbeitsordner verhindert zusätzlich, dass Einstellungen oder CLAUDE.md eines Projektordners greifen.
 
 ## Offen
-- Fund 1 (Grundsatzfrage Schlüsselverfahren): Entscheidung des Inhabers.
+- Fund 1 entschieden (03.11.2026): Community nur für Module aus dem eigenen Uni-Abgleich, auch frühere Semester (App: `CommunityCourses.courseKeys`, `join`; Dienst prüft schon `course_claims`). Grenze: der Schlüssel folgt weiter aus dem Modulnamen, eine veränderte App käme also an Inhalte.
 - Bestehende Daten werden nicht nachträglich bereinigt (z. B. alte Modulfarben oder Termine in freier Form, früher angelegte Gruppen auf Kursschlüsseln); neue Eingaben sind geprüft.
 - Das Speicherkontingent zählt nur eigene Uploads (Eigene Dokumente, Assets), nicht die Dateien aus dem Hochschul-Abgleich.
