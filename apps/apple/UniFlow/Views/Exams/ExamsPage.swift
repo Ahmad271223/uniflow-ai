@@ -146,7 +146,7 @@ struct TestCard: View {
                 Spacer()
                 HStack(spacing: 2.4) {                                      // .test-head-r
                     if t.i("auto") == 1 { UFBadge("Wochentest", tone: .neutral) } else { UFBadge("manuell", tone: .info) }
-                    Button(action: delete) { UFIcon("trash", size: 16).foregroundStyle(UF.muted).frame(width: 40, height: 40) }
+                    Button(action: delete) { UFIcon("trash", size: 16).foregroundStyle(UF.muted).frame(width: 40, height: 40).ufHitArea() }
                         .buttonStyle(.plain).accessibilityLabel("Test löschen")
                 }
                 .padding(.vertical, -5.6).padding(.trailing, -7.2)

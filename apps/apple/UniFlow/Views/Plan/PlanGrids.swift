@@ -244,6 +244,7 @@ struct PlanWeekGrid: View {
                         Circle().fill(UF.accent).frame(width: 34, height: 34)
                             .overlay(UFIcon("plus", size: 16).foregroundStyle(.white))
                             .ufShadow(.md)
+                            .ufHitArea()
                     }
                     .buttonStyle(.plain)
                     .help("Lernpaket hinzufügen")
@@ -472,6 +473,7 @@ struct PlanPackageBlock: View {
                             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(status == "erledigt" ? UF.ok : UF.lineStrong, lineWidth: 1.5))
                             .overlay { if status == "erledigt" { UFIcon("check", size: 11).foregroundStyle(.white) } }
                             .frame(width: 16, height: 16)
+                            .ufHitArea()
                     }
                     .buttonStyle(.plain)
                     .help("\(done)/\(tasks.count) erledigt")
@@ -924,6 +926,7 @@ struct PlanSide: View {
                                     .overlay(Circle().strokeBorder(on ? UF.accent : UF.lineStrong, lineWidth: 2))
                                     .overlay { if on { UFIcon("check", size: 13).foregroundStyle(.white) } }
                                     .frame(width: 22, height: 22)
+                                    .ufHitArea(slop: EdgeInsets(top: .infinity, leading: .infinity, bottom: .infinity, trailing: 4.8))
                             }
                             .buttonStyle(.plain)
                             .padding(.top, 1.6)

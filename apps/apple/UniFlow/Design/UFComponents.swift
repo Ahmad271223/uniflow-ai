@@ -32,6 +32,7 @@ struct UFButtonStyle: ButtonStyle {
             .background(RoundedRectangle(cornerRadius: UF.rSm).fill(activeFill ? UF.accentSoft : background(pressed: pressed)))
             .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(border, lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+            .ufHitArea()                                                 // 28/34 pt sichtbar, 44 pt antippbar
             .offset(y: pressed ? 1 : 0)                                  // .btn:active { translateY(1px) }
             .opacity(isEnabled ? 1 : 0.55)                               // .btn:disabled
             .animation(UF.transition, value: pressed)
@@ -101,6 +102,107 @@ struct UFButton: View {
                      "settings": "Einstellungen", "panel-right": "Seitenleiste", "more": "Mehr", "menu": "Menü",
                      "clock": "Zeitmesser", "book": "Öffnen", "sun": "Darstellung wechseln", "moon": "Darstellung wechseln"]
         return names[icon] ?? icon
+    }
+}
+
+// MARK: - Trefferflaeche (Apple: mindestens 44 x 44 pt antippbar)
+
+/// Mindest-Trefferflaeche fuer alles Antippbare, ohne die sichtbare Groesse oder das Layout zu aendern: eine
+/// unsichtbare, antippbare Flaeche hinter dem Element ragt ueber dessen Rand hinaus (das Layout sieht nur die
+/// sichtbare Groesse). `slop` begrenzt das Hinausragen je Seite, wo Nachbarn dicht stehen (eng gestapelte Chips):
+/// fehlt auf einer Seite Platz, uebernimmt die Gegenseite den Rest, soweit sie darf.
+enum UFHit {
+    static let minSide: CGFloat = 44
+    static let unbounded = EdgeInsets(top: .infinity, leading: .infinity, bottom: .infinity, trailing: .infinity)
+
+    /// -UFShowHitAreas YES (nur Debug): alle Trefferflaechen eingefaerbt, fuer Pruefbilder im Simulator
+    static var debugOverlay: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "UFShowHitAreas")
+        #else
+        return false
+        #endif
+    }
+
+    /// Trefferrechteck um ein sichtbares Element der Groesse `size` (Ursprung oben links des Elements)
+    static func rect(for size: CGSize, minSide: CGFloat = minSide, slop: EdgeInsets = unbounded) -> CGRect {
+        func grow(_ length: CGFloat, _ a: CGFloat, _ b: CGFloat) -> (before: CGFloat, after: CGFloat) {
+            let need = max(0, minSide - length)
+            var before = min(need / 2, max(0, a))
+            var after = min(need - before, max(0, b))
+            before = min(need - after, max(0, a))                         // Rest der begrenzten Seite auf die andere
+            after = min(need - before, max(0, b))
+            return (before, after)
+        }
+        let h = grow(size.width, slop.leading, slop.trailing)
+        let v = grow(size.height, slop.top, slop.bottom)
+        return CGRect(x: -h.before, y: -v.before, width: size.width + h.before + h.after, height: size.height + v.before + v.after)
+    }
+}
+
+/// Legt die unsichtbare Flaeche aus `UFHit.rect` um das Element, meldet dem Layout aber nur die sichtbare Groesse
+private struct UFHitExpander: Layout {
+    var minSide: CGFloat
+    var slop: EdgeInsets
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions(by: .zero)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let r = UFHit.rect(for: bounds.size, minSide: minSide, slop: slop)
+        for s in subviews {
+            s.place(at: CGPoint(x: bounds.minX + r.minX, y: bounds.minY + r.minY), anchor: .topLeading,
+                    proposal: ProposedViewSize(r.size))
+        }
+    }
+}
+
+/// Grenze fuer das Hinausragen der Trefferflaeche, die Bausteine mit eigener Flaeche (UFButton) von aussen bekommen:
+/// `.ufHitSlop(...)` an der Stelle, wo Knoepfe dicht nebeneinander stehen
+private struct UFHitSlopKey: EnvironmentKey { static let defaultValue = UFHit.unbounded }
+
+/// Zeigt die Trefferflaechen eingefaerbt (Pruefbilder und `AccessibilityHitAreaAppTests`); in der App immer aus
+private struct UFShowHitAreasKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    var ufShowHitAreas: Bool {
+        get { self[UFShowHitAreasKey.self] }
+        set { self[UFShowHitAreasKey.self] = newValue }
+    }
+    var ufHitSlop: EdgeInsets {
+        get { self[UFHitSlopKey.self] }
+        set { self[UFHitSlopKey.self] = newValue }
+    }
+}
+
+private struct UFHitArea: ViewModifier {
+    var minSide: CGFloat
+    var slop: EdgeInsets?
+    @Environment(\.ufShowHitAreas) private var show
+    @Environment(\.ufHitSlop) private var envSlop
+
+    func body(content: Content) -> some View {
+        content.background {
+            UFHitExpander(minSide: minSide, slop: slop ?? envSlop) {
+                (show ? Color.red.opacity(0.35) : Color.clear).contentShape(Rectangle())
+            }
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+extension View {
+    /// Antippbar auf mindestens `minSide` x `minSide` pt, sichtbar und im Layout unveraendert (siehe `UFHit`)
+    /// ohne `slop`: die Grenze aus `.ufHitSlop` (sonst unbegrenzt)
+    func ufHitArea(_ minSide: CGFloat = UFHit.minSide, slop: EdgeInsets? = nil) -> some View {
+        modifier(UFHitArea(minSide: minSide, slop: slop))
+    }
+
+    /// Grenze je Seite fuer die Trefferflaechen der Bausteine darin (dicht stehende Knoepfe: halbe Luecke)
+    func ufHitSlop(top: CGFloat = .infinity, leading: CGFloat = .infinity, bottom: CGFloat = .infinity,
+                   trailing: CGFloat = .infinity) -> some View {
+        environment(\.ufHitSlop, EdgeInsets(top: top, leading: leading, bottom: bottom, trailing: trailing))
     }
 }
 
@@ -304,7 +406,9 @@ struct UFChip: View {
             .padding(.horizontal, 10.4 + ufB)
             .background(Capsule().fill(on ? UF.accentSoft : UF.surface))
             .overlay(Capsule().strokeBorder(on ? Color.clear : UF.line, lineWidth: 1))
-        }
+            .contentShape(Capsule())
+            .ufHitArea()                                                // ~24 pt hoch, 44 pt antippbar (im Label, sonst
+        }                                                               // gehoert die Flaeche nicht zum Knopf)
         .buttonStyle(.plain)
     }
 }
@@ -391,6 +495,8 @@ struct UFSegmented<Value: Hashable>: View {
                         .padding(.horizontal, 11.2)
                         .background(RoundedRectangle(cornerRadius: 6).fill(active ? UF.surface : .clear))
                         .modifier(OptionalShadow(on: active))
+                        .contentShape(Rectangle())
+                        .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 1, bottom: .infinity, trailing: 1))   // seitlich halbe Luecke
                 }
                 .buttonStyle(.plain)
             }
@@ -425,12 +531,17 @@ struct UFTabs<Value: Hashable>: View {
                             .overlay(alignment: .bottom) {
                                 if active { Rectangle().fill(UF.accent).frame(height: 2).matchedGeometryEffect(id: "tab-underline", in: underline) }
                             }
+                            .contentShape(Rectangle())
+                            .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 1.6, bottom: .infinity, trailing: 1.6))
                     }
                     .buttonStyle(.plain)
                 }
             }
             .animation(UFMotion.animation(reduce: reduce, fadeWhenReduced: false), value: selection)
+            // die Rollflaeche schneidet Beruehrungen an ihrem Rand ab: innen Platz fuer die 44-pt-Flaeche, aussen gleich
+            .padding(.vertical, 3)
         }
+        .padding(.vertical, -3)
         .ufBorderBottom()
         .padding(.bottom, 16)
     }

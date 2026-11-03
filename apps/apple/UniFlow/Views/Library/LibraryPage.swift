@@ -632,7 +632,13 @@ struct LibraryGridItem: View {
     private func name(_ s: String, menu show: Bool) -> some View {
         HStack(spacing: 3.2) {
             Text(s).ufFont(14.08, 500, lh: 1.25).foregroundStyle(UF.text).lineLimit(2).multilineTextAlignment(.center)
-            if show { Button(action: menu) { UFIcon("chevron-down", size: 14).foregroundStyle(UF.accentText) }.buttonStyle(.plain) }
+            if show {
+                Button(action: menu) {
+                    UFIcon("chevron-down", size: 14).foregroundStyle(UF.accentText)
+                        .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 1.6, bottom: .infinity, trailing: .infinity))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: 150)
     }
@@ -680,6 +686,7 @@ struct LibraryThumb: View {
             if star {
                 Button(action: fav) {
                     UFIcon("star", size: 16).foregroundStyle(favorite ? UF.warn : UF.lineStrong).padding(.top, 4).padding(.trailing, 6)
+                        .ufHitArea()
                 }
                 .buttonStyle(.plain)
             }
@@ -715,7 +722,7 @@ struct LibraryListRow: View {
                 Text("Ordner").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 110, alignment: .leading)
                 Text("\(it.count) Dokumente").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 Color.clear.frame(width: 90, height: 1)
-                Group { if it.user != nil { Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText) }.buttonStyle(.plain) } else { Color.clear } }
+                Group { if it.user != nil { Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText).ufHitArea() }.buttonStyle(.plain) } else { Color.clear } }
                     .frame(width: 36)
             } else {
                 let f = it.f
@@ -742,7 +749,7 @@ struct LibraryListRow: View {
                 Text(f.s("subject") ?? "Eigene").ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1).frame(width: 120, alignment: .leading)
                 Text(f.s("edited_at").map { UFFmt.date($0) } ?? UFFmt.date(UFFmt.isoFromUnix(f.n("chdate")))).ufFont(13.12).foregroundStyle(UF.muted)
                     .frame(width: 90, alignment: .leading)
-                Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText) }.buttonStyle(.plain).frame(width: 36)
+                Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText).ufHitArea() }.buttonStyle(.plain).frame(width: 36)
             }
         }
         .padding(.vertical, 7.2).padding(.horizontal, 8)

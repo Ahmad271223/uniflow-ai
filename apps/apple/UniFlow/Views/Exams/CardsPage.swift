@@ -425,14 +425,19 @@ struct CardsPage: View {
                         HStack(spacing: 2) {
                             if (c.i("hidden") ?? 0) != 0 {
                                 UFButton("Zeigen", kind: .ghost, size: .small) { setFlag(c, "hidden", false) }
+                                    .ufHitSlop(trailing: 1)
                                     .accessibilityLabel("Karte wieder zeigen: \(q)")
                             }
+                            // 28-pt-Symbole 2 pt auseinander: zwischen ihnen je die halbe Luecke, der Rest der 44 pt
+                            // nach aussen (links frei, ausser "Zeigen" steht davor)
                             UFButton(icon: "bookmark", kind: .ghost, size: .small) { setFlag(c, "bookmarked", !marked) }
+                                .ufHitSlop(leading: (c.i("hidden") ?? 0) != 0 ? 1 : .infinity, trailing: 1)
                                 .foregroundStyle(marked ? UF.accentText : UF.text2)
                                 .background(RoundedRectangle(cornerRadius: UF.rSm).fill(marked ? UF.accentSoft : .clear))
                                 .accessibilityLabel(marked ? "Lesezeichen entfernen: \(q)" : "Lesezeichen setzen: \(q)")
                                 .accessibilityAddTraits(marked ? .isSelected : [])
                             UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDelete(c) }
+                                .ufHitSlop(leading: 1)
                                 .accessibilityLabel("Karte löschen: \(q)")
                         }
                     }

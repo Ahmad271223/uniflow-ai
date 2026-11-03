@@ -252,6 +252,7 @@ struct TaskRow: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(done ? UF.ok : UF.lineStrong, lineWidth: 2))
                     .overlay { if done { UFIcon("check", size: 14).foregroundStyle(.white) } }
                     .frame(width: 22, height: 22)
+                    .ufHitArea(slop: EdgeInsets(top: .infinity, leading: .infinity, bottom: .infinity, trailing: 5.6))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(done ? "Als offen markieren" : "Als erledigt markieren")

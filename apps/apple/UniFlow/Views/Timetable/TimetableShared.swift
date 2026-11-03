@@ -685,13 +685,21 @@ struct UFDayExtraChips: View {
     @ViewBuilder
     private func chips(_ hints: [UFHint]) -> some View {
         ForEach(hints) { h in
-            Button { open(h) } label: { chip(h) }
+            Button { open(h) } label: { chip(h).ufHitArea(slop: slop(h, in: hints)) }
                 .buttonStyle(.plain)
                 .help("\(h.kindText): \(h.title)\(h.course.map { " · \($0)" } ?? "")")
                 .accessibilityLabel("\(h.kindText)\(h.time.map { " \($0) Uhr" } ?? ""): \(h.title)")
                 .accessibilityHint("Zeigt, worum es geht")
                 .accessibilityIdentifier("day-hint")
         }
+    }
+
+    /// Trefferflaeche 44 pt (`ufHitArea`): nach aussen frei, zwischen gestapelten Chips je die halbe Luecke, damit kein
+    /// Chip seinem Nachbarn Flaeche wegnimmt; nebeneinander (Tagesansicht) seitlich die halbe Luecke
+    private func slop(_ h: UFHint, in hints: [UFHint]) -> EdgeInsets {
+        guard stacked else { return EdgeInsets(top: .infinity, leading: 2.4, bottom: .infinity, trailing: 2.4) }
+        let first = hints.first?.id == h.id, last = hints.last?.id == h.id
+        return EdgeInsets(top: first ? .infinity : 1.2, leading: .infinity, bottom: last ? .infinity : 1.2, trailing: .infinity)
     }
 
     private func open(_ h: UFHint) {

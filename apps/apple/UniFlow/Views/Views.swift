@@ -256,7 +256,9 @@ struct LibraryView: View {
                         Text(file(id)?.displayTitle ?? "Dokument").lineLimit(1).frame(maxWidth: 220)
                             .ufFont(12.8, active ? 600 : 500, lh: 1.25)
                         Button { close(id) } label: {
+                            // 44 pt hoch; seitlich nur bis zur halben Luecke, damit der Titel (Tab waehlen) bleibt
                             UFIcon("x", size: 12).frame(width: 28, height: 28).contentShape(Rectangle())
+                                .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 2, bottom: .infinity, trailing: 7))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Tab schließen")
@@ -268,7 +270,9 @@ struct LibraryView: View {
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
+            .padding(.vertical, 2)                                      // Platz fuer die 44-pt-Flaeche in der Rollflaeche
         }
+        .padding(.vertical, -2)
         .background(UF.surface)
         .ufBorderBottom()
     }

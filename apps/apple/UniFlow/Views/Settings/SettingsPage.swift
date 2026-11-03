@@ -427,6 +427,7 @@ private struct ActiveToggle: View {
                 Image(systemName: value ? "checkmark.square.fill" : "square").foregroundStyle(value ? UF.accent : UF.muted)
                 Text("aktiv").ufFont(13.12).foregroundStyle(UF.text)
             }
+            .ufHitArea()
         }
         .buttonStyle(.plain)
         .onAppear { value = on }
@@ -1123,6 +1124,7 @@ private struct AdvancedTab: View {
                             Image(systemName: autoPlan ? "checkmark.square.fill" : "square").foregroundStyle(autoPlan ? UF.accent : UF.muted)
                             Text("Lernkalender nach dem Sync automatisch auffüllen").ufFont(13.12).foregroundStyle(UF.text)
                         }
+                        .ufHitArea()
                     }
                     .buttonStyle(.plain)
                 }
