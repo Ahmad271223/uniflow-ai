@@ -334,8 +334,14 @@ public final class SQLiteConnection {
         sqlite3_extended_result_codes(db, 1)
         sqlite3_busy_timeout(db, 5000)
         try execute("PRAGMA journal_mode=WAL")       // bei ":memory:" bleibt es "memory"
+        // WAL nach einem Checkpoint auf hoechstens 8 MB kuerzen (Audit Robustheit 03.11.2026, P3-2): vorher blieb die
+        // -wal-Datei nach Editor-Runden mit grossen Dokumenten 47-94 MB gross
+        try execute("PRAGMA journal_size_limit=\(Self.journalSizeLimit)")
         try execute("PRAGMA foreign_keys=ON")
     }
+
+    /// Obergrenze der WAL-Datei nach einem Checkpoint in Bytes (`PRAGMA journal_size_limit`)
+    public static let journalSizeLimit = 8 * 1024 * 1024
 
     deinit { close() }
 

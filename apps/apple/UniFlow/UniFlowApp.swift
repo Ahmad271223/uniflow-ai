@@ -10,14 +10,13 @@ struct UniFlowApp: App {
     /// Container je (Apple-Nutzer, Hochschule) mit Datenbank, Dateien, Notizen und Anmeldungen
     @StateObject private var containers: ContainerManager
     @StateObject private var session: Session
-    @StateObject private var router = UFRouter()
-    @StateObject private var shell = ShellState()
-    @StateObject private var toast = UFToastCenter()
-    @StateObject private var overlay = UFOverlay()
+    // Navigation, Seitenleiste, Meldungen und Dialoge gibt es je Fenster (`SceneObjects`, Audit Robustheit 03.11.2026,
+    // P3-3); vorher sprangen zwei Fenster gemeinsam zwischen Seiten, Meldungen erschienen in beiden
+    @State private var scenes = SceneRegistry()
     @StateObject private var timer = StudyTimer()
     /// Abgleich im Hintergrund (S8): Aufgaben bei iOS, Termine fruehestens 8, 15 und 20 Uhr
     @StateObject private var background: BackgroundSyncController
-    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue     // wie localStorage "theme" im Web
+    @AppStorage("theme") private var theme = UFThemeMode.standardRaw     // wie localStorage "theme" im Web; Vorgabe: wie das iPad
     @Environment(\.scenePhase) private var scenePhase
     /// gemeinsame Wochentests im Vordergrund alle 10 min (am PC `_weekly_loop`)
     @State private var weeklyTicker = WeeklyAutoTicker()
@@ -54,91 +53,97 @@ struct UniFlowApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                // Links aus KI-Antworten, Stud.IP-Texten usw.: nur http(s) ins System, alles andere verwerfen
-                // (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
-                .environment(\.openURL, OpenURLAction { SafeLinks.action(for: $0) })
-                .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
-                .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
-                .modifier(UFToastOverlay(center: toast))
-                .environmentObject(account)
-                .environmentObject(containers)
-                .environmentObject(session)
-                .environmentObject(containers.studip)                     // Abgleich des offenen Containers
-                .environment(\.ufChatGPTLink, containers.chatgpt)          // KI ueber das ChatGPT-Abo des Nutzers
-                .environment(\.ufStudoraAccount, containers.account)       // StudiNow-Konto (mit Dienst-Adresse)
-                .modifier(UFAIEnabledProvider(link: containers.chatgpt))
-                .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
-                .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
-                .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
-                .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"
-                .environment(\.ufShowHitAreas, UFHit.debugOverlay)        // nur Debug: Trefferflaechen sichtbar
-                .environmentObject(router)
-                .environmentObject(shell)
-                .environmentObject(toast)
-                .environmentObject(overlay)
-                .environmentObject(timer)
-                .preferredColorScheme((UFThemeMode(rawValue: theme) ?? .light).scheme)
-                .tint(UF.accent)
-                .onOpenURL { url in
-                    // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
-                    // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
-                    if SolutionSharing.isSolutionFile(url) {
-                        // Loesungen gehoeren in den Container des Kontos und der Hochschule
-                        guard containers.active != nil else {
-                            SolutionSharing.discardReceivedCopy(url)
-                            toast.show("Melde dich zuerst an und wähle deine Hochschule. Öffne die Lösung danach erneut.", seconds: 4)
+            // je Fenster eigene Navigation, Seitenleiste, Meldungen und Dialoge; Konto, Container, Sitzung, Abgleich
+            // und Zeitmesser gelten fuer alle Fenster
+            SceneObjects(scenes: scenes) { router, shell, toast, overlay in
+                RootView()
+                    // Links aus KI-Antworten, Stud.IP-Texten usw.: nur http(s) ins System, alles andere verwerfen
+                    // (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
+                    .environment(\.openURL, OpenURLAction { SafeLinks.action(for: $0) })
+                    .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
+                    .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
+                    .modifier(UFToastOverlay(center: toast))
+                    .environmentObject(account)
+                    .environmentObject(containers)
+                    .environmentObject(session)
+                    .environmentObject(containers.studip)                     // Abgleich des offenen Containers
+                    .environment(\.ufChatGPTLink, containers.chatgpt)          // KI ueber das ChatGPT-Abo des Nutzers
+                    .environment(\.ufStudoraAccount, containers.account)       // StudiNow-Konto (mit Dienst-Adresse)
+                    .modifier(UFAIEnabledProvider(link: containers.chatgpt))
+                    .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
+                    .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
+                    .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
+                    .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"
+                    .environment(\.ufShowHitAreas, UFHit.debugOverlay)        // nur Debug: Trefferflaechen sichtbar
+                    .environmentObject(router)
+                    .environmentObject(shell)
+                    .environmentObject(toast)
+                    .environmentObject(overlay)
+                    .environmentObject(timer)
+                    .preferredColorScheme((UFThemeMode(rawValue: theme) ?? .standard).scheme)
+                    .tint(UF.accent)
+                    .onOpenURL { url in
+                        // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
+                        // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
+                        if SolutionSharing.isSolutionFile(url) {
+                            // Loesungen gehoeren in den Container des Kontos und der Hochschule
+                            guard containers.active != nil else {
+                                SolutionSharing.discardReceivedCopy(url)
+                                toast.show("Melde dich zuerst an und wähle deine Hochschule. Öffne die Lösung danach erneut.", seconds: 4)
+                                return
+                            }
+                            // Lesen und Pruefen abseits des Hauptthreads (Pakete bis rund 65 MB)
+                            Task {
+                                // die Kopie in Documents/Inbox gehoert zu keinem Container: danach immer weg
+                                defer { SolutionSharing.discardReceivedCopy(url) }
+                                do {
+                                    let e = try await SolutionSharing.importFileDetached(url)
+                                    let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
+                                    toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.communityRead)), seconds: 5)
+                                } catch {
+                                    toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
+                                }
+                            }
                             return
                         }
-                        // Lesen und Pruefen abseits des Hauptthreads (Pakete bis rund 65 MB)
-                        Task {
-                            // die Kopie in Documents/Inbox gehoert zu keinem Container: danach immer weg
-                            defer { SolutionSharing.discardReceivedCopy(url) }
-                            do {
-                                let e = try await SolutionSharing.importFileDetached(url)
-                                let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
-                                toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.communityRead)), seconds: 5)
-                            } catch {
-                                toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
+                        // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (Lesen, auch in Free; nur mit
+                        // Container). Anlegen braucht Plus (CommunitySettingsCard).
+                        if let code = CommunityJoinLink.code(from: url) {
+                            guard containers.active != nil, Entitlements.shared.allows(.communityRead) else {
+                                toast.show("Lerngruppen gibt es nach Anmeldung und Hochschulwahl.", seconds: 4)
+                                return
                             }
-                        }
-                        return
-                    }
-                    // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (Lesen, auch in Free; nur mit
-                    // Container). Anlegen braucht Plus (CommunitySettingsCard).
-                    if let code = CommunityJoinLink.code(from: url) {
-                        guard containers.active != nil, Entitlements.shared.allows(.communityRead) else {
-                            toast.show("Lerngruppen gibt es nach Anmeldung und Hochschulwahl.", seconds: 4)
+                            Task {
+                                do {
+                                    // erst bestaetigen, mit dem Namen der Gruppe (ein fremder Link tritt nie still bei)
+                                    let name = try await SolutionSharing.community.studyGroupName(code: code)
+                                    guard await overlay.confirm(CommunityJoinLink.confirmText(name: name)) else { return }
+                                    let g = try await SolutionSharing.community.joinStudyGroup(code: code)
+                                    toast.show("Lerngruppe „\(g.name)“ beigetreten.", seconds: 4)
+                                } catch {
+                                    toast.show(CommunityTexts.message(error), seconds: 4)
+                                }
+                            }
                             return
                         }
-                        Task {
-                            do {
-                                // erst bestaetigen, mit dem Namen der Gruppe (ein fremder Link tritt nie still bei)
-                                let name = try await SolutionSharing.community.studyGroupName(code: code)
-                                guard await overlay.confirm(CommunityJoinLink.confirmText(name: name)) else { return }
-                                let g = try await SolutionSharing.community.joinStudyGroup(code: code)
-                                toast.show("Lerngruppe „\(g.name)“ beigetreten.", seconds: 4)
-                            } catch {
-                                toast.show(CommunityTexts.message(error), seconds: 4)
-                            }
+                        // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
+                        if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
+                    }
+                    .task {
+                        // Startparameter (nur Debug) gelten fuer das erste Fenster, nicht fuer jedes weitere
+                        guard scenes.claimLaunchSetup() else { return }
+                        #if DEBUG
+                        // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie Einstellungen -> Erweitert)
+                        if UserDefaults.standard.bool(forKey: "UFDemo"), !session.isOwnServer {
+                            for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+                            // nur anlegen, wenn sie fehlt (erneutes Anlegen entfernte die PDFs der vorhandenen Demo)
+                            let on = (try? await containers.active?.api.value("/api/demo"))?["enabled"]?.bool == true
+                            if !on { _ = try? await containers.setDemo(true) }
                         }
-                        return
+                        #endif
+                        await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer)
                     }
-                    // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
-                    if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
-                }
-                .task {
-                    #if DEBUG
-                    // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie Einstellungen -> Erweitert)
-                    if UserDefaults.standard.bool(forKey: "UFDemo"), !session.isOwnServer {
-                        for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
-                        // nur anlegen, wenn sie fehlt (erneutes Anlegen entfernte die PDFs der vorhandenen Demo)
-                        let on = (try? await containers.active?.api.value("/api/demo"))?["enabled"]?.bool == true
-                        if !on { _ = try? await containers.setDemo(true) }
-                    }
-                    #endif
-                    await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer)
-                }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
@@ -151,7 +156,9 @@ struct UniFlowApp: App {
                 askForLoginIfDue()
                 Task {
                     await containers.account.refresh()                     // Probe: Resttage, Ende
-                    if await containers.account.syncNow(), !router.route.isDocument { router.reload() }
+                    if await containers.account.syncNow() {
+                        for router in scenes.routers where !router.route.isDocument { router.reload() }   // jedes Fenster
+                    }
                 }
             } else {
                 weeklyTicker.pause()
@@ -171,12 +178,85 @@ struct UniFlowApp: App {
     private func askForLoginIfDue() {
         Task {
             await containers.renewExpiredSessions()
-            guard let source = background.loginReminderSource() else { return }
+            // die Frage erscheint einmal, im zuletzt aktiven Fenster
+            guard let source = background.loginReminderSource(), let scene = scenes.active else { return }
             background.markLoginAsked()
-            if await overlay.confirm("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.") {
-                router.go(.settings(tab: "account"))
+            if await scene.overlay.confirm("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.") {
+                scene.router.go(.settings(tab: "account"))
             }
         }
+    }
+}
+
+/// Navigation, Seitenleiste, Meldungen und Dialoge je Fenster (Audit Robustheit 03.11.2026, P3-3): iPadOS erlaubt
+/// mehrere Fenster (`UIApplicationSupportsMultipleScenes`); vorher waren `UFRouter`, `ShellState`, `UFToastCenter` und
+/// `UFOverlay` Objekte der App, zwei Fenster sprangen gemeinsam zwischen Seiten und zeigten dieselben Dialoge. Jedes
+/// Fenster legt sie hier selbst an und meldet sich bei `SceneRegistry` (app-weite Fragen und Neuladen).
+struct SceneObjects<Content: View>: View {
+    let scenes: SceneRegistry
+    let content: (UFRouter, ShellState, UFToastCenter, UFOverlay) -> Content
+    @StateObject private var router = UFRouter()
+    @StateObject private var shell = ShellState()
+    @StateObject private var toast = UFToastCenter()
+    @StateObject private var overlay = UFOverlay()
+    @Environment(\.scenePhase) private var scenePhase
+
+    init(scenes: SceneRegistry, @ViewBuilder content: @escaping (UFRouter, ShellState, UFToastCenter, UFOverlay) -> Content) {
+        self.scenes = scenes
+        self.content = content
+    }
+
+    var body: some View {
+        content(router, shell, toast, overlay)
+            .onAppear { scenes.register(router: router, overlay: overlay) }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { scenes.activate(router: router, overlay: overlay) }
+            }
+    }
+}
+
+/// Fenster der App (schwach gehalten): das zuletzt aktive bekommt app-weite Fragen (abgelaufene Anmeldung), jedes
+/// laedt nach einem Abgleich des StudiNow-Kontos neu
+@MainActor
+final class SceneRegistry {
+    struct Window {
+        let router: UFRouter
+        let overlay: UFOverlay
+    }
+
+    private struct Entry {
+        weak var router: UFRouter?
+        weak var overlay: UFOverlay?
+        var window: Window? { router.flatMap { r in overlay.map { Window(router: r, overlay: $0) } } }
+    }
+
+    private var entries: [Entry] = []
+    private var activeEntry: Entry?
+    private var launchSetupDone = false
+
+    /// Fenster bekannt machen (beim Erscheinen); das erste gilt bis zum ersten Wechsel als aktiv
+    func register(router: UFRouter, overlay: UFOverlay) {
+        entries.removeAll { $0.router == nil }
+        if !entries.contains(where: { $0.router === router }) { entries.append(Entry(router: router, overlay: overlay)) }
+        if activeEntry?.window == nil { activeEntry = Entry(router: router, overlay: overlay) }
+    }
+
+    /// Fenster ist vorn (scenePhase .active)
+    func activate(router: UFRouter, overlay: UFOverlay) {
+        register(router: router, overlay: overlay)
+        activeEntry = Entry(router: router, overlay: overlay)
+    }
+
+    /// zuletzt aktives Fenster, das noch offen ist (sonst irgendein offenes)
+    var active: Window? { activeEntry?.window ?? entries.lazy.compactMap(\.window).first }
+
+    /// Navigation aller offenen Fenster
+    var routers: [UFRouter] { entries.compactMap(\.router) }
+
+    /// Einrichtung aus den Startparametern genau einmal (erstes Fenster); true fuer den ersten Aufruf
+    func claimLaunchSetup() -> Bool {
+        defer { launchSetupDone = true }
+        return !launchSetupDone
     }
 }
 

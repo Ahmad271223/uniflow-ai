@@ -127,10 +127,11 @@ extension Weekly {
             if case .reused(let r) = prepared { return r }
             return .null
         }
-        var extra = "\nDies ist eine PROBEKLAUSUR (\(full ? "Abschluss" : "Lernstand")). Orientiere dich am Aufbau der echten Klausuren: "
-            + "\(bp.tasks) Aufgaben, zusammen \(bp.points) Punkte, Bearbeitungszeit \(bp.durationMin) Minuten. "
-            + "Mische Themen aus allen behandelten Wochen. Gib 'duration_min' im JSON an.\n"
         let d: [String: JSONValue] = try await WeeklyGate.shared.run {
+            // alle veraenderlichen Werte nur in diesem Block (Swift 6: keine geteilten `var` ueber Nebenlaeufigkeit)
+            var extra = "\nDies ist eine PROBEKLAUSUR (\(full ? "Abschluss" : "Lernstand")). Orientiere dich am Aufbau der echten Klausuren: "
+                + "\(bp.tasks) Aufgaben, zusammen \(bp.points) Punkte, Bearbeitungszeit \(bp.durationMin) Minuten. "
+                + "Mische Themen aus allen behandelten Wochen. Gib 'duration_min' im JSON an.\n"
             var promptCtx = ctx
             promptCtx.n = bp.tasks
             var rounds: [PyJSON] = [], passed = false
@@ -155,7 +156,8 @@ extension Weekly {
             if !passed { throw Failure("Probeklausur nicht freigegeben (Prüfung nicht bestanden).") }
             if !truthy(field(res, "duration_min")) { res = set(res, "duration_min", i(bp.durationMin)) }
             let qa = PyJSON.object([.init("rounds", .array(rounds)), .init("passed", .bool(true))])
-            return try await app.database.transaction { c in try storeDef(c, promptCtx, res, qa, kind: "probeklausur", now: now) }
+            let finalCtx = promptCtx, finalRes = res                        // unveraenderliche Kopien fuer die Transaktion
+            return try await app.database.transaction { c in try storeDef(c, finalCtx, finalRes, qa, kind: "probeklausur", now: now) }
         }
         return try await app.database.transaction { c in
             let id = Int64(d["id"]?.int ?? 0)

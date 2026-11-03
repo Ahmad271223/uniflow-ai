@@ -137,6 +137,35 @@ protocol ContainerSync: AnyObject {
 extension StudIPSync: ContainerSync {}
 extension HildesheimConnection: ContainerSync {}
 
+/// Laufende Abgleiche je Ablageordner (Stud.IP- bzw. Learnweb-Ordner eines Containers) ueber alle Abgleich-Objekte
+/// hinweg (Audit Robustheit 03.11.2026, P2-2). Nach einem Wechsel A → B → A hat der Container ein neues Objekt, waehrend
+/// das alte noch laedt; dessen eigene Sperre (`isRunning`) kennt das alte nicht. Ohne diese Liste liefen zwei Abgleiche
+/// auf denselben Ordner (doppelte Last; vor `UniDownloads` mit Unterordnern je Lauf scheiterten die Downloads des
+/// ersten). Ein zweiter Lauf beginnt nicht, solange der erste laeuft; der naechste faellige Lauf holt ihn nach.
+@MainActor
+enum ContainerRuns {
+    private static var owners: [String: ObjectIdentifier] = [:]
+
+    private static func key(_ folder: URL) -> String { folder.standardizedFileURL.path }
+
+    /// Lauf auf `folder` fuer `owner` beginnen; false, wenn ein anderes Objekt dort gerade abgleicht
+    static func claim(_ folder: URL, by owner: AnyObject) -> Bool {
+        let k = key(folder), id = ObjectIdentifier(owner)
+        if let o = owners[k], o != id { return false }
+        owners[k] = id
+        return true
+    }
+
+    /// Lauf beenden (nur der eigene)
+    static func release(_ folder: URL, by owner: AnyObject) {
+        let k = key(folder)
+        if owners[k] == ObjectIdentifier(owner) { owners[k] = nil }
+    }
+
+    /// Gleicht gerade ein Objekt auf `folder` ab?
+    static func isBusy(_ folder: URL) -> Bool { owners[key(folder)] != nil }
+}
+
 /// Oeffnet den Container zu (Apple-Nutzer, gewaehlte Hochschule), zieht beim ersten Start die alten Daten in den
 /// LUH-Container des Nutzers um und loescht Container ("Daten dieser Hochschule löschen", "Konto löschen").
 @MainActor
@@ -351,6 +380,9 @@ final class ContainerManager: ObservableObject {
         // `UIApplication`; ein Start im Vordergrund gleicht ohnehin beim Wechsel nach "aktiv" ab.
         Task { @MainActor [weak self] in
             guard let self, self.active === c, !AppActivity.isInBackground() else { return }
+            // laeuft noch der Abgleich eines abgeloesten Objekts dieses Containers (Wechsel A → B → A waehrend eines
+            // langen Abgleichs), keinen zweiten beginnen (P2-2); der naechste Wechsel in den Vordergrund holt ihn nach
+            guard !self.isSyncing(key) else { return }
             self.studip.runIfDue()
             self.hildesheim?.runIfDue()
             self.qis?.runIfDue()

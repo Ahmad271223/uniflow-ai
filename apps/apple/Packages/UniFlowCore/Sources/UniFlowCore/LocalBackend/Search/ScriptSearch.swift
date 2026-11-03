@@ -410,7 +410,8 @@ public enum ScriptSearch {
     /// nur Texte der aktuellen Fassung von Dateien, die vorhanden sind (nach "Dateien löschen" kein Treffer, der sich
     /// nicht oeffnen laesst), nicht im Papierkorb und aus gewaehlten Kursen (wie die Bibliothek); gelesen wird nichts
     /// neu. Verglichen wird die Suchform von Text und Anfrage (`searchForm`), % und _ der Anfrage sind keine
-    /// Platzhalter (`likePattern`); Zeilen von vor der Suchform bekommen sie hier (darum in einer Transaktion aufrufen).
+    /// Platzhalter (`likePattern`). Zeilen von vor der Suchform fuellt vorher `backfillSearchForms` in kleinen
+    /// Transaktionen; was danach noch fehlt (nur Reste), bekommt sie hier (darum in einer Transaktion aufrufen).
     static func findPages(_ c: SQLiteConnection, _ q: String, limit: Int = 10) throws -> [JSONValue] {
         for r in try c.query("SELECT file_id, page, text FROM page_texts WHERE search IS NULL") {
             try c.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?",
@@ -429,6 +430,30 @@ public enum ScriptSearch {
             for k in ["file_id", "page", "name", "ai_title", "subject", "module_id"] { o[k] = r[k]?.json ?? .null }
             o["snippet"] = .string(snippet(normalize(r["text"]?.string ?? ""), terms: [q]))
             return .object(o)
+        }
+    }
+
+    /// Suchform fuer Seitentexte von vor der Spalte `search` nachtragen (Datenbank vom PC bzw. aus aelteren Builds), in
+    /// eigenen kurzen Transaktionen zu je `chunk` Zeilen (Audit Robustheit 03.11.2026, P3-1): vorher fuellte die erste
+    /// Suche alle Zeilen in ihrer einen Transaktion nach (10 000 Seiten: 5,3 s), und so lange wartete jede andere
+    /// Anfrage der App auf die eine Verbindung. Zwischen den Stuecken kommen andere Anfragen dran. Rueckgabe: Zahl der
+    /// nachgetragenen Zeilen (0, wenn nichts fehlt).
+    @discardableResult
+    public static func backfillSearchForms(_ db: SQLiteDatabase, chunk: Int = 500) async throws -> Int {
+        let size = Int64(max(1, chunk))
+        var total = 0
+        while true {
+            let n = try await db.transaction { c -> Int in
+                let rows = try c.query("SELECT file_id, page, text FROM page_texts WHERE search IS NULL LIMIT ?", [.integer(size)])
+                for r in rows {
+                    try c.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?",
+                                  [.text(searchForm(r["text"]?.string ?? "")), r["file_id"] ?? .null, r["page"] ?? .null])
+                }
+                return rows.count
+            }
+            total += n
+            if Int64(n) < size { return total }
+            await Task.yield()
         }
     }
 }

@@ -577,14 +577,17 @@ struct UFItemRow<Leading: View, Trailing: View>: View {
     var sub: String?
     /// `<a class="item">` im Web: Titel erbt die Linkfarbe --accent-text
     var link = false
+    /// Titel und Unterzeile ganz, umbrechend statt "…" (schmale Spalten, z. B. "Nächste Termine" auf der Uebersicht)
+    var wraps = false
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
 
-    init(_ title: String, sub: String? = nil, link: Bool = false, @ViewBuilder leading: () -> Leading = { EmptyView() },
+    init(_ title: String, sub: String? = nil, link: Bool = false, wraps: Bool = false, @ViewBuilder leading: () -> Leading = { EmptyView() },
          @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
         self.title = title
         self.sub = sub
         self.link = link
+        self.wraps = wraps
         self.leading = leading()
         self.trailing = trailing()
     }
@@ -593,8 +596,12 @@ struct UFItemRow<Leading: View, Trailing: View>: View {
         HStack(spacing: 12) {
             leading
             VStack(alignment: .leading, spacing: 0) {
-                Text(title).ufFont(14.5, 550).foregroundStyle(link ? UF.accentText : UF.text).lineLimit(1)
-                if let sub { Text(sub).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1) }
+                Text(title).ufFont(14.5, 550).foregroundStyle(link ? UF.accentText : UF.text)
+                    .lineLimit(wraps ? nil : 1).fixedSize(horizontal: false, vertical: wraps)
+                if let sub {
+                    Text(sub).ufFont(12.8).foregroundStyle(UF.muted)
+                        .lineLimit(wraps ? nil : 1).fixedSize(horizontal: false, vertical: wraps)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             trailing
@@ -1008,5 +1015,63 @@ struct UFOptionalIdentifier: ViewModifier {
     let id: String?
     func body(content: Content) -> some View {
         if let id { content.accessibilityIdentifier(id) } else { content }
+    }
+}
+
+// MARK: - Langer Lesetext (Stud.IP-Texte, Nachrichten, Anzeigen)
+
+/// Lesetext, der sehr lang sein kann (Stud.IP-Volltexte bis 50 000 Zeichen, `StudIPTexts.maxText`), auswaehlbar.
+/// Bis `singleLimit` Zeichen ein einziger `Text` wie bisher; laengere Texte in Abschnitten in einem `LazyVStack`
+/// (Audit Robustheit 03.11.2026, P3-5): vorher setzte ein einziger `Text` den ganzen Text auf einmal, das kostet am
+/// iPad spuerbar Hauptthread. Getrennt wird nur an Zeilenenden, bevorzugt vor einer Leerzeile; jeder Abschnitt
+/// behaelt seine Zeilen und Leerzeilen, der Abstand zwischen zwei Abschnitten ist derselbe wie zwischen zwei Zeilen
+/// (`ufFont` gibt jedem Text die halbe Zeilenluft oben und unten). VoiceOver liest die Abschnitte der Reihe nach.
+struct UFLongText: View {
+    let text: String
+    var size: CGFloat = 14.5
+    var weight: CGFloat = 400
+    var lh: CGFloat = 1.65
+    var color: Color = UF.text
+
+    /// Bis zu dieser Laenge (Zeichen) ein einziger `Text`
+    static let singleLimit = 4000
+    /// Zielgroesse eines Abschnitts: ab hier wird an der naechsten Leerzeile getrennt, ab dem Doppelten an jedem
+    /// Zeilenende
+    static let chunkTarget = 2000
+
+    /// Abschnitte des Texts; zusammengesetzt mit "\n" wieder genau der Text
+    static func chunks(_ text: String, singleLimit: Int = singleLimit, target: Int = chunkTarget) -> [String] {
+        guard text.count > singleLimit else { return [text] }
+        var out: [String] = []
+        var current: [Substring] = []
+        var length = 0
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            if !current.isEmpty, (length >= target && line.isEmpty) || length >= 2 * target {
+                out.append(current.joined(separator: "\n"))
+                current = []
+                length = 0
+            }
+            current.append(line)
+            length += line.count + 1
+        }
+        if !current.isEmpty { out.append(current.joined(separator: "\n")) }
+        return out
+    }
+
+    var body: some View {
+        let parts = Self.chunks(text)
+        if parts.count == 1 {
+            piece(text)
+        } else {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(parts.indices, id: \.self) { i in piece(parts[i]) }
+            }
+        }
+    }
+
+    private func piece(_ s: String) -> some View {
+        Text(s).ufFont(size, weight, lh: lh).foregroundStyle(color).textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

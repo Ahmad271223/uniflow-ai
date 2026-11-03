@@ -282,7 +282,8 @@ struct StudyTimerHost: ViewModifier {
             }
             .onAppear { timer.toast = toast }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { timer.sceneBecameActive() } else { timer.sceneWillResignActive() }
+                // Meldungen des Zeitmessers im Fenster, das gerade vorn ist (Meldungen gibt es je Fenster)
+                if phase == .active { timer.toast = toast; timer.sceneBecameActive() } else { timer.sceneWillResignActive() }
             }
     }
 }

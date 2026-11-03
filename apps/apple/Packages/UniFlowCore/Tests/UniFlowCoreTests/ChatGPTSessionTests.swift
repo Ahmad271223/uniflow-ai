@@ -322,6 +322,53 @@ final class ChatGPTSessionTests: XCTestCase {
         XCTAssertEqual(count, 2)
     }
 
+    /// Zwei KI-Anfragen zugleich kurz vor Ablauf: eine Erneuerung, beide bekommen das neue Token. Vorher erneuerten
+    /// beide mit demselben Refresh-Token; OpenAI rotiert es, die zweite bekam invalid_grant und die Verbindung galt
+    /// als abgelaufen (Audit Robustheit 03.11.2026)
+    func testConcurrentAccessTokenRefreshesOnce() async throws {
+        let (s, fake, store) = await make()
+        _ = try await connect(s, fake)
+        final class Used: @unchecked Sendable { let lock = NSLock(); var tokens: Set<String> = [] }
+        let used = Used()
+        await fake.on(ChatGPTConstants.tokenURL) { r in
+            let rt = form(r)["refresh_token"] ?? ""
+            used.lock.lock(); defer { used.lock.unlock() }
+            guard used.tokens.insert(rt).inserted else { return (400, json(["error": "invalid_grant"])) }
+            return (200, json(["access_token": "at-2", "refresh_token": "rt-2", "expires_in": 3600]))
+        }
+        clock += 3600 - 59
+        async let a = s.accessToken()
+        async let b = s.accessToken()
+        let (ta, tb) = try await (a, b)
+        XCTAssertEqual(ta, "at-2")
+        XCTAssertEqual(tb, "at-2")
+        let calls = await fake.count(ChatGPTConstants.tokenURL)
+        XCTAssertEqual(calls, 2, "Anmeldung plus genau eine Erneuerung")
+        let st = await s.status
+        XCTAssertFalse(st.needsReauth)
+        XCTAssertEqual(store.load()?.credentials?.refreshToken, "rt-2")
+    }
+
+    /// Getrennt, waehrend die Erneuerung unterwegs ist: die Antwort holt die Zugangsdaten nicht zurueck, kein Absturz
+    func testDisconnectDuringRefreshDoesNotRestoreCredentials() async throws {
+        let (s, fake, store) = await make()
+        _ = try await connect(s, fake)
+        await fake.on(ChatGPTConstants.tokenURL) { _ in (200, json(["access_token": "at-2", "refresh_token": "rt-2", "expires_in": 3600])) }
+        clock += 3600 - 59
+        async let token = s.accessToken()
+        try await s.disconnect()
+        do {
+            let t = try await token
+            // die Erneuerung war schon fertig, bevor getrennt wurde: dann gilt das Trennen danach
+            XCTAssertEqual(t, "at-2")
+        } catch {
+            XCTAssertEqual((error as? AIError)?.code, "chatgpt_login_needed")
+        }
+        XCTAssertNil(store.load()?.credentials, "Trennen bleibt bestehen")
+        let st = await s.status
+        XCTAssertFalse(st.connected)
+    }
+
     func testEarliestRefreshAtDelaysTheRefresh() async throws {
         let (s, fake, store) = await make()
         _ = try await connect(s, fake)

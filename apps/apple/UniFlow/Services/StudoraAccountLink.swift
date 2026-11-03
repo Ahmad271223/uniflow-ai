@@ -219,11 +219,18 @@ final class StudoraAccountLink: ObservableObject {
         var out: URL?
         await run { a in
             let data = try await a.export()
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("studinow-export.zip")
+            let url = try Self.exportFileURL()
             try data.write(to: url, options: [.atomic, .completeFileProtection])
             out = url
         }
         return out
+    }
+
+    /// Ablage des Exports: im Teilen-Ordner des Containers (`AppTemp`), damit ihn der naechste Start und "Konto
+    /// löschen" bzw. "Daten dieser Hochschule löschen" entfernen. Vorher lag die ZIP mit allen Kontodaten dauerhaft im
+    /// gemeinsamen tmp-Ordner aller Konten (Audit Robustheit 03.11.2026).
+    static func exportFileURL(container: UUID? = ActiveContainer.current?.layout.identifier) throws -> URL {
+        try AppTemp.file("konto-export", name: "studinow-export.zip", container: container)
     }
 
     func delete(password: String?) async -> Bool {

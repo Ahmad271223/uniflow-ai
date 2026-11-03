@@ -20,6 +20,8 @@ public enum SearchEndpoints: LocalEndpointModule {
         router.get("/api/search") { req, ctx in
             let q = PyText.lower(PyText.strip(try req.requiredQuery("q")))
             if PyText.length(q) < 2 { return .json(["files": [], "modules": [], "tasks": [], "pages": []]) }
+            // Suchform alter Seitentexte vorher in kleinen Transaktionen (einmalig; danach nichts mehr zu tun)
+            try await ScriptSearch.backfillSearchForms(ctx.database)
             let result = try await ctx.database.transaction { c -> JSONValue in
                 let files = try c.rows("""
                     SELECT f.id, f.name, c.subject, c.module_id, a.title AS ai_title, a.doc_type, a.topics FROM files f

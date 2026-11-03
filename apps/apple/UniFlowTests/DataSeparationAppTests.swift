@@ -676,6 +676,56 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertEqual(m.studip.entries.count, 1)
     }
 
+    /// Audit Robustheit 03.11.2026 (P2-2): Wechsel LUH → Hildesheim → LUH, waehrend der Stud.IP-Abgleich der LUH noch
+    /// laedt. Der Container hat danach ein neues Abgleich-Objekt; es beginnt keinen zweiten Lauf auf denselben Ordner
+    /// (vorher loeschte dessen Beginn den Zwischenordner des ersten: "Datei nicht gespeichert"). Der erste Lauf
+    /// speichert seine Datei; danach darf der neue wieder abgleichen.
+    func testSwitchingBackDuringARunningSyncStartsNoSecondRun() async throws {
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        let m = manager()
+        m.sync(account: a)
+        let luh = try active(m)
+        try luh.cookies.save([cookie("Seminar_Session", "sitzung-ada", domain: "studip.uni-hannover.de")])
+        let stud = WaitingStudIP()
+        let first = m.studip
+        let run = Task { await first.run(client: StudIPClient(base: StudIPSync.base, transport: stud, pauseMillis: 0)) }
+        try await waitUntil("Stud.IP-Download laeuft") { stud.gate.wasReached }
+
+        a.chooseUniversity(.hildesheim)
+        m.sync(account: a)
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        let again = try active(m)
+        XCTAssertEqual(again.layout.root, luh.layout.root)
+        let second = m.studip
+        XCTAssertFalse(second === first, "neues Abgleich-Objekt fuer den wieder geoeffneten Container")
+        XCTAssertTrue(first.isRunning)
+        XCTAssertTrue(m.isSyncing(luh.key), "der alte Lauf zaehlt fuer den Container")
+        XCTAssertTrue(ContainerRuns.isBusy(luh.layout.studip))
+
+        let other = WaitingStudIP()
+        other.gate.release()
+        let end = await second.run(client: StudIPClient(base: StudIPSync.base, transport: other, pauseMillis: 0))
+        XCTAssertNil(end, "kein zweiter Lauf auf denselben Ordner")
+        XCTAssertFalse(second.isRunning)
+        XCTAssertFalse(other.gate.wasReached, "kein Download des zweiten Objekts")
+
+        stud.gate.release()
+        let firstEnd = await run.value
+        XCTAssertNotNil(firstEnd)
+        let stored = try await again.host.backend().context.database
+            .scalar("SELECT COUNT(*) FROM files WHERE course_id='c1' AND local_path IS NOT NULL")?.int
+        XCTAssertEqual(stored, 1, "Datei des ersten Laufs gespeichert")
+        XCTAssertFalse(m.isSyncing(luh.key))
+        XCTAssertFalse(ContainerRuns.isBusy(luh.layout.studip))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: UniDownloads.partial(in: luh.layout.studip).path), "Zwischenordner weg")
+
+        // danach gleicht das neue Objekt wieder ab
+        let later = await second.run(client: StudIPClient(base: StudIPSync.base, transport: other, pauseMillis: 0))
+        XCTAssertNotNil(later)
+    }
+
     /// "Daten dieser Hochschule löschen" und "Konto löschen" waehrend eines laufenden Abgleichs: der Abgleich wird
     /// angehalten und abgewartet, danach bleiben weder Ordner noch Dateien noch Eintraege in der Einstellungs-Suite
     /// (vorher legte der Learnweb-Abgleich den geloeschten Container ohne Kennzeichnung neu an)

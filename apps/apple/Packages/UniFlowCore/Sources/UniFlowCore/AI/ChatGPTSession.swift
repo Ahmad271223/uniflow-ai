@@ -134,6 +134,9 @@ public actor ChatGPTSession {
     private var pending: ChatGPTLoginAttempt?
     private var jwks: (at: Double, keys: [JSONValue])?
     private var modelsCache: (at: Double, ids: [String])?
+    /// Laufende Erneuerung: gleichzeitige Anfragen warten auf dieselbe. Zwei Erneuerungen mit demselben (rotierenden)
+    /// Refresh-Token liessen die zweite scheitern und die Verbindung als abgelaufen markieren (Audit 03.11.2026).
+    private var refreshing: Task<Void, Error>?
 
     /// `signature`: nil nur in Tests ohne Plattform-Kryptografie (dann wird ein ID-Token abgelehnt)
     public init(store: ChatGPTStateStore, http: AIHTTPTransport, signature: ChatGPTSignatureChecking?,
@@ -311,10 +314,21 @@ public actor ChatGPTSession {
                                   + "bitte gleich noch einmal versuchen.")
                 }
             } else {
-                try await refresh()
+                try await refreshOnce()
             }
         }
-        return state.credentials!.accessToken
+        // waehrend der Erneuerung getrennt: kein Absturz, sondern neu verbinden
+        guard let fresh = state.credentials else { throw AIError("chatgpt_login_needed", "ChatGPT ist nicht verbunden.") }
+        return fresh.accessToken
+    }
+
+    /// Hoechstens eine Erneuerung zugleich; weitere Aufrufer teilen ihr Ergebnis
+    private func refreshOnce() async throws {
+        if let running = refreshing { return try await running.value }
+        let task = Task { try await self.refresh() }
+        refreshing = task
+        defer { refreshing = nil }
+        try await task.value
     }
 
     /// `refresh`: rotiertes Refresh-Token uebernehmen; ein mitgeliefertes ID-Token (Nonce entfaellt) muss zum
@@ -341,6 +355,8 @@ public actor ChatGPTSession {
                 throw AIError("chatgpt_login_needed", "Die erneuerte Anmeldung passt nicht zu diesem Konto – bitte neu verbinden.")
             }
         }
+        // waehrend der Anfrage getrennt oder neu angemeldet: nichts zurueckholen
+        guard state.credentials?.refreshToken == rt else { throw AIError("chatgpt_login_needed", "ChatGPT ist nicht verbunden.") }
         state.credentials = new
         state.needsReauth = false
         try persist()

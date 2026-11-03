@@ -219,7 +219,7 @@ public enum Migrations {
             // Nur aktuelle Semester einplanen (28.10.2026, app/semesters.py): einmalig alle Kurse nach der Regel schalten
             try Semesters.migrate(conn, today: clock.today)
             try conn.executeScript(SchemaSQL.pageTexts)
-            // wie ensure_table: Suchform der Seitentexte (kam spaeter dazu; aeltere Zeilen fuellt `ScriptSearch.findPages`)
+            // wie ensure_table: Suchform der Seitentexte (kam spaeter dazu; aeltere Zeilen fuellt `ScriptSearch.backfillSearchForms`)
             if !(try conn.columnNames("page_texts")).contains("search") {
                 try conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
             }

@@ -380,6 +380,8 @@ final class HildesheimConnection: ObservableObject {
         if await demoActive() { return nil }
         // waehrend der Pruefung angehalten, schon ein Lauf, abgemeldet oder nichts mehr verbunden
         guard !isRunning, !stopped, signOuts == signOutsBefore, !sources(background: background).isEmpty else { return nil }
+        // gleicht ein anderes Objekt desselben Containers noch ab (Wechsel A → B → A), keinen zweiten Lauf (P2-2)
+        guard ContainerRuns.claim(layout.learnweb, by: self) else { return nil }
         isRunning = true
         let task = Task {
             olderOnly ? await self.performOlder() : await self.perform(forceGrades: forceGrades, scope: scope, background: background)
@@ -387,6 +389,7 @@ final class HildesheimConnection: ObservableObject {
         current = task
         let report = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
+        ContainerRuns.release(layout.learnweb, by: self)
         isRunning = false
         finishedRuns += 1
         if !connectedDuringRun.isEmpty {
@@ -723,7 +726,7 @@ final class HildesheimLogin: ObservableObject {
         case .lsf:
             // Nur Rechner, Pfad und Merkmale ins Protokoll (keine Abfrage mit Ticket oder Sitzung, kein Seiteninhalt):
             // so laesst sich eine echte LSF-Seite pruefen, die die Anmeldung nicht erkennt
-            Self.log.info("LSF-Seite \(url.host ?? "-", privacy: .public)\(url.path, privacy: .public): Laenge \(html.count), abmelden \(html.range(of: "abmelden", options: .caseInsensitive) != nil), auth.logout \(html.contains("auth.logout")), auth.login \(html.contains("auth.login"))")
+            Self.log.info("LSF-Seite \(url.host ?? "-", privacy: .public)\(HildesheimCAS.loggablePath(url), privacy: .public): Laenge \(html.count), abmelden \(html.range(of: "abmelden", options: .caseInsensitive) != nil), auth.logout \(html.contains("auth.logout")), auth.login \(html.contains("auth.login"))")
             // dieselbe Regel wie fuer jede Seite im Abgleich (LSF ueber HTTPS mit "Abmelden")
             if LSFClient.isLoggedIn(html: html, url: url) {
                 connection.lsfSignedIn()

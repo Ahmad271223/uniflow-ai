@@ -23,6 +23,9 @@ import Foundation
 /// Ein Fehler vor dem Ersetzen hinterlaesst keine Datei; die alte Fassung bleibt und gilt beim naechsten Abgleich
 /// weiter als geaendert.
 /// Vor dem Lauf raeumt `begin` Reste eines abgebrochenen Laufs weg, danach entfernt `end` den Zwischenordner.
+/// Jeder Lauf hat einen eigenen Unterordner in `.laden` (`partial`); `begin` laesst die Unterordner laufender Laeufe
+/// stehen (Audit Robustheit 03.11.2026, P2-2: ein zweiter Lauf desselben Containers nach einem Wechsel A → B → A
+/// loeschte den Zwischenordner des ersten, dessen Downloads scheiterten mit "Datei nicht gespeichert").
 public struct UniDownloads: Sendable {
     /// Ordner der Quelle im Container (`DataContainerLayout.studip`, `.learnweb`); ohne iCloud-Backup
     public let folder: URL
@@ -32,12 +35,15 @@ public struct UniDownloads: Sendable {
     public let container: DataContainerLayout?
     /// Herkunft fuer den Hinweis auf eine neue Fassung im Dokument ("Stud.IP", "Learnweb"; S7)
     public let source: String
+    /// Kennung dieses Laufs: Name seines Unterordners im Zwischenordner (je `UniDownloads` ein Lauf)
+    public let run: String
 
     public init(folder: URL, files: LocalFiles, container: DataContainerLayout?, source: String) {
         self.folder = folder
         self.files = files
         self.container = container
         self.source = source
+        run = UUID().uuidString
     }
 
     /// Ablage einer Quelle im Container (`layout.studip`, `layout.learnweb`); `tools` liest Seitentexte (App: PDFKit)
@@ -54,11 +60,29 @@ public struct UniDownloads: Sendable {
         FileVersionKeeper(database: db, files: files, directory: files.stored(versionsFolder) ?? "Fassungen", source: source, clock: clock)
     }
 
-    /// Zwischenordner der laufenden Downloads
-    public var partial: URL { Self.partial(in: folder) }
+    /// Zwischenordner der Downloads dieses Laufs (`.laden/<Lauf>`)
+    public var partial: URL { Self.partial(in: folder).appendingPathComponent(run, isDirectory: true) }
 
-    /// Zwischenordner im Ordner einer Quelle (auch fuer "Dateien löschen")
+    /// Zwischenordner im Ordner einer Quelle mit den Unterordnern aller Laeufe (auch fuer "Dateien löschen")
     public static func partial(in folder: URL) -> URL { folder.appendingPathComponent(".laden", isDirectory: true) }
+
+    /// Unterordner laufender Laeufe (zwischen `begin` und `end`) in diesem Prozess
+    private final class Runs: @unchecked Sendable {
+        private let lock = NSLock()
+        private var paths: Set<String> = []
+        func insert(_ p: String) { lock.lock(); paths.insert(p); lock.unlock() }
+        func remove(_ p: String) { lock.lock(); paths.remove(p); lock.unlock() }
+        func contains(_ p: String) -> Bool { lock.lock(); defer { lock.unlock() }; return paths.contains(p) }
+    }
+    private static let running = Runs()
+
+    /// Schluessel eines Unterordners im Zwischenordner von `folder`
+    private static func runKey(_ folder: URL, _ name: String) -> String {
+        partial(in: folder).standardizedFileURL.path + "/" + name
+    }
+
+    /// Laeuft gerade ein Lauf mit Zwischenordner `name` im Ordner `folder` (zwischen `begin` und `end`)?
+    public static func isRunning(in folder: URL, run name: String) -> Bool { running.contains(runKey(folder, name)) }
 
     public enum Failure: Error, Equatable, CustomStringConvertible, LocalizedError {
         /// 0 Bytes statt der Datei (Quelle meldet eine Groesse oder es gibt schon eine Fassung): nichts ersetzt
@@ -82,19 +106,26 @@ public struct UniDownloads: Sendable {
         public var errorDescription: String? { description }
     }
 
-    /// Vor einem Lauf: Ordner der Quelle anlegen (ohne iCloud-Backup) und Reste eines abgebrochenen Laufs im
-    /// Zwischenordner entfernen. Nur in einem bestehenden Container.
+    /// Vor einem Lauf: Ordner der Quelle anlegen (ohne iCloud-Backup) und Reste abgebrochener Laeufe im Zwischenordner
+    /// entfernen; die Unterordner laufender Laeufe bleiben. Nur in einem bestehenden Container.
     public func begin() throws {
         try container?.verifyPresent()
         let fm = FileManager.default
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
         try? DataContainerLayout.setExcludedFromBackup(folder)
-        try? fm.removeItem(at: partial)
+        Self.running.insert(Self.runKey(folder, run))                       // vor dem Aufraeumen: der eigene bleibt
+        let root = Self.partial(in: folder)
+        for name in (try? fm.contentsOfDirectory(atPath: root.path)) ?? [] where !Self.running.contains(Self.runKey(folder, name)) {
+            try? fm.removeItem(at: root.appendingPathComponent(name))
+        }
     }
 
-    /// Nach einem Lauf (auch einem abgebrochenen): Zwischenordner entfernen
+    /// Nach einem Lauf (auch einem abgebrochenen): eigenen Zwischenordner entfernen, den gemeinsamen nur, wenn er leer
+    /// ist (`rmdir` entfernt nur leere Ordner: der Unterordner eines anderen laufenden Laufs bleibt)
     public func end() {
+        Self.running.remove(Self.runKey(folder, run))
         try? FileManager.default.removeItem(at: partial)
+        _ = Self.partial(in: folder).withUnsafeFileSystemRepresentation { p in p.map { rmdir($0) } }
     }
 
     /// Eine Datei laden, an `relativePath` (relativ zu `folder`) ablegen und in `db` eintragen (Ablauf oben).

@@ -22,6 +22,15 @@ public enum HildesheimCAS {
         return "\(b)/login?service=\(PyText.quote(service, safe: ""))"
     }
 
+    /// Pfad fuer das Protokoll ohne Pfad-Parameter: LSF und andere Java-Dienste haengen die Sitzung als
+    /// `;jsessionid=...` an den Pfad, und `URL.path` liefert sie mit (Audit Robustheit 03.11.2026). Aus jedem Abschnitt
+    /// faellt alles ab dem ersten `;` weg.
+    public static func loggablePath(_ url: URL) -> String {
+        url.path.split(separator: "/", omittingEmptySubsequences: false)
+            .map { $0.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? "" }
+            .joined(separator: "/")
+    }
+
     /// Zeigt die URL auf die CAS-Loginseite (`cas.is_cas_page`)? Dann fehlt die Anmeldung bzw. die Sitzung ist
     /// abgelaufen. "www." wird ignoriert.
     public static func isCASPage(_ url: String, casBase: String = casBase) -> Bool {
