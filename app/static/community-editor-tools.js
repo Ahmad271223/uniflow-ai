@@ -3,10 +3,10 @@
 // nur ansehen, die eigene PDF darunter). Gegenstueck zu CorrectionMode.swift und SolutionSidePane auf dem iPad.
 import { icon } from "./icons.js?v=31";
 import * as S from "./solutions.js?v=6";
-import * as C from "./community-corrections.js?v=1";
-import * as U from "./community-corrections-ui.js?v=1";
-import { loadSpaces } from "./community-spaces.js?v=14";
-import { capi } from "./views-qa.js?v=4";
+import * as C from "./community-corrections.js?v=2";
+import * as U from "./community-corrections-ui.js?v=3";
+import { loadSpaces } from "./community-spaces.js?v=15";
+import { capi } from "./views-qa.js?v=5";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];

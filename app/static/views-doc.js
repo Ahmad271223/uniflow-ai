@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
 import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=40";
-import { PdfEditor } from "./editor.js?v=59";
+import { PdfEditor } from "./editor.js?v=61";
 import { setupLectureMarker } from "./views-weekly.js?v=9";
 import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
 

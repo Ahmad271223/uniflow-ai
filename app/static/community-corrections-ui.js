@@ -2,9 +2,9 @@
 // Korrekturen unter der Diskussion einer Loesung, Abzeichen am Menuepunkt "Community". Gegenstueck zu
 // CorrectionCommunityViews.swift und CommunityBadge.swift auf dem iPad. Chiffrat und Texte: community-corrections.js.
 import { icon } from "./icons.js?v=31";
-import * as C from "./community-corrections.js?v=1";
-import * as L from "./community-logic.js?v=1";
-import { capi } from "./views-qa.js?v=4";
+import * as C from "./community-corrections.js?v=2";
+import * as L from "./community-logic.js?v=2";
+import { capi } from "./views-qa.js?v=5";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -14,8 +14,20 @@ export const changed = () => { try { window.dispatchEvent(new Event("cc:changed"
 
 // ---------------------------------------------------------------- Abzeichen am Menuepunkt
 
+/** Gibt es hier Korrekturen? Im Dienst immer, am PC nur mit verbundenem StudiNow-Konto (ohne Konto antwortet die
+ *  Weiterleitung 409 - der Zaehler wuerde sonst alle 2 Minuten einen Fehler erzeugen). Ohne Rueckfrage beim Dienst. */
+let availableCache = null;
+export async function available() {
+  if (availableCache) return availableCache;
+  availableCache = fetch("/api/studora/status?refresh=false").then(r => r.ok ? r.json() : {}).then(s => !!(s.hosted || s.linked)).catch(() => false);
+  const v = await availableCache;
+  setTimeout(() => { availableCache = null; }, 60000);           // An-/Abmelden wirkt spaetestens nach einer Minute
+  return v;
+}
+
 /** Zahl offener Korrekturhinweise (nicht geoeffnet, nicht ignoriert); null = Community hier nicht verfuegbar. */
 export async function inboxCount() {
+  if (!(await available())) return null;
   try { return (await capi("/corrections/inbox?count_only=true")).open; } catch { return null; }
 }
 /** Zahl am Menuepunkt "Community" (Seitenleiste); 0 oder null entfernt sie. */
@@ -110,6 +122,7 @@ async function setStatus(id, status) { await capi(`/corrections/${id}/status`, {
  */
 export async function renderInbox(el, { communityKey = null, onChange = () => {}, toast = alert, emptyText = null } = {}) {
   let box;
+  if (!(await available())) { el.innerHTML = ""; return 0; }
   try { box = await capi("/corrections/inbox"); } catch (e) { el.innerHTML = `<p class="small muted">${esc(e.message)}</p>`; return 0; }
   const items = (box.items || []).filter(c => !communityKey || c.community_key === communityKey);
   const { open, seen } = C.groupInbox(items);

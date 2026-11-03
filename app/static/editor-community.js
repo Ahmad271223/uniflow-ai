@@ -9,12 +9,12 @@
 import { icon } from "./icons.js?v=31";
 import { responseError } from "./service-errors.js?v=1";
 import * as S from "./solutions.js?v=6";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=15";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=16";
 import { renderLinkCard } from "./studora-link.js?v=5";
-import * as C from "./community-corrections.js?v=1";
-import * as U from "./community-corrections-ui.js?v=1";
-import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=1";
-import { ensureCss } from "./community-logic.js?v=1";
+import * as C from "./community-corrections.js?v=2";
+import * as U from "./community-corrections-ui.js?v=3";
+import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=3";
+import { ensureCss } from "./community-logic.js?v=2";
 
 const $ =(s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -112,7 +112,7 @@ class Community {
   /** Hinweise zu den eigenen Loesungen dieser PDF (Posteingang), oben im Editor mit Oeffnen / Ignorieren. */
   async loadOwnCorrections() {
     if (!(this.list || []).some(s => s.mine)) { this.ownCorr = []; this.renderHint(); return; }
-    try { this.ownCorr = ((await capi("/corrections/inbox")).items || []).filter(c => c.fingerprint === this.fp); } catch { this.ownCorr = []; }
+    try { this.ownCorr = (await U.available()) ? ((await capi("/corrections/inbox")).items || []).filter(c => c.fingerprint === this.fp) : []; } catch { this.ownCorr = []; }
     this.renderHint();
   }
   renderHint() {
@@ -427,7 +427,7 @@ class Community {
     const box = $(".com-qa", this.el); if (!box) return;
     try {
       const f = await (await fetch(`/api/files/${encodeURIComponent(this.ed.fileId)}`)).json();
-      const q = await import("./views-qa.js?v=5");
+      const q = await import("./views-qa.js?v=6");
       const courses = await q.courseKeys(); const c = courses.find(x => x.course_id === f.course_id);
       if (!c) { box.textContent = "Diese Datei gehört zu keinem deiner Kurse; Fragen gibt es je Kurs."; return; }
       const pg = this.ed.pages[this.ed.currentPage];

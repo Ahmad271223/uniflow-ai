@@ -1,6 +1,6 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
 import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=40";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=59";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=61";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 import { currentHeading, courseIdOf, findCourse } from "./older-semesters.js?v=1";
 import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=2";

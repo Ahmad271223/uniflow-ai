@@ -213,5 +213,5 @@ export function visibleSpaces(spaces, showOlder) {
 /** Gestaltung der Community-Seite nachladen (community-channel.css); einmal je Seite, ohne DOM ein Nichts. */
 export function ensureCss() {
   if (typeof document === "undefined" || document.getElementById("cc-css")) return;
-  const l = document.createElement("link"); l.id = "cc-css"; l.rel = "stylesheet"; l.href = "community-channel.css?v=1"; document.head.append(l);
+  const l = document.createElement("link"); l.id = "cc-css"; l.rel = "stylesheet"; l.href = "community-channel.css?v=2"; document.head.append(l);
 }
