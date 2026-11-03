@@ -1220,8 +1220,31 @@ def review_flashcard(card_id: int, body: dict = Body(...)):
             raise HTTPException(404)
         box = min(5, (c["box"] or 1) + 1) if ok else 1
         due = (date.today() + timedelta(days=[1, 2, 4, 8, 16][box - 1])).isoformat()
-        conn.execute("UPDATE flashcards SET box=?, due=? WHERE id=?", (box, due, card_id))
+        conn.execute("UPDATE flashcards SET box=?, due=?, last_result=? WHERE id=?", (box, due, "right" if ok else "wrong", card_id))
     return {"box": box, "due": due}
+
+
+FLASHCARD_RESULTS = (None, "right", "wrong")
+
+
+@app.patch("/api/flashcards/{card_id}")
+def patch_flashcard(card_id: int, body: dict = Body(...)):
+    """Karteikarten-Trainer (freies Ueben): Lesezeichen, versteckt und letztes Urteil ('right' | 'wrong' | None =
+    noch nicht gelernt). Fach und Faelligkeit (Leitner) bleiben unberuehrt; die Wiederholung bleibt der einzige Weg,
+    der den Lernplan der Karte aendert."""
+    sets, params = [], []
+    for k in ("bookmarked", "hidden"):
+        if k in body:
+            sets.append(f"{k}=?"); params.append(1 if body[k] else 0)
+    if "last_result" in body:
+        v = body["last_result"]
+        if not (v is None or (isinstance(v, str) and v in FLASHCARD_RESULTS)):
+            raise HTTPException(422, "last_result: right, wrong oder null erwartet")
+        sets.append("last_result=?"); params.append(v)
+    with db.cursor() as conn:
+        if sets:
+            _changed(conn.execute(f"UPDATE flashcards SET {', '.join(sets)} WHERE id=?", (*params, card_id)), "Karteikarte")
+        return _found(db.row(conn, "SELECT * FROM flashcards WHERE id=?", (card_id,)), "Karteikarte")
 
 
 @app.delete("/api/flashcards/{card_id}")

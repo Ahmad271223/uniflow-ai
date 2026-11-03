@@ -170,6 +170,7 @@ SAMPLES: dict[str, dict] = {
     "POST /api/flashcards": {"path": "/api/flashcards", "body": {"cards": [{"question": "Testfrage", "answer": "Testantwort"}]}},
     "POST /api/flashcards/{}/review": {"path": "/api/flashcards/1/review", "body": {"correct": True}},
     "DELETE /api/flashcards/{}": {"path": "/api/flashcards/1"},
+    "PATCH /api/flashcards/{}": {"path": "/api/flashcards/1", "body": {"bookmarked": True}},
     "POST /api/ai/tutor": {"path": "/api/ai/tutor", "body": {"mode": "explain"}, "python": False,
                            "expect": {"status": 404, "reason": "KI entfaellt in V1"}},
     "POST /api/files/{}/analyze": {"path": "/api/files/f1/analyze", "python": False,

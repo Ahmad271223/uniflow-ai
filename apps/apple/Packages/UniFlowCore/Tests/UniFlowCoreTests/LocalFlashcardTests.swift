@@ -44,7 +44,7 @@ final class LocalFlashcardTests: XCTestCase {
     func testScenariosMatchPythonServer() async throws {
         let fx = try fixture()
         let scenarios = fx["scenarios"]?.array ?? []
-        XCTAssertEqual(scenarios.map { $0["name"]?.string ?? "" }, ["haupt", "grenzen"])
+        XCTAssertEqual(scenarios.map { $0["name"]?.string ?? "" }, ["haupt", "grenzen", "trainer"])
         XCTAssertEqual(fx["intervals"], .array(FlashcardEndpoints.intervals.map { .number(Double($0)) }))
         var problems: [String] = []
         var checked = 0

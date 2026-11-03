@@ -29,6 +29,8 @@ from conftest import asgi_call
     ("PATCH", "/api/folders/999999", {"name": "x"}),
     ("POST", "/api/tasks/999999/status", {"status": "erledigt"}),
     ("POST", "/api/flashcards/999999/review", {"correct": True}),
+    ("PATCH", "/api/flashcards/999999", {"hidden": True}),
+    ("PATCH", "/api/flashcards/999999", {}),
 ])
 def test_missing_id_is_404_never_ok(app, method, path, body):
     st, _, raw = asgi_call(app, method, path, body=json.dumps(body) if body is not None else None)

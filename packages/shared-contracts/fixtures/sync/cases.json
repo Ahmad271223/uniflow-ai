@@ -995,6 +995,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -1085,6 +1088,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -1098,6 +1104,9 @@
          "created_at": null,
          "box": 2,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2437,6 +2446,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2450,6 +2462,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2478,6 +2493,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2491,6 +2509,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2542,6 +2563,9 @@
          "created_at": null,
          "box": 1,
          "due": null,
+         "bookmarked": 0,
+         "hidden": 0,
+         "last_result": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"

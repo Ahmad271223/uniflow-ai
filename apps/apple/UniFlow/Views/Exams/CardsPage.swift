@@ -149,6 +149,15 @@ final class FlashcardDeck: ObservableObject {
         try await load()
     }
 
+    /// Lesezeichen bzw. "versteckt" einer Karte setzen (PATCH, Leitner bleibt unberuehrt), danach neu laden
+    func setFlag(_ card: JSONValue, _ key: String, _ on: Bool) async throws {
+        guard let api, let id = card.i("id"), key == "bookmarked" || key == "hidden" else { return }
+        let mine = generation
+        _ = try await api.value("/api/flashcards/\(id)", method: "PATCH", body: .object([key: .bool(on)]))
+        guard mine == generation else { return }
+        try await load()
+    }
+
     func delete(_ card: JSONValue) async throws {
         guard let api, let id = card.i("id") else { return }
         let mine = generation
@@ -218,6 +227,7 @@ struct CardsPage: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @StateObject private var deck = FlashcardDeck()
+    @StateObject private var trainer = FlashcardTrainer()
     @ObservedObject private var ent: Entitlements
 
     /// `entitlements: nil` = `Entitlements.shared`
@@ -255,6 +265,11 @@ struct CardsPage: View {
                 }
             } else if !deck.loaded {
                 UFSkeleton().frame(height: 180)
+            } else if trainer.active {
+                FlashcardTrainerView(trainer: trainer) {
+                    trainer.end()
+                    Task { await deck.reload(toast: toast) }
+                }
             } else if deck.all.isEmpty && !deck.inSession {
                 UFCard {
                     UFEmpty(icon: "cards", text: "Noch keine Karteikarten. Lege deine erste Karte an: vorn die Frage, hinten die Antwort. Richtig beantwortete Karten kommen seltener wieder, falsche am nächsten Tag.") {
@@ -263,12 +278,14 @@ struct CardsPage: View {
                 }
             } else {
                 reviewCard
+                if !deck.inSession { practiceCard.padding(.top, 16) }
                 list.padding(.top, 16)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: session.api.map(ObjectIdentifier.init)) {
             deck.attach(session.api)
+            trainer.attach(session.api)
             await deck.reload(toast: toast)
         }
         .ufReload { await deck.reload(toast: toast) }
@@ -347,6 +364,34 @@ struct CardsPage: View {
         }
     }
 
+    // MARK: Frei ueben (Trainer)
+
+    private var practiceCard: some View {
+        UFCard {
+            UFCardHead("Frei üben", icon: "layers")
+            let counts = FlashcardTrainer.counts(deck.all)
+            let bookmarks = deck.all.filter { ($0.i("bookmarked") ?? 0) != 0 }.count
+            Text("Alle Karten im eigenen Tempo: umdrehen, nach rechts wischen für gewusst, nach links für nicht gewusst. Ändert den Wiederholungsplan nicht.")
+                .ufFont(14.5).foregroundStyle(UF.text2)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(counts[.right] ?? 0) richtig · \(counts[.wrong] ?? 0) falsch · \(counts[.unlearned] ?? 0) noch nicht gelernt"
+                 + (bookmarks > 0 ? " · \(bookmarks) mit Lesezeichen" : "") + ((counts[.hidden] ?? 0) > 0 ? " · \(counts[.hidden] ?? 0) versteckt" : ""))
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 4)
+            UFFlexWrap(gap: 9.6, rowGap: 9.6) {
+                UFButton("Üben", icon: "play", size: .small) { trainer.start(with: deck.all) }
+                UFButton("Optionen", icon: "filter", kind: .ghost, size: .small) {
+                    trainer.start(with: deck.all)
+                    overlay.modal { FlashcardTrainerOptionsDialog(trainer: trainer) }
+                }
+            }
+            .padding(.top, 12.8)
+        }
+    }
+
+    private func setFlag(_ c: JSONValue, _ key: String, _ on: Bool) {
+        Task { _ = await toast.attempt(key == "hidden" ? "Karte zeigen" : "Lesezeichen") { try await deck.setFlag(c, key, on) } }
+    }
+
     private func rate(_ correct: Bool) {
         Task { _ = await toast.attempt("Bewerten") { try await deck.rate(correct: correct) } }
     }
@@ -372,8 +417,21 @@ struct CardsPage: View {
                     UFItemRow(c.s("question") ?? "", sub: subline(c, due: due)) {
                         EmptyView()
                     } trailing: {
-                        UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDelete(c) }
-                            .accessibilityLabel("Karte löschen: \(c.s("question") ?? "")")
+                        let q = c.s("question") ?? ""
+                        let marked = (c.i("bookmarked") ?? 0) != 0
+                        HStack(spacing: 2) {
+                            if (c.i("hidden") ?? 0) != 0 {
+                                UFButton("Zeigen", kind: .ghost, size: .small) { setFlag(c, "hidden", false) }
+                                    .accessibilityLabel("Karte wieder zeigen: \(q)")
+                            }
+                            UFButton(icon: "bookmark", kind: .ghost, size: .small) { setFlag(c, "bookmarked", !marked) }
+                                .foregroundStyle(marked ? UF.accentText : UF.text2)
+                                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(marked ? UF.accentSoft : .clear))
+                                .accessibilityLabel(marked ? "Lesezeichen entfernen: \(q)" : "Lesezeichen setzen: \(q)")
+                                .accessibilityAddTraits(marked ? .isSelected : [])
+                            UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDelete(c) }
+                                .accessibilityLabel("Karte löschen: \(q)")
+                        }
                     }
                     .ufBorderBottom(row.id != rows.last?.id)
                 }
@@ -385,6 +443,8 @@ struct CardsPage: View {
         var parts = [c.s("answer") ?? "", "Fach \(c.i("box") ?? 1)"]
         parts.append(c.i("id").map { due.contains($0) } == true ? "heute fällig" : "fällig am \(UFFmt.date(c.s("due")))")
         if let f = deck.fileTitle(c) { parts.append(f) }
+        if (c.i("bookmarked") ?? 0) != 0 { parts.append("Lesezeichen") }
+        if (c.i("hidden") ?? 0) != 0 { parts.append("versteckt") }
         return parts.joined(separator: " · ")
     }
 

@@ -163,6 +163,32 @@ EDGE_STEPS = [(E0, "GET", "/api/flashcards", None), (E0, "GET", "/api/flashcards
     (E0, "GET", "/api/flashcards", None),
 ]
 
+# Karteikarten-Trainer (PATCH): Lesezeichen, versteckt, letztes Urteil; Fach und Termin bleiben, die Wiederholung
+# setzt das Urteil mit
+T0 = "2026-11-03T10:00:00"
+TRAINER_STEPS = [
+    (T0, "POST", "/api/flashcards", {"cards": [card("Begriff A", "Definition A"), card("Begriff B", "Definition B")], "file_id": "f-la1"}),
+    (T0, "GET", "/api/flashcards", None),
+    (T0, "PATCH", "/api/flashcards/1", {"bookmarked": True}),
+    (T0, "PATCH", "/api/flashcards/1", {"hidden": 1, "last_result": "right"}),
+    (T0, "PATCH", "/api/flashcards/2", {"last_result": "wrong", "bookmarked": "ja"}),
+    (T0, "PATCH", "/api/flashcards/2", {"bookmarked": 0, "hidden": []}),
+    (T0, "PATCH", "/api/flashcards/1", {"hidden": False, "last_result": None}),
+    (T0, "PATCH", "/api/flashcards/1", {}),                                                           # nichts geaendert
+    (T0, "PATCH", "/api/flashcards/1", {"unbekannt": 1}),
+    (T0, "PATCH", "/api/flashcards/1", {"last_result": "vielleicht"}),                                # 422
+    (T0, "PATCH", "/api/flashcards/1", {"last_result": True}),                                        # 422
+    (T0, "PATCH", "/api/flashcards/1", {"last_result": 1, "hidden": True}),                           # 422, nichts geaendert
+    (T0, "PATCH", "/api/flashcards/9999", {"hidden": True}),                                          # 404
+    (T0, "PATCH", "/api/flashcards/9999", {}),                                                        # 404
+    (T0, "PATCH", "/api/flashcards/eins", {"hidden": True}),                                          # 422
+    (T0, "PATCH", "/api/flashcards/1", [1]),                                                          # 422
+    (T0, "POST", "/api/flashcards/1/review", {"correct": False}),                                     # Urteil wrong, Fach 1
+    (T0, "POST", "/api/flashcards/2/review", {"correct": True}),                                      # Urteil right, Fach 2
+    (T0, "GET", "/api/flashcards", None),
+    (T0, "GET", "/api/flashcards?due=true", None),
+]
+
 
 def edge_seed() -> list[tuple[str, list]]:
     seed = base_seed()
@@ -205,7 +231,8 @@ def main() -> int:
         spec.loader.exec_module(gen)
         with berlin_time():
             scenarios = [run(src, gen, server, "haupt", base_seed(), MAIN_STEPS),
-                         run(src, gen, server, "grenzen", edge_seed(), EDGE_STEPS)]
+                         run(src, gen, server, "grenzen", edge_seed(), EDGE_STEPS),
+                         run(src, gen, server, "trainer", base_seed(), TRAINER_STEPS)]
     finally:
         src.cleanup()
     out = without_sync({"generator": "tools/gen-flashcards-fixture.py", "intervals": [1, 2, 4, 8, 16], "scenarios": scenarios})

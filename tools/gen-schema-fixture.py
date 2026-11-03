@@ -40,6 +40,8 @@ CREATE TABLE tests (id INTEGER PRIMARY KEY AUTOINCREMENT, subject TEXT NOT NULL,
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE modules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, semester TEXT, color TEXT, icon TEXT,
                       priority INTEGER DEFAULT 2, exam_date TEXT, sort INTEGER DEFAULT 0, created_at TEXT);
+CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, subject TEXT, question TEXT NOT NULL,
+                         answer TEXT NOT NULL, created_at TEXT, box INTEGER DEFAULT 1, due TEXT);
 
 INSERT INTO courses(id, title, kind, created_at) VALUES ('k1', 'Testkurs Algebra', 'vorlesung', '2026-09-30T08:00:00');
 INSERT INTO courses(id, title, kind, active, created_at) VALUES ('k2', 'Testkurs Algebra Uebung', 'uebung', 0, '2026-09-30T08:01:00');
@@ -64,10 +66,16 @@ INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Chemie', '#
 INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Biologie', '#1aa39a', 3, '2026-09-30T08:00:04');
 INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Akustik', NULL, 4, '2026-09-30T08:00:05');
 INSERT INTO modules(name, color, sort, created_at) VALUES ('Blau gewaehlt', '#175ee8', 5, '2026-09-30T08:00:06');
+INSERT INTO flashcards(file_id, question, answer, created_at, box, due) VALUES ('f1', 'Neu', 'a', '2026-10-20T08:00:00', 1, '2026-10-20');
+INSERT INTO flashcards(file_id, question, answer, created_at, box, due) VALUES ('f1', 'Gewusst', 'a', '2026-10-20T08:00:00', 3, '2026-11-01');
+INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Fach 5', 'a', '2026-10-20T08:00:00', 5, '2026-12-01');
+INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Ohne Fach', 'a', '2026-10-20T08:00:00', NULL, NULL);
+INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Fach als Text', 'a', '2026-10-20T08:00:00', 'abc', 'x');
+INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Fach als Kommazahl', 'a', '2026-10-20T08:00:00', 2.5, '2026-10-21');
 """
 
 # Tabellen, deren Zeilen nach der Migration in legacy.json stehen
-LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms", "modules"]
+LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms", "modules", "flashcards"]
 
 
 def snapshot(conn: sqlite3.Connection) -> dict:

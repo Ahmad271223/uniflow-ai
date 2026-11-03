@@ -45,3 +45,25 @@ def test_old_database_is_migrated_without_data_loss(tmp_path, monkeypatch):
     assert c.execute("SELECT status FROM files WHERE id='f1'").fetchone()[0] == "gelesen", "bestehende Werte bleiben"
     assert c.execute("SELECT value FROM settings WHERE key='user_name'").fetchone()[0] == "Test"
     assert c.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
+def test_flashcards_get_trainer_columns_once(tmp_path, monkeypatch):
+    """Karteikarten-Trainer (03.11.2026): bookmarked, hidden, last_result kommen dazu; einmalig gelten Karten ab Fach 2
+    als gewusst, alle anderen als noch nicht gelernt. Fach und Termin bleiben, ein zweiter Start aendert nichts."""
+    path = tmp_path / "karten.db"
+    with sqlite3.connect(path) as c:
+        c.executescript(OLD_SCHEMA)
+        c.execute("""CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, subject TEXT,
+                     question TEXT NOT NULL, answer TEXT NOT NULL, created_at TEXT, box INTEGER DEFAULT 1, due TEXT)""")
+        for cid, box, due in ((1, "1", "'2026-10-20'"), (2, "3", "'2026-11-01'"), (3, "NULL", "NULL"), (4, "'abc'", "'x'"), (5, "5", "'2026-12-01'")):
+            c.execute(f"INSERT INTO flashcards(id, question, answer, created_at, box, due) VALUES ({cid}, 'q', 'a', '2026-10-20T08:00:00', {box}, {due})")
+    monkeypatch.setattr(db, "DB_PATH", path)
+    db.init_db()
+    c = sqlite3.connect(path)
+    rows = c.execute("SELECT id, box, due, bookmarked, hidden, last_result FROM flashcards ORDER BY id").fetchall()
+    assert rows == [(1, 1, "2026-10-20", 0, 0, None), (2, 3, "2026-11-01", 0, 0, "right"), (3, None, None, 0, 0, None),
+                    (4, "abc", "x", 0, 0, None), (5, 5, "2026-12-01", 0, 0, "right")]
+    c.execute("UPDATE flashcards SET last_result='wrong' WHERE id=2")
+    c.commit()
+    db.init_db()                                   # Vorbelegung nur einmal: das spaetere Urteil bleibt
+    assert c.execute("SELECT last_result FROM flashcards WHERE id=2").fetchone()[0] == "wrong"

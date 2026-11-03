@@ -301,6 +301,130 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertEqual(mine.first?.i("box"), 2, "Lernstand bleibt im Container")
     }
 
+    // MARK: Frei üben (Trainer)
+
+    /// Gewusst / nicht gewusst zaehlen, speichern last_result und lassen Fach und Termin (Leitner) unberuehrt;
+    /// "Vorherige" nimmt die letzte Antwort samt gespeichertem Urteil zurueck; Doppeltipps zaehlen einmal
+    func testTrainerCountsAnswersAndPreviousUndoes() async throws {
+        let (api, rec, _) = try await seededAPI(cards: [("Begriff A", "Definition A", nil), ("Begriff B", "Definition B", "f-la"),
+                                                        ("Begriff C", "Definition C", nil)])
+        let deck = FlashcardDeck(api: api)
+        try await deck.load()
+        let before = try await cards(api)
+        let trainer = FlashcardTrainer(api: api)
+        trainer.start(with: deck.all)
+        XCTAssertEqual(trainer.cards.compactMap { $0.s("question") }, ["Begriff A", "Begriff B", "Begriff C"], "Original: aelteste zuerst")
+        XCTAssertEqual(trainer.progressText, "1/3")
+        trainer.flip()
+        XCTAssertTrue(trainer.showsDefinition)
+        // Doppeltipp auf "Gewusst": eine Antwort
+        async let a = trainer.answer(known: true)
+        async let b = trainer.answer(known: true)
+        let results = try await [a, b]
+        XCTAssertEqual(results.filter { $0 }.count, 1, "\(results)")
+        XCTAssertEqual(rec.count(suffix: "/api/flashcards/1"), 1, "\(rec.calls)")
+        XCTAssertEqual(trainer.known, 1)
+        XCTAssertEqual(trainer.unknown, 0)
+        XCTAssertEqual(trainer.position, 1)
+        XCTAssertFalse(trainer.flipped, "naechste Karte vorn")
+        XCTAssertEqual(trainer.progressText, "2/3")
+        let wrong = try await trainer.answer(known: false)
+        XCTAssertTrue(wrong)
+        XCTAssertEqual(trainer.unknown, 1)
+        XCTAssertEqual(trainer.progressText, "3/3")
+        var stored = try await cards(api)
+        XCTAssertEqual(stored.reversed().map { $0.s("last_result") ?? "-" }, ["right", "wrong", "-"])
+        XCTAssertEqual(stored.map { $0.i("box") }, before.map { $0.i("box") }, "Fach bleibt")
+        XCTAssertEqual(stored.map { $0.s("due") }, before.map { $0.s("due") }, "Termin bleibt")
+        XCTAssertEqual(rec.count(suffix: "/review"), 0, "der Trainer bewertet nicht fuer die Wiederholung")
+        // Vorherige: Karte B wieder vorn, Zaehler zurueck, Urteil wieder leer
+        XCTAssertTrue(trainer.canGoBack)
+        let undone = try await trainer.previous()
+        XCTAssertTrue(undone)
+        XCTAssertEqual(trainer.current?.s("question"), "Begriff B")
+        XCTAssertEqual(trainer.unknown, 0)
+        XCTAssertEqual(trainer.known, 1)
+        XCTAssertEqual(trainer.progressText, "2/3")
+        stored = try await cards(api)
+        XCTAssertTrue(stored.first { $0.s("question") == "Begriff B" }?["last_result"]?.isNull == true)
+        // zweimal zurueck: auch A wieder ungelernt; danach nichts mehr zurueckzunehmen
+        _ = try await trainer.previous()
+        XCTAssertEqual(trainer.current?.s("question"), "Begriff A")
+        XCTAssertEqual(trainer.known, 0)
+        XCTAssertFalse(trainer.canGoBack)
+        let none = try await trainer.previous()
+        XCTAssertFalse(none)
+        // zu Ende: geschafft, nur die nicht gewussten noch einmal
+        _ = try await trainer.answer(known: false)
+        _ = try await trainer.answer(known: true)
+        _ = try await trainer.answer(known: false)
+        XCTAssertTrue(trainer.finished)
+        XCTAssertEqual(trainer.progressText, "3/3")
+        XCTAssertNil(trainer.current)
+        let after = try await trainer.answer(known: true)
+        XCTAssertFalse(after, "nach dem Ende zaehlt nichts")
+        trainer.practiceUnknown()
+        XCTAssertEqual(trainer.cards.compactMap { $0.s("question") }, ["Begriff A", "Begriff C"])
+        XCTAssertEqual(trainer.known + trainer.unknown, 0)
+        // Filter "Falsch" sieht die gespeicherten Urteile nach Neu starten
+        var o = trainer.options
+        o.progress = [.wrong]
+        trainer.apply(o)
+        XCTAssertEqual(trainer.cards.compactMap { $0.s("question") }, ["Begriff A", "Begriff C"])
+        o.progress = [.right]
+        trainer.apply(o)
+        XCTAssertEqual(trainer.cards.compactMap { $0.s("question") }, ["Begriff B"])
+    }
+
+    /// Lesezeichen und Verstecken: gespeichert, versteckte Karte verlaesst den Durchgang und erscheint nur mit
+    /// "Versteckte Karten"; die Wiederholung "Heute fällig" bleibt unveraendert
+    func testTrainerBookmarkAndHide() async throws {
+        let (api, _, _) = try await seededAPI(cards: [("Begriff A", "Definition A", nil), ("Begriff B", "Definition B", nil)])
+        let deck = FlashcardDeck(api: api)
+        try await deck.load()
+        let trainer = FlashcardTrainer(api: api)
+        trainer.start(with: deck.all)
+        try await trainer.toggleBookmark()
+        XCTAssertEqual(trainer.current?.i("bookmarked"), 1)
+        XCTAssertEqual(trainer.current?.s("question"), "Begriff A", "Lesezeichen laesst die Karte stehen")
+        try await trainer.toggleHidden()
+        XCTAssertEqual(trainer.cards.count, 1, "versteckt: raus aus dem Durchgang")
+        XCTAssertEqual(trainer.current?.s("question"), "Begriff B")
+        XCTAssertEqual(trainer.progressText, "1/1")
+        let stored = try await cards(api)
+        let a = try XCTUnwrap(stored.first { $0.s("question") == "Begriff A" })
+        XCTAssertEqual(a.i("hidden"), 1)
+        XCTAssertEqual(a.i("bookmarked"), 1)
+        trainer.restart()
+        XCTAssertEqual(trainer.cards.compactMap { $0.s("question") }, ["Begriff B"], "Neu starten ohne versteckte")
+        var o = trainer.options
+        o.scope = .bookmarked
+        o.progress = [.hidden]
+        trainer.apply(o)
+        XCTAssertEqual(trainer.cards.compactMap { $0.s("question") }, ["Begriff A"])
+        try await trainer.toggleHidden()
+        XCTAssertTrue(trainer.empty, "wieder gezeigt: passt nicht mehr zu 'Versteckte Karten'")
+        try await deck.load()
+        XCTAssertEqual(deck.due.count, 2, "Heute fällig unveraendert")
+        try await deck.setFlag(deck.all.first { $0.s("question") == "Begriff B" }!, "bookmarked", true)
+        XCTAssertEqual(deck.all.filter { $0.i("bookmarked") == 1 }.count, 2)
+    }
+
+    /// Pruefpunkt 270 fuer den Trainer: neue Datenquelle beendet den Durchgang, spaete Antworten zaehlen nicht
+    func testTrainerStartsOverWhenTheSourceChanges() async throws {
+        let (apiA, recA, _) = try await seededAPI(cards: [("Frage aus A", "Antwort A", nil)])
+        let (apiB, _, _) = try await seededAPI()
+        let trainer = FlashcardTrainer()
+        trainer.attach(apiA)
+        trainer.start(with: try await cards(apiA))
+        trainer.attach(apiB)
+        XCTAssertFalse(trainer.active)
+        XCTAssertTrue(trainer.source.isEmpty)
+        let r = try await trainer.answer(known: true)
+        XCTAssertFalse(r)
+        XCTAssertEqual(recA.count(suffix: "/api/flashcards/1"), 0)
+    }
+
     // MARK: Tarif
 
     /// Startargument -UFPlan (nur Debug): fester Tarif ohne StoreKit, Karteikarten nur mit Plus
@@ -545,6 +669,53 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertFalse(shows(page.view, "Frage aus A"))
         XCTAssertTrue(shows(page.view, "Frage aus B"))
         XCTAssertEqual(try awaiting { try await self.cards(apiA) }.first?.i("box"), 1, "in A nichts bewertet")
+    }
+
+    /// Seite: "Frei üben" -> grosse Karte, Umdrehen, Gewusst / Nicht gewusst mit Zaehlern, Vorherige, Optionen
+    func testTrainerOnThePage() throws {
+        let (api, rec, _) = try awaiting {
+            try await self.seededAPI(cards: [("Erster Begriff", "Erste Definition", nil), ("Zweiter Begriff", "Zweite Definition", nil)])
+        }
+        let page = try show(gated(.plus), api: api)
+        XCTAssertTrue(pump { self.shows(page.view, "Frei üben") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Ändert den Wiederholungsplan nicht"), dump(page.view))
+        XCTAssertTrue(tap("Üben", in: page.view), dump(page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Begriff: Erster Begriff") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Nicht gewusst: 0"), dump(page.view))
+        XCTAssertTrue(shows(page.view, "Gewusst: 0"))
+        XCTAssertTrue(shows(page.view, "Karte 1 von 2"))
+        XCTAssertEqual(isEnabledButton("Vorherige", in: page.view), false, "noch nichts zurueckzunehmen")
+        XCTAssertTrue(tap("Begriff: Erster Begriff", in: page.view), "Tippen dreht die Karte")
+        XCTAssertTrue(pump { self.shows(page.view, "Definition: Erste Definition") }, dump(page.view))
+        XCTAssertTrue(tap("Gewusst", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Gewusst: 1") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Begriff: Zweiter Begriff"), "naechste Karte vorn: \(dump(page.view))")
+        XCTAssertTrue(shows(page.view, "Karte 2 von 2"))
+        XCTAssertTrue(pump { self.isEnabledButton("Vorherige", in: page.view) == true }, dump(page.view))
+        XCTAssertTrue(tap("Vorherige", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Gewusst: 0") && self.shows(page.view, "Begriff: Erster Begriff") }, dump(page.view))
+        XCTAssertTrue(tap("Nicht gewusst", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Nicht gewusst: 1") }, dump(page.view))
+        XCTAssertTrue(tap("Gewusst", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Durchgang geschafft") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "2 Karten geübt: 1 gewusst, 1 nicht gewusst."), dump(page.view))
+        XCTAssertEqual(rec.count(suffix: "/review"), 0, "Wiederholungsplan unberuehrt")
+        // Optionen: nur Falsch, zuerst die Definition
+        XCTAssertTrue(tap("Optionen", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Filter anwenden") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Lesezeichen (0)"))
+        XCTAssertTrue(shows(page.view, "Versteckte Karten (0)"))
+        XCTAssertTrue(tap("Richtig (1)", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "1 Karte passt.") }, dump(page.view))
+        XCTAssertTrue(tap("Noch nicht gelernt (0)", in: page.view))
+        XCTAssertTrue(tap("Definition", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "1 Karte passt.") }, dump(page.view))
+        XCTAssertTrue(tap("Filter anwenden", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Definition: Erste Definition") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Karte 1 von 1"))
+        XCTAssertTrue(tap("Üben beenden", in: page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Heute fällig (2)") }, dump(page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "1 richtig · 1 falsch · 0 noch nicht gelernt") }, "neu geladen: \(dump(page.view))")
     }
 
     /// Ergebnis einer async-Aufgabe aus einem synchronen Test (die Seitentests pumpen die RunLoop)

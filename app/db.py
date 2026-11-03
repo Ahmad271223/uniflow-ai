@@ -369,6 +369,9 @@ CREATE TABLE IF NOT EXISTS sync_log (
 );
 """
 
+# Einmalige Vorbelegung von flashcards.last_result (siehe _init_db); woertlich auch in Migrations.swift
+FLASHCARD_RESULT_BACKFILL = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"
+
 DEFAULT_SETTINGS = {
     "hours_per_day": "4",
     "free_days": "[6]",            # Sonntag frei
@@ -511,6 +514,14 @@ def _init_db(conn) -> None:
     add_col("courses", "miscellaneous", "TEXT")
     add_col("studip_events", "description", "TEXT")
     add_col("studip_events", "cancelled", "INTEGER DEFAULT 0")
+    # Karteikarten-Trainer (03.11.2026): Lesezeichen, versteckte Karten und das letzte eigene Urteil (right | wrong |
+    # NULL = noch nicht gelernt). Fach und Faelligkeit (Leitner) bleiben davon unberuehrt. Einmalig beim Anlegen der
+    # Spalte: Karten ab Fach 2 kamen nur durch "richtig" dorthin und gelten als gewusst, alle anderen als ungelernt.
+    add_col("flashcards", "bookmarked", "INTEGER DEFAULT 0")
+    add_col("flashcards", "hidden", "INTEGER DEFAULT 0")
+    if "last_result" not in {r[1] for r in conn.execute("PRAGMA table_info(flashcards)")}:
+        conn.execute("ALTER TABLE flashcards ADD COLUMN last_result TEXT")
+        conn.execute(FLASHCARD_RESULT_BACKFILL)
     # Fachfarben (27.10.2026, app/colors.py): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
     # Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
     # bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.

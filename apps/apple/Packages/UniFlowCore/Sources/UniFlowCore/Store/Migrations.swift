@@ -117,11 +117,20 @@ public enum Migrations {
         .addColumn("courses", "miscellaneous", "TEXT"),
         .addColumn("studip_events", "description", "TEXT"),
         .addColumn("studip_events", "cancelled", "INTEGER DEFAULT 0"),
+        // Karteikarten-Trainer (03.11.2026): Lesezeichen, versteckte Karten und das letzte eigene Urteil (right | wrong |
+        // NULL = noch nicht gelernt). Fach und Faelligkeit (Leitner) bleiben davon unberuehrt. Einmalig beim Anlegen der
+        // Spalte: Karten ab Fach 2 kamen nur durch "richtig" dorthin und gelten als gewusst, alle anderen als ungelernt.
+        .addColumn("flashcards", "bookmarked", "INTEGER DEFAULT 0"),
+        .addColumn("flashcards", "hidden", "INTEGER DEFAULT 0"),
+        .addColumnOnce("flashcards", "last_result", "TEXT", then: { try $0.execute(flashcardResultBackfill) }),
         // Fachfarben (27.10.2026, ModuleColors): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
         // Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
         // bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.
         .addColumnOnce("modules", "color_custom", "INTEGER DEFAULT 0", then: ModuleColors.migratePalette),
     ]
+
+    /// `db.FLASHCARD_RESULT_BACKFILL`: einmalige Vorbelegung von flashcards.last_result, woertlich
+    static let flashcardResultBackfill = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"
 
     /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer Aenderungen, die es in app/db.py nicht gibt (etwa
     /// Tabellen oder Werte nur fuer das Geraet). Alles aus Python laeuft oben ohne Versionsnummer, damit eine

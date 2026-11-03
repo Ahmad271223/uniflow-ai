@@ -69,9 +69,40 @@ enum FlashcardEndpoints: LocalEndpointModule {
                 guard let row = try c.queryOne("SELECT box FROM flashcards WHERE id=?", [id]) else { throw LocalHTTPError.notFound() }
                 let box = correct ? try nextBox(row["box"]) : 1
                 let due = BerlinClock.isoDate(today + (try interval(box)))
-                try c.execute("UPDATE flashcards SET box=?, due=? WHERE id=?", [.integer(Int64(box)), .text(due), id])
+                try c.execute("UPDATE flashcards SET box=?, due=?, last_result=? WHERE id=?",
+                              [.integer(Int64(box)), .text(due), .text(correct ? "right" : "wrong"), id])
                 return ["box": .number(Double(box)), "due": .string(due)]
             })
+        }
+
+        // Karteikarten-Trainer (freies Ueben) wie `patch_flashcard`: Lesezeichen, versteckt und letztes Urteil
+        // ("right" | "wrong" | null = noch nicht gelernt). Fach und Faelligkeit (Leitner) bleiben unberuehrt.
+        router.patch("/api/flashcards/{card_id:int}") { req, ctx in
+            let body = try req.pythonObjectBody()
+            let id = SQLiteValue.integer(Int64(req.intParam("card_id")))
+            var sets: [String] = [], params: [SQLiteValue] = []
+            for k in ["bookmarked", "hidden"] where body.has(k) {
+                sets.append("\(k)=?")
+                params.append(.integer(truthy(body.value(k)) ? 1 : 0))
+            }
+            if body.has("last_result") {
+                switch body.value("last_result") {
+                case nil, .null?: params.append(.null)
+                case .string(let s)? where s == "right" || s == "wrong": params.append(.text(s))
+                default: throw LocalHTTPError(status: 422, message: "last_result: right, wrong oder null erwartet")
+                }
+                sets.append("last_result=?")
+            }
+            let row = try await ctx.database.transaction { c -> JSONValue in
+                if !sets.isEmpty, try c.execute("UPDATE flashcards SET \(sets.joined(separator: ", ")) WHERE id=?", params + [id]) == 0 {
+                    throw LocalHTTPError.notFound("Karteikarte nicht gefunden")
+                }
+                guard let row = try c.queryOne("SELECT * FROM flashcards WHERE id=?", [id]) else {
+                    throw LocalHTTPError.notFound("Karteikarte nicht gefunden")
+                }
+                return .object(row.json)
+            }
+            return .json(row)
         }
 
         // Regel G6 wie server._changed: kein Treffer -> 404 "Karteikarte nicht gefunden"
