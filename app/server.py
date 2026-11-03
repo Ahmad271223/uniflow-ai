@@ -407,6 +407,138 @@ async def file_response_headers(request, call_next):
     return response
 
 
+# Uploads begrenzen (Sicherheitspruefung 3.11.2026, Fund 3): Groesse je Endpunkt schon beim Empfang (Content-Length
+# bzw. mitgezaehlt beim Streamen, bevor Starlette die Datei zwischenspeichert), dazu ein Speicherkontingent je Konto
+# im Dienst fuer eigene Uploads (Eigene Dokumente, Bilder, Aufnahmen). LERNAPP_UPLOAD_QUOTA_MB ueberschreibt.
+MAX_ASSET_BYTES = 15 << 20                   # Bild/Screenshot/PDF im Editor
+MAX_RECORDING_BYTES = 200 << 20              # Audio-Aufnahme (90 Minuten AAC 128 kbit/s rund 85 MB)
+MAX_IMPORT_BYTES = 100 << 20                 # PDF-Import bzw. Bild als Notizbuch
+MAX_IMAGE_PIXELS = 40_000_000                # Bild als PDF-Seite: groessere Bilder lehnen wir ab (Dekompressionsbombe)
+UPLOAD_QUOTA_MB = 2048                       # Standard je Konto im Dienst
+_MULTIPART_SLACK = 1 << 20                   # Formularfelder und Trenner
+_UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
+                  (re.compile(r"^/api/files/[^/]+/recordings$"), MAX_RECORDING_BYTES),
+                  (re.compile(r"^/api/notebooks$"), MAX_IMPORT_BYTES))
+try:
+    from PIL import Image as _PILImage  # type: ignore
+    _PILImage.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+except ImportError:  # pragma: no cover - Pillow ist optional
+    pass
+
+
+def _too_large(limit: int) -> JSONResponse:
+    return JSONResponse({"detail": f"Die Datei ist zu groß (höchstens {limit >> 20} MB).", "code": "too_large"}, status_code=413)
+
+
+class UploadLimit:
+    """Reine ASGI-Schicht: lehnt zu grosse Uploads ab, bevor der Koerper gelesen bzw. vollstaendig empfangen ist."""
+
+    def __init__(self, app_):
+        self.app = app_
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("method") != "POST":
+            return await self.app(scope, receive, send)
+        limit = next((n for rx, n in _UPLOAD_LIMITS if rx.match(scope.get("path") or "")), None)
+        if limit is None:
+            return await self.app(scope, receive, send)
+        cap = limit + _MULTIPART_SLACK
+        length = dict(scope.get("headers") or []).get(b"content-length")
+        if length is not None and (not length.isdigit() or int(length) > cap):
+            return await _too_large(limit)(scope, receive, send)
+        seen, over, started = 0, False, False
+
+        async def counted():
+            # Ueber der Grenze: nichts mehr annehmen, die App sieht einen Verbindungsabbruch
+            nonlocal seen, over
+            if over:
+                return {"type": "http.disconnect"}
+            msg = await receive()
+            if msg["type"] == "http.request":
+                seen += len(msg.get("body") or b"")
+                if seen > cap:
+                    over = True
+                    return {"type": "http.disconnect"}
+            return msg
+
+        async def tracked(msg):
+            # Antwort der App nach dem Abbruch verwerfen und stattdessen 413 senden
+            nonlocal started
+            if over:
+                return
+            started = started or msg["type"] == "http.response.start"
+            await send(msg)
+        try:
+            await self.app(scope, counted, tracked)
+        except Exception:
+            if not over:
+                raise
+        if over and not started:
+            await _too_large(limit)(scope, receive, send)
+
+
+app.add_middleware(UploadLimit)
+
+
+def _upload_quota_bytes() -> int:
+    import os
+    try:
+        mb = int(os.environ.get("LERNAPP_UPLOAD_QUOTA_MB") or UPLOAD_QUOTA_MB)
+    except ValueError:
+        mb = UPLOAD_QUOTA_MB
+    return max(0, mb) << 20
+
+
+def _own_upload_bytes() -> int:
+    """Belegter Platz eigener Uploads des Kontos (Eigene Dokumente und Assets)."""
+    import os
+    total = 0
+    for root in (config.data_dir() / "files" / "Eigene Dokumente", _assets_dir()):
+        for dirpath, _dirs, names in os.walk(root):
+            for n in names:
+                try:
+                    total += os.path.getsize(os.path.join(dirpath, n))
+                except OSError:
+                    pass
+    return total
+
+
+def _upload_error(code: str, limit: int = 0) -> HTTPException:
+    if code == "storage_quota":
+        return HTTPException(413, {"detail": "Dein Speicherplatz für eigene Dateien ist voll.", "code": "storage_quota"})
+    return HTTPException(413, {"detail": f"Die Datei ist zu groß (höchstens {limit >> 20} MB).", "code": "too_large"})
+
+
+async def _save_upload(upload: UploadFile, target: Path, limit: int, head: bytes | None = None) -> int:
+    """Upload stueckweise nach `target` schreiben: Grenze je Datei und (im Dienst) Speicherkontingent des Kontos,
+    beides vor bzw. waehrend des Lesens; bei Ueberschreitung bleibt nichts liegen. `head`: erwartete Anfangsbytes."""
+    if upload.size is not None and upload.size > limit:
+        raise _upload_error("too_large", limit)
+    budget = None
+    if config.is_hosted() and config.current_user_id():
+        budget = _upload_quota_bytes() - _own_upload_bytes()
+        if upload.size is not None and upload.size > budget:
+            raise _upload_error("storage_quota")
+    n = 0
+    try:
+        with open(target, "wb") as out:
+            while chunk := await upload.read(1 << 20):
+                if n == 0 and head is not None and not chunk.startswith(head):
+                    raise HTTPException(400, "Die Datei ist keine PDF")
+                n += len(chunk)
+                if n > limit:
+                    raise _upload_error("too_large", limit)
+                if budget is not None and n > budget:
+                    raise _upload_error("storage_quota")
+                out.write(chunk)
+        if n == 0 and head is not None:
+            raise HTTPException(400, "Die Datei ist keine PDF")
+    except BaseException:
+        target.unlink(missing_ok=True)
+        raise
+    return n
+
+
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}\.[A-Za-z0-9]{1,6}$")
 
@@ -916,10 +1048,7 @@ async def upload_asset(request: Request, file_id: str, upload: UploadFile = File
     name = f"{uuid.uuid4().hex}{ext}"
     target = _inside(_assets_dir(), _assets_dir() / file_id)
     target.mkdir(parents=True, exist_ok=True)
-    data = await upload.read()
-    if len(data) > 15 * 1024 * 1024:
-        raise HTTPException(400, "Bild zu gross (max. 15 MB)")
-    (target / name).write_bytes(data)
+    await _save_upload(upload, target / name, MAX_ASSET_BYTES)        # Grenze vor dem vollstaendigen Lesen
     return {"url": f"/api/assets/{file_id}/{name}", "name": name}
 
 
@@ -1747,6 +1876,8 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
     allowed = {"name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes", "expected_materials", "exam_reuse"}
     with db.cursor() as conn:
         before = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,))
+        if body.get("color") not in (None, "") and not timetable.COLOR_RE.fullmatch(str(body["color"])):
+            raise HTTPException(400, "Farbe als #rrggbb.")                 # wird in style-Attributen eingesetzt (3.11.2026)
         for k, v in body.items():
             if k in allowed:
                 if k == "expected_materials":
@@ -1772,6 +1903,8 @@ def api_module_create(body: dict = Body(...)):
     name = (body.get("name") or "").strip()
     if not name:
         raise HTTPException(400, "Name fehlt")
+    if body.get("color") not in (None, "") and not timetable.COLOR_RE.fullmatch(str(body["color"])):
+        raise HTTPException(400, "Farbe als #rrggbb.")
     with db.cursor() as conn:
         n = db.row(conn, "SELECT COUNT(*) n FROM modules")["n"]
         # eine mitgeschickte Farbe hat der Nutzer gewaehlt (Merker color_custom), sonst die naechste freie der Palette
@@ -2064,8 +2197,16 @@ def api_tt_events():
         return db.rows(conn, "SELECT e.*, m.name AS module_name FROM course_events e LEFT JOIN modules m ON m.id=e.module_id ORDER BY weekday, start_time")
 
 
+def _event_fields(body: dict) -> None:
+    try:
+        timetable.check_event_fields(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
 @app.post("/api/timetable/events")
 def api_tt_event_create(body: dict = Body(...)):
+    _event_fields(body)
     with db.cursor() as conn:
         cur = conn.execute("""INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at)
                               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)""",
@@ -2081,6 +2222,7 @@ def api_tt_event_patch(event_id: int, body: dict = Body(...)):
     scope = body.pop("scope", "series")
     d = body.pop("date", None)
     allowed = {"module_id", "title", "kind", "weekday", "start_time", "end_time", "room", "lecturer", "rrule", "date_from", "date_to", "attend", "color"}
+    _event_fields({k: v for k, v in body.items() if k in allowed})
     with db.cursor() as conn:
         e = db.row(conn, "SELECT * FROM course_events WHERE id=?", (event_id,))
         if not e:
@@ -2222,7 +2364,10 @@ def api_tt_import_confirm(body: dict = Body(...)):
     with db.cursor() as conn:
         # Von Hand bestaetigte Stud.IP-Vorschau: 'studip-manual', damit der Abgleich sie nie als fremde Gruppe entfernt
         src = body.get("source") or "manual"
-        res = timetable.apply_import(conn, body.get("entries") or [], "studip-manual" if src == "studip" else src, body.get("remove_ids") or [])
+        try:
+            res = timetable.apply_import(conn, body.get("entries") or [], "studip-manual" if src == "studip" else src, body.get("remove_ids") or [])
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
         if body.get("import_id"):
             conn.execute("UPDATE schedule_imports SET confirmed=1, status='confirmed' WHERE id=?", (body["import_id"],))
         conflicts = study.slot_conflicts(conn, date.today(), date.today() + timedelta(days=28))
@@ -2574,21 +2719,33 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
         ext = Path(upload.filename or "datei.pdf").suffix.lower() or ".pdf"
         if kind == "image" and ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
             raise HTTPException(400, "Nur Bilddateien")
-        data = await upload.read()
-        if kind == "pdf" and not data.startswith(b"%PDF"):
-            raise HTTPException(400, "Die Datei ist keine PDF")
         if kind == "image":
-            # Bild in eine PDF-Seite verpacken
+            # Bild in eine PDF-Seite verpacken; erst gestreamt mit Grenze ablegen, dann Pixelzahl pruefen
+            raw = d / f"{fid}.upload{ext}"
+            await _save_upload(upload, raw, MAX_IMPORT_BYTES)
             try:
                 from PIL import Image  # type: ignore
-                import io
-                im = Image.open(io.BytesIO(data)).convert("RGB")
-                p = d / f"{fid}.pdf"; im.save(p, "PDF")
-                local = str(p); page_count = 1; title = title or Path(upload.filename or "Bild").stem
-            except Exception:  # noqa: BLE001 - ohne Pillow als Bild-Asset speichern
-                p = d / f"{fid}{ext}"; p.write_bytes(data); local = str(p); kind = "image"
+            except ImportError:  # ohne Pillow als Bild-Asset speichern
+                Image = None
+            if Image is None:
+                p = d / f"{fid}{ext}"; raw.rename(p); local = str(p); kind = "image"
+            else:
+                try:
+                    with Image.open(raw) as im:
+                        if im.width * im.height > MAX_IMAGE_PIXELS:
+                            raise Image.DecompressionBombError("zu viele Pixel")
+                        p = d / f"{fid}.pdf"; im.convert("RGB").save(p, "PDF")
+                    local = str(p); page_count = 1; title = title or Path(upload.filename or "Bild").stem
+                except Image.DecompressionBombError:
+                    raise HTTPException(413, {"detail": "Das Bild hat zu viele Pixel.", "code": "too_large"})
+                except Exception:  # noqa: BLE001 - nicht lesbares Bild als Bild-Asset speichern
+                    p = d / f"{fid}{ext}"; raw.rename(p); local = str(p); kind = "image"
+                finally:
+                    raw.unlink(missing_ok=True)
         else:
-            p = d / f"{fid}.pdf"; p.write_bytes(data); local = str(p)
+            p = d / f"{fid}.pdf"
+            await _save_upload(upload, p, MAX_IMPORT_BYTES, head=b"%PDF")
+            local = str(p)
             try:
                 from pypdf import PdfReader
                 page_count = len(PdfReader(str(p)).pages)
@@ -2665,14 +2822,19 @@ def api_recordings(file_id: str):
 
 
 @app.post("/api/files/{file_id}/recordings")
-async def api_recording_add(file_id: str, upload: UploadFile = File(...), page: int = Form(default=1), title: str = Form(default=""), duration: float = Form(default=0)):
+async def api_recording_add(request: Request, file_id: str, upload: UploadFile = File(...), page: int = Form(default=1), title: str = Form(default=""),
+                            duration: float = Form(default=0)):
+    entitlements.require(request, "can_annotate_pdf")         # Aufnahmen gehoeren zu den Notizen (wie Bilder im Editor)
     _safe_id(file_id)
     ext = Path(upload.filename or "aufnahme.webm").suffix.lower() or ".webm"
     if ext not in (".webm", ".m4a", ".mp4", ".ogg", ".oga", ".wav", ".mp3", ".aac"):
         raise HTTPException(400, "Nur Audio-Aufnahmen")
+    with db.cursor() as conn:
+        if not db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)):
+            raise HTTPException(404, "Datei nicht gefunden")
     name = f"rec_{uuid.uuid4().hex}{ext}"
     target = _inside(_assets_dir(), _assets_dir() / file_id); target.mkdir(parents=True, exist_ok=True)
-    (target / name).write_bytes(await upload.read())
+    await _save_upload(upload, target / name, MAX_RECORDING_BYTES)
     with db.cursor() as conn:
         cur = conn.execute("INSERT INTO recordings(file_id, page, title, url, duration, created_at) VALUES (?,?,?,?,?,?)",
                            (file_id, page, title or f"Aufnahme {datetime.now().strftime('%d.%m. %H:%M')}", f"/api/assets/{file_id}/{name}", duration, db.now_iso()))

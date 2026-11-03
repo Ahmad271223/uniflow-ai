@@ -69,7 +69,7 @@ final class SolutionVectorsAppTests: XCTestCase {
         let v = try vectors()
         let cases = try XCTUnwrap(v["cases"]?.array)
         let negative = try XCTUnwrap(v["negative"]?.array)
-        XCTAssertEqual(negative.count, 9)
+        XCTAssertEqual(negative.count, 10)
         let cipher = CryptoKitSolutionCipher()
         for n in negative {
             let name = n["name"]?.string ?? "?"

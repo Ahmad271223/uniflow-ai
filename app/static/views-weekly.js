@@ -49,7 +49,8 @@ export async function setupLectureMarker(ed, f, btn) {
     });
   };
 }
-function lecText(pv) { return pv.lecture ? `${pv.lecture.start}–${pv.lecture.end}${pv.lecture.room ? ` · ${pv.lecture.room}` : ""} (Stundenplan)` : "kein Termin im Stundenplan – Ende wird geschätzt"; }
+// Raum und Zeiten kommen aus Stud.IP bzw. vom Nutzer: escapen (landet in innerHTML; Sicherheitspruefung 3.11.2026)
+function lecText(pv) { return pv.lecture ? `${esc(pv.lecture.start)}–${esc(pv.lecture.end)}${pv.lecture.room ? ` · ${esc(pv.lecture.room)}` : ""} (Stundenplan)` : "kein Termin im Stundenplan – Ende wird geschätzt"; }
 function pubText(pv) { return `voraussichtlich <b>${when(pv.publish_at)}</b> <span class="muted small">(${pv.publish_hours} h nach Vorlesungsende, Lehrwoche ${pv.week_no})</span>`; }
 
 // ================================================================ Modulübersicht: Lernfortschritt & Wochentests

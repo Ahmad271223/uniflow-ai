@@ -395,7 +395,7 @@ final class LocalModulesEndpointTests: XCTestCase {
         let bad = await backend.handle(LocalRequest(method: "POST", path: "/api/modules", body: Data(#"{"name": ["x"]}"#.utf8)))
         XCTAssertEqual(bad.status, 422, "Python: 500 (AttributeError)")
         let badPatch = await backend.handle(LocalRequest(method: "PATCH", path: "/api/modules/1", body: Data(#"{"color": ["x"], "sort": 3}"#.utf8)))
-        XCTAssertEqual(badPatch.status, 422)
+        XCTAssertEqual(badPatch.status, 400, "Farbe nur als #rrggbb, wie Python (Sicherheitspruefung 3.11.2026)")
         let after = await backend.handle(LocalRequest(method: "GET", path: "/api/modules/1"))
         XCTAssertEqual(after.json?["module"]?["sort"], 0, "nichts geschrieben")
     }

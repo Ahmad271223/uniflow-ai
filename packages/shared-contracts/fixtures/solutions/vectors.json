@@ -1362,6 +1362,40 @@
     "ciphertext": "e0Gr3uIPtjwdZL/FP6AgjFfPZRkN4eu08utyPjzMOQR78RVM53wJ7P2auXxBTFLW8UkwFEeZKnsmxPk11IQkb5AKcOj/AbKS63i4AhgoXflUu4hcjgeUbLzU3ztuDZF/ta4g3NXHcrHu1MWtM50ttMwt06igWwi5mcr/x2QOCkaJIRNkAgEF56/0ehO1/Ok9koGn0ev+AN1+ciIxKj4wyYvmVTA6a0pZC4tQmRKTS2SzPQAEKvUvHkTQdTKxpJF7+E82aO6f9ncM4Y47KIsWWKrb+ZugSZefX9JtikJY6F+y69bPlDt5A2qx4Wjjq9xXoTTpTC42i9Xj6LFEV++AUqKfYxUIM08ijzWPfFWsf9MNyJZITDSCCXWbn6ro9qsxfp0RYizA7KFXH/vjD3cNFngM+p3TmMvHWRIEjlzsPl173u9Hk6FOj8ppk8DWlHEhzS2lvQtDqsefqkXvuexJ98Qo2QjavTS7cO0FXlchPg+jF5uzfFumYKZ3ZyM="
    },
    "error": "invalidContent"
+  },
+  {
+   "name": "Strich mit mehr Zahlen als maxStrokeValues",
+   "pdf_of": 1,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 2,
+    "header": {
+     "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+     "createdAt": "2026-10-28T10:00:00Z",
+     "displayName": "",
+     "document": {
+      "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+      "pageCount": 1
+     },
+     "contents": {
+      "pages": 1,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "//////////////////////////////////////////8=",
+      "nonce": "AAAAAAAAAAAAAAAA",
+      "plaintextBytes": 200574,
+      "compression": "deflate-raw",
+      "compressedBytes": 645
+     }
+    },
+    "ciphertext": "28BZP9oJvsDabVdkZrKwJVu0uHr2FLLSdsBDu6ASjLdJsBac9rMQjd8q1uMjVcIRY7YdOzVUVC3yfZJp/wy8G+52PirhMeBVMR42ct2EUyKThuFeMto4mJOvDgtzmKJGJlxCrXyddcPvZIn329yAjkzSvEfx7RqH1dWoXvbkXqfhAWax/4XIDl1ZgUojV7QArplKOx0cuJot9kYTcMf3ODVcRa5kou+pqloT5BUg0NdpYX7y2Y0WOha1XkWmO4erOT4U/S969/ercJp+S179u9f73R+zndrg8QMIAA/4/yWaU3gYztrLZC+kEwxyHWVaKK3C6+Hj1/2d8by8gbuhyicFcAqg9yXidFipdyXA9qjKDiqDQymzxnD4uUJAOLUAMI3g1h2iDt/uNlXXZFE3SrqMCb5qyyxBBLP/q1771pjSpCj49ncYPFEox+ua9gyCMBeI40L1igrW4URCtek43zSm/MnrjvJWt4J6XzpwztF5B+oVef85wIxA2pn+Jvg7oA0RvWkSjxDW47Pxzc44E/FPk/i9/XHRZr+E8Je57SffhiCiBlXHrNgNeZgfTANQC5ZOsBkUiRoK4rqWec5gjZBvZ8btzXmSB8p00Up+koORDlkOd3fFZcKTCDUFSSqYD7RsCxArjVncpIznEYOWiWKy5+rTOuOZZyIHIpxJSx/dMQEKWOAi1skg41x1OzEpmDid5pw/j561y8W815MHeddN4eYSkDAF9M8QZ8gPRvmevpTo+nuu2UuZGL4SThlAqXhJ+fyPTbWVUjlUley+vCiDwDF7+vJrozXnnMlBDkf/GfAUtCxaLXq8eXuOtLXaVDshgSBp+dh6tDvwIm4L1a7vrE9APQ8Z3cGSH+pnhIQnGRZfGg=="
+   },
+   "error": "tooLarge"
   }
  ],
  "community": {

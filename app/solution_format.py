@@ -46,6 +46,10 @@ MAX_PLAINTEXT_BYTES = 48 << 20          # wie SolutionLimits.maxPlaintextBytes
 # Feld im Speicher, Feld in Version 2, Faktor (0,1 Punkt bzw. 0,01 Punkt Strichbreite), Abstand der Differenz
 DELTA_FIELDS = (("points", "pointsDelta", 10, 2), ("widths", "widthsDelta", 100, 1))
 MAX_QUANT = 10**10                      # |Wert x Faktor| hoechstens so gross, sonst bleibt die Liste unveraendert
+# Speicherverstaerkung beim Oeffnen (Sicherheitspruefung 3.11.2026, Fund 9): Zahlen je Strichliste und insgesamt in allen
+# Strichlisten (points/widths bzw. pointsDelta/widthsDelta), geprueft vor dem Dekodieren; wie SolutionLimits und solutions.js
+MAX_STROKE_VALUES = 100_000
+MAX_STROKE_NUMBERS = 10_000_000
 
 
 def number(d) -> str:
@@ -189,6 +193,25 @@ def decode_object(o):
     return out
 
 
+def check_stroke_sizes(content) -> None:
+    """tooLarge, wenn eine Strichliste mehr als MAX_STROKE_VALUES Zahlen hat oder alle zusammen mehr als MAX_STROKE_NUMBERS."""
+    total = 0
+    pages = content.get("pages") if isinstance(content, dict) else None
+    for p in pages if isinstance(pages, list) else []:
+        objects = p.get("objects") if isinstance(p, dict) else None
+        for o in objects if isinstance(objects, list) else []:
+            if not isinstance(o, dict) or o.get("type") != "stroke":
+                continue
+            for f in ("points", "pointsDelta", "widths", "widthsDelta"):
+                a = o.get(f)
+                if isinstance(a, list):
+                    if len(a) > MAX_STROKE_VALUES:
+                        raise ValueError("tooLarge")
+                    total += len(a)
+    if total > MAX_STROKE_NUMBERS:
+        raise ValueError("tooLarge")
+
+
 def _map_objects(content: dict, fn, version: int) -> dict:
     out = dict(content, formatVersion=version)
     pages = content.get("pages")
@@ -256,6 +279,7 @@ def seal(content: dict, pdf: bytes | None, salt: bytes, nonce: bytes, secret: by
     """Versiegeln; `version=1` nur fuer Testvektoren alter Pakete (die Apps schreiben immer Version 2)."""
     if secret is None and hashlib.sha256(pdf).hexdigest() != content["document"]["sha256"]:
         raise ValueError("Fingerabdruck passt nicht")
+    check_stroke_sizes(content)
     plaintext = plaintext_of(content, version)
     if len(plaintext) > MAX_PLAINTEXT_BYTES:
         raise ValueError("tooLarge")
@@ -294,6 +318,7 @@ def open_package(pkg: dict, pdf: bytes | None = None, secret: bytes | None = Non
     if len(body) != e["plaintextBytes"]:
         raise ValueError("invalidContent: Groesse")
     content = json.loads(body)
+    check_stroke_sizes(content)
     return decode_content(content) if version == 2 else content
 
 

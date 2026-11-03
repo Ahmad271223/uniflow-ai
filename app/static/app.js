@@ -1,11 +1,11 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=35";
-import { viewDashboard as viewHome } from "./views-home.js?v=4";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=47";
-import { viewFiles } from "./views-lib.js?v=46";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=37";
-import { viewTimetable, openEvent } from "./views-tt.js?v=35";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=56";
+import { viewDashboard as viewHome } from "./views-home.js?v=5";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=48";
+import { viewFiles } from "./views-lib.js?v=47";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=38";
+import { viewTimetable, openEvent } from "./views-tt.js?v=36";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=57";
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=35";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=5";
 

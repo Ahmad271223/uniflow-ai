@@ -33,7 +33,14 @@ def _download(page, url: str, target: Path, token: str = "", size: int = 0) -> N
     # gestreamt (konstanter Speicher); der Schluessel geht im POST-Koerper mit, nie in der Adresse
     # (learnweb.token_request, wie auf dem iPad); leere Antwort ersetzt nichts
     req = learnweb.token_request(url, token) if token else {"url": url, "form": None}
-    stream_download(page, req["url"], target, shown_url=url, expected_size=size, form=req["form"])
+    stream_download(page, req["url"], target, shown_url=url, expected_size=size, form=req["form"], allowed_hosts=download_hosts())
+
+
+def download_hosts() -> set[str]:
+    """Learnweb-Host(s) fuer Downloads: die Instanzen unter LEARNWEB_ROOT und eine eigene Adresse aus der .env."""
+    from urllib.parse import urlsplit
+    hosts = {urlsplit(learnweb.LEARNWEB_ROOT).hostname, urlsplit(config.secret("HILDESHEIM_LEARNWEB_URL") or "").hostname}
+    return {h.lower() for h in hosts if h}
 
 
 def _learnweb_client(page, user: str, pw: str, token: str):

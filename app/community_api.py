@@ -122,6 +122,12 @@ def create_group(request: Request, body: dict = Body(...)):
     return _run(community.create_group, _user(request), config.university(), body.get("group_key"), body.get("name"))
 
 
+@router.get("/groups/{group_key}")
+def group_preview(request: Request, group_key: str):
+    """Name einer Lerngruppe vor dem Beitritt (wer den Code kennt, kennt den Schluessel)."""
+    return _run(community.group_preview, _user(request), config.university(), group_key)
+
+
 @router.post("/solutions/{solution_id}/like")
 def like(request: Request, solution_id: str):
     """Gefaellt mir (nicht fuer die eigene Loesung; bestaetigte E-Mail)."""

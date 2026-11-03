@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import PDFKit
 import UIKit
 import UniFlowCore
@@ -136,6 +137,11 @@ struct AppDocumentTools: LocalDocumentTools {
     }
 
     func pdfFromImage(_ data: Data) -> Data? {
+        // Pixelzahl vor dem Dekodieren pruefen (wie Image.MAX_IMAGE_PIXELS am PC): zu grosse Bilder nicht umwandeln
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let pw = props[kCGImagePropertyPixelWidth] as? Int, let ph = props[kCGImagePropertyPixelHeight] as? Int,
+              pw > 0, ph > 0, pw * ph <= LibraryEndpoints.maxImagePixels else { return nil }
         guard let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
         // Seite in Bildgroesse wie Pillow (ein Pixel = ein Punkt)
         let size = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)

@@ -728,7 +728,12 @@ def local_server():
 
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{srv.server_address[1]}", seen
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    # Downloads sind nur ueber https:// auf dem Hochschul-Host erlaubt (3.11.2026); der Testserver laeuft lokal ohne TLS
+    from app import studip_sync
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(studip_sync, "download_allowed", lambda url, hosts=None: url.startswith(base + "/"))
+        yield base, seen
     srv.shutdown()
 
 

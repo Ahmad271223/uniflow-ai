@@ -39,7 +39,7 @@ import re
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import accounts, config, db
@@ -164,6 +164,19 @@ CREATE TABLE IF NOT EXISTS study_groups (
     created_by TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+-- Getrennte Namensraeume (Sicherheitspruefung 3.11.2026): jeder Schluessel ist entweder Kurs/Modul oder Lerngruppe
+CREATE TABLE IF NOT EXISTS community_kinds (
+    community_key TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,                  -- course | group
+    created_at TEXT NOT NULL
+);
+-- Erstmeldung je Konto und Kurs-/Modulschluessel (Tagesgrenze fuer neue Schluessel)
+CREATE TABLE IF NOT EXISTS course_key_history (
+    user_id TEXT NOT NULL,
+    course_key TEXT NOT NULL,
+    first_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, course_key)
+);
 """
 
 
@@ -183,6 +196,7 @@ def _schema(conn) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_community ON solutions(community_key, status)")
     if "updated_at" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
         conn.execute("ALTER TABLE solutions ADD COLUMN updated_at TEXT")     # letztes Ersetzen des Pakets (update), sonst NULL
+    conn.execute("INSERT OR IGNORE INTO community_kinds(community_key, kind, created_at) SELECT group_key, 'group', created_at FROM study_groups")
 
 
 def _now() -> str:
@@ -263,7 +277,11 @@ def claim_files(user: dict, university: str, fingerprints: list, replace: bool =
     fps = sorted({str(f).lower() for f in fingerprints if HEX64.match(str(f).lower())})
     keys = sorted({str(k).lower() for k in course_keys or [] if HEX64.match(str(k).lower())})
     now = _now()
+    limited = 0
     with cursor() as conn:
+        # Lerngruppen-Schluessel sind nie Kurse (getrennte Namensraeume)
+        keys = [k for k in keys if not _kind_is(conn, k, "group")]
+        keys, limited = _course_key_budget(conn, user["id"], keys, now)
         if replace:
             conn.execute("DELETE FROM claims WHERE user_id=? AND university=?", (user["id"], university))
         conn.executemany("INSERT OR REPLACE INTO claims(user_id, fingerprint, university, claimed_at) VALUES (?,?,?,?)",
@@ -273,7 +291,40 @@ def claim_files(user: dict, university: str, fingerprints: list, replace: bool =
         conn.executemany("INSERT OR REPLACE INTO course_claims(user_id, course_key, university, claimed_at) VALUES (?,?,?,?)",
                          [(user["id"], k, university, now) for k in keys])
         n = conn.execute("SELECT COUNT(*) FROM claims WHERE user_id=? AND university=?", (user["id"], university)).fetchone()[0]
-    return {"accepted": len(fps), "ignored": len(fingerprints) - len(fps), "total": n, "courses": len(keys)}
+    out = {"accepted": len(fps), "ignored": len(fingerprints) - len(fps), "total": n, "courses": len(keys)}
+    if limited:
+        out["courses_limited"] = limited
+    return out
+
+
+def _kind_is(conn, key: str, kind: str) -> bool:
+    r = conn.execute("SELECT kind FROM community_kinds WHERE community_key=?", (key,)).fetchone()
+    if r:
+        return r["kind"] == kind
+    if kind == "group":
+        return bool(conn.execute("SELECT 1 FROM study_groups WHERE group_key=?", (key,)).fetchone())
+    return False
+
+
+def _course_key_budget(conn, user_id: str, keys: list[str], now: str) -> tuple[list[str], int]:
+    """Tagesgrenze fuer neue Kurs-/Modulschluessel je Konto (Sicherheitspruefung 3.11.2026, Begleitmassnahme):
+    schon einmal gemeldete Schluessel zaehlen nicht, darueber hinaus gehen nur `course_keys_user` neue je Tag durch,
+    der Rest wird ausgelassen (das Geraet meldet ihn beim naechsten Abgleich erneut). Das Schluesselverfahren selbst
+    bleibt unveraendert. LERNAPP_LIMIT_COURSE_KEYS_USER=Anzahl/Minuten ueberschreibt."""
+    if not keys:
+        return keys, 0
+    known = {r[0] for r in conn.execute("SELECT course_key FROM course_key_history WHERE user_id=?", (user_id,))}
+    fresh = [k for k in keys if k not in known]
+    if not fresh:
+        return keys, 0
+    limit, minutes = accounts._limit("course_keys_user")
+    since = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    used = conn.execute("SELECT COUNT(*) FROM course_key_history WHERE user_id=? AND first_at>?", (user_id, since)).fetchone()[0]
+    allowed = fresh[:max(0, limit - used)]
+    conn.executemany("INSERT OR IGNORE INTO course_key_history(user_id, course_key, first_at) VALUES (?,?,?)",
+                     [(user_id, k, now) for k in allowed])
+    dropped = set(fresh) - set(allowed)
+    return [k for k in keys if k not in dropped], len(dropped)
 
 
 def require_file(fingerprint: str, user_id: str | None = None) -> None:
@@ -391,16 +442,20 @@ def _community_key(key) -> str:
 
 
 def join(user: dict, university: str, community_key, kind: str) -> dict:
-    """Beitreten: Kurs nur, wenn ein Geraet des Kontos ihn gemeldet hat; Lerngruppe, wenn es sie gibt."""
+    """Beitreten: Kurs nur, wenn ein Geraet des Kontos ihn gemeldet hat; Lerngruppe, wenn es sie gibt. Verlangt eine
+    bestaetigte E-Mail-Adresse; ein Schluessel ist entweder Kurs oder Lerngruppe (Sicherheitspruefung 3.11.2026)."""
     key = _community_key(community_key)
     if kind not in ("course", "group"):
         raise CommunityError("community_invalid", "Ungültige Community.")
+    _require_verified(user, "einer Community beizutreten")
     with cursor() as conn:
         if kind == "course":
-            if not conn.execute("SELECT 1 FROM course_claims WHERE user_id=? AND course_key=? AND university=?",
-                                (user["id"], key, university)).fetchone():
+            if _kind_is(conn, key, "group") or not conn.execute(
+                    "SELECT 1 FROM course_claims WHERE user_id=? AND course_key=? AND university=?", (user["id"], key, university)).fetchone():
                 raise CommunityError("course_not_owned", "Diesen Kurs gibt es nicht in deinem Hochschul-Abgleich.", 403)
-        elif not conn.execute("SELECT 1 FROM study_groups WHERE group_key=? AND university=?", (key, university)).fetchone():
+            conn.execute("INSERT OR IGNORE INTO community_kinds(community_key, kind, created_at) VALUES (?, 'course', ?)", (key, _now()))
+        elif not _kind_is(conn, key, "group") or not conn.execute(
+                "SELECT 1 FROM study_groups WHERE group_key=? AND university=?", (key, university)).fetchone():
             raise CommunityError("group_not_found", "Keine Lerngruppe mit diesem Code an deiner Hochschule.", 404)
         conn.execute("INSERT OR IGNORE INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,?,?,?)",
                      (user["id"], key, university, kind, _now()))
@@ -422,16 +477,36 @@ def create_group(user: dict, university: str, group_key, name) -> dict:
     with cursor() as conn:
         if conn.execute("SELECT 1 FROM study_groups WHERE group_key=?", (key,)).fetchone():
             raise CommunityError("group_exists", "Diese Lerngruppe gibt es schon.", 409)
+        # Kein Gruppenschluessel, der als Kurs/Modul gemeldet ist oder als Kurs-Community existiert (3.11.2026)
+        if (_kind_is(conn, key, "course")
+                or conn.execute("SELECT 1 FROM course_claims WHERE course_key=?", (key,)).fetchone()
+                or conn.execute("SELECT 1 FROM community_members WHERE community_key=? AND kind='course'", (key,)).fetchone()
+                or conn.execute("SELECT 1 FROM solutions WHERE community_key=?", (key,)).fetchone()):
+            raise CommunityError("group_exists", "Diese Lerngruppe gibt es schon.", 409)
         now = _now()
         conn.execute("INSERT INTO study_groups(group_key, university, name, created_by, created_at) VALUES (?,?,?,?,?)",
                      (key, university, clean, user["id"], now))
+        conn.execute("INSERT OR REPLACE INTO community_kinds(community_key, kind, created_at) VALUES (?, 'group', ?)", (key, now))
         conn.execute("INSERT INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,?,'group',?)",
                      (user["id"], key, university, now))
     return {"community_key": key, "name": clean, "kind": "group"}
 
 
+def group_preview(user: dict, university: str, group_key) -> dict:
+    """Name einer Lerngruppe vor dem Beitritt (Bestaetigungsdialog beim Beitrittslink); den Schluessel kennt nur, wer
+    den Code hat. Kurs-/Modulschluessel liefern nie einen Namen (3.11.2026)."""
+    key = _community_key(group_key)
+    with cursor() as conn:
+        g = conn.execute("SELECT name FROM study_groups WHERE group_key=? AND university=?", (key, university)).fetchone()
+        if not g or not _kind_is(conn, key, "group"):
+            raise CommunityError("group_not_found", "Keine Lerngruppe mit diesem Code an deiner Hochschule.", 404)
+        members = conn.execute("SELECT COUNT(*) FROM community_members WHERE community_key=?", (key,)).fetchone()[0]
+    return {"community_key": key, "kind": "group", "name": g["name"], "members": members}
+
+
 def communities(user: dict, university: str) -> list[dict]:
-    """Eigene Communities und alle gemeldeten Kurse (`joined` je Eintrag); Kursnamen kennt nur das Geraet."""
+    """Eigene Communities und alle gemeldeten Kurse (`joined` je Eintrag); Kursnamen kennt nur das Geraet. Den Namen
+    einer Lerngruppe sehen nur ihre Mitglieder; ein gemeldeter Kursschluessel ist nie eine Gruppe (3.11.2026)."""
     with cursor() as conn:
         joined = {r["community_key"]: r for r in conn.execute("SELECT * FROM community_members WHERE user_id=?", (user["id"],))}
         claimed = {r["course_key"] for r in conn.execute("SELECT course_key FROM course_claims WHERE user_id=? AND university=?",
@@ -439,7 +514,8 @@ def communities(user: dict, university: str) -> list[dict]:
         out = []
         for key in sorted(claimed | set(joined)):
             m = joined.get(key)
-            g = conn.execute("SELECT name FROM study_groups WHERE group_key=?", (key,)).fetchone()
+            g = conn.execute("SELECT name FROM study_groups WHERE group_key=?", (key,)).fetchone() \
+                if m and m["kind"] == "group" else None
             members = conn.execute("SELECT COUNT(*) FROM community_members WHERE community_key=?", (key,)).fetchone()[0]
             count = conn.execute("SELECT COUNT(*) FROM solutions WHERE community_key=? AND status='active'", (key,)).fetchone()[0]
             out.append({"community_key": key, "kind": "group" if g else "course", "name": g["name"] if g else None,

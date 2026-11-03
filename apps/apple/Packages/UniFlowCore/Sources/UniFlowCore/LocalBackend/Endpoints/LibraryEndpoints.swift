@@ -73,6 +73,8 @@ public enum LibraryEndpoints: LocalEndpointModule {
     /// Grenzen einer Notizseite in PDF-Punkten (`PAGE_MIN_PT`, `PAGE_MAX_PT` in app/server.py, wie formats.js):
     /// A6 (298 x 420) bis Whiteboard A0 quer (3370 x 2384)
     public static let pageMinPT = PageFormats.minSide, pageMaxPT = PageFormats.maxSide
+    /// Groesste importierte PDF bzw. groesstes Bild (`MAX_IMPORT_BYTES`), Bilder hoechstens `maxImagePixels` Pixel
+    public static let maxImportBytes = 100 << 20, maxImagePixels = 40_000_000
 
     /// `x: int = Form(default=0)` wie FastAPI/pydantic: leeres Feld = Standardwert, Leerraum, Vorzeichen, Unterstriche
     /// und ein Nachkommateil aus Nullen ("595.0") gelten, sonst 422 `int_parsing` (vor dem Aufruf, also vor uuid4)
@@ -122,6 +124,8 @@ public enum LibraryEndpoints: LocalEndpointModule {
                 throw LocalHTTPError(status: 400, message: "Nur Bilddateien")
             }
             let data = upload.data
+            // Grenze wie MAX_IMPORT_BYTES in app/server.py (Sicherheitspruefung 3.11.2026, Fund 3)
+            guard data.count <= maxImportBytes else { return AnnotationEndpoints.tooLarge(maxImportBytes) }
             if kind == "pdf" && !data.starts(with: Array("%PDF".utf8)) { throw LocalHTTPError(status: 400, message: "Die Datei ist keine PDF") }
             let dir = files.ownDocumentsDirectory
             if kind == "image" {

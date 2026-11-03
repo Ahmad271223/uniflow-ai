@@ -27,7 +27,24 @@ const MAX_QUANT = 1e10;
 export const LIMITS = {
   maxPlaintextBytes: 48 << 20, maxPages: 2000, maxObjectsPerPage: 20000, maxObjects: 200000, maxImages: 200,
   maxImageBytes: 10 << 20, maxPDFPages: 100000, maxPageSide: 14400, maxDisplayName: 60, maxTitle: 200,
+  // Zahlen je Strichliste und insgesamt (Speicherverstaerkung beim Oeffnen, Sicherheitspruefung 3.11.2026)
+  maxStrokeValues: 100000, maxStrokeNumbers: 10000000,
 };
+/** tooLarge bei zu langen Strichlisten (vor dem Dekodieren; wie check_stroke_sizes in app/solution_format.py). */
+export function checkStrokeSizes(c) {
+  let total = 0;
+  for (const p of (isObj(c) && Array.isArray(c.pages) ? c.pages : [])) {
+    for (const o of (isObj(p) && Array.isArray(p.objects) ? p.objects : [])) {
+      if (!isObj(o) || o.type !== "stroke") continue;
+      for (const f of ["points", "pointsDelta", "widths", "widthsDelta"]) {
+        if (!Array.isArray(o[f])) continue;
+        if (o[f].length > LIMITS.maxStrokeValues) fail("tooLarge");
+        total += o[f].length;
+      }
+    }
+  }
+  if (total > LIMITS.maxStrokeNumbers) fail("tooLarge");
+}
 export const TEMPLATES = ["blank", "lined", "grid", "dotted", "mm", "cornell"];
 export const OBJECT_TYPES = ["stroke", "text", "shape", "image"];
 const REFERENCE_FIELDS = new Set(["src", "data", "url", "href", "file", "asset", "uri"]);
@@ -338,6 +355,7 @@ export function decodePackage(pkg) {
 /** Inhalt mit der Original-PDF verschluesseln (SolutionPackage.seal). `salt`/`nonce` nur fuer Testvektoren. */
 export async function seal(content, pdfBytes, { salt, nonce, secret } = {}) {
   if (!secret && await sha256Hex(pdfBytes) !== content.document.sha256) fail("fingerprintMismatch");
+  checkStrokeSizes(content);
   const checked = validateContent(content);
   if (canonical(checked) !== canonical(content)) fail("invalidContent", "nicht verlustfrei");
   const plaintext = plaintextBytes(content);
@@ -368,6 +386,7 @@ export async function openPackage(pkg, pdfBytes, fingerprint = null, secret = nu
   if (version === 2) plain = await inflateRaw(plain, header.encryption.plaintextBytes);
   if (plain.length !== header.encryption.plaintextBytes) fail("invalidContent", "Größe");
   let j; try { j = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plain)); } catch { fail("invalidContent", "JSON"); }
+  checkStrokeSizes(j);
   const c = validateContent(version === 2 ? decodeContent(j) : j);
   if (c.solutionId !== header.solutionId || c.document.sha256 !== header.document.sha256 || c.document.pageCount !== header.document.pageCount ||
       c.createdAt !== header.createdAt || c.displayName !== header.displayName || c.pages.length !== header.contents.pages ||

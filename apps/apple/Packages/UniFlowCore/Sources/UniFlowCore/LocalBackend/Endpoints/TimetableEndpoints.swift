@@ -14,6 +14,49 @@ public enum TimetableEndpoints: LocalEndpointModule {
     static let allowed: Set<String> = ["module_id", "title", "kind", "weekday", "start_time", "end_time", "room", "lecturer",
                                        "rrule", "date_from", "date_to", "attend", "color"]
 
+    // MARK: Felder in fester Form (Sicherheitspruefung 3.11.2026, Fund 10; wie `timetable.check_event_fields`)
+
+    /// Erlaubte Arten eines Termins (`timetable.EVENT_KINDS`, KIND_TXT in app/static/core.js)
+    public static let eventKinds: Set<String> = ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar",
+                                                 "sonstiges", "persoenlich"]
+
+    private static func isNum(_ b: UInt8) -> Bool { (0x30...0x39).contains(b) }
+
+    /// `TIME_RE`: H:MM oder HH:MM, 0-23 Uhr
+    public static func isTime(_ s: String) -> Bool {
+        let parts = s.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2, (1...2).contains(parts[0].utf8.count), parts[1].utf8.count == 2,
+              parts[0].utf8.allSatisfy(isNum), parts[1].utf8.allSatisfy(isNum),
+              let h = Int(parts[0]), let m = Int(parts[1]) else { return false }
+        return h <= 23 && m <= 59
+    }
+
+    /// `COLOR_RE`: #rrggbb
+    public static func isColor(_ s: String) -> Bool {
+        let u = Array(s.utf8)
+        return u.count == 7 && u[0] == 0x23 && u.dropFirst().allSatisfy { isNum($0) || (0x41...0x46).contains($0) || (0x61...0x66).contains($0) }
+    }
+
+    /// `SOURCE_RE`: Kleinbuchstabe, dann bis zu 31 Kleinbuchstaben, Ziffern oder Bindestriche
+    public static func isSource(_ s: String) -> Bool {
+        let u = Array(s.utf8)
+        guard let f = u.first, (0x61...0x7A).contains(f), u.count <= 32 else { return false }
+        return u.allSatisfy { (0x61...0x7A).contains($0) || isNum($0) || $0 == 0x2D }
+    }
+
+    private static func given(_ v: JSONValue?) -> Bool { !(v == nil || v == .null || v == .string("")) }
+
+    /// 400, wenn Art, Farbe, Uhrzeiten oder Quelle nicht in fester Form sind (Werte, die in HTML/CSS landen)
+    static func checkEventFields(_ b: [String: JSONValue]) throws {
+        func bad(_ msg: String) -> LocalHTTPError { LocalHTTPError(status: 400, message: msg) }
+        if given(b["kind"]), !(b["kind"]?.string.map(eventKinds.contains) ?? false) { throw bad("Unbekannte Art des Termins.") }
+        if given(b["color"]), !(b["color"]?.string.map(isColor) ?? false) { throw bad("Farbe als #rrggbb.") }
+        for k in ["start_time", "end_time"] where given(b[k]) && !(b[k]?.string.map(isTime) ?? false) {
+            throw bad("Ungültige Uhrzeit (HH:MM).")
+        }
+        if given(b["source"]), !(b["source"]?.string.map(isSource) ?? false) { throw bad("Ungültige Quelle.") }
+    }
+
     public static func register(on router: LocalRouter) {
         router.get("/api/timetable/week") { req, ctx in
             let start = try T.queryDay(req, "start")
@@ -32,6 +75,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
 
         router.post("/api/timetable/events") { req, ctx in
             let b = try req.objectBody()
+            try checkEventFields(b)
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
                 try c.execute("""
@@ -56,6 +100,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
             let id: SQLiteValue = .integer(Int64(req.intParam("event_id")))
             let clock = ctx.clock
             let patch = body
+            try checkEventFields(patch.filter { allowed.contains($0.key) })
             return .json(try await ctx.database.transaction { c -> JSONValue in
                 guard let e = try c.queryOne("SELECT * FROM course_events WHERE id=?", [id]) else { throw LocalHTTPError.notFound() }
                 if scope == "single" && LocalModules.truthy(d) {
@@ -222,6 +267,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
             let given = T.or(b["source"], "manual")
             let source: JSONValue = given == "studip" ? "studip-manual" : given
             let removeIDs = try iterable(b["remove_ids"], "remove_ids", strict: false)
+            guard isSource(source.string ?? "") else { throw LocalHTTPError(status: 400, message: "Ungültige Quelle.") }
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
                 let src = source.string ?? T.text(source)

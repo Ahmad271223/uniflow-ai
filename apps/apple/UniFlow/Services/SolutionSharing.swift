@@ -354,11 +354,20 @@ enum SolutionSharing {
     static func importFile(_ url: URL, into library: SolutionLibrary = library, notify: Bool = true) throws -> SolutionLibrary.Entry {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        // Groesse vor dem Lesen; laesst sie sich nicht bestimmen, wird nicht gelesen (Sicherheitspruefung 3.11.2026)
+        guard let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize else { throw CocoaError(.fileReadUnknown) }
         guard size <= SolutionLimits.maxPackageBytes else { throw SolutionError.tooLarge }
         let entry = try library.importPackage(try Data(contentsOf: url))
         if notify { NotificationCenter.default.post(name: .uniflowSolutionsChanged, object: nil) }
         return entry
+    }
+
+    /// Wie `importFile`, aber Lesen, Pruefen und Ablegen abseits des Hauptthreads (grosse Pakete bis rund 65 MB).
+    @discardableResult
+    static func importFileDetached(_ url: URL, into library: SolutionLibrary = library, notify: Bool = true) async throws -> SolutionLibrary.Entry {
+        try await Task.detached(priority: .userInitiated) {
+            try importFile(url, into: library, notify: notify)
+        }.value
     }
 
     /// "Lösung importieren …" im offenen Dokument: ablegen und, wenn der Fingerabdruck zu dieser PDF passt, sofort
@@ -367,7 +376,7 @@ enum SolutionSharing {
     @MainActor
     static func importChecked(_ url: URL, into library: SolutionLibrary = library, originalPDF: Data, fingerprint: String,
                               pdf: PDFDocument, cipher: SolutionCipher = cipher) async throws -> SolutionImportResult {
-        let entry = try importFile(url, into: library, notify: false)
+        let entry = try await importFileDetached(url, into: library, notify: false)
         defer { NotificationCenter.default.post(name: .uniflowSolutionsChanged, object: nil) }
         guard entry.fingerprint == fingerprint else { return .otherPDF(entry) }
         let opened = await Task.detached(priority: .userInitiated) {
@@ -447,7 +456,7 @@ extension DocumentStore {
     /// "Lösung importieren …" in diesem Dokument (siehe `SolutionSharing.importChecked`).
     func importSolution(_ url: URL, library: SolutionLibrary = SolutionSharing.library) async throws -> SolutionImportResult {
         guard let pdf = originalPDF, let fp = await originalFingerprint() else {
-            return .otherPDF(try SolutionSharing.importFile(url, into: library))
+            return .otherPDF(try await SolutionSharing.importFileDetached(url, into: library))
         }
         return try await SolutionSharing.importChecked(url, into: library, originalPDF: try originalPDFData(), fingerprint: fp, pdf: pdf)
     }

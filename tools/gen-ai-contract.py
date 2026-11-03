@@ -238,7 +238,8 @@ def main() -> int:
         "texts": {"system": ai.SYSTEM, "tutor_system": ai.TUTOR_SYSTEM, "tutor_modes": ai.TUTOR_MODES,
                   "analysis_fields": ai.ANALYSIS_FIELDS, "week_test_difficulty": ai.WEEK_TEST_DIFFICULTY,
                   "week_test_total": ai.WEEK_TEST_TOTAL, "week_test_types": list(ai.WEEK_TEST_TYPES),
-                  "tutor_history_turns": ai.TUTOR_HISTORY_TURNS, "tutor_history_chars": ai.TUTOR_HISTORY_CHARS},
+                  "tutor_history_turns": ai.TUTOR_HISTORY_TURNS, "tutor_history_chars": ai.TUTOR_HISTORY_CHARS,
+                  "untrusted": ai.UNTRUSTED},
         "prompts": {"tutor": _tutor_cases(ai), "studip_context": _studip_context_cases(ai),
                     "analysis": [{"in": {"course": c, "file_name": f, "text": t}, "prompt": ai.analysis_prompt(c, f, t)}
                                  for c, f, t in [("Testmathe I", "vl01.pdf", "Folgen und Reihen"), ("Testkurs", "leer.pdf", "  \n"),

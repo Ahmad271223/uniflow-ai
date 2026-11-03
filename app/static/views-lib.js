@@ -1,6 +1,6 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
 import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=35";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=50";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=51";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
@@ -13,7 +13,9 @@ const fileType = f => f.kind === "pdf" ? (f.doc_type || "sonstiges") : f.kind;
 
 export async function viewFiles(_, params, view) {
   lib = await api("/library");
-  const path = params.path || ""; const section = params.section || (params.new ? "new" : "docs");
+  // Pfad und Bereich aus der Adresse nur in fester Form (landen in href, data-open und innerHTML; 3.11.2026)
+  const path = /^[A-Za-z0-9_\/-]*$/.test(params.path || "") ? (params.path || "") : "";
+  const section = LIB_SECTIONS.includes(params.section) ? params.section : (params.new ? "new" : "docs");
   const crumbs = [{ label: "Dokumente & Notizen", path: "" }];
   let items = [];
   const modById = Object.fromEntries(lib.modules.map(m => [m.id, m]));
@@ -62,7 +64,7 @@ export async function viewFiles(_, params, view) {
         <div class="seg"><button class="${mode === "grid" ? "active" : ""}" data-m="grid" title="Kacheln">${icon("grid", 15)}</button><button class="${mode === "list" ? "active" : ""}" data-m="list" title="Liste">${icon("list", 15)}</button></div><button class="btn primary" id="libNew">${icon("plus", 16)} Neu</button></div></div>
     <div class="row between wrap" style="margin-bottom:1.2rem"><div class="chips">${CHIPS.map(([k, l]) => `<button class="chip ${filter === k && section === "docs" ? "on" : ""}" data-chip="${k}">${l}</button>`).join("")}</div>
       <div class="row small" style="gap:.3rem">${[["fav", "Favoriten", "star"], ["recent", "Zuletzt", "clock"], ["new", "Neu aus Stud.IP", "sparkles"], ["trash", "Papierkorb", "trash"]].map(([k, l, i]) => `<a class="btn ghost sm ${section === k ? "active" : ""}" href="#/files?section=${k}" style="${section === k ? "background:var(--accent-soft);color:var(--accent-text)" : ""}">${icon(i, 14)} ${l}${k === "new" && newCount ? ` <span class="badge">${newCount}</span>` : ""}</a>`).join("")}</div></div>
-    ${!root ? `<div class="lib-head"><div class="lib-crumbs">${section !== "docs" ? `<b>${sectionTitle}</b>` : crumbs.map((c, i) => i === crumbs.length - 1 ? `<b>${esc(c.label)}</b>` : `<a href="#/files?path=${c.path}">${esc(c.label)}</a><span class="muted">›</span>`).join("")}${q ? `<span class="muted">· Suche „${esc(params.q)}“</span>` : filter !== "all" && section === "docs" ? `<span class="muted">· ${CHIPS.find(c => c[0] === filter)?.[1]}</span>` : ""}</div></div>` : ""}
+    ${!root ? `<div class="lib-head"><div class="lib-crumbs">${section !== "docs" ? `<b>${sectionTitle}</b>` : crumbs.map((c, i) => i === crumbs.length - 1 ? `<b>${esc(c.label)}</b>` : `<a href="#/files?path=${esc(c.path)}">${esc(c.label)}</a><span class="muted">›</span>`).join("")}${q ? `<span class="muted">· Suche „${esc(params.q)}“</span>` : filter !== "all" && section === "docs" ? `<span class="muted">· ${CHIPS.find(c => c[0] === filter)?.[1]}</span>` : ""}</div></div>` : ""}
     ${section === "trash" ? `<p class="muted small">Dokumente im Papierkorb lassen sich wiederherstellen. Stud.IP-Dokumente bleiben erhalten, eigene Dokumente können endgültig gelöscht werden.</p>` : ""}
     ${root ? `<div class="folder-grid">${items.filter(i => i.kind === "folder").map(folderCard).join("")}</div>${items.some(i => i.kind === "doc") ? `<div class="quick-card"><div class="card-head"><h2>${icon("note", 18)} Eigene Dokumente</h2></div>${mode === "grid" ? `<div class="lib-grid">${items.filter(i => i.kind === "doc").map(gridItem).join("")}</div>` : `<div class="lib-list">${items.filter(i => i.kind === "doc").map(listItem).join("")}</div>`}</div>` : ""}
       <div class="quick-card"><div class="card-head"><h2>${icon("clock", 18)} Schnellzugriff</h2><a class="small" href="#/files?section=recent">Alle anzeigen →</a></div>${recent.length ? `<div class="quick-list">${recent.map(quickItem).join("")}</div>` : `<div class="muted small">Zuletzt geöffnete Dokumente erscheinen hier.</div>`}</div>`
@@ -73,28 +75,31 @@ export async function viewFiles(_, params, view) {
   $$("[data-chip]", view).forEach(c => c.onclick = () => { filter = c.dataset.chip; if (section !== "docs") location.hash = "#/files"; else state.route(); });
   $$("[data-m]", view).forEach(b => b.onclick = () => { mode = b.dataset.m; try { localStorage.setItem("lib-mode", mode); } catch {} state.route(); });
   $("#libNew").onclick = () => newMenu(path, current);
-  $$("[data-open]", view).forEach(el => el.onclick = e => { if (e.target.closest("[data-menu]")) return; const it = el.dataset.open; if (!it) return; location.hash = it.startsWith("doc:") ? `#/doc/${it.slice(4)}` : `#/files?path=${it.slice(5)}`; });
+  $$("[data-open]", view).forEach(el => el.onclick = e => { if (e.target.closest("[data-menu]")) return; const it = el.dataset.open; if (!/^(doc:[A-Za-z0-9_-]+|path:[A-Za-z0-9_\/-]*)$/.test(it || "")) return; location.hash = it.startsWith("doc:") ? `#/doc/${it.slice(4)}` : `#/files?path=${it.slice(5)}`; });
   $$("[data-menu]", view).forEach(b => b.onclick = e => { e.stopPropagation(); itemMenu(b.dataset.menu, b); });
   $$("[data-fav]", view).forEach(b => b.onclick = async e => { e.stopPropagation(); const f = lib.files.find(x => x.id === b.dataset.fav); await api(`/files/${f.id}/favorite`, { method: "POST", body: { favorite: !f.favorite } }); state.route(); });
   // Vorschaubilder lazy laden
   const io = new IntersectionObserver(ens => ens.forEach(async en => { if (!en.isIntersecting) return; io.unobserve(en.target); const f = lib.files.find(x => x.id === en.target.dataset.thumb); if (!f) return; const data = await renderThumbnail(f.id, `/api/files/${f.id}/content`, f.edited_at || f.chdate, 220); if (data) en.target.innerHTML = `<img src="${data}" alt="">` + (en.target.querySelector(".lib-star")?.outerHTML || ""); }), { rootMargin: "400px" });
   $$("[data-thumb]", view).forEach(el => io.observe(el));
 }
+const LIB_SECTIONS = ["docs", "fav", "recent", "new", "trash"];
+/** Farbe nur als #rgb/#rrggbb(aa), sonst null (Ordnerfarben kommen ungeprueft aus der Datenbank) */
+const cssColor = c => (/^#[0-9a-fA-F]{3,8}$/.test(c || "") ? c : null);
 function folderCard(it) {
   const ini = it.module ? initial(it.label) : icon("folder", 20);
-  return `<div class="folder-card" style="--fc:${it.color || "#4f8ef7"}" data-open="path:${it.path}"><div class="wave"></div><div class="fold"></div><div class="ini">${ini}</div><div class="row2"><div class="nm">${esc(it.label)}</div><button class="kebab" data-menu="${it.module ? "module:" + it.module.id : "folder:" + it.user.id}" title="Mehr">${icon("more", 18)}</button></div><div class="cnt">${it.count} Dokument${it.count === 1 ? "" : "e"}</div></div>`;
+  return `<div class="folder-card" style="--fc:${cssColor(it.color) || "#4f8ef7"}" data-open="path:${esc(it.path)}"><div class="wave"></div><div class="fold"></div><div class="ini">${ini}</div><div class="row2"><div class="nm">${esc(it.label)}</div><button class="kebab" data-menu="${it.module ? "module:" + it.module.id : "folder:" + it.user.id}" title="Mehr">${icon("more", 18)}</button></div><div class="cnt">${it.count} Dokument${it.count === 1 ? "" : "e"}</div></div>`;
 }
 function quickItem(f) {
   const t = fileType(f); const ic = f.kind === "pdf" ? "file-text" : (TYPE_ICON[f.kind] || "file");
   return `<div class="quick-item" data-open="doc:${f.id}"><div class="fi" style="background:${FILE_COLORS[t] || FILE_COLORS.sonstiges}">${icon(ic, 18)}</div><div class="m"><b>${esc(f.title)}</b><span>${esc(f.subject || "Eigene Notizen")} · ${ago(f.edited_at || f.last_opened)}</span></div></div>`;
 }
 function gridItem(it) {
-  if (it.kind === "folder") return `<div class="lib-item" data-open="path:${it.path}"><div class="lib-folder" style="--fc:${it.color || "#4f8ef7"}"></div><div class="nm"><span>${esc(it.label)}</span>${it.user ? `<i class="menu-btn2" data-menu="folder:${it.user.id}">${icon("chevron-down", 14)}</i>` : ""}</div><div class="dt">${it.count} Dokumente</div></div>`;
+  if (it.kind === "folder") return `<div class="lib-item" data-open="path:${esc(it.path)}"><div class="lib-folder" style="--fc:${cssColor(it.color) || "#4f8ef7"}"></div><div class="nm"><span>${esc(it.label)}</span>${it.user ? `<i class="menu-btn2" data-menu="folder:${it.user.id}">${icon("chevron-down", 14)}</i>` : ""}</div><div class="dt">${it.count} Dokumente</div></div>`;
   const f = it.f; const isPdf = f.kind === "pdf" && f.downloaded_at;
   return `<div class="lib-item ${f.favorite ? "fav" : ""}" data-open="${it.kind === "trash" ? "" : "doc:" + f.id}"><div class="lib-thumb ${f.kind}" ${isPdf ? `data-thumb="${f.id}"` : ""}>${isPdf ? `<span class="ph">${icon("file-text", 28)}</span>` : f.kind === "whiteboard" ? `<span class="ph">${icon("square", 28)}</span>` : f.kind === "image" ? `<img src="/api/files/${f.id}/content">` : `<span class="ph">${icon("note", 28)}</span>`}${it.kind !== "trash" ? `<span class="lib-star" data-fav="${f.id}">${icon("star", 16)}</span>` : ""}</div><div class="nm"><span>${esc(f.title)}</span><i class="menu-btn2" data-menu="${it.kind === "trash" ? "trash" : "doc"}:${f.id}">${icon("chevron-down", 14)}</i></div><div class="dt">${it.kind === "trash" ? "gelöscht " + fmtDate(f.deleted_at) : (f.edited_at ? "bearbeitet " + fmtDate(f.edited_at) : fmtDate(f.chdate)) + (f.status === "neu" ? " · <b style='color:var(--accent-text)'>Neu</b>" : "")}</div></div>`;
 }
 function listItem(it) {
-  if (it.kind === "folder") return `<div class="lib-row" data-open="path:${it.path}"><div class="mini folder" style="--fc:${it.color || "#4f8ef7"}">${icon("folder", 16)}</div><b>${esc(it.label)}</b><span class="muted small hide-m">Ordner</span><span class="muted small hide-m">${it.count} Dokumente</span><span class="hide-m"></span><span>${it.user ? `<i class="menu-btn2" data-menu="folder:${it.user.id}">${icon("more", 16)}</i>` : ""}</span></div>`;
+  if (it.kind === "folder") return `<div class="lib-row" data-open="path:${esc(it.path)}"><div class="mini folder" style="--fc:${cssColor(it.color) || "#4f8ef7"}">${icon("folder", 16)}</div><b>${esc(it.label)}</b><span class="muted small hide-m">Ordner</span><span class="muted small hide-m">${it.count} Dokumente</span><span class="hide-m"></span><span>${it.user ? `<i class="menu-btn2" data-menu="folder:${it.user.id}">${icon("more", 16)}</i>` : ""}</span></div>`;
   const f = it.f; const isPdf = f.kind === "pdf" && f.downloaded_at;
   return `<div class="lib-row" data-open="${it.kind === "trash" ? "" : "doc:" + f.id}"><div class="mini" ${isPdf ? `data-thumb="${f.id}"` : ""}>${icon(TYPE_ICON[f.kind === "pdf" ? (f.doc_type || "pdf") : f.kind] || "file", 16)}</div><div><b>${esc(f.title)}</b>${f.ai_title && f.ai_title !== f.title ? `<div class="muted tiny">${esc(f.name)}</div>` : ""}</div><span class="muted small hide-m">${esc(TYPE_TXT[f.kind === "pdf" ? (f.doc_type || "pdf") : f.kind] || "")}</span><span class="muted small hide-m">${esc(f.subject || "Eigene")}</span><span class="muted small hide-m">${fmtDate(f.edited_at || f.chdate)}</span><span><i class="menu-btn2" data-menu="${it.kind === "trash" ? "trash" : "doc"}:${f.id}">${icon("more", 16)}</i></span></div>`;
 }

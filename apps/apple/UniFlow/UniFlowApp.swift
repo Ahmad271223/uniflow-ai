@@ -55,6 +55,9 @@ struct UniFlowApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                // Links aus KI-Antworten, Stud.IP-Texten usw.: nur http(s) ins System, alles andere verwerfen
+                // (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
+                .environment(\.openURL, OpenURLAction { SafeLinks.action(for: $0) })
                 .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
                 .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
                 .modifier(UFToastOverlay(center: toast))
@@ -80,19 +83,23 @@ struct UniFlowApp: App {
                     // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
                     // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
                     if SolutionSharing.isSolutionFile(url) {
-                        // die Kopie in Documents/Inbox gehoert zu keinem Container: danach immer weg
-                        defer { SolutionSharing.discardReceivedCopy(url) }
                         // Loesungen gehoeren in den Container des Kontos und der Hochschule
                         guard containers.active != nil else {
+                            SolutionSharing.discardReceivedCopy(url)
                             toast.show("Melde dich zuerst an und wähle deine Hochschule. Öffne die Lösung danach erneut.", seconds: 4)
                             return
                         }
-                        do {
-                            let e = try SolutionSharing.importFile(url)
-                            let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
-                            toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.communityRead)), seconds: 5)
-                        } catch {
-                            toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
+                        // Lesen und Pruefen abseits des Hauptthreads (Pakete bis rund 65 MB)
+                        Task {
+                            // die Kopie in Documents/Inbox gehoert zu keinem Container: danach immer weg
+                            defer { SolutionSharing.discardReceivedCopy(url) }
+                            do {
+                                let e = try await SolutionSharing.importFileDetached(url)
+                                let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
+                                toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.communityRead)), seconds: 5)
+                            } catch {
+                                toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
+                            }
                         }
                         return
                     }
@@ -105,6 +112,9 @@ struct UniFlowApp: App {
                         }
                         Task {
                             do {
+                                // erst bestaetigen, mit dem Namen der Gruppe (ein fremder Link tritt nie still bei)
+                                let name = try await SolutionSharing.community.studyGroupName(code: code)
+                                guard await overlay.confirm(CommunityJoinLink.confirmText(name: name)) else { return }
                                 let g = try await SolutionSharing.community.joinStudyGroup(code: code)
                                 toast.show("Lerngruppe „\(g.name)“ beigetreten.", seconds: 4)
                             } catch {
@@ -149,6 +159,16 @@ struct UniFlowApp: App {
             }
         }
     }
+}
+
+/// Ziele fuer `openURL` in der ganzen App: nur http:// und https:// mit Host gehen an das System
+enum SafeLinks {
+    static func allows(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return false }
+        return !(url.host ?? "").isEmpty
+    }
+
+    static func action(for url: URL) -> OpenURLAction.Result { allows(url) ? .systemAction : .discarded }
 }
 
 /// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Hochschulwahl -> (einmal je Hochschule) Anmeldeseiten der

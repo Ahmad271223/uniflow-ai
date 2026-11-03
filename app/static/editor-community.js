@@ -7,8 +7,8 @@
 // `anchor` = {x, y} in 0..1 von links oben in der Anzeige des Absenders (dieselben Koordinaten wie die Objekte,
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
-import * as S from "./solutions.js?v=4";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=7";
+import * as S from "./solutions.js?v=5";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=8";
 import { renderLinkCard } from "./studora-link.js?v=3";
 
 const $ = (s, el = document) => el.querySelector(s);

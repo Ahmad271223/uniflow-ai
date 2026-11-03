@@ -553,6 +553,20 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         return group
     }
 
+    func studyGroupName(code raw: String) async throws -> String {
+        guard let code = CommunityKeys.normalizedGroupCode(raw) else { throw CommunityServiceError.invalidGroupCode }
+        let cloud = try available()
+        let key = CommunityKeys.groupKey(university: university.rawValue, code: code)
+        let record: CommunityRecord?
+        do { record = try await cloud.fetch(name: key, type: CommunityRecordType.studyGroup, in: .publicDB) } catch {
+            throw Self.serviceError(error)
+        }
+        guard let record, record[Field.university]?.string == university.rawValue, let name = record[Field.name]?.string else {
+            throw CommunityServiceError.groupNotFound
+        }
+        return name
+    }
+
     func leaveStudyGroup(code raw: String) async throws {
         membership.remove(code: CommunityKeys.normalizedGroupCode(raw) ?? raw)
     }

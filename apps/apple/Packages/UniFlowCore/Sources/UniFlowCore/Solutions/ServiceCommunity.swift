@@ -280,6 +280,13 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
         return group
     }
 
+    public func studyGroupName(code raw: String) async throws -> String {
+        guard let code = CommunityKeys.normalizedGroupCode(raw) else { throw CommunityServiceError.invalidGroupCode }
+        let key = CommunityKeys.groupKey(university: university, code: code)
+        guard let name = (try await call("GET", "/groups/\(key)"))["name"]?.string else { throw CommunityServiceError.groupNotFound }
+        return name
+    }
+
     public func leaveStudyGroup(code raw: String) async throws {
         guard let code = CommunityKeys.normalizedGroupCode(raw) else { return }
         _ = try await call("DELETE", "/communities/\(CommunityKeys.groupKey(university: university, code: code))/join")

@@ -13,9 +13,28 @@ from datetime import date, datetime, time, timedelta, timezone
 from . import db
 
 WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+# Erlaubte Arten eines Termins (wie KIND_TXT in app/static/core.js); alles andere wird abgewiesen bzw. geraten
+EVENT_KINDS = ("vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar", "sonstiges", "persoenlich")
+# Felder, die die Oberflaechen in HTML/CSS einsetzen: nur feste Formen (Sicherheitspruefung 3.11.2026, Fund 10)
+TIME_RE = re.compile(r"(?:[01]?[0-9]|2[0-3]):[0-5][0-9]")
+COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
+SOURCE_RE = re.compile(r"[a-z][a-z0-9-]{0,31}")
 KIND_WORDS = {"uebung": ["übung", "uebung", "ü:", "exercise", "tutorium", "gruppenübung", "zentralübung"], "labor": ["labor", "praktikum", "lab"], "seminar": ["seminar"]}
 # TZID-Werte, die UTC bedeuten (ohne Zeitzonendatenbank erkannt, unter Windows fehlt sie ohne tzdata)
 UTC_TZIDS = {"UTC", "ETC/UTC", "GMT", "ETC/GMT", "Z", "UNIVERSAL", "ETC/UNIVERSAL", "ZULU", "ETC/ZULU", "UCT", "ETC/UCT"}
+
+
+def check_event_fields(body: dict) -> None:
+    """Termin von aussen (Anlegen/Bearbeiten): Art, Farbe, Uhrzeiten und Quelle nur in fester Form, sonst ValueError."""
+    if "kind" in body and body["kind"] not in (None, "") and body["kind"] not in EVENT_KINDS:
+        raise ValueError("Unbekannte Art des Termins.")
+    if body.get("color") not in (None, "") and not COLOR_RE.fullmatch(str(body["color"])):
+        raise ValueError("Farbe als #rrggbb.")
+    for k in ("start_time", "end_time"):
+        if body.get(k) not in (None, "") and not TIME_RE.fullmatch(str(body[k])):
+            raise ValueError("Ungültige Uhrzeit (HH:MM).")
+    if body.get("source") not in (None, "") and not SOURCE_RE.fullmatch(str(body["source"])):
+        raise ValueError("Ungültige Quelle.")
 
 
 def hm(t: str) -> int:
@@ -848,8 +867,16 @@ Antworte NUR mit JSON: [{{"title": "...", "kind": "vorlesung|uebung|tutorium|lab
 "start_time": "HH:MM", "end_time": "HH:MM", "room": "...", "lecturer": "...", "rrule": "weekly|biweekly|once", "uncertain": true/false}}]
 Erfinde keine Veranstaltungen und keine Uhrzeiten. Wenn etwas unleserlich oder unsicher ist, setze "uncertain": true."""
     if image_path:
-        prompt = f"Lies die Bilddatei {image_path} (Stundenplan als Screenshot/Foto) mit dem Read-Werkzeug.\n{instr}"
-        raw = ai.ask(prompt, "Du bist ein praeziser Datenextraktor. Antworte ausschliesslich mit JSON.", allowed_tools=["Read"])
+        # Bild in einen eigenen Arbeitsordner kopieren: Claude darf nur dort lesen (Read(./**), Sicherheitspruefung 3.11.2026)
+        import shutil
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory(prefix="studora-ai-") as work:
+            copy = Path(work) / ("stundenplan" + (Path(image_path).suffix.lower() or ".png"))
+            shutil.copyfile(image_path, copy)
+            prompt = f"Lies die Bilddatei {copy} (Stundenplan als Screenshot/Foto) mit dem Read-Werkzeug.\n{instr}"
+            raw = ai.ask(prompt, "Du bist ein praeziser Datenextraktor. Antworte ausschliesslich mit JSON.", allowed_tools=["Read(./**)"],
+                         cwd=work)
     else:
         prompt = f"{instr}\n\nSTUNDENPLAN-TEXT:\n<<<\n{text[:12000]}\n>>>"
         raw = ai.ask(prompt, "Du bist ein praeziser Datenextraktor. Antworte ausschliesslich mit JSON.")
@@ -857,7 +884,7 @@ Erfinde keine Veranstaltungen und keine Uhrzeiten. Wenn etwas unleserlich oder u
     out = []
     for e in data if isinstance(data, list) else []:
         try:
-            out.append({"title": str(e.get("title") or "Veranstaltung"), "kind": e.get("kind") or guess_kind(e.get("title", "")), "weekday": int(e.get("weekday", 0)) % 7,
+            out.append({"title": str(e.get("title") or "Veranstaltung"), "kind": e.get("kind") if e.get("kind") in EVENT_KINDS else guess_kind(str(e.get("title") or "")), "weekday": int(e.get("weekday", 0)) % 7,
                         "start_time": mh(hm(e.get("start_time", "08:00"))), "end_time": mh(hm(e.get("end_time", "09:30"))), "room": e.get("room") or "", "lecturer": e.get("lecturer") or "",
                         "rrule": e.get("rrule") if e.get("rrule") in ("weekly", "biweekly", "once") else "weekly", "date_from": None, "date_to": None, "uncertain": bool(e.get("uncertain"))})
         except (ValueError, TypeError):
@@ -918,10 +945,16 @@ def diff_against_existing(conn, entries: list[dict]) -> dict:
 
 
 def apply_import(conn, entries: list[dict], source: str, remove_ids: list[int] | None = None) -> dict:
+    if not SOURCE_RE.fullmatch(str(source or "")):
+        raise ValueError("Ungültige Quelle.")
     n_new = n_upd = 0
     new_ids: list[int] = []
     note = "Ausfall laut Stud.IP" if str(source).startswith("studip") else "Ausfall laut Kalender"
     for e in entries:
+        if e.get("kind") not in EVENT_KINDS:
+            e = {**e, "kind": guess_kind(str(e.get("title") or ""))}
+        if not (TIME_RE.fullmatch(str(e.get("start_time") or "")) and TIME_RE.fullmatch(str(e.get("end_time") or ""))):
+            raise ValueError("Ungültige Uhrzeit (HH:MM).")
         if e.get("existing_id"):
             conn.execute("UPDATE course_events SET start_time=?, end_time=?, room=COALESCE(NULLIF(?,''), room), kind=?, module_id=COALESCE(?, module_id) WHERE id=?",
                          (e["start_time"], e["end_time"], e.get("room") or "", e.get("kind") or "vorlesung", e.get("module_id"), e["existing_id"]))

@@ -635,7 +635,14 @@ enum LocalTimetableImport {
             return v
         }
         for item in entries {
-            guard let e = item.object else { throw LocalHTTPError(status: 500, message: "Eintrag ist kein Objekt") }
+            guard var e = item.object else { throw LocalHTTPError(status: 500, message: "Eintrag ist kein Objekt") }
+            // Art nur aus der festen Liste, Uhrzeiten nur HH:MM (Sicherheitspruefung 3.11.2026, wie timetable.apply_import)
+            if !(e["kind"]?.string.map(TimetableEndpoints.eventKinds.contains) ?? false) {
+                e["kind"] = .string(UniRules.eventKind(e["title"]?.string ?? ""))
+            }
+            guard e["start_time"]?.string.map(TimetableEndpoints.isTime) ?? false, e["end_time"]?.string.map(TimetableEndpoints.isTime) ?? false else {
+                throw LocalHTTPError(status: 400, message: "Ungültige Uhrzeit (HH:MM).")
+            }
             let eventID: SQLiteValue
             if LocalModules.truthy(e["existing_id"]) {
                 eventID = try LocalTimetable.bind(e["existing_id"], "existing_id")

@@ -3,8 +3,8 @@
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
 import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=35";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=38";
-import { openEvent } from "./views-tt.js?v=36";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=40";
+import { openEvent } from "./views-tt.js?v=38";
 import { installBanner, bindInstallBanner } from "./pwa.js?v=6";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);

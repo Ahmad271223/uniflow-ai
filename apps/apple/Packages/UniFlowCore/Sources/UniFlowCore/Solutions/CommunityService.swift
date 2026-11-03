@@ -61,6 +61,8 @@ public protocol CommunityService: Sendable {
     func createStudyGroup(name: String) async throws -> CommunityStudyGroup
     /// Lerngruppe ueber ihren Code beitreten (Mitgliedschaft = Kenntnis des Codes).
     func joinStudyGroup(code: String) async throws -> CommunityStudyGroup
+    /// Name der Lerngruppe zu einem Code, ohne beizutreten (Bestaetigung vor dem Beitritt ueber einen Link).
+    func studyGroupName(code: String) async throws -> String
     func leaveStudyGroup(code: String) async throws
     /// Lerngruppen, denen dieses Geraet beigetreten ist.
     func studyGroups() async throws -> [CommunityStudyGroup]
@@ -95,6 +97,7 @@ extension CommunityService {
     public func blockedOwners() async throws -> [String] { throw CommunityServiceError.notConnected }
     public func createStudyGroup(name: String) async throws -> CommunityStudyGroup { throw CommunityServiceError.notConnected }
     public func joinStudyGroup(code: String) async throws -> CommunityStudyGroup { throw CommunityServiceError.notConnected }
+    public func studyGroupName(code: String) async throws -> String { throw CommunityServiceError.notConnected }
     public func leaveStudyGroup(code: String) async throws { throw CommunityServiceError.notConnected }
     public func studyGroups() async throws -> [CommunityStudyGroup] { throw CommunityServiceError.notConnected }
 }

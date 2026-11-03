@@ -21,6 +21,22 @@ public enum SolutionWire {
                          Field(field: "widths", delta: "widthsDelta", scale: 100, step: 1)]
     static let maxQuant = 1e10
 
+    /// tooLarge, wenn eine Strichliste mehr als `maxStrokeValues` Zahlen hat oder alle zusammen mehr als
+    /// `maxStrokeNumbers` (wie `check_stroke_sizes` in app/solution_format.py); zaehlt nur, baut nichts auf.
+    public static func checkStrokeSizes(_ content: JSONValue) throws {
+        var total = 0
+        for page in content["pages"]?.array ?? [] {
+            for o in page["objects"]?.array ?? [] where o["type"]?.string == "stroke" {
+                for f in ["points", "pointsDelta", "widths", "widthsDelta"] {
+                    guard let n = o[f]?.array?.count else { continue }
+                    guard n <= SolutionLimits.maxStrokeValues else { throw SolutionError.tooLarge }
+                    total += n
+                }
+            }
+        }
+        guard total <= SolutionLimits.maxStrokeNumbers else { throw SolutionError.tooLarge }
+    }
+
     static func quantize(_ v: Double, _ scale: Double) -> Int { Int((v * scale + 0.5).rounded(.down)) }
 
     /// Strich im Speicher -> Version 2.

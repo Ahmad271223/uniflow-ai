@@ -231,6 +231,10 @@ public enum SolutionLimits {
     public static let maxPageSide = 14_400.0
     public static let maxDisplayName = 60
     public static let maxTitle = 200
+    /// Zahlen je Strichliste (points/widths bzw. pointsDelta/widthsDelta) und in allen Strichlisten zusammen; geprueft
+    /// vor dem Dekodieren und vor `SolutionContent` (Speicherverstaerkung beim Oeffnen, Sicherheitspruefung 3.11.2026)
+    public static let maxStrokeValues = 100_000
+    public static let maxStrokeNumbers = 10_000_000
 }
 
 /// Pruefungen, die beim Erzeugen und beim Oeffnen gleich laufen (was geteilt werden kann, laesst sich auch oeffnen).
@@ -636,6 +640,7 @@ public struct SolutionPackage: Equatable, Sendable {
     private static func seal(_ content: SolutionContent, material: Data, name: String, cipher: SolutionCipher,
                              salt: Data?, nonce: Data?) throws -> SolutionPackage {
         // dieselben Pruefungen wie beim Oeffnen: was geteilt wird, muss sich auch oeffnen lassen
+        try SolutionWire.checkStrokeSizes(content.json)
         let checked = try SolutionContent(json: content.json)
         guard checked == content else { throw SolutionError.invalidContent("nicht verlustfrei") }
         // Version 2: Striche als ganze Zahlen, kanonisch, dann raw DEFLATE
@@ -689,6 +694,8 @@ public struct SolutionPackage: Equatable, Sendable {
         }
         guard plaintext.count == header.plaintextBytes else { throw SolutionError.invalidContent("Größe") }
         guard var json = try? JSONValue.parse(plaintext) else { throw SolutionError.invalidContent("JSON") }
+        plaintext = Data()                                  // Klartext freigeben, bevor Strukturen entstehen
+        try SolutionWire.checkStrokeSizes(json)
         if formatVersion == 2 { json = try SolutionWire.decodeContent(json) }
         let content = try SolutionContent(json: json)
         guard content.solutionID == header.solutionID, content.fingerprint == header.fingerprint,

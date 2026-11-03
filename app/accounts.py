@@ -45,7 +45,9 @@ LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60),
           # Eigene Loesung aktualisieren (Paket ersetzen, 03.11.2026): grosszuegiger als Neues, aber begrenzt
           "update_user": (60, 1440),
           # Melden (Loesung, Kommentar, Frage, Antwort): ab drei Meldungen wird ein Beitrag verborgen, daher knapp je Tag
-          "report_user": (10, 1440)}
+          "report_user": (10, 1440),
+          # Neue Kurs-/Modulschluessel je Konto und Tag (Community-Meldungen, Sicherheitspruefung 3.11.2026)
+          "course_keys_user": (30, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")

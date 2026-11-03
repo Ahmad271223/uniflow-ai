@@ -154,6 +154,13 @@ def render() -> str:
     both_header = json.loads(json.dumps(c2["package"]["header"]))
     both_header["encryption"]["plaintextBytes"] = len(both_text)
     both_pkg = seal_raw(pdf_b, both_header, sf.deflate(both_text))
+    # Speicherverstaerkung (3.11.2026): ein Strich mit mehr Zahlen als MAX_STROKE_VALUES (entpackt winzig)
+    long_ = json.loads(c2["plaintext"])
+    long_["pages"][0]["objects"].append({"type": "stroke", "pointsDelta": [0] * (sf.MAX_STROKE_VALUES + 2)})
+    long_text = sf.canonical(long_).encode()
+    long_header = json.loads(json.dumps(c2["package"]["header"]))
+    long_header["encryption"]["plaintextBytes"] = len(long_text)
+    long_pkg = seal_raw(pdf_b, long_header, sf.deflate(long_text))
     negative = [
         {"name": "Kopf veraendert (Anzeigename): AAD passt nicht", "pdf_of": 0, "package": tampered, "error": "decryptionFailed"},
         {"name": "Chiffrat veraendert", "pdf_of": 1, "package": flipped, "error": "decryptionFailed"},
@@ -164,6 +171,7 @@ def render() -> str:
         {"name": "Zip-Bombe: entpackt groesser als plaintextBytes (und als maxPlaintextBytes)", "pdf_of": 1, "package": bomb, "error": "tooLarge"},
         {"name": "entpackt kleiner als plaintextBytes", "pdf_of": 1, "package": short, "error": "invalidContent"},
         {"name": "Strich mit points und pointsDelta zugleich", "pdf_of": 1, "package": both_pkg, "error": "invalidContent"},
+        {"name": "Strich mit mehr Zahlen als maxStrokeValues", "pdf_of": 1, "package": long_pkg, "error": "tooLarge"},
     ]
     for n in negative:
         try:

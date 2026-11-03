@@ -15,9 +15,10 @@ import re
 import sys
 import time
 import unicodedata
+import urllib.request
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urljoin, urlsplit
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
@@ -345,6 +346,11 @@ def fetch_files(page: Page, course_id: str) -> list[dict]:
     files = []
     for f in data:
         url = html.unescape(f.get("download_url") or "")
+        if url:
+            url = urljoin(STUDIP_BASE + "/", url)
+        if url and not download_allowed(url):
+            log(f"Download-Adresse ausserhalb von Stud.IP verworfen ({urlsplit(url).hostname or '?'})")
+            url = ""
         if not url:
             # Fallback: Standard-Downloadlink von Stud.IP
             url = f"{STUDIP_BASE}/sendfile.php?type=0&file_id={f['id']}&file_name={quote(f['name'])}"
@@ -416,6 +422,21 @@ def safe_name(s: str) -> str:
 HTML_STARTS = (b"<!doctype html", b"<html")
 
 
+def download_hosts() -> set[str]:
+    """Hosts, von denen der Abgleich Dateien laedt (mit den Cookies der Sitzung): nur der Stud.IP-Host."""
+    return {(urlsplit(STUDIP_BASE).hostname or "").lower()} - {""}
+
+
+def download_allowed(url: str, hosts: set[str] | None = None) -> bool:
+    """Nur https:// auf einem bekannten Host (Sicherheitspruefung 3.11.2026, Fund 11): eine Download-Adresse aus einer
+    Antwort der Hochschule darf die Sitzungs-Cookies nie an einen fremden Host oder unverschluesselt schicken."""
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme == "https" and (parts.hostname or "").lower() in (hosts if hosts is not None else download_hosts())
+
+
 def empty_download(first: bytes, target: Path, expected_size: int = 0) -> bool:
     """Leere Antwort (0 Bytes) statt der Datei: ein Fehler dieser Datei, wenn die Quelle eine Groesse > 0 meldet
     oder schon eine lokale Fassung existiert. Dann bleibt die alte Datei stehen und die Datei gilt beim naechsten
@@ -425,7 +446,7 @@ def empty_download(first: bytes, target: Path, expected_size: int = 0) -> bool:
 
 
 def stream_download(page, url: str, target: Path, shown_url: str | None = None, timeout: int = 180,
-                    expected_size: int = 0, form: dict | None = None) -> None:
+                    expected_size: int = 0, form: dict | None = None, allowed_hosts: set[str] | None = None) -> None:
     """Datei direkt auf die Platte streamen, mit den Cookies der angemeldeten Browsersitzung.
     Playwright (page.request) haelt jede Antwort komplett im Speicher; beim Live-Test mit 539 Dateien (1 GB)
     wuchs der Serverprozess so auf 2,7 GB. Hier bleibt der Speicher konstant (1-MB-Bloecke).
@@ -437,6 +458,9 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
     import urllib.parse
     import urllib.request
     shown = shown_url or url
+    # nur https:// auf dem Stud.IP-Host bzw. `allowed_hosts` (Learnweb), auch fuer Weiterleitungen
+    if not download_allowed(url, allowed_hosts):
+        raise RuntimeError(f"Download-Adresse nicht erlaubt (nur https:// auf dem Hochschul-Server): {shown}")
     headers = {"User-Agent": _user_agent(page), "Accept": "*/*"}
     try:
         jar = page.context.cookies([url])
@@ -453,7 +477,7 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
     # Anmeldeseiten nicht, die aendern sich durch Wiederholen nicht.
     for attempt in range(3):
         try:
-            _stream_once(req, target, shown, timeout, expected_size)
+            _stream_once(req, target, shown, timeout, expected_size, allowed_hosts)
             return
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"Download fehlgeschlagen ({e.code}): {shown}") from None
@@ -463,10 +487,23 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
             time.sleep(1.5 * (attempt + 1))
 
 
-def _stream_once(req, target: Path, shown: str, timeout: int, expected_size: int = 0) -> None:
+class _CheckedRedirect(urllib.request.HTTPRedirectHandler):
+    """Weiterleitungen nur auf erlaubte Hosts (die Cookies gehen sonst mit)."""
+
+    def __init__(self, hosts: set[str] | None):
+        self.hosts = hosts
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not download_allowed(newurl, self.hosts):
+            raise RuntimeError(f"Weiterleitung auf eine nicht erlaubte Adresse ({urlsplit(newurl).hostname or '?'})")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _stream_once(req, target: Path, shown: str, timeout: int, expected_size: int = 0, allowed_hosts: set[str] | None = None) -> None:
     import shutil
     import urllib.request
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL stammt aus der Uni-Schnittstelle
+    opener = urllib.request.build_opener(_CheckedRedirect(allowed_hosts))
+    with opener.open(req, timeout=timeout) as resp:  # noqa: S310 - URL geprueft (download_allowed)
         first = resp.read(65536)
         if first.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
             raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {shown}")
@@ -504,6 +541,8 @@ def download(page: Page, url: str, target: Path, expected_size: int = 0) -> None
         return
     except Exception as e:  # noqa: BLE001
         log(f"Gestreamter Download fehlgeschlagen ({e}); versuche den Browser-Weg.")
+    if not download_allowed(url):
+        raise RuntimeError(f"Download-Adresse nicht erlaubt (nur https:// auf dem Hochschul-Server): {url}")
     resp = page.request.get(url)
     try:
         if not resp.ok:

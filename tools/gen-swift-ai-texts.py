@@ -62,6 +62,9 @@ enum AIPromptTexts {{
 
     /// `ai.WEEK_TEST_TYPES`
     static let weekTestTypes = [{types}]
+
+    /// `ai.UNTRUSTED`: Kennzeichnung fremder Texte in Tutor und Wochentest (Sicherheitspruefung 3.11.2026)
+    static let untrusted = {raw(ai.UNTRUSTED)}
 }}
 
 /// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py (oeffentlich: die App baut damit die Rueckleitung)

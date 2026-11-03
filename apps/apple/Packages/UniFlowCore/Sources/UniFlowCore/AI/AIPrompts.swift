@@ -129,14 +129,15 @@ public enum AIPrompts {
             parts += ["", "MEINE FRAGE: \(head(PyText.strip(question), 1000))"]
         }
         if !PyText.strip(studip).isEmpty {
-            parts += ["", "AUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle):",
-                      head(PyText.strip(studip), studipContextChars)]
+            // fremde Texte als Daten kennzeichnen (Sicherheitspruefung 3.11.2026, wie app/ai.py)
+            parts += ["", "AUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle). \(AIPromptTexts.untrusted):",
+                      "<<<", head(PyText.strip(studip), studipContextChars), ">>>"]
         }
         let content = head(PyText.strip(pageText), 9000)
-        parts += ["", "SEITENINHALT (Kontext):", "<<<", content.isEmpty ? "[kein Text extrahierbar]" : content, ">>>"]
+        parts += ["", "SEITENINHALT (Kontext). \(AIPromptTexts.untrusted):", "<<<", content.isEmpty ? "[kein Text extrahierbar]" : content, ">>>"]
         if let sources, !sources.isEmpty, mode != "flashcards" {
             parts += ["", "QUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als "
-                          + "[Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen:"]
+                          + "[Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen. \(AIPromptTexts.untrusted):"]
             for src in sources {
                 // Lerntext aus Stud.IP (Courseware, Wiki, Forum; StudIPTexts): ohne Seitenzahl
                 var line = truthy(get(src, "studip_id"))
@@ -218,7 +219,7 @@ public enum AIPrompts {
         Die Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.
         Rechne jede Musterloesung selbst nach. Punkte insgesamt = 100.
 
-        Materialien dieser Woche:
+        Materialien dieser Woche (\(AIPromptTexts.untrusted)):
         \(materialsBlock)
         \(exam)
         Gib ein JSON-Objekt zurueck:

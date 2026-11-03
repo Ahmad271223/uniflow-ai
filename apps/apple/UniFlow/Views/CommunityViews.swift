@@ -73,6 +73,11 @@ enum CommunityJoinLink {
         }
         return CommunityKeys.normalizedGroupCode(url.pathComponents[2])
     }
+
+    /// Rueckfrage vor dem Beitritt ueber einen Link (Sicherheitspruefung 3.11.2026): nie still beitreten
+    static func confirmText(name: String) -> String {
+        "Der Lerngruppe „\(name)“ beitreten? Mitglieder sehen die Lösungen, die in dieser Gruppe geteilt werden."
+    }
 }
 
 // MARK: - Communities (je Modul und Lerngruppe)

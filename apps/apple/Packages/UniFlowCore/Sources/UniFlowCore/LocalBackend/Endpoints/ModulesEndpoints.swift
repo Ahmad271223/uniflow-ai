@@ -37,6 +37,15 @@ public enum ModulesEndpoints: LocalEndpointModule {
         members.first { $0.key == key }?.value
     }
 
+    /// Farbe eines Moduls: leer oder #rrggbb (wie timetable.COLOR_RE in Python)
+    static func colorOK(_ v: PyJSON) -> Bool {
+        switch v {
+        case .null: return true
+        case .string(let s): return s.isEmpty || TimetableEndpoints.isColor(s)
+        default: return false
+        }
+    }
+
     public static func register(on router: LocalRouter) {
         router.get("/api/modules") { _, ctx in
             let clock = ctx.clock
@@ -77,6 +86,10 @@ public enum ModulesEndpoints: LocalEndpointModule {
 
         router.patch("/api/modules/{module_id:int}") { req, ctx in
             let members = try body(req)
+            // Farbe nur als #rrggbb (wird in style-Attributen eingesetzt; Sicherheitspruefung 3.11.2026)
+            if let c = value(members, "color"), !colorOK(c) {
+                throw LocalHTTPError(status: 400, message: "Farbe als #rrggbb.")
+            }
             let id = SQLiteValue.integer(Int64(req.intParam("module_id")))
             // for k, v in body.items(): Reihenfolge der ersten Nennung, Wert der letzten
             let updates: [(String, SQLiteValue)] = try members.filter { patchable.contains($0.key) }.map { m in
@@ -123,6 +136,9 @@ public enum ModulesEndpoints: LocalEndpointModule {
                 name = ""
             }
             if name.isEmpty { throw LocalHTTPError(status: 400, message: "Name fehlt") }
+            if let c = value(members, "color"), !colorOK(c) {
+                throw LocalHTTPError(status: 400, message: "Farbe als #rrggbb.")
+            }
             let semester = try LocalTerms.bindable(value(members, "semester") ?? .null, field: "semester")
             // body.get("color") or next_color(conn) (SQLiteValue kennt nil als NULL: darum ausdruecklich); eine
             // mitgeschickte Farbe hat der Nutzer gewaehlt (Merker color_custom)

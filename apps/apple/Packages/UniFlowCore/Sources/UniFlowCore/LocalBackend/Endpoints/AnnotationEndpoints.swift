@@ -42,6 +42,11 @@ public enum AnnotationEndpoints: LocalEndpointModule {
     static let assetExtensions: Set<String> = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf"]
     static let maxAssetBytes = 15 * 1024 * 1024
 
+    /// 413 `too_large` wie `_upload_error` in app/server.py (Sicherheitspruefung 3.11.2026, Fund 3)
+    static func tooLarge(_ limit: Int) -> LocalResponse {
+        .json(["detail": .string("Die Datei ist zu groß (höchstens \(limit >> 20) MB)."), "code": "too_large"], status: 413)
+    }
+
     public static func register(on router: LocalRouter) {
         router.get("/api/files/{file_id}/annotations") { req, ctx in
             let fileID = SQLiteValue.text(req.param("file_id"))
@@ -107,7 +112,7 @@ public enum AnnotationEndpoints: LocalEndpointModule {
             guard assetExtensions.contains(ext) else { throw LocalHTTPError(status: 400, message: "Nur Bild- oder PDF-Dateien") }
             let files = try ctx.requireFiles()
             let name = ctx.newHex() + ext                                       // Reihenfolge wie Python (Kennung vor der Groessenpruefung)
-            guard upload.data.count <= maxAssetBytes else { throw LocalHTTPError(status: 400, message: "Bild zu gross (max. 15 MB)") }
+            guard upload.data.count <= maxAssetBytes else { return tooLarge(maxAssetBytes) }
             _ = try files.write(upload.data, to: files.assetsDirectory(fileID: fileID) + "/" + name)
             return .json(["url": .string("/api/assets/\(fileID)/\(name)"), "name": .string(name)])
         }
