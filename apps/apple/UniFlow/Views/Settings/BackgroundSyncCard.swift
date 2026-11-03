@@ -66,6 +66,7 @@ struct BackgroundSyncCard: View {
                 .accessibilityIdentifier("background.enabled")
                 Text(BackgroundSyncCard.timingText)
                     .ufFont(12.8).foregroundStyle(UF.muted)
+                    .padding(.top, 4)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("background.timing")
                 if enabled, background.refreshStatus() != .available {
@@ -74,15 +75,17 @@ struct BackgroundSyncCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 4)
                 }
+                // Linien trennen die beiden Schalter und den Stand des letzten Laufs (vorher nur Abstand)
+                SettingsDivider().padding(.vertical, 12)
                 Toggle(isOn: Binding(get: { notify }, set: { v in setNotify(v) })) {
                     Text("Benachrichtigen bei neuen Dateien").ufFont(14.5, 550).foregroundStyle(UF.text)
                 }
                 .tint(UF.accent)
                 .disabled(!enabled || asking)
                 .accessibilityIdentifier("background.notify")
-                .padding(.top, 9.6)
                 Text(BackgroundSyncCard.notifyText(background.containers.key?.university))
                     .ufFont(12.8).foregroundStyle(UF.muted)
+                    .padding(.top, 4)
                     .fixedSize(horizontal: false, vertical: true)
                 if let hint {
                     Text(hint)
@@ -91,11 +94,11 @@ struct BackgroundSyncCard: View {
                         .padding(.top, 4)
                         .accessibilityIdentifier("background.hint")
                 }
+                SettingsDivider().padding(.vertical, 12)
                 // liest den Stand nach jedem Lauf neu (`revision`)
                 Text(BackgroundSyncCard.lastRunText(background.revision >= 0 ? background.lastRecord : nil, now: Date()))
                     .ufFont(13.12, 600).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 9.6)
                     .accessibilityIdentifier("background.last")
                 #if DEBUG
                 // Im Simulator lehnt iOS BGTaskScheduler ab ("not available on this platform", Code 1): derselbe Lauf

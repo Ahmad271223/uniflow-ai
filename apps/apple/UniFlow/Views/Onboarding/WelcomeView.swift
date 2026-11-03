@@ -28,17 +28,18 @@ struct WelcomeView: View {
 
                 UFCard {
                     UFCardHead("Wofür du ein Konto brauchst", icon: "user")
-                    VStack(alignment: .leading, spacing: 12.8) {
+                    VStack(alignment: .leading, spacing: 16) {
                         ForEach(Self.reasons, id: \.1) { r in
                             HStack(alignment: .top, spacing: 11.2) {
-                                UFIcon(r.0, size: 16).foregroundStyle(UF.accentText)
-                                    .frame(width: 30, height: 30)
-                                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.accentSoft))
-                                VStack(alignment: .leading, spacing: 1.6) {
+                                // ruhiges Linien-Icon ohne getoentes Kaestchen; die Zeile traegt der Titel
+                                UFIcon(r.0, size: 18).foregroundStyle(UF.accentText)
+                                    .frame(width: 22).padding(.top, 1)
+                                VStack(alignment: .leading, spacing: 2.4) {
                                     Text(r.1).ufFont(14.5, 600).foregroundStyle(UF.text)
                                     Text(r.2).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                                 }
                             }
+                            .accessibilityElement(children: .combine)
                         }
                     }
                 }
@@ -68,7 +69,7 @@ struct WelcomeView: View {
                 #endif
 
                 Text("Dateien aus Stud.IP bleiben nur auf diesem iPad. Mit der Anmeldung erhält Studora von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse.")
-                    .ufFont(11.84).foregroundStyle(UF.muted)
+                    .ufFont(12.8).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 19.2)
             }

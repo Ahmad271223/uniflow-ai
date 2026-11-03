@@ -61,8 +61,10 @@ struct StudIPView: View {
                 }
             }
             .padding(.top, 12.8)
+            // Datenschutzhinweis abgesetzt unter einer Linie: Stand und Knoepfe oben bleiben das Wichtigste
+            SettingsDivider().padding(.top, 16)
             Text(Self.accountText)
-                .ufFont(13.12).foregroundStyle(UF.muted)
+                .ufFont(12.8).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8)
         }
@@ -115,7 +117,8 @@ struct StudIPView: View {
             UFCardHead("Kurse", icon: "book") { UFBadge("\(studip.selectedCourses.count) von \(studip.courses.count)", tone: .neutral) }
             VStack(alignment: .leading, spacing: 0) {
                 let today = UFFmt.todayISO()
-                ForEach(studip.courses, id: \.id) { c in
+                ForEach(Array(studip.courses.enumerated()), id: \.element.id) { i, c in
+                    if i > 0 { SettingsDivider() }
                     CourseRow(title: c.title, semester: c.semesterTitle, older: Self.isOlder(c, today: today), isOn: Binding(
                         get: { studip.selectedCourses.contains(c.id) },
                         set: { on in if on { studip.selectedCourses.insert(c.id) } else { studip.selectedCourses.remove(c.id) } }))
@@ -123,7 +126,7 @@ struct StudIPView: View {
                 }
             }
             Text("Beim ersten Abgleich sind die Kurse des aktuellen Semesters ausgewählt. \(Self.olderHint)")
-                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 8)
+                .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 12.8)
         }
     }
 
@@ -160,7 +163,8 @@ struct StudIPView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.vertical, 7.2)
+                .padding(.vertical, 10)
+                .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

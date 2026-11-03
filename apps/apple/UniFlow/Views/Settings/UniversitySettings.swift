@@ -64,7 +64,7 @@ struct UniversitySettingsCard: View {
             UFCardHead("Hochschule", icon: "graduation") {
                 if let uni { UFBadge(uni.profile.short, tone: .ok) }
             }
-            Text(uni?.profile.name ?? "Keine Hochschule gewählt").ufFont(14.5, 600).foregroundStyle(UF.text)
+            Text(uni?.profile.name ?? "Keine Hochschule gewählt").ufFont(14.5, 600).foregroundStyle(uni == nil ? UF.muted : UF.text)
             Text("Jede Hochschule hat auf diesem iPad ihren eigenen Speicher: Datenbank, Dateien, Notizen und Anmeldungen bleiben getrennt.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -73,15 +73,13 @@ struct UniversitySettingsCard: View {
                 .accessibilityIdentifier("settings.university.switch")
                 .padding(.top, 9.6)
             // Loeschen abgesetzt unter einer Linie, nicht neben "Wechseln" (Befund 27.10.: beim Wechseln verwechselt)
+            // gleicher abgesetzter Bereich wie "Konto löschen" (SettingsDangerZone)
             if let uni {
-                Divider().padding(.vertical, 9.6)
-                Text("Zum Wechseln musst du nichts löschen. Löschen nur, wenn du diese Hochschule auf diesem iPad nicht mehr nutzt.")
-                    .ufFont(12.5).foregroundStyle(UF.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                UFButton("Daten dieser Hochschule löschen", icon: "trash", kind: .danger, size: .small) {
-                    overlay.modal { DeleteUniversityDataDialog(university: uni) }
+                SettingsDangerZone(note: "Zum Wechseln musst du nichts löschen. Löschen nur, wenn du diese Hochschule auf diesem iPad nicht mehr nutzt.") {
+                    UFButton("Daten dieser Hochschule löschen", icon: "trash", kind: .danger, size: .small) {
+                        overlay.modal { DeleteUniversityDataDialog(university: uni) }
+                    }
                 }
-                .padding(.top, 6.4)
             }
         }
     }

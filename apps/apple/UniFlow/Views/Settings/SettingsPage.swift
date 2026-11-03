@@ -97,34 +97,23 @@ struct SettingsPage: View {
 
     /// Hinweis "Server nicht erreichbar" mit Weg zu "Erneut versuchen" und "Entwicklung" (Verbindung trennen)
     private func unreachableBanner(_ error: String) -> some View {
-        UFCard {
-            HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text("Eigener Studora-Server nicht erreichbar").font(UF.h2) }
-                .foregroundStyle(UF.warn)
-            Text("\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.")
-                .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
-                .fixedSize(horizontal: false, vertical: true)
-            UFFlexWrap(gap: 9.6) {
-                UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
-                UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
-            }
+        // Hinweis in Warnfarbe statt einer weissen Karte mit farbiger Ueberschrift: Zustand auf einen Blick
+        SettingsNotice("Eigener Studora-Server nicht erreichbar",
+                       text: "\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.") {
+            UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
+            UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, 19.2)
     }
 
     /// Laden scheiterte (Pruefbericht 561-565): mit geladenem Stand bleibt dieser sichtbar und ist als nicht
     /// aktualisiert gekennzeichnet; ohne Stand fehlen Module und Lernzeit, statt leer zu erscheinen
     private func staleBanner(_ error: String, loaded: Bool) -> some View {
-        UFCard {
-            HStack(spacing: 7.2) {
-                UFIcon("alert", size: 18)
-                Text(loaded ? "Nicht aktualisiert – angezeigt wird der zuletzt geladene Stand" : "Einstellungen ließen sich nicht laden").font(UF.h2)
-            }
-            .foregroundStyle(UF.warn)
-            Text(error).ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
-                .fixedSize(horizontal: false, vertical: true)
+        SettingsNotice(loaded ? "Nicht aktualisiert – angezeigt wird der zuletzt geladene Stand" : "Einstellungen ließen sich nicht laden",
+                       text: error) {
             UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, 19.2)
     }
 
     /// .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
@@ -132,7 +121,8 @@ struct SettingsPage: View {
         if windowWidth <= 820 {
             VStack(alignment: .leading, spacing: 19.2) { nav; pane }
         } else {
-            HStack(alignment: .top, spacing: 19.2) { nav.frame(width: 240); pane.frame(maxWidth: .infinity, alignment: .leading) }
+            // etwas mehr Luft zwischen Navigation und Inhalt: die Spalten lesen sich als zwei Ebenen
+            HStack(alignment: .top, spacing: 28.8) { nav.frame(width: 232); pane.frame(maxWidth: .infinity, alignment: .leading) }
         }
     }
 }
@@ -434,7 +424,7 @@ private struct CoursesTable: View {
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
                 ForEach(["Stud.IP-Kurs", "Semester", "Art", "Modul"], id: \.self) { h in
-                    Text(h.uppercased()).ufFont(12.16, 600, em: 0.04).foregroundStyle(UF.muted)
+                    Text(h).ufFont(12.8, 600).foregroundStyle(UF.muted)                 // Satzschreibung statt Versalien
                         .padding(.vertical, 7.2).padding(.horizontal, 8)
                         .frame(maxWidth: h == "Stud.IP-Kurs" ? .infinity : nil, alignment: .leading)
                 }
@@ -542,9 +532,25 @@ private struct PlanTab: View {
                 UFButton("Lernkombination", icon: "settings", kind: .primary) { a.config { router.reload() } }
                 UFButton("Verfügbarkeit & Sperrzeiten", icon: "clock") { a.availability() }
             }
-            Text("Aktuell: \(s.i("subjects_per_day") ?? 0) Fächer pro Tag · \(UFFmt.min(s.n("minutes_per_day"))) · Lernzeit \(s.s("learn_start") ?? "")–\(s.s("learn_end") ?? "") · freie Tage: \(free.isEmpty ? "keine" : free.joined(separator: ", ")) · Fahrtzeit \(s.i("travel_minutes") ?? 0) min")
-                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 12.8)
+            // aktueller Stand als Liste aus Bezeichnung und Wert statt einer langen Zeile mit Mittelpunkten
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Aktuell").ufFont(13.12, 600).foregroundStyle(UF.text2).padding(.bottom, 4)
+                ForEach(Array(Self.current(s, free: free).enumerated()), id: \.offset) { i, row in
+                    if i > 0 { SettingsDivider() }
+                    SettingsValue(label: row.0, value: row.1).padding(.vertical, 8)
+                }
+            }
+            .padding(.top, 19.2)
         }
+    }
+
+    /// Bezeichnung und Wert des aktuellen Stands (Faecher pro Tag, Lernzeit, Lernfenster, freie Tage, Fahrtzeit)
+    static func current(_ s: JSONValue, free: [String]) -> [(String, String)] {
+        [("Fächer pro Tag", "\(s.i("subjects_per_day") ?? 0)"),
+         ("Lernzeit pro Tag", UFFmt.min(s.n("minutes_per_day"))),
+         ("Lernfenster", "\(s.s("learn_start") ?? "")–\(s.s("learn_end") ?? "")"),
+         ("Freie Tage", free.isEmpty ? "keine" : free.joined(separator: ", ")),
+         ("Fahrtzeit", "\(s.i("travel_minutes") ?? 0) min")]
     }
 }
 
@@ -572,14 +578,19 @@ private struct AccountTab: View {
 
     var body: some View {
         // .set-body .grid.cols-2: auto-fit, minmax(340px, 1fr); .span-2 ueber die ganze Zeile
-        VStack(alignment: .leading, spacing: 16) {
-            AppAccountCards()
-            UFGridLayout(spacing: 16, minWidth: 340) {
-                credCard
-                looksCard
+        // Gruppen mit Abschnittskopf statt einer langen Folge gleichrangiger Karten
+        VStack(alignment: .leading, spacing: 32) {
+            SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) { AppAccountCards() }
+            SettingsSection("Studium", sub: "Stud.IP-Zugang, Semester, Anzeigename, Darstellung und Stift.") {
+                UFGridLayout(spacing: 16, minWidth: 340) {
+                    credCard
+                    looksCard
+                }
+                .environment(\.ufFillsCell, true)
             }
-            .environment(\.ufFillsCell, true)
-            CommunitySettingsCard()                                          // Pseudonym, Lerngruppen, Sperrliste
+            SettingsSection("Austausch", sub: SettingsSections.communitySub) {
+                CommunitySettingsCard()                                      // Pseudonym, Lerngruppen, Sperrliste
+            }
         }
             .onAppear {
                 termName = d.term.s("name") ?? ""
@@ -621,48 +632,55 @@ private struct AccountTab: View {
     }
 
     private var looksCard: some View {
+        // eine Karte, darin Zeilen mit Titel und Bedienelement, getrennt durch Linien (vorher fuenf gleich grosse
+        // Kartenkoepfe untereinander); der Abschnittskopf darueber benennt die Gruppe
         UFCard {
-            UFCardHead("Semester", icon: "calendar")
-            HStack(alignment: .top, spacing: 9.6) {                               // .row, label.field { flex: 1 }
-                UFField("Name") { UFTextInput(text: $termName) }
-                UFField("Beginn") { UFDateField(iso: $termStart) }
-                UFField("Ende") { UFDateField(iso: $termEnd) }
+            SettingsRow("Semester", icon: "calendar") {
+                HStack(alignment: .top, spacing: 9.6) {                           // .row, label.field { flex: 1 }
+                    UFField("Name") { UFTextInput(text: $termName) }
+                    UFField("Beginn") { UFDateField(iso: $termStart) }
+                    UFField("Ende") { UFDateField(iso: $termEnd) }
+                }
+                UFButton("Speichern", kind: .primary, size: .small) {
+                    Task { _ = await api.send("/api/terms", method: "PUT", body: ["name": .string(termName), "start": .string(termStart), "end": .string(termEnd)], toast: "Semester gespeichert", reload: false) }
+                }
             }
-            UFButton("Speichern", kind: .primary, size: .small) {
-                Task { _ = await api.send("/api/terms", method: "PUT", body: ["name": .string(termName), "start": .string(termStart), "end": .string(termEnd)], toast: "Semester gespeichert", reload: false) }
-            }
-
-            UFCardHead("Anzeigename", icon: "user").padding(.top, 16)
-            HStack(spacing: 9.6) {
-                UFTextInput("z. B. Ahmad H.", text: $userName).frame(maxWidth: 260)
-                UFButton("Speichern", size: .small) {
-                    Task {
-                        await api.put(["user_name": .string(userName)])
-                        await shell.refresh()                                    // Web: location.reload() fuer die Initialen
+            .padding(.top, -12)
+            SettingsDivider()
+            SettingsRow("Anzeigename", icon: "user") {
+                HStack(spacing: 9.6) {
+                    UFTextInput("z. B. Ahmad H.", text: $userName).frame(maxWidth: 260)
+                    UFButton("Speichern", size: .small) {
+                        Task {
+                            await api.put(["user_name": .string(userName)])
+                            await shell.refresh()                                // Web: location.reload() fuer die Initialen
+                        }
                     }
                 }
             }
-
-            UFCardHead("Darstellung", icon: "sun").padding(.top, 16)
-            UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
-
-            UFCardHead("Stift & Touch", icon: "pen").padding(.top, 16)
-            UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
-                     selection: Binding(get: { pen }, set: { v in
-                         pen = v
-                         pencilOnly = v == "pen_only"                               // Editor auf dem iPad
-                         Task { await api.put(["pen_input": .string(v)]) }
-                     }))
-
-            UFCardHead("Schreibhand", icon: "hand").padding(.top, 16)
-            UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")],
-                        selection: Binding(get: { hand }, set: { v in
-                            hand = v
-                            localHand = v                                         // Seite des Skripts in der geteilten Ansicht
-                            Task { await api.put(["hand": .string(v)], toast: "Schreibhand gespeichert") }
-                        }))
-            Text("Seitenleiste und Skript in der geteilten Ansicht liegen auf der Seite der freien Hand; die Stiftpalette lässt sich an jeden Rand ziehen.")
-                .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
+            SettingsDivider()
+            SettingsRow("Darstellung", icon: "sun") {
+                UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+            }
+            SettingsDivider()
+            SettingsRow("Stift & Touch", icon: "pen") {
+                UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
+                         selection: Binding(get: { pen }, set: { v in
+                             pen = v
+                             pencilOnly = v == "pen_only"                           // Editor auf dem iPad
+                             Task { await api.put(["pen_input": .string(v)]) }
+                         }))
+            }
+            SettingsDivider()
+            SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
+                UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")],
+                            selection: Binding(get: { hand }, set: { v in
+                                hand = v
+                                localHand = v                                     // Seite des Skripts in der geteilten Ansicht
+                                Task { await api.put(["hand": .string(v)], toast: "Schreibhand gespeichert") }
+                            }))
+            }
+            .padding(.bottom, -12)
         }
     }
 }
@@ -719,19 +737,21 @@ private struct AppAccountCards: View {
             }
             VStack(alignment: .leading, spacing: 7.2) {
                 if a?.isDebug == true {
-                    Text("Die Anmeldung wurde in diesem Debug-Build übersprungen.").foregroundStyle(UF.muted)
+                    Text("Die Anmeldung wurde in diesem Debug-Build übersprungen.").ufFont(13.12).foregroundStyle(UF.muted)
                 } else {
-                    (Text("Name: ").font(.uf(13.12, 700)) + Text(a?.name ?? "nicht freigegeben"))
-                    (Text("E-Mail: ").font(.uf(13.12, 700)) + Text(a?.email ?? "nicht freigegeben"))
+                    // Bezeichnung und Wert in zwei Spalten statt "Name: …" in einer Zeile
+                    SettingsValue(label: "Name", value: a?.name ?? "nicht freigegeben", muted: a?.name == nil)
+                    SettingsValue(label: "E-Mail", value: a?.email ?? "nicht freigegeben", muted: a?.email == nil)
                 }
                 Text("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
-                    .foregroundStyle(UF.muted)
+                    .ufFont(13.12).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2.4)
             }
-            .ufFont(13.12).foregroundStyle(UF.text)
-            UFFlexWrap(gap: 9.6) {
+            // Loeschen abgesetzt am Kartenende wie bei "Hochschule"
+            SettingsDangerZone {
                 UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) { overlay.modal { DeleteAccountDialog() } }
             }
-            .padding(.top, 9.6)
         }
     }
 
@@ -835,36 +855,63 @@ private struct LocalAccountTab: View {
     @Environment(\.ufStudoraAccount) private var studoraAccount
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        // vier Gruppen mit Abschnittskopf (Konto, Studium, dieses iPad, Austausch) statt einer langen Kartenfolge
+        VStack(alignment: .leading, spacing: 32) {
             // Demo-Inhalte aktiv: eine Anmeldung unten gleicht erst nach dem Entfernen ab
             if demo { DemoActiveBar() }
-            AppAccountCards()
-            if StudoraAccountLink.available, let studoraAccount { StudoraAccountCard(link: studoraAccount) }
-            UFGridLayout(spacing: 16, minWidth: 340) {
-                if studip.offersStudIP {
-                    LUHSourcesCard()                                         // Stud.IP und QIS der LUH (Views/QISViews.swift)
-                } else {
-                    HildesheimSourcesCard()                                  // Learnweb und LSF der Uni Hildesheim
-                }
-                DueReminderCard()                                            // Erinnerungen an Abgaben und Prüfungen
-                UFCard {
-                    if let term { SemesterFields(term: term, reload: reload).padding(.bottom, 16) }
-                    UFCardHead("Darstellung", icon: "sun")
-                    UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
-                    UFCardHead("Stift & Touch", icon: "pen").padding(.top, 16)
-                    UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
-                             selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
-                    UFCardHead("Schreibhand", icon: "hand").padding(.top, 16)
-                    UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
-                    Text("Seitenleiste und Skript in der geteilten Ansicht liegen auf der Seite der freien Hand; die Stiftpalette lässt sich an jeden Rand ziehen.")
-                        .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
-                }
-                BackgroundSyncCard()                                         // Abgleich im Hintergrund (S8)
+            SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) {
+                AppAccountCards()
+                if StudoraAccountLink.available, let studoraAccount { StudoraAccountCard(link: studoraAccount) }
             }
-            .environment(\.ufFillsCell, true)
-            CommunitySettingsCard()                                          // Pseudonym, Lerngruppen, Sperrliste (Plus)
+            SettingsSection("Studium", sub: studip.offersStudIP ? SettingsSections.studyLUH : SettingsSections.studyHildesheim) {
+                UFGridLayout(spacing: 16, minWidth: 340) {
+                    if studip.offersStudIP {
+                        LUHSourcesCard()                                     // Stud.IP und QIS der LUH (Views/QISViews.swift)
+                    } else {
+                        HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
+                    }
+                    if let term { UFCard { SemesterFields(term: term, reload: reload) } }
+                    DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen
+                }
+                .environment(\.ufFillsCell, true)
+            }
+            SettingsSection("Auf diesem iPad", sub: "Darstellung, Schreiben mit dem Stift und der Abgleich im Hintergrund.") {
+                UFGridLayout(spacing: 16, minWidth: 340) {
+                    UFCard {
+                        SettingsRow("Darstellung", icon: "sun") {
+                            UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                        }
+                        .padding(.top, -12)
+                        SettingsDivider()
+                        SettingsRow("Stift & Touch", icon: "pen") {
+                            UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
+                                     selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
+                        }
+                        SettingsDivider()
+                        SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
+                            UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
+                        }
+                        .padding(.bottom, -12)
+                    }
+                    BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)
+                }
+                .environment(\.ufFillsCell, true)
+            }
+            SettingsSection("Austausch", sub: SettingsSections.communitySub) {
+                CommunitySettingsCard()                                      // Pseudonym, Lerngruppen, Sperrliste (Plus)
+            }
         }
     }
+}
+
+/// Texte der Abschnittskoepfe in den Einstellungen
+enum SettingsSections {
+    static let accountSub = "Anmeldung, Tarif und die Hochschule, mit der Studora gerade arbeitet."
+    static let studyLUH = "Stud.IP und QIS der Leibniz Universität, Semester und Erinnerungen."
+    static let studyHildesheim = "Learnweb und LSF der Universität Hildesheim, Semester und Erinnerungen."
+    static let communitySub = "Pseudonym, Lerngruppen und Sperrliste für geteilte Lösungen."
+    /// Erklaerung unter "Schreibhand" (unveraendert)
+    static let handNote = "Seitenleiste und Skript in der geteilten Ansicht liegen auf der Seite der freien Hand; die Stiftpalette lässt sich an jeden Rand ziehen."
 }
 
 /// "Semester": Name, Beginn, Ende wie im Web (PUT /api/terms legt ein neues aktives Semester an)

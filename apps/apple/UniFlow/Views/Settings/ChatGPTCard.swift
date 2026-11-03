@@ -14,7 +14,8 @@ struct ChatGPTCard: View {
 
     var body: some View {
         UFCard {
-            UFCardHead("KI über mein ChatGPT", icon: "bulb") { badge }
+            // "bulb" gibt es nicht unter den Icons (fiel auf "file" zurueck): "sparkles" wie die uebrigen KI-Stellen
+            UFCardHead("KI über mein ChatGPT", icon: "sparkles") { badge }
             Text("Fragen im Editor, Wochentests und Zusammenfassungen über dein eigenes ChatGPT-Abo (Plus oder Pro). In jedem Tarif von Studora; ohne ChatGPT-Abo gibt es keine KI.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -53,8 +54,7 @@ struct ChatGPTCard: View {
 
     @ViewBuilder private func connected(_ s: ChatGPTSession.Status) -> some View {
         VStack(alignment: .leading, spacing: 9.6) {
-            Text("Verbunden als \([s.name, s.email].compactMap { $0 }.joined(separator: " · "))")
-                .ufFont(13.12, 600).foregroundStyle(UF.text)
+            SettingsValue(label: "Verbunden als", value: [s.name, s.email].compactMap { $0 }.joined(separator: " · "))
             if s.needsReauth {
                 Text("Die Anmeldung bei ChatGPT ist abgelaufen. Bitte neu verbinden.").ufFont(13.12).foregroundStyle(UF.warn)
                 UFButton("Neu verbinden", icon: "sync", kind: .primary, size: .small) { Task { await link.connect() } }
@@ -67,13 +67,16 @@ struct ChatGPTCard: View {
                 .disabled(link.connecting)
                 .accessibilityIdentifier("chatgpt.reconsent")
             }
+            SettingsDivider()
             Toggle(isOn: Binding(get: { s.useForAI }, set: { (v: Bool) in _ = Task<Void, Never> { await link.setUseForAI(v) } })) {
                 Text("KI-Anfragen über mein ChatGPT").ufFont(14.5, 550).foregroundStyle(UF.text)
             }
             .tint(UF.accent)
             .accessibilityIdentifier("chatgpt.use")
+            SettingsDivider()
             HStack(spacing: 9.6) {
-                Text("Modell").ufFont(13.12, 600).foregroundStyle(UF.text)
+                Text("Modell").ufFont(14.5, 550).foregroundStyle(UF.text)
+                Spacer(minLength: 8)
                 if link.models.isEmpty {
                     Text(s.model.isEmpty ? "–" : s.model).ufFont(13.12).foregroundStyle(UF.muted)
                     UFButton("Modelle laden", size: .small) { Task { await link.loadModels() } }
@@ -82,6 +85,7 @@ struct ChatGPTCard: View {
                              selection: Binding(get: { s.model }, set: { (v: String) in _ = Task<Void, Never> { await link.setModel(v) } }), small: true)
                 }
             }
+            SettingsDivider()
             UFFlexWrap(gap: 9.6) {
                 UFButton("Nutzung verwalten", icon: "layers", size: .small) {
                     if let u = URL(string: ChatGPTConstants.usageHelpURL) { openURL(u) }
@@ -94,6 +98,9 @@ struct ChatGPTCard: View {
                 }
                 .disabled(link.connecting)
                 .accessibilityIdentifier("chatgpt.newAccount")
+            }
+            // Trennen abgesetzt am Kartenende (SettingsDangerZone), nicht zwischen den uebrigen Knoepfen
+            SettingsDangerZone {
                 UFButton("Trennen", icon: "log-out", kind: .danger, size: .small) {
                     Task { if await overlay.confirm("Verbindung mit ChatGPT trennen? Die Anmeldung wird von diesem iPad gelöscht.") { await link.disconnect() } }
                 }

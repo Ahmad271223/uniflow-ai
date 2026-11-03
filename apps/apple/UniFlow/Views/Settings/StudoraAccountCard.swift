@@ -48,10 +48,14 @@ struct StudoraAccountCard: View {
 
     private var signIn: some View {
         VStack(alignment: .leading, spacing: 9.6) {
-            TextField("E-Mail", text: $email)
-                .textContentType(.username).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
-                .textFieldStyle(.roundedBorder)
-            SecureField("Passwort", text: $password).textContentType(.password).textFieldStyle(.roundedBorder)
+            // Felder im Stil der App mit Beschriftung darueber (vorher Systemrahmen, Platzhalter als einzige Beschriftung)
+            UFField("E-Mail") {
+                UFTextField("name@beispiel.de", text: $email)
+                    .textContentType(.username).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+            }
+            UFField("Passwort") {
+                UFTextField("Passwort", text: $password, secure: true).textContentType(.password)
+            }
             UFFlexWrap(gap: 9.6) {
                 UFButton(link.busy ? "Melde an …" : "Anmelden", icon: "log-out", kind: .primary, size: .small) {
                     Task {
@@ -70,12 +74,13 @@ struct StudoraAccountCard: View {
 
     @ViewBuilder private func signedIn(_ u: StudoraAccount.User) -> some View {
         VStack(alignment: .leading, spacing: 9.6) {
-            Text(u.email).ufFont(14.5, 650).foregroundStyle(UF.text)
+            SettingsValue(label: "Angemeldet als", value: u.email)
             if !u.emailVerified {
                 Text("E-Mail noch nicht bestätigt: bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen Studora-KI und Schreiben in der Community nicht.")
                     .ufFont(12.8).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
                 resendButton
             }
+            SettingsDivider()
             HStack(spacing: 9.6) {
                 Text(Self.syncText(link.lastSync)).ufFont(12.8).foregroundStyle(link.lastSync?.ok == false ? UF.bad : UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -85,14 +90,23 @@ struct StudoraAccountCard: View {
                     .disabled(link.syncing)
                     .accessibilityIdentifier("account.syncNow")
             }
-            Text("Angemeldete Geräte").ufFont(12.8, 700).foregroundStyle(UF.muted).padding(.top, 4)
-            ForEach(link.sessions, id: \.id) { s in
-                HStack {
-                    Text((s.deviceName ?? "Gerät") + (s.current ? " (dieses Gerät)" : "")).ufFont(13.12).foregroundStyle(UF.text)
-                    Spacer()
-                    if !s.current {
-                        UFButton("Abmelden", size: .small) { Task { await link.revoke(s.id) } }
+            SettingsDivider()
+            Text("Angemeldete Geräte").ufFont(13.12, 600).foregroundStyle(UF.text2)
+                .accessibilityAddTraits(.isHeader)
+            // Geraete als Liste mit Linien; dieses Geraet mit Haken statt Klammerzusatz am Ende
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(link.sessions.enumerated()), id: \.element.id) { i, s in
+                    if i > 0 { SettingsDivider() }
+                    HStack(spacing: 9.6) {
+                        Text((s.deviceName ?? "Gerät") + (s.current ? " (dieses Gerät)" : "")).ufFont(14.5).foregroundStyle(UF.text)
+                        Spacer()
+                        if s.current {
+                            UFIcon("check", size: 16).foregroundStyle(UF.ok)
+                        } else {
+                            UFButton("Abmelden", size: .small) { Task { await link.revoke(s.id) } }
+                        }
                     }
+                    .frame(minHeight: 44)
                 }
             }
             UFFlexWrap(gap: 9.6) {
@@ -102,7 +116,13 @@ struct StudoraAccountCard: View {
                 UFButton("Daten exportieren", icon: "download", size: .small) { Task { exportURL = await link.export() } }
                 UFButton("Abmelden", icon: "log-out", size: .small) { Task { await link.logout() } }
                     .accessibilityIdentifier("account.logout")
-                UFButton("Konto löschen", kind: .danger, size: .small) {
+            }
+            // Loeschen abgesetzt am Kartenende, das Passwortfeld direkt ueber dem Knopf, zu dem es gehoert
+            SettingsDangerZone {
+                UFField("Passwort (zum Löschen, falls das Konto eins hat)") {
+                    UFTextField("Passwort", text: $deletePassword, secure: true).textContentType(.password)
+                }
+                UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) {
                     Task {
                         guard await overlay.confirm("Studora-Konto löschen? Es wird sofort gesperrt und nach 30 Tagen endgültig gelöscht – auch auf Windows und im Web. Die Daten auf diesem iPad bleiben.") else { return }
                         _ = await link.delete(password: deletePassword.isEmpty ? nil : deletePassword)
@@ -110,14 +130,12 @@ struct StudoraAccountCard: View {
                     }
                 }
             }
-            SecureField("Passwort (zum Löschen, falls das Konto eins hat)", text: $deletePassword)
-                .textContentType(.password).textFieldStyle(.roundedBorder)
         }
         .padding(.top, 8)
     }
 
     private var resendButton: some View {
-        UFButton("Bestätigungslink erneut senden", icon: "refresh",size: .small) { Task { await link.resendVerification() } }
+        UFButton("Bestätigungslink erneut senden", icon: "refresh", size: .small) { Task { await link.resendVerification() } }
             .disabled(link.busy)
             .accessibilityIdentifier("account.resendVerification")
     }
