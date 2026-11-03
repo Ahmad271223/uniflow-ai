@@ -256,7 +256,7 @@ def enrich_file(f: dict) -> dict:
 
 
 def _file_rows(conn, module_id: int | None = None) -> list[dict]:
-    sql = """SELECT f.id, f.name, f.chdate, f.status, f.favorite, f.last_opened, f.size, f.course_id, f.studip_folder,
+    sql = """SELECT f.id, f.name, f.chdate, f.status, f.favorite, f.last_opened, f.size, f.course_id, f.studip_folder, f.content_sha256,
                     c.title AS course_title, c.kind AS course_kind, c.subject, c.module_id,
                     a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes, a.topics, a.summary,
                     (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes

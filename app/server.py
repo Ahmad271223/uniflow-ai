@@ -724,12 +724,12 @@ def courses_community_keys(all: bool = False):
     from .studip_sync import classify
     uni = config.university()
     with db.cursor() as conn:
-        rows = db.rows(conn, f"""SELECT id, title, semester, subject, COALESCE(active, 1) AS active FROM courses
+        rows = db.rows(conn, f"""SELECT id, title, semester, subject, module_id, COALESCE(active, 1) AS active FROM courses
                                  WHERE id NOT IN ('__user__'){"" if all else " AND COALESCE(active, 1)=1"} ORDER BY subject, title""")
     out = []
     for r in rows:
         module = classify(r["title"])[0]
-        out.append({"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
+        out.append({"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"], "module_id": r["module_id"],
                     "module": module, "key": community_module_key(uni, module), "active": 1 if r["active"] else 0,
                     "secret": community_secret("module", uni, normalized_course_name(module)).hex()})
     current = {c["key"] for c in out if c["active"]}
