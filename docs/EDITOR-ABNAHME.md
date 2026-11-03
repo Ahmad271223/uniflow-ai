@@ -5,7 +5,7 @@ P0-2, Härtungen P0-3 bis P0-6) · Messwerte aus dem Simulator: `docs/EDITOR-MES
 Abschnitt 8 zu Schritt 2). Die Gerätepunkte zu Schritt 2 stehen gesammelt in Abschnitt 18.
 
 Diese Liste prüft der Inhaber am **echten iPad mit Apple Pencil**, bevor der Editor umgebaut wird, und danach nach
-jedem Schritt erneut. Die App heißt in allen sichtbaren Texten und auf dem Home-Bildschirm **Studora**; das Xcode-Ziel
+jedem Schritt erneut. Die App heißt in allen sichtbaren Texten und auf dem Home-Bildschirm **StudiNow**; das Xcode-Ziel
 heißt weiter `UniFlow`, die Bundle-ID `de.uniflow.ai`, und im Gerätelog erscheint der Prozessname `UniFlow`.
 
 Alles hier ist bisher **nicht am Gerät geprüft**. Was der Simulator schon gemessen hat, steht bei den Punkten als
@@ -47,7 +47,7 @@ aussieht wie beschrieben.
 4. iPad per Kabel anschließen, „Diesem Computer vertrauen“; auf dem iPad Einstellungen → Datenschutz & Sicherheit →
    Entwicklermodus an (Neustart). Oben in Xcode als Ziel das iPad wählen. Beim ersten Start: Einstellungen →
    Allgemein → VPN & Geräteverwaltung → Entwickler-App (eigene Apple-ID) → vertrauen.
-5. Schreiben braucht Studora Plus. Ohne echte Abo-Produkte: Product → Scheme → Edit Scheme → Run → Arguments → bei
+5. Schreiben braucht StudiNow Plus. Ohne echte Abo-Produkte: Product → Scheme → Edit Scheme → Run → Arguments → bei
    „Arguments Passed On Launch“ `-UFPlan plus` eintragen (wirkt nur im Debug-Build). Dann Run (⌘R).
 6. Beim ersten Start „Anmeldung überspringen (Debug)“ (ohne bezahltes Konto meldet „Mit Apple anmelden“, dass es in
    diesem Build nicht verfügbar ist), dann Hochschule wählen und selbst anmelden – oder ohne Hochschule unter
@@ -199,7 +199,7 @@ Zahlen sind nur eine Größenordnung (`docs/EDITOR-MESSUNG.md`, Abschnitt 6).
 | 11.2 | Beim Maximum-Zoom (5.1) Speicher notieren | kein Sprung. **Simulator:** höchstens rund 30 MB mehr als eingepasst | ☐ bestanden ☐ nicht bestanden | Wert: |
 | 11.3 | Dicht beschriebenes D2 (nach 9.2): während „Speichert…“ den Höchstwert notieren | kein Absturz. **Simulator:** bis rund 600 MB während einer Runde mit 30 000 Strichen (M1) – auf iPads mit wenig Arbeitsspeicher kann das knapp werden | ☐ bestanden ☐ nicht bestanden | Höchstwert: |
 | 11.4 | Schnell über 50 voll beschriebene Seiten blättern | kein Absturz, Speicher fällt danach wieder. **Simulator:** Spitze 530–590 MB (M4) | ☐ bestanden ☐ nicht bestanden | Höchstwert: |
-| 11.5 | Einstellungen → Allgemein → iPad-Speicher → Studora | „Dokumente und Daten“ notieren. **Simulator:** der Verlauf hält bis zu 30 volle Kopien je Dokument; bei 30 000 Strichen wären das über 1 GB (M2) | ☐ notiert | Größe: |
+| 11.5 | Einstellungen → Allgemein → iPad-Speicher → StudiNow | „Dokumente und Daten“ notieren. **Simulator:** der Verlauf hält bis zu 30 volle Kopien je Dokument; bei 30 000 Strichen wären das über 1 GB (M2) | ☐ notiert | Größe: |
 | 11.6 | Beendet iPadOS die App ohne Meldung (sie startet neu)? Dann Gerätelog prüfen (Abschnitt 15) | kein `JetsamEvent` | ☐ kein Abbruch ☐ abgebrochen | |
 
 ## 12. Ebenen und Ansichtsmodus
@@ -212,7 +212,7 @@ Zahlen sind nur eine Größenordnung (`docs/EDITOR-MESSUNG.md`, Abschnitt 6).
 | 12.4 | Eine geteilte Lösung importieren (Mehr → „Lösung importieren …“, Datei `.uniflowsolution`), unter Ebenen ein- und ausblenden | fremde Striche liegen über der PDF und unter den eigenen, an der richtigen Stelle; eigene Notizen unverändert | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 12.5 | Mit eingeblendeter fremder Ebene schreiben und radieren | nur eigene Striche ändern sich, die fremde Ebene bleibt | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 12.6 | Fremde Ebene umschalten, während viele Seiten sichtbar oder geparkt sind | Umschalten ohne lange Pause. **Bekannt (Plan B12):** Umschalten baut alle Ebenen auf allen Seiten neu; Wartezeit notieren | ☐ bestanden ☐ nicht bestanden ☐ entfällt | Zeit: |
-| 12.7 | Studora Free (Startargument `-UFPlan free` statt `plus`): Dokument mit Notizen öffnen | Notizen sichtbar und exportierbar, fremde Ebenen lassen sich ansehen; Schreiben, Seitenaktionen und „Lösung teilen …“ zeigen ein Schloss „(Studora Plus)“, nichts wird verändert | ☐ bestanden ☐ nicht bestanden | |
+| 12.7 | StudiNow Free (Startargument `-UFPlan free` statt `plus`): Dokument mit Notizen öffnen | Notizen sichtbar und exportierbar, fremde Ebenen lassen sich ansehen; Schreiben, Seitenaktionen und „Lösung teilen …“ zeigen ein Schloss „(StudiNow Plus)“, nichts wird verändert | ☐ bestanden ☐ nicht bestanden | |
 
 ## 13. Geteilte Ansicht und zwei Fenster
 
@@ -222,7 +222,7 @@ Zahlen sind nur eine Größenordnung (`docs/EDITOR-MESSUNG.md`, Abschnitt 6).
 | 13.2 | Abwechselnd links und rechts schreiben | eine Palette für beide, jedes Dokument speichert seine eigenen Striche | ☐ bestanden ☐ nicht bestanden | |
 | 13.3 | Danach zweimal „Rückgängig“ | nimmt den zuletzt geschriebenen Strich zurück, egal in welchem Dokument | ☐ bestanden ☐ nicht bestanden | |
 | 13.4 | „Teilung beenden“, beide Dokumente einzeln neu öffnen | alle Striche beider Dokumente da | ☐ bestanden ☐ nicht bestanden | |
-| 13.5 | Studora zweimal nebeneinander (Split View oder Stage Manager) und in beiden **dasselbe** Dokument D5 öffnen, in beiden schreiben, beide schließen, neu öffnen | seit Schritt 2 (P0-6): das zweite Fenster zeigt „In einem anderen Fenster offen – nur ansehen“, der Stift schreibt dort nicht; nach dem Schließen und Öffnen sind alle Striche des ersten Fensters da. Einzelheiten in 18.8–18.11. Nur mit D5! | ☐ alles da ☐ Striche fehlen ☐ entfällt | |
+| 13.5 | StudiNow zweimal nebeneinander (Split View oder Stage Manager) und in beiden **dasselbe** Dokument D5 öffnen, in beiden schreiben, beide schließen, neu öffnen | seit Schritt 2 (P0-6): das zweite Fenster zeigt „In einem anderen Fenster offen – nur ansehen“, der Stift schreibt dort nicht; nach dem Schließen und Öffnen sind alle Striche des ersten Fensters da. Einzelheiten in 18.8–18.11. Nur mit D5! | ☐ alles da ☐ Striche fehlen ☐ entfällt | |
 
 ## 14. Eingefügte Seiten A6 bis A0
 
@@ -251,7 +251,7 @@ Alles hier geht mit dem kostenlosen „Personal Team“ aus Abschnitt 0, solange
    „Speichert…“ bei einem voll beschriebenen Dokument, nach dem Schließen. Ein Klick auf „Memory“ zeigt den Verlauf.
 4. Wird der Speicher knapp, beendet iPadOS die App ohne Meldung. Dann: Window → Devices and Simulators → iPad →
    „View Device Logs“ und nach `JetsamEvent` oder dem Prozessnamen `UniFlow` suchen (Name des Xcode-Ziels; auf dem
-   iPad heißt die App Studora, der Prozess behält den Namen).
+   iPad heißt die App StudiNow, der Prozess behält den Namen).
 
 **Genauer mit Instruments:**
 
@@ -283,7 +283,7 @@ vorhanden steht, weiter gehen (Plan, Abschnitt 8 Punkt 2). V = vollständig, T =
 | 5 | Lesezeichen | V | 6.4 |
 | 7 | Volltextsuche im PDF | V | 6.5 |
 | 10 | Vollbild | T (nur Navigationsleiste aus) | – |
-| 11 | Zwei Dokumente nebeneinander | V (Studora Plus) | 13.1–13.4 |
+| 11 | Zwei Dokumente nebeneinander | V (StudiNow Plus) | 13.1–13.4 |
 | 12 | Passende Skriptstelle vorschlagen | V | 13.1 |
 | 13 | Zuletzt gelesene Seite merken | V | 6.7 |
 | 14–17 | Stift mit Druck und Neigung, sieben Tinten, Farben und Stärken, Textmarker | V (Systempalette) | 1.1, 1.2, 1.9 |
@@ -328,12 +328,12 @@ mit dem ganzen Dokument startet erst nach der Pause, weil sie bei dichten Dokume
 | 18.2 | Wie 18.1 auf einer schon voll beschriebenen Seite in einem dichten Dokument (D2 nach 9.2) | Schreiben ohne Ruckler. **Simulator:** je Sicherung der vollen Seite rund 0,08 s im Hintergrund, Hauptthread frei, keine Upload-Runde während des Schreibens (`docs/EDITOR-MESSUNG.md`, Abschnitt 8) | ☐ bestanden ☐ nicht bestanden | |
 | 18.3 | Wie 10.4: 30 s schraffieren, während des Schreibens in Xcode Stop (■), neu starten | höchstens die letzten etwa 2 s fehlen; Hinweis „… ungesendete Seite(n) wiederhergestellt.“ | ☐ bestanden ☐ nicht bestanden | fehlt: |
 
-**P0-4 Formatschutz.** Notizen, die eine neuere Version von Studora gespeichert hat (Format `version` größer als 2),
+**P0-4 Formatschutz.** Notizen, die eine neuere Version von StudiNow gespeichert hat (Format `version` größer als 2),
 öffnen nur zum Ansehen und werden nie gespeichert.
 
 | Nr. | Schritt | Erwartung | Ergebnis | Notiz |
 |---|---|---|---|---|
-| 18.4 | Testdokument mit Notizen in Format 3 öffnen (Testdatei bekommt der Inhaber auf Wunsch von der Mac-Sitzung; ohne sie „entfällt“, im Simulator geprüft) | Seitenleiste „Neueres Notizformat – nur ansehen“ und Hinweis „Diese Notizen stammen aus einer neueren Version von Studora – hier nur ansehen …“; keine Palette, der Stift schreibt nicht, Seiten-Menüpunkte gesperrt | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 18.4 | Testdokument mit Notizen in Format 3 öffnen (Testdatei bekommt der Inhaber auf Wunsch von der Mac-Sitzung; ohne sie „entfällt“, im Simulator geprüft) | Seitenleiste „Neueres Notizformat – nur ansehen“ und Hinweis „Diese Notizen stammen aus einer neueren Version von StudiNow – hier nur ansehen …“; keine Palette, der Stift schreibt nicht, Seiten-Menüpunkte gesperrt | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 18.5 | Danach schließen und erneut öffnen | Notizen unverändert sichtbar, weiterhin nur ansehen | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 
 **P0-5 Herkunftsstempel.** Beim ersten Speichern merkt sich das Dokument, zu welcher PDF die Notizen gehören. Beim
@@ -350,7 +350,7 @@ Dokument gewählt, Fenster im Hintergrund), übernimmt das neue Fenster.
 
 | Nr. | Schritt | Erwartung | Ergebnis | Notiz |
 |---|---|---|---|---|
-| 18.8 | Stage Manager oder Split View mit zwei Studora-Fenstern. Fenster A: D5 öffnen und schreiben. Fenster B: dasselbe D5 öffnen | B zeigt A's Striche, Seitenleiste „In einem anderen Fenster offen – nur ansehen“, Hinweis „… zum Schreiben dort schließen und hier neu öffnen“; in B keine Palette, der Stift schreibt nicht | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 18.8 | Stage Manager oder Split View mit zwei StudiNow-Fenstern. Fenster A: D5 öffnen und schreiben. Fenster B: dasselbe D5 öffnen | B zeigt A's Striche, Seitenleiste „In einem anderen Fenster offen – nur ansehen“, Hinweis „… zum Schreiben dort schließen und hier neu öffnen“; in B keine Palette, der Stift schreibt nicht | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 18.9 | In A weiterschreiben, dann in A ein anderes Dokument wählen; in B D5 schließen und neu öffnen | B kann jetzt schreiben; A's Striche sind alle da | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 18.10 | A: D5 offen, Strich schreiben und sofort in A ein anderes Dokument wählen; dann in B D5 öffnen | B schreibt (Übernahme), der letzte Strich aus A ist in B zu sehen; kehrt man in A zu D5 zurück, während B es noch zeigt, ist A nur zum Ansehen | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 18.11 | Nach 18.8–18.10 beide Fenster schließen, D5 in einem Fenster öffnen | alle Striche aus beiden Fenstern da, kein Hinweis „beschädigt“ | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |

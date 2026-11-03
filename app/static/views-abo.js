@@ -1,4 +1,4 @@
-// Studora – Abo-Übersicht: vier Tarife, eigener Stand, Kontingente (Server: /api/billing/plans, /api/entitlements).
+// StudiNow – Abo-Übersicht: vier Tarife, eigener Stand, Kontingente (Server: /api/billing/plans, /api/entitlements).
 // Es wird nur als enthalten gezeigt, was technisch freigeschaltet ist (status "available"); alles andere steht als
 // "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen: Apple-App (App Store) oder, wenn Stripe eingerichtet ist, im Web.
 // Jedes neue Konto hat 7 Tage Probe (plans.TRIAL); danach einmal die Aufforderung, einen Tarif zu wählen (planChoicePrompt).
@@ -15,10 +15,10 @@ const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos.",
   plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern, Notizen auf allen Geräten.",
   pro_connect: "Für Studierende, die mehr aus ihren Tests holen wollen: Statistiken, Wiederholung, Empfehlungen.",
-  pro_ai: "Komfortabel: Studora-KI inklusive, kein eigenes ChatGPT-Konto nötig.",
+  pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig.",
 };
 
-// Funktionen der Studora-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
+// Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
 const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations"]);
 
 function featureRows(contract, key) {
@@ -51,7 +51,7 @@ export async function viewAbo(_, params, view) {
   const web = contract.purchase.web || {}, viaStripe = me.source === "stripe";
   const tr = me.trial || {};
   const trial = local || !tr.granted ? "" : tr.active
-    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen von ${esc(contract.plans[tr.plan]?.name || "Studora Pro AI")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</p></div></div>`
+    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen von ${esc(contract.plans[tr.plan]?.name || "StudiNow Pro AI")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</p></div></div>`
     : me.needs_plan_choice
       ? `<div class="abo-note warn">${icon("alert", 18)}<div><b>Deine Probe ist vorbei</b><p>Wähle unten einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten und lesbar.</p></div><button class="btn sm" id="aboStayFree">Bei Free bleiben</button></div>`
       : "";
@@ -59,7 +59,7 @@ export async function viewAbo(_, params, view) {
     ? `<p class="abo-flash ok">${icon("check", 14)} Zahlung abgeschlossen. Dein Tarif erscheint hier, sobald Stripe die Bestätigung geschickt hat (meist sofort).</p>`
     : params.checkout === "cancel" ? `<p class="abo-flash">Abschluss abgebrochen, nichts wurde berechnet.</p>` : "";
   const term = local
-    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Claude-Zugang. Tarife gelten für Studora-Konten im Dienst und in der Apple-App.</p>`
+    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Claude-Zugang. Tarife gelten für StudiNow-Konten im Dienst und in der Apple-App.</p>`
     : `<p class="abo-term">${me.expires_at ? `${me.will_renew ? "Verlängert sich am" : "Läuft aus am"} <b>${new Date(me.expires_at).toLocaleDateString("de-DE")}</b>` : current === "free" ? "Kostenlos, ohne Laufzeit." : "Ohne Ablaufdatum."}${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>`;
   const quotas = local ? "" : [quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new), quotaBar(labels.library_tests, me.quotas.library_tests), quotaBar(labels.ai_assist, me.quotas.ai_assist)].join("");
   const cards = contract.order.map(key => {
@@ -68,7 +68,7 @@ export async function viewAbo(_, params, view) {
     const facts = [
       p.entitlements.can_annotate_pdf ? `${icon("pen", 13)} PDF-Bearbeitung und Apple Pencil` : `${icon("book", 13)} PDFs lesen, keine Bearbeitung`,
       ...[QUOTA_TXT(q, "ai_tests_new", labels), QUOTA_TXT(q, "library_tests", labels), QUOTA_TXT(q, "ai_assist", labels)]
-        .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die Studora-KI eingerichtet ist)` : t),
+        .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die StudiNow-KI eingerichtet ist)` : t),
     ].filter(Boolean).map(t => `<div>${t}</div>`).join("");
     const action = local ? "" : isCur ? `<span class="badge ok">Dein Tarif</span>${viaStripe ? ` <button class="btn sm" id="aboPortal">Abo verwalten</button>` : ""}`
       : key === "free" ? `<span class="plan-hint">${viaStripe ? "Zurück zu Free: im Kundenportal kündigen (Abo verwalten)" : me.source === "app_store" ? "Zurück zu Free: Abo im App Store kündigen" : "Kostenlos, ohne Laufzeit"}</span>`
@@ -93,7 +93,7 @@ export async function viewAbo(_, params, view) {
       ${local && gptLocal?.available ? `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></header>
         <p>${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></section>`
       : `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></header>
-        <p>${esc(gpt.reason || "")} Sobald OpenAI Studora freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen Studora-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></section>`}
+        <p>${esc(gpt.reason || "")} Sobald OpenAI StudiNow freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen StudiNow-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></section>`}
       <section class="abo-info"><header><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></header>
         <p>${esc(contract.purchase.apple.note)} ${esc(contract.purchase.web.note)}</p>
         <p>Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></section>

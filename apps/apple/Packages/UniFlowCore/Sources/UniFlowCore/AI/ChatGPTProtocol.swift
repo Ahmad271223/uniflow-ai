@@ -88,7 +88,7 @@ public enum ChatGPTProtocol {
             self.earliestRefreshAt = earliestRefreshAt
         }
 
-        /// Darf Studora das Abo nutzen? Nur, wenn OpenAI den Scope wirklich gewaehrt hat (`sharing`)
+        /// Darf StudiNow das Abo nutzen? Nur, wenn OpenAI den Scope wirklich gewaehrt hat (`sharing`)
         public var sharing: Bool { scopes.contains(ChatGPTConstants.usageScope) }
     }
 

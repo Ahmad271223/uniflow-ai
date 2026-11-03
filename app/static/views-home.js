@@ -1,11 +1,11 @@
-// Studora – Übersicht (Startseite): beantwortet "Was mache ich heute?" (Design 2, style.css Abschnitt "Übersicht (Design 2)").
+// StudiNow – Übersicht (Startseite): beantwortet "Was mache ich heute?" (Design 2, style.css Abschnitt "Übersicht (Design 2)").
 // Oben links der größte Block mit der wichtigsten Information und dem Hauptknopf, daneben "Heute für dich geplant";
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
 import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=39";
 import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=44";
 import { openEvent } from "./views-tt.js?v=42";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=10";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=11";
 import { staggerOnce, countUp } from "./motion.js?v=2";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
@@ -48,7 +48,7 @@ function focusBlock(d, ctx, focus, lecture, aside = "") {
   let body = "", actions = "";
   if (focus.kind === "backlog") {
     body = `<div class="ov-big"><b>${d.backlog}</b><span>nachzuholen</span></div>
-      <p class="ov-lead">Offene Aufgaben aus früheren Lernpaketen. Studora schlägt dir freie Zeiten dafür vor.</p>`;
+      <p class="ov-lead">Offene Aufgaben aus früheren Lernpaketen. StudiNow schlägt dir freie Zeiten dafür vor.</p>`;
     actions = `<button class="btn primary" id="rescueBtn">${icon("rotate", 16)} Jetzt nachholen</button>${ctx.nextOpen ? `<a class="btn" href="${linkLearn}">${icon("play", 16)} Heute weiterlernen</a>` : ""}`;
   } else if (focus.kind === "tasks") {
     const n = ctx.openToday, rest = ctx.openMinutes;

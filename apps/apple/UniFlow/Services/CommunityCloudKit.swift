@@ -169,7 +169,7 @@ enum CommunityCourses {
     }
 }
 
-/// Community ueber das Studora-Konto, solange eines passend angemeldet ist (`StudoraAccountLink`); sonst CloudKit.
+/// Community ueber das StudiNow-Konto, solange eines passend angemeldet ist (`StudoraAccountLink`); sonst CloudKit.
 /// Bestehende CloudKit-Eintraege werden nicht uebernommen: bisher gab es keinen Build mit iCloud-Container.
 final class CommunityRoute: @unchecked Sendable {
     static let shared = CommunityRoute()

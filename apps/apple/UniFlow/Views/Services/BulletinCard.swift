@@ -84,7 +84,7 @@ struct BulletinCard: View {
                     .padding(.top, 9.6).frame(minHeight: 44)
                     .accessibilityIdentifier("bulletin.more")
             }
-            Text("Kleinanzeigen aus dem Schwarzen Brett in Stud.IP, nur auf diesem Gerät gespeichert; Namen der Anbietenden holt Studora nicht.")
+            Text("Kleinanzeigen aus dem Schwarzen Brett in Stud.IP, nur auf diesem Gerät gespeichert; Namen der Anbietenden holt StudiNow nicht.")
                 .ufFont(11.84).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 9.6).padding(.bottom, 5.6)
         }

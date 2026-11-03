@@ -4,7 +4,7 @@ import XCTest
 
 /// Zusammenfuehren beim erneuten Teilen zu derselben PDF (03.11.2026): `SolutionBuilder.merge` gegen die gemeinsamen
 /// Faelle (packages/shared-contracts/fixtures/solutions/merge-cases.json, Python-Referenz und Browser rechnen sie
-/// ebenso nach), dazu die Regeln einzeln und der Weg ueber den Studora-Dienst (409, /mine, PUT).
+/// ebenso nach), dazu die Regeln einzeln und der Weg ueber den StudiNow-Dienst (409, /mine, PUT).
 final class SolutionMergeTests: XCTestCase {
     private static let fp = String(repeating: "a", count: 64)
     private static let prevID = "6f1c1c0e-0000-4000-8000-0000000000a1"
@@ -87,7 +87,7 @@ final class SolutionMergeTests: XCTestCase {
     }
 }
 
-// MARK: - Studora-Dienst: 409, eigene Loesung, PUT
+// MARK: - StudiNow-Dienst: 409, eigene Loesung, PUT
 
 /// Schein-Dienst mit Antwort je "METHODE pfad"; merkt Aufrufe und Inhalte
 private final class RecordingTransport: CommunityTransport, @unchecked Sendable {

@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-// Fehlercodes des Studora-Dienstes -> Text fuer die Oberflaeche (docs/SICHERHEITSKORREKTUREN-2026-11-02.md).
+// Fehlercodes des StudiNow-Dienstes -> Text fuer die Oberflaeche (docs/SICHERHEITSKORREKTUREN-2026-11-02.md).
 // Eine Stelle: ServiceErrorText; Konto (AccountError.userMessage), Community und APIError lesen sie.
 
 private func contract(_ name: String) throws -> JSONValue {
@@ -22,7 +22,7 @@ final class ServiceErrorTextTests: XCTestCase {
             (409, "duplicate_request", "schon verarbeitet"),
             (429, "ai_trial_budget_exhausted", "Probekonten"),
             (503, "ai_not_configured_prices", "noch nicht freigeschaltet"),
-            (409, "email_taken", "gibt es schon ein Studora-Konto"),
+            (409, "email_taken", "gibt es schon ein StudiNow-Konto"),
             (409, "last_login_method", "einzige Anmeldeweg"),
             (403, "cross_site", "Sicherheitsgründen"),
         ]

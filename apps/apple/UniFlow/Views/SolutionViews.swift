@@ -480,7 +480,7 @@ struct SharedSolutionsSheet: View {
             UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     UFCard {
-                        Text("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann Studora nicht zurückholen.")
+                        Text("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann StudiNow nicht zurückholen.")
                             .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     }
                     if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad) }

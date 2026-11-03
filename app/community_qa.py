@@ -11,7 +11,7 @@
 - **Benachrichtigungen** im Konto (keine Push-Nachricht): Kommentar oder Antwort auf eigene Loesung, Antwort auf
   eigenen Kommentar, Like auf eigene Loesung (gebuendelt je Loesung und Tag), Antwort auf eigene Frage, eigene Antwort
   als Loesung markiert. Nie ueber sich selbst.
-Schreiben (Frage, Antwort) ab Studora Plus mit bestaetigter E-Mail und Grenzen je Stunde; lesen alle Konten.
+Schreiben (Frage, Antwort) ab StudiNow Plus mit bestaetigter E-Mail und Grenzen je Stunde; lesen alle Konten.
 """
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def cursor():
 def _can_write(user: dict, what: str) -> None:
     from . import entitlements
     if not entitlements.has(user, "can_write_community_comments"):
-        raise CommunityError("plan_required", f"{what} gibt es ab Studora Plus.", 403)
+        raise CommunityError("plan_required", f"{what} gibt es ab StudiNow Plus.", 403)
     _require_verified(user, what.lower())
 
 

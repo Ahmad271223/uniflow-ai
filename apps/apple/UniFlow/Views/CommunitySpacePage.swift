@@ -2,7 +2,7 @@ import SwiftUI
 import UniFlowCore
 
 // Seite einer Community (Wunsch des Inhabers 03.11.2026, nach Fotos einer anderen Lern-App, in eigener Gestaltung):
-// ganze Seite in der App-Huelle statt Vollbild-Blatt (Route `.communitySpace`), oben links das Studora-Logo zur
+// ganze Seite in der App-Huelle statt Vollbild-Blatt (Route `.communitySpace`), oben links das StudiNow-Logo zur
 // Uebersicht und ein Zurueck. Kopf mit Modulname und Hochschule, Reiter "Diskussion" (Fragen und Antworten des Moduls,
 // darueber die neuesten geteilten Notizen) und "Dokumente (N)" (Kanal nach Lehrwoche oder als Liste mit Sortierung).
 // Nicht beigetreten: unten ein deutlicher Knopf "Beitreten". Die Notizen einer Person oeffnen sich als ganze Seite

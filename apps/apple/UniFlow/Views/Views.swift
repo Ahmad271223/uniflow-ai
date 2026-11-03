@@ -157,7 +157,7 @@ struct LibraryView: View {
                     }
                 }
             }
-            .navigationTitle("Studora")
+            .navigationTitle("StudiNow")
             .toolbar { Button("Trennen", role: .destructive) { session.disconnect() } }
         } content: {
             List(files, selection: $fileSelection) { f in

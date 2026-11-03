@@ -23,7 +23,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertLessThan(UFPlan.plus, .proConnect)
         XCTAssertLessThan(UFPlan.proConnect, .proAI)
         XCTAssertEqual(UFPlan.allCases.map(\.lower), [nil, .free, .plus, .proConnect])
-        XCTAssertEqual(UFPlan.allCases.map(\.name), ["Studora Free", "Studora Plus", "Studora Pro Connect", "Studora Pro AI"])
+        XCTAssertEqual(UFPlan.allCases.map(\.name), ["StudiNow Free", "StudiNow Plus", "StudiNow Pro Connect", "StudiNow Pro AI"])
     }
 
     /// Free: planen (Lernplanung), Dokumente oeffnen, Faecher geordnet sehen und der Rest des Uni-Alltags
@@ -103,7 +103,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
-    /// Geraete-Funktionen der Tarifkarten (Abschnitt 4): keine davon ist KI (die Studora-KI braucht den Dienst und
+    /// Geraete-Funktionen der Tarifkarten (Abschnitt 4): keine davon ist KI (die StudiNow-KI braucht den Dienst und
     /// steht nur unter "in Vorbereitung", PlanContractTests)
     func testPlanCards() {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
@@ -186,7 +186,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(ent.loading)
         XCTAssertEqual(ent.access(.splitView), .locked(.plus))
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
-        XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Enthalten ab Studora Plus."))
+        XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Enthalten ab StudiNow Plus."))
         XCTAssertFalse(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Bald"))
         XCTAssertTrue(ent.allows(.studyPlanning), "Lernplanung gehoert zu Free")
         ent.setPlanForTesting(.plus)
@@ -194,7 +194,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertTrue(ent.allows(.flashcards), "mit Plus frei")
         XCTAssertTrue(UFLockedCard.message(.flashcards, access: .comingSoon).contains("Bald verfügbar"), "Sperrkarte kennt \"bald\" weiter")
         let locked = UFLockedCard.message(.pencilWriting, access: .locked(.plus))
-        XCTAssertTrue(locked.contains("Enthalten ab Studora Plus."))
+        XCTAssertTrue(locked.contains("Enthalten ab StudiNow Plus."))
         XCTAssertFalse(locked.contains("Pro"))
         XCTAssertEqual(ent.access(.pencilWriting).requiredPlan, nil, "mit Plus frei")
         XCTAssertEqual(UFAccess.locked(.plus).requiredPlan, .plus)
@@ -210,14 +210,14 @@ final class EntitlementTests: XCTestCase {
         let soon = UFLockedCard.message(.uniGrades, access: .comingSoon)
         XCTAssertFalse(soon.contains("Enthalten in"))
         XCTAssertTrue(soon.contains("Bald verfügbar"))
-        // Teilen in Free: Schloss, "Enthalten ab Studora Plus"; Lesen frei
+        // Teilen in Free: Schloss, "Enthalten ab StudiNow Plus"; Lesen frei
         let free = Entitlements(observe: false, plan: .free)
-        XCTAssertTrue(UFLockedCard.message(.shareSolutions, access: free.access(.shareSolutions)).contains("Enthalten ab Studora Plus."))
+        XCTAssertTrue(UFLockedCard.message(.shareSolutions, access: free.access(.shareSolutions)).contains("Enthalten ab StudiNow Plus."))
         XCTAssertEqual(free.access(.shareSolutions).requiredPlan, .plus)
         XCTAssertNil(free.access(.communityRead).requiredPlan)
         XCTAssertTrue(UFLockedCard.message(.communityRead, access: .comingSoon).contains("die Community folgt mit einem Update"))
         // Menuepunkte gesperrter Funktionen im Editor
-        XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .locked(.plus)), "Lösung teilen … (Studora Plus)")
+        XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .locked(.plus)), "Lösung teilen … (StudiNow Plus)")
         XCTAssertEqual(DocumentView.lockedLabel("Lösungen anderer ansehen", .comingSoon), "Lösungen anderer ansehen (bald)")
         XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .allowed), "Lösung teilen …")
     }
@@ -233,21 +233,21 @@ final class EntitlementTests: XCTestCase {
                        "1,99 €/Monat, monatlich kündbar")
         XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: nil, eligible: true),
                        "1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: true), "Studora Plus – 1 Woche gratis")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: false), "Studora Plus für 1,99 €/Monat")
-        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "3,99 €", period: month, freeTrial: week, eligible: true), "Studora Pro AI – 1 Woche gratis")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: true), "StudiNow Plus – 1 Woche gratis")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: false), "StudiNow Plus für 1,99 €/Monat")
+        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "3,99 €", period: month, freeTrial: week, eligible: true), "StudiNow Pro AI – 1 Woche gratis")
         XCTAssertEqual(UFOfferText.button(plan: .proConnect, price: "2,99 €", period: month, freeTrial: week, eligible: false),
-                       "Studora Pro Connect für 2,99 €/Monat")
+                       "StudiNow Pro Connect für 2,99 €/Monat")
         // Wechsel in der Abo-Gruppe: hoeher sofort, kleiner ab der naechsten Verlaengerung (regelt Apple)
-        XCTAssertEqual(UFOfferText.switchButton(to: .proAI), "Zu Studora Pro AI wechseln")
+        XCTAssertEqual(UFOfferText.switchButton(to: .proAI), "Zu StudiNow Pro AI wechseln")
         XCTAssertEqual(UFOfferText.switchNote(to: .proAI, from: .plus), "Gilt sofort. Apple verrechnet den bisherigen Tarif anteilig.")
-        XCTAssertEqual(UFOfferText.switchNote(to: .plus, from: .proAI), "Gilt ab der nächsten Verlängerung, bis dahin bleibt Studora Pro AI.")
+        XCTAssertEqual(UFOfferText.switchNote(to: .plus, from: .proAI), "Gilt ab der nächsten Verlängerung, bis dahin bleibt StudiNow Pro AI.")
         let nov27 = DateComponents(calendar: Calendar(identifier: .gregorian), timeZone: TimeZone(identifier: "Europe/Berlin"),
                                    year: 2026, month: 11, day: 27, hour: 12).date!
-        XCTAssertEqual(UFOfferText.pendingNote(.plus, at: nov27), "Wechsel zu Studora Plus vorgemerkt ab 27. November.")
-        XCTAssertEqual(UFOfferText.pendingNote(.plus, at: nil), "Wechsel zu Studora Plus zur nächsten Verlängerung vorgemerkt.")
+        XCTAssertEqual(UFOfferText.pendingNote(.plus, at: nov27), "Wechsel zu StudiNow Plus vorgemerkt ab 27. November.")
+        XCTAssertEqual(UFOfferText.pendingNote(.plus, at: nil), "Wechsel zu StudiNow Plus zur nächsten Verlängerung vorgemerkt.")
         XCTAssertEqual(UFOfferText.cancelledNote(.proConnect, endsAt: nov27),
-                       "Gekündigt – Studora Pro Connect endet am 27. November, danach gilt Studora Free.")
+                       "Gekündigt – StudiNow Pro Connect endet am 27. November, danach gilt StudiNow Free.")
         XCTAssertEqual(UFOfferText.period(value: 2, unit: .week), "2 Wochen")
         XCTAssertEqual(UFOfferText.per(value: 1, unit: .year), "/Jahr")
         XCTAssertEqual(UFOfferText.per(value: 3, unit: .month), "/3 Monate")

@@ -23,7 +23,7 @@
       "localizations" : [
 
       ],
-      "name" : "Studora",
+      "name" : "StudiNow",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -45,13 +45,13 @@
           "localizations" : [
             {
               "description" : "Stift, Karteikarten, Lösungen teilen",
-              "displayName" : "Studora Plus",
+              "displayName" : "StudiNow Plus",
               "locale" : "de"
             }
           ],
           "productID" : "de.uniflow.plus.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Studora Plus monatlich",
+          "referenceName" : "StudiNow Plus monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         }

@@ -91,7 +91,7 @@ final class AbnahmeV1AppTests: XCTestCase {
         // Free: wo man schreiben wuerde, steht der Weg zu Plus; Beitreten, Melden und Blockieren gehen ohne
         XCTAssertTrue(CommunityTexts.pseudonymPlusHint.hasSuffix("ab \(UFPlan.plus.name)."))
         XCTAssertTrue(CommunityTexts.createGroupPlusHint.contains("Beitreten geht in jedem Tarif"))
-        XCTAssertTrue(CommunityTexts.reportNotice.contains("Moderation von Studora"))
+        XCTAssertTrue(CommunityTexts.reportNotice.contains("Moderation von StudiNow"))
     }
 
     func testNewFilesSourceFollowsTheUniversity() {

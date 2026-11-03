@@ -1,9 +1,9 @@
 import StoreKit
 import SwiftUI
 
-/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. V1 bietet nur Studora Plus an
+/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. V1 bietet nur StudiNow Plus an
 /// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 28.10.2026); Pro Connect und Pro AI kommen mit dem
-/// Studora-Dienst in dieselbe Abo-Gruppe (docs/ABO-SYSTEM.md). Upgrade und Downgrade innerhalb der Gruppe regelt Apple:
+/// StudiNow-Dienst in dieselbe Abo-Gruppe (docs/ABO-SYSTEM.md). Upgrade und Downgrade innerhalb der Gruppe regelt Apple:
 /// hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in PlanSwitchPurchaseTests geprueft).
 ///
 /// NUR TESTKONFIGURATION: Die Produkte existieren ausschliesslich in `UniFlow.storekit` (lokales StoreKit-Testen in
@@ -170,8 +170,8 @@ enum UFOfferText {
         return "\(regular), \(note)"
     }
 
-    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "Studora Plus – 1 Woche gratis" bzw.
-    /// "Studora Plus fuer 1,99 €/Monat"
+    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus – 1 Woche gratis" bzw.
+    /// "StudiNow Plus fuer 1,99 €/Monat"
     static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit),
                        freeTrial: (Int, Product.SubscriptionPeriod.Unit)?, eligible: Bool) -> String {
         if eligible, let t = freeTrial { return "\(plan.name) – \(self.period(value: t.0, unit: t.1)) gratis" }
@@ -188,13 +188,13 @@ enum UFOfferText {
             : "Gilt ab der nächsten Verlängerung, bis dahin bleibt \(current.name)."
     }
 
-    /// Vorgemerkter Wechsel (Downgrade): "Wechsel zu Studora Plus vorgemerkt ab 27. November."
+    /// Vorgemerkter Wechsel (Downgrade): "Wechsel zu StudiNow Plus vorgemerkt ab 27. November."
     static func pendingNote(_ next: UFPlan, at date: Date?) -> String {
         guard let date else { return "Wechsel zu \(next.name) zur nächsten Verlängerung vorgemerkt." }
         return "Wechsel zu \(next.name) vorgemerkt ab \(day(date))."
     }
 
-    /// Gekuendigtes Abo: "Gekuendigt – Studora Plus endet am 27. November, danach gilt Studora Free."
+    /// Gekuendigtes Abo: "Gekuendigt – StudiNow Plus endet am 27. November, danach gilt StudiNow Free."
     static func cancelledNote(_ plan: UFPlan, endsAt date: Date?) -> String {
         guard let date else { return "Gekündigt – danach gilt \(UFPlan.free.name)." }
         return "Gekündigt – \(plan.name) endet am \(day(date)), danach gilt \(UFPlan.free.name)."

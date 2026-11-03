@@ -30,7 +30,7 @@ struct URLSessionAITransport: AIHTTPTransport {
         r.httpMethod = request.method
         r.httpBody = request.body
         for (k, v) in request.headers { r.setValue(v, forHTTPHeaderField: k) }
-        r.setValue("Studora/1.0", forHTTPHeaderField: "User-Agent")
+        r.setValue("StudiNow/1.0", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: r)
         return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
     }
@@ -121,8 +121,8 @@ final class ChatGPTLoopback: @unchecked Sendable {
                 for item in comps.queryItems ?? [] { q[item.name] = item.value ?? "" }
                 ok = true
             }
-            let text = ok ? "Studora ist verbunden. Du kannst dieses Fenster schließen." : "Unbekannte Adresse."
-            let body = Data("<!doctype html><meta charset=utf-8><title>Studora</title><p style=\"font-family:-apple-system;margin:2em\">\(text)</p>".utf8)
+            let text = ok ? "StudiNow ist verbunden. Du kannst dieses Fenster schließen." : "Unbekannte Adresse."
+            let body = Data("<!doctype html><meta charset=utf-8><title>StudiNow</title><p style=\"font-family:-apple-system;margin:2em\">\(text)</p>".utf8)
             let header = "HTTP/1.1 \(ok ? "200 OK" : "404 Not Found")\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
             // letzte Nachricht mit FIN: der Browser liest die Antwort ganz, danach schliesst die Verbindung sauber
             c.send(content: Data(header.utf8) + body, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { _ in

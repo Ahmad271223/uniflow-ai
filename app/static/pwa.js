@@ -1,10 +1,10 @@
-// Studora als App im Browser (Web zuerst, docs/PLAN-WEB-ZUERST-2026-10-30.md Stufe B): Service Worker anmelden,
+// StudiNow als App im Browser (Web zuerst, docs/PLAN-WEB-ZUERST-2026-10-30.md Stufe B): Service Worker anmelden,
 // Online/Offline anzeigen, Hinweis "Zum Home-Bildschirm" (iPad) bzw. "Zum Dock hinzufuegen" (Mac) bzw. "Installieren"
 // (Edge, Chrome), Ablage beim Abmelden oder Kontowechsel leeren, Notizen ohne Netz nachsenden (notes-queue.js). Die Regeln
 // des Workers stehen in sw-policy.js.
 import { $, icon, toast, state } from "./core.js?v=39";
 import { notesQueue } from "./notes-queue.js?v=1";
-import { watchWorkerUpdate } from "./sw-update.js?v=2";
+import { watchWorkerUpdate } from "./sw-update.js?v=3";
 
 const HINT_KEY = "pwa-hint-dismissed";
 let installPrompt = null;             // beforeinstallprompt (Edge, Chrome); Safari kennt das nicht
@@ -23,9 +23,9 @@ export function installKind(ua = navigator.userAgent, platform = navigator.platf
 }
 
 export const INSTALL_TEXT = {
-  ipad: "Teilen-Symbol antippen, dann „Zum Home-Bildschirm“. Studora bekommt ein Symbol, läuft im Vollbild und offline mit den zuletzt geladenen Unterlagen.",
-  mac: "In Safari: Ablage → „Zum Dock hinzufügen“ (ab macOS 14). Studora läuft dann in einem eigenen Fenster wie eine App.",
-  chrome: "Mit „Installieren“ bekommt Studora ein eigenes Fenster und ein Symbol im Startmenü.",
+  ipad: "Teilen-Symbol antippen, dann „Zum Home-Bildschirm“. StudiNow bekommt ein Symbol, läuft im Vollbild und offline mit den zuletzt geladenen Unterlagen.",
+  mac: "In Safari: Ablage → „Zum Dock hinzufügen“ (ab macOS 14). StudiNow läuft dann in einem eigenen Fenster wie eine App.",
+  chrome: "Mit „Installieren“ bekommt StudiNow ein eigenes Fenster und ein Symbol im Startmenü.",
 };
 
 /// Service Worker anmelden; ein neuer Stand wird beim naechsten Laden aktiv (skipWaiting + clients.claim im Worker)
@@ -34,7 +34,7 @@ export async function registerWorker() {
   try {
     const reg = await navigator.serviceWorker.register("/sw.js");
     // Nur bei einem echten Update eines schon aktiven Workers, nicht beim allerersten Aufruf (sw-update.js)
-    watchWorkerUpdate(reg, navigator.serviceWorker, () => toast("Studora wurde aktualisiert"));
+    watchWorkerUpdate(reg, navigator.serviceWorker, () => toast("StudiNow wurde aktualisiert"));
     return reg;
   } catch (e) { console.warn("Service Worker nicht angemeldet:", e.message); return null; }
 }
@@ -84,19 +84,19 @@ export function installBanner() {
   if (standalone()) return "";
   try { if (localStorage.getItem(HINT_KEY)) return ""; } catch {}
   const kind = installKind(); if (!kind) return "";
-  return `<div class="card pwa-hint" id="pwaHint"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("columns", 18)}<div style="flex:1"><b>Studora als App</b><div class="small muted">${INSTALL_TEXT[kind]}</div></div>${kind === "chrome" ? `<button class="btn primary sm" id="pwaInstall">Installieren</button>` : ""}<button class="btn ghost icon sm" id="pwaHintClose" title="Hinweis schließen" aria-label="Hinweis schließen">${icon("x", 14)}</button></div></div>`;
+  return `<div class="card pwa-hint" id="pwaHint"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("columns", 18)}<div style="flex:1"><b>StudiNow als App</b><div class="small muted">${INSTALL_TEXT[kind]}</div></div>${kind === "chrome" ? `<button class="btn primary sm" id="pwaInstall">Installieren</button>` : ""}<button class="btn ghost icon sm" id="pwaHintClose" title="Hinweis schließen" aria-label="Hinweis schließen">${icon("x", 14)}</button></div></div>`;
 }
 
 export function bindInstallBanner(view) {
   $("#pwaHintClose", view)?.addEventListener("click", () => { try { localStorage.setItem(HINT_KEY, "1"); } catch {} $("#pwaHint", view)?.remove(); });
-  $("#pwaInstall", view)?.addEventListener("click", async () => { if (!installPrompt) return; installPrompt.prompt(); const r = await installPrompt.userChoice.catch(() => null); if (r?.outcome === "accepted") { toast("Studora installiert"); $("#pwaHint", view)?.remove(); } });
+  $("#pwaInstall", view)?.addEventListener("click", async () => { if (!installPrompt) return; installPrompt.prompt(); const r = await installPrompt.userChoice.catch(() => null); if (r?.outcome === "accepted") { toast("StudiNow installiert"); $("#pwaHint", view)?.remove(); } });
 }
 
 /// Karte in den Einstellungen (Zugang & Darstellung): immer sichtbar, auch nach dem Schliessen des Hinweises
 export function installCard() {
   const kind = installKind(); const on = standalone();
-  const text = on ? "Studora läuft als installierte App. Zuletzt geladene Unterlagen und Listen sind auch ohne Netz da; Änderungen brauchen Netz."
-    : kind ? INSTALL_TEXT[kind] : "In Safari auf dem iPad oder Mac lässt sich Studora als App installieren (Teilen → „Zum Home-Bildschirm“ bzw. Ablage → „Zum Dock hinzufügen“).";
+  const text = on ? "StudiNow läuft als installierte App. Zuletzt geladene Unterlagen und Listen sind auch ohne Netz da; Änderungen brauchen Netz."
+    : kind ? INSTALL_TEXT[kind] : "In Safari auf dem iPad oder Mac lässt sich StudiNow als App installieren (Teilen → „Zum Home-Bildschirm“ bzw. Ablage → „Zum Dock hinzufügen“).";
   return `<div class="card" id="pwaCard"><div class="card-head"><h2>${icon("columns", 18)} Als App nutzen</h2>${on ? `<span class="badge ok">installiert</span>` : `<span class="badge neutral">im Browser</span>`}</div><p class="muted small">${text}</p>${!on && kind === "chrome" ? `<div class="row"><button class="btn primary sm" id="pwaInstall">Installieren</button></div>` : ""}</div>`;
 }
 

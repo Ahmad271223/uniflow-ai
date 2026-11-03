@@ -14,9 +14,9 @@ import Foundation
 public protocol CommunityService: Sendable {
     /// Dienst vorhanden (Build mit iCloud-Container) – sagt nichts ueber Netz oder iCloud-Anmeldung.
     var isConnected: Bool { get }
-    /// Studora-Dienst (G4): ein Konto, keine Sichtbarkeit und keine Lerngruppen, sichtbar fuer alle mit derselben PDF
+    /// StudiNow-Dienst (G4): ein Konto, keine Sichtbarkeit und keine Lerngruppen, sichtbar fuer alle mit derselben PDF
     var isAccountService: Bool { get }
-    /// Kommentare und Likes moeglich (Studora-Dienst; CloudKit seit 03.11.2026)
+    /// Kommentare und Likes moeglich (StudiNow-Dienst; CloudKit seit 03.11.2026)
     var supportsDiscussion: Bool { get }
     /// Alle Kurse aus dem eigenen Abgleich und die eigenen Lerngruppen, je mit `joined`
     func communities() async throws -> [CommunitySpace]
@@ -25,7 +25,7 @@ public protocol CommunityService: Sendable {
     func leave(_ space: CommunitySpace) async throws
     /// Loesungen einer Community, nur fuer Mitglieder; neueste bzw. meistgelikte zuerst
     func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary]
-    /// Kommentare einer Loesung, Antworten direkt unter ihrem Kommentar (nur Studora-Dienst)
+    /// Kommentare einer Loesung, Antworten direkt unter ihrem Kommentar (nur StudiNow-Dienst)
     func comments(solutionID: String) async throws -> [CommunityComment]
     /// `pageKey` und `anchor` (0...1 von links oben): Stelle auf einer Seite der Loesung; nil = zur ganzen Loesung
     func addComment(solutionID: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment
@@ -97,7 +97,7 @@ public protocol CommunityService: Sendable {
 extension CommunityService {
     public var isAccountService: Bool { false }
     public var supportsDiscussion: Bool { isAccountService }
-    /// Fragen je Community: bisher nur CloudKit (der Studora-Dienst kennt sie noch nicht)
+    /// Fragen je Community: bisher nur CloudKit (der StudiNow-Dienst kennt sie noch nicht)
     public var supportsSpaceDiscussion: Bool { false }
     public func posts(in space: CommunitySpace) async throws -> [CommunityPost] { throw CommunityServiceError.notConnected }
     public func addPost(in space: CommunitySpace, text: String, parentID: String?) async throws -> CommunityComment {
@@ -268,7 +268,7 @@ public struct CommunityPublishOptions: Equatable, Sendable {
     public var title: String
     /// Lehrwoche aus der lokalen Einordnung (0 = unbekannt), fuer die Kursansicht nach Woche
     public var week: Int
-    /// Community, in der die Loesung erscheint (Pflicht am Studora-Dienst; `SolutionPackage.seal(communitySecret:)`)
+    /// Community, in der die Loesung erscheint (Pflicht am StudiNow-Dienst; `SolutionPackage.seal(communitySecret:)`)
     public var communityKey: String?
 
     public init(visibility: CommunityVisibility = .module, courseKey: String? = nil, groupKey: String? = nil,
@@ -384,15 +384,15 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     case unavailable
     /// auf diesem iPad nicht bei iCloud angemeldet (oder iCloud eingeschraenkt)
     case notSignedIn
-    /// Sitzung beim Studora-Konto beendet
+    /// Sitzung beim StudiNow-Konto beendet
     case accountRequired
     /// PDF nicht aus dem eigenen Hochschul-Abgleich
     case fileNotOwned
-    /// Kommentare und Likes gibt es nur ueber das Studora-Konto
+    /// Kommentare und Likes gibt es nur ueber das StudiNow-Konto
     case commentsNeedAccount
     /// Community noch nicht beigetreten
     case notAMember
-    /// Sichtbarkeit oder Lerngruppe, die der Studora-Dienst nicht kennt
+    /// Sichtbarkeit oder Lerngruppe, die der StudiNow-Dienst nicht kennt
     case visibilityUnsupported
     case offline
     /// Kontingent beim Dienst erschoepft
@@ -424,8 +424,8 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .notConnected: return "Community-Dienst noch nicht verbunden."
         case .unavailable: return "Die Community ist in diesem Build nicht verfügbar (kein iCloud-Container)."
         case .notSignedIn: return "Melde dich auf diesem iPad bei iCloud an (Einstellungen → Apple-ID), um die Community zu nutzen."
-        case .accountRequired: return "Melde dich unter Einstellungen wieder bei deinem Studora-Konto an, um die Community zu nutzen."
-        case .commentsNeedAccount: return "Kommentare und Likes gibt es nur mit Studora-Konto."
+        case .accountRequired: return "Melde dich unter Einstellungen wieder bei deinem StudiNow-Konto an, um die Community zu nutzen."
+        case .commentsNeedAccount: return "Kommentare und Likes gibt es nur mit StudiNow-Konto."
         case .notAMember: return "Tritt zuerst dieser Community bei."
         case .fileNotOwned: return "Lösungen gibt es nur für PDFs aus deinem Hochschul-Abgleich."
         case .visibilityUnsupported: return "Wähle eine Community aus, in der du Mitglied bist."

@@ -1,4 +1,4 @@
-// Lasttest des Studora-Dienstes mit k6 (https://k6.io), Plan: docs/LASTTEST-PLAN-GROSS.md
+// Lasttest des StudiNow-Dienstes mit k6 (https://k6.io), Plan: docs/LASTTEST-PLAN-GROSS.md
 //   k6 run -e BASE_URL=https://lasttest.example.de -e TOKENS=tokens.json tools/lasttest-k6.js
 // Wahlweise: -e STEPS=250,500,1000,2000,3000 (Anfragen je Sekunde je Stufe)  -e STEP_MIN=5 (Minuten je Stufe)
 //            -e MAXVUS=8000 (gleichzeitige Verbindungen des Lastgebers)

@@ -61,9 +61,9 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
 ## Phase 5 – native Oberfläche
 - **Fertig und getestet (Simulator, Mac, 30.10.):** Tabs Übersicht, Dokumente, Module, Kalender (Tag/3 Tage/Woche),
   Wochentests, Karteikarten, Uni & Noten, Einstellungen (Profil, Schreibhand, Pencil, Hintergrundabgleich, Tarif,
-  ChatGPT, Studora-Konto, Diagnose, Demo); Lade-, Fehler-, Offline- und Leerzustände; Barrierefreiheit (152 Angaben,
+  ChatGPT, StudiNow-Konto, Diagnose, Demo); Lade-, Fehler-, Offline- und Leerzustände; Barrierefreiheit (152 Angaben,
   VoiceOver-Namen auf Deutsch, Dynamic Type bis Accessibility3, Bewegung reduzieren). Erster Start: Apple → Tarif →
-  Hochschule → Anmeldeseiten der Uni → Erstabgleich. `CFBundleName` „Studora“.
+  Hochschule → Anmeldeseiten der Uni → Erstabgleich. `CFBundleName` „StudiNow“.
 - Der frühere Eintrag „nicht gebaut“ gilt seit dem 26.10. nicht mehr (Mac-Sitzung); seit dem 30.10. voller Lauf 564 ×2.
 
 ## Phase 6 – Skriptsuche und Split-Screen
@@ -72,7 +72,7 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
 - **Offen:** Verhalten am Gerät.
 
 ## Phase 7 – Konten, Abgleich und Abos
-- **Fertig:** Studora-Konto G1 (`app/accounts.py`, `account_api.py`, 18 Endpunkte: registrieren, E-Mail bestätigen,
+- **Fertig:** StudiNow-Konto G1 (`app/accounts.py`, `account_api.py`, 18 Endpunkte: registrieren, E-Mail bestätigen,
   anmelden mit E-Mail, Apple, Google, Passwort zurücksetzen, Geräte, Export, löschen); Geräte-Abgleich G2
   (`app/sync.py` Dienst, `sync_client.py` Windows, Android `SyncEngine`); im Swift-Kern `StudoraAccountLink`
   (sichtbar erst mit Dienst-Adresse), G2-Client auf dem iPad seit 31.10.. Vier Tarife in `app/plans.py`, Rechte in
@@ -141,19 +141,19 @@ Linux-Zahl des Kerns ist kleiner, weil 15 Tests (Schlüsselbund, ChatGPT-Sitzung
   auch bei ausgeschaltetem Abgleich, nie neben einem laufenden Abgleich; Abbruch kostet keinen Versuch; Mitteilung
   „Neuer Wochentest verfügbar“; Debug-Knopf, weil der Simulator `BGTaskScheduler` ablehnt.
 - **Fertig (Dienst, 30.10.):** Takt je Konto als Job in `app/jobs.py` (nach dem Abgleich, zu den Zeitfenstern, auf
-  Knopfdruck `POST /api/weekly/tick`), KI = Studora-KI, jeder neue Test verbraucht eins aus `ai_tests_new`
+  Knopfdruck `POST /api/weekly/tick`), KI = StudiNow-KI, jeder neue Test verbraucht eins aus `ai_tests_new`
   (Free 0 → Plan wartet mit Grund, Plus 3, Pro AI 40). Kein Teilen zwischen Konten (V2-Dienst).
 - **Getestet:** `tests/test_weekly.py`, `test_week_test_rule.py`, `test_testshare.py`; Kern `WeeklyFixtureTests`,
   `WeeklyAutoTickTests`; App `WeeklyAppTests`, `BackgroundSyncAppTests` (Mac, 30.10.).
 - **Ungeprüft:** echte KI auf echtem Skript; Start des Hintergrundlaufs durch iOS (nur am Gerät über Tage).
 
-## Phase 14 – KI: Claude, Sign in with ChatGPT, Studora-KI
+## Phase 14 – KI: Claude, Sign in with ChatGPT, StudiNow-KI
 - **Fertig:** (1) `app/ai.py` über `claude -p` am eigenen PC (Modelle `CLAUDE_MODEL`, `CLAUDE_MODEL_MATERIAL`).
   (2) Sign in with ChatGPT (`app/chatgpt_login.py`, Swift `UniFlowCore/AI`, `ChatGPTLink`): dynamische Registrierung
   (`client_id=dynamic_agent_client`), **keine vorab vergebene Client-ID nötig**, PKCE, ID-Token gegen JWKS, Responses
   API, rotierendes Refresh-Token; am 30.10. mit dem OpenAI-Devkit abgeglichen (`login_hint`, Freigabe nachholen,
   anderes Konto, `account_mismatch`, `earliest_refresh_at`). In jedem iPad-Build verfügbar; im gehosteten Dienst aus,
-  bis OpenAI freigibt. Tutor-Prompt gleich für `claude -p` und Studora-KI. (3) Studora-KI im Dienst
+  bis OpenAI freigibt. Tutor-Prompt gleich für `claude -p` und StudiNow-KI. (3) StudiNow-KI im Dienst
   (`app/ai_backend.py`): Anbieter und Schlüssel nur auf dem Server, Budget je Monat und je Konto, Rate-Limit, Cache,
   Sperre gegen doppelte Generierung.
 - **Getestet:** `tests/test_chatgpt_login.py`, `test_ai_contract.py`, `test_ai_console.py`; Kern 776 (ChatGPT-Sitzung

@@ -10,7 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ctx = { self: {}, URL };
 vm.runInNewContext(readFileSync(join(root, "app/static/sw-policy.js"), "utf8"), ctx);
 const P = ctx.self.StudoraSW;
-const ORIGIN = "https://studora.example";
+const ORIGIN = "https://studinow.example";
 const c = (method, path) => P.classify(method, ORIGIN + path, ORIGIN);
 
 test("Oberflaeche und Dateien kommen in die Ablage, Aenderungen nie", () => {

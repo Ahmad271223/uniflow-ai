@@ -98,7 +98,7 @@ struct SettingsPage: View {
     /// Hinweis "Server nicht erreichbar" mit Weg zu "Erneut versuchen" und "Entwicklung" (Verbindung trennen)
     private func unreachableBanner(_ error: String) -> some View {
         // Hinweis in Warnfarbe statt einer weissen Karte mit farbiger Ueberschrift: Zustand auf einen Blick
-        SettingsNotice("Eigener Studora-Server nicht erreichbar",
+        SettingsNotice("Eigener StudiNow-Server nicht erreichbar",
                        text: "\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.") {
             UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
             UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
@@ -266,7 +266,7 @@ private struct ModulesTab: View {
                 }
                 .padding(.vertical, 9.6 - 5.6)
             } else {
-                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet Studora neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
+                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet StudiNow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
             }
 
@@ -388,7 +388,7 @@ private struct ModulesTab: View {
     /// Hinweis wie in der Web-App (c0721da): Semesterregel `Semesters`, Schalter je Kurs in der Kurstabelle
     static let olderSemesters = "Kurse aus früheren Semestern erkennt die App am Semester in Stud.IP und plant sie nicht ein; ihre Unterlagen bleiben in der Bibliothek."
     /// Hinweis unter "Dateien früherer Semester mitladen"
-    static let olderFilesHint = "Aus: Studora lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."
+    static let olderFilesHint = "Aus: StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."
 
     /// Kurs eingeplant ja/nein: PATCH active, das lokale Backend merkt sich die eigene Entscheidung (active_custom)
     private func setActive(_ c: JSONValue, _ on: Bool) {
@@ -738,7 +738,7 @@ private struct AppAccountCards: View {
     @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
 
-    /// kaufbare Tarife, in V1 "Studora Free oder Studora Plus" (Namen aus plans.json, `UFPlanCatalog.sellable`)
+    /// kaufbare Tarife, in V1 "StudiNow Free oder StudiNow Plus" (Namen aus plans.json, `UFPlanCatalog.sellable`)
     static var planNames: String {
         let names = UFPlanCatalog.sellable.map(\.name)
         return names.dropLast().joined(separator: ", ") + " oder " + names.last!
@@ -812,12 +812,12 @@ private struct AppAccountCards: View {
 /// sie in den Einstellungen des iPads.
 enum DeleteAccountText {
     static func removed(ownServer: Bool) -> String {
-        "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von Studora (Stud.IP-Sitzung, "
+        "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von StudiNow (Stud.IP-Sitzung, "
             + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung. "
-            + "Hochschul-Passwörter speichert Studora nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
+            + "Hochschul-Passwörter speichert StudiNow nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
     }
 
-    static let appleID = "Studora speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → Studora."
+    static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
 }
 
 /// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
@@ -936,7 +936,7 @@ private struct LocalAccountTab: View {
 
 /// Texte der Abschnittskoepfe in den Einstellungen
 enum SettingsSections {
-    static let accountSub = "Anmeldung, Tarif und die Hochschule, mit der Studora gerade arbeitet."
+    static let accountSub = "Anmeldung, Tarif und die Hochschule, mit der StudiNow gerade arbeitet."
     static let studyLUH = "Stud.IP und QIS der Leibniz Universität, Semester und Erinnerungen."
     static let studyHildesheim = "Learnweb und LSF der Universität Hildesheim, Semester und Erinnerungen."
     static let communitySub = "Pseudonym, Lerngruppen und Sperrliste für geteilte Lösungen."
@@ -1011,18 +1011,18 @@ private struct DevelopmentTab: View {
         VStack(alignment: .leading, spacing: 16) {
             if session.isOwnServer, let api = session.api {
                 UFCard {
-                    UFCardHead("Eigener Studora-Server", icon: "layers") {
+                    UFCardHead("Eigener StudiNow-Server", icon: "layers") {
                         error == nil ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht erreichbar", tone: .warn)
                     }
                     VStack(alignment: .leading, spacing: 7.2) {
                         (Text("Server: ").font(.uf(13.12, 700)) + Text(api.base.absoluteString))
-                        Text("Die Daten kommen von deinem Studora-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ kommen die Daten wieder vom iPad selbst; Notizen beider Quellen bleiben getrennt erhalten.")
+                        Text("Die Daten kommen von deinem StudiNow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ kommen die Daten wieder vom iPad selbst; Notizen beider Quellen bleiben getrennt erhalten.")
                             .foregroundStyle(UF.muted)
                     }
                     .ufFont(13.12).foregroundStyle(UF.text)
                     UFFlexWrap(gap: 9.6) {
                         UFButton("Verbindung trennen", icon: "log-out", kind: .danger, size: .small) {
-                            Task { if await overlay.confirm("Verbindung zum Studora-Server trennen?") { session.disconnect() } }
+                            Task { if await overlay.confirm("Verbindung zum StudiNow-Server trennen?") { session.disconnect() } }
                         }
                     }
                     .padding(.top, 9.6)
@@ -1043,8 +1043,8 @@ struct ConnectView: View {
 
     var body: some View {
         UFCard {
-            UFCardHead("Mit eigenem Studora-Server verbinden", icon: "layers") { UFBadge("Entwicklung", tone: .neutral) }
-            Text("Nur für die Entwicklung: verbindet dieses iPad mit deinem Studora-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
+            UFCardHead("Mit eigenem StudiNow-Server verbinden", icon: "layers") { UFBadge("Entwicklung", tone: .neutral) }
+            Text("Nur für die Entwicklung: verbindet dieses iPad mit deinem StudiNow-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
             UFField("Adresse") {
                 UFTextField("http://192.168.0.10:8765", text: $url)

@@ -52,10 +52,10 @@ def _child_env() -> dict:
 
 
 def _refuse_hosted() -> None:
-    """Im Dienst gibt es keine KI-Kommandozeile des Servers: dort laeuft Studora-KI nur ueber app/ai_backend.py (Konto, Tarif,
+    """Im Dienst gibt es keine KI-Kommandozeile des Servers: dort laeuft StudiNow-KI nur ueber app/ai_backend.py (Konto, Tarif,
     Budget, Protokoll)."""
     if is_hosted():
-        raise AIError("Im Dienst gibt es die KI-Kommandozeile nicht; Studora-KI läuft dort nur über das Konto.")
+        raise AIError("Im Dienst gibt es die KI-Kommandozeile nicht; StudiNow-KI läuft dort nur über das Konto.")
 
 
 def _claude_bin() -> str:
@@ -354,7 +354,7 @@ def studip_context(course_desc: str | None, misc: str | None, sessions: list[dic
 def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
                  course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
                  history: list[dict] | None = None, studip: str = "") -> str:
-    """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die Studora-KI im Dienst (app/ai_backend.py).
+    """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die StudiNow-KI im Dienst (app/ai_backend.py).
     `sources` (28.10.2026): nummerierte Stellen aus den eigenen Unterlagen (diese Seite und passende Seiten aus dem
     Modul); die Antwort belegt Aussagen daraus mit [Nummer], die Oberflaeche macht daraus Links zur Seite.
     `history` (2.11.2026): bisheriges Gespraech im Editor (`tutor_history`), damit Rueckfragen anschliessen.

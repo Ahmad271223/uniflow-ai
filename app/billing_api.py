@@ -35,7 +35,7 @@ def _user(request: Request) -> dict:
 
 def _hosted() -> None:
     if not config.is_hosted():
-        raise HTTPException(501, {"detail": "Abos gibt es nur mit Studora-Konto im Dienst; auf dem eigenen PC ist alles frei.",
+        raise HTTPException(501, {"detail": "Abos gibt es nur mit StudiNow-Konto im Dienst; auf dem eigenen PC ist alles frei.",
                                   "code": "not_hosted"})
 
 
@@ -46,9 +46,9 @@ def purchase_channels() -> dict:
                                              "über den App Store."},
         "web": {"available": stripe_billing.available(),
                 "note": ("Abschluss, Wechsel und Kündigung im Web und unter Windows über Stripe. Ein Abo aus der Apple-App gilt "
-                         "hier automatisch, sobald du mit demselben Studora-Konto angemeldet bist.") if stripe_billing.available() else
+                         "hier automatisch, sobald du mit demselben StudiNow-Konto angemeldet bist.") if stripe_billing.available() else
                         ("Im Web und unter Windows gibt es noch keinen Abschluss. Ein Abo aus der Apple-App gilt hier "
-                         "automatisch, sobald du mit demselben Studora-Konto angemeldet bist."),
+                         "automatisch, sobald du mit demselben StudiNow-Konto angemeldet bist."),
                 "plans": sorted(stripe_billing.prices(), key=plans.rank)},
         "android": {"available": False, "note": "Die Android-App ist pausiert."},
     }

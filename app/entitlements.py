@@ -76,7 +76,7 @@ def email_verified(user_id: str | None) -> bool:
 
 
 def require_verified_for_ai(request: Request) -> dict | None:
-    """Studora-KI im Dienst nur mit bestaetigter E-Mail-Adresse (403 email_unverified): ein unbestaetigtes Wegwerfkonto
+    """StudiNow-KI im Dienst nur mit bestaetigter E-Mail-Adresse (403 email_unverified): ein unbestaetigtes Wegwerfkonto
     mit Probe soll kein KI-Budget verbrauchen. Lokal (eigener PC) gibt es keine Konten und keine Pruefung."""
     if not config.is_hosted():
         return None

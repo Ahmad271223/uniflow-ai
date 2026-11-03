@@ -1,24 +1,24 @@
-# Studora (Repo `uniflow-ai`)
+# StudiNow (Repo `uniflow-ai`)
 
-Stand 30.10.2026, Zweig `develop`. Die App heißt in allen sichtbaren Texten **Studora**; Repository, Ordner und
+Stand 30.10.2026, Zweig `develop`. Die App heißt in allen sichtbaren Texten **StudiNow** (seit 03.11.2026, vorher Studora); Repository, Ordner und
 Kennungen (`de.uniflow.ai`, `UniFlowCore`) heißen weiter UniFlow.
 
 ## 1. Was ist das
 
-Studora holt die Unterlagen aus den Systemen der Hochschule (LUH: Stud.IP und QIS; Uni Hildesheim: Learnweb, LSF und
+StudiNow holt die Unterlagen aus den Systemen der Hochschule (LUH: Stud.IP und QIS; Uni Hildesheim: Learnweb, LSF und
 CAS), ordnet jede Datei nach Fach, Art und Lehrwoche, baut daraus den Stundenplan und den Lernplan, stellt pro Modul
 und Lehrwoche einen Wochentest zusammen und lässt die PDFs lesen, markieren und mit Stift beschreiben. Dazu kommen
-Karteikarten, Noten, eine Community zum Teilen von Lösungen und ein Studora-Konto, das die Geräte eines Nutzers
+Karteikarten, Noten, eine Community zum Teilen von Lösungen und ein StudiNow-Konto, das die Geräte eines Nutzers
 verbindet.
 
-Grundsatz: Jedes Gerät hat seine Daten selbst und arbeitet auch ohne Internet. Der Studora-Dienst verbindet die Geräte
+Grundsatz: Jedes Gerät hat seine Daten selbst und arbeitet auch ohne Internet. Der StudiNow-Dienst verbindet die Geräte
 eines Kontos und die Studierenden einer Hochschule; er ist nicht die Voraussetzung dafür, dass die App läuft
 (`docs/ARCHITEKTUR-ZIEL-2026-10-29.md`).
 
 Entscheidungen des Inhabers vom 30.10.2026 (`docs/PLAN-WEB-ZUERST-2026-10-30.md`): zuerst die **Web-Version über den
 eigenen Dienst**, Windows über den **Microsoft Store**, iPad und Mac **vorerst als Web-App** (das Apple Developer
 Program wurde am 28.10. abgelehnt); sobald Apple freigibt, laden iPad- und Mac-Nutzer die App aus dem App Store und
-melden sich mit ihrem Studora-Konto an, der Rest wird übernommen.
+melden sich mit ihrem StudiNow-Konto an, der Rest wird übernommen.
 
 ### Was die App kann (Stand des Codes)
 
@@ -32,9 +32,9 @@ melden sich mit ihrem Studora-Konto an, der Rest wird übernommen.
 | Karteikarten | Anlegen, Wiederholung nach Leitner; auf dem iPad ab Plus. |
 | Uni und Noten | QIS-Notenspiegel und Bescheinigungen (LUH), LSF-Noten (Hildesheim), Kacheln aller Uni-Dienste. |
 | Community | Lösungen als verschlüsseltes Paket teilen (nur mit der Original-PDF lesbar), auf die eigene PDF projizieren, Likes, Kommentare an der Stelle, Rangliste für den Inhaber. Web und Windows über den Dienst (`app/community_api.py`); iPad heute über CloudKit, Umstellung auf den Dienst geplant. |
-| Konto und Abgleich | Studora-Konto (E-Mail, Google; Apple erst nach der Apple-Freigabe), Geräte, Datenexport, Konto löschen (G1). Abgleich der Daten zwischen Geräten eines Kontos (G2): Dienst, Windows, Android und iPad gebaut; auf dem iPad gegen den lokalen Dienst geprüft, nie auf einem Server. |
+| Konto und Abgleich | StudiNow-Konto (E-Mail, Google; Apple erst nach der Apple-Freigabe), Geräte, Datenexport, Konto löschen (G1). Abgleich der Daten zwischen Geräten eines Kontos (G2): Dienst, Windows, Android und iPad gebaut; auf dem iPad gegen den lokalen Dienst geprüft, nie auf einem Server. |
 | Abos | Free, Plus, Pro Connect, Pro AI (`app/plans.py`). Jedes neue Konto hat 7 Tage Probe mit allen Rechten, danach Tarifwahl, ohne Wahl Free. Bezahlung im Web und unter Windows über Stripe, in der Apple-App über den App Store, Microsoft Store später. `docs/ABO-SYSTEM.md`. |
-| KI | Drei Wege: (1) am eigenen PC die Claude Code CLI (`claude -p`, Modell über `CLAUDE_MODEL`); (2) **Sign in with ChatGPT**, das ChatGPT-Abo des Nutzers, am PC, unter Windows und auf dem iPad, ohne vorab vergebene Client-ID (dynamische Registrierung); im gehosteten Dienst erst nach der Freigabe durch OpenAI; (3) **Studora-KI** im Dienst (Pro AI, `app/ai_backend.py`, Budget je Konto). Alle KI-Funktionen sind nur mit simulierter KI geprüft, nie mit echter KI auf echtem Skript. `docs/KI-CHATGPT-PLAN.md`. |
+| KI | Drei Wege: (1) am eigenen PC die Claude Code CLI (`claude -p`, Modell über `CLAUDE_MODEL`); (2) **Sign in with ChatGPT**, das ChatGPT-Abo des Nutzers, am PC, unter Windows und auf dem iPad, ohne vorab vergebene Client-ID (dynamische Registrierung); im gehosteten Dienst erst nach der Freigabe durch OpenAI; (3) **StudiNow-KI** im Dienst (Pro AI, `app/ai_backend.py`, Budget je Konto). Alle KI-Funktionen sind nur mit simulierter KI geprüft, nie mit echter KI auf echtem Skript. `docs/KI-CHATGPT-PLAN.md`. |
 
 ## 2. Betriebsarten
 
@@ -43,8 +43,8 @@ melden sich mit ihrem Studora-Konto an, der Rest wird übernommen.
 | **Eigener PC** (`serve.py`) | Python-Server (FastAPI) und Web-Oberfläche im Browser unter `http://localhost:8765`; Abgleich per Aufgabenplanung; KI über `claude -p` oder das ChatGPT-Abo. Mit `serve.py --lan` auch im WLAN für ein iPad (PIN). | Täglich vom Inhaber benutzt, pytest 598 grün. |
 | **Windows-App** (`apps/windows`, Tauri 2, Backend als PyInstaller-Paket, Version 0.4.9) | Dieselbe Oberfläche und Datenbank wie `serve.py`, ohne Python auf dem PC; Konto und Community über den Dienst; Hochschul-Anmeldung im Fenster der App. | Für den eigenen Gebrauch benutzbar (Installer ohne Signatur, SmartScreen warnt). MSIX für den Store baut; Partner-Center-Werte, Screenshots und öffentliche Datenschutzerklärung fehlen. Kein Test auf einem fremden Windows-Rechner. `docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md`. |
 | **iPad und Mac, native App** (`apps/apple`, SwiftUI; Mac über „Designed for iPad“) | Ohne PC: lokale Datenbank, Stud.IP und Learnweb direkt vom Gerät, Editor mit Apple Pencil, Lernplan, Wochentests, Community über CloudKit, KI über das ChatGPT-Abo, Abos Free und Plus über StoreKit 2. | Build fehlerfrei, App 564 Tests im iPad-Simulator (Mac, 30.10.), Swift-Kern 776. **Nie auf einem echten iPad oder Mac gelaufen.** Apple Developer Program abgelehnt (28.10.): kein TestFlight, keine Einreichung, kein „Mit Apple anmelden“, kein CloudKit im Betrieb. Darum vorerst Web-App. |
-| **Web-App über den Dienst** (`app/static`, `LERNAPP_MODE=hosted`) | Anmeldung mit dem Studora-Konto im Browser; installierbar („Zum Home-Bildschirm“ auf dem iPad, „Zum Dock“ auf dem Mac, „Installieren“ in Edge/Chrome, `app/static/pwa.js`); Service Worker mit Offline-Rückfall für Oberfläche, zuletzt geöffnete PDFs und Listen (`sw.js`, `sw-policy.js`); Änderungen ohne Netz scheitern mit Code `offline`. Hochschul-Abgleich durch den Dienst nur mit ausdrücklicher Zustimmung je Konto (`PUT /api/credentials` mit `consent: true`). Wochentests mit der Studora-KI, Probe und Stripe. | Gebaut und mit pytest (inkl. echtem Chromium-Lauf in `tests/test_pwa.py`) und JS-Tests geprüft. **Nie in Safari auf einem iPad oder Mac geprüft.** Notizen ohne Netz werden zwischengespeichert und nachgesendet (`notes-queue.js`, Chromium-Lauf mit Konflikt grün). |
-| **Studora-Dienst** (`deploy/`) | Docker-Image, Caddy mit HTTPS, Backups, Löschfristen; Konto (G1), Abgleich (G2), Community (G4), Billing, Jobs für Hochschul-Abgleich und Wochentests; eine SQLite-Datenbank je Konto. | Code und Hosting-Paket fertig, lokal in Docker geprüft. **Nie auf einem Server in Betrieb.** Server, Domain, Mail-Anbieter, Stripe-Konto und Rechtstexte muss der Inhaber beschaffen (`docs/release/BETRIEB.md`). |
+| **Web-App über den Dienst** (`app/static`, `LERNAPP_MODE=hosted`) | Anmeldung mit dem StudiNow-Konto im Browser; installierbar („Zum Home-Bildschirm“ auf dem iPad, „Zum Dock“ auf dem Mac, „Installieren“ in Edge/Chrome, `app/static/pwa.js`); Service Worker mit Offline-Rückfall für Oberfläche, zuletzt geöffnete PDFs und Listen (`sw.js`, `sw-policy.js`); Änderungen ohne Netz scheitern mit Code `offline`. Hochschul-Abgleich durch den Dienst nur mit ausdrücklicher Zustimmung je Konto (`PUT /api/credentials` mit `consent: true`). Wochentests mit der StudiNow-KI, Probe und Stripe. | Gebaut und mit pytest (inkl. echtem Chromium-Lauf in `tests/test_pwa.py`) und JS-Tests geprüft. **Nie in Safari auf einem iPad oder Mac geprüft.** Notizen ohne Netz werden zwischengespeichert und nachgesendet (`notes-queue.js`, Chromium-Lauf mit Konflikt grün). |
+| **StudiNow-Dienst** (`deploy/`) | Docker-Image, Caddy mit HTTPS, Backups, Löschfristen; Konto (G1), Abgleich (G2), Community (G4), Billing, Jobs für Hochschul-Abgleich und Wochentests; eine SQLite-Datenbank je Konto. | Code und Hosting-Paket fertig, lokal in Docker geprüft. **Nie auf einem Server in Betrieb.** Server, Domain, Mail-Anbieter, Stripe-Konto und Rechtstexte muss der Inhaber beschaffen (`docs/release/BETRIEB.md`). |
 | **Android** (`apps/android`) | Client für den Dienst oder den PC im WLAN: Übersicht, Dokumente mit Stift, Stundenplan, Lernkalender, Offline-Stand, Abgleich G2. | 119 Tests im Docker-Bild, nie auf einem Gerät. Zweite Version (V2). |
 
 ## 3. Einrichtung (eigener PC)
@@ -119,7 +119,7 @@ Server, Hintergrundläufe durch iOS (im Simulator nicht möglich).
 | `app/server.py` | FastAPI-Backend (`/api/...`), Einzelplatz und gehosteter Modus (`LERNAPP_MODE=hosted`) |
 | `app/studip_sync.py`, `app/learnweb.py`, `app/lsf.py`, `app/cas.py`, `app/qis.py` | Hochschulen: Stud.IP, Learnweb, LSF, CAS-Login, QIS-Noten |
 | `app/study.py`, `app/timetable.py`, `app/weekly.py`, `app/testshare.py` | Einordnung und Lernplan, Stundenplan, Wochentests mit Seitenmarker, gemeinsamer Testschlüssel |
-| `app/ai.py`, `app/chatgpt_login.py`, `app/ai_backend.py` | KI über `claude -p`, Sign in with ChatGPT, Studora-KI mit Kostenkontrolle |
+| `app/ai.py`, `app/chatgpt_login.py`, `app/ai_backend.py` | KI über `claude -p`, Sign in with ChatGPT, StudiNow-KI mit Kostenkontrolle |
 | `app/accounts.py`, `app/account_api.py`, `app/sync.py`, `app/sync_client.py`, `app/community*.py` | Konto (G1), Geräte-Abgleich (G2) Dienst- und Client-Seite, Community (G4) |
 | `app/plans.py`, `app/entitlements.py`, `app/billing*.py`, `app/stripe_billing.py`, `app/apple_store.py` | Tarife, Rechte, Probe, Stripe, Apple-Belege |
 | `app/jobs.py`, `app/vault.py`, `app/mail.py`, `app/retention.py` | Dienst: Job-Warteschlange, verschlüsselter Tresor für Uni-Zugangsdaten, Mail, Löschfristen |

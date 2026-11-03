@@ -311,12 +311,12 @@ public enum BackgroundNotice {
     /// Nach einem Hintergrundlauf, der einen gemeinsamen Wochentest veroeffentlicht hat (`WeeklyAutoTick`, `changed`):
     /// ohne Fach, Woche oder Inhalt
     public static let weeklyTest = Content(title: "Neuer Wochentest verfügbar",
-                                           body: "Ein gemeinsamer Wochentest wurde erzeugt und veröffentlicht. Öffne Studora, um ihn zu bearbeiten.")
+                                           body: "Ein gemeinsamer Wochentest wurde erzeugt und veröffentlicht. Öffne StudiNow, um ihn zu bearbeiten.")
 
     /// Geplante Bitte um eine neue Anmeldung (`LoginReminder`), die Sitzung kann noch gueltig sein
     public static func loginReminder(_ source: String) -> Content {
         Content(title: "Bitte \(at(source)) neu anmelden",
-                body: "Deine letzte Anmeldung liegt mehr als 6 Stunden zurück. Öffne Studora und melde dich neu an, damit der Abgleich weiterläuft.")
+                body: "Deine letzte Anmeldung liegt mehr als 6 Stunden zurück. Öffne StudiNow und melde dich neu an, damit der Abgleich weiterläuft.")
     }
 
     /// "bei Stud.IP", "bei Learnweb", "beim LSF"
@@ -328,7 +328,7 @@ public enum BackgroundNotice {
         let names = sources.map(at)
         let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " und " + names[names.count - 1]
         return Content(title: "Bitte \(list) anmelden",
-                       body: "Die Anmeldung ist abgelaufen. Öffne Studora und melde dich neu an, dann geht der Abgleich weiter. Im Hintergrund meldet sich Studora nie selbst an.")
+                       body: "Die Anmeldung ist abgelaufen. Öffne StudiNow und melde dich neu an, dann geht der Abgleich weiter. Im Hintergrund meldet sich StudiNow nie selbst an.")
     }
 }
 

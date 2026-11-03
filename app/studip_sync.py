@@ -800,7 +800,7 @@ def run_sync(show_browser: bool = False) -> dict:
     else:
         res = run_studip_sync(show_browser=show_browser)
     if not config.is_hosted():
-        # Windows-App mit Studora-Konto: neue PDFs dem Dienst melden, damit ihre Loesungen sichtbar werden
+        # Windows-App mit StudiNow-Konto: neue PDFs dem Dienst melden, damit ihre Loesungen sichtbar werden
         from . import service_link
         service_link.claim_quietly()
     return res

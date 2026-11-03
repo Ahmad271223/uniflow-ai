@@ -296,7 +296,7 @@
   },
   "plan_required": {
    "status": 403,
-   "message": "Diese Funktion gibt es ab Studora Plus."
+   "message": "Diese Funktion gibt es ab StudiNow Plus."
   },
   "provider_not_configured": {
    "status": 501,
@@ -502,7 +502,7 @@
    }
   },
   {
-   "step": "Bezahlfunktion ohne Tarif (Studora Free)",
+   "step": "Bezahlfunktion ohne Tarif (StudiNow Free)",
    "method": "PUT",
    "path": "/api/files/f1/annotations",
    "auth": true,
@@ -512,7 +512,7 @@
    },
    "status": 403,
    "response": {
-    "detail": "Diese Funktion gibt es ab Studora Plus.",
+    "detail": "Diese Funktion gibt es ab StudiNow Plus.",
     "code": "plan_required",
     "entitlement": "can_annotate_pdf",
     "required_plan": "plus"

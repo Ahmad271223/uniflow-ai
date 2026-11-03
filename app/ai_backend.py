@@ -1,11 +1,11 @@
-"""Studora-KI ueber das eigene Backend (Pro AI, KI-Tests ab Plus) mit Kostenkontrolle.
+"""StudiNow-KI ueber das eigene Backend (Pro AI, KI-Tests ab Plus) mit Kostenkontrolle.
 
-Die App ruft nie selbst einen KI-Anbieter mit einem Studora-Schluessel auf: alle Anfragen laufen ueber den Dienst.
+Die App ruft nie selbst einen KI-Anbieter mit einem StudiNow-Schluessel auf: alle Anfragen laufen ueber den Dienst.
 Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt nur auf dem Server.
 
     LERNAPP_AI_PROVIDER        openai | none (Standard: openai, wenn ein Schluessel gesetzt ist, sonst none)
-    LERNAPP_OPENAI_API_KEY     Schluessel des Studora-Kontos bei OpenAI (nie in der App, nie im Repo)
-    LERNAPP_AI_MODEL           Modell fuer alle Studora-KI-Anfragen (Pflicht, wenn der Anbieter aktiv ist)
+    LERNAPP_OPENAI_API_KEY     Schluessel des StudiNow-Kontos bei OpenAI (nie in der App, nie im Repo)
+    LERNAPP_AI_MODEL           Modell fuer alle StudiNow-KI-Anfragen (Pflicht, wenn der Anbieter aktiv ist)
     LERNAPP_AI_PRICE_IN_EUR    Preis je 1 Mio. Eingabe-Tokens in EUR (fuer die Kostenprotokollierung)
     LERNAPP_AI_PRICE_OUT_EUR   Preis je 1 Mio. Ausgabe-Tokens in EUR
     LERNAPP_AI_BUDGET_EUR      Gesamtbudget je Monat fuer alle Konten (Standard 50); erreicht -> Sperre
@@ -133,7 +133,7 @@ def cost_microeur(input_tokens: int, output_tokens: int) -> int:
 # ---------------------------------------------------------------- Anbieter
 
 class OpenAIProvider:
-    """Responses API von OpenAI mit dem Studora-Schluessel des Servers (urllib, keine Zusatzpakete)."""
+    """Responses API von OpenAI mit dem StudiNow-Schluessel des Servers (urllib, keine Zusatzpakete)."""
     URL = "https://api.openai.com/v1/responses"
 
     def __init__(self, api_key: str, model_name: str, timeout: int = 120):
@@ -160,7 +160,7 @@ class OpenAIProvider:
 
 class ChatGPTProvider(OpenAIProvider):
     """Responses API mit dem ChatGPT-Abo des Nutzers (Sign in with ChatGPT, app/chatgpt_login.py): das Zugriffstoken
-    kommt je Anfrage aus der Ablage dieses Rechners (erneuert sich selbst), nie ein Studora-Schluessel. 401 heisst
+    kommt je Anfrage aus der Ablage dieses Rechners (erneuert sich selbst), nie ein StudiNow-Schluessel. 401 heisst
     "neu anmelden", 402/403/429 "Kontingent aufgebraucht oder Nutzung in Apps nicht freigegeben" (Nutzung verwalten
     in ChatGPT)."""
 
@@ -218,9 +218,9 @@ def provider():
     if name == "openai":
         key = os.environ.get("LERNAPP_OPENAI_API_KEY") or ""
         if not key or not model():
-            raise AIUnavailable("ai_not_configured", "Die Studora-KI ist auf dem Server noch nicht eingerichtet.")
+            raise AIUnavailable("ai_not_configured", "Die StudiNow-KI ist auf dem Server noch nicht eingerichtet.")
         return OpenAIProvider(key, model())
-    raise AIUnavailable("ai_not_configured", "Die Studora-KI ist auf dem Server noch nicht eingerichtet.")
+    raise AIUnavailable("ai_not_configured", "Die StudiNow-KI ist auf dem Server noch nicht eingerichtet.")
 
 
 def available() -> bool:
@@ -283,9 +283,9 @@ def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: da
                             (period, trial)).fetchone()[0]
         if trial:
             if pool + RESERVE_MICROEUR > trial_budget_microeur():
-                raise AIUnavailable("ai_trial_budget_exhausted", "Das Probe-Kontingent der Studora-KI ist für diesen Monat ausgeschöpft.", 429)
+                raise AIUnavailable("ai_trial_budget_exhausted", "Das Probe-Kontingent der StudiNow-KI ist für diesen Monat ausgeschöpft.", 429)
         elif pool + RESERVE_MICROEUR > budget_microeur():
-            raise AIUnavailable("ai_budget_exhausted", "Das KI-Budget von Studora für diesen Monat ist ausgeschöpft.", 503)
+            raise AIUnavailable("ai_budget_exhausted", "Das KI-Budget von StudiNow für diesen Monat ist ausgeschöpft.", 503)
         if user_id:
             mine = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND user_id=? AND state<>'failed'",
                                 (period, user_id)).fetchone()[0]
@@ -322,11 +322,11 @@ def month_report(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
 
 def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
              cache: bool = False, now: datetime | None = None) -> Completion:
-    """Eine Studora-KI-Anfrage mit Budget, Rate-Limit, Protokoll und optionalem Cache."""
+    """Eine StudiNow-KI-Anfrage mit Budget, Rate-Limit, Protokoll und optionalem Cache."""
     p = provider()                                   # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
     if config.is_hosted() and not prices_set():
         # ohne Token-Preise rechnet kein Budget (Kosten blieben 0): im Dienst lieber sperren als unbegrenzt ausgeben
-        raise AIUnavailable("ai_not_configured_prices", "Die Studora-KI ist noch nicht freigeschaltet: Die Token-Preise "
+        raise AIUnavailable("ai_not_configured_prices", "Die StudiNow-KI ist noch nicht freigeschaltet: Die Token-Preise "
                             "(LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR) fehlen auf dem Server.", 503)
     conn = connect()
     try:

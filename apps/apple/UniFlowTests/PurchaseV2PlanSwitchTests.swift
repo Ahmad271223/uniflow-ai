@@ -3,7 +3,7 @@ import StoreKitTest
 import XCTest
 @testable import UniFlow
 
-/// Wechsel zwischen den Abo-Tarifen als Logik (ab V2, wenn die Pro-Tarife mit dem Studora-Dienst kommen). V1 bietet
+/// Wechsel zwischen den Abo-Tarifen als Logik (ab V2, wenn die Pro-Tarife mit dem StudiNow-Dienst kommen). V1 bietet
 /// sie nicht an (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 28.10.2026); darum laeuft diese Klasse mit der
 /// eigenen Testkonfiguration `UniFlowAlleTarife.storekit` (drei Produkte in einer Gruppe, Stufe 1 = Pro AI), nicht mit
 /// der der App. Geprueft wird, was `Entitlements` und `PurchaseStore` daraus machen: Kauf je Tarif, hoechster Tarif,

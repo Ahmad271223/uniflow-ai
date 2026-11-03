@@ -1,4 +1,4 @@
-"""Geraete-Abgleich der Windows-App mit dem Studora-Konto (Vertrag G2, 28.10.2026).
+"""Geraete-Abgleich der Windows-App mit dem StudiNow-Konto (Vertrag G2, 28.10.2026).
 
 Die Windows-App behaelt ihre eigene Datenbank (Einzelplatz) und gleicht sie mit dem Konto im Dienst ab, damit Notizen,
 Module, Stundenplan-Anpassungen, Lernkalender, Karteikarten und Einstellungen auf Windows und dem iPad gleich sind.
@@ -581,7 +581,7 @@ def run(force: bool = False) -> dict:
         return {"ok": False, "error": "Im Dienst gleicht das Konto selbst ab."}
     st = service_link.load_state()
     if not service_link.linked(st):
-        return {"ok": False, "error": "Nicht mit einem Studora-Konto verbunden."}
+        return {"ok": False, "error": "Nicht mit einem StudiNow-Konto verbunden."}
     if (msg := service_link.university_mismatch(st)):
         return {"ok": False, "error": msg}
     if not _lock.acquire(blocking=False):

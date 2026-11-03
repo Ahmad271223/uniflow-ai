@@ -14,7 +14,7 @@
  "plans": {
   "free": {
    "rank": 0,
-   "name": "Studora Free",
+   "name": "StudiNow Free",
    "price_cents": 0,
    "currency": "EUR",
    "period": "month",
@@ -53,7 +53,7 @@
   },
   "plus": {
    "rank": 1,
-   "name": "Studora Plus",
+   "name": "StudiNow Plus",
    "price_cents": 199,
    "currency": "EUR",
    "period": "month",
@@ -92,7 +92,7 @@
   },
   "pro_connect": {
    "rank": 2,
-   "name": "Studora Pro Connect",
+   "name": "StudiNow Pro Connect",
    "price_cents": 299,
    "currency": "EUR",
    "period": "month",
@@ -131,12 +131,12 @@
   },
   "pro_ai": {
    "rank": 3,
-   "name": "Studora Pro AI",
+   "name": "StudiNow Pro AI",
    "price_cents": 399,
    "currency": "EUR",
    "period": "month",
    "apple_product_id": "de.uniflow.proai.monthly",
-   "tagline": "KI von Studora inklusive – kein eigenes ChatGPT-Konto nötig",
+   "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig",
    "entitlements": {
     "can_view_pdf": true,
     "can_manage_courses": true,
@@ -227,12 +227,12 @@
   },
   "can_access_shared_tests": {
    "from": "plus",
-   "label": "Tests aus der Studora-Bibliothek",
+   "label": "Tests aus der StudiNow-Bibliothek",
    "status": "available"
   },
   "can_generate_studora_ai_tests": {
    "from": "plus",
-   "label": "Neue KI-Tests von Studora",
+   "label": "Neue KI-Tests von StudiNow",
    "status": "available"
   },
   "can_use_advanced_analytics": {
@@ -288,7 +288,7 @@
  },
  "quotas": {
   "labels": {
-   "ai_tests_new": "Neue Studora-KI-Tests",
+   "ai_tests_new": "Neue StudiNow-KI-Tests",
    "library_tests": "Tests aus der Bibliothek",
    "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen"
   },
@@ -301,7 +301,7 @@
  "integrations": {
   "chatgpt": {
    "status": "disabled",
-   "reason": "Die offizielle ChatGPT-Verbindung („Sign in with ChatGPT“) ist für Studora noch nicht von OpenAI freigegeben. Bis dahin gibt es keine Verbindung.",
+   "reason": "Die offizielle ChatGPT-Verbindung („Sign in with ChatGPT“) ist für StudiNow noch nicht von OpenAI freigegeben. Bis dahin gibt es keine Verbindung.",
    "plan_gating_allowed": false
   }
  }

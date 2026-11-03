@@ -1,9 +1,9 @@
 import SwiftUI
 import UniFlowCore
 
-/// Einstellungen → Zugang & Darstellung → "Studora-Konto": dasselbe Konto wie auf Windows und im Web (Vertrag G1).
+/// Einstellungen → Zugang & Darstellung → "StudiNow-Konto": dasselbe Konto wie auf Windows und im Web (Vertrag G1).
 /// Sichtbar erst mit Dienst-Adresse (`StudoraAccountLink.available`). Das Passwort geht nur an den Dienst, gemerkt wird
-/// es nur von iOS (Passwort-AutoFill), nie von Studora.
+/// es nur von iOS (Passwort-AutoFill), nie von StudiNow.
 struct StudoraAccountCard: View {
     @ObservedObject var link: StudoraAccountLink
     @EnvironmentObject private var overlay: UFOverlay
@@ -14,7 +14,7 @@ struct StudoraAccountCard: View {
 
     var body: some View {
         UFCard {
-            UFCardHead("Studora-Konto", icon: "user") {
+            UFCardHead("StudiNow-Konto", icon: "user") {
                 UFBadge(link.user == nil ? "nicht angemeldet" : "angemeldet", tone: link.user == nil ? .neutral : .ok)
             }
             Text("Dasselbe Konto wie auf Windows und im Web. Module, Stundenplan, Lernplan, Karteikarten und Einstellungen gleichen sich zwischen deinen Geräten ab; Notizen ab Plus. Hochschuldateien lädt jedes Gerät selbst.")
@@ -66,7 +66,7 @@ struct StudoraAccountCard: View {
                 .disabled(link.busy || email.isEmpty || password.isEmpty)
                 .accessibilityIdentifier("account.login")
             }
-            Text("Noch kein Konto? Registrieren, E-Mail bestätigen und Passwort zurücksetzen auf der Webseite von Studora. „Mit Apple anmelden“ folgt, sobald die App im App Store ist.")
+            Text("Noch kein Konto? Registrieren, E-Mail bestätigen und Passwort zurücksetzen auf der Webseite von StudiNow. „Mit Apple anmelden“ folgt, sobald die App im App Store ist.")
                 .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 8)
@@ -76,7 +76,7 @@ struct StudoraAccountCard: View {
         VStack(alignment: .leading, spacing: 9.6) {
             SettingsValue(label: "Angemeldet als", value: u.email)
             if !u.emailVerified {
-                Text("E-Mail noch nicht bestätigt: bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen Studora-KI und Schreiben in der Community nicht.")
+                Text("E-Mail noch nicht bestätigt: bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen StudiNow-KI und Schreiben in der Community nicht.")
                     .ufFont(12.8).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
                 resendButton
             }
@@ -124,7 +124,7 @@ struct StudoraAccountCard: View {
                 }
                 UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) {
                     Task {
-                        guard await overlay.confirm("Studora-Konto löschen? Es wird sofort gesperrt und nach 30 Tagen endgültig gelöscht – auch auf Windows und im Web. Die Daten auf diesem iPad bleiben.") else { return }
+                        guard await overlay.confirm("StudiNow-Konto löschen? Es wird sofort gesperrt und nach 30 Tagen endgültig gelöscht – auch auf Windows und im Web. Die Daten auf diesem iPad bleiben.") else { return }
                         _ = await link.delete(password: deletePassword.isEmpty ? nil : deletePassword)
                         deletePassword = ""
                     }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://uniflow.local/contracts/api/v2/me.json",
-  "title": "GET /api/entitlements – Abo-Stand eines Kontos (Studora-Tarife, app/billing.py). Enthaelt nie Hochschul-Zugangsdaten.",
+  "title": "GET /api/entitlements – Abo-Stand eines Kontos (StudiNow-Tarife, app/billing.py). Enthaelt nie Hochschul-Zugangsdaten.",
   "type": "object",
   "required": ["plan", "plan_name", "entitlements", "quotas", "integrations", "mode"],
   "properties": {

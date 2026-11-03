@@ -1,4 +1,4 @@
-"""Studora-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
+"""StudiNow-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
 
 Auftrag des Inhabers vom 27.10.2026 (docs/ABO-SYSTEM.md): vier Tarife Free 0 EUR, Plus 1,99 EUR, Pro Connect 2,99 EUR,
 Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
@@ -20,18 +20,18 @@ from __future__ import annotations
 ORDER = ("free", "plus", "pro_connect", "pro_ai")
 
 PLANS: dict[str, dict] = {
-    "free": {"rank": 0, "name": "Studora Free", "price_cents": 0, "currency": "EUR", "period": "month",
+    "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": "month",
              "apple_product_id": None,
              "tagline": "Studium organisieren und Unterlagen lesen"},
-    "plus": {"rank": 1, "name": "Studora Plus", "price_cents": 199, "currency": "EUR", "period": "month",
+    "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 199, "currency": "EUR", "period": "month",
              "apple_product_id": "de.uniflow.plus.monthly",
              "tagline": "Mit Stift auf deinen Unterlagen schreiben"},
-    "pro_connect": {"rank": 2, "name": "Studora Pro Connect", "price_cents": 299, "currency": "EUR", "period": "month",
+    "pro_connect": {"rank": 2, "name": "StudiNow Pro Connect", "price_cents": 299, "currency": "EUR", "period": "month",
                     "apple_product_id": "de.uniflow.proconnect.monthly",
                     "tagline": "Lernstatistiken, intelligente Planung und Wiederholung"},
-    "pro_ai": {"rank": 3, "name": "Studora Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
+    "pro_ai": {"rank": 3, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
                "apple_product_id": "de.uniflow.proai.monthly",
-               "tagline": "KI von Studora inklusive – kein eigenes ChatGPT-Konto nötig"},
+               "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},
 }
 
 # Recht -> niedrigster Tarif, der es hat (Tarife sind aufsteigend enthalten), dazu Text und Stand der Umsetzung
@@ -49,8 +49,8 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_sync_annotations": {"from": "plus", "label": "Notizen auf allen Geräten", "status": "available"},
     "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "available"},
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
-    "can_access_shared_tests": {"from": "plus", "label": "Tests aus der Studora-Bibliothek", "status": "available"},
-    "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von Studora", "status": "available"},
+    "can_access_shared_tests": {"from": "plus", "label": "Tests aus der StudiNow-Bibliothek", "status": "available"},
+    "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von StudiNow", "status": "available"},
     # Pro Connect
     "can_use_advanced_analytics": {"from": "pro_connect", "label": "Erweiterte Lernstatistiken", "status": "available"},
     "can_use_advanced_planner": {"from": "pro_connect", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
@@ -58,7 +58,7 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_use_extended_test_history": {"from": "pro_connect", "label": "Erweiterte Testhistorie", "status": "available"},
     "can_get_recommendations": {"from": "pro_connect", "label": "Personalisierte Lernempfehlungen", "status": "available"},
     "chatgpt_connection_premium": {"from": "pro_connect", "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)", "status": "disabled"},
-    # Pro AI (Studora-KI ueber das Backend)
+    # Pro AI (StudiNow-KI ueber das Backend)
     "can_use_ai_explanations": {"from": "pro_ai", "label": "KI-Erklärungen zu Aufgaben", "status": "available"},
     "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
     "can_use_ai_summaries": {"from": "pro_ai", "label": "KI-Zusammenfassungen", "status": "available"},
@@ -78,14 +78,14 @@ QUOTAS: dict[str, dict[str, int | None]] = {
 # Grenze fuer "unbegrenzt" (Schutz vor automatisierten Abrufen), je Monat
 FAIR_USE: dict[str, int] = {"library_tests": 300, "ai_tests_new": 40, "ai_assist": 150}
 
-QUOTA_LABELS = {"ai_tests_new": "Neue Studora-KI-Tests", "library_tests": "Tests aus der Bibliothek",
+QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Tests aus der Bibliothek",
                 "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen"}
 
 # Integrationen, die nicht am Tarif haengen duerfen, bis die Bedingungen des Anbieters es erlauben
 INTEGRATIONS: dict[str, dict] = {
     "chatgpt": {
         "status": "disabled",          # disabled | enabled; enabled erst nach Partnerfreigabe durch OpenAI
-        "reason": "Die offizielle ChatGPT-Verbindung („Sign in with ChatGPT“) ist für Studora noch nicht von OpenAI "
+        "reason": "Die offizielle ChatGPT-Verbindung („Sign in with ChatGPT“) ist für StudiNow noch nicht von OpenAI "
                   "freigegeben. Bis dahin gibt es keine Verbindung.",
         # Laut den "Sign in with ChatGPT Terms" muss die Nutzung des eigenen ChatGPT-Abos ohne Zahlung an den Partner
         # und ohne bezahlten Partner-Tarif moeglich sein. Deshalb wird die Kontingentnutzung nie an Pro Connect gekoppelt.

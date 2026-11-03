@@ -221,7 +221,7 @@ Nachkommastellen wie im Editor, Größe der Datei `*.uniflowsolution`):
 
 Höchste Abweichung eines Punktes: 0,050 Punkt (≈ 0,018 mm).
 
-**Alte App-Stände** (nur Version 1) melden bei einem neuen Paket „Diese Lösung hat Formatversion 2 – bitte Studora
+**Alte App-Stände** (nur Version 1) melden bei einem neuen Paket „Diese Lösung hat Formatversion 2 – bitte StudiNow
 aktualisieren.“ (`unsupportedVersion`, im Browser derselbe Text) – kein Absturz, nichts wird gespeichert. Ein
 älterer Dienst lehnt das Hochladen mit `unsupported_version` ab; der neue Dienst nimmt beide Versionen an.
 
@@ -359,7 +359,7 @@ bzw. die Seite „Du hast zu dieser PDF schon eine Lösung geteilt. Aktualisiere
 
 Gleiches Paketformat, gleiche Krypto und derselbe Dienst wie auf dem iPad; ein Konto für beide.
 
-- **Konto:** `app/service_link.py`. Die Windows-App meldet sich mit E-Mail und Studora-Passwort am Dienst an
+- **Konto:** `app/service_link.py`. Die Windows-App meldet sich mit E-Mail und StudiNow-Passwort am Dienst an
   (`POST /api/studora/login`, Adresse aus `LERNAPP_SERVICE_URL` oder eingegeben, nur https bzw. 127.0.0.1). Auf dem
   PC liegt nur das Sitzungs-Token (`service-account.json` im Datenordner), nie ein Passwort. Abgelaufenes Token
   (401) wird vergessen. Konto einer anderen Hochschule: 409 `university_mismatch`.

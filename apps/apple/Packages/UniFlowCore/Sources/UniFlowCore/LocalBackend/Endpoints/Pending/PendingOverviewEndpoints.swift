@@ -11,7 +11,7 @@ enum PendingOverviewEndpoints: LocalEndpointModule {
 
         // Abgleich mit Stud.IP laeuft auf dem iPad direkt (StudIPSync), nicht ueber diesen Pfad
         router.post("/api/sync", placeholder: true) { _, _ in
-            throw LocalHTTPError(status: 409, message: "Auf diesem iPad gleicht Studora Stud.IP direkt ab.")
+            throw LocalHTTPError(status: 409, message: "Auf diesem iPad gleicht StudiNow Stud.IP direkt ab.")
         }
     }
 }

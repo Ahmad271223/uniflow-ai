@@ -91,12 +91,12 @@ Windows: Windows-Anmeldeinformationen bzw. verschlüsselt im App-Ordner), nie be
 ## 3a. Gebaut am 27.10.2026: Sign in with ChatGPT auf dem eigenen PC (Phase 1)
 
 `app/chatgpt_login.py` setzt den Ablauf für den Einzelplatz (PC mit `serve.py`, Windows-App) um; im gehosteten
-Dienst bleibt er aus, bis OpenAI Studora freigibt (`chatgpt_state` liefert dort weiter `available: false`, der
+Dienst bleibt er aus, bis OpenAI StudiNow freigibt (`chatgpt_state` liefert dort weiter `available: false`, der
 Dienst antwortet 503 `chatgpt_not_available`).
 
 - **Anmeldung:** Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“. UniFlow bindet einen
   freien Port auf 127.0.0.1, öffnet die Autorisierung bei `auth.openai.com` im Standardbrowser (Windows-App: in einem Fenster der App) (beim ersten Mal mit
-  `client_id=dynamic_agent_client` und `agent_name_hint=Studora`; die dabei ausgestellte `oaiapp_…`-ID wird gespeichert,
+  `client_id=dynamic_agent_client` und `agent_name_hint=StudiNow`; die dabei ausgestellte `oaiapp_…`-ID wird gespeichert,
   bevor der Code getauscht wird, und bei jeder weiteren Anmeldung wiederverwendet), Scope
   `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, PKCE S256, `state` und `nonce` je
   Versuch, `ext_agent_host_id` als feste Rechnerkennung.
@@ -177,7 +177,7 @@ Projekte sind ohne Antrag zugelassen. Damit lässt sich Phase 1 testen, ohne das
 
 ## 7. Entscheidungen des Inhabers
 
-**Nachtrag 27.10.2026:** Mit dem Abosystem (`docs/ABO-SYSTEM.md`) wünscht der Inhaber die ChatGPT-Verbindung als Premiumfunktion ab Pro Connect. Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ muss die Nutzung des eigenen ChatGPT-Abos aber ohne Zahlung an den Partner möglich sein. Deshalb ist die Regel nur eine Anzeige-Regel (`chatgpt_connection_premium`), die Integration bleibt aus (`plan_gating_allowed = False`), bis OpenAI die Kopplung für Studora schriftlich bestätigt. Diese Frage gehört in den Antrag (Abschnitt 6).
+**Nachtrag 27.10.2026:** Mit dem Abosystem (`docs/ABO-SYSTEM.md`) wünscht der Inhaber die ChatGPT-Verbindung als Premiumfunktion ab Pro Connect. Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ muss die Nutzung des eigenen ChatGPT-Abos aber ohne Zahlung an den Partner möglich sein. Deshalb ist die Regel nur eine Anzeige-Regel (`chatgpt_connection_premium`), die Integration bleibt aus (`plan_gating_allowed = False`), bis OpenAI die Kopplung für StudiNow schriftlich bestätigt. Diese Frage gehört in den Antrag (Abschnitt 6).
 
 | Thema | Vorschlag |
 |---|---|
@@ -211,7 +211,7 @@ Modell-Liste. **Eine vorab vergebene Client-ID ist nicht nötig**; Abschnitt 4 P
 
 **Heute nachgezogen** (Python, Vertrag `shared-contracts/ai/contract.json`, Swift-Kern):
 
-| Punkt | Devkit | Studora |
+| Punkt | Devkit | StudiNow |
 |---|---|---|
 | Anmeldung mit bekanntem Konto | `login_hint=<E-Mail>`; kein Token in der Browser-Adresse (der Browser-Start legt sie als Prozessargument offen) | `build_auth_url(login_hint=…)` statt `id_token_hint` |
 | Freigabe nachholen | `prompt=consent` | `start(reconsent=True)`, Knopf „Freigabe nachholen“ wenn `sharing` falsch |
@@ -220,13 +220,13 @@ Modell-Liste. **Eine vorab vergebene Client-ID ist nicht nötig**; Abschnitt 4 P
 | Erneuerung | `earliest_refresh_at` aus der Token-Antwort, vorher `refresh_not_ready` | Feld in den Zugangsdaten; `chatgpt_refresh_not_ready` (503), solange das alte Token noch gilt, wird es benutzt |
 | Nutzung verwalten | `https://chatgpt.com/settings/usage` | `USAGE_HELP_URL`, Swift `ChatGPTConstants.usageHelpURL` |
 
-Nicht übernommen: mehrere gespeicherte Profile je Installation (Devkit `listProfiles`/`selectProfile`). Studora ist je
+Nicht übernommen: mehrere gespeicherte Profile je Installation (Devkit `listProfiles`/`selectProfile`). StudiNow ist je
 Rechner bzw. je Apple-Nutzer ein Konto; „Anderes Konto verbinden“ deckt den Wechsel ab.
 
 **Zulassung laut Cookbook (Stand 30.10.):** Die Nutzung des ChatGPT-Abos ist zum Start für **Open-Source-Projekte und
 lokal laufende persönliche Projekte** ohne Antrag verfügbar; **bezahlte oder gehostete Apps** sollen sich auf die
 Warteliste setzen. **Entscheidung des Inhabers am 31.10.2026: Das Repo wird privat** (kein Open Source, keine
-Lizenzdatei). Damit gilt für Studora eindeutig der Weg über die Warteliste für bezahlte und gehostete Apps:
+Lizenzdatei). Damit gilt für StudiNow eindeutig der Weg über die Warteliste für bezahlte und gehostete Apps:
 - Eigener PC / Windows / iPad lokal: technisch frei, Nutzung des Abos nie an einen Tarif gekoppelt
   (`plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"] = False`). Der Inhaber nutzt die Verbindung bis zur Antwort
   von OpenAI nur selbst (persönliches, lokal laufendes Projekt); für andere Nutzer braucht es die Freigabe.

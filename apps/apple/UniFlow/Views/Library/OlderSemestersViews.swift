@@ -87,7 +87,7 @@ struct OlderSemestersQuestion: View {
     @Environment(\.ufClose) private var close
 
     static func text(current: String, courses: Int) -> String {
-        "Studora hat die Dateien deines aktuellen Semesters\(current.isEmpty ? "" : " (\(current))") geladen. "
+        "StudiNow hat die Dateien deines aktuellen Semesters\(current.isEmpty ? "" : " (\(current))") geladen. "
             + "Dazu gibt es \(courses) \(courses == 1 ? "Kurs" : "Kurse") aus früheren Semestern. "
             + "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs."
     }
@@ -136,8 +136,8 @@ struct LibrarySemestersSection: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Frühere Semester").ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
                 Text(overview["choice"]?.string == "all"
-                     ? "Studora lädt die Dateien früherer Semester mit. Einzelne Kurse kannst du hier erneut laden."
-                     : "Studora lädt nur Dateien des aktuellen Semesters. Frühere Semester kannst du hier je Semester oder je Kurs laden.")
+                     ? "StudiNow lädt die Dateien früherer Semester mit. Einzelne Kurse kannst du hier erneut laden."
+                     : "StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester kannst du hier je Semester oder je Kurs laden.")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 ForEach(semesters.indices, id: \.self) { i in semester(semesters[i]) }
             }

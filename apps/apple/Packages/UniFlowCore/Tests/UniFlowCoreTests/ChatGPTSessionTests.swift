@@ -104,7 +104,7 @@ final class ChatGPTSessionTests: XCTestCase {
         let attempt = try await connect(s, fake)
         let q = query(attempt.url)
         XCTAssertEqual(q["client_id"], "dynamic_agent_client")
-        XCTAssertEqual(q["agent_name_hint"], "Studora")
+        XCTAssertEqual(q["agent_name_hint"], "StudiNow")
         XCTAssertEqual(q["code_challenge"], ChatGPTProtocol.challenge(for: attempt.verifier))
         XCTAssertEqual(q["scope"], ChatGPTConstants.scope)
         let f = form(await fake.last(ChatGPTConstants.tokenURL))
@@ -144,7 +144,7 @@ final class ChatGPTSessionTests: XCTestCase {
         let fresh = try await s.beginLogin(redirectURI: "r", newAccount: true)
         let q2 = query(fresh.url)
         XCTAssertEqual(q2["client_id"], "dynamic_agent_client")
-        XCTAssertEqual(q2["agent_name_hint"], "Studora")
+        XCTAssertEqual(q2["agent_name_hint"], "StudiNow")
         XCTAssertNil(q2["login_hint"])
         XCTAssertNil(fresh.clientID)
         let saved = try XCTUnwrap(store.load())
@@ -495,7 +495,7 @@ final class ChatGPTSessionTests: XCTestCase {
 }
 #endif
 
-/// Kein Modell waehlen muessen (2.11.2026): Studora nimmt das Hauptmodell des Abos
+/// Kein Modell waehlen muessen (2.11.2026): StudiNow nimmt das Hauptmodell des Abos
 final class ChatGPTPreferredModelTests: XCTestCase {
     func testPicksTheMainChatModel() {
         XCTAssertEqual(ChatGPTSession.preferredModel(["babbage-002", "gpt-4o-mini", "gpt-5", "gpt-5-2025-08-07", "gpt-4.1", "o3", "gpt-image-1",

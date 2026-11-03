@@ -1,4 +1,4 @@
-"""Studora als App im Browser (app/static/sw.js, sw-policy.js, pwa.js): Auslieferung des Workers, gehosteter Modus,
+"""StudiNow als App im Browser (app/static/sw.js, sw-policy.js, pwa.js): Auslieferung des Workers, gehosteter Modus,
 und ein echter Browserlauf mit Playwright: Seite laden, Netz abschalten, neu laden, Oberflaeche und Startseite kommen
 aus der Ablage, eine Aenderung ohne Netz scheitert mit Code `offline`. Ohne Chromium wird der Browserlauf uebersprungen."""
 import re
@@ -120,7 +120,7 @@ def test_offline_reload_comes_from_the_worker(served):
 
 
 def test_first_visit_shows_no_update_notice(served):
-    """Beim allerersten Aufruf gibt es keinen vorherigen Worker: "Studora wurde aktualisiert" darf nicht erscheinen
+    """Beim allerersten Aufruf gibt es keinen vorherigen Worker: "StudiNow wurde aktualisiert" darf nicht erscheinen
     (app/static/sw-update.js; der echte Update-Fall ist mit Attrappen in tests/js/sw-update.test.mjs geprueft)."""
     try:
         from playwright.sync_api import sync_playwright

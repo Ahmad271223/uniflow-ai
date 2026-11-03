@@ -2,7 +2,7 @@ import XCTest
 import UniFlowCore
 @testable import UniFlow
 
-/// Probe des Studora-Kontos (docs/ABO-SYSTEM.md 3a): Texte wie im Web, die Probe hebt den Tarif nur solange sie laeuft
+/// Probe des StudiNow-Kontos (docs/ABO-SYSTEM.md 3a): Texte wie im Web, die Probe hebt den Tarif nur solange sie laeuft
 @MainActor
 final class TrialAppTests: XCTestCase {
     func testTexts() {
@@ -45,7 +45,7 @@ final class DeviceSyncAppTests: XCTestCase {
         r.planRequired = true
         XCTAssertEqual(StudoraAccountCard.syncText(r), "Abgeglichen: 3 geholt, 1 gesendet, 2 warten auf ihre Datei. Notizen bleiben im Tarif Free auf diesem Gerät")
         r.ok = false
-        r.error = "Der Studora-Dienst ist nicht erreichbar."
-        XCTAssertEqual(StudoraAccountCard.syncText(r), "Der Studora-Dienst ist nicht erreichbar.")
+        r.error = "Der StudiNow-Dienst ist nicht erreichbar."
+        XCTAssertEqual(StudoraAccountCard.syncText(r), "Der StudiNow-Dienst ist nicht erreichbar.")
     }
 }

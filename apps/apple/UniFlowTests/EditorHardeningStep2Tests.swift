@@ -269,7 +269,7 @@ final class EditorHardeningStep2Tests: XCTestCase {
         XCTAssertFalse(store.isWritable)
         XCTAssertEqual(store.viewOnlyLabel, "Neueres Notizformat – nur ansehen")
         XCTAssertEqual(store.notice, DocumentStore.newerFormatNotice)
-        XCTAssertTrue(store.notice?.contains("Studora") ?? false)
+        XCTAssertTrue(store.notice?.contains("StudiNow") ?? false)
         let journalBefore = journalFiles(fx)
         var d = PKDrawing()
         d.strokes.append(stroke(0))
@@ -317,7 +317,7 @@ final class EditorHardeningStep2Tests: XCTestCase {
         while store.newerFormatVersion == nil, now() < end { try await Task.sleep(nanoseconds: 50_000_000) }
         XCTAssertEqual(store.newerFormatVersion, 3, "Store weiss es")
         XCTAssertFalse(store.isWritable)
-        XCTAssertTrue(store.notice?.contains("neueren Version von Studora") ?? false, store.notice ?? "")
+        XCTAssertTrue(store.notice?.contains("neueren Version von StudiNow") ?? false, store.notice ?? "")
         let current = try await stored(fx)
         XCTAssertEqual(current.version, afterOther.version, "nicht ueber Version 3 gespeichert")
         XCTAssertEqual(current.text, afterOther.text)

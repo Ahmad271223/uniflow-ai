@@ -1,4 +1,4 @@
-"""Pruefung der Studora-KI-Fragen vor dem Pool (app/test_library.check): auch Antwortmoeglichkeiten und Erklaerung
+"""Pruefung der StudiNow-KI-Fragen vor dem Pool (app/test_library.check): auch Antwortmoeglichkeiten und Erklaerung
 duerfen keine Links oder Personenangaben enthalten."""
 import pytest
 

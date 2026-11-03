@@ -976,7 +976,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertTrue(LibraryPage.isOlderCourse("c-alt", older: overview))
         XCTAssertFalse(LibraryPage.isOlderCourse("c1", older: overview))
         XCTAssertEqual(OlderSemestersQuestion.text(current: "WiSe 2026/27", courses: 1),
-                       "Studora hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.")
+                       "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.")
 
         // beim Zeigen gilt "Nur aktuelles Semester" (wie der Host es tut): danach nie wieder gefragt, auch nach Abgleichen
         _ = try await dev.api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "current"])

@@ -3,7 +3,7 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-/// Swift-Tabelle der Studora-Tarife (Plans.swift) gegen den gemeinsamen Vertrag
+/// Swift-Tabelle der StudiNow-Tarife (Plans.swift) gegen den gemeinsamen Vertrag
 /// packages/shared-contracts/fixtures/plans/plans.json (aus app/plans.py, tools/gen-plans-fixture.py): Namen, Preise,
 /// Produkte, Rechte je Tarif und Stand. Dazu die Regel des Inhabers vom 27.10.2026: als enthalten zeigt das iPad nur,
 /// was im Vertrag `available` ist und auf dem Geraet wirklich geht; alles, was den Dienst braucht, steht unter
@@ -91,17 +91,17 @@ final class PlanContractTests: XCTestCase {
 
     /// StoreKit-Konfigurationen: `UniFlow.storekit` (App, V1) hat genau die kaufbaren Abo-Tarife; die Testkonfiguration
     /// `UniFlowAlleTarife.storekit` (Wechsel-Logik, ab V2) alle Abo-Tarife des Vertrags in einer Gruppe, Stufen nach
-    /// Rang (Stufe 1 = hoechster Tarif). Je 1 Woche gratis, monatlich, Gruppe "Studora", Namen wie im Vertrag.
+    /// Rang (Stufe 1 = hoechster Tarif). Je 1 Woche gratis, monatlich, Gruppe "StudiNow", Namen wie im Vertrag.
     func testStoreKitConfigurationsMatchContract() throws {
         let v1 = UFPlanCatalog.sellable.filter { $0.productID != nil }
-        XCTAssertEqual(v1, [.plus], "V1 verkauft nur Studora Plus (Entscheidung 28.10.2026)")
+        XCTAssertEqual(v1, [.plus], "V1 verkauft nur StudiNow Plus (Entscheidung 28.10.2026)")
         XCTAssertEqual(PurchaseStore.productIDs, v1.compactMap(\.productID))
         for (file, plans) in [("UniFlow", v1), ("UniFlowAlleTarife", UFPlan.paid)] {
             let url = ContainerTestBed.repoURL("apps/apple/UniFlowTests/\(file).storekit")
             let sk = try JSONValue.parse(String(contentsOf: url, encoding: .utf8))
             let groups = try XCTUnwrap(sk["subscriptionGroups"]?.array, file)
             XCTAssertEqual(groups.count, 1, "eine Abo-Gruppe, damit Apple Upgrade, Downgrade und Doppel-Abos regelt: \(file)")
-            XCTAssertEqual(groups.first?["name"]?.string, "Studora", file)
+            XCTAssertEqual(groups.first?["name"]?.string, "StudiNow", file)
             XCTAssertEqual(sk["products"]?.array?.count, 0, file)
             let subs = try XCTUnwrap(groups.first?["subscriptions"]?.array, file)
             XCTAssertEqual(subs.compactMap { $0["productID"]?.string }, plans.compactMap(\.productID), file)
@@ -122,13 +122,13 @@ final class PlanContractTests: XCTestCase {
         }
     }
 
-    /// Was V1 anbietet (Entscheidung des Inhabers vom 28.10.2026): Studora Free und Plus. Pro Connect und Pro AI
+    /// Was V1 anbietet (Entscheidung des Inhabers vom 28.10.2026): StudiNow Free und Plus. Pro Connect und Pro AI
     /// erscheinen nur als Satz ohne Preis; ein laufender Tarif, der nicht angeboten wird, behaelt seine Karte.
     func testV1SellsOnlyFreeAndPlus() {
         XCTAssertEqual(UFPlanCatalog.sellable, [.free, .plus])
         XCTAssertEqual(UFPlanCatalog.sellableProductIDs, ["de.uniflow.plus.monthly"])
         XCTAssertEqual(UFPlanCatalog.upcoming, [.proConnect, .proAI])
-        XCTAssertEqual(UFPlanCatalog.upcomingNote, "Pro-Tarife folgen mit dem Studora-Dienst.")
+        XCTAssertEqual(UFPlanCatalog.upcomingNote, "Pro-Tarife folgen mit dem StudiNow-Dienst.")
         XCTAssertNil(UFPlanCatalog.upcomingNote.range(of: #"\d|€"#, options: .regularExpression), "kein Preis im Hinweis")
         XCTAssertEqual(UFPlanCatalog.cards(current: .free), [.free, .plus])
         XCTAssertEqual(UFPlanCatalog.cards(current: .plus), [.free, .plus])
@@ -168,7 +168,7 @@ final class PlanContractTests: XCTestCase {
                 XCTAssertFalse(e.availableOnDevice, e.rawValue)
             }
         }
-        // Dienst-Funktionen laut Auftrag: Studora-KI, gemeinsame Testbibliothek, Lernstatistik/Empfehlungen,
+        // Dienst-Funktionen laut Auftrag: StudiNow-KI, gemeinsame Testbibliothek, Lernstatistik/Empfehlungen,
         // Geraete-Abgleich, ChatGPT
         let service: [UFEntitlement] = [.canUseAIExplanations, .canUseAISummaries, .canUseAIGeneratedQuestions,
                                         .canUseAIRecommendations, .canGenerateStudoraAITests, .canAccessSharedTests,
@@ -211,8 +211,8 @@ final class PlanContractTests: XCTestCase {
 
         XCTAssertEqual(UFPlanCard.preparing(.free), [])
         XCTAssertEqual(UFPlanCard.preparing(.plus).map(\.title),
-                       ["Notizen auf allen Geräten", "Community-Kommentare schreiben", "Tests aus der Studora-Bibliothek",
-                        "Neue KI-Tests von Studora"])
+                       ["Notizen auf allen Geräten", "Community-Kommentare schreiben", "Tests aus der StudiNow-Bibliothek",
+                        "Neue KI-Tests von StudiNow"])
         XCTAssertEqual(UFPlanCard.preparing(.proConnect).map(\.title),
                        ["Erweiterte Lernstatistiken", "Intelligente Lernplanung (Empfehlungen für die Woche)",
                         "Automatische Wiederholung falscher Antworten", "Erweiterte Testhistorie",
@@ -249,15 +249,15 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.sameScope(as: .proConnect), .plus)
         XCTAssertEqual(UFPlanCard.sameScope(as: .proAI), .plus)
         XCTAssertNil(UFPlanCard.note(.free))
-        let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von Studora und folgt mit einem Update."
+        let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von StudiNow und folgt mit einem Update."
         XCTAssertEqual(UFPlanCard.note(.plus), base)
-        XCTAssertEqual(UFPlanCard.note(.proConnect), base + " Bis dahin bietet Studora Pro Connect denselben Umfang wie Studora Plus.")
-        XCTAssertEqual(UFPlanCard.note(.proAI), base + " Bis dahin bietet Studora Pro AI denselben Umfang wie Studora Plus.")
+        XCTAssertEqual(UFPlanCard.note(.proConnect), base + " Bis dahin bietet StudiNow Pro Connect denselben Umfang wie StudiNow Plus.")
+        XCTAssertEqual(UFPlanCard.note(.proAI), base + " Bis dahin bietet StudiNow Pro AI denselben Umfang wie StudiNow Plus.")
         XCTAssertEqual(UFPlanCard.intro(.free), "Alles für den Uni-Alltag:")
-        XCTAssertEqual(UFPlanCard.intro(.plus), "Alles aus Studora Free, dazu:")
-        XCTAssertEqual(UFPlanCard.intro(.proConnect), "Alles aus Studora Plus.")
-        XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus Studora Pro Connect.")
-        // Kurzbeschreibung nur, wenn sie stimmt ("KI von Studora inklusive" waere heute ein Versprechen)
+        XCTAssertEqual(UFPlanCard.intro(.plus), "Alles aus StudiNow Free, dazu:")
+        XCTAssertEqual(UFPlanCard.intro(.proConnect), "Alles aus StudiNow Plus.")
+        XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus StudiNow Pro Connect.")
+        // Kurzbeschreibung nur, wenn sie stimmt ("KI von StudiNow inklusive" waere heute ein Versprechen)
         XCTAssertEqual(UFPlanCard.tagline(.free), UFPlan.free.tagline)
         XCTAssertEqual(UFPlanCard.tagline(.plus), UFPlan.plus.tagline)
         XCTAssertNil(UFPlanCard.tagline(.proConnect))
@@ -267,7 +267,7 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(PlanPickerView.subtitle(trial: nil).contains("gratis"))
         XCTAssertEqual(PlanPickerView.title(.onboarding), "Tarif wählen")
         XCTAssertEqual(PlanPickerView.title(.settings), "Tarif wechseln")
-        XCTAssertEqual(PlanPickerView.title(.upgrade(.plus)), "Mehr mit Studora Plus")
+        XCTAssertEqual(PlanPickerView.title(.upgrade(.plus)), "Mehr mit StudiNow Plus")
         XCTAssertEqual(PlanPickerView.title(.upgrade(nil)), "Tarif wechseln")
         // VoiceOver liest Zusatz und Marke mit
         XCTAssertEqual(PlanPickerView.accessibilityLabel(UFPlanCardRow(title: "Uni & Noten", detail: "Notenspiegel", icon: "check")),

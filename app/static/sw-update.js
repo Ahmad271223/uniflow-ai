@@ -1,4 +1,4 @@
-// Hinweis "Studora wurde aktualisiert" nur bei einem echten Update: Ein Service Worker, der schon aktiv war (oder die
+// Hinweis "StudiNow wurde aktualisiert" nur bei einem echten Update: Ein Service Worker, der schon aktiv war (oder die
 // Seite schon steuert), wird durch einen neuen ersetzt. Beim allerersten Aufruf gibt es noch keinen Vorgaenger - dann
 // wird der Worker zwar auch installiert und aktiviert (clients.claim), aber nichts "aktualisiert". Ohne Browser-Importe,
 // damit tests/js/sw-update.test.mjs es mit Attrappen pruefen kann.

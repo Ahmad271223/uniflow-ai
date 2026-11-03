@@ -1,4 +1,4 @@
-# Start-Checkliste: den Studora-Dienst in Betrieb nehmen (30.10.2026)
+# Start-Checkliste: den StudiNow-Dienst in Betrieb nehmen (30.10.2026)
 
 Für den Inhaber. Schritt für Schritt vom leeren Server bis zum laufenden Dienst mit Konten, HTTPS, Mail und Backups
 (`docs/PLAN-WEB-ZUERST-2026-10-30.md`, Stufe A). Du brauchst keine Programmierkenntnisse, nur ein Terminal (Windows:
@@ -17,10 +17,10 @@ Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; 
 
 | Was | Entscheidung / Quelle |
 |---|---|
-| Name und Domain | „Studora“ steht in der App; Domain muss dazu passen und frei sein (Plan, Abschnitt 4.4). Prüfen, ob der Name als Marke frei ist. |
+| Name und Domain | „StudiNow“ steht in der App; Domain muss dazu passen und frei sein (Plan, Abschnitt 4.4). Prüfen, ob der Name als Marke frei ist. |
 | Dienst darf Uni-Passwörter halten? | Entschieden 30.10.: **ja**, mit Zustimmung je Nutzer in der Oberfläche (ist gebaut). Deshalb gehört Chromium ins Image (Abschnitt 14). |
 | Bezahlen zum Start? | Entschieden 30.10.: **erst Free** mit 7 Tagen Probe; Stripe ist gebaut und wird eingeschaltet, sobald du die Schlüssel einträgst. |
-| KI im Dienst? | Entschieden 30.10.: Studora-KI über deinen OpenAI-Schlüssel (Pro AI). Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
+| KI im Dienst? | Entschieden 30.10.: StudiNow-KI über deinen OpenAI-Schlüssel (Pro AI). Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
 | Passwort-Manager | Für Dienst-Geheimnis, Server-Zugang, Stripe/OpenAI-Schlüssel. Nichts davon in Notizen oder Chats. |
 
 ---
@@ -65,14 +65,14 @@ Du bekommst eine **IPv4-Adresse** (und meist eine IPv6-Adresse). Beide notieren.
 
 ## 2. Domain und DNS
 
-1. Domain registrieren (z. B. `studora.de`); der Dienst läuft auf einer Unterdomain, z. B. `app.studora.de`.
+1. Domain registrieren (z. B. `studinow.app`); der Dienst läuft auf einer Unterdomain, z. B. `app.studinow.app`.
 2. Beim Domain-Anbieter zwei Einträge anlegen:
    - **A**-Eintrag: `app` → IPv4 des Servers
    - **AAAA**-Eintrag: `app` → IPv6 des Servers (nur, wenn der Server eine hat)
 3. Prüfen (dauert nach dem Eintragen 5 Minuten bis einige Stunden):
 
 ```bash
-dig +short app.studora.de         # muss die Server-IP liefern
+dig +short app.studinow.app         # muss die Server-IP liefern
 ```
 
 **Erst weitermachen, wenn das stimmt.** Caddy holt beim ersten Start ein Zertifikat von Let's Encrypt; zeigt der Name
@@ -143,10 +143,10 @@ Die Datei ist in der Reihenfolge aufgebaut, in der du die Werte brauchst. Alles,
 
 | Variable | Wert | Woher |
 |---|---|---|
-| `UNIFLOW_DOMAIN` | `app.studora.de` | deine Unterdomain aus Abschnitt 2 |
+| `UNIFLOW_DOMAIN` | `app.studinow.app` | deine Unterdomain aus Abschnitt 2 |
 | `UNIFLOW_ACME_EMAIL` | deine E-Mail | für Warnungen von Let's Encrypt; ohne Wert startet Caddy nicht |
-| `LERNAPP_PUBLIC_URL` | `https://app.studora.de` | dieselbe Domain mit `https://`, ohne Schrägstrich am Ende (Links in Mails, Rückkehr nach dem Stripe-Checkout) |
-| `LERNAPP_ALLOWED_HOSTS` | `app.studora.de` | dieselbe Domain (docker compose setzt sie ohnehin aus `UNIFLOW_DOMAIN`) |
+| `LERNAPP_PUBLIC_URL` | `https://app.studinow.app` | dieselbe Domain mit `https://`, ohne Schrägstrich am Ende (Links in Mails, Rückkehr nach dem Stripe-Checkout) |
+| `LERNAPP_ALLOWED_HOSTS` | `app.studinow.app` | dieselbe Domain (docker compose setzt sie ohnehin aus `UNIFLOW_DOMAIN`) |
 | `LERNAPP_SECRET_KEY` | Ausgabe von `openssl rand -base64 32` | verschlüsselt die Hochschul-Zugangsdaten aller Konten. **Nie verlieren, nie ändern, nie ins Backup.** |
 
 `LERNAPP_MODE=hosted`, `LERNAPP_FILES=stream`, `LERNAPP_HTTPS=1`, `LERNAPP_DATA_DIR`, `LERNAPP_LOG_DIR` stehen schon
@@ -157,7 +157,7 @@ richtig in der Vorlage – nicht ändern.
 Ohne Mail können Nutzer ihre Adresse nicht bestätigen und kein Passwort zurücksetzen. Anbieter mit SMTP, zum Beispiel
 **Resend** (bis 3.000 Mails/Monat kostenlos), Brevo, Postmark oder Mailgun:
 
-1. Konto beim Anbieter anlegen, Domain `studora.de` dort hinzufügen.
+1. Konto beim Anbieter anlegen, Domain `studinow.app` dort hinzufügen.
 2. Der Anbieter zeigt DNS-Einträge (SPF, DKIM, meist 2–3 TXT/CNAME) – beim Domain-Anbieter eintragen, dann beim
    Mail-Anbieter „Verify“ drücken.
 3. SMTP-Zugangsdaten erzeugen (bei Resend: API-Schlüssel; Nutzer ist `resend`, Passwort der Schlüssel).
@@ -168,7 +168,7 @@ Ohne Mail können Nutzer ihre Adresse nicht bestätigen und kein Passwort zurüc
 | `LERNAPP_SMTP_HOST` | vom Anbieter, z. B. `smtp.resend.com` |
 | `LERNAPP_SMTP_PORT` | `587` (oder `465`, wenn der Anbieter nur das anbietet) |
 | `LERNAPP_SMTP_USER` / `LERNAPP_SMTP_PASSWORD` | vom Anbieter |
-| `LERNAPP_MAIL_FROM` | `Studora <no-reply@studora.de>` (Domain muss beim Anbieter verifiziert sein) |
+| `LERNAPP_MAIL_FROM` | `StudiNow <no-reply@studinow.app>` (Domain muss beim Anbieter verifiziert sein) |
 | `LERNAPP_MAIL` | leer lassen (= `smtp`, sobald der Host gesetzt ist) |
 
 Der Mail-Anbieter kommt in die Datenschutzerklärung (Abschnitt 11) und braucht einen AVV (Abschnitt 13).
@@ -177,10 +177,10 @@ Der Mail-Anbieter kommt in die Datenschutzerklärung (Abschnitt 11) und braucht 
 
 Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 
-1. **Produkte**: drei Produkte mit je einem monatlichen Preis anlegen: Studora Plus 1,99 €, Studora Pro Connect 2,99 €,
-   Studora Pro AI 3,99 €. Jede Preis-ID beginnt mit `price_`.
+1. **Produkte**: drei Produkte mit je einem monatlichen Preis anlegen: StudiNow Plus 1,99 €, StudiNow Pro Connect 2,99 €,
+   StudiNow Pro AI 3,99 €. Jede Preis-ID beginnt mit `price_`.
 2. **Entwickler → API-Schlüssel**: geheimer Schlüssel (`sk_test_…`, später `sk_live_…`).
-3. **Entwickler → Webhooks → Endpunkt hinzufügen**: Adresse `https://app.studora.de/api/billing/stripe/webhook`,
+3. **Entwickler → Webhooks → Endpunkt hinzufügen**: Adresse `https://app.studinow.app/api/billing/stripe/webhook`,
    Ereignisse `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
    `customer.subscription.deleted`. Das Signaturgeheimnis beginnt mit `whsec_`.
 4. **Einstellungen → Kundenportal** einschalten (Kündigung, Wechsel, Rechnungen).
@@ -194,7 +194,7 @@ Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 Erst mit Test-Schlüsseln und Stripe-Testkarte (4242 4242 4242 4242) einen Abschluss durchspielen, dann Live-Schlüssel
 und Live-Preise eintragen und den Webhook im Live-Modus noch einmal anlegen (eigenes `whsec_`).
 
-### 5.4 OpenAI für die Studora-KI (optional, jederzeit nachtragbar)
+### 5.4 OpenAI für die StudiNow-KI (optional, jederzeit nachtragbar)
 
 Auf platform.openai.com: Konto mit Zahlungsmittel, **API keys → Create new secret key**, dort auch ein monatliches
 Ausgabenlimit setzen.
@@ -205,7 +205,7 @@ Ausgabenlimit setzen.
 | `LERNAPP_AI_MODEL` | z. B. `gpt-5-mini` (günstig) oder `gpt-5` |
 | `LERNAPP_AI_PRICE_IN_EUR` / `LERNAPP_AI_PRICE_OUT_EUR` | **Pflicht:** Preise je 1 Mio. Tokens aus der OpenAI-Preisliste, in Euro umgerechnet. Bei 0 oder leer sperrt der Dienst alle KI-Aufrufe (503 `ai_not_configured_prices`), weil die Budgets sonst nichts zählen |
 | `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_USER_BUDGET_EUR` | Monatsgrenze gesamt (Standard 50) und je Konto (Standard 2); erreicht = Sperre bis zum nächsten Monat |
-| `LERNAPP_AI_TRIAL_BUDGET_EUR` | Eigenes Monatsbudget für alle Probekonten zusammen (Standard 5), zusätzlich zum Gesamtbudget: die Probe verbraucht nie das Budget zahlender Konten. Studora-KI gibt es nur mit bestätigter E-Mail-Adresse (403 `email_unverified`) |
+| `LERNAPP_AI_TRIAL_BUDGET_EUR` | Eigenes Monatsbudget für alle Probekonten zusammen (Standard 5), zusätzlich zum Gesamtbudget: die Probe verbraucht nie das Budget zahlender Konten. StudiNow-KI gibt es nur mit bestätigter E-Mail-Adresse (403 `email_unverified`) |
 
 ### 5.5 Registrierungen je IP (Hochschulnetz)
 
@@ -248,10 +248,10 @@ Sagt `docker compose config` „UNIFLOW_DOMAIN ist leer“ oder „UNIFLOW_ACME_
 
 | Aufruf | Erwartung |
 |---|---|
-| `http://app.studora.de` | leitet auf `https://…/login` um, Schloss-Symbol im Browser |
-| `https://app.studora.de/login` | Anmeldeseite |
-| `https://app.studora.de/datenschutz`, `/impressum`, `/nutzungsbedingungen`, `/konto-loeschen` | die Rechtstexte (noch mit Platzhaltern, Abschnitt 13) |
-| `https://app.studora.de/api/account/info` | eine Zeile JSON mit `"hosted":true` |
+| `http://app.studinow.app` | leitet auf `https://…/login` um, Schloss-Symbol im Browser |
+| `https://app.studinow.app/login` | Anmeldeseite |
+| `https://app.studinow.app/datenschutz`, `/impressum`, `/nutzungsbedingungen`, `/konto-loeschen` | die Rechtstexte (noch mit Platzhaltern, Abschnitt 13) |
+| `https://app.studinow.app/api/account/info` | eine Zeile JSON mit `"hosted":true` |
 
 Dann **registrieren** mit deiner eigenen E-Mail: Bestätigungsmail kommt an (sonst Abschnitt 12), Link klicken,
 anmelden. In den Einstellungen die Hochschule wählen, Zustimmung zum Abgleich geben, Zugangsdaten eintragen, „Jetzt
@@ -280,7 +280,7 @@ Weitere Befehle, die du später brauchst:
 
 ```bash
 docker compose exec app python -m app.accounts plan <mail> pro_ai 2027-03-31   # Tarif von Hand (z. B. Tester), bis Datum
-docker compose exec app python -m app.accounts reset-token <mail>              # Notfall-Reset-Link ohne Mail: https://app.studora.de/login?reset=<TOKEN>
+docker compose exec app python -m app.accounts reset-token <mail>              # Notfall-Reset-Link ohne Mail: https://app.studinow.app/login?reset=<TOKEN>
 docker compose exec app python -m app.retention --dry-run                      # zeigt, was die Löschfristen löschen würden
 ```
 
@@ -368,7 +368,7 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
 | Symptom | Ursache und Maßnahme |
 |---|---|
 | `docker compose config` bricht ab: „UNIFLOW_DOMAIN ist leer“ / „UNIFLOW_ACME_EMAIL fehlt“ | `.env` fehlt in `deploy/` oder Zeile leer. Ausfüllen, erneut. |
-| Browser: „Verbindung nicht sicher“, Caddy-Log „obtaining certificate … failed“ | DNS zeigt noch nicht auf den Server (`dig +short app.studora.de`), oder Port 80/443 zu (`ufw status`, Hoster-Firewall). Beheben, `docker compose restart caddy`. Nach 5 Fehlversuchen wartet Let's Encrypt eine Stunde. |
+| Browser: „Verbindung nicht sicher“, Caddy-Log „obtaining certificate … failed“ | DNS zeigt noch nicht auf den Server (`dig +short app.studinow.app`), oder Port 80/443 zu (`ufw status`, Hoster-Firewall). Beheben, `docker compose restart caddy`. Nach 5 Fehlversuchen wartet Let's Encrypt eine Stunde. |
 | `docker compose ps`: app bleibt „unhealthy“ / startet neu | `docker compose logs app`. Häufig: `LERNAPP_SECRET_KEY muss 32 Byte …` (Wert falsch kopiert; neu erzeugen, solange noch keine Zugangsdaten gespeichert sind). |
 | `docker compose ps`: jobs „unhealthy“ oder „restarting“ | `docker compose logs jobs`. Der Healthcheck prüft nur das Lebenszeichen `/logs/jobs.heartbeat` (muss jünger als 2 Minuten sein). Steht dort „ein Thread ist beendet“ oder ein Traceback: `docker compose restart jobs`; derselbe Fehler wie bei app, wenn `LERNAPP_SECRET_KEY` falsch ist. Läuft `jobs` nicht, bleiben Abgleiche „wartet (Platz …)“ und die Löschfristen laufen nicht. |
 | Registrierung meldet „Zu viele Versuche“ (429), obwohl nur wenige Leute registrieren | Viele Geräte hinter einer Adresse (eduroam, Hörsaal). `LERNAPP_LIMIT_REGISTER_IP` in `.env` erhöhen (Abschnitt 5.5), `docker compose up -d`. Der Zähler läuft nach einer Stunde von selbst ab. |
@@ -398,9 +398,9 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
    Entscheidung vom 30.10. verlangt eine parallele Anfrage an die Hochschulen (`docs/ANFRAGE-STUDIP-ZUGANG.md` als
    Entwurf für die LUH, `elearning@uni-hannover.de`; für Hildesheim das Rechenzentrum). Bis zur Antwort: Abgleich
    vorsichtig lassen (`LERNAPP_UNI_PARALLEL=2`, `LERNAPP_UNI_GAP_S=15` sind die Standardwerte).
-4. **Monitoring von außen**: kostenloser Uptime-Check (UptimeRobot o. ä.) auf `https://app.studora.de/login`,
+4. **Monitoring von außen**: kostenloser Uptime-Check (UptimeRobot o. ä.) auf `https://app.studinow.app/login`,
    alle 5 Minuten, Benachrichtigung per Mail oder Push.
-5. **Stripe live schalten** (Abschnitt 5.3) und **Markenprüfung „Studora“** vor den Store-Einträgen.
+5. **Stripe live schalten** (Abschnitt 5.3) und **Markenprüfung „StudiNow“** vor den Store-Einträgen.
 6. **Backup-Ziel außer Haus** einrichten (Abschnitt 9).
 
 ---

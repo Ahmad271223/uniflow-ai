@@ -136,7 +136,7 @@ final class AIContractTests: XCTestCase {
                        ("agent_name", ChatGPTConstants.agentName), ("callback_path", ChatGPTConstants.callbackPath)] {
             XCTAssertEqual(v, s(cg, k), k)
         }
-        XCTAssertEqual(ChatGPTConstants.agentName, "Studora", "sichtbarer Name auf der Zustimmungsseite")
+        XCTAssertEqual(ChatGPTConstants.agentName, "StudiNow", "sichtbarer Name auf der Zustimmungsseite")
         for a in list(cg, "authorize") {
             func opt(_ k: String) -> String? { if case .string(let v)? = g(a, k) { return v }; return nil }
             let url = ChatGPTProtocol.authorizeURL(clientID: opt("client_id"), host: s(a, "host"), redirectURI: s(a, "redirect_uri"),

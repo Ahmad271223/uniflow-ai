@@ -1,9 +1,9 @@
-"""Windows-App (Einzelplatz) mit dem Studora-Konto im Dienst verbinden (28.10.2026).
+"""Windows-App (Einzelplatz) mit dem StudiNow-Konto im Dienst verbinden (28.10.2026).
 
 Ein Konto fuer Windows und Apple: Die Windows-App laeuft weiter am eigenen PC (Hochschul-Abgleich, Dateien, Notizen
 bleiben lokal), meldet sich fuer die Community aber am gehosteten Dienst an. Ablauf:
 
-- Anmelden: E-Mail und Studora-Passwort gehen einmal ueber das lokale Backend an `{dienst}/api/account/login`. Das
+- Anmelden: E-Mail und StudiNow-Passwort gehen einmal ueber das lokale Backend an `{dienst}/api/account/login`. Das
   Passwort wird nie gespeichert; im Datenordner liegt nur das Sitzungs-Token (`service-account.json`), das der Dienst
   jederzeit widerrufen kann (Abmelden, "Ueberall abmelden", Konto loeschen). Das Hochschul-Passwort hat damit nichts
   zu tun und verlaesst den PC nie.
@@ -32,7 +32,7 @@ from pathlib import Path
 from . import config, db
 
 STATE_FILE = "service-account.json"
-DEVICE_NAME = "Studora für Windows"
+DEVICE_NAME = "StudiNow für Windows"
 TIMEOUT = 30
 UPLOAD_TIMEOUT = 180
 MAX_BODY = 80 << 20                    # groesser als das groesste Paket des Dienstes (community.MAX_PACKAGE_BYTES)
@@ -82,7 +82,7 @@ def normalize_url(url: str | None) -> str:
     """https://dienst.example oder http://127.0.0.1:8000 (nur eigener Rechner); ohne Schraegstrich am Ende."""
     u = (url or "").strip().rstrip("/")
     if not u:
-        raise LinkError("service_url_missing", "Bitte die Adresse des Studora-Dienstes angeben.")
+        raise LinkError("service_url_missing", "Bitte die Adresse des StudiNow-Dienstes angeben.")
     p = urllib.parse.urlsplit(u)
     local = (p.hostname or "") in ("127.0.0.1", "localhost", "::1")
     if p.scheme not in ("https", "http") or not p.hostname or (p.scheme == "http" and not local):
@@ -121,8 +121,8 @@ def call(method: str, path: str, body: bytes | None = None, *, query: str = "", 
     st = load_state() if st is None else st
     base = url or service_url(st)
     if not base:
-        raise LinkError("not_linked", "Die App ist mit keinem Studora-Konto verbunden.", 409)
-    headers = {"Accept": "application/json", "User-Agent": f"{DEVICE_NAME} (Studora)"}
+        raise LinkError("not_linked", "Die App ist mit keinem StudiNow-Konto verbunden.", 409)
+    headers = {"Accept": "application/json", "User-Agent": f"{DEVICE_NAME} (StudiNow)"}
     if body is not None:
         headers["Content-Type"] = content_type or "application/json"
     tok = token if token is not None else st.get("token")
@@ -132,7 +132,7 @@ def call(method: str, path: str, body: bytes | None = None, *, query: str = "", 
     try:
         status, hdrs, data = transport(method, full, headers, body, timeout)
     except (urllib.error.URLError, OSError, TimeoutError) as e:
-        raise LinkError("service_unreachable", f"Der Studora-Dienst ist nicht erreichbar ({getattr(e, 'reason', e)}). "
+        raise LinkError("service_unreachable", f"Der StudiNow-Dienst ist nicht erreichbar ({getattr(e, 'reason', e)}). "
                                                "Internetverbindung prüfen und später erneut versuchen.", 502)
     if len(data) > MAX_BODY:
         raise LinkError("service_response_too_large", "Antwort des Dienstes ist zu groß.", 502)
@@ -172,7 +172,7 @@ def login(url: str | None, email: str, password: str) -> dict:
                        "device_name": DEVICE_NAME}).encode()
     status, _, data = call("POST", "/api/account/login", body, st=st, url=base, token="")
     if status == 404:
-        raise LinkError("service_url_invalid", "Unter dieser Adresse läuft kein Studora-Dienst.", 400)
+        raise LinkError("service_url_invalid", "Unter dieser Adresse läuft kein StudiNow-Dienst.", 400)
     if status != 200:
         code, msg = _detail(data, "Anmeldung fehlgeschlagen.")
         raise LinkError(code, msg, status if status in (400, 401, 403, 423, 429) else 502)
@@ -195,7 +195,7 @@ def university_mismatch(st: dict) -> str | None:
     u = st.get("user") or {}
     mine = config.university()
     if u.get("university") and mine and u["university"] != mine:
-        return (f"Dein Studora-Konto gehört zur Hochschule „{u['university']}“, diese App ist für „{mine}“ eingerichtet. "
+        return (f"Dein StudiNow-Konto gehört zur Hochschule „{u['university']}“, diese App ist für „{mine}“ eingerichtet. "
                 "Lösungen gibt es nur innerhalb derselben Hochschule.")
     return None
 
@@ -293,7 +293,7 @@ def local_fingerprints(limit: int = MAX_CLAIMS) -> list[str]:
 def claim_local_files() -> dict:
     st = load_state()
     if not linked(st):
-        raise LinkError("not_linked", "Die App ist mit keinem Studora-Konto verbunden.", 409)
+        raise LinkError("not_linked", "Die App ist mit keinem StudiNow-Konto verbunden.", 409)
     if (msg := university_mismatch(st)):
         raise LinkError("university_mismatch", msg, 409)
     fps = local_fingerprints()
@@ -327,8 +327,8 @@ def proxy(method: str, subpath: str, query: str, body: bytes | None, content_typ
         raise LinkError("too_large", "Die Lösung ist zu groß.", 413)
     st = load_state()
     if not linked(st):
-        raise LinkError("not_linked", "Für die Community melde dich unter Einstellungen → Studora-Konto mit deinem "
-                                      "Studora-Konto an (dasselbe Konto wie auf dem iPad).", 409)
+        raise LinkError("not_linked", "Für die Community melde dich unter Einstellungen → StudiNow-Konto mit deinem "
+                                      "StudiNow-Konto an (dasselbe Konto wie auf dem iPad).", 409)
     if (msg := university_mismatch(st)):
         raise LinkError("university_mismatch", msg, 409)
     upload = method in ("POST", "PUT", "PATCH") and body is not None and len(body) > 1 << 20

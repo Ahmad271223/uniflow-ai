@@ -546,7 +546,7 @@ def test_weekly_ask_uses_the_studora_ai_in_the_service(hosted, monkeypatch):
     try:
         assert weekly._ask("Frage", "SYS") == "ANTWORT"
         assert calls == [(u["id"], "weekly_test", "SYS", "Frage")]
-        monkeypatch.setattr(ai_backend, "complete", lambda *a, **k: (_ for _ in ()).throw(ai_backend.AIUnavailable("ai_not_configured", "Studora-KI ist nicht eingerichtet.", 503)))
+        monkeypatch.setattr(ai_backend, "complete", lambda *a, **k: (_ for _ in ()).throw(ai_backend.AIUnavailable("ai_not_configured", "StudiNow-KI ist nicht eingerichtet.", 503)))
         with pytest.raises(weekly.WeeklyError) as e:
             weekly._ask("Frage", "SYS")
         assert "nicht eingerichtet" in str(e.value)

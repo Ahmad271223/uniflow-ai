@@ -1,4 +1,4 @@
-# Studora-Abosystem: vier Tarife, Berechtigungen, KI-Testbibliothek (Stand 27.10.2026)
+# StudiNow-Abosystem: vier Tarife, Berechtigungen, KI-Testbibliothek (Stand 27.10.2026)
 
 Auftrag des Inhabers vom 27.10.2026. Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
@@ -8,10 +8,10 @@ Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ 
 
 | Tarif | Preis/Monat | Neue KI-Tests | Bibliothekstests | KI-Erklärungen u. a. | PDF bearbeiten |
 |---|---:|---:|---:|---:|:---:|
-| Studora Free | 0,00 € | 0 | 0 | 0 | nein |
-| Studora Plus | 1,99 € | 3 | 4 | 0 | ja |
-| Studora Pro Connect | 2,99 € | 3 | unbegrenzt (Fair Use 300) | 0 | ja |
-| Studora Pro AI | 3,99 € | 40 | unbegrenzt (Fair Use 300) | 150 | ja |
+| StudiNow Free | 0,00 € | 0 | 0 | 0 | nein |
+| StudiNow Plus | 1,99 € | 3 | 4 | 0 | ja |
+| StudiNow Pro Connect | 2,99 € | 3 | unbegrenzt (Fair Use 300) | 0 | ja |
+| StudiNow Pro AI | 3,99 € | 40 | unbegrenzt (Fair Use 300) | 150 | ja |
 
 Jeder Tarif enthält alle Rechte des niedrigeren. **Quelle aller Werte: `app/plans.py`.** Daraus erzeugt
 `tools/gen-plans-fixture.py` die Datei `packages/shared-contracts/fixtures/plans/plans.json`; Swift und Kotlin prüfen
@@ -29,7 +29,7 @@ Apple-Produkte (eine Abo-Gruppe, damit Apple Upgrades, Downgrades und Doppel-Abo
 Ein Recht ist ein Name mit Ja/Nein je Tarif (`app/plans.py::ENTITLEMENTS`), dazu der Stand der Umsetzung:
 `available` (darf beworben werden), `coming_soon` (Community-Kommentare: die Funktion gibt es noch nicht) und
 `disabled` (ChatGPT-Verbindung, Abschnitt 4). Die Abo-Seite zeigt nur `available` als enthalten. Funktionen der
-Studora-KI erscheinen als „in Vorbereitung“, solange auf dem Server kein KI-Schlüssel eingerichtet ist.
+StudiNow-KI erscheinen als „in Vorbereitung“, solange auf dem Server kein KI-Schlüssel eingerichtet ist.
 
 Serverseitig (`app/entitlements.py`): Der Tarif kommt immer aus der Datenbank, nie aus der Anfrage. Geprüft wird an:
 
@@ -119,7 +119,7 @@ Kontingentnutzung hängt nicht daran: Laut Zusammenfassungen der „Sign in with
 sign-in-with-chatgpt-terms; die Seite selbst war für die Prüfung nicht abrufbar) müssen Nutzer ihr ChatGPT-Abo über
 die Funktion nutzen können, ohne den Partner zu bezahlen oder einen bezahlten Partner-Tarif abzuschließen; ein
 Kontingent darf nicht für andere Nutzer verwendet werden. Andere Quellen berichten von Partnern, die die Verbindung
-nur in bezahlten Tarifen anbieten. Bis OpenAI das für Studora schriftlich klärt, gilt:
+nur in bezahlten Tarifen anbieten. Bis OpenAI das für StudiNow schriftlich klärt, gilt:
 
 - `plans.INTEGRATIONS["chatgpt"]`: `status = disabled`, `plan_gating_allowed = False`.
 - `GET /api/integrations/chatgpt` → `available: false`, `connected: false`; `POST …/connect` → `503 chatgpt_not_available`.
@@ -129,7 +129,7 @@ nur in bezahlten Tarifen anbieten. Bis OpenAI das für Studora schriftlich klär
   ausdrücklicher Freigabe in die Moderation (Abschnitt 5).
 - **Eigener PC / Windows-App (seit 27.10.2026):** dort ist Sign in with ChatGPT gebaut und erlaubt (private, lokal
   laufende Nutzung braucht keinen Antrag): `app/chatgpt_login.py`, Einstellungen → Erweitert, Token nur auf dem Rechner,
-  ohne Tarif, ohne Zahlung an Studora. `chatgpt_state` liefert lokal `status: local`, `available: true`,
+  ohne Tarif, ohne Zahlung an StudiNow. `chatgpt_state` liefert lokal `status: local`, `available: true`,
   `plan_gating_allowed: false`. Details `docs/KI-CHATGPT-PLAN.md`, Abschnitt 3a.
 
 ## 5. Gemeinsame KI-Testbibliothek (`app/test_library.py`, `app/library_api.py`)
@@ -145,7 +145,7 @@ count, module?, doc_sha256?, doc_ref?, doc_version?, request_id?}`:
 3. Sonst nur die fehlenden Fragen generieren (Kontingent `ai_tests_new`), mit Sperre je Fach+Thema+Schwierigkeit:
    eine zweite gleiche Anfrage wartet und nutzt die Fragen der ersten. Fehlschlag → Kontingent zurück.
 
-Prüfstufen: `private` (nie im Pool), `pending` (eingereicht, Moderation), `auto_checked` (von der Studora-KI aus
+Prüfstufen: `private` (nie im Pool), `pending` (eingereicht, Moderation), `auto_checked` (von der StudiNow-KI aus
 Fach/Thema erzeugt, automatische Prüfung bestanden), `approved`, `rejected`. Im Pool nur `auto_checked` und
 `approved`. Freigabe eigener Tests: `POST /api/library/tests/{id}/share {confirm: true, topic}` – Bereinigung von
 E-Mail, Telefon, Matrikelnummer, Adressen und Namen nach „Name:“ vor dem Einreichen. Moderation (Admin):

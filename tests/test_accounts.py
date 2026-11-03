@@ -327,7 +327,7 @@ def test_hosted_local_only_paths_answer_501(hosted):
                  ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week")):
         st, data, _ = _json(asgi_call(hosted, m, p, headers=_auth(token), body="{}"))
         assert st == 501 and data["code"] == "not_available_hosted", (m, p, st, data)
-    # KI im Editor gibt es im Dienst ueber die Studora-KI (Pro AI); ohne Tarif (nach der Probe) 403 plan_required statt 501
+    # KI im Editor gibt es im Dienst ueber die StudiNow-KI (Pro AI); ohne Tarif (nach der Probe) 403 plan_required statt 501
     from app import billing
     conn = billing.connect()
     try:
@@ -352,7 +352,7 @@ def test_users_are_isolated_in_their_own_databases(hosted):
     from app import accounts
     a, ta, _ = _register(hosted, "a@beispiel.de", "luh")
     b, tb, _ = _register(hosted, "b@beispiel.de", "luh")
-    accounts.set_plan(accounts.user_by_email("a@beispiel.de")["id"], "plus")      # Notizen speichern ab Studora Plus
+    accounts.set_plan(accounts.user_by_email("a@beispiel.de")["id"], "plus")      # Notizen speichern ab StudiNow Plus
     marker = "Geheim-A-7f3e"
     st, mod, _ = _json(asgi_call(hosted, "POST", "/api/modules", body=json.dumps({"name": f"Modul {marker}"}), headers=_auth(ta)))
     assert st == 200, mod

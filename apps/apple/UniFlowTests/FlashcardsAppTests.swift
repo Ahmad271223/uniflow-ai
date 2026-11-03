@@ -588,10 +588,10 @@ final class FlashcardsAppTests: XCTestCase {
     func testFreeShowsTheLockCardAndLoadsNoCards() throws {
         let (api, rec, _) = try awaiting { try await self.seededAPI(cards: [("Geheime Frage", "Antwort", nil)]) }
         let page = try show(gated(.free), api: api)
-        XCTAssertTrue(pump { self.shows(page.view, "Mit Studora Plus freischalten") }, dump(page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Mit StudiNow Plus freischalten") }, dump(page.view))
         XCTAssertTrue(shows(page.view, "Karteikarten"), "Seitenkopf bleibt: \(dump(page.view))")
         XCTAssertTrue(shows(page.view, "Eigene Karteikarten mit Wiederholung"), dump(page.view))
-        XCTAssertTrue(shows(page.view, "Enthalten ab Studora Plus"), dump(page.view))
+        XCTAssertTrue(shows(page.view, "Enthalten ab StudiNow Plus"), dump(page.view))
         XCTAssertFalse(shows(page.view, "Karte anlegen"))
         XCTAssertFalse(shows(page.view, "Geheime Frage"))
         XCTAssertFalse(shows(page.view, "bald"))

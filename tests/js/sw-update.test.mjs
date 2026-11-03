@@ -1,4 +1,4 @@
-// Hinweis "Studora wurde aktualisiert" (app/static/sw-update.js): nur bei echtem Update, nie beim ersten Aufruf.
+// Hinweis "StudiNow wurde aktualisiert" (app/static/sw-update.js): nur bei echtem Update, nie beim ersten Aufruf.
 // Ausfuehren: node --test tests/js/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";

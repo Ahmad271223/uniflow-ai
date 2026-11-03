@@ -1,4 +1,4 @@
-# Studora-Dienst für 20.000 gleichzeitige Nutzer: Rechnung, Messung, Kosten, KI
+# StudiNow-Dienst für 20.000 gleichzeitige Nutzer: Rechnung, Messung, Kosten, KI
 
 Stand 02.11.2026. Gilt für den **eigenen Dienst** (Web, Windows, Konten, Community auf dem Server). Die iPad-App der
 Version 1 läuft ohne diesen Dienst: ihre Community geht über CloudKit bei Apple und skaliert mit Apple, nicht mit deinem
@@ -131,7 +131,7 @@ echte Nutzer da sind: `du -sh /data/users/* | sort -h | tail`.
 
 ## 8. KI andocken: Analyse, Lernplaner, Erklärungen
 
-**Schon gebaut** (`app/ai.py`, `app/plans.py`): Studora-KI im Dienst nur mit bestätigter E-Mail und Tarif Pro AI, Kontingente
+**Schon gebaut** (`app/ai.py`, `app/plans.py`): StudiNow-KI im Dienst nur mit bestätigter E-Mail und Tarif Pro AI, Kontingente
 je Monat (40 neue Tests, 150 Erklärungen/Lernfragen/Zusammenfassungen), Budgets (gesamt 50 €, je Konto 2 €, Probekonten
 zusammen 5 €), gesperrt ohne Token-Preise. Dateianalyse und Wochentests laufen **einmal je Inhalt** und gelten für alle
 (ca. 1 Cent je Foliensatz, `docs/KI-MODELLVERGLEICH-2026-10-25.md`).

@@ -1,4 +1,4 @@
-"""Studora-Abosystem: vier Tarife, Rechte und Kontingente serverseitig, App-Store-Pruefung, gemeinsame Testbibliothek,
+"""StudiNow-Abosystem: vier Tarife, Rechte und Kontingente serverseitig, App-Store-Pruefung, gemeinsame Testbibliothek,
 KI-Kostenkontrolle und die ehrlich ausgeschaltete ChatGPT-Verbindung (docs/ABO-SYSTEM.md, Testfaelle 1–14 des Auftrags)."""
 import base64
 import datetime as dt
@@ -63,7 +63,7 @@ def user(app, email, plan="free", uni="luh", admin=False, verified=True):
     assert st == 201, d
     # jedes neue Konto hat 7 Tage Probe (plans.TRIAL); die Tarif-Tests meinen den Stand danach
     end_trial(d["user"]["id"])
-    if verified:                       # Studora-KI gibt es nur mit bestaetigter E-Mail-Adresse (entitlements.require_verified_for_ai)
+    if verified:                       # StudiNow-KI gibt es nur mit bestaetigter E-Mail-Adresse (entitlements.require_verified_for_ai)
         d["user"] = accounts.mark_email_verified(d["user"]["id"])
     if plan != "free":
         accounts.set_plan(d["user"]["id"], plan)
@@ -97,7 +97,7 @@ def ent(app, headers):
 
 
 class FakeAI:
-    """Attrappe fuer die Studora-KI: liefert gueltige Multiple-Choice-Fragen und zaehlt die Aufrufe."""
+    """Attrappe fuer die StudiNow-KI: liefert gueltige Multiple-Choice-Fragen und zaehlt die Aufrufe."""
 
     def __init__(self, delay=0.0):
         self.calls, self.delay, self.lock = 0, delay, threading.Lock()
@@ -254,11 +254,11 @@ def test_04_pro_connect_entitlements(hosted):
     _, h_plus = user(hosted, "p@beispiel.de", plan="plus")
     _, h = user(hosted, "pc@beispiel.de", plan="pro_connect")
     e = ent(hosted, h)
-    assert e["plan"] == "pro_connect" and e["plan_name"] == "Studora Pro Connect"
+    assert e["plan"] == "pro_connect" and e["plan_name"] == "StudiNow Pro Connect"
     for name in ("can_annotate_pdf", "can_use_advanced_analytics", "can_use_advanced_planner", "can_review_wrong_answers",
                  "can_use_extended_test_history", "can_get_recommendations", "can_access_shared_tests"):
         assert e["entitlements"][name], name
-    assert not e["entitlements"]["can_use_ai_explanations"], "Studora-KI erst mit Pro AI"
+    assert not e["entitlements"]["can_use_ai_explanations"], "StudiNow-KI erst mit Pro AI"
     assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 3
     for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
         assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, path

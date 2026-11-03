@@ -21,12 +21,12 @@ enum CommunityTexts {
     /// CloudKit: Kommentare verschluesselt mit dem Schluessel der Community, Apple sieht nur Zeitpunkte
     static let commentsNoticeCloud = "Alle Mitglieder dieser Community sehen deine Kommentare unter deinem Pseudonym aus den Einstellungen. Sie sind mit dem Schlüssel der Community verschlüsselt. Tippe auf eine Seite, um eine Stelle zu kommentieren."
     static let noCommunity = "Du bist noch in keiner Community. Tritt unter „Community“ dem Modul bei, dann kannst du hier teilen."
-    static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Schlüssel deiner Kurse und die Fingerabdrücke deiner PDFs. Kurs-IDs und Beitrittscodes bleiben auf dem Gerät. Andere sehen nie deine E-Mail-Adresse. Lesen können die Lösung die Mitglieder der Community."
+    static let privacyAccount = "Der StudiNow-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Schlüssel deiner Kurse und die Fingerabdrücke deiner PDFs. Kurs-IDs und Beitrittscodes bleiben auf dem Gerät. Andere sehen nie deine E-Mail-Adresse. Lesen können die Lösung die Mitglieder der Community."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
     /// Einstellungen und Community-Seite ohne iCloud-Container: ehrlich, mit dem Weg, der bleibt
     static let unavailableHint = "Dieser Build hat keinen iCloud-Container (dafür braucht es das Apple Developer Program). Es wird nichts veröffentlicht und nichts gesucht. Lösungen teilst du weiterhin als verschlüsselte Datei – im Editor unter „Ebenen“."
     static let blockNotice = "Lösungen dieser Person erscheinen für dich nicht mehr. Die Sperrliste ist nur für dich sichtbar und lässt sich in den Einstellungen aufheben."
-    static let reportNotice = "Die Meldung geht an die Moderation von Studora. Gemeldet wird nur die Lösung, nicht deine Apple-ID. Schreib keine persönlichen Daten in den Hinweis."
+    static let reportNotice = "Die Meldung geht an die Moderation von StudiNow. Gemeldet wird nur die Lösung, nicht deine Apple-ID. Schreib keine persönlichen Daten in den Hinweis."
     /// Free: wo man schreiben wuerde, steht der Weg zu Plus (Lesen, Melden, Blockieren und Beitreten gehen ohne)
     static let pseudonymPlusHint = "Ein Pseudonym brauchst du erst zum Veröffentlichen eigener Lösungen – ab \(UFPlan.plus.name)."
     static let createGroupPlusHint = "Eigene Lerngruppen anlegen und Lösungen veröffentlichen kannst du ab \(UFPlan.plus.name). Beitreten geht in jedem Tarif."
@@ -39,7 +39,7 @@ enum CommunityTexts {
 
     @MainActor @ViewBuilder static func badge(_ service: CommunityService) -> some View {
         if service.isConnected {
-            UFBadge(service.isAccountService ? "Studora-Konto" : "CloudKit", tone: .ok)
+            UFBadge(service.isAccountService ? "StudiNow-Konto" : "CloudKit", tone: .ok)
         } else {
             UFBadge("nicht verfügbar", tone: .warn)
         }

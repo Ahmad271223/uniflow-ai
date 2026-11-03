@@ -298,7 +298,7 @@ def export(request: Request):
         raise _err(e)
     from . import account_export
     path = account_export.build(u)
-    name = f"studora-daten-{accounts.now().date().isoformat()}.zip"
+    name = f"studinow-daten-{accounts.now().date().isoformat()}.zip"
     return FileResponse(path, media_type="application/zip", filename=name,
                         background=BackgroundTask(lambda: path.unlink(missing_ok=True)))
 

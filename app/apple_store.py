@@ -187,7 +187,7 @@ def _owner(conn: sqlite3.Connection, tx: dict) -> str | None:
 
 def _check_tx(tx: dict) -> tuple[str, str]:
     if tx.get("bundleId") != bundle_id():
-        raise AppleError("wrong_app", "Der Kauf gehört nicht zu Studora.")
+        raise AppleError("wrong_app", "Der Kauf gehört nicht zu StudiNow.")
     plan = plans.plan_for_product(tx.get("productId"))
     if not plan:
         raise AppleError("unknown_product", "Unbekanntes Abo-Produkt.")
@@ -204,17 +204,17 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
     plan, otid = _check_tx(tx)
     owner = _owner(conn, tx)
     if user_id and owner and owner != user_id:
-        raise AppleError("subscription_owned_by_other_account", "Dieses Abo gehört zu einem anderen Studora-Konto.", 409)
+        raise AppleError("subscription_owned_by_other_account", "Dieses Abo gehört zu einem anderen StudiNow-Konto.", 409)
     uid = user_id or owner
     if not uid:
-        raise AppleError("unknown_account", "Zu diesem Abo gibt es kein Studora-Konto.", 404)
+        raise AppleError("unknown_account", "Zu diesem Abo gibt es kein StudiNow-Konto.", 404)
     t = billing._now(now)
     signed = int(tx.get("signedDate") or 0)
     if renewal and int(renewal.get("signedDate") or 0) > signed:
         signed = int(renewal["signedDate"])
     seen = conn.execute("SELECT user_id, last_signed_date FROM apple_transactions WHERE original_transaction_id=?", (otid,)).fetchone()
     if seen and seen[0] != uid:
-        raise AppleError("subscription_owned_by_other_account", "Dieses Abo gehört zu einem anderen Studora-Konto.", 409)
+        raise AppleError("subscription_owned_by_other_account", "Dieses Abo gehört zu einem anderen StudiNow-Konto.", 409)
     stale = bool(seen and signed and signed < seen[1])
     expires = _ms_iso(tx.get("expiresDate"))
     ntype, subtype = notification or (None, None)
@@ -255,7 +255,7 @@ def verify_purchase(conn: sqlite3.Connection, user_id: str, signed_transaction: 
     renewal = verify_jws(signed_renewal, roots) if signed_renewal else None
     tok = tx.get("appAccountToken")
     if tok and uuid.UUID(str(tok)).hex != user_id:
-        raise AppleError("subscription_owned_by_other_account", "Dieses Abo wurde mit einem anderen Studora-Konto gekauft.", 409)
+        raise AppleError("subscription_owned_by_other_account", "Dieses Abo wurde mit einem anderen StudiNow-Konto gekauft.", 409)
     ensure_schema(conn)
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -273,7 +273,7 @@ def handle_notification(conn: sqlite3.Connection, signed_payload: str, roots: li
     note = verify_jws(signed_payload, roots)
     data = note.get("data") or {}
     if data.get("bundleId") and data["bundleId"] != bundle_id():
-        raise AppleError("wrong_app", "Die Meldung gehört nicht zu Studora.")
+        raise AppleError("wrong_app", "Die Meldung gehört nicht zu StudiNow.")
     ensure_schema(conn)
     nid = str(note.get("notificationUUID") or "")
     ntype, subtype = note.get("notificationType"), note.get("subtype")

@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 import UniFlowCore
 
-/// Sitzungs-Token des Studora-Kontos im Schluesselbund dieses Geraets, je Apple-Nutzer; nie synchronisiert. Konto
+/// Sitzungs-Token des StudiNow-Kontos im Schluesselbund dieses Geraets, je Apple-Nutzer; nie synchronisiert. Konto
 /// loeschen in der App entfernt es (`ContainerManager.deleteAllData`).
 struct StudoraAccountKeychain: AccountTokenStore {
     static let service = "de.uniflow.ai.studora-account"
@@ -17,7 +17,7 @@ struct StudoraAccountKeychain: AccountTokenStore {
     static func remove(userScope: String) -> Bool { KeychainStore(service: service).remove(userScope) }
 }
 
-/// Anfragen an den Studora-Dienst (nur https)
+/// Anfragen an den StudiNow-Dienst (nur https)
 struct URLSessionServiceTransport: ServiceHTTPTransport {
     func send(_ request: AIHTTPRequest) async throws -> ServiceHTTPResponse {
         guard let url = URL(string: request.url), url.scheme == "https" else { throw URLError(.badURL) }
@@ -25,7 +25,7 @@ struct URLSessionServiceTransport: ServiceHTTPTransport {
         r.httpMethod = request.method
         r.httpBody = request.body
         for (k, v) in request.headers { r.setValue(v, forHTTPHeaderField: k) }
-        r.setValue("Studora-iPad/1.0", forHTTPHeaderField: "User-Agent")
+        r.setValue("StudiNow-iPad/1.0", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: r)
         let http = response as? HTTPURLResponse
         var headers: [String: String] = [:]
@@ -39,7 +39,7 @@ extension Notification.Name {
     static let uniflowAccountSynced = Notification.Name("uniflow.accountSynced")
 }
 
-/// Studora-Konto auf dem iPad (V1, Entscheidung des Inhabers vom 29.10.2026; Plan ENTSCHEIDUNGEN-INHABER-2026-10-29 §3):
+/// StudiNow-Konto auf dem iPad (V1, Entscheidung des Inhabers vom 29.10.2026; Plan ENTSCHEIDUNGEN-INHABER-2026-10-29 §3):
 /// anmelden mit E-Mail (wer sich auf Windows registriert hat) und spaeter mit Apple, angemeldete Geraete, Datenexport,
 /// Konto loeschen. Noch ohne Abgleich der Notizen (Stufe 2). Sichtbar erst mit Dienst-Adresse (`StudoraServiceURL`).
 @MainActor
@@ -50,7 +50,7 @@ final class StudoraAccountLink: ObservableObject {
     }
     nonisolated static var available: Bool { serviceURL != nil }
 
-    /// Feste Kennung dieses Geraets fuer die Geraeteliste (nicht die Werbe-ID, nur fuer Studora)
+    /// Feste Kennung dieses Geraets fuer die Geraeteliste (nicht die Werbe-ID, nur fuer StudiNow)
     static var deviceID: String {
         let key = "uniflow.account.deviceID"
         if let id = UserDefaults.standard.string(forKey: key) { return id }
@@ -219,7 +219,7 @@ final class StudoraAccountLink: ObservableObject {
         var out: URL?
         await run { a in
             let data = try await a.export()
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("studora-export.zip")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("studinow-export.zip")
             try data.write(to: url, options: [.atomic, .completeFileProtection])
             out = url
         }

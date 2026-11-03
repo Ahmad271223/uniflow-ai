@@ -237,14 +237,14 @@ def pseudonym(user_id: str) -> str:
 
 
 def plan_ok(user: dict) -> bool:
-    """Darf Loesungen teilen (Recht can_share_solutions, ab Studora Plus). Lesen duerfen alle Konten (Free)."""
+    """Darf Loesungen teilen (Recht can_share_solutions, ab StudiNow Plus). Lesen duerfen alle Konten (Free)."""
     from . import entitlements
     return entitlements.has(user, "can_share_solutions")
 
 
 def require_plan(user: dict) -> None:
     if not plan_ok(user):
-        raise CommunityError("plan_required", "Eigene Lösungen teilen gibt es ab Studora Plus.", 403)
+        raise CommunityError("plan_required", "Eigene Lösungen teilen gibt es ab StudiNow Plus.", 403)
 
 
 def owns_file(fingerprint: str, user_id: str | None = None) -> bool:
@@ -348,14 +348,14 @@ def validate_package(pkg) -> dict:
     def bad(what: str):
         raise CommunityError("package_invalid", f"Die Lösung ist beschädigt (Kopf: {what}).")
     if not isinstance(pkg, dict) or pkg.get("format") != FORMAT:
-        raise CommunityError("not_a_solution", "Die Datei ist keine Studora-Lösung.")
+        raise CommunityError("not_a_solution", "Die Datei ist keine StudiNow-Lösung.")
     if set(pkg) != TOP_KEYS:
         bad("Felder")
     v = pkg.get("formatVersion")
     if not isinstance(v, int) or isinstance(v, bool):
         bad("Formatversion")
     if v not in FORMAT_VERSIONS:
-        raise CommunityError("unsupported_version", f"Diese Lösung hat Formatversion {v} – bitte Studora aktualisieren.")
+        raise CommunityError("unsupported_version", f"Diese Lösung hat Formatversion {v} – bitte StudiNow aktualisieren.")
     h = pkg.get("header")
     if not isinstance(h, dict) or set(h) != HEADER_KEYS:
         bad("Kopf")
@@ -944,7 +944,7 @@ def _anchor(page_key, anchor) -> tuple[str | None, float | None, float | None]:
 def add_comment(user: dict, solution_id: str, text: str, parent_id: str | None = None, page_key=None, anchor=None) -> dict:
     from . import entitlements
     if not entitlements.has(user, "can_write_community_comments"):
-        raise CommunityError("plan_required", "Kommentieren gibt es ab Studora Plus.", 403)
+        raise CommunityError("plan_required", "Kommentieren gibt es ab StudiNow Plus.", 403)
     _require_verified(user, "zu kommentieren")
     text = (text or "").strip()
     if not text:

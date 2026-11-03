@@ -166,7 +166,7 @@ extension StudIPTextsCard {
 }
 
 /// Leser fuer einen Blubber-Thread: Beitraege der Reihe nach (aelteste zuerst) mit Rolle statt Name, Tag und Uhrzeit,
-/// dazu "In Stud.IP öffnen". Nur lesen; Studora markiert in Stud.IP nichts als gesehen.
+/// dazu "In Stud.IP öffnen". Nur lesen; StudiNow markiert in Stud.IP nichts als gesehen.
 struct StudIPBlubberReader: View {
     let id: String
     @EnvironmentObject private var session: Session
@@ -201,7 +201,7 @@ struct StudIPBlubberReader: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxHeight: 460)
-                    Text("Nur die neuesten Beiträge, ohne Namen; Studora markiert in Stud.IP nichts als gelesen.")
+                    Text("Nur die neuesten Beiträge, ohne Namen; StudiNow markiert in Stud.IP nichts als gelesen.")
                         .ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 } else if let error {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {

@@ -55,7 +55,7 @@ export class SolutionError extends Error {
 }
 const MSG = {
   tooLarge: "Die Lösung ist zu groß.",
-  notASolution: "Die Datei ist keine Studora-Lösung.",
+  notASolution: "Die Datei ist keine StudiNow-Lösung.",
   fingerprintMismatch: "Diese Lösung gehört zu einer anderen PDF-Datei (oder einer anderen Fassung). Sie wird hier nicht angezeigt.",
   decryptionFailed: "Die Lösung lässt sich mit dieser PDF-Datei nicht öffnen – andere Fassung der Datei oder beschädigtes Paket.",
   containsPDFData: "Geteilt werden dürfen nur eigene Notizen – PDF-Inhalte sind nicht erlaubt.",
@@ -64,7 +64,7 @@ const MSG = {
   nonFiniteNumber: "Die Lösung enthält ungültige Zahlen.",
   pageNotInPDF: "Diese Seite gibt es in der PDF-Datei nicht (mehr), z. B. nach einer neuen Fassung mit weniger Seiten.",
 };
-const fail = (code, extra) => { throw new SolutionError(code, extra ? (code === "invalidHeader" ? `Die Lösung ist beschädigt (Kopf: ${extra}).` : code === "invalidContent" ? `Die Lösung ist beschädigt (Inhalt: ${extra}).` : code === "unsupportedVersion" ? `Diese Lösung hat Formatversion ${extra} – bitte Studora aktualisieren.` : code === "unsupportedObjectType" ? `Die Lösung enthält einen unbekannten Objekttyp („${extra}“).` : `${MSG[code] || code}: ${extra}`) : (MSG[code] || code)); };
+const fail = (code, extra) => { throw new SolutionError(code, extra ? (code === "invalidHeader" ? `Die Lösung ist beschädigt (Kopf: ${extra}).` : code === "invalidContent" ? `Die Lösung ist beschädigt (Inhalt: ${extra}).` : code === "unsupportedVersion" ? `Diese Lösung hat Formatversion ${extra} – bitte StudiNow aktualisieren.` : code === "unsupportedObjectType" ? `Die Lösung enthält einen unbekannten Objekttyp („${extra}“).` : `${MSG[code] || code}: ${extra}`) : (MSG[code] || code)); };
 
 // ---------------------------------------------------------------- kanonisches JSON (wie JSONValue.serialized)
 

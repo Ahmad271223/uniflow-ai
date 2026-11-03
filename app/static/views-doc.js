@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
 import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=39";
-import { PdfEditor } from "./editor.js?v=57";
+import { PdfEditor } from "./editor.js?v=58";
 import { setupLectureMarker } from "./views-weekly.js?v=8";
 
 const TABS_KEY = "uniflow-doc-tabs";
@@ -125,8 +125,8 @@ export async function mountDoc(host, f, { page = 1, onPage, penInput, restore, p
   if (!f.exists && !notebook) { host.innerHTML = `<div class="pane-empty">${icon("alert", 28)}Datei ist lokal nicht vorhanden. Bitte Sync ausführen.</div>`; return null; }
   if (isPdf || notebook) {
     const div = document.createElement("div"); div.className = "ed-host"; host.append(div);
-    const readOnly = !can("can_annotate_pdf");      // Studora Free im Dienst: lesen ja, schreiben ab Plus (Server prueft ebenso)
-    if (readOnly) { const n = document.createElement("div"); n.className = "ed-readonly-note"; n.innerHTML = `${icon("info", 14)} Nur lesen – Notizen, Textmarker und Apple Pencil gibt es ab <a href="#/abo">Studora Plus</a>.`; host.insertBefore(n, div); }
+    const readOnly = !can("can_annotate_pdf");      // StudiNow Free im Dienst: lesen ja, schreiben ab Plus (Server prueft ebenso)
+    if (readOnly) { const n = document.createElement("div"); n.className = "ed-readonly-note"; n.innerHTML = `${icon("info", 14)} Nur lesen – Notizen, Textmarker und Apple Pencil gibt es ab <a href="#/abo">StudiNow Plus</a>.`; host.insertBefore(n, div); }
     const ed = new PdfEditor(div, { fileId: f.id, name: f.title || f.name, url: notebook && !f.local_path ? null : `/api/files/${f.id}/content`, penInput, onPage, readOnly,
       onStatus: s => { const el = $(".ed-status", div); if (el) { el.textContent = s; el.title = s; } if (host.id === "paneA") { const d = $("#docStatus"); if (d) d.textContent = s; } },
       onAccessory: k => { if (k === "timer") toggleTimer(true); } });

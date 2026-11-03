@@ -1,4 +1,4 @@
-// Service Worker der Web-Oberflaeche: Studora als App auf iPad, Mac und Windows (Safari "Zum Home-Bildschirm" bzw.
+// Service Worker der Web-Oberflaeche: StudiNow als App auf iPad, Mac und Windows (Safari "Zum Home-Bildschirm" bzw.
 // "Zum Dock hinzufuegen", Edge/Chrome "Installieren") mit Offline-Rueckfall. Die Regeln stehen in sw-policy.js und
 // sind ohne Browser geprueft (tests/js/sw.test.mjs); hier nur das Verdrahten mit Cache und fetch.
 //

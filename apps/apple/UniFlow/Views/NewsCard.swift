@@ -193,7 +193,7 @@ struct NewsAllList: View {
                     }
                 }
                 if filter == "nachricht" || filter.isEmpty, items.contains(where: { $0.s("kind") == "nachricht" }) {
-                    Text("Nachrichten bleiben nur auf diesem Gerät; Studora markiert sie in Stud.IP nicht als gelesen.")
+                    Text("Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie in Stud.IP nicht als gelesen.")
                         .ufFont(12).foregroundStyle(UF.muted).padding(.top, 9.6).fixedSize(horizontal: false, vertical: true)
                 }
             }

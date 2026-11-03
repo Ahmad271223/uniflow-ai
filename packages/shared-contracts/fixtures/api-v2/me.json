@@ -1,4 +1,4 @@
-{ "plan": "plus", "plan_name": "Studora Plus", "source": "app_store", "expires_at": "2026-11-25T10:00:00+00:00", "will_renew": true,
+{ "plan": "plus", "plan_name": "StudiNow Plus", "source": "app_store", "expires_at": "2026-11-25T10:00:00+00:00", "will_renew": true,
   "pending_plan": null, "mode": "hosted", "apple_account_token": "7f3a2b1c-0000-4000-8000-000000000001",
   "entitlements": { "can_view_pdf": true, "can_manage_courses": true, "can_import_documents": true, "can_view_timetable": true,
                     "can_use_basic_planner": true, "can_read_community": true, "can_annotate_pdf": true, "can_use_pencilkit": true,

@@ -73,7 +73,7 @@ class StoreKitSessionTestCase: XCTestCase {
     }
 }
 
-/// Abo-Kauf in V1 (Entscheidung des Inhabers vom 28.10.2026): nur Studora Plus wird angeboten. Konfiguration
+/// Abo-Kauf in V1 (Entscheidung des Inhabers vom 28.10.2026): nur StudiNow Plus wird angeboten. Konfiguration
 /// `UniFlow.storekit` wie in der App (Schema "Run"); die Pro-Tarife stehen darin nicht.
 @MainActor
 final class PurchaseTests: StoreKitSessionTestCase {
@@ -85,7 +85,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// einem Hinweis statt falsch rot. Er heisst "test0…", weil XCTest die Tests einer Klasse alphabetisch ausfuehrt.
     func test0ProductsCarryOneFreeWeekUntilFirstPurchase() async throws {
         let (store, ent) = await makeStore()
-        // V1 bietet nur Studora Plus an (Entscheidung 28.10.2026); Pro Connect, Pro AI und das fruehere Pro gibt es im
+        // V1 bietet nur StudiNow Plus an (Entscheidung 28.10.2026); Pro Connect, Pro AI und das fruehere Pro gibt es im
         // Laden nicht, auch nicht auf Nachfrage
         XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly"])
         XCTAssertNil(store.product(for: .proConnect))
@@ -101,7 +101,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
         XCTAssertEqual(trial.1, .week)
         XCTAssertEqual(p.ufPeriod.1, .month)
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true),
-                       "Studora Plus – 1 Woche gratis")
+                       "StudiNow Plus – 1 Woche gratis")
         XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
             .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
         guard eligibleNow, !Self.processHadPurchase else {
@@ -113,7 +113,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(store.introEligible[p.id], false)
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                          eligible: false), "Studora Plus für \(p.displayPrice)/Monat")
+                                          eligible: false), "StudiNow Plus für \(p.displayPrice)/Monat")
         XCTAssertFalse(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
                                            eligible: store.introEligible[p.id] == true).contains("gratis"))
     }

@@ -2,9 +2,9 @@ import StoreKit
 import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
-// Entscheidung des Inhabers vom 27.10.2026: vier Studora-Tarife (Plans.swift, Vertrag plans.json). Die Rechte von Plus
+// Entscheidung des Inhabers vom 27.10.2026: vier StudiNow-Tarife (Plans.swift, Vertrag plans.json). Die Rechte von Plus
 // bleiben auf dem iPad, wie sie waren; Pro Connect und Pro AI enthalten alles aus Plus. Was den gehosteten Dienst
-// braucht (Studora-KI, Testbibliothek, Lernstatistik, Abgleich zwischen Geraeten, ChatGPT), erscheint als
+// braucht (StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen Geraeten, ChatGPT), erscheint als
 // "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
 // und geprueft, hoechster gueltiger Tarif). Die Pruefung im Dienst ist vorbereitet und abgeschaltet
 // (BillingServiceLink.swift, V2).
@@ -72,7 +72,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
-        case .uniflowEditor: return "Studora-Editor"
+        case .uniflowEditor: return "StudiNow-Editor"
         case .deviceSync: return "Abgleich zwischen deinen Geräten"
         }
     }
@@ -241,7 +241,7 @@ enum UFPlanCard {
     /// er denselben Umfang hat wie ein kleinerer (Auftrag Abschnitt 2 Punkt 4: nichts vortaeuschen)
     static func note(_ plan: UFPlan) -> String? {
         guard !preparing(plan).isEmpty else { return nil }
-        let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von Studora und folgt mit einem Update."
+        let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von StudiNow und folgt mit einem Update."
         let same = sameScope(as: plan)
         return same == plan ? base : base + " Bis dahin bietet \(plan.name) denselben Umfang wie \(same.name)."
     }
@@ -349,7 +349,7 @@ final class Entitlements: ObservableObject {
 
     /// Tarif neu aus Transaction.currentEntitlements bestimmen (nur verifizierte Transaktionen, hoechster gueltiger
     /// Tarif der Abo-Gruppe), dazu Verlaengerung und vorgemerkter Wechsel aus der RenewalInfo
-    /// Laufende Probe des Studora-Kontos (docs/ABO-SYSTEM.md 3a): gilt zusaetzlich zum App-Store-Kauf, solange der
+    /// Laufende Probe des StudiNow-Kontos (docs/ABO-SYSTEM.md 3a): gilt zusaetzlich zum App-Store-Kauf, solange der
     /// Dienst sie meldet; nur im Speicher, ohne Antwort des Dienstes bleibt der Kauf allein massgeblich
     func useServiceTrial(_ trial: UFPlan?) {
         serviceTrial = trial
@@ -496,7 +496,7 @@ struct UFLockMark: View {
     }
 }
 
-/// Karte an Stelle einer gesperrten Ansicht: Schloss, was die Funktion kann, "Mit Studora Plus freischalten".
+/// Karte an Stelle einer gesperrten Ansicht: Schloss, was die Funktion kann, "Mit StudiNow Plus freischalten".
 /// Ist die Funktion erlaubt, zeigt die Karte nichts.
 struct UFLockedCard: View {
     let feature: UFFeature
@@ -544,7 +544,7 @@ struct UFLockedCard: View {
         switch access {
         case .allowed: return ""
         case .comingSoon:
-            if f.isV2 { return "Kommt mit der nächsten Version von Studora." }
+            if f.isV2 { return "Kommt mit der nächsten Version von StudiNow." }
             let base = f.detail.map { "\($0). " } ?? ""
             if f.isCommunity { return base + "Bald verfügbar – die Community folgt mit einem Update." }
             return base + "Bald verfügbar – kommt mit einem Update direkt auf dein iPad."
@@ -584,7 +584,7 @@ struct UFGate<Content: View>: View {
     }
 }
 
-/// Sperrkarte als Blatt, z. B. im Editor (Schreiben, geteilte Ansicht): Schloss, Umfang, "Mit Studora Plus freischalten".
+/// Sperrkarte als Blatt, z. B. im Editor (Schreiben, geteilte Ansicht): Schloss, Umfang, "Mit StudiNow Plus freischalten".
 /// Nach einem Kauf zeigt das Blatt, dass die Funktion frei ist.
 struct UFLockedSheet: View {
     let feature: UFFeature

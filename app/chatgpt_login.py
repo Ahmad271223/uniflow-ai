@@ -3,7 +3,7 @@
 Der Nutzer meldet sich im Browser bei OpenAI an und erlaubt UniFlow, sein ChatGPT-Abo fuer KI-Anfragen zu nutzen
 (Scope `chatgpt.tokens.use.direct`). UniFlow bekommt nur Tokens und Name/E-Mail aus dem ID-Token, nie ein Passwort,
 nie Cookies, nie Zugriff auf die ChatGPT-Unterhaltungen. Alles liegt in `chatgpt-auth.json` im Datenordner dieses
-Rechners (0600). Im gehosteten Dienst ist der Ablauf aus, bis OpenAI Studora freigibt (docs/KI-CHATGPT-PLAN.md).
+Rechners (0600). Im gehosteten Dienst ist der Ablauf aus, bis OpenAI StudiNow freigibt (docs/KI-CHATGPT-PLAN.md).
 
 Ablauf (developers.openai.com/siwc/token-sharing-open-source/sign-in):
 1. `start()` bindet einen freien Port auf 127.0.0.1, baut die Autorisierungsadresse (beim ersten Mal
@@ -45,7 +45,7 @@ USAGE_HELP_URL = "https://chatgpt.com/settings/usage"
 SCOPE = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
 USAGE_SCOPE = "chatgpt.tokens.use.direct"
 FIRST_CLIENT_ID = "dynamic_agent_client"
-AGENT_NAME = "Studora"            # sichtbar auf der Zustimmungsseite von OpenAI (Name der App, Entscheidung 28.10.)
+AGENT_NAME = "StudiNow"            # sichtbar auf der Zustimmungsseite von OpenAI (Name der App, Entscheidung 03.11.2026)
 CALLBACK_PATH = "/auth/callback"
 FLOW_TIMEOUT_S = 600
 REFRESH_MARGIN_S = 60
@@ -294,7 +294,7 @@ def _same_account(d: dict, claims: dict) -> None:
     old = (d.get("profile") or {}).get("sub")
     if old and claims.get("sub") and claims["sub"] != old:
         raise ChatGPTError("chatgpt_account_mismatch", "Diese Anmeldung gehört zu einem anderen ChatGPT-Konto. Bitte das "
-                           "ursprüngliche Konto wählen oder in Studora „Anderes Konto verbinden“.", 409)
+                           "ursprüngliche Konto wählen oder in StudiNow „Anderes Konto verbinden“.", 409)
 
 
 def complete_login(d: dict, client_id: str, code: str, verifier: str, redirect_uri: str, nonce: str) -> dict:
@@ -407,7 +407,7 @@ def handle_callback(flow: Flow, query: dict[str, str]) -> tuple[int, str]:
     if flow.done.is_set():
         return 400, _page("Diese Anmeldung ist schon abgeschlossen.", ok=False)
     if query.get("state") != flow.state:
-        return 400, _page("Die Antwort gehoert nicht zu dieser Anmeldung (state). Bitte in Studora erneut „ChatGPT verbinden“.", ok=False)
+        return 400, _page("Die Antwort gehoert nicht zu dieser Anmeldung (state). Bitte in StudiNow erneut „ChatGPT verbinden“.", ok=False)
     if query.get("error"):
         flow.error = "Anmeldung abgebrochen." if query["error"] == "access_denied" else f"OpenAI meldet: {query.get('error_description') or query['error']}"
         flow.done.set()
@@ -440,15 +440,15 @@ def handle_callback(flow: Flow, query: dict[str, str]) -> tuple[int, str]:
         return 502, _page(f"Verbindung nicht abgeschlossen: {e.message}", ok=False)
     flow.ok = True
     flow.done.set()
-    return 200, _page("Studora ist jetzt mit deinem ChatGPT-Konto verbunden. Du kannst dieses Fenster schliessen.", ok=True)
+    return 200, _page("StudiNow ist jetzt mit deinem ChatGPT-Konto verbunden. Du kannst dieses Fenster schliessen.", ok=True)
 
 
 def _page(text: str, ok: bool) -> str:
     color = "#1a7f37" if ok else "#b42318"
-    return ("<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>Studora – ChatGPT</title></head>"
+    return ("<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>StudiNow – ChatGPT</title></head>"
             "<body style=\"font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem\">"
             f"<h1 style=\"color:{color};font-size:1.3rem\">{'Verbunden' if ok else 'Nicht verbunden'}</h1>"
-            f"<p>{html.escape(text)}</p><p style=\"color:#666\">Zurueck zu Studora.</p></body></html>")
+            f"<p>{html.escape(text)}</p><p style=\"color:#666\">Zurueck zu StudiNow.</p></body></html>")
 
 
 def _serve(flow: Flow) -> None:

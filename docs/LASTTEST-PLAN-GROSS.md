@@ -29,7 +29,7 @@ Stufen 250, 500, 1.000, 2.000, 3.000 Anfragen je Sekunde ≈ 2.500 bis 30.000 Nu
 | --- | --- | --- |
 | **Dienst-Rechner** | 32 bis 48 dedizierte Kerne, 64 bis 128 GB RAM, 500 GB NVMe, nach Stunde abgerechnet (z. B. Hetzner-Cloud „CCX“ oder gleichwertig) | grob 0,5 bis 1,5 € je Stunde |
 | **Last-Rechner** (k6) | 16 Kerne, 32 GB RAM, gleiche Region, **eigener Rechner**, nie derselbe wie der Dienst | grob 0,3 € je Stunde |
-| Test-Domain | Unterdomain wie `lasttest.studora.de` auf die IP des Dienst-Rechners | 0 € |
+| Test-Domain | Unterdomain wie `lasttest.studinow.app` auf die IP des Dienst-Rechners | 0 € |
 | Zeit | Aufbau 1 bis 2 Stunden, Test 1,5 Stunden, Abbau 15 Minuten | |
 | **Insgesamt für einen Nachmittag** | | **etwa 5 bis 15 €** |
 
@@ -55,7 +55,7 @@ Wie `docs/START-DIENST-CHECKLISTE.md` Abschnitte 1 bis 6, mit diesen Unterschied
 | `LERNAPP_LIMIT_REGISTER_IP` | `300/60` | gilt für Registrierung, hier unkritisch, aber wie im Betrieb |
 | `LERNAPP_JOB_WORKERS` | `1` | der Test braucht keine Browser-Abgleiche; spart Speicher |
 
-3. `docker compose up -d --build`, dann prüfen: `docker compose ps` (alle drei „healthy“), `curl -s https://lasttest.studora.de/login | head -3`.
+3. `docker compose up -d --build`, dann prüfen: `docker compose ps` (alle drei „healthy“), `curl -s https://lasttest.studinow.app/login | head -3`.
 4. **Konten anlegen** (20.000 Konten brauchen auf 48 Kernen etwa 3 bis 4 Minuten, auf 4 Kernen etwa 30 Minuten):
 
 ```bash
@@ -75,7 +75,7 @@ docker compose cp app:/tmp/tokens.json /root/tokens.json
 ```bash
 # k6 installieren: https://grafana.com/docs/k6/latest/set-up/install-k6/  (Paketquelle für Ubuntu)
 ulimit -n 100000
-k6 run -e BASE_URL=https://lasttest.studora.de -e TOKENS=tokens.json -e MAXVUS=8000 \
+k6 run -e BASE_URL=https://lasttest.studinow.app -e TOKENS=tokens.json -e MAXVUS=8000 \
        --summary-export=ergebnis.json tools/lasttest-k6.js
 ```
 

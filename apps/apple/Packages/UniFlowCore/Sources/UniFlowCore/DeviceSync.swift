@@ -101,7 +101,7 @@ public enum DeviceSyncSchema {
     }
 }
 
-/// Geraete-Abgleich mit dem Studora-Konto (Vertrag G2): 1:1 nach `app/sync_client.py` (Windows-App), gleiche Regeln:
+/// Geraete-Abgleich mit dem StudiNow-Konto (Vertrag G2): 1:1 nach `app/sync_client.py` (Windows-App), gleiche Regeln:
 /// abrufen -> senden -> abrufen; Zuordnung in `sync_link_map`; erster Abgleich ueber fachliche Schluessel, ohne Doppelte;
 /// Notizen mit `AnnotationMerge.mergeDocument`; `~dienst` markiert Angewendetes, das nie zurueckgesendet wird.
 public actor DeviceSync {

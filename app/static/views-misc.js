@@ -1,6 +1,6 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
 import { renderWeeklyBox } from "./views-weekly.js?v=10";
-import { installCard, bindInstallBanner } from "./pwa.js?v=10";
+import { installCard, bindInstallBanner } from "./pwa.js?v=11";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=39";
 import * as FC from "./flashcards.js?v=3";
@@ -80,7 +80,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=57"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=58"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -304,12 +304,12 @@ export async function viewCommunity(_, params, view) {
   const r = await fetch("/api/community/info");
   const head = `<div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – gleiches Konto auf Windows und iPad.</div></div></div>`;
   if (r.status === 501 || r.status === 409 || r.status === 502) {
-    // Windows-App: Community ueber das Studora-Konto (app/service_link.py); 409 = nicht verbunden/andere Hochschule
+    // Windows-App: Community ueber das StudiNow-Konto (app/service_link.py); 409 = nicht verbunden/andere Hochschule
     const d = await r.json().catch(() => ({}));
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
-      <div class="card"><div class="card-head"><h2>${icon("user", 18)} Studora-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
+      <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=3");
+    const { renderLinkCard } = await import("./studora-link.js?v=4");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
@@ -322,13 +322,13 @@ export async function viewCommunity(_, params, view) {
   if (tab !== "overview") {
     view.innerHTML = `<div class="content" style="max-width:960px">${head}${tabs}<div class="card" id="qaPanel"></div></div>`;
     bindTabs();
-    const q = await import("./views-qa.js?v=3"); const el = $("#qaPanel", view);
+    const q = await import("./views-qa.js?v=4"); const el = $("#qaPanel", view);
     if (tab === "questions") q.renderQuestions(el); else if (tab === "bookmarks") q.renderBookmarks(el); else q.renderNotifications(el, n => window.updateBell?.(n));
     return;
   }
   const [mine, blocks, mod] = await Promise.all([api("/community/mine"), api("/community/blocks"), info.admin ? api("/community/moderation") : Promise.resolve(null)]);
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); state.route(); } catch (e) { toast(e.message, 4000); } };
-  view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt auf Windows und dem iPad.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">Studora Plus</span>` : `<span class="badge warn">Studora Plus nötig</span>`}</div></div>
+  view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt auf Windows und dem iPad.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">StudiNow Plus</span>` : `<span class="badge warn">StudiNow Plus nötig</span>`}</div></div>
     ${tabs}
     <div class="card"><div class="card-head"><h2>${icon("info", 18)} So funktioniert es</h2></div><ul class="small muted" style="margin:0">
       <li>Jeder Kurs ist eine Community. Tritt bei, dann siehst und teilst du dort Lösungen, nur innerhalb deiner Hochschule.</li>
@@ -336,7 +336,7 @@ export async function viewCommunity(_, params, view) {
       <li>Du erscheinst nur als <b>${esc(info.pseudonym)}</b>. Ab ${info.reports_to_hide} Meldungen ist eine Lösung verborgen, bis die Moderation entscheidet.</li>
       <li>Veröffentlichen, projizieren, liken und kommentieren passiert im PDF-Editor: in der Windows-App über den Knopf ${icon("users", 13)}, auf dem iPad über „Lösung teilen“ / „Lösungen vergleichen“.</li></ul></div>
     <div class="card"><div class="card-head"><h2>${icon("users", 18)} Deine Communities</h2></div><div id="spacesCard"></div></div>
-    ${state.hosted ? "" : `<div class="card"><div class="card-head"><h2>${icon("user", 18)} Studora-Konto auf diesem PC</h2></div><div id="slCard"></div></div>`}
+    ${state.hosted ? "" : `<div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto auf diesem PC</h2></div><div id="slCard"></div></div>`}
     <div class="card"><div class="card-head"><h2>${icon("layers", 18)} Meine Veröffentlichungen</h2><span class="badge neutral">${mine.solutions.length}</span></div>
       ${mine.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mine.solutions.map(s => solRow(s, s.status === "active" || s.status === "hidden" ? `<button class="btn sm" data-withdraw="${s.solution_id}">${icon("x", 13)} Zurückziehen</button>` : "")).join("")}</table>` : `<p class="muted small" style="margin:0">Noch nichts veröffentlicht. Öffne ein Übungsblatt aus deinem Abgleich im Editor und wähle Community → Teilen (iPad: „Lösung teilen“).</p>`}</div>
     <div class="card"><div class="card-head"><h2>${icon("x", 18)} Gesperrte Autoren</h2><span class="badge neutral">${blocks.blocked.length}</span></div>
@@ -344,8 +344,8 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=13").then(m => m.renderSpaces($("#spacesCard", view)));
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=3").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  import("./community-spaces.js?v=14").then(m => m.renderSpaces($("#spacesCard", view)));
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=4").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });
@@ -368,7 +368,7 @@ function chatgptCard(gpt, models) {
   const pending = gpt.pending ? `<p class="small" style="color:var(--accent)">${icon("clock", 13)} Anmeldung läuft im Browser … (Port ${gpt.pending.port})</p>` : "";
   const err = gpt.last_error ? `<p class="small" style="color:var(--bad)">${esc(gpt.last_error)}</p>` : "";
   if (!gpt.connected) return `<div class="card">${head}
-      <p class="small muted">Verbinde dein eigenes ChatGPT-Konto (Plus, Pro oder Go): Erklärungen im Editor, Analyse der Unterlagen und Lernpläne laufen dann über dein Abo statt über Claude. Studora bekommt nur Name und E-Mail und ein Zugriffstoken, nie dein Passwort und nie deine Chats. Das Token bleibt auf diesem Rechner.</p>
+      <p class="small muted">Verbinde dein eigenes ChatGPT-Konto (Plus, Pro oder Go): Erklärungen im Editor, Analyse der Unterlagen und Lernpläne laufen dann über dein Abo statt über Claude. StudiNow bekommt nur Name und E-Mail und ein Zugriffstoken, nie dein Passwort und nie deine Chats. Das Token bleibt auf diesem Rechner.</p>
       ${pending}${err}<div class="row wrap"><button class="btn primary sm" id="gptConnect" ${gpt.pending ? "disabled" : ""}>${icon("log-out", 14)} ChatGPT verbinden</button>${gpt.pending ? `<button class="btn sm" id="gptOpen">Anmeldeseite erneut öffnen</button>` : ""}</div></div>`;
   const who = gpt.email || gpt.name || "ChatGPT-Konto";
   const options = (models && models.length ? models : [gpt.model].filter(Boolean)).map(m => `<option value="${esc(m)}" ${m === gpt.model ? "selected" : ""}>${esc(m)}</option>`).join("");
@@ -380,7 +380,7 @@ function chatgptCard(gpt, models) {
         <label class="field" style="margin:0;flex:1">Modell<select class="input" id="gptModel">${options || `<option value="">(Modelle laden …)</option>`}</select></label>
         <label class="small"><input type="checkbox" id="gptUse" ${gpt.use_for_ai ? "checked" : ""}> KI-Anfragen über mein ChatGPT</label></div>
       ${!gpt.model ? `<p class="small muted">Bitte ein Modell wählen, sonst bleibt Claude aktiv.</p>` : ""}
-      <p class="small muted">Verbrauch zählt gegen dein ChatGPT-Kontingent; das Wochenlimit für Studora setzt du in ChatGPT unter Einstellungen → Nutzung (<a href="${esc(gpt.usage_help_url || "https://chatgpt.com/settings/usage")}" target="_blank" rel="noopener">Nutzung verwalten</a>).</p>
+      <p class="small muted">Verbrauch zählt gegen dein ChatGPT-Kontingent; das Wochenlimit für StudiNow setzt du in ChatGPT unter Einstellungen → Nutzung (<a href="${esc(gpt.usage_help_url || "https://chatgpt.com/settings/usage")}" target="_blank" rel="noopener">Nutzung verwalten</a>).</p>
       <div class="row wrap"><button class="btn sm" id="gptReconnect">${icon("refresh", 14)} Neu verbinden</button>${gpt.sharing ? "" : `<button class="btn primary sm" id="gptReconsent">Freigabe nachholen</button>`}<button class="btn ghost sm" id="gptOther">Anderes Konto verbinden</button><button class="btn ghost sm" id="gptDisconnect">Trennen</button></div></div>`;
 }
 
@@ -416,11 +416,11 @@ export async function viewSettings(_, params, view) {
         <p class="muted small">Du meldest dich im Browserfenster selbst an${uniKey === "hildesheim" ? " (UNI-Account über das CAS)" : " (LUH-ID über das WebSSO)"}. Das Passwort merkt sich der Browser, wenn du das dort erlaubst – die App speichert nur die Sitzung und holt damit Dateien und Termine, bis die Hochschule sie beendet. Dann einfach erneut anmelden.${sess?.saved_at ? ` Zuletzt angemeldet: ${new Date(sess.saved_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}.` : ""}</p>
         <div class="row"><button class="btn primary sm" id="uniLogin">${icon("log-out", 14)} Im Browser anmelden</button>${sess?.session ? `<button class="btn ghost sm" id="uniForget">Sitzung vergessen</button>` : ""}<button class="btn sm" id="testSync2">Dateien jetzt holen (ohne KI)</button><span class="spacer"></span><button class="btn ghost sm danger" id="uniReset" title="Alles von diesem Account auf diesem PC löschen, damit sich ein anderer Account anmelden kann">${icon("trash-2", 14)} Konto entfernen</button></div></div>`;
     const credText = state.hosted
-      ? `Mit deinen Zugangsdaten meldet sich <b>der Studora-Dienst</b> um 8 und 15 Uhr bei deiner Hochschule an und lädt neue Unterlagen in dein Konto – auch wenn du nicht angemeldet bist. Die Zugangsdaten liegen verschlüsselt in deinem Konto, nie in der App; du kannst sie jederzeit löschen. Ohne Zugangsdaten lädst du deine Unterlagen selbst hoch.${cred.consent_at ? ` Zugestimmt am ${new Date(cred.consent_at).toLocaleDateString("de-DE")}.` : ""}`
+      ? `Mit deinen Zugangsdaten meldet sich <b>der StudiNow-Dienst</b> um 8 und 15 Uhr bei deiner Hochschule an und lädt neue Unterlagen in dein Konto – auch wenn du nicht angemeldet bist. Die Zugangsdaten liegen verschlüsselt in deinem Konto, nie in der App; du kannst sie jederzeit löschen. Ohne Zugangsdaten lädst du deine Unterlagen selbst hoch.${cred.consent_at ? ` Zugestimmt am ${new Date(cred.consent_at).toLocaleDateString("de-DE")}.` : ""}`
       : "Nur nötig, wenn der Abgleich um 8 und 15 Uhr auch nach Ablauf der Sitzung ohne Nachfrage laufen soll. Liegt nur in der lokalen .env – lass es leer, wenn die App dein Passwort nicht kennen soll.";
     const credCard = `<div class="card"><div class="card-head"><h2>${icon("log-out", 18)} Zugangsdaten (optional)</h2>${cred.user && cred.password_set ? `<span class="badge ok">gespeichert</span>` : `<span class="badge neutral">leer</span>`}</div><p class="muted small">${credText}</p>
         <label class="field">LUH-ID<input class="input" id="credUser" value="${esc(cred.user || "")}" autocomplete="username"></label><label class="field">WebSSO-Passwort<input class="input" id="credPass" type="password" placeholder="${cred.password_set ? "•••••••• (leer lassen = behalten)" : "noch nicht gesetzt"}" autocomplete="current-password"></label>
-        ${state.hosted ? `<label class="small" style="display:flex;gap:.5rem;align-items:flex-start;margin:.4rem 0"><input type="checkbox" id="credConsent" ${cred.consent_at ? "checked" : ""}> <span>Ich stimme zu, dass sich der Studora-Dienst mit diesen Zugangsdaten bei meiner Hochschule anmeldet und meine Unterlagen in mein Konto lädt. Ich kann die Zugangsdaten jederzeit löschen (<a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a>).</span></label>` : ""}
+        ${state.hosted ? `<label class="small" style="display:flex;gap:.5rem;align-items:flex-start;margin:.4rem 0"><input type="checkbox" id="credConsent" ${cred.consent_at ? "checked" : ""}> <span>Ich stimme zu, dass sich der StudiNow-Dienst mit diesen Zugangsdaten bei meiner Hochschule anmeldet und meine Unterlagen in mein Konto lädt. Ich kann die Zugangsdaten jederzeit löschen (<a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a>).</span></label>` : ""}
         <div class="row wrap"><button class="btn primary sm" id="saveCred">Zugang speichern</button><button class="btn sm" id="testSync">Dateien jetzt holen (ohne KI)</button>${state.hosted && cred.password_set ? `<button class="btn ghost sm danger" id="clearCred">Zugangsdaten löschen</button>` : ""}</div></div>`;
     const looksCard = `<div class="card"><div class="card-head"><h2>${icon("user", 18)} Anzeigename</h2></div><div class="row"><input class="input" id="sName" value="${esc(s.user_name || "")}" placeholder="z. B. Ahmad H." style="max-width:260px"><button class="btn sm" id="sNameOk">Speichern</button></div>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("sun", 18)} Darstellung</h2></div><div class="seg">${[["auto", "Automatisch"], ["light", "Hell"], ["dark", "Dunkel"]].map(([k, l]) => `<button class="${(document.documentElement.dataset.theme || "auto") === k ? "active" : ""}" data-theme="${k}">${l}</button>`).join("")}</div>
@@ -450,7 +450,7 @@ export async function viewSettings(_, params, view) {
     $("#gptConnect")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite öffnet sich im Browser", 4000); state.route(); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptReconnect")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite öffnet sich im Browser", 4000); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptReconsent")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: { reconsent: true } }); toast("Zustimmungsseite öffnet sich im Browser", 4000); gptWait(); } catch (e) { toast(e.message, 5000); } });
-    $("#gptOther")?.addEventListener("click", async () => { if (!confirm("Anderes ChatGPT-Konto verbinden? Die bisherige Verbindung wird gelöscht und Studora registriert sich bei OpenAI neu.")) return; try { await api("/integrations/chatgpt/connect", { method: "POST", body: { new_account: true } }); toast("Anmeldeseite öffnet sich im Browser", 4000); state.route(); gptWait(); } catch (e) { toast(e.message, 5000); } });
+    $("#gptOther")?.addEventListener("click", async () => { if (!confirm("Anderes ChatGPT-Konto verbinden? Die bisherige Verbindung wird gelöscht und StudiNow registriert sich bei OpenAI neu.")) return; try { await api("/integrations/chatgpt/connect", { method: "POST", body: { new_account: true } }); toast("Anmeldeseite öffnet sich im Browser", 4000); state.route(); gptWait(); } catch (e) { toast(e.message, 5000); } });
     $("#gptOpen")?.addEventListener("click", async () => { try { const r = await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite geöffnet"); if (!r.auth_url) return; } catch (e) { toast(e.message, 5000); } });
     $("#gptDisconnect")?.addEventListener("click", async () => { if (!confirm("ChatGPT trennen? Das Zugriffstoken wird gelöscht; KI-Anfragen laufen wieder über Claude.")) return; await api("/integrations/chatgpt/disconnect", { method: "POST", body: {} }); toast("Getrennt"); state.route(); });
     $("#gptModel")?.addEventListener("change", async e => { try { await api("/integrations/chatgpt/settings", { method: "PUT", body: { model: e.target.value } }); toast("Modell gespeichert"); } catch (x) { toast(x.message, 4000); } });

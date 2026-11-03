@@ -2,13 +2,13 @@ import Foundation
 
 /// Was die Oberflaeche zu einem Dienstfehler anbieten kann (Knopf neben der Meldung)
 public enum ServiceErrorAction: String, Sendable, Equatable {
-    /// E-Mail-Adresse bestaetigen: Einstellungen → Studora-Konto, dort "Bestaetigungslink erneut senden"
+    /// E-Mail-Adresse bestaetigen: Einstellungen → StudiNow-Konto, dort "Bestaetigungslink erneut senden"
     case verifyEmail
     /// Kontoeinstellungen oeffnen (Anmeldewege, Passwort)
     case accountSettings
 }
 
-/// Die EINE Stelle fuer Texte zu Fehlercodes des Studora-Dienstes (`{detail, code}`, Vertrag G1/G4 und
+/// Die EINE Stelle fuer Texte zu Fehlercodes des StudiNow-Dienstes (`{detail, code}`, Vertrag G1/G4 und
 /// docs/SICHERHEITSKORREKTUREN-2026-11-02.md). Unbekannte Codes behalten die Meldung des Dienstes.
 ///
 /// Herkunft der Codes: `email_unverified`, `email_taken` und die Grenze `report_user` stehen in
@@ -23,19 +23,19 @@ public enum ServiceErrorText {
     public static func known(code: String) -> String? {
         switch code {
         case "email_unverified":
-            return "Bestätige zuerst deine E-Mail-Adresse. Den Link findest du in der Willkommensmail; unter Einstellungen → Studora-Konto kannst du ihn erneut anfordern."
+            return "Bestätige zuerst deine E-Mail-Adresse. Den Link findest du in der Willkommensmail; unter Einstellungen → StudiNow-Konto kannst du ihn erneut anfordern."
         case "duplicate_request":
             return "Diese Anfrage wurde schon verarbeitet und nicht noch einmal berechnet. Starte sie bei Bedarf neu."
         case "ai_trial_budget_exhausted":
-            return "Das Kontingent der Studora-KI für Probekonten ist in diesem Monat aufgebraucht. Ab dem nächsten Monat geht es weiter."
+            return "Das Kontingent der StudiNow-KI für Probekonten ist in diesem Monat aufgebraucht. Ab dem nächsten Monat geht es weiter."
         case "ai_not_configured_prices":
-            return "Die Studora-KI ist im Dienst noch nicht freigeschaltet. Bitte versuche es später erneut."
+            return "Die StudiNow-KI ist im Dienst noch nicht freigeschaltet. Bitte versuche es später erneut."
         case "email_taken":
-            return "Für diese E-Mail-Adresse gibt es schon ein Studora-Konto. Melde dich dort mit E-Mail und Passwort an und bestätige die Adresse; danach lässt sich die Anmeldung verknüpfen."
+            return "Für diese E-Mail-Adresse gibt es schon ein StudiNow-Konto. Melde dich dort mit E-Mail und Passwort an und bestätige die Adresse; danach lässt sich die Anmeldung verknüpfen."
         case "last_login_method":
             return "Das ist der einzige Anmeldeweg deines Kontos. Lege zuerst ein Passwort fest oder verknüpfe einen anderen Weg, dann kannst du diesen entfernen."
         case "cross_site":
-            return "Die Anfrage wurde aus Sicherheitsgründen abgelehnt, weil sie nicht direkt aus Studora kam. Starte sie bitte in der App oder auf der Studora-Webseite selbst."
+            return "Die Anfrage wurde aus Sicherheitsgründen abgelehnt, weil sie nicht direkt aus StudiNow kam. Starte sie bitte in der App oder auf der StudiNow-Webseite selbst."
         default:
             return nil
         }

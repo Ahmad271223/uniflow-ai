@@ -147,7 +147,7 @@ def comments(request: Request, solution_id: str):
 
 @router.post("/solutions/{solution_id}/comments", status_code=201)
 def add_comment(request: Request, solution_id: str, body: dict = Body(...)):
-    """{text, parent_id?, page_key?, anchor?: {x, y}}; ab Studora Plus, bestaetigte E-Mail."""
+    """{text, parent_id?, page_key?, anchor?: {x, y}}; ab StudiNow Plus, bestaetigte E-Mail."""
     return _run(community.add_comment, _user(request), solution_id, body.get("text"), body.get("parent_id"),
                 body.get("page_key"), body.get("anchor"))
 
@@ -222,7 +222,7 @@ def qa_list(request: Request, course_key: str, limit: int = 30, before: str | No
 
 @router.post("/courses/{course_key}/questions", status_code=201)
 def qa_ask(request: Request, course_key: str, body: dict = Body(...)):
-    """{title, body?, fingerprint?, page?}; ab Studora Plus, bestaetigte E-Mail, 10 je Stunde."""
+    """{title, body?, fingerprint?, page?}; ab StudiNow Plus, bestaetigte E-Mail, 10 je Stunde."""
     return _run(community_qa.ask, _user(request), config.university(), course_key, body.get("title"), body.get("body"),
                 body.get("fingerprint"), body.get("page"))
 

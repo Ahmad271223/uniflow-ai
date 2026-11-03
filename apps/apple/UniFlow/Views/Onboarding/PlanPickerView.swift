@@ -2,7 +2,7 @@ import StoreKit
 import SwiftUI
 
 // Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): Karten fuer
-// die kaufbaren Tarife aus `UFPlanCatalog` – in V1 Studora Free und Plus (Entscheidung des Inhabers vom 28.10.2026),
+// die kaufbaren Tarife aus `UFPlanCatalog` – in V1 StudiNow Free und Plus (Entscheidung des Inhabers vom 28.10.2026),
 // darunter ein nicht anklickbarer Hinweis auf die Pro-Tarife ohne Preis. Inhalt der Karten aus `UFPlanCard`: enthalten
 // ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht unter "in Vorbereitung". Preise nur aus
 // Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das Einfuehrungsangebot (Apple fuehrt ihn je
@@ -12,7 +12,7 @@ import SwiftUI
 
 struct PlanPickerView: View {
     enum Context: Equatable {
-        /// erster Start: "Studora Free nutzen" bzw. erfolgreicher Kauf -> onDone
+        /// erster Start: "StudiNow Free nutzen" bzw. erfolgreicher Kauf -> onDone
         case onboarding
         /// Einstellungen: aktueller Tarif, Abo verwalten
         case settings

@@ -23,7 +23,7 @@
       "localizations" : [
 
       ],
-      "name" : "Studora",
+      "name" : "StudiNow",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -45,13 +45,13 @@
           "localizations" : [
             {
               "description" : "Stift, Karteikarten, Lösungen teilen",
-              "displayName" : "Studora Plus",
+              "displayName" : "StudiNow Plus",
               "locale" : "de"
             }
           ],
           "productID" : "de.uniflow.plus.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Studora Plus monatlich",
+          "referenceName" : "StudiNow Plus monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         },
@@ -75,13 +75,13 @@
           "localizations" : [
             {
               "description" : "Alles aus Plus, mehr in Vorbereitung",
-              "displayName" : "Studora Pro Connect",
+              "displayName" : "StudiNow Pro Connect",
               "locale" : "de"
             }
           ],
           "productID" : "de.uniflow.proconnect.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Studora Pro Connect monatlich",
+          "referenceName" : "StudiNow Pro Connect monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         },
@@ -105,13 +105,13 @@
           "localizations" : [
             {
               "description" : "Alles aus Plus, mehr in Vorbereitung",
-              "displayName" : "Studora Pro AI",
+              "displayName" : "StudiNow Pro AI",
               "locale" : "de"
             }
           ],
           "productID" : "de.uniflow.proai.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Studora Pro AI monatlich",
+          "referenceName" : "StudiNow Pro AI monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         }

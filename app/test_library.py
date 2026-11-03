@@ -1,17 +1,17 @@
-"""Gemeinsame Studora-Testbibliothek: geprueften Fragen wiederverwenden, nur Fehlendes generieren.
+"""Gemeinsame StudiNow-Testbibliothek: geprueften Fragen wiederverwenden, nur Fehlendes generieren.
 
 Ablauf beim Erstellen eines Tests (app/library_api.py):
 1. Passende, wiederverwendbare Fragen im Pool suchen (Fach, Thema, Unterthema, Lernziel, Schwierigkeit, Modul,
    Hochschule, Dokument und Dokumentfassung, Fingerabdruck der PDF, Textaehnlichkeit). Gleiche PDFs sind nicht noetig:
    „Grundlagen der Statistik“ aus Hannover und Hildesheim teilen sich den Pool, wenn Fach und Thema zusammenpassen.
 2. Reicht das, entsteht der Test nur aus dem Pool (Kontingent „Tests aus der Bibliothek“, keine KI-Kosten).
-3. Sonst werden nur die fehlenden Fragen von der Studora-KI generiert (Kontingent „Neue KI-Tests“), mit einer Sperre
+3. Sonst werden nur die fehlenden Fragen von der StudiNow-KI generiert (Kontingent „Neue KI-Tests“), mit einer Sperre
    je Thema, damit gleichzeitige Anfragen nicht doppelt generieren.
 
 Pruefstufen (`review`):
 - `private`   – nur fuer den Besitzer, nie im Pool (Standard fuer eigene Tests und Tests aus dem eigenen ChatGPT).
 - `pending`   – vom Nutzer ausdruecklich zur Freigabe eingereicht, wartet auf die Moderation. Nicht im Pool.
-- `auto_checked` – von der Studora-KI erzeugt, und zwar aus Fach, Thema, Unterthema und Lernziel, die der anfragende
+- `auto_checked` – von der StudiNow-KI erzeugt, und zwar aus Fach, Thema, Unterthema und Lernziel, die der anfragende
   Nutzer frei eingibt (der Prompt enthaelt also Text des Nutzers). Nur eine automatische Formpruefung bestanden: Form,
   Loesung unter den Antwortmoeglichkeiten, keine Links oder persoenlichen Angaben in Frage, Antworten, Loesung und
   Erklaerung. Die fachliche Richtigkeit wird nicht geprueft und es gibt keine Moderation. Im Pool.

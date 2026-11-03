@@ -1,6 +1,6 @@
 {
-  "name": "Studora – Lern-App",
-  "short_name": "Studora",
+  "name": "StudiNow – Lern-App",
+  "short_name": "StudiNow",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

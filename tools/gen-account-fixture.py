@@ -79,7 +79,7 @@ def build() -> dict:
     pw, pw2 = "sehr-geheim-123", "noch-geheimer-456"
     st, reg = call("Konto anlegen", "POST", "/api/account/register", {"email": "Erika@Beispiel.de", "password": pw, "university": "hildesheim", "device_id": "ipad-1", "device_name": "iPad"})
     token = reg["token"]
-    accounts.end_trial(reg["user"]["id"])                       # "Studora Free" meint den Stand nach der 7-Tage-Probe
+    accounts.end_trial(reg["user"]["id"])                       # "StudiNow Free" meint den Stand nach der 7-Tage-Probe
     call("Konto anlegen: Adresse schon vergeben", "POST", "/api/account/register", {"email": "erika@beispiel.de", "password": pw, "university": "luh"})
     call("Konto anlegen: Passwort zu kurz", "POST", "/api/account/register", {"email": "neu@beispiel.de", "password": "kurz", "university": "luh"})
     call("Konto anlegen: Hochschule unbekannt", "POST", "/api/account/register", {"email": "neu@beispiel.de", "password": pw, "university": "tum"})
@@ -89,7 +89,7 @@ def build() -> dict:
     call("Daten-Endpunkt ohne Sitzung", "GET", "/api/modules")
     call("Daten-Endpunkt mit Sitzung (leere Datenbank des Kontos)", "GET", "/api/modules", token=token)
     call("Im Dienst nicht verfuegbar (Wochentests mit der KI des PCs)", "POST", "/api/tests/generate-week", token=token)
-    call("Bezahlfunktion ohne Tarif (Studora Free)", "PUT", "/api/files/f1/annotations", {"version": 2, "pages": {}}, token=token)
+    call("Bezahlfunktion ohne Tarif (StudiNow Free)", "PUT", "/api/files/f1/annotations", {"version": 2, "pages": {}}, token=token)
     call("Abgleich ohne hinterlegte Hochschul-Zugangsdaten", "POST", "/api/sync", token=token)
     st, login2 = call("Anmelden auf zweitem Geraet", "POST", "/api/account/login", {"email": "erika@beispiel.de", "password": pw, "device_id": "mac-1", "device_name": "MacBook"})
     call("Anmelden: falsches Passwort", "POST", "/api/account/login", {"email": "erika@beispiel.de", "password": "falsch"})

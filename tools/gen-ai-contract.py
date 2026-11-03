@@ -1,4 +1,4 @@
-"""Erzeugt packages/shared-contracts/ai/contract.json: die KI von Studora so, wie app/ai.py und app/chatgpt_login.py
+"""Erzeugt packages/shared-contracts/ai/contract.json: die KI von StudiNow so, wie app/ai.py und app/chatgpt_login.py
 sie am PC bauen, als gemeinsamer Vertrag fuer die Geraete-Kerne (Swift: AIContractTests). Wer KI-Anfragen selbst
 stellt (iPad mit dem ChatGPT-Abo des Nutzers), baut daraus byte-gleiche Prompts und prueft Antworten gleich.
 

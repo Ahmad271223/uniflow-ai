@@ -63,7 +63,7 @@ public enum ChatGPTConstants {
     public static let scope = #"openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"#
     public static let usageScope = #"chatgpt.tokens.use.direct"#
     public static let firstClientID = #"dynamic_agent_client"#
-    public static let agentName = #"Studora"#
+    public static let agentName = #"StudiNow"#
     public static let callbackPath = #"/auth/callback"#
     /// Sekunden bis zum Abbruch einer Anmeldung
     public static let flowTimeout: Double = 600

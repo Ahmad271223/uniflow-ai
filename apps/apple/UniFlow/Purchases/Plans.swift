@@ -1,17 +1,17 @@
 import Foundation
 
-// Studora-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, Entscheidung des Inhabers 27.10.2026):
+// StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, Entscheidung des Inhabers 27.10.2026):
 // vier Tarife Free, Plus, Pro Connect, Pro AI. Quelle aller Werte ist app/plans.py; tools/gen-plans-fixture.py
 // schreibt daraus packages/shared-contracts/fixtures/plans/plans.json, und PlanContractTests prueft diese Tabelle
 // Zeile fuer Zeile dagegen (Namen, Preise, Produkte, Rechte je Tarif, Stand). Aendert sich plans.py, hier nachziehen.
 //
 // Was davon auf dem iPad heute wirklich geht, steht nicht hier, sondern in `UFEntitlement.onDevice` (unten) und in
-// `UFFeature` (Entitlements.swift): V1 laeuft ohne Konto beim Studora-Dienst, alles, was den Dienst braucht,
+// `UFFeature` (Entitlements.swift): V1 laeuft ohne Konto beim StudiNow-Dienst, alles, was den Dienst braucht,
 // erscheint als "in Vorbereitung".
 
 // MARK: - Tarif
 
-/// Studora-Tarif. Rohwerte wie die Schluessel in plans.json (`order`), auch fuer das Startargument -UFPlan.
+/// StudiNow-Tarif. Rohwerte wie die Schluessel in plans.json (`order`), auch fuer das Startargument -UFPlan.
 enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     case free
     case plus
@@ -35,10 +35,10 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     /// Name wie in plans.json (`name`); der App-Name bleibt UniFlow
     var name: String {
         switch self {
-        case .free: return "Studora Free"
-        case .plus: return "Studora Plus"
-        case .proConnect: return "Studora Pro Connect"
-        case .proAI: return "Studora Pro AI"
+        case .free: return "StudiNow Free"
+        case .plus: return "StudiNow Plus"
+        case .proConnect: return "StudiNow Pro Connect"
+        case .proAI: return "StudiNow Pro AI"
         }
     }
 
@@ -70,7 +70,7 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         case .free: return "Studium organisieren und Unterlagen lesen"
         case .plus: return "Mit Stift auf deinen Unterlagen schreiben"
         case .proConnect: return "Lernstatistiken, intelligente Planung und Wiederholung"
-        case .proAI: return "KI von Studora inklusive – kein eigenes ChatGPT-Konto nötig"
+        case .proAI: return "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"
         }
     }
 
@@ -90,8 +90,8 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
 
 // MARK: - Was V1 verkauft
 
-/// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 28.10.2026: V1 verkauft nur Studora Free und Plus.
-/// Pro Connect und Pro AI kommen erst mit dem Studora-Dienst; ihre Zeilen in der Tabelle, die Produkt-IDs und die
+/// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 28.10.2026: V1 verkauft nur StudiNow Free und Plus.
+/// Pro Connect und Pro AI kommen erst mit dem StudiNow-Dienst; ihre Zeilen in der Tabelle, die Produkt-IDs und die
 /// Dienst-Verknuepfung (BillingServiceLink.swift) bleiben dafuer im Code, werden aber weder angezeigt noch gekauft.
 /// Freischalten fuer V2: `sellable` um die Pro-Tarife erweitern, Produkte in UniFlow.storekit und App Store Connect
 /// anlegen (Werte in UniFlowAlleTarife.storekit).
@@ -106,7 +106,7 @@ enum UFPlanCatalog {
     static var upcoming: [UFPlan] { UFPlan.allCases.filter { !sellable.contains($0) } }
 
     /// dezenter, nicht anklickbarer Hinweis unter den Tarifkarten
-    static let upcomingNote = "Pro-Tarife folgen mit dem Studora-Dienst."
+    static let upcomingNote = "Pro-Tarife folgen mit dem StudiNow-Dienst."
 
     /// Karten der Tarifwahl: die kaufbaren Tarife, dazu ein laufender, der nicht (mehr) angeboten wird – wer ihn hat,
     /// sieht ihn mit "Abo verwalten" (in V1 nicht erreichbar, aber nie eine Karte, die fehlt)
@@ -148,7 +148,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canUseExtendedTestHistory = "can_use_extended_test_history"
     case canGetRecommendations = "can_get_recommendations"
     case chatgptConnectionPremium = "chatgpt_connection_premium"
-    // Pro AI (Studora-KI ueber den Dienst)
+    // Pro AI (StudiNow-KI ueber den Dienst)
     case canUseAIExplanations = "can_use_ai_explanations"
     case canUseAIGeneratedQuestions = "can_use_ai_generated_questions"
     case canUseAISummaries = "can_use_ai_summaries"
@@ -186,8 +186,8 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canSyncAnnotations: return "Notizen auf allen Geräten"
         case .canWriteCommunityComments: return "Community-Kommentare schreiben"
         case .canShareSolutions: return "Eigene Lösungen teilen"
-        case .canAccessSharedTests: return "Tests aus der Studora-Bibliothek"
-        case .canGenerateStudoraAITests: return "Neue KI-Tests von Studora"
+        case .canAccessSharedTests: return "Tests aus der StudiNow-Bibliothek"
+        case .canGenerateStudoraAITests: return "Neue KI-Tests von StudiNow"
         case .canUseAdvancedAnalytics: return "Erweiterte Lernstatistiken"
         case .canUseAdvancedPlanner: return "Intelligente Lernplanung (Empfehlungen für die Woche)"
         case .canReviewWrongAnswers: return "Automatische Wiederholung falscher Antworten"
@@ -222,7 +222,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
 enum UFDeviceSupport: Equatable {
     /// geht auf dem Geraet, ueber diese Funktionen der App (Sperren, Tarifkarten: `UFFeature`)
     case onDevice([UFFeature])
-    /// braucht den gehosteten Studora-Dienst (Konto, Studora-KI, Testbibliothek, Lernstatistik, Abgleich zwischen
+    /// braucht den gehosteten StudiNow-Dienst (Konto, StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen
     /// Geraeten, ChatGPT): bis der Dienst laeuft "in Vorbereitung", in keinem Tarif freigeschaltet. Kein KI-Schluessel
     /// in der App.
     case needsService

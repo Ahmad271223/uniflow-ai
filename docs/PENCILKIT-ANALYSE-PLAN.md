@@ -1,7 +1,7 @@
 # PDF-Editor der Apple-App: Analyse und Plan (PencilKit)
 
 Stand 27.10.2026 · Grundlage `origin/develop` (bc7e075) · **nur Analyse und Plan, kein Code geändert.**
-Die App heißt im Code UniFlow; im Auftrag des Inhabers auch „Studora“. Umsetzung erst nach Freigabe durch den Inhaber.
+Die App heißt im Code UniFlow; im Auftrag des Inhabers auch „StudiNow“. Umsetzung erst nach Freigabe durch den Inhaber.
 
 **Leseschlüssel**
 

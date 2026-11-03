@@ -19,7 +19,7 @@ public protocol AIHTTPTransport: Sendable {
     func send(_ request: AIHTTPRequest) async throws -> (status: Int, body: Data)
 }
 
-/// Was Studora sich zur Verbindung merkt (`chatgpt-auth.json` am PC). Auf dem iPad nur im Schluesselbund dieses
+/// Was StudiNow sich zur Verbindung merkt (`chatgpt-auth.json` am PC). Auf dem iPad nur im Schluesselbund dieses
 /// Geraets je Apple-Nutzer; nie beim Dienst, nie im Geraete-Abgleich.
 public struct ChatGPTState: Codable, Equatable, Sendable {
     public struct Profile: Codable, Equatable, Sendable {
@@ -244,7 +244,7 @@ public actor ChatGPTSession {
             throw AIError("chatgpt_flow", "Die Anmeldung hat zu lange gedauert. Bitte erneut „ChatGPT verbinden“.")
         }
         guard query["state"] == flow.state else {
-            throw AIError("chatgpt_flow", "Die Antwort gehoert nicht zu dieser Anmeldung (state). Bitte in Studora erneut „ChatGPT verbinden“.")
+            throw AIError("chatgpt_flow", "Die Antwort gehoert nicht zu dieser Anmeldung (state). Bitte in StudiNow erneut „ChatGPT verbinden“.")
         }
         if let err = query["error"] {
             pending = nil
@@ -293,7 +293,7 @@ public actor ChatGPTSession {
     private func sameAccount(_ claims: JSONValue) throws {
         guard let old = state.profile?.sub, !old.isEmpty, let new = claims["sub"]?.string, !new.isEmpty, new != old else { return }
         throw AIError("chatgpt_account_mismatch", "Diese Anmeldung gehört zu einem anderen ChatGPT-Konto. Bitte das "
-                      + "ursprüngliche Konto wählen oder in Studora „Anderes Konto verbinden“.")
+                      + "ursprüngliche Konto wählen oder in StudiNow „Anderes Konto verbinden“.")
     }
 
     // MARK: Token

@@ -90,7 +90,7 @@ def stripe(monkeypatch):
     monkeypatch.setenv("LERNAPP_STRIPE_SECRET_KEY", "sk_test_x")
     monkeypatch.setenv("LERNAPP_STRIPE_WEBHOOK_SECRET", "whsec_test")
     monkeypatch.setenv("LERNAPP_STRIPE_PRICES", "plus=price_plus, pro_connect=price_pc ,pro_ai=price_ai,free=price_nein,quatsch=price_x")
-    monkeypatch.setenv("LERNAPP_PUBLIC_URL", "https://app.studora.example/")
+    monkeypatch.setenv("LERNAPP_PUBLIC_URL", "https://app.studinow.example/")
     calls = []
     answers = {}
 
@@ -159,7 +159,7 @@ def test_checkout_creates_customer_once_and_returns_the_url(hosted, stripe):
     sess = [c for c in stripe.calls if c[1] == "/checkout/sessions"][0][2]
     assert sess["mode"] == "subscription" and sess["customer"] == "cus_1" and sess["client_reference_id"] == u["id"]
     assert sess["line_items"] == [{"price": "price_plus", "quantity": 1}] and sess["subscription_data"]["metadata"] == {"user_id": u["id"], "plan": "plus"}
-    assert sess["success_url"] == "https://app.studora.example/#/abo?checkout=success" and sess["cancel_url"].endswith("checkout=cancel")
+    assert sess["success_url"] == "https://app.studinow.example/#/abo?checkout=success" and sess["cancel_url"].endswith("checkout=cancel")
     # zweiter Checkout: Kunde wird nicht noch einmal angelegt; Tarif bleibt bis zum Webhook unveraendert
     _j(asgi_call(hosted, "POST", "/api/billing/stripe/checkout", headers=h, body=json.dumps({"plan": "pro_ai"})))
     assert len([c for c in stripe.calls if c[1] == "/customers"]) == 1
@@ -413,7 +413,7 @@ def test_portal_needs_a_customer(hosted, stripe):
     st, d = _j(asgi_call(hosted, "POST", "/api/billing/stripe/portal", headers=h, body="{}"))
     assert st == 200 and d["url"] == "https://billing.stripe.com/p/bps_1"
     call = [c for c in stripe.calls if c[1] == "/billing_portal/sessions"][0][2]
-    assert call == {"customer": "cus_1", "return_url": "https://app.studora.example/#/abo"}
+    assert call == {"customer": "cus_1", "return_url": "https://app.studinow.example/#/abo"}
 
 
 def test_local_mode_has_no_stripe(app):

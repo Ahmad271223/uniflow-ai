@@ -2,7 +2,7 @@ import XCTest
 import UniFlowCore
 @testable import UniFlow
 
-/// Studora-Konto in der App: ohne Dienst-Adresse unsichtbar, Token je Apple-Nutzer im Schluesselbund, "Konto löschen"
+/// StudiNow-Konto in der App: ohne Dienst-Adresse unsichtbar, Token je Apple-Nutzer im Schluesselbund, "Konto löschen"
 /// in der App entfernt die Anmeldung. Nie ins Netz.
 @MainActor
 final class StudoraAccountAppTests: XCTestCase {
@@ -30,7 +30,7 @@ final class StudoraAccountAppTests: XCTestCase {
         _ = try bed.open(m, bed.account(.luh))
         let problem = await m.deleteAllData(userID: bed.user)
         XCTAssertNil(problem)
-        XCTAssertNil(store.load(), "Konto löschen in der App entfernt die Studora-Anmeldung")
+        XCTAssertNil(store.load(), "Konto löschen in der App entfernt die StudiNow-Anmeldung")
     }
 
     /// Antworten des Dienstes ueber APIClient (PC-Modus) zeigen dieselben Texte wie das Konto (ServiceErrorText)

@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-// Studora-Konto auf dem iPad gegen den Vertrag G1 (packages/shared-contracts/fixtures/account/contract.json): die
+// StudiNow-Konto auf dem iPad gegen den Vertrag G1 (packages/shared-contracts/fixtures/account/contract.json): die
 // Antworten der Ablaeufe kommen unveraendert aus dem Vertrag, der Client muss sie lesen und dieselben Anfragen senden.
 
 private func contract() throws -> JSONValue {

@@ -1,18 +1,18 @@
 import XCTest
 @testable import UniFlow
 
-/// Die App heisst Studora (Entscheidung des Inhabers vom 28.10.2026): Name auf dem Home-Bildschirm und alle sichtbaren
+/// Die App heisst StudiNow (Entscheidung des Inhabers vom 03.11.2026, vorher Studora): Name auf dem Home-Bildschirm und alle sichtbaren
 /// Texte. Bundle-ID, Produkt-IDs, Typnamen, Ordner und interne Kennungen bleiben bei uniflow, sonst gingen Daten und
 /// Einstellungen verloren.
 final class StudoraNameTests: XCTestCase {
     @MainActor
     func testHomeScreenNameIsStudoraAndIdentifiersStay() {
-        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, "Studora")
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, "StudiNow")
         XCTAssertEqual(Bundle.main.bundleIdentifier, "de.uniflow.ai", "Bundle-ID bleibt")
         let docTypes = Bundle.main.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]]
-        XCTAssertEqual(docTypes?.first?["CFBundleTypeName"] as? String, "Studora-Lösung")
+        XCTAssertEqual(docTypes?.first?["CFBundleTypeName"] as? String, "StudiNow-Lösung")
         XCTAssertEqual(UFPlan.plus.productID, "de.uniflow.plus.monthly", "Produkt-ID bleibt")
-        XCTAssertEqual(UFLockedCard.message(.uniflowEditor, access: .comingSoon), "Kommt mit der nächsten Version von Studora.")
+        XCTAssertEqual(UFLockedCard.message(.uniflowEditor, access: .comingSoon), "Kommt mit der nächsten Version von StudiNow.")
     }
 
     /// Kein Stringliteral der App und des Kerns nennt "UniFlow", ausser den internen Kennungen, die bleiben muessen

@@ -272,7 +272,7 @@ def set_entitlement(conn: sqlite3.Connection, user_id, source: str, plan: str, *
                              (original_transaction_id,)).fetchone()
         if other and (other[0] != uid or other[1] != source):
             raise BillingError("subscription_owned_by_other_account",
-                               "Dieses Abo gehört zu einem anderen Studora-Konto.", 409)
+                               "Dieses Abo gehört zu einem anderen StudiNow-Konto.", 409)
     pend = normalize_plan(pending_plan) if pending_plan else None
     conn.execute(
         """INSERT INTO entitlements(user_id, source, plan, original_transaction_id, expires_at, status, will_renew,

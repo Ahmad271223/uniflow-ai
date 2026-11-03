@@ -1,16 +1,16 @@
-# Datenschutzerklärung Studora
+# Datenschutzerklärung StudiNow
 
 **Entwurf, Stand [[Datum]] (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
-Diese Erklärung gilt für die Studora-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
-gehosteten Studora-Dienst unter `[[Domain]]`. Sie ist so aufgebaut, wie Studora arbeitet: Vieles bleibt auf deinem
-Gerät; nur mit einem Studora-Konto verarbeiten wir Daten auf unseren Servern, und auch dann nur das, was du
+Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
+gehosteten StudiNow-Dienst unter `[[Domain]]`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
+Gerät; nur mit einem StudiNow-Konto verarbeiten wir Daten auf unseren Servern, und auch dann nur das, was du
 eingeschaltet hast.
 
 ## 1. Das Wichtigste in Kürze
 
-- **Ohne Studora-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts.
-- **Mit Studora-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
+- **Ohne StudiNow-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts.
+- **Mit StudiNow-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
   und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
   schaltest du einzeln ein (Abschnitte 6–8).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
@@ -18,7 +18,7 @@ eingeschaltet hast.
   Für den Abgleich durch den Dienst stimmst du vorher ausdrücklich zu: Der Dienst meldet sich dann um 8 und 15 Uhr
   von seiner Adresse bei deiner Hochschule an und lädt neue Unterlagen in dein Konto. Du kannst die Zugangsdaten
   jederzeit löschen; die Zustimmung endet damit, deine Unterlagen bleiben.
-- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** Studora wertet deine
+- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** StudiNow wertet deine
   Inhalte nicht selbst automatisiert aus. KI gibt es nur, wenn du **dein eigenes ChatGPT** verbindest (Abschnitt 8a):
   dann gehen Texte, die du für eine KI-Funktion auswählst, direkt von deinem Gerät an OpenAI.
 
@@ -46,25 +46,25 @@ Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls r
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.
 Wir speichern auf deinem Gerät nur, was für die Funktion nötig ist oder was du selbst einstellst (§ 25 Abs. 2 TDDDG).
 
-Für **Version 1 der iPad-App** gilt ausschließlich dieser Abschnitt: Sie läuft ohne Studora-Dienst. „Mit Apple
+Für **Version 1 der iPad-App** gilt ausschließlich dieser Abschnitt: Sie läuft ohne StudiNow-Dienst. „Mit Apple
 anmelden“ und das Abo laufen allein über Apple (Abschnitt 9); an uns wird dabei nichts übertragen.
 
 ## 4. Systeme deiner Hochschule
 
-Studora liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
+StudiNow liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
 QIS; Universität Hildesheim: Learnweb, LSF und CAS-Anmeldung. Die App (oder bei eingeschaltetem Abgleich unser
 Dienst in deinem Auftrag) meldet sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,
 Fristen, Ankündigungen und – nur wenn du „Noten abrufen“ wählst – deinen Notenspiegel und Bescheinigungen ab. Es
-wird ausschließlich gelesen; Studora schreibt nichts in die Hochschulsysteme.
+wird ausschließlich gelesen; StudiNow schreibt nichts in die Hochschulsysteme.
 
 Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschutzhinweise und Nutzungsregeln. Sie
-sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). Studora ist kein
+sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). StudiNow ist kein
 Angebot der Hochschulen und nicht mit ihnen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die
 Hochschulsysteme selbst.
 
-## 5. Studora-Konto und Anmeldung (gehosteter Dienst)
+## 5. StudiNow-Konto und Anmeldung (gehosteter Dienst)
 
-Wenn du ein Studora-Konto anlegst, verarbeiten wir:
+Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 
 | Daten | Zweck | Speicherdauer |
 |---|---|---|
@@ -76,9 +76,9 @@ Wenn du ein Studora-Konto anlegst, verarbeiten wir:
 | Token für „Passwort vergessen“ (nur als Hash) | Passwort zurücksetzen | 30 Minuten oder bis zur Nutzung |
 | Tarif (Free/Plus) und Rolle | Funktionen freischalten, Moderation | wie das Konto |
 
-Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von Studora); für die Schutzmaßnahmen gegen
+Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von StudiNow); für die Schutzmaßnahmen gegen
 Missbrauch Art. 6 Abs. 1 lit. f DSGVO (unser Interesse an einem sicheren Dienst). Ohne diese Daten können wir kein
-Konto führen. Du kannst Studora auch ohne Konto nutzen (Abschnitt 3).
+Konto führen. Du kannst StudiNow auch ohne Konto nutzen (Abschnitt 3).
 
 ## 6. Hochschul-Zugangsdaten im Konto und automatischer Abgleich
 
@@ -130,9 +130,9 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 - **Windows-App, Abgleich mit dem iPad:** Ist die Windows-App mit deinem Konto verbunden, gleicht sie Notizen,
   Module, Stundenplan-Anpassungen, Lernkalender, Karteikarten und Einstellungen mit deinem Konto im Dienst ab (wie
   in Abschnitt 7 beschrieben). Hochschuldateien selbst lädt jedes Gerät von der Hochschule; zu Notizen speichert der
-  Dienst nur Name und Kurs der Datei. Abschalten: Community → Studora-Konto → „Mit dem iPad abgleichen“.
-- **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem Studora-Konto an. Dein
-  Studora-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
+  Dienst nur Name und Kurs der Datei. Abschalten: Community → StudiNow-Konto → „Mit dem iPad abgleichen“.
+- **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem StudiNow-Konto an. Dein
+  StudiNow-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
   Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs
   aus deinem Hochschul-Abgleich, nie die Dateien. Lösungen werden auf deinem PC ver- und entschlüsselt.
 - **Fragen und Antworten je Kurs:** Fragen, Antworten und „hilfreich“-Stimmen speichern wir mit deinem Pseudonym,
@@ -151,17 +151,17 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 ## 8a. KI über dein ChatGPT (freiwillig) – Entwurf, vor Veröffentlichung rechtlich prüfen
 
 - **Wann:** nur wenn du in den Einstellungen „ChatGPT verbinden“ wählst, dem Hinweis zustimmst und dich bei OpenAI
-  anmeldest. Ohne Verbindung gibt es keine KI; alles andere in Studora funktioniert genauso.
+  anmeldest. Ohne Verbindung gibt es keine KI; alles andere in StudiNow funktioniert genauso.
 - **Was gesendet wird:** erst wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung,
   Bewertung eines Tests): der Text der betroffenen Seite oder deiner Markierung, deine Frage oder Lösung, die Namen von
   Kurs und Datei, passende Stellen aus deinen eigenen Unterlagen (Quellen) und bei Wochentests die Texte der Unterlagen
   der Woche. Nie gesendet werden Zugangsdaten, Hochschul-Sitzungen, Noten, ganze Dateien oder Notizen anderer.
 - **Wohin:** direkt von deinem Gerät an OpenAI (OpenAI OpCo, LLC, USA) über die Schnittstelle „Sign in with ChatGPT“.
-  Die Anfragen laufen über dein ChatGPT-Abo und zählen gegen dessen Grenzen. **Studora sieht weder Anfragen noch
+  Die Anfragen laufen über dein ChatGPT-Abo und zählen gegen dessen Grenzen. **StudiNow sieht weder Anfragen noch
   Antworten** und speichert sie auf keinem Server; Antworten bleiben auf deinem Gerät.
-- **Anmeldung:** Studora erhält von OpenAI nur deine Kennung, deinen Namen und deine E-Mail-Adresse sowie Zugriffs- und
+- **Anmeldung:** StudiNow erhält von OpenAI nur deine Kennung, deinen Namen und deine E-Mail-Adresse sowie Zugriffs- und
   Erneuerungs-Token. Sie liegen nur im Schlüsselbund dieses Geräts (Windows: auf diesem PC), nie in deinem
-  Studora-Konto und nie im Abgleich zwischen Geräten. Studora hat keinen Zugriff auf deine ChatGPT-Unterhaltungen.
+  StudiNow-Konto und nie im Abgleich zwischen Geräten. StudiNow hat keinen Zugriff auf deine ChatGPT-Unterhaltungen.
 - **Rechtsgrundlage:** deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du mit „Trennen“ jederzeit widerrufen
   kannst; dabei werden Token und Profil vom Gerät gelöscht. „Konto löschen“ entfernt die Verbindung ebenfalls.
 - **Verantwortlich bei OpenAI:** Für die Verarbeitung bei OpenAI gelten deren Bedingungen und Datenschutzerklärung,
@@ -169,7 +169,7 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 
 ## 9. Käufe und Abos
 
-Das Abo Studora Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
+Das Abo StudiNow Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
 Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren Datenschutzbestimmungen. Wir
 erhalten keine Zahlungsdaten, sondern nur die Information, dass und wie lange ein Abo besteht (Transaktions- und
 Produktkennung), um Plus freizuschalten. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
@@ -213,8 +213,8 @@ Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetz
 
 Kein Tracking über Apps oder Websites hinweg, keine Werbung, keine Profilbildung, keine automatisierten
 Entscheidungen mit rechtlicher Wirkung (Art. 22 DSGVO), keine Analyse- oder Absturz-SDKs von Dritten, keine
-Auswertung deiner Notizen und Dateien durch eigene KI-Systeme von Studora. KI nutzt du nur über dein eigenes ChatGPT,
-wenn du es selbst verbindest (Abschnitt 8a). Eine KI im Studora-Dienst (Tarif Pro AI) ergänzen wir hier, bevor es
+Auswertung deiner Notizen und Dateien durch eigene KI-Systeme von StudiNow. KI nutzt du nur über dein eigenes ChatGPT,
+wenn du es selbst verbindest (Abschnitt 8a). Eine KI im StudiNow-Dienst (Tarif Pro AI) ergänzen wir hier, bevor es
 sie gibt.
 
 ## 14. Deine Rechte
@@ -240,10 +240,10 @@ zum Beispiel bei der für deinen Wohnsitz oder bei der für uns zuständigen Beh
 
 ## 16. Kinder
 
-Studora richtet sich an Studierende und nicht an Kinder unter 16 Jahren. Wir erheben wissentlich keine Daten von
+StudiNow richtet sich an Studierende und nicht an Kinder unter 16 Jahren. Wir erheben wissentlich keine Daten von
 Kindern.
 
 ## 17. Änderungen
 
-Wir passen diese Erklärung an, wenn sich Studora ändert. Die jeweils aktuelle Fassung steht unter
+Wir passen diese Erklärung an, wenn sich StudiNow ändert. Die jeweils aktuelle Fassung steht unter
 `[[Domain]]/datenschutz`; bei wesentlichen Änderungen informieren wir dich in der App oder per E-Mail.

@@ -1,7 +1,7 @@
 import Foundation
 import StoreKit
 
-// Verknuepfung des Abos mit dem Studora-Dienst (docs/ABO-SYSTEM.md, Abschnitt 3) – VORBEREITET, IN V1 ABGESCHALTET.
+// Verknuepfung des Abos mit dem StudiNow-Dienst (docs/ABO-SYSTEM.md, Abschnitt 3) – VORBEREITET, IN V1 ABGESCHALTET.
 //
 // Das iPad laeuft in V1 ohne Konto beim Dienst. Der Tarif entsteht nur auf dem Geraet aus
 // Transaction.currentEntitlements (Entitlements.refresh); diese Schicht ruft nichts auf, schickt nichts und setzt beim

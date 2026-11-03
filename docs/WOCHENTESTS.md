@@ -160,7 +160,7 @@ Inhalte abfragen, die erst Wochen später drankommen.
 
 - **Dienst (gehostet, 30.10.):** Der Takt läuft je Konto als Job (`app/jobs.py`): nach jedem Abgleich durch den
   Dienst, zu den Zeitfenstern (`LERNAPP_SYNC_TIMES`) für Konten ohne hinterlegte Zugangsdaten, und auf Knopfdruck
-  (`POST /api/weekly/tick` legt einen Job an). Die KI ist die Studora-KI (`ai_backend`); jeder neue Test verbraucht eins
+  (`POST /api/weekly/tick` legt einen Job an). Die KI ist die StudiNow-KI (`ai_backend`); jeder neue Test verbraucht eins
   aus dem Monatskontingent `ai_tests_new` des Tarifs. Reicht es nicht, wartet der Plan mit Grund (`kontingent`), ohne
   Versuche zu verbrauchen. Ein Test gilt nur für das eigene Konto; das Teilen eines Tests zwischen Konten kommt mit dem
   V2-Dienst (`GEMEINSAME-WOCHENTESTS.md`).

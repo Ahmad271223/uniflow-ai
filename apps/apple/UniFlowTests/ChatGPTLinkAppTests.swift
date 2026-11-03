@@ -81,7 +81,7 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual((wrong as? HTTPURLResponse)?.statusCode, 404)
         let (body, ok) = try await URLSession.shared.data(from: URL(string: "http://127.0.0.1:\(port)\(ChatGPTConstants.callbackPath)?code=c%2F1&state=s1&client_id=oaiapp_x")!)
         XCTAssertEqual((ok as? HTTPURLResponse)?.statusCode, 200)
-        XCTAssertTrue(String(decoding: body, as: UTF8.self).contains("Studora ist verbunden"))
+        XCTAssertTrue(String(decoding: body, as: UTF8.self).contains("StudiNow ist verbunden"))
         let q = try await lb.query()
         XCTAssertEqual(q, ["code": "c/1", "state": "s1", "client_id": "oaiapp_x"])
     }

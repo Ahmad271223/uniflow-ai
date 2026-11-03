@@ -1,11 +1,11 @@
-// Studora-Konto in der Windows-App verbinden (app/service_link.py): Anmelden am Dienst, Status, Abmelden, PDFs melden.
+// StudiNow-Konto in der Windows-App verbinden (app/service_link.py): Anmelden am Dienst, Status, Abmelden, PDFs melden.
 // Wird in der Community-Seite und in der Community-Leiste des Editors gezeigt. Das Passwort geht nur einmal ueber das
 // lokale Backend an den Dienst; gespeichert wird allein das Sitzungs-Token auf diesem PC.
 import { icon } from "./icons.js?v=31";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const PLAN = { free: "Studora Free", plus: "Studora Plus", pro_connect: "Studora Pro Connect", pro_ai: "Studora Pro AI" };
+const PLAN = { free: "StudiNow Free", plus: "StudiNow Plus", pro_connect: "StudiNow Pro Connect", pro_ai: "StudiNow Pro AI" };
 
 async function call(path, body) {
   const r = await fetch("/api/studora" + path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -41,7 +41,7 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       const when = l?.at ? new Date(l.at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : null;
       syncBox.innerHTML = `<label class="row" style="gap:.4rem;align-items:center"><input type="checkbox" data-sl="auto" ${s.enabled ? "checked" : ""}> <b>Mit dem iPad abgleichen</b> <span class="muted">(Notizen, Module, Stundenplan-Änderungen, Lernkalender, Karteikarten, Einstellungen)</span></label>
         <div class="muted">${s.running ? "Gleicht gerade ab …" : when ? `Zuletzt ${when}: ${l.ok ? `${l.applied || 0} übernommen, ${l.pushed || 0} gesendet${l.deleted ? `, ${l.deleted} gelöscht` : ""}${l.conflicts ? `, ${l.conflicts} zusammengeführt` : ""}${l.pending ? `, ${l.pending} warten auf Dateien dieses PCs` : ""}` : `Fehler: ${esc(l.error || "")}`}` : "Noch nicht abgeglichen."}</div>
-        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen ab Studora Plus ab; Pläne und Module schon jetzt.</div>` : ""}`;
+        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen ab StudiNow Plus ab; Pläne und Module schon jetzt.</div>` : ""}`;
       const auto = $('[data-sl="auto"]', syncBox); if (auto) auto.onchange = async () => { await fetch("/api/studora/sync/enabled", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: auto.checked }) }); showSync(); };
     };
     showSync();
@@ -55,13 +55,13 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       try { const r = await (await fetch("/api/studora/sync", { method: "POST" })).json(); msg.textContent = r.ok ? "Abgeglichen." : (r.error || "Fehler"); } catch (x) { msg.textContent = x.message; }
       e.target.disabled = false; showSync(); };
     $('[data-sl="claims"]', el).onclick = async e => { e.target.disabled = true; try { const c = await call("/claims", {}); msg.textContent = `${c.sent} PDFs gemeldet.`; } catch (x) { msg.textContent = x.message; } e.target.disabled = false; };
-    $('[data-sl="logout"]', el).onclick = async () => { if (!confirm("Vom Studora-Konto abmelden? Deine Notizen auf diesem PC bleiben erhalten.")) return; const s = await call("/logout", {}); onChange?.(s); renderLinkCard(el, { onChange, compact }); };
+    $('[data-sl="logout"]', el).onclick = async () => { if (!confirm("Vom StudiNow-Konto abmelden? Deine Notizen auf diesem PC bleiben erhalten.")) return; const s = await call("/logout", {}); onChange?.(s); renderLinkCard(el, { onChange, compact }); };
     const rs = $('[data-sl="resend"]', el); if (rs) rs.onclick = async () => { try { await call("/verify-email/resend", {}); msg.textContent = "Bestätigungsmail gesendet."; } catch (x) { msg.textContent = x.message; } };
     return st;
   }
   el.innerHTML = `<form class="sl-card sl-form" autocomplete="on">
-    <div><b>${icon("user", 14)} Mit deinem Studora-Konto anmelden</b></div>
-    <p class="small muted" style="margin:.3rem 0 .5rem">Dasselbe Konto wie auf dem iPad. ${compact ? "" : "Damit siehst, likest und kommentierst du Lösungen anderer zu deinen PDFs und teilst eigene. "}Dein Hochschul-Passwort bleibt auf diesem PC; das Studora-Passwort wird nicht gespeichert.${st.expired ? " <b>Die letzte Anmeldung ist abgelaufen.</b>" : ""}</p>
+    <div><b>${icon("user", 14)} Mit deinem StudiNow-Konto anmelden</b></div>
+    <p class="small muted" style="margin:.3rem 0 .5rem">Dasselbe Konto wie auf dem iPad. ${compact ? "" : "Damit siehst, likest und kommentierst du Lösungen anderer zu deinen PDFs und teilst eigene. "}Dein Hochschul-Passwort bleibt auf diesem PC; das StudiNow-Passwort wird nicht gespeichert.${st.expired ? " <b>Die letzte Anmeldung ist abgelaufen.</b>" : ""}</p>
     ${st.env_url ? "" : `<label class="small">Adresse des Dienstes<input class="input" name="url" type="url" placeholder="https://…" value="${esc(st.url || "")}" required></label>`}
     <label class="small">E-Mail<input class="input" name="email" type="email" autocomplete="username" value="${esc(st.last_email || "")}" required></label>
     <label class="small">Passwort<input class="input" name="password" type="password" autocomplete="current-password" required></label>

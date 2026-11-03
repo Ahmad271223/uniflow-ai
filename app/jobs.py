@@ -8,7 +8,7 @@ Ortszeit des Servers) legt fuer jedes Konto mit Zugangsdaten einen Job an; jede 
 auch nach einem Neustart (`schedule_marks`).
 
 Wochentests (30.10.2026, Entscheidung 2c): `weekly.tick()` laeuft je Konto nach jedem Abgleich und als eigener Job
-`weekly` zu den Zeitfenstern fuer Konten ohne Zugangsdaten (Upload von Hand); die KI ist die Studora-KI, jeder neue
+`weekly` zu den Zeitfenstern fuer Konten ohne Zugangsdaten (Upload von Hand); die KI ist die StudiNow-KI, jeder neue
 Test verbraucht eins aus dem Monatskontingent `ai_tests_new` des Tarifs (Free: keins -> Plan wartet).
 Betrieb: im API-Prozess (`LERNAPP_JOBS=inproc`, Standard im gehosteten Modus) oder getrennt mit
 `python -m app.jobs` (dann `LERNAPP_JOBS=off` fuer den API-Prozess). `LERNAPP_JOB_WORKERS` (Standard 2) begrenzt die
@@ -269,7 +269,7 @@ class HostedQuota:
 
 
 def run_weekly(user: dict) -> dict:
-    """weekly.tick() im Kontext des Kontos (der Aufrufer hat ihn gesetzt): Kontingent des Tarifs, Studora-KI."""
+    """weekly.tick() im Kontext des Kontos (der Aufrufer hat ihn gesetzt): Kontingent des Tarifs, StudiNow-KI."""
     from . import weekly
     with db.cursor() as conn:
         on = db.get_settings(conn)["auto_tests"]

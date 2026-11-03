@@ -12,7 +12,7 @@ verlinkten Dokumenten; hier steht, **was du tun musst**.
 | Windows-App | Von 0.3.0 auf **0.4.0**: Startfehler behoben, Stundenplan nach deinem Stud.IP-Kalender (Programmier-Übungen erscheinen), Module nie mehr doppelt, Links und Hochschul-Anmeldung als Fenster **in der App**, Detailfenster für Fristen und Termine, Fortschritt beim Abgleich, nur ein Fenster bei zweitem Start, Sicherungen außerhalb des App-Ordners. |
 | Microsoft Store | MSIX-Paket baut und läuft auf dem GitHub-Prüfrechner (`apps/windows/msix/README.md`). Fehlen nur deine Werte aus Partner Center. |
 | GitHub | Windows-Workflow baut erstmals (fehlendes pytest), Android-Kern läuft, Python-Tests grün (434). Apple-Workflow ist seit 26.10. rot (Linux-Testhelfer), Hinweis an die Mac-Sitzung liegt in `docs/STAND-MAC-SITZUNG.md`. |
-| Abos (Studora) | Vier Tarife Free / Plus / Pro Connect / Pro AI in `develop` gemergt (`21cb0e5`): Rechte serverseitig, Kontingente, KI-Kostenkontrolle, gemeinsame Testbibliothek, Abo-Seite, App-Store-Kaufprüfung vorbereitet. |
+| Abos (StudiNow) | Vier Tarife Free / Plus / Pro Connect / Pro AI in `develop` gemergt (`21cb0e5`): Rechte serverseitig, Kontingente, KI-Kostenkontrolle, gemeinsame Testbibliothek, Abo-Seite, App-Store-Kaufprüfung vorbereitet. |
 | ChatGPT | **Sign in with ChatGPT** für den eigenen PC gebaut und von dir im Browser erfolgreich verbunden; ab 0.4.0 im Installer. Im Dienst bleibt es aus, bis OpenAI freigibt. Plan für den Antrag: `docs/KI-CHATGPT-PLAN.md`. |
 | Doku | `docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md` (kritische Stellen, Beschaffungsliste), `docs/ABO-SYSTEM.md`, `docs/KI-CHATGPT-PLAN.md`, diese Anleitung. |
 
@@ -78,7 +78,7 @@ Abgleich zwischen Geräten, Community und Abos brauchen den **gehosteten Dienst*
 | **Microsoft Partner Center** (storedeveloper.microsoft.com) | Windows-App im Store, automatische Updates, Signatur durch Microsoft | drei Werte aus „Produktidentität“ in `apps/windows/msix/store.json`, `store_ready: true`; Paket aus Artefakt `uniflow-windows-msix` hochladen; Datenschutz-URL, Screenshot, Prüfhinweis (Demo-Inhalte) |
 | **Apple Developer Program** (99 €/Jahr) | iPad-App, „Mit Apple anmelden“, iCloud, Abos | Team-ID in `apps/apple/Config/Team.xcconfig`; App Store Connect: App, Abo „Plus 1,99 €“, Notification-URL `https://app.<domain>/api/billing/apple/notifications`; für den Dienst `LERNAPP_APPLE_CLIENT_IDS`, Apple-Wurzelzertifikat für die Kaufprüfung |
 | **Google Cloud** (kostenlos) | „Mit Google anmelden“ | `LERNAPP_GOOGLE_CLIENT_IDS`, `LERNAPP_GOOGLE_WEB_CLIENT_ID` |
-| **OpenAI Plattform** | Pro AI (Studora-KI mit eigenem Schlüssel, der Nutzer braucht kein ChatGPT) | `LERNAPP_OPENAI_API_KEY`, `LERNAPP_AI_MODEL`, Preise und Budget (`LERNAPP_AI_*` in `.env.example`) |
+| **OpenAI Plattform** | Pro AI (StudiNow-KI mit eigenem Schlüssel, der Nutzer braucht kein ChatGPT) | `LERNAPP_OPENAI_API_KEY`, `LERNAPP_AI_MODEL`, Preise und Budget (`LERNAPP_AI_*` in `.env.example`) |
 | **OpenAI „Sign in with ChatGPT“** | ChatGPT-Abo der Nutzer **im Dienst** nutzen | Interessenformular <https://openai.com/form/sign-in-with-chatgpt-interest/> mit den Angaben aus `docs/KI-CHATGPT-PLAN.md` Abschnitt 4; nach Freigabe `plans.INTEGRATIONS["chatgpt"]["status"] = "enabled"`. Auf dem eigenen PC geht es schon ohne Antrag. |
 | **Code-Signing** (nur außerhalb des Stores, 200–400 €/Jahr) | Installer ohne Windows-Warnung | Schritt im Workflow `windows.yml` vor dem Hochladen |
 

@@ -276,7 +276,7 @@ struct AppShell<Content: View>: View {
     }
 }
 
-/// Studora-Logo in der Werkzeugleiste des Editors (dort ist die App-Leiste aus): Menue mit denselben Bereichen wie
+/// StudiNow-Logo in der Werkzeugleiste des Editors (dort ist die App-Leiste aus): Menue mit denselben Bereichen wie
 /// die Leiste und den Einstellungen. Die Ziele setzt `AppShell` (`\.ufLogoMenu`); ohne sie (Editor ausserhalb der App-
 /// Huelle, z. B. alte Fassung, Tests) erscheint nichts.
 struct UFLogoMenu: View {
@@ -284,7 +284,7 @@ struct UFLogoMenu: View {
 
     var body: some View {
         if let menu {
-            // Tipp: zurueck zur Uebersicht (Wunsch des Inhabers: aus dem Dokument immer wieder nach Studora); gedrueckt
+            // Tipp: zurueck zur Uebersicht (Wunsch des Inhabers: aus dem Dokument immer wieder nach StudiNow); gedrueckt
             // halten: alle Bereiche
             Button { menu.go(.dashboard) } label: {
                 RoundedRectangle(cornerRadius: 8).fill(UF.logoGradient)
@@ -334,7 +334,7 @@ struct UFSidebar: View {
                 RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
                     .frame(width: 30, height: 30)
                     .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
-                if !collapsed { Text("Studora").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
+                if !collapsed { Text("StudiNow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
             .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 14.4, trailing: 8))
             .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)

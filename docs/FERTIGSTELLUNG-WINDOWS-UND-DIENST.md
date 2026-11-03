@@ -11,7 +11,7 @@ werden, und was muss der Inhaber noch beschaffen (Domain, Server, Mail, Konten)?
 | Windows-App benutzbar? | **Ja, für den eigenen Gebrauch** (Installer `UniFlow_0.3.x_x64-setup.exe` aus dem Workflow `windows.yml`). Windows warnt beim ersten Start, weil der Installer nicht signiert ist („Trotzdem ausführen“). |
 | In den Microsoft Store laden? | **Technisch bereit**: MSIX-Paket baut, installiert und läuft auf dem GitHub-Runner (`apps/windows/msix/README.md`). Es fehlen nur die Werte aus Partner Center (`msix/store.json`), Screenshots und eine öffentliche Datenschutzerklärung. |
 | Gehosteter Dienst (Konten für andere Studierende)? | **Code und Hosting-Paket fertig, nicht in Betrieb.** Braucht Server, Domain, Mail-Anbieter, Dienst-Geheimnis, Rechtstexte (Abschnitt 4). |
-| Abos (Studora, vier Tarife)? | Zweig `feature/studora-abos` (Commit `80449da`), nicht in `develop` gemergt; Apple-Seite (StoreKit) fehlt. Entscheidung des Inhabers: mergen oder bei Free/Plus bleiben. |
+| Abos (StudiNow, vier Tarife)? | Zweig `feature/studora-abos` (Commit `80449da`), nicht in `develop` gemergt; Apple-Seite (StoreKit) fehlt. Entscheidung des Inhabers: mergen oder bei Free/Plus bleiben. |
 
 ## 2. Kritische Stellen – geprüft am 27.10.2026
 

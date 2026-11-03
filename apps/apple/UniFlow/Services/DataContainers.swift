@@ -144,7 +144,7 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var active: ActiveContainer?
     /// KI ueber das ChatGPT-Abo des Apple-Nutzers dieses Containers (gehoert zum Nutzer, nicht zur Hochschule)
     let chatgpt = ChatGPTLink()
-    /// Studora-Konto des Apple-Nutzers (sichtbar erst mit Dienst-Adresse)
+    /// StudiNow-Konto des Apple-Nutzers (sichtbar erst mit Dienst-Adresse)
     let account = StudoraAccountLink()
     /// Stud.IP-Abgleich des aktiven Containers (ohne Container ein leerer, der nichts tut)
     @Published private(set) var studip: StudIPSync
@@ -250,7 +250,7 @@ final class ContainerManager: ObservableObject {
 
     static func migrationProblem(_ message: String) -> String {
         "Deine bisherigen Daten konnten nicht in den Speicher der Leibniz Universität Hannover umziehen: \(message) "
-            + "Es wurde nichts gelöscht; Studora versucht es beim nächsten Start erneut."
+            + "Es wurde nichts gelöscht; StudiNow versucht es beim nächsten Start erneut."
     }
 
     /// Umzug der Daten von vor den Containern in den LUH-Container dieses Nutzers. true, wenn jetzt Daten in
@@ -488,7 +488,7 @@ final class ContainerManager: ObservableObject {
         }
         // Verbindung mit ChatGPT dieses Apple-Nutzers (Token im Schluesselbund)
         if !ChatGPTKeychainStore.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftChatGPT) }
-        // Anmeldung am Studora-Konto auf diesem Geraet (das Konto beim Dienst loescht "Konto löschen" dort)
+        // Anmeldung am StudiNow-Konto auf diesem Geraet (das Konto beim Dienst loescht "Konto löschen" dort)
         if !StudoraAccountKeychain.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftAccount) }
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
@@ -501,7 +501,7 @@ final class ContainerManager: ObservableObject {
     static let leftKey = "Learnweb-Schlüssel"
     static let leftSession = "Stud.IP-Anmeldung"
     static let leftChatGPT = "ChatGPT-Verbindung"
-    static let leftAccount = "Studora-Anmeldung"
+    static let leftAccount = "StudiNow-Anmeldung"
 
     /// Meldung "Nicht alles liess sich loeschen ..." zu den Resten (nil ohne Reste)
     static func deletionProblem(_ left: [String]) -> String? {

@@ -37,7 +37,7 @@ async def _lifespan(_app):
     wire_hosted_services()
     jobs.start_background()
     if not config.is_hosted():
-        # Windows-App mit Studora-Konto: Geraete-Abgleich (G2) im Hintergrund (app/sync_client.py)
+        # Windows-App mit StudiNow-Konto: Geraete-Abgleich (G2) im Hintergrund (app/sync_client.py)
         from . import sync_client
         sync_client.start_background()
     yield
@@ -109,7 +109,7 @@ async def sync_kick(request, call_next):
 
 @app.middleware("http")
 async def community_link(request, call_next):
-    """Einzelplatz (Windows-App): /api/community/... geht mit dem Token des verbundenen Studora-Kontos an den Dienst
+    """Einzelplatz (Windows-App): /api/community/... geht mit dem Token des verbundenen StudiNow-Kontos an den Dienst
     (app/service_link.py). Im Dienst selbst beantwortet community_api diese Pfade."""
     path = request.url.path
     if config.is_hosted() or not path.startswith("/api/community/"):
@@ -201,9 +201,9 @@ async def hosted_guard(request, call_next):
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
 _PIN_FAILS: dict[str, list] = {}
-PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Studora – PIN</title>
+PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>StudiNow – PIN</title>
 <style>body{font:16px/1.5 Inter,system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}form{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(360px,92vw);box-shadow:0 4px 16px rgba(20,24,40,.06)}h1{font-size:1.2rem;margin:0 0 .3rem}p{color:#7a8199;margin:0 0 1rem;font-size:.9rem}input{width:100%;font-size:1.4rem;letter-spacing:.3em;text-align:center;padding:.6rem;border:1px solid #d3d8e4;border-radius:10px;box-sizing:border-box}button{margin-top:.8rem;width:100%;padding:.7rem;border:0;border-radius:10px;background:#4f5bd5;color:#fff;font-weight:600;font-size:1rem}</style></head>
-<body><form method="get" action="/"><h1>Studora</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
+<body><form method="get" action="/"><h1>StudiNow</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
 
 
 def _lan_pin() -> str:
@@ -675,7 +675,7 @@ def api_sync_changes(since: str | None = None, device_id: str | None = None, lim
 @app.post("/api/sync/push")
 def api_sync_push(request: Request, body: dict = Body(...)):
     """Vertrag G2: Aenderungen eines Geraets uebernehmen; Antwort mit Ergebnis je Eintrag, ID-Zuordnung, Konflikten.
-    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab Studora Plus); sonst Ergebnis `plan_required`
+    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab StudiNow Plus); sonst Ergebnis `plan_required`
     fuer genau diese Eintraege, alles andere wird normal uebernommen."""
     from . import sync
     items, deletes = body.get("items") or [], body.get("deletes") or []
@@ -971,7 +971,7 @@ def put_annotations(file_id: str, body: dict = Body(...), base_version: int | No
     """Speichert Annotationen. Mit base_version wird ein Konflikt (409) gemeldet, wenn der Server neuer ist.
     snapshot=true (Schliessen, Speichern nach einem Konflikt): der ersetzte und der neue Stand stehen danach sicher im
     Versionsverlauf (eine verworfene Fassung des anderen Geraets bleibt wiederherstellbar).
-    Im Dienst nur mit dem Recht can_annotate_pdf (ab Studora Plus); vorhandene Notizen bleiben immer lesbar."""
+    Im Dienst nur mit dem Recht can_annotate_pdf (ab StudiNow Plus); vorhandene Notizen bleiben immer lesbar."""
     entitlements.require(request, "can_annotate_pdf")
     return _put_annotations(file_id, body, base_version, snapshot=snapshot)
 
@@ -1174,7 +1174,7 @@ def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: 
 
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
                   sources: list[dict] | None = None, studip: str = "") -> str:
-    """Studora-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
+    """StudiNow-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
     from . import ai, ai_backend
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     entitlements.consume(request, "ai_assist", rid)
@@ -1511,7 +1511,7 @@ def api_weekly_tick():
     with db.cursor() as conn:
         conn.execute("UPDATE wt_plans SET attempts=0 WHERE status='fehlgeschlagen'")
     if config.is_hosted():
-        # Dienst: als Job je Konto (Kontingent des Tarifs, Studora-KI), nicht im Hintergrund des API-Prozesses
+        # Dienst: als Job je Konto (Kontingent des Tarifs, StudiNow-KI), nicht im Hintergrund des API-Prozesses
         from . import jobs
         j = jobs.enqueue(config.current_user_id(), "weekly", "manual")
         return {"started": "Wochentests", "status": j["status"], "job_id": j["id"], "already": j["already"]}
@@ -1645,7 +1645,7 @@ def api_university_login():
     return _run_bg("Anmeldung", unilogin.run)
 
 
-# ---------------------------------------------------------------- Studora-Konto der Windows-App (app/service_link.py)
+# ---------------------------------------------------------------- StudiNow-Konto der Windows-App (app/service_link.py)
 
 def _link_call(fn, *args):
     from . import service_link
@@ -1659,7 +1659,7 @@ def _link_call(fn, *args):
 
 @app.get("/api/studora/status")
 def api_studora_status(refresh: bool = True):
-    """Verbindung zum Studora-Konto: angemeldet, Konto (E-Mail, Tarif, Hochschule, bestaetigt), letzte Meldung der PDFs."""
+    """Verbindung zum StudiNow-Konto: angemeldet, Konto (E-Mail, Tarif, Hochschule, bestaetigt), letzte Meldung der PDFs."""
     from . import service_link
     if config.is_hosted():
         return {"linked": False, "hosted": True}
@@ -2942,7 +2942,7 @@ def api_desktop_open(request: Request, body: dict = Body(...)):
         raise HTTPException(400, "Nur http- und https-Adressen")
     if desktop_windows.agent_connected():
         from urllib.parse import urlsplit
-        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "Studora")
+        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "StudiNow")
         return {"opened": True, "window": w.id, "in_app": True}
     import webbrowser
     if not webbrowser.open(url, new=2):

@@ -1,5 +1,5 @@
 // Community Teil 2 in der Oberflaeche (28.10.2026): Fragen je Kurs mit Antworten, Lesezeichen, Mitteilungen.
-// Gleich im Browser (Dienst) und in der Windows-App (Weiterleitung ueber das Studora-Konto, app/service_link.py).
+// Gleich im Browser (Dienst) und in der Windows-App (Weiterleitung ueber das StudiNow-Konto, app/service_link.py).
 // Der Schluessel entsteht im eigenen Backend aus dem Modul des Kurses (/api/courses/community-keys), wie auf dem iPad.
 import { icon } from "./icons.js?v=31";
 

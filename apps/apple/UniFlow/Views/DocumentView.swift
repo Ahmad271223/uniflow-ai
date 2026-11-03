@@ -988,7 +988,7 @@ struct DocumentView: View {
         solutionSheet = entitlements.allows(feature) ? sheet : .locked(feature)
     }
 
-    /// Menuepunkt einer gesperrten Funktion: "Lösung teilen … (Studora Plus)" bzw. "(bald)"
+    /// Menuepunkt einer gesperrten Funktion: "Lösung teilen … (StudiNow Plus)" bzw. "(bald)"
     static func lockedLabel(_ title: String, _ access: UFAccess) -> String {
         switch access {
         case .allowed: return title

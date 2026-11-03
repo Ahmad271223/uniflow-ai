@@ -19,7 +19,7 @@ public protocol CommunityGroupStore: Sendable {
     func remove(code: String)
 }
 
-/// Community ueber den Studora-Dienst (Vertrag G4, app/community_api.py), so wie Web und Windows sie nutzen.
+/// Community ueber den StudiNow-Dienst (Vertrag G4, app/community_api.py), so wie Web und Windows sie nutzen.
 ///
 /// Jeder Kurs ist eine Community, dazu Lerngruppen. Beitreten kann ein Konto Kursen, die dieses Geraet gemeldet hat
 /// (`/claims`), Lerngruppen ueber den Code. Loesungen sehen nur Mitglieder, auch ohne die PDF. Kurs-IDs und Codes

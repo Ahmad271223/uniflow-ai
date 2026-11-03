@@ -11,7 +11,7 @@ enum UFTrialTexts {
     static let stayFree = "Bei Free bleiben"
 }
 
-/// Probe des Studora-Kontos auf der Uebersicht: laufend mit Resttagen, danach die Aufforderung zur Tarifwahl. Ohne
+/// Probe des StudiNow-Kontos auf der Uebersicht: laufend mit Resttagen, danach die Aufforderung zur Tarifwahl. Ohne
 /// Dienst-Adresse oder Konto nichts. Bezahlt wird auf dem iPad nur im App Store.
 struct TrialBanner: View {
     @ObservedObject var link: StudoraAccountLink

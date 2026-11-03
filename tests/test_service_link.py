@@ -1,4 +1,4 @@
-"""Windows-App mit dem Studora-Konto (app/service_link.py, 28.10.2026): anmelden am Dienst, eigene Hochschul-PDFs
+"""Windows-App mit dem StudiNow-Konto (app/service_link.py, 28.10.2026): anmelden am Dienst, eigene Hochschul-PDFs
 melden, Community-Aufrufe weiterleiten. Der "Dienst" ist hier dieselbe App im gehosteten Modus, direkt per ASGI
 aufgerufen; so laeuft der echte Weg Windows -> Dienst -> Community, nur ohne Netz."""
 import json
@@ -140,7 +140,7 @@ def test_expired_token_wrong_password_mismatch_and_bad_urls(service):
     _account(app, "hi@example.org", uni="hildesheim")
     st, e = _j(asgi_call(app, "POST", "/api/studora/login", body=json.dumps({"url": SERVICE, "email": "a@example.org", "password": "falsch-falsch-1"})))
     assert st == 401 and e["code"] and not service_link.linked()
-    for bad in ("http://studora.example", "ftp://x", "https://u:p@x.example", "https://x.example/?a=1"):
+    for bad in ("http://studinow.example", "ftp://x", "https://u:p@x.example", "https://x.example/?a=1"):
         st, e = _j(asgi_call(app, "POST", "/api/studora/login", body=json.dumps({"url": bad, "email": "a@example.org", "password": "x"})))
         assert st == 400 and e["code"] == "service_url_invalid", bad
 
@@ -188,7 +188,7 @@ def test_devices_listed_and_signed_out_one_by_one(service):
     assert st == 200 and len(d["sessions"]) == 2
     me = next(x for x in d["sessions"] if x["current"])
     other = next(x for x in d["sessions"] if not x["current"])
-    assert me["device_name"] == "Studora für Windows"
+    assert me["device_name"] == "StudiNow für Windows"
     st, r = _j(asgi_call(app, "DELETE", f"/api/studora/devices/{other['id']}"))
     assert st == 200 and not r["current"]
     assert _hosted(app, "GET", "/api/account/me", headers=ipad)[0] == 401, "das andere Geraet ist abgemeldet"

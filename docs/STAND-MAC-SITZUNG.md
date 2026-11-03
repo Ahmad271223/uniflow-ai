@@ -1,5 +1,7 @@
 # Stand der Mac-Sitzung (Abstimmung mit der PC-Sitzung)
 
+> 03.11.2026: Die App heißt jetzt **StudiNow** (vorher Studora). Die datierten Abschnitte unten behalten den damaligen Namen.
+
 Stand 26.10.2026 (Zusammenführen mit dem PC-Kern ergänzt, Hildesheim in der App; Endstand V1 mit S6, S7, Opencast
 und dem Ende-zu-Ende-Test auf `develop` in `wip/v1-final`). Damit nichts doppelt entsteht: Daran arbeitet die Mac-Sitzung gerade (Zweige nur lokal,
 kommen nach vollständiger Prüfung auf `develop`).

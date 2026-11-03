@@ -772,14 +772,14 @@ final class DocumentStore: ObservableObject {
 
     // MARK: Nur ansehen waehrend der Sitzung
 
-    static let newerFormatNotice = "Diese Notizen stammen aus einer neueren Version von Studora – hier nur ansehen. Aktualisiere Studora, um weiterzuschreiben."
+    static let newerFormatNotice = "Diese Notizen stammen aus einer neueren Version von StudiNow – hier nur ansehen. Aktualisiere StudiNow, um weiterzuschreiben."
 
     /// Ein anderes Geraet hat waehrend der Sitzung eine neuere Formatversion gespeichert (P0-4): ab jetzt nur ansehen.
     /// Was hier schon geschrieben wurde, bleibt im lokalen Journal.
     private func viewOnlyDuringSession(_ reason: NotesViewOnlyReason) {
         guard case .newerFormatOnServer(let v) = reason, newerFormatVersion == nil else { return }
         newerFormatVersion = v
-        notice = "Auf einem anderen Gerät wurden diese Notizen mit einer neueren Version von Studora gespeichert – hier nur noch ansehen. Deine Striche bleiben auf diesem iPad gesichert."
+        notice = "Auf einem anderen Gerät wurden diese Notizen mit einer neueren Version von StudiNow gespeichert – hier nur noch ansehen. Deine Striche bleiben auf diesem iPad gesichert."
     }
 
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)

@@ -3493,7 +3493,7 @@
   "scope": "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct",
   "usage_scope": "chatgpt.tokens.use.direct",
   "first_client_id": "dynamic_agent_client",
-  "agent_name": "Studora",
+  "agent_name": "StudiNow",
   "callback_path": "/auth/callback",
   "flow_timeout_s": 600,
   "refresh_margin_s": 60,
@@ -3537,7 +3537,7 @@
     "challenge": "ch-1",
     "login_hint": null,
     "reconsent": false,
-    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=Studora&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000001&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=st-1&nonce=no-1&code_challenge=ch-1&code_challenge_method=S256"
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=StudiNow&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000001&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=st-1&nonce=no-1&code_challenge=ch-1&code_challenge_method=S256"
    },
    {
     "client_id": "oaiapp_testclient",
@@ -3581,7 +3581,7 @@
     "challenge": "c",
     "login_hint": "ignoriert",
     "reconsent": true,
-    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=Studora&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256&prompt=consent"
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=StudiNow&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256&prompt=consent"
    }
   ],
   "pkce": [

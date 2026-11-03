@@ -33,7 +33,7 @@ from urllib.parse import urlsplit
 from . import config
 
 SMTP_TIMEOUT = 20
-APP_NAME = "Studora"
+APP_NAME = "StudiNow"
 
 
 # ---------------------------------------------------------------- Konfiguration

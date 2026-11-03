@@ -38,7 +38,7 @@ MAX_TEST = 30
 
 def _hosted(request: Request) -> dict:
     if not config.is_hosted():
-        raise HTTPException(501, {"detail": "Die gemeinsame Testbibliothek gibt es mit Studora-Konto im Dienst; am eigenen PC "
+        raise HTTPException(501, {"detail": "Die gemeinsame Testbibliothek gibt es mit StudiNow-Konto im Dienst; am eigenen PC "
                                             "erstellt die eigene KI die Tests.", "code": "not_hosted"})
     u = getattr(request.state, "user", None)
     if not u:
@@ -81,7 +81,7 @@ def _store_test(req: dict, questions: list[dict], title: str) -> int:
 
 
 def _generate(user_id: str, req: dict, n: int) -> int:
-    """n fehlende Fragen von der Studora-KI; landen gepruft (auto_checked) im Pool. Liefert die Zahl neuer Fragen."""
+    """n fehlende Fragen von der StudiNow-KI; landen gepruft (auto_checked) im Pool. Liefert die Zahl neuer Fragen."""
     level = req.get("difficulty") or 3
     prompt = (f"Fach: {req['subject']}\nThema: {req['topic']}\n" + (f"Unterthema: {req['subtopic']}\n" if req.get("subtopic") else "")
               + (f"Lernziel: {req['learning_goal']}\n" if req.get("learning_goal") else "")
@@ -130,7 +130,7 @@ def create_library_test(request: Request, body: dict = Body(...)):
             return from_pool(found, len(found), 0, "library_tests")
         raise HTTPException(409, {"detail": "Zu diesem Thema gibt es noch nicht genug geprüfte Fragen.", "code": "not_enough_questions"})
 
-    entitlements.require_verified_for_ai(request)            # erzeugen kostet Studora-KI-Budget: nur mit bestaetigter E-Mail
+    entitlements.require_verified_for_ai(request)            # erzeugen kostet StudiNow-KI-Budget: nur mit bestaetigter E-Mail
     lock = test_library.topic_lock_key(req)
     for _ in range(2):
         if ai_backend.acquire(lock, user["id"]):

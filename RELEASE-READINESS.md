@@ -1,4 +1,4 @@
-# Studora – Release-Readiness (Zweig `develop`, 30.10.2026)
+# StudiNow – Release-Readiness (Zweig `develop`, 30.10.2026)
 
 > Neuester Stand: `docs/BERICHT-CLOUD-SITZUNG-2026-10-30.md` (Testzahlen, Architektur, Nachtrag App-Lauf auf dem Mac)
 > und `docs/PLAN-WEB-ZUERST-2026-10-30.md` (Entscheidungen des Inhabers vom 30.10., Reihenfolge der Veröffentlichung).
@@ -65,7 +65,7 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | Installierbare Web-App, Offline-Rückfall | gebaut 30.10. | – |
 | Notizen ohne Netz zwischenspeichern und nachsenden (`app/static/notes-queue.js`) | gebaut 30.10., Chromium-Lauf grün; Safari offen | Inhaber + Sitzung (Safari) |
 | Hochschul-Abgleich durch den Dienst nur mit Zustimmung (Karte, Häkchen, Löschen) | gebaut 30.10.; Anfrage an LUH und Hildesheim läuft parallel | Inhaber |
-| Wochentests im Dienst je Konto (Job nach dem Abgleich, zu den Zeitfenstern, auf Knopfdruck) mit Studora-KI und Kontingent | gebaut 30.10.; braucht OpenAI-Schlüssel des Inhabers im Dienst (`LERNAPP_OPENAI_API_KEY`) | Inhaber |
+| Wochentests im Dienst je Konto (Job nach dem Abgleich, zu den Zeitfenstern, auf Knopfdruck) mit StudiNow-KI und Kontingent | gebaut 30.10.; braucht OpenAI-Schlüssel des Inhabers im Dienst (`LERNAPP_OPENAI_API_KEY`) | Inhaber |
 | ChatGPT-Abo des Nutzers im gehosteten Dienst | bleibt aus bis OpenAI freigibt (Warteliste) | Inhaber |
 | Probe 7 Tage, Tarifwahl, Stripe (Checkout, Kundenportal, Webhook) | gebaut 30.10.; Stripe-Konto, Preise, Schlüssel fehlen | Inhaber |
 | Prüfung in Safari auf iPad und Mac, Edge unter Windows | offen | Inhaber + Sitzung |
@@ -86,7 +86,7 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | --- | --- |
 | Apple Developer Program | abgelehnt am 28.10., Support-Fall beim Inhaber |
 | Team-ID in `apps/apple/Config/Team.xcconfig`, Signierung, „Mit Apple anmelden“, CloudKit-Container | offen |
-| App Store Connect: Eintrag „Studora“, Produkt Plus (`de.uniflow.plus.monthly`), Datenschutzangaben | offen (`docs/release/APP-STORE.md`) |
+| App Store Connect: Eintrag „StudiNow“, Produkt Plus (`de.uniflow.plus.monthly`), Datenschutzangaben | offen (`docs/release/APP-STORE.md`) |
 | iPad: G2-Client und Community über den Dienst | gebaut 31.10./1.11., Kern live gegen den lokalen Dienst geprüft; ohne Lerngruppen und Sichtbarkeit (kennt der Dienst nicht) |
 | iPad: Konto-Anmeldung sichtbar machen | offen: Dienst-Adresse `StudoraServiceURL` setzen |
 | Übernahme vom Web: Module, Stundenplan, Lernplan, Karteikarten, Einstellungen, Notizen über G2; eigene Dokumente mit Inhalt noch nicht | offen |
@@ -98,7 +98,7 @@ Microsoft Store**, iPad und Mac vorerst als Web-App, **später App Store** mit �
 | --- | --- | --- |
 | Alles Gerätenahe ist nur im Simulator geprüft | Stift, Hintergrundlauf und Speicher können sich am iPad anders verhalten | erster Gerätetest, sobald eine Signierung möglich ist (kostenlose Signierung per Kabel reicht für das eigene iPad) |
 | Dienst nie auf einem Server unter Last | In-process-Lasttest 30.10. ok (100/500 Konten); Chromium-Speicher beim Abgleich, Netz/TLS, Mehrprozess auf accounts.db ungemessen; Backup und Restore im Container durchgespielt | Lasttest auf dem Server wiederholen (`tools/lasttest-dienst.py`), `docker stats` nach dem ersten Tag |
-| KI nie echt | Prompts, Fehlercodes der Responses API und Kosten der Studora-KI sind Annahmen | erster echter Lauf durch den Inhaber vor jedem Store-Text, der KI nennt |
+| KI nie echt | Prompts, Fehlercodes der Responses API und Kosten der StudiNow-KI sind Annahmen | erster echter Lauf durch den Inhaber vor jedem Store-Text, der KI nennt |
 | Uni-Zugangsdaten beim Dienst | der Dienst hält Passwörter verschlüsselt und meldet sich von der Server-IP an | Zustimmung je Konto (gebaut), Text in der Datenschutzerklärung, Rückmeldung von LUH und Hildesheim abwarten |
 | GitHub Actions gesperrt seit 25.10. | kein Bauen auf GitHub; Windows-Installer und Apple-Läufe nur lokal oder gar nicht; Quellen widersprechen sich, ob der Windows-Workflow am 27.10. lief | Abrechnung klären (`docs/GITHUB-ABRECHNUNG.md`) oder lokal bauen |
 | Rechtstexte sind Entwürfe mit Platzhaltern | Abmahnrisiko, Store-Ablehnung | ausfüllen (`tests/test_release_texts.py` listet die Platzhalter), prüfen lassen |
@@ -112,7 +112,7 @@ Getroffen am 30.10.2026 (Inhaber):
 1. Web zuerst über den eigenen Dienst, Windows Store, iPad und Mac vorerst als Web-App, später App Store mit Übernahme
    über das Konto.
 2. Uni-Passwörter beim Dienst: ja, nur mit ausdrücklicher Zustimmung je Konto.
-3. KI im Web: ChatGPT-Abo des Nutzers (nach OpenAI-Freigabe) **und** Studora-KI über den Dienst (Pro AI).
+3. KI im Web: ChatGPT-Abo des Nutzers (nach OpenAI-Freigabe) **und** StudiNow-KI über den Dienst (Pro AI).
 4. Jedes neue Konto: 7 Tage Probe mit allen Rechten, dann Tarifwahl; Stripe für Web und Windows; Apple in der App;
    Microsoft Store später.
 5. Lernplan ohne KI nach der Regel „je Tag nur der Stoff seiner Lehrwoche plus Skriptrest nach dem Marker der
@@ -123,7 +123,7 @@ Offen (nur der Inhaber):
 
 1. Repo auf privat stellen (GitHub-Einstellungen), Server, Domain, Mail, Stripe-Konto, Partner Center, Rechtstexte.
 2. Plus-Kontingent 3 oder 6 Tests; geteilter Wochentest gegen das Kontingent (`docs/GEMEINSAME-WOCHENTESTS.md`).
-3. Name und Domain prüfen („Studora“ als Marke frei?).
+3. Name und Domain prüfen („StudiNow“ als Marke frei?).
 4. Alte Branches von Ahmad271223 durchsehen und schließen.
 5. GitHub Actions wieder freigeben oder dauerhaft lokal bauen.
 

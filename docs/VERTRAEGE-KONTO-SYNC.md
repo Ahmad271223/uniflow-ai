@@ -140,7 +140,7 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Geräte), Liste unter `/me` (`sessions[]` mit `id`, `device_name`, `last_seen_at`, `current`), **ein Gerät abmelden:
   `DELETE /api/account/sessions/{id}`** (seit 28.10.2026; nur eigene, sonst 404 `session_not_found`; die eigene
   Sitzung löscht auch das Cookie, `current: true`). „Zuletzt gesehen“ wird höchstens einmal je Minute geschrieben.
-  Apps senden bei der Anmeldung `device_name` (Windows: „Studora für Windows“, iPad z. B. „iPad von …“), damit die
+  Apps senden bei der Anmeldung `device_name` (Windows: „StudiNow für Windows“, iPad z. B. „iPad von …“), damit die
   Liste verständlich ist. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
   `Authorization: Bearer <token>`.
 - **Web-Anmeldung** (`app/static/login.html`, `login.js`): `/login` mit Anmelden, Konto anlegen (Hochschule, Passwortregeln
@@ -282,7 +282,7 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 - **Nur gehostet** und nur mit Tarif Plus (`users.plan = plus`, optional `plan_until`; heute per `python -m
   app.accounts plan <email> plus [bis]`, später aus den Store-Käufen), sonst 403 `plan_required`. Sitzung wie bei G1
   (Bearer oder Cookie). Die Windows-App (Einzelplatz) leitet `/api/community/...` mit dem Token des verbundenen
-  Studora-Kontos an den Dienst weiter (`app/service_link.py`); ohne Konto 409 `not_linked`, Dienst nicht erreichbar
+  StudiNow-Kontos an den Dienst weiter (`app/service_link.py`); ohne Konto 409 `not_linked`, Dienst nicht erreichbar
   502 `service_unreachable`, Konto einer anderen Hochschule 409 `university_mismatch`. 501 `not_hosted` antwortet
   nur noch der Community-Router selbst, wenn er ohne Dienst läuft.
 - **Teil 2 (28.10.2026, `app/community_qa.py`, Flows in `fixtures/community/contract.json`):**

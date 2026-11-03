@@ -10,13 +10,13 @@ struct ChatGPTCard: View {
     @Environment(\.openURL) private var openURL
 
     /// Hinweis vor dem ersten Verbinden: was an OpenAI geht und was nicht
-    static let consentText = "Wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung), schickt Studora den Text der Seite oder deiner Markierung, deine Frage und die Namen von Kurs und Datei an OpenAI. Studora speichert Anfragen und Antworten auf keinem Server; die Anmeldung bei ChatGPT liegt nur im Schlüsselbund dieses iPads. Die Nutzung zählt gegen dein ChatGPT-Abo, es gelten die Datenschutzbestimmungen von OpenAI. Du kannst die Verbindung jederzeit trennen."
+    static let consentText = "Wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung), schickt StudiNow den Text der Seite oder deiner Markierung, deine Frage und die Namen von Kurs und Datei an OpenAI. StudiNow speichert Anfragen und Antworten auf keinem Server; die Anmeldung bei ChatGPT liegt nur im Schlüsselbund dieses iPads. Die Nutzung zählt gegen dein ChatGPT-Abo, es gelten die Datenschutzbestimmungen von OpenAI. Du kannst die Verbindung jederzeit trennen."
 
     var body: some View {
         UFCard {
             // "bulb" gibt es nicht unter den Icons (fiel auf "file" zurueck): "sparkles" wie die uebrigen KI-Stellen
             UFCardHead("KI über mein ChatGPT", icon: "sparkles") { badge }
-            Text("Fragen im Editor, Wochentests und Zusammenfassungen über dein eigenes ChatGPT-Abo (Plus oder Pro). In jedem Tarif von Studora; ohne ChatGPT-Abo gibt es keine KI.")
+            Text("Fragen im Editor, Wochentests und Zusammenfassungen über dein eigenes ChatGPT-Abo (Plus oder Pro). In jedem Tarif von StudiNow; ohne ChatGPT-Abo gibt es keine KI.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
             if let s = link.status, s.connected {
@@ -92,7 +92,7 @@ struct ChatGPTCard: View {
                 }
                 UFButton("Anderes Konto verbinden", icon: "log-out", size: .small) {
                     Task {
-                        guard await overlay.confirm("Anderes ChatGPT-Konto verbinden?\n\nDie bisherige Verbindung wird gelöscht und Studora registriert sich bei OpenAI neu.") else { return }
+                        guard await overlay.confirm("Anderes ChatGPT-Konto verbinden?\n\nDie bisherige Verbindung wird gelöscht und StudiNow registriert sich bei OpenAI neu.") else { return }
                         await link.connect(newAccount: true)
                     }
                 }

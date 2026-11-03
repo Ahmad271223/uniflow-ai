@@ -312,7 +312,7 @@ struct TutorConnectState: View {
             case .reauth: return ("Die Anmeldung bei ChatGPT ist abgelaufen.", "Neu verbinden")
             case .noSharing: return ("ChatGPT ist verbunden, aber die Freigabe für dein Abo fehlt. Ohne sie laufen keine Anfragen.", "Freigabe nachholen")
             case .switchedOff: return ("ChatGPT ist verbunden, aber „KI-Anfragen über mein ChatGPT“ ist ausgeschaltet.", "Einschalten")
-            case .noModel: return ("ChatGPT ist verbunden, Studora richtet es gerade ein.", "Erneut versuchen")
+            case .noModel: return ("ChatGPT ist verbunden, StudiNow richtet es gerade ein.", "Erneut versuchen")
             case .ready: return ("ChatGPT ist bereit.", nil)
             }
         }

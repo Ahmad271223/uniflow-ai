@@ -69,16 +69,16 @@ targets:
             /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "$P" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$P"
             /usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" "$P" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string Studora verbindet sich mit deinem Studora-Server im WLAN (nur Entwicklung)." "$P"
+            /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string StudiNow verbindet sich mit deinem StudiNow-Server im WLAN (nur Entwicklung)." "$P"
           fi
     info:
       path: UniFlow/Info.plist
       properties:
-        # Name auf dem Home-Bildschirm (Entscheidung des Inhabers 28.10.2026: die App heisst Studora). Bundle-ID,
+        # Name auf dem Home-Bildschirm (Entscheidung des Inhabers 03.11.2026: die App heisst StudiNow, vorher Studora). Bundle-ID,
         # Produkt-IDs, Ordner und interne Kennungen bleiben bei uniflow, sonst gingen Daten und Einstellungen verloren.
-        CFBundleDisplayName: Studora
+        CFBundleDisplayName: StudiNow
         # Systemabfragen (z. B. Anmeldung ueber ASWebAuthenticationSession) nennen diesen Namen, nicht den Anzeigenamen
-        CFBundleName: Studora
+        CFBundleName: StudiNow
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen:
@@ -104,14 +104,14 @@ targets:
               - uniflow
         # Loesungspaket *.uniflowsolution (nur eigene Notizen, verschluesselt; docs/LOESUNGEN-TEILEN.md)
         CFBundleDocumentTypes:
-          - CFBundleTypeName: Studora-Lösung
+          - CFBundleTypeName: StudiNow-Lösung
             CFBundleTypeRole: Viewer
             LSHandlerRank: Owner
             LSItemContentTypes:
               - de.uniflow.solution
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: de.uniflow.solution
-            UTTypeDescription: Studora-Lösung
+            UTTypeDescription: StudiNow-Lösung
             UTTypeConformsTo:
               - public.data
               - public.content
@@ -141,7 +141,7 @@ targets:
           - "*.storekit"
       - path: UniFlowTests/UniFlow.storekit
         buildPhase: resources       # SKTestSession(configurationFileNamed:) sucht die Datei im Testbundle
-      # alle vier Tarife, nur fuer die Tests der Wechsel-Logik (Pro-Tarife kommen erst mit dem Studora-Dienst)
+      # alle vier Tarife, nur fuer die Tests der Wechsel-Logik (Pro-Tarife kommen erst mit dem StudiNow-Dienst)
       - path: UniFlowTests/UniFlowAlleTarife.storekit
         buildPhase: resources
     dependencies:

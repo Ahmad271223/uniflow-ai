@@ -1,6 +1,6 @@
 import Foundation
 
-/// Antwort des Studora-Dienstes mit Kopfzeilen (fuer Retry-After)
+/// Antwort des StudiNow-Dienstes mit Kopfzeilen (fuer Retry-After)
 public struct ServiceHTTPResponse: Sendable {
     public var status: Int
     public var headers: [String: String]
@@ -10,7 +10,7 @@ public struct ServiceHTTPResponse: Sendable {
     }
 }
 
-/// Transport zum Studora-Dienst (App: URLSession, Tests: Schein-Dienst); wirft nur, wenn der Dienst nicht erreichbar ist
+/// Transport zum StudiNow-Dienst (App: URLSession, Tests: Schein-Dienst); wirft nur, wenn der Dienst nicht erreichbar ist
 public protocol ServiceHTTPTransport: Sendable {
     func send(_ request: AIHTTPRequest) async throws -> ServiceHTTPResponse
 }
@@ -30,7 +30,7 @@ public struct AccountError: Error, Equatable, Sendable {
     public let retryAfter: Int?
 }
 
-/// Studora-Konto (Vertrag G1, `packages/shared-contracts/fixtures/account/contract.json`; Referenz app/accounts.py,
+/// StudiNow-Konto (Vertrag G1, `packages/shared-contracts/fixtures/account/contract.json`; Referenz app/accounts.py,
 /// app/account_api.py). Auf dem iPad in V1 nur Anmeldung und Kontoverwaltung, noch ohne Abgleich der Notizen (G2,
 /// Stufe 2; Entscheidung des Inhabers vom 29.10.2026). Das Passwort geht nur an den Dienst und wird nie gespeichert;
 /// gespeichert wird nur das Sitzungs-Token.
@@ -109,7 +109,7 @@ public actor StudoraAccount {
         do {
             r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: body?.serialized()))
         } catch {
-            throw AccountError(status: 0, code: "service_unreachable", message: "Der Studora-Dienst ist nicht erreichbar.", retryAfter: nil)
+            throw AccountError(status: 0, code: "service_unreachable", message: "Der StudiNow-Dienst ist nicht erreichbar.", retryAfter: nil)
         }
         guard (200..<300).contains(r.status) else {
             let j = try? JSONValue.parse(r.body)

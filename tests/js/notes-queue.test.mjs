@@ -99,7 +99,7 @@ test("409 ohne Ende: nach vier Versuchen aufgeben, Eintrag behalten, einmal meld
 });
 
 test("anderer Fehler (403, 500): Eintrag behalten, nur einmal melden, naechste Datei trotzdem senden", async () => {
-  const f = fakeFetch([json(403, { detail: "Ab Studora Plus" }), json(200, { ok: true, version: 2 }), json(403, { detail: "Ab Studora Plus" })]);
+  const f = fakeFetch([json(403, { detail: "Ab StudiNow Plus" }), json(200, { ok: true, version: 2 }), json(403, { detail: "Ab StudiNow Plus" })]);
   const q = createQueue({ storage: memoryStorage(), fetch: f }); const errors = []; q.hooks.error = (id, m) => errors.push([id, m]);
   await q.remember(entry("f1", doc({ p1: page("a") })));
   await q.remember(entry("f2", doc({ p1: page("b") })));
@@ -107,7 +107,7 @@ test("anderer Fehler (403, 500): Eintrag behalten, nur einmal melden, naechste D
   assert.deepEqual(r, { sent: ["f2"], kept: ["f1"], offline: false });
   r = await q.flush();
   assert.deepEqual(r.kept, ["f1"]); assert.equal(f.calls.length, 3);
-  assert.deepEqual(errors, [["f1", "Ab Studora Plus (403)"]], "gleicher Fehler nur einmal gemeldet");
+  assert.deepEqual(errors, [["f1", "Ab StudiNow Plus (403)"]], "gleicher Fehler nur einmal gemeldet");
 });
 
 test("gehaltene Datei (Editor offen) und `except` werden ausgelassen; flush laeuft nie doppelt", async () => {

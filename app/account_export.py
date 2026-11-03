@@ -115,7 +115,7 @@ def _library(user: dict) -> list[dict]:
                            "created_at FROM questions WHERE owner_hash=? ORDER BY created_at", (owner,))
 
 
-README = """Studora / UniFlow – Export deiner Daten
+README = """StudiNow / UniFlow – Export deiner Daten
 
 Erstellt: {at}
 Konto: {email}

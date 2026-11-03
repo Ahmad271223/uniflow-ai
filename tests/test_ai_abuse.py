@@ -1,4 +1,4 @@
-"""Missbrauchsschutz der Studora-KI im Dienst: nur mit bestaetigter E-Mail, Probekonten mit eigenem kleinen Budget-Becken,
+"""Missbrauchsschutz der StudiNow-KI im Dienst: nur mit bestaetigter E-Mail, Probekonten mit eigenem kleinen Budget-Becken,
 ohne Token-Preise gesperrt; die KI-Kommandozeile des Servers (`claude -p`) ist im Dienst nicht erreichbar."""
 import json
 import sqlite3

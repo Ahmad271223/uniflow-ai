@@ -351,7 +351,7 @@
   },
   "plan_required": {
    "status": 403,
-   "message": "Eigene Lösungen teilen gibt es ab Studora Plus."
+   "message": "Eigene Lösungen teilen gibt es ab StudiNow Plus."
   },
   "solution_exists": {
    "status": 409,
@@ -580,7 +580,7 @@
    },
    "status": 403,
    "response": {
-    "detail": "Eigene Lösungen teilen gibt es ab Studora Plus.",
+    "detail": "Eigene Lösungen teilen gibt es ab StudiNow Plus.",
     "code": "plan_required"
    }
   },
@@ -961,7 +961,7 @@
    },
    "status": 403,
    "response": {
-    "detail": "Kommentieren gibt es ab Studora Plus.",
+    "detail": "Kommentieren gibt es ab StudiNow Plus.",
     "code": "plan_required"
    }
   },
@@ -1147,7 +1147,7 @@
    },
    "status": 403,
    "response": {
-    "detail": "Fragen stellen gibt es ab Studora Plus.",
+    "detail": "Fragen stellen gibt es ab StudiNow Plus.",
     "code": "plan_required"
    }
   },

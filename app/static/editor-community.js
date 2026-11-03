@@ -7,9 +7,9 @@
 // `anchor` = {x, y} in 0..1 von links oben in der Anzeige des Absenders (dieselben Koordinaten wie die Objekte,
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
-import * as S from "./solutions.js?v=5";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=13";
-import { renderLinkCard } from "./studora-link.js?v=3";
+import * as S from "./solutions.js?v=6";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=14";
+import { renderLinkCard } from "./studora-link.js?v=4";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -258,7 +258,7 @@ class Community {
     if (e.code === "not_linked") return `<div class="com-link"></div>`;
     if (e.code === "file_not_owned") return `<p class="small">${icon("info", 14)} Diese PDF stammt nicht aus deinem Hochschul-Abgleich. Lösungen gibt es nur für Dateien aus Stud.IP oder Learnweb, damit nur Kursteilnehmer sie sehen.</p><button class="btn sm" data-c="claims">${icon("sync", 13)} Meine PDFs jetzt melden</button><div class="com-link" style="margin-top:.8rem"></div>`;
     if (e.code === "university_mismatch" || e.code === "service_unreachable") return `<p class="small">${icon("alert", 14)} ${esc(e.message)}</p><button class="btn sm" data-c="reload">Erneut versuchen</button><div class="com-link" style="margin-top:.8rem"></div>`;
-    if (e.code === "not_hosted") return `<p class="small muted">Die Community läuft über den Studora-Dienst.</p>`;
+    if (e.code === "not_hosted") return `<p class="small muted">Die Community läuft über den StudiNow-Dienst.</p>`;
     return `<p class="small">${icon("alert", 14)} ${esc(e.message)}</p><button class="btn sm" data-c="reload">Erneut versuchen</button>`;
   }
   listBody() {
@@ -296,7 +296,7 @@ class Community {
       ${canC ? (this.pending ? `<div class="com-new"><div class="tiny muted">${icon("map-pin", 12)} Kommentar an markierter Stelle (${esc(this.pending.label)})</div><textarea rows="3" maxlength="${this.info?.max_comment || 2000}" placeholder="Was ist dir an dieser Stelle aufgefallen?"></textarea><div class="row"><button class="btn sm primary" data-send="anchor">Kommentieren</button><button class="btn sm ghost" data-cancel>Abbrechen</button></div></div>`
         : `<div class="row wrap" style="gap:.4rem"><button class="btn sm${this.placing ? " primary" : ""}" data-c="place" ${o?.content ? "" : "disabled"}>${icon("map-pin", 13)} ${this.placing ? "Klicke auf die Stelle …" : "An Stelle kommentieren"}</button><button class="btn sm ghost" data-c="general">${icon("message", 13)} Allgemein</button></div>
           ${this.general ? `<div class="com-new"><textarea rows="3" maxlength="${this.info?.max_comment || 2000}" placeholder="Kommentar zur ganzen Lösung"></textarea><div class="row"><button class="btn sm primary" data-send="general">Kommentieren</button><button class="btn sm ghost" data-cancel>Abbrechen</button></div></div>` : ""}`)
-        : `<p class="tiny muted">${icon("info", 12)} Lesen kann jeder; kommentieren geht ab Studora Plus mit bestätigter E-Mail.</p>`}
+        : `<p class="tiny muted">${icon("info", 12)} Lesen kann jeder; kommentieren geht ab StudiNow Plus mit bestätigter E-Mail.</p>`}
       <div class="com-threads">${list ? threads || `<p class="small muted">Noch keine Kommentare.${canC ? " Setze den ersten an eine Stelle der Seite." : ""}</p>` : `<p class="small muted">Lade Kommentare …</p>`}</div>`;
   }
   shareRows() {
@@ -318,7 +318,7 @@ class Community {
       <div class="small"><b>Vorschau</b> <span class="muted">(so sehen andere deine Notizen, ohne Original)</span> · ${sel.length} Seite${sel.length === 1 ? "" : "n"}, ${objs} Objekte</div>
       <div class="com-prev"></div>
       <div class="row wrap" style="gap:.4rem;margin-top:.5rem"><button class="btn sm primary" data-c="publish" ${sel.length && objs && canShare ? "" : "disabled"}>${icon("share", 13)} Veröffentlichen</button><button class="btn sm" data-c="savefile" ${sel.length && objs ? "" : "disabled"}>${icon("download", 13)} Als Datei</button></div>
-      ${canShare ? "" : `<p class="tiny muted">Veröffentlichen gibt es ab Studora Plus mit bestätigter E-Mail. Als Datei geht es immer (z. B. per Mail an Kommilitonen).</p>`}
+      ${canShare ? "" : `<p class="tiny muted">Veröffentlichen gibt es ab StudiNow Plus mit bestätigter E-Mail. Als Datei geht es immer (z. B. per Mail an Kommilitonen).</p>`}
       <div class="com-share-msg small"></div>`;
   }
   async renderQA() {
@@ -326,7 +326,7 @@ class Community {
     const box = $(".com-qa", this.el); if (!box) return;
     try {
       const f = await (await fetch(`/api/files/${encodeURIComponent(this.ed.fileId)}`)).json();
-      const q = await import("./views-qa.js?v=3");
+      const q = await import("./views-qa.js?v=4");
       const courses = await q.courseKeys(); const c = courses.find(x => x.course_id === f.course_id);
       if (!c) { box.textContent = "Diese Datei gehört zu keinem deiner Kurse; Fragen gibt es je Kurs."; return; }
       const pg = this.ed.pages[this.ed.currentPage];
