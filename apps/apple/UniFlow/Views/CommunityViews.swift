@@ -92,7 +92,7 @@ struct CommunityNotice: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            UFIcon(tone == .ok ? "check" : "alert", size: 14).foregroundStyle(tone.fg)
+            UFIcon(tone == .ok ? "check" : tone == .info ? "info" : "alert", size: 14).foregroundStyle(tone.fg)
             Text(text).ufFont(13.12, 500).foregroundStyle(UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,6 +134,7 @@ struct CommunitySpacesCard: View {
     @State private var showOlder = false
     /// Fachfarben geladen (loest das Neuzeichnen aus)
     @State private var tintsLoaded = false
+    @StateObject private var inbox = CorrectionInboxModel(service: SolutionSharing.community)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -144,6 +145,8 @@ struct CommunitySpacesCard: View {
             Text("Jedes Modul hat eine Community für Vorlesung, Übungen und Tutorien. Tritt bei, dann siehst und teilst du dort Lösungen.")
                 .ufFont(13.6).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             if let error { CommunityNotice(text: error) }
+            // Korrekturhinweise an eigene Loesungen (Posteingang, ruhig ueber den Kacheln)
+            if !inbox.items.isEmpty || inbox.notice != nil { CorrectionInboxList(model: inbox) }
             if let all = spaces {
                 let _ = tintsLoaded                                    // nach dem Laden der Fachfarben neu zeichnen
                 let older = all.filter { $0.kind == .course && !$0.current }
@@ -173,6 +176,7 @@ struct CommunitySpacesCard: View {
         }
         .padding(.bottom, 24)
         .task { await reload() }
+        .task { await inbox.load() }
         .task {
             guard let api = session.api, let uni = account.university?.rawValue else { return }
             await CommunityTint.load(api: api, university: uni)

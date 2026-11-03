@@ -652,7 +652,7 @@ extension CloudKitCommunityService {
     }
 
     /// Melder je Kommentar; ist `Report` nicht lesbar (Rechte im Dashboard), keine
-    private func commentReporters(_ cloud: CommunityCloud, solutionID: String, me: String) async -> [String: Set<String>] {
+    func commentReporters(_ cloud: CommunityCloud, solutionID: String, me: String) async -> [String: Set<String>] {
         let records = (try? await cloud.query(CommunityQuery(type: CommunityRecordType.report, equals: [Field.solutionID: .string(solutionID)],
                                                              limit: Self.discussionLimit), in: .publicDB)) ?? []
         var out: [String: Set<String>] = [:]

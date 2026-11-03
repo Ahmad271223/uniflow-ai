@@ -90,6 +90,8 @@ public protocol CommunityService: Sendable {
     func deleteCorrection(id: String) async throws
     /// Korrektur auf diesem Geraet ignorieren bzw. wieder als offen fuehren (nur lokal, der Dienst kennt das nicht)
     func setCorrectionStatus(_ status: CommunityCorrection.Status, id: String)
+    /// Fremde Korrektur melden (wie ein Kommentar; die eigene nimmt man zurueck statt sie zu melden)
+    func reportCorrection(id: String, reason: CommunityReportReason) async throws
 }
 
 extension CommunityService {
@@ -140,6 +142,7 @@ extension CommunityService {
     public func correctionsForMyOwnSolutions() async throws -> [CommunityCorrection] { throw CommunityServiceError.notConnected }
     public func deleteCorrection(id: String) async throws { throw CommunityServiceError.notConnected }
     public func setCorrectionStatus(_ status: CommunityCorrection.Status, id: String) {}
+    public func reportCorrection(id: String, reason: CommunityReportReason) async throws { throw CommunityServiceError.notConnected }
 }
 
 /// Eine Community: jeder Kurs aus dem eigenen Abgleich oder eine Lerngruppe. `secret` entsteht auf dem Geraet aus

@@ -205,11 +205,20 @@ struct CommunitySpacePage: View {
     @State private var reading: CommunityReading?
     /// Fachfarbe des Moduls ("#rrggbb"), sobald bekannt
     @State private var tintHex: String?
+    /// Korrekturhinweise an eigene Loesungen dieser Community
+    @StateObject private var inbox: CorrectionInboxModel
+    /// eigene Datei zu einem Fingerabdruck (Korrektur vorschlagen bzw. ansehen); Tests setzen sie
+    private let localFile: (String) async -> String?
 
-    init(key: String, space: CommunitySpace? = nil, service: CommunityService? = nil) {
+    init(key: String, space: CommunitySpace? = nil, service: CommunityService? = nil, localFile: ((String) async -> String?)? = nil,
+         shared: (() -> [SolutionLibrary.SharedEntry])? = nil) {
         let service = service ?? SolutionSharing.community
+        let localFile = localFile ?? { await CorrectionLaunch.localFile(fingerprint: $0) }
         self.key = key
         self.service = service
+        self.localFile = localFile
+        _inbox = StateObject(wrappedValue: CorrectionInboxModel(service: service, localFile: localFile,
+                                                                shared: shared ?? { SolutionSharing.library.sharedEntries() }))
         _space = State(initialValue: space)
         _tintHex = State(initialValue: CommunityTint.known[key])
         _tab = State(initialValue: service.supportsSpaceDiscussion ? .discussion : .documents)
@@ -241,6 +250,7 @@ struct CommunitySpacePage: View {
                     .padding(.top, -8)
                     if let space {
                         header(space)
+                        if space.joined, !inbox.items.isEmpty || inbox.notice != nil { CorrectionInboxList(model: inbox) }
                         CommunityTabBar(options: [(CommunitySpaceTab.discussion, "Diskussion", "community.tab.discussion"),
                                                   (.documents, CommunitySpaceTexts.documents(items?.count ?? 0), "community.tab.documents")],
                                         selection: $tab)
@@ -421,6 +431,7 @@ struct CommunitySpacePage: View {
             .background(UF.surface)
             .ufBorderBottom()
             CommunityPeopleReader(title: r.title, people: r.people, start: r.start, service: service, wide: true,
+                                  localFile: localFile, leave: { reading = nil },
                                   removed: { text, matches in
                                       reading = nil
                                       items?.removeAll(where: matches)
@@ -459,6 +470,9 @@ struct CommunitySpacePage: View {
         }
         guard space.joined else { return }
         do { items = try await service.solutions(in: space); error = nil } catch { self.error = CommunityTexts.message(error) }
+        if let items {
+            await inbox.load(known: items, only: Set(items.filter(\.isOwn).map { $0.solutionID.lowercased() }))
+        }
     }
 
     private func join(_ s: CommunitySpace) {

@@ -197,6 +197,11 @@ struct DocumentView: View {
     @State private var correctionMessage = ""
     @State private var confirmDiscardCorrection = false
     @ObservedObject private var correctionLaunch = CorrectionLaunch.shared
+    /// fremde Korrektur ansehen (nicht an mich): die korrigierte Loesung liegt dabei als Ebene darunter, eigene Notizen aus
+    @State private var shownCorrectionTarget: ForeignSolutionLayer?
+    /// offene Korrekturhinweise zu meiner eigenen, geteilten Loesung dieser PDF ("N Korrekturhinweise")
+    @State private var ownCorrections: [CommunityCorrection] = []
+    @State private var ownCorrectionsDismissed = false
 
     init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil) {
         self.api = api
@@ -459,6 +464,7 @@ struct DocumentView: View {
             if let sid = correcting { await startCorrection(sid) }
             await takeCorrectionRequest()
             await loadCommunityMatches()
+            await loadOwnCorrections()
             if offersLectureMarker { await markers.refresh(api: api, fileID: store.file.id) }
         }
         .onChange(of: correctionLaunch.pending[store.file.id]) { _, r in
@@ -481,8 +487,8 @@ struct DocumentView: View {
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                       toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
-                      foreignLayers: correction.map { [$0.target] } ?? foreignLayers,
-                      ownNotesVisible: correction == nil && ownNotesVisible, canEdit: canWrite,
+                      foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
+                      ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
                       onCorrectionNote: { event in correctionNoteEvent(event) })
             .ignoresSafeArea(edges: .bottom)
@@ -495,7 +501,14 @@ struct DocumentView: View {
                                       pause: { correction.saveNow(); self.correction = nil },
                                       discard: { confirmDiscardCorrection = true })
                     } else if let shownCorrection {
-                        ShownCorrectionBanner(correction: shownCorrection) { self.shownCorrection = nil }
+                        ShownCorrectionBanner(correction: shownCorrection, onSolution: shownCorrectionTarget != nil,
+                                              ignore: shownCorrection.isForMe && !shownCorrection.isMine ? { ignoreShownCorrection() } : nil) {
+                            self.shownCorrection = nil
+                            shownCorrectionTarget = nil
+                        }
+                    } else if !ownCorrections.isEmpty, !ownCorrectionsDismissed {
+                        OwnCorrectionsHint(corrections: ownCorrections, open: { c in shownCorrection = c },
+                                           dismiss: { ownCorrectionsDismissed = true })
                     }
                     versionBanner
                     communityBanner
@@ -1016,9 +1029,34 @@ struct DocumentView: View {
         case .show(let c):
             correction?.saveNow()
             correction = nil
+            shownCorrectionTarget = nil
+            if !c.isForMe, let pdf = store.originalPDF ?? store.pdf {
+                // fremde Korrektur: die korrigierte Loesung darunter zeigen (sonst lagen die Striche ueber den eigenen Notizen)
+                shownCorrectionTarget = try? await CorrectionLaunch.targetLayer(solutionID: c.targetSolutionID, known: foreignLayers, pdf: pdf,
+                                                                                fingerprint: await store.originalFingerprint(),
+                                                                                service: SolutionSharing.community)
+            }
             shownCorrection = c
         case nil: break
         }
+    }
+
+    /// Offene Korrekturhinweise zu meiner eigenen geteilten Loesung dieser PDF (Hinweis oben im Dokument)
+    private func loadOwnCorrections() async {
+        let service = SolutionSharing.community
+        guard service.supportsCorrections, entitlements.allows(.communityRead), !readOnly, let fp = communityFingerprint else { return }
+        let mine = CorrectionInbox.solutionIDs(fingerprint: fp, known: communityMatches, shared: SolutionSharing.library.sharedEntries())
+        guard !mine.isEmpty, let inbox = try? await service.correctionsForMyOwnSolutions() else { return }
+        ownCorrections = CorrectionInbox.items(inbox, only: mine).map(\.correction)
+    }
+
+    /// Angezeigte Korrektur an mich ignorieren (nur auf diesem Geraet) und schliessen
+    private func ignoreShownCorrection() {
+        guard let c = shownCorrection else { return }
+        SolutionSharing.community.setCorrectionStatus(.ignored, id: c.id)
+        ownCorrections.removeAll { $0.id == c.id }
+        shownCorrection = nil
+        shownCorrectionTarget = nil
     }
 
     /// Korrektur-Modus fuer eine fremde Loesung: als Ebene ueber der eigenen PDF, eigene Notizen aus, Entwurf geladen
@@ -1030,6 +1068,7 @@ struct DocumentView: View {
                                                                service: SolutionSharing.community)
             bridge.setObjectMode(false)
             shownCorrection = nil
+            shownCorrectionTarget = nil
             correction = CorrectionSession(target: layer)
         } catch {
             actionError = "Korrektur nicht möglich: " + SolutionSharing.message(error)

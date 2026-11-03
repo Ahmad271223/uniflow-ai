@@ -69,16 +69,28 @@ struct CorrectionBar: View {
 /// Hinweis ueber einer empfangenen Korrektur (beim Ersteller)
 struct ShownCorrectionBanner: View {
     let correction: CommunityCorrection
+    /// fremde Korrektur: liegt ueber der korrigierten Loesung (nicht ueber den eigenen Notizen)
+    var onSolution = false
+    /// an mich gerichtet: auf diesem Geraet ignorieren
+    var ignore: (() -> Void)?
     let close: () -> Void
+
+    private var detail: String {
+        CorrectionTexts.summary(correction) + " (Nadeln antippen). "
+            + (onSolution ? "Die Lösung selbst bleibt unverändert." : "Deine Notizen bleiben unverändert.")
+    }
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.bubble").foregroundStyle(UF.warn)
+            Image(systemName: "exclamationmark.bubble").foregroundStyle(UF.warn).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Korrekturhinweis von \(correction.displayName)").font(.caption).bold()
                 if !correction.note.isEmpty { Text(correction.note).font(.caption).lineLimit(3) }
-                Text("\(correction.strokeCount) Markierungen · \(correction.noteCount) Randnotizen (Nadeln antippen). Deine Notizen bleiben unverändert.")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            if let ignore {
+                Button("Ignorieren", action: ignore).buttonStyle(.bordered).controlSize(.small)
+                    .accessibilityIdentifier("shownCorrection.ignore")
             }
             Button("Ausblenden", action: close).buttonStyle(.bordered).controlSize(.small)
         }

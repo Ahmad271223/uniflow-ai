@@ -13,6 +13,9 @@ import UniFlowCore
 // passt (der Posteingang prueft, dass die Loesung wirklich dem Leser gehoert). Gesperrte Nutzer (eigene Sperrliste und
 // `Ban`) erscheinen nicht; wer gesperrt ist (`Ban`), kann nichts schicken. Ignorieren gilt nur auf diesem Geraet
 // (`CommunityCorrectionStatusStore`). Zuruecknehmen kann nur der Verfasser (Datensatz loeschen).
+//
+// Melden: derselbe Datensatz `Report` wie fuer Kommentare (`commentID` = Korrektur-ID, `note` = "correction"), kein
+// neues Schema; ab `CommunityDiscussion.reportsToHide` Meldungen erscheint die Korrektur nicht mehr.
 
 extension CommunityRecordType {
     /// Korrekturvorschlag zu einer Loesung (Inhalt verschluesselt)
@@ -87,7 +90,9 @@ extension CloudKitCommunityService {
         } catch {
             throw Self.serviceError(error)
         }
-        let list = records.compactMap { Self.correction($0, solutionID: sid, me: v.ownerRecordName, secret: secret, cipher: SolutionSharing.cipher) }
+        let hidden = Self.hiddenByReports(await commentReporters(cloud, solutionID: sid, me: v.ownerRecordName))
+        let list = records.filter { !hidden.contains($0.name.lowercased()) }
+            .compactMap { Self.correction($0, solutionID: sid, me: v.ownerRecordName, secret: secret, cipher: SolutionSharing.cipher) }
         return CommunityCorrections.list(list, me: v.ownerRecordName, solutionOwner: listing.ownerRecordName, blocked: v.blockedOwners,
                                          ignored: correctionStatus.ignored())
     }
@@ -109,11 +114,49 @@ extension CloudKitCommunityService {
             // nur eigene Loesungen (das Feld `solutionOwner` setzt der Absender), die sich noch oeffnen lassen
             guard let listing = try? await visibleSolution(cloud, id: sid).0, listing.ownerRecordName == user,
                   let secret = try? await secret(listing) else { continue }
-            out += group.compactMap { Self.correction($0, solutionID: sid, me: user, secret: secret, cipher: SolutionSharing.cipher) }
+            let hidden = Self.hiddenByReports(await commentReporters(cloud, solutionID: sid, me: user))
+            out += group.filter { !hidden.contains($0.name.lowercased()) }
+                .compactMap { Self.correction($0, solutionID: sid, me: user, secret: secret, cipher: SolutionSharing.cipher) }
         }
         return CommunityCorrections.list(out, me: user, solutionOwner: user, blocked: blocked, ignored: ignored)
             .filter { !$0.isMine }
     }
+
+    /// Korrekturen, die so oft gemeldet wurden wie ein Kommentar bis zum Ausblenden (`CommunityDiscussion.reportsToHide`)
+    static func hiddenByReports(_ reporters: [String: Set<String>]) -> Set<String> {
+        Set(reporters.filter { $0.value.count >= CommunityDiscussion.reportsToHide }.keys)
+    }
+
+    /// Fremde Korrektur melden: derselbe Datensatz `Report` wie fuer Kommentare (Feld `commentID` = Korrektur-ID,
+    /// `note` = "correction"), kein neues Schema. Einmal je Nutzer; ab `reportsToHide` Meldungen ausgeblendet.
+    func reportCorrection(id: String, reason: CommunityReportReason) async throws {
+        let (cloud, user) = try await signedIn()
+        let cid = id.lowercased()
+        let record: CommunityRecord?
+        do { record = try await cloud.fetch(name: cid, type: CommunityRecordType.correction, in: .publicDB) } catch {
+            throw Self.serviceError(error)
+        }
+        guard let record, let sid = record[Field.solutionID]?.string else { throw CommunityServiceError.service("Korrektur nicht gefunden.") }
+        // nur, wer die Loesung sehen darf, kann melden
+        _ = try await visibleSolution(cloud, id: sid)
+        guard Self.owner(record, me: user) != user else {
+            throw CommunityServiceError.service("Die eigene Korrektur nimmst du zurück statt sie zu melden.")
+        }
+        if await commentReporters(cloud, solutionID: sid, me: user)[cid]?.contains(user) == true {
+            throw CommunityServiceError.service("Du hast diese Korrektur schon gemeldet.")
+        }
+        var report = CommunityRecord(type: CommunityRecordType.report, name: "report-" + UUID().uuidString.lowercased())
+        report[Field.solutionID] = .string(sid)
+        report[Field.commentID] = .string(cid)
+        report[Field.reason] = .string(reason.rawValue)
+        report[Field.note] = .string(Self.correctionReportNote)
+        report[Field.reporter] = .string(user)
+        report[Field.createdAt] = .string(SolutionPackage.timestamp(Date()))
+        do { try await cloud.save(report, in: .publicDB) } catch { throw Self.serviceError(error) }
+    }
+
+    /// Kennzeichen im Feld `note` einer Meldung: gemeldet ist eine Korrektur, kein Kommentar (fuer das Dashboard)
+    static let correctionReportNote = "correction"
 
     func deleteCorrection(id: String) async throws {
         let (cloud, user) = try await signedIn()

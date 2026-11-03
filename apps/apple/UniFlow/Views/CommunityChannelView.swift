@@ -613,7 +613,7 @@ struct CommunityContributorsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
             .navigationDestination(item: $reading) { i in
-                CommunityPeopleReader(title: item.title, people: item.people, start: i, service: service, removed: removed)
+                CommunityPeopleReader(title: item.title, people: item.people, start: i, service: service, leave: close, removed: removed)
             }
         }
         .accessibilityIdentifier("community.people")
@@ -667,8 +667,8 @@ struct CommunityContributorsSheet: View {
 /// Reiter der Notizen einer Person: das Dokument (Seiten gross) oder die Diskussion (Kommentare mit Eingabe)
 enum CommunityReaderTab: Hashable { case notes, discussion }
 
-/// Knopf der schwebenden Leiste unter den Notizen. Weitere Aktionen (z. B. spaeter "Korrektur vorschlagen") kommen
-/// ueber `CommunityPeopleReader.extraActions` dazu, ohne den Leser umzubauen.
+/// Knopf der schwebenden Leiste unter den Notizen. "Korrektur vorschlagen" setzt der Leser selbst
+/// (`CorrectionCommunityViews.swift`), weitere Aktionen kommen ueber `CommunityPeopleReader.extraActions` dazu.
 struct CommunityReaderAction: Identifiable {
     let id: String
     let title: String
@@ -687,7 +687,17 @@ struct CommunityPeopleReader: View {
     var wide = false
     /// zusaetzliche Knoepfe der schwebenden Leiste je Person (Erweiterungspunkt)
     var extraActions: (CommunitySolutionSummary) -> [CommunityReaderAction] = { _ in [] }
+    /// eigene Datei zu einem Fingerabdruck (Korrektur vorschlagen bzw. ansehen)
+    let localFile: (String) async -> String?
+    /// vor dem Wechsel ins Dokument (Blatt schliessen bzw. Leser verlassen)
+    var leave: (() -> Void)?
     let removed: (String, @escaping (CommunitySolutionSummary) -> Bool) -> Void
+    @ObservedObject private var entitlements: Entitlements
+    @EnvironmentObject private var router: UFRouter
+    /// Fingerabdruck -> eigene Datei (.some(nil): keine)
+    @State private var pdfFiles: [String: String?] = [:]
+    @State private var lockedFeature: UFFeature?
+    @State private var hint: String?
     @State private var index: Int
     @State private var forward = true
     @State private var tab: CommunityReaderTab = .notes
@@ -700,13 +710,17 @@ struct CommunityPeopleReader: View {
 
     init(title: String, people: [CommunitySolutionSummary], start: Int, service: CommunityService, wide: Bool = false,
          extraActions: @escaping (CommunitySolutionSummary) -> [CommunityReaderAction] = { _ in [] },
+         entitlements: Entitlements? = nil, localFile: ((String) async -> String?)? = nil, leave: (() -> Void)? = nil,
          removed: @escaping (String, @escaping (CommunitySolutionSummary) -> Bool) -> Void) {
         self.title = title
         self.people = people
         self.service = service
         self.wide = wide
         self.extraActions = extraActions
+        self.localFile = localFile ?? { await CorrectionLaunch.localFile(fingerprint: $0) }
+        self.leave = leave
         self.removed = removed
+        _entitlements = ObservedObject(wrappedValue: entitlements ?? .shared)
         _index = State(initialValue: min(max(0, start), max(0, people.count - 1)))
     }
 
@@ -716,8 +730,9 @@ struct CommunityPeopleReader: View {
         VStack(spacing: 0) {
             personBar
             ZStack {
-                CommunityPersonPane(solution: current, service: service, notice: notice, error: error, tab: $tab, wide: wide,
-                                    actions: extraActions(current), menu: menu(current))
+                CommunityPersonPane(solution: current, service: service, notice: notice, error: error, hint: hint, tab: $tab, wide: wide,
+                                    actions: correctionActions(current) + extraActions(current), menu: menu(current),
+                                    localFile: localFile, leave: leave)
                     .id(current.solutionID)
                     .transition(transition)
             }
@@ -733,6 +748,9 @@ struct CommunityPeopleReader: View {
         .background(UF.bg)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        // eigene PDF zur Loesung suchen (Korrektur nur mit derselben PDF)
+        .task(id: current.solutionID) { await lookUpPDF(current) }
+        .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
             if let s = reporting {
                 CommunityReportDialog(solution: s, service: service, done: { m in reporting = nil; notice = m })
@@ -758,6 +776,42 @@ struct CommunityPeopleReader: View {
                     UFButton("Zurückziehen", kind: .danger) { withdrawing = nil; withdraw(s) }
                 }
             }
+        }
+    }
+
+    // MARK: Korrektur vorschlagen
+
+    func correctionOffer(_ s: CommunitySolutionSummary) -> CorrectionOffer {
+        CorrectionOffer.resolve(s, supportsCorrections: service.supportsCorrections, access: entitlements.access(.shareSolutions),
+                                localFile: s.fingerprint.isEmpty ? .some(nil) : pdfFiles[s.fingerprint])
+    }
+
+    /// Knopf "Korrektur vorschlagen" (nicht unter eigenen Notizen, nur wenn der Dienst Korrekturen kann)
+    private func correctionActions(_ s: CommunitySolutionSummary) -> [CommunityReaderAction] {
+        guard correctionOffer(s) != .hidden else { return [] }
+        return [CommunityReaderAction(id: "correct", title: CorrectionTexts.action, icon: "pen", systemImage: "pencil.and.outline") {
+            suggestCorrection(s)
+        }]
+    }
+
+    private func lookUpPDF(_ s: CommunitySolutionSummary) async {
+        guard service.supportsCorrections, !s.isOwn, !s.fingerprint.isEmpty, pdfFiles[s.fingerprint] == nil else { return }
+        let file = await localFile(s.fingerprint)
+        pdfFiles[s.fingerprint] = .some(file)
+    }
+
+    private func suggestCorrection(_ s: CommunitySolutionSummary) {
+        switch correctionOffer(s) {
+        case .hidden: return
+        case .locked: lockedFeature = .shareSolutions
+        case .checking: Task { await lookUpPDF(s); if correctionOffer(s) != .checking { suggestCorrection(s) } }
+        case .needsPDF:
+            notice = nil
+            hint = CorrectionTexts.needsPDF
+        case .ready(let fileID):
+            hint = nil
+            leave?()
+            CorrectionLaunch.shared.correct(solutionID: s.solutionID, fileID: fileID, router: router)
         }
     }
 
@@ -822,6 +876,7 @@ struct CommunityPeopleReader: View {
         forward = delta > 0
         notice = nil
         error = nil
+        hint = nil
         withAnimation(UFMotion.animation(reduce: reduce)) { index = next }
         UIAccessibility.post(notification: .screenChanged, argument: nil)
     }
@@ -855,10 +910,19 @@ struct CommunityPersonPane: View {
     let service: CommunityService
     var notice: String?
     var error: String?
+    /// Hinweis ohne Fehler (z. B. "Lade die PDF, um zu korrigieren.")
+    var hint: String?
     @Binding var tab: CommunityReaderTab
     var wide = false
     var actions: [CommunityReaderAction] = []
     var menu: [CommunityReaderAction] = []
+    var localFile: (String) async -> String? = { await CorrectionLaunch.localFile(fingerprint: $0) }
+    var leave: (() -> Void)?
+    @EnvironmentObject private var router: UFRouter
+    /// Korrekturvorschlaege zu dieser Loesung (fuer alle Mitglieder, eigener Eintrag unter der Diskussion)
+    @State private var corrections: [CommunityCorrection] = []
+    @State private var paneNotice: String?
+    @State private var paneHint: String?
     @State private var content: SolutionContent?
     @State private var images: [String: UIImage] = [:]
     @State private var failure: String?
@@ -878,14 +942,16 @@ struct CommunityPersonPane: View {
         VStack(spacing: 0) {
             if discussion {
                 CommunityTabBar(options: [(CommunityReaderTab.notes, "Dokument", "community.reader.tab.notes"),
-                                          (.discussion, "Diskussion (\(comments.count))", "community.reader.tab.discussion")],
+                                          (.discussion, CorrectionTexts.discussionTab(comments: comments.count, corrections: corrections.count),
+                                           "community.reader.tab.discussion")],
                                 selection: $tab)
                     .padding(.horizontal, 16)
                     .background(UF.surface)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if let notice { CommunityNotice(text: notice, tone: .ok) }
+                    if let text = paneNotice ?? notice { CommunityNotice(text: text, tone: .ok) }
+                    if let text = paneHint ?? hint { CommunityNotice(text: text, tone: .info) }
                     if let message = error ?? failure { CommunityNotice(text: message) }
                     if showsNotes {
                         if let content {
@@ -898,6 +964,7 @@ struct CommunityPersonPane: View {
                             }
                         } else if failure == nil { CommunityLoading(text: "Notizen werden geladen …") }
                     } else {
+                        if !corrections.isEmpty { correctionsSection }
                         commentsCard
                     }
                 }
@@ -988,6 +1055,60 @@ struct CommunityPersonPane: View {
         }
     }
 
+    // MARK: Korrekturvorschlaege
+
+    private var correctionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                UFIcon("pen", size: 16).foregroundStyle(CommunityPalette.peach.fg)
+                Text("\(CorrectionTexts.sectionTitle) (\(corrections.count))").ufFont(15.2, 650).foregroundStyle(UF.text)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            Text(CorrectionTexts.sectionNotice).ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            ForEach(corrections) { c in
+                CorrectionEntryRow(correction: c, busy: busy, view: { viewCorrection(c) },
+                                   delete: c.isMine ? { deleteCorrection(c) } : nil,
+                                   report: c.isMine ? nil : { reportCorrection(c) })
+            }
+        }
+        .accessibilityIdentifier("community.reader.corrections")
+    }
+
+    /// Korrektur im eigenen Dokument ansehen (nur Anzeige, ueber der Loesung)
+    private func viewCorrection(_ c: CommunityCorrection) {
+        let print = solution.fingerprint
+        Task {
+            guard !print.isEmpty, let file = await localFile(print) else {
+                paneHint = CorrectionTexts.needsPDFToView
+                return
+            }
+            paneHint = nil
+            leave?()
+            CorrectionLaunch.shared.show(c, fileID: file, router: router)
+        }
+    }
+
+    private func deleteCorrection(_ c: CommunityCorrection) {
+        actOnCorrections(done: CorrectionTexts.deleted) { try await service.deleteCorrection(id: c.id) }
+    }
+
+    private func reportCorrection(_ c: CommunityCorrection) {
+        actOnCorrections(done: CorrectionTexts.reported) { try await service.reportCorrection(id: c.id, reason: .other) }
+    }
+
+    private func actOnCorrections(done: String, _ op: @escaping () async throws -> Void) {
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try await op()
+                corrections = try await service.corrections(solutionID: solution.solutionID)
+                paneNotice = done
+                failure = nil
+            } catch { failure = CommunityTexts.message(error) }
+        }
+    }
+
     private var commentsCard: some View {
         UFCard {
             Text(service.isAccountService ? CommunityTexts.commentsNotice : CommunityTexts.commentsNoticeCloud)
@@ -1062,6 +1183,7 @@ struct CommunityPersonPane: View {
         likes = solution.likes
         liked = solution.likedByMe
         if discussion { comments = (try? await service.comments(solutionID: solution.solutionID)) ?? [] }
+        if service.supportsCorrections { corrections = (try? await service.corrections(solutionID: solution.solutionID)) ?? [] }
         do {
             let c = try await SolutionSharing.loadCommunity(solution.solutionID, service: service)
             images = c.images.compactMapValues { UIImage(data: $0.data) }
