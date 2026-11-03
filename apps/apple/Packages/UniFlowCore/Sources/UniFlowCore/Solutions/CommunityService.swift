@@ -120,6 +120,8 @@ public struct CommunitySpace: Equatable, Sendable, Identifiable, Hashable {
     public var secret: Data?
     /// Beitrittscode einer Lerngruppe
     public var code: String?
+    /// Modul des aktuellen Semesters (sonst: frueherer Kurs, nur hinter "Frühere Kurse")
+    public var current = true
 
     public var id: String { key }
 

@@ -96,15 +96,20 @@ enum CommunityCourses {
         return Array(Set(rows.compactMap { $0["sha"]?.string }).sorted().prefix(ServiceCommunityService.maxClaims))
     }
 
-    /// Eine Community je Modul des Containers (alle Veranstaltungen zusammen), ohne den Pseudokurs der eigenen Uploads
+    /// Eine Community je Modul des Containers (alle Veranstaltungen zusammen), ohne den Pseudokurs der eigenen Uploads;
+    /// `current`, wenn mindestens ein Kurs des Moduls im aktuellen Semester liegt (`courses.active`)
     static func spaces(host: LocalBackendHost, university: String) async -> [CommunitySpace] {
         guard let backend = try? await host.backend() else { return [] }
-        let rows = (try? await backend.context.database.withConnection { try $0.rows("SELECT title FROM courses WHERE id <> '__user__' ORDER BY title") }) ?? []
-        var seen = Set<String>()
-        return rows.compactMap { r in
-            guard let t = r["title"]?.string, let space = CommunitySpace.module(university: university, courseTitle: t) else { return nil }
-            return seen.insert(space.key).inserted ? space : nil
-        }.sorted { $0.name < $1.name }
+        let rows = (try? await backend.context.database.withConnection {
+            try $0.rows("SELECT title, COALESCE(active, 1) AS active FROM courses WHERE id <> '__user__' ORDER BY title")
+        }) ?? []
+        var byKey: [String: CommunitySpace] = [:]
+        for r in rows {
+            guard let t = r["title"]?.string, var space = CommunitySpace.module(university: university, courseTitle: t) else { continue }
+            space.current = (r["active"]?.int ?? 1) != 0 || byKey[space.key]?.current == true
+            byKey[space.key] = space
+        }
+        return byKey.values.sorted { $0.name < $1.name }
     }
 
     /// Lokale Datei zu einem Fingerabdruck, um eine Loesung ueber der eigenen PDF zu zeigen

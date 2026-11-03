@@ -126,6 +126,8 @@ struct CommunitySpacesCard: View {
     @State private var error: String?
     @State private var busy: String?
     @State private var open: CommunitySpace?
+    /// fruehere Kurse eingeblendet (03.11.2026: sonst nur das aktuelle Semester)
+    @State private var showOlder = false
 
     var body: some View {
         UFCard {
@@ -133,8 +135,10 @@ struct CommunitySpacesCard: View {
             Text("Jedes Modul hat eine Community für Vorlesung, Übungen und Tutorien. Tritt bei, dann siehst und teilst du dort Lösungen.")
                 .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
             if let error { CommunityNotice(text: error) }
-            if let spaces {
-                if spaces.isEmpty { UFEmpty(icon: "book", text: "Noch keine Module. Gleiche zuerst deine Hochschule ab.", small: true) }
+            if let all = spaces {
+                let older = all.filter { $0.kind == .course && !$0.current }
+                let spaces = showOlder ? all : all.filter { $0.kind == .group || $0.current }
+                if spaces.isEmpty && older.isEmpty { UFEmpty(icon: "book", text: "Noch keine Module. Gleiche zuerst deine Hochschule ab.", small: true) }
                 // Zeilen durch Haarlinien getrennt
                 ForEach(spaces) { s in
                     UFItemRow(s.name, sub: Self.detail(s),
@@ -151,6 +155,12 @@ struct CommunitySpacesCard: View {
                               })
                     .ufBorderBottom(s.id != spaces.last?.id)
                 }
+                if !older.isEmpty {
+                    UFButton(showOlder ? "Frühere Kurse ausblenden" : "Frühere Kurse (\(older.count))",
+                             icon: showOlder ? "chevron-up" : "clock", size: .small) { UFMotion.toggle { showOlder.toggle() } }
+                        .padding(.top, 10)
+                        .accessibilityIdentifier("community.older")
+                }
             } else if error == nil {
                 CommunityLoading(text: "Communities werden geladen …")
             }
@@ -162,7 +172,7 @@ struct CommunitySpacesCard: View {
     }
 
     static func detail(_ s: CommunitySpace) -> String {
-        var parts = [s.kind == .group ? "Lerngruppe" : "Modul"]
+        var parts = [s.kind == .group ? "Lerngruppe" : (s.current ? "Modul" : "Modul · früheres Semester")]
         if let m = s.members { parts.append(m == 1 ? "1 Mitglied" : "\(m) Mitglieder") }
         if let n = s.solutions { parts.append(n == 1 ? "1 Lösung" : "\(n) Lösungen") }
         return parts.joined(separator: " · ")

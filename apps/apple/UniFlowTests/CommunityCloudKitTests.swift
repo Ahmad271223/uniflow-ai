@@ -637,6 +637,25 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertFalse(CommunityPage.howItWorks.contains { $0.text.contains("Modul oder") })
     }
 
+    /// Communities des aktuellen Semesters vorn, fruehere nur hinter "Frühere Kurse" (03.11.2026); ein Modul mit einem
+    /// aktuellen Kurs zaehlt als aktuell
+    func testSpacesMarkOlderSemesterModules() async throws {
+        let root = try tempDir()
+        let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-10-26T14:30:05")!)
+        let backend = try await host.backend()
+        try await backend.context.database.withConnection { c in
+            try c.execute("INSERT INTO courses(id, title, kind, active) VALUES ('a', 'Messtechnik I', 'vorlesung', 1)")
+            try c.execute("INSERT INTO courses(id, title, kind, active) VALUES ('b', 'Mathematik I', 'vorlesung', 0)")
+            try c.execute("INSERT INTO courses(id, title, kind, active) VALUES ('c', 'Messtechnik I (Übung)', 'uebung', 0)")
+        }
+        let spaces = await CommunityCourses.spaces(host: host, university: "luh")
+        XCTAssertEqual(spaces.map(\.name).sorted(), spaces.map(\.name))
+        XCTAssertEqual(spaces.first { $0.name.hasPrefix("Mathematik") }?.current, false)
+        XCTAssertEqual(spaces.first { $0.name.hasPrefix("Messtechnik") }?.current, true, "Vorlesung aktuell, Übung alt: aktuell")
+        XCTAssertEqual(spaces.count, 2)
+        XCTAssertTrue(CommunitySpacesCard.detail(spaces.first { !$0.current }!).contains("früheres Semester"))
+    }
+
     func testCourseKeysComeFromTheLocalDatabase() async throws {
         let root = try tempDir()
         let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-10-26T14:30:05")!)
