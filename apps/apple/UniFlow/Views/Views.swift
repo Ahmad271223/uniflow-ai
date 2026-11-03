@@ -105,6 +105,8 @@ struct UFQuickLookView: UIViewControllerRepresentable {
 
 struct LibraryView: View {
     @EnvironmentObject private var session: Session
+    /// Ziele des Logos (setzt AppShell); ohne sie (Tests, alte Fassung) kein Zurueck
+    @Environment(\.ufLogoMenu) private var logoMenu
     @State private var library: LibraryResponse?
     @State private var loadError: String?
     @State private var moduleSelection: String? = "all"
@@ -200,7 +202,17 @@ struct LibraryView: View {
                 } else if fileSelection != nil, library != nil {
                     ProgressView()
                 } else {
-                    ContentUnavailableView("Dokument wählen", systemImage: "doc.richtext", description: Text("Links ein Modul und ein Dokument auswählen."))
+                    // 03.11.2026: hier gab es oben links kein Zurueck (nur die Seitenleiste)
+                    ContentUnavailableView {
+                        Label("Dokument wählen", systemImage: "doc.richtext")
+                    } description: {
+                        Text("Links ein Modul und ein Dokument auswählen.")
+                    } actions: {
+                        if let logoMenu {
+                            Button("Zur Bibliothek") { logoMenu.go(.files()) }.buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .toolbar { ToolbarItem(placement: .topBarLeading) { UFLogoMenu() } }
                 }
             }
         }
@@ -265,6 +277,8 @@ struct LibraryView: View {
         guard let i = openTabs.firstIndex(of: id) else { return }
         openTabs.remove(at: i)
         if fileSelection == id { fileSelection = openTabs.isEmpty ? nil : openTabs[max(0, i - 1)] }
+        // letzter Tab zu: zurueck in die Bibliothek statt auf eine leere Seite ohne Zurueck
+        if openTabs.isEmpty, let logoMenu { logoMenu.go(.files()) }
     }
 
     private func load() async {
