@@ -421,7 +421,7 @@ def test_start_page_redirects_only_on_uniflow_answer(tmp_path):
     out = subprocess.run([node, str(harness), str(WIN / "dist" / "start.js"), json.dumps(cases)],
                          capture_output=True, encoding="utf-8", timeout=60, check=True)
     results = json.loads(out.stdout)
-    assert results[0] == {"replaced": ["http://127.0.0.1:8765/"], "msg": "Verbinde mit dem UniFlow-Server auf diesem PC …", "retry": False}
+    assert results[0] == {"replaced": ["http://127.0.0.1:8765/"], "msg": "Verbinde mit dem StudiNow-Server auf diesem PC …", "retry": False}
     for r in results[1:]:
         assert r["replaced"] == [] and r["retry"] and r["msg"].startswith("Keine Verbindung zu http://127.0.0.1:8765/"), r
 
@@ -494,3 +494,23 @@ def test_pyinstaller_spec_and_workflow():
     for needle in ('"/S"', "uninstall.exe", "backend\\uniflow-backend.exe", "check-backend.ps1", "chromium-*", "Remove-Item"):
         assert needle in inst, needle
     assert inst.index('"/S"') < inst.index('$PSScriptRoot "check-backend.ps1"') < inst.index('"uninstall.exe") -ArgumentList')
+
+
+def test_visible_name_is_studinow_and_internal_names_stay():
+    """Sichtbarer Name StudiNow (Fenstertitel, Startseite, Meldungen des Fensters, Store-Anzeigename), interne Kennungen
+    bleiben (identifier, productName = Programmordner, Dateinamen), siehe apps/windows/README.md."""
+    conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+    assert conf["app"]["windows"][0]["title"] == "StudiNow"
+    assert conf["identifier"] == "de.uniflow.desktop" and conf["productName"] == "UniFlow", "interne Kennungen bleiben"
+    html = (WIN / "dist" / "index.html").read_text(encoding="utf-8")
+    assert "<title>StudiNow</title>" in html and "<h1>StudiNow</h1>" in html and "StudiNow startet" in html
+    assert "UniFlow" not in re.sub(r"<code>.*?</code>", "", html, flags=re.S), "keine sichtbare Restbenennung auf der Startseite"
+    start = (WIN / "dist" / "start.js").read_text(encoding="utf-8")
+    assert "StudiNow-Server" in start and "Verbinde mit dem UniFlow" not in start
+    rs = (WIN / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
+    assert 'set_message(&win, "StudiNow startet …")' in rs and 'unwrap_or("StudiNow")' in rs
+    assert "uniflow-backend.exe" in rs and "de.uniflow.desktop" in rs, "Dateiname und Datenordner bleiben"
+    store = json.loads((WIN / "msix" / "store.json").read_text(encoding="utf-8"))
+    assert store["display_name"] == "StudiNow" and store["publisher_display_name"].startswith("StudiNow")
+    assert store["identity_name"].startswith("UniFlow") and store["publisher"].startswith("CN="), "Identität aus Partner Center bleibt"
+    assert (WIN / "README.md").read_text(encoding="utf-8").startswith("# StudiNow für Windows")

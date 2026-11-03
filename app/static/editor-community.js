@@ -7,6 +7,7 @@
 // `anchor` = {x, y} in 0..1 von links oben in der Anzeige des Absenders (dieselben Koordinaten wie die Objekte,
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
+import { responseError } from "./service-errors.js?v=1";
 import * as S from "./solutions.js?v=6";
 import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=14";
 import { renderLinkCard } from "./studora-link.js?v=4";
@@ -19,9 +20,12 @@ const REASONS = { offensive: "anstößig", spam: "Spam", foreignMaterial: "Fremd
 
 async function capi(path, { method = "GET", body } = {}) {
   const r = await fetch("/api/community" + path, { method, headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
-  let d = null; try { d = await r.json(); } catch {}
-  if (!r.ok) { const e = new Error(d?.detail || `Community-Fehler ${r.status}`); e.code = d?.code || (r.status === 501 ? "not_hosted" : "http_" + r.status); e.status = r.status; e.data = d; throw e; }
-  return d;
+  if (!r.ok) {   // Texte der Fehlercodes: service-errors.js (wie auf dem iPad)
+    const e = await responseError(r, { report: /\/report(-post)?$/.test(path), fallback: `Community-Fehler ${r.status}` });
+    e.code = e.code || (r.status === 501 ? "not_hosted" : "http_" + r.status);
+    throw e;
+  }
+  return r.json().catch(() => null);
 }
 
 // Zahlen fremder Objekte endlich und begrenzt lesen (wie ObjectGeometry.number auf dem iPad)
@@ -208,7 +212,7 @@ class Community {
 
   // ---------------------------------------------------------------- Kommentare
   async loadComments(id, quiet = false) {
-    try { this.comments.set(id, (await capi(`/solutions/${id}/comments`)).comments); } catch (e) { if (!quiet) this.toast(e.message); }
+    try { this.comments.set(id, (await capi(`/solutions/${id}/comments`)).comments); } catch (e) { if (!quiet) this.toast(e.message, e); }
   }
   async showComments(id, focus = null) {
     this.active = id; this.tab = "comments"; this.focus = focus; this.toggle(true);
@@ -231,12 +235,12 @@ class Community {
   }
   async send(id, body) {
     try { await capi(`/solutions/${id}/comments`, { method: "POST", body }); this.pending = null; await this.loadComments(id); this.bumpCount(id); this.refreshAll(); this.render(); }
-    catch (e) { this.toast(e.message); }
+    catch (e) { this.toast(e.message, e); }
   }
   bumpCount(id) { const s = this.list?.find(x => x.solution_id === id); if (s) s.comments = (this.comments.get(id) || []).filter(c => !c.deleted).length; }
 
   // ---------------------------------------------------------------- Oberflaeche
-  toast(msg) { const t = $(".com-toast", this.el); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(this._tt); this._tt = setTimeout(() => t.hidden = true, 6000); }
+  toast(msg, err) { if (err?.action) import("./core.js?v=39").then(c => c.showError(err)); const t = $(".com-toast", this.el); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(this._tt); this._tt = setTimeout(() => t.hidden = true, 6000); }
   async render() {
     if (this.el.hidden) return;
     const head = `<div class="com-head"><strong>${icon("users", 16)} Community</strong><span class="spacer"></span><button class="btn ghost icon sm" data-c="reload" title="Neu laden">${icon("refresh", 15)}</button><button class="btn ghost icon sm" data-c="close" title="Schließen">${icon("x", 16)}</button></div>`;
@@ -397,11 +401,11 @@ class Community {
     $$("[data-proj]", el).forEach(b => b.onclick = async () => { b.disabled = true; const id = b.dataset.proj; await this.project(id, !this.opened.get(id)?.visible); });
     $$("[data-like]", el).forEach(b => b.onclick = async () => {
       const s = this.list.find(x => x.solution_id === b.dataset.like); b.disabled = true;
-      try { const r = await capi(`/solutions/${s.solution_id}/like`, { method: s.liked_by_me ? "DELETE" : "POST" }); s.liked_by_me = !s.liked_by_me; s.likes = r?.likes ?? s.likes; } catch (e) { this.toast(e.message); }
+      try { const r = await capi(`/solutions/${s.solution_id}/like`, { method: s.liked_by_me ? "DELETE" : "POST" }); s.liked_by_me = !s.liked_by_me; s.likes = r?.likes ?? s.likes; } catch (e) { this.toast(e.message, e); }
       this.render();
     });
     $$("[data-com]", el).forEach(b => b.onclick = () => this.showComments(b.dataset.com));
-    $$("[data-bm]", el).forEach(b => b.onclick = async () => { try { await capi(`/bookmarks/solution/${b.dataset.bm}`, { method: "POST" }); this.toast("Gemerkt – zu finden unter Community → Gemerkt."); } catch (e) { this.toast(e.message); } });
+    $$("[data-bm]", el).forEach(b => b.onclick = async () => { try { await capi(`/bookmarks/solution/${b.dataset.bm}`, { method: "POST" }); this.toast("Gemerkt – zu finden unter Community → Gemerkt."); } catch (e) { this.toast(e.message, e); } });
     $$("[data-more]", el).forEach(b => b.onclick = async () => {
       const id = b.dataset.more; const pick = prompt(`Melden (Grund eingeben: ${Object.values(REASONS).join(", ")}) oder „sperren“, um Lösungen dieses Autors nicht mehr zu sehen:`);
       if (!pick) return; const p = pick.trim().toLowerCase();
@@ -409,7 +413,7 @@ class Community {
         if (p.startsWith("sperr")) { await capi(`/solutions/${id}/block`, { method: "POST" }); this.opened.delete(id); this.refreshAll(); this.toast("Autor gesperrt."); }
         else { const reason = Object.keys(REASONS).find(k => REASONS[k].toLowerCase().startsWith(p.slice(0, 4))) || "other"; await capi(`/solutions/${id}/report`, { method: "POST", body: { reason, note: reason === "other" ? pick.slice(0, 300) : null } }); this.toast("Gemeldet. Danke!"); }
         await this.load();
-      } catch (e) { this.toast(e.message); }
+      } catch (e) { this.toast(e.message, e); }
     });
     const file = $(".com-file input", el);
     if (file) file.onchange = async () => {
@@ -418,7 +422,7 @@ class Community {
         const content = await S.openPackage(await f.text(), this.pdfBytes(), this.fp);
         const bad = S.mismatch(content, this.pdfInfo); if (bad) throw new Error(bad);
         this.opened.set(content.solutionId, { content, visible: true, images: content.images, local: true }); this.refreshAll(); this.render();
-      } catch (e) { this.toast(e.message); }
+      } catch (e) { this.toast(e.message, e); }
     };
     $$("[data-lproj]", el).forEach(b => b.onclick = () => { const o = this.opened.get(b.dataset.lproj); o.visible = !o.visible; this.refreshAll(); this.render(); });
     $$("[data-ldel]", el).forEach(b => b.onclick = () => { this.opened.delete(b.dataset.ldel); this.refreshAll(); this.render(); });
@@ -435,16 +439,16 @@ class Community {
     });
     $$("[data-edit]", el).forEach(b => b.onclick = async () => {
       const c = this.comments.get(this.active).find(x => x.id === b.dataset.edit); const t = prompt("Kommentar bearbeiten:", c.text); if (t === null || !t.trim()) return;
-      try { await capi(`/comments/${c.id}`, { method: "PATCH", body: { text: t.trim() } }); await this.loadComments(this.active); this.refreshAll(); this.render(); } catch (e) { this.toast(e.message); }
+      try { await capi(`/comments/${c.id}`, { method: "PATCH", body: { text: t.trim() } }); await this.loadComments(this.active); this.refreshAll(); this.render(); } catch (e) { this.toast(e.message, e); }
     });
     $$("[data-cdel]", el).forEach(b => b.onclick = async () => {
       if (!confirm("Kommentar löschen?")) return;
-      try { await capi(`/comments/${b.dataset.cdel}`, { method: "DELETE" }); await this.loadComments(this.active); this.bumpCount(this.active); this.refreshAll(); this.render(); } catch (e) { this.toast(e.message); }
+      try { await capi(`/comments/${b.dataset.cdel}`, { method: "DELETE" }); await this.loadComments(this.active); this.bumpCount(this.active); this.refreshAll(); this.render(); } catch (e) { this.toast(e.message, e); }
     });
     $$("[data-crep]", el).forEach(b => b.onclick = async () => {
       const p = prompt(`Kommentar melden – Grund (${Object.values(REASONS).join(", ")}):`, "anstößig"); if (!p) return;
       const reason = Object.keys(REASONS).find(k => REASONS[k].toLowerCase().startsWith(p.trim().toLowerCase().slice(0, 4))) || "other";
-      try { await capi(`/comments/${b.dataset.crep}/report`, { method: "POST", body: { reason } }); this.toast("Gemeldet. Danke!"); } catch (e) { this.toast(e.message); }
+      try { await capi(`/comments/${b.dataset.crep}/report`, { method: "POST", body: { reason } }); this.toast("Gemeldet. Danke!"); } catch (e) { this.toast(e.message, e); }
     });
     // Teilen
     $$("[data-pg]", el).forEach(c => c.onchange = () => { c.checked ? this.shareSel.add(c.dataset.pg) : this.shareSel.delete(c.dataset.pg); this.render(); });

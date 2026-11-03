@@ -1,6 +1,7 @@
 // Gemeinsame Helfer für alle Ansichten
 import { icon } from "./icons.js?v=31";
 import { hintInfo, relatedEvent } from "./hints.js?v=2";
+import { responseError, resendNote, ACTION_LABEL } from "./service-errors.js?v=1";
 export { icon };
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -16,8 +17,20 @@ export const KIND_TXT = { vorlesung: "Vorlesung", uebung: "Übung", hoersaaluebu
 export async function api(path, opts = {}) {
   const r = await fetch("/api" + path, { headers: opts.body instanceof FormData ? {} : { "Content-Type": "application/json" }, ...opts, body: opts.body && !(opts.body instanceof FormData) && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
   if (r.status === 401 && state.hosted) { location.replace("/login"); }   // Sitzung im Dienst abgelaufen oder abgemeldet
-  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m; } catch {} throw new Error(m); }
+  if (!r.ok) throw await responseError(r);   // Text zum Fehlercode des Dienstes: service-errors.js (wie ServiceErrorText auf dem iPad)
   return r.json();
+}
+/** Fehler zeigen. Mit Handlung (e.action aus service-errors.js: Bestaetigungslink erneut senden, Konto oeffnen) als
+    kleines Fenster mit dem Knopf, sonst als Hinweis. */
+export function showError(e, ms = 5000) {
+  if (!e?.action) { toast(e?.message || "Fehler", ms); return; }
+  const m = modal(`<h3>${icon("alert", 18)} Das geht noch nicht</h3><p>${esc(e.message)}</p><div class="modal-foot"><button class="btn" data-close>Schließen</button><button class="btn primary" data-act>${esc(ACTION_LABEL[e.action] || "OK")}</button></div>`);
+  $("[data-act]", m).onclick = async () => {
+    m.remove();
+    if (e.action === "accountSettings") { if (state.hosted) $("#avatar")?.click(); else location.hash = "#/settings?tab=account"; return; }
+    try { toast(resendNote(await api(state.hosted ? "/account/verify-email/resend" : "/studora/verify-email/resend", { method: "POST" })), 4000); }
+    catch (x) { toast(x.message, 5000); }
+  };
 }
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 // Nur http(s)-Links aus Fremddaten (z. B. Learnweb) als href; alles andere wird '#'

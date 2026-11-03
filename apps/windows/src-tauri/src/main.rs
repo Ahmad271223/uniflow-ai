@@ -268,7 +268,7 @@ fn track_login_window(app: tauri::AppHandle, port: u16, id: String, label: Strin
 fn handle_command(app: &tauri::AppHandle, port: u16, cmd: &serde_json::Value) {
     let id = cmd.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let kind = cmd.get("kind").and_then(|v| v.as_str()).unwrap_or("");
-    let title = cmd.get("title").and_then(|v| v.as_str()).unwrap_or("UniFlow").to_string();
+    let title = cmd.get("title").and_then(|v| v.as_str()).unwrap_or("StudiNow").to_string();
     if kind == "clear" && !id.is_empty() {
         // Hochschul-Konto entfernt (app/reset.py): Cookies und Speicher des WebView2-Profils loeschen, das alle Fenster
         // der App teilen (WebSSO-, Stud.IP-, OpenAI-Sitzungen der Anmeldefenster), damit der naechste Mensch nicht
@@ -349,7 +349,7 @@ fn main() {
                             let state_path = state.clone();
                             let handle = app.handle().clone();
                             std::thread::spawn(move || {
-                                set_message(&win, "UniFlow startet …");
+                                set_message(&win, "StudiNow startet …");
                                 match wait_for_url(&state_path, &backend, started, Duration::from_secs(90)) {
                                     Ok(url) => {
                                         if let Ok(parsed) = tauri::Url::parse(&url) {
@@ -374,7 +374,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("UniFlow konnte nicht gestartet werden")
+        .expect("StudiNow konnte nicht gestartet werden")
         .run(|app, event| {
             if let RunEvent::Exit | RunEvent::ExitRequested { .. } = event {
                 if let Some(mut child) = app.state::<Backend>().0.lock().unwrap().take() {

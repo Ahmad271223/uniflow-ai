@@ -2,6 +2,7 @@
 // Gleich im Browser (Dienst) und in der Windows-App (Weiterleitung ueber das StudiNow-Konto, app/service_link.py).
 // Der Schluessel entsteht im eigenen Backend aus dem Modul des Kurses (/api/courses/community-keys), wie auf dem iPad.
 import { icon } from "./icons.js?v=31";
+import { responseError } from "./service-errors.js?v=1";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -11,9 +12,8 @@ const REASONS = { offensive: "anstößig", spam: "Spam", foreignMaterial: "Fremd
 
 export async function capi(path, { method = "GET", body } = {}) {
   const r = await fetch("/api/community" + path, { method, headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
-  let d = null; try { d = await r.json(); } catch {}
-  if (!r.ok) { const e = new Error(d?.detail || `Fehler ${r.status}`); e.code = d?.code; e.status = r.status; throw e; }
-  return d;
+  if (!r.ok) throw await responseError(r, { report: /\/report(-post)?$/.test(path) });   // Texte der Fehlercodes: service-errors.js
+  return r.json().catch(() => null);
 }
 export async function courseKeys() {
   const r = await fetch("/api/courses/community-keys"); if (!r.ok) throw new Error("Kurse nicht lesbar");
@@ -94,7 +94,7 @@ export async function openQuestion(id, onChange) {
           ${q.mine ? `<button class="btn sm ghost" data-accept="${a.id === q.accepted_answer ? "" : a.id}">${a.id === q.accepted_answer ? "Markierung aufheben" : "Als Lösung markieren"}</button>` : ""}
           ${a.mine || q.mine ? `<button class="btn sm ghost" data-del-a="${a.id}">Löschen</button>` : `<button class="btn sm ghost" data-rep-a="${a.id}">Melden</button>`}</div></div>`).join("") || `<p class="small muted">Noch keine Antwort.</p>`}</div>
       <div class="qa-form"><textarea class="input qa-ans" rows="3" maxlength="4000" placeholder="Deine Antwort"></textarea><div class="row" style="gap:.4rem"><button class="btn sm primary" data-answer>Antworten</button><span class="qa-msg small"></span></div></div>`;
-    const run = async (fn, b) => { if (b) b.disabled = true; try { await fn(); await draw(); } catch (e) { const m = $(".qa-msg", box); if (m) m.textContent = e.message; else alert(e.message); if (b) b.disabled = false; } };
+    const run = async (fn, b) => { if (b) b.disabled = true; try { await fn(); await draw(); } catch (e) { const m = $(".qa-msg", box); if (m) m.textContent = e.message; else alert(e.message); if (e.action) import("./core.js?v=39").then(c => c.showError(e)); if (b) b.disabled = false; } };
     $("[data-x]", box).onclick = close;
     $("[data-bm]", box).onclick = e => run(() => capi(`/bookmarks/question/${q.id}`, { method: q.bookmarked ? "DELETE" : "POST" }), e.target);
     $("[data-del-q]", box)?.addEventListener("click", async () => { if (!confirm("Frage löschen?")) return; await capi(`/questions/${q.id}`, { method: "DELETE" }); close(); });
