@@ -64,25 +64,26 @@ pypdfium2 rendert jede Seite einzeln als Graustufenbild (288 dpi, längste Seite
 und gibt das Bild gleich wieder frei. Tesseract bekommt es als PGM (ohne Pillow). Nur lokal mit pypdfium2 5.14.0 geprüft
 (Linux).
 
-## Paketierung für Windows (noch nicht gebaut)
+## Paketierung für Windows (gebaut 04.11.2026, Lauf unter Windows steht aus)
 
-Gebaut werden konnte hier nicht. Vorbereitet:
-
-- `apps/windows/backend/uniflow-backend.spec` nimmt `pypdfium2` und `pdfium.dll` ins Paket (leer, wenn das Paket beim Bauen
-  fehlt).
-- **Offen, Workflow `.github/workflows/windows.yml`:** Ordner `tesseract` neben die exe legen, wie schon `ms-playwright`:
-  `dist/uniflow-backend/tesseract/tesseract.exe`, die zugehörigen DLLs daneben und `dist/uniflow-backend/tesseract/tessdata/`
-  mit `deu.traineddata` und `eng.traineddata`. `app/pageocr.py` sucht in dieser Reihenfolge: `LERNAPP_TESSERACT`, Ordner
-  `tesseract` im Paket (neben der exe bzw. `_MEIPASS`), `PATH`, `C:\Program Files\Tesseract-OCR`. `tessdata` neben dem Programm
-  wird automatisch mit `--tessdata-dir` übergeben, wenn `TESSDATA_PREFIX` nicht gesetzt ist.
-- Quelle für Windows-Programm: der Installer der UB Mannheim (Apache-2.0, 64 Bit), entpackt oder in einen Ordner installiert;
-  Sprachdaten von `tessdata_fast` (klein, schnell) oder `tessdata_best` (genauer, größer). Größe grob wenige MB je Sprache
-  (fast) bis rund 15 MB (best), das Programm mit DLLs rund 40 bis 50 MB: **Schätzung, nicht gemessen**. Der Installer wächst
-  entsprechend; Chromium ist weiter der größte Teil.
-- Lizenztexte: `LICENSE` von Tesseract und die Hinweise der mitgelieferten DLLs (Leptonica BSD-2, zlib, libpng, libtiff,
-  libjpeg, openjpeg, webp, giflib) in den Ordner legen und in die Lizenzseite der App aufnehmen. pypdfium2/PDFium bringt seine
-  Hinweise im Rad mit (`dist-info/licenses`).
-- Ohne Ordner `tesseract` im Paket bleibt die Erkennung aus (außer ein Tesseract liegt im `PATH`); die App läuft wie bisher.
+- Workflow `.github/workflows/windows.yml`, Schritt „Tesseract fuer die Texterkennung ins Paket“ nach „Chromium ins Paket“:
+  `apps/windows/scripts/add-tesseract.ps1` legt `dist/uniflow-backend/tesseract/` an: `tesseract.exe`, die DLLs,
+  `tessdata/` mit `deu.traineddata` und `eng.traineddata` (tessdata_fast 4.1.0), `tessdata/configs`, `LIZENZEN.txt` und
+  `lizenzen/` (Hinweistexte, die der Installer mitbringt). Keine Trainingsprogramme.
+- Quelle des Programms: Installer der UB Mannheim 5.4.0.20240606 (Apache-2.0, 64 Bit), still in einen eigenen Ordner
+  installiert (`/S /D=…`). **Alle drei Downloads sind mit SHA-256 festgelegt** (am 04.11.2026 beim ersten Laden gebildet,
+  nicht gegen eine vom Herausgeber veröffentlichte Prüfsumme abgeglichen); eine geänderte Datei bricht den Lauf ab.
+  Größen: Installer 50 MB, deu 1,5 MB, eng 4,1 MB; der Ordner im Paket ist geschätzt 40–60 MB (der Lauf gibt die echte
+  Größe aus).
+- Probe im Lauf: `--list-langs` muss deu und eng nennen, und ein erzeugtes Graustufenbild (PGM wie in `app/pageocr.py`)
+  mit „Übungsblatt Klausur Größe“ muss „Klausur“ ergeben. `check-installer.ps1` prüft im installierten Ordner
+  `backend\tesseract\tesseract.exe`, `tessdata\deu.traineddata` und `LIZENZEN.txt`. Das MSIX-Paket übernimmt den
+  Backend-Ordner und damit Tesseract.
+- `app/pageocr.py` findet den Ordner neben der exe (`_bundled_dirs`) und übergibt `--tessdata-dir` selbst.
+- **Ungeprüft:** der Lauf auf dem Windows-Runner selbst (hier kein Windows/pwsh), ob der Installer der UB Mannheim
+  wirklich ohne Rückfrage durchläuft, und ob `tesseract.exe` ohne Konsolenfenster startet (`CREATE_NO_WINDOW` ist gesetzt).
+  Die Lizenzhinweise der DLLs sind nur so vollständig, wie der Installer sie mitbringt; vor der Veröffentlichung in die
+  Lizenzseite der App übernehmen.
 
 ## Kosten und Last
 

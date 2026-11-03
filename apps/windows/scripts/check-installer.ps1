@@ -15,7 +15,8 @@ $p = Start-Process -FilePath $setup[0].FullName -ArgumentList "/S" -Wait -PassTh
 if ($p.ExitCode -ne 0) { throw "Installation fehlgeschlagen: Exitcode $($p.ExitCode)" }
 $exes = @(Get-ChildItem -Path $InstallDir -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "uninstall.exe" })
 if ($exes.Count -ne 1) { throw "Erwartet genau eine App-exe unter $InstallDir, gefunden: $($exes.Name -join ', ')" }
-foreach ($f in @("uninstall.exe", "backend\uniflow-backend.exe", "backend\ms-playwright")) {
+foreach ($f in @("uninstall.exe", "backend\uniflow-backend.exe", "backend\ms-playwright", "backend\tesseract\tesseract.exe",
+                 "backend\tesseract\tessdata\deu.traineddata", "backend\tesseract\LIZENZEN.txt")) {
     if (-not (Test-Path (Join-Path $InstallDir $f))) { throw "Nach der Installation fehlt $f unter $InstallDir" }
 }
 $chromium = @(Get-ChildItem -Path (Join-Path $InstallDir "backend\ms-playwright") -Directory -Filter "chromium-*")

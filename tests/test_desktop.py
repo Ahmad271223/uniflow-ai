@@ -515,3 +515,33 @@ def test_visible_name_is_studinow_and_internal_names_stay():
     assert store["display_name"] == "StudiNow" and store["publisher_display_name"].startswith("StudiNow")
     assert store["identity_name"].startswith("UniFlow") and store["publisher"].startswith("CN="), "Identität aus Partner Center bleibt"
     assert (WIN / "README.md").read_text(encoding="utf-8").startswith("# StudiNow für Windows")
+
+
+def test_windows_workflow_bundles_tesseract_with_pinned_checksums():
+    """Texterkennung auf Windows (04.11.2026): der Workflow legt Tesseract samt deu/eng neben das gepackte Backend,
+    bevor das Backend geprueft und der Installer gebaut wird; jeder Download hat eine feste SHA-256, die Probe liest ein
+    erzeugtes PGM wie app/pageocr.py, und der installierte Ordner wird geprueft (app/pageocr.py sucht `tesseract`
+    neben der exe)."""
+    wf = (ROOT / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
+    step = wf.index("add-tesseract.ps1 -Target apps/windows/backend/dist/uniflow-backend/tesseract")
+    assert wf.index("Chromium ins Paket") < step < wf.index("check-backend.ps1 -Exe apps/windows/backend/dist") < wf.index("npx tauri build")
+    ps = (WIN / "scripts" / "add-tesseract.ps1").read_text(encoding="utf-8")
+    assert re.search(r'\$setupSha = "[0-9a-f]{64}"', ps) and len(re.findall(r'"(deu|eng)" = "[0-9a-f]{64}"', ps)) == 2
+    assert "Get-FileHash" in ps and "throw \"Pruefsumme stimmt nicht" in ps, "abweichender Download bricht ab"
+    assert "tessdata_fast/4.1.0/" in ps and "/S\", \"/D=$inst\"" in ps
+    assert 'P5`n' in ps and "Klausur" in ps, "Probe-Erkennung eines PGM wie in pageocr.py"
+    assert "LIZENZEN.txt" in ps and "Apache License 2.0" in ps
+    inst = (WIN / "scripts" / "check-installer.ps1").read_text(encoding="utf-8")
+    assert "backend\\tesseract\\tesseract.exe" in inst and "backend\\tesseract\\tessdata\\deu.traineddata" in inst
+    from app import pageocr
+    import sys as _sys
+    old = (getattr(_sys, "frozen", None), _sys.executable)
+    try:
+        _sys.frozen, _sys.executable = True, str(WIN / "backend" / "dist" / "uniflow-backend" / "uniflow-backend.exe")
+        assert WIN / "backend" / "dist" / "uniflow-backend" / "tesseract" in pageocr._bundled_dirs(), "dort sucht die App"
+    finally:
+        if old[0] is None:
+            del _sys.frozen
+        else:
+            _sys.frozen = old[0]
+        _sys.executable = old[1]

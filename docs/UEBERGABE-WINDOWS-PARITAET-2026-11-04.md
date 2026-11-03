@@ -56,7 +56,7 @@ geprüft:** echtes Windows/Tauri/MSIX, echte Stud.IP-/Learnweb-Seiten, Swift geg
 
 ## Offen (Entscheidung oder späterer Schritt)
 
-- Windows-Workflow: Schritt fehlt, der Tesseract (Programm, Sprachdaten deu/eng, Lizenz) neben die exe legt; ohne ihn
-  bleibt die Texterkennung auf Windows aus.
+- Tesseract im Windows-Installer ist gebaut (`apps/windows/scripts/add-tesseract.ps1`, docs/OCR-WINDOWS.md); der erste
+  Lauf auf dem Windows-Runner steht aus.
 - `Retry-After` reicht die Weiterleitung `service_link.proxy` nicht durch (betrifft nur die Minutengrenze des Dienstes).
 - Korrektur-Glocke öffnet nur das Dokument, nicht gleich die Korrektur; „Daneben ansehen“ ohne Ziehgriff.
