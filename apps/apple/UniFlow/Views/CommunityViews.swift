@@ -18,6 +18,8 @@ enum CommunityTexts {
     static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Community und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Lesen können die Lösung die Mitglieder der Community."
     static let visibilityMembers = "Sichtbar für die Mitglieder dieser Community. Wer dieselbe PDF hat, sieht deine Notizen darüber, alle anderen auf leeren Seiten."
     static let commentsNotice = "Alle Mitglieder dieser Community sehen deine Kommentare unter deinem Pseudonym. Tippe auf eine Seite, um eine Stelle zu kommentieren. Schreiben geht ab Plus mit bestätigter E-Mail-Adresse."
+    /// CloudKit: Kommentare verschluesselt mit dem Schluessel der Community, Apple sieht nur Zeitpunkte
+    static let commentsNoticeCloud = "Alle Mitglieder dieser Community sehen deine Kommentare unter deinem Pseudonym aus den Einstellungen. Sie sind mit dem Schlüssel der Community verschlüsselt. Tippe auf eine Seite, um eine Stelle zu kommentieren."
     static let noCommunity = "Du bist noch in keiner Community. Tritt unter „Community“ dem Modul bei, dann kannst du hier teilen."
     static let privacyAccount = "Der Studora-Dienst bekommt das verschlüsselte Paket, Fingerabdruck, Seitenzahl, Titel und dein Pseudonym, dazu die Schlüssel deiner Kurse und die Fingerabdrücke deiner PDFs. Kurs-IDs und Beitrittscodes bleiben auf dem Gerät. Andere sehen nie deine E-Mail-Adresse. Lesen können die Lösung die Mitglieder der Community."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
@@ -189,26 +191,18 @@ struct CommunitySpaceSheet: View {
     let close: () -> Void
     @State private var items: [CommunitySolutionSummary]?
     @State private var error: String?
-    @State private var reading: CommunitySolutionSummary?
-    @State private var reporting: CommunitySolutionSummary?
-    @State private var notice: String?
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 1100, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 12) {
-                    if let notice { CommunityNotice(text: notice, tone: .ok) }
                     if let error { CommunityNotice(text: error) }
                     if let items {
-                        // eine Liste in einer Karte, Zeilen durch Haarlinien getrennt (wie die Treffer im Dokument)
-                        UFCard(padded: items.isEmpty) {
-                            if items.isEmpty { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
-                            VStack(spacing: 0) {
-                                ForEach(items, id: \.solutionID) { s in
-                                    row(s).ufBorderBottom(s.solutionID != items.last?.solutionID)
-                                }
-                            }
-                            .padding(.horizontal, items.isEmpty ? 0 : 10).padding(.vertical, items.isEmpty ? 0 : 4)
+                        if items.isEmpty {
+                            UFCard { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
+                        } else {
+                            // Kanal wie Studydrive, nach Lehrwoche (CommunityChannelView)
+                            CommunityChannelView(service: service, solutions: Binding(get: { self.items ?? [] }, set: { self.items = $0 }))
                         }
                     } else if error == nil { CommunityLoading(text: "Lösungen werden geladen …") }
                 }
@@ -218,45 +212,9 @@ struct CommunitySpaceSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .task { await load() }
-        .sheet(item: Binding(get: { reading.map(ReadingItem.init) }, set: { reading = $0?.solution })) { r in
-            CommunityReaderSheet(solution: r.solution, service: service) { reading = nil }
-        }
-        .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
-            if let s = reporting {
-                CommunityReportDialog(solution: s, service: service, done: { m in reporting = nil; notice = m })
-            }
-        }
     }
 
-    private struct ReadingItem: Identifiable {
-        let solution: CommunitySolutionSummary
-        var id: String { solution.solutionID }
-    }
-
-    private func row(_ s: CommunitySolutionSummary) -> some View {
-        UFItemRow(s.title.isEmpty ? "Lösung" : s.title, sub: detail(s),
-                  leading: { UFIcon("layers", size: 18).foregroundStyle(UF.muted) },
-                  trailing: {
-                      // eine sichtbare Handlung je Zeile; Seltenes (Zurueckziehen, Melden, Blockieren) unter "Mehr"
-                      // wie bei den Treffern im Dokument
-                      HStack(spacing: 8) {
-                          UFButton("Ansehen", size: .small) { reading = s }
-                          Menu {
-                              if s.isOwn {
-                                  Button(role: .destructive) { withdraw(s) } label: { Label("Zurückziehen", systemImage: "trash") }
-                              } else {
-                                  Button { reporting = s } label: { Label("Melden …", systemImage: "flag") }
-                                  Button(role: .destructive) { block(s) } label: { Label("Blockieren", systemImage: "hand.raised") }
-                              }
-                          } label: {
-                              UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 44, height: 44)
-                          }
-                          .accessibilityLabel("Mehr")
-                      }
-                  })
-    }
-
-    private func detail(_ s: CommunitySolutionSummary) -> String { Self.detail(s, account: service.isAccountService) }
+    private func detail(_ s: CommunitySolutionSummary) -> String { Self.detail(s, account: service.supportsDiscussion) }
 
     static func detail(_ s: CommunitySolutionSummary, account: Bool) -> String {
         var parts = ["Lösung von \(s.displayName.isEmpty ? "Anonym" : s.displayName)", ForeignSolutionLayer.date(s.createdAt)]
@@ -269,27 +227,6 @@ struct CommunitySpaceSheet: View {
 
     private func load() async {
         do { items = try await service.solutions(in: space); error = nil } catch { self.error = CommunityTexts.message(error) }
-    }
-
-    private func block(_ s: CommunitySolutionSummary) {
-        Task {
-            do {
-                try await service.block(owner: s.ownerRecordName)
-                items?.removeAll { $0.ownerRecordName == s.ownerRecordName }
-                CommunityMatches.shared.invalidate()
-                notice = "Nutzer blockiert."
-            } catch { self.error = CommunityTexts.message(error) }
-        }
-    }
-
-    private func withdraw(_ s: CommunitySolutionSummary) {
-        Task {
-            do {
-                try await SolutionSharing.withdrawFromCommunity(s.solutionID, service: service)
-                items?.removeAll { $0.solutionID == s.solutionID }
-                notice = "Lösung zurückgezogen."
-            } catch { self.error = CommunityTexts.message(error) }
-        }
     }
 }
 
@@ -333,14 +270,14 @@ struct CommunityReaderSheet: View {
                     }
                     if let content {
                         ForEach(content.pages, id: \.key) { page in
-                            CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: service.isAccountService ? { anchor in
+                            CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: service.supportsDiscussion ? { anchor in
                                 spot = (page.key, anchor)
                                 replyTo = nil
                                 editing = nil
                             } : nil)
                         }
                     } else if error == nil { CommunityLoading(text: "Lösung wird geladen …") }
-                    if service.isAccountService { commentsCard }
+                    if service.supportsDiscussion { commentsCard }
                 }
             }
             .navigationTitle(solution.title.isEmpty ? "Lösung" : solution.title)
@@ -366,7 +303,7 @@ struct CommunityReaderSheet: View {
                     Text(likes == 1 ? "1 Like" : "\(likes) Likes").ufFont(12.8).foregroundStyle(UF.muted)
                 }
             }
-            Text(CommunityTexts.commentsNotice).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
+            Text(service.isAccountService ? CommunityTexts.commentsNotice : CommunityTexts.commentsNoticeCloud).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
             if comments.isEmpty { Text("Noch keine Kommentare.").ufFont(13.12).foregroundStyle(UF.muted) }
             ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in
                 commentRow(c, number: i + 1).ufBorderBottom(c.id != comments.last?.id)
@@ -439,7 +376,7 @@ struct CommunityReaderSheet: View {
             images = c.images.compactMapValues { UIImage(data: $0.data) }
             content = c
             if let host = ActiveContainer.current?.host { localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host) }
-            if service.isAccountService { comments = try await service.comments(solutionID: solution.solutionID) }
+            if service.supportsDiscussion { comments = try await service.comments(solutionID: solution.solutionID) }
         } catch { self.error = CommunityTexts.message(error) }
     }
 
@@ -637,7 +574,7 @@ struct CommunitySolutionsSheet: View {
     private func row(_ s: CommunitySolutionSummary) -> some View {
         let pages = s.pageCount == 1 ? "1 Seite" : "\(s.pageCount) Seiten"
         let who = s.isOwn ? "deine Veröffentlichung" : s.visibility.title
-        return UFItemRow(ForeignSolutionLayer.label(displayName: s.displayName, createdAt: s.createdAt), sub: "\(pages) · \(who)\(service.isAccountService ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")",
+        return UFItemRow(ForeignSolutionLayer.label(displayName: s.displayName, createdAt: s.createdAt), sub: "\(pages) · \(who)\(service.supportsDiscussion ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")",
                          leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
                          trailing: {
                              HStack(spacing: 8) {
@@ -645,7 +582,7 @@ struct CommunitySolutionsSheet: View {
                                      load(s)
                                  }
                                  .disabled(busyID != nil)
-                                 if service.isAccountService {
+                                 if service.supportsDiscussion {
                                      UFButton("Kommentare", size: .small) { discussing = s }
                                  }
                                  Menu {
@@ -776,7 +713,7 @@ struct CommunityModulePanel: View {
                     UFCardHead("Lösungen aus der Community", icon: "users") {
                         UFButton("Aktualisieren", icon: "refresh", size: .small) { Task { await load() } }
                     }
-                    Text("Veröffentlichte Lösungen zu den Dateien dieses Moduls, nach Lehrwoche. Öffne das passende Blatt – dort liegt die Lösung unter „Ebenen“.")
+                    Text("Geteilte Notizen zu diesem Modul, nach Lehrwoche. Tippe ein Blatt an, um zu sehen, wer dazu Notizen geteilt hat.")
                         .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     if let error { CommunityNotice(text: error).padding(.top, 8) }
                 }
@@ -784,17 +721,9 @@ struct CommunityModulePanel: View {
                     if items.isEmpty {
                         UFCard { UFEmpty(icon: "users", text: "Noch keine Lösungen aus der Community zu diesem Modul.", small: true) }
                     } else {
-                        ForEach(CommunityRules.byWeek(items), id: \.week) { block in
-                            UFCard {
-                                Text(weekLabel(block.week)).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text).padding(.vertical, 8)
-                                    .accessibilityAddTraits(.isHeader)
-                                VStack(spacing: 0) {
-                                    ForEach(block.solutions, id: \.solutionID) { s in
-                                        row(s).ufBorderBottom(s.solutionID != block.solutions.last?.solutionID)
-                                    }
-                                }
-                            }
-                        }
+                        // Kanal wie Studydrive, nach Lehrwoche (CommunityChannelView)
+                        CommunityChannelView(service: service, solutions: Binding(get: { self.items ?? [] }, set: { self.items = $0 }),
+                                             files: files, weeks: weeks)
                     }
                 } else if error == nil {
                     // Laden: Platzhalter in Form eines Wochenblocks (Ueberschrift, zwei Zeilen)
@@ -816,34 +745,6 @@ struct CommunityModulePanel: View {
     /// Community-Schluessel des Moduls (Kurstitel und Modulname, eine Stelle: CommunityCourses)
     private var courseKeys: [String] {
         account.university.map { CommunityCourses.courseKeys(module: module, university: $0.rawValue) } ?? []
-    }
-
-    private func weekLabel(_ week: Int) -> String {
-        if week == 0 { return "Ohne Lehrwoche" }
-        return weeks.first { $0.i("week") == week }?.s("label") ?? "Woche \(week)"
-    }
-
-    /// Datei des Moduls mit demselben Titel (so heisst das Blatt beim Absender)
-    private func file(for s: CommunitySolutionSummary) -> JSONValue? {
-        let t = s.title.lowercased()
-        guard !t.isEmpty else { return nil }
-        return files.first { ShareExport.cleanTitle($0.s("ai_title") ?? $0.s("title") ?? $0.s("name") ?? "").lowercased() == t }
-    }
-
-    private func row(_ s: CommunitySolutionSummary) -> some View {
-        let pages = s.pageCount == 1 ? "1 Seite" : "\(s.pageCount) Seiten"
-        let name = s.displayName.isEmpty ? "Anonym" : s.displayName
-        let target = file(for: s)
-        return UFItemRow(s.title.isEmpty ? "Lösung" : s.title, sub: "Lösung von \(name) · \(ForeignSolutionLayer.date(s.createdAt)) · \(pages) · \(s.isOwn ? "deine Veröffentlichung" : s.visibility.title)",
-                         link: target != nil,
-                         leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
-                         trailing: {
-                             if let id = target?.s("id") {
-                                 UFButton("Blatt öffnen", icon: "file-text", size: .small) { router.go(.doc(id)) }
-                             } else {
-                                 Text("Blatt nicht in diesem Modul").ufFont(12.8).foregroundStyle(UF.muted)
-                             }
-                         })
     }
 
     private func load() async {

@@ -16,6 +16,8 @@ public protocol CommunityService: Sendable {
     var isConnected: Bool { get }
     /// Studora-Dienst (G4): ein Konto, keine Sichtbarkeit und keine Lerngruppen, sichtbar fuer alle mit derselben PDF
     var isAccountService: Bool { get }
+    /// Kommentare und Likes moeglich (Studora-Dienst; CloudKit seit 03.11.2026)
+    var supportsDiscussion: Bool { get }
     /// Alle Kurse aus dem eigenen Abgleich und die eigenen Lerngruppen, je mit `joined`
     func communities() async throws -> [CommunitySpace]
     /// Kurs-Community beitreten (Lerngruppen ueber `joinStudyGroup`) und wieder verlassen
@@ -70,6 +72,7 @@ public protocol CommunityService: Sendable {
 
 extension CommunityService {
     public var isAccountService: Bool { false }
+    public var supportsDiscussion: Bool { isAccountService }
 
     /// Veroeffentlichen mit Standardoptionen (Sichtbarkeit Modul ohne Kurs-Schluessel: der Dienst weist das ab).
     public func publish(_ package: SolutionPackage) async throws -> CommunityPublication {

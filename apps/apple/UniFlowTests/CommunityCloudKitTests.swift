@@ -74,6 +74,7 @@ final class CommunityCloudKitTests: XCTestCase {
             return lock.withLock {
                 records.filter { entry in
                     entry.key == key(scope, q.type, entry.value.name) && q.equals.allSatisfy { k, v in entry.value.fields[k] == v }
+                        && q.anyOf.allSatisfy { k, values in entry.value.fields[k]?.string.map(values.contains) ?? false }
                 }
                 .map(\.value)
                 .sorted { $0.name < $1.name }
@@ -835,6 +836,127 @@ final class CommunityCloudKitTests: XCTestCase {
         cloud.user = "_user-bob"
         let bob = try device(cloud)
         await expect(.notOwner) { _ = try await bob.service.update(solutionID: first.solutionID, package: stored, options: options) }
+    }
+
+    // MARK: Kommentare und Likes ueber CloudKit (03.11.2026)
+
+    /// Mitglied der Community "kurs-1" mit eigenem Dienst und Pseudonym (gemeinsame Datenbank, Nutzer wechselt)
+    private func member(_ cloud: FakeCommunityCloud, _ user: String, pseudonym: String = "") -> CloudKitCommunityService {
+        cloud.user = user
+        let space = CommunitySpace.course(university: "luh", id: "kurs-1", title: "Lineare Algebra")
+        return CloudKitCommunityService(cloud: cloud, university: .luh, membership: CommunityMembership(defaults: suite()),
+                                        courseKeys: { [space.key] }, courses: { [space] }, pseudonym: { pseudonym })
+    }
+
+    private func publishForDiscussion(_ cloud: FakeCommunityCloud) async throws -> String {
+        let lea = member(cloud, "_user-ada", pseudonym: "Lea")
+        let pdf = makePDFData()
+        let src = SolutionSource(document: try ownDocument(), originalPDF: pdf, pdf: PDFDocument(data: pdf)!, fingerprint: cipher.sha256Hex(pdf),
+                                 images: [:], title: "Übungsblatt 3")
+        let space = CommunitySpace.course(university: "luh", id: "kurs-1", title: "Lineare Algebra")
+        let options = CommunityPublishOptions(visibility: .module, courseKey: space.key, title: "Übungsblatt 3", communityKey: space.key)
+        return try await SolutionSharing.publishToCommunity(src, keys: ["p1"], displayName: "Lea", options: options, space: space,
+                                                            service: lea, library: SolutionLibrary(root: try tempDir())).solutionID
+    }
+
+    func testCommentsAndLikesOverCloudKitAreEncryptedAndFollowTheServiceRules() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let sid = try await publishForDiscussion(cloud)
+        XCTAssertTrue(member(cloud, "_user-ada").supportsDiscussion)
+
+        // Ben kommentiert eine Stelle und liked (idempotent)
+        let ben = member(cloud, "_user-ben", pseudonym: "Ben")
+        let c1 = try await ben.addComment(solutionID: sid, text: "  Danke! Warum Vorzeichen in 2b?  ", parentID: nil, pageKey: "p1",
+                                          anchor: .init(x: 0.3, y: 0.4))
+        XCTAssertEqual(c1.text, "Danke! Warum Vorzeichen in 2b?")
+        XCTAssertEqual(c1.pseudonym, "Ben")
+        XCTAssertTrue(c1.isMine)
+        let liked = try await ben.setLiked(solutionID: sid, true)
+        XCTAssertEqual(liked, 1)
+        let again = try await ben.setLiked(solutionID: sid, true)
+        XCTAssertEqual(again, 1)
+        XCTAssertEqual(cloud.all(CommunityRecordType.like).count, 1, "ein Like je Nutzer")
+        await expect(.service("Der Kommentar ist leer.")) { _ = try await ben.addComment(solutionID: sid, text: " ", parentID: nil, pageKey: nil, anchor: nil) }
+
+        // beim Dienst nur Chiffrat: weder Text noch Pseudonym noch Seite im Klartext
+        let stored = try XCTUnwrap(cloud.all(CommunityRecordType.comment).first)
+        XCTAssertEqual(stored["solutionID"]?.string, sid)
+        XCTAssertNil(stored["text"])
+        let raw = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(stored["payload"]?.string)))
+        for plain in ["Vorzeichen", "Ben", "p1"] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
+
+        // Lea (Autorin) liest, antwortet (Stelle vom Kommentar), darf die eigene Loesung nicht liken
+        let lea = member(cloud, "_user-ada", pseudonym: "Lea")
+        let read = try await lea.comments(solutionID: sid)
+        XCTAssertEqual(read.map(\.text), ["Danke! Warum Vorzeichen in 2b?"])
+        XCTAssertEqual(read.first?.anchor, .init(x: 0.3, y: 0.4))
+        XCTAssertEqual(read.first?.pageKey, "p1")
+        XCTAssertEqual(read.first?.isMine, false)
+        let reply = try await lea.addComment(solutionID: sid, text: "Siehe Zeile 3.", parentID: c1.id, pageKey: nil, anchor: nil)
+        XCTAssertEqual(reply.parentID, c1.id)
+        XCTAssertEqual(reply.pageKey, "p1")
+        XCTAssertTrue(reply.byAuthor)
+        await expect(.service("Die eigene Lösung lässt sich nicht liken.")) { _ = try await lea.setLiked(solutionID: sid, true) }
+        await expect(.service("Nur der Verfasser kann seinen Kommentar ändern.")) { _ = try await lea.editComment(id: c1.id, text: "x") }
+        let listed = try await lea.findForCourse(courseKey: CommunityKeys.courseKey(university: "luh", courseID: "kurs-1"))
+        XCTAssertEqual(listed.first?.likes, 1)
+        XCTAssertEqual(listed.first?.likedByMe, false)
+        XCTAssertEqual(listed.first?.commentCount, 2)
+
+        // Antwort auf eine Antwort haengt am ersten Kommentar
+        let ben2 = member(cloud, "_user-ben", pseudonym: "Ben")
+        let nested = try await ben2.addComment(solutionID: sid, text: "Danke", parentID: reply.id, pageKey: nil, anchor: nil)
+        XCTAssertEqual(nested.parentID, c1.id)
+        let benList = try await ben2.findForCourse(courseKey: CommunityKeys.courseKey(university: "luh", courseID: "kurs-1"))
+        XCTAssertEqual(benList.first?.likedByMe, true)
+        // bearbeiten und loeschen nur eigene
+        let edited = try await ben2.editComment(id: nested.id, text: "Danke, verstanden")
+        XCTAssertTrue(edited.edited)
+        try await ben2.deleteComment(id: nested.id)
+        let afterDelete = try await ben2.comments(solutionID: sid)
+        XCTAssertEqual(afterDelete.map(\.id), [c1.id, reply.id], "geloeschte Antwort faellt weg")
+        let unliked = try await ben2.setLiked(solutionID: sid, false)
+        XCTAssertEqual(unliked, 0)
+
+        // Lea entfernt Bens Kommentar unter ihrer Loesung: bleibt mit Antwort als "geloescht" stehen
+        let lea2 = member(cloud, "_user-ada", pseudonym: "Lea")
+        try await lea2.deleteComment(id: c1.id)
+        let afterRemoval = try await lea2.comments(solutionID: sid)
+        XCTAssertEqual(afterRemoval.map(\.deleted), [true, false])
+        XCTAssertEqual(afterRemoval.first?.text, "")
+        // eine Entfernung von jemand anderem als der Autorin zaehlt nicht
+        let mallory = member(cloud, "_user-mallory")
+        let own = try await mallory.addComment(solutionID: sid, text: "Hallo", parentID: nil, pageKey: nil, anchor: nil)
+        await expect(.service("Nur der Verfasser kann das.")) { try await mallory.deleteComment(id: reply.id) }
+        let still = try await mallory.comments(solutionID: sid)
+        XCTAssertEqual(still.map(\.id), [c1.id, reply.id, own.id])
+    }
+
+    func testCommentReportsHideAfterThreeAndOutsidersSeeNothing() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let sid = try await publishForDiscussion(cloud)
+        let ben = member(cloud, "_user-ben", pseudonym: "Ben")
+        let c = try await ben.addComment(solutionID: sid, text: "Werbung", parentID: nil, pageKey: nil, anchor: nil)
+        await expect(.service("Den eigenen Kommentar kannst du löschen statt melden.")) { try await ben.reportComment(id: c.id, reason: .spam) }
+        for (i, user) in ["_user-1", "_user-2", "_user-3"].enumerated() {
+            let s = member(cloud, user)
+            let visible = try await s.comments(solutionID: sid)
+            XCTAssertEqual(visible.count, 1, "vor Meldung \(i + 1) noch sichtbar")
+            try await s.reportComment(id: c.id, reason: .spam)
+            if i == 0 { await expect(.service("Du hast diesen Kommentar schon gemeldet.")) { try await s.reportComment(id: c.id, reason: .spam) } }
+        }
+        let report = try XCTUnwrap(cloud.all(CommunityRecordType.report).first)
+        XCTAssertEqual(report["commentID"]?.string, c.id)
+        let hidden = try await member(cloud, "_user-4").comments(solutionID: sid)
+        XCTAssertEqual(hidden, [], "ab drei Meldungen ausgeblendet")
+
+        // andere Hochschule bzw. ohne die Community: keine Kommentare, kein Like
+        cloud.user = "_user-fremd"
+        let outsider = CloudKitCommunityService(cloud: cloud, university: .luh, membership: CommunityMembership(defaults: suite()),
+                                                courseKeys: { [] }, courses: { [] })
+        await expect(.notFound) { _ = try await outsider.comments(solutionID: sid) }
+        await expect(.notFound) { _ = try await outsider.setLiked(solutionID: sid, true) }
+        await expect(.notFound) { _ = try await outsider.addComment(solutionID: sid, text: "x", parentID: nil, pageKey: nil, anchor: nil) }
     }
 
     // MARK: Dokument fuer den Import

@@ -102,12 +102,13 @@ final class ActiveContainer: @unchecked Sendable {
         solutions = SolutionLibrary(root: layout.solutions)
         defaultsSuite = Self.defaultsSuite(layout.identifier)
         defaults = UserDefaults(suiteName: defaultsSuite) ?? appDefaults
-        let localHost = host, university = key.university.rawValue
+        let localHost = host, university = key.university.rawValue, suiteDefaults = defaults
         let membership = CommunityMembership(defaults: defaults)
         self.membership = membership
         community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: membership,
                                              courseKeys: { membership.joinedCourses() },
-                                             courses: { await CommunityCourses.spaces(host: localHost, university: university) })
+                                             courses: { await CommunityCourses.spaces(host: localHost, university: university) },
+                                             pseudonym: { SolutionDisplayName.load(suiteDefaults) })
         tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope, onlyUniversity: key.university)
         cookies = StudIPCookieStore(service: cookieService, container: layout.identifier)
     }
@@ -418,7 +419,32 @@ final class ContainerManager: ObservableObject {
         if let s = stores[c.websiteDataStoreID] { return s }
         let s = WKWebsiteDataStore(forIdentifier: c.websiteDataStoreID)
         stores[c.websiteDataStoreID] = s
+        // Uni-Anmeldung (WebSSO bzw. CAS) von vor dem Neustart zuruecksetzen (`UniWebSessions`)
+        UniWebSessions.attach(s, vault: UniWebSessions.vault(service: cookieService, container: c.layout.identifier),
+                              domains: UniWebSessions.domains(c.key.university))
         return s
+    }
+
+    /// Sitzungs-Cookies der Uni-Anmeldung des offenen Containers merken (Wechsel in den Hintergrund: beendet iOS die
+    /// App danach, ist die Anmeldung beim naechsten Oeffnen wieder da)
+    func saveWebSessions() async {
+        guard let c = active else { return }
+        await UniWebSessions.save(websiteDataStore(for: c))
+    }
+
+    /// Abgelaufene Anmeldungen des offenen Containers still erneuern (Uni-Anmeldung im WebSSO bzw. CAS gilt noch: kein
+    /// Passwort, keine Anmeldeseite). Rueckgabe: Quellen, die danach noch eine Anmeldung brauchen.
+    @discardableResult
+    func renewExpiredSessions() async -> [String] {
+        guard active != nil else { return [] }
+        var left: [String] = []
+        if studip.offersStudIP, studip.phase == .needsLogin {
+            if !(await studip.renewSilently()) && studip.phase == .needsLogin { left.append("Stud.IP") }
+        }
+        if let hildesheim {
+            left += await hildesheim.renewSilently().map(\.rawValue)
+        }
+        return left
     }
 
     /// Ordner mit Dateischutz (nach dem ersten Entsperren lesbar) und im iCloud-Backup (Notizen, Plan); die
@@ -497,6 +523,7 @@ final class ContainerManager: ObservableObject {
         ContainerLeases.revoke(layout.identifier)
         await stopSyncs(key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
+        UniWebSessions.vault(service: cookieService, container: layout.identifier).clear()   // Uni-Anmeldung der Webansicht
         UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
         AppTemp.remove(container: layout.identifier)                       // Teilen-Dateien dieses Containers in tmp
@@ -512,7 +539,8 @@ final class ContainerManager: ObservableObject {
         if layout.exists() { left.append(Self.leftFiles) }
         let tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope, onlyUniversity: key.university)
         if key.university.profile.tokenServices.contains(where: { tokens.token(key.university, service: $0) != nil }) { left.append(Self.leftKey) }
-        if !StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty { left.append(Self.leftSession) }
+        if !StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty
+            || UniWebSessions.vault(service: cookieService, container: layout.identifier).loadRaw() != nil { left.append(Self.leftSession) }
         return left
     }
 
@@ -520,6 +548,7 @@ final class ContainerManager: ObservableObject {
     /// zurueck und wird beim naechsten Mal entfernt)
     private func removeWebsiteData(_ id: UUID) async {
         let store = stores.removeValue(forKey: id) ?? WKWebsiteDataStore(forIdentifier: id)
+        UniWebSessions.detach(store)
         await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         try? await WKWebsiteDataStore.remove(forIdentifier: id)
     }

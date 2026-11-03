@@ -17,6 +17,10 @@ enum CommunityRecordType {
     static let studyGroup = "StudyGroup"
     /// vom Inhaber im Dashboard gesperrte Nutzer (nur lesen; Anlegen im Dashboard auf die Rolle des Inhabers beschraenken)
     static let ban = "Ban"
+    /// Kommentar zu einer Loesung (Inhalt verschluesselt) oder Entfernung durch den Autor der Loesung (03.11.2026)
+    static let comment = "Comment"
+    /// Gefaellt mir: ein Datensatz je Nutzer und Loesung
+    static let like = "Like"
 }
 
 /// Feldwert eines Datensatzes (nur die Typen, die die Community braucht)
@@ -53,11 +57,13 @@ struct CommunityRecord: Equatable, Sendable {
     }
 }
 
-/// Suche: Typ und Gleichheitsbedingungen (UND), hoechstens `limit` Treffer
+/// Suche: Typ und Gleichheitsbedingungen (UND), hoechstens `limit` Treffer; `anyOf`: Feld hat einen dieser Texte
+/// (`IN`, z. B. die Zahlen der Trefferliste mit einer Abfrage)
 struct CommunityQuery: Equatable, Sendable {
     var type: String
     var equals: [String: CommunityFieldValue]
     var limit: Int = 200
+    var anyOf: [String: [String]] = [:]
 }
 
 enum CommunityScope: Sendable { case publicDB, privateDB }
@@ -190,7 +196,7 @@ final class CKCommunityCloud: CommunityCloud, @unchecked Sendable {
             case .int(let i): return NSPredicate(format: "%K == %d", key, i)
             case .asset: return NSPredicate(value: false)
             }
-        }
+        } + q.anyOf.sorted { $0.key < $1.key }.map { key, values in NSPredicate(format: "%K IN %@", key, values) }
         let query = CKQuery(recordType: q.type, predicate: predicates.isEmpty ? NSPredicate(value: true) : NSCompoundPredicate(andPredicateWithSubpredicates: predicates))
         do {
             var out: [CommunityRecord] = []
