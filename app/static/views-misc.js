@@ -3,7 +3,7 @@ import { renderWeeklyBox } from "./views-weekly.js?v=9";
 import { installCard, bindInstallBanner } from "./pwa.js?v=9";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=38";
-import * as FC from "./flashcards.js?v=2";
+import * as FC from "./flashcards.js?v=3";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -162,10 +162,11 @@ export async function viewCards(_, __, view) {
         <div class="fc-tools"><button class="btn ghost icon sm${marked ? " fc-on" : ""}" id="trMark" aria-pressed="${marked}" title="${marked ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" aria-label="${marked ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" ${trainer.busy ? "disabled" : ""}>${icon("bookmark", 16)}</button><button class="btn ghost sm" id="trHide" ${trainer.busy ? "disabled" : ""}>${hid ? "Wieder zeigen" : "Verstecken"}</button></div>
         <div class="fc-text">${esc(text).replace(/\n/g, "<br>")}</div></div></div>
       <p class="muted small" style="text-align:center;margin:.6rem 0 0" aria-hidden="true">Klicken oder Leertaste zum Umdrehen · → bzw. nach rechts wischen: gewusst · ← bzw. nach links: nicht gewusst</p>
-      <div class="row fc-bar"><button class="btn" id="trPrev" ${trainer.canGoBack ? "" : "disabled"}>${icon("undo", 15)} Vorherige</button><span class="spacer"></span><button class="btn danger" id="trNo" ${trainer.busy ? "disabled" : ""}>${icon("x", 15)} Nicht gewusst</button><button class="btn ok" id="trYes" ${trainer.busy ? "disabled" : ""}>${icon("check", 15)} Gewusst</button></div></div>`;
+      <div class="row fc-bar"><button class="btn" id="trPrev" ${trainer.canGoBack ? "" : "disabled"}>${icon("undo", 15)} Vorherige</button><button class="btn" id="trAgain" ${trainer.canAskAgain ? "" : "disabled"} title="Kommt ein paar Karten später noch einmal">${icon("refresh", 15)} Erneut fragen</button><span class="spacer"></span><button class="btn danger" id="trNo" ${trainer.busy ? "disabled" : ""}>${icon("x", 15)} Nicht gewusst</button><button class="btn ok" id="trYes" ${trainer.busy ? "disabled" : ""}>${icon("check", 15)} Gewusst</button></div></div>`;
   };
   const answer = known => { if (trainer.busy || !trainer.current) return; const p = trainer.answer(known); render(); attempt("Antwort speichern", () => p); };
   const previous = () => { if (!trainer.canGoBack) return; const p = trainer.previous(); render(); attempt("Zurücknehmen", () => p); };
+  const askAgain = () => { if (!trainer.askAgain()) return; render(); toast(`Kommt in ${FC.ASK_AGAIN_GAP} Karten wieder`, 1500); };
   const flip = () => { if (!trainer.current) return; trainer.flip(); render(); $("#trCard", view)?.focus(); };
   const close = () => { trainer.end(); reload().catch(e => toast(e.message, 4000)); };
   const options = () => {
@@ -210,6 +211,7 @@ export async function viewCards(_, __, view) {
       $("#trOpts", view).onclick = options; $("#trOpts2", view)?.addEventListener("click", options);
       $("#trUnknown", view)?.addEventListener("click", () => { trainer.practiceUnknown(); render(); });
       $("#trPrev", view)?.addEventListener("click", previous);
+      $("#trAgain", view)?.addEventListener("click", askAgain);
       $("#trNo", view)?.addEventListener("click", () => answer(false)); $("#trYes", view)?.addEventListener("click", () => answer(true));
       $("#trMark", view)?.addEventListener("click", () => { const p = trainer.toggleBookmark(); render(); attempt("Lesezeichen", () => p); });
       $("#trHide", view)?.addEventListener("click", () => { const hiding = !FC.isHidden(trainer.current); const p = trainer.toggleHidden(); render(); attempt(hiding ? "Verstecken" : "Wieder zeigen", async () => { await p; toast(hiding ? "Karte versteckt" : "Karte wird wieder gezeigt"); }); });
@@ -235,6 +237,7 @@ export async function viewCards(_, __, view) {
     else if (e.key === "ArrowLeft" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); answer(false); }
     else if (e.key === " " && !e.target.closest?.("button")) { e.preventDefault(); flip(); }
     else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); previous(); }
+    else if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); askAgain(); }
   };
   document.addEventListener("keydown", cardKeys);
   render();

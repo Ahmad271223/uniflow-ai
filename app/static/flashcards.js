@@ -49,6 +49,9 @@ export function progressCounts(cards) {
 
 /** Ablauf eines Durchgangs. `patch(id, body)` speichert (PATCH /api/flashcards/{id}) und liefert die gespeicherte Karte.
  *  Jede Antwort zaehlt einmal: waehrend des Speicherns (`busy`) werden weitere Eingaben ignoriert. */
+/** "Erneut fragen": so viele Karten spaeter kommt dieselbe Karte wieder (wie FlashcardTrainer.askAgainGap) */
+export const ASK_AGAIN_GAP = 3;
+
 export function createTrainer({ patch, shuffle = shuffled } = {}) {
   const t = {
     options: defaultOptions(), active: false, cards: [], source: [], position: 0, flipped: false,
@@ -67,6 +70,16 @@ export function createTrainer({ patch, shuffle = shuffled } = {}) {
     practiceUnknown() { const ids = new Set(t.answers.filter(a => !a.known).map(a => a.id)); begin(t.cards.filter(c => ids.has(c.id))); },
     end() { t.active = false; t.cards = []; t.position = 0; t.flipped = false; t.known = 0; t.unknown = 0; t.answers = []; t.busy = false; },
     flip() { if (t.current) t.flipped = !t.flipped; },
+    /** "Erneut fragen" moeglich: Karte vorn und danach noch mindestens eine andere */
+    get canAskAgain() { return !!t.current && !t.busy && t.position + 1 < t.cards.length; },
+    /** Karte ohne Urteil nach hinten: kommt ASK_AGAIN_GAP Karten spaeter wieder (am Ende, wenn weniger folgen) */
+    askAgain() {
+      if (!t.canAskAgain) return false;
+      const [card] = t.cards.splice(t.position, 1);
+      t.cards.splice(Math.min(t.position + ASK_AGAIN_GAP, t.cards.length), 0, card);
+      t.flipped = false;
+      return true;
+    },
     /** Antwort auf die aktuelle Karte; false, wenn nichts zu bewerten war */
     async answer(known) {
       const card = t.current; if (!card || t.busy) return false;

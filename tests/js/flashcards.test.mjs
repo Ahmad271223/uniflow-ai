@@ -74,6 +74,19 @@ test("Seite zuerst und Umdrehen", () => {
   assert.equal(t.showsDefinition, true); t.flip(); assert.equal(t.showsDefinition, false);
 });
 
+test("Erneut fragen: Karte rueckt drei Plaetze nach hinten, ohne Urteil", () => {
+  const t = createTrainer({ patch: async () => ({}) });
+  t.start(deck());
+  assert.deepEqual(t.cards.map(c => c.id), [1, 2, 3, 4]);
+  assert.equal(t.askAgain(), true);
+  assert.deepEqual(t.cards.map(c => c.id), [2, 3, 4, 1]);
+  assert.deepEqual([t.known, t.unknown, t.position, t.progressText, t.canGoBack], [0, 0, 0, "1/4", false]);
+  t.flip(); t.askAgain();
+  assert.equal(t.flipped, false); assert.deepEqual(t.cards.map(c => c.id), [3, 4, 1, 2]);
+  const one = createTrainer({ patch: async () => ({}) }); one.start(deck().slice(0, 1));
+  assert.equal(one.canAskAgain, false); assert.equal(one.askAgain(), false);
+});
+
 test("Antworten zaehlen, Vorherige nimmt zurueck, Plan bleibt", async () => {
   const s = fakeServer(deck()); const t = createTrainer({ patch: s.patch });
   t.start([...s.db.values()]);

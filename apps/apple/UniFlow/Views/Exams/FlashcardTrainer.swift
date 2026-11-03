@@ -107,6 +107,22 @@ final class FlashcardTrainer: ObservableObject {
     /// Durchgang ohne passende Karte (Filter zu eng)
     var empty: Bool { active && cards.isEmpty }
     var canGoBack: Bool { active && !answers.isEmpty && !busy }
+    /// "Erneut fragen" moeglich: eine Karte liegt vorn und danach kommt noch mindestens eine andere
+    var canAskAgain: Bool { current != nil && !busy && position + 1 < cards.count }
+
+    /// "Erneut fragen": so viele Karten spaeter kommt dieselbe Karte noch einmal (ohne Urteil, zaehlt nicht)
+    static let askAgainGap = 3
+
+    /// Die aktuelle Karte ohne Urteil nach hinten schieben: sie kommt nach `askAgainGap` Karten wieder (am Ende,
+    /// wenn weniger folgen). Nichts wird gespeichert; "Vorherige" nimmt nur Antworten zurueck, nicht das Verschieben.
+    @discardableResult
+    func askAgain() -> Bool {
+        guard canAskAgain, let card = current else { return false }
+        cards.remove(at: position)
+        cards.insert(card, at: min(position + Self.askAgainGap, cards.count))
+        flipped = false
+        return true
+    }
     /// zeigt gerade die Definition (Antwort)
     var showsDefinition: Bool { (options.firstSide == .definition) != flipped }
     /// "3/20": die aktuelle Karte, am Ende die Gesamtzahl
@@ -348,10 +364,11 @@ struct FlashcardTrainerView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("\(side): \(text)")
-        .accessibilityHint("Doppeltippen dreht die Karte. Aktionen: Gewusst, Nicht gewusst.")
+        .accessibilityHint("Doppeltippen dreht die Karte. Aktionen: Gewusst, Nicht gewusst, Erneut fragen.")
         .accessibilityAction { flip() }
         .accessibilityAction(named: "Gewusst") { answer(true) }
         .accessibilityAction(named: "Nicht gewusst") { answer(false) }
+        .accessibilityAction(named: "Erneut fragen") { askAgain() }
         .accessibilityAction(named: bookmarked ? "Lesezeichen entfernen" : "Lesezeichen setzen") { bookmark() }
         .accessibilityAction(named: hidden ? "Karte wieder zeigen" : "Karte verstecken") { hide() }
         .overlay(alignment: .topTrailing) {
@@ -423,6 +440,11 @@ struct FlashcardTrainerView: View {
             TrainerWideButton(title: "Vorherige", icon: "undo", tone: .neutral) { previous() }
                 .disabled(!trainer.canGoBack)
                 .keyboardShortcut("z", modifiers: .command)
+            // Karte ein paar Fragen spaeter noch einmal (Wunsch des Inhabers 03.11.2026), ohne Urteil
+            TrainerWideButton(title: "Erneut fragen", icon: "refresh", tone: .neutral) { askAgain() }
+                .disabled(!trainer.canAskAgain)
+                .keyboardShortcut("r", modifiers: [])
+                .accessibilityIdentifier("trainer.askAgain")
             Spacer(minLength: 0)
             TrainerWideButton(title: "Nicht gewusst", icon: "x", tone: .bad) { answer(false) }
                 .disabled(trainer.busy)
@@ -470,6 +492,12 @@ struct FlashcardTrainerView: View {
 
     private func previous() {
         Task { _ = await toast.attempt("Zurücknehmen") { try await trainer.previous() } }
+    }
+
+    private func askAgain() {
+        guard trainer.canAskAgain else { return }
+        if let a = UFMotion.animation(reduce: reduceMotion) { withAnimation(a) { trainer.askAgain() } } else { trainer.askAgain() }
+        toast.show("Kommt in \(FlashcardTrainer.askAgainGap) Karten wieder", seconds: 1.5)
     }
 
     private func bookmark() {

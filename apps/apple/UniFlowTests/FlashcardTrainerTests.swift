@@ -86,6 +86,28 @@ final class FlashcardTrainerTests: XCTestCase {
         XCTAssertFalse(t.showsDefinition, "umgedreht: der Begriff")
     }
 
+    /// "Erneut fragen": Karte rueckt drei Plaetze nach hinten (oder ans Ende), ohne Urteil und ohne Zaehler
+    func testAskAgainMovesCardBackWithoutJudgement() {
+        let t = FlashcardTrainer()
+        t.start(with: deck)
+        XCTAssertEqual(t.cards.compactMap { $0.i("id") }, [1, 2, 3, 4])
+        XCTAssertTrue(t.askAgain())
+        XCTAssertEqual(t.cards.compactMap { $0.i("id") }, [2, 3, 4, 1], "drei Karten spaeter = ans Ende bei vier Karten")
+        XCTAssertEqual(t.current?.i("id"), 2)
+        XCTAssertEqual([t.known, t.unknown, t.position], [0, 0, 0], "kein Urteil, kein Zaehler")
+        XCTAssertEqual(t.progressText, "1/4", "die Gesamtzahl bleibt")
+        XCTAssertFalse(t.canGoBack, "Vorherige nimmt nur Antworten zurueck")
+        t.flip()
+        XCTAssertTrue(t.askAgain())
+        XCTAssertFalse(t.flipped, "neue Karte vorn: Vorderseite")
+        XCTAssertEqual(t.cards.compactMap { $0.i("id") }, [3, 4, 1, 2])
+        // letzte Karte: nichts mehr danach -> nicht moeglich
+        let last = FlashcardTrainer()
+        last.start(with: [deck[0]])
+        XCTAssertFalse(last.canAskAgain)
+        XCTAssertFalse(last.askAgain())
+    }
+
     func testStartRestartAndEmpty() {
         let t = FlashcardTrainer()
         t.shuffle = { $0.reversed() }
