@@ -32,7 +32,9 @@ public enum StudIPBulletin {
     public static let newDays = 7
     static let plugin = "plugins.php/schwarzesbrettplugin"
     static let topicsKey = "studip_bulletin_topics"
-    static let fetchedKey = "studip_bulletin_fetched_at"
+    /// _v2 seit 03.11.2026 (ganzer Text statt 400 Zeichen mit "…"): Geraete mit gekuerzten Anzeigen holen beim naechsten
+    /// Abgleich sofort neu, statt bis zu 6 Stunden die alten, gekuerzten Texte zu zeigen
+    static let fetchedKey = "studip_bulletin_fetched_at_v2"
     /// Kennzeichen der Themenliste in der Seite des Plugins (views/category/list.php: `<ul class="sb-categories">`)
     static let topicsMarker = "sb-categories"
 
