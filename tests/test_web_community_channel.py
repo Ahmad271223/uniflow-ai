@@ -188,6 +188,13 @@ def test_channel_cards_people_reader_and_discussion(world):
             page.click("[data-filter=unanswered]")
             page.wait_for_selector(".cc-post:has-text('Wie geht Aufgabe 2?')", timeout=T)
             shot(page, "diskussion")
+            # Handy-Breite: kein waagerechtes Scrollen der Seite (die Kartenreihe scrollt in sich)
+            page.set_viewport_size({"width": 390, "height": 844})
+            for tab in ("Diskussion", "Dokumente"):
+                page.click(f".cc-tab:has-text('{tab}')")
+                page.wait_for_selector(".cc-card", timeout=T)
+                assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), f"{tab}: waagerechtes Scrollen"
+            shot(page, "dokumente-handy")
             assert not errors, errors
         finally:
             browser.close()
