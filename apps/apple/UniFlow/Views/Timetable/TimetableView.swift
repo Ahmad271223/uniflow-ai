@@ -3,8 +3,8 @@ import UniformTypeIdentifiers
 import UniFlowCore
 
 /// Stundenplan 1:1 nach viewTimetable() in app/static/views-tt.js: Kopf mit Verfügbarkeit/Termin/Import,
-/// Konflikt-Banner, Wochennavigation mit Legende, Raster (Termine, Lernslots, freie Fenster, Sperrzeiten),
-/// Doppeltippen legt einen Termin an. Daten: GET /api/timetable/week, /api/timetable/conflicts.
+/// Wochennavigation mit Legende, Raster nur mit den Hochschulterminen der Woche (Lernslots, freie Fenster,
+/// Sperrzeiten und Lernslot-Konflikte zeigt der Lernkalender). Doppeltippen legt einen Termin an. Daten: GET /api/timetable/week.
 struct TimetableView: View {
     let date: String?
     @EnvironmentObject private var session: Session
@@ -12,9 +12,7 @@ struct TimetableView: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @State private var week: JSONValue?
-    @State private var conflicts: [JSONValue] = []
     /// Konfliktpruefung gescheitert: Meldung statt stiller leerer Liste (eine leere Liste hiesse "keine Konflikte")
-    @State private var conflictsError: String?
     @State private var error: String?
     /// noch nicht uebernommene Stud.IP-Termine (`pending_groups` aus /api/timetable/auto-status)
     @State private var studipPending = 0
@@ -56,13 +54,6 @@ struct TimetableView: View {
             async let hidden = StudIPCancelled.keys(api, from: from, to: to)
             let reply = try await api.value("/api/timetable/week?start=\(from)")
             let w = StudIPCancellations.hiding(in: reply, keys: await hidden)
-            do {
-                conflicts = try await api.value("/api/timetable/conflicts").items
-                conflictsError = nil
-            } catch {
-                conflicts = []
-                conflictsError = error.localizedDescription
-            }
             studipPending = (try? await api.value("/api/timetable/auto-status"))?.i("pending_groups") ?? 0
             studipQuestions = api.isLocal ? (try? await api.value("/api/timetable/studip-questions")) : nil
             week = w
@@ -76,19 +67,14 @@ struct TimetableView: View {
     @ViewBuilder private func content(_ w: JSONValue) -> some View {
         let days = w.list("days")
         let allEv = days.flatMap { $0.list("events") }
-        let lo = ([UFTime.hm(w.s("learn_start")), 8 * 60] + allEv.map { UFTime.hm($0.s("start")) }).min()! - 60
-        let hi = ([UFTime.hm(w.s("learn_end")), 18 * 60] + allEv.map { UFTime.hm($0.s("end")) }).max()! + 60
+        let lo = ([8 * 60] + allEv.map { UFTime.hm($0.s("start")) }).min()! - 60
+        let hi = ([18 * 60] + allEv.map { UFTime.hm($0.s("end")) }).max()! + 60
         let term = w["term"] ?? .null
         UFContent(wide: true, maxWidth: 1600, insets: EdgeInsets(top: 19.2, leading: 22.4, bottom: 19.2, trailing: 22.4)) {
-            UFPageHead("Stundenplan", sub: "\(term.s("name") ?? "") · \(UFFmt.date(term.s("start"))) – \(UFFmt.date(term.s("end"))) · Lernzeit \(w.s("learn_start") ?? "")–\(w.s("learn_end") ?? "")") {
+            UFPageHead("Stundenplan", sub: "\(term.s("name") ?? "") · \(UFFmt.date(term.s("start"))) – \(UFFmt.date(term.s("end")))") {
                 UFButton("Verfügbarkeit", icon: "clock", size: .small) { actions.availability() }
                 UFButton("Termin", icon: "plus", size: .small) { actions.eventDialog(nil) }
                 UFButton("Stundenplan importieren", icon: "download", kind: .primary, size: .small) { overlay.modal { TimetableImportDialog() } }
-            }
-            if !conflicts.isEmpty { conflictBanner }
-            if let conflictsError {
-                HStack(spacing: 6) { UFIcon("alert", size: 14); Text("Konfliktprüfung nicht möglich: \(conflictsError)") }
-                    .ufFont(13.12).foregroundStyle(UF.warn).padding(.bottom, 12.8)
             }
             if let q = studipQuestions, !q.list("hidden").isEmpty || !q.list("busy").isEmpty {
                 StudIPCalendarQuestions(questions: q) { await load() }
@@ -111,39 +97,6 @@ struct TimetableView: View {
 
     // MARK: Kopfbereiche
 
-    private var conflictBanner: some View {
-        VStack(alignment: .leading, spacing: 4.8) {
-            UFFlexWrap(gap: 9.6) {
-                HStack(spacing: 6) {
-                    UFIcon("alert", size: 16)
-                    Text("\(conflicts.count) Lernslot\(conflicts.count > 1 ? "s überschneiden" : " überschneidet") sich mit Hochschulterminen")
-                }
-                .ufFont(14.5, 700).foregroundStyle(UF.text)
-                UFFlexSpacer()
-                UFButton("Lernslots neu legen", kind: .primary, size: .small) {
-                    Task {
-                        guard let api = session.api else { return }
-                        // Fehler sichtbar (vorher try?: ohne Meldung neu geladen, der Konflikt blieb)
-                        if await toast.attempt("Lernslots neu legen", {
-                            let r = try await api.value("/api/timetable/reslot", method: "POST", body: [:])
-                            toast.show("\(r.list("reslotted").count) Tage neu gelegt")
-                        }) { router.reload() }
-                    }
-                }
-            }
-            Text(conflicts.prefix(4).map { c in
-                "\(UFFmt.short(c.s("date"))): \(UFFmt.shortName(c.s("subject"))) \(c.s("slot") ?? "") ↔ \(c.s("event") ?? "") \(c.s("event_time") ?? "")"
-            }.joined(separator: " · "))
-            .ufFont(13.12).foregroundStyle(UF.muted)
-        }
-        .padding(.vertical, 17.6 + ufB).padding(.horizontal, 19.2 + ufB)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.warnSoft))
-        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.warn, lineWidth: 1))
-        .ufShadow(.sm)
-        .padding(.bottom, 12.8)
-    }
-
     /// Wochennavigation und Legende (.row.wrap)
     private var nav: some View {
         let s = start, e = PlanData.add(start, 6)
@@ -163,9 +116,6 @@ struct TimetableView: View {
     private var legendRow: some View {
         UFFlexWrap(gap: 14.4, rowGap: 6) {                                   // .tt-legend
                 legend("Vorlesung/Übung") { RoundedRectangle(cornerRadius: 3).fill(UF.accent) }
-                legend("Lernslot") { RoundedRectangle(cornerRadius: 3).fill(UF.surface).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.accent, lineWidth: 1)) }
-                legend("Frei") { UFHatch(color: UF.ok, period: 4, stripe: 1) }
-                legend("Sperrzeit") { UFHatch(color: Color(hex: 0x999999), period: 4, stripe: 1, deg135: false) }
                 legend("Feiertag, vorlesungsfrei") { RoundedRectangle(cornerRadius: 3).fill(UF.okSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok, lineWidth: 1)) }
                 legend("Hinweis (antippbar)") { RoundedRectangle(cornerRadius: 3).fill(UF.infoSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.info, lineWidth: 1)) }
         }
@@ -247,27 +197,10 @@ struct TimetableView: View {
             }
     }
 
-    /// .tt-col: freie Fenster, Sperrzeiten, Termine, Lernslots; Doppeltippen = neuer Termin
+    /// .tt-col: nur Hochschultermine (03.11.2026: Lernslots, freie Fenster und Sperrzeiten stehen im Lernkalender); Doppeltippen = neuer Termin
     private func column(_ d: JSONValue, lo: Int, hi: Int, px: @escaping (Int) -> CGFloat, width: CGFloat, today: Bool) -> some View {
         let date = d.s("date") ?? ""
         return ZStack(alignment: .topLeading) {
-            ForEach(d.list("free").indices, id: \.self) { i in
-                let f = d.list("free")[i]
-                UFHatch(color: UF.ok.opacity(0.14)).clipShape(RoundedRectangle(cornerRadius: 6))
-                    .frame(width: width - 5, height: max(0, px(f.i("end") ?? 0) - px(f.i("start") ?? 0)))
-                    .offset(x: 2, y: px(f.i("start") ?? 0))
-                    .help("Frei \(f.s("start_hm") ?? "")–\(f.s("end_hm") ?? "") (\(UFFmt.min(f.i("minutes") ?? 0)))")
-            }
-            ForEach(d.list("blocked").indices, id: \.self) { i in
-                let b = d.list("blocked")[i]
-                let top = px(UFTime.hm(b.s("start")))
-                Text(b.s("title").flatMap { $0.isEmpty ? nil : $0 } ?? "Sperrzeit").ufFont(10.56).foregroundStyle(UF.muted)
-                    .padding(.vertical, 1.6).padding(.horizontal, 4.8)
-                    .frame(width: width - 5, height: max(0, px(UFTime.hm(b.s("end"))) - top), alignment: .topLeading)
-                    .background(UFHatch(color: Color(white: 120 / 255).opacity(0.18), period: 7, stripe: 2, deg135: false))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .offset(x: 2, y: top)
-            }
             // gleichzeitige Termine nebeneinander statt uebereinander (03.11.2026: einer verdeckte den anderen)
             let evs = d.list("events")
             let lanes = planLanes(evs.map { (UFTime.hm($0.s("start")), UFTime.hm($0.s("end"))) })
@@ -275,10 +208,6 @@ struct TimetableView: View {
                 let n = CGFloat(lanes[i].n), w = (width - 7 - 2 * (n - 1)) / n
                 TimetableEventBlock(e: evs[i], width: w, px: px) { actions.openOccurrence(evs[i], date: date) }
                     .offset(x: 3 + CGFloat(lanes[i].lane) * (w + 2))
-            }
-            ForEach(Row.rows(d.list("packages").filter { $0.s("start_time") != nil })) { row in
-                TimetableStudyBlock(p: row.value, width: width - 7, px: px) { actions.openPackage(row.value.i("id") ?? 0) }
-                    .offset(x: 3)
             }
         }
         .frame(width: width, height: px(hi), alignment: .topLeading)

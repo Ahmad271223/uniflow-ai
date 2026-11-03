@@ -278,8 +278,9 @@ final class AuditRunde0910AppTests: XCTestCase {
 
     // MARK: 279, 311, 312 – Stundenplan und Termin
 
-    /// 279: scheitert der Konfliktabruf, steht das auf der Seite (vorher stille leere Liste = "keine Konflikte")
-    func testTimetableSaysWhenConflictCheckFails() throws {
+    /// 279: der Konfliktabruf gehoert jetzt zum Lernkalender, im Stundenplan steht weder Banner noch Fehlermeldung
+    func testTimetableNoLongerAsksForLearningSlotConflicts() throws {
+        // 03.11.2026: der Stundenplan zeigt nur die Uni-Termine; Lernslot-Konflikte prueft der Lernkalender
         let host = try awaiting { try await self.seededHost() }
         XCTAssertTrue(Self.accessibilityAutomation(true))
         defer { Self.accessibilityAutomation(false) }
@@ -287,8 +288,9 @@ final class AuditRunde0910AppTests: XCTestCase {
         t.fail("/api/timetable/conflicts", 500)
         let api = APIClient(base: APIClient.localBase, transport: t)
         let page = try show(TimetableView(date: "2026-10-26"), api: api)
-        XCTAssertTrue(pump { self.shows(page.view, "Konfliktprüfung nicht möglich: Testfehler 500") }, texts(page.view).joined(separator: "\n"))
-        XCTAssertTrue(shows(page.view, "Stundenplan"), "die Seite selbst ist da")
+        XCTAssertTrue(pump { self.shows(page.view, "Vorlesung/Übung") }, texts(page.view).joined(separator: "\n"))
+        XCTAssertFalse(shows(page.view, "Konfliktprüfung nicht möglich: Testfehler 500"), texts(page.view).joined(separator: "\n"))
+        XCTAssertFalse(shows(page.view, "Lernslot"), texts(page.view).joined(separator: "\n"))
     }
 
     /// 311/312: "Termin nicht gefunden" (geloescht) und "Termin laden fehlgeschlagen" (Fehlerantwort) sind zwei

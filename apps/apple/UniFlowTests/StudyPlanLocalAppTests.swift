@@ -320,11 +320,11 @@ final class StudyPlanLocalAppTests: XCTestCase {
         XCTAssertFalse(open.items.contains { $0.s("type") == "test" })
         XCTAssertTrue(open.items.contains { $0.s("type") == "vorlesung" } && open.items.contains { $0.s("type") == "uebung" })
 
-        // Stundenplan: Termine und Lernbloecke derselben Woche
+        // Stundenplan: nur die Hochschultermine, die Lernbloecke stehen allein im Lernkalender (03.11.2026)
         let tt = try show(TimetableView(date: "2026-10-26"), api: api)
         let lines = monday.map { "\($0.start)–\($0.end) · \($0.title)" }
-        XCTAssertTrue(pump { self.shows(tt, "Testmathematik I") && lines.allSatisfy { l in self.shows(tt, l) } }, texts(tt).joined(separator: "\n"))
-        XCTAssertTrue(shows(tt, "Übung zu Testmathematik I"), texts(tt).joined(separator: "\n"))
+        XCTAssertTrue(pump { self.shows(tt, "Testmathematik I") && self.shows(tt, "Übung zu Testmathematik I") }, texts(tt).joined(separator: "\n"))
+        XCTAssertFalse(lines.contains { l in self.shows(tt, l) }, "keine Lernslots im Stundenplan: \(texts(tt))")
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
     }
 
