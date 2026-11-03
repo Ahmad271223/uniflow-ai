@@ -191,3 +191,88 @@ public enum CommunityDiscussion {
         Set(likers.filter { !$0.isEmpty && $0 != solutionAuthor && !blocked.contains($0) }).count
     }
 }
+
+// MARK: - Fragen und Antworten einer Community (03.11.2026)
+
+// Reiter "Diskussion" einer Modul-Community: dieselben verschluesselten `Comment`-Datensaetze wie bei einer Loesung,
+// nur mit einem Pseudo-Ziel je Community (`spaceTarget`, im Feld `solutionID`). Oberste Eintraege sind Fragen, Antworten
+// haengen eine Ebene darunter (`thread`). Likes auf Fragen sind `Like`-Datensaetze mit `postLikeTarget` als Ziel – keine
+// neuen Datensatztypen und keine neuen Felder beim Dienst.
+extension CommunityDiscussion {
+    static let spacePrefix = "space:"
+    static let postLikePrefix = "post:"
+
+    /// Ziel der Fragen einer Community (`solutionID` der Kommentar-Datensaetze, auch HKDF-Info und Zusatzdaten)
+    public static func spaceTarget(_ communityKey: String) -> String { spacePrefix + communityKey.lowercased() }
+
+    /// Community-Schluessel aus einem Ziel; nil = Ziel ist eine Loesung
+    public static func spaceKey(target: String) -> String? {
+        let t = target.lowercased()
+        guard t.hasPrefix(spacePrefix) else { return nil }
+        let key = String(t.dropFirst(spacePrefix.count))
+        return key.isEmpty ? nil : key
+    }
+
+    /// Ziel eines Likes auf eine Frage (`solutionID` des `Like`-Datensatzes); nie gleich einer Loesungs-ID
+    public static func postLikeTarget(_ postID: String) -> String { postLikePrefix + postID.lowercased() }
+
+    public static func postID(likeTarget: String) -> String? {
+        let t = likeTarget.lowercased()
+        guard t.hasPrefix(postLikePrefix) else { return nil }
+        let id = String(t.dropFirst(postLikePrefix.count))
+        return id.isEmpty ? nil : id
+    }
+
+    /// Fragen mit ihren Antworten (Reihenfolge wie `thread`: aelteste zuerst) und Likes je Frage (`likers`: Ersteller
+    /// der Likes je Fragen-ID). Ein Like je Nutzer, nie der Fragesteller selbst, ohne gesperrte Nutzer.
+    public static func feed(_ entries: [Entry], likers: [String: [String]], me: String, blocked: Set<String> = []) -> [CommunityPost] {
+        let authors = Dictionary(entries.map { ($0.id, $0.author) }, uniquingKeysWith: { a, _ in a })
+        var posts: [CommunityPost] = []
+        for c in thread(entries, me: me, solutionAuthor: "", blocked: blocked) {
+            if let parent = c.parentID {
+                if let i = posts.indices.last, posts[i].id == parent { posts[i].replies.append(c) }
+                continue
+            }
+            let l = likers[c.id] ?? []
+            posts.append(CommunityPost(question: c, replies: [],
+                                       likes: c.deleted ? 0 : likeCount(likers: l, solutionAuthor: authors[c.id] ?? "", blocked: blocked),
+                                       likedByMe: !me.isEmpty && l.contains(me)))
+        }
+        return posts
+    }
+
+    /// Filter des Reiters: neueste zuerst; "Unbeantwortet" nur Fragen ohne Antwort (geloeschte Fragen fallen weg)
+    public static func filtered(_ posts: [CommunityPost], _ filter: CommunityPostFilter) -> [CommunityPost] {
+        let newest = posts.sorted { ($0.question.createdAt, $0.id) > ($1.question.createdAt, $1.id) }
+        switch filter {
+        case .newest: return newest
+        case .unanswered: return newest.filter { !$0.answered && !$0.question.deleted }
+        }
+    }
+}
+
+/// Filter der Fragen einer Community
+public enum CommunityPostFilter: String, CaseIterable, Sendable {
+    case newest, unanswered
+
+    public var title: String { self == .newest ? "Neueste" : "Unbeantwortet" }
+}
+
+/// Frage einer Community mit Antworten (eine Ebene) und Likes
+public struct CommunityPost: Equatable, Sendable, Identifiable {
+    public var question: CommunityComment
+    public var replies: [CommunityComment]
+    public var likes: Int
+    public var likedByMe: Bool
+
+    public var id: String { question.id }
+    /// mindestens eine (nicht geloeschte) Antwort
+    public var answered: Bool { replies.contains { !$0.deleted } }
+
+    public init(question: CommunityComment, replies: [CommunityComment] = [], likes: Int = 0, likedByMe: Bool = false) {
+        self.question = question
+        self.replies = replies
+        self.likes = likes
+        self.likedByMe = likedByMe
+    }
+}

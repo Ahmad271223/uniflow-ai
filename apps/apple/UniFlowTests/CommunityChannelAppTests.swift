@@ -12,10 +12,23 @@ final class CommunityChannelAppTests: XCTestCase {
     /// Dienst mit festen Loesungen; Kommentare und Likes moeglich, Pakete gibt es nicht (Leser zeigt den Fehler)
     final class FakeChannelService: CommunityService, @unchecked Sendable {
         var list: [CommunitySolutionSummary] = []
+        /// Fragen je Community (Reiter "Diskussion")
+        var spaceDiscussion = false
+        var posts: [CommunityPost] = []
+        var joined: [String] = []
         var isConnected: Bool { true }
         var supportsDiscussion: Bool { true }
+        var supportsSpaceDiscussion: Bool { spaceDiscussion }
         func solutions(in space: CommunitySpace) async throws -> [CommunitySolutionSummary] { list }
         func communities() async throws -> [CommunitySpace] { [] }
+        func join(_ space: CommunitySpace) async throws { joined.append(space.key) }
+        func posts(in space: CommunitySpace) async throws -> [CommunityPost] { posts }
+        func setPostLiked(in space: CommunitySpace, postID: String, _ liked: Bool) async throws -> Int {
+            guard let i = posts.firstIndex(where: { $0.id == postID }) else { throw CommunityServiceError.notFound }
+            posts[i].likes += liked ? 1 : -1
+            posts[i].likedByMe = liked
+            return posts[i].likes
+        }
         func comments(solutionID: String) async throws -> [CommunityComment] { [] }
         func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
             throw CommunityServiceError.notConnected
@@ -119,7 +132,7 @@ final class CommunityChannelAppTests: XCTestCase {
             solution("5", "Ich", title: "Meine Zusammenfassung", week: 0, own: true),
         ]
         let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
-        let view = try show(CommunitySpaceSheet(space: space, service: service) {})
+        let view = try show(CommunitySpacePage(key: "k", space: space, service: service))
         XCTAssertTrue(pump { self.shows(view, "Woche 2") }, "Wochen erscheinen: \(texts(view))")
         XCTAssertTrue(shows(view, "Woche 1"))
         XCTAssertTrue(shows(view, "Ohne Lehrwoche"))
@@ -143,7 +156,8 @@ final class CommunityChannelAppTests: XCTestCase {
         XCTAssertTrue(tap("Notizen von Ben", in: view, prefix: true))
         XCTAssertTrue(pump { self.shows(view, "Person 2 von 3") }, "Leser beginnt bei der gewaehlten Person: \(texts(view))")
         XCTAssertTrue(shows(view, "Ben"))
-        XCTAssertTrue(shows(view, "Kommentare"), "Kommentare stehen unter den Notizen")
+        XCTAssertTrue(shows(view, "Diskussion (0)"), "Kommentare im eigenen Reiter neben dem Dokument")
+        XCTAssertTrue(shows(view, "Dokument"))
 
         XCTAssertTrue(tap("Nächste Person", in: view))
         XCTAssertTrue(pump { self.shows(view, "Person 3 von 3") }, "\(texts(view))")
@@ -167,6 +181,139 @@ final class CommunityChannelAppTests: XCTestCase {
         XCTAssertTrue(pump { self.shows(view, "Person 2 von 2") }, "Start ausserhalb wird begrenzt: \(texts(view))")
         XCTAssertTrue(tap("Vorherige Person", in: view))
         XCTAssertTrue(pump { self.shows(view, "Person 1 von 2") })
+    }
+
+    // MARK: Seite einer Community (03.11.2026)
+
+    private func post(_ id: String, _ name: String, _ text: String, at: String, replies: Int = 0, likes: Int = 0) -> CommunityPost {
+        let q = CommunityComment(id: id, pseudonym: name, text: text, createdAt: at)
+        let r = (0..<replies).map { CommunityComment(id: "\(id)-r\($0)", parentID: id, pseudonym: "Ben", text: "Antwort \($0)", createdAt: at) }
+        return CommunityPost(question: q, replies: r, likes: likes)
+    }
+
+    func testSpaceTextsAreCalmAndHonest() {
+        var space = CommunitySpace(key: "k", kind: .course, name: "Analysis")
+        XCTAssertEqual(CommunitySpaceTexts.subtitle(space, university: "Leibniz Universität Hannover"), "Leibniz Universität Hannover",
+                       "ohne bekannte Mitgliederzahl keine Zahl")
+        space.members = 24
+        XCTAssertEqual(CommunitySpaceTexts.subtitle(space, university: "Leibniz Universität Hannover"), "Leibniz Universität Hannover · 24 Mitglieder")
+        XCTAssertEqual(CommunitySpaceTexts.subtitle(CommunitySpace(key: "g", kind: .group, name: "Lerngruppe A"), university: "x"), "Lerngruppe")
+        let now = ISO8601DateFormatter().date(from: "2026-11-03T15:00:00Z")!
+        XCTAssertEqual(CommunitySpaceTexts.relative("2026-11-03T14:59:30Z", now: now), "gerade eben")
+        XCTAssertEqual(CommunitySpaceTexts.relative("2026-11-03T12:00:00Z", now: now), "vor 3 Stunden")
+        XCTAssertEqual(CommunitySpaceTexts.relative("2026-10-01T12:00:00Z", now: now), ForeignSolutionLayer.date("2026-10-01T12:00:00Z"))
+        let p = post("q", "Lea", "Wie geht 2b?", at: "2026-11-03T12:00:00Z", replies: 1, likes: 2)
+        XCTAssertEqual(CommunitySpaceTexts.postLabel(p, now: now), "Frage von Lea, vor 3 Stunden: Wie geht 2b?, Beantwortet, 1 Antwort, 2 Likes")
+    }
+
+    func testSpacePageHeaderTabsAndJoinButton() throws {
+        let service = FakeChannelService()
+        service.spaceDiscussion = true
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis")
+        let view = try show(CommunitySpacePage(key: "k", space: space, service: service))
+        XCTAssertTrue(pump { self.shows(view, "Beitreten") }, "\(texts(view))")
+        XCTAssertTrue(shows(view, "Analysis"))
+        XCTAssertTrue(shows(view, "Diskussion"))
+        XCTAssertTrue(shows(view, "Dokumente (0)"))
+        XCTAssertTrue(shows(view, CommunitySpaceTexts.joinHint))
+        XCTAssertFalse(shows(view, "Frage stellen"), "vor dem Beitritt keine Diskussion")
+
+        service.list = [solution("1", "Lea", title: "Vorlesung 2", fingerprint: "fA", week: 2)]
+        XCTAssertTrue(tap("Beitreten", in: view))
+        XCTAssertTrue(pump { !self.shows(view, "Beitreten") && self.shows(view, "Dokumente (1)") }, "\(texts(view))")
+        XCTAssertEqual(service.joined, ["k"])
+        XCTAssertTrue(shows(view, "Frage stellen"), "nach dem Beitritt: Diskussion mit Eingabe")
+        XCTAssertTrue(shows(view, "Neueste geteilte Notizen"))
+    }
+
+    func testDiscussionTabShowsQuestionsAnsweredBadgeAndFilter() throws {
+        let service = FakeChannelService()
+        service.spaceDiscussion = true
+        service.posts = [post("q1", "Lea", "Wie geht 2b?", at: "2026-11-01T10:00:00Z", replies: 2, likes: 1),
+                         post("q2", "Mia", "Wann ist die Klausur?", at: "2026-11-02T10:00:00Z")]
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
+        let view = try show(CommunitySpacePage(key: "k", space: space, service: service))
+        XCTAssertTrue(pump { self.shows(view, "Frage von Lea") }, "\(texts(view))")
+        XCTAssertTrue(shows(view, "Wie geht 2b?, Beantwortet, 2 Antworten, 1 Like"))
+        XCTAssertTrue(shows(view, "Wann ist die Klausur?, 0 Antworten"))
+        XCTAssertFalse(texts(view).contains { $0.contains("Wann ist die Klausur?, Beantwortet") })
+        XCTAssertTrue(shows(view, "Neueste"))
+
+        XCTAssertTrue(tap("Unbeantwortet", in: view))
+        XCTAssertTrue(pump { !self.shows(view, "Frage von Lea") }, "\(texts(view))")
+        XCTAssertTrue(shows(view, "Frage von Mia"))
+        XCTAssertTrue(tap("Neueste", in: view))
+        XCTAssertTrue(pump { self.shows(view, "Frage von Lea") })
+
+        // Gefaellt mir auf einer fremden Frage
+        XCTAssertTrue(tap("Gefällt mir, 1 Like", in: view))
+        XCTAssertTrue(pump { self.shows(view, "Gefällt dir, 2 Likes") }, "\(texts(view))")
+    }
+
+    func testWithoutSpaceDiscussionTheTabSaysSoAndDocumentsComeFirst() throws {
+        let service = FakeChannelService()
+        service.list = [solution("1", "Lea", title: "Vorlesung 2", fingerprint: "fA", week: 2)]
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
+        let view = try show(CommunitySpacePage(key: "k", space: space, service: service))
+        XCTAssertTrue(pump { self.shows(view, "Woche 2") }, "Dokumente zuerst: \(texts(view))")
+        XCTAssertTrue(tap("Diskussion", in: view))
+        XCTAssertTrue(pump { self.shows(view, CommunitySpaceTexts.discussionUnavailable) }, "\(texts(view))")
+    }
+
+    func testDocumentsListSortsByRelevanceOrNewest() throws {
+        let list = [
+            solution("1", "Lea", title: "Vorlesung 1", fingerprint: "fA", week: 1, likes: 1),                        // 21.10.
+            solution("2", "Ben", title: "Übungsblatt 3", fingerprint: "fB", week: 3, likes: 4, comments: 2),         // 23.10.
+            solution("3", "Mia", title: "Tutorium 2", fingerprint: "fC", week: 2),                                   // 22.10.
+            solution("4", "Ida", title: "Tutorium 2", fingerprint: "fC", week: 2, likes: 1),
+        ]
+        let weeks = CommunityChannel.build(list)
+        XCTAssertEqual(CommunityChannel.rows(weeks, sort: .relevance).map(\.title), ["Übungsblatt 3", "Tutorium 2", "Vorlesung 1"])
+        XCTAssertEqual(CommunityChannel.rows(weeks, sort: .newest).map(\.title), ["Übungsblatt 3", "Tutorium 2", "Vorlesung 1"])
+        let tut = try XCTUnwrap(CommunityChannel.rows(weeks, sort: .newest).first { $0.title == "Tutorium 2" })
+        XCTAssertEqual(tut.byline, "2 Personen")
+        XCTAssertEqual(CommunityChannel.rows(weeks, sort: .newest).first { $0.title == "Vorlesung 1" }?.byline, "von Lea")
+        // Relevanz zaehlt Likes und Kommentare: viele Kommentare schlagen die neueste
+        let talk = CommunityChannel.build([solution("5", "Ben", title: "Alt", fingerprint: "x", week: 1, comments: 9),
+                                           solution("6", "Lea", title: "Neu", fingerprint: "y", week: 5)])
+        XCTAssertEqual(CommunityChannel.rows(talk, sort: .relevance).map(\.title), ["Alt", "Neu"])
+        XCTAssertEqual(CommunityChannel.rows(talk, sort: .newest).map(\.title), ["Neu", "Alt"])
+
+        let service = FakeChannelService()
+        service.list = list
+        let space = CommunitySpace(key: "k", kind: .course, name: "Analysis", joined: true)
+        let view = try show(CommunitySpacePage(key: "k", space: space, service: service))
+        XCTAssertTrue(pump { self.shows(view, "Dokumente (4)") }, "\(texts(view))")
+        XCTAssertTrue(tap("Liste", in: view))
+        XCTAssertTrue(pump { self.shows(view, "Tutorium: Tutorium 2, 2 Personen") }, "\(texts(view))")
+        XCTAssertTrue(shows(view, "Übung: Übungsblatt 3, von Ben"))
+        XCTAssertTrue(shows(view, "4 Likes, 2 Kommentare"))
+        XCTAssertTrue(shows(view, "Relevanz"))
+        XCTAssertTrue(tap("Neueste", in: view))
+        XCTAssertTrue(tap("Wochen", in: view))
+        XCTAssertTrue(pump { self.shows(view, "Woche 3") })
+    }
+
+    func testPersonNotesHaveDocumentAndDiscussionTabsAndFloatingBar() throws {
+        let service = FakeChannelService()
+        let people = [solution("1", "Lea", title: "B", week: 1), solution("2", "Ben", title: "B", week: 1)]
+        var extraTapped = false
+        let view = try show(NavigationStack {
+            CommunityPeopleReader(title: "B", people: people, start: 0, service: service,
+                                  extraActions: { _ in [CommunityReaderAction(id: "extra", title: "Weitere Aktion") { extraTapped = true }] },
+                                  removed: { _, _ in })
+        })
+        XCTAssertTrue(pump { self.shows(view, "Diskussion (0)") }, "\(texts(view))")
+        XCTAssertTrue(shows(view, "Dokument"))
+        XCTAssertFalse(shows(view, "Noch keine Kommentare."), "Kommentare stehen im eigenen Reiter")
+        XCTAssertTrue(shows(view, "Gefällt mir · 0"))
+        XCTAssertTrue(shows(view, "Mehr"))
+        XCTAssertTrue(tap("Kommentar", in: view))
+        XCTAssertTrue(pump { self.shows(view, "Noch keine Kommentare.") }, "\(texts(view))")
+        XCTAssertTrue(tap("Dokument", in: view))
+        XCTAssertTrue(pump { !self.shows(view, "Noch keine Kommentare.") })
+        XCTAssertTrue(tap("Weitere Aktion", in: view), "Erweiterungspunkt der Leiste")
+        XCTAssertTrue(extraTapped)
     }
 
     // MARK: Werkzeuge (wie AuditRunde0910AppTests)

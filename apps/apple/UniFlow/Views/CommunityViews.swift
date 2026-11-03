@@ -119,56 +119,65 @@ struct CommunityLoading: View {
 
 // MARK: - Communities (je Modul und Lerngruppe)
 
-/// Alle Module aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen
+/// Alle Module aus dem eigenen Abgleich und die Lerngruppen: beitreten, verlassen, Loesungen ansehen. Jede Community als
+/// Kachel in der Fachfarbe ihres Moduls (blasse Tonflaeche, Kuerzel-Kachel, ruhiges Symbol), wie die frueheren
+/// Modulkarten, die der Inhaber mochte
 struct CommunitySpacesCard: View {
     private var service: CommunityService { SolutionSharing.community }
+    @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var account: AccountStore
     @State private var spaces: [CommunitySpace]?
     @State private var error: String?
     @State private var busy: String?
-    @State private var open: CommunitySpace?
     /// fruehere Kurse eingeblendet (03.11.2026: sonst nur das aktuelle Semester)
     @State private var showOlder = false
+    /// Fachfarben geladen (loest das Neuzeichnen aus)
+    @State private var tintsLoaded = false
 
     var body: some View {
-        UFCard {
-            UFCardHead("Deine Communities", icon: "users")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                UFIcon("users", size: 20).foregroundStyle(UF.accentText)
+                Text("Deine Communities").ufFont(19.2, 680, em: -0.01).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+            }
             Text("Jedes Modul hat eine Community für Vorlesung, Übungen und Tutorien. Tritt bei, dann siehst und teilst du dort Lösungen.")
-                .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
+                .ufFont(13.6).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             if let error { CommunityNotice(text: error) }
             if let all = spaces {
+                let _ = tintsLoaded                                    // nach dem Laden der Fachfarben neu zeichnen
                 let older = all.filter { $0.kind == .course && !$0.current }
                 let spaces = showOlder ? all : all.filter { $0.kind == .group || $0.current }
-                if spaces.isEmpty && older.isEmpty { UFEmpty(icon: "book", text: "Noch keine Module. Gleiche zuerst deine Hochschule ab.", small: true) }
-                // Zeilen durch Haarlinien getrennt
-                ForEach(spaces) { s in
-                    UFItemRow(s.name, sub: Self.detail(s),
-                              leading: { UFIcon(s.kind == .group ? "users" : "book", size: 18).foregroundStyle(UF.muted) },
-                              trailing: {
-                                  HStack(spacing: 8) {
-                                      if s.joined {
-                                          UFButton("Öffnen", size: .small) { open = s }
-                                          if s.kind == .course { UFButton("Verlassen", size: .small) { change(s, join: false) }.disabled(busy != nil) }
-                                      } else {
-                                          UFButton("Beitreten", icon: "plus", kind: .primary, size: .small) { change(s, join: true) }.disabled(busy != nil)
-                                      }
-                                  }
-                              })
-                    .ufBorderBottom(s.id != spaces.last?.id)
+                if spaces.isEmpty && older.isEmpty {
+                    UFCard {
+                        CommunityEmptyState(icon: "book", companions: ["users", "sync"], text: "Noch keine Module. Gleiche zuerst deine Hochschule ab.")
+                    }
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
+                    ForEach(Array(spaces.enumerated()), id: \.element.id) { i, s in
+                        CommunitySpaceTile(space: s, tint: CommunityTint.color(s), busy: busy != nil,
+                                           open: { router.go(.communitySpace(s.key)) },
+                                           change: { change(s, join: $0) })
+                            .ufAppear("community-spaces", index: i)
+                    }
                 }
                 if !older.isEmpty {
                     UFButton(showOlder ? "Frühere Kurse ausblenden" : "Frühere Kurse (\(older.count))",
                              icon: showOlder ? "chevron-up" : "clock", size: .small) { UFMotion.toggle { showOlder.toggle() } }
-                        .padding(.top, 10)
+                        .padding(.top, 2)
                         .accessibilityIdentifier("community.older")
                 }
             } else if error == nil {
                 CommunityLoading(text: "Communities werden geladen …")
             }
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, 24)
         .task { await reload() }
-        // ganze Seite statt schmalem Formular-Fenster (03.11.2026: der Kanal braucht die Breite fuer die Kartenreihen)
-        .fullScreenCover(item: $open) { s in CommunitySpaceSheet(space: s, service: service) { open = nil } }
+        .task {
+            guard let api = session.api, let uni = account.university?.rawValue else { return }
+            await CommunityTint.load(api: api, university: uni)
+            tintsLoaded = true
+        }
     }
 
     static func detail(_ s: CommunitySpace) -> String {
@@ -195,58 +204,71 @@ struct CommunitySpacesCard: View {
     }
 }
 
-/// Loesungen einer Community; jede laesst sich ansehen, auch ohne die PDF
-struct CommunitySpaceSheet: View {
+/// Kachel einer Community: Kuerzel in der Fachfarbe, Name, Art und Zahlen; unten Oeffnen bzw. Ansehen und Beitreten
+/// bzw. Verlassen (dieselben Handlungen und Kennungen wie vorher in der Zeile)
+struct CommunitySpaceTile: View {
     let space: CommunitySpace
-    let service: CommunityService
-    let close: () -> Void
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var account: AccountStore
-    @State private var items: [CommunitySolutionSummary]?
-    @State private var module: JSONValue?
-    @State private var error: String?
+    let tint: Color
+    let busy: Bool
+    let open: () -> Void
+    let change: (Bool) -> Void
 
     var body: some View {
-        NavigationStack {
-            UFContent(maxWidth: 1100, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
-                VStack(alignment: .leading, spacing: 12) {
-                    if let error { CommunityNotice(text: error) }
-                    if let items {
-                        let weeks = module?.list("weeks") ?? []
-                        if items.isEmpty && CommunityChannel.skeleton(weeks: weeks).isEmpty {
-                            UFCard { UFEmpty(icon: "users", text: "Noch keine Lösungen in dieser Community.", small: true) }
-                        } else {
-                            // Kanal wie Studydrive, nach Lehrwoche: alle Blaetter des eigenen Moduls, dazu das Geteilte
-                            CommunityChannelView(service: service, solutions: Binding(get: { self.items ?? [] }, set: { self.items = $0 }),
-                                                 files: module?.list("files") ?? [], weeks: weeks)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(tint)
+                    .frame(width: 44, height: 44)
+                    .overlay {
+                        if space.kind == .group { UFIcon("users", size: 20).foregroundStyle(.white) }
+                        else { Text(UFFmt.initial(space.name)).font(.uf(18, 700)).foregroundStyle(.white) }
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        if space.joined {
+                            UFIcon("check", size: 10).foregroundStyle(.white)
+                                .frame(width: 18, height: 18)
+                                .background(Circle().fill(UF.okFill))
+                                .overlay(Circle().strokeBorder(UF.surface, lineWidth: 2))
+                                .offset(x: 5, y: 5)
                         }
-                    } else if error == nil { CommunityLoading(text: "Lösungen werden geladen …") }
+                    }
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(space.name).ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
+                        .lineLimit(2, reservesSpace: true).multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(CommunitySpacesCard.detail(space))
+                        .ufFont(12.8).foregroundStyle(UF.text2).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 30)
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(space.joined ? "beigetreten" : "")
+            }
+            HStack(spacing: 8) {
+                // ganze Seite der Community (03.11.2026, vorher Vollbild-Blatt); auch vor dem Beitritt ansehen
+                UFButton(space.joined ? "Öffnen" : "Ansehen", size: .small, action: open)
+                    .accessibilityIdentifier("community.open.\(space.key)")
+                Spacer(minLength: 0)
+                if space.joined {
+                    if space.kind == .course { UFButton("Verlassen", kind: .ghost, size: .small) { change(false) }.disabled(busy) }
+                } else {
+                    UFButton("Beitreten", icon: "plus", kind: .primary, size: .small) { change(true) }.disabled(busy)
                 }
             }
-            .navigationTitle(space.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
-        .task { await load() }
-    }
-
-    private func detail(_ s: CommunitySolutionSummary) -> String { Self.detail(s, account: service.supportsDiscussion) }
-
-    static func detail(_ s: CommunitySolutionSummary, account: Bool) -> String {
-        var parts = ["Lösung von \(s.displayName.isEmpty ? "Anonym" : s.displayName)", ForeignSolutionLayer.date(s.createdAt)]
-        if account {
-            parts.append(s.likes == 1 ? "1 Like" : "\(s.likes) Likes")
-            parts.append(s.commentCount == 1 ? "1 Kommentar" : "\(s.commentCount) Kommentare")
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(LinearGradient(stops: [.init(color: CommunityTint.wash(tint, 0.13), location: 0), .init(color: UF.surface, location: 0.8)],
+                                   startPoint: UnitPoint(x: 0.25, y: 0), endPoint: UnitPoint(x: 0.75, y: 1)))
+        .overlay(alignment: .topTrailing) {
+            UFIcon(space.kind == .group ? "users" : "graduation", size: 40).foregroundStyle(tint).opacity(0.15)
+                .rotationEffect(.degrees(10)).padding(.top, 12).padding(.trailing, 12)
+                .accessibilityHidden(true)
         }
-        return parts.joined(separator: " · ")
-    }
-
-    private func load() async {
-        // eigenes Modul zur Community: seine Wochen und Blaetter bilden den Kanal (auch ohne Geteiltes)
-        if space.kind == .course, module == nil, let api = session.api, let uni = account.university?.rawValue {
-            module = await CommunityChannel.module(for: space.key, university: uni, api: api)
-        }
-        do { items = try await service.solutions(in: space); error = nil } catch { self.error = CommunityTexts.message(error) }
+        .clipShape(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous).strokeBorder(Color.mix(tint, 0.2, UF.line), lineWidth: 1))
+        .hoverEffect(.highlight)
     }
 }
 
@@ -811,7 +833,7 @@ struct CommunitySettingsCard: View {
             UFGate(.communityRead, entitlements: entitlements) {
                 VStack(alignment: .leading, spacing: 0) {
                     if !service.isConnected {
-                        Text(CommunityTexts.unavailableHint).ufFont(13.12).foregroundStyle(UF.warn)
+                        Text(CommunityTexts.unavailableHint).ufFont(13.12).foregroundStyle(UF.warnText)
                             .fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
                     }
                     Text(CommunityTexts.privacy(service)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -820,6 +842,8 @@ struct CommunitySettingsCard: View {
                     sectionHead("Pseudonym")
                     if canShare {
                         HStack(spacing: 9.6) {
+                            // Vorschau: so erscheint das Pseudonym bei anderen (feste Pastellfarbe)
+                            CommunityAvatar(name: pseudonym.isEmpty ? "Anonym" : pseudonym, size: 36)
                             UFTextInput("Leer lassen = anonym", text: $pseudonym).frame(maxWidth: 260)
                             UFButton("Speichern", size: .small) {
                                 let name = pseudonym.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -841,7 +865,11 @@ struct CommunitySettingsCard: View {
                     }
                     ForEach(groups, id: \.code) { g in
                         UFItemRow(g.name, sub: "Code \(g.code)",
-                                  leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
+                                  leading: {
+                                      UFIcon("users", size: 16).foregroundStyle(UF.accentText)
+                                          .frame(width: 32, height: 32)
+                                          .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(UF.accentSoft))
+                                  },
                                   trailing: {
                                       HStack(spacing: 8) {
                                           UFButton("Code & QR", icon: "grid", size: .small) { showingCode = g }

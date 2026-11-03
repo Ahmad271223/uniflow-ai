@@ -20,6 +20,8 @@ enum UFRoute: Hashable {
     case cards
     case services
     case community
+    /// Seite einer Community (Modul oder Lerngruppe) ueber ihren Schluessel, 03.11.2026: ganze Seite statt Vollbild-Blatt
+    case communitySpace(String)
     case settings(tab: String? = nil)
 
     /// Menuepunkt, der markiert wird (Dokument -> "Dokumente & Notizen", wie route() in app.js)
@@ -32,7 +34,7 @@ enum UFRoute: Hashable {
         case .files, .doc: return "files"
         case .exams, .exam, .cards: return "exams"
         case .services: return "services"
-        case .community: return "community"
+        case .community, .communitySpace: return "community"
         case .settings: return "settings"
         }
     }
@@ -59,6 +61,7 @@ enum UFRoute: Hashable {
         case .cards: return "#/cards"
         case .services: return "#/services"
         case .community: return "#/community"
+        case .communitySpace(let key): return "#/community/\(key)"
         case .settings(let t): return "#/settings" + q([("tab", t)])
         }
     }
@@ -89,7 +92,7 @@ enum UFRoute: Hashable {
         case "exams": self = second.flatMap(Int.init).map { .exam($0, task: q["task"].flatMap(Int.init)) } ?? .exams
         case "cards": self = .cards
         case "services": self = .services
-        case "community": self = .community
+        case "community": self = second.map { .communitySpace($0) } ?? .community
         case "settings": self = .settings(tab: q["tab"])
         default: self = .dashboard
         }
@@ -131,6 +134,9 @@ final class UFRouter: ObservableObject {
     func back() {
         if let r = history.popLast() { route = r }
     }
+
+    /// Es gibt eine vorige Seite (sonst fuehrt "Zurück" auf die uebergeordnete Seite)
+    var canGoBack: Bool { !history.isEmpty }
 }
 
 // MARK: - Menue (NAV in app.js)

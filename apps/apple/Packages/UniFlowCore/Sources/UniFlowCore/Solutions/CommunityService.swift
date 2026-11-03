@@ -34,6 +34,14 @@ public protocol CommunityService: Sendable {
     func reportComment(id: String, reason: CommunityReportReason) async throws
     /// Gefaellt mir setzen oder entfernen; Ergebnis ist die neue Anzahl
     func setLiked(solutionID: String, _ liked: Bool) async throws -> Int
+    /// Fragen und Antworten einer Community (Reiter "Diskussion", 03.11.2026); nur Mitglieder. Bearbeiten, Loeschen und
+    /// Melden einzelner Beitraege gehen ueber `editComment`, `deleteComment` und `reportComment`.
+    var supportsSpaceDiscussion: Bool { get }
+    func posts(in space: CommunitySpace) async throws -> [CommunityPost]
+    /// Frage stellen (`parentID` nil) oder auf eine Frage antworten
+    func addPost(in space: CommunitySpace, text: String, parentID: String?) async throws -> CommunityComment
+    /// Gefaellt mir fuer eine Frage; Ergebnis ist die neue Anzahl
+    func setPostLiked(in space: CommunitySpace, postID: String, _ liked: Bool) async throws -> Int
     /// Paket veroeffentlichen; Ergebnis ist die Kennung beim Dienst. Gibt es zu derselben PDF in derselben Community
     /// schon eine eigene Loesung, wirft der Dienst `alreadyPublished(id)` (eine Loesung je PDF, 03.11.2026).
     func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication
@@ -68,11 +76,34 @@ public protocol CommunityService: Sendable {
     func leaveStudyGroup(code: String) async throws
     /// Lerngruppen, denen dieses Geraet beigetreten ist.
     func studyGroups() async throws -> [CommunityStudyGroup]
+    /// Korrekturvorschlaege moeglich (CloudKit seit 03.11.2026)
+    var supportsCorrections: Bool { get }
+    /// Korrektur an den Ersteller der Ziel-Loesung schicken (`CommunityCorrection.targetSolutionID`); verschluesselt
+    /// mit dem Geheimnis der Community der Loesung. Die Loesung selbst bleibt unveraendert. Ergebnis wie gespeichert
+    /// (mit `author`, `isMine`).
+    func sendCorrection(_ correction: CommunityCorrection) async throws -> CommunityCorrection
+    /// Korrekturen zu einer Loesung (fuer alle Mitglieder unter der Diskussion), neueste zuerst, ohne gesperrte Nutzer
+    func corrections(solutionID: String) async throws -> [CommunityCorrection]
+    /// Posteingang: Korrekturen an eigene Loesungen (nicht die eigenen), neueste zuerst; `status` aus dem lokalen Zustand
+    func correctionsForMyOwnSolutions() async throws -> [CommunityCorrection]
+    /// Eigene Korrektur zuruecknehmen (nur der Verfasser)
+    func deleteCorrection(id: String) async throws
+    /// Korrektur auf diesem Geraet ignorieren bzw. wieder als offen fuehren (nur lokal, der Dienst kennt das nicht)
+    func setCorrectionStatus(_ status: CommunityCorrection.Status, id: String)
 }
 
 extension CommunityService {
     public var isAccountService: Bool { false }
     public var supportsDiscussion: Bool { isAccountService }
+    /// Fragen je Community: bisher nur CloudKit (der Studora-Dienst kennt sie noch nicht)
+    public var supportsSpaceDiscussion: Bool { false }
+    public func posts(in space: CommunitySpace) async throws -> [CommunityPost] { throw CommunityServiceError.notConnected }
+    public func addPost(in space: CommunitySpace, text: String, parentID: String?) async throws -> CommunityComment {
+        throw CommunityServiceError.notConnected
+    }
+    public func setPostLiked(in space: CommunitySpace, postID: String, _ liked: Bool) async throws -> Int {
+        throw CommunityServiceError.notConnected
+    }
 
     /// Veroeffentlichen mit Standardoptionen (Sichtbarkeit Modul ohne Kurs-Schluessel: der Dienst weist das ab).
     public func publish(_ package: SolutionPackage) async throws -> CommunityPublication {
@@ -103,6 +134,12 @@ extension CommunityService {
     public func studyGroupName(code: String) async throws -> String { throw CommunityServiceError.notConnected }
     public func leaveStudyGroup(code: String) async throws { throw CommunityServiceError.notConnected }
     public func studyGroups() async throws -> [CommunityStudyGroup] { throw CommunityServiceError.notConnected }
+    public var supportsCorrections: Bool { false }
+    public func sendCorrection(_ correction: CommunityCorrection) async throws -> CommunityCorrection { throw CommunityServiceError.notConnected }
+    public func corrections(solutionID: String) async throws -> [CommunityCorrection] { throw CommunityServiceError.notConnected }
+    public func correctionsForMyOwnSolutions() async throws -> [CommunityCorrection] { throw CommunityServiceError.notConnected }
+    public func deleteCorrection(id: String) async throws { throw CommunityServiceError.notConnected }
+    public func setCorrectionStatus(_ status: CommunityCorrection.Status, id: String) {}
 }
 
 /// Eine Community: jeder Kurs aus dem eigenen Abgleich oder eine Lerngruppe. `secret` entsteht auf dem Geraet aus

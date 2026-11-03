@@ -89,4 +89,40 @@ final class CommunityDiscussionTests: XCTestCase {
         XCTAssertEqual(CommunityDiscussion.likeCount(likers: ["u1", "u1", "u2", "author", ""], solutionAuthor: "author"), 2)
         XCTAssertEqual(CommunityDiscussion.likeCount(likers: ["u1", "u2"], solutionAuthor: "author", blocked: ["u2"]), 1)
     }
+
+    // MARK: Fragen einer Community (03.11.2026)
+
+    func testSpaceTargetsAreSeparateFromSolutions() {
+        let key = CommunityKeys.courseKey(university: "luh", courseID: "kurs-1")
+        let target = CommunityDiscussion.spaceTarget(key.uppercased())
+        XCTAssertEqual(target, "space:" + key)
+        XCTAssertEqual(CommunityDiscussion.spaceKey(target: target), key)
+        XCTAssertNil(CommunityDiscussion.spaceKey(target: "0b1c2d3e-solution"))
+        XCTAssertNil(CommunityDiscussion.spaceKey(target: "space:"))
+        XCTAssertEqual(CommunityDiscussion.postID(likeTarget: CommunityDiscussion.postLikeTarget("ABC")), "abc")
+        XCTAssertNil(CommunityDiscussion.postID(likeTarget: "abc"))
+    }
+
+    func testFeedGroupsRepliesCountsLikesAndFilters() {
+        func body(_ t: String, _ n: String) -> CommunityDiscussion.Body { .init(text: t, pseudonym: n) }
+        let entries = [
+            CommunityDiscussion.Entry(id: "q1", author: "lea", createdAt: "2026-11-01T10:00:00Z", body: body("Wie geht 2b?", "Lea")),
+            CommunityDiscussion.Entry(id: "q2", author: "ben", createdAt: "2026-11-02T10:00:00Z", body: body("Klausurtermin?", "Ben")),
+            CommunityDiscussion.Entry(id: "a1", parentID: "q1", author: "ben", createdAt: "2026-11-01T11:00:00Z", body: body("Mit Kettenregel.", "Ben")),
+            CommunityDiscussion.Entry(id: "a2", parentID: "q2", author: "lea", status: .deleted, createdAt: "2026-11-02T11:00:00Z"),
+            CommunityDiscussion.Entry(id: "q3", author: "mia", status: .deleted, createdAt: "2026-11-03T10:00:00Z"),
+        ]
+        let posts = CommunityDiscussion.feed(entries, likers: ["q1": ["ben", "ben", "lea", "mia"], "q2": ["blocked"]], me: "mia",
+                                             blocked: ["blocked"])
+        XCTAssertEqual(posts.map(\.id), ["q1", "q2"], "geloeschte Frage ohne Antwort faellt weg")
+        XCTAssertEqual(posts[0].replies.map(\.text), ["Mit Kettenregel."])
+        XCTAssertTrue(posts[0].answered)
+        XCTAssertFalse(posts[1].answered, "geloeschte Antwort zaehlt nicht")
+        XCTAssertEqual(posts[0].likes, 2, "ein Like je Nutzer, nie die Fragestellerin")
+        XCTAssertTrue(posts[0].likedByMe)
+        XCTAssertEqual(posts[1].likes, 0, "gesperrte Nutzer zaehlen nicht")
+        XCTAssertEqual(CommunityDiscussion.filtered(posts, .newest).map(\.id), ["q2", "q1"])
+        XCTAssertEqual(CommunityDiscussion.filtered(posts, .unanswered).map(\.id), ["q2"])
+        XCTAssertEqual(CommunityPostFilter.unanswered.title, "Unbeantwortet")
+    }
 }

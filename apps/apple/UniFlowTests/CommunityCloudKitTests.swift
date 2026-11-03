@@ -628,8 +628,8 @@ final class CommunityCloudKitTests: XCTestCase {
         var s = CommunitySolutionSummary(solutionID: "1", fingerprint: "f", displayName: "Lea", createdAt: "2026-10-26T10:00:00Z", pageCount: 1)
         s.likes = 1
         s.commentCount = 2
-        XCTAssertTrue(CommunitySpaceSheet.detail(s, account: true).hasSuffix("1 Like · 2 Kommentare"))
-        XCTAssertFalse(CommunitySpaceSheet.detail(s, account: false).contains("Like"), "ohne Konto keine Zahlen, die es nicht gibt")
+        XCTAssertTrue(CommunitySpacePage.detail(s, account: true).hasSuffix("1 Like · 2 Kommentare"))
+        XCTAssertFalse(CommunitySpacePage.detail(s, account: false).contains("Like"), "ohne Konto keine Zahlen, die es nicht gibt")
     }
 
     func testAccountTextsDoNotPromiseThePDFAsTheOnlyWay() {
@@ -987,6 +987,84 @@ final class CommunityCloudKitTests: XCTestCase {
         await expect(.notFound) { _ = try await outsider.comments(solutionID: sid) }
         await expect(.notFound) { _ = try await outsider.setLiked(solutionID: sid, true) }
         await expect(.notFound) { _ = try await outsider.addComment(solutionID: sid, text: "x", parentID: nil, pageKey: nil, anchor: nil) }
+    }
+
+    // MARK: Fragen einer Community (03.11.2026)
+
+    /// Mitglied, das der Modul-Community "Lineare Algebra" beigetreten ist (Beitritt je Container)
+    private func spaceMember(_ cloud: FakeCommunityCloud, _ user: String, pseudonym: String = "") async throws -> CloudKitCommunityService {
+        let s = member(cloud, user, pseudonym: pseudonym)
+        try await s.join(CommunitySpace.course(university: "luh", id: "kurs-1", title: "Lineare Algebra"))
+        return s
+    }
+
+    func testSpaceDiscussionPostsRepliesLikesAndFiltersOverTheCommentRecords() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let space = CommunitySpace.course(university: "luh", id: "kurs-1", title: "Lineare Algebra")
+        let notJoined = member(cloud, "_user-ada", pseudonym: "Lea")
+        XCTAssertTrue(notJoined.supportsSpaceDiscussion)
+        await expect(.notAMember) { _ = try await notJoined.posts(in: space) }
+        await expect(.notAMember) { _ = try await notJoined.addPost(in: space, text: "Hallo", parentID: nil) }
+
+        // Lea fragt: derselbe Datensatztyp `Comment`, Ziel "space:<Schluessel>", Inhalt nur verschluesselt
+        let lea = try await spaceMember(cloud, "_user-ada", pseudonym: "Lea")
+        let q1 = try await lea.addPost(in: space, text: "  Wie löst man Aufgabe 2b?  ", parentID: nil)
+        XCTAssertEqual(q1.text, "Wie löst man Aufgabe 2b?")
+        let stored = try XCTUnwrap(cloud.all(CommunityRecordType.comment).first)
+        XCTAssertEqual(stored["solutionID"]?.string, CommunityDiscussion.spaceTarget(space.key))
+        let raw = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(stored["payload"]?.string)))
+        for plain in ["2b", "Lea"] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
+        var posts = try await lea.posts(in: space)
+        XCTAssertEqual(posts.map(\.question.text), ["Wie löst man Aufgabe 2b?"])
+        XCTAssertFalse(posts[0].answered)
+        XCTAssertTrue(posts[0].question.isMine)
+        await expect(.service("Die eigene Frage lässt sich nicht liken.")) { _ = try await lea.setPostLiked(in: space, postID: q1.id, true) }
+
+        // Ben antwortet, fragt selbst und liked Leas Frage (ein Like je Nutzer, Ziel "post:<ID>")
+        let ben = try await spaceMember(cloud, "_user-ben", pseudonym: "Ben")
+        let q2 = try await ben.addPost(in: space, text: "Wann ist die Klausur?", parentID: nil)
+        let answer = try await ben.addPost(in: space, text: "Mit der Kettenregel.", parentID: q1.id)
+        XCTAssertEqual(answer.parentID, q1.id)
+        let nested = try await ben.addPost(in: space, text: "Und dann ableiten.", parentID: answer.id)
+        XCTAssertEqual(nested.parentID, q1.id, "eine Ebene: Antwort auf Antwort haengt an der Frage")
+        let liked = try await ben.setPostLiked(in: space, postID: q1.id, true)
+        XCTAssertEqual(liked, 1)
+        let again = try await ben.setPostLiked(in: space, postID: q1.id, true)
+        XCTAssertEqual(again, 1)
+        XCTAssertEqual(cloud.all(CommunityRecordType.like).map { $0["solutionID"]?.string }, [CommunityDiscussion.postLikeTarget(q1.id)])
+        await expect(.service("Diese Frage gibt es nicht mehr.")) { _ = try await ben.setPostLiked(in: space, postID: answer.id, true) }
+
+        posts = try await ben.posts(in: space)
+        let byID = Dictionary(uniqueKeysWithValues: posts.map { ($0.id, $0) })
+        XCTAssertEqual(Set(posts.map(\.id)), [q1.id, q2.id], "Antworten sind keine eigenen Fragen")
+        XCTAssertEqual(byID[q1.id]?.replies.map(\.text), ["Mit der Kettenregel.", "Und dann ableiten."])
+        XCTAssertEqual(byID[q1.id]?.answered, true)
+        XCTAssertEqual(byID[q1.id]?.likes, 1)
+        XCTAssertEqual(byID[q1.id]?.likedByMe, true)
+        XCTAssertEqual(byID[q2.id]?.answered, false)
+        XCTAssertEqual(CommunityDiscussion.filtered(posts, .unanswered).map(\.id), [q2.id])
+
+        // Antworten und Fragen sind keine Kommentare einer Loesung (getrennte Ziele)
+        XCTAssertEqual(CommunityDiscussion.spaceKey(target: try XCTUnwrap(cloud.all(CommunityRecordType.comment).first?["solutionID"]?.string)), space.key)
+
+        // Melden und Loeschen gehen ueber die vorhandenen Aufrufe; fremde Beitraege loescht niemand (kein Autor)
+        let lea2 = try await spaceMember(cloud, "_user-ada", pseudonym: "Lea")
+        await expect(.service("Nur der Verfasser kann das.")) { try await lea2.deleteComment(id: q2.id) }
+        try await lea2.reportComment(id: q2.id, reason: .spam)
+        XCTAssertEqual(cloud.all(CommunityRecordType.report).first?["solutionID"]?.string, CommunityDiscussion.spaceTarget(space.key))
+        let edited = try await lea2.editComment(id: q1.id, text: "Wie löst man Aufgabe 2b und 2c?")
+        XCTAssertTrue(edited.edited)
+        try await lea2.deleteComment(id: q1.id)
+        let afterDelete = try await lea2.posts(in: space)
+        XCTAssertEqual(afterDelete.first { $0.id == q1.id }?.question.deleted, true, "geloeschte Frage mit Antworten bleibt stehen")
+        XCTAssertEqual(afterDelete.first { $0.id == q1.id }?.likes, 0)
+
+        // wer das Modul nicht hat, sieht nichts
+        cloud.user = "_user-fremd"
+        let outsider = CloudKitCommunityService(cloud: cloud, university: .luh, membership: CommunityMembership(defaults: suite()),
+                                                courseKeys: { [] }, courses: { [] })
+        await expect(.notFound) { _ = try await outsider.posts(in: space) }
+        await expect(.service("Kommentar nicht gefunden.")) { try await outsider.reportComment(id: q2.id, reason: .spam) }
     }
 
     // MARK: Dokument fuer den Import

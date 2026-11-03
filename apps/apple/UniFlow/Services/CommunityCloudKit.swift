@@ -231,13 +231,13 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
 
     // MARK: Zugang
 
-    private func available() throws -> CommunityCloud {
+    func available() throws -> CommunityCloud {
         guard let cloud else { throw CommunityServiceError.unavailable }
         return cloud
     }
 
     /// Fuer Schreibzugriffe: iCloud-Konto vorhanden, eigene Nutzerkennung bekannt
-    private func signedIn() async throws -> (CommunityCloud, String) {
+    func signedIn() async throws -> (CommunityCloud, String) {
         let cloud = try available()
         do {
             switch try await cloud.accountStatus() {
@@ -268,7 +268,7 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
 
     /// Vom Inhaber im Dashboard gesperrte Nutzer (oeffentlicher Datensatz `Ban`, die App schreibt ihn nie); ohne
     /// Netz die zuletzt geholten, sonst keine
-    private func bannedOwners(_ cloud: CommunityCloud) async -> Set<String> {
+    func bannedOwners(_ cloud: CommunityCloud) async -> Set<String> {
         if let c = lock.withLock({ cachedBans }), Date().timeIntervalSince(c.at) < Self.banRefresh { return c.owners }
         guard let records = try? await cloud.query(CommunityQuery(type: CommunityRecordType.ban, equals: [:]), in: .publicDB) else {
             return lock.withLock { cachedBans?.owners ?? [] }
@@ -278,7 +278,7 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         return owners
     }
 
-    private func viewer(_ cloud: CommunityCloud) async -> CommunityViewer {
+    func viewer(_ cloud: CommunityCloud) async -> CommunityViewer {
         let groups = Set(membership.groups().filter { $0.university == university.rawValue }.map(\.groupKey))
         return CommunityViewer(university: university.rawValue, courseKeys: await courseKeys(), groupKeys: groups,
                                blockedOwners: membership.blocked().union(await bannedOwners(cloud)), ownerRecordName: await ownerName(cloud))
@@ -606,6 +606,9 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
 //   `removedID`); er zaehlt nur, wenn sein Ersteller der Ersteller der Loesung ist.
 // - Meldungen sind `Report`-Datensaetze mit `commentID`; ab `CommunityDiscussion.reportsToHide` verschiedenen Meldern ist
 //   der Kommentar ausgeblendet, die Moderation setzt im Dashboard `status` = `hidden`.
+// Fragen einer Community (03.11.2026): dieselben `Comment`-Datensaetze mit `solutionID` = "space:<Community-Schluessel>"
+// (`CommunityDiscussion.spaceTarget`), Likes auf Fragen als `Like` mit `solutionID` = "post:<Fragen-ID>" – kein neuer
+// Datensatztyp, kein neues Feld; die vorhandenen Indizes (`solutionID` abfragbar) reichen.
 // Grenzen: Tageslimits des Dienstes (comment_user, like_user) gibt es ohne Server nicht; Zahlen kommen aus Abfragen
 // (der Index von CloudKit ist leicht verzoegert).
 extension CloudKitCommunityService {
@@ -616,7 +619,7 @@ extension CloudKitCommunityService {
     static let discussionLimit = 5_000
 
     /// Loesung, die dieses Geraet sehen darf (aktiv und sichtbar) oder die eigene (`_visible_solution`)
-    private func visibleSolution(_ cloud: CommunityCloud, id: String) async throws -> (CommunityListing, CommunityViewer) {
+    func visibleSolution(_ cloud: CommunityCloud, id: String) async throws -> (CommunityListing, CommunityViewer) {
         let record: CommunityRecord?
         do { record = try await cloud.fetch(name: id.lowercased(), type: CommunityRecordType.solution, in: .publicDB) } catch {
             throw Self.serviceError(error)
@@ -629,7 +632,7 @@ extension CloudKitCommunityService {
     }
 
     /// Geheimnis der Community einer Loesung (Lerngruppe oder Kurs, wie beim Paket); ohne die Community kein Kommentar
-    private func secret(_ listing: CommunityListing) async throws -> Data {
+    func secret(_ listing: CommunityListing) async throws -> Data {
         let spaces = (try? await communities()) ?? []
         let keys = [listing.visibility == .studyGroup ? listing.groupKey : listing.courseKey, listing.courseKey, listing.groupKey]
         for key in keys where !key.isEmpty {
@@ -721,28 +724,63 @@ extension CloudKitCommunityService {
         }
     }
 
+    /// Ziel eines Verlaufs: eine Loesung (Kommentare) oder eine Community (Fragen, `CommunityDiscussion.spaceTarget`).
+    /// `author` darf fremde Eintraege entfernen (Autor der Loesung; eine Community hat keinen), `secret` oeffnet die Texte.
+    struct DiscussionTarget {
+        let id: String
+        let author: String
+        let viewer: CommunityViewer
+        let secret: Data?
+        var isSpace: Bool { CommunityDiscussion.spaceKey(target: id) != nil }
+    }
+
+    /// Loesung, die dieses Geraet sehen darf, bzw. Community, der es beigetreten ist (Fragen nur fuer Mitglieder)
+    private func discussionTarget(_ cloud: CommunityCloud, id raw: String, needsSecret: Bool) async throws -> DiscussionTarget {
+        let id = raw.lowercased()
+        if let key = CommunityDiscussion.spaceKey(target: id) {
+            let v = await viewer(cloud)
+            let spaces = (try? await communities()) ?? []
+            guard let space = spaces.first(where: { $0.key.lowercased() == key }), let secret = space.secret else {
+                throw CommunityServiceError.notFound
+            }
+            guard space.joined else { throw CommunityServiceError.notAMember }
+            return DiscussionTarget(id: id, author: "", viewer: v, secret: secret)
+        }
+        let (listing, v) = try await visibleSolution(cloud, id: id)
+        return DiscussionTarget(id: id, author: listing.ownerRecordName, viewer: v, secret: needsSecret ? try await secret(listing) : nil)
+    }
+
+    /// Eintraege eines Verlaufs (entschluesselt, Entfernungen und Meldungen angewendet)
+    private func entries(_ cloud: CommunityCloud, _ t: DiscussionTarget) async throws -> [CommunityDiscussion.Entry] {
+        let me = t.viewer.ownerRecordName
+        let records = try await commentRecords(cloud, solutionID: t.id)
+        let reporters = await commentReporters(cloud, solutionID: t.id, me: me)
+        let removed = Self.removedComments(records, solutionAuthor: t.author, me: me)
+        return records.compactMap {
+            Self.entry($0, solutionID: t.id, me: me, removed: removed, reporters: reporters, secret: t.secret, cipher: SolutionSharing.cipher)
+        }
+    }
+
     func comments(solutionID: String) async throws -> [CommunityComment] {
         let cloud = try available()
-        let id = solutionID.lowercased()
-        let (listing, v) = try await visibleSolution(cloud, id: id)
-        let secret = try await secret(listing)
-        let records = try await commentRecords(cloud, solutionID: id)
-        let reporters = await commentReporters(cloud, solutionID: id, me: v.ownerRecordName)
-        let removed = Self.removedComments(records, solutionAuthor: listing.ownerRecordName, me: v.ownerRecordName)
-        let entries = records.compactMap {
-            Self.entry($0, solutionID: id, me: v.ownerRecordName, removed: removed, reporters: reporters, secret: secret, cipher: SolutionSharing.cipher)
-        }
-        return CommunityDiscussion.thread(entries, me: v.ownerRecordName, solutionAuthor: listing.ownerRecordName, blocked: v.blockedOwners)
+        let t = try await discussionTarget(cloud, id: solutionID, needsSecret: true)
+        return CommunityDiscussion.thread(try await entries(cloud, t), me: t.viewer.ownerRecordName, solutionAuthor: t.author,
+                                          blocked: t.viewer.blockedOwners)
     }
 
     func addComment(solutionID: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment {
+        try await addEntry(target: solutionID, text: text, parentID: parentID, pageKey: pageKey, anchor: anchor)
+    }
+
+    /// Kommentar zu einer Loesung oder Frage bzw. Antwort in einer Community
+    private func addEntry(target raw: String, text: String, parentID: String?, pageKey: String?, anchor: CommunityComment.Anchor?) async throws -> CommunityComment {
         let text = try CommunityDiscussion.cleanText(text)
         var (pk, place) = try CommunityDiscussion.cleanAnchor(pageKey: pageKey, anchor: anchor)
         let (cloud, user) = try await signedIn()
-        let sid = solutionID.lowercased()
-        let (listing, _) = try await visibleSolution(cloud, id: sid)
+        let t = try await discussionTarget(cloud, id: raw, needsSecret: true)
         if await bannedOwners(cloud).contains(user) { throw CommunityServiceError.service("Dein Konto darf nicht mehr kommentieren.") }
-        let secret = try await secret(listing)
+        guard let secret = t.secret else { throw CommunityServiceError.notAMember }
+        let sid = t.id
         var parent: String?
         if let parentID, !parentID.isEmpty {
             let p: CommunityRecord?
@@ -771,11 +809,11 @@ extension CloudKitCommunityService {
         record[Field.owner] = .string(user)
         do { try await cloud.save(record, in: .publicDB) } catch { throw Self.serviceError(error) }
         let entry = CommunityDiscussion.Entry(id: id, parentID: parent, author: user, createdAt: now, body: body)
-        return CommunityDiscussion.comment(entry, me: user, solutionAuthor: listing.ownerRecordName)
+        return CommunityDiscussion.comment(entry, me: user, solutionAuthor: t.author)
     }
 
-    /// Aktiver Kommentar (nicht geloescht, nicht entfernt, nicht ausgeblendet) mit seiner Loesung
-    private func activeComment(_ cloud: CommunityCloud, id: String, me: String) async throws -> (CommunityRecord, CommunityListing, CommunityViewer) {
+    /// Aktiver Kommentar (nicht geloescht, nicht entfernt, nicht ausgeblendet) mit seinem Ziel (Loesung oder Community)
+    private func activeComment(_ cloud: CommunityCloud, id: String, me: String, needsSecret: Bool = false) async throws -> (CommunityRecord, DiscussionTarget) {
         let notFound = CommunityServiceError.service("Kommentar nicht gefunden.")
         let record: CommunityRecord?
         do { record = try await cloud.fetch(name: id.lowercased(), type: CommunityRecordType.comment, in: .publicDB) } catch {
@@ -783,23 +821,23 @@ extension CloudKitCommunityService {
         }
         guard let record, record[Field.status]?.string == CommunityDiscussion.Status.active.rawValue,
               let sid = record[Field.solutionID]?.string else { throw notFound }
-        let (listing, v): (CommunityListing, CommunityViewer)
-        do { (listing, v) = try await visibleSolution(cloud, id: sid) } catch CommunityServiceError.notFound { throw notFound }
-        let others = try await commentRecords(cloud, solutionID: sid)
-        guard !Self.removedComments(others, solutionAuthor: listing.ownerRecordName, me: me).contains(record.name.lowercased()) else { throw notFound }
-        return (record, listing, v)
+        let t: DiscussionTarget
+        do { t = try await discussionTarget(cloud, id: sid, needsSecret: needsSecret) } catch CommunityServiceError.notFound { throw notFound }
+        let others = try await commentRecords(cloud, solutionID: t.id)
+        guard !Self.removedComments(others, solutionAuthor: t.author, me: me).contains(record.name.lowercased()) else { throw notFound }
+        return (record, t)
     }
 
     func editComment(id: String, text: String) async throws -> CommunityComment {
         let text = try CommunityDiscussion.cleanText(text)
         let (cloud, user) = try await signedIn()
-        let (found, listing, _) = try await activeComment(cloud, id: id, me: user)
+        let (found, t) = try await activeComment(cloud, id: id, me: user, needsSecret: true)
         var record = found
         guard Self.owner(record, me: user) == user else {
             throw CommunityServiceError.service("Nur der Verfasser kann seinen Kommentar ändern.")
         }
-        let cid = record.name.lowercased(), sid = listing.solutionID
-        let secret = try await secret(listing)
+        guard let secret = t.secret else { throw CommunityServiceError.notAMember }
+        let cid = record.name.lowercased(), sid = t.id
         // Seite, Stelle und Pseudonym bleiben; neues Salz und neue Nonce
         var body = (record[Field.payload]?.string).flatMap {
             try? CommunityDiscussion.open($0, commentID: cid, solutionID: sid, communitySecret: secret, cipher: SolutionSharing.cipher)
@@ -813,14 +851,14 @@ extension CloudKitCommunityService {
         let parent = record[Field.parentID]?.string.flatMap { $0.isEmpty ? nil : $0 }
         let entry = CommunityDiscussion.Entry(id: cid, parentID: parent, author: user, createdAt: record[Field.createdAt]?.string ?? "",
                                               editedAt: now, body: body)
-        return CommunityDiscussion.comment(entry, me: user, solutionAuthor: listing.ownerRecordName)
+        return CommunityDiscussion.comment(entry, me: user, solutionAuthor: t.author)
     }
 
     /// Eigenen Kommentar loeschen (Text weg, Status `deleted`); der Autor der Loesung entfernt fremde Kommentare unter
-    /// seiner Loesung mit einem eigenen Entfernungs-Datensatz
+    /// seiner Loesung mit einem eigenen Entfernungs-Datensatz (in einer Community gibt es keinen Autor: nur Melden)
     func deleteComment(id: String) async throws {
         let (cloud, user) = try await signedIn()
-        let (found, listing, _) = try await activeComment(cloud, id: id, me: user)
+        let (found, t) = try await activeComment(cloud, id: id, me: user)
         var record = found
         let now = SolutionPackage.timestamp(Date())
         if Self.owner(record, me: user) == user {
@@ -830,9 +868,9 @@ extension CloudKitCommunityService {
             do { try await cloud.save(record, in: .publicDB) } catch { throw Self.serviceError(error) }
             return
         }
-        guard listing.ownerRecordName == user else { throw CommunityServiceError.service("Nur der Verfasser kann das.") }
+        guard !t.author.isEmpty, t.author == user else { throw CommunityServiceError.service("Nur der Verfasser kann das.") }
         var removal = CommunityRecord(type: CommunityRecordType.comment, name: "removal-" + UUID().uuidString.lowercased())
-        removal[Field.solutionID] = .string(listing.solutionID)
+        removal[Field.solutionID] = .string(t.id)
         removal[Field.status] = .string(Self.removalStatus)
         removal[Field.removedID] = .string(record.name.lowercased())
         removal[Field.createdAt] = .string(now)
@@ -842,16 +880,16 @@ extension CloudKitCommunityService {
 
     func reportComment(id: String, reason: CommunityReportReason) async throws {
         let (cloud, user) = try await signedIn()
-        let (record, listing, _) = try await activeComment(cloud, id: id, me: user)
+        let (record, t) = try await activeComment(cloud, id: id, me: user)
         guard Self.owner(record, me: user) != user else {
             throw CommunityServiceError.service("Den eigenen Kommentar kannst du löschen statt melden.")
         }
         let cid = record.name.lowercased()
-        if await commentReporters(cloud, solutionID: listing.solutionID, me: user)[cid]?.contains(user) == true {
+        if await commentReporters(cloud, solutionID: t.id, me: user)[cid]?.contains(user) == true {
             throw CommunityServiceError.service("Du hast diesen Kommentar schon gemeldet.")
         }
         var report = CommunityRecord(type: CommunityRecordType.report, name: "report-" + UUID().uuidString.lowercased())
-        report[Field.solutionID] = .string(listing.solutionID)
+        report[Field.solutionID] = .string(t.id)
         report[Field.commentID] = .string(cid)
         report[Field.reason] = .string(reason.rawValue)
         report[Field.note] = .string("")
@@ -866,14 +904,20 @@ extension CloudKitCommunityService {
         let sid = solutionID.lowercased()
         let (listing, v) = try await visibleSolution(cloud, id: sid)
         guard listing.ownerRecordName != user else { throw CommunityServiceError.service("Die eigene Lösung lässt sich nicht liken.") }
-        let records = try await query(cloud, CommunityQuery(type: CommunityRecordType.like, equals: [Field.solutionID: .string(sid)],
+        return try await writeLike(cloud, user: user, target: sid, liked: liked, author: listing.ownerRecordName, blocked: v.blockedOwners)
+    }
+
+    /// Like-Datensatz zu einem Ziel (Loesung oder `postLikeTarget`) anlegen bzw. entfernen; Ergebnis ist die neue Anzahl
+    private func writeLike(_ cloud: CommunityCloud, user: String, target: String, liked: Bool, author: String,
+                           blocked: Set<String>) async throws -> Int {
+        let records = try await query(cloud, CommunityQuery(type: CommunityRecordType.like, equals: [Field.solutionID: .string(target)],
                                                             limit: Self.discussionLimit))
         let mine = records.filter { Self.owner($0, me: user) == user }
         let others = records.map { Self.owner($0, me: user) }.filter { $0 != user }
         do {
             if liked, mine.isEmpty {
                 var record = CommunityRecord(type: CommunityRecordType.like, name: "like-" + UUID().uuidString.lowercased())
-                record[Field.solutionID] = .string(sid)
+                record[Field.solutionID] = .string(target)
                 record[Field.owner] = .string(user)
                 record[Field.createdAt] = .string(SolutionPackage.timestamp(Date()))
                 try await cloud.save(record, in: .publicDB)
@@ -884,8 +928,53 @@ extension CloudKitCommunityService {
             throw Self.serviceError(error)
         }
         // aus der Abfrage vor dem Schreiben plus dem eigenen Stand (der Index von CloudKit folgt verzoegert)
-        return CommunityDiscussion.likeCount(likers: others + (liked ? [user] : []), solutionAuthor: listing.ownerRecordName,
-                                             blocked: v.blockedOwners)
+        return CommunityDiscussion.likeCount(likers: others + (liked ? [user] : []), solutionAuthor: author, blocked: blocked)
+    }
+
+    // MARK: Fragen einer Community (03.11.2026)
+
+    var supportsSpaceDiscussion: Bool { true }
+
+    func posts(in space: CommunitySpace) async throws -> [CommunityPost] {
+        let cloud = try available()
+        let t = try await discussionTarget(cloud, id: CommunityDiscussion.spaceTarget(space.key), needsSecret: true)
+        let list = try await entries(cloud, t)
+        let me = t.viewer.ownerRecordName
+        let questions = list.filter { $0.parentID == nil && $0.status == .active }.map(\.id)
+        var likers: [String: [String]] = [:]
+        for start in stride(from: 0, to: questions.count, by: Self.countChunk) {
+            let chunk = questions[start..<min(start + Self.countChunk, questions.count)].map(CommunityDiscussion.postLikeTarget)
+            // Likes sind Beiwerk: scheitert die Abfrage, bleiben sie 0 (wie die Zahlen der Trefferliste)
+            guard let records = try? await cloud.query(CommunityQuery(type: CommunityRecordType.like, equals: [:], limit: Self.discussionLimit,
+                                                                      anyOf: [Field.solutionID: chunk]), in: .publicDB) else { continue }
+            for r in records {
+                if let target = r[Field.solutionID]?.string, let pid = CommunityDiscussion.postID(likeTarget: target) {
+                    likers[pid, default: []].append(Self.owner(r, me: me))
+                }
+            }
+        }
+        return CommunityDiscussion.feed(list, likers: likers, me: me, blocked: t.viewer.blockedOwners)
+    }
+
+    func addPost(in space: CommunitySpace, text: String, parentID: String?) async throws -> CommunityComment {
+        try await addEntry(target: CommunityDiscussion.spaceTarget(space.key), text: text, parentID: parentID, pageKey: nil, anchor: nil)
+    }
+
+    func setPostLiked(in space: CommunitySpace, postID: String, _ liked: Bool) async throws -> Int {
+        let (cloud, user) = try await signedIn()
+        let t = try await discussionTarget(cloud, id: CommunityDiscussion.spaceTarget(space.key), needsSecret: false)
+        let notFound = CommunityServiceError.service("Diese Frage gibt es nicht mehr.")
+        let record: CommunityRecord?
+        do { record = try await cloud.fetch(name: postID.lowercased(), type: CommunityRecordType.comment, in: .publicDB) } catch {
+            throw Self.serviceError(error)
+        }
+        guard let record, record[Field.solutionID]?.string == t.id,
+              record[Field.status]?.string == CommunityDiscussion.Status.active.rawValue,
+              (record[Field.parentID]?.string ?? "").isEmpty else { throw notFound }
+        let author = Self.owner(record, me: user)
+        guard author != user else { throw CommunityServiceError.service("Die eigene Frage lässt sich nicht liken.") }
+        return try await writeLike(cloud, user: user, target: CommunityDiscussion.postLikeTarget(record.name), liked: liked, author: author,
+                                   blocked: t.viewer.blockedOwners)
     }
 }
 

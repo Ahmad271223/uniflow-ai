@@ -53,6 +53,8 @@ final class PageInkView: UIView {
     var undoPending = false
     /// Fremde Ebenen wurden nach einer Speicherwarnung freigegeben und werden beim naechsten Anzeigen neu gebaut.
     var foreignReleased = false
+    /// Korrekturvorschlag auf dieser Seite (Korrektur-Modus oder empfangene Korrektur, `CorrectionMode.swift`)
+    var correctionView: CorrectionPageView?
 
     init(pageIndex: Int, pageKey: String = "", generation: Int = 0, geometry: PageGeometry) {
         self.pageIndex = pageIndex
@@ -183,6 +185,7 @@ final class PageInkView: UIView {
         let change = abs(zoom - current) > 0.001 && (zoom > current || zoom <= current / 2 || zoom == 1)
         foreignLayerViews.forEach { $0.setRenderScale(scale, zoom: change ? zoom : current) }   // importierte Loesungen ebenso
         if let f = foreignInk { Self.zoom(f, pageSize: geometry.pageSize, to: change ? zoom : current) }
+        correctionView?.setZoom(change ? zoom : current)
         guard !isDrawing, change else { return }
         coverDuringRedraw()
         let size = geometry.pageSize
@@ -250,7 +253,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     let store: DocumentStore
     let pdfView = PDFView()
-    private let toolPicker: PKToolPicker
+    let toolPicker: PKToolPicker
     /// Nur ein Editor zeigt die Palette (geteilte Ansicht: Uebung und Skript teilen sich eine Palette).
     private let ownsToolPicker: Bool
     /// Palette soll zu sehen sein (Schreiben erlaubt); `restorePicker` holt sie dann zurueck
@@ -284,7 +287,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Anzeige-Index und Seitenschluessel der aktuellen Seite.
     var onPageChange: ((Int, String?) -> Void)?
     /// Seitenaufbau, den die PDFView gerade zeigt (kann kurz vom neuesten Stand im Store abweichen).
-    private var shownLayout: DisplayLayout?
+    private(set) var shownLayout: DisplayLayout?
 
     /// Fremde Loesungen (nur Anzeige, nie gespeichert), eigene Schicht ueber der PDF und unter der eigenen
     /// Zeichenflaeche. Zuordnung ueber den PDF-Seitenindex, Drehung je Seite umgerechnet.
@@ -298,6 +301,20 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Kennung der gezeigten fremden Ebenen (IDs und Sichtbarkeit), damit SwiftUI nicht bei jeder Aktualisierung
     /// neu aufbaut.
     private(set) var foreignSignature = ""
+
+    /// Korrektur-Modus (`CorrectionMode.swift`): eigene Zeichenflaeche je Seite fuer den Korrekturvorschlag, schreibt
+    /// nie in die eigenen Notizen (die sind in diesem Modus ausgeblendet und nur lesbar)
+    var correction: CorrectionSession? {
+        didSet { if correction !== oldValue { correctionModeChanged(from: oldValue) } }
+    }
+    /// Empfangene Korrektur ueber den eigenen Notizen (nur Anzeige, Warnfarbe, Randnotizen als Nadeln)
+    var shownCorrection: CommunityCorrection? {
+        didSet { if shownCorrection != oldValue { allOverlays.forEach(applyCorrection) } }
+    }
+    /// Verlauf der Korrektur-Zeichenflaechen (getrennt vom Verlauf der eigenen Notizen)
+    let correctionUndo = UndoManager()
+    /// Randnotiz setzen oder angetippt
+    var onCorrectionNote: ((CorrectionNoteEvent) -> Void)?
 
     static func signature(_ layers: [ForeignSolutionLayer]) -> String {
         layers.map { "\($0.id):\($0.visible)" }.joined(separator: ",")
@@ -313,7 +330,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
                 if !ownNotesVisible, v.loaded { commitPendingUndo(v) }
                 applyOwnNotes(to: v)
             }
-            showToolPicker(writable)
+            showToolPicker(pickerAllowed)
         }
     }
 
@@ -333,7 +350,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
                 for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
                 undoTargets = [:]
             }
-            showToolPicker(writable)
+            showToolPicker(pickerAllowed)
         }
     }
 
@@ -349,12 +366,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Auf dem Mac ("Designed for iPad") gibt es keinen Apple Pencil: dort schreiben Maus und Trackpad immer
     static var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac }
-    private var drawingPolicy: PKCanvasViewDrawingPolicy { pencilOnly && !Self.isMac ? .pencilOnly : .anyInput }
+    var drawingPolicy: PKCanvasViewDrawingPolicy { pencilOnly && !Self.isMac ? .pencilOnly : .anyInput }
 
     var pencilOnly = true {
         didSet {
             guard pencilOnly != oldValue else { return }
-            allOverlays.forEach { $0.canvas.drawingPolicy = drawingPolicy }
+            allOverlays.forEach {
+                $0.canvas.drawingPolicy = drawingPolicy
+                $0.correctionView?.ink.drawingPolicy = drawingPolicy
+            }
             configureScrollGestures()
         }
     }
@@ -369,7 +389,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Verlauf der Responder-Kette. Ausgeblendete eigene Notizen = nur ansehen: kein Rueckgaengig (der Verlauf des
     /// Dokuments bleibt erhalten und gilt wieder, sobald die Notizen eingeblendet sind).
-    override var undoManager: UndoManager? { ownNotesVisible ? documentUndo : viewOnlyUndo }
+    override var undoManager: UndoManager? { ownNotesVisible ? documentUndo : (correction != nil ? correctionUndo : viewOnlyUndo) }
 
     init(store: DocumentStore, toolPicker: PKToolPicker? = nil, ownsToolPicker: Bool = true,
          undoManager: UndoManager? = nil, initialPDFPage: Int? = nil) {
@@ -433,8 +453,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         toolPicker.colorUserInterfaceStyle = .light   // Farben wie auf dem hellen Papier; die Palette folgt dem System
         if ownsToolPicker {
             toolPicker.stateAutosaveName = "uniflow.toolpicker"
-            toolPicker.setVisible(writable, forFirstResponder: anchor)
-            pickerWanted = writable
+            toolPicker.setVisible(pickerAllowed, forFirstResponder: anchor)
+            pickerWanted = pickerAllowed
         }
 
         let center = NotificationCenter.default
@@ -639,6 +659,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             configure(overlay)
             applyOwnNotes(to: overlay)
             applyForeign(overlay)
+            applyCorrection(overlay)
             loadContent(into: overlay)
         }
         live[index] = overlay
@@ -1093,12 +1114,14 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func undo() {
+        if correction != nil { correctionUndo.undo(); return }      // Korrektur-Modus: nur die Korrektur
         guard writable else { return }                      // ausgeblendet oder ohne Schreiben im Tarif: nur ansehen
         allOverlays.forEach(commitPendingUndo)
         documentUndo.undo()
     }
 
     func redo() {
+        if correction != nil { correctionUndo.redo(); return }
         guard writable else { return }
         documentUndo.redo()
     }
@@ -1137,7 +1160,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// true: Palette steht (oder soll gerade nicht stehen); false: spaeter noch einmal versuchen
     @discardableResult
     func restorePicker() -> Bool {
-        guard ownsToolPicker, pickerWanted, writable, view.window != nil else { return true }
+        guard ownsToolPicker, pickerWanted, pickerAllowed, view.window != nil else { return true }
         if toolPicker.isVisible, anchor.isFirstResponder || Self.isInsideEditor(UIResponder.uf_current as? UIView ?? UIView()) { return true }
         guard !(objects.isActive && objects.tool == .markup) else { return true }
         // Textfeld (KI-Hilfe, Suche, Textobjekt), ein Blatt (Teilen, Gliederung, Marker) oder ein Menue bzw. Popover

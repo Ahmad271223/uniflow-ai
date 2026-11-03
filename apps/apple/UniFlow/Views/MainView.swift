@@ -42,6 +42,8 @@ struct MainView: View {
                 UFServerGate(.services) { ServicesPage() }
             case .community:
                 CommunityPage()
+            case .communitySpace(let key):
+                CommunitySpacePage(key: key).id(key)
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }

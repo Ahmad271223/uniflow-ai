@@ -182,12 +182,28 @@ struct DocumentView: View {
     @StateObject private var markers = LectureMarkers()
     @State private var markerPage: MarkerPage?
     @State private var markerNotice: String?
+    /// Korrekturvorschlag: fremde Loesung (Kennung beim Dienst), die beim Oeffnen korrigiert wird (`CorrectionMode.swift`)
+    let correcting: String?
+    /// laufende Korrektur (Korrektur-Modus); eigene Notizen dann ausgeblendet und nur lesbar
+    @State private var correction: CorrectionSession?
+    /// empfangene Korrektur ueber den eigenen Notizen (nur Anzeige)
+    @State private var shownCorrection: CommunityCorrection?
+    /// Randnotiz, die gerade gesetzt wird (Seite und Stelle)
+    @State private var notePlacement: CorrectionNotePlacement?
+    @State private var noteText = ""
+    /// angetippte Randnotiz (Text ansehen, im Korrektur-Modus aendern oder loeschen)
+    @State private var openedNote: CommunityCorrection.Note?
+    @State private var editingCorrectionMessage = false
+    @State private var correctionMessage = ""
+    @State private var confirmDiscardCorrection = false
+    @ObservedObject private var correctionLaunch = CorrectionLaunch.shared
 
-    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil) {
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil) {
         self.api = api
         self.readOnly = readOnly
         self.initialPDFPage = initialPDFPage
         self.task = task
+        self.correcting = correcting
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
     }
 
@@ -440,12 +456,22 @@ struct DocumentView: View {
             #endif
             scheduleSuggestion(bridge.pageIndex)
             await reloadSolutionLayers()
+            if let sid = correcting { await startCorrection(sid) }
+            await takeCorrectionRequest()
             await loadCommunityMatches()
             if offersLectureMarker { await markers.refresh(api: api, fileID: store.file.id) }
         }
+        .onChange(of: correctionLaunch.pending[store.file.id]) { _, r in
+            if r != nil, store.pdf != nil { Task { await takeCorrectionRequest() } }
+        }
+        .modifier(CorrectionDialogs(correction: correction, notePlacement: $notePlacement, noteText: $noteText,
+                                    openedNote: $openedNote, editingMessage: $editingCorrectionMessage, message: $correctionMessage,
+                                    confirmDiscard: $confirmDiscardCorrection,
+                                    discard: { correction?.discard(); correction = nil }))
         // zu sehen oder nicht: ein anderes Fenster darf ein nicht sichtbares Dokument uebernehmen (OpenDocuments)
         .onAppear { store.setShown(true) }
         .onDisappear {
+            correction?.saveNow()                 // Entwurf der Korrektur bleibt bis Senden oder Verwerfen
             store.setShown(false)
             suggestionTask?.cancel()
             Task { await store.pause() }       // Tabwechsel: weiter synchronisieren; endgueltig beendet beim Schliessen
@@ -455,11 +481,22 @@ struct DocumentView: View {
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                       toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
-                      foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible, canEdit: canWrite)
+                      foreignLayers: correction.map { [$0.target] } ?? foreignLayers,
+                      ownNotesVisible: correction == nil && ownNotesVisible, canEdit: canWrite,
+                      correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
+                      onCorrectionNote: { event in correctionNoteEvent(event) })
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
             .overlay(alignment: .top) {
                 VStack(spacing: 6) {
+                    if let correction {
+                        CorrectionBar(session: correction, send: { await sendCorrection() },
+                                      editMessage: { correctionMessage = correction.draft.note; editingCorrectionMessage = true },
+                                      pause: { correction.saveNow(); self.correction = nil },
+                                      discard: { confirmDiscardCorrection = true })
+                    } else if let shownCorrection {
+                        ShownCorrectionBanner(correction: shownCorrection) { self.shownCorrection = nil }
+                    }
                     versionBanner
                     communityBanner
                     suggestionBanner
@@ -620,9 +657,9 @@ struct DocumentView: View {
                 Label("Seiten", systemImage: "rectangle.stack")
             }
             Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
-                .disabled(!canWrite)
+                .disabled(!canWrite && correction == nil)
             Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
-                .disabled(!canWrite)
+                .disabled(!canWrite && correction == nil)
             if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
                 Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (\(UFPlan.plus.name))", systemImage: "lock") }
@@ -678,7 +715,7 @@ struct DocumentView: View {
             Button { bridge.setObjectMode(!bridge.objectMode) } label: {
                 Label(bridge.objectMode ? "Objekte" : "Tinte", systemImage: bridge.objectMode ? "square.on.circle" : "pencil.tip")
             }
-            .disabled(!ownNotesVisible || !canWrite)
+            .disabled(!ownNotesVisible || !canWrite || correction != nil)
             .accessibilityIdentifier("doc.objectMode")
             layersMenu
         }
@@ -970,6 +1007,58 @@ struct DocumentView: View {
 
     /// Passende Loesungen neu laden (Lesen, auch in Free). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
     /// einmal je Sitzung als Hinweis, danach steht sie im Ebenen-Menue (mit "Entfernen").
+    // MARK: Korrekturvorschlag
+
+    /// Wartende Bitte aus `CorrectionLaunch` (Router) abholen: korrigieren oder eine empfangene Korrektur zeigen
+    private func takeCorrectionRequest() async {
+        switch correctionLaunch.take(fileID: store.file.id) {
+        case .correct(let sid): await startCorrection(sid)
+        case .show(let c):
+            correction?.saveNow()
+            correction = nil
+            shownCorrection = c
+        case nil: break
+        }
+    }
+
+    /// Korrektur-Modus fuer eine fremde Loesung: als Ebene ueber der eigenen PDF, eigene Notizen aus, Entwurf geladen
+    private func startCorrection(_ solutionID: String) async {
+        guard !readOnly, let pdf = store.originalPDF ?? store.pdf else { return }
+        do {
+            let layer = try await CorrectionLaunch.targetLayer(solutionID: solutionID, known: foreignLayers, pdf: pdf,
+                                                               fingerprint: await store.originalFingerprint(),
+                                                               service: SolutionSharing.community)
+            bridge.setObjectMode(false)
+            shownCorrection = nil
+            correction = CorrectionSession(target: layer)
+        } catch {
+            actionError = "Korrektur nicht möglich: " + SolutionSharing.message(error)
+        }
+    }
+
+    private func sendCorrection() async {
+        guard let session = correction else { return }
+        do {
+            let sent = try await session.send(service: SolutionSharing.community)
+            correction = nil
+            let name = session.target.displayName.trimmingCharacters(in: .whitespaces).isEmpty ? "Anonym" : session.target.displayName
+            actionError = "Korrekturhinweis an \(name) gesendet (\(sent.strokeCount) Markierungen, \(sent.noteCount) Randnotizen). "
+                + "Die Lösung selbst bleibt unverändert."
+        } catch {
+            actionError = "Senden fehlgeschlagen: " + SolutionSharing.message(error) + " Der Entwurf bleibt erhalten."
+        }
+    }
+
+    private func correctionNoteEvent(_ event: CorrectionNoteEvent) {
+        switch event {
+        case .place(let info, let x, let y):
+            noteText = ""
+            notePlacement = CorrectionNotePlacement(info: info, x: x, y: y)
+        case .open(let id):
+            openedNote = correction?.note(id: id) ?? shownCorrection?.pages.lazy.flatMap(\.notes).first { $0.id == id }
+        }
+    }
+
     private func reloadSolutionLayers() async {
         guard entitlements.allows(.communityRead), store.pdf != nil else {
             foreignLayers = []
@@ -1954,6 +2043,10 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var ownNotesVisible = true
     /// Tarif erlaubt Schreiben (Plus); sonst nur ansehen
     var canEdit = true
+    /// Korrektur-Modus bzw. angezeigte empfangene Korrektur (`CorrectionMode.swift`)
+    var correction: CorrectionSession?
+    var shownCorrection: CommunityCorrection?
+    var onCorrectionNote: ((CorrectionNoteEvent) -> Void)?
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
@@ -1963,6 +2056,9 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.foreignLayers = foreignLayers
         vc.ownNotesVisible = ownNotesVisible
         vc.canEdit = canEdit
+        vc.onCorrectionNote = onCorrectionNote
+        vc.correction = correction
+        vc.shownCorrection = shownCorrection
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
         vc.onPageChange = { [weak bridge] i, key in
             bridge?.pageIndex = i
@@ -1983,5 +2079,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
         if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
         if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }
         if vc.canEdit != canEdit { vc.canEdit = canEdit }
+        vc.onCorrectionNote = onCorrectionNote
+        if vc.correction !== correction { vc.correction = correction }
+        if vc.shownCorrection != shownCorrection { vc.shownCorrection = shownCorrection }
     }
 }

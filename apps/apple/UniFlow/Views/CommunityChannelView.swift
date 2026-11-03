@@ -5,7 +5,7 @@ import UniFlowCore
 // je Woche eine waagerechte Reihe Karten (Vorlesung, Hoersaaluebung, Uebung, Gruppenuebung, Tutorium, Klausur, eigene
 // Notizen) mit der ersten Seite als Vorschau. Tippen auf eine Karte zeigt, wer dazu Notizen geteilt hat; Tippen auf eine
 // Person zeigt ihre Notizen, mit Pfeilen oder Wischen geht es zur naechsten bzw. vorherigen Person. Likes und
-// Kommentare stehen unter den Notizen (nur wenn der Dienst sie kann: `supportsDiscussion`).
+// Kommentare stehen im Reiter "Diskussion (N)" neben "Dokument" (nur wenn der Dienst sie kann: `supportsDiscussion`).
 
 // MARK: - Einordnung (testbar)
 
@@ -30,25 +30,18 @@ enum CommunityChannelKind: Int, CaseIterable, Comparable, Sendable {
     var icon: String {
         switch self {
         case .vorlesung: return "book"
-        case .hoersaaluebung, .gruppenuebung: return "users"
+        case .hoersaaluebung: return "columns"
         case .uebung: return "pencil"
+        case .gruppenuebung: return "users"
         case .tutorium: return "graduation"
-        case .klausur: return "flag"
+        case .klausur: return "exam"
         case .notizen: return "note"
         }
     }
 
-    /// Farbe des Etiketts: Textfarben der Toene (kontrastsicher in hell und dunkel)
-    var tint: Color {
-        switch self {
-        case .vorlesung: return UF.infoText
-        case .hoersaaluebung: return UF.accentText
-        case .uebung, .gruppenuebung: return UF.okText
-        case .tutorium: return UF.warnText
-        case .klausur: return UF.badText
-        case .notizen: return UF.text2
-        }
-    }
+    /// Schriftfarbe des Etiketts (Textstufe des Pastellpaars, kontrastsicher in hell und dunkel; `pair` in
+    /// CommunityStyle.swift)
+    var tint: Color { pair.fg }
 
     /// Einordnung eines geteilten Blatts: zuerst die eigene Datei (Bezeichnung `sub_label`, sonst `doc_type`, wie die
     /// Bibliothek), sonst der Titel (dieselben Muster, `StudyClassify.effectiveType`); nichts davon = eigene Notizen.
@@ -253,24 +246,44 @@ enum CommunityChannel {
 
 // MARK: - Kanal: Wochen mit Karten
 
+/// Darstellung des Kanals: Wochen mit Kartenreihen, Liste (Seite der Community, Reiter "Dokumente") oder nur die
+/// neuesten geteilten Blaetter als eine Reihe (Reiter "Diskussion")
+enum CommunityChannelLayout: Hashable { case weeks, list, latest }
+
 struct CommunityChannelView: View {
     let service: CommunityService
     @Binding var solutions: [CommunitySolutionSummary]
     /// Dateien und Wochen des Moduls (Moduldetail); im Kanal einer Community leer
     var files: [JSONValue] = []
     var weeks: [JSONValue] = []
+    var layout: CommunityChannelLayout = .weeks
+    var sort: CommunityDocsSort = .relevance
+    /// Farbe der Community (Fachfarbe): Wochenmarken
+    var tint: Color = UF.accent
+    /// Person gewaehlt: die Seite oeffnet ihre Notizen als ganze Seite (ohne: im Blatt "Wer hat etwas geteilt")
+    var onRead: ((CommunityChannelItem, Int) -> Void)?
     @State private var local: [String: CommunityChannelFile] = [:]
     @State private var open: CommunityChannelItem?
     @State private var notice: String?
 
+    /// so viele Blaetter in der Reihe "Neueste geteilte Notizen"
+    static let latestLimit = 8
+
     var body: some View {
         let byTitle = CommunityChannel.moduleFiles(files)
         let sections = CommunityChannel.build(solutions, file: { s in local[s.fingerprint] ?? byTitle[CommunityChannel.titleKey(s.title)] },
-                                              skeleton: CommunityChannel.skeleton(weeks: weeks))
+                                              skeleton: layout == .weeks ? CommunityChannel.skeleton(weeks: weeks) : [])
         VStack(alignment: .leading, spacing: 28) {
             if let notice { CommunityNotice(text: notice, tone: .ok) }
-            ForEach(Array(sections.enumerated()), id: \.element.id) { i, w in
-                weekSection(w).ufAppear("community-channel", index: i)
+            switch layout {
+            case .weeks:
+                ForEach(Array(sections.enumerated()), id: \.element.id) { i, w in
+                    weekSection(w).ufAppear("community-channel", index: i)
+                }
+            case .list:
+                listSection(CommunityChannel.rows(sections, sort: sort))
+            case .latest:
+                latestSection(Array(CommunityChannel.rows(sections, sort: .newest).prefix(Self.latestLimit)))
             }
         }
         .accessibilityIdentifier("community.channel")
@@ -285,49 +298,198 @@ struct CommunityChannelView: View {
                                            solutions.removeAll(where: matches)
                                            notice = text
                                        },
-                                       close: { open = nil })
+                                       close: { open = nil },
+                                       onRead: onRead.map { read in { i in open = nil; read(item, i) } })
         }
     }
 
     private func weekSection(_ w: CommunityChannelWeek) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(CommunityChannel.weekLabel(w.week, weeks: weeks)).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
-                Text(w.items.count == 1 ? "1 Blatt" : "\(w.items.count) Blätter").ufFont(12.8).foregroundStyle(UF.muted)
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .top, spacing: 16) {
-                    ForEach(w.items) { item in
-                        CommunityChannelCard(item: item, discussion: service.supportsDiscussion) { open = item }
-                    }
+        let shared = w.items.filter { !$0.people.isEmpty }.count
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                weekMark(w.week)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(CommunityChannel.weekLabel(w.week, weeks: weeks)).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(Self.weekDetail(sheets: w.items.count, shared: shared)).ufFont(12.8).foregroundStyle(UF.muted)
                 }
-                .padding(.vertical, 2)
+                Spacer(minLength: 8)
             }
-            .scrollClipDisabled()
+            cardRow(w.items)
         }
         .accessibilityIdentifier("community.week.\(w.week)")
     }
+
+    /// "3 Blätter · 2 mit Notizen"
+    static func weekDetail(sheets: Int, shared: Int) -> String {
+        let s = sheets == 1 ? "1 Blatt" : "\(sheets) Blätter"
+        return shared == 0 || shared == sheets ? s : "\(s) · \(shared) mit Notizen"
+    }
+
+    /// Wochenmarke in der Fachfarbe: Zahl der Lehrwoche (ohne Woche: Symbol)
+    private func weekMark(_ week: Int) -> some View {
+        RoundedRectangle(cornerRadius: 11, style: .continuous).fill(CommunityTint.wash(tint, 0.16))
+            .frame(width: 40, height: 40)
+            .overlay {
+                if week > 0 { Text("\(week)").font(.uf(17, 700)).foregroundStyle(CommunityTint.ink(tint)) }
+                else { UFIcon("layers", size: 18).foregroundStyle(CommunityTint.ink(tint)) }
+            }
+            .accessibilityHidden(true)
+    }
+
+    private func cardRow(_ items: [CommunityChannelItem]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(alignment: .top, spacing: 14) {
+                ForEach(items) { item in
+                    CommunityChannelCard(item: item, discussion: service.supportsDiscussion) { open = item }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .scrollClipDisabled()
+    }
+
+    @ViewBuilder private func latestSection(_ items: [CommunityChannelItem]) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    UFIcon("sparkles", size: 17).foregroundStyle(CommunityPalette.butter.fg)
+                    Text("Neueste geteilte Notizen").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
+                        .accessibilityAddTraits(.isHeader)
+                }
+                cardRow(items)
+            }
+        }
+    }
+
+    private func listSection(_ rows: [CommunityChannelItem]) -> some View {
+        UFCard(padded: false) {
+            VStack(spacing: 0) {
+                ForEach(rows) { item in
+                    CommunityDocumentRow(item: item, discussion: service.supportsDiscussion) { open = item }
+                        .ufBorderBottom(item.id != rows.last?.id)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 2)
+        }
+    }
 }
 
-/// Karte wie bei Studydrive: Vorschau mit Etikett der Art, darunter Titel und wer etwas geteilt hat
+/// Zeile der Liste: Vorschau, Titel, von wem und wann, Art, Likes und Kommentare
+struct CommunityDocumentRow: View {
+    let item: CommunityChannelItem
+    let discussion: Bool
+    let action: () -> Void
+    @ScaledMetric(relativeTo: .body) private var thumbWidth: CGFloat = 76
+
+    private var meta: String { "\(item.byline) · \(ForeignSolutionLayer.date(item.latest))" }
+
+    private var label: String {
+        var parts = ["\(item.kind.title): \(item.title)", meta]
+        if discussion { parts += [CommunitySpaceTexts.likes(item.likes), CommunitySpaceTexts.comments(item.commentCount)] }
+        return parts.joined(separator: ", ")
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                CommunityChannelThumb(file: item.file, kind: item.kind, width: thumbWidth, height: (thumbWidth * 0.72).rounded(), badge: false)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2).multilineTextAlignment(.leading)
+                    HStack(spacing: 6) {
+                        CommunityAvatarStack(names: item.people.map(CommunityContributorsSheet.name), size: 18)
+                        Text(meta).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                    }
+                    HStack(spacing: 10) {
+                        CommunityKindTag(kind: item.kind)
+                        if discussion {
+                            HStack(spacing: 4) { UFIcon("star", size: 12); Text("\(item.likes)") }
+                            HStack(spacing: 4) { UFIcon("note", size: 12); Text("\(item.commentCount)") }
+                        }
+                    }
+                    .ufFont(12.48, 500).foregroundStyle(UF.text2)
+                    .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted)
+            }
+            .padding(.vertical, 12)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CommunityRowPressStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityHint("Zeigt, wer Notizen dazu geteilt hat")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { action() }
+        .accessibilityIdentifier("community.row.\(item.id)")
+    }
+}
+
+/// Zeile einer Liste: beim Druecken eine Tonstufe dunkler (keine Lageaenderung)
+struct CommunityRowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(configuration.isPressed ? UF.surface2 : Color.clear).padding(.horizontal, -8))
+    }
+}
+
+/// Karte eines Blatts: Vorschau mit farbigem Etikett der Art, Titel (zwei Zeilen reserviert, damit eine Reihe fluchtet),
+/// darunter die Kreise der Personen und wie viele. Ohne geteilte Notizen: gestrichelter Rand, gedaempft
 struct CommunityChannelCard: View {
     let item: CommunityChannelItem
     let discussion: Bool
     let action: () -> Void
-    @ScaledMetric(relativeTo: .body) private var width: CGFloat = 184
+    @ScaledMetric(relativeTo: .body) private var width: CGFloat = 196
+    /// zwei Zeilen Titel (14,5 pt, Zeilenhoehe 1,5): Karten einer Reihe fluchten
+    @ScaledMetric(relativeTo: .body) private var titleHeight: CGFloat = 44
+
+    private var empty: Bool { item.people.isEmpty }
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                CommunityChannelThumb(file: item.file, kind: item.kind, width: width, height: (width * 0.72).rounded())
-                Text(item.title).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
-                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                Text(item.detail(discussion: discussion)).ufFont(12.8, 500).foregroundStyle(UF.accentText).lineLimit(1)
+            VStack(alignment: .leading, spacing: 0) {
+                CommunityChannelThumb(file: item.file, kind: item.kind, width: width - 16, height: ((width - 16) * 0.68).rounded(), radius: 10)
+                    .opacity(empty ? 0.75 : 1)
+                    .padding(8)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(item.title).ufFont(14.5, 620).foregroundStyle(UF.text)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minHeight: titleHeight, alignment: .topLeading)
+                    // sichtbar kurz: Kreise, "n Personen", Kommentare als Symbol mit Zahl (VoiceOver liest den ganzen Satz)
+                    HStack(spacing: 7) {
+                        if empty {
+                            UFIcon("plus", size: 13).foregroundStyle(UF.muted)
+                                .frame(width: 20, height: 20)
+                                .overlay(Circle().strokeBorder(UF.lineStrong, style: StrokeStyle(lineWidth: 1, dash: [2.5, 2.5])))
+                            Text(item.detail(discussion: false)).ufFont(12.8, 550).foregroundStyle(UF.muted).lineLimit(1)
+                        } else {
+                            CommunityAvatarStack(names: item.people.map(CommunityContributorsSheet.name), size: 22, limit: 2)
+                            Text(item.detail(discussion: false)).ufFont(12.8, 550).foregroundStyle(UF.text2).lineLimit(1)
+                            Spacer(minLength: 4)
+                            if discussion && item.commentCount > 0 {
+                                HStack(spacing: 3) {
+                                    UFIcon("note", size: 12)
+                                    Text("\(item.commentCount)")
+                                }
+                                .ufFont(12.48, 600).foregroundStyle(UF.text2)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 12).padding(.top, 2).padding(.bottom, 12)
             }
             .frame(width: width, alignment: .leading)
-            .contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous).fill(UF.surface))
+            .overlay {
+                RoundedRectangle(cornerRadius: UF.rLg, style: .continuous)
+                    .strokeBorder(empty ? UF.lineStrong : UF.line, style: StrokeStyle(lineWidth: 1, dash: empty ? [5, 4] : []))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous))
+            .hoverEffect(.lift)
         }
         .buttonStyle(UFPressStyle())
         .accessibilityElement(children: .ignore)
@@ -340,12 +502,15 @@ struct CommunityChannelCard: View {
 }
 
 /// Erste Seite der eigenen PDF (Vorschau der Bibliothek, `UFThumbnails`: abseits des Hauptthreads, zwischengespeichert)
-/// oder eine ruhige Flaeche mit dem Symbol der Art; oben links das Etikett
+/// oder eine weiche Flaeche in der Farbe der Art mit angedeuteten Zeilen und ihrem Symbol; oben links das Etikett
 struct CommunityChannelThumb: View {
     let file: CommunityChannelFile?
     let kind: CommunityChannelKind
     let width: CGFloat
     let height: CGFloat
+    /// Etikett der Art oben links (in der Liste steht es neben dem Titel)
+    var badge = true
+    var radius: CGFloat = UF.r
     @EnvironmentObject private var session: Session
     @State private var image: UIImage?
 
@@ -355,23 +520,34 @@ struct CommunityChannelThumb: View {
                 Image(uiImage: image).resizable().scaledToFill()
                     .frame(width: width, height: height, alignment: .top).clipped()
             } else {
-                // Platzhalter: angedeutete Textzeilen und das Symbol der Art
-                VStack(alignment: .leading, spacing: 7) {
-                    Spacer(minLength: 0)
-                    ForEach([0.78, 0.92, 0.6], id: \.self) { f in
-                        Capsule().fill(UF.line).frame(width: width * 0.7 * f, height: 5)
-                    }
+                // Platzhalter: kleines Blatt mit Zeilen in der Farbe der Art, schraeg gelegt, darauf das Symbol
+                ZStack {
+                    kind.pair.bg
+                    RoundedRectangle(cornerRadius: 4, style: .continuous).fill(UF.surface.opacity(0.85))
+                        .frame(width: min(width * 0.46, 92), height: min(height * 0.78, 110))
+                        .overlay(alignment: .topLeading) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                ForEach([0.9, 0.7, 0.82, 0.5], id: \.self) { f in
+                                    Capsule().fill(kind.pair.fg.opacity(0.22)).frame(width: min(width * 0.46, 92) * 0.72 * f, height: 3.5)
+                                }
+                            }
+                            .padding(.top, 12).padding(.leading, 9)
+                        }
+                        .rotationEffect(.degrees(-6))
+                        .offset(x: width * 0.12, y: height * 0.1)
+                    UFIcon(kind.icon, size: 22).foregroundStyle(kind.pair.fg)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(UF.surface))
+                        .offset(x: -width * 0.14, y: height * 0.12)
                 }
-                .padding(14)
-                .frame(width: width, height: height, alignment: .bottomLeading)
-                .overlay { UFIcon(kind.icon, size: 26).foregroundStyle(UF.muted.opacity(0.7)) }
+                .frame(width: width, height: height)
             }
-            UFBadge(kind.title, tint: kind.tint).padding(8)
+            if badge { CommunityKindTag(kind: kind, floating: true).padding(8) }
         }
         .frame(width: width, height: height)
         .background(UF.surface2)
-        .clipShape(RoundedRectangle(cornerRadius: UF.r))
-        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(image == nil ? Color.clear : UF.line, lineWidth: 1))
         .accessibilityHidden(true)
         .task(id: file?.id) {
             guard let file, file.isPDF, let api = session.api else { return }
@@ -389,6 +565,8 @@ struct CommunityContributorsSheet: View {
     /// nach Blockieren oder Zurueckziehen: Hinweis und welche Loesungen aus dem Kanal verschwinden
     let removed: (String, @escaping (CommunitySolutionSummary) -> Bool) -> Void
     let close: () -> Void
+    /// Person gewaehlt: Notizen als ganze Seite (Seite der Community); ohne: Leser im Blatt
+    var onRead: ((Int) -> Void)?
     @EnvironmentObject private var router: UFRouter
     @State private var reading: Int?
 
@@ -397,7 +575,7 @@ struct CommunityContributorsSheet: View {
             UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .top, spacing: 16) {
-                        CommunityChannelThumb(file: item.file, kind: item.kind, width: 120, height: 86)
+                        CommunityChannelThumb(file: item.file, kind: item.kind, width: 156, height: 106)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(item.title).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                             Text("\(item.kind.title) · \(weekLabel)").ufFont(13.12).foregroundStyle(UF.muted)
@@ -413,7 +591,9 @@ struct CommunityContributorsSheet: View {
                     }
                     if item.people.isEmpty {
                         UFCard {
-                            UFEmpty(icon: "users", text: "Noch niemand hat Notizen zu diesem Blatt geteilt. Öffne die PDF und teile deine über „Teilen“ → Community.", small: true)
+                            CommunityEmptyState(icon: item.kind.icon, companions: ["pencil", "users"], tint: item.kind.pair.solid,
+                                                title: "Sei die erste Person",
+                                                text: "Noch niemand hat Notizen zu diesem Blatt geteilt. Öffne die PDF und teile deine über „Teilen“ → Community.")
                         }
                     } else {
                     Text(item.people.count == 1 ? "1 Person hat Notizen geteilt" : "\(item.people.count) Personen haben Notizen geteilt")
@@ -452,11 +632,9 @@ struct CommunityContributorsSheet: View {
 
     private func row(_ s: CommunitySolutionSummary, index: Int) -> some View {
         let name = Self.name(s), detail = Self.detail(s, discussion: service.supportsDiscussion)
-        return Button { reading = index } label: {
+        return Button { choose(index) } label: {
             HStack(spacing: 12) {
-                Text(ShellState.initials(of: name).isEmpty ? "?" : ShellState.initials(of: name))
-                    .ufFont(13.12, 600).foregroundStyle(UF.accentText)
-                    .frame(width: 36, height: 36).background(Circle().fill(UF.accentSoft))
+                CommunityAvatar(name: name, size: 40, own: s.isOwn)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 6) {
                         Text(name).ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(1)
@@ -467,28 +645,52 @@ struct CommunityContributorsSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted)
             }
-            .padding(.vertical, 9.6).padding(.horizontal, 8)
+            .padding(.vertical, 10).padding(.horizontal, 8)
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CommunityRowPressStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Notizen von \(name)\(s.isOwn ? " (du)" : ""), \(detail)")
         .accessibilityAddTraits(.isButton)
-        .accessibilityAction { reading = index }
+        .accessibilityAction { choose(index) }
         .accessibilityIdentifier("community.person.\(s.solutionID)")
+    }
+
+    private func choose(_ index: Int) {
+        if let onRead { onRead(index) } else { reading = index }
     }
 }
 
 // MARK: - Notizen einer Person, weiter zur naechsten
 
+/// Reiter der Notizen einer Person: das Dokument (Seiten gross) oder die Diskussion (Kommentare mit Eingabe)
+enum CommunityReaderTab: Hashable { case notes, discussion }
+
+/// Knopf der schwebenden Leiste unter den Notizen. Weitere Aktionen (z. B. spaeter "Korrektur vorschlagen") kommen
+/// ueber `CommunityPeopleReader.extraActions` dazu, ohne den Leser umzubauen.
+struct CommunityReaderAction: Identifiable {
+    let id: String
+    let title: String
+    /// Symbol der Leiste (UFIcon) bzw. im Menue (SF Symbol)
+    var icon: String = "more"
+    var systemImage: String = "ellipsis"
+    var destructive = false
+    let action: () -> Void
+}
+
 struct CommunityPeopleReader: View {
     let title: String
     let people: [CommunitySolutionSummary]
     let service: CommunityService
+    /// ganze Seite (Seite der Community): Seiten breiter
+    var wide = false
+    /// zusaetzliche Knoepfe der schwebenden Leiste je Person (Erweiterungspunkt)
+    var extraActions: (CommunitySolutionSummary) -> [CommunityReaderAction] = { _ in [] }
     let removed: (String, @escaping (CommunitySolutionSummary) -> Bool) -> Void
     @State private var index: Int
     @State private var forward = true
+    @State private var tab: CommunityReaderTab = .notes
     @State private var reporting: CommunitySolutionSummary?
     @State private var blocking: CommunitySolutionSummary?
     @State private var withdrawing: CommunitySolutionSummary?
@@ -496,11 +698,14 @@ struct CommunityPeopleReader: View {
     @State private var error: String?
     @Environment(\.accessibilityReduceMotion) private var reduce
 
-    init(title: String, people: [CommunitySolutionSummary], start: Int, service: CommunityService,
+    init(title: String, people: [CommunitySolutionSummary], start: Int, service: CommunityService, wide: Bool = false,
+         extraActions: @escaping (CommunitySolutionSummary) -> [CommunityReaderAction] = { _ in [] },
          removed: @escaping (String, @escaping (CommunitySolutionSummary) -> Bool) -> Void) {
         self.title = title
         self.people = people
         self.service = service
+        self.wide = wide
+        self.extraActions = extraActions
         self.removed = removed
         _index = State(initialValue: min(max(0, start), max(0, people.count - 1)))
     }
@@ -511,7 +716,8 @@ struct CommunityPeopleReader: View {
         VStack(spacing: 0) {
             personBar
             ZStack {
-                CommunityPersonPane(solution: current, service: service, notice: notice, error: error)
+                CommunityPersonPane(solution: current, service: service, notice: notice, error: error, tab: $tab, wide: wide,
+                                    actions: extraActions(current), menu: menu(current))
                     .id(current.solutionID)
                     .transition(transition)
             }
@@ -527,21 +733,6 @@ struct CommunityPeopleReader: View {
         .background(UF.bg)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    if current.isOwn {
-                        Button(role: .destructive) { withdrawing = current } label: { Label("Zurückziehen", systemImage: "trash") }
-                    } else {
-                        Button { reporting = current } label: { Label("Melden …", systemImage: "flag") }
-                        Button(role: .destructive) { blocking = current } label: { Label("Nutzer blockieren …", systemImage: "hand.raised") }
-                    }
-                } label: {
-                    UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Mehr")
-            }
-        }
         .ufModal(isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } })) {
             if let s = reporting {
                 CommunityReportDialog(solution: s, service: service, done: { m in reporting = nil; notice = m })
@@ -570,16 +761,30 @@ struct CommunityPeopleReader: View {
         }
     }
 
+    /// "Mehr" in der schwebenden Leiste: eigene zurueckziehen, fremde melden oder blockieren
+    private func menu(_ s: CommunitySolutionSummary) -> [CommunityReaderAction] {
+        if s.isOwn {
+            return [CommunityReaderAction(id: "withdraw", title: "Zurückziehen", systemImage: "trash", destructive: true) { withdrawing = s }]
+        }
+        return [CommunityReaderAction(id: "report", title: "Melden …", systemImage: "flag") { reporting = s },
+                CommunityReaderAction(id: "block", title: "Nutzer blockieren …", systemImage: "hand.raised", destructive: true) { blocking = s }]
+    }
+
     private var personBar: some View {
         HStack(spacing: 12) {
             arrow("chevron-left", label: "Vorherige Person", id: "community.reader.previous", enabled: index > 0) { step(-1) }
-            VStack(spacing: 0) {
-                HStack(spacing: 6) {
-                    Text(CommunityContributorsSheet.name(current)).ufFont(15.2, 650).foregroundStyle(UF.text).lineLimit(1)
-                    if current.isOwn { UFBadge("Du", tone: .accent) }
+            HStack(spacing: 10) {
+                CommunityAvatar(name: CommunityContributorsSheet.name(current), size: 36, own: current.isOwn)
+                    .id(current.solutionID)
+                    .transition(.opacity)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 6) {
+                        Text(CommunityContributorsSheet.name(current)).ufFont(15.2, 650).foregroundStyle(UF.text).lineLimit(1)
+                        if current.isOwn { UFBadge("Du", tone: .accent) }
+                    }
+                    Text("Person \(index + 1) von \(people.count) · \(ForeignSolutionLayer.date(current.createdAt))")
+                        .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
                 }
-                Text("Person \(index + 1) von \(people.count) · \(ForeignSolutionLayer.date(current.createdAt))")
-                    .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
             }
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .combine)
@@ -643,12 +848,17 @@ struct CommunityPeopleReader: View {
     }
 }
 
-/// Notizen einer Person (Seiten wie im Leser), darunter Gefaellt mir und Kommentare mit Eingabe
+/// Notizen einer Person: Reiter "Dokument" (Seiten gross) und "Diskussion (N)" (Kommentare mit Eingabe), unten eine
+/// schwebende Leiste (Kommentar, Gefaellt mir, weitere Aktionen, Mehr)
 struct CommunityPersonPane: View {
     let solution: CommunitySolutionSummary
     let service: CommunityService
     var notice: String?
     var error: String?
+    @Binding var tab: CommunityReaderTab
+    var wide = false
+    var actions: [CommunityReaderAction] = []
+    var menu: [CommunityReaderAction] = []
     @State private var content: SolutionContent?
     @State private var images: [String: UIImage] = [:]
     @State private var failure: String?
@@ -662,52 +872,114 @@ struct CommunityPersonPane: View {
     @State private var busy = false
 
     private var discussion: Bool { service.supportsDiscussion }
+    private var showsNotes: Bool { !discussion || tab == .notes }
 
     var body: some View {
-        ScrollViewReader { proxy in
+        VStack(spacing: 0) {
+            if discussion {
+                CommunityTabBar(options: [(CommunityReaderTab.notes, "Dokument", "community.reader.tab.notes"),
+                                          (.discussion, "Diskussion (\(comments.count))", "community.reader.tab.discussion")],
+                                selection: $tab)
+                    .padding(.horizontal, 16)
+                    .background(UF.surface)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let notice { CommunityNotice(text: notice, tone: .ok) }
                     if let message = error ?? failure { CommunityNotice(text: message) }
-                    if discussion {
-                        HStack(spacing: 8) {
-                            likeControl
-                            UFButton(comments.count == 1 ? "1 Kommentar" : "\(comments.count) Kommentare", icon: "note", kind: .ghost, size: .small) {
-                                withAnimation(UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled)) { proxy.scrollTo("comments", anchor: .top) }
+                    if showsNotes {
+                        if let content {
+                            ForEach(content.pages, id: \.key) { page in
+                                CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: discussion ? { anchor in
+                                    resetComposer()
+                                    spot = (page.key, anchor)
+                                    tab = .discussion
+                                } : nil)
                             }
-                            .accessibilityIdentifier("community.reader.comments")
-                        }
+                        } else if failure == nil { CommunityLoading(text: "Notizen werden geladen …") }
+                    } else {
+                        commentsCard
                     }
-                    if let content {
-                        ForEach(content.pages, id: \.key) { page in
-                            CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: discussion ? { anchor in
-                                spot = (page.key, anchor)
-                                replyTo = nil
-                                editing = nil
-                            } : nil)
-                        }
-                    } else if failure == nil { CommunityLoading(text: "Notizen werden geladen …") }
-                    if discussion { commentsCard.id("comments") }
                 }
-                .padding(EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20))
-                .frame(maxWidth: 860, alignment: .leading)
+                .padding(EdgeInsets(top: 16, leading: 20, bottom: 96, trailing: 20))      // Platz fuer die schwebende Leiste
+                .frame(maxWidth: wide ? 1100 : 860, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
+            .overlay(alignment: .bottom) { floatingBar }
         }
         .task { await load() }
     }
 
+    // MARK: Schwebende Leiste
+
+    private var floatingBar: some View {
+        HStack(spacing: 2) {
+            if discussion {
+                barButton("Kommentar", icon: "note", id: "community.reader.bar.comment") {
+                    resetComposer()
+                    tab = .discussion
+                }
+                likeControl
+            }
+            ForEach(actions) { a in barButton(a.title, icon: a.icon, id: "community.reader.bar.\(a.id)", action: a.action) }
+            if !menu.isEmpty {
+                Menu {
+                    ForEach(menu) { a in
+                        Button(role: a.destructive ? .destructive : nil, action: a.action) { Label(a.title, systemImage: a.systemImage) }
+                    }
+                } label: {
+                    UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                .accessibilityLabel("Mehr")
+                .accessibilityIdentifier("community.reader.bar.more")
+            }
+        }
+        .padding(.horizontal, 8).padding(.vertical, 3)
+        .background(Capsule().fill(UF.surface))
+        .overlay(Capsule().strokeBorder(UF.line, lineWidth: 1))
+        .ufShadow(.lg)
+        .padding(.bottom, 18)
+    }
+
+    private func barButton(_ title: String, icon: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                UFIcon(icon, size: 16)
+                Text(title).lineLimit(1)
+            }
+            .ufFont(13.6, 550).foregroundStyle(UF.text)
+            .padding(.horizontal, 12).frame(minHeight: 44)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(UFPressStyle())
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(id)
+    }
+
     @ViewBuilder private var likeControl: some View {
         if solution.isOwn {
-            Text(likes == 1 ? "1 Like" : "\(likes) Likes").ufFont(13.12).foregroundStyle(UF.muted)
-                .frame(minHeight: 44)
+            Text(CommunitySpaceTexts.likes(likes)).ufFont(13.6).foregroundStyle(UF.muted)
+                .padding(.horizontal, 12).frame(minHeight: 44)
         } else {
-            UFButton("\(liked ? "Gefällt dir" : "Gefällt mir") · \(likes)", icon: "star", kind: liked ? .primary : .normal, size: .small) { toggleLike() }
-                .disabled(busy)
+            Button { toggleLike() } label: {
+                HStack(spacing: 6) {
+                    CommunityLikeStar(liked: liked, size: 16)
+                    Text("\(liked ? "Gefällt dir" : "Gefällt mir") · \(likes)").lineLimit(1)
+                }
+                .ufFont(13.6, liked ? 650 : 550).foregroundStyle(liked ? CommunityPalette.butter.fg : UF.text)
+                .padding(.horizontal, 14).frame(minHeight: 36)
+                .background(Capsule().fill(liked ? CommunityPalette.butter.bg : Color.clear))
                 .frame(minHeight: 44)
-                .accessibilityIdentifier("community.reader.like")
+                .contentShape(Capsule())
+            }
+            .buttonStyle(UFPressStyle())
+            .disabled(busy)
+            .accessibilityLabel("\(liked ? "Gefällt dir" : "Gefällt mir") · \(likes)")
+            .accessibilityIdentifier("community.reader.like")
         }
     }
+
+    // MARK: Diskussion
 
     private func marks(_ page: SolutionPage) -> [CommunityReaderPage.Mark] {
         comments.enumerated().compactMap { i, c in
@@ -718,9 +990,11 @@ struct CommunityPersonPane: View {
 
     private var commentsCard: some View {
         UFCard {
-            UFCardHead("Kommentare", icon: "users")
-            Text(CommunityTexts.commentsNotice).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
-            if comments.isEmpty { Text("Noch keine Kommentare.").ufFont(13.12).foregroundStyle(UF.muted) }
+            Text(service.isAccountService ? CommunityTexts.commentsNotice : CommunityTexts.commentsNoticeCloud)
+                .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
+            if comments.isEmpty {
+                CommunityEmptyState(icon: "note", companions: ["users", "star"], text: "Noch keine Kommentare.")
+            }
             ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in
                 commentRow(c, number: i + 1).ufBorderBottom(c.id != comments.last?.id)
             }
@@ -745,13 +1019,18 @@ struct CommunityPersonPane: View {
 
     private func commentRow(_ c: CommunityComment, number: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                if c.anchor != nil { Text("\(number)").ufFont(11.84, 600).foregroundStyle(UF.accentText) }
-                Text(c.pseudonym + (c.byAuthor ? " · Autor" : "") + (c.edited ? " · bearbeitet" : "")).ufFont(12.8, 600).foregroundStyle(UF.text2)
+            HStack(spacing: 8) {
+                CommunityAvatar(name: c.pseudonym, size: 26, own: c.isMine)
+                if c.anchor != nil {
+                    Text("\(number)").ufFont(11.84, 650).foregroundStyle(UF.accentText)
+                        .frame(minWidth: 20, minHeight: 20).background(Circle().fill(UF.accentSoft))
+                }
+                Text(c.pseudonym + (c.byAuthor ? " · Autor" : "") + (c.edited ? " · bearbeitet" : "")).ufFont(12.8, 650).foregroundStyle(UF.text)
                 Text(ForeignSolutionLayer.date(c.createdAt)).ufFont(11.84).foregroundStyle(UF.muted)
             }
             Text(c.deleted ? "Kommentar gelöscht" : c.text).ufFont(14.5, lh: 1.55).foregroundStyle(c.deleted ? UF.muted : UF.text)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 34)
             if !c.deleted {
                 HStack(spacing: 4) {
                     UFButton("Antworten", kind: .ghost, size: .small) { resetComposer(); replyTo = c }
@@ -764,11 +1043,12 @@ struct CommunityPersonPane: View {
                         UFButton("Löschen", kind: .danger, size: .small) { act { try await service.deleteComment(id: c.id) } }
                     }
                 }
-                .padding(.leading, -8)
+                .padding(.leading, 26)
             }
         }
         .padding(.vertical, 9.6)
-        .padding(.leading, c.parentID == nil ? 0 : 20)
+        .padding(.leading, c.parentID == nil ? 0 : 34)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func resetComposer() {
