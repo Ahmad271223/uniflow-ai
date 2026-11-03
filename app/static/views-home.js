@@ -7,7 +7,7 @@ import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=44";
 import { openEvent } from "./views-tt.js?v=42";
 import { installBanner, bindInstallBanner } from "./pwa.js?v=11";
 import { staggerOnce, countUp } from "./motion.js?v=2";
-import { newsCard, bindNews } from "./news.js?v=1";
+import { newsCard, bindNews } from "./news.js?v=2";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;

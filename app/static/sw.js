@@ -5,7 +5,7 @@
 // Registriert von app.js. Diese Datei bleibt immer unter derselben Adresse (/sw.js, ohne ?v=): der Browser erkennt ein
 // Update am Inhalt. Aendert sich sw-policy.js, hier die Version in importScripts hochzaehlen.
 /* global StudoraSW */
-importScripts("sw-policy.js?v=1");
+importScripts("sw-policy.js?v=2");
 
 const P = StudoraSW;
 

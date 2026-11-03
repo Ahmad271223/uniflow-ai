@@ -7,7 +7,7 @@
 // welche gibt. Daten: GET /api/news (app/studip_extras.py feed_for). Nachrichten werden in Stud.IP nie als gelesen
 // markiert und gehen von hier nie an die KI oder einen Dienst.
 import { $, $$, esc, icon, safeUrl, fmtShort, shortName, modal } from "./core.js?v=39";
-import { newLine } from "./bulletin.js?v=1";
+import { newLine } from "./bulletin.js?v=2";
 
 /// Art -> [Symbol, Ton, Bezeichnung]
 export const KIND_STYLE = { nachricht: ["note", "info", "Nachricht"], aenderung: ["refresh", "ok", "Änderung"], blubber: ["users", "warn", "Blubber"] };

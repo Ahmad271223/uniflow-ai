@@ -4,8 +4,8 @@ import { installCard, bindInstallBanner } from "./pwa.js?v=11";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=39";
 import * as FC from "./flashcards.js?v=3";
-import { mountBulletin } from "./bulletin.js?v=1";
-import { mountStudipTexts } from "./studip-texts.js?v=1";
+import { mountBulletin } from "./bulletin.js?v=2";
+import { mountStudipTexts } from "./studip-texts.js?v=2";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
