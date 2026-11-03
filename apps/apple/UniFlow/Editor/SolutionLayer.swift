@@ -173,11 +173,20 @@ final class ForeignLayerView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
+    /// Striche dieser Ebene in Koordinaten der angezeigten Seite (fuer die gemeinsame Canvas aller Ebenen einer Seite)
+    var mappedDrawing: PKDrawing { ink.drawing.transformed(using: mapping) }
+
+    /// Eigene Canvas aus der Anzeige nehmen: die Seite zeigt die Striche aller Ebenen in einer gemeinsamen Canvas
+    /// (`PageInkView.setForeign`). Je Ebene eine gezoomte Canvas kostete auf dem iPad gut 100 MB (gemessen 3.11.2026:
+    /// 5 Ebenen 1178 MB statt 201 MB).
+    func detachInk() { ink.removeFromSuperview() }
+
     /// Wie `PageInkView.setRenderScale`: PencilKit rendert fertige Striche nur nach dem eigenen Zoom der Canvas. Die
     /// Canvas der fremden Ebene zoomt darum selbst und wird per Transform wieder auf Seitengroesse gebracht; Text und
     /// Formen bekommen die Aufloesung der Anzeige. Sonst wirkt eine importierte Loesung beim Hineinzoomen grob.
     func setRenderScale(_ scale: CGFloat, zoom: CGFloat) {
         objectsView.setRenderScale(scale)
+        guard ink.superview != nil else { return }               // Striche liegen in der gemeinsamen Canvas der Seite
         let z = max(1, zoom)
         guard abs(z - ink.zoomScale) > 0.001 else { return }
         let size = content.bounds.size

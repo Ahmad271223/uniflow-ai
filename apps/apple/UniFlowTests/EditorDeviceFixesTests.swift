@@ -60,15 +60,19 @@ final class EditorDeviceFixesTests: XCTestCase {
         let page = SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 600, height: 800, rotation: 0, extraRotation: 0,
                                 objects: [["type": "stroke", "points": [10, 10, 50, 50, 90, 20], "color": "#000000", "width": 2]])
         let layer = ForeignLayerView(solutionID: "s", page: page, images: [:], targetRotation: 0, label: "Test")
-        layer.setRenderScale(8, zoom: 4)
-        XCTAssertEqual(layer.ink.zoomScale, 4)
-        XCTAssertEqual(layer.ink.frame.size.width, 600, accuracy: 0.01, "bleibt so gross wie die Seite")
+        let layer2 = ForeignLayerView(solutionID: "t", page: page, images: [:], targetRotation: 0, label: "Test 2")
         let v = PageInkView(pageIndex: 0, geometry: PageGeometry(pageSize: CGSize(width: 600, height: 800)))
         v.setRenderScale(6, screen: 2)
-        v.setForeign([layer])
-        XCTAssertEqual(layer.ink.zoomScale, 3, "neue Ebene uebernimmt den aktuellen Zoom")
+        v.setForeign([layer, layer2])
+        let f = try XCTUnwrap(v.foreignInk, "eine gemeinsame Canvas fuer alle Ebenen der Seite")
+        XCTAssertNil(layer.ink.superview, "keine eigene Canvas je Ebene (Speicher)")
+        XCTAssertEqual(f.drawing.strokes.count, 2, "Striche beider Ebenen")
+        XCTAssertEqual(f.zoomScale, 3, "uebernimmt den aktuellen Zoom")
+        XCTAssertEqual(f.frame.size.width, 600, accuracy: 0.01, "bleibt so gross wie die Seite")
         v.setRenderScale(2, screen: 2)
-        XCTAssertEqual(layer.ink.zoomScale, 1)
+        XCTAssertEqual(f.zoomScale, 1)
+        v.setForeign([])
+        XCTAssertNil(v.foreignInk)
     }
 
     func testPreviewMoveFollowsTheFingerAndGoesBack() {

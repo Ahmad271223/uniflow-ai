@@ -90,9 +90,61 @@ final class PageInkView: UIView {
     func setForeign(_ views: [ForeignLayerView]) {
         foreignView.subviews.forEach { $0.removeFromSuperview() }
         views.forEach { foreignView.addSubview($0) }
+        // Striche aller Ebenen in EINER Canvas ueber den Ebenen (Text und Formen bleiben je Ebene): eine gezoomte Canvas
+        // je Ebene kostete gut 100 MB
+        views.forEach { $0.detachInk() }
+        if views.isEmpty {
+            foreignInk = nil
+        } else {
+            let c = foreignInk ?? Self.foreignCanvas(size: geometry.pageSize)
+            var all = PKDrawing()
+            for v in views { all.append(v.mappedDrawing) }
+            c.drawing = all
+            foreignView.addSubview(c)
+            foreignInk = c
+            Self.zoom(c, pageSize: geometry.pageSize, to: canvas.zoomScale)
+        }
         foreignReleased = false
         // neue Ebenen in der aktuellen Aufloesung (sonst grob, bis der Zoom das naechste Mal wechselt)
         if lastRenderScale > 0 { views.forEach { $0.setRenderScale(lastRenderScale, zoom: canvas.zoomScale) } }
+    }
+
+    /// Gemeinsame Canvas der fremden Striche dieser Seite (nur Anzeige)
+    private(set) var foreignInk: PKCanvasView?
+
+    static func foreignCanvas(size: CGSize) -> PKCanvasView {
+        let c = PKCanvasView(frame: CGRect(origin: .zero, size: size))
+        c.backgroundColor = .clear
+        c.isOpaque = false
+        c.isUserInteractionEnabled = false
+        c.drawingGestureRecognizer.isEnabled = false
+        c.isScrollEnabled = false
+        c.minimumZoomScale = 1
+        c.maximumZoomScale = 1
+        c.contentInsetAdjustmentBehavior = .never
+        c.showsVerticalScrollIndicator = false
+        c.showsHorizontalScrollIndicator = false
+        c.overrideUserInterfaceStyle = .light
+        c.accessibilityElementsHidden = true
+        return c
+    }
+
+    /// Canvas zoomt selbst (PencilKit rendert fertige Striche nur nach dem eigenen Zoom) und wird per Transform auf
+    /// Seitengroesse gebracht; die Striche bleiben in Seitenpunkten
+    static func zoom(_ c: PKCanvasView, pageSize size: CGSize, to zoom: CGFloat) {
+        let z = max(1, zoom)
+        guard abs(z - c.zoomScale) > 0.001 || c.bounds.size != CGSize(width: size.width * z, height: size.height * z) else { return }
+        c.transform = .identity
+        c.minimumZoomScale = min(z, c.zoomScale)
+        c.maximumZoomScale = max(z, c.zoomScale)
+        c.bounds = CGRect(x: 0, y: 0, width: size.width * z, height: size.height * z)
+        c.center = CGPoint(x: size.width / 2, y: size.height / 2)
+        c.zoomScale = z
+        c.minimumZoomScale = z
+        c.maximumZoomScale = z
+        c.contentSize = c.bounds.size
+        c.contentOffset = .zero
+        c.transform = CGAffineTransform(scaleX: 1 / z, y: 1 / z)
     }
 
     /// zuletzt gesetzte Aufloesung (`setRenderScale`), fuer spaeter angelegte fremde Ebenen
@@ -101,6 +153,7 @@ final class PageInkView: UIView {
     /// Fremde Ebenen freigeben (Speicherwarnung); die Auswahl der Ebenen bleibt im Editor.
     func releaseForeign() {
         foreignView.subviews.forEach { $0.removeFromSuperview() }
+        foreignInk = nil
         foreignReleased = true
     }
 
@@ -129,6 +182,7 @@ final class PageInkView: UIView {
         let current = canvas.zoomScale
         let change = abs(zoom - current) > 0.001 && (zoom > current || zoom <= current / 2 || zoom == 1)
         foreignLayerViews.forEach { $0.setRenderScale(scale, zoom: change ? zoom : current) }   // importierte Loesungen ebenso
+        if let f = foreignInk { Self.zoom(f, pageSize: geometry.pageSize, to: change ? zoom : current) }
         guard !isDrawing, change else { return }
         coverDuringRedraw()
         let size = geometry.pageSize
