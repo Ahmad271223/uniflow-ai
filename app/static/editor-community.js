@@ -10,8 +10,12 @@ import { icon } from "./icons.js?v=31";
 import * as S from "./solutions.js?v=6";
 import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=14";
 import { renderLinkCard } from "./studora-link.js?v=4";
+import * as C from "./community-corrections.js?v=1";
+import * as U from "./community-corrections-ui.js?v=1";
+import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=1";
+import { ensureCss } from "./community-logic.js?v=1";
 
-const $ = (s, el = document) => el.querySelector(s);
+const $ =(s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const when = iso => { try { return new Date(iso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
@@ -58,6 +62,8 @@ class Community {
     this.comments = new Map();      // Loesungs-ID -> Kommentare
     this.list = null; this.info = null; this.err = null; this.tab = "list"; this.active = null; this.pending = null; this.placing = false;
     this.crypto = !!globalThis.crypto?.subtle;
+    // 03.11.2026: Korrekturvorschlaege (Modus, Ansicht, Hinweis an den Ersteller) und "Daneben ansehen" (community-editor-tools.js)
+    ensureCss(); this.overlays = new Map(); this.corrMode = null; this.viewing = null; this.ownCorr = []; this.corrs = new Map(); this.side = new SolutionSide(this); this.cmd = U.takeCommand();
     this.ready = this.prepare();
     // aus "Gemerkt" oder den Mitteilungen geoeffnet: Leiste gleich zeigen
     try { if (sessionStorage.getItem("open-community")) { sessionStorage.removeItem("open-community"); setTimeout(() => this.toggle(true), 600); } } catch {}
@@ -78,6 +84,9 @@ class Community {
     // zuletzt projizierte Loesungen wieder einblenden
     let vis = []; try { vis = JSON.parse(localStorage.getItem(this.visKey()) || "[]"); } catch {}
     for (const id of vis) if (this.list?.some(s => s.solution_id === id)) await this.project(id, true, true);
+    const cmd = this.cmd; this.cmd = null;                       // aus der Community-Seite oder dem Posteingang geoeffnet
+    if (cmd?.correct) await this.startCorrection(cmd.correct);
+    else if (cmd?.view) await this.viewCorrection(cmd.view);
   }
   async load(quiet = false) {
     if (!this.fp) return;
@@ -87,7 +96,82 @@ class Community {
       this.err = null;
     } catch (e) { this.err = e; this.list = this.list || null; }
     this.badge();
+    this.loadOwnCorrections();
     if (!quiet) this.render();
+  }
+
+  // ---------------------------------------------------------------- Korrekturvorschlaege
+  async secretFor(summary) {
+    const key = summary?.community_key; if (!key) return null;
+    const spaces = (await loadSpaces()).spaces; return spaces.find(s => s.key === key)?.secret || null;
+  }
+  /** Hinweise zu den eigenen Loesungen dieser PDF (Posteingang), oben im Editor mit Oeffnen / Ignorieren. */
+  async loadOwnCorrections() {
+    if (!(this.list || []).some(s => s.mine)) { this.ownCorr = []; this.renderHint(); return; }
+    try { this.ownCorr = ((await capi("/corrections/inbox")).items || []).filter(c => c.fingerprint === this.fp); } catch { this.ownCorr = []; }
+    this.renderHint();
+  }
+  renderHint() {
+    let h = $(".cc-hint[data-cc]", this.ed.c); const open = this.ownCorr.filter(c => c.status !== "ignored");
+    if (!open.length || this.hintOff) { h?.remove(); return; }
+    if (!h) { h = document.createElement("div"); h.className = "cc-hint"; h.dataset.cc = "1"; h.setAttribute("role", "status"); $(".ed-main", this.ed.c)?.after(h); }
+    const c = open[0];
+    h.innerHTML = `${icon("bell", 14)}<span><b>${esc(C.editorHint(open.length))}.</b> ${esc(C.inboxMessage({ pseudonym: c.pseudonym }, c.title))}</span><span class="spacer"></span>
+      <button class="btn sm primary" data-h="open">Öffnen</button><button class="btn sm ghost" data-h="ignore">Ignorieren</button><button class="btn ghost icon sm" data-h="x" aria-label="Hinweis ausblenden">${icon("x", 13)}</button>`;
+    $('[data-h="open"]', h).onclick = () => this.viewCorrection(c.id);
+    $('[data-h="x"]', h).onclick = () => { this.hintOff = true; this.renderHint(); };
+    $('[data-h="ignore"]', h).onclick = async () => {
+      try { await capi(`/corrections/${c.id}/status`, { method: "POST", body: { status: "ignored" } }); c.status = "ignored"; U.changed(); } catch (e) { this.toast(e.message); }
+      this.renderHint();
+    };
+  }
+  async startCorrection(id) {
+    const s = this.list?.find(x => x.solution_id === id);
+    if (!s || s.mine) return;
+    if (!this.info?.can_share) { this.toast("Korrekturen vorschlagen gibt es ab StudiNow Plus."); this.toggle(true); return; }
+    await this.project(id, true, true);                             // die Loesung als Ebene darunter
+    const o = this.opened.get(id); if (o?.error) { this.toast(o.error); this.toggle(true); return; }
+    this.corrMode?.stop(); this.corrMode = new CorrectionMode(this, s); this.tab = "list"; this.toggle(true); this.render();
+  }
+  endCorrection() { this.corrMode?.stop(); this.corrMode = null; this.render(); }
+  async viewCorrection(cid) {
+    try {
+      const c = await capi(`/corrections/${cid}`);
+      const secret = await this.secretFor(c); if (!secret) throw new Error("Diese Community gibt es in deinem Hochschul-Abgleich nicht.");
+      const content = await C.open(c.payload, c.id, c.solution_id, secret);
+      const bad = fits(content, this.pdfInfo); if (bad) throw new Error(bad);
+      if (this.list?.some(s => s.solution_id === c.solution_id)) await this.project(c.solution_id, true, true);
+      this.closeCorrectionView(true);
+      this.overlays.set(`corr:${c.id}`, { content: { pages: content.pages.map(C.solutionPage) }, images: {}, visible: true });
+      this.viewing = { c, content };
+      if (c.for_me && c.status !== "seen") capi(`/corrections/${c.id}/status`, { method: "POST", body: { status: "seen" } }).then(() => { c.status = "seen"; U.changed(); this.loadOwnCorrections(); }).catch(() => {});
+      this.tab = "list"; this.toggle(true); this.refreshAll(); this.render();
+      const first = content.pages[0]; const i = first ? this.ed.pages.findIndex(pg => pg.type === "pdf" && pg.index === first.pdfIndex) : -1; if (i >= 0) this.ed.goToPage(i);
+    } catch (e) { this.toast(e.message); this.toggle(true); }
+  }
+  closeCorrectionView(quiet = false) {
+    if (this.viewing) this.overlays.delete(`corr:${this.viewing.c.id}`);
+    this.viewing = null; this.refreshAll(); if (!quiet) this.render();
+  }
+  /** Randnotizen der angesehenen Korrektur als Marker auf den Seiten (Stelle wie bei Kommentaren umgerechnet). */
+  drawCorrNotes(pg) {
+    $$(".ed-cmark.corr:not(.mine)", pg.el).forEach(m => m.remove());
+    if (!this.viewing || pg.type !== "pdf") return;
+    const p = this.viewing.content.pages.find(x => x.pdfIndex === pg.index); if (!p) return;
+    p.notes.forEach((n, i) => {
+      const [fx, fy] = this.toLocal(p, pg, { x: n.x, y: n.y });
+      const m = document.createElement("button"); m.className = "ed-cmark corr"; m.style.left = `${fx * 100}%`; m.style.top = `${fy * 100}%`; m.textContent = i + 1; m.title = `${C.displayName(this.viewing.content)}: ${n.text}`.slice(0, 200);
+      m.onclick = e => { e.stopPropagation(); this.toast(`${C.displayName(this.viewing.content)}: ${n.text}`); }; pg.el.append(m);
+    });
+  }
+  corrViewHtml() {
+    const v = this.viewing; if (!v) return "";
+    const notes = v.content.pages.flatMap(p => p.notes.map(n => ({ ...n, page: p.pdfIndex })));
+    return `<div class="cc-corr"><div class="row" style="gap:.4rem;align-items:center"><b>${icon("pencil", 13)} ${esc(C.entryTitle(v.content))}</b><span class="spacer"></span><button class="btn ghost icon sm" data-cclose title="Korrektur ausblenden" aria-label="Korrektur ausblenden">${icon("x", 14)}</button></div>
+      <div class="small muted">${esc(C.summary(v.content))} · ${esc(when(v.c.created_at))}</div>
+      ${v.content.note ? `<div class="small" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(v.content.note)}</div>` : ""}
+      ${notes.length ? `<ol class="small" style="margin:.2rem 0;padding-left:1.2rem">${notes.map(n => `<li>${esc(n.text)} <span class="muted">(Seite ${n.page})</span></li>`).join("")}</ol>` : ""}
+      <div class="tiny muted">${esc(C.TEXTS.sectionNotice)}</div></div>`;
   }
   badge() {
     if (!this.btn) return; let b = $(".ed-badge", this.btn);
@@ -129,8 +213,9 @@ class Community {
   mountPage(pg) {
     if (!pg.foreign) { this.drawMarkers(pg); return; }
     pg.foreign.destroyChildren();
-    for (const o of this.opened.values()) if (o.visible && o.content) this.drawOn(pg, o);
+    for (const o of [...this.opened.values(), ...this.overlays.values()]) if (o.visible && o.content) this.drawOn(pg, o);
     pg.foreign.batchDraw(); this.drawMarkers(pg);
+    this.drawCorrNotes(pg); this.corrMode?.mount(pg);
   }
   refreshAll() { this.ed.pages.forEach(pg => this.mountPage(pg)); }
   localRot(pg) { const info = this.pdfInfo?.page(pg.index); return S.normRot((info?.rotation || 0) + (pg.rotation || 0)); }
@@ -213,9 +298,15 @@ class Community {
   async showComments(id, focus = null) {
     this.active = id; this.tab = "comments"; this.focus = focus; this.toggle(true);
     this.render();
-    await this.openSolution(id); await this.loadComments(id, true);
+    await this.openSolution(id); await this.loadComments(id, true); await this.loadCorrs(id);
     this.refreshAll(); this.render();
     if (focus) { $(`[data-cid="${focus}"]`, this.el)?.scrollIntoView({ block: "nearest" }); const c = this.comments.get(id)?.find(x => x.id === focus); this.goToComment(id, c); }
+  }
+  /** Korrekturvorschlaege zur Loesung (mit dem Geheimnis ihrer Community gelesen). */
+  async loadCorrs(id) {
+    const s = this.list?.find(x => x.solution_id === id); let secret = null;
+    try { secret = await this.secretFor(s); } catch { /* ohne Schluessel keine Korrekturen */ }
+    try { this.corrs.set(id, secret ? await U.loadCorrections(id, secret) : []); } catch { this.corrs.set(id, []); }
   }
   goToComment(id, c) {
     const o = this.opened.get(id); if (!c?.anchor || !o?.content) return;
@@ -242,13 +333,15 @@ class Community {
     const head = `<div class="com-head"><strong>${icon("users", 16)} Community</strong><span class="spacer"></span><button class="btn ghost icon sm" data-c="reload" title="Neu laden">${icon("refresh", 15)}</button><button class="btn ghost icon sm" data-c="close" title="Schließen">${icon("x", 16)}</button></div>`;
     const tabs = `<div class="seg com-tabs"><button class="${this.tab === "list" ? "active" : ""}" data-tab="list">Lösungen${this.list ? ` (${this.list.length})` : ""}</button>${this.active ? `<button class="${this.tab === "comments" ? "active" : ""}" data-tab="comments">Kommentare</button>` : ""}<button class="${this.tab === "questions" ? "active" : ""}" data-tab="questions">Fragen</button><button class="${this.tab === "share" ? "active" : ""}" data-tab="share">${icon("share", 13)} Teilen</button></div>`;
     let body;
-    if (!this.available) body = `<p class="small muted">Die Community gibt es für PDF-Dateien aus deinem Hochschul-Abgleich. Dieses Dokument ist keine PDF.</p>`;
+    if (this.corrMode) body = this.corrMode.body();
+    else if (!this.available) body =`<p class="small muted">Die Community gibt es für PDF-Dateien aus deinem Hochschul-Abgleich. Dieses Dokument ist keine PDF.</p>`;
     else if (!this.crypto) body = `<p class="small muted">Lösungen werden verschlüsselt geöffnet. Das geht in der Windows-App und im Browser über https, nicht über eine einfache WLAN-Adresse.</p>`;
     else if (!this.list && !this.err) body = `<p class="small muted">Lade Lösungen …</p>`;
     else if (this.err && !this.list) body = this.errorBody();
     else body = tabs + (this.tab === "share" ? this.shareBody() : this.tab === "questions" ? `<div class="com-qa small muted">Lade Fragen …</div>` : this.tab === "comments" && this.active ? this.commentsBody() : this.listBody());
     this.el.innerHTML = head + `<div class="com-body">${body}</div><div class="com-toast small" hidden></div>`;
     this.bind();
+    if (this.corrMode) this.corrMode.bind(this.el);
     const lc = $(".com-link", this.el); if (lc) renderLinkCard(lc, { compact: true, onChange: () => { this.info = null; this.err = null; this.list = null; this.load(); } });
     if (this.tab === "share" && this.list) this.renderPreviews();
     if (this.tab === "questions") this.renderQA();
@@ -274,10 +367,13 @@ class Community {
           <button class="btn sm ghost" data-com="${s.solution_id}" title="Kommentare">${icon("message", 14)} ${s.comments ?? 0}</button>
           <button class="btn sm ghost icon" data-bm="${s.solution_id}" title="Merken (Community → Gemerkt)" aria-label="Merken">${icon("bookmark", 14)}</button>
           ${s.mine ? "" : `<button class="btn sm ghost icon" data-more="${s.solution_id}" title="Melden oder Autor sperren" aria-label="Melden oder Autor sperren">${icon("more", 14)}</button>`}
-        </div>${o?.error ? `<div class="com-err small">${icon("alert", 13)} ${esc(o.error)}</div>` : ""}</div>`;
+        </div>
+        <div class="com-sol-act"><button class="btn sm ghost" data-cc-side="${s.solution_id}" title="Die Lösung neben dem Dokument ansehen: nur ansehen, deine PDF darunter">${icon("columns", 14)} Daneben ansehen</button>
+          ${s.mine ? "" : `<button class="btn sm ghost" data-correct="${s.solution_id}" title="Markiere in deiner PDF, was in dieser Lösung fehlt oder falsch ist; der Ersteller bekommt einen Hinweis">${icon("pencil", 14)} ${C.TEXTS.action}</button>`}</div>${o?.error ? `<div class="com-err small">${icon("alert", 13)} ${esc(o.error)}</div>` : ""}</div>`;
     }).join("");
     const local = own.map(([id, o]) => `<div class="com-sol${o.visible ? " on" : ""}"><div class="com-sol-title"><b>${esc(o.content.title || "Lösung aus Datei")}</b> <span class="badge neutral">Datei</span></div><div class="tiny muted">${esc(o.content.displayName || "anonym")} · ${when(o.content.createdAt)}</div><div class="com-sol-act"><button class="btn sm ${o.visible ? "primary" : ""}" data-lproj="${id}">${icon(o.visible ? "eye-off" : "eye", 14)} ${o.visible ? "Ausblenden" : "Projizieren"}</button><button class="btn sm ghost" data-ldel="${id}">${icon("x", 14)} Entfernen</button></div></div>`).join("");
     return `${this.err ? `<div class="com-err small">${esc(this.err.message)}</div>` : ""}
+      ${this.corrViewHtml()}
       ${items || `<p class="small muted">Zu dieser PDF hat noch niemand eine Lösung geteilt. Teile deine eigene im Reiter „Teilen“.</p>`}${local}
       <label class="btn sm ghost com-file">${icon("upload", 13)} Lösung aus Datei öffnen<input type="file" accept=".uniflowsolution,application/json" hidden></label>
       <p class="tiny muted">Meistgelikte zuerst. Öffnen kann eine Lösung nur, wer dieselbe Original-PDF hat; sie wird hier im Arbeitsspeicher entschlüsselt.</p>`;
@@ -297,7 +393,8 @@ class Community {
         : `<div class="row wrap" style="gap:.4rem"><button class="btn sm${this.placing ? " primary" : ""}" data-c="place" ${o?.content ? "" : "disabled"}>${icon("map-pin", 13)} ${this.placing ? "Klicke auf die Stelle …" : "An Stelle kommentieren"}</button><button class="btn sm ghost" data-c="general">${icon("message", 13)} Allgemein</button></div>
           ${this.general ? `<div class="com-new"><textarea rows="3" maxlength="${this.info?.max_comment || 2000}" placeholder="Kommentar zur ganzen Lösung"></textarea><div class="row"><button class="btn sm primary" data-send="general">Kommentieren</button><button class="btn sm ghost" data-cancel>Abbrechen</button></div></div>` : ""}`)
         : `<p class="tiny muted">${icon("info", 12)} Lesen kann jeder; kommentieren geht ab StudiNow Plus mit bestätigter E-Mail.</p>`}
-      <div class="com-threads">${list ? threads || `<p class="small muted">Noch keine Kommentare.${canC ? " Setze den ersten an eine Stelle der Seite." : ""}</p>` : `<p class="small muted">Lade Kommentare …</p>`}</div>`;
+      <div class="com-threads">${list ? threads || `<p class="small muted">Noch keine Kommentare.${canC ? " Setze den ersten an eine Stelle der Seite." : ""}</p>` : `<p class="small muted">Lade Kommentare …</p>`}</div>
+      ${(this.corrs.get(id) || []).length ? `<div class="com-sol-title" style="margin:.7rem 0 .1rem"><b>${C.TEXTS.sectionTitle} (${this.corrs.get(id).length})</b></div><p class="tiny muted" style="margin:0">${C.TEXTS.sectionNotice}</p><div class="cc-inbox">${this.corrs.get(id).map(U.correctionCard).join("")}</div>` : ""}`;
   }
   shareRows() {
     return this.ed.model.pageOrder.map((p, i) => {
@@ -401,6 +498,9 @@ class Community {
       this.render();
     });
     $$("[data-com]", el).forEach(b => b.onclick = () => this.showComments(b.dataset.com));
+    $$("[data-cc-side]", el).forEach(b => b.onclick = () => this.side.show(b.dataset.ccSide));
+    $$("[data-correct]", el).forEach(b => b.onclick = () => this.startCorrection(b.dataset.correct));
+    $("[data-cclose]", el)?.addEventListener("click", () => this.closeCorrectionView());
     $$("[data-bm]", el).forEach(b => b.onclick = async () => { try { await capi(`/bookmarks/solution/${b.dataset.bm}`, { method: "POST" }); this.toast("Gemerkt – zu finden unter Community → Gemerkt."); } catch (e) { this.toast(e.message); } });
     $$("[data-more]", el).forEach(b => b.onclick = async () => {
       const id = b.dataset.more; const pick = prompt(`Melden (Grund eingeben: ${Object.values(REASONS).join(", ")}) oder „sperren“, um Lösungen dieses Autors nicht mehr zu sehen:`);
@@ -446,6 +546,12 @@ class Community {
       const reason = Object.keys(REASONS).find(k => REASONS[k].toLowerCase().startsWith(p.trim().toLowerCase().slice(0, 4))) || "other";
       try { await capi(`/comments/${b.dataset.crep}/report`, { method: "POST", body: { reason } }); this.toast("Gemeldet. Danke!"); } catch (e) { this.toast(e.message); }
     });
+    // Korrekturvorschlaege unter den Kommentaren: Ansehen legt sie in diesem Dokument ueber die Loesung
+    if (this.tab === "comments" && this.active) {
+      const sol = this.list?.find(s => s.solution_id === this.active);
+      U.bindCorrections(el, this.corrs.get(this.active) || [], { solution: sol, toast: m => this.toast(m), onChange: async () => { await this.loadCorrs(this.active); U.changed(); this.render(); } });
+      $$("[data-cview]", el).forEach(b => b.onclick = () => this.viewCorrection(b.dataset.cview));
+    }
     // Teilen
     $$("[data-pg]", el).forEach(c => c.onchange = () => { c.checked ? this.shareSel.add(c.dataset.pg) : this.shareSel.delete(c.dataset.pg); this.render(); });
     const t = $('[data-f="title"]', el); if (t) t.oninput = () => this.shareTitle = t.value;

@@ -136,6 +136,20 @@ def test_limits_per_user_solution_and_day(world, monkeypatch):
     assert send(w, fourth, 70)[1]["code"] == "corrections_limit"
 
 
+def test_list_is_bounded_in_size(world, monkeypatch):
+    """Eine Liste liefert nie unbegrenzt viel Chiffrat: die neuesten zuerst, die aeltesten fallen weg."""
+    from app import community_corrections as cc
+    w = world
+    for n in (1, 2, 3):
+        assert send(w, member(w.app, f"s{n}@beispiel.de"), n)[0] == 201
+    one = len(chiffrat(w.sid, cid(1)))
+    monkeypatch.setattr(cc, "MAX_LIST_CHARS", one * 2 + 10)
+    rows = call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.autor)[1]["corrections"]
+    assert [r["id"] for r in rows] == [cid(3), cid(2)], "die aelteste faellt weg"
+    monkeypatch.setattr(cc, "MAX_LIST_CHARS", 1)
+    assert len(call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.autor)[1]["corrections"]) == 1, "mindestens die neueste"
+
+
 def test_withdraw_report_hide_and_moderation(world):
     w = world
     send(w, w.leser, 1)

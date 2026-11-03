@@ -315,6 +315,8 @@ export async function viewCommunity(_, params, view) {
   }
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
+  // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
+  if (params?.space) return (await import("./community-channel.js?v=1")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -330,8 +332,10 @@ export async function viewCommunity(_, params, view) {
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); state.route(); } catch (e) { toast(e.message, 4000); } };
   view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt auf Windows und dem iPad.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">StudiNow Plus</span>` : `<span class="badge warn">StudiNow Plus nötig</span>`}</div></div>
     ${tabs}
+    <div id="ccInboxAll"></div>
     <div class="card"><div class="card-head"><h2>${icon("info", 18)} So funktioniert es</h2></div><ul class="small muted" style="margin:0">
-      <li>Jeder Kurs ist eine Community. Tritt bei, dann siehst und teilst du dort Lösungen, nur innerhalb deiner Hochschule.</li>
+      <li>Jeder Kurs ist eine Community. Tritt bei und öffne sie: Dort findest du die Notizen nach Lehrwoche und die Diskussion.</li>
+      <li>Fehlt dir etwas in einer fremden Lösung? Mit „Korrektur vorschlagen“ markierst du es in deiner PDF; der Ersteller bekommt einen Hinweis.</li>
       <li>Hast du dieselbe PDF, liegt eine Lösung über deiner PDF. Sonst liest du sie auf leeren Seiten.</li>
       <li>Du erscheinst nur als <b>${esc(info.pseudonym)}</b>. Ab ${info.reports_to_hide} Meldungen ist eine Lösung verborgen, bis die Moderation entscheidet.</li>
       <li>Veröffentlichen, projizieren, liken und kommentieren passiert im PDF-Editor: in der Windows-App über den Knopf ${icon("users", 13)}, auf dem iPad über „Lösung teilen“ / „Lösungen vergleichen“.</li></ul></div>
@@ -345,6 +349,7 @@ export async function viewCommunity(_, params, view) {
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
   import("./community-spaces.js?v=14").then(m => m.renderSpaces($("#spacesCard", view)));
+  Promise.all([import("./community-logic.js?v=1"), import("./community-corrections-ui.js?v=1")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
   if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=4").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));

@@ -196,3 +196,28 @@ def test_devices_listed_and_signed_out_one_by_one(service):
     assert st == 404 and r["code"] == "session_not_found"
     st, r = _j(asgi_call(app, "DELETE", f"/api/studora/devices/{me['id']}"))
     assert st == 200 and r["current"] and not service_link.linked(), "dieses Geraet: Verbindung getrennt"
+
+
+def test_windows_correction_goes_through_the_link_and_the_other_device_gets_the_hint(service):
+    """Korrekturvorschlag (3.11.2026): die Windows-App schickt ueber die Weiterleitung, der Ersteller (iPad) hat im Posteingang
+    einen offenen Hinweis; Gesehen und die Zahl am Menuepunkt kommen auch auf dem PC an."""
+    app, calls, pdf = service
+    from app import community, community_corrections as cc
+    _account(app, "windows@example.org")
+    other, oh = _account(app, "ipad@example.org")
+    st, d = _j(asgi_call(app, "POST", "/api/studora/login", body=json.dumps({"url": SERVICE + "/", "email": "windows@example.org", "password": "sehr-geheim-123"})))
+    assert st == 200, d
+    assert _hosted(app, "POST", "/api/community/claims", {"fingerprints": [FP]}, oh)[0] == 200
+    pkg = community.sample_package(FP)
+    sid = _hosted(app, "POST", "/api/community/solutions", {"package": pkg, "title": "Blatt 0 vom iPad"}, oh)[1]["solution_id"]
+    cid = "00000000-0000-4000-8000-0000000000d1"
+    chi = cc.seal({"id": cid, "solution_id": sid, "pseudonym": "", "created_at": "2026-11-03T10:00:00Z", "note": "Vorzeichen in 2b", "pages": []}, b"k" * 32, b"\x01" * 32, b"\x02" * 12)
+    st, c = _j(asgi_call(app, "POST", f"/api/community/solutions/{sid}/corrections", body=json.dumps({"id": cid, "payload": chi})))
+    assert st == 201 and c["mine"] and c["payload"] == chi, c
+    st, box = _hosted(app, "GET", "/api/community/corrections/inbox", headers=oh)
+    assert st == 200 and box["open"] == 1 and box["items"][0]["id"] == cid and box["items"][0]["fingerprint"] == FP
+    assert _hosted(app, "POST", f"/api/community/corrections/{cid}/status", {"status": "seen"}, headers=oh)[1]["open"] == 0
+    st, mine = _j(asgi_call(app, "GET", f"/api/community/solutions/{sid}/corrections"))
+    assert st == 200 and [x["id"] for x in mine["corrections"]] == [cid] and mine["corrections"][0]["mine"]
+    assert _j(asgi_call(app, "GET", "/api/community/corrections/inbox?count_only=true"))[1] == {"open": 0, "seen": 0}, "Query kommt beim Dienst an"
+    assert _j(asgi_call(app, "DELETE", f"/api/community/corrections/{cid}"))[0] == 200

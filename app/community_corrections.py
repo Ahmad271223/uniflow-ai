@@ -16,7 +16,7 @@ Version 1 (1 Byte), Salz (32), Nonce (12), AES-256-GCM ueber den mit raw DEFLATE
 Berechtigung wie "Teilen" (Recht `can_share_solutions`, ab StudiNow Plus) mit bestaetigter E-Mail-Adresse; sichtbar nur fuer
 Mitglieder der Community der Loesung (gleiche Pruefung wie Kommentare). Grenzen: `correction_user` je Konto und Tag, hoechstens
 `MAX_PER_USER` aktive Korrekturen je Konto und Loesung und `MAX_PER_SOLUTION` je Loesung, Chiffrat hoechstens
-`MAX_PAYLOAD_CHARS` Zeichen. Melden wie bei Kommentaren (bestaetigte E-Mail, `report_user`, ab 3 verborgen, Moderation kann
+`MAX_PAYLOAD_CHARS` Zeichen, eine Liste hoechstens `MAX_LIST_CHARS` Zeichen Chiffrat (die aeltesten fallen weg). Melden wie bei Kommentaren (bestaetigte E-Mail, `report_user`, ab 3 verborgen, Moderation kann
 freigeben). Gesehen und Ignorieren speichert der Dienst fuer den Ersteller der Loesung (`owner_status`), damit es auf allen
 Geraeten des Kontos gilt; die Zahl offener Hinweise (`open`) ist die Zahl am Menuepunkt "Community".
 """
@@ -60,7 +60,8 @@ SALT_BYTES, NONCE_BYTES, TAG_BYTES = 32, 12, 16
 MAX_PAYLOAD_CHARS = 750_000                    # wie CommunityCorrections.maxPayloadChars (CloudKit: rund 1 MB je Datensatz)
 MAX_PLAINTEXT_BYTES = 8 << 20
 MAX_TEXT, MAX_NOTES_PER_PAGE, MAX_PAGES = 2_000, 50, 300
-MAX_PER_USER, MAX_PER_SOLUTION = 5, 100
+MAX_PER_USER, MAX_PER_SOLUTION = 5, 50
+MAX_LIST_CHARS = 16_000_000                    # Chiffrat je Antwort von `for_solution`: die aeltesten fallen weg
 STATUSES = ("open", "seen", "ignored")
 
 
@@ -146,7 +147,15 @@ def for_solution(user: dict, solution_id: str) -> list[dict]:
         blocked, banned = _blocked(conn, user), _banned(conn)
         rows = conn.execute("SELECT rowid, * FROM corrections WHERE solution_id=? AND status='active' ORDER BY created_at DESC, rowid DESC",
                             (s["id"],)).fetchall()
-        return [_out(c, user["id"]) for c in rows if c["pseudonym"] not in blocked and c["author_id"] not in banned]
+        out, size = [], 0
+        for c in rows:
+            if c["pseudonym"] in blocked or c["author_id"] in banned:
+                continue
+            size += len(c["payload"])
+            if size > MAX_LIST_CHARS and out:                # nie unbegrenzt viel auf einmal (neueste zuerst)
+                break
+            out.append(_out(c, user["id"]))
+        return out
 
 
 def _visible(conn, user: dict, correction_id: str):

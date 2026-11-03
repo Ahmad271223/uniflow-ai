@@ -348,6 +348,12 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 - **Web**: die Seite „Community“ zeigt im Dienst die eigenen Veröffentlichungen (zurückziehen), gesperrte Autoren
   (aufheben) und für Admins die Moderation; am PC erklärt sie, dass die Community nur im Dienst läuft. Veröffentlichen,
   suchen, laden, melden und sperren macht der iPad-Client im Editor (M15).
+- **Korrekturvorschläge, Likes auf Fragen, Community-Seite (3.11.2026, Teil 3):** Tabelle `corrections` (+ `correction_reports`),
+  Endpunkte `POST|GET /api/community/solutions/{id}/corrections`, `GET /api/community/corrections/inbox`,
+  `GET|DELETE /api/community/corrections/{id}`, `POST …/{id}/status|report|moderate`, `POST|DELETE /api/community/questions/{id}/like`,
+  Filter `?unanswered=true`. Form wie der CloudKit-Typ `Correction`, Chiffrat wie `CommunityCorrections.seal`: Beschreibung,
+  Felder, Grenzen und Fehlercodes in `docs/LOESUNGEN-TEILEN.md` Abschnitt 6b; Vektoren `fixtures/community/correction-vectors.json`.
+  Grenze `correction_user` (20 je Tag) steht im Konto-Vertrag.
 
 ## Noch offen (nächste Schritte der PC-Sitzung)
 
