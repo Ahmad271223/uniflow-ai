@@ -232,6 +232,10 @@ private struct ModulesTab: View {
     @EnvironmentObject private var router: UFRouter
     @State private var openMod: Int?
     @State private var autoTests = false
+    /// lokal: Dateien frueherer Semester mitladen (`OlderSemesters`, Frage nach dem ersten Abgleich); nil = unbekannt
+    @State private var olderAll: Bool?
+    @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.hildesheim) private var hildesheim
 
     private var api: SettingsAPI { SettingsAPI(api: session.api, toast: toast, router: router) }
 
@@ -264,6 +268,13 @@ private struct ModulesTab: View {
             } else {
                 Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet Studora neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
+            }
+
+            if let all = olderAll {
+                UFCheckbox("Dateien früherer Semester mitladen", isOn: Binding(get: { all }, set: { v in setOlder(v) }))
+                    .frame(minHeight: 44, alignment: .leading)
+                Text(Self.olderFilesHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 9.6)
             }
 
             VStack(alignment: .leading, spacing: 8) {                                          // .stack
@@ -302,6 +313,22 @@ private struct ModulesTab: View {
             }
         }
         .onAppear { autoTests = d.s["auto_tests"]?.bool ?? ((d.s.i("auto_tests") ?? 0) != 0) }
+        .task {
+            // nur lokal (die PC-Fassung kennt fruehere Semester nicht) und nur, wenn es welche gibt oder schon gewaehlt
+            guard let api = session.api, api.isLocal, let o = try? await api.value("/api/older-semesters") else { return }
+            if !(o["choice"]?.isNull ?? true) || !(o["semesters"]?.array ?? []).isEmpty { olderAll = o.s("choice") == "all" }
+        }
+    }
+
+    /// Wahl aendern; eingeschaltet laedt der Abgleich der Hochschule die Dateien gleich (nur die frueheren Semester)
+    private func setOlder(_ on: Bool) {
+        olderAll = on
+        Task {
+            guard let api = session.api, await toast.attempt("Speichern", {
+                _ = try await api.value("/api/older-semesters/choice", method: "POST", body: ["choice": .string(on ? "all" : "current")])
+            }) else { return }
+            if on, let note = try? await OlderSemesterLoad.start(studip: studip, hildesheim: hildesheim) { toast.show(note, seconds: 4) }
+        }
     }
 
     /// .card.flat (padding .7rem .9rem): Kopfzeile klappt die Kurstabelle auf; inaktive Module blass (.muted)
@@ -360,6 +387,8 @@ private struct ModulesTab: View {
 
     /// Hinweis wie in der Web-App (c0721da): Semesterregel `Semesters`, Schalter je Kurs in der Kurstabelle
     static let olderSemesters = "Kurse aus früheren Semestern erkennt die App am Semester in Stud.IP und plant sie nicht ein; ihre Unterlagen bleiben in der Bibliothek."
+    /// Hinweis unter "Dateien früherer Semester mitladen"
+    static let olderFilesHint = "Aus: Studora lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."
 
     /// Kurs eingeplant ja/nein: PATCH active, das lokale Backend merkt sich die eigene Entscheidung (active_custom)
     private func setActive(_ c: JSONValue, _ on: Bool) {

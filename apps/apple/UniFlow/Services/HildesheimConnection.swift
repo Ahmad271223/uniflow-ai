@@ -57,6 +57,8 @@ final class HildesheimConnection: ObservableObject {
     @Published private(set) var lastRun: Date?
     /// Zahl der beendeten Abgleiche; offene Seiten laden danach neu (`ufReload`)
     @Published private(set) var finishedRuns = 0
+    /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
+    @Published private(set) var olderFilesNote: String?
     /// Bericht des letzten Abgleichs (Tests, Diagnose)
     private(set) var lastReport: HildesheimSync.Report?
 
@@ -368,8 +370,10 @@ final class HildesheimConnection: ObservableObject {
     /// Ein Abgleich: Learnweb, danach LSF-Stundenplan und Noten (`HildesheimSync.run`). `forceGrades`: Noten auch vor
     /// Ablauf der 20 Stunden. Wurde waehrend des Laufs eine Quelle verbunden, folgt direkt danach ein weiterer Lauf.
     /// `scope: .lists` (kurzer Hintergrundlauf): ohne Downloads und ohne Noten; `background`: nur `sources(background:)`.
+    /// `olderOnly` (`loadOlderFiles`): nur die Learnweb-Dateien gewuenschter Kurse frueherer Semester.
     @discardableResult
-    func run(forceGrades: Bool = false, scope: UniSyncScope = .full, background: Bool = false) async -> HildesheimSync.Report? {
+    func run(forceGrades: Bool = false, scope: UniSyncScope = .full, background: Bool = false,
+             olderOnly: Bool = false) async -> HildesheimSync.Report? {
         guard !isRunning, !stopped, !sources(background: background).isEmpty else { return nil }
         let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
@@ -377,7 +381,9 @@ final class HildesheimConnection: ObservableObject {
         // waehrend der Pruefung angehalten, schon ein Lauf, abgemeldet oder nichts mehr verbunden
         guard !isRunning, !stopped, signOuts == signOutsBefore, !sources(background: background).isEmpty else { return nil }
         isRunning = true
-        let task = Task { await self.perform(forceGrades: forceGrades, scope: scope, background: background) }
+        let task = Task {
+            olderOnly ? await self.performOlder() : await self.perform(forceGrades: forceGrades, scope: scope, background: background)
+        }
         current = task
         let report = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
@@ -401,6 +407,36 @@ final class HildesheimConnection: ObservableObject {
         guard let task = current else { return }
         task.cancel()
         _ = await task.value
+    }
+
+    /// "Dateien laden" fuer Kurse frueherer Semester (Bibliothek, Frage nach dem ersten Abgleich): nur Learnweb, nur
+    /// deren Dateilisten und Downloads (`OlderSemesters.pending`); kein LSF, keine Fristen. Laeuft gerade ein Abgleich,
+    /// holt der naechste die vorgemerkten Kurse. Rueckgabe: Meldung fuer die Anzeige.
+    @discardableResult
+    func loadOlderFiles() async -> String? {
+        guard !isRunning else { return StudIPSync.olderQueuedNote }
+        guard isConnected(.learnweb) else { return nil }
+        olderFilesNote = nil
+        await run(olderOnly: true)
+        return olderFilesNote
+    }
+
+    /// Lauf von `loadOlderFiles`: Stand und Meldungen des letzten vollen Abgleichs bleiben
+    private func performOlder() async -> HildesheimSync.Report? {
+        let transport = await makeTransport(websiteDataStore)
+        let lw = await learnwebAccess(transport: transport, background: false)
+        guard let api = lw.api, let database = try? await host.backend().context.database else {
+            olderFilesNote = lw.message ?? "Learnweb ist gerade nicht erreichbar."
+            return nil
+        }
+        let r = await HildesheimSync(db: database, container: layout, learnweb: api, lsf: nil, transport: transport,
+                                     clock: clock, retry: retry, tools: AppDocumentTools())
+            .run(includeGrades: false, downloads: true, olderOnly: true)
+        olderFilesNote = r.cancelled ? nil : r.needsLogin.isEmpty
+            ? "\(r.newFiles.count) \(r.newFiles.count == 1 ? "Datei" : "Dateien") aus früheren Semestern geladen"
+                + (r.failedFiles.isEmpty ? "" : ", \(r.failedFiles.count) später erneut")
+            : "Learnweb: Anmeldung nötig"
+        return r
     }
 
     private func perform(forceGrades: Bool, scope: UniSyncScope, background: Bool) async -> HildesheimSync.Report? {

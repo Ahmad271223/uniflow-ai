@@ -929,6 +929,114 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertFalse(sync.lastSummary?.contains("früheren Semestern") ?? true)
     }
 
+    // MARK: Fruehere Semester (Wunsch des Inhabers 03.11.2026, `OlderSemesters`)
+
+    /// Stud.IP mit einem Kurs des aktuellen Semesters (c1) und einem alten (c-alt, SoSe 2023) samt Datei d9
+    private func studIPWithOlderCourse() -> FakeStudIP {
+        let stud = fakeStudIP(pdf: makePDF("Testblatt"))
+        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
+            {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
+               "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}},"end-semester":{"data":{"type":"semesters","id":"s1"}}}},
+              {"id":"c-alt","type":"courses","attributes":{"title":"Testkurs Werkstoffe"},
+               "relationships":{"start-semester":{"data":{"type":"semesters","id":"s0"}},"end-semester":{"data":{"type":"semesters","id":"s0"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00","end":"2027-03-31T23:59:59+02:00"}},
+                         {"id":"s0","type":"semesters","attributes":{"title":"SoSe 2023","start":"2023-04-01T00:00:00+02:00","end":"2023-09-30T23:59:59+02:00"}}]}
+            """#)
+        let old = makePDF("Altblatt")
+        stud.json("/jsonapi.php/v1/courses/c-alt/folders?page[limit]=200", #"{"data":[{"id":"r0","attributes":{"folder-type":"RootFolder","name":""}}]}"#)
+        stud.json("/jsonapi.php/v1/folders/r0/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"d9","attributes":{"name":"Altblatt 1.pdf","filesize":\#(old.count),"mime-type":"application/pdf","chdate":"2023-05-02T10:00:00+02:00","is-downloadable":true}}]}
+            """#)
+        stud.json("/jsonapi.php/v1/folders/r0/folders?page[limit]=200", #"{"data":[]}"#)
+        stud.set("/jsonapi.php/v1/file-refs/d9/content", HTTPReply(status: 200, contentType: "application/pdf", body: old))
+        return stud
+    }
+
+    /// Vorgabe: nur das aktuelle Semester. Der alte Kurs kommt ohne Auswahl als Kurs in die Datenbank (inaktiv, fuer
+    /// Bibliothek und Community), aber ohne Dateiliste und Download; die Bibliothek fuehrt ihn unter "SoSe 2023", und
+    /// die Frage "Auch frühere Semester laden?" steht an, bis einmal gewaehlt ist (danach nie wieder).
+    func testOnlyCurrentSemesterByDefaultAndQuestionOnce() async throws {
+        let dev = try device()
+        let stud = studIPWithOlderCourse()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(sync.selectedCourses, ["c1"], "Auswahl unveraendert: nur das aktuelle Semester")
+        XCTAssertFalse(stud.requested.contains { $0.contains("/courses/c-alt/") }, "\(stud.requested)")
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"])
+        let old = try await dev.api.value("/api/courses").items.first { $0.s("id") == "c-alt" }
+        XCTAssertEqual(old?.i("active"), 0, "alter Kurs gespeichert, aber aus")
+        XCTAssertNil(old?.i("module_id"), "kein Modul fuer den alten Kurs")
+
+        let overview = try await dev.api.value("/api/older-semesters")
+        XCTAssertEqual(overview["semesters"]?.array?.map { $0.s("label") }, ["SoSe 2023"])
+        XCTAssertEqual(overview["semesters"]?.array?.first?["courses"]?.array?.map { $0.s("id") }, ["c-alt"])
+        XCTAssertEqual(overview.s("current"), "WiSe 2026/27")
+        XCTAssertTrue(OlderSemestersQuestionHost.shouldAsk(overview), "erste Frage steht an")
+        XCTAssertTrue(LibraryPage.isOlderCourse("c-alt", older: overview))
+        XCTAssertFalse(LibraryPage.isOlderCourse("c1", older: overview))
+        XCTAssertEqual(OlderSemestersQuestion.text(current: "WiSe 2026/27", courses: 1),
+                       "Studora hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.")
+
+        // beim Zeigen gilt "Nur aktuelles Semester" (wie der Host es tut): danach nie wieder gefragt, auch nach Abgleichen
+        _ = try await dev.api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "current"])
+        await sync.run(client: client(stud))
+        let again = try await dev.api.value("/api/older-semesters")
+        XCTAssertFalse(OlderSemestersQuestionHost.shouldAsk(again))
+        XCTAssertFalse(stud.requested.contains { $0.contains("/courses/c-alt/") }, "weiter nur das aktuelle Semester")
+        XCTAssertFalse(OlderSemestersQuestionHost.shouldAsk(["choice": .null, "semesters": .array([])]), "ohne fruehere Semester keine Frage")
+    }
+
+    /// "Dateien laden" in der Bibliothek: nur dieser Kurs (Dateiliste und Download), kein Stundenplan und keine
+    /// aktuellen Kurse; danach steht er als geladen da, seine Datei liegt im Kursordner, und ein normaler Abgleich
+    /// fragt ihn nicht erneut ab. Mit der Wahl "alle" holt der normale Abgleich alte Kurse mit.
+    func testLoadFilesOfOlderCourse() async throws {
+        let dev = try device()
+        let stud = studIPWithOlderCourse()
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        let summary = sync.lastSummary
+
+        let r = try await dev.api.value("/api/older-semesters/request", method: "POST", body: ["course_ids": ["c-alt"]])
+        XCTAssertEqual(r.i("requested"), 1)
+        let before = stud.requested.count
+        await sync.run(client: client(stud), olderOnly: true)
+        let run = Array(stud.requested[before...])
+        XCTAssertTrue(run.contains("/jsonapi.php/v1/courses/c-alt/folders?page[limit]=200"), "\(run)")
+        XCTAssertFalse(run.contains { $0.contains("/courses/c1/") }, "nur der alte Kurs: \(run)")
+        XCTAssertFalse(run.contains { $0.contains("events") || $0.contains("schedule") }, "kein Stundenplan: \(run)")
+        XCTAssertEqual(run.filter { $0.hasSuffix("/content") }, ["/jsonapi.php/v1/file-refs/d9/content"])
+        XCTAssertEqual(sync.olderFilesNote, "1 Datei aus 1 Kurs früherer Semester geladen")
+        XCTAssertEqual(sync.lastSummary, summary, "Stand des letzten vollen Abgleichs bleibt")
+        XCTAssertEqual(sync.phase, .idle)
+
+        let overview = try await dev.api.value("/api/older-semesters")
+        let course = try XCTUnwrap(overview["semesters"]?.array?.first?["courses"]?.array?.first)
+        XCTAssertEqual(course["loaded"]?.bool, true)
+        XCTAssertEqual(course.i("downloaded"), 1)
+        XCTAssertFalse(OlderSemesterLoad.needsLoad(course))
+        XCTAssertEqual(OlderSemesterLoad.status(course), "1 Datei geladen")
+        let files = try await dev.api.value("/api/older-semesters/courses/c-alt/files").items
+        XCTAssertEqual(files.map { $0.s("name") }, ["Altblatt 1.pdf"])
+        XCTAssertEqual(files.first?.i("downloaded"), 1)
+        let content = try await dev.api.data("/api/files/d9/content")
+        XCTAssertEqual(content.1.statusCode, 200, "geladene Datei laesst sich oeffnen")
+
+        let n = stud.requested.count
+        await sync.run(client: client(stud))
+        XCTAssertFalse(stud.requested[n...].contains { $0.contains("/courses/c-alt/") }, "fertig geladen: nicht erneut abgefragt")
+
+        // Wahl "alle": ein neu vorgemerkter Kurs (hier erneut c-alt) kommt mit dem normalen Abgleich
+        _ = try await dev.api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "all"])
+        _ = try await dev.api.value("/api/older-semesters/request", method: "POST", body: ["course_ids": ["c-alt"]])
+        let m = stud.requested.count
+        await sync.run(client: client(stud))
+        XCTAssertTrue(stud.requested[m...].contains { $0.contains("/courses/c-alt/folders") })
+        XCTAssertTrue(stud.requested[m...].contains { $0.contains("/courses/c1/folders") })
+        XCTAssertEqual(StudIPSync.olderFilesNote(courses: 0, loaded: 0, failed: 0, unreadable: 0), "Keine Dateien früherer Semester zu laden.")
+        XCTAssertEqual(OlderSemesterLoad.status(["files": 3, "downloaded": 0, "loaded": false, "requested": false]), "3 Dateien bekannt, nicht geladen")
+    }
+
     /// Anzeige wie die Web-App: alle Raeume ohne den Teil nach dem Doppelpunkt; ein Einzeltermin aus dem Kalender ohne
     /// Serie bekommt den Hinweis statt des Termin-Drawers
     func testDatedEntriesAndRoomsReadLikeTheWeb() {

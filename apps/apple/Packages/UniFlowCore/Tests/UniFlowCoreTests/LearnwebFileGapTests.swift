@@ -274,6 +274,39 @@ final class LearnwebFileGapTests: XCTestCase {
                        "0 neue/geänderte Dateien aus 1 Learnweb-Kursen, 1 Kurs aus früheren Semestern ohne Dateien (Einstellungen → Module)")
     }
 
+    /// "Dateien laden" fuer einen Kurs eines frueheren Semesters (Bibliothek, `OlderSemesters`): der Lauf `olderOnly`
+    /// holt nur dessen Dateiliste und Dateien (keine aktuellen Kurse, keine Fristen, Ankuendigungen oder LSF); danach
+    /// fragt ein voller Abgleich ihn nicht erneut ab. Ausgeschaltete aktuelle Kurse zaehlen nicht als frueheres Semester.
+    func testOlderOnlyLoadsRequestedOlderCourse() async throws {
+        let (db, layout) = try await container()
+        let net = semesterLearnweb()
+        func contentsRequests() -> [String] {
+            net.requests.compactMap { self.form($0)["wsfunction"] == "core_course_get_contents" ? self.form($0)["courseid"] : nil }
+        }
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(token), transport: net, retry: noWait),
+                                  lsf: nil, transport: net, clock: clock, retry: noWait)
+        _ = await sync.run()                                    // erster Abgleich: nur aktuelle Kurse
+        XCTAssertFalse(contentsRequests().contains("301"))
+        try await db.transaction { c in
+            try c.execute("UPDATE courses SET active=0, active_custom=1 WHERE id='lw-304'")
+            try OlderSemesters.request(c, courseIDs: ["lw-301", "lw-304"], today: self.clock.today, now: self.clock.nowISO)
+        }
+        let before = net.requests.count
+        let r = await sync.run(olderOnly: true)
+        let run = net.requests[before...].map(self.form)
+        XCTAssertEqual(run.compactMap { $0["wsfunction"] == "core_course_get_contents" ? $0["courseid"] : nil }, ["301"])
+        XCTAssertFalse(run.contains { $0["wsfunction"] == "mod_forum_get_forums_by_courses" }, "keine Ankuendigungen")
+        XCTAssertEqual(r.olderLoaded, ["lw-301"])
+        XCTAssertEqual(r.newFiles, ["lw-301-\(String(HText.sha256Hex("/k301.pdf").prefix(8)))"])
+        XCTAssertEqual(net.count("\(base)/webservice/pluginfile.php/301"), 1)
+        let pending = try await db.withConnection { try OlderSemesters.pending($0, today: self.clock.today) }
+        XCTAssertEqual(pending, [])
+
+        let n = contentsRequests().count
+        _ = await sync.run()
+        XCTAssertFalse(contentsRequests()[n...].contains("301"), "fertig geladen: nicht erneut abgefragt")
+    }
+
     /// Nur Kurse frueherer Semester: kein Fehler ("kein Kurs lesbar"), sondern ein fertiger Lauf ohne Dateiabruf
     func testOnlyOlderCoursesIsNoFailure() async throws {
         let (db, layout) = try await container()

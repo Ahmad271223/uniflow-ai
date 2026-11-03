@@ -180,6 +180,8 @@ final class StudIPSync: ObservableObject {
     @Published private(set) var lastSummary: String?
     /// Zahl der beendeten Abgleiche dieses App-Laufs; Seiten mit `ufReload` laden bei jeder Aenderung neu
     @Published private(set) var finishedRuns = 0
+    /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
+    @Published private(set) var olderFilesNote: String?
     @Published var selectedCourses: Set<String> = [] {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
     }
@@ -482,6 +484,21 @@ final class StudIPSync: ObservableObject {
         await run(client: liveClient(cookies), scope: scope)
     }
 
+    /// "Dateien laden" fuer Kurse frueherer Semester (Bibliothek, Frage nach dem ersten Abgleich): nur deren
+    /// Dateilisten und Downloads (`OlderSemesters.pending`), ohne Stundenplan und Aufzeichnungen. Laeuft gerade ein
+    /// Abgleich, holt der naechste die vorgemerkten Kurse. Rueckgabe: Meldung fuer die Anzeige.
+    @discardableResult
+    func loadOlderFiles() async -> String? {
+        guard !isRunning else { return Self.olderQueuedNote }
+        guard offersStudIP, !Self.isUnderTest() else { return nil }
+        let cookies = self.cookies.load()
+        guard !cookies.isEmpty else { phase = .signedOut; return nil }
+        await run(client: liveClient(cookies), olderOnly: true)
+        return olderFilesNote
+    }
+
+    static let olderQueuedNote = "Vorgemerkt: Die Dateien kommen mit dem nächsten Abgleich."
+
     /// Client mit dem gespeicherten Sitzungs-Cookie (nur Debug mit -UFLoginStub: feste Antworten aus dem Stub-Ordner)
     func liveClient(_ cookies: [HTTPCookie]) -> StudIPClient {
         let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")
@@ -494,8 +511,9 @@ final class StudIPSync: ObservableObject {
     /// am Ende `sync_log`. Kein `await` innerhalb einer Transaktion: erst das Netz, dann kurz schreiben.
     /// `scope: .lists` (kurzer Hintergrundlauf): ohne Downloads und ohne Aufzeichnungen. Rueckgabe: wie der Lauf
     /// endete; nil, wenn er nicht begann (es lief schon einer, angehalten).
+    /// `olderOnly`: nur die gewuenschten Kurse frueherer Semester (`loadOlderFiles`).
     @discardableResult
-    func run(client: StudIPClient, scope: UniSyncScope = .full) async -> RunEnd? {
+    func run(client: StudIPClient, scope: UniSyncScope = .full, olderOnly: Bool = false) async -> RunEnd? {
         guard !isRunning, !stopped else { return nil }
         let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
@@ -503,7 +521,7 @@ final class StudIPSync: ObservableObject {
         // waehrend der Pruefung angehalten, schon ein Lauf oder abgemeldet (dann gehoert `client` zur alten Sitzung)
         guard !isRunning, !stopped, signOuts == signOutsBefore else { return nil }
         phase = .running("Kurse werden geladen …")
-        let task = Task { await self.perform(client: client, scope: scope) }
+        let task = Task { await self.perform(client: client, scope: scope, olderOnly: olderOnly) }
         current = task
         let end = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
@@ -525,7 +543,7 @@ final class StudIPSync: ObservableObject {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
-    private func perform(client: StudIPClient, scope: UniSyncScope) async -> RunEnd {
+    private func perform(client: StudIPClient, scope: UniSyncScope, olderOnly: Bool = false) async -> RunEnd {
         defer { finishedRuns += 1 }                       // nach der letzten Phase: Seiten laden neu
         await adoption?.value
         let started = clock.nowISO
@@ -549,27 +567,35 @@ final class StudIPSync: ObservableObject {
             knownCourses = selection.known
 
             let selectedNow = courses.filter { selectedCourses.contains($0.id) }
+            let today = clock.today
+            // Kurse frueherer Semester kommen als Kurs in die Datenbank, auch ohne Auswahl (inaktiv nach der
+            // Semesterregel, ohne Modul, Termine und Dateien): die Bibliothek zeigt sie je Semester zum Nachladen, die
+            // Community prueft daran "hat oder hatte das Modul". Abgewaehlte Kurse des aktuellen Semesters bleiben aus.
+            let olderUnselected = courses.filter { !selectedCourses.contains($0.id) && StudIPView.isOlder($0, today: today) }
             // Fach und Art wie upsert_course (classify), aktiv nach der Semesterregel (`Semesters`, app/semesters.py);
             // die Module legt ensure_modules beim naechsten Lesen an
-            let today = clock.today
-            let active = try await db.transaction { c -> Set<String> in
-                try StudIPLibrary.storeCourses(c, selectedNow, startedAt: started, today: today)
-                return Set(try c.rows("SELECT id FROM courses WHERE active=1").compactMap { $0["id"]?.string })
+            let (active, wantedOlder) = try await db.transaction { c -> (Set<String>, Set<String>) in
+                try StudIPLibrary.storeCourses(c, selectedNow + olderUnselected, startedAt: started, today: today)
+                return (Set(try c.rows("SELECT id FROM courses WHERE active=1").compactMap { $0["id"]?.string }),
+                        try OlderSemesters.pending(c, today: today))
             }
             // Dateien, Termine und Aufzeichnungen nur fuer aktuelle Kurse wie run_studip_sync (c0721da): alte Semester
             // bleiben als Kurs bekannt, kosten aber keinen Abruf und keinen Download; eigene Schalter (Einstellungen ->
-            // Module, active_custom) gelten
+            // Module, active_custom) gelten. Ausnahme: Dateien frueherer Semester auf Wunsch (`OlderSemesters`: Frage
+            // nach dem ersten Abgleich, "Dateien laden" in der Bibliothek), nur Dateiliste und Downloads.
             let chosen = selectedNow.filter { active.contains($0.id) }
-            let older = selectedNow.count - chosen.count
+            let olderFiles = courses.filter { wantedOlder.contains($0.id) && !active.contains($0.id) }
+            let older = selectedNow.filter { !active.contains($0.id) && !wantedOlder.contains($0.id) }.count
+            let fileCourses = (olderOnly ? [] : chosen) + olderFiles
             var remote: [StudIPFile] = []
             var wanted: [StudIPFile] = []
             var checked = Set<String>()
             var unreadable: [Error] = []
             /// Unterordner, die Stud.IP nicht zeigt (403/404), und Kurse mit solchen Ordnern (nicht vollstaendig gelesen)
             var skippedFolders = 0, partial = Set<String>()
-            for (i, c) in chosen.enumerated() {
+            for (i, c) in fileCourses.enumerated() {
                 try Task.checkCancellation()
-                phase = .running("Dateiliste \(i + 1) von \(chosen.count): \(c.title)")
+                phase = .running("Dateiliste \(i + 1) von \(fileCourses.count): \(c.title)")
                 let files: [StudIPFile]
                 do {
                     let listing = try await client.fileListing(courseID: c.id)
@@ -596,7 +622,7 @@ final class StudIPSync: ObservableObject {
                 }
             }
             // kein einziger Kurs lesbar (z. B. Stud.IP gestoert): Fehlerlauf statt "0 neue Dateien"
-            if let first = unreadable.first, unreadable.count == chosen.count { throw first }
+            if let first = unreadable.first, unreadable.count == fileCourses.count { throw first }
             // in Stud.IP nicht mehr vorhanden: aus dem einen Register (`files`), nur in vollstaendig gelesenen Kursen
             let prefix = (localFiles.stored(root) ?? "StudIP") + "/"
             let remoteIDs = Set(remote.map(\.id))
@@ -605,6 +631,8 @@ final class StudIPSync: ObservableObject {
             }
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
+            /// Kurse mit einer nicht geladenen Datei (ein frueheres Semester gilt dann nicht als fertig geladen)
+            var failedCourses = Set<String>()
             // nur Listen (kurzer Hintergrundlauf): die Dateien laedt der naechste volle Lauf
             let toLoad = scope == .full ? download : []
             // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit
@@ -625,20 +653,39 @@ final class StudIPSync: ObservableObject {
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
                     failed += 1
+                    failedCourses.insert(f.courseID)
                     continue
                 } catch let e as URLError where !Self.endsRun(e) {
                     // z. B. Zeitueberschreitung bei einer grossen Datei: nur diese Datei, die uebrigen kommen trotzdem
                     failed += 1
+                    failedCourses.insert(f.courseID)
                     continue
                 } catch is UniDownloads.Failure {
                     // leere Antwort statt der Datei oder alte Fassung mit Notizen nicht gesichert (S7): die alte Fassung
                     // bleibt, der naechste Abgleich laedt erneut
                     failed += 1
+                    failedCourses.insert(f.courseID)
                     continue
                 }
                 loaded += 1
             }
             await refreshEntries()                            // Dateien schon zeigen, waehrend der Stundenplan laedt
+            // Kurse frueherer Semester mit vollstaendiger Liste und allen Dateien: der naechste Abgleich fragt sie nicht
+            // erneut ab (alte Semester aendern sich kaum; "Dateien laden" holt sie wieder)
+            let olderDone = scope == .full
+                ? olderFiles.map(\.id).filter { checked.contains($0) && !partial.contains($0) && !failedCourses.contains($0) } : []
+            if !olderDone.isEmpty {
+                let now = clock.nowISO
+                try await db.transaction { try OlderSemesters.markLoaded($0, courseIDs: olderDone, now: now) }
+            }
+            if olderOnly {
+                // nur Dateien frueherer Semester: kein Stundenplan, keine Aufzeichnungen, kein Lernplan; Stand und
+                // Zusammenfassung des letzten vollen Abgleichs bleiben
+                olderFilesNote = Self.olderFilesNote(courses: olderFiles.count, loaded: loaded, failed: failed, unreadable: unreadable.count)
+                await log(database, started: started, ok: true, newFiles: loaded, message: StudIPLibrary.summary(newFiles: loaded))
+                phase = .idle
+                return .completed
+            }
             try Task.checkCancellation()
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
@@ -720,6 +767,15 @@ final class StudIPSync: ObservableObject {
         case 1: return "1 Kurs aus früheren Semestern nicht eingeplant (Einstellungen → Module)"
         default: return "\(count) Kurse aus früheren Semestern nicht eingeplant (Einstellungen → Module)"
         }
+    }
+
+    /// Meldung nach "Dateien laden" fuer fruehere Semester
+    static func olderFilesNote(courses: Int, loaded: Int, failed: Int, unreadable: Int) -> String {
+        if courses == 0 { return "Keine Dateien früherer Semester zu laden." }
+        var text = "\(loaded) \(loaded == 1 ? "Datei" : "Dateien") aus \(courses) \(courses == 1 ? "Kurs" : "Kursen") früherer Semester geladen"
+        if failed > 0 { text += ", \(failed) nicht geladen (später erneut)" }
+        if unreadable > 0 { text += ", \(unreadable) \(unreadable == 1 ? "Kurs" : "Kurse") nicht lesbar" }
+        return text
     }
 
     /// Hinweis auf neue Kurse aelterer Semester, die nicht von selbst dazukamen (`StudIPImport.selection`)

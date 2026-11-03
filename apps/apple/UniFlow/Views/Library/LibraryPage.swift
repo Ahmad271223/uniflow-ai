@@ -97,6 +97,11 @@ struct LibraryPage: View {
     @State private var lib: JSONValue?
     /// lokal: Kursliste fuer die Kursordner (`LibraryCourses`); mit eigenem Server leer
     @State private var courses: [JSONValue] = []
+    /// lokal: fruehere Semester (`GET /api/older-semesters`, `LibrarySemestersSection`); mit eigenem Server nil
+    @State private var older: JSONValue?
+    /// lokal: Dateien des offenen Kursordners, wenn er zu einem frueheren Semester gehoert (`/api/library` liefert nur
+    /// aktive Kurse); sonst nil
+    @State private var olderCourseFiles: [JSONValue]?
     @State private var error: String?
     @State private var query = ""
     @State private var searchTask: Task<Void, Never>?
@@ -121,6 +126,11 @@ struct LibraryPage: View {
         do {
             let value = try await api.value("/api/library")
             courses = api.isLocal ? ((try? await api.value("/api/courses"))?.items ?? []) : []
+            older = api.isLocal ? try? await api.value("/api/older-semesters") : nil
+            olderCourseFiles = nil
+            if api.isLocal, let cid = LibraryCourses.courseID(path ?? ""), Self.isOlderCourse(cid, older: older) {
+                olderCourseFiles = (try? await api.value("/api/older-semesters/courses/\(cid)/files"))?.items ?? []
+            }
             lib = value
             error = nil
         } catch {
@@ -130,6 +140,11 @@ struct LibraryPage: View {
     }
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
+
+    /// Gehoert der Kurs zu einem frueheren Semester (Ueberblick `GET /api/older-semesters`)?
+    static func isOlderCourse(_ courseID: String, older: JSONValue?) -> Bool {
+        (older?["semesters"]?.array ?? []).contains { s in (s["courses"]?.array ?? []).contains { $0.s("id") == courseID } }
+    }
 
     // MARK: Elemente wie in viewFiles
 
@@ -212,7 +227,8 @@ struct LibraryPage: View {
             } else if let cid = LibraryCourses.courseID(seg[0]) {
                 // lokal: Kursordner mit allen Dokumenten des Kurses
                 b.crumbs.append((courses.first { $0.s("id") == cid }?.s("title") ?? "Kurs", seg[0]))
-                let courseFiles = files.filter { $0.s("course_id") == cid }
+                // Kurs eines frueheren Semesters: seine geladenen Dateien (die nicht geladenen nennt der Kopf darueber)
+                let courseFiles = olderCourseFiles?.filter { $0.i("downloaded") == 1 } ?? files.filter { $0.s("course_id") == cid }
                 b.items = filter == "all" ? courseFiles.map(doc) : byFilter(courseFiles)
             } else if seg[0].hasPrefix("f") {
                 var parent = 0
@@ -302,11 +318,20 @@ struct LibraryPage: View {
                 Text("Dokumente im Papierkorb lassen sich wiederherstellen. \(studip.university.profile.filesSource)-Dokumente bleiben erhalten, eigene Dokumente können endgültig gelöscht werden.")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
             }
+            if inCourse, let olderCourseFiles, let cid = LibraryCourses.courseID(path) {
+                LibraryOlderCourseHeader(courseID: cid, files: olderCourseFiles, reload: load).padding(.bottom, 16)
+            }
             if b.root {
+                // Ordner des aktuellen Semesters zuerst (aufgeklappt), darunter die frueheren als eigene Ordner
+                if let older, !(older["semesters"]?.array ?? []).isEmpty {
+                    Text("Aktuelles Semester" + (older.s("current").map { " · \($0)" } ?? ""))
+                        .ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader).padding(.bottom, 10)
+                }
                 UFGridLayout(spacing: 19.2, minWidth: 290) {
                     ForEach(b.items.filter { $0.kind == .folder }) { it in LibraryFolderCard(it: it, open: { open(it) }, menu: { menu(it, lib: lib) }) }
                 }
                 .environment(\.ufFillsCell, true)
+                if let older { LibrarySemestersSection(overview: older, reload: load) }
                 let own = b.items.filter { $0.kind == .doc }
                 if !own.isEmpty {
                     LibraryQuickCard(title: "Eigene Dokumente", icon: "note") {
@@ -328,6 +353,8 @@ struct LibraryPage: View {
                         .environment(\.ufFillsCell, true)
                     }
                 }
+            } else if b.items.isEmpty, olderCourseFiles != nil {
+                EmptyView()                                                   // Kopf des frueheren Kurses sagt alles
             } else if b.items.isEmpty {
                 UFCard {
                     UFEmpty(icon: "folder", text: section == "trash" ? "Papierkorb ist leer." : !(q ?? "").isEmpty ? "Keine Treffer."

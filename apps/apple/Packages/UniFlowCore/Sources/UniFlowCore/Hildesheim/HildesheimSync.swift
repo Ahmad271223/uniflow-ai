@@ -177,6 +177,9 @@ public actor HildesheimSync {
         /// Learnweb-Kurse frueherer Semester (`courses.active` = 0 nach der Semesterregel oder vom Nutzer
         /// ausgeschaltet): gespeichert, aber ohne Dateiliste, Downloads und Ankuendigungen
         public var olderCourses: [String] = []
+        /// Kurse frueherer Semester, deren Dateien dieser Lauf vollstaendig geholt hat (`OlderSemesters`: Wahl "alle"
+        /// oder "Dateien laden" in der Bibliothek)
+        public var olderLoaded: [String] = []
         /// nur Listen (`downloads: false`, Hintergrund S8): Dateien, die der naechste volle Abgleich laedt
         public var waiting = 0
         /// Container oder Datenbank gehoeren nicht zur Uni Hildesheim bzw. diesem Konto: nichts abgeglichen
@@ -242,7 +245,9 @@ public actor HildesheimSync {
     /// semesterFilter: nur Kurse, deren Semester den Text enthaelt (wie HILDESHEIM_SEMESTER_FILTER). `downloads: false`
     /// (kurzer Hintergrundlauf, S8): Kurse und Dateilisten wie immer in die Datenbank, aber keine Downloads; die
     /// Dateien stehen in `waiting` und kommen mit dem naechsten vollen Abgleich.
-    public func run(semesterFilter: String? = nil, includeGrades: Bool = true, downloads: Bool = true) async -> Report {
+    /// `olderOnly` ("Dateien laden" in der Bibliothek): nur die angeforderten Kurse frueherer Semester
+    /// (`OlderSemesters.pending`), ohne aktuelle Kurse, Fristen, Ankuendigungen und LSF.
+    public func run(semesterFilter: String? = nil, includeGrades: Bool = true, downloads: Bool = true, olderOnly: Bool = false) async -> Report {
         var report = Report()
         if let problem = await refusal() {
             report.refused = problem
@@ -251,15 +256,15 @@ public actor HildesheimSync {
         }
         let started = clock.nowISO
         if let learnweb {
-            let courses = await syncLearnweb(learnweb, filter: semesterFilter, loadFiles: downloads, into: &report)
+            let courses = await syncLearnweb(learnweb, filter: semesterFilter, loadFiles: downloads, olderOnly: olderOnly, into: &report)
             // wie run_sync am PC: Fristen und Ankuendigungen nach den Dateien; ein Fehler dort stoppt den Lauf nicht,
             // nach abgelaufener Anmeldung oder Abbruch wird nichts mehr gefragt
-            if let courses, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains("Learnweb") {
+            if let courses, !olderOnly, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains("Learnweb") {
                 await syncDeadlines(learnweb, into: &report)
                 if !report.cancelled, !Task.isCancelled { await syncAnnouncements(learnweb, courses: courses, into: &report) }
             }
         }
-        if let lsf, !report.cancelled, !Task.isCancelled {
+        if let lsf, !olderOnly, !report.cancelled, !Task.isCancelled {
             await syncPlan(lsf, into: &report)
             if includeGrades { await syncGrades(lsf, into: &report) }
         }
@@ -291,12 +296,15 @@ public actor HildesheimSync {
 
     /// Liefert die aktiven Kurse (fuer die Ankuendigungen, wie `active_courses` in `hildesheim.sync_announcements`);
     /// nil, wenn die Kursliste oder kein Kurs lesbar war (Learnweb gestoert: dann auch keine weiteren Anfragen)
-    private func syncLearnweb(_ api: LearnwebAPI, filter: String?, loadFiles: Bool, into report: inout Report) async -> [Learnweb.Course]? {
+    private func syncLearnweb(_ api: LearnwebAPI, filter: String?, loadFiles: Bool, olderOnly: Bool,
+                              into report: inout Report) async -> [Learnweb.Course]? {
         let courses: [Learnweb.Course]
         /// Kurse, deren Dateien dieser Lauf abfragt: nur aktive wie `hildesheim.active_courses` am PC (a7827c6): Kurse
         /// mit `active = 0` (Semesterregel oder eigener Schalter in Einstellungen -> Module) fallen weg. Kurse
         /// frueherer Semester bleiben gespeichert, ihre Dateien auch
         let current: [Learnweb.Course]
+        /// Kurse frueherer Semester, deren Dateien gewuenscht sind (`OlderSemesters.pending`); sonst bleiben sie ohne
+        let older: [Learnweb.Course]
         let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
         defer { downloads.end() }
         do {
@@ -304,14 +312,17 @@ public actor HildesheimSync {
                 !c.hidden && (filter.map { f in f.isEmpty || c.semester.lowercased().contains(f.lowercased()) } ?? true)
             }
             let now = clock.nowISO
-            let off = try await db.transaction { conn -> Set<String> in
+            let today = clock.today
+            let (off, wanted) = try await db.transaction { conn -> (Set<String>, Set<String>) in
                 for c in courses {
                     try UniStore.upsertCourse(conn, UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semester), now: now)
                 }
-                return Set(try conn.rows("SELECT id FROM courses WHERE active=0").compactMap { $0["id"]?.string })
+                return (Set(try conn.rows("SELECT id FROM courses WHERE active=0").compactMap { $0["id"]?.string }),
+                        try OlderSemesters.pending(conn, today: today))
             }
-            current = courses.filter { !off.contains($0.id) }
-            report.olderCourses = courses.filter { off.contains($0.id) }.map(\.id)
+            current = olderOnly ? [] : courses.filter { !off.contains($0.id) }
+            older = courses.filter { off.contains($0.id) && wanted.contains($0.id) }
+            report.olderCourses = courses.filter { off.contains($0.id) && !wanted.contains($0.id) }.map(\.id)
             try downloads.begin()
         } catch {
             if Self.isCancellation(error) {
@@ -324,8 +335,10 @@ public actor HildesheimSync {
         }
         report.courses = courses.count
         let files = container.files()
+        let all = current + older
+        let olderIDs = Set(older.map(\.id))
         // Jeder Kurs einzeln: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
-        courseLoop: for (i, c) in current.enumerated() {
+        courseLoop: for (i, c) in all.enumerated() {
             /// Learnweb-Teil beenden: Abbruch oder abgelaufene Anmeldung; dieser und alle weiteren Kurse bleiben offen
             func stop(_ error: Error) -> Bool {
                 if Self.isCancellation(error) {
@@ -335,7 +348,7 @@ public actor HildesheimSync {
                 } else {
                     return false
                 }
-                report.notAttempted = current[i...].map(\.id)
+                report.notAttempted = all[i...].map(\.id)
                 return true
             }
             if Task.isCancelled, stop(CancellationError()) { break courseLoop }
@@ -351,6 +364,7 @@ public actor HildesheimSync {
                     report.waiting += todo.count
                     continue
                 }
+                var courseFailed = false
                 for row in todo {
                     guard let f = list.first(where: { $0.id == row.id }) else { continue }
                     do {
@@ -362,7 +376,14 @@ public actor HildesheimSync {
                     } catch {
                         if stop(error) { break courseLoop }
                         report.failedFiles.append(row.name)
+                        courseFailed = true
                     }
+                }
+                // Kurs eines frueheren Semesters vollstaendig: der naechste Abgleich fragt ihn nicht erneut ab
+                if olderIDs.contains(c.id), !courseFailed {
+                    let now = clock.nowISO
+                    try? await db.transaction { try OlderSemesters.markLoaded($0, courseIDs: [c.id], now: now) }
+                    report.olderLoaded.append(c.id)
                 }
             } catch {
                 if stop(error) { break courseLoop }
@@ -375,9 +396,9 @@ public actor HildesheimSync {
         }
         // kein einziger Kurs lesbar (Learnweb gestoert): Fehler statt "Learnweb: 16:30 ok" (wie beim Stud.IP-Abgleich);
         // einzelne unlesbare Kurse stehen in der Meldung (vorher nur in `failedCourses`, das niemand las)
-        let allUnreadable = !current.isEmpty && report.failedCourses.count == current.count
+        let allUnreadable = !all.isEmpty && report.failedCourses.count == all.count
         if report.notAttempted.isEmpty, !allUnreadable { report.completed.append(Report.Part.learnweb) }
-        report.messages.append(Self.learnwebMessage(courses: current.count, newFiles: report.newFiles.count,
+        report.messages.append(Self.learnwebMessage(courses: all.count, newFiles: report.newFiles.count,
                                                     failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count,
                                                     waiting: report.waiting, older: report.olderCourses.count))
         // Learnweb gestoert: keine weiteren Anfragen (Fristen, Ankuendigungen) in diesem Lauf; Ankuendigungen wie am
