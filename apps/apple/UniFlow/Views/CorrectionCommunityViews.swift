@@ -6,7 +6,8 @@ import UniFlowCore
 // von … bekommen" mit Öffnen / Ignorieren) auf der Community-Seite und in "Deine Communities", Eintraege unter der
 // Diskussion einer Loesung fuer alle Mitglieder und der Hinweis "N Korrekturhinweise" im eigenen Dokument. Die Loesung
 // des Erstellers bleibt immer unveraendert; Ansehen legt die Korrektur im Editor als eigene Ebene darueber
-// (`CorrectionLaunch.show`).
+// (`CorrectionLaunch.show`). Zustand je Geraet: offen (neu, zaehlt am Menuepunkt "Community", `CommunityBadge`),
+// gesehen (einmal geoeffnet: Gruppe "Gesehen (N)" unter den offenen, zaehlt nicht mehr), ignoriert (weg).
 
 // MARK: - Texte und Regeln (testbar)
 
@@ -39,6 +40,10 @@ enum CorrectionTexts {
 
     /// Reiter "Diskussion (N)": Kommentare und Korrekturen zusammen
     static func discussionTab(comments: Int, corrections: Int) -> String { "Diskussion (\(comments + corrections))" }
+
+    /// Zusammengeklappte Gruppe der schon geoeffneten Hinweise im Posteingang
+    static func seenGroup(_ n: Int) -> String { "Gesehen (\(n))" }
+    static let seen = "Gesehen"
 }
 
 /// Was die Leiste unter fremden Notizen zu "Korrektur vorschlagen" anbietet
@@ -70,22 +75,25 @@ enum CorrectionOffer: Equatable {
 
 // MARK: - Posteingang des Erstellers
 
-/// Offener Korrekturhinweis an eine eigene Loesung, mit Titel und Fingerabdruck der Loesung (soweit bekannt)
+/// Korrekturhinweis an eine eigene Loesung (offen oder gesehen), mit Titel und Fingerabdruck der Loesung (soweit bekannt)
 struct CorrectionInboxItem: Identifiable, Equatable {
-    let correction: CommunityCorrection
+    var correction: CommunityCorrection
     let title: String
     let fingerprint: String?
 
     var id: String { correction.id }
     var message: String { CorrectionTexts.inbox(correction, title: title) }
+    /// schon einmal geoeffnet: in der Gruppe "Gesehen", nicht mehr im Abzeichen
+    var isSeen: Bool { correction.status == .seen }
 }
 
 enum CorrectionInbox {
-    /// Offene Hinweise (an mich, nicht von mir, nicht ignoriert); Titel und Fingerabdruck aus den bekannten Loesungen
-    /// der Community bzw. den eigenen geteilten Loesungen. `only`: nur diese Ziel-Loesungen (z. B. die einer Community)
+    /// Hinweise des Posteingangs (an mich, nicht von mir, nicht ignoriert: offene und gesehene); Titel und Fingerabdruck
+    /// aus den bekannten Loesungen der Community bzw. den eigenen geteilten Loesungen. `only`: nur diese Ziel-Loesungen
+    /// (z. B. die einer Community)
     static func items(_ corrections: [CommunityCorrection], known: [CommunitySolutionSummary] = [], shared: [SolutionLibrary.SharedEntry] = [],
                       only: Set<String>? = nil) -> [CorrectionInboxItem] {
-        CommunityCorrections.openInbox(corrections).compactMap { c in
+        CommunityCorrections.inbox(corrections).compactMap { c in
             let sid = c.targetSolutionID.lowercased()
             if let only, !only.contains(sid) { return nil }
             let k = known.first { $0.solutionID.lowercased() == sid }
@@ -121,21 +129,37 @@ final class CorrectionInboxModel: ObservableObject {
         self.shared = shared
     }
 
+    /// Noch nicht geoeffnete Hinweise (oben, einzeln) und schon geoeffnete (Gruppe "Gesehen")
+    var openItems: [CorrectionInboxItem] { items.filter { !$0.isSeen } }
+    var seenItems: [CorrectionInboxItem] { items.filter(\.isSeen) }
+
     func load(known: [CommunitySolutionSummary] = [], only: Set<String>? = nil) async {
         guard service.supportsCorrections else { items = []; return }
         // ohne Netz bleibt der letzte Stand stehen (ein Posteingang ist kein Fehlerort)
         guard let all = try? await service.correctionsForMyOwnSolutions() else { return }
         items = CorrectionInbox.items(all, known: known, shared: shared(), only: only)
+        // die ganze Liste (nicht nur diese Community) ist auch die Zahl am Menuepunkt: keine zweite Abfrage
+        CommunityBadge.shared.apply(all)
     }
 
     /// Nur auf diesem Geraet; der Absender erfaehrt davon nichts
     func ignore(_ item: CorrectionInboxItem, reduceMotion: Bool = false) {
         service.setCorrectionStatus(.ignored, id: item.id)
+        CommunityBadge.shared.resolve(item.id)
         withAnimation(UFMotion.animation(reduce: reduceMotion)) { items.removeAll { $0.id == item.id } }
     }
 
-    /// Im eigenen Dokument ueber den eigenen Notizen zeigen; ohne die PDF ein kurzer Hinweis
-    func open(_ item: CorrectionInboxItem, router: UFRouter) async {
+    /// Geoeffnet: ab jetzt "gesehen" (Gruppe unten, nicht mehr im Abzeichen); nur auf diesem Geraet
+    func markSeen(_ item: CorrectionInboxItem, reduceMotion: Bool = false) {
+        guard let i = items.firstIndex(where: { $0.id == item.id }), !items[i].isSeen else { return }
+        service.setCorrectionStatus(.seen, id: item.id)
+        CommunityBadge.shared.resolve(item.id)
+        withAnimation(UFMotion.animation(reduce: reduceMotion)) { items[i].correction.status = .seen }
+    }
+
+    /// Im eigenen Dokument ueber den eigenen Notizen zeigen; ohne die PDF ein kurzer Hinweis (dann bleibt der Hinweis
+    /// offen: mit der PDF soll er wieder auffallen)
+    func open(_ item: CorrectionInboxItem, router: UFRouter, reduceMotion: Bool = false) async {
         busy = item.id
         defer { busy = nil }
         var print = item.fingerprint
@@ -145,31 +169,60 @@ final class CorrectionInboxModel: ObservableObject {
             return
         }
         notice = nil
+        markSeen(item, reduceMotion: reduceMotion)
         CorrectionLaunch.shared.show(item.correction, fileID: file, router: router)
     }
 }
 
-/// Ruhige Hinweise des Posteingangs, je offener Korrektur einer
+/// Ruhige Hinweise des Posteingangs: je offener Korrektur einer, darunter die schon geoeffneten zusammengeklappt
+/// als "Gesehen (N)" (aufklappbar; dort weiter Öffnen und Ignorieren)
 struct CorrectionInboxList: View {
     @ObservedObject var model: CorrectionInboxModel
     @EnvironmentObject private var router: UFRouter
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var showSeen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let notice = model.notice { CommunityNotice(text: notice, tone: .info) }
-            ForEach(model.items) { item in
-                CorrectionInboxBanner(item: item, busy: model.busy == item.id,
-                                      open: { Task { await model.open(item, router: router) } },
-                                      ignore: { model.ignore(item, reduceMotion: reduce) })
-                    .transition(.opacity)
+            ForEach(model.openItems) { item in banner(item).transition(.opacity) }
+            let seen = model.seenItems
+            if !seen.isEmpty {
+                Button {
+                    UFMotion.toggle { showSeen.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        UFIcon("check", size: 14)
+                        Text(CorrectionTexts.seenGroup(seen.count)).ufFont(13.12, 600)
+                        UFIcon("chevron-down", size: 14).rotationEffect(.degrees(showSeen ? 180 : 0))
+                            .animation(UFMotion.animation(reduce: reduce, fadeWhenReduced: false), value: showSeen)
+                    }
+                    .foregroundStyle(UF.text2)
+                    .padding(.horizontal, 12).frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(UFPressStyle())
+                .accessibilityLabel(CorrectionTexts.seenGroup(seen.count))
+                .accessibilityHint(showSeen ? "Zuklappen" : "Aufklappen")
+                .accessibilityAddTraits(showSeen ? [.isSelected] : [])
+                .accessibilityIdentifier("correction.inbox.seen")
+                if showSeen {
+                    ForEach(seen) { item in banner(item).ufReveal() }
+                }
             }
         }
         .accessibilityIdentifier("correction.inbox")
     }
+
+    private func banner(_ item: CorrectionInboxItem) -> some View {
+        CorrectionInboxBanner(item: item, busy: model.busy == item.id,
+                              open: { Task { await model.open(item, router: router, reduceMotion: reduce) } },
+                              ignore: { model.ignore(item, reduceMotion: reduce) })
+    }
 }
 
-/// Ein Hinweis: Kreis der Person, Satz, kurz was markiert ist, Öffnen und Ignorieren
+/// Ein Hinweis: Kreis der Person, Satz, kurz was markiert ist, Öffnen und Ignorieren. Gesehene ruhiger (graue Flaeche,
+/// Schild "Gesehen") statt in Pfirsich.
 struct CorrectionInboxBanner: View {
     let item: CorrectionInboxItem
     var busy = false
@@ -178,16 +231,20 @@ struct CorrectionInboxBanner: View {
 
     var body: some View {
         let c = item.correction
+        let seen = item.isSeen
         HStack(alignment: .top, spacing: 12) {
-            CommunityAvatar(name: c.displayName, size: 36)
+            CommunityAvatar(name: c.displayName, size: 36).opacity(seen ? 0.7 : 1)
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.message).ufFont(14.5, 600, lh: 1.4).foregroundStyle(UF.text)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(item.message).ufFont(14.5, 600, lh: 1.4).foregroundStyle(seen ? UF.text2 : UF.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if seen { UFBadge(CorrectionTexts.seen, tone: .neutral, icon: "check") }
+                }
                 Text(CorrectionTexts.summary(c) + (c.note.isEmpty ? "" : " · „\(c.note)“"))
-                    .ufFont(12.8).foregroundStyle(UF.text2).lineLimit(2)
+                    .ufFont(12.8).foregroundStyle(seen ? UF.muted : UF.text2).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 UFFlexWrap(gap: 8) {
-                    CorrectionPill(title: busy ? "Wird geöffnet …" : "Öffnen", icon: "file-text", tone: .primary,
+                    CorrectionPill(title: busy ? "Wird geöffnet …" : "Öffnen", icon: "file-text", tone: seen ? .plain : .primary,
                                    id: "correction.inbox.open.\(c.id)", action: open)
                         .disabled(busy)
                     CorrectionPill(title: "Ignorieren", icon: "x", tone: .plain, id: "correction.inbox.ignore.\(c.id)", action: ignore)
@@ -197,10 +254,12 @@ struct CorrectionInboxBanner: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous).fill(CommunityTint.wash(CommunityPalette.peach.solid, 0.10)))
-        .overlay(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous).strokeBorder(Color.mix(CommunityPalette.peach.solid, 0.3, UF.line), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous)
+            .fill(seen ? UF.surface2 : CommunityTint.wash(CommunityPalette.peach.solid, 0.10)))
+        .overlay(RoundedRectangle(cornerRadius: UF.rLg, style: .continuous)
+            .strokeBorder(seen ? UF.line : Color.mix(CommunityPalette.peach.solid, 0.3, UF.line), lineWidth: 1))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(item.message)
+        .accessibilityLabel(seen ? "\(item.message), gesehen" : item.message)
         .accessibilityIdentifier("correction.inbox.\(c.id)")
     }
 }
@@ -321,19 +380,21 @@ struct OwnCorrectionsHint: View {
                 Text(CorrectionTexts.editorHint(corrections.count)).font(.caption).bold()
                 Text("von \(names) · deine Notizen bleiben unverändert").font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
+            // kleine Knoepfe, 44 pt antippbar (`CorrectionBarHit`)
             if corrections.count == 1, let c = corrections.first {
-                Button("Öffnen") { open(c) }.buttonStyle(.borderedProminent).controlSize(.small)
+                Button { open(c) } label: { Text("Öffnen").ufHitArea(slop: CorrectionBarHit.slop) }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
                     .accessibilityIdentifier("ownCorrections.open")
             } else {
                 Menu {
                     ForEach(corrections) { c in
                         Button("\(c.displayName) · \(CorrectionTexts.summary(c))") { open(c) }
                     }
-                } label: { Text("Öffnen") }
+                } label: { Text("Öffnen").ufHitArea(slop: CorrectionBarHit.slop) }
                 .buttonStyle(.borderedProminent).controlSize(.small)
                 .accessibilityIdentifier("ownCorrections.open")
             }
-            Button { dismiss() } label: { Image(systemName: "xmark") }
+            Button { dismiss() } label: { Image(systemName: "xmark").ufHitArea(slop: CorrectionBarHit.slop) }
                 .buttonStyle(.bordered).controlSize(.small)
                 .accessibilityLabel("Hinweis ausblenden")
         }

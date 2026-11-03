@@ -13,6 +13,12 @@ struct CorrectionNotePlacement: Identifiable, Equatable {
     let y: Double
 }
 
+/// Kleine Knoepfe der Leisten im Dokument (`controlSize(.small)`, ~28 pt hoch): sichtbar unveraendert, antippbar auf
+/// 44 pt (`ufHitArea`); seitlich nur die halbe Luecke zum Nachbarn, damit sich die Flaechen nicht ueberlappen
+enum CorrectionBarHit {
+    static let slop = EdgeInsets(top: .infinity, leading: 5, bottom: .infinity, trailing: 5)
+}
+
 /// Leiste des Korrektur-Modus
 struct CorrectionBar: View {
     @ObservedObject var session: CorrectionSession
@@ -40,18 +46,21 @@ struct CorrectionBar: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: 240)
             .accessibilityIdentifier("correction.tool")
-            Button("Nachricht", action: editMessage)
+            Button(action: editMessage) { Text("Nachricht").ufHitArea(slop: CorrectionBarHit.slop) }
                 .buttonStyle(.bordered).controlSize(.small)
-            Button("Verwerfen", role: .destructive, action: discard)
+            Button(role: .destructive, action: discard) { Text("Verwerfen").ufHitArea(slop: CorrectionBarHit.slop) }
                 .buttonStyle(.bordered).controlSize(.small)
                 .accessibilityIdentifier("correction.discard")
-            Button { pause() } label: { Image(systemName: "pause.circle") }
-                .help("Später weitermachen (Entwurf bleibt gespeichert)")
-                .accessibilityLabel("Später weitermachen")
+            Button { pause() } label: {
+                Image(systemName: "pause.circle").frame(width: 44, height: 44).contentShape(Rectangle())   // nur Symbol: volle 44 pt
+            }
+            .buttonStyle(.plain).foregroundStyle(UF.accentText)
+            .help("Später weitermachen (Entwurf bleibt gespeichert)")
+            .accessibilityLabel("Später weitermachen")
             if session.sending {
                 ProgressView().controlSize(.small)
             } else {
-                Button("Korrektur senden") { Task { await send() } }
+                Button { Task { await send() } } label: { Text("Korrektur senden").ufHitArea(slop: CorrectionBarHit.slop) }
                     .buttonStyle(.borderedProminent).controlSize(.small)
                     .disabled(!session.canSend)
                     .accessibilityIdentifier("correction.send")
@@ -89,10 +98,12 @@ struct ShownCorrectionBanner: View {
                 Text(detail).font(.caption).foregroundStyle(.secondary)
             }
             if let ignore {
-                Button("Ignorieren", action: ignore).buttonStyle(.bordered).controlSize(.small)
+                Button(action: ignore) { Text("Ignorieren").ufHitArea(slop: CorrectionBarHit.slop) }
+                    .buttonStyle(.bordered).controlSize(.small)
                     .accessibilityIdentifier("shownCorrection.ignore")
             }
-            Button("Ausblenden", action: close).buttonStyle(.bordered).controlSize(.small)
+            Button(action: close) { Text("Ausblenden").ufHitArea(slop: CorrectionBarHit.slop) }
+                .buttonStyle(.bordered).controlSize(.small)
         }
         .padding(10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))

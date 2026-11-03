@@ -16,8 +16,9 @@ import Foundation
 /// Ziel-Loesung und die Korrektur-ID (kein Umhaengen). Beim Dienst stehen nur Ziel-Loesung, Ersteller der Loesung,
 /// Zeitpunkt und das Chiffrat.
 public struct CommunityCorrection: Equatable, Sendable, Identifiable {
-    /// Zustand beim Betrachter (nur lokal, je Geraet): offen oder ignoriert
-    public enum Status: String, Sendable, CaseIterable { case open, ignored }
+    /// Zustand beim Betrachter (nur lokal, je Geraet): offen (neu, zaehlt am Menuepunkt), gesehen (einmal geoeffnet:
+    /// bleibt im Posteingang unter "Gesehen", zaehlt nicht mehr) oder ignoriert (weg)
+    public enum Status: String, Sendable, CaseIterable { case open, seen, ignored }
 
     /// Randnotiz an einer Stelle der Seite
     public struct Note: Equatable, Sendable, Identifiable {
@@ -301,24 +302,35 @@ public enum CommunityCorrections {
 
     // MARK: Liste
 
-    /// Korrekturen fuer die Oberflaeche: ohne gesperrte Nutzer, neueste zuerst; `ignored` = lokal ignorierte IDs
+    /// Korrekturen fuer die Oberflaeche: ohne gesperrte Nutzer, neueste zuerst; `ignored` = lokal ignorierte IDs,
+    /// `seen` = lokal schon geoeffnete (ignoriert geht vor)
     public static func list(_ corrections: [CommunityCorrection], me: String, solutionOwner: String? = nil,
-                            blocked: Set<String> = [], ignored: Set<String> = []) -> [CommunityCorrection] {
+                            blocked: Set<String> = [], ignored: Set<String> = [], seen: Set<String> = []) -> [CommunityCorrection] {
         corrections
             .filter { !blocked.contains($0.author) }
             .map { c in
                 var c = c
                 c.isMine = !me.isEmpty && c.author == me
                 if let solutionOwner { c.isForMe = !me.isEmpty && solutionOwner == me }
-                c.status = ignored.contains(c.id) ? .ignored : .open
+                c.status = ignored.contains(c.id) ? .ignored : seen.contains(c.id) ? .seen : .open
                 return c
             }
             .sorted { ($0.createdAt, $0.order, $0.id) > ($1.createdAt, $1.order, $1.id) }
     }
 
-    /// Offene Hinweise des Posteingangs (an mich, nicht von mir, nicht ignoriert)
+    /// Posteingang (an mich, nicht von mir, nicht ignoriert): offene und gesehene Hinweise
+    public static func inbox(_ corrections: [CommunityCorrection]) -> [CommunityCorrection] {
+        corrections.filter { $0.isForMe && !$0.isMine && $0.status != .ignored }
+    }
+
+    /// Offene (noch nicht geoeffnete) Hinweise des Posteingangs: das ist die Zahl am Menuepunkt "Community"
     public static func openInbox(_ corrections: [CommunityCorrection]) -> [CommunityCorrection] {
-        corrections.filter { $0.isForMe && !$0.isMine && $0.status == .open }
+        inbox(corrections).filter { $0.status == .open }
+    }
+
+    /// Schon geoeffnete Hinweise des Posteingangs (Gruppe "Gesehen")
+    public static func seenInbox(_ corrections: [CommunityCorrection]) -> [CommunityCorrection] {
+        inbox(corrections).filter { $0.status == .seen }
     }
 }
 
@@ -379,31 +391,57 @@ public struct CommunityCorrectionDraftStore: Sendable {
     }
 }
 
-/// Zustand der Korrekturen beim Betrachter (Ignorieren gilt nur auf diesem Geraet, der Dienst kennt ihn nicht).
-/// Ohne `defaults` nur im Arbeitsspeicher.
+/// Zustand der Korrekturen beim Betrachter (Gesehen und Ignorieren gelten nur auf diesem Geraet, der Dienst kennt sie
+/// nicht): zwei Mengen von IDs, "ignoriert" und "gesehen". Ohne `defaults` nur im Arbeitsspeicher.
 public final class CommunityCorrectionStatusStore: @unchecked Sendable {
     public static let key = "uniflow.community.corrections.ignored"
+    public static let seenKey = "uniflow.community.corrections.seen"
     private let defaults: UserDefaults?
-    private var memory: Set<String> = []
+    private var memory: [String: Set<String>] = [:]
     private let lock = NSLock()
 
     public init(defaults: UserDefaults?) { self.defaults = defaults }
 
-    private func read() -> Set<String> { defaults.map { Set($0.stringArray(forKey: Self.key) ?? []) } ?? memory }
+    private func read(_ key: String) -> Set<String> {
+        defaults.map { Set($0.stringArray(forKey: key) ?? []) } ?? (memory[key] ?? [])
+    }
+
+    private func write(_ s: Set<String>, _ key: String) {
+        if let defaults { defaults.set(s.sorted(), forKey: key) } else { memory[key] = s }
+    }
 
     public func ignored() -> Set<String> {
         lock.lock()
         defer { lock.unlock() }
-        return read()
+        return read(Self.key)
     }
 
+    /// Schon geoeffnete Korrekturen (auch ignorierte koennen darin stehen; `status` gibt ignoriert den Vorrang)
+    public func seen() -> Set<String> {
+        lock.lock()
+        defer { lock.unlock() }
+        return read(Self.seenKey)
+    }
+
+    /// `.seen` merkt das Oeffnen (ignoriert bleibt davon unberuehrt: wer ignoriert hat, hat gesehen), `.ignored` legt
+    /// die Korrektur weg, `.open` macht beides rueckgaengig
     public func set(_ status: CommunityCorrection.Status, id: String) {
         lock.lock()
         defer { lock.unlock() }
-        var s = read()
-        if status == .ignored { s.insert(id.lowercased()) } else { s.remove(id.lowercased()) }
-        if let defaults { defaults.set(s.sorted(), forKey: Self.key) } else { memory = s }
+        let key = id.lowercased()
+        var ignored = read(Self.key), seen = read(Self.seenKey)
+        switch status {
+        case .ignored: ignored.insert(key)
+        case .seen: ignored.remove(key); seen.insert(key)
+        case .open: ignored.remove(key); seen.remove(key)
+        }
+        write(ignored, Self.key)
+        write(seen, Self.seenKey)
     }
 
-    public func status(id: String) -> CommunityCorrection.Status { ignored().contains(id.lowercased()) ? .ignored : .open }
+    public func status(id: String) -> CommunityCorrection.Status {
+        let key = id.lowercased()
+        if ignored().contains(key) { return .ignored }
+        return seen().contains(key) ? .seen : .open
+    }
 }

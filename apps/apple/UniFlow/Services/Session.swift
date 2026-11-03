@@ -135,6 +135,7 @@ final class Session: ObservableObject {
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
 ///                                     hint:<datum>:<nr> (Detail eines Hinweis-Chips),
 ///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
+///   -UFShowHitAreas YES               nur Debug: Trefferflaechen (`ufHitArea`, mindestens 44 pt) rot eingefaerbt
 ///   -UFCalendarSample YES             nur Debug: Demo-Inhalte und dazu erfundene Kalenderdaten dieser Woche
 ///                                     (gleichzeitige Termine mit langen Namen, Ankuendigungen mit Ausfall, Klausur und
 ///                                     Raumwechsel, eine Learnweb-Frist; `CalendarSample`) fuer Bildvergleiche

@@ -115,9 +115,21 @@ final class UFRouter: ObservableObject {
     @Published var examFocus = false
     /// state.route(): aktuelle Ansicht neu laden (nach Aenderungen in Dialogen und Drawern)
     @Published private(set) var reloadToken = 0
+    /// Zaehler an den Menuepunkten, Schluessel = `UFRoute.navKey` ("community": neue Korrekturhinweise an eigene
+    /// Loesungen, `CommunityBadge`; spaeter z. B. "exams": faellige Karteikarten). 0 oder fehlend = kein Abzeichen.
+    @Published private(set) var badges: [String: Int] = [:]
     private var history: [UFRoute] = []
 
     func reload() { reloadToken += 1 }
+
+    /// Abzeichen eines Menuepunkts setzen (Lieferanten rufen das vom Hauptthread; gleicher Wert loest nichts aus)
+    func setBadge(_ count: Int, for navKey: String) {
+        let n = max(0, count)
+        if (badges[navKey] ?? 0) == n { return }
+        if n == 0 { badges.removeValue(forKey: navKey) } else { badges[navKey] = n }
+    }
+
+    func badge(for navKey: String) -> Int { badges[navKey] ?? 0 }
 
     func go(_ r: UFRoute) {
         guard r != route else { return }
@@ -185,6 +197,22 @@ struct UFNavItem: Identifiable {
     /// Markiert: "Karteikarten" nur auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
     /// die Karteikarten-Seite weiter unter "Tests & Wiederholung")
     func isActive(_ route: UFRoute) -> Bool { id == "cards" ? route == .cards : route.navKey == id }
+
+    /// Was die Zahl am Menuepunkt bedeutet (VoiceOver): "2 neue Hinweise" an der Community, sonst "2 neu"
+    static func badgeText(key: String, count: Int) -> String {
+        switch key {
+        case "community": return count == 1 ? "1 neuer Hinweis" : "\(count) neue Hinweise"
+        default: return "\(count) neu"
+        }
+    }
+
+    /// VoiceOver-Name eines Menuepunkts mit Abzeichen: "Community, 2 neue Hinweise"; ohne Abzeichen nur der Titel
+    static func accessibilityLabel(title: String, key: String, badge: Int) -> String {
+        badge > 0 ? "\(title), \(badgeText(key: key, count: badge))" : title
+    }
+
+    /// Zahl im Abzeichen: ab 100 "99+"
+    static func badgeLabel(_ count: Int) -> String { count > 99 ? "99+" : "\(count)" }
 
     /// untere Leiste (mobileNav in app.js)
     static let mobile: [UFNavItem] = [
@@ -262,6 +290,7 @@ struct UFLogoMenu: View {
                 RoundedRectangle(cornerRadius: 8).fill(UF.logoGradient)
                     .frame(width: 28, height: 28)
                     .overlay(UFIcon("graduation", size: 16).foregroundStyle(.white))
+                    .ufHitArea()                                            // 28 pt sichtbar, 44 pt antippbar
             }
             .buttonStyle(.plain)
             .contextMenu {
@@ -316,7 +345,8 @@ struct UFSidebar: View {
                     // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
                     ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                               community: SolutionSharing.community.isConnected, ai: aiEnabled)) { item in
-                        navRow(item.title, icon: item.icon, active: item.isActive(router.route)) { router.go(item.route) }
+                        navRow(item.title, icon: item.icon, active: item.isActive(router.route), key: item.id,
+                               badge: router.badge(for: item.id)) { router.go(item.route) }
                     }
                 }
             }
@@ -336,11 +366,22 @@ struct UFSidebar: View {
         .overlay(alignment: .trailing) { Rectangle().fill(UF.line).frame(width: 1) }
     }
 
-    private func navRow(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
+    /// Eintrag der Leiste; `badge` > 0 zeigt die Zahl rechts (eingeklappt: klein am Symbol) und nennt sie VoiceOver
+    private func navRow(_ title: String, icon: String, active: Bool, key: String = "", badge: Int = 0,
+                        action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10.4) {
                 UFIcon(icon, size: 18)
-                if !collapsed { Text(title).font(.uf(14.5, 500)).lineLimit(1) }
+                    .overlay(alignment: .topTrailing) {
+                        if collapsed, badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -7) }
+                    }
+                if !collapsed {
+                    Text(title).font(.uf(14.5, 500)).lineLimit(1)
+                    if badge > 0 {
+                        Spacer(minLength: 6)
+                        UFNavBadge(count: badge)
+                    }
+                }
             }
             .foregroundStyle(active ? UF.accentText : UF.text2)
             .padding(.vertical, collapsed ? 9.6 : 8.8)
@@ -350,30 +391,72 @@ struct UFSidebar: View {
             .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .help(title)
+        .accessibilityLabel(UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
+        .accessibilityIdentifier("nav.\(key.isEmpty ? title : key)")
+        .help(UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
     }
 }
 
-/// .mobile-nav: fuenf gleich breite Eintraege, aktiv mit --accent-soft
+/// Zahl am Menuepunkt (Seitenleiste, Schublade, untere Leiste): Kapsel in der Akzentflaeche mit weisser Schrift,
+/// mindestens 18 pt (klein 16 pt am Symbol), Schrift folgt Dynamic Type. Erscheint und wechselt mit einer kurzen
+/// Ueberblendung; bei "Bewegung reduzieren" und unter XCTest ohne Bewegung (`UFMotion`). Nur Anzeige: den Namen fuer
+/// VoiceOver traegt der Menuepunkt (`UFNavItem.accessibilityLabel`).
+struct UFNavBadge: View {
+    let count: Int
+    var compact = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    var body: some View {
+        Text(UFNavItem.badgeLabel(count))
+            .ufFont(compact ? 9.6 : 11.2, 700, lh: 1)
+            .monospacedDigit()
+            .lineLimit(1)
+            .fixedSize()                                                 // "12" und "99+" nie zu "…" gekuerzt
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, compact ? 4 : 6)
+            .frame(minWidth: compact ? 16 : 18, minHeight: compact ? 16 : 18)
+            .background(Capsule().fill(UF.accentFill))
+            .overlay(Capsule().strokeBorder(UF.surface, lineWidth: compact ? 1.5 : 0))
+            .contentTransition(reduce ? .opacity : .numericText())
+            .animation(UFMotion.animation(reduce: reduce), value: count)
+            .transition(.opacity)
+            .accessibilityHidden(true)
+    }
+}
+
+/// .mobile-nav: fuenf gleich breite Eintraege, aktiv mit --accent-soft; Abzeichen klein am Symbol
 struct UFMobileNav: View {
     @EnvironmentObject private var router: UFRouter
+
+    /// Abzeichen von Bereichen, die nicht in der unteren Leiste stehen (z. B. Community): Summe am Menueknopf der
+    /// Kopfzeile, der die Schublade mit allen Bereichen oeffnet
+    static func drawerBadge(_ badges: [String: Int]) -> Int {
+        let shown = Set(UFNavItem.mobile.map(\.id))
+        return badges.filter { !shown.contains($0.key) }.values.reduce(0, +)
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(UFNavItem.mobile) { item in
                 let active = router.route.navKey == item.id
+                let badge = router.badge(for: item.id)
                 Button { router.go(item.route) } label: {
                     VStack(spacing: 1.6) {
                         UFIcon(item.icon, size: 20)
+                            .overlay(alignment: .topTrailing) {
+                                if badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -6) }
+                            }
                         Text(item.title).font(.uf(10.56))
                     }
                     .foregroundStyle(active ? UF.accentText : UF.muted)
                     .padding(4)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background(RoundedRectangle(cornerRadius: 6).fill(active ? UF.accentSoft : .clear))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
+                .accessibilityIdentifier("mobileNav.\(item.id)")
             }
         }
         .padding(.horizontal, 3.2)
@@ -445,7 +528,14 @@ struct UFHeader: View {
     var body: some View {
         HStack(spacing: 9.6) {
             if narrow {
+                // Schublade mit allen Bereichen; Abzeichen der Bereiche, die nicht in der unteren Leiste stehen
+                let drawerBadge = UFMobileNav.drawerBadge(router.badges)
                 UFButton(icon: "menu", kind: .ghost) { router.drawerOpen.toggle() }
+                    .overlay(alignment: .topTrailing) {
+                        if drawerBadge > 0 { UFNavBadge(count: drawerBadge, compact: true).offset(x: 2, y: -2) }
+                    }
+                    .accessibilityLabel(drawerBadge > 0 ? "Menü, \(UFNavItem.badgeText(key: "", count: drawerBadge))" : "Menü")
+                    .accessibilityIdentifier("header.menu")
             }
             // .search { flex: 1; max-width: 520px } und .spacer { flex: 1 } teilen sich den freien Platz
             searchField

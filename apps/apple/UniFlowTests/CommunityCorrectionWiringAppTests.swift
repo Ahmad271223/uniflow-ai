@@ -20,8 +20,11 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
         /// Posteingang (an eigene Loesungen)
         var inbox: [CommunityCorrection] = []
         var ignored: Set<String> = []
+        var seen: Set<String> = []
         var deleted: [String] = []
         var reported: [String] = []
+        /// Abfragen des Posteingangs (Sparsamkeit des Abzeichens)
+        var inboxQueries = 0
         var isConnected: Bool { true }
         var supportsDiscussion: Bool { true }
         var supportsCorrections: Bool { correctionsEnabled }
@@ -30,10 +33,16 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
         func comments(solutionID: String) async throws -> [CommunityComment] { [] }
         func corrections(solutionID: String) async throws -> [CommunityCorrection] { bySolution[solutionID] ?? [] }
         func correctionsForMyOwnSolutions() async throws -> [CommunityCorrection] {
-            inbox.map { c in var c = c; c.status = ignored.contains(c.id) ? .ignored : .open; return c }
+            inboxQueries += 1
+            return inbox.map { c in var c = c; c.status = ignored.contains(c.id) ? .ignored : seen.contains(c.id) ? .seen : .open; return c }
         }
+        /// wie `CommunityCorrectionStatusStore`: ignoriert geht vor gesehen, offen loescht beides
         func setCorrectionStatus(_ status: CommunityCorrection.Status, id: String) {
-            if status == .ignored { ignored.insert(id) } else { ignored.remove(id) }
+            switch status {
+            case .ignored: ignored.insert(id)
+            case .seen: ignored.remove(id); seen.insert(id)
+            case .open: ignored.remove(id); seen.remove(id)
+            }
         }
         func deleteCorrection(id: String) async throws {
             deleted.append(id)
@@ -218,11 +227,131 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
         XCTAssertTrue(tap("Öffnen", in: view))
         XCTAssertTrue(pump { CorrectionLaunch.shared.pending["file-own"] != nil })
         XCTAssertEqual(CorrectionLaunch.shared.take(fileID: "file-own"), .show(ben))
-        XCTAssertTrue(shows(view, message), "Öffnen laesst den Hinweis stehen, bis er ignoriert wird")
+        // Öffnen: gesehen, der Hinweis wandert in die zugeklappte Gruppe "Gesehen (1)"
+        XCTAssertEqual(service.seen, ["c1"])
+        XCTAssertTrue(pump { self.shows(view, "Gesehen (1)") }, "\(texts(view))")
+        XCTAssertFalse(shows(view, message), "zugeklappt: der Hinweis selbst ist nicht zu sehen")
+        XCTAssertTrue(tap("Gesehen (1)", in: view))
+        XCTAssertTrue(pump { self.shows(view, message) }, "aufgeklappt: \(texts(view))")
+        XCTAssertTrue(shows(view, "\(message), gesehen"), "VoiceOver nennt den Zustand")
 
         XCTAssertTrue(tap("Ignorieren", in: view))
         XCTAssertTrue(pump { !self.shows(view, message) }, "\(texts(view))")
+        XCTAssertFalse(shows(view, "Gesehen ("), "Gruppe leer: weg")
         XCTAssertEqual(service.ignored, ["c1"])
+    }
+
+    func testInboxSeenAndIgnoredTransitionsAndBadge() async throws {
+        let service = FakeCorrectionService()
+        service.inbox = [correction("c1", target: "s-own", by: "Ben", forMe: true), correction("c2", target: "s-own", by: "Mia", forMe: true),
+                         correction("c3", target: "s-own", by: "Ida", forMe: true)]
+        service.seen = ["c3"]
+        let router = UFRouter()
+        let badge = CommunityBadge.shared
+        badge.serviceOverride = service
+        badge.defaultsOverride = suite()
+        defer { badge.serviceOverride = nil; badge.defaultsOverride = nil }
+        badge.attach(router)
+        let model = CorrectionInboxModel(service: service, localFile: { _ in "file-own" }, shared: { [] })
+        let known = [solution("s-own", "Ich", fingerprint: "fO", own: true)]
+        await model.load(known: known)
+        XCTAssertEqual(model.openItems.map(\.id), ["c1", "c2"])
+        XCTAssertEqual(model.seenItems.map(\.id), ["c3"], "schon gesehene stehen in der Gruppe")
+        XCTAssertEqual(router.badge(for: "community"), 2, "die Liste des Posteingangs setzt das Abzeichen ohne zweite Abfrage")
+
+        // Öffnen mit PDF: gesehen, aus dem Abzeichen, weiter im Posteingang
+        await model.open(model.openItems[0], router: router)
+        _ = CorrectionLaunch.shared.take(fileID: "file-own")
+        XCTAssertEqual(service.seen, ["c1", "c3"])
+        XCTAssertEqual(model.openItems.map(\.id), ["c2"])
+        XCTAssertEqual(model.seenItems.map(\.id), ["c1", "c3"])
+        XCTAssertEqual(router.badge(for: "community"), 1)
+
+        // Ignorieren einer gesehenen: weg, Abzeichen unveraendert
+        model.ignore(model.seenItems[0])
+        XCTAssertEqual(service.ignored, ["c1"])
+        XCTAssertEqual(model.items.map(\.id), ["c2", "c3"])
+        XCTAssertEqual(router.badge(for: "community"), 1)
+        // Ignorieren einer offenen: weg und aus dem Abzeichen
+        model.ignore(model.openItems[0])
+        XCTAssertEqual(router.badge(for: "community"), 0)
+        XCTAssertEqual(router.badges, [:], "0 = kein Abzeichen")
+
+        // neu geladen: ignoriert bleibt weg, gesehen bleibt in der Gruppe
+        await model.load(known: known)
+        XCTAssertEqual(model.openItems, [])
+        XCTAssertEqual(model.seenItems.map(\.id), ["c3"])
+        let reloaded = try await service.correctionsForMyOwnSolutions()
+        XCTAssertEqual(CorrectionInbox.items(reloaded).map { $0.id + ":" + $0.correction.status.rawValue }, ["c3:seen"])
+    }
+
+    // MARK: Abzeichen am Menuepunkt "Community"
+
+    func testBadgeCountsOpenUnseenOnlyPersistsAndIsCheap() async throws {
+        let service = FakeCorrectionService()
+        service.inbox = [correction("a", target: "s", by: "Ben", forMe: true), correction("b", target: "s", by: "Mia", forMe: true),
+                         correction("c", target: "s", by: "Ida", forMe: true), correction("d", target: "s", by: "Ole", forMe: true)]
+        service.seen = ["b"]
+        service.ignored = ["c"]
+        let defaults = suite()
+        defaults.set(7, forKey: CommunityBadge.cacheKey)
+        let badge = CommunityBadge.shared
+        badge.serviceOverride = service
+        badge.defaultsOverride = defaults
+        var clock = Date(timeIntervalSince1970: 1_800_000_000)
+        badge.now = { clock }
+        defer { badge.serviceOverride = nil; badge.defaultsOverride = nil; badge.now = Date.init }
+
+        // Start: zuerst die gespeicherte Zahl, dann die vom Dienst (offen und ungesehen: a, d). `attach` fragt selbst
+        // einmal nach; ein zweites Auffrischen zur selben Zeit wartet auf diese Abfrage statt noch eine zu stellen
+        let router = UFRouter()
+        badge.attach(router)
+        XCTAssertEqual(router.badge(for: "community"), 7, "gespeicherte Zahl sofort beim Start")
+        await badge.refresh(force: true)
+        XCTAssertEqual(router.badge(for: "community"), 2, "nach der Abfrage: \(router.badges)")
+        XCTAssertEqual(service.inboxQueries, 1)
+        XCTAssertEqual(defaults.integer(forKey: CommunityBadge.cacheKey), 2, "neue Zahl gespeichert")
+
+        // sparsam: innerhalb einer Minute keine zweite Abfrage, danach eine
+        await badge.refresh()
+        XCTAssertEqual(service.inboxQueries, 1)
+        clock = clock.addingTimeInterval(CommunityBadge.minInterval + 1)
+        service.inbox.append(correction("e", target: "s", by: "Tom", forMe: true))
+        await badge.refresh()
+        XCTAssertEqual(service.inboxQueries, 2)
+        XCTAssertEqual(router.badge(for: "community"), 3)
+
+        // Gesehen und Ignoriert nehmen sofort aus der Zahl, Unbekanntes aendert nichts; ohne Dienst bleibt die Zahl
+        badge.resolve("A")
+        XCTAssertEqual(router.badge(for: "community"), 2)
+        badge.resolve("b")
+        XCTAssertEqual(router.badge(for: "community"), 2, "schon gesehen: nichts zu nehmen")
+        service.correctionsEnabled = false
+        await badge.refresh(force: true)
+        XCTAssertEqual(router.badge(for: "community"), 0, "Dienst ohne Korrekturen: kein Abzeichen")
+        XCTAssertEqual(service.inboxQueries, 2)
+
+        // Menuepunkt: VoiceOver "Community, 2 neue Hinweise" und "99+"
+        XCTAssertEqual(UFNavItem.accessibilityLabel(title: "Community", key: "community", badge: 2), "Community, 2 neue Hinweise")
+        XCTAssertEqual(UFNavItem.accessibilityLabel(title: "Community", key: "community", badge: 1), "Community, 1 neuer Hinweis")
+        XCTAssertEqual(UFNavItem.accessibilityLabel(title: "Community", key: "community", badge: 0), "Community")
+        XCTAssertEqual(UFNavItem.accessibilityLabel(title: "Tests & Wiederholung", key: "exams", badge: 3), "Tests & Wiederholung, 3 neu")
+        XCTAssertEqual(UFNavItem.badgeLabel(120), "99+")
+        XCTAssertEqual(UFMobileNav.drawerBadge(["community": 2, "dashboard": 1, "exams": 3]), 5, "nicht in der unteren Leiste: am Menueknopf")
+        router.setBadge(-3, for: "x")
+        XCTAssertEqual(router.badges, [:])
+    }
+
+    func testSidebarShowsBadgeAndNamesItForVoiceOver() throws {
+        let router = UFRouter()
+        router.setBadge(2, for: "community")
+        let shown = try show(UFSidebar(collapsed: false, allowCollapse: true).environmentObject(StudIPSync()), router: router)
+        XCTAssertTrue(pump { self.shows(shown, "Community, 2 neue Hinweise") }, "\(texts(shown))")
+        XCTAssertTrue(shows(shown, "Übersicht"))
+        XCTAssertFalse(texts(shown).contains { $0.hasPrefix("Übersicht,") }, "nur der Punkt mit Abzeichen")
+        router.setBadge(0, for: "community")
+        XCTAssertTrue(pump { !self.shows(shown, "Community, 2") }, "\(texts(shown))")
+        XCTAssertTrue(shows(shown, "Community"))
     }
 
     func testInboxOpenWithoutPDFExplains() async throws {
@@ -349,7 +478,8 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
         return true
     }
 
-    private func show<V: View>(_ view: V) throws -> UIView {
+    private func show<V: View>(_ view: V, router: UFRouter? = nil) throws -> UIView {
+        let router = router ?? UFRouter()
         let api = APIClient(base: URL(string: "http://erfunden.test/")!, transport: AuditRunde0910AppTests.FakeTransport())
         let suite = "uniflow-correction-wiring-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -359,7 +489,7 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
             .modifier(UFModalHost(overlay: overlay))
             .environmentObject(Session(local: api, defaults: defaults))
             .environmentObject(AccountStore(secrets: ContainerTestBed.MemorySecrets(), defaults: defaults, checker: ContainerTestBed.Authorized(), observeRevocation: false))
-            .environmentObject(UFRouter())
+            .environmentObject(router)
             .environmentObject(ShellState())
             .environmentObject(overlay)
             .environmentObject(UFToastCenter())

@@ -72,6 +72,7 @@ struct UniFlowApp: App {
                 .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                 .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
                 .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"
+                .environment(\.ufShowHitAreas, UFHit.debugOverlay)        // nur Debug: Trefferflaechen sichtbar
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)

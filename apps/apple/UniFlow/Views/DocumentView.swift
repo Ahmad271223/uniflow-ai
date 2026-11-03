@@ -507,7 +507,7 @@ struct DocumentView: View {
                             shownCorrectionTarget = nil
                         }
                     } else if !ownCorrections.isEmpty, !ownCorrectionsDismissed {
-                        OwnCorrectionsHint(corrections: ownCorrections, open: { c in shownCorrection = c },
+                        OwnCorrectionsHint(corrections: ownCorrections, open: { c in markCorrectionSeen(c); shownCorrection = c },
                                            dismiss: { ownCorrectionsDismissed = true })
                     }
                     versionBanner
@@ -1036,12 +1036,21 @@ struct DocumentView: View {
                                                                                 fingerprint: await store.originalFingerprint(),
                                                                                 service: SolutionSharing.community)
             }
+            markCorrectionSeen(c)
             shownCorrection = c
         case nil: break
         }
     }
 
-    /// Offene Korrekturhinweise zu meiner eigenen geteilten Loesung dieser PDF (Hinweis oben im Dokument)
+    /// Hinweis an mich geoeffnet: ab jetzt "gesehen" (Posteingang unter "Gesehen", nicht mehr im Abzeichen); nur lokal
+    private func markCorrectionSeen(_ c: CommunityCorrection) {
+        guard c.isForMe, !c.isMine, c.status == .open else { return }
+        SolutionSharing.community.setCorrectionStatus(.seen, id: c.id)
+        CommunityBadge.shared.resolve(c.id)
+        if let i = ownCorrections.firstIndex(where: { $0.id == c.id }) { ownCorrections[i].status = .seen }
+    }
+
+    /// Korrekturhinweise (offen und gesehen) zu meiner eigenen geteilten Loesung dieser PDF (Hinweis oben im Dokument)
     private func loadOwnCorrections() async {
         let service = SolutionSharing.community
         guard service.supportsCorrections, entitlements.allows(.communityRead), !readOnly, let fp = communityFingerprint else { return }
@@ -1054,6 +1063,7 @@ struct DocumentView: View {
     private func ignoreShownCorrection() {
         guard let c = shownCorrection else { return }
         SolutionSharing.community.setCorrectionStatus(.ignored, id: c.id)
+        CommunityBadge.shared.resolve(c.id)
         ownCorrections.removeAll { $0.id == c.id }
         shownCorrection = nil
         shownCorrectionTarget = nil

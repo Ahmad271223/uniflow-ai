@@ -126,6 +126,16 @@ final class CommunityCorrectionTests: XCTestCase {
         XCTAssertTrue(list.allSatisfy(\.isForMe))
         XCTAssertTrue(CommunityCorrections.openInbox(list).isEmpty)      // eigene und ignorierte nicht
         XCTAssertEqual(CommunityCorrections.openInbox(CommunityCorrections.list(all, me: "me", solutionOwner: "me")).map(\.id), ["c", "a"])
+
+        // gesehen: im Posteingang, aber nicht mehr offen (zaehlt nicht am Menuepunkt); ignoriert geht vor gesehen
+        let seen = CommunityCorrections.list(all, me: "me", solutionOwner: "me", ignored: ["c"], seen: ["a", "c"])
+        XCTAssertEqual(seen.map { $0.id + ":" + $0.status.rawValue }, ["b:open", "c:ignored", "a:seen"])
+        XCTAssertEqual(CommunityCorrections.inbox(seen).map(\.id), ["a"])
+        XCTAssertEqual(CommunityCorrections.openInbox(seen), [])
+        XCTAssertEqual(CommunityCorrections.seenInbox(seen).map(\.id), ["a"])
+        let fresh = CommunityCorrections.list(all, me: "me", solutionOwner: "me", seen: ["a"])
+        XCTAssertEqual(CommunityCorrections.inbox(fresh).map(\.id), ["c", "a"])
+        XCTAssertEqual(CommunityCorrections.openInbox(fresh).map(\.id), ["c"])
     }
 
     func testInboxMessage() {
@@ -162,5 +172,24 @@ final class CommunityCorrectionTests: XCTestCase {
         XCTAssertEqual(s.status(id: "a"), .ignored)
         s.set(.open, id: "a")
         XCTAssertEqual(s.ignored(), [])
+
+        // gesehen: eigene Menge, ueberlebt den Neustart (dieselben Defaults), ignoriert hat Vorrang, offen loescht beides
+        s.set(.seen, id: "B")
+        XCTAssertEqual(s.status(id: "b"), .seen)
+        XCTAssertEqual(CommunityCorrectionStatusStore(defaults: d).seen(), ["b"])
+        s.set(.ignored, id: "b")
+        XCTAssertEqual(s.status(id: "b"), .ignored)
+        XCTAssertEqual(s.seen(), ["b"], "Ignorieren vergisst das Gesehene nicht")
+        s.set(.seen, id: "b")
+        XCTAssertEqual(s.status(id: "b"), .seen, "erneut geoeffnet: nicht mehr ignoriert")
+        s.set(.open, id: "b")
+        XCTAssertEqual(s.status(id: "b"), .open)
+        XCTAssertEqual(s.seen(), [])
+        // ohne Defaults nur im Speicher
+        let m = CommunityCorrectionStatusStore(defaults: nil)
+        m.set(.seen, id: "x")
+        m.set(.ignored, id: "y")
+        XCTAssertEqual(m.seen(), ["x"])
+        XCTAssertEqual(m.ignored(), ["y"])
     }
 }

@@ -11,8 +11,8 @@ import UniFlowCore
 //
 // Die Loesung selbst wird nie geaendert. `solutionOwner` setzt der Absender; beim Lesen zaehlt nur, was zur Loesung
 // passt (der Posteingang prueft, dass die Loesung wirklich dem Leser gehoert). Gesperrte Nutzer (eigene Sperrliste und
-// `Ban`) erscheinen nicht; wer gesperrt ist (`Ban`), kann nichts schicken. Ignorieren gilt nur auf diesem Geraet
-// (`CommunityCorrectionStatusStore`). Zuruecknehmen kann nur der Verfasser (Datensatz loeschen).
+// `Ban`) erscheinen nicht; wer gesperrt ist (`Ban`), kann nichts schicken. Gesehen und Ignorieren gelten nur auf diesem
+// Geraet (`CommunityCorrectionStatusStore`). Zuruecknehmen kann nur der Verfasser (Datensatz loeschen).
 //
 // Melden: derselbe Datensatz `Report` wie fuer Kommentare (`commentID` = Korrektur-ID, `note` = "correction"), kein
 // neues Schema; ab `CommunityDiscussion.reportsToHide` Meldungen erscheint die Korrektur nicht mehr.
@@ -29,7 +29,7 @@ extension CloudKitCommunityService.Field {
 extension CloudKitCommunityService {
     var supportsCorrections: Bool { true }
 
-    /// Zustand der Korrekturen dieses Containers (Ignorieren); ohne aktiven Container ein Speicher je Dienst
+    /// Zustand der Korrekturen dieses Containers (Gesehen, Ignorieren); ohne aktiven Container ein Speicher je Dienst
     var correctionStatus: CommunityCorrectionStatusStore { CorrectionStatusRegistry.store(for: self) }
 
     func setCorrectionStatus(_ status: CommunityCorrection.Status, id: String) {
@@ -93,8 +93,9 @@ extension CloudKitCommunityService {
         let hidden = Self.hiddenByReports(await commentReporters(cloud, solutionID: sid, me: v.ownerRecordName))
         let list = records.filter { !hidden.contains($0.name.lowercased()) }
             .compactMap { Self.correction($0, solutionID: sid, me: v.ownerRecordName, secret: secret, cipher: SolutionSharing.cipher) }
+        let status = correctionStatus
         return CommunityCorrections.list(list, me: v.ownerRecordName, solutionOwner: listing.ownerRecordName, blocked: v.blockedOwners,
-                                         ignored: correctionStatus.ignored())
+                                         ignored: status.ignored(), seen: status.seen())
     }
 
     func correctionsForMyOwnSolutions() async throws -> [CommunityCorrection] {
@@ -107,7 +108,8 @@ extension CloudKitCommunityService {
             throw Self.serviceError(error)
         }
         let blocked = await viewer(cloud).blockedOwners
-        let ignored = correctionStatus.ignored()
+        let status = correctionStatus
+        let ignored = status.ignored(), seen = status.seen()
         var out: [CommunityCorrection] = []
         let bySolution = Dictionary(grouping: records) { $0[Field.solutionID]?.string ?? "" }
         for (sid, group) in bySolution where !sid.isEmpty {
@@ -118,7 +120,7 @@ extension CloudKitCommunityService {
             out += group.filter { !hidden.contains($0.name.lowercased()) }
                 .compactMap { Self.correction($0, solutionID: sid, me: user, secret: secret, cipher: SolutionSharing.cipher) }
         }
-        return CommunityCorrections.list(out, me: user, solutionOwner: user, blocked: blocked, ignored: ignored)
+        return CommunityCorrections.list(out, me: user, solutionOwner: user, blocked: blocked, ignored: ignored, seen: seen)
             .filter { !$0.isMine }
     }
 
