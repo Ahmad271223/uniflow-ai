@@ -274,12 +274,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private weak var presentationSentinel: WindowExitSentinel?
     /// Ersatzversuche, wenn die Palette ohne erkennbaren Grund nicht zurueckkam (hoechstens zwei)
     private var restoreFallbacks = 0
-    /// Liest den Schalter "Mit dem Finger zeichnen" der Palette bei jeder neuen Beruehrung neu
-    private lazy var touchDown: TouchDownObserver = {
-        let g = TouchDownObserver()
-        g.onTouchDown = { [weak self] in self?.syncDrawingPolicy() }
-        return g
-    }()
+    /// Die Palette traegt unsere Objektwerkzeuge (iPadOS 18 und die Eintraege sind wirklich da); sonst Objektleiste und
+    /// "Tinte/Objekte" wie unter iPadOS 17
+    private(set) lazy var toolsInPalette = EditorPalette.hasCustomItems(toolPicker)
     /// Objektmodus an/aus oder anderes Objektwerkzeug (auch ueber die Palette); fuer die Leisten in SwiftUI
     var onObjectModeChange: ((Bool, ObjectEditing.Tool) -> Void)?
     /// In der geteilten Ansicht teilen sich beide Dokumente einen Verlauf, damit "Rueckgaengig" der gemeinsamen
@@ -390,54 +387,28 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Auf dem Mac ("Designed for iPad") gibt es keinen Apple Pencil: dort schreiben Maus und Trackpad immer
     static var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac }
-    /// - Mac: jede Eingabe schreibt.
-    /// - Palette entscheidet (`followsPaletteDrawingPolicy`): `.default`, PencilKit folgt dem Schalter "Mit dem Finger
-    ///   zeichnen" der Palette (iPadOS-Einstellung `UIPencilInteraction.prefersPencilOnlyDrawing`).
-    /// - sonst der eigene Schalter `pencilOnly`.
+    /// Mac: jede Eingabe schreibt. iPad: Standard "Nur Stift" (`.pencilOnly`: der Finger blaettert), ueber den Schalter
+    /// in der Leiste "Finger zeichnet" (`.anyInput`: zwei Finger blaettern). Nie `.default`: damit entschiede die
+    /// iPadOS-Einstellung "Nur mit Apple Pencil zeichnen"; die war am Geraet aus, der Finger schrieb statt zu blaettern
+    /// (Geraetetest 03.11.2026).
     var drawingPolicy: PKCanvasViewDrawingPolicy {
         if Self.isMac { return .anyInput }
-        if followsPaletteDrawingPolicy { return .default }
         return pencilOnly ? .pencilOnly : .anyInput
     }
 
     var pencilOnly = true {
         didSet {
             guard pencilOnly != oldValue else { return }
-            applyDrawingPolicy()
+            allOverlays.forEach {
+                $0.canvas.drawingPolicy = drawingPolicy
+                $0.correctionView?.ink.drawingPolicy = drawingPolicy
+            }
+            configureScrollGestures()
         }
     }
 
-    /// Die Palette zeigt "Mit dem Finger zeichnen" und entscheidet (iPad); aus: eigener Schalter `pencilOnly` (Tests,
-    /// aeltere Aufrufer)
-    var followsPaletteDrawingPolicy = false {
-        didSet {
-            guard followsPaletteDrawingPolicy != oldValue else { return }
-            if followsPaletteDrawingPolicy { pdfView.addGestureRecognizer(touchDown) } else { pdfView.removeGestureRecognizer(touchDown) }
-            applyDrawingPolicy()
-        }
-    }
-
-    /// Schreibt der Finger gerade nicht (Finger scrollt mit einem Finger)?
-    var effectivePencilOnly: Bool {
-        if Self.isMac { return false }
-        return followsPaletteDrawingPolicy ? UIPencilInteraction.prefersPencilOnlyDrawing : pencilOnly
-    }
-    /// zuletzt fuer die Scroll-Gesten verwendeter Stand
-    private var appliedPencilOnly: Bool?
-
-    private func applyDrawingPolicy() {
-        allOverlays.forEach {
-            $0.canvas.drawingPolicy = drawingPolicy
-            $0.correctionView?.ink.drawingPolicy = drawingPolicy
-        }
-        configureScrollGestures()
-    }
-
-    /// Schalter der Palette neu lesen (bei Beruehrung, Palettenwechsel, Rueckkehr in die App)
-    func syncDrawingPolicy() {
-        guard followsPaletteDrawingPolicy, appliedPencilOnly != effectivePencilOnly else { return }
-        configureScrollGestures()
-    }
+    /// Schreibt der Finger gerade nicht (ein Finger blaettert)?
+    var effectivePencilOnly: Bool { !Self.isMac && pencilOnly }
 
     /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
     /// Wischen mit drei Fingern, Leiste der Palette) nichts zuruecknimmt und nichts schreibt.
@@ -533,11 +504,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] n in
                 MainActor.assumeIsolated {
                     guard let self, self.pickerWanted, !self.toolPicker.isVisible else { return }
-                    if n.name == UIApplication.didBecomeActiveNotification { self.syncDrawingPolicy() }
                     self.restorePickerSoon()
                 }
             })
         }
+        // Auswahl von PDF-Text aufgehoben: die Palette darf zurueck (waehrend der Auswahl haelt PDFKit den Fokus)
+        observers.append(center.addObserver(forName: .PDFViewSelectionChanged, object: pdfView, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.pickerWanted, !self.toolPicker.isVisible, !self.hasPDFSelection else { return }
+                self.restorePickerSoon()
+            }
+        })
         observers.append(center.addObserver(forName: EditorPalette.optionChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -560,7 +537,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         configureScrollGestures()
-        if ownsToolPicker { anchor.becomeFirstResponder() }
+        // Fokus zum Anker (Palette), ausser jemand markiert gerade PDF-Text oder tippt
+        if ownsToolPicker, !hasPDFSelection, !Self.isTypingField(UIResponder.uf_current) { anchor.becomeFirstResponder() }
+        logPaletteProbeIfRequested()
         if let p = initialPDFPage {
             initialPDFPage = nil
             // PDF-Seite -> Anzeige-Index (eingefuegte oder entfernte Seiten verschieben die Zaehlung)
@@ -675,9 +654,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let fingers = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
         scroll.panGestureRecognizer.allowedTouchTypes = fingers
         // Mac: die Maus schreibt, geblaettert wird mit Rad oder Trackpad (keine Ein-Finger-Geste)
-        let pencil = effectivePencilOnly
-        appliedPencilOnly = pencil
-        scroll.panGestureRecognizer.minimumNumberOfTouches = pencil ? 1 : 2
+        scroll.panGestureRecognizer.minimumNumberOfTouches = effectivePencilOnly ? 1 : 2
         scroll.pinchGestureRecognizer?.allowedTouchTypes = fingers
         scroll.delaysContentTouches = false
     }
@@ -720,6 +697,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         view.setNeedsLayout()                                   // neue Einpassung, falls sich die Formate geaendert haben
         if lastFit > 0 { pdfView.scaleFactor = keepScale }
         if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) { show(page: page) }
+        // PDFKit nimmt beim Setzen des Dokuments den Fokus; zurueck zum Anker, sonst bliebe die Palette weg
+        // ("Seite einfuegen schliesst die Leiste")
+        if ownsToolPicker, pickerWanted, paletteBlocker == .none, !anchor.isFirstResponder { anchor.becomeFirstResponder() }
         // aktuelle Seite melden (auch ohne Blaettern), nach der laufenden SwiftUI-Aktualisierung
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -1271,12 +1251,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Tastatur zu bzw. Textfeld fertig, Blatt hat den Bildschirm verlassen (`WindowExitSentinel`), Menuefenster
     /// verborgen, Fenster wieder vorn. Beim Markieren von PDF-Text bleibt der Fokus bei der PDF-Ansicht.
     func toolPickerVisibilityDidChange(_ toolPicker: PKToolPicker) {
-        if toolPicker.isVisible {
-            restoreFallbacks = 0
-            syncDrawingPolicy()
-        } else {
-            restorePickerSoon()
-        }
+        if toolPicker.isVisible { restoreFallbacks = 0 } else { restorePickerSoon() }
     }
 
     /// Im naechsten Durchlauf zurueckholen (UIKit hat den Fokuswechsel dann abgeschlossen)
@@ -1286,9 +1261,20 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     /// Was die Palette gerade verdeckt halten darf
+    /// PDF-Text ist ausgewaehlt (Finger gedrueckt halten): der Text geht an die KI-Hilfe, die Auswahl muss stehen bleiben
+    var hasPDFSelection: Bool { !(pdfView.currentSelection?.string ?? "").isEmpty }
+
+    /// PDFKit haelt mit einer eigenen Ansicht den Fokus (beim Auswaehlen von Text, kurz nach dem Neuaufbau der Seiten);
+    /// Zeichenflaechen und Textfelder unserer Objekte zaehlen nicht
+    var pdfKitHoldsFocus: Bool {
+        guard let v = UIResponder.uf_current as? UIView, v.isDescendant(of: pdfView) else { return false }
+        return !(v is PKCanvasView) && !(v is UITextView) && !(v is UITextField)
+    }
+
     var paletteBlocker: EditorPalette.Blocker {
         EditorPalette.blocker(wanted: ownsToolPicker && pickerWanted && pickerAllowed, inWindow: view.window != nil,
                               markup: objects.isActive && objects.tool == .markup,
+                              pdfSelection: hasPDFSelection,
                               textInput: Self.isTypingField(UIResponder.uf_current),
                               presenting: blockingPresentation() != nil,
                               otherWindow: Self.otherWindowOpen(over: view.window))
@@ -1302,12 +1288,22 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         switch paletteBlocker {
         case .notWanted, .markup:
             return true
-        case .textInput, .otherWindow:
-            return false                            // Tastatur/Textfeld bzw. Menuefenster melden sich beim Schliessen
+        case .pdfSelection, .textInput, .otherWindow:
+            // Auswahl aufgehoben, Tastatur/Textfeld fertig bzw. Menuefenster zu melden sich (Mitteilungen oben); den
+            // Fokus hier zu nehmen loeschte die PDF-Auswahl, und der markierte Text kam nicht mehr in der KI-Hilfe an
+            // (Geraetetest 03.11.2026)
+            return false
         case .presentation:
             watchPresentation()
             return false
         case .none:
+            // PDFKit hat den Fokus, aber (noch) keine Auswahl: ein langes Druecken auf Text ist vielleicht gerade im Gang;
+            // zweimal kurz warten (dann steht die Auswahl und `.pdfSelection` wartet weiter), sonst den Fokus holen
+            if pdfKitHoldsFocus, restoreFallbacks < 2 {
+                restoreFallbacks += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.restorePicker() }
+                return false
+            }
             anchor.becomeFirstResponder()
             if toolPicker.isVisible { restoreFallbacks = 0; return true }
             // ohne erkennbares Hindernis nicht zurueck (z. B. ein Element gibt den Fokus nicht ab): hoechstens zwei
@@ -1365,6 +1361,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 // MARK: - Werkzeuge der Palette (eigene Eintraege ab iPadOS 18, Farben, Objektmodus)
 
 extension PDFEditorController {
+    /// Startargument `-UFPaletteProbe 1` (Xcode: Schema → Run → Arguments): eine Sekunde nach dem Erscheinen den Stand
+    /// der Palette ins Protokoll (Konsole, jede Zeile mit "[Probe]"), damit sich am Geraet pruefen laesst, welche
+    /// Eintraege die sichtbare Palette traegt. Dasselbe liefert `EditorDeviceProbeTests` als Test.
+    func logPaletteProbeIfRequested() {
+        guard UserDefaults.standard.bool(forKey: "UFPaletteProbe") else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self else { return }
+            for line in EditorPalette.describe(self.toolPicker, editor: self) { NSLog("[Probe] %@", line) }
+        }
+    }
+
     /// Werkzeug fuer eine neue Canvas. Steht die Palette auf einem eigenen Eintrag, liefert PencilKit dafuer ein
     /// Werkzeug, das eine Canvas nicht kennt (gemessen: Absturz "Unknown PKTool type" beim Setzen); dann das letzte
     /// Werkzeug von Apple (die Canvas nimmt im Objektmodus ohnehin keine Eingabe an).
@@ -1436,7 +1443,7 @@ extension PDFEditorController {
     private func leavePaletteObjectTool() {
         let wasActive = paletteObjectToolActive
         setPaletteObjectToolActive(false)
-        guard ownsToolPicker, wasActive, EditorPalette.supportsCustomItems, objects.isActive else { return }
+        guard ownsToolPicker, wasActive, toolsInPalette, objects.isActive else { return }
         objects.setActive(false)
         onObjectModeChange?(false, objects.tool)
     }
@@ -1502,7 +1509,7 @@ extension PDFEditorController {
 
     /// "Fertig" in der Objektleiste: zurueck zum Schreiben
     func finishObjectTools() {
-        if EditorPalette.supportsCustomItems, paletteObjectToolActive { selectLastInkInPalette() } else { setObjectMode(false) }
+        if toolsInPalette, paletteObjectToolActive { selectLastInkInPalette() } else { setObjectMode(false) }
     }
 }
 

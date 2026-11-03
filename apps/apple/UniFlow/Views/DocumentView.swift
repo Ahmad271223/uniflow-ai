@@ -20,6 +20,9 @@ final class EditorBridge: ObservableObject {
     @Published var textSelected = false
     /// Markierter PDF-Text soll an die KI-Hilfe (Leiste "Text markieren": "KI erklärt", "KI löst")
     @Published var tutorRequest: TutorRequest?
+    /// Die Palette traegt unsere Objektwerkzeuge (iPadOS 18 mit eigenen Eintraegen); sonst Objektleiste und
+    /// "Tinte/Objekte" wie unter iPadOS 17
+    @Published var toolsInPalette = false
 
     struct TutorRequest: Equatable {
         let id = UUID()
@@ -676,7 +679,7 @@ struct DocumentView: View {
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
                 Label("Seiten", systemImage: "rectangle.stack")
             }
-            if !EditorPalette.drawingPolicyInPalette {
+            if PDFEditorController.isMac {
                 // iPad: Rueckgaengig und Wiederholen stehen in Apples Palette (derselbe Verlauf fuer Striche, Objekte und
                 // eingefuegte Seiten); im Objektmodus zusaetzlich in der Objektleiste. Am Mac bleiben sie hier.
                 Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
@@ -734,14 +737,14 @@ struct DocumentView: View {
         }
         UFToolbarGap()
         ToolbarItemGroup(placement: .topBarTrailing) {
-            if !EditorPalette.drawingPolicyInPalette {
-                // iPad: "Mit dem Finger zeichnen" steht in Apples Palette
-                Button { pencilOnly.toggle() } label: {
-                    Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
-                }
+            // unser Schalter (Standard: nur der Stift schreibt, der Finger blaettert); der Schalter der Palette ist aus,
+            // er schreibt nur die iPadOS-Einstellung (siehe `EditorPalette`)
+            Button { pencilOnly.toggle() } label: {
+                Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
             }
-            if !EditorPalette.supportsCustomItems {
-                // ab iPadOS 18 stehen Text, Haftnotiz, Formen, Auswahl und Text markieren in der Palette
+            .accessibilityIdentifier("doc.pencilOnly")
+            if !bridge.toolsInPalette {
+                // ab iPadOS 18 stehen Text, Haftnotiz, Formen, Auswahl und Text markieren in der Palette; sonst hier
                 Button { bridge.setObjectMode(!bridge.objectMode) } label: {
                     Label(bridge.objectMode ? "Objekte" : "Tinte", systemImage: bridge.objectMode ? "square.on.circle" : "pencil.tip")
                 }
@@ -1877,8 +1880,8 @@ struct ObjectToolbar: View {
                                               ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
 
     /// Ab iPadOS 18 waehlt man die Werkzeuge in Apples Palette; die Leiste zeigt dann nur, was zur Auswahl bzw. zum
-    /// markierten Text gehoert (unter iPadOS 17 weiter mit den Werkzeugen)
-    private var toolsInPalette: Bool { EditorPalette.supportsCustomItems }
+    /// markierten Text gehoert (unter iPadOS 17, oder ohne die Eintraege in der Palette, weiter mit den Werkzeugen)
+    private var toolsInPalette: Bool { bridge.toolsInPalette }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -2141,7 +2144,6 @@ struct PDFEditorView: UIViewControllerRepresentable {
                                      undoManager: undoManager, initialPDFPage: initialPDFPage)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
-        vc.followsPaletteDrawingPolicy = EditorPalette.drawingPolicyInPalette
         vc.foreignLayers = foreignLayers
         vc.ownNotesVisible = ownNotesVisible
         vc.canEdit = canEdit
@@ -2159,6 +2161,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
             if bridge?.objectMode != on { bridge?.objectMode = on }
             if bridge?.objectTool != t { bridge?.objectTool = t }
         }
+        if ownsToolPicker { bridge.toolsInPalette = vc.toolsInPalette }
         vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
         bridge.controller = vc
         return vc

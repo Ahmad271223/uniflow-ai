@@ -4,6 +4,34 @@ Stand: überarbeitet nach deiner Entscheidung vom 03.11.2026. **Apples Palette (
 Teile wandern in die Palette oder richten sich nach ihr. Die Schritte A bis D sind im Code umgesetzt und getestet, aber
 noch nicht committet. Ab Schritt E folgt der Plan.
 
+**Nachbesserung nach deinem Gerätetest (iPad A16, iPadOS 27, Pencil), 03.11.2026 abends:**
+1. *Der Finger schrieb, Blättern ging nicht.* Ursache: Die Zeichenflächen standen auf der Eingabeart `.default`, damit der
+   Schalter der Palette gilt. `.default` folgt der iPadOS-Einstellung „Nur mit Apple Pencil zeichnen“, die auf deinem
+   iPad aus ist. Behoben: Standard ist wieder **„Nur Stift“** (`.pencilOnly`: der Finger blättert, zoomt, markiert
+   Text), unser Schalter **„Nur Stift / Finger zeichnet“** steht wieder in der Leiste, und der Schalter der Palette ist
+   ausgeblendet (`showsDrawingPolicyControls = false`). An unseren Schalter anbinden lässt er sich nicht: Er schreibt nur
+   die iPadOS-Einstellung `UIPencilInteraction.prefersPencilOnlyDrawing`, die eine App ausschließlich lesen kann.
+2. *Keine Pfeile, Formen, kein Text in der Palette.* Im Simulator (iOS 27.2) tragen Palette und `toolItems` die fünf
+   Einträge; der gespeicherte Stand unter „uniflow.toolpicker“ entfernt sie nicht (geprüft). Sie standen aber **am Ende**
+   der Palette, hinter Lineal und Apples fünf weiteren Stiften (Bleistift, Wachs, Füller, Kalligrafie, Wasserfarbe). Die
+   Palette zeigt nur so viele Werkzeuge, wie in ihre Breite passen (im Simulator hochkant sechs, quer etwa zehn), der
+   Rest erst nach waagerechtem Wischen – im Bild der Palette aus dem Simulator (Abschnitt 5a) ist das zu sehen. Behoben:
+   Unsere Einträge stehen jetzt **direkt hinter Stift, Fineliner, Textmarker, Radierer und Lasso**, in der Reihenfolge
+   Form, Text, Haftnotiz, Auswählen, Text markieren; Lineal und die weiteren Stifte folgen dahinter (nichts fehlt). Quer
+   sind damit alle fünf ohne Wischen zu sehen, hochkant die Form, der Rest nach einem kurzen Wischen nach links. Die
+   Bilder der Einträge zeichnet der Editor wie Apples Stifte (heller Körper mit Kontur, Symbol oben; im Simulator
+   nachgesehen). Zur Sicherheit prüft der Editor
+   zur Laufzeit, ob die sichtbare Palette die Einträge wirklich trägt (`EditorPalette.hasCustomItems`); wenn nicht, kommen
+   die alte Objektleiste und „Tinte/Objekte“ zurück – niemand bleibt ohne Formen und Text. Dazu die Geräte-Probe
+   `EditorDeviceProbeTests.testPaletteOnTheDevice` (nur mit `UF_DEVICE_PROBE=1`, Abschnitt 5a) und das Startargument
+   `-UFPaletteProbe 1` in der App; beide schreiben den Stand der Palette ins Protokoll.
+3. *Markierter PDF-Text kam nicht mehr in der KI-Hilfe an.* Zwei Ursachen: Mit Punkt 1 erreichte der Finger die PDF gar
+   nicht (die Zeichenfläche nahm ihn als Strich). Und die neue Rückholung der Palette nahm der PDF-Ansicht den Fokus,
+   sobald die Palette weg war – dabei verschwand die Textauswahl. Behoben: Solange PDF-Text ausgewählt ist oder PDFKit
+   dafür den Fokus hält, wartet der Editor (`Blocker.pdfSelection`) und holt die Palette erst zurück, wenn die Auswahl
+   aufgehoben ist (`PDFViewSelectionChanged`). Test `testPDFSelectionSurvivesThePaletteAndReachesTheAI` deckt den Weg
+   über `EditorBridge.askTutor` („KI erklärt“, „KI löst“) und das Mitschicken beim Senden ab.
+
 Die erste Fassung schlug eine eigene Werkzeugleiste anstelle der Palette vor. Das ist verworfen. Die Mockups von damals
 zeigen noch diese eigene Leiste und gelten deshalb nur noch für die Seitenleiste mit „+“ (Mockup 3) und das Zoom-Fenster
 (Mockup 2). Sie liegen unter `/private/tmp/claude-501/-Users-ahmadfakih-uniflow-ai/b2e6b52d-8140-52f8-a368-082b8202c588/scratchpad/editor-plan/`.
@@ -28,10 +56,10 @@ Seit heute ist die Palette der Ort für alle Werkzeuge:
   - Unter iPadOS 17 bleibt die bisherige Objektleiste. Die App läuft weiter ab iOS 17.0, die neuen Teile hängen an
     `#available(iOS 18.0, *)`.
 - **B – Palette statt Doppelknöpfe:**
-  - „Mit dem Finger zeichnen“ kommt jetzt aus der Palette. Die Zeichenflächen nutzen dafür die Eingabeart `.default`,
-    unser Knopf „Nur Stift“ ist am iPad weg.
-  - Rückgängig und Wiederholen kommen aus der Palette, die Knöpfe oben sind am iPad weg. Die Objektleiste hat eigene Knöpfe
-    für Objektaktionen.
+  - Rückgängig und Wiederholen kommen aus der Palette, die Knöpfe oben sind am iPad weg (am Mac bleiben sie). Die
+    Objektleiste hat eigene Knöpfe für Objektaktionen.
+  - „Nur Stift / Finger zeichnet“ bleibt **unser** Schalter in der Leiste (siehe Nachbesserung 1); der Schalter der Palette
+    ist ausgeblendet.
   - Beide Wege nutzen **einen** Verlauf für Striche, Objekte und neu eingefügte Seiten. Eingefügte Seiten ließen sich vorher
     gar nicht rückgängig machen.
 - **C – Farben kommen aus der Palette:**
@@ -91,7 +119,7 @@ stammen aus den Suchergebnis-Auszügen dieser offiziellen Seiten. „Ungeprüft�
 | Werkzeugoptionen | Kontextmenü am Werkzeug | Palette für Tinte, Menü mit 6 Farben für Objekte | Popover der Palette auch für unsere Einträge: Farbe (Text, Form), Stärke (Form), Formart bzw. Antippen/Lasso |
 | Farben | je Werkzeug | Objekte immer Rot, Markieren immer Gelb | Objekte nehmen die Stiftfarbe (bis man im Eintrag eine eigene wählt), Markieren die Textmarkerfarbe |
 | Rückgängig | in der Leiste, Gesten mit zwei/drei Fingern | oben **und** in der Palette (doppelt), eingefügte Seiten nicht rückgängig | Palette (iPad) bzw. Leiste (Mac), dazu in der Objektleiste; ein Verlauf für Striche, Objekte und eingefügte Seiten |
-| Finger/Stift | Einstellung Handballenerkennung | eigener Knopf „Nur Stift“, Schalter der Palette ohne Wirkung | Schalter „Mit dem Finger zeichnen“ der Palette (iPadOS-Einstellung), Knopf weg |
+| Finger/Stift | Einstellung Handballenerkennung | eigener Knopf „Nur Stift“, Schalter der Palette ohne Wirkung | unser Knopf „Nur Stift / Finger zeichnet“ (Standard: nur Stift), Schalter der Palette ausgeblendet |
 | Palette sichtbar | Leiste immer da | verschwand bei Fokuswechsel, Rückholung mit 10 Versuchen über 10 s | Rückholung auf Ereignisse; Fokus bleibt beim Neuaufbau |
 | Pencil-Doppeltippen/Squeeze | eigene Schnellpalette | Systemverhalten der Palette | unverändert System; laut Apple erscheinen eigene Einträge auch in der Squeeze-Palette (am Gerät prüfen) |
 | Seitenleiste | Miniaturen, Gliederung | Miniaturen, Lesezeichen | unverändert (Schritt E) |
@@ -102,12 +130,13 @@ stammen aus den Suchergebnis-Auszügen dieser offiziellen Seiten. „Ungeprüft�
 
 | Datei | Änderung |
 |---|---|
-| `apps/apple/UniFlow/Editor/EditorPalette.swift` (neu) | Palette mit Apples Standardwerkzeugen plus unseren fünf Einträgen (`PKToolPickerCustomItem`, `#available(iOS 18.0, *)`). Optionen im Popover (`PaletteOptionsController`). Dazu `PaletteSync` (Stift-, Marker- und Objektfarben), `EditorPalette.Blocker` (was die Palette verdeckt halten darf), `WindowExitSentinel` (meldet, wenn ein Blatt weg ist) und `TouchDownObserver` (liest den Fingerschalter der Palette neu). |
-| `apps/apple/UniFlow/Editor/PDFEditorController.swift` | Reagiert auf die Auswahl in der Palette (`toolPickerSelectedToolItemDidChange`, unter 17 `toolPickerSelectedToolDidChange`). Objektmodus, Rücksprung zum Stift, wo Objekte nicht gehen (nur ansehen, Korrektur-Modus). Die andere Hälfte der geteilten Ansicht pausiert. Weitere Punkte: `canvasTool` gegen den Absturz, Eingabeart `.default` mit `followsPaletteDrawingPolicy`, Rückgängig für eingefügte, duplizierte und angehängte Seiten, Rückholung der Palette auf Ereignisse, Fokus an den Anker beim Verwerfen von Seiten. |
+| `apps/apple/UniFlow/Editor/EditorPalette.swift` (neu) | Palette mit Apples Werkzeugen plus unseren fünf Einträgen (`PKToolPickerCustomItem`, `#available(iOS 18.0, *)`), Reihenfolge: Apples Hauptwerkzeuge, unsere Einträge, Apples weitere Stifte. Schalter der Palette fürs Fingerzeichnen aus. Optionen im Popover (`PaletteOptionsController`). Dazu `PaletteSync` (Stift-, Marker- und Objektfarben), `EditorPalette.Blocker` (was die Palette verdeckt halten darf, inkl. PDF-Textauswahl), `WindowExitSentinel` (meldet, wenn ein Blatt weg ist), `hasCustomItems` (Laufzeitprüfung) und `describe` (Protokoll für die Probe). |
+| `apps/apple/UniFlow/Editor/PDFEditorController.swift` | Reagiert auf die Auswahl in der Palette (`toolPickerSelectedToolItemDidChange`, unter 17 `toolPickerSelectedToolDidChange`). Objektmodus, Rücksprung zum Stift, wo Objekte nicht gehen (nur ansehen, Korrektur-Modus). Die andere Hälfte der geteilten Ansicht pausiert. Weitere Punkte: `canvasTool` gegen den Absturz, Eingabeart `.pencilOnly`/`.anyInput` nach unserem Schalter (nie `.default`), Rückgängig für eingefügte, duplizierte und angehängte Seiten, Rückholung der Palette auf Ereignisse (auch: Auswahl von PDF-Text aufgehoben), Fokus an den Anker beim Verwerfen von Seiten, `toolsInPalette` zur Laufzeit, Startargument `-UFPaletteProbe 1`. |
 | `apps/apple/UniFlow/Editor/ObjectEditing.swift` | „Text markieren“ fragt die Farbe beim Editor ab. Werkzeugwechsel des Editors gehen an die Palette. |
 | `apps/apple/UniFlow/Editor/CorrectionMode.swift` | Korrektur-Zeichenfläche bekommt `canvasTool` |
-| `apps/apple/UniFlow/Views/DocumentView.swift` | Die Palette kommt aus `EditorPalette.makePicker()`. „Nur Stift“ und Rückgängig/Wiederholen gibt es oben nur noch am Mac, „Tinte/Objekte“ nur noch unter iPadOS 17. Die Objektleiste zeigt ab 18 nur Auswahl- und Markieraktionen, dazu Rückgängig/Wiederholen und „Fertig“ beim Markieren. Das zweite Schloss ist weg. |
-| `apps/apple/UniFlowTests/EditorPaletteTests.swift` (neu) | 16 Tests zu den Schritten A bis D (Abschnitt 6) |
+| `apps/apple/UniFlow/Views/DocumentView.swift` | Die Palette kommt aus `EditorPalette.makePicker()`. „Nur Stift / Finger zeichnet“ bleibt oben; Rückgängig/Wiederholen oben nur am Mac; „Tinte/Objekte“ nur, wenn die Palette unsere Einträge nicht trägt (`bridge.toolsInPalette`). Die Objektleiste zeigt mit Einträgen in der Palette nur Auswahl- und Markieraktionen, dazu Rückgängig/Wiederholen und „Fertig“ beim Markieren. Das zweite Schloss ist weg. |
+| `apps/apple/UniFlowTests/EditorPaletteTests.swift` (neu) | 18 Tests zu den Schritten A bis D und zur Nachbesserung (Abschnitt 6) |
+| `apps/apple/UniFlowTests/EditorDeviceProbeTests.swift` (neu) | Geräte-Probe der Palette, nur mit `UF_DEVICE_PROBE=1` |
 
 **Speicher (Hinweis aus der Robustheitsprüfung, kleinere höchste Render-Auflösung bei ≤ 4 GB):** nicht umgesetzt. In
 `docs/EDITOR-MESSUNG.md` (3.5) kostet Zoomen nur wenig zusätzlichen Speicher: 6-fach +0 bis +32 MB. Die Spitzen von 410
@@ -129,18 +158,30 @@ Hineinzoomen kosten und die gemessene Spitze nicht senken. Wenn, dann setzen wir
 
 Summe E bis I: etwa 7 bis 12 Tage. Empfohlene Reihenfolge: E, F, G, dann H oder I nach deiner Wahl.
 
+## 5a. Geräte-Probe der Palette (für den Koordinator)
+
+Test: `EditorDeviceProbeTests.testPaletteOnTheDevice`. Läuft nur mit der Umgebungsvariable `UF_DEVICE_PROBE=1` (Xcode:
+Schema → Test → Arguments → Environment; xcodebuild: `TEST_RUNNER_UF_DEVICE_PROBE=1`), sonst übersprungen. Er öffnet ein
+eigenes kleines Dokument (nichts aus deinen Containern), zeigt die Palette und schreibt jede Zeile mit „[Probe]“ ins
+Protokoll: `toolItems` mit Kennungen, gewähltes Werkzeug, `hasCustomItems`, `isVisible`, `showsDrawingPolicyControls`,
+die iPadOS-Einstellung „Nur mit Apple Pencil zeichnen“, Eingabeart und Werkzeug der Zeichenflächen, die Fenster der
+Szene. Dazu hängt er ein Bild der Palette an den Testbericht (Xcode: Bericht → Anhänge). In der App dasselbe über das
+Startargument `-UFPaletteProbe 1` (Schema → Run → Arguments): eine Sekunde nach dem Öffnen eines Dokuments steht der
+Stand in der Konsole.
+
 ## 5. Am echten iPad prüfen (Pencil, kein Simulator)
 
 1. **Palette (iPadOS 18 und neuer):**
-   - Die fünf Einträge erscheinen hinter Apples Werkzeugen, mit Namen und Symbol.
+   - Quer: hinter Stift, Fineliner, Textmarker, Radierer und Lasso stehen Form, Text, Haftnotiz, Auswählen und Text
+     markieren; dahinter Lineal und die weiteren Stifte (nach Wischen). Hochkant: Form sichtbar, der Rest nach einem
+     Wischen nach links.
    - Ein zweites Tippen auf „Form“ bzw. „Objekte auswählen“ öffnet das Popover mit der Art. Farbe und Stärke lassen sich
      dort ändern.
    - Text, Haftnotiz und Form legen Objekte an, der Stift schreibt währenddessen nicht.
    - Stift wählen: Der Pencil schreibt wieder.
-2. **„Mit dem Finger zeichnen“ in der Palette:** an und aus schalten.
-   - Ein Finger schreibt bzw. scrollt sofort richtig, auch ohne erneutes Öffnen.
-   - Zwei Finger scrollen beim Fingerzeichnen.
-   - Den Stand mit Einstellungen → Apple Pencil → „Nur mit Apple Pencil zeichnen“ vergleichen.
+2. **„Nur Stift / Finger zeichnet“ in der Leiste:** Standard „Nur Stift“: der Pencil schreibt, ein Finger blättert und
+   zoomt, langes Drücken wählt PDF-Text. „Finger zeichnet“: ein Finger schreibt, zwei Finger blättern. Die Palette zeigt
+   keinen eigenen Schalter mehr.
 3. **Rückgängig der Palette:**
    - nach Strich, nach Text/Form, nach „Leere Seite einfügen“ (die Seite geht in den Papierkorb, Wiederholen holt sie
      zurück)
@@ -166,8 +207,8 @@ Summe E bis I: etwa 7 bis 12 Tage. Empfohlene Reihenfolge: E, F, G, dann H oder 
 
 ## 6. Tests
 
-`EditorPaletteTests` mit 16 Tests:
-- Palette enthält Apples Werkzeuge unverändert und dahinter unsere fünf.
+`EditorPaletteTests` mit 18 Tests:
+- Palette enthält Apples Werkzeuge vollständig, unsere fünf direkt hinter Stift, Fineliner, Textmarker, Radierer und Lasso (Form an Platz 6, Text an Platz 7); der Speichername entfernt sie nicht.
 - Bilder sind mindestens 150 pt hoch und haben VoiceOver-Namen.
 - Zuordnung von Eintrag zu Werkzeug.
 - Objektmodus über die Palette an und aus.
@@ -176,7 +217,9 @@ Summe E bis I: etwa 7 bis 12 Tage. Empfohlene Reihenfolge: E, F, G, dann H oder 
 - Farben und Stärke aus der Palette, eigene Farbe bleibt.
 - Objektmodus von außen nimmt Stiftfarbe und -stärke.
 - Markierfarbe.
-- Eingabeart `.default`.
+- Standard „Nur Stift“ (`.pencilOnly`), nie `.default`; Schalter der Palette aus.
+- PDF-Textauswahl bleibt stehen, während die Palette weg ist; `askTutor` liefert den markierten Text (auch im Werkzeug „Text markieren“); nach dem Aufheben kommt die Palette zurück.
+- Hält PDFKit den Fokus ohne Auswahl (langes Drücken im Gang, Rest nach dem Neuaufbau), wartet der Editor zweimal kurz und holt den Fokus dann zurück.
 - Seite einfügen → Rückgängig/Wiederholen im gemeinsamen Verlauf.
 - Reihenfolge der Hindernisse.
 - Nur echte Eingabefelder warten auf die Tastatur: PDFKit-Textauswahl und nicht bearbeitbarer Text nicht, sonst käme die Palette nach Antippen der PDF nie zurück.

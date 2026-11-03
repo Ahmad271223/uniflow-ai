@@ -96,23 +96,37 @@ final class EditorPaletteTests: XCTestCase {
 
     // MARK: A) Unsere Werkzeuge in Apples Palette
 
-    /// Die Palette behaelt alle Werkzeuge von Apple (Stifte, Radierer, Lasso, Lineal) und zeigt dahinter unsere fuenf
-    /// Eintraege; "Mit dem Finger zeichnen" steht in der Palette (iPad).
+    /// Die Palette behaelt alle Werkzeuge von Apple und zeigt unsere fuenf Eintraege direkt hinter den Hauptwerkzeugen
+    /// (Stift, Fineliner, Textmarker, Radierer, Lasso, Lineal), vor den weiteren Stiften: ohne Wischen zu sehen. Der
+    /// Schalter der Palette fuer das Zeichnen mit dem Finger ist aus (unser Schalter in der Leiste gilt).
     func testPaletteKeepsAppleToolsAndAddsOurObjectTools() throws {
         let picker = EditorPalette.makePicker()
-        XCTAssertEqual(picker.showsDrawingPolicyControls, !PDFEditorController.isMac)
+        XCTAssertFalse(picker.showsDrawingPolicyControls, "kein zweiter Schalter neben 'Nur Stift'")
         guard #available(iOS 18.0, *) else {
             XCTAssertFalse(EditorPalette.supportsCustomItems, "iPadOS 17: bisherige Objektleiste")
+            XCTAssertFalse(EditorPalette.hasCustomItems(picker))
             return
         }
         XCTAssertTrue(EditorPalette.supportsCustomItems)
+        XCTAssertTrue(EditorPalette.hasCustomItems(picker))
+        XCTAssertFalse(EditorPalette.hasCustomItems(PKToolPicker()), "Palette ohne unsere Eintraege: Objektleiste")
         let ids = picker.toolItems.map(\.identifier)
         let apple = PKToolPicker().toolItems.map(\.identifier)
-        XCTAssertEqual(Array(ids.prefix(apple.count)), apple, "Apples Werkzeuge unveraendert und zuerst")
-        for id in ["com.apple.ink.pen", "com.apple.ink.marker", "com.apple.tool.eraser", "com.apple.tool.lasso", "com.apple.tool.ruler"] {
-            XCTAssertTrue(ids.contains(id), id)
-        }
-        XCTAssertEqual(Array(ids.suffix(EditorPalette.customIDs.count)), EditorPalette.customIDs)
+        XCTAssertEqual(Set(ids), Set(apple).union(EditorPalette.customIDs), "nichts von Apple fehlt, nichts doppelt")
+        XCTAssertEqual(ids.count, apple.count + EditorPalette.customIDs.count)
+        let first = apple.filter { EditorPalette.appleFirstIDs.contains($0) }
+        XCTAssertEqual(first.count, 5, "Stift, Fineliner, Textmarker, Radierer, Lasso in dieser Palette")
+        XCTAssertEqual(Array(ids.prefix(first.count)), first, "Apples Hauptwerkzeuge zuerst, in Apples Reihenfolge")
+        XCTAssertEqual(Array(ids.dropFirst(first.count).prefix(EditorPalette.customIDs.count)), EditorPalette.customIDs,
+                       "unsere Eintraege direkt dahinter (Form und Text zuerst): in den sieben sichtbaren Plaetzen hochkant")
+        XCTAssertEqual(Array(ids.suffix(apple.count - first.count)), apple.filter { !EditorPalette.appleFirstIDs.contains($0) },
+                       "Lineal und Apples weitere Stifte am Ende")
+        XCTAssertEqual(ids[5], EditorPalette.shapeID)
+        XCTAssertEqual(ids[6], EditorPalette.textID)
+        // Palette unter dem Speichernamen der App: die Eintraege bleiben (PencilKit stellt Auswahl und Farben wieder her)
+        picker.stateAutosaveName = "uniflow.toolpicker"
+        XCTAssertTrue(EditorPalette.hasCustomItems(picker))
+        XCTAssertFalse(EditorPalette.describe(picker, editor: nil).isEmpty)
         let custom = picker.toolItems.compactMap { $0 as? PKToolPickerCustomItem }
         XCTAssertEqual(custom.first { $0.identifier == EditorPalette.shapeID }?.allowsColorSelection, true, "Form mit Farbe")
         XCTAssertEqual(custom.first { $0.identifier == EditorPalette.textID }?.allowsColorSelection, true, "Text mit Farbe")
@@ -312,25 +326,29 @@ final class EditorPaletteTests: XCTestCase {
 
     // MARK: B) Schalter und Rueckgaengig der Palette
 
-    /// "Mit dem Finger zeichnen" der Palette entscheidet: Canvas mit `.default`, Scrollen nach der iPadOS-Einstellung;
-    /// ohne (Tests, Mac-Weg) bleibt der eigene Schalter
-    func testDrawingPolicyFollowsThePalette() async throws {
+    /// Standard am iPad: nur der Stift schreibt (`.pencilOnly`), ein Finger blaettert; "Finger zeichnet" schaltet auf
+    /// `.anyInput` mit Blaettern per zwei Fingern. Nie `.default` (Geraetetest 03.11.2026: der Finger schrieb, Blaettern
+    /// ging nicht), unabhaengig von der iPadOS-Einstellung.
+    func testPencilOnlyIsTheDefaultAndNeverFollowsTheSystemSetting() async throws {
         let store = try await openStore()
         let editor = PDFEditorController(store: store)
-        editor.pencilOnly = true
         editor.loadViewIfNeeded()
+        XCTAssertTrue(editor.pencilOnly, "Standard")
         let overlay = try XCTUnwrap(editor.overlayForTesting(at: 0))
-        XCTAssertEqual(overlay.canvas.drawingPolicy, PDFEditorController.isMac ? .anyInput : .pencilOnly)
-        editor.followsPaletteDrawingPolicy = true
-        guard !PDFEditorController.isMac else { return }
-        XCTAssertEqual(overlay.canvas.drawingPolicy, .default, "PencilKit folgt der Palette")
-        XCTAssertEqual(editor.effectivePencilOnly, UIPencilInteraction.prefersPencilOnlyDrawing)
-        XCTAssertTrue(editor.pdfView.gestureRecognizers?.contains { $0 is TouchDownObserver } == true,
-                      "liest den Schalter bei jeder Beruehrung neu")
-        XCTAssertEqual(try XCTUnwrap(editor.overlayForTesting(at: 1)).canvas.drawingPolicy, .default, "auch neue Seiten")
-        editor.followsPaletteDrawingPolicy = false
+        guard !PDFEditorController.isMac else {
+            XCTAssertEqual(overlay.canvas.drawingPolicy, .anyInput, "Mac: die Maus schreibt")
+            return
+        }
         XCTAssertEqual(overlay.canvas.drawingPolicy, .pencilOnly)
-        XCTAssertFalse(editor.pdfView.gestureRecognizers?.contains { $0 is TouchDownObserver } == true)
+        XCTAssertNotEqual(editor.drawingPolicy, .default)
+        XCTAssertTrue(editor.effectivePencilOnly)
+        XCTAssertFalse(editor.toolPicker.showsDrawingPolicyControls, "Schalter der Palette aus")
+        editor.pencilOnly = false
+        XCTAssertEqual(overlay.canvas.drawingPolicy, .anyInput)
+        XCTAssertFalse(editor.effectivePencilOnly)
+        XCTAssertEqual(try XCTUnwrap(editor.overlayForTesting(at: 1)).canvas.drawingPolicy, .anyInput, "auch neue Seiten")
+        editor.pencilOnly = true
+        XCTAssertEqual(overlay.canvas.drawingPolicy, .pencilOnly)
     }
 
     /// Seite einfuegen landet im selben Verlauf wie Striche und Objekte (den nutzt auch die Palette): Rueckgaengig legt
@@ -370,7 +388,8 @@ final class EditorPaletteTests: XCTestCase {
         typealias P = EditorPalette
         XCTAssertEqual(P.blocker(wanted: false, inWindow: true, markup: true, textInput: true, presenting: true, otherWindow: true), .notWanted)
         XCTAssertEqual(P.blocker(wanted: true, inWindow: false, markup: false, textInput: false, presenting: false, otherWindow: false), .notWanted)
-        XCTAssertEqual(P.blocker(wanted: true, inWindow: true, markup: true, textInput: true, presenting: true, otherWindow: true), .markup)
+        XCTAssertEqual(P.blocker(wanted: true, inWindow: true, markup: true, pdfSelection: true, textInput: true, presenting: true, otherWindow: true), .markup)
+        XCTAssertEqual(P.blocker(wanted: true, inWindow: true, markup: false, pdfSelection: true, textInput: true, presenting: true, otherWindow: true), .pdfSelection)
         XCTAssertEqual(P.blocker(wanted: true, inWindow: true, markup: false, textInput: true, presenting: true, otherWindow: true), .textInput)
         XCTAssertEqual(P.blocker(wanted: true, inWindow: true, markup: false, textInput: false, presenting: true, otherWindow: true), .presentation)
         XCTAssertEqual(P.blocker(wanted: true, inWindow: true, markup: false, textInput: false, presenting: false, otherWindow: true), .otherWindow)
@@ -438,6 +457,89 @@ final class EditorPaletteTests: XCTestCase {
         return window
     }
 
+    /// PDF-Text markieren (Finger gedrueckt halten) und an die KI-Hilfe geben: Solange die Auswahl steht, nimmt der
+    /// Editor der PDF-Ansicht nie den Fokus (sonst verschwand die Auswahl, und "KI erklärt" bzw. das Mitschicken beim
+    /// Senden kam ohne Text an, Geraetetest 03.11.2026). `askTutor` liefert den markierten Text; ohne Auswahl nichts.
+    func testPDFSelectionSurvivesThePaletteAndReachesTheAI() async throws {
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        _ = show(editor)
+        editor.showToolPicker(true)
+        try await wait("Editor im Fenster") { editor.view.window != nil }
+        try await Task.sleep(nanoseconds: 200_000_000)                 // Erscheinen abgeschlossen (viewDidAppear)
+        let bridge = EditorBridge()
+        bridge.controller = editor
+        bridge.askTutor("explain")
+        XCTAssertNil(bridge.tutorRequest, "ohne Auswahl keine Anfrage")
+
+        let doc = try XCTUnwrap(editor.pdfView.document)
+        let hit = try XCTUnwrap(doc.findString("Pythagoras", withOptions: []).first)
+        // wie am Geraet: PDFKit nimmt fuer die Auswahl mit einer eigenen Ansicht den Fokus, die Palette geht weg
+        let pdfFocus = FocusView()
+        editor.pdfView.addSubview(pdfFocus)
+        XCTAssertTrue(pdfFocus.becomeFirstResponder())
+        XCTAssertTrue(editor.pdfKitHoldsFocus)
+        editor.pdfView.currentSelection = hit
+        XCTAssertTrue(editor.hasPDFSelection)
+        XCTAssertEqual(editor.paletteBlocker, .pdfSelection)
+        XCTAssertFalse(editor.restorePicker(), "wartet, nimmt den Fokus nicht")
+        for _ in 0..<3 { editor.restorePickerSoon() }
+        try await Task.sleep(nanoseconds: 700_000_000)
+        // PDFKit (oder die nachgestellte Ansicht) behaelt den Fokus, der Anker holt ihn nicht
+        XCTAssertTrue(pdfFocus.isFirstResponder || editor.pdfKitHoldsFocus, "PDFKit behaelt den Fokus")
+        XCTAssertFalse(UIResponder.uf_current is ToolPickerAnchor)
+        XCTAssertEqual(editor.pdfView.currentSelection?.string, "Pythagoras", "Auswahl steht noch")
+
+        bridge.askTutor("explain")
+        let request = try XCTUnwrap(bridge.tutorRequest)
+        XCTAssertEqual(request.mode, "explain")
+        XCTAssertEqual(request.selection, "Pythagoras")
+        bridge.askTutor("steps")
+        XCTAssertEqual(bridge.tutorRequest?.mode, "steps")
+        XCTAssertEqual(bridge.tutorRequest?.selection, "Pythagoras")
+
+        // im Werkzeug "Text markieren" (Objektmodus) genauso, dazu die Leiste mit "KI erklärt"
+        var selected: [Bool] = []
+        editor.objects.onTextSelection = { selected.append($0) }
+        editor.setObjectMode(true)
+        editor.setObjectTool(.markup)
+        XCTAssertEqual(editor.paletteBlocker, .markup)
+        editor.pdfView.currentSelection = hit
+        NotificationCenter.default.post(name: .PDFViewSelectionChanged, object: editor.pdfView)
+        XCTAssertEqual(selected.last, true, "Leiste zeigt Markieren / KI erklärt")
+        bridge.askTutor("explain")
+        XCTAssertEqual(bridge.tutorRequest?.selection, "Pythagoras")
+        editor.finishObjectTools()
+        XCTAssertFalse(editor.objects.isActive)
+
+        // Auswahl aufgehoben, PDFKit gibt den Fokus frei: die Palette darf zurueck
+        editor.pdfView.clearSelection()
+        XCTAssertFalse(editor.hasPDFSelection)
+        pdfFocus.resignFirstResponder()
+        pdfFocus.removeFromSuperview()
+        editor.restorePickerSoon()
+        try await wait("Palette zurueck") { editor.paletteBlocker == .none && UIResponder.uf_current is ToolPickerAnchor }
+    }
+
+    /// Haelt PDFKit den Fokus ohne Auswahl (langes Druecken im Gang oder Rest nach dem Neuaufbau), wartet der Editor
+    /// zweimal kurz und holt den Fokus dann zurueck
+    func testFocusHeldByPDFKitWithoutSelectionComesBackAfterTwoShortWaits() async throws {
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        _ = show(editor)
+        editor.showToolPicker(true)
+        try await wait("Editor im Fenster") { editor.view.window != nil }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        let pdfFocus = FocusView()
+        editor.pdfView.addSubview(pdfFocus)
+        XCTAssertTrue(pdfFocus.becomeFirstResponder())
+        XCTAssertEqual(editor.paletteBlocker, .none)
+        XCTAssertFalse(editor.restorePicker(), "erst kurz warten")
+        XCTAssertTrue(pdfFocus.isFirstResponder)
+        try await wait("Fokus zurueck beim Anker", timeout: 4) { UIResponder.uf_current is ToolPickerAnchor }
+        pdfFocus.removeFromSuperview()
+    }
+
     /// Ein Blatt ueber dem Editor haelt die Palette zurueck; der Editor wartet auf das Verschwinden des Blatts (statt
     /// in Abstaenden nachzusehen) und holt den Fokus dann zurueck. Ein Blatt, in dem der Editor selbst steht, zaehlt nicht.
     func testPaletteComesBackWhenASheetLeaves() async throws {
@@ -480,8 +582,7 @@ final class EditorPaletteTests: XCTestCase {
         let before = editor.pageCount
         _ = await editor.insertBlankPage()
         XCTAssertEqual(editor.pageCount, before + 1, "neu aufgebaut")
-        try await Task.sleep(nanoseconds: 200_000_000)
-        XCTAssertTrue(UIResponder.uf_current is ToolPickerAnchor, "Fokus beim Anker: die Palette schliesst sich nicht")
+        XCTAssertTrue(UIResponder.uf_current is ToolPickerAnchor, "Fokus sofort wieder beim Anker: die Palette bleibt")
         XCTAssertEqual(editor.paletteBlocker, .none)
     }
 }
