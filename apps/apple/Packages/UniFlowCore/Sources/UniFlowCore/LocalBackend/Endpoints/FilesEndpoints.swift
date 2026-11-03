@@ -16,7 +16,7 @@ public enum FilesEndpoints: LocalEndpointModule {
         router.get("/api/courses") { _, ctx in
             let rows = try await ctx.database.rows("""
                 SELECT c.*, (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id) AS file_count,
-                       (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND f.status='neu') AS new_count
+                       (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND \(LocalLibrary.newFileSQL)) AS new_count
                 FROM courses c ORDER BY c.subject, c.kind, c.title
                 """)
             return .json(.array(rows.map(JSONValue.object)))

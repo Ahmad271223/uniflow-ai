@@ -751,9 +751,9 @@ def file_by_fingerprint(sha: str):
 @app.get("/api/courses")
 def courses():
     with db.cursor() as conn:
-        return db.rows(conn, """
+        return db.rows(conn, f"""
             SELECT c.*, (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id) AS file_count,
-                   (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND f.status='neu') AS new_count
+                   (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND {study.NEW_FILE_SQL}) AS new_count
             FROM courses c ORDER BY c.subject, c.kind, c.title""")
 
 
@@ -2695,7 +2695,7 @@ def api_library():
         study.ensure_modules(conn)
         folders = db.rows(conn, "SELECT * FROM folders ORDER BY name")
         files = db.rows(conn, """SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
-                                        f.download_url, f.content_sha256,
+                                        f.download_url, f.content_sha256, f.seen_by_user,
                                         c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                                         (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
                                  FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id

@@ -624,7 +624,27 @@ struct PlanDayTimeline: View {
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * HH }
         let unslotted = dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }
         let now = PlanData.cal.dateComponents([.hour, .minute], from: Date())
+        let free = dt.list("free")
         VStack(alignment: .leading, spacing: 0) {
+            // leerer Tag: ein Satz und der naechste Schritt statt einer unerklaerten schraffierten Flaeche; die Schraffur
+            // ist erklaert (Audit 03.11.2026)
+            if evs.isEmpty && dd.list("packages").isEmpty {
+                PlanEmptyDay(freeMinutes: free.reduce(0) { $0 + max(0, ($1.i("end") ?? 0) - ($1.i("start") ?? 0)) }) {
+                    actions.addPackage(date: dateStr)
+                }
+                .padding(.bottom, 9.6)
+            }
+            if !free.isEmpty {
+                HStack(spacing: 6) {
+                    UFHatch(color: UF.ok.opacity(0.35)).frame(width: 18, height: 12).clipShape(RoundedRectangle(cornerRadius: 3))
+                        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok.opacity(0.5), lineWidth: 1))
+                    Text("Schraffiert: freie Lernzeit (deine Lernfenster ohne Termine)")
+                }
+                .ufFont(12.16).foregroundStyle(UF.muted)
+                .padding(.bottom, 8)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("plan.day.hatchLegend")
+            }
             GeometryReader { g in
                 let W = g.size.width
                 ZStack(alignment: .topLeading) {
@@ -774,6 +794,35 @@ struct PlanDayTimeline: View {
     }
 }
 
+/// Hinweis an einem Tag ohne Lernpakete und Uni-Termine (Tagesansicht des Lernkalenders)
+struct PlanEmptyDay: View {
+    /// freie Lernzeit des Tages in Minuten (Lernfenster ohne Termine)
+    let freeMinutes: Int
+    let add: () -> Void
+
+    static func text(freeMinutes: Int) -> String {
+        freeMinutes > 0
+            ? "Nichts geplant. Du hast \(UFFmt.min(freeMinutes)) freie Lernzeit – leg ein Lernpaket hinein oder lass „Plan erstellen“ die Woche füllen."
+            : "Nichts geplant und keine freie Lernzeit (kein Lerntag oder ganz belegt). Lernzeiten stellst du unter „Verfügbarkeit“ ein."
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            UFIcon("calendar", size: 18).foregroundStyle(UF.muted)
+            Text(Self.text(freeMinutes: freeMinutes)).ufFont(13.12).foregroundStyle(UF.text2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if freeMinutes > 0 {
+                UFButton("Lernpaket", icon: "plus", size: .small, action: add).fixedSize()
+            }
+        }
+        .padding(.vertical, 11.2 + ufB).padding(.horizontal, 14.4 + ufB)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("plan.day.empty")
+    }
+}
+
 // MARK: - Seitenspalte
 
 struct PlanSide: View {
@@ -812,16 +861,28 @@ struct PlanSide: View {
 
     // Woche
 
+    /// Fortschritt der Woche des gezeigten Datums (`UFTaskProgress`: dieselbe Zaehlung wie auf der Uebersicht; vorher
+    /// der gezeigte Zeitraum: in der Liste nur der Tag, im Monat sechs Wochen). Ohne Aufgaben ein Satz statt "0 / 0".
     private var progress: some View {
-        let days = d.days
-        let done = days.reduce(0) { $0 + ($1.i("tasks_done") ?? 0) }, total = days.reduce(0) { $0 + ($1.i("tasks_total") ?? 0) }
-        let late = days.flatMap { $0.list("packages").flatMap { $0.list("tasks").filter { $0.s("status") == "nachholen" } } }.count
-        let planned = max(0, total - done - late)
-        let uni = days.reduce(0) { $0 + $1.list("events").filter { $0.s("status") == "teilnahme" }.count }
-        var segs = [UFDonut.Segment(label: "Erledigt", n: done, color: UF.ok), .init(label: "Geplant", n: planned, color: UF.info),
-                    .init(label: "Nachholen", n: late, color: UF.bad)]
+        let week = d.weekDays(of: d.date)
+        let p = UFTaskProgress.of(days: week)
+        let uni = week.reduce(0) { $0 + $1.list("events").filter { $0.s("status") == "teilnahme" }.count }
+        var segs = [UFDonut.Segment(label: "Erledigt", n: p.done, color: UF.ok), .init(label: "Geplant", n: p.open, color: UF.info),
+                    .init(label: "Nachholen", n: p.late, color: UF.bad)]
+        if p.skipped > 0 { segs.append(.init(label: "Übersprungen", n: p.skipped, color: UF.muted)) }
         if uni > 0 { segs.append(.init(label: "Uni-Termine", n: uni, color: UF.lineStrong)) }
-        return PlanSideCard("Mein Fortschritt") { UFDonut(segments: segs, big: "\(done) / \(total)", small: "Aufgaben") }
+        return PlanSideCard("Mein Fortschritt", trailing: {
+            Text(UFTaskProgress.weekLabel(monday: d.date)).ufFont(12.8).foregroundStyle(UF.muted)
+        }) {
+            if let big = p.text {
+                UFDonut(segments: segs, big: big, small: "Aufgaben")
+            } else {
+                Text(uni > 0 ? "Keine Lernaufgaben geplant, \(uni) Uni-Termin\(uni == 1 ? "" : "e")." : "Keine Lernaufgaben geplant.")
+                    .ufFont(13.12).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("plan.progress.empty")
+            }
+        }
     }
 
     private var notDone: some View {

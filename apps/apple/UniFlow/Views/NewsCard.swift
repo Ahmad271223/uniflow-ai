@@ -108,8 +108,8 @@ struct NewsRow: View {
                         .background(Circle().fill(st.tone.bg))
                     VStack(alignment: .leading, spacing: 2.4) {
                         HStack(spacing: 6.4) {
-                            Text(UFFmt.shortName(item.s("who"))).ufFont(12.8, 600).foregroundStyle(UF.text2)
-                                .fixedSize(horizontal: false, vertical: true)
+                            // Kursname nie mitten im Wort umbrochen (schmale Spalte der Uebersicht: "Erziehungswissensc/haft")
+                            UFWordWrapText(UFFmt.shortName(item.s("who")), size: 12.8, weight: 600, minScale: 0.9).foregroundStyle(UF.text2)
                             Spacer(minLength: 4)
                             Text(Self.time(item.s("at"), today: today)).ufFont(12.8).foregroundStyle(UF.muted).fixedSize()
                             // zeigt, dass die Zeile aufklappt (vorher kein Hinweis darauf)
@@ -140,9 +140,9 @@ struct NewsRow: View {
             if open {
                 VStack(alignment: .leading, spacing: 6.4) {
                     if let text = item.s("text"), !text.isEmpty {
-                        // ganzer Text (Nachricht, Ankuendigung), auswaehlbar, ruhige Zeilenlaenge
-                        Text(text).ufFont(13.6, lh: 1.6).foregroundStyle(UF.text2).textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
+                        // ganzer Text (Nachricht, Ankuendigung), auswaehlbar, ruhige Zeilenlaenge; sehr lange Texte in
+                        // Abschnitten (UFLongText)
+                        UFLongText(text: text, size: 13.6, lh: 1.6, color: UF.text2)
                             .frame(maxWidth: 640, alignment: .leading)
                     }
                     if let url = UFDayExtras.safeURL(item.s("url")) {

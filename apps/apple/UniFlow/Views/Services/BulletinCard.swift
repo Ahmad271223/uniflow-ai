@@ -143,7 +143,7 @@ struct BulletinReader: View {
                     Text([d.s("topic"), d.s("posted_at").map { UFFmt.date($0) }].compactMap { $0 }.joined(separator: " · "))
                         .ufFont(12.16).foregroundStyle(UF.muted)
                     ScrollView {
-                        Text(d.s("text") ?? "").ufFont(14.5, lh: 1.65).foregroundStyle(UF.text).textSelection(.enabled)
+                        UFLongText(text: d.s("text") ?? "")                 // sehr lange Texte in Abschnitten
                             .frame(maxWidth: 640, alignment: .leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }

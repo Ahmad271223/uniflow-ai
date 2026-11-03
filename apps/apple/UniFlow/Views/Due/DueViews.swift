@@ -118,19 +118,23 @@ struct DueListCard: View {
         return HStack(alignment: .top, spacing: 9.6) {
             UFDot(color: x.s("color").map { Color(hex: $0) } ?? UF.bad).padding(.top, 6)
             Button { DueOpen.open(x, router: router, openURL: openURL) } label: {
+                // ganze Titel, Unterzeile und Herkunft, umbrechend statt mit "…" (Regel des Inhabers: nie "…"; in der
+                // schmalen Spalte der Uebersicht stand "Anmeldesch…", "erkannt in Inf…" - 03.11.2026)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
                         Text(x.s("title") ?? "Termin").ufFont(14.5, 550).foregroundStyle(hidden ? UF.muted : UF.text)
-                            .strikethrough(hidden).lineLimit(1)
+                            .strikethrough(hidden)
+                            .fixedSize(horizontal: false, vertical: true)
                         if detected, x["confirmed"]?.bool == true {
                             UFIcon("check", size: 12).foregroundStyle(UF.ok).accessibilityLabel("bestätigt")
                         }
                     }
-                    Text(DueTexts.sub(x)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                    Text(DueTexts.sub(x)).ufFont(12.8).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let o = x.s("origin"), !o.isEmpty {
-                        HStack(spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
                             UFIcon(detected ? "file-text" : "info", size: 11)
-                            Text(o).lineLimit(1)
+                            Text(o).fixedSize(horizontal: false, vertical: true)
                         }
                         .ufFont(11.84).foregroundStyle(UF.muted)
                     }
@@ -141,7 +145,7 @@ struct DueListCard: View {
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(x.s("title") ?? "Termin"), \(DueTexts.sub(x)), \(x.s("in_days") ?? ""). \(x.s("origin") ?? "")")
-            UFBadge(x.s("in_days") ?? "", tone: DueTexts.tone(days))
+            UFBadge(x.s("in_days") ?? "", tone: DueTexts.tone(days)).fixedSize()
             if detected { menu(x, hidden: hidden) }
         }
         .padding(.vertical, 8)

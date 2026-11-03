@@ -62,7 +62,11 @@ final class NoServerStateTests: XCTestCase {
         let c = content(.exams, .local(.notConnected), .signedOut)
         XCTAssertTrue(c.showsConnectCard)
         XCTAssertNil(c.status)
-        XCTAssertEqual(c.text, "Noch keine Tests.")
+        // Audit 03.11.2026: statt der Sackgasse "Noch keine Tests." sagt der Text, was Tests brauchen, und verweist auf
+        // die Karteikarten (die Seite bietet dazu "Zu den Karteikarten" und "ChatGPT verbinden")
+        XCTAssertEqual(c.text, UFNoServerContent.examsText)
+        XCTAssertTrue(c.text.contains("nur mit verbundenem ChatGPT"))
+        XCTAssertTrue(c.text.contains("Karteikarten"))
     }
 
     func testSyncStatusWhileConnected() {
@@ -81,9 +85,12 @@ final class NoServerStateTests: XCTestCase {
             let services = content(.services, mode)
             XCTAssertEqual(services.text, "Noch keine Noten.")
             XCTAssertFalse(services.soon)
-            // keine KI in V1: Wochentests werden weder angeboten noch angekuendigt
+            // ohne KI: Tests werden nicht als vorhanden angekuendigt, nur was sie brauchen (ChatGPT verbinden)
             let exams = content(.exams, mode)
-            XCTAssertEqual(exams.text, "Noch keine Tests.")
+            XCTAssertEqual(exams.text, UFNoServerContent.examsText)
+            XCTAssertTrue(exams.text.contains("nur mit verbundenem ChatGPT"), "Bedingung klar genannt")
+            XCTAssertFalse(exams.text.localizedCaseInsensitiveContains("Wochentest"), "keine Wochentests versprochen")
+            XCTAssertFalse(exams.text.localizedCaseInsensitiveContains("bald"))
             XCTAssertFalse(exams.soon)
         }
         XCTAssertFalse(content(.library, .local(.connected)).soon)

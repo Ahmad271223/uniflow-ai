@@ -194,9 +194,17 @@ struct UFNavItem: Identifiable {
         }
     }
 
-    /// Markiert: "Karteikarten" nur auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
-    /// die Karteikarten-Seite weiter unter "Tests & Wiederholung")
-    func isActive(_ route: UFRoute) -> Bool { id == "cards" ? route == .cards : route.navKey == id }
+    /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
+    /// die Karteikarten-Seite weiter unter "Tests & Wiederholung"). Steht "Tests & Wiederholung" nicht im Menue (ohne KI),
+    /// markiert `#/exams` die Karteikarten, auf die die Seite dann verweist (Audit 03.11.2026: vorher nichts markiert)
+    func isActive(_ route: UFRoute, examsShown: Bool = true) -> Bool {
+        id == "cards" ? route == .cards || (!examsShown && route.navKey == "exams") : route.navKey == id
+    }
+
+    /// Markierung in einer Liste sichtbarer Eintraege (Seitenleiste, Schublade, "Mehr")
+    static func active(_ item: UFNavItem, in items: [UFNavItem], route: UFRoute) -> Bool {
+        item.isActive(route, examsShown: items.contains { $0.id == "exams" })
+    }
 
     /// Was die Zahl am Menuepunkt bedeutet (VoiceOver): "2 neue Hinweise" an der Community, sonst "2 neu"
     static func badgeText(key: String, count: Int) -> String {
@@ -220,8 +228,19 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "plan", title: "Kalender", icon: "calendar", route: .plan()),
         UFNavItem(id: "modules", title: "Module", icon: "book", route: .modules),
         UFNavItem(id: "files", title: "Dokumente", icon: "folder", route: .files()),
-        UFNavItem(id: "settings", title: "Mehr", icon: "settings", route: .settings()),
+        UFNavItem(id: "more", title: "Mehr", icon: "more", route: .settings()),
     ]
+
+    /// Eintrag "Einstellungen" (Fuss der Seitenleiste, Liste "Mehr")
+    static let settings = UFNavItem(id: "settings", title: "Einstellungen", icon: "settings", route: .settings())
+
+    /// Liste hinter "Mehr" in der unteren Leiste: alle sichtbaren Bereiche, die dort nicht stehen, dann die
+    /// Einstellungen (Audit 03.11.2026: "Mehr" oeffnete nur die Einstellungen; Stundenplan, Karteikarten, Uni & Noten
+    /// und Community waren nur ueber das Menue oben erreichbar)
+    static func more(visible: [UFNavItem]) -> [UFNavItem] {
+        let bar = Set(mobile.map(\.id))
+        return visible.filter { !bar.contains($0.id) } + [settings]
+    }
 }
 
 // MARK: - Rahmen
@@ -234,7 +253,31 @@ struct AppShell<Content: View>: View {
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
 
+    /// Nur Debug-Builds: -UFCanvas 1194x834 legt die Oberflaeche in dieser Groesse an und verkleinert sie auf den
+    /// Bildschirm - Bildvergleiche im Querformat, weil der Simulator per simctl nicht dreht und iPadOS das Drehen per
+    /// Programm im Fenstermodus ablehnt
+    static var debugCanvas: CGSize? {
+        #if DEBUG
+        guard let v = UserDefaults.standard.string(forKey: "UFCanvas") else { return nil }
+        let p = v.lowercased().split(separator: "x").compactMap { Double($0) }
+        return p.count == 2 ? CGSize(width: p[0], height: p[1]) : nil
+        #else
+        return nil
+        #endif
+    }
+
     var body: some View {
+        if let c = Self.debugCanvas {
+            GeometryReader { outer in
+                shell.frame(width: c.width, height: c.height)
+                    .scaleEffect(min(outer.size.width / c.width, outer.size.height / c.height), anchor: .topLeading)
+            }
+        } else {
+            shell
+        }
+    }
+
+    private var shell: some View {
         GeometryReader { geo in
             let narrow = geo.size.width <= 900
             let docOpen: Bool = { if case .doc = router.route { return true }; return false }()
@@ -343,9 +386,10 @@ struct UFSidebar: View {
                 VStack(spacing: 4) {
                     // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): an beiden Hochschulen
                     // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
-                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                              community: SolutionSharing.community.isConnected, ai: aiEnabled)) { item in
-                        navRow(item.title, icon: item.icon, active: item.isActive(router.route), key: item.id,
+                    let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
+                                                  community: SolutionSharing.community.isConnected, ai: aiEnabled)
+                    ForEach(items) { item in
+                        navRow(item.title, icon: item.icon, active: UFNavItem.active(item, in: items, route: router.route), key: item.id,
                                badge: router.badge(for: item.id)) { router.go(item.route) }
                     }
                 }
@@ -424,9 +468,29 @@ struct UFNavBadge: View {
     }
 }
 
-/// .mobile-nav: fuenf gleich breite Eintraege, aktiv mit --accent-soft; Abzeichen klein am Symbol
+/// .mobile-nav: fuenf gleich breite Eintraege, aktiv mit --accent-soft; Abzeichen klein am Symbol. "Mehr" oeffnet die
+/// Liste der uebrigen Bereiche (`UFMoreSheet`) mit ihren Abzeichen; markiert, wenn einer davon offen ist.
 struct UFMobileNav: View {
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var session: Session
+    @Environment(\.ufAIEnabled) private var aiEnabled
+    @State private var showMore = false
+
+    private var moreItems: [UFNavItem] {
+        let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
+                                        community: SolutionSharing.community.isConnected, ai: aiEnabled)
+        return UFNavItem.more(visible: visible)
+    }
+
+    /// "Mehr" markiert, wenn einer seiner Bereiche offen ist (reine Funktion, AuditApp20261103Tests)
+    static func moreActive(_ route: UFRoute, items: [UFNavItem]) -> Bool {
+        items.contains { UFNavItem.active($0, in: items + UFNavItem.mobile, route: route) }
+    }
+
+    /// Zahl an "Mehr": Summe der Abzeichen seiner Bereiche
+    static func moreBadge(_ badges: [String: Int], items: [UFNavItem]) -> Int {
+        items.reduce(0) { $0 + (badges[$1.id] ?? 0) }
+    }
 
     /// Abzeichen von Bereichen, die nicht in der unteren Leiste stehen (z. B. Community): Summe am Menueknopf der
     /// Kopfzeile, der die Schublade mit allen Bereichen oeffnet
@@ -436,11 +500,13 @@ struct UFMobileNav: View {
     }
 
     var body: some View {
+        let more = moreItems
         HStack(spacing: 0) {
             ForEach(UFNavItem.mobile) { item in
-                let active = router.route.navKey == item.id
-                let badge = router.badge(for: item.id)
-                Button { router.go(item.route) } label: {
+                let isMore = item.id == "more"
+                let active = isMore ? Self.moreActive(router.route, items: more) : router.route.navKey == item.id
+                let badge = isMore ? Self.moreBadge(router.badges, items: more) : router.badge(for: item.id)
+                Button { if isMore { showMore = true } else { router.go(item.route) } } label: {
                     VStack(spacing: 1.6) {
                         UFIcon(item.icon, size: 20)
                             .overlay(alignment: .topTrailing) {
@@ -456,7 +522,16 @@ struct UFMobileNav: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
+                .accessibilityHint(isMore ? "Weitere Bereiche und Einstellungen" : "")
                 .accessibilityIdentifier("mobileNav.\(item.id)")
+                .popover(isPresented: isMore ? $showMore : .constant(false), arrowEdge: .bottom) {
+                    UFMoreSheet(items: more) { r in
+                        showMore = false
+                        router.go(r)
+                    }
+                    .presentationCompactAdaptation(.sheet)
+                    .presentationDetents([.medium, .large])
+                }
             }
         }
         .padding(.horizontal, 3.2)
@@ -464,19 +539,75 @@ struct UFMobileNav: View {
         .padding(.bottom, 4.8)
         .background(UF.surface.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
+        .task {
+            #if DEBUG
+            // Bildvergleich: -UFShowMore YES oeffnet die Liste "Mehr" beim Start
+            if UserDefaults.standard.bool(forKey: "UFShowMore") {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                showMore = true
+            }
+            #endif
+        }
+    }
+}
+
+/// Liste hinter "Mehr": je Bereich Symbol, Name, Abzeichen und Pfeil, mindestens 44 pt hoch, der offene Bereich markiert
+struct UFMoreSheet: View {
+    let items: [UFNavItem]
+    let go: (UFRoute) -> Void
+    @EnvironmentObject private var router: UFRouter
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Mehr").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
+                .padding(.horizontal, 11.2).padding(.bottom, 4)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(items) { item in
+                let active = UFNavItem.active(item, in: items + UFNavItem.mobile, route: router.route)
+                let badge = router.badge(for: item.id)
+                Button { go(item.route) } label: {
+                    HStack(spacing: 10.4) {
+                        UFIcon(item.icon, size: 18)
+                        Text(item.title).ufFont(14.5, 500).frame(maxWidth: .infinity, alignment: .leading)
+                        if badge > 0 { UFNavBadge(count: badge) }
+                        UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                    }
+                    .foregroundStyle(active ? UF.accentText : UF.text)
+                    .padding(.horizontal, 11.2)
+                    .frame(minHeight: 44)
+                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(active ? UF.accentSoft : .clear))
+                    .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
+                .accessibilityAddTraits(active ? .isSelected : [])
+                .accessibilityIdentifier("more.\(item.id)")
+            }
+        }
+        .padding(16)
+        .frame(minWidth: 300, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(UF.surface)
     }
 }
 
 // MARK: - Kopfzeile
 
-/// Erscheinungsbild wie setTheme() in app.js: "light" (Vorgabe), "dark", "auto"
+/// Erscheinungsbild wie setTheme() in app.js: "light", "dark", "auto"
 enum UFThemeMode: String {
     case light, dark, auto
+
+    /// Vorgabe, solange der Nutzer nichts gewaehlt hat: wie das iPad (Audit 03.11.2026; vorher "light", die App folgte
+    /// dem Dunkelmodus des Systems nicht). @AppStorage schreibt die Vorgabe nie, darum gilt sie fuer alle, die nie
+    /// gewaehlt haben, ohne Umzug; eine gewaehlte Einstellung (auch "light") bleibt.
+    static let standard: UFThemeMode = .auto
+    /// Wert in @AppStorage("theme"), solange nichts gewaehlt ist
+    static var standardRaw: String { standard.rawValue }
 
     var scheme: ColorScheme? { self == .light ? .light : self == .dark ? .dark : nil }
     /// Reihenfolge des Knopfs: dunkel -> hell -> automatisch -> dunkel
     var next: UFThemeMode { self == .dark ? .light : self == .light ? .auto : .dark }
-    var label: String { self == .dark ? "Dunkel" : self == .light ? "Hell" : "Automatisch" }
+    var label: String { self == .dark ? "Dunkel" : self == .light ? "Hell" : "wie iPad" }
 }
 
 struct UFHeader: View {
@@ -521,7 +652,7 @@ struct UFHeader: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.ufDemoActive) private var demo
-    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @State private var query = ""
     @FocusState private var searchFocused: Bool
 
@@ -554,7 +685,7 @@ struct UFHeader: View {
             UFButton("Sync", icon: "sync", size: .small) { sync() }
                 .disabled(shell.syncRunning || studip.isRunning)
             UFButton(icon: theme == UFThemeMode.dark.rawValue ? "moon" : "sun", kind: .ghost) {
-                let next = (UFThemeMode(rawValue: theme) ?? .light).next
+                let next = (UFThemeMode(rawValue: theme) ?? .standard).next
                 theme = next.rawValue
                 toast.show("Design: \(next.label)")
             }

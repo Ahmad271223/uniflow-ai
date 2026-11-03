@@ -20,7 +20,11 @@ struct SettingsPage: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var tab = "modules"
+    /// Navigation waagerecht ueber dem Inhalt: bis 820 pt und bei Bedienungshilfen-Schriftgroessen (Audit 03.11.2026:
+    /// die 232 pt breite Spalte liess dem Inhalt so wenig Platz, dass Modulnamen buchstabenweise umbrachen)
+    private var horizontalNav: Bool { windowWidth <= 820 || typeSize.isAccessibilitySize }
     /// Laden mit Fehlermeldung und nur dem zuletzt begonnenen Ergebnis (Pruefbericht 561-566, `SettingsLoader`)
     @StateObject private var loader = SettingsLoader()
     private var data: Loaded? { loader.data }
@@ -65,7 +69,7 @@ struct SettingsPage: View {
         UFContent(maxWidth: 1180) {
             UFPageHead("Einstellungen")
             if let stale = loader.stale { staleBanner(stale, loaded: true) }
-            layout(SettingsNav(tab: $tab, horizontal: windowWidth <= 820), SettingsBody(tab: tab, d: d, reload: { await load() }))
+            layout(SettingsNav(tab: $tab, horizontal: horizontalNav), SettingsBody(tab: tab, d: d, reload: { await load() }))
         }
     }
 
@@ -78,7 +82,7 @@ struct SettingsPage: View {
             UFPageHead("Einstellungen")
             if let error { unreachableBanner(error) }
             if let stale = loader.stale { staleBanner(stale, loaded: local != nil) }
-            layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: windowWidth <= 820, keys: keys),
+            layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: horizontalNav, keys: keys),
                    Group {
                        switch current {
                        case "dev": DevelopmentTab(error: error)
@@ -118,7 +122,7 @@ struct SettingsPage: View {
 
     /// .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
     @ViewBuilder private func layout<N: View, P: View>(_ nav: N, _ pane: P) -> some View {
-        if windowWidth <= 820 {
+        if horizontalNav {
             VStack(alignment: .leading, spacing: 19.2) { nav; pane }
         } else {
             // etwas mehr Luft zwischen Navigation und Inhalt: die Spalten lesen sich als zwei Ebenen
@@ -133,6 +137,10 @@ struct SettingsNav: View {
     let horizontal: Bool
     /// nur diese Bereiche zeigen (ohne Server: Zugang & Darstellung, Entwicklung)
     var keys: [String]?
+    @State private var contentWidth: CGFloat = 0
+    @State private var frameWidth: CGFloat = 0
+    /// waagerechte Reiter breiter als der Platz
+    private var overflows: Bool { frameWidth > 0 && contentWidth > frameWidth + 1 }
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
                                                     ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
                                                     ("dev", "Entwicklung", "layers")]
@@ -169,7 +177,21 @@ struct SettingsNav: View {
             .buttonStyle(.plain)
         }
         if horizontal {
-            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 3.2) { buttons } }
+            // schmal: Reiter wischen; ragen sie ueber den Rand, blendet der rechte Rand aus und zeigt so, dass es weiter
+            // geht (Audit 03.11.2026: "En…" endete hart ohne Hinweis); am Ende steht der letzte Reiter frei
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 3.2) { buttons }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
+            }
+            .contentMargins(.trailing, overflows ? 28 : 0, for: .scrollContent)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frameWidth = $0 }
+            .mask {
+                HStack(spacing: 0) {
+                    Color.black
+                    if overflows { LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .leading, endPoint: .trailing).frame(width: 28) }
+                }
+            }
+            .accessibilityIdentifier("settings.nav.scroll")
         } else {
             VStack(alignment: .leading, spacing: 3.2) { buttons }
         }
@@ -236,6 +258,7 @@ private struct ModulesTab: View {
     @State private var olderAll: Bool?
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var api: SettingsAPI { SettingsAPI(api: session.api, toast: toast, router: router) }
 
@@ -337,26 +360,44 @@ private struct ModulesTab: View {
         let cs = d.courses.filter { $0.i("module_id") == id }
         let open = openMod == id
         let inactive = m.i("active") == 0
+        let controls = Group {
+            Text("\(cs.count) \(cs.count == 1 ? "Kurs" : "Kurse")").ufFont(13.12).foregroundStyle(UF.muted).fixedSize()
+            if withTests {
+                UFBadge(m.i("weekly_test") == 0 ? "kein Wochentest" : "1 gemeinsamer Test pro Woche" + (m.i("test_minutes").map { " · \($0) min" } ?? ""),
+                        tone: m.i("weekly_test") == 0 ? .neutral : .ok)
+                    .fixedSize()                                               // .badge: white-space nowrap
+            }
+            ActiveToggle(on: !inactive) { v in
+                Task { _ = await api.send("/api/modules/\(id)", method: "PATCH", body: ["active": .number(v ? 1 : 0)], toast: "Gespeichert") }
+            }
+            .fixedSize()
+            Button { overlay.modal { ModuleEditDialog(m: m) } } label: { UFIcon("settings", size: 14) }
+                .accessibilityLabel("Modul bearbeiten")
+                .buttonStyle(UFButtonStyle(kind: .ghost, size: .small, iconOnly: true))
+        }
+        let name = UFWordWrapText(m.s("name") ?? "", size: 14.5, weight: 700).foregroundStyle(inactive ? UF.muted : UF.text)
+        let chevron = UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(inactive ? UF.muted : UF.text)
         VStack(alignment: .leading, spacing: 0) {
-            // .row.wrap mit b { flex: 1 }: der Name nimmt den freien Platz und bricht selbst um
-            HStack(spacing: 9.6) {
-                Circle().fill(Color(hex: m.s("color"))).frame(width: 12, height: 12)
-                Text(m.s("name") ?? "").ufFont(14.5, 700).foregroundStyle(inactive ? UF.muted : UF.text)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text("\(cs.count) Kurse").ufFont(13.12).foregroundStyle(UF.muted).fixedSize()
-                if withTests {
-                    UFBadge(m.i("weekly_test") == 0 ? "kein Wochentest" : "1 gemeinsamer Test pro Woche" + (m.i("test_minutes").map { " · \($0) min" } ?? ""),
-                            tone: m.i("weekly_test") == 0 ? .neutral : .ok)
-                        .fixedSize()                                               // .badge: white-space nowrap
+            // .row.wrap mit b { flex: 1 }: der Name nimmt den freien Platz und bricht nur zwischen Woertern um; bei
+            // Bedienungshilfen-Schriftgroessen steht er allein in der ersten Zeile, Schalter darunter (Audit 03.11.2026)
+            Group {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 9.6) {
+                            Circle().fill(Color(hex: m.s("color"))).frame(width: 12, height: 12)
+                            name
+                            chevron
+                        }
+                        UFFlexWrap(gap: 9.6, rowGap: 4) { controls }.padding(.leading, 21.6)
+                    }
+                } else {
+                    HStack(spacing: 9.6) {
+                        Circle().fill(Color(hex: m.s("color"))).frame(width: 12, height: 12)
+                        name
+                        controls
+                        chevron
+                    }
                 }
-                ActiveToggle(on: !inactive) { v in
-                    Task { _ = await api.send("/api/modules/\(id)", method: "PATCH", body: ["active": .number(v ? 1 : 0)], toast: "Gespeichert") }
-                }
-                .fixedSize()
-                Button { overlay.modal { ModuleEditDialog(m: m) } } label: { UFIcon("settings", size: 14) }
-                    .accessibilityLabel("Modul bearbeiten")
-                    .buttonStyle(UFButtonStyle(kind: .ghost, size: .small, iconOnly: true))
-                UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(inactive ? UF.muted : UF.text)
             }
             .contentShape(Rectangle())
             .onTapGesture { openMod = open ? nil : id }
@@ -593,7 +634,7 @@ private struct AccountTab: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
-    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var localHand = "right"
     @State private var termName = ""
@@ -690,7 +731,7 @@ private struct AccountTab: View {
             }
             SettingsDivider()
             SettingsRow("Darstellung", icon: "sun") {
-                UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
             }
             SettingsDivider()
             SettingsRow("Stift & Touch", icon: "pen") {
@@ -879,7 +920,7 @@ private struct LocalAccountTab: View {
     var reload: () async -> Void = {}
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
-    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @Environment(\.ufStudoraAccount) private var studoraAccount
@@ -909,7 +950,7 @@ private struct LocalAccountTab: View {
                 UFGridLayout(spacing: 16, minWidth: 340) {
                     UFCard {
                         SettingsRow("Darstellung", icon: "sun") {
-                            UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                            UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
                         }
                         .padding(.top, -12)
                         SettingsDivider()
@@ -1094,7 +1135,7 @@ private struct AdvancedTab: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufWindowWidth) private var windowWidth
-    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @State private var autoPlan = false
     @State private var diag: Diagnostics?
     @State private var test: PDFTestResult?

@@ -23,20 +23,43 @@ extension EnvironmentValues {
 /// Oberhalb der Seiten (ConnectStudIPCard fuer Hochschulen mit eigenen Quellen): Karten fuer nicht verbundene oder
 /// abgelaufene Quellen, darunter die Statusleiste, sobald eine Quelle verbunden ist
 struct HildesheimSourcesBar: View {
+    /// einzeilige Leiste statt der Karten (alle Seiten ausser der Uebersicht, `ConnectStudIPCard.compact`)
+    var compact = false
     @Environment(\.hildesheim) private var hildesheim
 
     var body: some View {
-        if let hildesheim { Panel(connection: hildesheim) }
+        if let hildesheim { Panel(connection: hildesheim, compact: compact) }
+    }
+
+    /// Stand der Leiste: "Learnweb und LSF nicht verbunden", "LSF-Anmeldung abgelaufen" (reine Funktion, Tests)
+    static func compactTitle(_ open: [(HildesheimConnection.Source, HildesheimConnection.State)]) -> String {
+        let expired = open.filter { $0.1 == .needsLogin }.map(\.0.rawValue)
+        let missing = open.filter { $0.1 != .needsLogin }.map(\.0.rawValue)
+        var parts: [String] = []
+        if !missing.isEmpty { parts.append("\(missing.joined(separator: " und ")) nicht verbunden") }
+        if !expired.isEmpty { parts.append("\(expired.joined(separator: " und "))-Anmeldung abgelaufen") }
+        return parts.joined(separator: " · ")
     }
 
     private struct Panel: View {
         @ObservedObject var connection: HildesheimConnection
+        let compact: Bool
         @State private var login: HildesheimConnection.Source?
 
         var body: some View {
             let open = HildesheimConnection.Source.allCases.filter { connection.needsAttention($0) }
             VStack(alignment: .leading, spacing: 12.8) {
-                if !open.isEmpty {
+                if !open.isEmpty && compact {
+                    UFConnectBar(title: HildesheimSourcesBar.compactTitle(open.map { ($0, connection.state($0)) }),
+                                 text: "Kurse, Dateien und Stundenplan kommen nach der Anmeldung.") {
+                        ForEach(open) { s in
+                            UFButton(connection.state(s) == .needsLogin ? "\(s.rawValue) erneut anmelden" : "\(s.rawValue) verbinden",
+                                     icon: "arrow-right", kind: .primary, size: .small) { login = s }
+                                .fixedSize()
+                                .accessibilityIdentifier("connectBar.\(s.rawValue.lowercased())")
+                        }
+                    }
+                } else if !open.isEmpty {
                     UFGridLayout(spacing: 16, minWidth: 300) {
                         ForEach(open) { s in HildesheimConnectCard(source: s, state: connection.state(s)) { login = s } }
                     }
@@ -221,13 +244,14 @@ struct HildesheimSourcesCard: View {
                     ForEach(HildesheimConnection.Source.allCases) { s in
                         let st = connection.state(s)
                         HStack(spacing: 9.6) {
-                            Text(s == .learnweb ? "Learnweb (Dateien)" : "LSF (Stundenplan, Noten)").ufFont(13.12).foregroundStyle(UF.text)
+                            LUHSourcesCard.label(s == .learnweb ? "Learnweb" : "LSF", s == .learnweb ? "Dateien" : "Stundenplan, Noten")
                             Spacer(minLength: 0)
-                            UFBadge(HildesheimConnection.statusText(s, st), tone: HildesheimStatusLine.tone(st))
+                            UFBadge(HildesheimConnection.statusText(s, st), tone: HildesheimStatusLine.tone(st)).fixedSize()
                             if connection.needsAttention(s) {
                                 UFButton(st == .needsLogin ? "Erneut anmelden" : "Verbinden", icon: "arrow-right", kind: .primary, size: .small) {
                                     login = s
                                 }
+                                .fixedSize()
                                 .accessibilityIdentifier("hildesheim.settings.connect.\(s.rawValue.lowercased())")
                             }
                         }

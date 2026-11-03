@@ -20,6 +20,8 @@ struct ServicesPage: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.qis) private var qisConnection
+    @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.ufDemoActive) private var demo
     @State private var svc: JSONValue?
     @State private var grades: JSONValue = .null
     @State private var tt: JSONValue?
@@ -145,10 +147,50 @@ struct ServicesPage: View {
             UFCardHead("Uni-Dienste", icon: "layers").padding(.top, 22.4)
             UFGridLayout(minWidth: 250) {                                                  // .grid.auto
                 ForEach(svc.list("services").indices, id: \.self) { i in
-                    ServiceTile(s: svc.list("services")[i]) { url in openURL(url) }
+                    let s = svc.list("services")[i]
+                    ServiceTile(s: s, status: tileStatus(s)) { url in openURL(url) }
                 }
             }
             .environment(\.ufFillsCell, true)
+        }
+    }
+
+    /// Stand der Kachel einer Quelle, die StudiNow abgleicht ("synchronisiert"): lokal aus dem echten Abgleich statt aus
+    /// der festen Liste (Audit 03.11.2026: "Stud.IP · synchronisiert" stand unter "Stud.IP nicht verbunden"). Nicht
+    /// verbunden oder Demo: kein Stand, die Kachel oeffnet nur die Seite. Mit eigenem Server wie bisher aus der Liste.
+    private func tileStatus(_ s: JSONValue) -> ServiceTile.Status? {
+        guard session.api?.isLocal == true, s["connected"]?.bool == true else { return nil }
+        if demo { return .open }
+        switch s.s("key") {
+        case "studip":
+            return Self.tileStatus(studip: studip.phase, hasSession: studip.hasStoredSession)
+        case "learnweb":
+            guard let hildesheim else { return .open }
+            return Self.tileStatus(learnweb: hildesheim.state(.learnweb))
+        default:
+            return nil
+        }
+    }
+
+    /// Stud.IP der LUH: synchronisiert nur mit Anmeldung (reine Funktion, AuditApp20261103Tests)
+    static func tileStatus(studip phase: StudIPSync.Phase, hasSession: @autoclosure () -> Bool) -> ServiceTile.Status {
+        switch phase {
+        case .signedOut: return .open
+        case .needsLogin: return .badge("Anmeldung nötig", .warn)
+        case .running: return .badge("gleicht ab …", .info)
+        case .idle: return .badge("synchronisiert", .ok)
+        case .failed: return hasSession() ? .badge("Abgleich fehlgeschlagen", .bad) : .open
+        }
+    }
+
+    /// Learnweb der Uni Hildesheim
+    static func tileStatus(learnweb state: HildesheimConnection.State) -> ServiceTile.Status {
+        switch state {
+        case .notConnected: return .open
+        case .needsLogin: return .badge("Anmeldung nötig", .warn)
+        case .running: return .badge("gleicht ab …", .info)
+        case .failed: return .badge("Abgleich fehlgeschlagen", .bad)
+        case .connected, .ok: return .badge("synchronisiert", .ok)
         }
     }
 
@@ -493,8 +535,15 @@ struct GradesTable: View {
 }
 
 /// a.card.mod-card (neuer Tab): linker Balken 4 pt --accent, Icon-Kachel 34 pt, Name, Beschreibung, Login-Badge, Status
-private struct ServiceTile: View {
+struct ServiceTile: View {
+    /// Stand rechts unten: Abzeichen oder nur "öffnen ↗"; nil = wie die Liste (`connected`, `connector`)
+    enum Status: Equatable {
+        case badge(String, UFTone)
+        case open
+    }
+
     let s: JSONValue
+    var status: Status?
     let open: (URL) -> Void
     @Environment(\.ufFillsCell) private var fills
 
@@ -511,9 +560,14 @@ private struct ServiceTile: View {
                 HStack {
                     UFBadge(s.s("login") ?? "", tone: .neutral)
                     Spacer(minLength: 9.6)
-                    if s["connected"]?.bool == true { UFBadge("synchronisiert", tone: .ok) }
-                    else if s["connector"]?.bool == true { UFBadge("Noten-Abruf", tone: .info) }
-                    else { Text("öffnen ↗").ufFont(13.12).foregroundStyle(UF.muted) }
+                    switch status {
+                    case .badge(let text, let tone)?: UFBadge(text, tone: tone)
+                    case .open?: Text("öffnen ↗").ufFont(13.12).foregroundStyle(UF.muted)
+                    case nil:
+                        if s["connected"]?.bool == true { UFBadge("synchronisiert", tone: .ok) }
+                        else if s["connector"]?.bool == true { UFBadge("Noten-Abruf", tone: .info) }
+                        else { Text("öffnen ↗").ufFont(13.12).foregroundStyle(UF.muted) }
+                    }
                 }
                 Spacer(minLength: 0)
             }

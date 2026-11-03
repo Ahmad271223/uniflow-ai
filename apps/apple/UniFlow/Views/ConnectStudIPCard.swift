@@ -118,6 +118,10 @@ struct UFNoServerContent: Equatable {
         return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status, text: text(kind), soon: false)
     }
 
+    /// Tests ohne KI: was sie brauchen (verbundenes ChatGPT) und der Weg zu den Karteikarten - kein Versprechen, dass es
+    /// Tests schon gibt, kein "bald"
+    static let examsText = "Tests gibt es nur mit verbundenem ChatGPT. Ohne ChatGPT wiederholst du mit deinen eigenen Karteikarten."
+
     private static func text(_ kind: UFNoServerPage.Kind) -> String {
         switch kind {
         case .dashboard: return "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da."
@@ -125,8 +129,9 @@ struct UFNoServerContent: Equatable {
         case .timetable: return "Noch keine Termine im Stundenplan."
         case .modules: return "Noch keine Module."
         case .library: return "Noch keine Dokumente."
-        // keine KI in V1 (Entscheidung 25.10.): Wochentests weder anbieten noch ankuendigen
-        case .exams: return "Noch keine Tests."
+        // Wochentests nur mit KI (ChatGPT des Nutzers); ohne sie fuehrt die Seite zu den Karteikarten (Audit 03.11.2026:
+        // vorher nur "Noch keine Tests." ohne Weg weiter)
+        case .exams: return examsText
         case .cards: return "Noch keine Karteikarten."
         case .services: return "Noch keine Noten."
         }
@@ -140,12 +145,25 @@ struct UFNoServerContent: Equatable {
 /// (`HildesheimSourcesBar`).
 struct ConnectStudIPCard: View {
     let mode: UFDataMode
+    /// einzeilige Leiste statt der Karte: auf allen Seiten ausser der Uebersicht (Audit 03.11.2026: die Karten standen
+    /// ueber jeder Seite und schoben den Seitentitel nach unten); die volle Karte bleibt auf der Uebersicht und in den
+    /// Einstellungen (Karte "Stud.IP & QIS" bzw. "Learnweb & LSF")
+    var compact = false
     @EnvironmentObject private var studip: StudIPSync
     @State private var showLogin = false
 
     var body: some View {
         if mode.hasOtherSources {
-            HildesheimSourcesBar()
+            HildesheimSourcesBar(compact: compact)
+        } else if mode.showsConnectCard && compact {
+            let expired = mode.studIPExpired
+            UFConnectBar(title: expired ? "Stud.IP-Anmeldung abgelaufen" : "Stud.IP nicht verbunden",
+                         text: expired ? "Melde dich erneut an, damit StudiNow weiter abgleicht." : "Kurse und Dateien kommen nach der Anmeldung.") {
+                UFButton(expired || isFailed ? "Erneut anmelden" : "Stud.IP verbinden", icon: "arrow-right", kind: .primary, size: .small) { showLogin = true }
+                    .fixedSize()
+                    .accessibilityIdentifier("connectBar.studip")
+            }
+            .sheet(isPresented: $showLogin) { login }
         } else if mode.showsConnectCard {
             let expired = mode.studIPExpired
             UFCard {
@@ -171,16 +189,52 @@ struct ConnectStudIPCard: View {
                 UFButton(expired || isFailed ? "Erneut anmelden" : "Stud.IP verbinden", icon: "arrow-right", kind: .primary) { showLogin = true }
                     .padding(.top, 12.8)
             }
-            .sheet(isPresented: $showLogin) {
-                StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
-                    showLogin = false
-                    studip.signedIn(cookies: cookies)
-                }
-            }
+            .sheet(isPresented: $showLogin) { login }
+        }
+    }
+
+    private var login: some View {
+        StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
+            showLogin = false
+            studip.signedIn(cookies: cookies)
         }
     }
 
     private var isFailed: Bool { if case .failed = studip.phase { return true }; return false }
+}
+
+/// Einzeilige Leiste oberhalb einer Seite: Symbol, Stand fett, kurzer Satz gedaempft, Knoepfe rechts; bricht erst
+/// bei wenig Breite um. Hoehe etwa eine Knopfzeile statt einer ganzen Karte.
+struct UFConnectBar<Buttons: View>: View {
+    let title: String
+    let text: String
+    @ViewBuilder var buttons: Buttons
+
+    var body: some View {
+        // eine Zeile: mit Satz, sonst ohne Satz; erst wenn auch das nicht passt, umbrechend
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 9.6) { label(text: true).fixedSize(); Spacer(minLength: 8); HStack(spacing: 8) { buttons } }
+            HStack(spacing: 9.6) { label(text: false).fixedSize(); Spacer(minLength: 8); HStack(spacing: 8) { buttons } }
+            UFFlexWrap(gap: 9.6, rowGap: 6) { label(text: true); UFFlexSpacer(); buttons }
+        }
+        .padding(.vertical, 7.2 + ufB).padding(.horizontal, 14.4 + ufB)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.accentSoft))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.accent.opacity(0.18), lineWidth: 1))
+    }
+
+    private func label(text show: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 7.2) {
+            UFIcon("graduation", size: 16).foregroundStyle(UF.accentText)
+                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
+            (Text(title).font(.uf(13.76, 600)).foregroundColor(UF.text)
+             + Text(show ? "  " + text : "").foregroundColor(UF.text2))
+                .ufFont(13.12)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title + ". " + text)
+    }
 }
 
 /// Leerer Zustand einer Seite, die es in V1 nicht gibt: Kopf wie die Seite, Karte "Stud.IP verbinden", leere Karte.
@@ -232,18 +286,34 @@ struct UFNoServerBody: View {
     let kind: UFNoServerPage.Kind
     let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var router: UFRouter
 
     var body: some View {
         let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase)
         VStack(alignment: .leading, spacing: 16) {
-            if c.showsConnectCard { ConnectStudIPCard(mode: mode) }
+            // ausserhalb der Uebersicht nur die einzeilige Leiste (Audit 03.11.2026)
+            if c.showsConnectCard { ConnectStudIPCard(mode: mode, compact: true) }
             if let status = c.status { UFStudIPStatusCard(status: status) }
             UFCard {
                 UFEmpty(icon: kind.icon, text: c.text) {
                     if c.soon { UFBadge("bald", tone: .info, icon: "clock") }
+                    if kind == .exams { examsActions }
                 }
             }
         }
+    }
+
+    /// Tests ohne KI: der naechste sinnvolle Schritt statt einer Sackgasse
+    private var examsActions: some View {
+        UFFlexWrap(gap: 8, justify: .center) {
+            UFButton("Zu den Karteikarten", icon: "cards", kind: .primary, size: .small) { router.go(.cards) }
+                .accessibilityIdentifier("exams.toCards")
+            if ChatGPTLink.available {
+                UFButton("ChatGPT verbinden", icon: "sparkles", size: .small) { router.go(.settings(tab: "advanced")) }
+                    .accessibilityIdentifier("exams.connectChatGPT")
+            }
+        }
+        .padding(.top, 9.6)
     }
 }
 
@@ -343,7 +413,7 @@ struct UFServerGate<Content: View>: View {
             // Seite bestehen und laedt nicht neu
             UFAbovePage(maxWidth: spec.maxWidth) {
                 switch presentation {
-                case .pageBelowConnectCard: ConnectStudIPCard(mode: mode).padding(.ufAbovePage)
+                case .pageBelowConnectCard: ConnectStudIPCard(mode: mode, compact: true).padding(.ufAbovePage)
                 case .pageBelowStudIPStatus: UFStudIPStatusBar(kind: spec.kind, mode: mode).padding(.ufAbovePage)
                 case .page, .empty: EmptyView()
                 }

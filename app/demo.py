@@ -2,8 +2,9 @@
 
 Ein Demo-Modul "Grundlagen der Informatik" mit Vorlesung und Uebung: drei PDFs (Skript, Folien, Uebungsblatt) werden
 hier erzeugt (keine fremden Inhalte), dazu Stundenplan-Termine (wochentlich), Lernpakete mit Aufgaben fuer diese Woche,
-eine Abgabefrist und eine Ankuendigung mit Termin. Alles traegt die Kennung "demo-" bzw. source = "demo" und laesst sich
-mit remove() rueckstandslos entfernen; der Schalter steht in den Einstellungen (Erweitert) und unter /api/demo.
+fuenf Karteikarten (heute faellig), eine Abgabefrist und eine Ankuendigung mit Termin. Alles traegt die Kennung "demo-"
+bzw. source = "demo" und laesst sich mit remove() rueckstandslos entfernen; der Schalter steht in den Einstellungen
+(Erweitert) und unter /api/demo.
 Demo-Dateien sind eigene Dokumente ohne Hochschulquelle: sie werden gespeichert (auch im Dienst), nie gestreamt und
 zaehlen nicht als "Datei aus dem Hochschul-Abgleich" (Community).
 """
@@ -44,6 +45,14 @@ FILES = [
     ]},
 ]
 COLOR = "#7c3aed"
+# Karteikarten zum Skript, damit "Frei üben" und die Wiederholung in der Demo (und fuer die App-Pruefung) erlebbar sind
+FLASHCARDS = [
+    ("demo-skript", "Wie lautet 13 im Dualsystem?", "1101"),
+    ("demo-skript", "Wie rechnest du eine Dezimalzahl ins Dualsystem um?", "Fortgesetzt durch 2 teilen und die Reste von unten nach oben lesen."),
+    ("demo-skript", "Wie bildest du das Zweierkomplement einer negativen Zahl?", "Den Betrag dual schreiben, alle Bits invertieren und 1 addieren."),
+    ("demo-skript", "Welcher Wertebereich passt in 8 Bit im Zweierkomplement?", "-128 bis 127"),
+    ("demo-folien", "Was ist ein Algorithmus?", "Eine eindeutige, endliche Handlungsvorschrift."),
+]
 
 
 def is_enabled(conn) -> bool:
@@ -99,6 +108,7 @@ def remove(conn) -> dict:
         n["files"] += 1
     conn.execute("DELETE FROM annotations WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM analysis WHERE file_id LIKE 'demo-%'")
+    conn.execute("DELETE FROM flashcards WHERE file_id LIKE 'demo-%'")
     try:
         conn.execute("DELETE FROM page_texts WHERE file_id LIKE 'demo-%'")
     except Exception:  # noqa: BLE001 - Tabelle erst nach der ersten Suche vorhanden
@@ -158,6 +168,9 @@ def install(conn, today: date | None = None) -> dict:
         for j, (typ, fid, ttitle, minutes) in enumerate(tasks):
             conn.execute("INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,'geplant',?)",
                          (cur.lastrowid, typ, fid, ttitle, j, minutes, now))
+    for fid, question, answer in FLASHCARDS:
+        conn.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due) VALUES (?,?,?,?,?,1,?)",
+                     (fid, SUBJECT, question, answer, now, today.isoformat()))
     due = datetime.combine(monday + timedelta(days=9), datetime.min.time()).replace(hour=13, minute=45)
     conn.execute("INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,0,?)",
                  ("demo-abgabe-1", "demo", "demo-uebung", "Übungsblatt 1 abgeben", "Übungsblatt 1 abgeben (Demo)", "abgabe", "assign", due.isoformat(timespec="minutes"), "", now))

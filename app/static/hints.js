@@ -29,7 +29,7 @@ export function hintInfo(d) {
     return { kindText: d.kind_label || "Frist", icon: String(d.kind || "").startsWith("test") ? "exam" : "flag", tone: "bad",
              title: d.title || "Frist", course: d.course_title || "", url: httpUrl(d.url),
              snippet: d.full_title && d.full_title !== d.title ? d.full_title : "",
-             source: d.source === "studip" ? "Aufgabe aus Stud.IP Courseware" : "Frist aus dem Learnweb-Kalender" };
+             source: d.source === "demo" ? "Frist aus den Demo-Inhalten" : d.source === "studip" ? "Aufgabe aus Stud.IP Courseware" : "Frist aus dem Learnweb-Kalender" };
   }
   const [kindText, icon, tone] = NOTICE_KINDS[d.kind] || ["Termin", "calendar", "info"];
   const src = { studip: "Stud.IP-Ankündigung", learnweb: "Learnweb-Ankündigung" }[d.source] || "Ankündigung";

@@ -6688,7 +6688,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 15,
-       "new_count": 12,
+       "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
        "next_package": {
@@ -6722,7 +6722,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 10,
-       "new_count": 8,
+       "new_count": 10,
        "open_tasks": 1,
        "progress": 12,
        "next_package": {
@@ -6815,7 +6815,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 2,
-       "new_count": 1,
+       "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
        "next_package": null,
@@ -7818,7 +7818,7 @@
        }
       ],
       "progress": 30,
-      "new_count": 12,
+      "new_count": 15,
       "open_tasks": 2,
       "next_package": {
        "date": "2026-11-21",
@@ -8475,7 +8475,7 @@
        }
       ],
       "progress": 12,
-      "new_count": 8,
+      "new_count": 10,
       "open_tasks": 1,
       "next_package": {
        "date": "2027-01-20",
@@ -9062,7 +9062,7 @@
        }
       ],
       "progress": 50,
-      "new_count": 1,
+      "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
       "notes": []
@@ -9224,7 +9224,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 15,
-       "new_count": 12,
+       "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
        "next_package": null,
@@ -9255,7 +9255,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 10,
-       "new_count": 8,
+       "new_count": 10,
        "open_tasks": 1,
        "progress": 12,
        "next_package": {
@@ -9348,7 +9348,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 2,
-       "new_count": 1,
+       "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
        "next_package": null,
@@ -10351,7 +10351,7 @@
        }
       ],
       "progress": 30,
-      "new_count": 12,
+      "new_count": 15,
       "open_tasks": 2,
       "next_package": null,
       "notes": [
@@ -11005,7 +11005,7 @@
        }
       ],
       "progress": 12,
-      "new_count": 8,
+      "new_count": 10,
       "open_tasks": 1,
       "next_package": {
        "date": "2027-01-20",
@@ -11070,7 +11070,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 15,
-       "new_count": 12,
+       "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
        "next_package": null,
@@ -11099,7 +11099,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 10,
-       "new_count": 8,
+       "new_count": 10,
        "open_tasks": 1,
        "progress": 12,
        "next_package": null,
@@ -11186,7 +11186,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 2,
-       "new_count": 1,
+       "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
        "next_package": null,
@@ -11412,7 +11412,7 @@
        }
       ],
       "progress": 50,
-      "new_count": 1,
+      "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
       "notes": []
@@ -11899,7 +11899,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 11,
-       "new_count": 9,
+       "new_count": 11,
        "open_tasks": 1,
        "progress": 11,
        "next_package": {
@@ -11992,7 +11992,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 2,
-       "new_count": 1,
+       "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
        "next_package": null,
@@ -12108,7 +12108,7 @@
        "expected_materials": null,
        "exam_reuse": "paraphrase",
        "file_count": 15,
-       "new_count": 12,
+       "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
        "next_package": {
@@ -12863,7 +12863,7 @@
        }
       ],
       "progress": 11,
-      "new_count": 9,
+      "new_count": 11,
       "open_tasks": 1,
       "next_package": {
        "date": "2027-01-20",
@@ -13054,7 +13054,7 @@
        }
       ],
       "progress": 50,
-      "new_count": 1,
+      "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
       "notes": []

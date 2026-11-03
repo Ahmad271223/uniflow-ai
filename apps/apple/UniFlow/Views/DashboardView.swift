@@ -18,6 +18,7 @@ struct DashboardView: View {
     @Environment(\.ufDemoActive) private var demo
     @Environment(\.openURL) private var openURL
     @Environment(\.ufWindowWidth) private var windowWidth
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
     /// Tag, fuer den die Seite gerade steht: nach Mitternacht (NSCalendarDayChanged) laedt sie neu, und Begruessung
@@ -83,9 +84,8 @@ struct DashboardView: View {
         let today = d["today"] ?? .null
         let pk = today.list("packages")
         let evs = StudIPCancellations.visible(today.list("events").filter { $0.s("status") != "verschoben" }, keys: studipCancelled)
-        let tasks = pk.flatMap { $0.list("tasks") }
-        let done = tasks.filter { $0.s("status") == "erledigt" }.count
-        let total = tasks.count
+        // Aufgaben erledigt: dieselbe Zaehlung wie "Diese Woche" und der Lernkalender (`UFTaskProgress`, Woche Mo–So)
+        let week = UFTaskProgress.of(week: d["week"] ?? .null)
         let nextOpen = pk.flatMap { p in p.list("tasks").filter { !["erledigt", "uebersprungen"].contains($0.s("status") ?? "") } }.first
         let todayDate = today.s("date") ?? day
         let backlog = d.i("backlog") ?? 0
@@ -114,34 +114,44 @@ struct DashboardView: View {
 
                 // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
                 // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)
-                UFGridLayout(columns: windowWidth > 640 ? 3 : 1, spacing: 16) {
+                // Bedienungshilfen-Schriftgroessen: untereinander (dreispaltig brach "nachzu-holen" mitten im Wort)
+                UFGridLayout(columns: windowWidth > 640 && !typeSize.isAccessibilitySize ? 3 : 1, spacing: 16) {
                     // Karten erscheinen beim ersten Oeffnen der Seite leicht gestaffelt (UFMotion), Zahlen rollen
                     kpiCard(value: UFFmt.min(today.n("minutes")),
                             label: "heute geplant" + freeText(today))
                         .ufAppear("dashboard", index: 0)
                     UFCard {
-                        UFKPI(value: "\(done) / \(total)", label: "Aufgaben erledigt")
-                        UFProgress(value: total > 0 ? Double(done) / Double(total) : 0, ok: true).padding(.top, 6.4)
+                        // ohne Aufgaben kein "0 / 0" und kein leerer Balken (Audit 03.11.2026)
+                        if let text = week.text {
+                            UFKPI(value: text, label: "Aufgaben erledigt · diese Woche")
+                            UFProgress(value: week.fraction, ok: true).padding(.top, 6.4)
+                        } else {
+                            UFKPI(value: "–", label: "diese Woche keine Aufgaben geplant")
+                        }
                     }
+                    .accessibilityIdentifier("dashboard.kpi.tasks")
                     .ufAppear("dashboard", index: 1)
                     backlogCard(backlog).ufAppear("dashboard", index: 2)
                 }
                 .environment(\.ufFillsCell, true)
                 .padding(.bottom, 19.2)
 
-                twoColumns(left: {
-                    todayCard(pk: pk).ufAppear("dashboard", index: 3)
-                    if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4) }
-                }, right: {
-                    upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4)
-                    DueListCard().ufAppear("dashboard", index: 5)                 // Abgaben & Prüfungen (nur lokal)
+                // Wunsch des Inhabers 03.11.2026: im Querformat endete die breite Spalte frueh, die schmale stapelte alles
+                // (Abgaben mit 14 Eintraegen, Neuigkeiten …) und kuerzte Zeilen mit "…". Jetzt: Heute, Uni-Termine und
+                // "Abgaben & Prüfungen" in der breiten Spalte, die uebrigen Karten jeweils in die kuerzere Spalte
+                // (`DashboardFlow`); hochkant eine Spalte in dieser Reihenfolge
+                DashboardFlow(twoColumns: windowWidth > 1100, spacing: 8) {
+                    todayCard(pk: pk).ufAppear("dashboard", index: 3).dashboardSlot(.main)
+                    if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
+                    DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
+                    upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4).dashboardSlot(.flow)
                     if !news.isEmpty {                                                   // Neuigkeiten (+ Schwarzes Brett, eine Zeile)
                         NewsCard(items: news, today: todayDate, bulletinNew: bulletinNew, openBulletin: { router.go(.services) }) { showNews = true }
-                            .ufAppear("dashboard", index: 6)
+                            .ufAppear("dashboard", index: 6).dashboardSlot(.flow)
                     }
-                    weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 7)
-                    newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0).ufAppear("dashboard", index: 8)
-                })
+                    weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 7).dashboardSlot(.flow)
+                    newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0, demo: mode.isDemo).ufAppear("dashboard", index: 8).dashboardSlot(.flow)
+                }
             }
             .frame(maxWidth: 1120, alignment: .leading)
         }
@@ -186,11 +196,6 @@ struct DashboardView: View {
                 }
             }
         }
-    }
-
-    /// linke Spalte doppelt so breit wie die rechte (span-2), unter 1100 pt untereinander
-    private func twoColumns<L: View, R: View>(@ViewBuilder left: () -> L, @ViewBuilder right: () -> R) -> some View {
-        DashboardColumns(left: left(), right: right())
     }
 
     // MARK: Karten
@@ -254,7 +259,7 @@ struct DashboardView: View {
                         else if let m = u.i("module_id") { router.go(.module(m)) } else { router.go(.plan()) }
                     } label: {
                         // Titel in Textfarbe statt ganz in Linkfarbe, der Pfeil rechts zeigt, dass die Zeile oeffnet
-                        UFItemRow(UFFmt.shortName(u.s("title")), sub: Self.upcomingSub(u), leading: {
+                        UFItemRow(UFFmt.shortName(u.s("title")), sub: Self.upcomingSub(u), wraps: true, leading: {
                             UFDot(color: Color(hex: u.s("color")))
                         }, trailing: {
                             UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
@@ -284,10 +289,13 @@ struct DashboardView: View {
     }
 
     private func weekCard(_ w: JSONValue, today: String) -> some View {
-        let doneW = w.i("done") ?? 0, totalW = w.i("total") ?? 0
+        let p = UFTaskProgress.of(week: w)
         return UFCard {
-            UFCardHead("Diese Woche", icon: "tasks") { Text("\(doneW)/\(totalW)").ufFont(13.12).foregroundStyle(UF.muted).ufNumber(doneW, numeric: Double(doneW)) }
-            UFProgress(value: totalW > 0 ? Double(doneW) / Double(totalW) : 0, ok: true).padding(.bottom, 11.2)
+            // dieselbe Zahl wie die Kennzahl oben ("1 / 4 erledigt"); ohne Aufgaben keine Zahl und kein leerer Balken
+            UFCardHead("Diese Woche", icon: "tasks") {
+                if let text = p.text { Text("\(text) erledigt").ufFont(13.12).foregroundStyle(UF.muted).ufNumber(p.done, numeric: Double(p.done)) }
+            }
+            if !p.isEmpty { UFProgress(value: p.fraction, ok: true).padding(.bottom, 11.2) }
             HStack(spacing: 5.6) {                                          // .week-strip: 7 gleich breite Tage
                 ForEach(Row.rows(w.list("days"), key: "date")) { row in
                     let day = row.value
@@ -313,7 +321,7 @@ struct DashboardView: View {
         }
     }
 
-    private func newFilesCard(_ files: [JSONValue], total: Int) -> some View {
+    private func newFilesCard(_ files: [JSONValue], total: Int, demo: Bool) -> some View {
         // nach Modul gruppiert, Reihenfolge des ersten Auftretens wie Object.entries im Web
         var order: [String] = []
         var groups: [String: [JSONValue]] = [:]
@@ -323,7 +331,7 @@ struct DashboardView: View {
             groups[s, default: []].append(f)
         }
         return UFCard {
-            UFCardHead(UFSourceText.newFiles(studip.university), icon: "sparkles") { Text("\(total)").ufFont(13.12).foregroundStyle(UF.muted) }
+            UFCardHead(UFSourceText.newFiles(studip.university, demo: demo), icon: "sparkles") { Text("\(total)").ufFont(13.12).foregroundStyle(UF.muted) }
             if total == 0 {
                 Text("Nichts Neues.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
             } else {
@@ -331,7 +339,7 @@ struct DashboardView: View {
                     let fs = groups[s] ?? []
                     let first = fs.first.map { $0.s("ai_title") ?? $0.s("name") ?? "" } ?? ""
                     Button { router.go(.files(section: "new")) } label: {
-                        UFItemRow(UFFmt.shortName(s), sub: "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")") {
+                        UFItemRow(UFFmt.shortName(s), sub: "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " und weitere" : "")", wraps: true) {
                             EmptyView()
                         } trailing: { UFBadge("\(fs.count)") }
                     }
@@ -394,48 +402,73 @@ private struct UFPageHeadGreet<Actions: View>: View {
     }
 }
 
-/// .grid.cols-3 mit .span-2 links und .stack rechts; schmal untereinander
-private struct DashboardColumns<L: View, R: View>: View {
-    let left: L
-    let right: R
-    @Environment(\.ufWindowWidth) private var width
+/// Platz einer Karte der Uebersicht in `DashboardFlow`
+enum DashboardSlot { case main, flow }
 
-    var body: some View {
-        if width > 1100 {
-            TwoOneLayout(spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) { left }
-                VStack(alignment: .leading, spacing: 8) { right }
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 8) { left; right }
-        }
-    }
+private struct DashboardSlotKey: LayoutValueKey { static let defaultValue: DashboardSlot = .flow }
+
+extension View {
+    func dashboardSlot(_ slot: DashboardSlot) -> some View { layoutValue(key: DashboardSlotKey.self, value: slot) }
 }
 
-/// Zwei Spalten im Verhaeltnis 2:1 wie .span-2 in .grid.cols-3 (Spaltenbreite (B - 2 Abstaende) / 3). Seit dem
-/// PC-Stand vom 26.10.2026 gilt `.grid > * { min-width: 0 }`: die rechte Spur waechst nicht mehr auf die Breite
-/// langer Titel (Learnweb-Fristen drueckten sie breit, "Heute an der Uni" lief ueber); die Zeilen kuerzen mit "…".
-private struct TwoOneLayout: Layout {
-    var spacing: CGFloat = 16
+/// Karten der Uebersicht ueber 1100 pt in zwei Spalten im Verhaeltnis 2:1 wie .span-2 in .grid.cols-3 (Spaltenbreite
+/// (B - 2 Abstaende) / 3): `.main` immer in die breite Spalte, `.flow` der Reihe nach in die gerade kuerzere Spalte,
+/// damit beide etwa gleich lang enden (Wunsch des Inhabers 03.11.2026). Schmaler: eine Spalte in der Reihenfolge der
+/// Karten. Leere Karten (Hoehe 0, z. B. "Abgaben & Prüfungen" vor dem Laden) bekommen keinen Abstand.
+/// `frames` ist eine reine Funktion (AuditApp20261103Tests).
+struct DashboardFlow: Layout {
+    var twoColumns: Bool
+    var spacing: CGFloat = 8
+    /// Abstand zwischen den Spalten (.grid gap 1rem)
+    var gutter: CGFloat = 16
 
-    private func widths(_ w: CGFloat) -> (CGFloat, CGFloat) {
-        let col = max(0, (w - 2 * spacing) / 3)
-        return (w - spacing - col, col)
+    static func widths(_ w: CGFloat, gutter: CGFloat) -> (CGFloat, CGFloat) {
+        let col = max(0, (w - 2 * gutter) / 3)
+        return (w - gutter - col, col)
+    }
+
+    /// Rahmen je Karte; `height(i, width)` misst Karte i bei der Breite
+    static func frames(width w: CGFloat, slots: [DashboardSlot], twoColumns: Bool, spacing: CGFloat, gutter: CGFloat,
+                       height: (Int, CGFloat) -> CGFloat) -> [CGRect] {
+        guard twoColumns else {
+            var y: CGFloat = 0
+            return slots.indices.map { i in
+                let h = height(i, w)
+                guard h > 0.5 else { return CGRect(x: 0, y: y, width: w, height: 0) }
+                if y > 0 { y += spacing }
+                defer { y += h }
+                return CGRect(x: 0, y: y, width: w, height: h)
+            }
+        }
+        let (lw, rw) = widths(w, gutter: gutter)
+        var left: CGFloat = 0, right: CGFloat = 0
+        return slots.indices.map { i in
+            let toLeft = slots[i] == .main || left < right
+            let cw = toLeft ? lw : rw
+            let h = height(i, cw)
+            let x: CGFloat = toLeft ? 0 : lw + gutter
+            var y = toLeft ? left : right
+            guard h > 0.5 else { return CGRect(x: x, y: y, width: cw, height: 0) }
+            if y > 0 { y += spacing }
+            if toLeft { left = y + h } else { right = y + h }
+            return CGRect(x: x, y: y, width: cw, height: h)
+        }
+    }
+
+    private func frames(_ w: CGFloat, _ subviews: Subviews) -> [CGRect] {
+        Self.frames(width: w, slots: subviews.map { $0[DashboardSlotKey.self] }, twoColumns: twoColumns, spacing: spacing, gutter: gutter) { i, cw in
+            subviews[i].sizeThatFits(ProposedViewSize(width: cw, height: nil)).height
+        }
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let w = proposal.width ?? 900
-        let (lw, rw) = widths(w)
-        let lh = subviews.count > 0 ? subviews[0].sizeThatFits(ProposedViewSize(width: lw, height: nil)).height : 0
-        let rh = subviews.count > 1 ? subviews[1].sizeThatFits(ProposedViewSize(width: rw, height: nil)).height : 0
-        return CGSize(width: w, height: max(lh, rh))
+        return CGSize(width: w, height: frames(w, subviews).map(\.maxY).max() ?? 0)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let (lw, rw) = widths(bounds.width)
-        if subviews.count > 0 { subviews[0].place(at: bounds.origin, proposal: ProposedViewSize(width: lw, height: nil)) }
-        if subviews.count > 1 {
-            subviews[1].place(at: CGPoint(x: bounds.minX + lw + spacing, y: bounds.minY), proposal: ProposedViewSize(width: rw, height: nil))
+        for (i, f) in frames(bounds.width, subviews).enumerated() {
+            subviews[i].place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY), proposal: ProposedViewSize(width: f.width, height: nil))
         }
     }
 }

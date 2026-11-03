@@ -158,11 +158,14 @@ struct LUHSourcesCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 9.6) {
-                    Text("Stud.IP (Dateien, Stundenplan)").ufFont(13.12).foregroundStyle(UF.text)
+                    LUHSourcesCard.label("Stud.IP", "Dateien, Stundenplan")
                     Spacer(minLength: 0)
-                    UFBadge(Self.studipText(studip.phase), tone: Self.studipTone(studip.phase))
+                    // Abzeichen und Knopf behalten ihre Breite (in der halben Karte unter "Uni & Noten" wurden sie
+                    // zu "nicht verbu…" / "Verbin…" gekuerzt); umbrechen darf nur die Beschriftung links
+                    UFBadge(Self.studipText(studip.phase), tone: Self.studipTone(studip.phase)).fixedSize()
                     UFButton(studip.phase == .signedOut ? "Verbinden" : "Öffnen", icon: "arrow-right",
                              kind: studip.phase == .signedOut || studip.phase == .needsLogin ? .primary : .normal, size: .small) { studipSheet = true }
+                        .fixedSize()
                         .accessibilityIdentifier("luh.settings.studip")
                 }
                 .padding(.vertical, 5.6)
@@ -172,6 +175,16 @@ struct LUHSourcesCard: View {
             .padding(.top, 8)
         }
         .sheet(isPresented: $studipSheet) { NavigationStack { StudIPView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { studipSheet = false } } } } }
+    }
+
+    /// Quelle links in der Zeile: Name und darunter klein, was sie liefert (vorher "Stud.IP (Dateien, Stundenplan)" in
+    /// einer Zeile, in der halben Karte unter "Uni & Noten" mitten im Wort umbrochen - Audit 03.11.2026)
+    static func label(_ name: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(name).ufFont(13.12, 600).foregroundStyle(UF.text)
+            Text(detail).ufFont(11.84).foregroundStyle(UF.muted)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     static let text = "Stud.IP (Kurse, Dateien, Stundenplan, Aufzeichnungen) und QIS (Notenspiegel) der Leibniz Universität Hannover. Du meldest dich auf den Seiten der Universität mit deiner LUH-ID an und tippst selbst auf „Anmelden“; dein Passwort speichert StudiNow nicht (das kann iOS im Schlüsselbund übernehmen). Dateien und Noten bleiben nur auf diesem iPad."
@@ -204,16 +217,19 @@ struct LUHSourcesCard: View {
 
         var body: some View {
             HStack(spacing: 9.6) {
-                Text("QIS (Noten)").ufFont(13.12).foregroundStyle(UF.text)
+                LUHSourcesCard.label("QIS", "Noten")
                 Spacer(minLength: 0)
-                UFBadge(QISConnection.statusText(connection.state), tone: Self.tone(connection.state))
+                UFBadge(QISConnection.statusText(connection.state), tone: Self.tone(connection.state)).fixedSize()
                 if connection.needsAttention {
                     UFButton(connection.state == .needsLogin ? "Erneut anmelden" : "Verbinden", icon: "arrow-right", kind: .primary, size: .small) { login = true }
+                        .fixedSize()
                         .accessibilityIdentifier("luh.settings.qis")
                 } else {
                     UFButton("Noten abrufen", icon: "sync", size: .small) { Task { await connection.run(force: true) } }
+                        .fixedSize()
                         .disabled(connection.isRunning)
                     UFButton("Abmelden", icon: "log-out", kind: .danger, size: .small) { confirmSignOut = true }
+                        .fixedSize()
                         .disabled(connection.isRunning)
                 }
             }

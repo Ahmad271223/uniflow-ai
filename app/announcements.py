@@ -36,9 +36,11 @@ KINDS = [  # Reihenfolge = Vorrang
     ("ausfall", r"f(?:ä|ae)llt\s+(?:[\w.,]+\s+){0,4}aus\b|entf(?:ä|ae)llt|ausfall|abgesagt|findet\s+(?:[\w.,]+\s+){0,4}nicht\s+statt|"
                 r"\bkeine?\s+[a-zäöüß]*?(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"),
     ("verlegt", r"verlegt|verschoben|stattdessen|ersatztermin|nachgeholt|nachholtermin"),
-    ("raum", r"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"),
+    # Frist und Pruefung vor Raum (Riesentest 03.11.2026): "Die Klausur findet am 12.02. um 9 Uhr im Hörsaal F 303 statt"
+    # ist ein Pruefungstermin, kein Raumhinweis; vorher gewann "Hörsaal"
     ("frist", r"abgabe|frist|deadline|einreichen|hochladen|bis\s+(?:zum|spätestens|spaetestens)"),
     ("pruefung", r"klausur|pr(?:ü|ue)fung|hausarbeit|portfolio|referat"),
+    ("raum", r"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"),
     ("online", r"online|zoom|bigbluebutton|\bbbb\b|webex|digital|videokonferenz"),
 ]
 KIND_LABELS = {"ausfall": "Ausfall?", "verlegt": "Verlegung?", "raum": "Raum", "pruefung": "Prüfung", "frist": "Frist",

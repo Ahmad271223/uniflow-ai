@@ -61,9 +61,11 @@ public enum Announcements {
                                 + #"\bkeine?\s+[a-zäöüß]*?(?:vorlesung(?:en)?|sitzung(?:en)?|veranstaltung(?:en)?|übung(?:en)?|uebung(?:en)?|seminar(?:e)?|tutori(?:um|en))\b"#,
                                 [.caseInsensitive])),
         ("verlegt", HText.regex(#"verlegt|verschoben|stattdessen|ersatztermin|nachgeholt|nachholtermin"#, [.caseInsensitive])),
-        ("raum", HText.regex(#"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"#, [.caseInsensitive])),
+        // Frist und Pruefung vor Raum (Riesentest 03.11.2026, wie KINDS in app/announcements.py): "Die Klausur findet am
+        // 12.02. um 9 Uhr im Hörsaal F 303 statt" ist ein Pruefungstermin, kein Raumhinweis
         ("frist", HText.regex(#"abgabe|frist|deadline|einreichen|hochladen|bis\s+(?:zum|spätestens|spaetestens)"#, [.caseInsensitive])),
         ("pruefung", HText.regex(#"klausur|pr(?:ü|ue)fung|hausarbeit|portfolio|referat"#, [.caseInsensitive])),
+        ("raum", HText.regex(#"\braum\b|raumwechsel|raumänderung|h(?:ö|oe)rsaal|seminarraum|\bin\s+(?:raum|geb(?:ä|ae)ude)"#, [.caseInsensitive])),
         ("online", HText.regex(#"online|zoom|bigbluebutton|\bbbb\b|webex|digital|videokonferenz"#, [.caseInsensitive])),
     ]
     private static let sentenceEndRE = HText.regex(#"\.(?:\s|$)(?![\d])"#)

@@ -8,7 +8,7 @@
 // geteilt durch die angezeigte Seitengroesse). Empfaenger mit anderer Drehung bilden die Stelle wie die Objekte ab.
 import { icon } from "./icons.js?v=31";
 import * as S from "./solutions.js?v=6";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=14";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=15";
 import { renderLinkCard } from "./studora-link.js?v=4";
 
 const $ = (s, el = document) => el.querySelector(s);

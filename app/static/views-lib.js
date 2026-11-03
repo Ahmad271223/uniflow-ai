@@ -1,7 +1,11 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
-import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=39";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=58";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=40";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=59";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
+
+// "Neu" wie auf der Uebersicht, den Modulkarten und in der iPad-App (study.NEW_FILE_SQL): noch nicht angesehen
+// (seen_by_user 0); aeltere Antworten ohne das Feld: Lernstand "neu"
+export function isNewFile(f) { return f.seen_by_user != null ? Number(f.seen_by_user) === 0 : f.status === "neu"; }
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
 const CHIPS = [["all", "Alle"], ["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["notes", "Notizen"], ["sonstiges", "Sonstiges"]];
@@ -26,7 +30,7 @@ export async function viewFiles(_, params, view) {
   const root = section === "docs" && !path && !q && filter === "all";
   if (section === "fav") items = activeFiles.filter(f => f.favorite).map(docItem);
   else if (section === "recent") items = activeFiles.filter(f => f.last_opened || f.edited_at).sort((a, b) => (b.edited_at || b.last_opened || "").localeCompare(a.edited_at || a.last_opened || "")).slice(0, 60).map(docItem);
-  else if (section === "new") items = activeFiles.filter(f => f.status === "neu").map(docItem);
+  else if (section === "new") items = activeFiles.filter(isNewFile).map(docItem);
   else if (section === "trash") items = lib.trash.map(f => ({ kind: "trash", f }));
   else {
     const seg = path ? path.split("/") : [];
@@ -53,7 +57,7 @@ export async function viewFiles(_, params, view) {
   if (q) items = activeFiles.filter(f => (f.title + " " + f.name + " " + (f.ai_title || "") + " " + (f.subject || "")).toLowerCase().includes(q)).map(docItem);
   items.sort((a, b) => { if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1; if (a.kind !== "doc") return 0; return sort === "name" ? a.f.title.localeCompare(b.f.title, "de") : (b.f.edited_at || "").localeCompare(a.f.edited_at || "") || b.f.chdate - a.f.chdate; });
   const current = crumbs[crumbs.length - 1]; const curMod = path.startsWith("m") ? +path.split("/")[0].slice(1) : "";
-  const newCount = lib.files.filter(f => f.status === "neu").length;
+  const newCount = lib.files.filter(isNewFile).length;
   const recent = activeFiles.filter(f => f.last_opened || f.edited_at).sort((a, b) => (b.edited_at || b.last_opened || "").localeCompare(a.edited_at || a.last_opened || "")).slice(0, 4);
   const sectionTitle = { fav: "Favoriten", recent: "Zuletzt bearbeitet", new: "Neu aus Stud.IP", trash: "Papierkorb" }[section];
   view.innerHTML = `<div class="content" style="max-width:1480px">
@@ -96,7 +100,7 @@ function quickItem(f) {
 function gridItem(it) {
   if (it.kind === "folder") return `<div class="lib-item" data-open="path:${esc(it.path)}"><div class="lib-folder" style="--fc:${cssColor(it.color) || "#4f8ef7"}"></div><div class="nm"><span>${esc(it.label)}</span>${it.user ? `<i class="menu-btn2" data-menu="folder:${it.user.id}">${icon("chevron-down", 14)}</i>` : ""}</div><div class="dt">${it.count} Dokumente</div></div>`;
   const f = it.f; const isPdf = f.kind === "pdf" && f.downloaded_at;
-  return `<div class="lib-item ${f.favorite ? "fav" : ""}" data-open="${it.kind === "trash" ? "" : "doc:" + f.id}"><div class="lib-thumb ${f.kind}" ${isPdf ? `data-thumb="${f.id}"` : ""}>${isPdf ? `<span class="ph">${icon("file-text", 28)}</span>` : f.kind === "whiteboard" ? `<span class="ph">${icon("square", 28)}</span>` : f.kind === "image" ? `<img src="/api/files/${f.id}/content">` : `<span class="ph">${icon("note", 28)}</span>`}${it.kind !== "trash" ? `<span class="lib-star" data-fav="${f.id}">${icon("star", 16)}</span>` : ""}</div><div class="nm"><span>${esc(f.title)}</span><i class="menu-btn2" data-menu="${it.kind === "trash" ? "trash" : "doc"}:${f.id}">${icon("chevron-down", 14)}</i></div><div class="dt">${it.kind === "trash" ? "gelöscht " + fmtDate(f.deleted_at) : (f.edited_at ? "bearbeitet " + fmtDate(f.edited_at) : fmtDate(f.chdate)) + (f.status === "neu" ? " · <b style='color:var(--accent-text)'>Neu</b>" : "")}</div></div>`;
+  return `<div class="lib-item ${f.favorite ? "fav" : ""}" data-open="${it.kind === "trash" ? "" : "doc:" + f.id}"><div class="lib-thumb ${f.kind}" ${isPdf ? `data-thumb="${f.id}"` : ""}>${isPdf ? `<span class="ph">${icon("file-text", 28)}</span>` : f.kind === "whiteboard" ? `<span class="ph">${icon("square", 28)}</span>` : f.kind === "image" ? `<img src="/api/files/${f.id}/content">` : `<span class="ph">${icon("note", 28)}</span>`}${it.kind !== "trash" ? `<span class="lib-star" data-fav="${f.id}">${icon("star", 16)}</span>` : ""}</div><div class="nm"><span>${esc(f.title)}</span><i class="menu-btn2" data-menu="${it.kind === "trash" ? "trash" : "doc"}:${f.id}">${icon("chevron-down", 14)}</i></div><div class="dt">${it.kind === "trash" ? "gelöscht " + fmtDate(f.deleted_at) : (f.edited_at ? "bearbeitet " + fmtDate(f.edited_at) : fmtDate(f.chdate)) + (isNewFile(f) ? " · <b style='color:var(--accent-text)'>Neu</b>" : "")}</div></div>`;
 }
 function listItem(it) {
   if (it.kind === "folder") return `<div class="lib-row" data-open="path:${esc(it.path)}"><div class="mini folder" style="--fc:${cssColor(it.color) || "#4f8ef7"}">${icon("folder", 16)}</div><b>${esc(it.label)}</b><span class="muted small hide-m">Ordner</span><span class="muted small hide-m">${it.count} Dokumente</span><span class="hide-m"></span><span>${it.user ? `<i class="menu-btn2" data-menu="folder:${it.user.id}">${icon("more", 16)}</i>` : ""}</span></div>`;

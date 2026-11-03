@@ -19,6 +19,8 @@ struct TimetableView: View {
     @State private var studipPending = 0
     /// offene Fragen zum eigenen Stud.IP-Kalender (nur auf dem Geraet)
     @State private var studipQuestions: JSONValue?
+    /// Breite des Rasters (fuer die Spaltenwahl und den Hinweis auf ausgeblendete Wochenendtage); 0 = noch nicht gemessen
+    @State private var gridWidth: CGFloat = 0
 
     /// ttDate im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var ttDate = UFFmt.todayISO()
@@ -89,8 +91,10 @@ struct TimetableView: View {
                 }
                 .padding(.bottom, 12.8)
             }
+            let cols = TimetableColumns.layout(days: days, width: gridWidth)
+            if !cols.hidden.isEmpty { weekendHint(cols.hidden) }
             grid(days, lo: lo, hi: hi)
-            Text("Klick auf einen Termin: Teilnahme ändern, bearbeiten, Unterlagen öffnen. Nicht besuchte Veranstaltungen geben Zeit frei, die du für Lernblöcke nutzen kannst.")
+            Text("Tippe auf einen Termin: Teilnahme ändern, bearbeiten, Unterlagen öffnen. Nicht besuchte Veranstaltungen geben Zeit frei, die du für Lernblöcke nutzen kannst.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 9.6)
         }
     }
@@ -132,25 +136,43 @@ struct TimetableView: View {
 
     // MARK: Raster (.tt-wrap / .tt-grid)
 
-    private func grid(_ days: [JSONValue], lo: Int, hi: Int) -> some View {
+    /// Wochenendtage ohne Termine ausgeblendet (nur, wenn sieben Spalten nicht passen): sichtbarer Hinweis mit Pfeil
+    private func weekendHint(_ hidden: [JSONValue]) -> some View {
+        let names = hidden.map { UFKind.daysLong[$0.i("weekday") ?? 0] }.joined(separator: " und ")
+        return HStack(spacing: 6) {
+            UFIcon("info", size: 14)
+            Text("\(names) ohne Termine ausgeblendet – mit mehr Breite (Querformat, Vollbild) siehst du die ganze Woche.")
+                .fixedSize(horizontal: false, vertical: true)
+            UFIcon("arrow-right", size: 14)
+        }
+        .ufFont(12.16).foregroundStyle(UF.muted)
+        .padding(.bottom, 6.4)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("timetable.weekendHidden")
+    }
+
+    private func grid(_ allDays: [JSONValue], lo: Int, hi: Int) -> some View {
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * H }
         let today = UFFmt.todayISO()
         // Chips im Tageskopf (Feiertag, Fristen, Hinweise) machen den Kopf hoeher: je Chip eine Zeile
-        let chipRows = days.map { UFDayExtras.marks($0).count + $0.list("deadlines").count + $0.list("notices").count }.max() ?? 0
+        let chipRows = allDays.map { UFDayExtras.marks($0).count + $0.list("deadlines").count + $0.list("notices").count }.max() ?? 0
         let chipHeight: CGFloat = chipRows > 0 ? 2 + CGFloat(chipRows) * 23.2 : 0
         return GeometryReader { g in
-            // 52px + 7 x minmax(120px, 1fr), mindestens 900 px; breiter als der Rahmen -> waagrecht scrollen
-            let total = max(900, g.size.width - 2)
-            let col = (total - 52) / 7
+            // Montag–Sonntag passen ab 92 pt je Spalte mit schmaler Zeitachse (13" hochkant: 105 pt; vorher mindestens
+            // 900 pt Raster, Samstag abgeschnitten, Sonntag nur durch Wischen - Audit 03.11.2026); sonst Wochenende
+            // nur mit Terminen (`TimetableColumns`), erst darunter waagrecht scrollen
+            let cols = TimetableColumns.layout(days: allDays, width: g.size.width - 2)
+            let days = cols.shown, col = cols.column, axisW = cols.axis
             ScrollView(.horizontal, showsIndicators: true) {
                 VStack(spacing: 0) {
                     HStack(alignment: .top, spacing: 0) {
-                        Color.clear.frame(width: 52)
+                        Color.clear.frame(width: axisW)
                         ForEach(Row.rows(days, key: "date")) { row in
                             let d = row.value
                             VStack(spacing: 0) {
-                                Text(UFKind.daysLong[d.i("weekday") ?? 0]).ufFont(13.12, 600)
+                                Text((col < 100 ? ShellState.days : UFKind.daysLong)[d.i("weekday") ?? 0]).ufFont(13.12, 600)
                                     .foregroundStyle(d.s("date") == today ? UF.accentText : UF.text)
+                                    .accessibilityLabel(UFKind.daysLong[d.i("weekday") ?? 0])
                                 Text(dayMonth(d.s("date"))).ufFont(11.52).foregroundStyle(UF.muted)
                                 // .tt-head: Feiertag/vorlesungsfrei, Fristen und Hinweise als Chips (holChips, dlChips, noteChips)
                                 UFDayExtraChips(dd: d).padding(.horizontal, 4).padding(.top, 2)
@@ -162,17 +184,18 @@ struct TimetableView: View {
                     }
                     .ufBorderBottom()
                     HStack(alignment: .top, spacing: 0) {
-                        axis(lo: lo, hi: hi, px: px).frame(width: 52)
+                        axis(lo: lo, hi: hi, px: px).frame(width: axisW)
                             .overlay(alignment: .trailing) { Rectangle().fill(UF.line).frame(width: 1) }
                         ForEach(Row.rows(days, key: "date")) { row in
                             column(row.value, lo: lo, hi: hi, px: px, width: col, today: row.value.s("date") == today)
                         }
                     }
                 }
-                .frame(width: total)
+                .frame(width: cols.total)
             }
             .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width - 2 } action: { gridWidth = $0 }
         .frame(height: 7.2 * 2 + 13.12 * 1.5 + 11.52 * 1.5 + chipHeight + 1 + px(hi) + 2)
         .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
         .clipShape(RoundedRectangle(cornerRadius: UF.r))
@@ -226,6 +249,40 @@ struct TimetableView: View {
     }
 }
 
+/// Spalten der Stundenplan-Woche (reine Funktion, AuditApp20261103Tests): Zeitachse 52 pt, schmal 44 pt; alle sieben
+/// Tage, wenn jede Spalte mindestens 92 pt bekommt (13" hochkant ~105 pt, iPad mini hochkant ~93 pt). Sonst Samstag
+/// und Sonntag nur mit Terminen oder Hinweisen; passen auch die verbleibenden Spalten nicht, scrollt das Raster.
+enum TimetableColumns {
+    static let axisWide: CGFloat = 52
+    static let axisCompact: CGFloat = 44
+    static let minColumn: CGFloat = 92
+
+    struct Result {
+        let axis: CGFloat
+        let shown: [JSONValue]
+        let hidden: [JSONValue]
+        let column: CGFloat
+        let total: CGFloat
+    }
+
+    /// `width` 0 (noch nicht gemessen): alle Tage, nichts ausgeblendet
+    static func layout(days: [JSONValue], width: CGFloat) -> Result {
+        let w = max(0, width)
+        let axis = w > 0 && w < 1000 ? axisCompact : axisWide
+        var shown = days, hidden: [JSONValue] = []
+        if w > 0, CGFloat(days.count) * minColumn > w - axis {
+            let empty: (JSONValue) -> Bool = { d in
+                (d.i("weekday") ?? 0) >= 5 && d.list("events").isEmpty && !UFDayExtras.hasAny(d)
+            }
+            hidden = days.filter(empty)
+            shown = days.filter { !empty($0) }
+        }
+        let n = CGFloat(max(1, shown.count))
+        let total = max(w, axis + n * minColumn)
+        return Result(axis: axis, shown: shown, hidden: hidden, column: (total - axis) / n, total: total)
+    }
+}
+
 /// .tt-ev: Flaeche in Termin-Farbe, weisse Schrift, Rand links 3px rgba(0,0,0,.18); Zustaende nicht besucht/faellt aus/verschoben
 struct TimetableEventBlock: View {
     let e: JSONValue
@@ -246,8 +303,13 @@ struct TimetableEventBlock: View {
                     // ein Wort zu breit: eine Zeile, verkleinert statt mitten im Wort umbrochen
                     .lineLimit(narrow && PlanNames.wordsFit(PlanNames.tinyName(e.s("title")), width: width - 9, size: 11.84) ? 3 : 1)
                     .minimumScaleFactor(0.7).truncationMode(.tail)
-                Text(narrow ? (e.s("start") ?? "") : "\(e.s("start") ?? "")–\(e.s("end") ?? "")\(room)").ufFont(10, lh: 1.2).opacity(0.9)
-                    .fixedSize(horizontal: false, vertical: true)           // overflow: hidden schneidet ab statt zu kuerzen
+                if narrow {
+                    // schmale Spur: die Uhrzeit in einer Zeile, eher kleiner als "10:0/0" (Spalten seit 03.11.2026 schmaler)
+                    Text(e.s("start") ?? "").ufFont(10, lh: 1.2).opacity(0.9).lineLimit(1).minimumScaleFactor(0.6)
+                } else {
+                    Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")\(room)").ufFont(10, lh: 1.2).opacity(0.9)
+                        .fixedSize(horizontal: false, vertical: true)       // overflow: hidden schneidet ab statt zu kuerzen
+                }
             }
             .strikethrough(st == "nicht_teilnahme" || ausfall)
             .foregroundStyle(ausfall ? UF.muted : .white)

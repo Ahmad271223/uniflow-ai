@@ -85,7 +85,8 @@ struct UFHint: Identifiable {
                       kindText: x.s("kind_label") ?? "Frist", icon: kind.hasPrefix("test") ? "exam" : "flag", tone: .bad,
                       title: x.s("title") ?? "Frist", date: date, time: time, course: x.s("course_title"),
                       snippet: full != nil && full != x.s("title") ? full : nil,
-                      source: studip ? "Aufgabe aus Stud.IP Courseware" : "Frist aus dem Learnweb-Kalender",
+                      source: x.s("source") == DemoContent.source ? "Frist aus den Demo-Inhalten"
+                          : studip ? "Aufgabe aus Stud.IP Courseware" : "Frist aus dem Learnweb-Kalender",
                       url: UFDayExtras.safeURL(x.s("url")), announcementID: nil, courseID: nil, moduleID: nil, raw: x)
     }
 

@@ -10,6 +10,8 @@ struct ModulesPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage("mod-mode") private var mode = "cards"
     @State private var mods: [JSONValue]?
     /// lokal ohne ein einziges Modul: Stud.IP-Kurse ohne Modul
@@ -59,9 +61,10 @@ struct ModulesPage: View {
             if mods.isEmpty, !courses.isEmpty {
                 LocalCoursesCard(courses: courses) { router.go(.files(path: LibraryCourses.path($0))) }
             } else if mods.isEmpty {
-                UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Nach dem ersten Abgleich mit Stud.IP erscheinen sie hier.") }
+                UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Nach dem ersten Abgleich mit \(studip.university.profile.filesSource) erscheinen sie hier.") }
             } else if mode == "cards" {
-                UFAutoGrid(min: 300, spacing: 19.2) {
+                // bei Bedienungshilfen-Schriftgroessen breitere Karten (eine Spalte im Hochformat), damit Namen ganz bleiben
+                UFAutoGrid(min: typeSize.isAccessibilitySize ? 520 : 300, spacing: 19.2) {
                     // Kacheln erscheinen beim ersten Oeffnen der Seite leicht gestaffelt (UFMotion), sonst sofort
                     ForEach(Array(Row.rows(mods).enumerated()), id: \.element.id) { i, row in
                         ModuleCard(m: row.value) { router.go(.module(row.value.i("id") ?? 0)) }.ufAppear("modules", index: i)
@@ -151,23 +154,31 @@ struct ModuleCard: View {
     @Environment(\.ufFillsCell) private var fills
     @EnvironmentObject private var session: Session
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @EnvironmentObject private var studip: StudIPSync
     /// Wochentests am eigenen Server oder mit KI ueber das ChatGPT-Abo; sonst weder anbieten noch ankuendigen
     private var showsTests: Bool { session.api?.isLocal == false || aiEnabled }
+
+    /// Herkunft der Veranstaltungen: Demo-Modul "aus den Demo-Inhalten", sonst die Quelle der Hochschule (Stud.IP bzw.
+    /// Learnweb; Audit 03.11.2026: "aus Stud.IP" stand auch an der Demo und an der Uni Hildesheim)
+    static func desc(courses: Int, moduleName: String?, filesSource: String) -> String {
+        let source = moduleName == DemoContent.moduleName ? "den Demo-Inhalten" : filesSource
+        return "Vorlesung, Übungen und Material – \(courses) Veranstaltung\(courses == 1 ? "" : "en") aus \(source)."
+    }
 
     var body: some View {
         let mc = Color(hex: m.s("color"))
         let topics = m.list("topics").compactMap(\.string)
         let courses = m.i("courses") ?? 0
-        let desc = topics.isEmpty ? "Vorlesung, Übungen und Material – \(courses) Veranstaltung\(courses == 1 ? "" : "en") aus Stud.IP." : topics.joined(separator: ", ")
+        let desc = topics.isEmpty ? Self.desc(courses: courses, moduleName: m.s("name"), filesSource: studip.university.profile.filesSource)
+                                  : topics.joined(separator: ", ")
         let progress = m.i("progress") ?? 0
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12.8) {                                     // .hd
                     RoundedRectangle(cornerRadius: 12).fill(mc).frame(width: 48, height: 48)
                         .overlay(Text(UFFmt.initial(m.s("name"))).font(.uf(16, 700)).foregroundStyle(.white))
-                    Text(m.s("name") ?? "").ufFont(17.92, 700, lh: 1.2).foregroundStyle(UF.text)
-                        .fixedSize(horizontal: false, vertical: true)               // umbrechen statt kuerzen
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // umbrechen statt kuerzen, aber nie mitten im Wort (UFWordWrapText)
+                    UFWordWrapText(m.s("name") ?? "", size: 17.92, weight: 700, lh: 1.2).foregroundStyle(UF.text)
                 }
                 .padding(.trailing, 40).padding(.bottom, 9.6)
                 Text(desc).ufFont(13.76).foregroundStyle(UF.text2).lineLimit(2)        // .desc: min-height 2.6em
@@ -265,12 +276,12 @@ struct ModuleListRow: View {
                     .frame(width: 44, alignment: .leading)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(m.s("name") ?? "").ufFont(14.5, 600).foregroundStyle(UF.text)
+                    UFWordWrapText(m.s("name") ?? "", size: 14.5, weight: 600).foregroundStyle(UF.text)
                     Text(topics.isEmpty ? "\(m.i("courses") ?? 0) Veranstaltungen" : topics).ufFont(12.48).foregroundStyle(UF.muted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text).frame(width: 120, alignment: .leading)
-                Text("\(m.i("file_count") ?? 0) Dateien · \(m.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
+                Text("\(m.i("file_count") ?? 0) \(m.i("file_count") == 1 ? "Datei" : "Dateien") · \(m.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 Text(nx.map { "\(UFFmt.short($0.s("date"))) \($0.s("start") ?? "")" } ?? "–").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 36)
             }
@@ -429,7 +440,7 @@ struct ModulePage: View {
                 .accessibilityHidden(true)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2.4) {
-                Text(m.s("name") ?? "").ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
+                UFWordWrapText(m.s("name") ?? "", size: 30.4, weight: 700, em: -0.02).foregroundStyle(UF.text)
                 Text("\(d.list("courses").count) Veranstaltungen: \(kinds)\(m.s("exam_date").map { " · Klausur " + UFFmt.date($0) } ?? "")")
                     .ufFont(14.5).foregroundStyle(UF.muted)
             }
@@ -479,7 +490,7 @@ struct ModulePage: View {
                     UFChip(text: RecordingText.count(n), icon: "play") { focusWeek = wk; tab = "recordings" }
                         .accessibilityHint("Zeigt die Aufzeichnungen dieser Woche")
                 }
-                Text("\(w.i("count") ?? 0) Dokumente").ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
+                Text("\(w.i("count") ?? 0) \(w.i("count") == 1 ? "Dokument" : "Dokumente")").ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
                 // KI-Zusammenfassung mit dem PC-Server oder ueber das ChatGPT-Abo des Nutzers (LocalContext.ai)
                 if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true || aiEnabled {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }

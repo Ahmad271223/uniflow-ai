@@ -66,6 +66,21 @@ enum UFFmt {
 /// (vorher ueberall "Stud.IP")
 enum UFSourceText {
     static func newFiles(_ university: UniversityKey) -> String { "Neu aus \(university.profile.filesSource)" }
+    /// mit Demo-Inhalten keine Herkunft, die es nicht gibt (Audit 03.11.2026: "Neu aus Stud.IP" bei Demo-Dateien)
+    static func newFiles(_ university: UniversityKey, demo: Bool) -> String { demo ? "Neue Dateien (Demo)" : newFiles(university) }
+}
+
+/// "Neu" an allen Stellen gleich (Uebersicht "Neu aus …", Modulkarten, Bibliothek; Backend `LocalLibrary.newFileSQL`):
+/// eine Datei ist neu, solange sie nicht angesehen wurde (`seen_by_user` 0; Oeffnen und "Gesehen" setzen es). Aeltere
+/// PC-Server ohne das Feld: wie bisher der Lernstand `status` "neu". (Audit 03.11.2026: 1 neue Datei auf der Uebersicht,
+/// 3 im Modul und in der Bibliothek.)
+enum UFNewFiles {
+    static func isNew(_ f: JSONValue) -> Bool {
+        if let seen = f["seen_by_user"], !seen.isNull { return (seen.int ?? (seen.bool == true ? 1 : 0)) == 0 }
+        return f.s("status") == "neu"
+    }
+
+    static func count(_ files: [JSONValue]) -> Int { files.filter(isNew).count }
 }
 
 /// Laden/Fehler wie route() in app.js: Platzhalter-Balken beim Laden, Karte "Server nicht erreichbar" mit

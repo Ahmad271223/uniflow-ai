@@ -242,8 +242,9 @@ struct CommunitySpacePage: View {
         VStack(spacing: 0) {
             UFContent {
                 VStack(alignment: .leading, spacing: 16) {
+                    // nur "‹ Community": Seitenleiste und Kopfzeile sind hier sichtbar, das App-Logo davor wirkte wie ein
+                    // zweiter Knopf ohne Funktion (Audit 03.11.2026); im Leser ohne App-Leiste bleibt es
                     HStack(spacing: 6) {
-                        UFLogoMenu()
                         CommunityBackButton(title: "Community") { back() }
                         Spacer(minLength: 0)
                     }

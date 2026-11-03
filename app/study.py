@@ -286,6 +286,19 @@ def week_topic(files: list[dict]) -> str:
     return ""
 
 
+# "Neu" heisst an allen Stellen dasselbe (Uebersicht "Neu aus …", Modulkarten "n neue Inhalte", Bibliothek "Neu aus …",
+# Kurse): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und "Gesehen" setzen es), aus einem aktiven Kurs. Der
+# Lernstand `status` ("neu" | "gelesen" | "erledigt") zaehlt dafuer nicht mehr (Audit der iPad-App 03.11.2026: 1 neue
+# Datei auf der Uebersicht, 3 neue Inhalte im Modul und in der Bibliothek).
+NEW_FILE_SQL = "f.seen_by_user=0"
+
+
+def new_files_count(conn, module_id: int) -> int:
+    """Neue Dateien eines Moduls (`NEW_FILE_SQL`, aktive Kurse)."""
+    return conn.execute(f"SELECT COUNT(*) FROM files f JOIN courses c ON c.id=f.course_id WHERE c.active=1 AND c.module_id=? AND {NEW_FILE_SQL}",
+                        (module_id,)).fetchone()[0]
+
+
 def module_detail(conn, module_id: int) -> dict:
     m = db.row(conn, "SELECT * FROM modules WHERE id=?", (module_id,))
     if not m:
@@ -315,7 +328,7 @@ def module_detail(conn, module_id: int) -> dict:
     progress = round(100 * len([f for f in learnable if f["id"] in done_files]) / len(learnable)) if learnable else 0
     next_pkg = db.row(conn, "SELECT date, title FROM study_packages WHERE module_id=? AND date>=? AND status IN ('geplant','in_bearbeitung') ORDER BY date LIMIT 1", (module_id, today().isoformat()))
     return {"module": dict(m), "courses": courses, "weeks": out_weeks, "files": files, "progress": progress,
-            "new_count": len([f for f in files if f["status"] == "neu"]), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
+            "new_count": new_files_count(conn, module_id), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
             "next_package": next_pkg, "notes": [f for f in files if f["has_notes"]]}
 
 
@@ -1086,9 +1099,9 @@ def dashboard(conn) -> dict:
     cal = calendar(conn, t, t)
     today_day = cal["days"][0]
     mods = modules_overview(conn)
-    new_files = db.rows(conn, """SELECT f.id, f.name, f.first_seen, f.chdate, c.subject, c.module_id, a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes
+    new_files = db.rows(conn, f"""SELECT f.id, f.name, f.first_seen, f.chdate, c.subject, c.module_id, a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes
                                  FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-                                 WHERE f.seen_by_user=0 AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC""")
+                                 WHERE {NEW_FILE_SQL} AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC""")
     week_start = monday(t)
     week = calendar(conn, week_start, week_start + timedelta(days=6))
     wk_total = sum(d["tasks_total"] for d in week["days"])

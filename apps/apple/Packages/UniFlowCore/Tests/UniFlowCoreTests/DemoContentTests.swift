@@ -150,11 +150,12 @@ final class DemoContentTests: XCTestCase {
     }
 
     /// Tabellen vergleichen; `deviceRemovesMore`: Zeilen zu Demo-Dateien, die das Geraet beim Entfernen mitnimmt und
-    /// Python stehen laesst (Notiz-Versionen), fallen auf der Python-Seite weg
+    /// Python stehen laesst (Notiz-Versionen), fallen auf der Python-Seite weg. Karteikarten zu Demo-Dateien entfernt
+    /// seit 03.11.2026 auch Python (die Demo bringt eigene Karten mit), sie werden gleich verglichen.
     private func compareTables(_ local: [String: JSONValue], _ python: JSONValue, deviceRemovesMore: Bool, _ label: String, _ problems: inout [String]) {
         for (name, rowsValue) in python.object ?? [:] {
             var expected = rowsValue.array ?? []
-            if deviceRemovesMore, ["annotation_versions", "flashcards"].contains(name) {
+            if deviceRemovesMore, name == "annotation_versions" {
                 expected.removeAll { ($0["file_id"]?.string ?? "").lowercased().hasPrefix("demo-") }
             }
             let got = local[name]?.array ?? []

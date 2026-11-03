@@ -537,12 +537,14 @@ public enum DueStore {
             let kind = r["kind"]?.string ?? ""
             // Courseware-Aufgaben aus Stud.IP (StudIPTexts) stehen in derselben Tabelle wie die Learnweb-Fristen
             let studip = r["source"]?.string == "studip"
+            // Demo-Fristen (DemoContent, source "demo") nennen keine Hochschulquelle (Audit 03.11.2026)
+            let demo = r["source"]?.string == DemoContent.source
             items.append([
                 "id": r["id"] ?? .null, "deadline_id": r["id"] ?? .null, "source": studip ? "studip" : "learnweb", "detected": false,
                 "date": .string(PyText.slice(due, 0, 10)), "time": .string(PyText.slice(due, 11, 16)),
                 "kind": .string(learnwebKind(kind) ?? "sonstiges"), "kind_label": .string(Holidays.deadlineLabels[kind] ?? "Frist"),
                 "title": r["title"] ?? .null, "full_title": LocalTimetable.or(r["full_title"], r["title"] ?? .null),
-                "origin": studip ? "aus Stud.IP Courseware" : "aus dem Learnweb-Kalender", "course_id": r["course_id"] ?? .null, "course_title": r["course_title"] ?? .null,
+                "origin": .string(demo ? "aus den Demo-Inhalten" : studip ? "aus Stud.IP Courseware" : "aus dem Learnweb-Kalender"), "course_id": r["course_id"] ?? .null, "course_title": r["course_title"] ?? .null,
                 "module_id": r["module_id"] ?? .null, "module_name": r["module_name"] ?? .null, "color": r["color"] ?? .null,
                 "url": r["url"] ?? .null, "file_id": .null, "page": .null, "confirmed": true, "hidden": false, "user_time": false,
                 "overdue": .bool(LocalModules.truthy(r["overdue"])),

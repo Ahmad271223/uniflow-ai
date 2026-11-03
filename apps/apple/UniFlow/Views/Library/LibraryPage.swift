@@ -91,8 +91,12 @@ struct LibraryPage: View {
     @EnvironmentObject private var router: UFRouter
     /// Hochschule des Containers: Quelle der Dateien ("Stud.IP" bzw. "Learnweb") in den Beschriftungen
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.ufDemoActive) private var demo
 
-    private var newTitle: String { UFSourceText.newFiles(studip.university) }
+    private var newTitle: String { UFSourceText.newFiles(studip.university, demo: demo) }
+    /// Hochschule verbunden (Stud.IP bzw. Learnweb/LSF): sonst bietet die leere Bibliothek das Verbinden an
+    private var universityConnected: Bool { studip.offersStudIP ? studip.phase != .signedOut : hildesheim?.anyConnected == true }
     @AppStorage("lib-mode") private var mode = "grid"
     @State private var lib: JSONValue?
     /// lokal: Kursliste fuer die Kursordner (`LibraryCourses`); mit eigenem Server leer
@@ -185,7 +189,7 @@ struct LibraryPage: View {
         switch section {
         case "fav": b.items = files.filter { $0.i("favorite") == 1 }.map(doc)
         case "recent": b.items = recentFiles(files, limit: 60).map(doc)
-        case "new": b.items = files.filter { $0.s("status") == "neu" }.map(doc)
+        case "new": b.items = files.filter(UFNewFiles.isNew).map(doc)          // "neu" wie auf der Uebersicht
         case "trash": b.items = lib.list("trash").map { Item(id: "t" + ($0.s("id") ?? ""), kind: .trash, f: $0) }
         default:
             let seg = path.isEmpty ? [] : path.components(separatedBy: "/")
@@ -277,7 +281,7 @@ struct LibraryPage: View {
         let curMod = path.hasPrefix("m") ? Int(path.components(separatedBy: "/")[0].dropFirst()) ?? 0 : 0
         // im Kursordner entsteht Neues auf der Stammebene (ein Kurs ist kein Ablageort eigener Dokumente)
         let inCourse = LibraryCourses.courseID(path) != nil
-        let newCount = lib.list("files").filter { $0.s("status") == "neu" }.count
+        let newCount = UFNewFiles.count(lib.list("files"))
         let sectionTitle = ["fav": "Favoriten", "recent": "Zuletzt bearbeitet", "new": newTitle, "trash": "Papierkorb"][section]
         UFContent(maxWidth: 1480) {
             // Kopf: Titel und die eine Hauptaktion "Neu"; Suche, Filter, Sortierung und Ansicht als eigene Werkzeugzeile
@@ -332,6 +336,13 @@ struct LibraryPage: View {
                 }
                 .environment(\.ufFillsCell, true)
                 if let older { LibrarySemestersSection(overview: older, reload: load) }
+                // ganz leer (keine Kursordner, keine Dokumente): Leerkarte mit den Wegen zu Inhalten statt nur des
+                // leeren Schnellzugriffs (Audit 03.11.2026)
+                if b.items.isEmpty && lib.list("files").isEmpty && (older?["semesters"]?.array ?? []).isEmpty {
+                    LibraryEmptyCard(connected: universityConnected, source: studip.university.profile.filesSource,
+                                     connect: { router.go(.settings(tab: "account")) },
+                                     new: { overlay.modal { LibraryNewDialog(lib: lib, path: "", current: b.crumbs.last ?? ("", "")) } })
+                }
                 let own = b.items.filter { $0.kind == .doc }
                 if !own.isEmpty {
                     LibraryQuickCard(title: "Eigene Dokumente", icon: "note") {
@@ -339,8 +350,12 @@ struct LibraryPage: View {
                     }
                 }
                 let recent = recentFiles(lib.list("files"), limit: 4)
+                if !lib.list("files").isEmpty {
                 LibraryQuickCard(title: "Schnellzugriff", icon: "clock", trailing: {
-                    Button("Alle anzeigen") { router.go(.files(section: "recent")) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                    // "Alle anzeigen" nur mit Inhalt (Audit 03.11.2026)
+                    if !recent.isEmpty {
+                        Button("Alle anzeigen") { router.go(.files(section: "recent")) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                    }
                 }) {
                     if recent.isEmpty {
                         Text("Zuletzt geöffnete Dokumente erscheinen hier.").ufFont(13.12).foregroundStyle(UF.muted)
@@ -352,6 +367,7 @@ struct LibraryPage: View {
                         }
                         .environment(\.ufFillsCell, true)
                     }
+                }
                 }
             } else if b.items.isEmpty, olderCourseFiles != nil {
                 EmptyView()                                                   // Kopf des frueheren Kurses sagt alles
@@ -366,14 +382,18 @@ struct LibraryPage: View {
         }
     }
 
+    /// Kacheln bzw. Liste lazy (Audit Robustheit 03.11.2026, P2-1): im Bereich "Neu" nach dem ersten Abgleich stehen
+    /// Hunderte Dateien; vorher entstand jede Kachel sofort und lud ihre Vorschau (ganze PDF, Seite 1 zeichnen). Jetzt
+    /// nur die sichtbaren und gleich folgenden; weggescrollte brechen ab (`.task`, `UFThumbnails`). Raster wie
+    /// `UFGridLayout(spacing: 16, minWidth: 150)`: gleich breite Spalten ab 150 pt, 16 pt Abstand, Zellen oben buendig.
     @ViewBuilder private func itemsView(_ items: [Item], lib: JSONValue, inCard: Bool) -> some View {
         if mode == "grid" {
-            UFGridLayout(spacing: 16, minWidth: 150) {                       // .lib-grid: gap 1.2rem 1rem
+            LazyVGrid(columns: Self.gridColumns, alignment: .leading, spacing: 16) {   // .lib-grid: gap 1.2rem 1rem
                 ForEach(items) { it in LibraryGridItem(it: it, api: session.api, open: { open(it) }, menu: { menu(it, lib: lib) }, fav: { Task { await toggleFav(it.f) } }) }
             }
             .environment(\.ufFillsCell, false)
         } else {
-            let list = VStack(spacing: 0) {
+            let list = LazyVStack(spacing: 0) {
                 ForEach(items) { it in LibraryListRow(it: it, api: session.api, open: { open(it) }, menu: { menu(it, lib: lib) }) }
             }
             if inCard {
@@ -385,6 +405,9 @@ struct LibraryPage: View {
             } else { list }
         }
     }
+
+    /// Spalten der Kacheln: so viele wie bei 150 pt Mindestbreite und 16 pt Abstand passen, gleich breit
+    static let gridColumns = [GridItem(.adaptive(minimum: 150), spacing: 16, alignment: .top)]
 
     private func searchField(section: String, path: String) -> some View {
         HStack(spacing: 0) {
@@ -616,7 +639,7 @@ struct LibraryGridItem: View {
             if it.kind == .folder {
                 UFLibFolder(color: Color(hex: it.color ?? "#4f8ef7")).padding(.top, 10)
                 name(it.label, menu: it.user != nil)
-                Text("\(it.count) Dokumente").ufFont(11.84).foregroundStyle(UF.muted)
+                Text("\(it.count) \(it.count == 1 ? "Dokument" : "Dokumente")").ufFont(11.84).foregroundStyle(UF.muted)
             } else {
                 let f = it.f
                 LibraryThumb(f: f, api: api, star: it.kind != .trash, favorite: f.i("favorite") == 1, fav: fav)
@@ -648,7 +671,7 @@ struct LibraryGridItem: View {
             Text("gelöscht " + UFFmt.date(f.s("deleted_at"))).ufFont(11.84).foregroundStyle(UF.muted)
         } else {
             let base = f.s("edited_at").map { "bearbeitet " + UFFmt.date($0) } ?? UFFmt.date(UFFmt.isoFromUnix(f.n("chdate")))
-            (Text(base) + (f.s("status") == "neu" ? Text(" · ") + Text("Neu").font(.uf(11.84, 700)).foregroundColor(UF.accentText) : Text("")))
+            (Text(base) + (UFNewFiles.isNew(f) ? Text(" · ") + Text("Neu").font(.uf(11.84, 700)).foregroundColor(UF.accentText) : Text("")))
                 .ufFont(11.84).foregroundStyle(UF.muted)
         }
     }
@@ -720,7 +743,7 @@ struct LibraryListRow: View {
                     .overlay(UFIcon("folder", size: 16).foregroundStyle(.white)).frame(width: 44, alignment: .leading)
                 Text(it.label).ufFont(14.08, 700).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
                 Text("Ordner").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 110, alignment: .leading)
-                Text("\(it.count) Dokumente").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
+                Text("\(it.count) \(it.count == 1 ? "Dokument" : "Dokumente")").ufFont(13.12).foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 Color.clear.frame(width: 90, height: 1)
                 Group { if it.user != nil { Button(action: menu) { UFIcon("more", size: 16).foregroundStyle(UF.accentText).ufHitArea() }.buttonStyle(.plain) } else { Color.clear } }
                     .frame(width: 36)
@@ -795,7 +818,17 @@ actor UFThumbnails {
     /// Vorschauen des aktiven Containers (Speicher und Platte je Apple-Nutzer und Hochschule getrennt)
     static var shared: UFThumbnails { ActiveContainer.current?.thumbnails ?? withoutContainer }
     private static let withoutContainer = UFThumbnails(root: ContainerPaths.none)
-    private var memory: [String: UIImage] = [:]
+    /// Im Speicher hoechstens rund 300 Vorschauen bzw. 96 MB (Audit Robustheit 03.11.2026): vorher ein Woerterbuch
+    /// ohne Grenze, das bei 1000 Dateien (Bereich "Neu" nach dem ersten Abgleich) jede Vorschau des Containers hielt.
+    /// Was herausfaellt, kommt beim naechsten Anzeigen von der Platte.
+    private let memory: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.countLimit = UFThumbnails.memoryCountLimit
+        c.totalCostLimit = UFThumbnails.memoryCostLimit
+        return c
+    }()
+    nonisolated static let memoryCountLimit = 300
+    nonisolated static let memoryCostLimit = 96 * 1024 * 1024
     private let dir: URL
     /// Journal desselben Containers (Vorschau mit Notizen)
     private let journalRoot: URL
@@ -818,9 +851,11 @@ actor UFThumbnails {
 
     func image(fileID: String, version: String, image isImage: Bool, api: APIClient) async -> UIImage? {
         let key = Self.key(fileID: fileID, namespace: api.namespace, version: version)
-        if let m = memory[key] { return m }
+        if let m = memory.object(forKey: key as NSString) { return m }
         let file = dir.appendingPathComponent(LocalJournalName.safe(key) + ".jpg")
-        if let d = try? Data(contentsOf: file), let img = UIImage(data: d) { memory[key] = img; return img }
+        if let d = try? Data(contentsOf: file), let img = UIImage(data: d) { remember(img, key); return img }
+        // Kachel schon wieder weg (Ansicht verlassen): keine PDF mehr laden und zeichnen
+        guard !Task.isCancelled else { return nil }
         guard let (data, http) = try? await api.data("/api/files/\(fileID)/content"), (200..<300).contains(http.statusCode) else { return nil }
         var out: UIImage?
         if isImage {
@@ -833,12 +868,21 @@ actor UFThumbnails {
                 ?? page.thumbnail(of: CGSize(width: w, height: w * b.height / max(1, b.width)), for: .mediaBox)
         }
         guard let out else { return nil }
-        memory[key] = out
+        remember(out, key)
         // nur im bestehenden Container (wie ResponseCache.store): nach dem Loeschen kein neuer Ordner ohne Kennzeichnung
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false)
         try? DataContainerLayout.setExcludedFromBackup(dir)                               // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
         try? out.jpegData(compressionQuality: 0.75)?.write(to: file, options: .atomic)
         return out
+    }
+
+    /// Im Speicher merken; Kosten = Bytes der Bitmap (Pixel x 4)
+    private func remember(_ image: UIImage, _ key: String) {
+        memory.setObject(image, forKey: key as NSString, cost: Self.cost(image))
+    }
+
+    nonisolated static func cost(_ image: UIImage) -> Int {
+        Int(image.size.width * image.scale * image.size.height * image.scale * 4)
     }
 
     /// Erste PDF-Seite mit den Notizen aus dem lokalen Journal (nur Dokumente, die auf diesem Geraet schon offen
@@ -853,5 +897,41 @@ actor UFThumbnails {
         let layout = DisplayLayout.build(original: pdf, document: doc)
         guard let i = layout.index(ofKey: key), let page = layout.pdf.page(at: i), let entry = layout.entry(at: i) else { return nil }
         return PageRenderer.thumbnail(page: page, entry: entry, objects: objects, images: [:], width: width)
+    }
+}
+
+/// Leere Bibliothek (Audit 03.11.2026): sagt, woher Dokumente kommen, mit den Wegen dorthin - Hochschule verbinden
+/// (solange nicht verbunden), PDF importieren oder Notizbuch anlegen (Dialog "Neu")
+struct LibraryEmptyCard: View {
+    let connected: Bool
+    /// "Stud.IP" bzw. "Learnweb"
+    let source: String
+    let connect: () -> Void
+    let new: () -> Void
+
+    static func text(connected: Bool, source: String) -> String {
+        connected
+            ? "Noch keine Dokumente. Die Dateien deiner Kurse aus \(source) erscheinen hier nach dem nächsten Abgleich. Eigene PDFs und Notizbücher legst du über „Neu“ an."
+            : "Noch keine Dokumente. Verbinde \(source), dann erscheinen hier die Dateien deiner Kurse. Oder importiere eine PDF bzw. lege ein Notizbuch an."
+    }
+
+    var body: some View {
+        UFCard {
+            UFEmpty(icon: "folder", text: Self.text(connected: connected, source: source)) {
+                UFFlexWrap(gap: 8, justify: .center) {
+                    if !connected {
+                        UFButton("\(source) verbinden", icon: "arrow-right", kind: .primary, size: .small, action: connect)
+                            .accessibilityIdentifier("library.empty.connect")
+                    }
+                    UFButton("PDF importieren", icon: "download", kind: connected ? .primary : .normal, size: .small, action: new)
+                        .accessibilityIdentifier("library.empty.import")
+                    UFButton("Notizbuch anlegen", icon: "note", size: .small, action: new)
+                        .accessibilityIdentifier("library.empty.notebook")
+                }
+                .padding(.top, 9.6)
+            }
+        }
+        .padding(.bottom, 16)
+        .accessibilityIdentifier("library.empty")
     }
 }

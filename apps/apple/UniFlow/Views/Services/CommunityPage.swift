@@ -26,7 +26,7 @@ struct CommunityPage: View {
     /// iPad", obwohl Plus Loesungen als Datei teilt)
     static func text(onDevice: Bool) -> String {
         onDevice
-            ? "Die Community läuft über CloudKit und braucht einen Build mit iCloud-Container (Apple Developer Program). In diesem Build wird nichts veröffentlicht und nichts gesucht. Ab \(UFPlan.plus.name) gibst du eigene Lösungen selbst als verschlüsselte Datei weiter (im Editor unter „Ebenen“) – nur an die, denen du sie schickst."
+            ? "Die Community läuft über iCloud und braucht einen Build mit iCloud-Container (Apple Developer Program). In diesem Build wird nichts veröffentlicht und nichts gesucht. Ab \(UFPlan.plus.name) gibst du eigene Lösungen selbst als verschlüsselte Datei weiter (im Editor unter „Ebenen“) – nur an die, denen du sie schickst."
             : "Diese Installation läuft nur für dich auf deinem PC. Eine Community braucht einen gemeinsamen Server mit Anmeldung, Moderation und Freigabe-Regeln. Es werden keine Inhalte geteilt, nichts verlässt deinen Rechner."
     }
 
@@ -42,7 +42,7 @@ struct CommunityPage: View {
         let connected = mode.isOnDevice && SolutionSharing.community.isConnected
         UFContent(maxWidth: 860) {
             UFPageHead("Community", sub: connected ? "Lösungen teilen und vergleichen – nur eigene Notizen, verschlüsselt." : "Lösungen vergleichen, Fragen stellen, Lerngruppen.")
-            if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 16) }
+            if mode.showsConnectCard { ConnectStudIPCard(mode: mode, compact: true).padding(.bottom, 16) }
             if connected {
                 connectedContent
             } else {

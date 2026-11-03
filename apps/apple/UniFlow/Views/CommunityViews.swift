@@ -39,7 +39,7 @@ enum CommunityTexts {
 
     @MainActor @ViewBuilder static func badge(_ service: CommunityService) -> some View {
         if service.isConnected {
-            UFBadge(service.isAccountService ? "StudiNow-Konto" : "CloudKit", tone: .ok)
+            UFBadge(service.isAccountService ? "StudiNow-Konto" : "iCloud", tone: .ok)          // nicht "CloudKit" (Fachwort)
         } else {
             UFBadge("nicht verfügbar", tone: .warn)
         }

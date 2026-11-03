@@ -1,6 +1,6 @@
 // Gemeinsame Helfer für alle Ansichten
 import { icon } from "./icons.js?v=31";
-import { hintInfo, relatedEvent } from "./hints.js?v=2";
+import { hintInfo, relatedEvent } from "./hints.js?v=3";
 export { icon };
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -67,7 +67,7 @@ export function chipDetail(key) {
     </div>
     <div class="modal-foot">${ev ? `<button class="btn sm" data-hev>${icon("calendar", 14)} Zum Termin</button>` : ""}${h.url ? `<a class="btn sm" href="${esc(h.url)}" target="_blank" rel="noopener">${icon("arrow-right", 14)} Quelle öffnen</a>` : ""}<button class="btn ghost sm" data-close>Schließen</button></div>`);
   const ev$ = $("[data-hev]", m);
-  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=42").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
+  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=43").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
   $$("[data-hatt]", m).forEach(b => b.onclick = async () => {
     try { await api("/timetable/attendance", { method: "POST", body: { event_id: ev.event_id, date: d.date, mode: b.dataset.hatt } }); }
     catch (e) { toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); return; }

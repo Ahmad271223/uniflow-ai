@@ -177,11 +177,15 @@ struct PlanView: View {
         return UFFlexWrap(gap: 8) {
             UFSegPill(options: views, selection: d.view) { v in go(v, Self.state.date) }
             UFFlexSpacer(max: 24)
-            UFButton(icon: "chevron-left") { go(d.view, d.step(-1)) }
-            HStack(spacing: 8) { UFIcon("calendar", size: 17); Text(d.label) }                 // .cal2-title
-                .ufFont(16, 650).foregroundStyle(UF.text)
-                .frame(minWidth: 250)
-            UFButton(icon: "chevron-right") { go(d.view, d.step(1)) }
+            // ‹ Zeitraum › als eine Einheit: einzeln umbrochen landete › allein in der naechsten Zeile (Tag, Monat,
+            // Liste) bzw. ‹ neben den Ansichten und › hinter dem Titel (Woche) - Audit 03.11.2026
+            HStack(spacing: 8) {
+                UFButton(icon: "chevron-left") { go(d.view, d.step(-1)) }
+                HStack(spacing: 8) { UFIcon("calendar", size: 17); Text(d.label) }             // .cal2-title
+                    .ufFont(16, 650).foregroundStyle(UF.text)
+                    .frame(minWidth: 250)
+                UFButton(icon: "chevron-right") { go(d.view, d.step(1)) }
+            }
             UFFlexSpacer()
             UFButton("Heute") { go(d.view, UFFmt.todayISO()) }
             UFSelect(options: modOptions, selection: Binding(get: { Self.state.module }, set: { m in
@@ -254,6 +258,24 @@ struct PlanData {
 
     var monthCal: JSONValue { month ?? cal }
 
+    /// Tage der Woche (Montag–Sonntag) um `date` aus dem gezeigten Zeitraum und dem Monat, mit Modulfilter: fuer
+    /// "Mein Fortschritt" (`UFTaskProgress`); der Monat umfasst ganze Wochen, die Woche des Datums liegt immer darin
+    func weekDays(of date: Date) -> [JSONValue] {
+        let mon = Self.monday(date)
+        let keys = Set((0..<7).map { Fmt.isoDay(Self.add(mon, $0)) })
+        var seen = Set<String>()
+        var out: [JSONValue] = []
+        for dd in cal.list("days") + monthCal.list("days") {
+            guard let k = dd.s("date"), keys.contains(k), !seen.contains(k) else { continue }
+            seen.insert(k)
+            guard let m = moduleFilter, var o = dd.object else { out.append(dd); continue }
+            o["events"] = .array(dd.list("events").filter { $0.i("module_id") == m })
+            o["packages"] = .array(dd.list("packages").filter { $0.i("module_id") == m })
+            out.append(.object(o))
+        }
+        return out.sorted { ($0.s("date") ?? "") < ($1.s("date") ?? "") }
+    }
+
     /// Zeitraum-Titel
     var label: String {
         let f = Fmt.formatter("d. MMMM")
@@ -280,6 +302,59 @@ struct PlanData {
             return Fmt.isoDay(Self.cal.date(byAdding: .month, value: n, to: first) ?? first)
         }
         return Fmt.isoDay(Self.add(date, n * (view == "week" ? 7 : view == "3days" ? 3 : 1)))
+    }
+}
+
+// MARK: - Fortschritt (eine Zaehlweise)
+
+/// "Aufgaben erledigt" an allen Stellen gleich gezaehlt (Audit 03.11.2026: oben auf der Uebersicht "0 / 0" fuer heute,
+/// unten "Diese Woche 0/4", im Lernkalender je nach Ansicht der Tag (Liste "0 / 0") oder sechs Wochen (Monat "0 / 4")):
+/// immer eine Woche Montag–Sonntag, auf der Uebersicht die laufende, im Lernkalender die Woche des gezeigten Datums.
+/// Gezaehlt werden alle Aufgaben der Lernpakete dieser Tage wie `tasks_total` des Backends (auch uebersprungene);
+/// erledigt = "erledigt". Ohne Aufgaben zeigen die Stellen keine Zahl ("0 / 0"), sondern einen Satz.
+struct UFTaskProgress: Equatable {
+    var done = 0
+    var late = 0
+    var skipped = 0
+    var total = 0
+
+    /// noch offen (geplant, in Bearbeitung)
+    var open: Int { max(0, total - done - late - skipped) }
+    var isEmpty: Bool { total == 0 }
+    var fraction: Double { total > 0 ? Double(done) / Double(total) : 0 }
+    /// "1 / 4"; leer nil (keine "0 / 0")
+    var text: String? { isEmpty ? nil : "\(done) / \(total)" }
+
+    /// aus den Kalendertagen (`/api/calendar`): Aufgaben aller Lernpakete
+    static func of(days: [JSONValue]) -> UFTaskProgress {
+        var p = UFTaskProgress()
+        for t in days.flatMap({ $0.list("packages").flatMap { $0.list("tasks") } }) {
+            p.total += 1
+            switch t.s("status") {
+            case "erledigt": p.done += 1
+            case "nachholen": p.late += 1
+            case "uebersprungen": p.skipped += 1
+            default: break
+            }
+        }
+        return p
+    }
+
+    /// aus der Woche der Uebersicht (`/api/dashboard` → week.done/total, dieselbe Zaehlung im Backend)
+    static func of(week w: JSONValue) -> UFTaskProgress {
+        UFTaskProgress(done: w.i("done") ?? 0, total: w.i("total") ?? 0)
+    }
+
+    /// Zeitraum in Worten: "diese Woche", sonst "Woche 2.–8. Nov." bzw. "Woche 28. Dez. – 3. Jan."
+    static func weekLabel(monday: Date, today: Date = Date()) -> String {
+        if PlanData.monday(today) == PlanData.monday(monday) { return "diese Woche" }
+        let mon = PlanData.monday(monday), sun = PlanData.add(mon, 6)
+        let c = PlanData.cal
+        let f = Fmt.formatter("d. MMM")
+        if c.component(.month, from: mon) == c.component(.month, from: sun) {
+            return "Woche \(c.component(.day, from: mon)).–\(f.string(from: sun))"
+        }
+        return "Woche \(f.string(from: mon)) – \(f.string(from: sun))"
     }
 }
 

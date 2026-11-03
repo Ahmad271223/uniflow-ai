@@ -243,7 +243,7 @@ struct StudIPTextReader: View {
                         .joined(separator: " · ")).ufFont(12.16).foregroundStyle(UF.muted)
                     // Lesetext: Grundschrift mit grosszuegigem Zeilenabstand, Zeilen hoechstens etwa 75 Zeichen lang
                     ScrollView {
-                        Text(d.s("text") ?? "").ufFont(14.5, lh: 1.65).foregroundStyle(UF.text).textSelection(.enabled)
+                        UFLongText(text: d.s("text") ?? "")                 // bis 50 000 Zeichen: in Abschnitten
                             .frame(maxWidth: 640, alignment: .leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }

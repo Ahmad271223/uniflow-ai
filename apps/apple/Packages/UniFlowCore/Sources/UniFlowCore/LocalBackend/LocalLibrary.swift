@@ -11,7 +11,7 @@ public enum LocalLibrary {
     /// `source` setzt `StudyClassify.enrichFile`)
     static let librarySQL = """
         SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
-               f.download_url, f.content_sha256,
+               f.download_url, f.content_sha256, f.seen_by_user,
                c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
         FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
@@ -30,13 +30,24 @@ public enum LocalLibrary {
                 "modules": .array(mods.map(JSONValue.object)), "trash": .array(trash.map(JSONValue.object))]
     }
 
+    /// "Neu" an allen Stellen gleich (`study.NEW_FILE_SQL`): noch nicht angesehen (`seen_by_user = 0`; Oeffnen und
+    /// "Gesehen" setzen es), aus einem aktiven Kurs - Uebersicht "Neu aus …", Modulkarten, Bibliothek ("seen_by_user"
+    /// je Datei), Kurse. Der Lernstand `status` zaehlt dafuer nicht (Audit 03.11.2026: 1 vs. 3 neue Dateien).
+    public static let newFileSQL = "f.seen_by_user=0"
+
     /// Neue Dateien in `study.dashboard`: nicht gesehen, aus aktiven Kursen, neueste zuerst
     static func newFiles(_ c: SQLiteConnection) throws -> [JSONValue] {
         try c.rows("""
             SELECT f.id, f.name, f.first_seen, f.chdate, c.subject, c.module_id, a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes
             FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-            WHERE f.seen_by_user=0 AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC
+            WHERE \(newFileSQL) AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC
             """).map(JSONValue.object)
+    }
+
+    /// `study.new_files_count`: neue Dateien eines Moduls (aktive Kurse)
+    static func newFilesCount(_ c: SQLiteConnection, moduleID: SQLiteValue) throws -> Int {
+        try c.scalar("SELECT COUNT(*) FROM files f JOIN courses c ON c.id=f.course_id WHERE c.active=1 AND c.module_id=? AND \(newFileSQL)",
+                     [moduleID])?.int ?? 0
     }
 
     /// Letzter Abgleich (`SELECT * FROM sync_log ORDER BY id DESC LIMIT 1`)

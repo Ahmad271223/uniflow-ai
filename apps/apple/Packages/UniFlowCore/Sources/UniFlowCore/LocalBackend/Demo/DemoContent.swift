@@ -5,12 +5,13 @@ import Foundation
 ///
 /// Ein Demo-Modul "Grundlagen der Informatik" mit Vorlesung und Uebung: drei hier erzeugte PDFs (Skript, Folien,
 /// Uebungsblatt; keine fremden Inhalte), Stundenplan-Termine (Mo/Mi/Do, woechentlich), drei Lernpakete dieser Woche
-/// (relativ zur Uhr des Backends), eine Abgabefrist und eine Ankuendigung mit Raumwechsel. Alles traegt die Kennung
+/// (relativ zur Uhr des Backends), fuenf Karteikarten (heute faellig, fuer "Frei üben"), eine Abgabefrist und eine
+/// Ankuendigung mit Raumwechsel. Alles traegt die Kennung
 /// "demo-" bzw. source = "demo".
 ///
 /// Auf dem Geraet lebt die Demo in der Datenbank des offenen Containers (Apple-Nutzer, Hochschule), die PDFs unter
 /// `<Datenordner>/files/Demo`. `remove` entfernt rueckstandslos und mehr als Python (dort bleiben Notiz-Versionen,
-/// Karteikarten und eigene Termine im Demo-Modul stehen): Dateien samt Bildern der Notizen, Notizen und ihre Versionen,
+/// eigene Karteikarten zu Demo-Dateien und eigene Termine im Demo-Modul stehen): Dateien samt Bildern der Notizen, Notizen und ihre Versionen,
 /// Analysen, Seitentexte, Karteikarten, Aufnahmen zu Seiten, alte Fassungen, erkannte Abgaben, Lernpakete und Aufgaben
 /// samt Verlauf, Termine mit Ausnahmen und Notizen, Fristen, Ankuendigungen, Kurse und das Modul. Eigene Daten des
 /// Nutzers bleiben: ein Modul, in das der Nutzer eigene Kurse gelegt hat, bleibt stehen (nur die Demo-Teile gehen),
@@ -100,6 +101,15 @@ public enum DemoContent {
 
     /// Kennungen der Demo-Dateien (Kopien auf dem Geraet: PDF-Zwischenspeicher, Journal, Vorschaubilder)
     public static var fileIDs: [String] { files.map(\.id) }
+
+    /// Karteikarten (`FLASHCARDS`): Datei, Frage, Antwort
+    public static let flashcards: [(file: String, question: String, answer: String)] = [
+        ("demo-skript", "Wie lautet 13 im Dualsystem?", "1101"),
+        ("demo-skript", "Wie rechnest du eine Dezimalzahl ins Dualsystem um?", "Fortgesetzt durch 2 teilen und die Reste von unten nach oben lesen."),
+        ("demo-skript", "Wie bildest du das Zweierkomplement einer negativen Zahl?", "Den Betrag dual schreiben, alle Bits invertieren und 1 addieren."),
+        ("demo-skript", "Welcher Wertebereich passt in 8 Bit im Zweierkomplement?", "-128 bis 127"),
+        ("demo-folien", "Was ist ein Algorithmus?", "Eine eindeutige, endliche Handlungsvorschrift."),
+    ]
 
     public static let deadlineID = "demo-abgabe-1"
     public static let announcementID = "demo-ankuendigung-1"
@@ -347,6 +357,10 @@ public enum DemoContent {
                 try c.execute("INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,'geplant',?)",
                               [.integer(packageID), .text(t.type), .text(t.file), .text(t.title), .integer(Int64(j)), .integer(Int64(t.minutes)), .text(now)])
             }
+        }
+        for card in flashcards {
+            try c.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due) VALUES (?,?,?,?,?,1,?)",
+                          [.text(card.file), .text(subject), .text(card.question), .text(card.answer), .text(now), .text(BerlinClock.isoDate(today))])
         }
         // Abgabe am Mittwoch der naechsten Woche, 13:45
         try c.execute("""

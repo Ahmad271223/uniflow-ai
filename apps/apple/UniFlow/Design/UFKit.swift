@@ -78,12 +78,16 @@ struct UFFlexWrap: Layout {
             let sp = s[UFFlexSpacerKey.self]
             let size = sp != nil ? .zero : s.sizeThatFits(.unspecified)
             let w = min(sp != nil ? 0 : ceil(size.width) + 0.5, width)      // aufrunden: Text wird sonst gekuerzt
+            // breiter als die Zeile (z. B. eine verschachtelte Chip-Reihe bei grosser Schrift): Hoehe bei der
+            // tatsaechlichen Breite messen, sonst ueberlappt der umbrochene Inhalt die naechste Zeile (Audit 03.11.2026)
+            let h = sp == nil && ceil(size.width) + 0.5 > width
+                ? s.sizeThatFits(ProposedViewSize(width: w, height: nil)).height : size.height
             let need = out[out.count - 1].isEmpty ? w : x + gap + w
             if !out[out.count - 1].isEmpty && need > width + 0.5 && sp == nil {
                 out.append([]); x = 0
             }
             x = out[out.count - 1].isEmpty ? w : x + gap + w
-            out[out.count - 1].append(Item(index: i, width: w, height: size.height, spacerMax: sp))
+            out[out.count - 1].append(Item(index: i, width: w, height: h, spacerMax: sp))
         }
         return out.filter { !$0.isEmpty }
     }
@@ -703,4 +707,105 @@ struct UFWithClose<V: View>: View {
     @Environment(\.ufClose) private var close
     let make: (@escaping () -> Void) -> V
     var body: some View { make(close) }
+}
+
+// MARK: - Titel ohne Umbruch mitten im Wort
+
+/// Titel (Modulnamen u. a.), der nur an Leerzeichen und Bindestrichen umbricht (Audit 03.11.2026:
+/// "Erziehungswissenschaf/t" auf den Modulkarten, "Bildun/gsfors/chung" in den Einstellungen bei grosser Schrift).
+/// Passt das laengste Wort nicht in die Breite, wird die Schrift bis auf `minScale` kleiner; reicht auch das nicht,
+/// trennt der Titel das Wort nach deutscher Silbentrennung mit Trennstrich (weiches Trennzeichen U+00AD) statt an
+/// beliebiger Stelle. Schrift, Zeilenhoehe und Dynamic Type wie `ufFont`. Nimmt die volle verfuegbare Breite.
+struct UFWordWrapText: View {
+    let text: String
+    let size: CGFloat
+    var weight: CGFloat = 400
+    var lh: CGFloat = 1.5
+    var em: CGFloat = 0
+    var minScale: CGFloat = 0.78
+    var alignment: Alignment = .leading
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    init(_ text: String, size: CGFloat, weight: CGFloat = 400, lh: CGFloat = 1.5, em: CGFloat = 0, minScale: CGFloat = 0.78,
+         alignment: Alignment = .leading) {
+        self.text = text
+        self.size = size
+        self.weight = weight
+        self.lh = lh
+        self.em = em
+        self.minScale = minScale
+        self.alignment = alignment
+    }
+
+    var body: some View {
+        let base = UFScaledFont.scaled(size, typeSize)
+        let fit = Self.fit(text, base: base, weight: weight, em: em, width: width, minScale: minScale)
+        let extra = max(0, fit.size * lh - UFTypeface.font(fit.size, weight).lineHeight)
+        Text(fit.text)
+            .font(.uf(fit.size, weight))
+            .tracking(em * fit.size)
+            .lineSpacing(extra)
+            .padding(.vertical, extra / 2)
+            .multilineTextAlignment(alignment == .center ? .center : .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: alignment)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .accessibilityLabel(text)
+    }
+
+    /// Woerter, an denen nicht umbrochen werden darf (Leerzeichen trennen, ein Bindestrich gehoert zum Wort davor)
+    static func words(_ s: String) -> [String] {
+        var out: [String] = []
+        for part in s.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\u{00A0}" }) {
+            var cur = ""
+            for ch in part {
+                cur.append(ch)
+                if ch == "-" || ch == "–" || ch == "/" { out.append(cur); cur = "" }
+            }
+            if !cur.isEmpty { out.append(cur) }
+        }
+        return out
+    }
+
+    /// Schriftgroesse und Text: Vorgabe, wenn das laengste Wort passt; sonst kleiner bis `minScale`; sonst
+    /// zusaetzlich Trennstellen in den zu langen Woertern. `width` 0 (noch nicht gemessen): unveraendert.
+    static func fit(_ s: String, base: CGFloat, weight: CGFloat, em: CGFloat, width: CGFloat, minScale: CGFloat) -> (size: CGFloat, text: String) {
+        guard width > 1 else { return (base, s) }
+        func w(_ word: String, _ size: CGFloat) -> CGFloat {
+            UFTypeface.width(word, size, weight) + em * size * CGFloat(word.count)
+        }
+        let longest = words(s).map { w($0, base) }.max() ?? 0
+        guard longest > width else { return (base, s) }
+        let scaled = max(base * minScale, (base * width / longest * 4).rounded(.down) / 4)
+        if (words(s).map { w($0, scaled) }.max() ?? 0) <= width { return (scaled, s) }
+        return (scaled, hyphenated(s, tooLong: { w($0, scaled) > width }))
+    }
+
+    /// Weiche Trennzeichen (U+00AD) an den deutschen Silbengrenzen der Woerter, die `tooLong` meldet
+    static func hyphenated(_ s: String, tooLong: (String) -> Bool) -> String {
+        let locale = Locale(identifier: "de_DE") as CFLocale
+        guard CFStringIsHyphenationAvailableForLocale(locale) else { return s }
+        return s.split(separator: " ", omittingEmptySubsequences: false).map { sub -> String in
+            let word = String(sub)
+            guard tooLong(word) else { return word }
+            let ns = word as NSString
+            var marks: [Int] = []
+            var idx = ns.length
+            while idx > 0 {
+                var ch: UTF32Char = 0
+                let loc = CFStringGetHyphenationLocationBeforeIndex(ns as CFString, idx, CFRange(location: 0, length: ns.length), 0, locale, &ch)
+                guard loc != kCFNotFound, loc > 0, loc < idx else { break }
+                marks.append(loc)
+                idx = loc
+            }
+            var out = ns as String
+            for m in marks.sorted(by: >) {
+                let i = out.utf16.index(out.utf16.startIndex, offsetBy: m)
+                guard let si = String.Index(i, within: out) else { continue }
+                out.insert("\u{00AD}", at: si)
+            }
+            return out
+        }.joined(separator: " ")
+    }
 }

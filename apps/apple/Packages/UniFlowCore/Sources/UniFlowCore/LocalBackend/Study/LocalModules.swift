@@ -221,7 +221,7 @@ public enum LocalModules {
             """, [moduleID, .text(BerlinClock.isoDate(dates.today))])
         return ["module": .object(m.json), "courses": .array(courses.map(JSONValue.object)), "weeks": .array(outWeeks),
                 "files": .array(files.map { .object($0.json) }), "progress": .number(Double(progress)),
-                "new_count": .number(Double(files.filter { $0.json["status"]?.string == "neu" }.count)),
+                "new_count": .number(Double(try LocalLibrary.newFilesCount(c, moduleID: moduleID))),
                 "open_tasks": .number(Double(tasks.filter { open.contains($0["status"]?.string ?? "") }.count)),
                 "next_package": next.map { .object($0.json) } ?? .null,
                 "notes": .array(files.filter { truthy($0.json["has_notes"]) }.map { .object($0.json) })]
