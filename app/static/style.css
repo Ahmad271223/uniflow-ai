@@ -811,3 +811,33 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 }
 .abo .page-head .sub, .set-page .page-head .sub { color: var(--d3-ink-2); }
 .set-page .seg button.active { box-shadow: none; outline: 1px solid var(--line-strong); outline-offset: -1px; }
+
+/* ---------- Bewegung (motion.js; Vorbild motion-primitives, eigene Umsetzung, Auftrag 03.11.2026) ----------
+   Kurz (0.18-0.35 s), ohne Ueberschwingen, nichts verzoegert die Bedienung. Reduzierte Bewegung: nur Ueberblendung. */
+@keyframes uf-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes uf-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes uf-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes uf-shimmer { from { background-position: 100% center; } to { background-position: 0% center; } }
+/* animated-group: Karten der Seite erscheinen leicht gestaffelt (nur beim ersten Erscheinen, siehe staggerOnce) */
+.uf-stagger > * { animation: uf-rise .32s cubic-bezier(.2, 0, 0, 1) both; animation-delay: calc(var(--i, 0) * 40ms); }
+/* Seite, die nur neu gezeichnet wird (Reiterwechsel): kein Einblenden der ganzen Seite, nur des Reiterinhalts */
+.content.no-enter { animation: none; }
+/* transition-panel: Inhalt eines Reiters blendet leicht steigend ein */
+.uf-panel-in { animation: uf-rise .24s cubic-bezier(.2, 0, 0, 1) both; }
+/* disclosure: aufgeklappter Text in Neuigkeiten/Ankuendigungen; Pfeil der Wochenbloecke dreht */
+.ann-item[open] > .body, .ann-item[open] > a { animation: uf-reveal .22s cubic-bezier(.2, 0, 0, 1) both; }
+.week-block .wh > svg:first-child { transition: transform .22s cubic-bezier(.2, 0, 0, 1); }
+.week-block.closed .wh > svg:first-child { transform: rotate(-90deg); }
+/* Reiter: Farbe und Unterstrich blenden ueber statt zu springen */
+.tabs button { transition: color .18s ease, border-color .18s ease; }
+/* Druck-Rueckmeldung: Karte gibt leicht nach (Aussehen sonst unveraendert) */
+.mod2:active { transform: scale(.98); }
+/* text-shimmer: Lade-Text mit dezent wanderndem Lichtstreif */
+.uf-shimmer { display: inline-block; color: transparent; background-image: linear-gradient(90deg, transparent calc(50% - 3em), var(--text), transparent calc(50% + 3em)), linear-gradient(var(--muted), var(--muted));
+  background-size: 250% 100%, auto; background-repeat: no-repeat, padding-box; -webkit-background-clip: text; background-clip: text; animation: uf-shimmer 1.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  /* die allgemeine Regel oben schaltet alles ab; hier bleibt nur die Ueberblendung */
+  .uf-stagger > *, .uf-panel-in { animation: uf-fade-in .2s ease both !important; }
+  .mod2:active { transform: none; }
+  .uf-shimmer { color: var(--muted); background: none; }
+}

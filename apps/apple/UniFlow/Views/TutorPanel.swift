@@ -91,7 +91,7 @@ struct TutorPanel: View {
                         }
                         ForEach($messages) { $m in bubble($m).id(m.id) }
                         if busy {
-                            HStack(spacing: 8) { ProgressView(); Text("Die KI liest die Seite …").ufFont(13.12).foregroundStyle(UF.muted) }
+                            HStack(spacing: 8) { ProgressView(); UFShimmerText("Die KI liest die Seite …") }   // dezenter Schimmer (text-shimmer)
                                 .id("busy")
                         }
                         if let error {

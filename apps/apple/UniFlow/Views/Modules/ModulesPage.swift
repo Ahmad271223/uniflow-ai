@@ -62,7 +62,10 @@ struct ModulesPage: View {
                 UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Nach dem ersten Abgleich mit Stud.IP erscheinen sie hier.") }
             } else if mode == "cards" {
                 UFAutoGrid(min: 300, spacing: 19.2) {
-                    ForEach(Row.rows(mods)) { row in ModuleCard(m: row.value) { router.go(.module(row.value.i("id") ?? 0)) } }
+                    // Kacheln erscheinen beim ersten Oeffnen der Seite leicht gestaffelt (UFMotion), sonst sofort
+                    ForEach(Array(Row.rows(mods).enumerated()), id: \.element.id) { i, row in
+                        ModuleCard(m: row.value) { router.go(.module(row.value.i("id") ?? 0)) }.ufAppear("modules", index: i)
+                    }
                 }
             } else {
                 VStack(spacing: 0) {
@@ -172,6 +175,7 @@ struct ModuleCard: View {
                     .padding(.bottom, 12.8)
                 HStack {                                                    // .pr
                     (Text("\(progress)%").font(.uf(12.8, 700)).foregroundColor(UF.text) + Text(" bearbeitet"))
+                        .ufNumber(progress, numeric: Double(progress))
                     Spacer()
                     if let n = m.i("new_count"), n > 0 {
                         Text("\(n) neue Inhalte").font(.uf(12.8, 700)).foregroundStyle(mc)
@@ -205,7 +209,7 @@ struct ModuleCard: View {
             .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.mix(mc, 0.22, UF.line), lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: 18))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(UFPressStyle())                                        // gibt beim Druecken leicht nach (0.98), Aussehen unveraendert
     }
 
     /// .next: Nächster Termin, sonst nächster Lernblock, sonst Hinweis
@@ -384,29 +388,34 @@ struct ModulePage: View {
                 ? [("community", "Community")] : []
             UFTabs(options: [("overview", "Übersicht"), ("lectures", "Vorlesungen"), ("exercises", "Übungen"), ("solutions", "Lösungen"),
                              ("scripts", "Skripte"), ("exams", "Klausuren")] + recordings + community + [("notes", "Notizen")], selection: $tab)
-            if tab == "overview" {
-                DueListCard(moduleID: id, limit: 4).padding(.bottom, 14.4)       // Abgaben & Prüfungen dieses Moduls
-                // Lernfortschritt & Wochentests (#wtBox): erstellt die KI, darum lokal nur mit ChatGPT-Abo (wie der
-                // Modul-Dialog: sonst weder anbieten noch ankuendigen)
-                if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
-                // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
-                if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
-                if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
-                ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
-            } else if tab == "recordings" {
-                RecordingsPanel(moduleID: id, focusWeek: focusWeek)
-            } else if tab == "community" {
-                CommunityModulePanel(module: d, files: d.list("files"), weeks: weeks)
-            } else {
-                let key = ["lectures": "vorlesung", "exercises": "uebung", "solutions": "loesung", "scripts": "skript", "exams": "klausur"][tab]
-                let files = tab == "notes" ? d.list("notes")
-                    : d.list("files").filter { ($0.s("doc_type") ?? "sonstiges") == key }.sorted { ($0.n("chdate") ?? 0) > ($1.n("chdate") ?? 0) }
-                let names = ["lectures": "Vorlesungen", "exercises": "Übungen", "solutions": "Lösungen", "scripts": "Skripte",
-                             "exams": "Klausuren", "notes": "Notizen"]
-                UFCard {
-                    docList(files, empty: "Keine \(names[tab] ?? "Dokumente") in diesem Modul.",
-                            icon: tab == "notes" ? "note" : ShellState.typeIcon[key ?? ""] ?? "file")
-                }
+            // Reiterwechsel: der neue Inhalt blendet sanft ein (transition-panel, UFMotion)
+            VStack(alignment: .leading, spacing: 0) { tabContent(d, m: m, weeks: weeks) }.ufTabPanel(tab)
+        }
+    }
+
+    @ViewBuilder private func tabContent(_ d: JSONValue, m: JSONValue, weeks: [JSONValue]) -> some View {
+        if tab == "overview" {
+            DueListCard(moduleID: id, limit: 4).padding(.bottom, 14.4)       // Abgaben & Prüfungen dieses Moduls
+            // Lernfortschritt & Wochentests (#wtBox): erstellt die KI, darum lokal nur mit ChatGPT-Abo (wie der
+            // Modul-Dialog: sonst weder anbieten noch ankuendigen)
+            if session.api?.isLocal == false || aiEnabled { WeeklyTestsCard(module: m) }
+            // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
+            if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
+            if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Noch keine Dokumente in diesem Modul. Nach dem nächsten Abgleich stehen sie hier nach Lehrwoche.", small: true) } }
+            ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
+        } else if tab == "recordings" {
+            RecordingsPanel(moduleID: id, focusWeek: focusWeek)
+        } else if tab == "community" {
+            CommunityModulePanel(module: d, files: d.list("files"), weeks: weeks)
+        } else {
+            let key = ["lectures": "vorlesung", "exercises": "uebung", "solutions": "loesung", "scripts": "skript", "exams": "klausur"][tab]
+            let files = tab == "notes" ? d.list("notes")
+                : d.list("files").filter { ($0.s("doc_type") ?? "sonstiges") == key }.sorted { ($0.n("chdate") ?? 0) > ($1.n("chdate") ?? 0) }
+            let names = ["lectures": "Vorlesungen", "exercises": "Übungen", "solutions": "Lösungen", "scripts": "Skripte",
+                         "exams": "Klausuren", "notes": "Notizen"]
+            UFCard {
+                docList(files, empty: "Keine \(names[tab] ?? "Dokumente") in diesem Modul.",
+                        icon: tab == "notes" ? "note" : ShellState.typeIcon[key ?? ""] ?? "file")
             }
         }
     }
@@ -462,7 +471,7 @@ struct ModulePage: View {
         return UFCard {
             HStack(spacing: 9.6) {
                 // Pfeil zeigt den Zustand: nach unten offen, nach rechts zugeklappt
-                UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.muted)
+                UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 90 : 0))
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)
                     .foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
                 if let n = recordingCounts[wk], n > 0 {
@@ -478,7 +487,7 @@ struct ModulePage: View {
             }
             .padding(.vertical, 8)
             .contentShape(Rectangle())
-            .onTapGesture { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
+            .onTapGesture { UFMotion.toggle { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } } }   // wie disclosure
             // VoiceOver: Auf-/Zuklappen als benannte Aktion (die Kopfzeile ist kein eigener Knopf)
             .accessibilityAction(named: open ? "Zuklappen" : "Aufklappen") { if open { collapsed.insert(wk) } else { collapsed.remove(wk) } }
             if open {
@@ -501,6 +510,7 @@ struct ModulePage: View {
                         }
                     }
                 }
+                .ufReveal()                                                 // Aufklappen wie disclosure (UFMotion)
             }
         }
         .padding(.bottom, 14.4)

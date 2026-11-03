@@ -307,7 +307,7 @@ struct WeeklyDefDialog: View {
             } else if let d {
                 details(d)
             } else {
-                HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Lädt …").ufFont(14.4).foregroundStyle(UF.muted) }
+                HStack(spacing: 10) { ProgressView().controlSize(.small); UFShimmerText("Lädt …", size: 14.4) }
             }
         } foot: {
             UFButton("Schließen") { close() }

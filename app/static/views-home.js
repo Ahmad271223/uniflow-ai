@@ -6,6 +6,7 @@ import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShor
 import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=41";
 import { openEvent } from "./views-tt.js?v=39";
 import { installBanner, bindInstallBanner } from "./pwa.js?v=7";
+import { staggerOnce, countUp } from "./motion.js?v=2";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -164,6 +165,9 @@ export async function viewDashboard(_, __, view, hints = () => "") {
     ${installBanner()}${hints()}
     ${rest.length ? `<div class="ov-rest">${rest.join("")}</div>` : ""}</div>`;
   bindInstallBanner(view);
+  // Abschnitte erscheinen beim ersten Oeffnen leicht gestaffelt, Kennzahlen rollen zur neuen Zahl (motion.js)
+  staggerOnce($(".content.ov", view), "dashboard");
+  $$(".ov-stats b", view).forEach((b, i) => countUp(b, `dashboard-stat-${i}`));
   $$("[data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
   $$("[data-ev]", view).forEach(el => { const go = () => openEvent(+el.dataset.ev, el.dataset.evdate || today.date); el.onclick = go; el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } }; });
   $("#rescueBtn", view)?.addEventListener("click", e => { e.preventDefault(); suggestFlow({ rescue: true }); });

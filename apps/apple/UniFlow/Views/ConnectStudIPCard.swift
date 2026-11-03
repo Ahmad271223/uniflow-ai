@@ -251,6 +251,7 @@ struct UFNoServerBody: View {
 struct UFStudIPStatusCard: View {
     let status: UFNoServerContent.Status
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         UFCard(flat: true) {
@@ -261,6 +262,8 @@ struct UFStudIPStatusCard: View {
                     Text("Stud.IP wird abgeglichen – \(step)")
                         .ufFont(14.5).foregroundStyle(UF.text2)
                         .lineLimit(2)
+                        .contentTransition(.opacity)                        // neuer Schritt blendet ueber statt zu springen
+                        .animation(UFMotion.animation(reduce: reduce), value: step)
                 }
             case .failed(let message):
                 HStack(alignment: .top, spacing: 7.2) {

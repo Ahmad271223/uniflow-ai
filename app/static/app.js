@@ -1,11 +1,11 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=36";
-import { viewDashboard as viewHome } from "./views-home.js?v=6";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=49";
-import { viewFiles } from "./views-lib.js?v=48";
+import { viewDashboard as viewHome } from "./views-home.js?v=7";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=50";
+import { viewFiles } from "./views-lib.js?v=49";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=39";
 import { viewTimetable, openEvent } from "./views-tt.js?v=37";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=58";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=59";
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=36";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=6";
 

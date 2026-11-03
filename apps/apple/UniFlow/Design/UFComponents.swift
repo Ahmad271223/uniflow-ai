@@ -405,6 +405,9 @@ struct UFTabs<Value: Hashable>: View {
     let options: [(value: Value, label: String)]
     @Binding var selection: Value
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    /// Unterstrich gleitet zum neuen Reiter (wie animated-background); reduziert springt er
+    @Namespace private var underline
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -419,11 +422,14 @@ struct UFTabs<Value: Hashable>: View {
                             .padding(.vertical, 9.6)
                             .padding(.bottom, 2)                                // border-bottom: 2px (transparent, aktiv --accent)
                             .padding(.horizontal, 13.6)
-                            .overlay(alignment: .bottom) { Rectangle().fill(active ? UF.accent : .clear).frame(height: 2) }
+                            .overlay(alignment: .bottom) {
+                                if active { Rectangle().fill(UF.accent).frame(height: 2).matchedGeometryEffect(id: "tab-underline", in: underline) }
+                            }
                     }
                     .buttonStyle(.plain)
                 }
             }
+            .animation(UFMotion.animation(reduce: reduce, fadeWhenReduced: false), value: selection)
         }
         .ufBorderBottom()
         .padding(.bottom, 16)
@@ -496,6 +502,7 @@ struct UFKPI: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2.4) {
             Text(value).ufFont(21.6, 700).foregroundStyle(UF.text)
+                .ufNumber(value)                                            // Ziffern rollen bei neuer Zahl (UFMotion)
             Text(label).ufFont(12.8).foregroundStyle(UF.muted)
         }
     }

@@ -72,7 +72,7 @@ struct NewsRow: View {
     var body: some View {
         let st = Self.style(item.s("kind"))
         VStack(alignment: .leading, spacing: 6.4) {
-            Button { withAnimation(UF.motion(.easeOut(duration: 0.12))) { open.toggle() } } label: {
+            Button { UFMotion.toggle { open.toggle() } } label: {                   // Aufklappen wie disclosure (UFMotion)
                 HStack(alignment: .top, spacing: 10.4) {
                     UFIcon(st.icon, size: 14)
                         .foregroundStyle(st.tone.fg)
@@ -118,6 +118,7 @@ struct NewsRow: View {
                     }
                 }
                 .padding(.leading, 36.8)
+                .ufReveal()
             }
         }
         .padding(.vertical, 7.2)
@@ -153,7 +154,10 @@ struct NewsAllList: View {
                     Text("Nichts Neues.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 24)
                 } else {
                     let rows = Row.rows(shown)
-                    ForEach(rows) { row in NewsRow(item: row.value, today: today).ufBorderBottom(row.id != rows.last?.id) }
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
+                        NewsRow(item: row.value, today: today).ufBorderBottom(row.id != rows.last?.id)
+                            .ufAppear("news-all", index: i)                       // beim ersten Oeffnen leicht gestaffelt
+                    }
                 }
                 if filter == "nachricht" || filter.isEmpty, items.contains(where: { $0.s("kind") == "nachricht" }) {
                     Text("Nachrichten bleiben nur auf diesem Gerät; Studora markiert sie in Stud.IP nicht als gelesen.")

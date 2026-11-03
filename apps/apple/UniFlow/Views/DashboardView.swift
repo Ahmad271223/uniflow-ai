@@ -112,26 +112,29 @@ struct DashboardView: View {
                 // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
                 // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)
                 UFGridLayout(columns: windowWidth > 640 ? 3 : 1, spacing: 16) {
+                    // Karten erscheinen beim ersten Oeffnen der Seite leicht gestaffelt (UFMotion), Zahlen rollen
                     kpiCard(value: UFFmt.min(today.n("minutes")),
                             label: "heute geplant" + freeText(today))
+                        .ufAppear("dashboard", index: 0)
                     UFCard {
                         UFKPI(value: "\(done) / \(total)", label: "Aufgaben erledigt")
                         UFProgress(value: total > 0 ? Double(done) / Double(total) : 0, ok: true).padding(.top, 6.4)
                     }
-                    backlogCard(backlog)
+                    .ufAppear("dashboard", index: 1)
+                    backlogCard(backlog).ufAppear("dashboard", index: 2)
                 }
                 .environment(\.ufFillsCell, true)
                 .padding(.bottom, 19.2)
 
                 twoColumns(left: {
-                    todayCard(pk: pk)
-                    if !evs.isEmpty { eventsCard(evs) }
+                    todayCard(pk: pk).ufAppear("dashboard", index: 3)
+                    if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4) }
                 }, right: {
-                    upcomingCard(d.list("upcoming"))
-                    DueListCard()                                                  // Abgaben & Prüfungen (nur lokal)
-                    if !news.isEmpty { NewsCard(items: news, today: todayDate) { showNews = true } }   // Neuigkeiten
-                    weekCard(d["week"] ?? .null, today: todayDate)
-                    newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0)
+                    upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4)
+                    DueListCard().ufAppear("dashboard", index: 5)                 // Abgaben & Prüfungen (nur lokal)
+                    if !news.isEmpty { NewsCard(items: news, today: todayDate) { showNews = true }.ufAppear("dashboard", index: 6) }   // Neuigkeiten
+                    weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 7)
+                    newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0).ufAppear("dashboard", index: 8)
                 })
             }
             .frame(maxWidth: 1120, alignment: .leading)
@@ -166,6 +169,7 @@ struct DashboardView: View {
         UFCard {
             VStack(alignment: .leading, spacing: 2.4) {
                 Text("\(backlog)").ufFont(21.6, 700).foregroundStyle(backlog > 0 ? UF.bad : UF.text)
+                    .ufNumber(backlog, numeric: Double(backlog))
                 HStack(spacing: 0) {
                     Text("nachzuholen").ufFont(12.8).foregroundStyle(UF.muted)
                     if backlog > 0 {
@@ -276,7 +280,7 @@ struct DashboardView: View {
     private func weekCard(_ w: JSONValue, today: String) -> some View {
         let doneW = w.i("done") ?? 0, totalW = w.i("total") ?? 0
         return UFCard {
-            UFCardHead("Diese Woche", icon: "tasks") { Text("\(doneW)/\(totalW)").ufFont(13.12).foregroundStyle(UF.muted) }
+            UFCardHead("Diese Woche", icon: "tasks") { Text("\(doneW)/\(totalW)").ufFont(13.12).foregroundStyle(UF.muted).ufNumber(doneW, numeric: Double(doneW)) }
             UFProgress(value: totalW > 0 ? Double(doneW) / Double(totalW) : 0, ok: true).padding(.bottom, 11.2)
             HStack(spacing: 5.6) {                                          // .week-strip: 7 gleich breite Tage
                 ForEach(Row.rows(w.list("days"), key: "date")) { row in

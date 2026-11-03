@@ -110,7 +110,7 @@ struct HildesheimStatusLine: View {
                     UFBadge(HildesheimConnection.statusText(s, connection.state(s)), tone: Self.tone(connection.state(s)))
                         .fixedSize()
                 }
-                Button { if !summary.isEmpty { withAnimation(UF.transition) { open.toggle() } } } label: {
+                Button { if !summary.isEmpty { UFMotion.toggle { open.toggle() } } } label: {
                     HStack(spacing: 4) {
                         Text(summary).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1).truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -138,6 +138,7 @@ struct HildesheimStatusLine: View {
                     }
                 }
                 .padding(.leading, 24)
+                .ufReveal()                                                 // Aufklappen wie disclosure (UFMotion)
             }
         }
         .padding(.vertical, 8).padding(.horizontal, 12)

@@ -1,6 +1,7 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
 import { renderWeeklyBox } from "./views-weekly.js?v=7";
 import { installCard, bindInstallBanner } from "./pwa.js?v=7";
+import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=36";
 
 // ================================================================ MODULE
@@ -25,27 +26,31 @@ export async function viewModules(parts, _, view) {
       <div class="actions"><div class="seg pill"><button class="${modMode === "cards" ? "active" : ""}" data-mm="cards">Karten</button><button class="${modMode === "list" ? "active" : ""}" data-mm="list">Liste</button></div><a class="btn" href="#/settings?tab=modules">${icon("settings", 15)} Module & Wochentests</a></div></div>
     ${mods.length ? (modMode === "cards" ? `<div class="mod2-grid">${mods.map(modCard).join("")}</div>` : `<div class="card pad-0 lib-list mod2-list">${mods.map(m => `<a class="lib-row" href="#/modules/${m.id}" style="color:inherit"><div class="mini folder" style="--fc:${m.color}">${initial(m.name)}</div><div><b>${esc(m.name)}</b><div class="muted tiny">${esc((m.topics || []).join(", ")) || `${m.courses} Veranstaltungen`}</div></div><span class="small">${m.progress}% bearbeitet</span><span class="small muted">${m.file_count} Dateien · ${m.new_count} neu</span><span class="small muted">${m.next_event ? `${fmtShort(m.next_event.date)} ${m.next_event.start}` : "–"}</span><span>${icon("chevron-right", 16)}</span></a>`).join("")}</div>`) : `<div class="card empty">Noch keine Module. Erst synchronisieren.</div>`}</div>`;
   $$("[data-mm]", view).forEach(b => b.onclick = () => { modMode = b.dataset.mm; try { localStorage.setItem("mod-mode", modMode); } catch {} state.route(); });
+  staggerOnce($(".mod2-grid", view), "modules");                          // Kacheln beim ersten Oeffnen leicht gestaffelt
 }
 async function viewModule(id, view) {
   const d = await api(`/modules/${id}`); const m = d.module; let tab = "overview", mode = "list";
   const curWeek = d.weeks.filter(w => w.week >= 1).slice(-1)[0];
-  const render = () => {
+  // `switched`: nur der Reiter wechselt – die Seite blendet nicht neu ein, nur der Reiterinhalt (transition-panel)
+  const render = (switched = false) => {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
-    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small">Lade Wochentests…</div></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
+    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
         <div class="wb">${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
-    view.innerHTML = `<div class="content">
+    view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
       <div class="page-head"><div class="mod-head"><div class="color" style="background:${m.color}">${initial(m.name)}</div><div><h1>${esc(m.name)}</h1><div class="sub">${d.courses.length} Veranstaltungen: ${d.courses.map(c => KIND_TXT[c.kind] || c.kind).join(", ")}${m.exam_date ? ` · Klausur ${fmtDate(m.exam_date)}` : ""}</div></div></div>
         <div class="actions"><button class="btn sm" id="modEdit">${icon("settings", 14)} Modul</button><div class="seg"><button class="${mode === "list" ? "active" : ""}" data-mode="list">${icon("list", 15)}</button><button class="${mode === "cards" ? "active" : ""}" data-mode="cards">${icon("grid", 15)}</button></div></div></div>
       <div class="grid cols-3" style="margin-bottom:1rem"><div class="card kpi"><b>${d.progress}%</b><span>Lernfortschritt</span><div class="progress" style="margin-top:.4rem"><i style="width:${d.progress}%"></i></div></div><div class="card kpi"><b>${curWeek ? curWeek.label.split("·")[0].trim() : "–"}</b><span>Aktuelle Lehrwoche${curWeek?.topic ? ` · ${esc(curWeek.topic)}` : ""}</span></div><div class="card kpi"><b>${d.next_package ? fmtShort(d.next_package.date) : "–"}</b><span>${d.next_package ? esc(d.next_package.title) : "Kein Lernblock geplant"}${d.next_package ? ` · <a href="#/plan?view=day&date=${d.next_package.date}">öffnen</a>` : ""}</span></div></div>
       <div class="tabs">${[["overview", "Übersicht"], ["lectures", "Vorlesungen"], ["exercises", "Übungen"], ["solutions", "Lösungen"], ["scripts", "Skripte"], ["exams", "Klausuren"], ["notes", "Notizen"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
-      ${body}</div>`;
-    $$("[data-tab]", view).forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+      <div class="tab-panel${switched ? " uf-panel-in" : ""}">${body}</div></div>`;
+    $$("[data-tab]", view).forEach(b => b.onclick = () => { if (tab === b.dataset.tab) return; tab = b.dataset.tab; render(true); });
+    countUp($(".kpi b", view), `module-${id}-progress`);                  // Lernfortschritt rollt zur neuen Zahl
     bindInstallBanner(view);
-    $$("[data-mode]", view).forEach(b => b.onclick = () => { mode = b.dataset.mode; render(); });
-    $$(".week-block .wh", view).forEach(h => h.onclick = e => { if (e.target.closest(".ai-week")) return; const wb = $(".wb", h.parentElement); wb.hidden = !wb.hidden; });
+    $$("[data-mode]", view).forEach(b => b.onclick = () => { mode = b.dataset.mode; render(true); });
+    // Auf- und Zuklappen wie disclosure (Hoehe und Deckkraft), der Pfeil dreht mit
+    $$(".week-block .wh", view).forEach(h => h.onclick = e => { if (e.target.closest(".ai-week")) return; const wb = $(".wb", h.parentElement); const open = wb.hidden; h.parentElement.classList.toggle("closed", !open); reveal(wb, open); });
     $$(".ai-week", view).forEach(b => b.onclick = () => summarizeWeek(d.weeks.find(w => w.week === +b.dataset.w), m));
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
@@ -71,10 +76,10 @@ export function editModule(m, done) {
   $("#emOk", box).onclick = async () => { await api(`/modules/${m.id}`, { method: "PATCH", body: { name: $("#emName", box).value, ...(color && color !== was ? { color } : {}), priority: +$("#emPrio", box).value, exam_date: $("#emExam", box).value || null, active: $("#emActive", box).checked ? 1 : 0, weekly_test: $("#emTest", box).checked ? 1 : 0, test_minutes: $("#emTmin", box).value ? +$("#emTmin", box).value : null } }); box.remove(); toast("Gespeichert"); done(); };
 }
 async function summarizeWeek(w, m) {
-  const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted">⏳ Die KI liest die Vorlesungsfolien dieser Woche…</div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
+  const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=52"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=53"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG

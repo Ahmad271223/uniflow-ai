@@ -1076,7 +1076,7 @@ export class PdfEditor {
     const body = { file_id: this.fileId, page: pg?.type === "pdf" ? pg.index : null, mode: mode === "quiz" ? "similar" : mode, selection: $(".ed-ai-sel", this.c).value, question: ($(".ed-ai-q", this.c).value || "") + (mode === "quiz" ? " Erstelle 5 Quizfragen mit Lösungen zur Seite." : ""), own_solution: $(".ed-ai-own", this.c).value, page_text: "" };
     if ($(".ed-ai-ctx", this.c).checked && pg?.type === "pdf") body.page_text = await this.pageText(pg.index);
     if (pg?.type === "blank" && $(".ed-ai-ctx", this.c).checked) body.page_text = (this.model.pages[pg.key].objects.filter(o => o.type === "text").map(o => o.text).join("\n")) + "\n[Handschrift auf Notizseiten kann nicht gelesen werden]";
-    out.innerHTML = "<div class='muted'>⏳ Die KI denkt nach…</div>"; $(".ed-ai-go", this.c).disabled = true;
+    out.innerHTML = "<div class='muted'><span class='uf-shimmer'>Die KI denkt nach…</span></div>"; $(".ed-ai-go", this.c).disabled = true;
     try {
       const r = await fetch("/api/ai/tutor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error((await r.json()).detail || r.statusText);

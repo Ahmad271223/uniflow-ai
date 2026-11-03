@@ -50,9 +50,9 @@ struct StudIPTextsCard: View {
 
     private var card: some View {
         UFCard {
-            Button { withAnimation(UF.motion(.default)) { expanded.toggle() } } label: {
+            Button { UFMotion.toggle { expanded.toggle() } } label: {
                 HStack(spacing: 9.6) {
-                    UFIcon(expanded ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.muted)
+                    UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).rotationEffect(.degrees(expanded ? 90 : 0))   // dreht beim Aufklappen
                     Text(StudIPTextsText.title).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
                     Spacer(minLength: 8)
                     if !expanded {
@@ -67,7 +67,10 @@ struct StudIPTextsCard: View {
             .accessibilityHint(expanded ? "Zuklappen" : "Courseware, Wiki und Forum aus Stud.IP zeigen")
             if expanded {
                 let rows = Row.rows(groups)
-                ForEach(rows) { r in group(r.value).ufBorderBottom(r.id != rows.last?.id) }
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(rows) { r in group(r.value).ufBorderBottom(r.id != rows.last?.id) }
+                }
+                .ufReveal()
             }
         }
         .accessibilityIdentifier("studip.texts.card")
@@ -77,11 +80,11 @@ struct StudIPTextsCard: View {
         let kind = g.s("kind") ?? ""
         let open = openKind == kind
         VStack(alignment: .leading, spacing: 0) {
-            Button { openKind = open ? nil : kind } label: {
+            Button { UFMotion.toggle { openKind = open ? nil : kind } } label: {
                 HStack(spacing: 9.6) {
                     UFIcon(StudIPTextsText.icons[kind] ?? "file", size: 15).foregroundStyle(UF.text2)
                     Text(StudIPTextsText.line(g)).ufFont(13.6).monospacedDigit().foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
-                    UFIcon(open ? "chevron-down" : "chevron-right", size: 13).foregroundStyle(UF.muted)
+                    UFIcon("chevron-right", size: 13).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 90 : 0))
                 }
                 .padding(.vertical, 11)                                     // Zeile mindestens 44 pt hoch
                 .contentShape(Rectangle())
@@ -89,7 +92,7 @@ struct StudIPTextsCard: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("studip.texts.group.\(kind)")
             if open {
-                ForEach(Row.rows(g.list("items"))) { r in item(r.value) }
+                VStack(alignment: .leading, spacing: 0) { ForEach(Row.rows(g.list("items"))) { r in item(r.value) } }.ufReveal()
             }
         }
     }
