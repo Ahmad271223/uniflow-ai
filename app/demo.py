@@ -101,6 +101,8 @@ def remove(conn) -> dict:
     conn.execute("DELETE FROM analysis WHERE file_id LIKE 'demo-%'")
     try:
         conn.execute("DELETE FROM page_texts WHERE file_id LIKE 'demo-%'")
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='page_ocr'").fetchone():
+            conn.execute("DELETE FROM page_ocr WHERE file_id LIKE 'demo-%'")      # Texterkennung (app/pageocr.py)
     except Exception:  # noqa: BLE001 - Tabelle erst nach der ersten Suche vorhanden
         pass
     conn.execute("DELETE FROM files WHERE id LIKE 'demo-%'")

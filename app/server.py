@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
+from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, entitlements, filestream, jobs, legal, library_api, mail, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -1079,7 +1079,8 @@ def page_text(file_id: str, page: int = 1):
     with db.cursor() as conn:
         _found(db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)), "Datei")
         try:
-            pages = scriptsearch.page_texts(conn, file_id)
+            # nur die gefragte Seite erkennen, wenn ihre Textebene fast leer ist (beim Oeffnen fragt die App Seite 1, nicht alle)
+            pages = scriptsearch.page_texts(conn, file_id, pageocr.Scope.only(page))
         except Exception as e:  # noqa: BLE001
             return {"text": "", "error": str(e)}
     if not pages:
@@ -2628,7 +2629,7 @@ def api_related(body: dict = Body(...)):
         if not f or not f["module_id"]:
             return {"terms": [], "results": [], "note": "Dokument gehoert zu keinem Modul"}
         if not text and page:
-            pages = scriptsearch.page_texts(conn, fid)
+            pages = scriptsearch.page_texts(conn, fid, pageocr.Scope.only(page))
             text = pages[page - 1] if 0 < page <= len(pages) else ""
         res = scriptsearch.search(conn, f["module_id"], text[:6000], exclude=fid)
         # passende Lerntexte aus Stud.IP (Courseware, Wiki, Forum) nur, wenn es welche gibt

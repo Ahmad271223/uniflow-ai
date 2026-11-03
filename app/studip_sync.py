@@ -743,9 +743,10 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
             conn.execute("UPDATE files SET size=COALESCE(?, size), mime=?, chdate=?, revision=?, local_path=NULL, "
                          "downloaded_at=NULL, content_sha256=NULL WHERE id=?",
                          (f["size"], f["mime"], f["chdate"], f["revision"], f["id"]))
-            from . import scriptsearch
+            from . import pageocr, scriptsearch
             scriptsearch.ensure_table(conn)
             conn.execute("DELETE FROM page_texts WHERE file_id=?", (f["id"],))
+            pageocr.delete(conn, f["id"])                  # erkannter Text gehoert zur alten Fassung
             new_files.append(f["id"])
             log(f"Neu: {c['title'][:40]} / {f['name']}")
             continue
