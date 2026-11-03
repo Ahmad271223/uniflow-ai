@@ -69,8 +69,9 @@ final class StudIPBulletinTests: XCTestCase {
         XCTAssertEqual(StudIPBulletin.boardURL(base: "https://studip.test/"), "https://studip.test/plugins.php/schwarzesbrettplugin/category/list")
     }
 
-    func testParsesFeedIntoEntriesWithoutAuthorsAndCutText() throws {
-        let long = (1...120).map { "Wort\($0)" }.joined(separator: " ")
+    func testParsesFeedIntoEntriesWithoutAuthorsAndFullText() throws {
+        // ganze Anzeige, nie "…" (Inhaber 03.11.2026); deutlich laenger als 1000 Zeichen
+        let long = "<p>" + (1...300).map { "Wort\($0)" }.joined(separator: " ") + "</p><p>Letzter Absatz.</p>"
         let xml = feedXML([
             ("Fahrrad &amp; Helm zu verkaufen", "e1", "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/e1",
              "<p>Gut erhaltenes <b>Rad</b>,<br>28 Zoll.&nbsp;Preis VB.</p><p>Nur Abholung.</p>", "Mon, 02 Nov 2026 10:15:00 +0100"),
@@ -82,14 +83,15 @@ final class StudIPBulletinTests: XCTestCase {
         let e = StudIPBulletin.parseFeed(xml: xml, topic: "Biete")
         XCTAssertEqual(e.map(\.id), ["sb-e1", "sb-e2", "sb-e4"], "ohne Titel oder doppelt: weg")
         XCTAssertEqual(e[0].title, "Fahrrad & Helm zu verkaufen")
-        XCTAssertEqual(e[0].text, "Gut erhaltenes Rad, 28 Zoll. Preis VB. Nur Abholung.")
+        XCTAssertEqual(e[0].text, "Gut erhaltenes Rad,\n28 Zoll. Preis VB.\nNur Abholung.", "Absaetze bleiben")
         XCTAssertEqual(e[0].postedAt, "2026-11-02T10:15:00")
         XCTAssertEqual(e[0].url, "https://studip.test/plugins.php/schwarzesbrettplugin/article/view/e1")
         XCTAssertEqual(e[0].topic, "Biete")
         XCTAssertEqual(e[1].postedAt, "2026-07-12T10:00:00", "Sommerzeit")
-        XCTAssertLessThanOrEqual(e[1].text.unicodeScalars.count, StudIPBulletin.maxText + 2)
-        XCTAssertTrue(e[1].text.hasSuffix(" …"), e[1].text)
-        XCTAssertFalse(e[1].text.contains("Wort120"))
+        XCTAssertGreaterThan(e[1].text.count, 1000)
+        XCTAssertTrue(e[1].text.hasPrefix("Wort1 Wort2 "), e[1].text)
+        XCTAssertTrue(e[1].text.hasSuffix("Wort300\nLetzter Absatz."), e[1].text)
+        XCTAssertFalse(e[1].text.contains("…"))
         XCTAssertEqual(e[2].postedAt, "2026-11-03T10:00:00", "GMT -> Berlin")
         XCTAssertEqual(e[2].url, "", "nur http(s)")
         XCTAssertEqual(e[2].text, "xText")

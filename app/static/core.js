@@ -39,10 +39,9 @@ export const cancelLabel = e => e.status === "ausfall" ? (e.exception === "vorle
 export const cancelUnsure = e => cancelLabel(e) === "Ausfall?";
 // in Stud.IP abgesagter Einzeltermin (cancel_hint mit kind "termin", timetable.studip_cancel_hint, 02.11.2026)
 export const cancelSource = e => { const h = e.cancel_hint; return h ? h.kind === "termin" ? "Stud.IP (Termin abgesagt)" : `${{ studip: "Stud.IP-Ankündigung", learnweb: "Learnweb-Ankündigung" }[h.source] || "Ankündigung"} „${h.title}“${h.course_title ? " · " + h.course_title : ""}` : ""; };
-// Sitzungsthema aus Stud.IP (session_topic, 02.11.2026): dezent in einer Zeile, lange Themen zum Aufklappen
-export const topicLine = e => { const t = String(e.session_topic || "").trim(); if (!t) return ""; const one = t.replace(/\s+/g, " ");
-  return t.length > 70 || t.includes("\n") ? `<details class="small muted tp-line"><summary>Thema: ${esc(one.slice(0, 70))} …</summary><div style="white-space:pre-line">${esc(t)}</div></details>`
-    : `<div class="small muted tp-line">Thema: ${esc(one)}</div>`; };
+// Sitzungsthema aus Stud.IP (session_topic, 02.11.2026): dezent, immer ganz (Inhaber 03.11.2026: Texte aus Stud.IP nie mit "…")
+export const topicLine = e => { const t = String(e.session_topic || "").trim(); if (!t) return "";
+  return `<div class="small muted tp-line" style="white-space:pre-line">Thema: ${esc(t)}</div>`; };
 export const cancelMark = (e, iconOnly) => { const l = cancelLabel(e); if (!l) return ""; const src = cancelSource(e);
   return `<span class="cx-mark" title="${esc(l + (src ? " laut " + src : ""))}" aria-label="${cancelUnsure(e) ? "Möglicher Ausfall" : "Fällt aus"}">${icon("alert", 11)}${iconOnly ? "" : " " + esc(l)}</span>`; };
 export const noteChips = (dd, compact) => (dd.notices || []).map(n => `<a class="note-chip k-${esc(n.kind)}" href="${esc(safeUrl(n.url))}" data-chip="${chipRef(n, "notice", dd.date, dd.events)}" title="${esc(n.title)}${n.course_title ? " · " + esc(n.course_title) : ""}: ${esc(n.snippet)}">${icon("info", 11)} ${n.time ? `<b>${esc(n.time)}</b> ` : ""}${esc(compact ? n.kind_label : `${n.kind_label}: ${n.title}`)}</a>`).join("");
@@ -68,7 +67,7 @@ export function chipDetail(key) {
     </div>
     <div class="modal-foot">${ev ? `<button class="btn sm" data-hev>${icon("calendar", 14)} Zum Termin</button>` : ""}${h.url ? `<a class="btn sm" href="${esc(h.url)}" target="_blank" rel="noopener">${icon("arrow-right", 14)} Quelle öffnen</a>` : ""}<button class="btn ghost sm" data-close>Schließen</button></div>`);
   const ev$ = $("[data-hev]", m);
-  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=41").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
+  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=42").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
   $$("[data-hatt]", m).forEach(b => b.onclick = async () => {
     try { await api("/timetable/attendance", { method: "POST", body: { event_id: ev.event_id, date: d.date, mode: b.dataset.hatt } }); }
     catch (e) { toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); return; }

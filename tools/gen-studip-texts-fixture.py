@@ -181,6 +181,8 @@ def build(check: bool) -> int:
             "markup": {v: st.markup_to_text(v) for v in ("!!!Titel\n**fett** [[Seite|Text]] [[Ziel]]", "  a \t b \n\n c  ")},
             "anonymize": {v: st.anonymize(v) for v in ("[QUOTE=Anna]x[/quote]Danke @anna.b, gut", "Mail an a@b.de")},
             "cut": {v: st.cut(v, 12) for v in ("kurz", "ein ziemlich langer Satz hier")},
+            # gespeicherte Texte bleiben ganz, ohne "…" (Inhaber 03.11.2026)
+            "full": {v: st.full(v) for v in ("  kurz ", "Absatz eins.\n" + "lange Zeile " * 150 + "Ende.")},
         }
         ok_ = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)
         return 0 if ok_ or not check else 1

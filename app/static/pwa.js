@@ -2,7 +2,7 @@
 // Online/Offline anzeigen, Hinweis "Zum Home-Bildschirm" (iPad) bzw. "Zum Dock hinzufuegen" (Mac) bzw. "Installieren"
 // (Edge, Chrome), Ablage beim Abmelden oder Kontowechsel leeren, Notizen ohne Netz nachsenden (notes-queue.js). Die Regeln
 // des Workers stehen in sw-policy.js.
-import { $, icon, toast, state } from "./core.js?v=38";
+import { $, icon, toast, state } from "./core.js?v=39";
 import { notesQueue } from "./notes-queue.js?v=1";
 import { watchWorkerUpdate } from "./sw-update.js?v=2";
 

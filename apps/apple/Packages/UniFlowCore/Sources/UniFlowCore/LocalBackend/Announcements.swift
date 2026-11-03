@@ -27,6 +27,10 @@ public enum Announcements {
         public let dates: [JSONValue]
     }
 
+    /// `MAX_TEXT`, `MAX_TITLE`: Texte bleiben ganz (Inhaber 03.11.2026: "die ganze Nachricht, nie '…'"); nur Notbremse
+    public static let maxText = 50000
+    public static let maxTitle = 1000
+
     /// `KIND_LABELS`
     public static let kindLabels: [String: String] = ["ausfall": "Ausfall?", "verlegt": "Verlegung?", "raum": "Raum", "pruefung": "Prüfung",
                                                       "frist": "Frist", "online": "Online", "termin": "Termin"]
@@ -156,12 +160,10 @@ public enum Announcements {
         return (a, candidates.min() ?? s.u.count)
     }
 
-    /// `_sentence`: Satz um das Datum, hoechstens 180 Zeichen
+    /// `_sentence`: ganzer Satz um das Datum, nie gekuerzt
     private static func sentence(_ s: Scalars, _ start: Int, _ end: Int) -> String {
         let (a, b) = sentenceBounds(s, start, end)
-        let text = PyText.strip(s.slice(a + 1, b + 1))
-        guard PyText.length(text) > 180 else { return text }
-        return PyText.strip(PyText.slice(text, 0, 177)) + "…"      // rstrip: Pythons rstrip; strip ist hier gleich (Anfang schon ohne Leerraum)
+        return PyText.strip(s.slice(a + 1, b + 1))
     }
 
     /// `_clause`: Satzteil um ein Datum: innerhalb des Satzes vom letzten Komma/Semikolon/Doppelpunkt davor bis zum
@@ -390,10 +392,10 @@ public enum Announcements {
                             postedAt: String, url: String?, discussion: String? = nil, today: Int) -> Item {
         let text = htmlToText(bodyHTML)
         let cleanTitle = htmlToText(title)
-        let shortTitle = PyText.slice(cleanTitle, 0, 200)
+        let shortTitle = PyText.slice(cleanTitle, 0, maxTitle)
         let dates = datesFor(title: cleanTitle, text: text, posted: postedDay(postedAt, today: today))
         return Item(id: id, source: source, courseID: courseID, title: shortTitle.isEmpty ? "Ankündigung" : shortTitle,
-                    text: PyText.slice(text, 0, 6000), author: PyText.slice(author, 0, 120), postedAt: postedAt, url: url,
+                    text: PyText.slice(text, 0, maxText), author: PyText.slice(author, 0, 120), postedAt: postedAt, url: url,
                     discussion: discussion, dates: dates)
     }
 

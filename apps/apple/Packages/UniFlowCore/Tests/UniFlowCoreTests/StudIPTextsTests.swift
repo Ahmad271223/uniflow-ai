@@ -106,6 +106,14 @@ final class StudIPTextsTests: XCTestCase {
         for (k, v) in cases["markup"]?.object ?? [:] { XCTAssertEqual(StudIPTexts.markupToText(k), v.string, k) }
         for (k, v) in cases["anonymize"]?.object ?? [:] { XCTAssertEqual(StudIPTexts.anonymize(k), v.string, k) }
         for (k, v) in cases["cut"]?.object ?? [:] { XCTAssertEqual(StudIPTexts.cut(k, 12), v.string, k) }
+        // gespeicherte Texte ganz, ohne "…" (Inhaber 03.11.2026)
+        let full = cases["full"]?.object ?? [:]
+        XCTAssertEqual(full.count, 2)
+        for (k, v) in full {
+            XCTAssertEqual(StudIPTexts.full(k), v.string, k)
+            XCTAssertFalse(v.string?.contains("…") ?? true)
+        }
+        XCTAssertTrue(full.values.contains { ($0.string?.count ?? 0) > 1000 })
     }
 
     /// Courseware-Fristen stehen in "Abgaben & Prüfungen" des Moduls mit Herkunft und Link, im Lernkalender als Frist;

@@ -1301,7 +1301,7 @@
     "id": "sp-msg-m1",
     "kind": "nachricht",
     "source": "studip",
-    "text": "Liebe Studierende, das Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.",
+    "text": "Liebe Studierende,\ndas Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.",
     "title": "Tutorium entfällt",
     "url": "https://studip.test/dispatch.php/messages/overview",
     "who": "Lehrende"
@@ -1379,7 +1379,7 @@
     "id": "sp-msg-m3",
     "kind": "nachricht",
     "source": "studip",
-    "text": "Hallo zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "text": "Hallo\nzusammen lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht Ende.",
     "title": "(ohne Betreff)",
     "url": "https://studip.test/dispatch.php/messages/overview",
     "who": "Absender"
@@ -1706,7 +1706,7 @@
      }
     ],
     "id": "sp-msg-m1",
-    "preview": "Liebe Studierende, das Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.",
+    "preview": "Liebe Studierende,\ndas Tutorium am 12.11. fällt aus. Die Abgabe von Blatt 4 ist bis 19.11. um 12 Uhr möglich.",
     "sender": "Lehrende",
     "sent_at": "2026-11-02T08:15:00+01:00",
     "subject": "Tutorium entfällt",
@@ -1724,7 +1724,7 @@
    {
     "dates": [],
     "id": "sp-msg-m3",
-    "preview": "Hallo zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "preview": "Hallo\nzusammen lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht Ende.",
     "sender": "Absender",
     "sent_at": "2026-10-20T12:00:00+02:00",
     "subject": "(ohne Betreff)",
@@ -1779,7 +1779,7 @@
     },
     {
      "attributes": {
-      "message": "Hallo   \n zusammen xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "message": "Hallo   \n zusammen lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht lange Nachricht Ende.",
       "mkdate": "2026-10-20T12:00:00+02:00",
       "subject": ""
      },

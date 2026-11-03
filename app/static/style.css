@@ -350,7 +350,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 .day2-ev .cx-src { display: block; font-size: .74rem; color: var(--warn-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Sitzungsthema aus Stud.IP (02.11.2026): dezent, eine Zeile */
 .day2-ev .tp-src { display: block; font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tp-line summary { cursor: pointer; list-style: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-box { background: var(--warn-soft); border: 1px solid var(--warn); } .cx-box .cx-title { color: var(--warn-text); }
 .tt-ev.study { background: var(--surface); color: var(--text); border: 1px solid var(--pc, var(--accent)); border-left: 4px solid var(--pc, var(--accent)); } .tt-ev.study.erledigt { opacity: .6; } .tt-ev.study.nachholen { border-color: var(--bad); }
 .tt-legend { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .8125rem; color: var(--muted); margin: .5rem 0; } .tt-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: .25rem; }
@@ -583,8 +582,8 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 .cal-day-extras .note-chip { font-size: .8125rem; margin: 0; padding: .2rem .5rem; }
 .ann-item { padding: .55rem .2rem; border-bottom: 1px solid var(--line); } .ann-item:last-child { border-bottom: 0; }
 .ann-item summary { cursor: pointer; list-style: none; } .ann-item summary::-webkit-details-marker { display: none; }
-.ann-item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ann-item .s { color: var(--muted); font-size: .8125rem; }
-.ann-item .body { white-space: pre-line; font-size: .84rem; margin: .4rem 0; max-height: 240px; overflow: auto; }
+.ann-item .t { font-weight: 600; overflow-wrap: anywhere; } .ann-item .s { color: var(--muted); font-size: .8125rem; }
+.ann-item .body { white-space: pre-line; font-size: .875rem; line-height: 1.6; margin: .4rem 0; max-width: 70ch; overflow-wrap: anywhere; }
 .ann-dates { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; } .ann-dates .note-chip { margin: 0; }
 .cal2-legend .lg-note { background: var(--info-soft); border: 1px solid var(--info); }
 

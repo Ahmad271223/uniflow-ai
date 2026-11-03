@@ -52,7 +52,7 @@ INBOX = {"data": [
      "relationships": {"sender": {"data": {"type": "users", "id": "u-doz"}}}},
     {"id": "m2", "type": "messages", "attributes": {"subject": "Ihre Bescheinigung", "message": "Text", "mkdate": "2026-10-31T12:00:00+01:00"},
      "relationships": {"sender": {"data": {"type": "users", "id": "____%system%____"}}}},
-    {"id": "m3", "type": "messages", "attributes": {"subject": "", "message": "Hallo   \n zusammen " + "x" * 300, "mkdate": "2026-10-20T12:00:00+02:00"},
+    {"id": "m3", "type": "messages", "attributes": {"subject": "", "message": "Hallo   \n zusammen " + "lange Nachricht " * 90 + "Ende.", "mkdate": "2026-10-20T12:00:00+02:00"},
      "relationships": {"sender": {"data": {"type": "users", "id": "u-anon"}}}},
     {"id": "m4", "type": "messages", "attributes": {"subject": "Ohne Absender", "message": "", "mkdate": "2026-10-19T12:00:00+02:00"},
      "relationships": {"sender": {"data": None}}},

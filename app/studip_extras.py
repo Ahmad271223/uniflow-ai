@@ -5,8 +5,9 @@ ueberladen"). Alles nur lesend; die App schreibt nie in Stud.IP.
    erkannt, app/announcements.py), aber ohne Kurs (course_id NULL). Eine Ankuendigung, die auch in einem Kurs steht,
    bleibt dem Kurs zugeordnet.
  - Nachrichten (`users/{id}/inbox`): nur die Liste, nie die Einzelansicht (die koennte eine Nachricht als gelesen
-   markieren). Gespeichert wird hoechstens Absender (Rolle statt Name, wenn Stud.IP sie nennt), Betreff, Datum, eine
-   Vorschau von 160 Zeichen, ein Link auf den Posteingang und die erkannten Tage (ohne Satz). Datenschutz: nur lokal
+   markieren). Die Liste liefert den ganzen Text (Attribut `message`, MessageSchema; `is-read` wird nur gelesen, die
+   Liste markiert nichts, geprueft im Stud.IP-Quelltext 03.11.2026). Gespeichert werden Absender (Rolle statt Name,
+   wenn Stud.IP sie nennt), Betreff, Datum, der ganze Text (Spalte `preview`, Zeilenumbrueche bleiben), ein Link auf den Posteingang und die erkannten Tage (ohne Satz). Datenschutz: nur lokal
    (am PC nur im Einzelplatz-Betrieb, nie im Dienst), nicht in der Community, nicht automatisch in der KI.
  - Activity-Stream (`users/{id}/activitystream`): nur Hinweisquelle "Neu in Kurs X". Kurse damit beim Abgleich zu
    ueberspringen ist nicht sicher: der Stream nennt nicht jede Aenderung (geloeschte Dateien, Ordner, Termine aus
@@ -45,7 +46,7 @@ MESSAGES_TABLE = """CREATE TABLE IF NOT EXISTS studip_messages (
     id TEXT PRIMARY KEY,
     sender TEXT,                       -- Rolle (Lehrende, Verwaltung ...) oder hoechstens der Name
     subject TEXT,
-    preview TEXT,                      -- hoechstens 160 Zeichen
+    preview TEXT,                      -- ganzer Text der Nachricht (Name der Spalte von frueher)
     sent_at TEXT,
     url TEXT,                          -- Posteingang (nicht die Einzelansicht)
     dates TEXT,                        -- erkannte Tage [{date, time, kind}]
@@ -175,12 +176,12 @@ def parse_messages(data, included, base: str, today: date) -> list[dict]:
         if mid is None:
             continue
         a = _attrs(m)
-        subject = announcements.html_to_text(_str(a.get("subject")))[:200] or "(ohne Betreff)"
+        subject = announcements.html_to_text(_str(a.get("subject")))[:announcements.MAX_TITLE] or "(ohne Betreff)"
         text = announcements.html_to_text(_str(a.get("message")))
         sent = _str(a.get("mkdate"))
         posted = announcements._posted_day_or_none(sent) or today
         dates = [{"date": d["date"], "time": d["time"], "kind": d["kind"]} for d in announcements.dates_for(subject, text, posted)]
-        preview = re.sub(r"\s+", " ", text).strip()[:160]
+        preview = text[:announcements.MAX_TEXT]      # ganzer Text (Inhaber 03.11.2026: nie "…")
         out.append({"id": f"sp-msg-{mid}", "sender": sender_label(m, users), "subject": subject, "preview": preview,
                     "sent_at": sent, "url": f"{base}/dispatch.php/messages/overview", "dates": dates})
     return out

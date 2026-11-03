@@ -296,7 +296,7 @@ Abgleich nach den übrigen Ergänzungen (`StudIPExtrasSync.bulletin`, Kern `Stud
 `UniversityProfile.hasBulletinBoard` (LUH ja, Hildesheim nein), höchstens alle sechs Stunden, eine Anfrage für die
 Themen und eine je Thema. Fehlt das Plugin (404/403 oder keine Themenliste), merkt sich das die App unter
 `studip_missing_endpoints` („bulletin“) und fragt erst nach 30 Tagen wieder. Gespeichert werden je Thema die
-neuesten 20 Anzeigen in `studip_bulletin` (id, topic, title, text ≤ 400 Zeichen, url, posted_at, fetched_at), nur
+neuesten 20 Anzeigen in `studip_bulletin` (id, topic, title, ganzer text, url, posted_at, fetched_at), nur
 auf dem Gerät. Endpunkte des lokalen Backends: `GET /api/studip/bulletin?topic=` (Themen mit Anzahl, Anzeigen,
 `new_count` der letzten sieben Tage, `available`) und `GET /api/studip/bulletin/{id}`. Oberfläche: Karte „Schwarzes
 Brett“ unter Uni & Noten (`Views/Services/BulletinCard.swift`, nur mit Anzeigen), eine Zeile „Schwarzes Brett: N neue
@@ -327,7 +327,7 @@ für die Hochschule; 403 (Forum im Kurs aus) wie bisher.
 Die Geräte-Probe (Discovery) zeigte, dass die App Blubber (Kurs-Chats von Stud.IP) nicht las. Seit 03.11.2026 liest
 der Abgleich der Ergänzungen (`StudIPExtrasSync.blubber`, Kern `StudIPBlubber`) sie mit, nur lesend und nur auf dem
 Gerät (Tabelle `studip_blubber`: id, course_id – NULL für den Stud.IP-weiten Thread –, thread_id, author_role, text
-≤ 400 Zeichen, posted_at, url, fetched_at; nicht im Geräte-Abgleich, nicht in der Community, keine Quelle der KI).
+ganz, posted_at, url, fetched_at; nicht im Geräte-Abgleich, nicht in der Community, keine Quelle der KI).
 
 **Welche Routen (geprüft am Stud.IP-Quelltext, gitlab.studip.de/studip/studip, main, Stand 03.11.2026):**
 

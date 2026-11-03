@@ -711,11 +711,13 @@ struct PlanDayTimeline: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(UFFmt.shortName(e.s("title"))).ufFont(15.68, 700).foregroundStyle(UF.text).lineLimit(1)
                     Text(line).ufFont(13.12).foregroundStyle(UF.text2)
-                    if let topic = UFSessionTopic.text(e) {               // Sitzungsthema aus Stud.IP, eine Zeile
-                        Text("Thema: \(topic.replacingOccurrences(of: "\n", with: " "))").ufFont(11.84).foregroundStyle(UF.muted).lineLimit(1)
+                    if let topic = UFSessionTopic.text(e) {               // Sitzungsthema aus Stud.IP, ganz (nie "…")
+                        Text("Thema: \(topic.replacingOccurrences(of: "\n", with: " "))").ufFont(11.84).foregroundStyle(UF.muted)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     }
                     if let src = UFCancel.source(e) {                      // Quelle der Absage
-                        Text("laut \(src)").ufFont(11.84).foregroundStyle(UF.warn).lineLimit(1)
+                        Text("laut \(src)").ufFont(11.84).foregroundStyle(UF.warn)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

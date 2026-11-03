@@ -130,12 +130,11 @@ struct UFCancelHintBox: View {
 
 // MARK: - Sitzungsthema (Stud.IP, Termin-Attribut description)
 
-/// Sitzungsthema eines Termins (`session_topic`, aus Stud.IP, 02.11.2026): dezent in einer Zeile, bei langem Text zum
-/// Aufklappen. Ohne Thema nichts.
+/// Sitzungsthema eines Termins (`session_topic`, aus Stud.IP, 02.11.2026): dezent, immer ganz und umbrechend (Inhaber
+/// 03.11.2026: Texte aus Stud.IP nie mit "…" kuerzen). Ohne Thema nichts.
 struct UFSessionTopic: View {
     let e: JSONValue
     var size: CGFloat = 13.12
-    @State private var open = false
 
     /// Thema oder nil (leer)
     static func text(_ e: JSONValue) -> String? {
@@ -143,29 +142,20 @@ struct UFSessionTopic: View {
         return t
     }
 
-    /// passt nicht in eine Zeile: aufklappbar
+    /// laenger als eine Zeile (mehrzeilig dargestellt)
     static func isLong(_ t: String) -> Bool { t.count > 70 || t.contains("\n") }
 
     var body: some View {
         if let t = Self.text(e) {
-            let long = Self.isLong(t)
-            Button { if long { open.toggle() } } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    UFIcon("book", size: size - 1).foregroundStyle(UF.muted)
-                    Text("Thema: \(open ? t : t.replacingOccurrences(of: "\n", with: " "))")
-                        .ufFont(size).foregroundStyle(UF.text2)
-                        .lineLimit(open ? nil : 1)
-                        .fixedSize(horizontal: false, vertical: open)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if long { UFIcon("chevron-down", size: size - 1).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 180 : 0)) }
-                }
-                .contentShape(Rectangle())
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                UFIcon("book", size: size - 1).foregroundStyle(UF.muted)
+                Text("Thema: \(t)")
+                    .ufFont(size).foregroundStyle(UF.text2).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .disabled(!long)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Sitzungsthema: \(t)")
-            .accessibilityHint(long ? (open ? "Zuklappen" : "Ganz anzeigen") : "")
             .accessibilityIdentifier("session-topic")
         }
     }

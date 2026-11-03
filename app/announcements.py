@@ -20,6 +20,9 @@ import re
 from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 
+# Texte bleiben ganz (Inhaber 03.11.2026: "die ganze Nachricht, nie '…'"); die Grenzen sind nur eine Notbremse
+MAX_TEXT = 50000
+MAX_TITLE = 1000
 MONTHS = {"januar": 1, "jan": 1, "februar": 2, "feb": 2, "märz": 3, "maerz": 3, "mär": 3, "april": 4, "apr": 4, "mai": 5,
           "juni": 6, "jun": 6, "juli": 7, "jul": 7, "august": 8, "aug": 8, "september": 9, "sep": 9, "sept": 9,
           "oktober": 10, "okt": 10, "november": 11, "nov": 11, "dezember": 12, "dez": 12}
@@ -86,8 +89,7 @@ def _sent_bounds(text: str, start: int, end: int) -> tuple[int, int]:
 
 def _sentence(text: str, start: int, end: int) -> str:
     a, b = _sent_bounds(text, start, end)
-    s = text[a + 1:b + 1].strip()
-    return s if len(s) <= 180 else s[:177].rstrip() + "…"
+    return text[a + 1:b + 1].strip()      # ganzer Satz, nie gekuerzt (Inhaber 03.11.2026: nie "…")
 
 
 def _clause(text: str, start: int, end: int) -> str:
@@ -269,8 +271,8 @@ def make(aid: str, source: str, course_id: str | None, title: str, body_html: st
          url: str | None, discussion: str | None = None) -> dict:
     text = html_to_text(body_html)
     dates = dates_for(html_to_text(title), text, _posted_date(posted_at))
-    return {"id": aid, "source": source, "course_id": course_id, "title": html_to_text(title)[:200] or "Ankündigung",
-            "text": text[:6000], "author": (author or "")[:120], "posted_at": posted_at, "url": url,
+    return {"id": aid, "source": source, "course_id": course_id, "title": html_to_text(title)[:MAX_TITLE] or "Ankündigung",
+            "text": text[:MAX_TEXT], "author": (author or "")[:120], "posted_at": posted_at, "url": url,
             "discussion": discussion, "dates": dates}
 
 

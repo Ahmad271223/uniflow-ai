@@ -7,7 +7,7 @@ import Foundation
 // Beides verlangt an der LUH die angemeldete Sitzung (ohne Cookie: Umleitung auf dispatch.php/login, geprueft
 // 03.11.2026), darum laeuft der Abruf ueber den `StudIPClient` mit dem Sitzungs-Cookie, nur GET, mit denselben Pausen.
 //
-// Gespeichert werden je Thema die neuesten `perTopic` Anzeigen: Titel, Text (hoechstens `maxText` Zeichen), Link,
+// Gespeichert werden je Thema die neuesten `perTopic` Anzeigen: Titel, ganzer Text (Absaetze bleiben; `maxText` ist nur eine Notbremse), Link,
 // Zeitpunkt. Der Feed nennt keine Autoren, die App speichert keine (nie Personennamen). Nur auf diesem Geraet, nicht
 // im Geraete-Abgleich, nicht in der Community, keine Quelle der KI.
 //
@@ -22,7 +22,8 @@ import Foundation
 
 public enum StudIPBulletin {
     public static let perTopic = 20
-    public static let maxText = 400
+    /// nur Notbremse: der RSS-Text ist die ganze Anzeige und bleibt ganz (Inhaber 03.11.2026: "ganze Nachricht, nie '…'")
+    public static let maxText = 50000
     /// Name in `studip_missing_endpoints`
     public static let missingName = "bulletin"
     /// zwischen zwei Abrufen mindestens so viele Stunden (Kleinanzeigen aendern sich langsam)
@@ -40,7 +41,7 @@ public enum StudIPBulletin {
             id TEXT PRIMARY KEY,
             topic TEXT NOT NULL,               -- Thema (Titel in Stud.IP)
             title TEXT NOT NULL,
-            text TEXT NOT NULL,                -- hoechstens 400 Zeichen, ohne Formatierung
+            text TEXT NOT NULL,                -- ganzer Text ohne Formatierung (Absaetze bleiben)
             url TEXT,                          -- Anzeige in Stud.IP
             posted_at TEXT,                    -- YYYY-MM-DDTHH:MM:SS, Ortszeit
             fetched_at TEXT
@@ -182,7 +183,7 @@ public enum StudIPBulletin {
     }
 
     /// Anzeigen eines Feeds (Thema `topic`): title, link, description (HTML in CDATA), pubDate, guid. Ohne Titel keine
-    /// Anzeige; der Text ist reiner Text, hoechstens `maxText` Zeichen (am Wort gekuerzt).
+    /// Anzeige; der Text ist der ganze Text der Anzeige als reiner Text mit Absaetzen, nie gekuerzt ("…").
     public static func parseFeed(xml: String, topic: String) -> [Entry] {
         var out: [Entry] = []
         var seen = Set<String>()
@@ -197,9 +198,9 @@ public enum StudIPBulletin {
             guard !guid.isEmpty, !seen.contains(guid) else { continue }
             seen.insert(guid)
             let body = Announcements.htmlToText(field(item, "description") ?? "")
-            let text = StudIPTexts.cut(PyText.strip(anySpace.sub(body, " ")), maxText)
+            let text = StudIPTexts.full(body, maxText)
             let url = link.hasPrefix("https://") || link.hasPrefix("http://") ? link : ""
-            out.append(Entry(id: "sb-" + guid, topic: topic, title: PyText.slice(title, 0, 200), text: text, url: url,
+            out.append(Entry(id: "sb-" + guid, topic: topic, title: PyText.slice(title, 0, Announcements.maxTitle), text: text, url: url,
                              postedAt: localTime(rfc2822: field(item, "pubDate") ?? "") ?? ""))
             if out.count >= perTopic { break }
         }

@@ -185,6 +185,42 @@ final class NewsCardAppTests: XCTestCase {
         XCTAssertTrue(rows.allSatisfy { $0.hasPrefix("Nachricht:") })
     }
 
+    /// Inhaber 03.11.2026: "die ganze Nachricht, nie '…'": eine lange Stud.IP-Nachricht (ueber 1000 Zeichen) kommt ganz
+    /// ueber /api/news, der Betreff steht ganz in der Zeile, aufgeklappt steht der ganze Text in den Bedienungshilfen
+    func testLongMessageIsShownCompletelyWithoutEllipsis() throws {
+        let body = (1...120).map { "Satz \($0) der Nachricht." }.joined(separator: " ")
+        let subject = "Sehr langer Betreff zur Klausuranmeldung im Wintersemester mit allen Hinweisen zu Raum, Zeit und Hilfsmitteln"
+        let api: APIClient = try awaiting {
+            let host = LocalBackendHost(directory: try self.tempDir().appendingPathComponent("db", isDirectory: true),
+                                        clock: .fixed(berlin: "2026-11-02T10:30:00")!)
+            let backend = try await host.backend()
+            let inbox: JSONValue = ["data": [["id": "lang", "type": "messages", "attributes": [
+                "subject": .string(subject), "message": .string("<p>Liebe Studierende,</p><p>\(body)</p><p>Viele Grüße</p>"),
+                "mkdate": "2026-11-02T08:15:00+01:00"]]]]
+            var d = StudIPExtras.Download()
+            d.messages = StudIPExtras.parseMessages(inbox["data"], included: nil, base: "https://studip.example", today: 20759)
+            let clock = backend.context.clock
+            try await backend.context.database.transaction { c in try StudIPExtras.store(d, in: c, clock: clock) }
+            return APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
+        }
+        let items = try awaiting { try await api.value("/api/news") }.list("items")
+        let item = try XCTUnwrap(items.first { $0.s("kind") == "nachricht" })
+        let text = try XCTUnwrap(item.s("text"))
+        XCTAssertGreaterThan(text.count, 1000)
+        XCTAssertEqual(text, "Liebe Studierende,\n\(body)\nViele Grüße", "ganzer Text mit Absaetzen")
+        XCTAssertEqual(item.s("title"), subject)
+        XCTAssertTrue(Self.accessibilityAutomation(true))
+        defer { Self.accessibilityAutomation(false) }
+        let view = host(NewsAllList(items: items, today: "2026-11-02") {}.frame(width: 600))
+        pump()
+        XCTAssertTrue(labels(view).contains { $0.hasPrefix("Nachricht: \(subject) · ") }, "ganzer Betreff")
+        let row = host(NewsRow(item: item, today: "2026-11-02", open: true).frame(width: 600))
+        pump()
+        let all = labels(row)
+        XCTAssertTrue(all.contains(text), "ganzer Text in den Bedienungshilfen: \(all)")
+        XCTAssertFalse(all.contains { $0.contains("…") }, "nie ein Auslassungszeichen: \(all)")
+    }
+
     func testTimeLabels() {
         XCTAssertEqual(NewsRow.time("2026-11-02T08:15:00+01:00", today: "2026-11-02"), "08:15")
         XCTAssertEqual(NewsRow.time("2026-11-01T10:00:00+01:00", today: "2026-11-02"), "gestern")

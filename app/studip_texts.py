@@ -48,7 +48,7 @@ MAX_PAGES = 40                # Courseware-Seiten je Kurs
 MAX_DEPTH = 4                 # Tiefe im Courseware-Baum
 MAX_WIKI = 30                 # Wiki-Seiten je Kurs
 MAX_FORUM = 20                # Forum-Themen je Kurs
-MAX_TEXT = 8000               # Zeichen je gespeichertem Text
+MAX_TEXT = 50000              # Zeichen je gespeichertem Text: nur Notbremse, Texte bleiben ganz (Inhaber 03.11.2026)
 RECHECK_DAYS = 14
 ABSENT_STATUS = (400, 403, 404, 405)
 API = "jsonapi.php/v1/"
@@ -233,10 +233,16 @@ def anonymize(t: str) -> str:
     """Forenbeitraege ohne Personen: Zitate (mit Namen der Zitierten) und @Erwaehnungen fallen weg."""
     t = re.sub(r"(?is)\[quote[^\]]*\].*?\[/quote\]", " ", t or "")
     t = re.sub(r"(?is)<blockquote\b.*?</blockquote>", " ", t)
-    return re.sub(r"(?<![\w@])@[\w.\-]+", "@…", t)
+    return re.sub(r"(?<![\w@])@[\w.\-]+", "@Person", t)
+
+
+def full(t: str, n: int = MAX_TEXT) -> str:
+    """Gespeicherter Text: ganz, ohne "…" (Inhaber 03.11.2026); `n` ist nur eine Notbremse gegen kaputte Antworten."""
+    return t.strip()[:n]
 
 
 def cut(t: str, n: int = MAX_TEXT) -> str:
+    """Kurzfassung fuer die KI (weekly_lines), nie fuer die Anzeige"""
     t = t.strip()
     if len(t) <= n:
         return t
@@ -492,7 +498,7 @@ def _fetch_courseware(api: Api, cid: str, res: dict, known, today, base, st, out
                 complete = False
                 text = None
             if text:
-                res["rows"].append({"id": rid, "kind": "courseware", "title": title, "text": cut(text), "url": link(cid, eid), "changed": changed})
+                res["rows"].append({"id": rid, "kind": "courseware", "title": title, "text": full(text), "url": link(cid, eid), "changed": changed})
             elif text == "":
                 res["seen"]["courseware"].remove(rid)          # ohne Text: kein Eintrag (ein alter faellt weg)
         if depth >= MAX_DEPTH:
@@ -539,7 +545,7 @@ def _fetch_wiki(api: Api, cid: str, res: dict, known, today, base, st, out) -> N
         text = rich_to_text(content)
         title = squash(_first(a, "keyword", "name", "title")) or "Wiki"
         if text:
-            res["rows"].append({"id": rid, "kind": "wiki", "title": title, "text": cut(text), "url": link(cid, p["id"]), "changed": changed})
+            res["rows"].append({"id": rid, "kind": "wiki", "title": title, "text": full(text), "url": link(cid, p["id"]), "changed": changed})
         else:
             res["seen"]["wiki"].remove(rid)
     res["complete"]["wiki"] = complete
@@ -598,7 +604,7 @@ def _fetch_forum(api: Api, cid: str, res: dict, known, today, base, st, out) -> 
                 text = "\n---\n".join(y for y in parts if y)
                 title = squash(_first(a, "title", "name")) or "Forum"
                 if text:
-                    res["rows"].append({"id": rid, "kind": "forum", "title": title, "text": cut(text), "url": link(cid, e["id"]), "changed": changed})
+                    res["rows"].append({"id": rid, "kind": "forum", "title": title, "text": full(text), "url": link(cid, e["id"]), "changed": changed})
                 else:
                     res["seen"]["forum"].remove(rid)
     except Stop:

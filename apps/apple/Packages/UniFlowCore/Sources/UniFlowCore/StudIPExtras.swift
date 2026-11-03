@@ -3,7 +3,8 @@ import Foundation
 // Neuigkeiten aus Stud.IP ueber die Kurse hinaus wie app/studip_extras.py (02.11.2026). Alles nur lesend.
 //  - Stud.IP-weite Ankuendigungen (studip/news): in `announcements` ohne Kurs, Fristen und Termine wie Kurs-Ankuendigungen.
 //  - Nachrichten (users/{id}/inbox): nur die Liste, nie die Einzelansicht (die koennte als gelesen markieren). Gespeichert
-//    werden Absender (Rolle statt Name, wenn Stud.IP sie nennt), Betreff, Datum, Vorschau (160 Zeichen), Link auf den
+//    werden Absender (Rolle statt Name, wenn Stud.IP sie nennt), Betreff, Datum, ganzer Text (die Liste liefert
+//    `message` ganz und markiert nichts; Spalte `preview`), Link auf den
 //    Posteingang und die erkannten Tage ohne Satz. Nur auf diesem Geraet (Tabelle studip_messages, nicht im
 //    Geraete-Abgleich, nicht in der Community, keine automatische Quelle der KI).
 //  - Activity-Stream (users/{id}/activitystream): nur Hinweisquelle "Neu in Kurs X". Kurse damit beim Abgleich zu
@@ -29,7 +30,6 @@ public enum StudIPExtras {
     static let activityDays = 14
     static let chipKinds: [String: String] = ["frist": "Frist", "pruefung": "Prüfung", "ausfall": "Ausfall?", "verlegt": "Verlegung?"]
     static let consultColor = "#0e9f9a"
-    private static let whitespaceRE = PyRegex(#"\s+"#)
     private static let dateTimeRE = PyRegex(#"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}"#)
 
     static let messagesTable = """
@@ -37,7 +37,7 @@ public enum StudIPExtras {
             id TEXT PRIMARY KEY,
             sender TEXT,                       -- Rolle (Lehrende, Verwaltung ...) oder hoechstens der Name
             subject TEXT,
-            preview TEXT,                      -- hoechstens 160 Zeichen
+            preview TEXT,                      -- ganzer Text der Nachricht (Name der Spalte von frueher)
             sent_at TEXT,
             url TEXT,                          -- Posteingang (nicht die Einzelansicht)
             dates TEXT,                        -- erkannte Tage [{date, time, kind}]
@@ -146,7 +146,7 @@ public enum StudIPExtras {
         for m in data?.array ?? [] {
             guard m.object != nil, let id = StudIPTerms.id(m) else { continue }
             let a = StudIPTerms.attrs(m)
-            var subject = PyText.slice(Announcements.htmlToText(str(a["subject"])), 0, 200)
+            var subject = PyText.slice(Announcements.htmlToText(str(a["subject"])), 0, Announcements.maxTitle)
             if subject.isEmpty { subject = "(ohne Betreff)" }
             let text = Announcements.htmlToText(str(a["message"]))
             let sent = str(a["mkdate"])
@@ -154,7 +154,7 @@ public enum StudIPExtras {
             let dates: [JSONValue] = Announcements.datesFor(title: subject, text: text, posted: posted).map { d in
                 ["date": d["date"] ?? .null, "time": d["time"] ?? .null, "kind": d["kind"] ?? .null]
             }
-            let preview = PyText.slice(PyText.strip(whitespaceRE.sub(text, " ")), 0, 160)
+            let preview = PyText.slice(text, 0, Announcements.maxText)      // ganzer Text (Inhaber 03.11.2026: nie "…")
             out.append(Message(id: "sp-msg-\(id)", sender: senderLabel(m, users: users), subject: subject, preview: preview, sentAt: sent,
                                url: "\(base)/dispatch.php/messages/overview", dates: dates))
         }

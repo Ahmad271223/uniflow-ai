@@ -25,7 +25,8 @@ public enum StudIPTexts {
     static let maxDepth = 4
     static let maxWiki = 30
     static let maxForum = 20
-    static let maxText = 8000
+    /// Zeichen je gespeichertem Text: nur Notbremse, Texte bleiben ganz (Inhaber 03.11.2026: nie "…")
+    public static let maxText = 50000
     static let recheckDays = 14
     static let absentStatus: Set<Int> = [400, 403, 404, 405]
     static let api = "jsonapi.php/v1/"
@@ -83,6 +84,8 @@ public enum StudIPTexts {
         /// Anfragen aufgebraucht oder Netz weg: Rest nicht gefragt
         public var stopped = false
         public var requests = 0
+
+        public init() {}
     }
 
     public struct StoreResult: Sendable, Equatable {
@@ -170,10 +173,15 @@ public enum StudIPTexts {
 
     /// `anonymize`: Zitate (mit Namen) und @Erwaehnungen fallen weg
     static func anonymize(_ t: String) -> String {
-        mention.sub(blockquote.sub(quoteBlock.sub(t, " "), " "), "@…")
+        mention.sub(blockquote.sub(quoteBlock.sub(t, " "), " "), "@Person")
     }
 
-    /// `cut(t, n)`: nach `n` Zeichen am Wort kuerzen
+    /// `full(t, n)`: gespeicherter Text ganz, ohne "…"; `n` ist nur eine Notbremse gegen kaputte Antworten
+    public static func full(_ t: String, _ n: Int = maxText) -> String {
+        PyText.slice(PyText.strip(t), 0, n)
+    }
+
+    /// `cut(t, n)`: nach `n` Zeichen am Wort kuerzen (Kurzfassung fuer die KI, `weeklyLines`; nie fuer die Anzeige)
     static func cut(_ t: String, _ n: Int = maxText) -> String {
         let s = PyText.strip(t)
         let u = Array(s.unicodeScalars)
@@ -518,7 +526,7 @@ public enum StudIPTexts {
                         body = nil
                     }
                     if let body, !body.isEmpty {
-                        res.rows.append(TextRow(id: rid, kind: "courseware", title: t.isEmpty ? "Courseware" : t, text: cut(body),
+                        res.rows.append(TextRow(id: rid, kind: "courseware", title: t.isEmpty ? "Courseware" : t, text: full(body),
                                                 url: coursewareURL(base, cid, eid), changed: ch))
                     } else if body != nil {
                         res.unsee("courseware", rid)              // ohne Text: kein Eintrag (ein alter faellt weg)
@@ -571,7 +579,7 @@ public enum StudIPTexts {
                 let body = richToText(content ?? "")
                 let t = squash(first(a, "keyword", "name", "title"))
                 if !body.isEmpty {
-                    res.rows.append(TextRow(id: rid, kind: "wiki", title: t.isEmpty ? "Wiki" : t, text: cut(body), url: wikiURL(base, cid, pid), changed: ch))
+                    res.rows.append(TextRow(id: rid, kind: "wiki", title: t.isEmpty ? "Wiki" : t, text: full(body), url: wikiURL(base, cid, pid), changed: ch))
                 } else {
                     res.unsee("wiki", rid)
                 }
@@ -629,7 +637,7 @@ public enum StudIPTexts {
                         let body = parts.filter { !$0.isEmpty }.joined(separator: "\n---\n")
                         let t = squash(first(a, "title", "name"))
                         if !body.isEmpty {
-                            res.rows.append(TextRow(id: rid, kind: "forum", title: t.isEmpty ? "Forum" : t, text: cut(body), url: forumURL(base, cid, eid),
+                            res.rows.append(TextRow(id: rid, kind: "forum", title: t.isEmpty ? "Forum" : t, text: full(body), url: forumURL(base, cid, eid),
                                                     changed: ch))
                         } else {
                             res.unsee("forum", rid)

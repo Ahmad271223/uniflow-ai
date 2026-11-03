@@ -180,7 +180,7 @@ final class BlubberAppTests: XCTestCase {
         XCTAssertEqual(o.list("threads").first?.i("new_count"), 2, "eigener Beitrag zaehlt nicht als neu")
         let t = try awaiting { try await api.value("/api/studip/blubber/t-ana") }
         XCTAssertEqual(t.list("comments").compactMap { $0.s("role") }, ["du", "Studierende", "Lehrende"], "aelteste zuerst")
-        XCTAssertEqual(t.list("comments").last?.s("text"), "Die Übung am Mittwoch fällt aus, @… bitte weitersagen.")
+        XCTAssertEqual(t.list("comments").last?.s("text"), "Die Übung am Mittwoch fällt aus, @Person bitte weitersagen.")
     }
 
     /// Bereich "Aus Stud.IP": Zeile "Blubber · 1", aufgeklappt der Thread mit dem neuesten Beitrag und Rolle

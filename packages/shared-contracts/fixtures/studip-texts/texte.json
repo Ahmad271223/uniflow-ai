@@ -573,7 +573,7 @@
      "course_id": "c-ana",
      "kind": "forum",
      "title": "Frage zu Blatt 3",
-     "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+     "text": "Wie zeige ich die Konvergenz der Folge? @Person\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
      "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
      "changed": "2026-11-01T18:00:00+01:00",
      "fetched_at": "2026-11-02T09:00:00"
@@ -711,7 +711,7 @@
      "course_id": "c-ana",
      "kind": "forum",
      "title": "Frage zu Blatt 3",
-     "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+     "text": "Wie zeige ich die Konvergenz der Folge? @Person\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
      "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
      "changed": "2026-11-01T18:00:00+01:00",
      "fetched_at": "2026-11-02T09:00:00"
@@ -873,7 +873,7 @@
      "course_id": "c-ana",
      "kind": "forum",
      "title": "Frage zu Blatt 3",
-     "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+     "text": "Wie zeige ich die Konvergenz der Folge? @Person\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
      "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
      "changed": "2026-11-01T18:00:00+01:00",
      "fetched_at": "2026-11-22T09:00:00"
@@ -1237,7 +1237,7 @@
   "id": "forum-f1",
   "kind": "forum",
   "title": "Frage zu Blatt 3",
-  "text": "Wie zeige ich die Konvergenz der Folge? @…\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
+  "text": "Wie zeige ich die Konvergenz der Folge? @Person\n---\nRe: Frage zu Blatt 3\nMit dem Cauchy-Kriterium für die Folge.",
   "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
   "changed": "2026-11-01",
   "course_title": "Testanalysis I",
@@ -1273,7 +1273,7 @@
     "course_title": "Testanalysis I",
     "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
     "score": 2003,
-    "snippet": "Wie zeige ich die Konvergenz der Folge? @… --- Re: Frage zu Blatt 3 Mit dem Cauchy-Kriterium für die Folge."
+    "snippet": "Wie zeige ich die Konvergenz der Folge? @Person --- Re: Frage zu Blatt 3 Mit dem Cauchy-Kriterium für die Folge."
    }
   ],
   "Klausur Termin Hilfsmittel": [
@@ -1330,7 +1330,7 @@
    "title": "Forum: Frage zu Blatt 3",
    "name": "Frage zu Blatt 3",
    "page": null,
-   "snippet": "Wie zeige ich die Konvergenz der Folge? @… --- Re: Frage zu Blatt 3 Mit dem Cauchy-Kriterium für die Folge.",
+   "snippet": "Wie zeige ich die Konvergenz der Folge? @Person --- Re: Frage zu Blatt 3 Mit dem Cauchy-Kriterium für die Folge.",
    "url": "https://studip.test/plugins.php/coreforum/index/index/f1?cid=c-ana#f1",
    "current": false
   },
@@ -1375,12 +1375,16 @@
    "  a \t b \n\n c  ": "a b\nc"
   },
   "anonymize": {
-   "[QUOTE=Anna]x[/quote]Danke @anna.b, gut": " Danke @…, gut",
+   "[QUOTE=Anna]x[/quote]Danke @anna.b, gut": " Danke @Person, gut",
    "Mail an a@b.de": "Mail an a@b.de"
   },
   "cut": {
    "kurz": "kurz",
    "ein ziemlich langer Satz hier": "ein …"
+  },
+  "full": {
+   "  kurz ": "kurz",
+   "Absatz eins.\nlange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile Ende.": "Absatz eins.\nlange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile lange Zeile Ende."
   }
  }
 }

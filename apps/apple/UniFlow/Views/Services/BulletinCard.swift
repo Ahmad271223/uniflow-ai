@@ -3,8 +3,8 @@ import UniFlowCore
 
 // Schwarzes Brett aus Stud.IP unter "Uni & Noten" (Auftrag des Inhabers 03.11.2026: "mit einbinden, wenn eine Uni das
 // hat"). Eine ruhige Karte, nur wenn die Hochschule das Brett hat und Anzeigen gespeichert sind: Themen-Chips mit
-// Anzahl, Liste der Anzeigen (Titel, Thema, Tag, zwei Zeilen Vorschau), Antippen oeffnet einen einfachen Leser mit
-// "In Stud.IP öffnen" (wie der Leser der Stud.IP-Texte). Daten: GET /api/studip/bulletin und
+// Anzahl, Liste der Anzeigen (ganzer Titel, Thema, Tag, ganzer Text; nie "…", Inhaber 03.11.2026), Antippen oeffnet
+// einen einfachen Leser mit "In Stud.IP öffnen" (wie der Leser der Stud.IP-Texte). Daten: GET /api/studip/bulletin und
 // /api/studip/bulletin/{id} (StudIPBulletin, nur lokal, keine Autoren). Auf dem PC-Server gibt es den Endpunkt nicht;
 // dann bleibt die Karte weg.
 
@@ -98,14 +98,19 @@ struct BulletinCard: View {
     private func entry(_ e: JSONValue) -> some View {
         Button { overlay.modal { BulletinReader(id: e.s("id") ?? "") } } label: {
             VStack(alignment: .leading, spacing: 3.2) {
+                // ganzer Titel und ganzer Text, umbrechend, nie "…" (Inhaber 03.11.2026)
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(e.s("title") ?? "").ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(1)
+                    Text(e.s("title") ?? "").ufFont(14.5, 550).foregroundStyle(UF.text)
+                        .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
-                    Text(e.s("posted_at").map { UFFmt.short($0) } ?? "").ufFont(12.16).foregroundStyle(UF.muted).lineLimit(1)
+                    Text(e.s("posted_at").map { UFFmt.short($0) } ?? "").ufFont(12.16).foregroundStyle(UF.muted).fixedSize()
                 }
-                HStack(alignment: .top, spacing: 6.4) {
-                    UFBadge(e.s("topic") ?? "", tone: .neutral)
-                    Text(e.s("text") ?? "").ufFont(12.8).foregroundStyle(UF.text2).lineLimit(2).multilineTextAlignment(.leading)
+                UFBadge(e.s("topic") ?? "", tone: .neutral).padding(.top, 1.6)
+                if let text = e.s("text"), !text.isEmpty {
+                    Text(text).ufFont(12.8, lh: 1.5).foregroundStyle(UF.text2)
+                        .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 640, alignment: .leading)
+                        .padding(.top, 2.4)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,6 +120,7 @@ struct BulletinCard: View {
         .buttonStyle(ModuleRowPressStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(BulletinText.accessibility(e))
+        .accessibilityValue(e.s("text") ?? "")                          // ganzer Text auch fuer VoiceOver
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("Anzeige lesen")
         .accessibilityIdentifier("bulletin.entry.\(e.s("id") ?? "")")
@@ -142,7 +148,7 @@ struct BulletinReader: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxHeight: 460)
-                    Text("Gekürzt auf \(StudIPBulletin.maxText) Zeichen; der vollständige Text und die Kontaktangaben stehen in Stud.IP.")
+                    Text("Antworten und Kontakt über die Anzeige in Stud.IP.")
                         .ufFont(11.84).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 } else if let error {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {

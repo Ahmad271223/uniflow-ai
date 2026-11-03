@@ -33,7 +33,8 @@ public enum StudIPBlubber {
     public static var syncEnabled = false
     /// neueste Beitraege je Thread
     public static let perThread = 20
-    public static let maxText = 400
+    /// nur Notbremse: Beitraege bleiben ganz (Inhaber 03.11.2026: nie "…")
+    public static let maxText = 50000
     /// Kommentar-Listen je Abgleich
     public static let maxThreads = 12
     /// Threads in der Liste (Stud.IP sortiert nach letzter Aktivitaet)
@@ -56,7 +57,7 @@ public enum StudIPBlubber {
             course_id TEXT,                    -- NULL = Stud.IP-weiter Thread
             thread_id TEXT NOT NULL,
             author_role TEXT NOT NULL,         -- Lehrende, Tutor/in, Studierende, du ... nie ein Name
-            text TEXT NOT NULL,                -- hoechstens 400 Zeichen, ohne Formatierung und Erwaehnungen
+            text TEXT NOT NULL,                -- ganzer Text ohne Formatierung und Erwaehnungen
             posted_at TEXT,                    -- YYYY-MM-DDTHH:MM:SS, Ortszeit
             url TEXT,                          -- Thread in Stud.IP
             fetched_at TEXT
@@ -135,16 +136,16 @@ public enum StudIPBlubber {
     static func clean(content: String, html: String) -> String {
         var t: String
         if !PyText.strip(content).isEmpty {
-            t = mentionLink.sub(content, "@…")
+            t = mentionLink.sub(content, "@Person")
             t = profileURL.sub(t, "")
-            t = quotedMention.sub(t, "@…")
+            t = quotedMention.sub(t, "@Person")
             t = linkMarkup.subGroup(t, 1)
             t = StudIPTexts.richToText(StudIPTexts.anonymize(t))
         } else {
-            t = Announcements.htmlToText(StudIPTexts.anonymize(profileAnchor.sub(html, "@…")))
-            t = quotedMention.sub(profileURL.sub(t, ""), "@…")
+            t = Announcements.htmlToText(StudIPTexts.anonymize(profileAnchor.sub(html, "@Person")))
+            t = quotedMention.sub(profileURL.sub(t, ""), "@Person")
         }
-        return StudIPTexts.cut(PyText.strip(anySpace.sub(t, " ")), maxText)
+        return StudIPTexts.full(anySpace.sub(t, " "), maxText)
     }
 
     /// Zeitpunkt (ISO mit Zone) -> "YYYY-MM-DDTHH:MM:SS" Ortszeit Berlin; "" ohne lesbare Zeit
@@ -348,7 +349,7 @@ public enum StudIPBlubber {
             return ["id": .string(tid), "course_id": first["course_id"] ?? .null, "course_title": .string(where_),
                     "count": .number(Double(rs.count)), "new_count": .number(Double(fresh.count)),
                     "changed": optional(str(first["posted_at"])), "new_at": optional(fresh.first.map { str($0["posted_at"]) }),
-                    "preview": .string(PyText.slice("\(str(first["author_role"])): \(str(first["text"]))", 0, 160)),
+                    "preview": .string("\(str(first["author_role"])): \(str(first["text"]))"),
                     "url": optional(str(first["url"])), "color": first["color"] ?? .null]
         }
     }

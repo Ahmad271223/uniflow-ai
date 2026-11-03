@@ -182,6 +182,48 @@ final class BulletinAppTests: XCTestCase {
         XCTAssertFalse(labels(plain).contains { $0.hasPrefix("Schwarzes Brett") })
     }
 
+    /// Inhaber 03.11.2026: "die ganze Nachricht aus Stud.IP im Schwarzen Brett, ohne '…'": der RSS-Text wird ganz
+    /// gespeichert (ueber 1000 Zeichen, Absaetze bleiben), die Zeile zeigt ihn ganz (auch fuer VoiceOver), der Leser auch
+    func testLongAdIsStoredAndShownCompletely() throws {
+        let words = (1...200).map { "Wort\($0)" }.joined(separator: " ")
+        let title = "WG-Zimmer in der Nordstadt ab Dezember, 18 m², möbliert, mit Balkon und Blick auf den Welfengarten"
+        let rss = """
+        <?xml version="1.0"?><rss version="2.0"><channel><title>x</title>
+        <item><title>\(title)</title><link>https://studip.uni-hannover.de/plugins.php/schwarzesbrettplugin/article/view/lang</link>
+        <description><![CDATA[<p>Hallo zusammen,</p><p>\(words)</p><p>Meldet euch gern!</p>]]></description><pubDate>Mon, 02 Nov 2026 09:00:00 +0100</pubDate><guid isPermaLink="false">lang</guid></item>
+        </channel></rss>
+        """
+        let full = "Hallo zusammen,\n\(words)\nMeldet euch gern!"
+        let parsed = StudIPBulletin.parseFeed(xml: rss, topic: "Wohnliches")
+        XCTAssertEqual(parsed.first?.text, full)
+        XCTAssertGreaterThan(full.count, 1000)
+        let (_, api): (LocalBackendHost, APIClient) = try awaiting {
+            let host = LocalBackendHost(directory: try self.tempDir().appendingPathComponent("db", isDirectory: true), clock: Self.clock, university: .luh)
+            let backend = try await host.backend()
+            var d = StudIPBulletin.Download()
+            d.topics = [.init(id: "c", title: "Wohnliches", count: 1)]
+            d.entries = parsed
+            try await backend.context.database.transaction { try StudIPBulletin.store(d, in: $0, clock: Self.clock) }
+            return (host, APIClient(base: APIClient.localBase, transport: LocalTransport(host: host)))
+        }
+        let one = try awaiting { try await api.value("/api/studip/bulletin/sb-lang") }
+        XCTAssertEqual(one.s("text"), full, "ganz gespeichert")
+        XCTAssertEqual(one.s("title"), title)
+        XCTAssertTrue(Self.accessibilityAutomation(true))
+        defer { Self.accessibilityAutomation(false) }
+        let s = try session(api)
+        let card = host(BulletinCard().environmentObject(s).environmentObject(UFOverlay()).environmentObject(UFRouter()).environmentObject(ShellState()).environmentObject(StudIPSync()).frame(width: 640).padding(20))
+        pump()
+        let row = try XCTUnwrap(elements(in: card).first { ($0.accessibilityLabel ?? "").hasPrefix("Anzeige: \(title) · ") }, "ganzer Titel")
+        XCTAssertEqual(row.accessibilityValue, full, "ganzer Text in der Zeile")
+        XCTAssertFalse(labels(card).contains { $0.contains("…") }, "\(labels(card))")
+        let reader = host(BulletinReader(id: "sb-lang").environmentObject(s).environmentObject(UFOverlay()).environmentObject(UFRouter()).environmentObject(ShellState()).frame(width: 640))
+        pump()
+        let all = labels(reader)
+        XCTAssertTrue(all.contains(full), "ganzer Text im Leser: \(all)")
+        XCTAssertFalse(all.contains { $0.contains("…") || $0.contains("Gekürzt") }, "\(all)")
+    }
+
     /// Uni Hildesheim: kein Brett, Endpunkt sagt es, die Karte bleibt weg
     func testHildesheimHasNoCard() throws {
         let (_, api) = try awaiting { try await self.seeded(.hildesheim) }

@@ -88,6 +88,12 @@ final class StudIPExtrasTests: XCTestCase {
         let msgs = StudIPExtras.parseMessages(inbox?["data"], included: inbox?["included"], base: base, today: today)
         assertSame(.array(msgs.map(\.json)), fx["messages"]?["items"], "Nachrichten")
         XCTAssertEqual(msgs.first?.sender, "Lehrende", "Rolle statt Name")
+        // ganzer Text der Nachricht (die Liste liefert `message` ganz), Absaetze bleiben, nie "…" (Inhaber 03.11.2026)
+        let long = try XCTUnwrap(msgs.first { $0.id == "sp-msg-m3" }?.preview)
+        XCTAssertGreaterThan(long.count, 1000)
+        XCTAssertTrue(long.hasPrefix("Hallo\nzusammen lange Nachricht"), long)
+        XCTAssertTrue(long.hasSuffix("Ende."), long)
+        XCTAssertFalse(long.contains("…"))
         assertSame(.array(StudIPExtras.parseActivity(fx["activity"]?["response"]?["data"], base: base).map(\.json)), fx["activity"]?["items"], "Aenderungen")
         let b = fx["bookings"]?["response"]
         assertSame(.array(StudIPExtras.parseBookings(b?["data"], included: b?["included"]).map(\.json)), fx["bookings"]?["items"], "Sprechstunden")

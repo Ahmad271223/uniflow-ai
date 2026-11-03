@@ -52,7 +52,14 @@ struct NewsCard: View {
 struct NewsRow: View {
     let item: JSONValue
     let today: String
-    @State private var open = false
+    @State private var open: Bool
+
+    /// `open`: aufgeklappt beginnen (Tests, Vorschau)
+    init(item: JSONValue, today: String, open: Bool = false) {
+        self.item = item
+        self.today = today
+        _open = State(initialValue: open)
+    }
     @Environment(\.openURL) private var openURL
 
     /// Art -> (Symbol, Ton, Bezeichnung fuer Bedienungshilfen)
@@ -101,15 +108,17 @@ struct NewsRow: View {
                         .background(Circle().fill(st.tone.bg))
                     VStack(alignment: .leading, spacing: 2.4) {
                         HStack(spacing: 6.4) {
-                            Text(UFFmt.shortName(item.s("who"))).ufFont(12.8, 600).foregroundStyle(UF.text2).lineLimit(1)
+                            Text(UFFmt.shortName(item.s("who"))).ufFont(12.8, 600).foregroundStyle(UF.text2)
+                                .fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 4)
-                            Text(Self.time(item.s("at"), today: today)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                            Text(Self.time(item.s("at"), today: today)).ufFont(12.8).foregroundStyle(UF.muted).fixedSize()
                             // zeigt, dass die Zeile aufklappt (vorher kein Hinweis darauf)
                             UFIcon("chevron-down", size: 12).foregroundStyle(UF.muted)
                                 .rotationEffect(.degrees(open ? 180 : 0))
                         }
-                        Text(item.s("title") ?? "").ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(open ? nil : 2)
-                            .multilineTextAlignment(.leading)
+                        // ganzer Betreff, umbrechend, nie "…" (Inhaber 03.11.2026)
+                        Text(item.s("title") ?? "").ufFont(14.5, 550).foregroundStyle(UF.text)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                         let chips = item.list("chips")
                         if !chips.isEmpty {
                             HStack(spacing: 5.6) {
@@ -131,7 +140,10 @@ struct NewsRow: View {
             if open {
                 VStack(alignment: .leading, spacing: 6.4) {
                     if let text = item.s("text"), !text.isEmpty {
-                        Text(text).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                        // ganzer Text (Nachricht, Ankuendigung), auswaehlbar, ruhige Zeilenlaenge
+                        Text(text).ufFont(13.6, lh: 1.6).foregroundStyle(UF.text2).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: 640, alignment: .leading)
                     }
                     if let url = UFDayExtras.safeURL(item.s("url")) {
                         Button(item.s("source") == "learnweb" ? "Im Learnweb öffnen" : "In Stud.IP öffnen") { openURL(url) }

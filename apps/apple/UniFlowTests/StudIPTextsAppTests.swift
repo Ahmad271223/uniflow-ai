@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniFlowCore
 import XCTest
 @testable import UniFlow
@@ -97,6 +98,76 @@ final class StudIPTextsAppTests: XCTestCase {
         let session = Session(local: .local(), defaults: defaults)
         let card = StudIPTextsCard(moduleID: mid).environmentObject(session).environmentObject(UFOverlay())
         XCTAssertNotNil(UIHostingController(rootView: card).view)
+    }
+
+    /// Inhaber 03.11.2026: Texte aus Stud.IP ganz, nie "…": ein langer Wiki-Text (ueber 1000 Zeichen) steht im Leser
+    /// vollstaendig in den Bedienungshilfen, ohne Auslassungszeichen
+    func testReaderShowsLongTextCompletely() async throws {
+        let text = "Einleitung.\n" + (1...150).map { "Absatz \($0) mit Inhalt." }.joined(separator: " ") + "\nSchluss."
+        XCTAssertGreaterThan(text.count, 1000)
+        XCTAssertEqual(StudIPTexts.full(text), text, "Speicherform ohne Kuerzung")
+        let h = try host()
+        let backend = try await h.backend()
+        try await backend.context.database.transaction { c in
+            _ = try StudIPTexts.store(c, StudIPTexts.Download(), now: "t")         // legt die Tabellen an
+            try c.execute("INSERT OR REPLACE INTO courses(id, title, active) VALUES ('c-lang', 'Testanalysis I', 1)")
+            try c.execute("""
+                INSERT INTO studip_texts(id, course_id, kind, title, text, url, changed, fetched_at) VALUES (?,?,?,?,?,?,?,?)
+                """, [.text("wiki-lang"), .text("c-lang"), .text("wiki"), .text("Langer Wiki-Text"), .text(StudIPTexts.full(text)),
+                      .text("https://studip.uni-hannover.de/dispatch.php/course/wiki/page/1?cid=c-lang"), .text("2026-11-01"), .text("t")])
+        }
+        let (st, r) = try await get(backend, "/api/studip-texts/wiki-lang")
+        XCTAssertEqual(st, 200)
+        XCTAssertEqual(r.s("text"), text)
+        let suite = "uniflow-texts-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        let session = Session(local: APIClient(base: APIClient.localBase, transport: LocalTransport(host: h)), defaults: defaults)
+        XCTAssertTrue(Self.accessibilityAutomation(true))
+        defer { Self.accessibilityAutomation(false) }
+        let frame = CGRect(x: 0, y: 0, width: 700, height: 1200)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
+        window.frame = frame
+        let hosting = UIHostingController(rootView: StudIPTextReader(id: "wiki-lang").environmentObject(session).environmentObject(UFOverlay()).frame(width: 640))
+        window.rootViewController = hosting
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        var all: [String] = []
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            all = Self.labels(hosting.view)
+            if all.contains(text) { break }
+        }
+        XCTAssertTrue(all.contains(text), "ganzer Text im Leser: \(all)")
+        XCTAssertFalse(all.contains { $0.contains("…") }, "\(all)")
+    }
+
+    @discardableResult
+    private static func accessibilityAutomation(_ on: Bool) -> Bool {
+        guard let h = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW), let f = dlsym(h, "_AXSSetAutomationEnabled") else { return false }
+        typealias SetEnabled = @convention(c) (Int32) -> Void
+        unsafeBitCast(f, to: SetEnabled.self)(on ? 1 : 0)
+        return true
+    }
+
+    private static func labels(_ view: UIView) -> [String] {
+        view.layoutIfNeeded()
+        var out: [String] = []
+        func visit(_ element: Any, depth: Int) {
+            guard depth < 40 else { return }
+            if let o = element as? NSObject {
+                if let l = o.accessibilityLabel, !l.isEmpty, !out.contains(l) { out.append(l) }
+                for e in o.accessibilityElements ?? [] { visit(e, depth: depth + 1) }
+                let n = o.accessibilityElementCount()
+                if n != NSNotFound, n > 0 {
+                    for i in 0..<min(n, 500) { if let e = o.accessibilityElement(at: i) { visit(e, depth: depth + 1) } }
+                }
+            }
+            if let v = element as? UIView { for s in v.subviews { visit(s, depth: depth + 1) } }
+        }
+        visit(view, depth: 0)
+        return out
     }
 
     func testOutcomeWithoutResultSaysNothing() {

@@ -79,7 +79,8 @@ struct StudIPTextsCard: View {
                     Text(StudIPTextsText.title).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
                     Spacer(minLength: 8)
                     if !expanded {
-                        Text(StudIPTextsText.summary(groups)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                        Text(StudIPTextsText.summary(groups)).ufFont(12.8).foregroundStyle(UF.muted)
+                            .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(.vertical, 8)                                      // Kopfzeile mindestens 44 pt hoch
@@ -125,10 +126,12 @@ struct StudIPTextsCard: View {
 
     private func item(_ x: JSONValue) -> some View {
         Button { overlay.modal { StudIPTextReader(id: x.s("id") ?? "") } } label: {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(x.s("title") ?? "").ufFont(13.6, 550).foregroundStyle(UF.text).lineLimit(1)
+            // ganzer Titel, umbrechend, nie "…" (Inhaber 03.11.2026); der ganze Text steht im Leser
+            VStack(alignment: .leading, spacing: 1.6) {
+                Text(x.s("title") ?? "").ufFont(13.6, 550).foregroundStyle(UF.text)
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 Text([x.s("course_title"), x.s("changed").map { UFFmt.short($0) }].compactMap { $0 }.joined(separator: " · "))
-                    .ufFont(12).foregroundStyle(UF.muted).lineLimit(1)
+                    .ufFont(12).foregroundStyle(UF.muted).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 25).padding(.vertical, 7.2)
@@ -143,9 +146,12 @@ extension StudIPTextsCard {
     /// Ein Blubber-Thread: neuester Beitrag (Rolle: Text), darunter Kurs, Zahl neuer Beitraege, Tag
     func thread(_ t: JSONValue) -> some View {
         Button { overlay.modal { StudIPBlubberReader(id: t.s("id") ?? "") } } label: {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(t.s("preview") ?? "").ufFont(13.6, 550).foregroundStyle(UF.text).lineLimit(1)
-                Text(StudIPTextsText.threadDetail(t)).ufFont(12).foregroundStyle(UF.muted).lineLimit(1)
+            // neuester Beitrag ganz, umbrechend, nie "…" (Inhaber 03.11.2026)
+            VStack(alignment: .leading, spacing: 1.6) {
+                Text(t.s("preview") ?? "").ufFont(13.6, 550).foregroundStyle(UF.text)
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 640, alignment: .leading)
+                Text(StudIPTextsText.threadDetail(t)).ufFont(12).foregroundStyle(UF.muted).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 25).padding(.vertical, 7.2)
