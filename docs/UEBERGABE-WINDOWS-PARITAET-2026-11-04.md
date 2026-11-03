@@ -44,14 +44,18 @@ geprüft:** echtes Windows/Tauri/MSIX, echte Stud.IP-/Learnweb-Seiten, Swift geg
 - `tests/test_web_overview.py::test_overview_mobile_plan_in_first_screen_install_hint_below`: Chromium findet
   `#pwaHint` nicht, schon auf 271bfe6.
 
+## Entschieden am 04.11.2026 und umgesetzt
+
+- **Fragen je Kurs nur für Mitglieder** (wie auf dem iPad: nur wer den Kurs hat oder hatte; Beitritt nur für Kurse aus
+  dem eigenen Abgleich). `app/community_qa.py` `_require_member`: Liste und Stellen 403 `not_a_member`, einzelne
+  fremde Fragen (Lesen, Antworten, Liken, Melden, Merken) 404 für Nicht-Mitglieder. Das iPad ruft diese Pfade im
+  Dienst-Modus nicht auf (Fragen laufen dort über CloudKit). Test `test_questions_only_for_members_of_the_course`.
+- **Windows-Programmname StudiNow** (`productName`, Version 0.5.0): Programmordner `%LOCALAPPDATA%\StudiNow`,
+  Installer `StudiNow_<version>_x64-setup.exe`, Startmenü „StudiNow“. Die alte App „UniFlow“ bleibt installiert und
+  teilt den Datenordner: sie **ohne** „App-Daten entfernen“ deinstallieren (apps/windows/README.md).
+
 ## Offen (Entscheidung oder späterer Schritt)
 
-- **Sicherheit, zur Entscheidung:** Fragen je Kurs (`/api/community/courses/{key}/questions`) prüfen im Dienst keine
-  Mitgliedschaft, nur das Format des Schlüssels. Seit die Community je Modul läuft (Schlüssel aus dem Modul statt aus
-  der zufälligen Kurs-ID), ist der Schlüssel eher zu erraten. Vorschlag: Lesen und Schreiben nur für Mitglieder
-  (`community_members`) wie bei Lösungen. Nicht geändert, weil das iPad im Dienst-Modus davon betroffen sein kann.
-- Windows-Installer und Startmenü heißen noch „UniFlow“ (`productName`, Programmordner). Umbenennen ist eine eigene
-  Entscheidung (Ordner bei Updates weiter erkennen).
 - Windows-Workflow: Schritt fehlt, der Tesseract (Programm, Sprachdaten deu/eng, Lizenz) neben die exe legt; ohne ihn
   bleibt die Texterkennung auf Windows aus.
 - `Retry-After` reicht die Weiterleitung `service_link.proxy` nicht durch (betrifft nur die Minutengrenze des Dienstes).

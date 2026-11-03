@@ -142,6 +142,11 @@ def build() -> dict:
     import hashlib
     key = hashlib.sha256(("uniflow.community.course.v1\0luh\0" + "kurs-beispiel").encode()).hexdigest()
     ids[key] = "<course-key>"
+    # Fragen nur fuer Mitglieder der Kurs-Community (Entscheidung des Inhabers vom 04.11.2026)
+    call("Fragen ohne Beitritt", "GET", f"/api/community/courses/{key}/questions", token=tl)
+    for tok in (tl, ta):
+        call("Geraet meldet den Kurs", "POST", "/api/community/claims", {"fingerprints": [], "course_keys": [key]}, token=tok)
+        call("Kurs-Community beitreten", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tok)
     st, q = call("Frage im Kurs stellen", "POST", f"/api/community/courses/{key}/questions",
                  {"title": "Wie zeige ich Konvergenz?", "body": "Aufgabe 2b", "fingerprint": FP, "page": 3}, token=tl)
     ids[q["id"]] = "<question-id>"

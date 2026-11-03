@@ -30,7 +30,8 @@ from pathlib import Path
 
 
 DATA_FOLDER = "de.uniflow.desktop"      # = identifier in apps/windows/src-tauri/tauri.conf.json und main.rs
-LEGACY_FOLDER = "UniFlow"               # bis 0.3.0: Daten im Programmordner (productName)
+LEGACY_FOLDER = "UniFlow"               # bis 0.3.0: Daten im Programmordner (damals productName "UniFlow";
+                                        # seit 04.11.2026 heisst productName "StudiNow", der alte Ordner bleibt die Quelle)
 FALLBACK_LOG = "uniflow-backend-start.log"
 
 

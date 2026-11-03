@@ -77,7 +77,7 @@ foreach ($k in $values.Keys) { $manifest = $manifest.Replace("{{$k}}", (Escape-X
 if ($manifest -match '\{\{[A-Z_]+\}\}') { throw "Platzhalter im Manifest nicht ersetzt: $($Matches[0])" }
 [System.IO.File]::WriteAllText((Join-Path $stage "AppxManifest.xml"), $manifest, (New-Object System.Text.UTF8Encoding $false))
 
-$name = "UniFlow_${version}_x64"
+$name = "StudiNow_${version}_x64"
 $msix = Join-Path $OutDir "$name.msix"
 Remove-Item $msix -Force -ErrorAction SilentlyContinue
 $makeappx = Find-SdkTool "makeappx.exe"

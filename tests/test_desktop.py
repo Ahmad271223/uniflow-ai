@@ -53,7 +53,7 @@ def test_data_folder_matches_tauri_identifier_and_differs_from_install_folder():
     from app import desktop
     conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
     assert desktop.DATA_FOLDER == conf["identifier"] and desktop.DATA_FOLDER != conf["productName"]
-    assert desktop.LEGACY_FOLDER == conf["productName"]
+    assert desktop.LEGACY_FOLDER == "UniFlow" and conf["productName"] == "StudiNow", "alter Programmordner bleibt Quelle der Uebernahme"
     rs = (WIN / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
     assert f'const DATA_FOLDER: &str = "{conf["identifier"]}";' in rs and ".join(DATA_FOLDER)" in rs
     assert 'join("UniFlow")' not in rs and "de.uniflow.desktop\\\\logs\\\\backend.log" in rs
@@ -456,7 +456,7 @@ def test_tauri_window_checks_backend_pid_url_and_exit():
 
 def test_windows_app_versions_match():
     """package.json, package-lock.json, tauri.conf.json und Cargo.toml nennen dieselbe Version (der Installer
-    heisst UniFlow_<version>_x64-setup.exe)."""
+    heisst StudiNow_<version>_x64-setup.exe)."""
     pkg = json.loads((WIN / "package.json").read_text(encoding="utf-8"))
     lock = json.loads((WIN / "package-lock.json").read_text(encoding="utf-8"))
     conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
@@ -498,10 +498,11 @@ def test_pyinstaller_spec_and_workflow():
 
 def test_visible_name_is_studinow_and_internal_names_stay():
     """Sichtbarer Name StudiNow (Fenstertitel, Startseite, Meldungen des Fensters, Store-Anzeigename), interne Kennungen
-    bleiben (identifier, productName = Programmordner, Dateinamen), siehe apps/windows/README.md."""
+    bleiben (identifier, Dateinamen); productName = Programmordner, Installer und Startmenue heisst seit 04.11.2026
+    StudiNow (Entscheidung des Inhabers), siehe apps/windows/README.md."""
     conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
     assert conf["app"]["windows"][0]["title"] == "StudiNow"
-    assert conf["identifier"] == "de.uniflow.desktop" and conf["productName"] == "UniFlow", "interne Kennungen bleiben"
+    assert conf["identifier"] == "de.uniflow.desktop" and conf["productName"] == "StudiNow", "Kennung bleibt, Programmname StudiNow"
     html = (WIN / "dist" / "index.html").read_text(encoding="utf-8")
     assert "<title>StudiNow</title>" in html and "<h1>StudiNow</h1>" in html and "StudiNow startet" in html
     assert "UniFlow" not in re.sub(r"<code>.*?</code>", "", html, flags=re.S), "keine sichtbare Restbenennung auf der Startseite"

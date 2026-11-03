@@ -340,7 +340,7 @@
   },
   "not_a_member": {
    "status": 403,
-   "message": "Tritt zuerst dieser Community bei."
+   "message": "Tritt zuerst der Community dieses Kurses bei."
   },
   "not_found": {
    "status": 404,
@@ -1129,6 +1129,84 @@
    }
   },
   {
+   "step": "Fragen ohne Beitritt",
+   "method": "GET",
+   "path": "/api/community/courses/<course-key>/questions",
+   "auth": true,
+   "request": null,
+   "status": 403,
+   "response": {
+    "detail": "Tritt zuerst der Community dieses Kurses bei.",
+    "code": "not_a_member"
+   }
+  },
+  {
+   "step": "Geraet meldet den Kurs",
+   "method": "POST",
+   "path": "/api/community/claims",
+   "auth": true,
+   "request": {
+    "fingerprints": [],
+    "course_keys": [
+     "<course-key>"
+    ]
+   },
+   "status": 200,
+   "response": {
+    "accepted": 0,
+    "ignored": 0,
+    "total": 1,
+    "courses": 1
+   }
+  },
+  {
+   "step": "Kurs-Community beitreten",
+   "method": "POST",
+   "path": "/api/community/communities/<course-key>/join",
+   "auth": true,
+   "request": {
+    "kind": "course"
+   },
+   "status": 200,
+   "response": {
+    "joined": true,
+    "community_key": "<course-key>"
+   }
+  },
+  {
+   "step": "Geraet meldet den Kurs",
+   "method": "POST",
+   "path": "/api/community/claims",
+   "auth": true,
+   "request": {
+    "fingerprints": [],
+    "course_keys": [
+     "<course-key>"
+    ]
+   },
+   "status": 200,
+   "response": {
+    "accepted": 0,
+    "ignored": 0,
+    "total": 0,
+    "courses": 1
+   }
+  },
+  {
+   "step": "Kurs-Community beitreten",
+   "method": "POST",
+   "path": "/api/community/communities/<course-key>/join",
+   "auth": true,
+   "request": {
+    "kind": "course"
+   },
+   "status": 200,
+   "response": {
+    "joined": true,
+    "community_key": "<course-key>"
+   }
+  },
+  {
    "step": "Frage im Kurs stellen",
    "method": "POST",
    "path": "/api/community/courses/<course-key>/questions",
@@ -1782,10 +1860,30 @@
    "path": "/api/community/communities/<course-key>/solutions",
    "auth": true,
    "request": null,
-   "status": 403,
+   "status": 200,
    "response": {
-    "detail": "Tritt zuerst dieser Community bei.",
-    "code": "not_a_member"
+    "solutions": [
+     {
+      "solution_id": "<solution-id-3>",
+      "fingerprint": "<base64>",
+      "display_name": "",
+      "pseudonym": "<pseudonym>",
+      "title": "Blatt 4 (ergänzt)",
+      "created_at": "2026-10-26T10:00:00Z",
+      "published_at": "<zeit-utc>",
+      "updated_at": "<zeit-utc>",
+      "page_count": 12,
+      "pages": 4,
+      "downloads": 0,
+      "status": "active",
+      "mine": false,
+      "community_key": "<course-key>",
+      "reported_by_me": false,
+      "likes": 0,
+      "liked_by_me": false,
+      "comments": 0
+     }
+    ]
    }
   },
   {
@@ -1872,7 +1970,7 @@
       "kind": "course",
       "name": null,
       "joined": true,
-      "members": 1,
+      "members": 2,
       "solutions": 1
      }
     ]

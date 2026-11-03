@@ -88,6 +88,15 @@ def _key(course_key: str) -> str:
     return k
 
 
+def _require_member(conn, user: dict, course_key: str) -> None:
+    """Fragen eines Kurses nur fuer Mitglieder der Community (Entscheidung des Inhabers vom 04.11.2026: wie auf dem
+    iPad nur Leute, die den Kurs haben oder hatten; Beitritt prueft den eigenen Hochschul-Abgleich, auch fruehere
+    Semester). Vorher reichte das Format des Schluessels, und seit der Community je Modul ist er eher zu erraten."""
+    if user.get("role") == "admin" or community._member(conn, user, course_key):
+        return
+    raise CommunityError("not_a_member", "Tritt zuerst der Community dieses Kurses bei.", 403)
+
+
 # ---------------------------------------------------------------- Benachrichtigungen
 
 def notify(conn, user_id: str, kind: str, target_kind: str, target_id: str, actor: str | None, text: str | None,
@@ -172,6 +181,7 @@ def list_questions(user: dict, university: str, course_key: str, limit: int = PA
     key = _key(course_key)
     limit = max(1, min(int(limit or PAGE), 100))
     with cursor() as conn:
+        _require_member(conn, user, key)
         blocked = _blocked(conn, user)
         banned = {r[0] for r in conn.execute("SELECT author_id FROM bans")}
         sql = "SELECT * FROM questions WHERE course_key=? AND university=? AND status='active'"
@@ -200,6 +210,7 @@ def ask(user: dict, university: str, course_key: str, title, body, fingerprint=N
         raise CommunityError("fingerprint_invalid", "Ungültiger Fingerabdruck.")
     pg = int(page) if isinstance(page, int) and 0 < page < 100000 else None
     with cursor() as conn:
+        _require_member(conn, user, key)
         if _banned(conn, user["id"]):
             raise CommunityError("author_banned", "Dein Konto darf in der Community nichts mehr schreiben.", 403)
         _limit("question_user", user["id"])
@@ -214,6 +225,8 @@ def _visible_question(conn, user: dict, qid: str):
     if not r or (r["status"] != "active" and r["author_id"] != user["id"] and user.get("role") != "admin"):
         raise CommunityError("not_found", "Frage nicht gefunden.", 404)
     if r["author_id"] != user["id"] and (_banned(conn, r["author_id"]) or r["pseudonym"] in _blocked(conn, user)):
+        raise CommunityError("not_found", "Frage nicht gefunden.", 404)
+    if r["author_id"] != user["id"] and user.get("role") != "admin" and not community._member(conn, user, r["course_key"]):
         raise CommunityError("not_found", "Frage nicht gefunden.", 404)
     return r
 
@@ -422,7 +435,7 @@ def bookmarks(user: dict) -> dict:
         for b in rows:
             if b["kind"] == "question":
                 q = conn.execute("SELECT * FROM questions WHERE id=? AND status='active'", (b["target_id"],)).fetchone()
-                if q:
+                if q and (q["author_id"] == user["id"] or user.get("role") == "admin" or community._member(conn, user, q["course_key"])):
                     out.append({"kind": "question", "id": q["id"], "title": q["title"], "course_key": q["course_key"], "created_at": b["created_at"]})
             else:
                 s = conn.execute("SELECT * FROM solutions WHERE id=? AND status='active'", (b["target_id"],)).fetchone()
@@ -440,6 +453,8 @@ def bookmark(user: dict, kind: str, target_id: str, on: bool = True) -> dict:
             t = "questions" if kind == "question" else "solutions"
             if not conn.execute(f"SELECT 1 FROM {t} WHERE id=?", (str(target_id).lower() if kind == "solution" else str(target_id),)).fetchone():
                 raise CommunityError("not_found", "Nicht gefunden.", 404)
+            if kind == "question":
+                _visible_question(conn, user, str(target_id))
             conn.execute("INSERT OR IGNORE INTO bookmarks(user_id, kind, target_id, created_at) VALUES (?,?,?,?)",
                          (user["id"], kind, str(target_id).lower() if kind == "solution" else str(target_id), _now()))
         else:

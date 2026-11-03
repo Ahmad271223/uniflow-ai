@@ -18,7 +18,7 @@ HTTPS-Adresse je Version und eine eigene Update-Funktion.
 | `../scripts/build-msix.ps1` | baut aus `uniflow-desktop.exe` und `backend\` (mit Chromium) das Paket; Bilder aus `app-icon.png`, Version aus `tauri.conf.json` als `x.y.z.0`; `-TestSign` signiert zusätzlich mit einem Wegwerf-Zertifikat |
 | `../scripts/check-msix.ps1` | nur auf dem Runner: Testzertifikat vertrauen, installieren, Dateien prüfen, Backend im Paket starten und abfragen, deinstallieren |
 
-Artefakt `uniflow-windows-msix`: `UniFlow_<version>.0_x64.msix` (unsigniert, für Partner Center) und
+Artefakt `uniflow-windows-msix`: `StudiNow_<version>.0_x64.msix` (unsigniert, für Partner Center) und
 `…-test.msix` mit `…-test.cer` (nur zum Ausprobieren, siehe unten).
 
 Im Paket schreibt Windows alles, was die App unter `%LOCALAPPDATA%` anlegt, in einen eigenen Bereich des Pakets
@@ -46,7 +46,7 @@ die NSIS-Fassung deinstallieren, damit nicht zwei UniFlow im Startmenü stehen.
      Entwurf `docs/release/DATENSCHUTZ.md`, muss öffentlich erreichbar sein); Support-Kontakt.
    - *Altersfreigabe:* IARC-Fragebogen ausfüllen (Lern-App ohne Nutzerinhalte für andere außer Community → je nach
      Antwort „USK 0“).
-   - *Pakete:* das unsignierte `UniFlow_<version>.0_x64.msix` aus dem Artefakt `uniflow-windows-msix` hochladen.
+   - *Pakete:* das unsignierte `StudiNow_<version>.0_x64.msix` aus dem Artefakt `uniflow-windows-msix` hochladen.
    - *Store-Einträge (Deutsch):* Beschreibung, mindestens ein Screenshot (1366 × 768 oder größer), kurze Merkmale.
    - *Hinweise für die Zertifizierung:* erklären, dass `runFullTrust` nötig ist (Desktop-App mit lokalem Dienst und
      eingebautem Chromium für die Hochschul-Anmeldung), und wie Prüfer ohne Hochschulkonto testen: Einstellungen →

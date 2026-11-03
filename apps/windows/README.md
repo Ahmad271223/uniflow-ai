@@ -1,10 +1,17 @@
 # StudiNow für Windows (Tauri + mitgeliefertes Backend)
 
-Sichtbarer Name ist StudiNow (Fenstertitel, Startseite, Store-Anzeigename). Interne Kennungen bleiben bewusst: `identifier`
-`de.uniflow.desktop` (Datenordner), `productName` `UniFlow` (Programmordner `%LOCALAPPDATA%\UniFlow`, Installer
-`UniFlow_<version>_x64-setup.exe`, Startmenü-Eintrag des NSIS-Installers) und die Dateinamen `uniflow-backend.exe` und
-`uniflow-desktop.exe`. `productName` zu ändern verschöbe den Programmordner und bräche die Übernahme alter Daten
-(`app/desktop.py` `LEGACY_FOLDER`, `tests/test_desktop.py`); das ist eine eigene Entscheidung.
+Sichtbarer Name ist StudiNow (Fenstertitel, Startseite, Store-Anzeigename). Seit 04.11.2026 (Entscheidung des Inhabers)
+heißt auch `productName` `StudiNow`: Programmordner `%LOCALAPPDATA%\StudiNow`, Installer `StudiNow_<version>_x64-setup.exe`,
+Startmenü-Eintrag „StudiNow“. Interne Kennungen bleiben: `identifier` `de.uniflow.desktop` (Datenordner) und die
+Dateinamen `uniflow-backend.exe` und `uniflow-desktop.exe`. Die Übernahme ganz alter Daten liest weiter aus
+`%LOCALAPPDATA%\UniFlow` (`app/desktop.py` `LEGACY_FOLDER`).
+
+**Umstieg von UniFlow 0.4.x auf StudiNow:** Der neue Installer legt eine eigene App „StudiNow“ an; die alte „UniFlow“
+bleibt in „Apps & Features“ stehen. Beide nutzen **denselben Datenordner** `%LOCALAPPDATA%\de.uniflow.desktop`
+(Notizen, Kurse, Anmeldung bleiben erhalten). Die alte App danach deinstallieren, **ohne** den Haken „App-Daten
+entfernen“ – der Haken würde den gemeinsamen Datenordner und damit auch die Daten von StudiNow löschen (Sicherungen
+lägen dann nur noch in `%LOCALAPPDATA%\UniFlow-Sicherungen`). Ein automatisches Entfernen der alten App im Installer
+ist bewusst nicht gebaut (nicht unter Windows prüfbar, Risiko für die Daten).
 
 **Stand 26.10.2026:** Die App bringt ihr Backend mit. Kein `Start-iPad.cmd`, kein Python auf dem PC nötig.
 
@@ -33,7 +40,7 @@ Sichtbarer Name ist StudiNow (Fenstertitel, Startseite, Store-Anzeigename). Inte
 - Version: `package.json`, `src-tauri/tauri.conf.json` und `src-tauri/Cargo.toml` müssen dieselbe Version nennen
   (Test `test_windows_app_versions_match`); der Installer heißt danach.
 - Daten, Protokolle und `.env` liegen unter `%LOCALAPPDATA%\de.uniflow.desktop` (`data`, `logs`, `.env`), getrennt vom
-  Programmordner `%LOCALAPPDATA%\UniFlow`, in den der Installer schreibt. Der Datenordner heißt wie der `identifier` in
+  Programmordner `%LOCALAPPDATA%\StudiNow` (bis 0.4.x `UniFlow`), in den der Installer schreibt. Der Datenordner heißt wie der `identifier` in
   `tauri.conf.json`; „App-Daten entfernen“ beim Deinstallieren meint genau ihn, sonst bleiben die Daten liegen. Bis
   0.3.0 lagen beide im selben Ordner; dabei kam es beim Start zu „WinError 183“ beim Anlegen von `logs` (27.10.2026).
   Alte Daten (`data`, `.env`) zieht das Backend beim ersten Start einmal in den neuen Ordner um (`desktop.migrate_legacy`);
@@ -65,8 +72,8 @@ Workflow `.github/workflows/windows.yml` (Windows-Runner; läuft bei `push` auf 
 `apps/windows/**`, `app/**`, `requirements.txt` oder am Workflow, sonst von Hand): Python 3.12 → Tests
 `tests/test_desktop.py` → `playwright install chromium` → PyInstaller → Chromium ins Paket (bricht ab, wenn kein
 `chromium-*` da ist) → `scripts/check-backend.ps1` → Icons aus `app-icon.png` → `npx tauri build` (NSIS, aktueller
-Benutzer) → `scripts/check-installer.ps1` (still installieren nach `%LOCALAPPDATA%\UniFlow`, prüfen, deinstallieren).
-Artefakt `uniflow-windows`: `UniFlow_<version>_x64-setup.exe`.
+Benutzer) → `scripts/check-installer.ps1` (still installieren nach `%LOCALAPPDATA%\StudiNow`, prüfen, deinstallieren).
+Artefakt `uniflow-windows`: `StudiNow_<version>_x64-setup.exe`.
 
 Lokal (Backend allein, ohne Rust):
 

@@ -7,7 +7,7 @@
 // erscheinen so als Fenster der App, nicht als fremder Browser (app/desktop_windows.py). Beim Anmeldefenster meldet
 // der Agent jede Sekunde die Cookies der gewuenschten Hosts an das Backend, das die Anmeldung prueft; antwortet es
 // mit done, wird das Fenster geschlossen. Das Backend ist nur auf 127.0.0.1 erreichbar.
-// Datenordner (= identifier) und Programmordner (%LOCALAPPDATA%\UniFlow, = productName) sind getrennt, siehe app/desktop.py.
+// Datenordner (= identifier) und Programmordner (%LOCALAPPDATA%\StudiNow, = productName; bis 0.4.x UniFlow) sind getrennt, siehe app/desktop.py.
 // Die Datei gilt nur, wenn ihre `pid` die des gerade gestarteten Kindprozesses ist (keine alte Datei, kein fremder
 // Prozess) und ihre `url` genau http://127.0.0.1:<port>/ lautet; dann wechselt das Fenster von der Startseite
 // (dist/index.html) zur Oberflaeche des Backends. Endet das Backend vorher, zeigt die Startseite sofort den Fehler
