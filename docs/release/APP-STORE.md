@@ -56,11 +56,11 @@ DEINE DATEN
 • Alles liegt auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
 • Dein Hochschul-Passwort speichert StudiNow nicht und überträgt es nie; merken kann es auf Wunsch iOS im Schlüsselbund.
 
-STUDORA FREE UND PLUS
+STUDINOW FREE UND PLUS
 StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender, Lernplanung und Lösungen anderer in der Community ansehen. StudiNow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
-Nutzungsbedingungen: [[Domain]]/nutzungsbedingungen
-Datenschutz: [[Domain]]/datenschutz
+Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
+Datenschutz: https://studinow.app/datenschutz
 
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
@@ -82,11 +82,11 @@ Erste Version: Dateien und Termine aus Stud.IP, Bibliothek nach Modulen, Stunden
 | Feld | Wert |
 |---|---|
 | Kategorie | Bildung; zweite Kategorie: Produktivität |
-| Support-URL | `[[Domain]]/support` (Kontakt per E-Mail [[E-Mail]]) |
-| Marketing-URL | `[[Domain]]` (optional) |
-| Datenschutz-URL | `[[Domain]]/datenschutz` |
-| Copyright | © [[Jahr]] [[Name]] |
-| Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail, Telefon wie im Impressum (werden im Store angezeigt) |
+| Support-URL | `https://studinow.app/support` (Kontakt per E-Mail support@studinow.app) |
+| Marketing-URL | `https://studinow.app` (optional) |
+| Datenschutz-URL | `https://studinow.app/datenschutz` |
+| Copyright | © 2026 IT solutions by Ahmad Fakih |
+| Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber in App Store Connect eintragen |
 | Altersfreigabe | 4+ – Fragebogen: keine Gewalt, keine sexuellen Inhalte, kein Glücksspiel, keine Drogen, kein uneingeschränkter Webzugang (die Anmeldeseiten der Hochschule öffnen nur auf bekannten Adressen), **nutzergenerierte Inhalte: ja** (Community – Melden, Sperren, Moderation, Kontakt sind vorhanden), kein Wettbewerb, keine medizinischen Inhalte |
 | Bundle-ID | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`) |
 | Mit Apple anmelden | Fähigkeit aktiv; Konto löschen in der App (Richtlinie 5.1.1(v)) |

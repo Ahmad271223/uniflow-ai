@@ -1,12 +1,14 @@
 # Nutzungsbedingungen StudiNow
 
-**Entwurf, Stand [[Datum]] (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
-(insbesondere Abschnitte 5, 9 und 11).**
+**Entwurf, Stand 03.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
+(insbesondere Abschnitt 5: Widerrufsbelehrung und Erlöschen des Widerrufsrechts nach § 356 Abs. 5 BGB, Zuständigkeit
+von Apple/Google als Vertragspartner des Kaufs; Abschnitt 9: Haftung; Abschnitt 11).**
 
 ## 1. Geltung und Vertragspartner
 
 Diese Bedingungen gelten für die Nutzung der StudiNow-Apps (iPad und Mac, Android, Windows), der Web-Oberfläche und
-des gehosteten StudiNow-Dienstes. Anbieter ist [[Name]], [[Anschrift]], E-Mail [[E-Mail]] („wir“). Mit dem Anlegen
+des gehosteten StudiNow-Dienstes. Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),
+Baldurstraße 5, 30657 Hannover, E-Mail support@studinow.app („wir“). Mit dem Anlegen
 eines Kontos oder der Nutzung der App stimmst du diesen Bedingungen zu. Für den Kauf der App und des Abos über den
 App Store oder Google Play gelten zusätzlich die Bedingungen von Apple bzw. Google.
 
@@ -63,9 +65,7 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   Zeitraums kündigst. Kündigen und verwalten kannst du es in den Abo-Einstellungen deines Apple- bzw.
   Google-Kontos; das Löschen der App beendet das Abo nicht.
 - Kauf, Zahlung, Rechnung, Rückerstattung und Widerruf wickelt Apple bzw. Google nach deren Bedingungen ab. Mit dem
-  Start der Testwoche bzw. des Abos verlangst du die sofortige Bereitstellung digitaler Inhalte. [[Anwaltlich
-  prüfen: Widerrufsbelehrung und Erlöschen des Widerrufsrechts nach § 356 Abs. 5 BGB, Zuständigkeit von Apple/Google
-  als Vertragspartner des Kaufs.]]
+  Start der Testwoche bzw. des Abos verlangst du die sofortige Bereitstellung digitaler Inhalte.
 - Nach dem Ende von Plus bleiben alle deine Notizen erhalten, lesbar und als PDF exportierbar; nur das Bearbeiten
   und die anderen Plus-Funktionen sind gesperrt, bis du wieder abonnierst.
 - Preisänderungen gelten nur für neue Abo-Zeiträume nach vorheriger Ankündigung über den Store; du kannst dann
@@ -117,7 +117,7 @@ Hochschulregeln.
   und nach dem Produkthaftungsgesetz. Bei einfacher Fahrlässigkeit haften wir nur bei Verletzung wesentlicher
   Vertragspflichten (Pflichten, deren Erfüllung die Nutzung erst ermöglicht und auf deren Einhaltung du vertrauen
   darfst), begrenzt auf den vertragstypischen, vorhersehbaren Schaden. Für die kostenlose Nutzung (Free) gilt dies
-  entsprechend, soweit gesetzlich zulässig. [[Anwaltlich prüfen.]]
+  entsprechend, soweit gesetzlich zulässig.
 - Sichere wichtige Notizen zusätzlich (PDF-Export). Für Datenverlust haften wir im Rahmen des Vorstehenden und nur,
   soweit der Verlust bei regelmäßiger Sicherung durch dich nicht eingetreten wäre.
 
@@ -141,4 +141,4 @@ Hochschulregeln.
   teilzunehmen (§ 36 VSBG).
 - Sollte eine Bestimmung unwirksam sein, bleiben die übrigen wirksam.
 
-Kontakt: [[E-Mail]] · Impressum: `[[Domain]]/impressum` · Datenschutzerklärung: `[[Domain]]/datenschutz`
+Kontakt: support@studinow.app · Impressum: `https://studinow.app/impressum` · Datenschutzerklärung: `https://studinow.app/datenschutz`

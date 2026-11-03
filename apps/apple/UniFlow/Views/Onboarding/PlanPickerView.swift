@@ -26,8 +26,8 @@ struct PlanPickerView: View {
     @StateObject private var store: PurchaseStore
     @ObservedObject private var ent: Entitlements
     @State private var manage = false
-    @State private var legal: LegalPage?
     @State private var info: String?
+    @Environment(\.openURL) private var openURL
 
     /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6)
     @MainActor
@@ -39,10 +39,12 @@ struct PlanPickerView: View {
         _ent = ObservedObject(wrappedValue: ent)
     }
 
-    enum LegalPage: String, Identifiable {
+    /// Pflichtlinks der Tarifseite (Richtlinie 3.1.2): oeffentliche Seiten auf studinow.app (`UFLegalLinks`)
+    enum LegalPage: String, Identifiable, CaseIterable {
         case terms = "Nutzungsbedingungen"
         case privacy = "Datenschutzerklärung"
         var id: String { rawValue }
+        var url: URL { self == .terms ? UFLegalLinks.terms : UFLegalLinks.privacy }
     }
 
     var body: some View {
@@ -74,9 +76,6 @@ struct PlanPickerView: View {
         // (Kauf auf dieser Seite, Wiederherstellen, Transaction.updates) fuer alle Tarife neu lesen
         .onChange(of: ent.plan) { _, _ in Task { await store.refreshEligibility() } }
         .onChange(of: ent.transactionCount) { _, _ in Task { await store.refreshEligibility() } }
-        .ufModal(isPresented: Binding(get: { legal != nil }, set: { if !$0 { legal = nil } })) {
-            if let legal { legalDialog(legal) }
-        }
     }
 
     // MARK: Kopf
@@ -322,8 +321,10 @@ struct PlanPickerView: View {
                     UFButton("Abo verwalten", icon: "settings", kind: .ghost, size: .small) { manage = true }
                 }
                 UFFlexSpacer()
-                UFButton(LegalPage.terms.rawValue, kind: .ghost, size: .small) { legal = .terms }
-                UFButton(LegalPage.privacy.rawValue, kind: .ghost, size: .small) { legal = .privacy }
+                // oeffnen die Seiten auf studinow.app in Safari (Texte in docs/release, Website site/)
+                ForEach(LegalPage.allCases) { page in
+                    UFButton(page.rawValue, kind: .ghost, size: .small) { openURL(page.url) }
+                }
             }
             Text(Self.legalText).ufFont(12.8).foregroundStyle(UF.muted)
         }
@@ -338,15 +339,24 @@ struct PlanPickerView: View {
         }
         return s + "Deine Notizen bleiben in jedem Tarif erhalten."
     }
+}
 
-    /// Es gibt noch keine Rechtstexte (Entscheidung des Inhabers offen, Abschnitt 6): ehrliche Platzhalterseite
-    private func legalDialog(_ page: LegalPage) -> some View {
-        UFDialog(page.rawValue, icon: "file-text") {
-            Text("Wird vor der Veröffentlichung ergänzt.").ufFont(14.5).foregroundStyle(UF.text2)
-        } foot: {
-            UFButton("Schließen", kind: .primary) { legal = nil }
-        }
-    }
+/// Oeffentliche Seiten von StudiNow auf der Website studinow.app (Stand 03.11.2026; Texte in docs/release, Seiten in
+/// site/, Angaben des Inhabers in docs/release/angaben.json). Die Tarifseite verlinkt Nutzungsbedingungen und
+/// Datenschutzerklaerung (Richtlinie 3.1.2), die Einstellungen alle Seiten und das Support-Postfach; dieselben Adressen
+/// stehen in App Store Connect (Support-URL, Datenschutz-URL, docs/release/APP-STORE.md).
+enum UFLegalLinks {
+    static let site = URL(string: "https://studinow.app")!
+    static let terms = URL(string: "https://studinow.app/nutzungsbedingungen")!
+    static let privacy = URL(string: "https://studinow.app/datenschutz")!
+    static let imprint = URL(string: "https://studinow.app/impressum")!
+    static let support = URL(string: "https://studinow.app/support")!
+    static let deleteAccount = URL(string: "https://studinow.app/konto-loeschen")!
+    static let supportEmail = "support@studinow.app"
+    static let supportMail = URL(string: "mailto:" + supportEmail)!
+    static let all: [URL] = [site, terms, privacy, imprint, support, deleteAccount]
+    /// Text der Karte "Rechtliches & Support" in den Einstellungen
+    static let settingsIntro = "Fragen, Fehler und Wünsche an \(supportEmail). Nutzungsbedingungen, Datenschutzerklärung und Impressum stehen auf studinow.app."
 }
 
 /// Karte wie .card (UFCard), aber so hoch wie die Rasterzeile, damit die Knoepfe aller Tarife unten auf einer Linie

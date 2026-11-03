@@ -1,0 +1,59 @@
+{
+  "_hinweis": [
+    "Angaben des Inhabers (03.11.2026) fuer die Rechts- und Store-Texte; Werte fuer Impressum, Datenschutzerklaerung, Nutzungsbedingungen,",
+    "App Store und Website - zur Veroeffentlichung bestimmt, darum im Repository. Die Texte in docs/release/*.md sind damit bereits",
+    "an Ort und Stelle ausgefuellt (tools/rechtstexte-fuellen.py, 03.11.2026). Offen bleiben die Werte, die hier leer sind:",
+    "  python tools/rechtstexte-fuellen.py docs/release/angaben.json --check   zeigt die offenen Platzhalter ([[Hoster]], [[Serverstandort]], [[Mail-Anbieter]], [[Telefon]])",
+    "  python tools/rechtstexte-fuellen.py docs/release/angaben.json           fuellt sie, sobald hoster, hoster_ort, mail_anbieter und telefon eingetragen sind.",
+    "Alle Platzhalter und ihre Zuordnung: docs/release/README.md."
+  ],
+
+  "_hinweis_anbieter": "Einzelunternehmen; name steht als Anbieter im Impressum, als Verantwortlicher in der Datenschutzerklaerung, als Vertragspartner in den Nutzungsbedingungen und im Copyright des App Store.",
+  "name": "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)",
+  "strasse": "Baldurstraße 5",
+  "plz_ort": "30657 Hannover",
+
+  "_hinweis_kontakt": "telefon: zweiter Kontaktweg (§ 5 DDG), Haendlerangaben (DSA) in App Store Connect und Kontaktdaten in der Play Console - noch nicht genannt, darum leer. email_datenschutz leer = gleiche Adresse wie email.",
+  "email": "support@studinow.app",
+  "email_datenschutz": "",
+  "telefon": "",
+
+  "_hinweis_domain": "Hauptdomain; daraus werden https://studinow.app/datenschutz, /impressum, /nutzungsbedingungen, /konto-loeschen, /support. Zweite Domain studinow.ai leitet auf studinow.app weiter.",
+  "domain": "studinow.app",
+
+  "_hinweis_dienst": "Datenschutzerklaerung Abschnitt 11: Hoster mit Rechtsform, Serverstandort (Stadt, Land), Anbieter fuer den Mailversand - Hosting ist noch nicht entschieden (docs/release/BETRIEB.md), darum leer und in den Texten als [[Hoster]], [[Serverstandort]], [[Mail-Anbieter]] markiert.",
+  "hoster": "",
+  "hoster_ort": "",
+  "mail_anbieter": "",
+
+  "_hinweis_aufsicht": "Sitz Hannover -> Niedersachsen.",
+  "aufsichtsbehoerde": "Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover",
+
+  "_hinweis_umsatzsteuer": "USt-IdNr. des Einzelunternehmens (Impressum: 'USt-IdNr. nach § 27a UStG: ...').",
+  "ustid": "DE462836430",
+  "kleinunternehmer": false,
+
+  "_hinweis_sonstiges": "datenschutzbeauftragter leer = 'gibt es nicht'. antwortfrist: Zusage in KONTO-LOESCHEN.md. datum: Stand der Texte.",
+  "datenschutzbeauftragter": "",
+  "antwortfrist": "7 Tagen",
+  "datum": "03.11.2026",
+
+  "unternehmen": {
+    "_hinweis": "Nur fuer eine juristische Person (UG, GmbH). IT solutions by Ahmad Fakih ist ein Einzelunternehmen: alles leer.",
+    "firma": "",
+    "rechtsform": "",
+    "vertreten_durch": "",
+    "registergericht": "",
+    "registernummer": ""
+  },
+
+  "funktionen": {
+    "_hinweis": "Optionale Satzteile der Store-Texte: true = Satz bleibt, false = faellt weg. Entscheidung des Inhabers vor der Einreichung; bis dahin stehen die Satzteile als [[...]] in APP-STORE.md und PLAY-STORE.md.",
+    "ipad_hildesheim": false,
+    "ipad_fristen": false,
+    "ipad_skriptsuche": false,
+    "ipad_community_online": false,
+    "android_karteikarten": false,
+    "android_community": false
+  }
+}

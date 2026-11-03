@@ -42,11 +42,11 @@ DEINE DATEN
 • Dein Hochschul-Passwort bleibt bei dir: Du meldest dich im Anmeldefenster deiner Hochschule an. Merken übernimmt auf Wunsch der Passwort-Manager deines Geräts, die App speichert es nicht.
 • Konto löschen direkt in der App.
 
-UNIFLOW FREE UND PLUS
+STUDINOW FREE UND PLUS
 Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. StudiNow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Stift und den Abgleich zwischen deinen Geräten frei[[, dazu Karteikarten und das Teilen von Lösungen]]. Das Abo verlängert sich automatisch um einen Monat, wenn du es nicht vor Ende des laufenden Zeitraums in Google Play kündigst. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
-Nutzungsbedingungen: [[Domain]]/nutzungsbedingungen
-Datenschutz: [[Domain]]/datenschutz
+Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
+Datenschutz: https://studinow.app/datenschutz
 
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
@@ -57,9 +57,9 @@ StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. 
 |---|---|
 | App-Kategorie | Bildung |
 | Tags | Lernen, Produktivität, Notizen |
-| Kontaktdaten | E-Mail [[E-Mail]], Telefon [[Telefon]], Website `[[Domain]]` (werden öffentlich angezeigt) |
-| Datenschutzerklärung | `[[Domain]]/datenschutz` |
-| Konto löschen (Pflicht bei Kontoerstellung) | in der App: Einstellungen → Konto → Konto löschen; URL `[[Domain]]/konto-loeschen` |
+| Kontaktdaten | E-Mail support@studinow.app, Telefon [[Telefon]], Website `https://studinow.app` (werden öffentlich angezeigt) |
+| Datenschutzerklärung | `https://studinow.app/datenschutz` |
+| Konto löschen (Pflicht bei Kontoerstellung) | in der App: Einstellungen → Konto → Konto löschen; URL `https://studinow.app/konto-loeschen` |
 | Zielgruppe und Inhalte | nur „18 und älter“ (Studierende; keine Kinder-Zielgruppe, damit die Families-Richtlinien nicht greifen) |
 | Werbung | enthält keine Werbung |
 | App-Zugriff | „Alle Funktionen sind ohne besondere Zugangsdaten verfügbar“ gilt **nicht** – Anleitung hinterlegen: Konto anlegen in der App; Hochschulfunktionen brauchen ein Hochschulkonto; Prüfung mit den Demo-Inhalten (Einstellungen → Erweitert → „Demo-Inhalte anlegen“: Demo-Modul mit PDFs, Stundenplan, Lernkalender, Frist, Ankündigung) |
@@ -78,7 +78,7 @@ verschlüsselte Pakete, kein Chat), mit Moderation, Melden und Sperren; bis dahi
 |---|---|
 | Erhebt oder teilt die App Nutzerdaten? | Ja (erhebt), teilt nicht |
 | Verschlüsselung bei der Übertragung | Ja (TLS) |
-| Löschung anfordern | Ja – in der App und über `[[Domain]]/konto-loeschen` |
+| Löschung anfordern | Ja – in der App und über `https://studinow.app/konto-loeschen` |
 | Unabhängige Sicherheitsprüfung | Nein |
 
 | Datentyp | Erhoben | Geteilt | Optional | Zweck |

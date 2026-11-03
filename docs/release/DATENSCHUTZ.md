@@ -1,9 +1,9 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand [[Datum]] (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 03.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
-gehosteten StudiNow-Dienst unter `[[Domain]]`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
+gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
 Gerät; nur mit einem StudiNow-Konto verarbeiten wir Daten auf unseren Servern, und auch dann nur das, was du
 eingeschaltet hast.
 
@@ -24,8 +24,9 @@ eingeschaltet hast.
 
 ## 2. Verantwortlicher
 
-[[Name]], [[Anschrift]], E-Mail: [[E-Mail]] (siehe Impressum). Einen Datenschutzbeauftragten gibt es nicht, weil die
-gesetzlichen Voraussetzungen dafür nicht vorliegen. [[Falls doch benannt: Name und Kontakt.]]
+IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Baldurstraße 5, 30657 Hannover, Deutschland,
+E-Mail: support@studinow.app (siehe Impressum). Einen Datenschutzbeauftragten gibt es nicht, weil die
+gesetzlichen Voraussetzungen dafür nicht vorliegen.
 
 ## 3. Was auf deinem Gerät bleibt
 
@@ -193,7 +194,7 @@ Art. 6 Abs. 1 lit. b DSGVO.
 
 ## 11. Hosting, E-Mail-Versand und Auftragsverarbeiter
 
-Der Dienst läuft bei [[Hosting-Anbieter]], Serverstandort [[Serverstandort]], auf Grundlage eines Vertrags zur
+Der Dienst läuft bei [[Hoster]], Serverstandort [[Serverstandort]], auf Grundlage eines Vertrags zur
 Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
 [[Mail-Anbieter]] in unserem Auftrag. Weitere Auftragsverarbeiter gibt es nicht.
 
@@ -222,13 +223,14 @@ sie gibt.
 Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der
 Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage von
 Art. 6 Abs. 1 lit. f DSGVO (Art. 21). Eine erteilte Einwilligung kannst du jederzeit mit Wirkung für die Zukunft
-widerrufen. Wende dich dazu an [[E-Mail]]. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren,
-zum Beispiel bei der für deinen Wohnsitz oder bei der für uns zuständigen Behörde: [[Aufsichtsbehörde]].
+widerrufen. Wende dich dazu an support@studinow.app. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren,
+zum Beispiel bei der für deinen Wohnsitz oder bei der für uns zuständigen Behörde: Die Landesbeauftragte für den
+Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
 
 ## 15. Konto löschen, Daten mitnehmen
 
 - **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen, Bestätigung mit Passwort) oder per
-  E-Mail an [[E-Mail]]. Das Konto wird sofort gesperrt, alle Sitzungen enden; die Daten werden nach 30 Tagen
+  E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; die Daten werden nach 30 Tagen
   endgültig gelöscht (Frist für versehentliche Löschung). Das Abo kündigst du zusätzlich bei Apple bzw. Google.
 - **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
   (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
@@ -246,4 +248,4 @@ Kindern.
 ## 17. Änderungen
 
 Wir passen diese Erklärung an, wenn sich StudiNow ändert. Die jeweils aktuelle Fassung steht unter
-`[[Domain]]/datenschutz`; bei wesentlichen Änderungen informieren wir dich in der App oder per E-Mail.
+`https://studinow.app/datenschutz`; bei wesentlichen Änderungen informieren wir dich in der App oder per E-Mail.

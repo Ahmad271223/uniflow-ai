@@ -14,6 +14,10 @@ Aufruf:
                                                                      tests/test_release_texts.py anpassen, siehe README)
     --src ORDNER                                                     Quelle statt docs/release (fuer Tests)
 
+Stand 03.11.2026: Die Angaben des Inhabers stehen in docs/release/angaben.json und sind in docs/release/*.md an Ort
+und Stelle eingesetzt. Offen sind nur noch [[Hoster]], [[Serverstandort]], [[Mail-Anbieter]] (Datenschutz 11),
+[[Telefon]] (Play Store) sowie die Schalter und Pruefhinweise der Store-Texte; --check mit angaben.json zeigt sie.
+
 Drei Arten von Platzhaltern:
   * Werte      -> ein Schluessel der JSON ([[Name]], [[E-Mail]], [[Domain]], ...); abgeleitet werden [[Anschrift]]
                   (Strasse + PLZ Ort), [[Jahr]] (aus dem Datum) und die Umsatzsteuer-Zeile des Impressums.
@@ -59,7 +63,8 @@ VALUES = {
     "E-Mail": "@email",
     "Telefon": "telefon",
     "Domain": "@domain",
-    "Hosting-Anbieter": "hoster",
+    "Hoster": "hoster",
+    "Hosting-Anbieter": "hoster",          # aelterer Name desselben Platzhalters
     "Serverstandort": "hoster_ort",
     "Mail-Anbieter": "mail_anbieter",
     "Aufsichtsbehörde": "aufsichtsbehoerde",

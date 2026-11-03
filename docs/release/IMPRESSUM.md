@@ -1,64 +1,38 @@
-# Impressum – Vorlage
+# Impressum
 
-**Entwurf, Stand 26.10.2026.** Pflichtangaben nach § 5 Digitale-Dienste-Gesetz (DDG; seit 14.05.2024 anstelle von
-§ 5 TMG). Eine der beiden Varianten verwenden und die Platzhalter ersetzen. Dieselben Angaben gehören in App Store
-Connect als Händlerangaben (Digital Services Act) und in die Play Console (Kontaktdaten des Entwicklers); beide
-Stores zeigen sie öffentlich an.
+**Entwurf, Stand 03.11.2026 (26.10.2026).** Pflichtangaben nach § 5 Digitale-Dienste-Gesetz (DDG; seit 14.05.2024
+anstelle von § 5 TMG). Dieselben Angaben gehören in App Store Connect als Händlerangaben (Digital Services Act) und in
+die Play Console (Kontaktdaten des Entwicklers); beide Stores zeigen sie öffentlich an.
 
-## Variante A – natürliche Person (Einzelunternehmen)
+## Angaben nach § 5 DDG
 
-**Anbieter**
-[[Name]]
-[[Straße Hausnummer]]
-[[PLZ Ort]]
+**Anbieter**<br>
+IT solutions by Ahmad Fakih<br>
+Einzelunternehmen, Inhaber: Ahmad Fakih<br>
+Baldurstraße 5<br>
+30657 Hannover<br>
 Deutschland
 
-**Kontakt**
-E-Mail: [[E-Mail]]
-Telefon: [[Telefon]] (zweiter schneller Kontaktweg nach § 5 Abs. 1 Nr. 2 DDG; alternativ ein Kontaktformular, das
-innerhalb von 60 Minuten antwortet)
+**Kontakt**<br>
+E-Mail: support@studinow.app
 
-**Umsatzsteuer**
-[[Umsatzsteuer-Identifikationsnummer nach § 27a UStG: USt-IdNr. …]] – *oder* –
-[[Kleinunternehmer nach § 19 UStG, keine USt-IdNr.]]
+**Umsatzsteuer**<br>
+USt-IdNr. nach § 27a UStG: DE462836430
 
-## Variante B – juristische Person (z. B. UG, GmbH)
+**Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV**<br>
+Ahmad Fakih, Anschrift wie oben
 
-**Anbieter**
-[[Firma]] [[Rechtsform]]
-[[Straße Hausnummer]]
-[[PLZ Ort]]
-Deutschland
+## Weitere Angaben
 
-**Vertreten durch**
-[[Geschäftsführer/in Vorname Nachname]]
-
-**Register**
-Registergericht: [[Amtsgericht Ort]]
-Registernummer: [[HRB …]]
-
-**Kontakt**
-E-Mail: [[E-Mail]]
-Telefon: [[Telefon]]
-
-**Umsatzsteuer**
-USt-IdNr.: [[USt-IdNr.]]
-
-## Für beide Varianten
-
-**Verbraucherstreitbeilegung**
+**Verbraucherstreitbeilegung**<br>
 Wir sind nicht verpflichtet und nicht bereit, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
 teilzunehmen (§ 36 VSBG). (Die EU-Plattform zur Online-Streitbeilegung wurde am 20.07.2025 eingestellt; ein Link
 dorthin gehört nicht mehr ins Impressum.)
 
-**Hinweis zu den Hochschulen**
+**Hinweis zu den Hochschulen**<br>
 StudiNow ist ein eigenständiges Angebot und nicht mit der Leibniz Universität Hannover oder der Universität
 Hildesheim verbunden. Stud.IP, QIS, Learnweb und LSF sind Systeme der jeweiligen Hochschule.
 
-**Nicht erforderlich** (nur zur Einordnung): Angaben nach § 18 Abs. 2 MStV („Verantwortlich für den Inhalt“)
-betreffen journalistisch-redaktionelle Angebote und treffen auf StudiNow nicht zu. Eine Aufsichtsbehörde ist nur bei
-zulassungspflichtigen Tätigkeiten zu nennen.
-
-**Verweise**
-Datenschutzerklärung: `[[Domain]]/datenschutz` · Nutzungsbedingungen: `[[Domain]]/nutzungsbedingungen` ·
-Konto löschen: `[[Domain]]/konto-loeschen`
+**Verweise**<br>
+[Datenschutzerklärung](https://studinow.app/datenschutz) · [Nutzungsbedingungen](https://studinow.app/nutzungsbedingungen) ·
+[Support](https://studinow.app/support) · [Konto löschen](https://studinow.app/konto-loeschen)

@@ -144,6 +144,29 @@ final class PlanContractTests: XCTestCase {
         XCTAssertTrue(PlanPickerView.legalText.contains("24 Stunden"))
     }
 
+    /// Pflichtlinks (Richtlinie 3.1.2) und Support: die Tarifseite und die Einstellungen oeffnen die oeffentlichen Seiten
+    /// auf studinow.app (docs/release, site/), dieselben Adressen wie Support-URL und Datenschutz-URL in App Store
+    /// Connect (docs/release/APP-STORE.md); nur https, Postfach support@studinow.app (Angaben des Inhabers, 03.11.2026).
+    func testLegalLinksPointToTheStudiNowSite() {
+        XCTAssertEqual(UFLegalLinks.site.absoluteString, "https://studinow.app")
+        XCTAssertEqual(UFLegalLinks.terms.absoluteString, "https://studinow.app/nutzungsbedingungen")
+        XCTAssertEqual(UFLegalLinks.privacy.absoluteString, "https://studinow.app/datenschutz")
+        XCTAssertEqual(UFLegalLinks.imprint.absoluteString, "https://studinow.app/impressum")
+        XCTAssertEqual(UFLegalLinks.support.absoluteString, "https://studinow.app/support")
+        XCTAssertEqual(UFLegalLinks.deleteAccount.absoluteString, "https://studinow.app/konto-loeschen")
+        XCTAssertEqual(UFLegalLinks.supportEmail, "support@studinow.app")
+        XCTAssertEqual(UFLegalLinks.supportMail.absoluteString, "mailto:support@studinow.app")
+        for url in UFLegalLinks.all {
+            XCTAssertEqual(url.scheme, "https", url.absoluteString)
+            XCTAssertEqual(url.host, "studinow.app", url.absoluteString)
+        }
+        // Tarifseite: beide Pflichtseiten, Texte und Ziele passen zusammen
+        XCTAssertEqual(PlanPickerView.LegalPage.allCases.map(\.rawValue), ["Nutzungsbedingungen", "Datenschutzerklärung"])
+        XCTAssertEqual(PlanPickerView.LegalPage.terms.url, UFLegalLinks.terms)
+        XCTAssertEqual(PlanPickerView.LegalPage.privacy.url, UFLegalLinks.privacy)
+        XCTAssertTrue(UFLegalLinks.settingsIntro.contains("support@studinow.app") && UFLegalLinks.settingsIntro.contains("studinow.app"))
+    }
+
     // MARK: Umsetzung auf dem iPad
 
     /// Jedes Recht ist entweder auf dem Geraet umgesetzt, und zwar ab genau dem Tarif aus dem Vertrag (keine

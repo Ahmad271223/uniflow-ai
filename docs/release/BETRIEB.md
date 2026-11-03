@@ -39,7 +39,7 @@ Grundlage: `docs/VERTRAEGE-KONTO-SYNC.md` (Betrieb, Tresor, Jobs, Löschfristen)
   „Hosting nach Nutzerzahl“ in `docs/LIVE-BLOCKER-TEST-2026-10-25.md`. Der Abgleich mit Chromium braucht je
   gleichzeitigem Lauf 300–500 MB – `LERNAPP_JOB_WORKERS=2` passt zu 4 GB; bei 8 GB kann es 4 sein.
 - **Standort EU** (Hetzner: Nürnberg/Falkenstein/Helsinki; IONOS: Deutschland). Hoster und Standort in die
-  Datenschutzerklärung (`[[Hosting-Anbieter]]`, `[[Serverstandort]]`), **Vertrag zur Auftragsverarbeitung**
+  Datenschutzerklärung (`[[Hoster]]`, `[[Serverstandort]]`), **Vertrag zur Auftragsverarbeitung**
   (Art. 28 DSGVO) in der Hoster-Konsole abschließen.
 - Betriebssystem: Debian 12 oder Ubuntu 24.04 LTS. Beim Bestellen einen **SSH-Schlüssel** hinterlegen, kein
   Passwort-Login. Firewall des Hosters: nur 22 (SSH), 80 und 443 offen.

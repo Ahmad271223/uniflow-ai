@@ -1,5 +1,6 @@
 """Store- und Rechtstexte (docs/release): vollstaendig, ohne KI-Versprechen, innerhalb der Laengen der Stores,
 Platzhalter einheitlich markiert, alte KI-Formulierungen aus der Release-Doku entfernt."""
+import json
 import re
 from pathlib import Path
 
@@ -61,19 +62,45 @@ def test_store_texts_keep_the_universities_authoritative_and_no_tracking():
         f = fields(name)
         long = f.get("description") or f.get("full")
         assert "nicht mit den Hochschulen verbunden" in long and "Verbindlich für Termine, Fristen und Noten" in long
-        assert "Kein Tracking" in long and "1,99 €" in long and "[[Domain]]/datenschutz" in long
+        assert "Kein Tracking" in long and "1,99 €" in long and "https://studinow.app/datenschutz" in long
 
 
 def test_placeholders_use_one_syntax_and_are_listed():
-    """Alle offenen Stellen stehen als [[...]]; der README nennt die haeufigen Platzhalter."""
+    """Alle offenen Stellen stehen als [[...]]; der README nennt die noch offenen Platzhalter (Hoster, Telefon)."""
     readme = (REL / "README.md").read_text(encoding="utf-8")
     seen = set()
     for f in FILES:
         text = (REL / f).read_text(encoding="utf-8")
         assert "TODO" not in text and "TBD" not in text and "XXX" not in text, f
         seen |= set(re.findall(r"\[\[([^\]]+)\]\]", text))
-    for must in ("Name", "Anschrift", "E-Mail", "Domain", "Hosting-Anbieter", "Datum"):
+    for must in ("Hoster", "Serverstandort", "Mail-Anbieter", "Telefon"):
         assert must in seen and f"[[{must}]]" in readme, must
+
+
+# Angaben des Inhabers vom 03.11.2026 (docs/release/angaben.json), zur Veroeffentlichung bestimmt
+OWNER = ("IT solutions by Ahmad Fakih", "Inhaber: Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
+
+
+def test_legal_texts_carry_the_owner_data_and_only_hosting_is_open():
+    """Impressum, Datenschutz, Nutzungsbedingungen und Konto loeschen sind an Ort und Stelle gefuellt (README,
+    Abschnitt Platzhalter); offen bleibt nur der Hoster in Datenschutz 11 – nichts erfinden."""
+    for f in ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md"):
+        text = (REL / f).read_text(encoding="utf-8")
+        for s in OWNER:
+            assert s in text, (f, s)
+        assert "Studora" not in text and "UniFlow" not in text, f
+    im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
+    assert "USt-IdNr. nach § 27a UStG: DE462836430" in im and "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV" in im
+    assert "Ahmad Fakih, Anschrift wie oben" in im and "[[" not in im and "Variante" not in im
+    assert set(re.findall(r"\[\[([^\]]+)\]\]", (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8"))) == {"Hoster", "Serverstandort", "Mail-Anbieter"}
+    for f in ("NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md", "SUPPORT.md", "STARTSEITE.md"):
+        text = (REL / f).read_text(encoding="utf-8")
+        assert "[[" not in text and "support@studinow.app" in text, f
+    for f in ("APP-STORE.md", "PLAY-STORE.md"):
+        text = (REL / f).read_text(encoding="utf-8")
+        assert "https://studinow.app/datenschutz" in text and "support@studinow.app" in text and "[[Domain]]" not in text, f
+    assert "© 2026 IT solutions by Ahmad Fakih" in (REL / "APP-STORE.md").read_text(encoding="utf-8")
+    assert json.loads((REL / "angaben.json").read_text(encoding="utf-8"))["ustid"] == "DE462836430"
 
 
 def test_privacy_policy_matches_the_implementation():

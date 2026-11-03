@@ -776,6 +776,7 @@ private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufSwitchPlan) private var switchPlan
+    @Environment(\.openURL) private var openURL
     @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
 
@@ -790,6 +791,7 @@ private struct AppAccountCards: View {
             accountCard
             planCard
             UniversitySettingsCard()
+            legalCard
         }
         .environment(\.ufFillsCell, true)
         #if DEBUG
@@ -841,6 +843,23 @@ private struct AppAccountCards: View {
                     if let switchPlan { switchPlan() } else { plans = true }
                 }
                 .disabled(!canSwitchPlan)
+            }
+            .padding(.top, 9.6)
+        }
+    }
+
+    /// Rechtliches und Support: die oeffentlichen Seiten auf studinow.app (UFLegalLinks) oeffnen in Safari, die
+    /// Support-Adresse in Mail; dieselben Adressen wie in App Store Connect
+    private var legalCard: some View {
+        UFCard {
+            UFCardHead("Rechtliches & Support", icon: "life-buoy")
+            Text(UFLegalLinks.settingsIntro).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            UFFlexWrap(gap: 9.6) {
+                UFButton("Support", icon: "life-buoy", kind: .primary, size: .small) { openURL(UFLegalLinks.support) }
+                UFButton("E-Mail schreiben", size: .small) { openURL(UFLegalLinks.supportMail) }
+                UFButton("Nutzungsbedingungen", size: .small) { openURL(UFLegalLinks.terms) }
+                UFButton("Datenschutzerklärung", size: .small) { openURL(UFLegalLinks.privacy) }
+                UFButton("Impressum", size: .small) { openURL(UFLegalLinks.imprint) }
             }
             .padding(.top, 9.6)
         }

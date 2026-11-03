@@ -28,7 +28,11 @@ def test_legal_page_renders_markdown_with_csp(app, page):
         assert f'href="/{other}"' in html, "Navigation zu allen Rechtsseiten"
     assert '<a href="/">Zur App</a>' in html
     assert "[[" not in re.sub(r"<mark class=\"todo\"[^>]*>\[\[[^\]]+\]\]</mark>", "", html), "jeder Platzhalter markiert"
-    assert "noch auszufüllen" in html
+    # seit 03.11.2026 sind die Texte gefuellt; nur die Datenschutzerklaerung hat noch den Hoster offen
+    assert ("noch auszufüllen" in html) == ("[[" in md), page
+    assert "support@studinow.app" in html
+    if page != "konto-loeschen":
+        assert "IT solutions by Ahmad Fakih" in html and "Baldurstraße 5" in html
 
 
 def test_tables_lists_and_escaping(app):

@@ -75,9 +75,14 @@ Sicherheit → Mit Apple anmelden → UniFlow). Ab V2 mit Server müssen die Tok
   geladen, Abos laufen über Apple. Sobald UniFlow-Konten (gehosteter Modus) dazukommen: E-Mail, Notizen,
   Lernfortschritt (mit Nutzer verknüpft, kein Tracking, keine Werbung).
 - Datenschutzerklärung, Nutzungsbedingungen (EULA, eigene oder Apples Standard-EULA), Impressum und Support:
-  Entwürfe in `docs/release/` (26.10.2026); vor TestFlight anwaltlich prüfen und auf `[[Domain]]` veröffentlichen,
-  Platzhalter hängen vom Hosting ab. Die Abo-Seite zeigt bis dahin einen Platzhalter (Richtlinie 3.1.2(a) verlangt
-  funktionierende Links); die URLs danach in PlanPickerView, den Einstellungen und App Store Connect eintragen.
+  Entwürfe in `docs/release/` (26.10.2026), seit 03.11.2026 mit den Angaben des Inhabers gefüllt (IT solutions by
+  Ahmad Fakih, Baldurstraße 5, 30657 Hannover, USt-IdNr. DE462836430, support@studinow.app; `docs/release/angaben.json`)
+  und als Website `site/` für `https://studinow.app` gebaut (`tools/gen-site.py`; Domain und Postfach ab 04.11.2026).
+  Vor TestFlight anwaltlich prüfen; offen ist nur noch der Hoster des Dienstes (`[[Hoster]]` in der
+  Datenschutzerklärung). Die Abo-Seite (PlanPickerView) und die Einstellungen (Karte „Rechtliches & Support“) öffnen
+  die Seiten auf studinow.app (`UFLegalLinks`, Richtlinie 3.1.2(a) verlangt funktionierende Links); dieselben URLs
+  gehören in App Store Connect (Support-URL `https://studinow.app/support`, Datenschutz-URL
+  `https://studinow.app/datenschutz`).
 - Exportkontrolle: Die App verschlüsselt Lösungspakete selbst (AES-256-GCM, HKDF-SHA256 aus CryptoKit).
   `ITSAppUsesNonExemptEncryption` ist noch nicht gesetzt; die Einstufung trifft der Inhaber in App Store Connect.
 
@@ -99,7 +104,9 @@ Sicherheit → Mit Apple anmelden → UniFlow). Ab V2 mit Server müssen die Tok
 Alle Texte und Angaben (Name, Untertitel, Werbetext, Beschreibung, Schlüsselwörter, Altersfreigabe, App-Datenschutz,
 Abo-Produkt, Prüfhinweise) stehen in `docs/release/APP-STORE.md`; Datenschutzerklärung, Nutzungsbedingungen,
 Impressum-Vorlage und die Seite „Konto löschen“ in `docs/release/` (Stand 26.10.2026, Entwürfe ohne KI-Versprechen,
-`tests/test_release_texts.py`). Support-URL und Datenschutz-URL: offen (Hosting, `[[Domain]]`).
+`tests/test_release_texts.py`). Support-URL `https://studinow.app/support` und Datenschutz-URL
+`https://studinow.app/datenschutz` (03.11.2026; Marketing-URL `https://studinow.app`, Copyright © 2026 IT solutions by
+Ahmad Fakih; Telefonnummer für die Händlerangaben vom Inhaber nachzutragen).
 
 Kurzfassung aus der iPad-Abnahme (Entwurf V1, gilt nur, soweit `docs/release/APP-STORE.md` nichts anderes sagt):
 
@@ -110,7 +117,8 @@ Kurzfassung aus der iPad-Abnahme (Entwurf V1, gilt nur, soweit `docs/release/APP
   Übungen und zeigt deinen Stundenplan. Mit Plus schreibst du mit dem Apple Pencil in deine Skripte und teilst eigene
   Lösungen als verschlüsselte Datei. Alles bleibt auf deinem iPad – ohne KI, ohne PC, ohne UniFlow-Server.
 - Stichworte: Studium, Notizen, PDF, Apple Pencil, Lernplan, Stud.IP, Learnweb, Stundenplan, Uni
-- Support-URL, Datenschutz-URL, EULA: offen (Inhaber)
+- Support-URL `https://studinow.app/support`, Datenschutz-URL `https://studinow.app/datenschutz`; EULA: eigene
+  Nutzungsbedingungen `https://studinow.app/nutzungsbedingungen` oder Apples Standard-EULA (Entscheidung Inhaber)
 
 ## Bildschirmfotos (Vorgaben)
 
@@ -143,7 +151,9 @@ Inhaber:
 - [ ] App Store Connect: App-Eintrag „StudiNow“, Abo-Gruppe „StudiNow“ nur mit `de.uniflow.plus.monthly` (1,99 €,
       Probewoche), zusammen mit der ersten Version einreichen; Pro-Produkte später (`docs/OFFEN-V1.md`)
 - [ ] Vertrag für kostenpflichtige Apps mit Bank- und Steuerdaten
-- [ ] URLs für Datenschutzerklärung, EULA, Impressum und Support (in App und App Store Connect)
+- [x] URLs für Datenschutzerklärung, EULA, Impressum und Support in der App (`UFLegalLinks`, 03.11.2026) und in
+      `docs/release/APP-STORE.md`; in App Store Connect vom Inhaber eintragen, sobald der Eintrag existiert
+      (Website `site/` auf studinow.app veröffentlichen, Domain ab 04.11.2026)
 - [ ] App-Datenschutzangaben (mit Community: „Andere Nutzerinhalte“, nicht verknüpft, kein Tracking – wie im Privacy
       Manifest), Exportkontrolle (`ITSAppUsesNonExemptEncryption`), Altersfreigabe
 - [ ] Community: iCloud-Container `iCloud.de.uniflow.ai`, `UF_CLOUDKIT_CONTAINER` in `Team.xcconfig`, Schema und

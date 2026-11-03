@@ -7,13 +7,25 @@ erklärung, die Nutzungsbedingungen und das Impressum; die Store-Texte prüft de
 
 | Datei | Inhalt | Wo sie hinkommt |
 |---|---|---|
-| `DATENSCHUTZ.md` | Datenschutzerklärung für Apps, Web-Oberfläche und Dienst (Art. 13 DSGVO) | öffentliche Seite `[[Domain]]/datenschutz`; URL in App Store Connect und Play Console |
-| `NUTZUNGSBEDINGUNGEN.md` | Nutzungsbedingungen inkl. Tarife, Abo, Hochschulsysteme, Community-Regeln | öffentliche Seite `[[Domain]]/nutzungsbedingungen`; Link auf der Tarifseite in der App (Pflicht bei Abos) |
-| `IMPRESSUM.md` | Impressum-Vorlage nach § 5 DDG (zwei Varianten) | `[[Domain]]/impressum`; Händlerangaben im App Store (DSA) |
-| `KONTO-LOESCHEN.md` | Öffentliche Seite „Konto löschen“ (Pflicht im Play Store, nützlich für Apple) | `[[Domain]]/konto-loeschen` |
+| `DATENSCHUTZ.md` | Datenschutzerklärung für Apps, Web-Oberfläche und Dienst (Art. 13 DSGVO) | öffentliche Seite `https://studinow.app/datenschutz`; URL in App Store Connect und Play Console |
+| `NUTZUNGSBEDINGUNGEN.md` | Nutzungsbedingungen inkl. Tarife, Abo, Hochschulsysteme, Community-Regeln | öffentliche Seite `https://studinow.app/nutzungsbedingungen`; Link auf der Tarifseite in der App (Pflicht bei Abos) |
+| `IMPRESSUM.md` | Impressum nach § 5 DDG (Einzelunternehmen IT solutions by Ahmad Fakih) | `https://studinow.app/impressum`; Händlerangaben im App Store (DSA) |
+| `KONTO-LOESCHEN.md` | Öffentliche Seite „Konto löschen“ (Pflicht im Play Store, nützlich für Apple) | `https://studinow.app/konto-loeschen` |
+| `SUPPORT.md` | Support-Seite mit Kontaktadresse und häufigen Fragen (Anmeldung bei der Uni, Daten auf dem iPad, Konto löschen) | `https://studinow.app/support` (Support-URL in App Store Connect) |
+| `STARTSEITE.md` | Produktseite der Website (was StudiNow kann, App-Store-Abzeichen und Bildschirmfotos als Platzhalter) | `https://studinow.app` |
 | `APP-STORE.md` | App Store Connect: Name, Untertitel, Werbetext, Beschreibung, Schlüsselwörter, Altersfreigabe, App-Datenschutz, Abo-Produkt, Hinweise für die Prüfung | App Store Connect (de-DE) |
 | `PLAY-STORE.md` | Play Console: Titel, Kurz- und Vollbeschreibung, Datensicherheit, Inhaltseinstufung, Zielgruppe, Abo-Produkt | Play Console (de-DE) |
 | `BETRIEB.md` | Betriebsanleitung für den gehosteten Dienst (Hosting-Paket `deploy/`: Docker, Caddy/TLS, `.env`, Backups, Updates, Löschfristen, Monitoring) | Inhaber, Server |
+| `angaben.json` | Angaben des Inhabers (Firma, Anschrift, USt-IdNr., E-Mail, Domain) – zur Veröffentlichung bestimmt, darum im Repository | `tools/rechtstexte-fuellen.py --check` |
+
+**Website:** `tools/gen-site.py` baut aus `STARTSEITE.md`, `SUPPORT.md`, `DATENSCHUTZ.md`, `IMPRESSUM.md`,
+`NUTZUNGSBEDINGUNGEN.md` und `KONTO-LOESCHEN.md` die statischen Seiten in `site/` (reines HTML, eine CSS-Datei, hell
+und dunkel nach Systemeinstellung, keine fremden Ressourcen). Nach jeder Änderung an diesen Texten neu erzeugen
+(`.venv/bin/python tools/gen-site.py`); `tests/test_site.py` prüft, dass `site/` dem Stand der Texte entspricht, die
+Firmenangaben enthält und außer den Hoster-Platzhaltern nichts Offenes. Veröffentlichen: den Ordner `site/` auf einen
+beliebigen statischen Host legen (z. B. Cloudflare Pages, Netlify, GitHub Pages; `/datenschutz` → `datenschutz.html`
+über „clean URLs“ des Hosts), DNS `studinow.app` und `www` auf den Host, `studinow.ai` als Weiterleitung auf
+`https://studinow.app`.
 
 Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 
@@ -29,26 +41,35 @@ Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 ## Platzhalter
 
 Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröffentlichung ersetzt sein
-(`tests/test_release_texts.py` listet sie auf):
+(`tests/test_release_texts.py` listet sie auf). **Stand 03.11.2026:** Die Angaben des Inhabers (IT solutions by Ahmad
+Fakih, Einzelunternehmen, Inhaber Ahmad Fakih, Baldurstraße 5, 30657 Hannover, USt-IdNr. DE462836430,
+support@studinow.app, Domain studinow.app) sind in `angaben.json` eingetragen und in den Texten an Ort und Stelle
+eingesetzt (`[[Name]]`, `[[Anschrift]]`, `[[E-Mail]]`, `[[Domain]]`, `[[Datum]]`, `[[Jahr]]`, `[[USt-IdNr.]]`,
+`[[Aufsichtsbehörde]]`, `[[7 Tagen]]` gibt es in den Texten nicht mehr; das Impressum hat nur noch die Variante für
+das Einzelunternehmen). Offen bleiben:
 
-`[[Name]]`, `[[Anschrift]]` (im Impressum getrennt als `[[Straße Hausnummer]]` und `[[PLZ Ort]]`), `[[E-Mail]]`,
-`[[Telefon]]`, `[[Domain]]`, `[[Hosting-Anbieter]]`, `[[Serverstandort]]`, `[[Mail-Anbieter]]`, `[[Datum]]`, `[[Jahr]]`,
-`[[USt-IdNr.]]` (nur falls vorhanden), `[[Aufsichtsbehörde]]`. Dazu im Impressum die Angaben für eine juristische
-Person (`[[Firma]]`, `[[Rechtsform]]`, …), in den Store-Texten optionale Satzteile wie `[[ UND DER UNIVERSITÄT
-HILDESHEIM]]` (nur übernehmen, wenn die Funktion läuft) und Prüfhinweise wie `[[Anwaltlich prüfen.]]`.
+- `[[Hoster]]`, `[[Serverstandort]]`, `[[Mail-Anbieter]]` in `DATENSCHUTZ.md` Abschnitt 11 – das Hosting des Dienstes
+  ist nicht entschieden (`BETRIEB.md`); die Website zeigt sie bis dahin gelb markiert.
+- `[[Telefon]]` in `PLAY-STORE.md` – keine Telefonnummer genannt; Apple verlangt sie für die Händlerangaben (DSA),
+  Google für die Kontaktdaten. Das Impressum nennt nur die E-Mail-Adresse (anwaltlich prüfen, ob ein zweiter
+  Kontaktweg nach § 5 Abs. 1 Nr. 2 DDG nötig ist).
+- In den Store-Texten die optionalen Satzteile wie `[[ UND DER UNIVERSITÄT HILDESHEIM]]` (nur übernehmen, wenn die
+  Funktion läuft; Schalter `funktionen.*` in `angaben.json`) und die Prüfhinweise `[[mit Apple-Dokumentation …]]`,
+  `[[Mit der Google-Dokumentation …]]`.
 
 ## Platzhalter ausfüllen: `tools/rechtstexte-fuellen.py`
 
 Der Inhaber trägt **einmal wenige Werte** in eine JSON ein, das Werkzeug ersetzt damit alle Platzhalter in
 `IMPRESSUM.md`, `DATENSCHUTZ.md`, `NUTZUNGSBEDINGUNGEN.md`, `KONTO-LOESCHEN.md`, `APP-STORE.md` und `PLAY-STORE.md`
-(diese README und `BETRIEB.md` bleiben unberührt, sie beschreiben die Platzhalter nur). Vorlage mit erfundenen
-Beispielwerten: `angaben.example.json` (Felder `_hinweis` erklären jeden Wert).
+(diese README und `BETRIEB.md` bleiben unberührt, sie beschreiben die Platzhalter nur). Die echten Werte stehen in
+`angaben.json`; Vorlage mit erfundenen Beispielwerten: `angaben.example.json` (Felder `_hinweis` erklären jeden Wert).
 
 ```bash
-cp docs/release/angaben.example.json angaben.json      # eigene Werte eintragen (angaben.json nicht einchecken)
-.venv/bin/python tools/rechtstexte-fuellen.py angaben.json --check          # was ist offen, welcher Wert gehört wohin
-.venv/bin/python tools/rechtstexte-fuellen.py angaben.json --out /pfad/legal  # ausgefüllte Dateien in einen anderen Ordner
-.venv/bin/python tools/rechtstexte-fuellen.py angaben.json                  # docs/release/*.md an Ort und Stelle überschreiben
+.venv/bin/python tools/rechtstexte-fuellen.py docs/release/angaben.json --check   # was ist offen (Hoster, Telefon, Schalter)
+# sobald hoster, hoster_ort, mail_anbieter und telefon in angaben.json stehen und die Schalter entschieden sind:
+.venv/bin/python tools/rechtstexte-fuellen.py docs/release/angaben.json           # docs/release/*.md an Ort und Stelle füllen
+.venv/bin/python tools/gen-site.py                                                # danach die Website neu erzeugen
+.venv/bin/python tools/rechtstexte-fuellen.py angaben.json --out /pfad/legal      # oder in einen anderen Ordner (LERNAPP_LEGAL_DIR)
 ```
 
 `--check` schreibt nichts und endet mit Exit 1, solange Platzhalter offen sind oder ein Pflichtwert in der JSON leer
@@ -67,7 +88,7 @@ den das Werkzeug nicht kennt, ist ein Fehler – neue Platzhalter in `tools/rech
 | `email_datenschutz` (optional) | `[[E-Mail]]` nur in `DATENSCHUTZ.md`; leer = `email` | Datenschutz 2, 14, 15 |
 | `telefon` | `[[Telefon]]` – zweiter Kontaktweg (§ 5 DDG), Händlerangaben (DSA), Play Console | Impressum, Play Store |
 | `domain` | `[[Domain]]` – nur Hostname, eingesetzt wird `https://<domain>` (…/datenschutz, /impressum, /konto-loeschen, /support) | alle sechs Dateien |
-| `hoster`, `hoster_ort` | `[[Hosting-Anbieter]]`, `[[Serverstandort]]` | Datenschutz 11 |
+| `hoster`, `hoster_ort` | `[[Hoster]]` (früher `[[Hosting-Anbieter]]`), `[[Serverstandort]]` | Datenschutz 11 |
 | `mail_anbieter` | `[[Mail-Anbieter]]` | Datenschutz 11 |
 | `aufsichtsbehoerde` | `[[Aufsichtsbehörde]]` mit Anschrift (z. B. Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover) | Datenschutz 14 |
 | `ustid` (optional) + `kleinunternehmer` (true/false) | Block **Umsatzsteuer**: USt-IdNr. gesetzt → „USt-IdNr. nach § 27a UStG: …“; leer → `kleinunternehmer` muss true sein → „Kleinunternehmer nach § 19 UStG, keine USt-IdNr.“ | Impressum |
@@ -87,9 +108,10 @@ Prüfung von Hand.
 `docs/release`; im Docker-Image `/srv/uniflow/docs/release`, hineinkopiert beim Bauen, `deploy/Dockerfile`). Nach dem
 Füllen also entweder Image neu bauen (`docker compose up -d --build`) oder den `--out`-Ordner als Volume einhängen und
 `LERNAPP_LEGAL_DIR` darauf zeigen (`deploy/.env.example`); kein Cache-Zähler nötig, die Seiten werden mit `no-cache`
-ausgeliefert. Wer `docs/release/*.md` an Ort und Stelle füllt, passt in `tests/test_release_texts.py` die eine
-Erwartung `"[[Domain]]/datenschutz" in long` an (dann `https://<domain>/datenschutz`); die übrigen Prüfungen dort
-gelten weiter. Das Windows-Paket nimmt `docs/release` mit (`apps/windows/backend/uniflow-backend.spec`).
+ausgeliefert. Seit dem Füllen an Ort und Stelle (03.11.2026) erwartet `tests/test_release_texts.py`
+`https://studinow.app/datenschutz` in den Store-Texten und die Firmenangaben in den Rechtstexten;
+`tests/test_rechtstexte.py` prüft das Werkzeug gegen den gefüllten Stand (offen nur Hoster, Telefon, Schalter).
+Das Windows-Paket nimmt `docs/release` mit (`apps/windows/backend/uniflow-backend.spec`).
 
 ## Was vor der Veröffentlichung noch zu tun ist
 
@@ -117,8 +139,10 @@ gelten weiter. Das Windows-Paket nimmt `docs/release` mit (`apps/windows/backend
 5. **Öffentliche Seiten – erledigt (26.10.2026):** der Dienst liefert `/datenschutz`, `/nutzungsbedingungen`,
    `/impressum` und `/konto-loeschen` direkt aus diesen Markdown-Dateien aus (`app/legal.py`, ohne Sitzung, auch im
    gehosteten Modus; Platzhalter erscheinen gelb markiert, bis sie ersetzt sind). Verlinkt auf der Anmeldeseite und im
-   Konto-Menü der App; `tests/test_legal_pages.py`. Es bleibt, die Platzhalter zu ersetzen (Abschnitt „Platzhalter
-   ausfüllen“, `tools/rechtstexte-fuellen.py`).
+   Konto-Menü der App; `tests/test_legal_pages.py`. **Website – erledigt (03.11.2026):** `site/` aus denselben
+   Dateien (`tools/gen-site.py`, oben), Domain `studinow.app` und Postfach `support@studinow.app` ab 04.11.2026; die
+   iPad-App verlinkt die Seiten auf der Tarifseite und in den Einstellungen (`UFLegalLinks`). Es bleibt, die
+   Hoster-Platzhalter zu ersetzen (Abschnitt „Platzhalter ausfüllen“).
 6. **App Review – erledigt (27.10.2026):** Demo-Inhalte ohne Hochschulkonto (`app/demo.py`): Einstellungen →
    Erweitert → „Demo-Inhalte anlegen“ bzw. `POST /api/demo {enabled: true}` legt ein Demo-Modul mit drei selbst
    erzeugten PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung an; „entfernen“ nimmt alles
@@ -126,7 +150,7 @@ gelten weiter. Das Windows-Paket nimmt `docs/release` mit (`apps/windows/backend
    ohne Dienst (27.10.2026, `DemoContent` im Swift-Kern, gleiche Inhalte, Vergleich `fixtures/demo/demo.json`):
    Einstellungen → Erweitert und im ersten Start auf der Anmeldeseite „Ohne Hochschulkonto ansehen (Demo)“.
 7. **Händlerstatus (DSA)** in App Store Connect angeben; Name, Anschrift, E-Mail und Telefon werden dann im Store
-   angezeigt. Dieselben Angaben wie im Impressum.
+   angezeigt. Dieselben Angaben wie im Impressum; die Telefonnummer fehlt noch (`[[Telefon]]`).
 8. **Datenexport** als Gesamtpaket (ZIP mit Notizen, Kalender, Karteikarten) ist in `docs/KONTEN-ABOS-PLAN.md`
    geplant, aber nicht gebaut; die Erklärung nennt heute den Export als PDF und den Geräteabgleich.
 9. **Abstimmung mit den Hochschulen** zum automatisierten Abruf mit Studierenden-Zugangsdaten
