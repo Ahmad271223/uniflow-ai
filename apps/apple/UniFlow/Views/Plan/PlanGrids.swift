@@ -15,6 +15,12 @@ extension PlanNames {
         })
     }
 
+    /// Passt jedes Wort von `text` in `width` (Schaetzung 0,6 em je Zeichen)? Sonst braeche SwiftUI mitten im Wort um.
+    static func wordsFit(_ text: String, width: CGFloat, size: CGFloat) -> Bool {
+        let longest = text.split(whereSeparator: { $0 == " " || $0 == "-" || $0 == "/" }).map(\.count).max() ?? 0
+        return CGFloat(longest) * size * 0.6 <= width
+    }
+
     /// Rand eines Lernblocks: Fachfarbe des Pakets (`--ec: p.color || var(--info)`)
     static func studyColor(_ p: JSONValue) -> Color {
         p.s("color").flatMap { UIColor(hex: $0) }.map { Color(uiColor: $0) } ?? UF.info
@@ -48,6 +54,37 @@ func planLanes(_ items: [(s: Int, e: Int)]) -> [PlanLane] {
 
 // MARK: - Wochenraster (weekGrid)
 
+/// Zeile des Wochenrasters: erste Spalte fest (Zeitachse), die Tage nach Anteil (`PlanWeekGrid.weight`); alle
+/// Kinder bekommen die Hoehe des hoechsten (Tageskoepfe gleich hoch)
+struct UFWeightedRow: Layout {
+    var weights: [CGFloat]
+    var spacing: CGFloat = 6
+    var first: CGFloat = 44
+
+    func widths(_ total: CGFloat, count: Int) -> [CGFloat] {
+        guard count > 0 else { return [] }
+        let w = (0..<(count - 1)).map { $0 < weights.count ? weights[$0] : 1 }
+        let free = max(0, total - first - spacing * CGFloat(count - 1))
+        let sum = max(0.001, w.reduce(0, +))
+        return [first] + w.map { free * $0 / sum }
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let total = proposal.width ?? 700
+        let ws = widths(total, count: subviews.count)
+        let h = zip(subviews, ws).map { $0.sizeThatFits(ProposedViewSize(width: $1, height: nil)).height }.max() ?? 0
+        return CGSize(width: total, height: h)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        for (sv, w) in zip(subviews, widths(bounds.width, count: subviews.count)) {
+            sv.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading, proposal: ProposedViewSize(width: w, height: bounds.height))
+            x += w + spacing
+        }
+    }
+}
+
 struct PlanWeekGrid: View {
     let d: PlanData
     @EnvironmentObject private var session: Session
@@ -67,18 +104,20 @@ struct PlanWeekGrid: View {
         let names = PlanNames.forDays(days)
         // ohne Uhrzeit, aber mit Aufgaben: ein leeres Paket (alle Aufgaben verschoben) braucht keine Uhrzeit
         let unslotted = days.flatMap { dd in dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }.map { (dd.s("date") ?? "", $0) } }
+        // Tage mit gleichzeitigen Terminen breiter, leere Tage schmaler (03.11.2026: "Bio…", "Ein…" waren unlesbar)
+        let weights = days.map(Self.weight)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 6) {
-                Color.clear.frame(width: 44, height: 1)
+            UFWeightedRow(weights: weights) {
+                Color.clear.frame(height: 1)
                 ForEach(Row.rows(days, key: "date")) { row in
-                    dayHead(row.value, compact: compact).frame(maxWidth: .infinity)
+                    dayHead(row.value, compact: compact)
                 }
             }
             .padding(.bottom, 9.6)
-            HStack(alignment: .top, spacing: 6) {
-                axis(lo: lo, hi: hi).frame(width: 44)
+            UFWeightedRow(weights: weights) {
+                axis(lo: lo, hi: hi)
                 ForEach(Row.rows(days, key: "date")) { row in
-                    column(row.value, lo: lo, hi: hi, compact: compact, names: names).frame(maxWidth: .infinity)
+                    column(row.value, lo: lo, hi: hi, compact: compact, names: names)
                 }
             }
             legend.padding(.top, 11.2)
@@ -87,6 +126,16 @@ struct PlanWeekGrid: View {
     }
 
     private func px(_ m: Int, _ lo: Int) -> CGFloat { CGFloat(m - lo) / 60 * H }
+
+    /// Breitenanteil eines Tages: je weiterer gleichzeitiger Spur +0,6; Tage ohne Termine, Lernbloecke und Hinweise 0,75
+    static func weight(_ dd: JSONValue) -> CGFloat {
+        let evs = dd.list("events").filter { $0.s("status") != "verschoben" }
+        let pks = dd.list("packages").filter { $0.s("start_time") != nil }
+        if evs.isEmpty && pks.isEmpty && !UFDayExtras.hasAny(dd) { return 0.75 }
+        let lanes = planLanes(evs.map { (UFTime.hm($0.s("start")), UFTime.hm($0.s("end"))) }
+                              + pks.map { (UFTime.hm($0.s("start_time")), UFTime.hm($0.s("end_time"))) })
+        return 1 + 0.6 * CGFloat(max(0, (lanes.map(\.n).max() ?? 1) - 1))
+    }
 
     private func range(_ days: [JSONValue]) -> (Int, Int) {
         var starts = [8 * 60], ends = [19 * 60]
@@ -109,26 +158,30 @@ struct PlanWeekGrid: View {
         let txt = st == "frei" ? "Frei" : mins > 0 ? UFFmt.min(mins) : (compact ? "–" : "Nichts geplant")
         let dt = Fmt.date(date) ?? Date()
         let c = PlanData.cal.dateComponents([.day, .month], from: dt)
-        return Button { router.go(.plan(view: "day", date: date, module: d.module.isEmpty ? nil : d.module)) } label: {
-            VStack(spacing: 0) {
-                Text(ShellState.days[dd.i("weekday") ?? 0]).ufFont(12.48).foregroundStyle(today ? UF.accentText : UF.muted)
-                Text("\(c.day ?? 0).\(c.month ?? 0).").ufFont(16, 700).foregroundStyle(today ? UF.accentText : UF.text)
-                HStack(spacing: 5.6) {
-                    if total > 0 { UFRing(percent: Double(100 * done) / Double(total), color: col, hole: today ? UF.accentSoft : UF.surface) }
-                    Text(txt).lineLimit(1)
+        // Kopf (Tagesansicht) und Hinweis-Chips (Detail) sind getrennte Knoepfe: ein Knopf im Knopf nahm den Chips das Tippen
+        return VStack(spacing: 0) {
+            Button { router.go(.plan(view: "day", date: date, module: d.module.isEmpty ? nil : d.module)) } label: {
+                VStack(spacing: 0) {
+                    Text(ShellState.days[dd.i("weekday") ?? 0]).ufFont(12.48).foregroundStyle(today ? UF.accentText : UF.muted)
+                    Text("\(c.day ?? 0).\(c.month ?? 0).").ufFont(16, 700).foregroundStyle(today ? UF.accentText : UF.text)
+                    HStack(spacing: 5.6) {
+                        if total > 0 { UFRing(percent: Double(100 * done) / Double(total), color: col, hole: today ? UF.accentSoft : UF.surface) }
+                        Text(txt).lineLimit(1)
+                    }
+                    .ufFont(11.52).foregroundStyle(today ? UF.accentText : UF.muted)
+                    .padding(.top, 3.2)
                 }
-                .ufFont(11.52).foregroundStyle(today ? UF.accentText : UF.muted)
-                .padding(.top, 3.2)
-                // .cal2-dh: Feiertag/vorlesungsfrei, Fristen und Hinweise (holChips, dlChips, noteChips)
-                UFDayExtraChips(dd: dd, compact: compact).padding(.top, 3.2)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 8 + ufB).padding(.horizontal, 4.8 + ufB)
-            .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 12).fill(today ? UF.accentSoft : UFDayExtras.fill(dd, over: UF.surface)))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(today ? .clear : UF.line, lineWidth: 1))
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            // .cal2-dh: Feiertag/vorlesungsfrei, Fristen und Hinweise (holChips, dlChips, noteChips); Tippen zeigt das Detail
+            UFDayExtraChips(dd: dd, compact: compact).padding(.top, 3.2)
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 8 + ufB).padding(.horizontal, 4.8 + ufB)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(RoundedRectangle(cornerRadius: 12).fill(today ? UF.accentSoft : UFDayExtras.fill(dd, over: UF.surface)))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(today ? .clear : UF.line, lineWidth: 1))
     }
 
     /// .cal2-axis: Beschriftung absolut auf der Stundenlinie zentriert (translateY(-50%)), aendert die Hoehe nicht
@@ -217,8 +270,9 @@ struct PlanWeekGrid: View {
         } isTargeted: { on in dropTarget = on ? date : (dropTarget == date ? nil : dropTarget) }
     }
 
+    /// Legende: kurze Begriffe, jeder Eintrag ungeteilt, die Zeile bricht um statt abzuschneiden (03.11.2026)
     private var legend: some View {
-        UFFlexWrap(gap: 17.6, rowGap: 6.4) {
+        UFFlexWrap(gap: 14, rowGap: 6.4) {
             legendItem("Uni-Termin") {
                 RoundedRectangle(cornerRadius: 3).fill(Color.mix(UF.accent, 0.25, UF.surface))
                     .overlay(alignment: .leading) { Rectangle().fill(UF.accent).frame(width: 3) }
@@ -236,13 +290,13 @@ struct PlanWeekGrid: View {
                 RoundedRectangle(cornerRadius: 3).fill(UF.surface2)
                     .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.lineStrong, lineWidth: 1)).opacity(0.6)
             }
-            legendItem("Feiertag / vorlesungsfrei") {
+            legendItem("Feiertag, vorlesungsfrei") {
                 RoundedRectangle(cornerRadius: 3).fill(UF.okSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok, lineWidth: 1))
             }
-            legendItem("Frist (Learnweb)") {
+            legendItem("Frist") {
                 RoundedRectangle(cornerRadius: 3).fill(UF.badSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.bad, lineWidth: 1))
             }
-            legendItem("Hinweis aus Ankündigung") {
+            legendItem("Hinweis (antippbar)") {
                 RoundedRectangle(cornerRadius: 3).fill(UF.infoSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.info, lineWidth: 1))
             }
         }
@@ -251,9 +305,10 @@ struct PlanWeekGrid: View {
     private func legendItem<S: View>(_ text: String, @ViewBuilder swatch: () -> S) -> some View {
         HStack(spacing: 4.8) {
             swatch().frame(width: 14, height: 10).clipShape(RoundedRectangle(cornerRadius: 3))
-            Text(text)
+            Text(text).fixedSize()
         }
-        .ufFont(12).foregroundStyle(UF.muted)
+        .ufFont(12).foregroundStyle(UF.text2)
+        .accessibilityElement(children: .combine)
     }
 
     private func unslottedCard(_ list: [(String, JSONValue)]) -> some View {
@@ -328,28 +383,39 @@ struct PlanEventBlock: View {
         let f = planBlockFrame(s: UFTime.hm(e.s("start")), e: UFTime.hm(e.s("end")), lane: lane, W: W, px: px)
         let off = e.s("status") != "teilnahme"
         let ec = Color(hex: e.s("color"))
-        // Namen wie in Stud.IP lesbar (e9a40d1): Kurzname, erst ab drei Spuren nebeneinander die Initialen
-        let name = lane.n >= 3 ? names[e.s("title") ?? ""] ?? PlanNames.tinyName(e.s("title")) : UFFmt.shortName(e.s("title"))
-        let narrow = lane.n >= 3 || (compact && lane.n >= 2)
+        // Namen nach der echten Breite (03.11.2026): breit Kurzname mit Zeit; schmal (< 92 pt) Kurzname ohne Ende-Zeit,
+        // umbrechend; sehr schmal (< 60 pt) nur der Kurzname des Fachs ueber mehrere Zeilen statt "Bio…"/"…"
+        let tight = lane.n > 1 && f.w < 60, narrow = lane.n > 1 && f.w < 92
+        let full = UFFmt.shortName(e.s("title"))
+        // langes Wort passt nicht in die Breite ("Informa-tik" zeichenweise umbrochen): Kurzname des Fachs
+        let name = narrow || !PlanNames.wordsFit(full, width: f.w - (tight ? 7 : 19), size: 12.48)
+            ? names[e.s("title") ?? ""] ?? PlanNames.tinyName(e.s("title")) : full
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("\(e.s("start") ?? "")\(compact && lane.n > 1 ? "" : " – \(e.s("end") ?? "")")").ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
-                    .lineLimit(narrow ? 1 : nil).truncationMode(.tail)
-                Text(name).ufFont(narrow ? 10.88 : 12.48, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 3).padding(.vertical, 1.6)   // .narrow b: .68rem
+                if !tight {
+                    Text("\(e.s("start") ?? "")\(narrow || f.w < 100 ? "" : " – \(e.s("end") ?? "")")").ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
+                        .lineLimit(1)
+                }
+                Text(name).ufFont(narrow ? 10.88 : 12.48, 700, lh: 1.2).foregroundStyle(UF.text)
+                    .lineLimit(nil).minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 1.6)
                 if f.h > 54 && !narrow {
                     Text(Self.rooms(e.s("room").flatMap { $0.isEmpty ? nil : $0 } ?? UFKind.label[e.s("kind") ?? ""] ?? ""))
                         .ufFont(10.88, lh: 1.25).foregroundStyle(UF.muted).lineLimit(1)
                 }
             }
             .strikethrough(off)
-            .padding(.vertical, narrow ? 4.8 : 5.6).padding(.trailing, narrow ? 4.8 : 8).padding(.leading, (narrow ? 4.8 : 8) + 3)
+            .padding(.top, UFCancel.label(e) != nil && narrow ? 16 : (narrow ? 4.8 : 5.6)).padding(.bottom, narrow ? 4.8 : 5.6)
+            .padding(.trailing, tight ? 2 : narrow ? 4.8 : 8).padding(.leading, (tight ? 2 : narrow ? 4.8 : 8) + 3)
             .frame(width: f.w, height: f.h, alignment: .topLeading)
+            .clipped()
             .background(Color.mix(ec, 0.13, UF.surface))
             .overlay(alignment: .leading) { Rectangle().fill(ec).frame(width: 3) }
             // Ausfall (aus einer Ankuendigung erkannt oder eingetragen): Warnzeichen, unbestaetigt mit Rahmen
             .overlay { if UFCancel.unsure(e) { RoundedRectangle(cornerRadius: 10).strokeBorder(UF.warn, lineWidth: 2) } }
             .overlay(alignment: .topTrailing) {
-                if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 9.6, pill: true, iconOnly: narrow).padding(3) }
+                if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 9.6, pill: true, iconOnly: narrow).padding(2) }
             }
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .opacity(off ? 0.45 : 1)
@@ -386,15 +452,16 @@ struct PlanPackageBlock: View {
         let status = p.s("status") ?? "geplant"
         let tasks = p.list("tasks")
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
-        let name = compact || lane.n > 1 ? names[p.s("subject") ?? ""] ?? PlanNames.tinyName(p.s("subject")) : UFFmt.shortName(p.s("subject"))
-        let narrow = lane.n >= 3 || (compact && lane.n >= 2)
+        let narrow = lane.n > 1 && f.w < 92
+        let name = narrow || !PlanNames.wordsFit(UFFmt.shortName(p.s("subject")), width: f.w - 19, size: 12.16)
+            ? names[p.s("subject") ?? ""] ?? PlanNames.tinyName(p.s("subject")) : UFFmt.shortName(p.s("subject"))
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 3) {
                 if !narrow { UFIcon("book", size: 11) }                     // .narrow .t .ic { display: none }
                 Text("\(p.s("start_time") ?? "")\(compact ? "" : " – \(p.s("end_time") ?? "")")").lineLimit(narrow ? 1 : nil)
             }
             .ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
-            Text(name).ufFont(narrow ? 10.88 : 12.16, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 2).padding(.vertical, 1.6)   // .narrow b: .68rem
+            Text(name).ufFont(narrow ? 10.88 : 12.16, 700, lh: 1.2).foregroundStyle(UF.text).lineLimit(3).minimumScaleFactor(0.8).padding(.vertical, 1.6)
             if f.h > 54 && !narrow { Text(p.s("title") ?? "").ufFont(10.88, lh: 1.25).foregroundStyle(UF.muted).lineLimit(1) }
             if f.h > 88 && !compact {
                 HStack(spacing: 4.8) {
@@ -498,7 +565,8 @@ struct PlanMonthGrid: View {
                 let date = dd.s("date") ?? ""
                 let dt = Fmt.date(date) ?? Date()
                 let other = PlanData.cal.component(.month, from: dt) != month
-                Button { router.go(.plan(view: "day", date: date, module: d.module.isEmpty ? nil : d.module)) } label: {
+                // Zelle oeffnet den Tag (Tippen auf die Flaeche), die Hinweis-Chips darin ihr Detail
+                Group {
                     VStack(alignment: .leading, spacing: 3.2) {
                         HStack(spacing: 4.8) {
                             // <span class="sd"> hat im Monatsraster keine Groesse (nur .cal-day .dh .sd) -> unsichtbar, Abstand bleibt
@@ -522,7 +590,9 @@ struct PlanMonthGrid: View {
                     .opacity(other ? 0.45 : 1)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .onTapGesture { router.go(.plan(view: "day", date: date, module: d.module.isEmpty ? nil : d.module)) }
+                .accessibilityElement(children: .contain)
+                .accessibilityAction(named: "Tag öffnen") { router.go(.plan(view: "day", date: date, module: d.module.isEmpty ? nil : d.module)) }
             }
         }
         .environment(\.ufFillsCell, false)

@@ -2143,7 +2143,10 @@
         "url": "https://studip.example/sp-news-t6",
         "course_title": "Gruppenübung Programmierkurs Beispiel",
         "color": "#333333",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-prog-ue",
+        "module_id": 3,
+        "posted_at": "2026-11-02T10:00:00+01:00"
        }
       ],
       "free": [
@@ -2337,7 +2340,10 @@
         "url": "https://studip.example/sp-news-t4",
         "course_title": "Blockseminar Beispiel",
         "color": null,
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-block",
+        "module_id": null,
+        "posted_at": "2026-11-01T09:00:00+01:00"
        }
       ],
       "free": [
@@ -2689,7 +2695,10 @@
         "url": "https://studip.example/sp-news-t5",
         "course_title": null,
         "color": null,
-        "source": "studip"
+        "source": "studip",
+        "course_id": null,
+        "module_id": null,
+        "posted_at": "2026-11-01T09:00:00+01:00"
        },
        {
         "announcement_id": "sp-news-t1",
@@ -2701,7 +2710,10 @@
         "url": "https://studip.example/sp-news-t1",
         "course_title": "Übung zu Testmathematik I",
         "color": "#111111",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ma-ue",
+        "module_id": 1,
+        "posted_at": "2026-11-02T09:00:00+01:00"
        }
       ],
       "free": [
@@ -2819,7 +2831,10 @@
         "url": "https://studip.example/sp-news-t2",
         "course_title": "Testphysik für Ingenieure",
         "color": "#222222",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ph",
+        "module_id": 2,
+        "posted_at": "2026-11-03T09:00:00+01:00"
        }
       ],
       "free": [
@@ -2852,7 +2867,10 @@
         "url": "https://studip.example/sp-news-t1",
         "course_title": "Übung zu Testmathematik I",
         "color": "#111111",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ma-ue",
+        "module_id": 1,
+        "posted_at": "2026-11-02T09:00:00+01:00"
        }
       ],
       "free": [
@@ -3138,7 +3156,10 @@
         "url": "https://studip.example/sp-news-t3",
         "course_title": "Testphysik für Ingenieure",
         "color": "#222222",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ph",
+        "module_id": 2,
+        "posted_at": "2026-11-04T09:00:00+01:00"
        }
       ],
       "free": [
@@ -7867,7 +7888,10 @@
         "url": "https://studip.example/sp-news-t5",
         "course_title": null,
         "color": null,
-        "source": "studip"
+        "source": "studip",
+        "course_id": null,
+        "module_id": null,
+        "posted_at": "2026-11-01T09:00:00+01:00"
        },
        {
         "announcement_id": "sp-news-t1",
@@ -7879,7 +7903,10 @@
         "url": "https://studip.example/sp-news-t1",
         "course_title": "Übung zu Testmathematik I",
         "color": "#111111",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ma-ue",
+        "module_id": 1,
+        "posted_at": "2026-11-02T09:00:00+01:00"
        }
       ],
       "free": [
@@ -8038,7 +8065,10 @@
         "url": "https://studip.example/sp-news-t2",
         "course_title": "Testphysik für Ingenieure",
         "color": "#222222",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ph",
+        "module_id": 2,
+        "posted_at": "2026-11-03T09:00:00+01:00"
        }
       ],
       "free": [
@@ -8091,7 +8121,10 @@
         "url": "https://studip.example/sp-news-t1",
         "course_title": "Übung zu Testmathematik I",
         "color": "#111111",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-ma-ue",
+        "module_id": 1,
+        "posted_at": "2026-11-02T09:00:00+01:00"
        }
       ],
       "free": [
@@ -9368,7 +9401,10 @@
         "url": "https://studip.example/sp-news-t6",
         "course_title": "Gruppenübung Programmierkurs Beispiel",
         "color": "#333333",
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-prog-ue",
+        "module_id": 3,
+        "posted_at": "2026-11-02T10:00:00+01:00"
        }
       ],
       "free": [
@@ -9661,7 +9697,10 @@
         "url": "https://studip.example/sp-news-t4",
         "course_title": "Blockseminar Beispiel",
         "color": null,
-        "source": "studip"
+        "source": "studip",
+        "course_id": "k-block",
+        "module_id": null,
+        "posted_at": "2026-11-01T09:00:00+01:00"
        }
       ],
       "free": [

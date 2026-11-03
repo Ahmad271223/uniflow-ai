@@ -125,7 +125,7 @@ def calendar_extras(conn, start: date, end: date, university: str | None = None)
     from . import config, db, studip_terms
     marks = day_marks(start, end, university or config.university(), studip=studip_terms.load(conn))
     by_day: dict[str, list[dict]] = {}
-    for r in db.rows(conn, """SELECT d.id, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color
+    for r in db.rows(conn, """SELECT d.id, d.source, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color
                               FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
                               WHERE d.due_at >= ? AND d.due_at < ? ORDER BY d.due_at""",
                      (start.isoformat(), (end + timedelta(days=1)).isoformat())):
@@ -133,7 +133,8 @@ def calendar_extras(conn, start: date, end: date, university: str | None = None)
             "id": r["id"], "title": r["title"], "full_title": r["full_title"] or r["title"], "kind": r["kind"],
             "kind_label": DEADLINE_LABELS.get(r["kind"], "Frist") + (" (überfällig)" if r["overdue"] else ""), "time": r["due_at"][11:16], "url": r["url"],
             "overdue": bool(r["overdue"]),
-            "course_title": r["course_title"], "color": r["color"]})
+            "course_title": r["course_title"], "color": r["color"],
+            "source": r["source"]})                     # learnweb | studip (Courseware): Quelle im Detail (03.11.2026)
     return marks, by_day
 
 

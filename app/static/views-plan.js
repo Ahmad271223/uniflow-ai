@@ -1,5 +1,5 @@
 // Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=35";
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=36";
 import { tinyNames } from "./plan-names.js?v=30";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
@@ -117,7 +117,7 @@ export function bindCalendar(body) {
   // "Uhrzeiten vergeben": die Tage der Pakete ohne Uhrzeit, von Hand gesetzte Uhrzeiten bleiben (only_unset)
   $("#reslotWeek", body)?.addEventListener("click", async e => { await api("/timetable/reslot", { method: "POST", body: { dates: e.currentTarget.dataset.dates.split(","), only_unset: true } }); toast("Uhrzeiten vergeben"); state.route(); });
   $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => {
-    if (el.dataset.ev) return import("./views-tt.js?v=38").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
+    if (el.dataset.ev) return import("./views-tt.js?v=39").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
     // Einzeltermin aus dem Stud.IP-Kalender ohne eigene Serie: nur anzeigen
     modal(`<h3>${esc(el.title.split(" · ")[0])}</h3>${el.dataset.cx ? `<p class="small cx-box card flat">${icon("alert", 14)} ${esc(el.dataset.cx)}</p>` : ""}<p class="small muted">Termin aus deinem Stud.IP-Kalender (${fmtDate(el.dataset.date)}). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.</p><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   });
@@ -148,7 +148,7 @@ function weekSide(days, backlog, monthCal, d) {
 }
 function bindSide(view, dateStr, days) {
   $$("#calSide [data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
-  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=38")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=38")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
+  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=39")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=39")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
   $$("#calSide [data-taskdone]", view).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.taskdone}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt"); state.route(); });
   $("#calSide #addTaskBtn", view)?.addEventListener("click", () => addPackageDialog(dateStr));
   $$("#calSide [data-use]", view).forEach(b => b.onclick = () => useFreeWindow(dateStr, b.dataset.use));

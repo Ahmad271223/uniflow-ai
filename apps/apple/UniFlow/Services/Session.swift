@@ -133,7 +133,11 @@ final class Session: ObservableObject {
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
+///                                     hint:<datum>:<nr> (Detail eines Hinweis-Chips),
 ///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
+///   -UFCalendarSample YES             nur Debug: Demo-Inhalte und dazu erfundene Kalenderdaten dieser Woche
+///                                     (gleichzeitige Termine mit langen Namen, Ankuendigungen mit Ausfall, Klausur und
+///                                     Raumwechsel, eine Learnweb-Frist; `CalendarSample`) fuer Bildvergleiche
 ///   -UFNoStudIPSync YES               kein automatischer Stud.IP-Abgleich beim Oeffnen (ebenso bei -UFServer,
 ///                                     -UFDisconnect, -UFRoute, -UFAction und immer unter XCTest)
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
@@ -212,6 +216,7 @@ enum DebugLaunch {
         if !disconnect, !d.bool(forKey: "UFNoServer"), let server = d.string(forKey: "UFServer"), session.api?.base.absoluteString != server {
             await session.connect(urlString: server, pin: "")
         }
+        if d.bool(forKey: "UFCalendarSample") { await CalendarSample.seed(session.api) }
         if let route = d.string(forKey: "UFRoute") { router.go(hash: route) }
         guard let action = d.string(forKey: "UFAction") else { return }
         try? await Task.sleep(nanoseconds: 1_200_000_000)
@@ -229,6 +234,13 @@ enum DebugLaunch {
         case "task-menu": overlay.modal { TaskMenuDialog(id: Int(p[safe: 1] ?? "") ?? 0, title: "Aufgabe", refresh: {}) }
         case "free": a.useFreeWindow(date: UFFmt.todayISO(), start: 630, end: 735)
         case "tt-import": overlay.modal { TimetableImportDialog() }
+        case "hint":
+            // hint:<datum>:<nr>: Detail des n-ten Hinweises (Chip) dieses Tages
+            let day = p[safe: 1] ?? UFFmt.todayISO()
+            if let cal = try? await session.api?.value("/api/calendar?start=\(day)&end=\(day)"), let dd = cal.list("days").first {
+                let hints = UFHint.all(dd)
+                if let h = hints[safe: Int(p[safe: 2] ?? "") ?? 0] { overlay.modal { UFHintDialog(hint: h, events: dd.list("events")) } }
+            }
         case "timer":
             timer.toggle(true)
             if let m = StudyTimer.Mode(rawValue: p[safe: 1] ?? "") { timer.setMode(m) }

@@ -93,7 +93,8 @@ struct TimetableView: View {
             if let q = studipQuestions, !q.list("hidden").isEmpty || !q.list("busy").isEmpty {
                 StudIPCalendarQuestions(questions: q) { await load() }
             }
-            nav.padding(.bottom, 11.2)
+            nav.padding(.bottom, 4)
+            legendRow.padding(.bottom, 11.2)
             if allEv.isEmpty {
                 UFCard {
                     (Text("Noch kein Stundenplan. ").font(.uf(14.5, 700)).foregroundColor(UF.text)
@@ -155,23 +156,27 @@ struct TimetableView: View {
             Text(label).ufFont(14.5, 700).foregroundStyle(UF.text).frame(minWidth: 220)
             UFButton(icon: "chevron-right", size: .small) { router.go(.timetable(date: Fmt.isoDay(PlanData.add(s, 7)))) }
             UFButton("Heute", kind: .ghost, size: .small) { router.go(.timetable(date: UFFmt.todayISO())) }
-            UFFlexSpacer()
-            UFFlexWrap(gap: 14.4) {                                         // .tt-legend
+        }
+    }
+
+    /// Legende in eigener, umbrechender Zeile (03.11.2026: in der Navigationszeile wurde sie abgeschnitten)
+    private var legendRow: some View {
+        UFFlexWrap(gap: 14.4, rowGap: 6) {                                   // .tt-legend
                 legend("Vorlesung/Übung") { RoundedRectangle(cornerRadius: 3).fill(UF.accent) }
                 legend("Lernslot") { RoundedRectangle(cornerRadius: 3).fill(UF.surface).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.accent, lineWidth: 1)) }
                 legend("Frei") { UFHatch(color: UF.ok, period: 4, stripe: 1) }
                 legend("Sperrzeit") { UFHatch(color: Color(hex: 0x999999), period: 4, stripe: 1, deg135: false) }
-                legend("Feiertag / vorlesungsfrei") { RoundedRectangle(cornerRadius: 3).fill(UF.okSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok, lineWidth: 1)) }
-            }
-            .padding(.vertical, 8)
+                legend("Feiertag, vorlesungsfrei") { RoundedRectangle(cornerRadius: 3).fill(UF.okSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok, lineWidth: 1)) }
+                legend("Hinweis (antippbar)") { RoundedRectangle(cornerRadius: 3).fill(UF.infoSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.info, lineWidth: 1)) }
         }
     }
 
     private func legend<S: View>(_ text: String, @ViewBuilder swatch: () -> S) -> some View {
         HStack(spacing: 4) {
             swatch().frame(width: 12, height: 12).clipShape(RoundedRectangle(cornerRadius: 3))
-            Text(text)
+            Text(text).fixedSize()
         }
+        .accessibilityElement(children: .combine)
         .ufFont(12.16).foregroundStyle(UF.muted)
     }
 
@@ -182,7 +187,7 @@ struct TimetableView: View {
         let today = UFFmt.todayISO()
         // Chips im Tageskopf (Feiertag, Fristen, Hinweise) machen den Kopf hoeher: je Chip eine Zeile
         let chipRows = days.map { UFDayExtras.marks($0).count + $0.list("deadlines").count + $0.list("notices").count }.max() ?? 0
-        let chipHeight: CGFloat = chipRows > 0 ? 2 + CGFloat(chipRows) * 21.2 : 0
+        let chipHeight: CGFloat = chipRows > 0 ? 2 + CGFloat(chipRows) * 23.2 : 0
         return GeometryReader { g in
             // 52px + 7 x minmax(120px, 1fr), mindestens 900 px; breiter als der Rahmen -> waagrecht scrollen
             let total = max(900, g.size.width - 2)
@@ -263,9 +268,13 @@ struct TimetableView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .offset(x: 2, y: top)
             }
-            ForEach(Row.rows(d.list("events"), key: "event_id")) { row in
-                TimetableEventBlock(e: row.value, width: width - 7, px: px) { actions.openOccurrence(row.value, date: date) }
-                    .offset(x: 3)
+            // gleichzeitige Termine nebeneinander statt uebereinander (03.11.2026: einer verdeckte den anderen)
+            let evs = d.list("events")
+            let lanes = planLanes(evs.map { (UFTime.hm($0.s("start")), UFTime.hm($0.s("end"))) })
+            ForEach(evs.indices, id: \.self) { i in
+                let n = CGFloat(lanes[i].n), w = (width - 7 - 2 * (n - 1)) / n
+                TimetableEventBlock(e: evs[i], width: w, px: px) { actions.openOccurrence(evs[i], date: date) }
+                    .offset(x: 3 + CGFloat(lanes[i].lane) * (w + 2))
             }
             ForEach(Row.rows(d.list("packages").filter { $0.s("start_time") != nil })) { row in
                 TimetableStudyBlock(p: row.value, width: width - 7, px: px) { actions.openPackage(row.value.i("id") ?? 0) }
@@ -302,21 +311,28 @@ struct TimetableEventBlock: View {
         let room = e.s("room").map { $0.isEmpty ? "" : " · " + String($0.prefix(18)) } ?? ""
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(UFFmt.shortName(e.s("title"))).ufFont(11.84, 700, lh: 1.2).lineLimit(1).truncationMode(.tail)
-                Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")\(room)").ufFont(10, lh: 1.2).opacity(0.9)
+                // schmal (gleichzeitige Termine): Kurzname des Fachs, umbrechend, ohne Raum (03.11.2026)
+                let narrow = width < 80
+                Text(narrow ? PlanNames.tinyName(e.s("title")) : UFFmt.shortName(e.s("title"))).ufFont(11.84, 700, lh: 1.2)
+                    // ein Wort zu breit: eine Zeile, verkleinert statt mitten im Wort umbrochen
+                    .lineLimit(narrow && PlanNames.wordsFit(PlanNames.tinyName(e.s("title")), width: width - 9, size: 11.84) ? 3 : 1)
+                    .minimumScaleFactor(0.7).truncationMode(.tail)
+                Text(narrow ? (e.s("start") ?? "") : "\(e.s("start") ?? "")–\(e.s("end") ?? "")\(room)").ufFont(10, lh: 1.2).opacity(0.9)
                     .fixedSize(horizontal: false, vertical: true)           // overflow: hidden schneidet ab statt zu kuerzen
             }
             .strikethrough(st == "nicht_teilnahme" || ausfall)
             .foregroundStyle(ausfall ? UF.muted : .white)
-            .padding(.vertical, 4 + (ausfall ? ufB : 0)).padding(.trailing, 6.4).padding(.leading, 6.4 + 3)
+            .padding(.vertical, 4 + (ausfall ? ufB : 0)).padding(.trailing, width < 80 ? 3 : 6.4).padding(.leading, (width < 80 ? 3 : 6.4) + 3)
+            .padding(.top, UFCancel.label(e) != nil ? 14 : 0)
             .frame(width: width, height: h, alignment: .topLeading)
+            .clipped()
             .background(ausfall ? UF.surface2 : Color(hex: e.s("color")))
             .overlay(alignment: .leading) { if !ausfall { Rectangle().fill(Color.black.opacity(0.18)).frame(width: 3) } }
             .overlay { if ausfall { RoundedRectangle(cornerRadius: 8).strokeBorder(UF.lineStrong, style: StrokeStyle(lineWidth: 1, dash: [3, 2])) } }
             // Ausfall aus einer Ankuendigung, noch nicht bestaetigt: Rahmen in Warnfarbe, der Termin steht noch
             .overlay { if UFCancel.unsure(e) { RoundedRectangle(cornerRadius: 8).strokeBorder(UF.warn, lineWidth: 2) } }
             .overlay(alignment: .topTrailing) {
-                if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 9.6, pill: true).padding(3) }
+                if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 9.6, pill: true, iconOnly: width < 80).padding(3) }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .ufShadow(.sm)

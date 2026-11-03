@@ -139,7 +139,7 @@ public enum Holidays {
         let marks = dayMarks(from: start, to: end, university: try university ?? Self.university(c), studip: try StudIPTerms.load(c))
         var byDay: [String: [JSONValue]] = [:]
         for r in try c.rows("""
-            SELECT d.id, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color
+            SELECT d.id, d.source, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color
                                           FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
                                           WHERE d.due_at >= ? AND d.due_at < ? ORDER BY d.due_at
             """, [.text(BerlinClock.isoDate(start)), .text(BerlinClock.isoDate(end + 1))]) {
@@ -152,6 +152,7 @@ public enum Holidays {
                 "kind_label": .string((deadlineLabels[kind] ?? "Frist") + (overdue ? " (überfällig)" : "")),
                 "time": .string(PyText.slice(due, 11, 16)), "url": r["url"] ?? .null, "overdue": .bool(overdue),
                 "course_title": r["course_title"] ?? .null, "color": r["color"] ?? .null,
+                "source": r["source"] ?? .null,                   // learnweb | studip (Courseware): Quelle im Detail
             ])
         }
         // Geraet: erkannte Abgaben, Tests und Pruefungen aus Dokumenten und Ankuendigungen (DueStore; am PC keine),

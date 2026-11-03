@@ -84,6 +84,31 @@ def test_calendar_dashboard_and_api_show_notices(app, ann_db, monkeypatch):
     assert status == 200 and [a["id"] for a in json.loads(body)["announcements"]] == ["lw-post-1"]
 
 
+def test_calendar_hint_fields_for_detail(app, ann_db, monkeypatch):
+    """Antippbare Hinweise im Kalender (03.11.2026): Hinweise tragen Kurs, Modul und Datum der Ankuendigung, Fristen
+    ihre Quelle (learnweb | studip)"""
+    from conftest import asgi_call
+    from app import announcements as ann, db, study
+    monkeypatch.setattr(study, "today", lambda: date(2026, 10, 28))
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM deadlines")
+        ann.store(conn, [_ann(1, "lw-39", "Die Sitzung am 3.11. fällt leider aus.")], "learnweb", "t")
+        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue, fetched_at)
+                        VALUES ('sp-cw-1', 'studip', 'lw-39', 'Aufgabe 2', 'Aufgabe 2', 'abgabe', 'courseware', '2026-11-03T12:00',
+                                'https://studip.example/cw', 0, 't')""")
+    status, _, body = asgi_call(app, "GET", "/api/calendar?start=2026-11-03&end=2026-11-03")
+    (day,) = json.loads(body)["days"]
+    (n,) = day["notices"]
+    assert status == 200 and (n["course_id"], n["posted_at"]) == ("lw-39", "2026-10-27T09:00:00+01:00") and "module_id" in n
+    (d,) = day["deadlines"]
+    assert (d["source"], d["kind_label"], d["time"]) == ("studip", "Abgabe", "12:00")
+    status, _, body = asgi_call(app, "GET", "/api/timetable/week?start=2026-11-02")
+    tw = {x["date"]: x for x in json.loads(body)["days"]}["2026-11-03"]
+    assert tw["notices"][0]["course_id"] == "lw-39" and tw["deadlines"][0]["source"] == "studip"
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM deadlines")
+
+
 def test_web_shows_notices():
     from pathlib import Path
     st = Path(__file__).resolve().parents[1] / "app" / "static"

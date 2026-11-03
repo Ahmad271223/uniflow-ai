@@ -658,73 +658,70 @@ enum UFDayExtras {
     }
 }
 
-/// Chips eines Tages: Markierungen (gruen), Fristen (Modulfarbe, sonst rot; Tippen oeffnet das Learnweb), erkannte
-/// Abgaben, Tests und Pruefungen (wie Fristen, mit Dokument-Symbol; Tippen oeffnet die PDF auf der Seite bzw. die
-/// Ankuendigung), Hinweise aus Ankuendigungen (blau, Tippen oeffnet den Beitrag). `compact`: nur Uhrzeit und Art.
+/// Chips eines Tages: Markierungen (gruen), Fristen (Modulfarbe, sonst rot), erkannte Abgaben, Tests und Pruefungen
+/// (wie Fristen, mit Dokument-Symbol), Hinweise aus Ankuendigungen (blau, Ausfall und Verlegung in Warnfarbe). Jeder
+/// Chip ist antippbar und oeffnet das Detail (`UFHintDialog`, 03.11.2026) mit Art, Datum, Kurs, Satz aus der Quelle,
+/// "Quelle öffnen" und "Zum Termin". `compact`: nur Uhrzeit und Art.
 struct UFDayExtraChips: View {
     let dd: JSONValue
     var compact = true
     /// Chips untereinander (Tageskopf) statt umbrechend (Tagesansicht)
     var stacked = true
-    @Environment(\.openURL) private var openURL
-    @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var overlay: UFOverlay
 
     var body: some View {
-        let marks = UFDayExtras.marks(dd), dls = dd.list("deadlines"), notes = dd.list("notices")
-        if !marks.isEmpty || !dls.isEmpty || !notes.isEmpty {
+        let hints = UFHint.all(dd)
+        if !hints.isEmpty {
             Group {
                 if stacked {
-                    VStack(alignment: .leading, spacing: 2.4) { chips(marks, dls, notes) }
+                    VStack(alignment: .leading, spacing: 2.4) { chips(hints) }
                 } else {
-                    UFFlexWrap(gap: 4.8, rowGap: 4) { chips(marks, dls, notes) }
+                    UFFlexWrap(gap: 4.8, rowGap: 4) { chips(hints) }
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func chips(_ marks: [JSONValue], _ dls: [JSONValue], _ notes: [JSONValue]) -> some View {
-        ForEach(marks.indices, id: \.self) { i in
-            let m = marks[i]
-            let label = m.s("label") ?? ""
-            chip(compact ? UFDayExtras.shortLabel(label) : label, fg: UF.ok, bg: UF.okSoft, border: UF.ok)
-                .help(label)
-        }
-        ForEach(dls.indices, id: \.self) { i in
-            let x = dls[i]
-            let color = x.s("color").map { Color(hex: $0) } ?? UF.bad
-            let detected = x["detected"]?.bool == true
-            let time = x.s("time").flatMap { $0.isEmpty ? nil : $0 }
-            let what = compact || detected ? (detected && !compact ? (x.s("title") ?? "Termin") : (x.s("kind_label") ?? "Frist"))
-                : "\(x.s("kind_label") ?? "Frist"): \(x.s("title") ?? "")"
-            let text = (time.map { "\($0) " } ?? "") + what
-            Button {
-                if detected { DueOpen.open(x, router: router, openURL: openURL) }
-                else if let u = UFDayExtras.safeURL(x.s("url")) { openURL(u) }
-            } label: {
-                chip(text, fg: color, bg: color.opacity(0.12), border: color, icon: detected ? "file-text" : nil, bold: time)
-            }
-            .buttonStyle(.plain)
-            .help("\(x.s("kind_label") ?? "") \(time ?? "") · \(x.s("full_title") ?? x.s("title") ?? "")\(x.s("course_title").map { " · \($0)" } ?? "")")
-            .accessibilityLabel(detected ? "\(x.s("title") ?? "Termin")\(time.map { " \($0)" } ?? ""), \(x.s("origin") ?? "erkannt")"
-                                         : "Frist \(x.s("time") ?? ""): \(x.s("title") ?? "")")
-        }
-        ForEach(notes.indices, id: \.self) { i in
-            let n = notes[i]
-            let text = (n.s("time").map { "\($0) " } ?? "") + (compact ? (n.s("kind_label") ?? "Termin") : "\(n.s("kind_label") ?? "Termin"): \(n.s("title") ?? "")")
-            Button {
-                if let u = UFDayExtras.safeURL(n.s("url")) { openURL(u) }
-            } label: {
-                chip(text, fg: UF.info, bg: UF.infoSoft, border: UF.info, icon: "info", bold: n.s("time"))
-            }
-            .buttonStyle(.plain)
-            .help("\(n.s("title") ?? "")\(n.s("course_title").map { " · \($0)" } ?? ""): \(n.s("snippet") ?? "")")
-            .accessibilityLabel("Hinweis aus Ankündigung: \(n.s("title") ?? "")")
+    private func chips(_ hints: [UFHint]) -> some View {
+        ForEach(hints) { h in
+            Button { open(h) } label: { chip(h) }
+                .buttonStyle(.plain)
+                .help("\(h.kindText): \(h.title)\(h.course.map { " · \($0)" } ?? "")")
+                .accessibilityLabel("\(h.kindText)\(h.time.map { " \($0) Uhr" } ?? ""): \(h.title)")
+                .accessibilityHint("Zeigt, worum es geht")
+                .accessibilityIdentifier("day-hint")
         }
     }
 
-    private func chip(_ text: String, fg: Color, bg: Color, border: Color, icon: String? = nil, bold: String? = nil) -> some View {
-        HStack(spacing: 3) {
+    private func open(_ h: UFHint) {
+        let events = dd.list("events")
+        _ = overlay.modal { UFHintDialog(hint: h, events: events) }
+    }
+
+    /// Text des Chips: kompakt Uhrzeit und Art, sonst mit Titel
+    static func text(_ h: UFHint, compact: Bool) -> String {
+        let what: String
+        switch h.category {
+        case .mark: what = compact ? UFDayExtras.shortLabel(h.title) : h.title
+        case .detected: what = compact ? (h.raw.s("kind_label") ?? h.kindText) : h.title
+        case .deadline: what = compact ? h.kindText : "\(h.kindText): \(h.title)"
+        case .notice: what = compact ? h.kindText : "\(h.kindText): \(h.title)"
+        }
+        return (h.time.map { "\($0) " } ?? "") + what
+    }
+
+    private func chip(_ h: UFHint) -> some View {
+        let color: Color = switch h.category {
+        case .mark: UF.ok
+        case .deadline, .detected: h.raw.s("color").map { Color(hex: $0) } ?? UF.bad
+        case .notice: h.tone == .warn ? UF.warn : h.tone == .bad ? UF.bad : UF.info
+        }
+        let bg: Color = h.category == .mark ? UF.okSoft : h.category == .notice ? h.tone.bg : color.opacity(0.12)
+        let icon: String? = h.category == .detected ? "file-text" : h.category == .notice ? (h.tone == .info ? "info" : h.icon) : nil
+        let text = Self.text(h, compact: compact)
+        let bold = h.time
+        return HStack(spacing: 3) {
             if let icon { UFIcon(icon, size: 10) }
             if let bold, !bold.isEmpty, text.hasPrefix(bold) {
                 Text(bold).font(.uf(10.4, 700)) + Text(String(text.dropFirst(bold.count))).font(.uf(10.4, 400))
@@ -732,12 +729,14 @@ struct UFDayExtraChips: View {
                 Text(text).font(.uf(10.4, 400))
             }
         }
-        .foregroundStyle(fg)
+        .foregroundStyle(color)
         .lineLimit(1)
-        .padding(.vertical, 1.6).padding(.horizontal, 5.6)
+        .minimumScaleFactor(0.85)
+        .padding(.vertical, 1.6 + ufB).padding(.horizontal, 5.6)
         .background(Capsule().fill(bg))
-        .overlay(Capsule().strokeBorder(border.opacity(0.6), lineWidth: 1))
+        .overlay(Capsule().strokeBorder(color.opacity(0.6), lineWidth: 1))
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Capsule())
     }
 }
 

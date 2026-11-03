@@ -515,7 +515,11 @@ public enum Announcements {
     static func byDay(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> [String: [JSONValue]] {
         let lo = BerlinClock.isoDate(start), hi = BerlinClock.isoDate(end)
         var out: [String: [JSONValue]] = [:]
-        for r in try c.rows(selectRows + " WHERE a.dates <> '[]'") {
+        // course_id/module_id: Termin zum Hinweis finden ("Zum Termin"); posted_at: Datum der Quelle im Detail (03.11.2026)
+        for r in try c.rows("""
+            SELECT a.*, c.title AS course_title, c.module_id, m.color FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
+                                      LEFT JOIN modules m ON m.id=c.module_id WHERE a.dates <> '[]'
+            """) {
             let x = try row(r)
             for d in x["dates"]?.array ?? [] {
                 guard let day = d["date"]?.string, !PyText.less(day, lo), !PyText.less(hi, day) else { continue }
@@ -524,7 +528,8 @@ public enum Announcements {
                     "announcement_id": x["id"] ?? .null, "title": x["title"] ?? .null, "kind": d["kind"] ?? .null,
                     "kind_label": .string(kindLabels[kind] ?? "Termin"), "time": d["time"] ?? .null, "snippet": d["snippet"] ?? .null,
                     "url": x["url"] ?? .null, "course_title": x["course_title"] ?? .null, "color": x["color"] ?? .null,
-                    "source": x["source"] ?? .null,
+                    "source": x["source"] ?? .null, "course_id": x["course_id"] ?? .null, "module_id": r["module_id"] ?? .null,
+                    "posted_at": x["posted_at"] ?? .null,
                 ])
             }
         }

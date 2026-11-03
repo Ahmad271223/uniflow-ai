@@ -349,7 +349,8 @@ def by_day(conn, start: date, end: date) -> dict[str, list[dict]]:
     from . import db
     lo, hi = start.isoformat(), end.isoformat()
     out: dict[str, list[dict]] = {}
-    for r in db.rows(conn, """SELECT a.*, c.title AS course_title, m.color FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
+    # course_id/module_id: Termin zum Hinweis finden ("Zum Termin"); posted_at: Datum der Quelle im Detail (03.11.2026)
+    for r in db.rows(conn, """SELECT a.*, c.title AS course_title, c.module_id, m.color FROM announcements a LEFT JOIN courses c ON c.id=a.course_id
                               LEFT JOIN modules m ON m.id=c.module_id WHERE a.dates <> '[]'"""):
         x = _row(r)
         for d in x["dates"]:
@@ -357,7 +358,7 @@ def by_day(conn, start: date, end: date) -> dict[str, list[dict]]:
                 out.setdefault(d["date"], []).append({
                     "announcement_id": x["id"], "title": x["title"], "kind": d["kind"], "kind_label": KIND_LABELS.get(d["kind"], "Termin"),
                     "time": d["time"], "snippet": d["snippet"], "url": x["url"], "course_title": x["course_title"], "color": x["color"],
-                    "source": x["source"]})
+                    "source": x["source"], "course_id": x["course_id"], "module_id": r["module_id"], "posted_at": x["posted_at"]})
     for v in out.values():
         v.sort(key=lambda n: (n["time"] or "", n["title"]))
     return out

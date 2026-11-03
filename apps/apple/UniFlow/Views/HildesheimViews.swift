@@ -88,40 +88,61 @@ struct HildesheimConnectCard: View {
     }
 }
 
-/// Statusleiste: Stand je verbundener Quelle ("Learnweb: 16:30 ok", "LSF: Anmeldung nötig"), Meldungen des letzten
-/// Abgleichs, "Jetzt abgleichen" bzw. "Erneut versuchen"
+/// Statusleiste: Stand je verbundener Quelle ("Learnweb: 16:30 ok", "LSF: Anmeldung nötig") und "Jetzt abgleichen"
+/// bzw. "Erneut versuchen" in einer Zeile; die Meldungen des letzten Abgleichs ("0 neue/geänderte Dateien …") stehen
+/// eingeklappt dahinter und klappen auf Tippen auf (Wunsch des Inhabers 03.11.2026: keine grosse Karte ueber dem Kalender)
 struct HildesheimStatusLine: View {
     @ObservedObject var connection: HildesheimConnection
+    @State private var open = false
 
     var body: some View {
         let sources = HildesheimConnection.Source.allCases.filter { connection.isConnected($0) }
         let failed = sources.contains { if case .failed = connection.state($0) { return true }; return false }
-        UFCard(flat: true) {
-            HStack(alignment: .top, spacing: 9.6) {
+        let summary = connection.messages.joined(separator: " · ")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
                 if connection.isRunning {
-                    ProgressView().tint(UF.accent)
+                    ProgressView().tint(UF.accent).controlSize(.small)
                 } else {
-                    UFIcon(failed ? "alert" : "check", size: 18).foregroundStyle(failed ? UF.warn : UF.ok)
+                    UFIcon(failed ? "alert" : "check", size: 16).foregroundStyle(failed ? UF.warn : UF.ok)
                 }
-                VStack(alignment: .leading, spacing: 4.8) {
-                    UFFlexWrap(gap: 6.4) {
-                        ForEach(sources) { s in
-                            UFBadge(HildesheimConnection.statusText(s, connection.state(s)), tone: Self.tone(connection.state(s)))
+                ForEach(sources) { s in
+                    UFBadge(HildesheimConnection.statusText(s, connection.state(s)), tone: Self.tone(connection.state(s)))
+                        .fixedSize()
+                }
+                Button { if !summary.isEmpty { withAnimation(UF.transition) { open.toggle() } } } label: {
+                    HStack(spacing: 4) {
+                        Text(summary).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1).truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if !summary.isEmpty {
+                            UFIcon("chevron-down", size: 14).foregroundStyle(UF.muted).rotationEffect(.degrees(open ? 180 : 0))
                         }
                     }
-                    if !connection.messages.isEmpty {
-                        Text(connection.messages.joined(separator: " · "))
-                            .ufFont(13.12).foregroundStyle(UF.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    .contentShape(Rectangle())
                 }
-                Spacer(minLength: 8)
+                .buttonStyle(.plain)
+                .disabled(summary.isEmpty)
+                .accessibilityLabel(summary.isEmpty ? "Abgleich" : "Meldungen des Abgleichs")
+                .accessibilityHint(open ? "Zuklappen" : "Aufklappen")
                 UFButton(failed ? "Erneut versuchen" : "Jetzt abgleichen", icon: failed ? "refresh" : "sync", size: .small) {
                     Task { await connection.run() }
                 }
+                .fixedSize()
                 .disabled(connection.isRunning)
             }
+            if open && !summary.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(connection.messages.indices, id: \.self) { i in
+                        Text(connection.messages[i]).ufFont(13.12).foregroundStyle(UF.text2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.leading, 24)
+            }
         }
+        .padding(.vertical, 8).padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
         .accessibilityIdentifier("hildesheim.status")
     }
 
