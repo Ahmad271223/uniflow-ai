@@ -343,7 +343,11 @@ struct DocumentView: View {
         .sheet(isPresented: $showOutline) { OutlineSheet(bridge: bridge) }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
-            CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle) { f in
+            CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id, sourceTitle: store.file.displayTitle,
+                            solutions: foreignLayers.map { ($0.id, $0.label) },
+                            onSolution: { id in
+                                if let layer = foreignLayers.first(where: { $0.id == id }) { companion = nil; solutionSide = layer }
+                            }) { f in
                 solutionSide = nil
                 companion = Companion(file: f, pdfPage: nil)
             }
@@ -1081,7 +1085,16 @@ struct DocumentView: View {
             }
             if foreignLayers.contains(where: \.visible) {
                 Divider().frame(height: 14)
-                Label("\(foreignLayers.filter(\.visible).count) Lösung(en) eingeblendet", systemImage: "square.3.layers.3d").lineLimit(1)
+                // antippen: die Loesung daneben ansehen (03.11.2026: tief im Ebenen-Menue nicht gefunden)
+                Button {
+                    if let layer = foreignLayers.first(where: \.visible) {
+                        if entitlements.allows(.splitView) { companion = nil; solutionSide = layer } else { lockedFeature = .splitView }
+                    }
+                } label: {
+                    Label("\(foreignLayers.filter(\.visible).count) Lösung(en) eingeblendet · daneben ansehen", systemImage: "square.3.layers.3d").lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("doc.solutionBeside")
             }
             if let notice = store.notice ?? store.pageNotice ?? store.inkNotice {
                 Divider().frame(height: 14)
@@ -1163,6 +1176,9 @@ struct CompanionPicker: View {
     let excluding: String
     /// Titel der offenen Datei, fuer den Namen des neuen Blatts
     var sourceTitle = ""
+    /// empfangene Loesungen zu dieser PDF (ID, Name): "Lösung daneben ansehen" steht dann zuerst
+    var solutions: [(id: String, label: String)] = []
+    var onSolution: (String) -> Void = { _ in }
     let onPick: (LibFile) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var files: [LibFile] = []
@@ -1183,6 +1199,7 @@ struct CompanionPicker: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    if !solutions.isEmpty { solutionSection }
                     blankSection
                     documentSection
                 }
@@ -1193,6 +1210,32 @@ struct CompanionPicker: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
             .task { await loadFiles() }
+        }
+    }
+
+    private var solutionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Lösung daneben ansehen").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+            Text("Links deine Folie, rechts die Lösung auf derselben Seite.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 0) {
+                ForEach(Array(solutions.enumerated()), id: \.element.id) { i, sol in
+                    if i > 0 { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
+                    Button { onSolution(sol.id); dismiss() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "rectangle.split.2x1").foregroundStyle(UF.accent).frame(width: 24)
+                            Text(sol.label).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("companion.solution.\(i)")
+                }
+            }
+            .background(UF.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(UF.line, lineWidth: 1))
         }
     }
 

@@ -775,3 +775,18 @@ final class HildesheimAppTests: XCTestCase {
 private func unwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
     try XCTUnwrap(value, file: file, line: line)
 }
+
+/// Statusleiste oben nur mit Neuem oder Fehlern (03.11.2026: "warum steht da oben immer abgehakt")
+final class HildesheimStatusLineQuietTests: XCTestCase {
+    @MainActor func testOnlyNewsOrErrorsShowTheLine() {
+        let quiet = ["0 neue/geänderte Dateien aus 12 Learnweb-Kursen, 8 Kurse aus früheren Semestern ohne Dateien (Einstellungen → Module)",
+                     "Fristen: 3 (0 neu, 0 entfernt)", "Ankündigungen: 0 neu (0 mit Termin), 0 entfernt",
+                     "Stundenplan: 0 neu, 13 unverändert, 0 entfernt", "Notenspiegel: 12 Leistungen"]
+        XCTAssertFalse(HildesheimStatusLine.hasNews(quiet))
+        XCTAssertFalse(HildesheimStatusLine.hasNews([]))
+        XCTAssertTrue(HildesheimStatusLine.hasNews(quiet + ["2 neue/geänderte Dateien aus 12 Learnweb-Kursen"]))
+        XCTAssertTrue(HildesheimStatusLine.hasNews(["Fristen: 4 (1 neu, 0 entfernt)"]))
+        XCTAssertTrue(HildesheimStatusLine.hasNews(["Learnweb: Server antwortet mit 500"]))
+        XCTAssertTrue(HildesheimStatusLine.hasNews(["LSF-Stundenplan ist leer"]))
+    }
+}

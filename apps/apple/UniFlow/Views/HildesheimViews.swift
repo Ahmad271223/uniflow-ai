@@ -41,7 +41,7 @@ struct HildesheimSourcesBar: View {
                         ForEach(open) { s in HildesheimConnectCard(source: s, state: connection.state(s)) { login = s } }
                     }
                 }
-                if connection.anyConnected { HildesheimStatusLine(connection: connection) }
+                if connection.anyConnected && HildesheimStatusLine.shows(connection) { HildesheimStatusLine(connection: connection) }
             }
             .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
         }
@@ -145,6 +145,31 @@ struct HildesheimStatusLine: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
         .accessibilityIdentifier("hildesheim.status")
+    }
+
+    /// Nur sichtbar, wenn es etwas zu sagen gibt: Abgleich laeuft, eine Quelle braucht Anmeldung oder scheiterte,
+    /// oder der letzte Abgleich brachte Neues (03.11.2026: "warum steht da oben immer abgehakt"); sonst reicht "Sync" oben
+    static func shows(_ c: HildesheimConnection) -> Bool {
+        if c.isRunning { return true }
+        let sources = HildesheimConnection.Source.allCases.filter { c.isConnected($0) }
+        let problem = sources.contains {
+            switch c.state($0) { case .ok, .connected, .notConnected: return false; default: return true }
+        }
+        return problem || hasNews(c.messages)
+    }
+
+    /// Meldungen mit Aenderungen ("3 neue/geänderte Dateien", "Fristen: 4 (1 neu, 0 entfernt)") oder Fehlern;
+    /// ruhig sind nur die bekannten Meldungen ohne Neues (Muster aus `HildesheimSync`)
+    static let quiet = [
+        #"^0 neue/geänderte Dateien aus \d+ Learnweb-Kursen(, \d+ Kurse? aus früheren Semestern ohne Dateien.*)?$"#,
+        #"^Fristen: \d+ \(0 neu, 0 entfernt\)$"#,
+        #"^Ankündigungen: 0 neu \(0 mit Termin\), 0 entfernt$"#,
+        #"^Stundenplan: 0 neu, \d+ unverändert, 0 entfernt$"#,
+        #"^Notenspiegel: \d+ Leistungen$"#,
+    ]
+
+    static func hasNews(_ messages: [String]) -> Bool {
+        messages.contains { m in !quiet.contains { m.range(of: $0, options: .regularExpression) != nil } }
     }
 
     static func tone(_ s: HildesheimConnection.State) -> UFTone {
