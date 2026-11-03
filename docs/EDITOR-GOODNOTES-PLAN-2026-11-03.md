@@ -1,45 +1,55 @@
-# Editor wie aus einem Guss – Plan nach dem Vorbild GoodNotes (03.11.2026)
+# Editor wie aus einem Guss – Apples Palette bleibt, unsere Teile arbeiten mit ihr (03.11.2026)
 
-Stand: Recherche und Plan, noch kein Produktionscode geändert. Mockups (hell und dunkel) liegen in der Mac-Sitzung unter
-`/private/tmp/claude-501/-Users-ahmadfakih-uniflow-ai/b2e6b52d-8140-52f8-a368-082b8202c588/scratchpad/editor-plan/`
-(`1-werkzeugleiste-stift-*.png`, `2-zoomfenster-hell.png`, `3-lasso-seitenleiste-*.png`, Quelle `mockup.html`).
+Stand: überarbeitet nach deiner Entscheidung vom 03.11.2026. **Apples Palette (`PKToolPicker`) bleibt.** Unsere eigenen
+Teile wandern in die Palette oder richten sich nach ihr. Die Schritte A bis D sind im Code umgesetzt und getestet, aber
+noch nicht committet. Ab Schritt E folgt der Plan.
+
+Die erste Fassung schlug eine eigene Werkzeugleiste anstelle der Palette vor. Das ist verworfen. Die Mockups von damals
+zeigen noch diese eigene Leiste und gelten deshalb nur noch für die Seitenleiste mit „+“ (Mockup 3) und das Zoom-Fenster
+(Mockup 2). Sie liegen unter `/private/tmp/claude-501/-Users-ahmadfakih-uniflow-ai/b2e6b52d-8140-52f8-a368-082b8202c588/scratchpad/editor-plan/`.
 
 ## Kurzfassung
 
-Du hast recht: Heute arbeiten **drei Bedienflächen nebeneinander**. Da ist Apples schwebende Palette (`PKToolPicker`). Dazu kommt
-unsere Navigationsleiste mit elf Knöpfen: Seiten, Rückgängig, Suchen, KI, Geteilt, Nur Stift, Tinte/Objekte, Ebenen,
-Teilen und Mehr. Die dritte ist die Objektleiste unten (`ObjectToolbar`) mit eigenem Werkzeugsatz und eigener Farbauswahl.
-Die Palette gehört nicht uns. Sie hängt am Erstantwortgeber und verschwindet, sobald ein Textfeld, Menü oder die PDF-Ansicht den
-Fokus nimmt. Wir holen sie heute mit bis zu zehn Wiederholungen zurück (`restorePickerSoon`). Stift und Formen haben
-verschiedene Farbwelten, und es gibt zwei Lassos: das von PencilKit für Tinte und unseres für Objekte.
+Bisher arbeiteten drei Bedienflächen nebeneinander:
+- **Apples Palette**
+- **unsere Navigationsleiste** mit Rückgängig/Wiederholen, „Nur Stift“ und „Tinte/Objekte“
+- **unsere Objektleiste unten** mit einem eigenen Werkzeugsatz
 
-GoodNotes macht das anders. Es zeigt **eine eigene Werkzeugleiste oben**: Lasso, Stift, Textmarker, Radierer, Formen, Text,
-Bild/Elemente, Laserpointer und Zoom-Fenster. Die Optionen des aktiven Werkzeugs erscheinen direkt an der Leiste. Rückgängig
-und Wiederholen sitzen in derselben Leiste. Ein Lesemodus-Schalter blendet die ganze Werkzeugleiste aus. GoodNotes nutzt dafür
-nicht einmal PencilKit, sondern eine eigene Swift-Tinten-Engine (Metal, auf dem Web per WebAssembly).
+Dabei gab es zwei Rückgängig-Knöpfe und zwei Schalter für „Finger zeichnet“. Der Schalter der Palette war sogar
+wirkungslos, weil wir die Eingabeart der Zeichenflächen fest gesetzt hatten.
 
-**Vorschlag:** Wir behalten PencilKit als Tinten-Engine, weil das Notizformat mit dem Web, die Druckdaten und Scribble daran
-hängen. Apples Palette ersetzen wir durch **unsere eigene Werkzeugleiste**. Sie setzt `canvas.tool` auf allen Seiten direkt.
-PencilKit braucht dafür keine Systempalette.
-- Ein gemeinsamer Werkzeugzustand (`EditorTools`) gilt für alle Seiten und für beide Seiten der geteilten Ansicht.
-- Es gibt drei Stärken und drei Farben direkt in der Leiste, ein Optionsfenster beim zweiten Tippen und Favoriten.
-- Ein einziges Lasso wählt Tinte und Objekte zugleich. Der Schalter „Tinte/Objekte“ fällt weg, die Objektwerkzeuge
-  (Text, Haftnotiz, Formen) werden normale Werkzeuge in derselben Leiste.
+Seit heute ist die Palette der Ort für alle Werkzeuge:
 
-Damit entfallen die meisten heutigen Reparaturen rund um die Palette:
-- Anker als Erstantwortgeber
-- Wiederholungsschleife
-- Fenstersuche nach Menüs
-- „Palette schließt Menüs“
+- **A – Unsere Werkzeuge stehen in der Palette (ab iPadOS 18):**
+  - Neue Einträge: Objekte auswählen (Antippen oder Lasso), Text, Haftnotiz, Form (Rechteck, Ellipse, Linie, Pfeil) und
+    Text markieren.
+  - Wer einen dieser Einträge wählt, ist im Objektmodus. Wer einen Stift, Radierer oder Lasso von Apple wählt, verlässt ihn
+    wieder. Der Knopf „Tinte/Objekte“ fällt dadurch weg.
+  - Unter iPadOS 17 bleibt die bisherige Objektleiste. Die App läuft weiter ab iOS 17.0, die neuen Teile hängen an
+    `#available(iOS 18.0, *)`.
+- **B – Palette statt Doppelknöpfe:**
+  - „Mit dem Finger zeichnen“ kommt jetzt aus der Palette. Die Zeichenflächen nutzen dafür die Eingabeart `.default`,
+    unser Knopf „Nur Stift“ ist am iPad weg.
+  - Rückgängig und Wiederholen kommen aus der Palette, die Knöpfe oben sind am iPad weg. Die Objektleiste hat eigene Knöpfe
+    für Objektaktionen.
+  - Beide Wege nutzen **einen** Verlauf für Striche, Objekte und neu eingefügte Seiten. Eingefügte Seiten ließen sich vorher
+    gar nicht rückgängig machen.
+- **C – Farben kommen aus der Palette:**
+  - Text und Formen übernehmen beim Wechsel vom Stift dessen Farbe, solange man im Eintrag keine eigene gewählt hat. Die
+    Formstärke stellt man im Eintrag ein.
+  - „Text markieren“ nimmt die Farbe des Textmarkers. Ist sie hell, wird Unter- und Durchstreichen wie im Web rot.
+- **D – Die Palette bleibt sicherer sichtbar:**
+  - Die Schleife mit zehn Wiederholungen ist ersetzt. Der Editor wartet jetzt auf das Ereignis, das die Palette verdeckt
+    hielt: Tastatur oder Textfeld fertig, Blatt hat den Bildschirm verlassen, Menüfenster zu, Fenster wieder vorn.
+  - Verlässt eine Seite mit Fokus die Anzeige, etwa beim Neuaufbau nach „Seite einfügen“, geht der Fokus an den Anker. Die
+    Palette schließt sich dann nicht mehr.
 
-**Aufwand gesamt:** rund 14–20 Arbeitstage in sieben Schritten. Jeder Schritt ist für sich auslieferbar. Die Schritte 1–4
-ergeben nach etwa 8–11 Tagen das „ein Werkzeug“-Gefühl:
-1. eigene Leiste
-2. Optionsfenster und Pencil-Gesten
-3. Seitenleiste mit „+“
-4. Objektwerkzeuge in derselben Leiste
+**Dabei gefunden und behoben:** Steht die Palette auf einem eigenen Eintrag, liefert PencilKit ein Werkzeug, das eine
+Zeichenfläche nicht kennt. Bekam eine neue Seite dieses Werkzeug, stürzte die App ab („Unknown PKTool type“, im Test
+nachgestellt). Neue Seiten bekommen deshalb immer das letzte Werkzeug von Apple (`canvasTool`).
 
-Lasso für alles, Formerkennung und Zoom-Fenster kommen danach. Handschrift-zu-Text ist eine spätere Ausbaustufe.
+**Noch offen:** Schritt E (Seitenleiste mit „+“) und die Ausbaustufen F bis I mit zusammen etwa 7 bis 12 Tagen.
+Abschnitt 4 nennt die Schritte im Einzelnen.
 
 ## 1. Was GoodNotes macht (mit Quellen)
 
@@ -73,205 +83,105 @@ stammen aus den Suchergebnis-Auszügen dieser offiziellen Seiten. „Ungeprüft�
   Werkzeuge über den öffentlichen Satz hinaus (https://developer.apple.com/forums/thread/742347). Freeform ist eine
   Leinwand-App, kein Seitendokument. Die schwebende Palette passt dort, in einem Seitenheft wirkt sie aufgesetzt.
 
-## 2. Was wir heute haben – und wo es reibt
+## 2. GoodNotes und StudiNow im Vergleich
 
-Code: `apps/apple/UniFlow/Views/DocumentView.swift` (Leiste, Seitenleiste, `ObjectToolbar`) und
-`apps/apple/UniFlow/Editor/PDFEditorController.swift` (Palette, Overlays, Verlauf). Dazu `ObjectEditing.swift` mit den
-Objektwerkzeugen und dem eigenen Lasso.
-
-| Thema | GoodNotes | StudiNow heute | Reibung |
+| Thema | GoodNotes | StudiNow vorher | StudiNow seit 03.11.2026 (Apples Palette bleibt) |
 |---|---|---|---|
-| Werkzeugwahl | eigene Leiste oben, immer an derselben Stelle | Apples schwebende Palette, frei verschiebbar, hängt am Erstantwortgeber (`ToolPickerAnchor`) | verschwindet bei Textfeld, Menü, Blatt, App-Wechsel und PDF-Textauswahl; Rückholschleife mit 10 Versuchen (`restorePickerSoon`) |
-| Tinte vs. Objekte | ein Werkzeugsatz | Schalter „Tinte/Objekte“; im Objektmodus eine zweite Leiste unten (`ObjectToolbar`), der Stift schreibt dann nicht | zwei Modi, zwei Leisten, zwei Farbauswahlen (Palette vs. Menü mit 6 Farben) |
-| Lasso | ein Lasso für alles | PencilKit-Lasso (nur Tinte) **und** eigenes Lasso (nur Objekte) | Tinte und Text lassen sich nicht zusammen verschieben |
-| Optionen | am Werkzeug, in der Leiste | in Apples Palette (Farbrad, Stärke), nicht anpassbar | keine Voreinstellungen, keine Favoriten, keine Verbindung zu unseren Webfarben |
-| Rückgängig | in der Leiste | in der Leiste **und** in der Palette (zwei Knöpfe für dasselbe) | doppelte Symbole |
-| Lesemodus | ein Schalter, Leiste weg | „Meine Notizen ausblenden“ im Ebenen-Menü = nur ansehen | schwer zu finden; Palette verschwindet ohne Erklärung |
-| Finger/Stift | Handballen-Einstellung | „Nur Stift / Finger zeichnet“ als eigener Leistenknopf | gehört in die Werkzeugoptionen bzw. Einstellungen |
-| Seitenleiste | Miniaturen und Gliederung | Miniaturen und Lesezeichen (`PageSidebar`); Gliederung als eigenes Blatt; Seiten einfügen über Mehr → Menü | kein „+“ am Ende; Einfügen über verschachtelte Menüs |
-| Geteilte Ansicht | – | eine Palette für beide Dokumente (`ownsToolPicker: false`), gemeinsamer Verlauf | funktioniert, ist aber eng an die Palette gekoppelt |
-| Pencil-Doppeltippen/Squeeze | eigene Schnellpalette | nur Systemverhalten über die Palette; die App hat dafür keinen eigenen Code (EDITOR-ABNAHME 2.3/2.4) | ohne Palette fiele das weg und muss nachgebaut werden |
+| Werkzeugwahl | eigene Leiste oben, Lasso fest vorn | Apples Palette für Tinte, dazu Objektleiste unten mit eigenem Werkzeugsatz und Schalter „Tinte/Objekte“ | **eine Palette**: Apples Werkzeuge zuerst, unsere fünf dahinter (ab iPadOS 18); unter iPadOS 17 wie vorher |
+| Werkzeugoptionen | Kontextmenü am Werkzeug | Palette für Tinte, Menü mit 6 Farben für Objekte | Popover der Palette auch für unsere Einträge: Farbe (Text, Form), Stärke (Form), Formart bzw. Antippen/Lasso |
+| Farben | je Werkzeug | Objekte immer Rot, Markieren immer Gelb | Objekte nehmen die Stiftfarbe (bis man im Eintrag eine eigene wählt), Markieren die Textmarkerfarbe |
+| Rückgängig | in der Leiste, Gesten mit zwei/drei Fingern | oben **und** in der Palette (doppelt), eingefügte Seiten nicht rückgängig | Palette (iPad) bzw. Leiste (Mac), dazu in der Objektleiste; ein Verlauf für Striche, Objekte und eingefügte Seiten |
+| Finger/Stift | Einstellung Handballenerkennung | eigener Knopf „Nur Stift“, Schalter der Palette ohne Wirkung | Schalter „Mit dem Finger zeichnen“ der Palette (iPadOS-Einstellung), Knopf weg |
+| Palette sichtbar | Leiste immer da | verschwand bei Fokuswechsel, Rückholung mit 10 Versuchen über 10 s | Rückholung auf Ereignisse; Fokus bleibt beim Neuaufbau |
+| Pencil-Doppeltippen/Squeeze | eigene Schnellpalette | Systemverhalten der Palette | unverändert System; laut Apple erscheinen eigene Einträge auch in der Squeeze-Palette (am Gerät prüfen) |
+| Seitenleiste | Miniaturen, Gliederung | Miniaturen, Lesezeichen | unverändert (Schritt E) |
+| Lasso | eins für alles | Apples Lasso (Tinte) und unser Objekt-Lasso getrennt | beide jetzt in derselben Palette; Zusammenlegen ist Schritt G |
+| Schloss-Symbole | – | zwei gleiche Schlösser (Schreiben Plus, Geteilt Plus) | nur noch „Schreiben (Plus)“ mit Schloss; „Geteilt (Plus)“ mit dem Teilungssymbol, die Sperre nennt der Text |
 
-**Frühere Beschwerden und was dahintersteckt** (Commits zu `apps/apple/UniFlow/Editor`, `docs/EDITOR-ABNAHME.md`):
+## 3. Was im Code geändert ist (03.11.2026, nicht committet)
 
-| Beschwerde | Fix-Commit | Ursache |
-|---|---|---|
-| Palette verschwindet | e6ef15a, 753cac3, 4662a18, 85ba672 | Palette hängt am Erstantwortgeber. Jeder Fokuswechsel nimmt sie weg, die Rückholung fängt sich neue Nebenwirkungen ein („Palette schließt Menüs“). |
-| Tinte flackert beim Zoomen | e9b2902, d394122 | Canvas je Seite zoomt selbst. Das ist nicht von der Palette verursacht und bleibt Thema der Render-Schicht. |
-| Leiste springt nach jedem Strich | 85ba672 | Speicherstatus änderte die Breite der Leiste |
-| „pixelig“ (Text/Tinte) | 38fd434, 9a8c6ec | Render-Auflösung der Overlays |
-| doppelte Symbole | 52d8f65 | Apples Seitenleisten-Knopf neben unserem „Seiten“; ebenso Rückgängig doppelt (Palette + Leiste) |
-| Seite einfügen schließt die Leiste | – | Blatt oder Menü nimmt den Fokus, die Palette geht; heute per Rückholschleife |
-
-Fazit: Rund die Hälfte der Editor-Reparaturen der letzten Wochen betraf **die Palette selbst**. Mit einer eigenen Leiste
-fallen diese Fehler nicht nur weg, die Ursache gibt es dann gar nicht mehr.
-
-## 3. Architektur: „verschweißt“
-
-### 3.1 Grundsatz
-
-- **PencilKit bleibt** für Tinte, Druck und Neigung, Radieren, Scribble und Speichern. Das Notizformat ändert sich nicht:
-  `StrokeConverter` und `packages/shared-contracts/annotations.schema.json` mit `tool` ∈ pen/fountain/pencil/marker und `pkInk`
-  für die genaue Tintenart.
-- **`PKToolPicker` fällt weg.** Jede `PKCanvasView` bekommt ihr Werkzeug direkt (`canvas.tool = …`). Dafür braucht es weder
-  Palette noch Erstantwortgeber. Damit entfallen `ToolPickerAnchor`, `restorePicker*`, `otherWindowOpen`, `pickerWanted` und
-  `ToolPickerHolder`.
-- **Ein Werkzeugzustand** `EditorTools` (ObservableObject, eine Instanz je Fenster, wie heute `ToolPickerHolder`):
-  - `active`: lasso | pen | highlighter | eraser | shape | text | sticky | image | laser | zoomWindow | markup
-  - `penPresets[3]`, `highlighterPresets[3]`: Art, Farbe, Stärke
-  - `eraser`: Pixel oder Strich, nur Textmarker
-  - Gespeichert in `UserDefaults`, statt `stateAutosaveName`
-  - Der Controller beobachtet den Zustand und setzt beim Wechsel `tool` auf allen lebenden **und** geparkten Canvas. Neue
-    Overlays übernehmen ihn in `makeOverlay` (heute `c.tool = toolPicker.selectedTool`). Die geteilte Ansicht teilt sich
-    dieselbe Instanz, so wie heute die Palette.
-- **Werkzeuge ohne Tinte** (Text, Haftnotiz, Form, Bild, Lasso, Text markieren) schalten die Zeichen-Gesten der Canvas ab
-  (`drawingGestureRecognizer.isEnabled = false`). `ObjectEditing` übernimmt dann die Eingabe, wie heute im Objektmodus.
-  Ein eigener „Objektmodus“ ist dafür nicht mehr nötig.
-
-### 3.2 Was wir durch den Wegfall der Palette verlieren und wie wir es ersetzen
-
-| Bisher von der Palette | Ersatz |
+| Datei | Änderung |
 |---|---|
-| Farbrad und Deckkraft | Farbfelder in der Leiste. Im Optionsfenster 15 Farben plus „Weitere …“ mit `ColorPicker` (SwiftUI, entspricht `UIColorPickerViewController`, inkl. Pipette und Deckkraft) |
-| Lineal | `PKCanvasView.isRulerActive` lässt sich ohne Palette setzen. Schalter im Optionsfenster, gilt auf der Canvas der aktuellen Seite. Offene Frage aus Abnahme 1.11: ein Lineal je sichtbarer Seite; es reicht, es nur auf der aktuellen Seite einzuschalten. |
-| sieben Tintenarten | drei Stiftarten wie im Web-Format: Kugelschreiber = `.monoline`/`.pen`, Füller = `.fountainPen`, Bleistift = `.pencil`, dazu der Textmarker = `.marker`. Wasserfarbe und Wachsmalstift gibt es im Web nicht; sie würden ohnehin auf `pen` abgebildet. Optional später unter „Weitere Stifte“. |
-| Pencil-Doppeltippen | eigene `UIPencilInteraction` am Editor. `UIPencilInteraction.preferredTapAction` gibt es seit iOS 12.1, die neue Tap-Methode mit Hover-Position seit iOS 17.5. Wir befolgen die Systemeinstellung: Radierer ↔ letztes Werkzeug, Farbauswahl öffnen, zuletzt benutzte Werkzeuge |
-| Squeeze (Pencil Pro) | `didReceiveSqueeze` (ab iOS 17.5): kleine Schnellpalette an der Stiftspitze mit den Favoriten (hover-Position aus dem Ereignis). Unter 17.5 entfällt es (Ziel ist iOS 17.0). |
-| Rückgängig in der Palette | entfällt (es bleibt der Knopf in unserer Leiste, ⌘Z, Wischen mit drei Fingern). Die doppelten Symbole sind damit erledigt. |
-| Barrierefreiheit der Palette | unsere Knöpfe brauchen Bezeichnungen, Werte („Stift, Blau, mittel“), `isSelected`, Dynamic Type im Optionsfenster, große Hit-Flächen (≥ 44 pt) und Tastaturkürzel (`UIKeyCommand`: P Stift, E Radierer, L Lasso, wie in Freeform/GoodNotes). |
-| Mac („Designed for iPad“) | unverändert, die Maus schreibt immer (`isMac`) |
+| `apps/apple/UniFlow/Editor/EditorPalette.swift` (neu) | Palette mit Apples Standardwerkzeugen plus unseren fünf Einträgen (`PKToolPickerCustomItem`, `#available(iOS 18.0, *)`). Optionen im Popover (`PaletteOptionsController`). Dazu `PaletteSync` (Stift-, Marker- und Objektfarben), `EditorPalette.Blocker` (was die Palette verdeckt halten darf), `WindowExitSentinel` (meldet, wenn ein Blatt weg ist) und `TouchDownObserver` (liest den Fingerschalter der Palette neu). |
+| `apps/apple/UniFlow/Editor/PDFEditorController.swift` | Reagiert auf die Auswahl in der Palette (`toolPickerSelectedToolItemDidChange`, unter 17 `toolPickerSelectedToolDidChange`). Objektmodus, Rücksprung zum Stift, wo Objekte nicht gehen (nur ansehen, Korrektur-Modus). Die andere Hälfte der geteilten Ansicht pausiert. Weitere Punkte: `canvasTool` gegen den Absturz, Eingabeart `.default` mit `followsPaletteDrawingPolicy`, Rückgängig für eingefügte, duplizierte und angehängte Seiten, Rückholung der Palette auf Ereignisse, Fokus an den Anker beim Verwerfen von Seiten. |
+| `apps/apple/UniFlow/Editor/ObjectEditing.swift` | „Text markieren“ fragt die Farbe beim Editor ab. Werkzeugwechsel des Editors gehen an die Palette. |
+| `apps/apple/UniFlow/Editor/CorrectionMode.swift` | Korrektur-Zeichenfläche bekommt `canvasTool` |
+| `apps/apple/UniFlow/Views/DocumentView.swift` | Die Palette kommt aus `EditorPalette.makePicker()`. „Nur Stift“ und Rückgängig/Wiederholen gibt es oben nur noch am Mac, „Tinte/Objekte“ nur noch unter iPadOS 17. Die Objektleiste zeigt ab 18 nur Auswahl- und Markieraktionen, dazu Rückgängig/Wiederholen und „Fertig“ beim Markieren. Das zweite Schloss ist weg. |
+| `apps/apple/UniFlowTests/EditorPaletteTests.swift` (neu) | 16 Tests zu den Schritten A bis D (Abschnitt 6) |
 
-Zwischenweg zum Vergleich: Seit iPadOS 18 nimmt `PKToolPicker` eigene Werkzeuge (`PKToolPickerCustomItem`) und einen
-Zusatzknopf (`accessoryItem`) auf. Das würde die Fokusprobleme aber **nicht** lösen, denn die Palette hängt weiter am
-Erstantwortgeber. Außerdem verlangt es iOS 18, unser Ziel ist 17.0. Deshalb ist es nicht empfohlen.
+**Speicher (Hinweis aus der Robustheitsprüfung, kleinere höchste Render-Auflösung bei ≤ 4 GB):** nicht umgesetzt. In
+`docs/EDITOR-MESSUNG.md` (3.5) kostet Zoomen nur wenig zusätzlichen Speicher: 6-fach +0 bis +32 MB. Die Spitzen von 410
+bis 590 MB entstehen beim schnellen Blättern über volle Seiten und in Speicherrunden mit vielen Strichen. In beiden Fällen
+laufen die Seiten mit Bildschirmauflösung, nicht mit der höchsten Stufe. Eine kleinere Obergrenze würde Schärfe beim
+Hineinzoomen kosten und die gemessene Spitze nicht senken. Wenn, dann setzen wir bei der Zahl geparkter Seiten
+(`parkedLimit`, `parkedAreaLimit`) an, nach einer Messung am Gerät mit 4 GB.
 
-### 3.3 Leiste (siehe Mockup 1)
-
-Die bisherige Navigationsleiste und die Objektleiste werden zu **einer** Leiste, von links nach rechts:
-
-1. Zurück (bzw. Logo-Menü), Seitenleiste ein/aus, Titel mit „Seite x von y“
-2. Werkzeuge: Stift, Textmarker, Radierer, Lasso, Form, Text, Haftnotiz, Bild, Laserpointer, Zoom-Fenster
-   - Am Stift und am Textmarker zeigt ein Farbstrich die aktuelle Farbe
-   - Erstes Tippen wählt das Werkzeug, zweites Tippen öffnet die Optionen
-3. **Schnellwahl des aktiven Werkzeugs:** 3 Stärken + 3 Farben. Gedrückt halten ersetzt den Platz durch die aktuelle
-   Einstellung.
-4. Rückgängig, Wiederholen
-5. KI, Geteilt, Ebenen, Teilen, Mehr. Suchen, Lesezeichen, Seiten-Aktionen und „Nur Stift“ wandern in „Mehr“ oder die
-   Einstellungen.
-6. Speicherstatus (feste Breite), Schalter **Stift | Lesen** (= Lesemodus wie GoodNotes; heißt bisher „Meine Notizen
-   ausblenden“)
-
-Schmale Fenster (Split View, Slide Over, Stage Manager): Die Werkzeuggruppe bleibt, KI/Geteilt/Ebenen/Teilen gehen in „Mehr“,
-die Schnellwahl schrumpft auf die aktuelle Farbe. Die Leiste wird ein eigenes UIView bzw. SwiftUI-View oberhalb des
-Editors, keine `ToolbarItem`s der Navigationsleiste. Nur so steuern wir Breite und Überlauf selbst; das „Springen“ der
-Leiste aus 85ba672 kann dann nicht mehr auftreten.
-
-Barrierefreiheit: Jede Taste bekommt `accessibilityLabel` und `accessibilityValue`. Die Leiste ist ein
-`accessibilityContainer` „Werkzeuge“. VoiceOver kann die Leiste nutzen, die Seite wird bei aktivem VoiceOver nur gelesen.
-
-### 3.4 Ein Lasso für Tinte und Objekte (Mockup 3)
-
-`PKLassoTool` lässt sich nicht von außen abfragen (keine API für die Auswahl). Deshalb erweitern wir **unser** Lasso aus
-`ObjectEditing` (`PageObjectEdit.inLasso`) auf PencilKit-Striche:
-
-- Wählt Striche aus, deren Punkte zu einem Mindestanteil, etwa 60 %, im Polygon liegen. Die Punkte kommen aus
-  `PKStroke.path` nach `transform`.
-- Verschieben und Größe ändern: Die neuen Striche entstehen als Kopie mit `PKStroke(ink:path:transform:mask:)`, der neue
-  Stand geht als **ein** Rückgängig-Schritt in den Seitenverlauf (`registerUndo`). Text und Formen laufen wie bisher über
-  die Objekttransformation.
-- Kontextmenü: Ausschneiden, Kopieren, Farbe, Löschen, **KI fragen** (Bild der Auswahl an die KI-Hilfe; schließt an die
-  vorhandene „KI erklärt“ an). „In Text umwandeln“ kommt später mit Vision (`VNRecognizeTextRequest`) über das gerenderte
-  Bild der Auswahl.
-- Drehen gibt es in einer späteren Stufe. `stroke.transform` kann es, das Web-Format braucht dafür eine Transformation.
-  `editierbar_ueberall` nennt „Objekt-Transformation“ schon; das Schema prüfen wir vorher.
-
-### 3.5 Rückgängig für alles
-
-Der Seitenverlauf über `documentUndo` mit Seitenschlüssel bleibt und deckt schon Tinte, Objekte und Seitenaktionen ab.
-Neu kommen dazu:
-- Lasso-Verschiebungen als ein Schritt
-- Formerkennung als ein Schritt (Strich → Form)
-
-Der Verlauf der Korrektur (`correctionUndo`) bleibt getrennt; die Leiste zeigt im Korrekturmodus dessen Rückgängig.
-
-### 3.6 Seitenleiste mit „+“ (Mockup 3)
-
-`ThumbnailStrip` bekommt am Ende eine Kachel „+“ (leere Seite nach der letzten, Vorlage wie die aktuelle Seite; langes
-Drücken öffnet die Vorlagen). Außerdem bekommt jede Miniatur ein Kontextmenü: Davor/Danach einfügen, Drehen, In den
-Papierkorb, Lesezeichen, Zur Gliederung.
-
-Das Einfügen läuft dann ohne Menü, also ohne Fokuswechsel. Die Beschwerde „Einfügen schließt die Leiste“ hat damit keinen
-Anlass mehr, und mit der eigenen Leiste gibt es ohnehin nichts mehr zu schließen.
-
-Später kommen Umsortieren per Ziehen und ein Reiter „Gliederung“ in der Seitenleiste dazu, statt eines eigenen Blatts.
-
-### 3.7 Zoom-Fenster (Mockup 2) – machbar, aber eigene Stufe
-
-Unten liegt eine zweite `PKCanvasView` (der Streifen). Ihr Inhalt wird als Ausschnitt der Seiten-Canvas abgebildet:
-- Striche im Streifen werden mit der Rahmen-Transformation (Skalierung und Verschiebung) in die Seiten-Canvas übernommen und
-  dort gespeichert.
-- Der Streifen zeigt die vorhandenen Striche des Rahmens vergrößert an, über eine nur lesende Kopie per
-  `drawing.transformed(using:)`.
-- Zeilenende-Taste und automatisches Weiterrücken sind Geometrie.
-
-Risiken:
-- Doppelte Canvas kostet Speicher; nur eine Seite ist betroffen, also vertretbar.
-- Die Druckwerte müssen beim Verkleinern sauber mitgehen; die Strichbreite skaliert mit.
-- Der Rückgängig-Schritt muss genau einer bleiben.
-
-Aufwand 3–4 Tage. Nach den Grundschritten.
-
-### 3.8 Formerkennung („zeichnen und halten“)
-
-Nach einem Strich ohne Bewegung für 0,5 s beim letzten Punkt wird erkannt: Gerade, Rechteck, Ellipse, Dreieck, Pfeil.
-Der Strich wird durch eine **Tinte**-Form ersetzt, also einen neuen PKStroke mit idealer Geometrie. Er bleibt damit ein
-Strich im Web-Format und braucht keinen neuen Objekttyp.
-
-Die Erkennung selbst ist eine kleine Geometrie-Routine. Sie lässt sich gut testen und gehört in `UniFlowCore`, damit das
-Web sie später nachbauen kann. Ein Schalter im Optionsfenster schaltet sie ein oder aus. Auch der Textmarker zeichnet
-damit gerade Linien.
-
-## 4. Schritte (jeder für sich auslieferbar)
+## 4. Nächste Schritte (jeder für sich auslieferbar)
 
 | # | Schritt | Inhalt | Aufwand | Risiko |
 |---|---|---|---|---|
-| 1 | **Eigene Werkzeugleiste, Palette aus** | `EditorTools` und `EditorToolbar`. Stift, Textmarker und Radierer setzen `canvas.tool` auf allen Overlays (live und geparkt), in der geteilten Ansicht auf beiden. 3 Stärken + 3 Farben in der Leiste. Rückgängig/Wiederholen. Schalter Stift/Lesen (= `ownNotesVisible`). Palette und Rückholschleife ausbauen. Bisherige Objektwerkzeuge vorerst über „Objekte“ in der neuen Leiste erreichbar. | 3–4 Tage | mittel: Werkzeug muss auf geparkte und neue Overlays durchschlagen. Messung M8 (Speicher) und Abnahme 1.9/1.10/13.2 neu prüfen. |
-| 2 | **Optionsfenster, Favoriten, Pencil-Gesten** | Zweites Tippen öffnet Stiftart, Stärke, Farben, `ColorPicker`, Lineal (`isRulerActive`). „Als Favorit anheften“. `UIPencilInteraction` für Doppeltippen nach Systemeinstellung, Squeeze-Schnellpalette ab 17.5. Tastenkürzel. VoiceOver-Texte. | 2–3 Tage | gering bis mittel: Doppeltippen ohne Palette muss genau die Systemeinstellung befolgen; Test nur am Gerät (Abnahme 2.3/2.4). |
-| 3 | **Seitenleiste mit „+“ und Miniatur-Menü** | „+“ am Ende, Kontextmenü je Miniatur, Gliederung als Reiter | 1–2 Tage | gering |
-| 4 | **Objektwerkzeuge in die Leiste, Objektmodus weg** | Text, Haftnotiz, Form, Bild, Text markieren als normale Werkzeuge. Canvas-Gesten aus, solange eines aktiv ist. `ObjectToolbar` entfällt; Farbe kommt aus der Schnellwahl (gleiche Farbliste für Tinte und Objekte). | 2 Tage | mittel: Gesten-Vorrang zwischen PDFView, Canvas und ObjectEditing (heute über `objects.isActive`) |
-| 5 | **Ein Lasso für Tinte und Objekte** | Strich-Auswahl per Polygon, Verschieben/Größe als ein Rückgängig-Schritt, Kontextmenü inkl. „KI fragen“ | 2–3 Tage | mittel: Strich-Kopien müssen `pkInk`, Druck und Breiten verlustfrei erhalten (Tests wie `AuditRunde11PencilTests`) |
-| 6 | **Formerkennung** | Zeichnen und halten, Gerade beim Textmarker, Schalter | 1–2 Tage | gering |
-| 7 | **Zoom-Fenster** (Ausbaustufe) | Schreibstreifen unten, Rahmen auf der Seite, Weiterrücken | 3–4 Tage | mittel |
-| später | Handschrift → Text, Laserpointer, Drehen im Lasso, waagerechtes Blättern, anpassbare Leiste | je 1–3 Tage | – |
+| A–D | erledigt | siehe oben | – | am Gerät prüfen (Abschnitt 5) |
+| E | Seitenleiste mit „+“ | „+“-Kachel nach der letzten Miniatur (leere Seite wie die letzte, langes Drücken: Vorlagen). Kontextmenü je Miniatur: davor/danach einfügen, drehen, Papierkorb, Lesezeichen, zur Gliederung. Einfügen ist jetzt schon rückgängig machbar. | 1–2 Tage | gering |
+| F | Palette-Zusatzknopf | `PKToolPicker.accessoryItem` (iPadOS 18) für einen häufigen Weg, z. B. „KI fragen“ oder „Seiten“, damit der Weg nicht zur Leiste oben führt | 0,5 Tage | gering |
+| G | Ein Lasso für Tinte und Objekte | Unser Eintrag „Objekte auswählen → Lasso“ wählt zusätzlich Striche (Punkte von `PKStroke.path` im Polygon) und verschiebt beides als **einen** Rückgängig-Schritt. Apples Lasso bleibt für Ausschneiden, Kopieren und Farbe der Striche. | 2–3 Tage | mittel: Striche verlustfrei kopieren (`pkInk`, Druck, Breiten; Tests wie `AuditRunde11PencilTests`) |
+| H | Formerkennung | Zuerst am Gerät prüfen, ob PencilKit „zeichnen und halten“ in unseren Zeichenflächen schon kann (Notizen-App kann es). Sonst eine eigene Erkennung nach dem Strich, die den Strich durch eine ideale Form als Strich ersetzt, damit das Web-Format gleich bleibt. | 1–2 Tage | gering |
+| I | Zoom-Fenster | Schreibstreifen unten (zweite Zeichenfläche), Rahmen auf der Seite, Striche mit der Rahmen-Umrechnung in die Seite, ein Rückgängig-Schritt je Strich. Als eigener Eintrag in der Palette. | 3–4 Tage | mittel |
 
-**Summe Schritte 1–7:** etwa 14–20 Tage. Davon ergeben die Schritte 1–4 mit 8–11 Tagen schon den Editor „aus einem Guss“.
+Summe E bis I: etwa 7 bis 12 Tage. Empfohlene Reihenfolge: E, F, G, dann H oder I nach deiner Wahl.
 
-Reihenfolge-Logik:
-- Schritt 1 nimmt die größte Fehlerquelle (Palette) heraus und liefert sofort sichtbar „eine Leiste“.
-- Die Schritte 2 und 3 holen nach, was die Palette konnte, und das „+“.
-- Schritt 4 entfernt den zweiten Modus.
-- Die Schritte 5–7 sind neue Fähigkeiten auf derselben Grundlage.
+## 5. Am echten iPad prüfen (Pencil, kein Simulator)
 
-## 5. Randbedingungen, die jeder Schritt einhält
+1. **Palette (iPadOS 18 und neuer):**
+   - Die fünf Einträge erscheinen hinter Apples Werkzeugen, mit Namen und Symbol.
+   - Ein zweites Tippen auf „Form“ bzw. „Objekte auswählen“ öffnet das Popover mit der Art. Farbe und Stärke lassen sich
+     dort ändern.
+   - Text, Haftnotiz und Form legen Objekte an, der Stift schreibt währenddessen nicht.
+   - Stift wählen: Der Pencil schreibt wieder.
+2. **„Mit dem Finger zeichnen“ in der Palette:** an und aus schalten.
+   - Ein Finger schreibt bzw. scrollt sofort richtig, auch ohne erneutes Öffnen.
+   - Zwei Finger scrollen beim Fingerzeichnen.
+   - Den Stand mit Einstellungen → Apple Pencil → „Nur mit Apple Pencil zeichnen“ vergleichen.
+3. **Rückgängig der Palette:**
+   - nach Strich, nach Text/Form, nach „Leere Seite einfügen“ (die Seite geht in den Papierkorb, Wiederholen holt sie
+     zurück)
+   - im Korrektur-Modus: nimmt nur die Korrektur zurück
+   - nach einer Auswahl mit Apples Lasso: tut die Palette dann noch etwas?
+4. **Palette kommt zurück:**
+   - nach KI-Hilfe-Eingabe (Tastatur zu)
+   - nach Suche, Gliederung, Marker-Blatt, „Teilen“-Menü, „Mehr“-Menü und App-Wechsel
+   - nach „Seite einfügen“ über Mehr und über das Menü der Miniatur
+   - Dabei darf sich kein offenes Menü von selbst schließen.
+5. **Text markieren:** Text auswählen, „Markieren“ in Textmarkerfarbe, „Fertig“ bringt Stift und Palette zurück.
+6. **Doppeltippen (Pencil 2/Pro):** wirkt wie eingestellt, auch wenn gerade ein eigener Eintrag gewählt ist.
+7. **Squeeze (Pencil Pro):** Erscheinen unsere Einträge in der kleinen Palette an der Spitze?
+8. **Geteilte Ansicht:** Mit „Text“ in der Palette schreibt die andere Hälfte nicht. Mit Stift wieder in beiden.
+9. **iPadOS 17 (falls ein Gerät da ist):**
+   - Objektleiste unten mit Werkzeugen.
+   - „Tinte/Objekte“ oben.
+   - Objekte in der Stiftfarbe.
+10. **Mac („Designed for iPad“):** Rückgängig/Wiederholen und „Nur Stift“ stehen oben, die Maus schreibt.
 
-- **Notizformat unverändert** (Schema, `StrokeConverter`, Web liest alles weiter). Neue Stiftarten werden nur über die
-  vorhandenen `tool`-Werte plus `pkInk` gespeichert.
-- **Geteilte Ansicht:** ein Werkzeugzustand für beide Dokumente, gemeinsamer Verlauf wie heute; beim Schließen entfernt
-  jedes Dokument seine Einträge.
-- **Nur ansehen** (Free, ausgeblendete Notizen, alte Fassung, anderes Fenster, neueres Format): Die Leiste zeigt „Lesen“
-  fest und die Werkzeuge gesperrt mit Schloss bzw. Hinweis, statt einfach zu verschwinden (Abnahme 12.x, 18.4, 18.8 anpassen).
-- **Korrekturmodus:** dieselbe Leiste; die Werkzeuge wirken auf die Korrektur-Canvas (`correctionView.ink`), Rückgängig auf
-  `correctionUndo`.
-- **Linkshänder:** Das Optionsfenster öffnet zur freien Hand; die Seitenleiste bleibt auf der Seite der freien Hand.
-- **Mac:** Die Maus schreibt immer; Tastenkürzel helfen dort am meisten.
-- **Abnahme:** `docs/EDITOR-ABNAHME.md` Abschnitte 1, 2, 8, 12, 13 und 21 werden mit Schritt 1/2/4 umgeschrieben (Palette →
-  Leiste). Messung M8 (geparkte Canvas) muss nach Schritt 1 gleich bleiben: Ohne Palette hält niemand mehr Canvas fest, eher
-  besser.
+`docs/EDITOR-ABNAHME.md` Abschnitte 1.5/1.6 („Nur Stift“), 8.1/8.3 (Rückgängig oben) und 21 (Objektwerkzeuge über
+„Tinte/Objekte“) beschreiben noch die alte Bedienung. Ich passe sie an, sobald du die Bedienung am Gerät freigibst.
 
-## 6. Offene Fragen an dich
+## 6. Tests
 
-1. Stiftarten: reichen Kugelschreiber, Füller, Bleistift und Textmarker (wie im Web), oder sollen Wasserfarbe und
-   Wachsmalstift unter „Weitere“ bleiben?
-2. „Nur Stift“: in die Einstellungen verschieben (GoodNotes-Weg) oder ins Optionsfenster des Stifts?
-3. Zoom-Fenster und Formerkennung: Welches zuerst?
-4. Leiste anpassbar (wie GoodNotes 7) jetzt schon oder erst nach Rückmeldungen?
+`EditorPaletteTests` mit 16 Tests:
+- Palette enthält Apples Werkzeuge unverändert und dahinter unsere fünf.
+- Bilder sind mindestens 150 pt hoch und haben VoiceOver-Namen.
+- Zuordnung von Eintrag zu Werkzeug.
+- Objektmodus über die Palette an und aus.
+- Rücksprung zum Stift bei „nur ansehen“ und beim Öffnen.
+- Geteilte Ansicht pausiert, kein Absturz auf neuen Seiten.
+- Farben und Stärke aus der Palette, eigene Farbe bleibt.
+- Objektmodus von außen nimmt Stiftfarbe und -stärke.
+- Markierfarbe.
+- Eingabeart `.default`.
+- Seite einfügen → Rückgängig/Wiederholen im gemeinsamen Verlauf.
+- Reihenfolge der Hindernisse.
+- Nur echte Eingabefelder warten auf die Tastatur: PDFKit-Textauswahl und nicht bearbeitbarer Text nicht, sonst käme die Palette nach Antippen der PDF nie zurück.
+- Blatt-Markierung meldet sich genau einmal.
+- Palette kommt nach einem Blatt zurück.
+- Fokus bleibt beim Seiten-Neuaufbau.
+
+Dazu laufen die bestehenden Editor-Tests (Ergebnisse im Bericht der Sitzung).

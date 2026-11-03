@@ -261,10 +261,33 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// PDF-Seite (1-basiert), zu der beim ersten Anzeigen gesprungen wird (z. B. Skriptstelle).
     private var initialPDFPage: Int?
     private let anchor = ToolPickerAnchor()
+    /// Farbe und Staerke aus der Palette fuer Objekte und "Text markieren" (`EditorPalette.swift`)
+    let paletteSync = PaletteSync()
+    /// Ein eigener Eintrag der Palette (Objektwerkzeug) ist gewaehlt. In der anderen Haelfte der geteilten Ansicht
+    /// schreibt die Canvas dann nicht (PencilKit liesse sie sonst mit dem letzten Stift weiterschreiben).
+    private(set) var paletteObjectToolActive = false
+    /// Palette wird gerade vom Editor umgestellt (keine Rueckmeldung an sich selbst)
+    private var applyingPalette = false
+    /// Letztes Werkzeug der Palette, das eine Canvas kennt (Stift, Radierer, Lasso)
+    private var lastCanvasTool: PKTool = PKInkingTool(.pen, color: .black)
+    /// Blatt ueber dem Editor, nach dessen Verschwinden die Palette zurueckkommt
+    private weak var presentationSentinel: WindowExitSentinel?
+    /// Ersatzversuche, wenn die Palette ohne erkennbaren Grund nicht zurueckkam (hoechstens zwei)
+    private var restoreFallbacks = 0
+    /// Liest den Schalter "Mit dem Finger zeichnen" der Palette bei jeder neuen Beruehrung neu
+    private lazy var touchDown: TouchDownObserver = {
+        let g = TouchDownObserver()
+        g.onTouchDown = { [weak self] in self?.syncDrawingPolicy() }
+        return g
+    }()
+    /// Objektmodus an/aus oder anderes Objektwerkzeug (auch ueber die Palette); fuer die Leisten in SwiftUI
+    var onObjectModeChange: ((Bool, ObjectEditing.Tool) -> Void)?
     /// In der geteilten Ansicht teilen sich beide Dokumente einen Verlauf, damit "Rueckgaengig" der gemeinsamen
     /// Palette immer den zuletzt geschriebenen Strich zuruecknimmt, egal auf welcher Seite.
     private let documentUndo: UndoManager
     private var undoTargets: [String: PageUndoTarget] = [:]
+    /// Ziel der Eintraege "Seite eingefuegt" (Rueckgaengig legt die Seite in den Papierkorb, Wiederholen holt sie zurueck)
+    private let pageUndoTarget = PageUndoTarget(key: "#seiten")
     private var live: [Int: PageInkView] = [:]
     private var parked: [PageInkView] = []
     private let parkedLimit = 6
@@ -349,6 +372,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             if !canEdit {
                 for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
                 undoTargets = [:]
+                documentUndo.removeAllActions(withTarget: pageUndoTarget)
             }
             showToolPicker(pickerAllowed)
         }
@@ -360,23 +384,59 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Sichtbarkeit der eigenen Notizen und Eingabe der Canvas fuer ein Overlay
     private func applyOwnNotes(to overlay: PageInkView) {
         overlay.setOwnNotesVisible(ownNotesVisible)
-        if !canEdit { overlay.canvas.isUserInteractionEnabled = false }
+        if !canEdit || (paletteObjectToolActive && !ownsToolPicker) { overlay.canvas.isUserInteractionEnabled = false }
         objects.prepare(overlay)
     }
 
     /// Auf dem Mac ("Designed for iPad") gibt es keinen Apple Pencil: dort schreiben Maus und Trackpad immer
     static var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac }
-    var drawingPolicy: PKCanvasViewDrawingPolicy { pencilOnly && !Self.isMac ? .pencilOnly : .anyInput }
+    /// - Mac: jede Eingabe schreibt.
+    /// - Palette entscheidet (`followsPaletteDrawingPolicy`): `.default`, PencilKit folgt dem Schalter "Mit dem Finger
+    ///   zeichnen" der Palette (iPadOS-Einstellung `UIPencilInteraction.prefersPencilOnlyDrawing`).
+    /// - sonst der eigene Schalter `pencilOnly`.
+    var drawingPolicy: PKCanvasViewDrawingPolicy {
+        if Self.isMac { return .anyInput }
+        if followsPaletteDrawingPolicy { return .default }
+        return pencilOnly ? .pencilOnly : .anyInput
+    }
 
     var pencilOnly = true {
         didSet {
             guard pencilOnly != oldValue else { return }
-            allOverlays.forEach {
-                $0.canvas.drawingPolicy = drawingPolicy
-                $0.correctionView?.ink.drawingPolicy = drawingPolicy
-            }
-            configureScrollGestures()
+            applyDrawingPolicy()
         }
+    }
+
+    /// Die Palette zeigt "Mit dem Finger zeichnen" und entscheidet (iPad); aus: eigener Schalter `pencilOnly` (Tests,
+    /// aeltere Aufrufer)
+    var followsPaletteDrawingPolicy = false {
+        didSet {
+            guard followsPaletteDrawingPolicy != oldValue else { return }
+            if followsPaletteDrawingPolicy { pdfView.addGestureRecognizer(touchDown) } else { pdfView.removeGestureRecognizer(touchDown) }
+            applyDrawingPolicy()
+        }
+    }
+
+    /// Schreibt der Finger gerade nicht (Finger scrollt mit einem Finger)?
+    var effectivePencilOnly: Bool {
+        if Self.isMac { return false }
+        return followsPaletteDrawingPolicy ? UIPencilInteraction.prefersPencilOnlyDrawing : pencilOnly
+    }
+    /// zuletzt fuer die Scroll-Gesten verwendeter Stand
+    private var appliedPencilOnly: Bool?
+
+    private func applyDrawingPolicy() {
+        allOverlays.forEach {
+            $0.canvas.drawingPolicy = drawingPolicy
+            $0.correctionView?.ink.drawingPolicy = drawingPolicy
+        }
+        configureScrollGestures()
+    }
+
+    /// Schalter der Palette neu lesen (bei Beruehrung, Palettenwechsel, Rueckkehr in die App)
+    func syncDrawingPolicy() {
+        guard followsPaletteDrawingPolicy, appliedPencilOnly != effectivePencilOnly else { return }
+        configureScrollGestures()
     }
 
     /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
@@ -394,7 +454,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     init(store: DocumentStore, toolPicker: PKToolPicker? = nil, ownsToolPicker: Bool = true,
          undoManager: UndoManager? = nil, initialPDFPage: Int? = nil) {
         self.store = store
-        self.toolPicker = toolPicker ?? PKToolPicker()
+        self.toolPicker = toolPicker ?? EditorPalette.makePicker()
         self.ownsToolPicker = ownsToolPicker
         self.documentUndo = undoManager ?? UndoManager()
         self.initialPDFPage = initialPDFPage
@@ -452,21 +512,42 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         toolPicker.addObserver(self)
         toolPicker.colorUserInterfaceStyle = .light   // Farben wie auf dem hellen Papier; die Palette folgt dem System
         if ownsToolPicker {
-            toolPicker.stateAutosaveName = "uniflow.toolpicker"
+            // gleicher Name = gleicher Stand (Auswahl, Farben) fuer alle Fenster; ein schon gesetzter Name bleibt (Tests)
+            if toolPicker.stateAutosaveName == nil { toolPicker.stateAutosaveName = "uniflow.toolpicker" }
             toolPicker.setVisible(pickerAllowed, forFirstResponder: anchor)
             pickerWanted = pickerAllowed
         }
+
+        objects.markupColor = { [weak self] kind in self?.paletteSync.markupColor(kind) ?? PageObjectEdit.markerColors[0] }
+        paletteSelectionChanged(initial: true)
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: .PDFViewScaleChanged, object: pdfView, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scaleChanged() }
         })
-        // nach dem Tippen (Tastatur weg) und nach dem Zurueckkehren in die App die Palette wieder zeigen
-        for name in [UIResponder.keyboardDidHideNotification, UIApplication.didBecomeActiveNotification] {
-            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.restorePickerSoon() }
+        // Palette wieder zeigen, sobald ihr Hindernis weg ist (statt in Abstaenden nachzusehen): Tastatur weg, Textfeld
+        // fertig, Menue- oder Popover-Fenster zu, Fenster wieder vorn, zurueck in der App
+        for name in [UIResponder.keyboardDidHideNotification, UIApplication.didBecomeActiveNotification,
+                     UITextField.textDidEndEditingNotification, UITextView.textDidEndEditingNotification,
+                     UIWindow.didBecomeHiddenNotification, UIWindow.didBecomeKeyNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] n in
+                MainActor.assumeIsolated {
+                    guard let self, self.pickerWanted, !self.toolPicker.isVisible else { return }
+                    if n.name == UIApplication.didBecomeActiveNotification { self.syncDrawingPolicy() }
+                    self.restorePickerSoon()
+                }
             })
         }
+        observers.append(center.addObserver(forName: EditorPalette.optionChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if #available(iOS 18.0, *), self.ownsToolPicker {
+                    // Symbol von Form bzw. Auswaehlen zeigt die neue Art
+                    self.toolPicker.toolItems.compactMap { $0 as? PKToolPickerCustomItem }.forEach { $0.reloadImage() }
+                }
+                self.paletteSelectionChanged()
+            }
+        })
         observers.append(center.addObserver(forName: .PDFViewPageChanged, object: pdfView, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -498,6 +579,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             // geteilter Verlauf: Eintraege dieses Dokuments entfernen, sonst wirkt "Rueckgaengig" ins Leere
             for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
             undoTargets = [:]
+            documentUndo.removeAllActions(withTarget: pageUndoTarget)
         }
     }
 
@@ -593,7 +675,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let fingers = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
         scroll.panGestureRecognizer.allowedTouchTypes = fingers
         // Mac: die Maus schreibt, geblaettert wird mit Rad oder Trackpad (keine Ein-Finger-Geste)
-        scroll.panGestureRecognizer.minimumNumberOfTouches = pencilOnly && !Self.isMac ? 1 : 2
+        let pencil = effectivePencilOnly
+        appliedPencilOnly = pencil
+        scroll.panGestureRecognizer.minimumNumberOfTouches = pencil ? 1 : 2
         scroll.pinchGestureRecognizer?.allowedTouchTypes = fingers
         scroll.delaysContentTouches = false
     }
@@ -620,7 +704,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let keepScale = pdfView.scaleFactor
         // Der Neuaufbau schreibt nie (alles ist schon im Store), nur offene Rueckgaengig-Schritte abschliessen
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
-        for v in allOverlays { toolPicker.removeObserver(v.canvas) }
+        for v in allOverlays {
+            keepPaletteFocus(leaving: v)
+            toolPicker.removeObserver(v.canvas)
+        }
         live = [:]
         parked = []
         shownLayout = layout
@@ -668,6 +755,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func pdfView(_ pdfView: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
         guard let overlay = overlayView as? PageInkView else { return }
+        keepPaletteFocus(leaving: overlay)
         // Scrollen schreibt nie (alles ist schon im Store), nur ein offener Rueckgaengig-Schritt wird abgeschlossen
         if overlay.loaded { commitPendingUndo(overlay) }
         if live[overlay.pageIndex] === overlay { live.removeValue(forKey: overlay.pageIndex) }
@@ -725,7 +813,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let c = overlay.canvas
         c.drawingPolicy = drawingPolicy
         c.delegate = self
-        c.tool = toolPicker.selectedTool
+        c.tool = canvasTool
         toolPicker.addObserver(c)
         // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht)
         if writable { toolPicker.setVisible(true, forFirstResponder: c) }
@@ -923,6 +1011,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             let added = store.layout?.entries.first { !before.contains($0.key) }?.key
             pendingFocusKey = added
             finishPageChange(PageOrder.Change(focusKey: added, changedPageKeys: []))
+            registerPageInsertUndo(added)
             return added
         }
         let size = format ?? afterKey.flatMap { shownLayout?.index(ofKey: $0) }.flatMap { shownLayout?.baseSize(at: $0) }
@@ -934,6 +1023,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             PageOrder.insertBlank(&doc, after: afterKey, template: t, width: w, height: h, key: newKey)
         }
         finishPageChange(change)
+        registerPageInsertUndo(change?.focusKey)
         return change?.focusKey
     }
 
@@ -986,7 +1076,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     @discardableResult
     func duplicatePage(key: String? = nil) async -> Bool {
         guard let key = key ?? currentPageKey else { return false }
-        return await changePages(flushing: key) { PageOrder.duplicate(&$0, key: key) } != nil
+        let change = await changePages(flushing: key) { PageOrder.duplicate(&$0, key: key) }
+        registerPageInsertUndo(change?.focusKey)
+        return change != nil
     }
 
     /// Seite um `delta` Plaetze verschieben (-1 nach vorn, +1 nach hinten) bzw. an den Anfang/ans Ende
@@ -1040,7 +1132,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let size = shownLayout?.index(ofKey: key).flatMap { shownLayout?.baseSize(at: $0) } ?? CGSize(width: 595, height: 842)
         let t = PaperTemplate.isKnown(template) ? template : "blank"
         let w = Double(size.width), h = Double(size.height)
-        return await changePages(flushing: nil) { PageOrder.insertBlank(&$0, before: key, template: t, width: w, height: h) }?.focusKey
+        let added = await changePages(flushing: nil) { PageOrder.insertBlank(&$0, before: key, template: t, width: w, height: h) }?.focusKey
+        registerPageInsertUndo(added)
+        return added
     }
 
     /// Leerseite am Ende einfuegen
@@ -1049,7 +1143,37 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let size = shownLayout.flatMap { l in l.baseSize(at: l.entries.count - 1) } ?? CGSize(width: 595, height: 842)
         let t = PaperTemplate.isKnown(template) ? template : "blank"
         let w = Double(size.width), h = Double(size.height)
-        return await changePages(flushing: nil) { PageOrder.insertBlank(&$0, after: nil, template: t, width: w, height: h) }?.focusKey
+        let added = await changePages(flushing: nil) { PageOrder.insertBlank(&$0, after: nil, template: t, width: w, height: h) }?.focusKey
+        registerPageInsertUndo(added)
+        return added
+    }
+
+    // MARK: Rueckgaengig fuer eingefuegte Seiten (im selben Verlauf wie Striche und Objekte, also auch ueber die Palette)
+
+    /// "Seite eingefuegt" merken: Rueckgaengig legt sie in den Papierkorb (wie im Web wiederherstellbar), Wiederholen
+    /// holt sie an ihren Platz zurueck. Der Gegenschritt wird im Handler sofort angemeldet (nach einem `await` zaehlte
+    /// er als neuer Schritt).
+    private func registerPageInsertUndo(_ key: String?) {
+        guard let key, writable else { return }
+        documentUndo.registerUndo(withTarget: pageUndoTarget) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.writable else { return }
+                self.registerPageRestoreRedo(key)
+                Task { await self.trashPage(key: key) }
+            }
+        }
+        documentUndo.setActionName("Seite einfügen")
+    }
+
+    private func registerPageRestoreRedo(_ key: String) {
+        documentUndo.registerUndo(withTarget: pageUndoTarget) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.writable else { return }
+                self.registerPageInsertUndo(key)
+                Task { await self.restorePage(key: key) }
+            }
+        }
+        documentUndo.setActionName("Seite einfügen")
     }
 
     /// Seite zur Gliederung hinzufuegen
@@ -1141,35 +1265,89 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     // MARK: Palette bleibt sichtbar
 
-    /// Die Palette haengt am Erstantwortgeber `anchor`. Nimmt ihn ein anderes Element (Textfeld der KI-Hilfe, Suche,
-    /// die PDF-Ansicht beim Antippen), verschwindet sie und kam bisher nicht wieder. Sie kehrt zurueck, sobald niemand
-    /// mehr tippt; beim Markieren von PDF-Text bleibt der Fokus bei der PDF-Ansicht.
+    /// Die Palette haengt am Erstantwortgeber `anchor` (und an den Zeichenflaechen). Nimmt ihn ein anderes Element
+    /// (Textfeld, Blatt, Menue), verschwindet sie. Statt in Abstaenden nachzusehen (bis 03.11.2026: zehn Versuche ueber
+    /// zehn Sekunden) wartet der Editor auf das Ereignis, das das Hindernis beendet (`EditorPalette.Blocker`):
+    /// Tastatur zu bzw. Textfeld fertig, Blatt hat den Bildschirm verlassen (`WindowExitSentinel`), Menuefenster
+    /// verborgen, Fenster wieder vorn. Beim Markieren von PDF-Text bleibt der Fokus bei der PDF-Ansicht.
     func toolPickerVisibilityDidChange(_ toolPicker: PKToolPicker) {
-        if !toolPicker.isVisible { restorePickerSoon() }
-    }
-
-    /// Nach dem Verschwinden mehrfach versuchen (0,3 s, dann je 1 s): ein Menue oder Textfeld ist dann irgendwann zu
-    func restorePickerSoon(attempt: Int = 0) {
-        guard ownsToolPicker, pickerWanted, attempt < 10 else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.3 : 1.0)) { [weak self] in
-            guard let self else { return }
-            if !self.restorePicker() { self.restorePickerSoon(attempt: attempt + 1) }
+        if toolPicker.isVisible {
+            restoreFallbacks = 0
+            syncDrawingPolicy()
+        } else {
+            restorePickerSoon()
         }
     }
 
-    /// true: Palette steht (oder soll gerade nicht stehen); false: spaeter noch einmal versuchen
+    /// Im naechsten Durchlauf zurueckholen (UIKit hat den Fokuswechsel dann abgeschlossen)
+    func restorePickerSoon() {
+        guard ownsToolPicker, pickerWanted else { return }
+        DispatchQueue.main.async { [weak self] in self?.restorePicker() }
+    }
+
+    /// Was die Palette gerade verdeckt halten darf
+    var paletteBlocker: EditorPalette.Blocker {
+        EditorPalette.blocker(wanted: ownsToolPicker && pickerWanted && pickerAllowed, inWindow: view.window != nil,
+                              markup: objects.isActive && objects.tool == .markup,
+                              textInput: Self.isTypingField(UIResponder.uf_current),
+                              presenting: blockingPresentation() != nil,
+                              otherWindow: Self.otherWindowOpen(over: view.window))
+    }
+
+    /// true: Palette steht (oder soll gerade nicht stehen); false: sie kommt mit dem passenden Ereignis zurueck
     @discardableResult
     func restorePicker() -> Bool {
         guard ownsToolPicker, pickerWanted, pickerAllowed, view.window != nil else { return true }
         if toolPicker.isVisible, anchor.isFirstResponder || Self.isInsideEditor(UIResponder.uf_current as? UIView ?? UIView()) { return true }
-        guard !(objects.isActive && objects.tool == .markup) else { return true }
-        // Textfeld (KI-Hilfe, Suche, Textobjekt), ein Blatt (Teilen, Gliederung, Marker) oder ein Menue bzw. Popover
-        // (eigenes Fenster ueber der App): nicht dazwischenfunken, spaeter erneut
-        if UIResponder.uf_current is UITextInput { return false }
-        guard view.window?.rootViewController?.presentedViewController == nil else { return false }
-        if Self.otherWindowOpen(over: view.window) { return false }
+        switch paletteBlocker {
+        case .notWanted, .markup:
+            return true
+        case .textInput, .otherWindow:
+            return false                            // Tastatur/Textfeld bzw. Menuefenster melden sich beim Schliessen
+        case .presentation:
+            watchPresentation()
+            return false
+        case .none:
+            anchor.becomeFirstResponder()
+            if toolPicker.isVisible { restoreFallbacks = 0; return true }
+            // ohne erkennbares Hindernis nicht zurueck (z. B. ein Element gibt den Fokus nicht ab): hoechstens zwei
+            // Ersatzversuche
+            if restoreFallbacks < 2 {
+                restoreFallbacks += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.restorePicker() }
+            }
+            return false
+        }
+    }
+
+    /// Blatt oder Hinweis, der ueber diesem Editor liegt (nicht eines, in dem der Editor selbst steht)
+    func blockingPresentation() -> UIViewController? {
+        var next = view.window?.rootViewController?.presentedViewController
+        while let p = next {
+            if !view.isDescendant(of: p.view) {
+                return p.isBeingDismissed || p.view.window == nil ? nil : p
+            }
+            next = p.presentedViewController
+        }
+        return nil
+    }
+
+    /// Markierung in das Blatt setzen; verlaesst es den Bildschirm, kommt die Palette zurueck
+    private func watchPresentation() {
+        guard presentationSentinel?.window == nil, let p = blockingPresentation(),
+              let host = p.presentationController?.containerView ?? p.view else { return }
+        let s = WindowExitSentinel()
+        s.onLeave = { [weak self] in self?.restorePicker() }
+        host.addSubview(s)
+        presentationSentinel = s
+    }
+
+    /// Eine Zeichenflaeche verlaesst die Anzeige (Scrollen, Neuaufbau nach Seite einfuegen): hatte sie den Fokus, geht
+    /// er an den Anker, sonst schloesse sich die Palette ("Seite einfuegen schliesst die Leiste")
+    private func keepPaletteFocus(leaving overlay: PageInkView) {
+        guard ownsToolPicker, pickerWanted,
+              overlay.canvas.isFirstResponder || overlay.correctionView?.ink.isFirstResponder == true else { return }
         anchor.becomeFirstResponder()
-        return toolPicker.isVisible
     }
 
     /// Ein weiteres sichtbares Fenster ueber dem der App (Menue, Popover, Kontextmenue); Tastatur und die Palette
@@ -1184,7 +1362,162 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 }
 
+// MARK: - Werkzeuge der Palette (eigene Eintraege ab iPadOS 18, Farben, Objektmodus)
+
 extension PDFEditorController {
+    /// Werkzeug fuer eine neue Canvas. Steht die Palette auf einem eigenen Eintrag, liefert PencilKit dafuer ein
+    /// Werkzeug, das eine Canvas nicht kennt (gemessen: Absturz "Unknown PKTool type" beim Setzen); dann das letzte
+    /// Werkzeug von Apple (die Canvas nimmt im Objektmodus ohnehin keine Eingabe an).
+    var canvasTool: PKTool {
+        let t = toolPicker.selectedTool
+        if Self.canvasKnows(t) { return t }
+        return lastCanvasTool
+    }
+
+    nonisolated static func canvasKnows(_ t: PKTool) -> Bool { t is PKInkingTool || t is PKEraserTool || t is PKLassoTool }
+
+    /// iPadOS 17 (alte Rueckmeldung); ab iPadOS 18 ruft PencilKit nur noch `toolPickerSelectedToolItemDidChange`
+    func toolPickerSelectedToolDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged() }
+
+    @available(iOS 18.0, *)
+    func toolPickerSelectedToolItemDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged() }
+
+    /// Gewaehltes Werkzeug der Palette uebernehmen:
+    /// - Stift oder Textmarker: Farbe und Staerke merken (fuer Objekte und "Text markieren"), Objektmodus aus.
+    /// - eigener Eintrag (iPadOS 18): Objektmodus mit diesem Werkzeug, Farbe und Staerke des Eintrags. Wo Objekte nicht
+    ///   gehen (Korrektur-Modus, nur ansehen), springt die Palette zum letzten Stift zurueck.
+    /// - `initial`: beim Oeffnen steht die Palette immer auf einem Stift (sie merkt sich sonst ein Objektwerkzeug).
+    func paletteSelectionChanged(initial: Bool = false) {
+        guard !applyingPalette else { return }
+        let selected = toolPicker.selectedTool
+        if Self.canvasKnows(selected) { lastCanvasTool = selected }
+        if #available(iOS 18.0, *) {
+            for case let ink as PKToolPickerInkingItem in toolPicker.toolItems where ink.inkingTool.inkType == .marker {
+                paletteSync.note(ink.inkingTool, itemID: ink.identifier)
+                break
+            }
+            let item = toolPicker.selectedToolItem
+            if let ink = item as? PKToolPickerInkingItem { paletteSync.note(ink.inkingTool, itemID: ink.identifier) }
+            if let custom = item as? PKToolPickerCustomItem, let tool = EditorPalette.objectTool(for: custom.identifier) {
+                if initial && ownsToolPicker { selectLastInkInPalette(); return }
+                paletteObjectToolChosen(custom, tool: tool)
+                return
+            }
+        } else if let ink = toolPicker.selectedTool as? PKInkingTool {
+            paletteSync.note(ink)
+        }
+        leavePaletteObjectTool()
+    }
+
+    @available(iOS 18.0, *)
+    private func paletteObjectToolChosen(_ item: PKToolPickerCustomItem, tool: ObjectEditing.Tool) {
+        setPaletteObjectToolActive(true)
+        guard ownsToolPicker else { return }                // andere Haelfte der geteilten Ansicht: nur nicht schreiben
+        guard writable else {
+            DispatchQueue.main.async { [weak self] in self?.selectLastInkInPalette() }
+            return
+        }
+        if item.allowsColorSelection {
+            applyingPalette = true
+            if let hex = paletteSync.adoptInkColor(item: item.identifier, current: item.color.uniflowRGBA.hex),
+               let c = UIColor(hex: hex) {
+                item.color = c                              // Text und Formen in der Farbe, mit der man gerade schreibt
+            }
+            applyingPalette = false
+            objects.color = item.color.uniflowRGBA.hex
+        }
+        if item.identifier == EditorPalette.shapeID { objects.lineWidth = item.width > 0 ? Double(item.width) : 2 }
+        if !objects.isActive { objects.setActive(true) }
+        if objects.tool != tool { objects.tool = tool }
+        onObjectModeChange?(objects.isActive, objects.tool)
+    }
+
+    /// Ein Werkzeug von Apple ist gewaehlt: Objektmodus aus (er kam ab iPadOS 18 nur ueber die Palette)
+    private func leavePaletteObjectTool() {
+        let wasActive = paletteObjectToolActive
+        setPaletteObjectToolActive(false)
+        guard ownsToolPicker, wasActive, EditorPalette.supportsCustomItems, objects.isActive else { return }
+        objects.setActive(false)
+        onObjectModeChange?(false, objects.tool)
+    }
+
+    private func setPaletteObjectToolActive(_ on: Bool) {
+        guard paletteObjectToolActive != on else { return }
+        paletteObjectToolActive = on
+        if !ownsToolPicker { allOverlays.forEach(applyOwnNotes) }
+    }
+
+    /// Palette zurueck auf den zuletzt benutzten Stift (oder den ersten Stift der Palette)
+    func selectLastInkInPalette() {
+        guard #available(iOS 18.0, *) else { return }
+        let inks = toolPicker.toolItems.compactMap { $0 as? PKToolPickerInkingItem }
+        guard let id = paletteSync.lastInkItemID.flatMap({ id in inks.first { $0.identifier == id }?.identifier })
+                ?? inks.first(where: { $0.inkingTool.inkType != .marker })?.identifier else { return }
+        toolPicker.selectedToolItemIdentifier = id
+        paletteSelectionChanged()
+    }
+
+    /// Objektmodus von aussen (iPadOS 17: Schalter "Tinte/Objekte"; ab iPadOS 18 z. B. beim Ausblenden der Notizen).
+    /// Objekte nehmen dann Farbe und Staerke des zuletzt benutzten Stifts; ab iPadOS 18 zeigt die Palette das passende
+    /// Werkzeug.
+    func setObjectMode(_ on: Bool) {
+        if on, !objects.isActive {
+            objects.color = paletteSync.inkHex
+            objects.lineWidth = paletteSync.shapeWidth
+        }
+        objects.setActive(on)
+        syncPaletteToObjects()
+        onObjectModeChange?(objects.isActive, objects.tool)
+    }
+
+    /// Objektwerkzeug von aussen gewaehlt (Leiste unter iPadOS 17)
+    func setObjectTool(_ t: ObjectEditing.Tool) {
+        objects.tool = t
+        syncPaletteToObjects()
+        onObjectModeChange?(objects.isActive, objects.tool)
+    }
+
+    /// Der Editor hat das Objektwerkzeug selbst gewechselt (nach dem Anlegen eines Textes, nach dem Lasso)
+    func objectToolChangedInternally(_ t: ObjectEditing.Tool) {
+        syncPaletteToObjects()
+        onObjectModeChange?(objects.isActive, t)
+    }
+
+    /// Palette zeigt, was die Objekt-Werkzeuge tun (ab iPadOS 18)
+    private func syncPaletteToObjects() {
+        guard #available(iOS 18.0, *), ownsToolPicker else { return }
+        if objects.isActive {
+            if objects.tool == .lasso || objects.tool == .select { EditorPalette.selectTool = objects.tool }
+            if EditorPalette.shapeChoices.contains(objects.tool) { EditorPalette.shapeTool = objects.tool }
+            let id = EditorPalette.identifier(for: objects.tool)
+            guard toolPicker.selectedToolItemIdentifier != id else { return }
+            applyingPalette = true
+            toolPicker.selectedToolItemIdentifier = id
+            applyingPalette = false
+            setPaletteObjectToolActive(true)
+        } else if paletteObjectToolActive {
+            selectLastInkInPalette()
+        }
+    }
+
+    /// "Fertig" in der Objektleiste: zurueck zum Schreiben
+    func finishObjectTools() {
+        if EditorPalette.supportsCustomItems, paletteObjectToolActive { selectLastInkInPalette() } else { setObjectMode(false) }
+    }
+}
+
+extension PDFEditorController {
+    /// Ein Feld, in das gerade getippt wird (Tastatur): Textfeld, bearbeitbare Textansicht (auch unser Textobjekt) oder
+    /// sonstige Texteingabe ausserhalb der PDF-Ansicht. Die Textauswahl von PDFKit zaehlt nicht: dort kommt keine
+    /// Tastatur, also auch kein `keyboardDidHide`, und die Palette darf sofort zurueck.
+    static func isTypingField(_ r: UIResponder?) -> Bool {
+        if let t = r as? UITextView { return t.isEditable }
+        if r is UITextField { return true }
+        guard r is UIKeyInput else { return false }                 // auch UITextInput
+        if let v = r as? UIView, isInsideEditor(v) { return false }
+        return true
+    }
+
     /// Ansicht eines Editors: eine Zeichenflaeche oder etwas in einer PDF-Ansicht
     static func isInsideEditor(_ v: UIView) -> Bool {
         var cur: UIView? = v

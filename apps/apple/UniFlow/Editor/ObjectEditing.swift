@@ -149,7 +149,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     /// Auswahl als Markierung, Unterstreichung oder Durchstreichung speichern (ein Rueckgaengig je Seite)
-    func applyMarkup(_ kind: PageObjectEdit.Markup, color: String = PageObjectEdit.markerColors[0]) {
+    /// Farbe fuer "Text markieren" (vom Editor: Farbe des Textmarkers in der Palette, `PaletteSync.markupColor`)
+    var markupColor: ((PageObjectEdit.Markup) -> String)?
+
+    func applyMarkup(_ kind: PageObjectEdit.Markup, color: String? = nil) {
+        let color = color ?? markupColor?(kind) ?? PageObjectEdit.markerColors[0]
         let lines = selectedLines()
         controller?.pdfView.clearSelection()
         onTextSelection?(false)
@@ -332,6 +336,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     private func setTool(_ t: Tool) {
         tool = t
         onToolChange?(t)
+        controller?.objectToolChangedInternally(t)          // Palette zeigt das neue Werkzeug (ab iPadOS 18)
     }
 
     private func rect(_ a: CGPoint, _ b: CGPoint) -> CGRect {

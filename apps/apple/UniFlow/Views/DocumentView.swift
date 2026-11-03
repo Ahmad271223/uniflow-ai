@@ -35,13 +35,19 @@ final class EditorBridge: ObservableObject {
     }
 
     func setObjectMode(_ on: Bool) {
-        controller?.objects.setActive(on)
+        controller?.setObjectMode(on)
         objectMode = controller?.objects.isActive ?? false
     }
 
     func setObjectTool(_ t: ObjectEditing.Tool) {
-        controller?.objects.tool = t
+        controller?.setObjectTool(t)
         objectTool = t
+    }
+
+    /// "Fertig" in der Objektleiste: zurueck zum Stift (ab iPadOS 18 ueber die Palette)
+    func finishObjectTools() {
+        controller?.finishObjectTools()
+        objectMode = controller?.objects.isActive ?? false
     }
 
     func undo() { controller?.undo() }
@@ -49,10 +55,11 @@ final class EditorBridge: ObservableObject {
     func fitWidth() { controller?.fitWidth() }
 }
 
-/// Eine Werkzeugpalette und ein Rueckgaengig-Verlauf fuer beide Seiten der geteilten Ansicht.
+/// Eine Werkzeugpalette und ein Rueckgaengig-Verlauf fuer beide Seiten der geteilten Ansicht. Die Palette traegt ab
+/// iPadOS 18 auch die Objektwerkzeuge (`EditorPalette`).
 @MainActor
 final class ToolPickerHolder: ObservableObject {
-    let picker = PKToolPicker()
+    let picker = EditorPalette.makePicker()
     let undo = UndoManager()
 }
 
@@ -669,10 +676,14 @@ struct DocumentView: View {
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
                 Label("Seiten", systemImage: "rectangle.stack")
             }
-            Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
-                .disabled(!canWrite && correction == nil)
-            Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
-                .disabled(!canWrite && correction == nil)
+            if !EditorPalette.drawingPolicyInPalette {
+                // iPad: Rueckgaengig und Wiederholen stehen in Apples Palette (derselbe Verlauf fuer Striche, Objekte und
+                // eingefuegte Seiten); im Objektmodus zusaetzlich in der Objektleiste. Am Mac bleiben sie hier.
+                Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
+                    .disabled(!canWrite && correction == nil)
+                Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
+                    .disabled(!canWrite && correction == nil)
+            }
             if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
                 Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (\(UFPlan.plus.name))", systemImage: "lock") }
@@ -716,20 +727,27 @@ struct DocumentView: View {
                 else if entitlements.allows(.splitView) { choosingCompanion = true }
                 else { lockedFeature = .splitView }
             } label: {
+                // immer das Symbol der Teilung (die Sperre nennt der Text): nur "Schreiben (Plus)" links traegt das Schloss
                 Label(!hasSidePane ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
-                      systemImage: !hasSidePane && !entitlements.allows(.splitView) ? "lock" : "rectangle.split.2x1")
+                      systemImage: "rectangle.split.2x1")
             }
         }
         UFToolbarGap()
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button { pencilOnly.toggle() } label: {
-                Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
+            if !EditorPalette.drawingPolicyInPalette {
+                // iPad: "Mit dem Finger zeichnen" steht in Apples Palette
+                Button { pencilOnly.toggle() } label: {
+                    Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
+                }
             }
-            Button { bridge.setObjectMode(!bridge.objectMode) } label: {
-                Label(bridge.objectMode ? "Objekte" : "Tinte", systemImage: bridge.objectMode ? "square.on.circle" : "pencil.tip")
+            if !EditorPalette.supportsCustomItems {
+                // ab iPadOS 18 stehen Text, Haftnotiz, Formen, Auswahl und Text markieren in der Palette
+                Button { bridge.setObjectMode(!bridge.objectMode) } label: {
+                    Label(bridge.objectMode ? "Objekte" : "Tinte", systemImage: bridge.objectMode ? "square.on.circle" : "pencil.tip")
+                }
+                .disabled(!ownNotesVisible || !canWrite || correction != nil)
+                .accessibilityIdentifier("doc.objectMode")
             }
-            .disabled(!ownNotesVisible || !canWrite || correction != nil)
-            .accessibilityIdentifier("doc.objectMode")
             layersMenu
         }
         UFToolbarGap()
@@ -1858,6 +1876,10 @@ struct ObjectToolbar: View {
     private let colors: [(String, String)] = [("#e5322d", "Rot"), ("#1d2130", "Schwarz"), ("#2f7fd1", "Blau"), ("#2e9e5b", "Grün"),
                                               ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
 
+    /// Ab iPadOS 18 waehlt man die Werkzeuge in Apples Palette; die Leiste zeigt dann nur, was zur Auswahl bzw. zum
+    /// markierten Text gehoert (unter iPadOS 17 weiter mit den Werkzeugen)
+    private var toolsInPalette: Bool { EditorPalette.supportsCustomItems }
+
     var body: some View {
         VStack(spacing: 8) {
             if bridge.objectTool == .markup {
@@ -1875,24 +1897,39 @@ struct ObjectToolbar: View {
                     } else {
                         Text("Text in der PDF auswählen (gedrückt halten und ziehen)").font(.callout).foregroundStyle(.secondary)
                     }
+                    if toolsInPalette {
+                        // beim Markieren hat die PDF-Ansicht den Fokus und die Palette ist weg: hier zurueck zum Stift
+                        Button("Fertig") { bridge.finishObjectTools() }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("objects.markup.done")
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            tools
+            if !toolsInPalette || bridge.objectSelection > 0 { tools }
         }
     }
 
     private var tools: some View {
         HStack(spacing: 6) {
-            ForEach(ObjectEditing.Tool.allCases, id: \.self) { t in
-                Button { bridge.setObjectTool(t) } label: { Image(systemName: t.systemImage).frame(width: 30, height: 30) }
-                    .buttonStyle(.bordered)
-                    .tint(bridge.objectTool == t ? .accentColor : .secondary)
-                    .accessibilityLabel(t.label)
-                    .accessibilityIdentifier("objects.tool.\(t.rawValue)")
+            if !toolsInPalette {
+                ForEach(ObjectEditing.Tool.allCases, id: \.self) { t in
+                    Button { bridge.setObjectTool(t) } label: { Image(systemName: t.systemImage).frame(width: 30, height: 30) }
+                        .buttonStyle(.bordered)
+                        .tint(bridge.objectTool == t ? .accentColor : .secondary)
+                        .accessibilityLabel(t.label)
+                        .accessibilityIdentifier("objects.tool.\(t.rawValue)")
+                }
+                Divider().frame(height: 26)
             }
+            // eigenes Rueckgaengig fuer Objektaktionen (derselbe Verlauf wie die Palette)
+            Button { bridge.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 30, height: 30) }
+                .accessibilityLabel("Rückgängig")
+                .accessibilityIdentifier("objects.undo")
+            Button { bridge.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 30, height: 30) }
+                .accessibilityLabel("Wiederholen")
             Divider().frame(height: 26)
             Menu {
                 ForEach(colors, id: \.0) { c in
@@ -1909,8 +1946,10 @@ struct ObjectToolbar: View {
             }
             .disabled(bridge.objectSelection == 0).accessibilityLabel("Auswahl löschen")
             .accessibilityIdentifier("objects.delete")
-            Divider().frame(height: 26)
-            Button("Fertig") { bridge.setObjectMode(false) }
+            if !toolsInPalette {
+                Divider().frame(height: 26)
+                Button("Fertig") { bridge.finishObjectTools() }
+            }
         }
         .padding(8)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
@@ -2102,6 +2141,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
                                      undoManager: undoManager, initialPDFPage: initialPDFPage)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
+        vc.followsPaletteDrawingPolicy = EditorPalette.drawingPolicyInPalette
         vc.foreignLayers = foreignLayers
         vc.ownNotesVisible = ownNotesVisible
         vc.canEdit = canEdit
@@ -2115,6 +2155,10 @@ struct PDFEditorView: UIViewControllerRepresentable {
         }
         vc.objects.onSelectionChange = { [weak bridge] n in bridge?.objectSelection = n }
         vc.objects.onToolChange = { [weak bridge] t in bridge?.objectTool = t }
+        vc.onObjectModeChange = { [weak bridge] on, t in
+            if bridge?.objectMode != on { bridge?.objectMode = on }
+            if bridge?.objectTool != t { bridge?.objectTool = t }
+        }
         vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
         bridge.controller = vc
         return vc

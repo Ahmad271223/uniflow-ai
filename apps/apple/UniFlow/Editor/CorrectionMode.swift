@@ -366,7 +366,7 @@ extension PDFEditorController {
             let v = CorrectionPageView(info: info, pageSize: overlay.geometry.pageSize, editable: true)
             v.show(session.draft.page(pdfIndex: info.pdfIndex))
             v.ink.drawingPolicy = drawingPolicy
-            v.ink.tool = toolPicker.selectedTool
+            v.ink.tool = canvasTool
             toolPicker.addObserver(v.ink)
             v.onInkChange = { [weak session] v in session?.setInk(v.currentStrokes, on: v.info) }
             v.onPlace = { [weak self, weak session] v, p in
