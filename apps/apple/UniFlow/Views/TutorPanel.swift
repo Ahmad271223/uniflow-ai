@@ -48,7 +48,6 @@ struct TutorPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
             if aiEnabled { conversation } else { notConnected }
         }
         .background(UF.surface)
@@ -59,19 +58,14 @@ struct TutorPanel: View {
         }
     }
 
+    /// Kopf wie die anderen Spalten neben der PDF (UFPaneHeader); "Neu" als ruhiger Textknopf
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "sparkles").foregroundStyle(UF.accent)
-            Text("KI-Hilfe").ufFont(15.2, 700).foregroundStyle(UF.text)
-            Spacer()
+        UFPaneHeader("KI-Hilfe", icon: "sparkles", closeLabel: "KI-Hilfe schließen", closeID: "tutor.close", close: close) {
             if !messages.isEmpty {
-                Button("Neu") { messages = []; error = nil }
-                    .ufFont(13.12).disabled(busy).accessibilityIdentifier("tutor.reset")
+                UFButton("Neu", kind: .ghost, size: .small) { messages = []; error = nil }
+                    .disabled(busy).accessibilityIdentifier("tutor.reset")
             }
-            Button { close() } label: { Image(systemName: "xmark").foregroundStyle(UF.muted) }
-                .accessibilityLabel("KI-Hilfe schließen").accessibilityIdentifier("tutor.close")
         }
-        .padding(.horizontal, 14).padding(.vertical, 10)
     }
 
     @ViewBuilder private var notConnected: some View {
@@ -88,8 +82,12 @@ struct TutorPanel: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if messages.isEmpty {
-                            Text("Frag etwas zur offenen Seite oder tipp unten auf eine Aktion. Markierter Text wird mitgeschickt.")
-                                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                            // Leerzustand als Einladung: was die Leiste kann, in der Schrift des Gespraechs
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Frag etwas zur offenen Seite").ufFont(14.5, 650).foregroundStyle(UF.text)
+                                Text("Oder tipp unten auf eine Aktion. Markierter Text wird mitgeschickt.")
+                                    .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                         ForEach($messages) { $m in bubble($m).id(m.id) }
                         if busy {
@@ -110,7 +108,7 @@ struct TutorPanel: View {
                     if now { withAnimation { proxy.scrollTo("busy", anchor: .bottom) } }
                 }
             }
-            Divider()
+            Rectangle().fill(UF.line).frame(height: 1)
             composer
         }
     }

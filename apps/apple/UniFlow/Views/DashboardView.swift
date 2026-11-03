@@ -17,6 +17,7 @@ struct DashboardView: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
     @Environment(\.openURL) private var openURL
+    @Environment(\.ufWindowWidth) private var windowWidth
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
     /// Tag, fuer den die Seite gerade steht: nach Mitternacht (NSCalendarDayChanged) laedt sie neu, und Begruessung
@@ -108,7 +109,9 @@ struct DashboardView: View {
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
 
-                UFGrid(columns: 3) {
+                // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
+                // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)
+                UFGridLayout(columns: windowWidth > 640 ? 3 : 1, spacing: 16) {
                     kpiCard(value: UFFmt.min(today.n("minutes")),
                             label: "heute geplant" + freeText(today))
                     UFCard {
@@ -117,6 +120,7 @@ struct DashboardView: View {
                     }
                     backlogCard(backlog)
                 }
+                .environment(\.ufFillsCell, true)
                 .padding(.bottom, 19.2)
 
                 twoColumns(left: {
@@ -156,7 +160,8 @@ struct DashboardView: View {
         UFCard { UFKPI(value: value, label: label) }
     }
 
-    /// Dritte Kennzahl: rot umrandet, wenn etwas nachzuholen ist; "neu planen" startet "Meine Woche retten"
+    /// Dritte Kennzahl: Zahl rot, wenn etwas nachzuholen ist; "neu planen" startet "Meine Woche retten". Die Farbe
+    /// sitzt auf der Zahl (Daten), nicht als roter Rahmen um die ganze Karte (Chrom)
     private func backlogCard(_ backlog: Int) -> some View {
         UFCard {
             VStack(alignment: .leading, spacing: 2.4) {
@@ -171,7 +176,6 @@ struct DashboardView: View {
                 }
             }
         }
-        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(backlog > 0 ? UF.bad : .clear, lineWidth: 1))
     }
 
     /// linke Spalte doppelt so breit wie die rechte (span-2), unter 1100 pt untereinander
@@ -223,7 +227,7 @@ struct DashboardView: View {
 
     private func upcomingCard(_ up: [JSONValue]) -> some View {
         UFCard {
-            UFCardHead("Nächste Termine", icon: "flag")
+            UFCardHead("Nächste Termine", icon: "calendar")
             if up.isEmpty {
                 Text("Keine Termine.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
             } else {
@@ -239,8 +243,11 @@ struct DashboardView: View {
                         else if u["package_id"].map({ !$0.isNull }) == true { router.go(.plan(view: "day", date: u.s("date"))) }
                         else if let m = u.i("module_id") { router.go(.module(m)) } else { router.go(.plan()) }
                     } label: {
-                        UFItemRow(UFFmt.shortName(u.s("title")), sub: Self.upcomingSub(u), link: true, leading: {
+                        // Titel in Textfarbe statt ganz in Linkfarbe, der Pfeil rechts zeigt, dass die Zeile oeffnet
+                        UFItemRow(UFFmt.shortName(u.s("title")), sub: Self.upcomingSub(u), leading: {
                             UFDot(color: Color(hex: u.s("color")))
+                        }, trailing: {
+                            UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
                         })
                         .foregroundStyle(isDeadline && (u["overdue"]?.bool ?? false) ? UF.bad : UF.text)
                     }
@@ -269,7 +276,7 @@ struct DashboardView: View {
     private func weekCard(_ w: JSONValue, today: String) -> some View {
         let doneW = w.i("done") ?? 0, totalW = w.i("total") ?? 0
         return UFCard {
-            UFCardHead("Diese Woche", icon: "clock") { Text("\(doneW)/\(totalW)").ufFont(13.12).foregroundStyle(UF.muted) }
+            UFCardHead("Diese Woche", icon: "tasks") { Text("\(doneW)/\(totalW)").ufFont(13.12).foregroundStyle(UF.muted) }
             UFProgress(value: totalW > 0 ? Double(doneW) / Double(totalW) : 0, ok: true).padding(.bottom, 11.2)
             HStack(spacing: 5.6) {                                          // .week-strip: 7 gleich breite Tage
                 ForEach(Row.rows(w.list("days"), key: "date")) { row in
@@ -314,7 +321,7 @@ struct DashboardView: View {
                     let fs = groups[s] ?? []
                     let first = fs.first.map { $0.s("ai_title") ?? $0.s("name") ?? "" } ?? ""
                     Button { router.go(.files(section: "new")) } label: {
-                        UFItemRow(UFFmt.shortName(s), sub: "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")", link: true) {
+                        UFItemRow(UFFmt.shortName(s), sub: "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")") {
                             EmptyView()
                         } trailing: { UFBadge("\(fs.count)") }
                     }

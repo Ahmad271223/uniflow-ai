@@ -16,12 +16,14 @@ struct UFButtonStyle: ButtonStyle {
     /// aktiver Bereichslink (.btn.ghost.active: --accent-soft / --accent-text)
     var activeFill = false
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     func makeBody(configuration: Configuration) -> some View {
         let pressed = configuration.isPressed
         let side: CGFloat = size == .small ? 28 : 34
+        // Schrift folgt der Textgroesse (Dynamic Type) wie ufFont; in der Standardgroesse unveraendert
         return configuration.label
-            .font(.uf(size == .small ? 13.12 : 14.5, 500))
+            .font(.uf(UFScaledFont.scaled(size == .small ? 13.12 : 14.5, typeSize), 500))
             .lineLimit(1)
             .foregroundStyle(activeFill ? UF.accentText : foreground)
             .padding(.vertical, iconOnly ? 0 : (size == .small ? 4.8 : 8) + ufB)          // .btn: padding + 1px Rand
@@ -40,27 +42,27 @@ struct UFButtonStyle: ButtonStyle {
         case .normal: return UF.text
         case .primary, .ok: return .white
         case .ghost: return UF.text2
-        case .danger: return UF.bad
+        case .danger: return UF.badText
         }
     }
 
     private func background(pressed: Bool) -> Color {
         switch kind {
         case .normal: return pressed ? UF.surface2 : UF.surface
-        case .primary: return pressed ? UF.accentStrong : UF.accent
+        case .primary: return pressed ? UF.accentFillPressed : UF.accentFill
         case .ghost: return pressed ? UF.surface2 : .clear
         case .danger: return pressed ? UF.badSoft : UF.surface
-        case .ok: return UF.ok
+        case .ok: return UF.okFill
         }
     }
 
     private var border: Color {
         switch kind {
         case .normal: return UF.lineStrong
-        case .primary: return UF.accent
+        case .primary: return UF.accentFill
         case .ghost: return .clear
         case .danger: return UF.bad.opacity(0.4)
-        case .ok: return UF.ok
+        case .ok: return UF.okFill
         }
     }
 }
@@ -235,10 +237,10 @@ extension UFTone {
     var fg: Color {
         switch self {
         case .accent: return UF.accentText
-        case .ok: return UF.ok
-        case .warn: return UF.warn
-        case .bad: return UF.bad
-        case .info: return UF.info
+        case .ok: return UF.okText
+        case .warn: return UF.warnText
+        case .bad: return UF.badText
+        case .info: return UF.infoText
         case .neutral: return UF.text2
         }
     }
@@ -322,11 +324,11 @@ struct UFStatusPill: View {
 
     var tone: (fg: Color, bg: Color) {
         switch status {
-        case "geplant": return (UF.info, UF.infoSoft)
+        case "geplant": return (UF.infoText, UF.infoSoft)
         case "in_bearbeitung": return (UF.accentText, UF.accentSoft)
-        case "erledigt": return (UF.ok, UF.okSoft)
-        case "teilweise": return (UF.warn, UF.warnSoft)
-        case "nachholen": return (UF.bad, UF.badSoft)
+        case "erledigt": return (UF.okText, UF.okSoft)
+        case "teilweise": return (UF.warnText, UF.warnSoft)
+        case "nachholen": return (UF.badText, UF.badSoft)
         default: return (UF.muted, UF.surface2)
         }
     }
@@ -402,6 +404,7 @@ struct UFSegmented<Value: Hashable>: View {
 struct UFTabs<Value: Hashable>: View {
     let options: [(value: Value, label: String)]
     @Binding var selection: Value
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -411,7 +414,7 @@ struct UFTabs<Value: Hashable>: View {
                     let active = o.value == selection
                     Button { selection = o.value } label: {
                         Text(o.label)
-                            .font(.uf(14.5, 500))
+                            .font(.uf(UFScaledFont.scaled(14.5, typeSize), 500))
                             .foregroundStyle(active ? UF.accentText : UF.text2)
                             .padding(.vertical, 9.6)
                             .padding(.bottom, 2)                                // border-bottom: 2px (transparent, aktiv --accent)
@@ -515,12 +518,13 @@ struct UFEmpty<Actions: View>: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            UFIcon(icon, size: small ? 30 : 36).foregroundStyle(UF.lineStrong)
+            UFIcon(icon, size: small ? 26 : 30).foregroundStyle(UF.muted.opacity(0.6))
             Text(text).ufFont(small ? 13.12 : 14.5).foregroundStyle(UF.muted).multilineTextAlignment(.center)
+                .frame(maxWidth: 420)                                   // lesbare Zeilenlaenge auch in breiten Karten
             actions
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
+        .padding(.vertical, small ? 20 : 24)
         .padding(.horizontal, 16)
     }
 }
@@ -833,5 +837,58 @@ struct UFGridLayout: Layout {
             }
             y += h + spacing
         }
+    }
+}
+
+// MARK: - Kopf einer Seitenspalte im Editor (KI-Hilfe, Dokument daneben, Loesung daneben)
+
+/// Gemeinsamer Kopf der Spalten neben der PDF (Design-Ueberarbeitung 03.11.2026): gleiche Hoehe, Schrift, Linie und
+/// Schliessen-Knopf in allen drei Spalten, damit sie als eine Familie lesen. Schliessen hat 44 pt Trefferflaeche.
+struct UFPaneHeader<Trailing: View>: View {
+    let title: String
+    var icon: String?
+    var closeLabel = "Schließen"
+    var closeID: String?
+    let close: () -> Void
+    @ViewBuilder var trailing: Trailing
+
+    init(_ title: String, icon: String? = nil, closeLabel: String = "Schließen", closeID: String? = nil,
+         close: @escaping () -> Void, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.icon = icon
+        self.closeLabel = closeLabel
+        self.closeID = closeID
+        self.close = close
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let icon { UFIcon(icon, size: 16).foregroundStyle(UF.accent) }
+            Text(title).ufFont(14.5, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
+            Spacer(minLength: 4)
+            trailing
+            Button(action: close) {
+                UFIcon("x", size: 16).foregroundStyle(UF.text2)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(closeLabel)
+            .modifier(UFOptionalIdentifier(id: closeID))
+            .padding(.trailing, -10)                                       // Symbol naeher am Rand, Flaeche bleibt
+        }
+        .padding(.leading, 14).padding(.trailing, 12)
+        .frame(minHeight: 44)
+        .background(UF.surface)
+        .ufBorderBottom()
+    }
+}
+
+/// accessibilityIdentifier nur, wenn einer gesetzt ist (sonst bliebe die Kennung des Elements leer statt unberuehrt)
+struct UFOptionalIdentifier: ViewModifier {
+    let id: String?
+    func body(content: Content) -> some View {
+        if let id { content.accessibilityIdentifier(id) } else { content }
     }
 }

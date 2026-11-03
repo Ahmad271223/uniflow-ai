@@ -483,7 +483,7 @@ struct UFLockMark: View {
             }
             .foregroundStyle(.white)
             .padding(.vertical, 2).padding(.horizontal, 6)
-            .background(Capsule().fill(UF.accent))
+            .background(Capsule().fill(UF.accentFill))
             .accessibilityHidden(true)
         case .comingSoon:
             Text("bald").ufFont(10.4, 650, lh: 1.2)

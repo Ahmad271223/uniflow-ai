@@ -264,16 +264,22 @@ struct LibraryPage: View {
         let newCount = lib.list("files").filter { $0.s("status") == "neu" }.count
         let sectionTitle = ["fav": "Favoriten", "recent": "Zuletzt bearbeitet", "new": newTitle, "trash": "Papierkorb"][section]
         UFContent(maxWidth: 1480) {
-            UFPageHead("Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.") {
-                searchField(section: section, path: path)
-                UFSelect(options: [(0, "Alle Module")] + lib.list("modules").compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } },
-                         selection: Binding(get: { curMod }, set: { v in router.go(.files(path: v == 0 ? nil : "m\(v)")) }))
-                UFSelect(options: [("date", "Zuletzt bearbeitet"), ("name", "Name")], selection: Binding(get: { Self.sort }, set: { Self.sort = $0; tick += 1 }))
-                UFIconSegmented(options: [("grid", "grid"), ("list", "list")], selection: $mode)
+            // Kopf: Titel und die eine Hauptaktion "Neu"; Suche, Filter, Sortierung und Ansicht als eigene Werkzeugzeile
+            // darunter (vorher fuenf Steuerelemente rechts vom Titel, "Neu" brach hochkant allein in eine Zeile)
+            UFPageHead("Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort.") {
                 UFButton("Neu", icon: "plus", kind: .primary) {
                     overlay.modal { LibraryNewDialog(lib: lib, path: inCourse ? "" : path, current: inCourse ? b.crumbs[0] : (b.crumbs.last ?? ("", ""))) }
                 }
             }
+            UFFlexWrap(gap: 8) {
+                searchField(section: section, path: path)
+                UFSelect(options: [(0, "Alle Module")] + lib.list("modules").compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } },
+                         selection: Binding(get: { curMod }, set: { v in router.go(.files(path: v == 0 ? nil : "m\(v)")) }))
+                UFSelect(options: [("date", "Zuletzt bearbeitet"), ("name", "Name")], selection: Binding(get: { Self.sort }, set: { Self.sort = $0; tick += 1 }))
+                UFFlexSpacer()
+                UFIconSegmented(options: [("grid", "grid"), ("list", "list")], selection: $mode)
+            }
+            .padding(.bottom, 16)
             UFFlexWrap(gap: 9.6, justify: .between) {                         // .row.between.wrap
                 UFFlexWrap(gap: 8) {                                         // .chips
                     ForEach(LibraryStyle.chips, id: \.0) { k, l in
@@ -309,7 +315,7 @@ struct LibraryPage: View {
                 }
                 let recent = recentFiles(lib.list("files"), limit: 4)
                 LibraryQuickCard(title: "Schnellzugriff", icon: "clock", trailing: {
-                    Button("Alle anzeigen →") { router.go(.files(section: "recent")) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                    Button("Alle anzeigen") { router.go(.files(section: "recent")) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
                 }) {
                     if recent.isEmpty {
                         Text("Zuletzt geöffnete Dokumente erscheinen hier.").ufFont(13.12).foregroundStyle(UF.muted)
@@ -496,16 +502,9 @@ struct LibraryFolderCard: View {
     var body: some View {
         let fc = Color(hex: it.color ?? "#4f8ef7")
         ZStack(alignment: .topLeading) {
-            // .wave: radial-gradient(130% 95% at 90% 105%, Farbe 22 %, transparent 62 %), 135 pt hoch
-            GeometryReader { g in
-                EllipticalGradient(colors: [fc.opacity(0.22), fc.opacity(0)], center: UnitPoint(x: 0.9, y: 1.05),
-                                   startRadiusFraction: 0, endRadiusFraction: 0.62)
-                    .frame(width: g.size.width * 1.3 * 2, height: 135 * 0.95 * 2)
-                    .position(x: g.size.width * 0.9, y: 135 * 1.05)
-                    .frame(width: g.size.width, height: 135, alignment: .topLeading)
-                    .clipped()
-            }
-            .frame(height: 135)
+            // Design-Ueberarbeitung 03.11.2026: statt der Farbwelle (.wave, Verlauf als Zierde) eine ruhige Flaeche in
+            // der Modulfarbe hinter der Mappe; die Mappe bleibt das eine praegende Element der Karte
+            Rectangle().fill(Color.mix(fc, 0.08, UF.surface)).frame(height: 135)
             VStack(alignment: .leading, spacing: 0) {
                 UFFolderShape(color: fc).frame(width: 92, height: 70).padding(.top, 6.4).padding(.leading, 41.6).padding(.bottom, 24)
                 HStack(alignment: .top, spacing: 9.6) {
@@ -513,7 +512,13 @@ struct LibraryFolderCard: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     // Kursordner (lokal) haben kein Menue
                     if it.user != nil || it.module != nil {
-                        Button(action: menu) { UFIcon("more", size: 18).foregroundStyle(UF.muted).padding(3.2) }.buttonStyle(.plain).help("Mehr")
+                        // 44 pt Trefferflaeche, Lage des Symbols wie vorher
+                        Button(action: menu) {
+                            UFIcon("more", size: 18).foregroundStyle(UF.text2).padding(3.2)
+                                .frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain).help("Mehr").accessibilityLabel("Mehr")
+                        .padding(-9.8)
                     }
                 }
                 .padding(.leading, 56).frame(minHeight: 44, alignment: .top)
@@ -526,7 +531,7 @@ struct LibraryFolderCard: View {
                     if it.module != nil { Text(UFFmt.initial(it.label)).font(.uf(14.4, 700)).foregroundStyle(.white) }
                     else { UFIcon("folder", size: 20).foregroundStyle(.white) }
                 }
-                .ufShadow(.md)
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(UF.surface, lineWidth: 2))   // Abstand zur Flaeche statt Schatten
                 .offset(x: 19.2 + ufB, y: 112 + ufB)
         }
         .frame(maxWidth: .infinity, maxHeight: fills ? .infinity : nil, alignment: .topLeading)
@@ -548,8 +553,7 @@ struct UFFolderShape: View {
             UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8).fill(color).brightness(-0.06)
                 .frame(width: 40, height: 20).offset(y: -11)
             UnevenRoundedRectangle(topLeadingRadius: 8, bottomLeadingRadius: 10, bottomTrailingRadius: 10, topTrailingRadius: 10)
-                .fill(LinearGradient(colors: [Color.mix(color, 0.92, .white), Color.mix(color, 0.75, .white)], startPoint: .top, endPoint: .bottom))
-                .shadow(color: color.opacity(0.32), radius: 10, x: 0, y: 10)
+                .fill(Color.mix(color, 0.85, .white))                // flach statt Verlauf mit farbigem Schein
         }
     }
 }

@@ -426,6 +426,14 @@ struct DocumentView: View {
         }
         .task {
             await store.load()
+            #if DEBUG
+            // -UFDocPanel tutor|companion: Seitenspalte bzw. "Daneben öffnen" gleich offen (nur Bildvergleiche)
+            switch UserDefaults.standard.string(forKey: "UFDocPanel") {
+            case "tutor": showTutor = true
+            case "companion": choosingCompanion = true
+            default: break
+            }
+            #endif
             scheduleSuggestion(bridge.pageIndex)
             await reloadSolutionLayers()
             await loadCommunityMatches()
@@ -511,8 +519,8 @@ struct DocumentView: View {
 
     private func splitHandle(width: CGFloat) -> some View {
         ZStack {
-            Color(uiColor: .separator).frame(width: 1)
-            Capsule().fill(Color.secondary.opacity(0.5)).frame(width: 5, height: 44)
+            UF.line.frame(width: 1)
+            Capsule().fill(UF.lineStrong).frame(width: 5, height: 44)
         }
         .frame(width: 12)
         .contentShape(Rectangle())
@@ -617,6 +625,8 @@ struct DocumentView: View {
                     .labelStyle(.titleAndIcon)
             }
         }
+        // Rechts in Gruppen nach Aufgabe (Design-Ueberarbeitung 03.11.2026; vorher elf Knoepfe in einer Reihe):
+        // Stand (kein Knopf, ohne Glasflaeche) | Lesen und Nachschlagen | Schreiben | Teilen und Mehr
         ToolbarItemGroup(placement: .topBarTrailing) {
             if task != nil, !readOnly {
                 Button { Task { await markTaskDone() } } label: {
@@ -626,8 +636,15 @@ struct DocumentView: View {
                 .disabled(taskDone)
                 .accessibilityIdentifier("doc.task.done")
             }
-            StatusLabel(status: store.status)
-            SyncIssueBadge(store: store)
+        }
+        UFPlainToolbarItem {
+            HStack(spacing: 4) {
+                StatusLabel(status: store.status)
+                SyncIssueBadge(store: store)
+            }
+        }
+        UFToolbarGap()
+        ToolbarItemGroup(placement: .topBarTrailing) {
             if offersLectureMarker {
                 Button { openLectureMarker() } label: {
                     Label("Vorlesung bis hier", systemImage: markers.needsReview ? "bookmark.trianglebadge.exclamationmark" : "bookmark")
@@ -648,6 +665,9 @@ struct DocumentView: View {
                 Label(!hasSidePane ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
                       systemImage: !hasSidePane && !entitlements.allows(.splitView) ? "lock" : "rectangle.split.2x1")
             }
+        }
+        UFToolbarGap()
+        ToolbarItemGroup(placement: .topBarTrailing) {
             Button { pencilOnly.toggle() } label: {
                 Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
             }
@@ -657,6 +677,9 @@ struct DocumentView: View {
             .disabled(!ownNotesVisible || !canWrite)
             .accessibilityIdentifier("doc.objectMode")
             layersMenu
+        }
+        UFToolbarGap()
+        ToolbarItemGroup(placement: .topBarTrailing) {
             Menu {
                 // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
                 Section("PDF exportieren (nur privat)") {
@@ -1102,16 +1125,12 @@ struct CompanionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Text(store.file.displayTitle).font(.caption).bold().lineLimit(1)
-                Spacer()
+            // Kopf wie KI-Hilfe und Loesung daneben (UFPaneHeader)
+            UFPaneHeader(store.file.displayTitle, icon: store.file.isNotebook ? "note" : "file-text", close: onClose) {
                 StatusLabel(status: store.status)
                 SyncIssueBadge(store: store)
-                Text("S. \(bridge.pageIndex + 1)").font(.caption.monospacedDigit())
-                Button { onClose() } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Schließen")
+                Text("S. \(bridge.pageIndex + 1)").ufFont(12.8, 500, lh: 1.25).monospacedDigit().foregroundStyle(UF.text2)
             }
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(.bar)
             if let error = store.errorMessage {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
@@ -1179,7 +1198,7 @@ struct CompanionPicker: View {
 
     private var blankSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Leeres Blatt").ufFont(17, 700).foregroundStyle(UF.text)
+            Text("Leeres Blatt").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
             Text("Zum Mitschreiben neben der Folie, ohne auf sie zu schreiben. Das Blatt landet bei deinen Notizen im Modul.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 12) {
@@ -1190,8 +1209,7 @@ struct CompanionPicker: View {
                                 .frame(width: 58, height: 76)
                                 .background(Color.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
-                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(UF.line, lineWidth: 1))
-                                .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(UF.lineStrong, lineWidth: 1))
                                 .overlay { if creating == t.id { ProgressView() } }
                             Text(t.name).ufFont(13.12, 600).foregroundStyle(UF.text)
                         }
@@ -1210,18 +1228,19 @@ struct CompanionPicker: View {
 
     private var documentSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Dokument").ufFont(17, 700).foregroundStyle(UF.text)
+            Text("Dokument").ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
             UFTextInput("Skript oder Blatt suchen", text: $query)
             if let error {
                 Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
             }
             VStack(spacing: 0) {
                 ForEach(Array(filtered.enumerated()), id: \.element.id) { i, f in
-                    if i > 0 { Divider().padding(.leading, 48) }
+                    if i > 0 { Rectangle().fill(UF.line).frame(height: 1).padding(.leading, 48) }
                     Button { onPick(f); dismiss() } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: f.isNotebook ? "note.text" : "doc.richtext")
-                                .font(.system(size: 18)).foregroundStyle(f.module_id == moduleID ? UF.accent : UF.muted)
+                            // Symbole der App (UFIcon) statt SF Symbols, wie in Bibliothek und Uebersicht
+                            UFIcon(f.isNotebook ? "note" : "file-text", size: 18)
+                                .foregroundStyle(f.module_id == moduleID ? UF.accent : UF.muted)
                                 .frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(f.displayTitle).ufFont(14.5, 600).foregroundStyle(UF.text).lineLimit(2)
@@ -1806,6 +1825,29 @@ struct SyncIssueBadge: View {
         guard case .konflikteZusammengefuehrt = issue, !pages.isEmpty else { return issue.label }
         let shown = pages.prefix(6).map(String.init).joined(separator: ", ") + (pages.count > 6 ? " …" : "")
         return issue.label + " – " + (pages.count == 1 ? "Seite " : "Seiten ") + shown
+    }
+}
+
+/// Abstand zwischen Knopfgruppen der Editor-Leiste (ab iOS 26 eigene Glasflaeche je Gruppe); davor ohne Wirkung
+struct UFToolbarGap: ToolbarContent {
+    var body: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        }
+    }
+}
+
+/// Anzeige in der Leiste, die kein Knopf ist (Sicherungsstand): ab iOS 26 ohne Glasflaeche, damit sie nicht wie ein
+/// Knopf aussieht
+struct UFPlainToolbarItem<Content: View>: ToolbarContent {
+    @ViewBuilder var content: Content
+
+    var body: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .topBarTrailing) { content }.sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .topBarTrailing) { content }
+        }
     }
 }
 

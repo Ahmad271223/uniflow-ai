@@ -28,7 +28,9 @@ enum UF {
     static let lineStrong = Color(light: 0xd3d8e4, dark: 0x333a4d)
     static let text = Color(light: 0x171a26, dark: 0xe8eaf2)
     static let text2 = Color(light: 0x4b5168, dark: 0xb3b9cc)
-    static let muted = Color(light: 0x7a8199, dark: 0x7f879d)
+    /// Design-Ueberarbeitung 03.11.2026: vorher 0x7a8199 / 0x7f879d (3,5:1 auf --surface-2 hell, 4,4:1 dunkel);
+    /// jetzt mindestens 4,5:1 auf allen Flaechen (Hinweise, Unterzeilen, Datumszeilen sind normaler Text)
+    static let muted = Color(light: 0x666c84, dark: 0x8a92a8)
     static let accent = Color(light: 0x4f5bd5, dark: 0x7b86f0)
     static let accentStrong = Color(light: 0x3f4bc2, dark: 0x6a76e8)
     static let accentSoft = Color(light: 0xeceefc, dark: 0x232848)
@@ -41,6 +43,19 @@ enum UF {
     static let badSoft = Color(light: 0xfbe5e5, dark: 0x3d1d1d)
     static let info = Color(light: 0x2f7fd1, dark: 0x5aa0e8)
     static let infoSoft = Color(light: 0xe4effb, dark: 0x172a40)
+
+    // Schrift auf den weichen Flaechen (Abzeichen, Statuspillen): dieselben Toene, hell dunkler gemischt, damit Text
+    // mindestens 4,5:1 erreicht (vorher z. B. Orange auf --warn-soft 2,6:1). Dunkel bleiben die Werte von ok/warn/…
+    static let okText = Color(light: 0x167a46, dark: 0x3fbf7c)
+    static let warnText = Color(light: 0x9a5a0c, dark: 0xe9a04a)
+    static let badText = Color(light: 0xb42f2f, dark: 0xef6b6b)
+    static let infoText = Color(light: 0x1f63a8, dark: 0x5aa0e8)
+
+    // Gefuellte Flaechen mit weisser Schrift (Hauptknopf, aktives Segment, "ok"-Knopf): hell wie bisher, dunkel etwas
+    // tiefer als --accent, sonst nur 3,2:1 (Weiss auf 0x7b86f0)
+    static let accentFill = Color(light: 0x4f5bd5, dark: 0x5561d6)
+    static let accentFillPressed = Color(light: 0x3f4bc2, dark: 0x4a55c8)
+    static let okFill = Color(light: 0x17804a, dark: 0x1e7f4c)
     /// Verlauf des Logos: linear-gradient(135deg, var(--accent), #8b5cf6)
     static let logoGradient = LinearGradient(colors: [accent, Color(hex: 0x8b5cf6)], startPoint: .topLeading, endPoint: .bottomTrailing)
 

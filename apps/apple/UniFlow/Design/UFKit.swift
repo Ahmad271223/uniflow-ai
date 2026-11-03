@@ -162,7 +162,7 @@ struct UFSegPill<Value: Hashable>: View {
                     .foregroundStyle(active ? .white : UF.text2)
                     .padding(.vertical, 6.4)
                     .padding(.horizontal, 14.4)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(active ? UF.accent : .clear))
+                    .background(RoundedRectangle(cornerRadius: 8).fill(active ? UF.accentFill : .clear))   // Weiss darauf >= 4,5:1
                     .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)

@@ -83,6 +83,9 @@ struct NewsRow: View {
                             Text(UFFmt.shortName(item.s("who"))).ufFont(12.8, 600).foregroundStyle(UF.text2).lineLimit(1)
                             Spacer(minLength: 4)
                             Text(Self.time(item.s("at"), today: today)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                            // zeigt, dass die Zeile aufklappt (vorher kein Hinweis darauf)
+                            UFIcon("chevron-down", size: 12).foregroundStyle(UF.muted)
+                                .rotationEffect(.degrees(open ? 180 : 0))
                         }
                         Text(item.s("title") ?? "").ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(open ? nil : 2)
                             .multilineTextAlignment(.leading)
@@ -103,6 +106,7 @@ struct NewsRow: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Self.accessibility(item, today: today))
             .accessibilityAddTraits(.isButton)
+            .accessibilityValue(open ? "aufgeklappt" : "zugeklappt")
             if open {
                 VStack(alignment: .leading, spacing: 6.4) {
                     if let text = item.s("text"), !text.isEmpty {

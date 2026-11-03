@@ -673,15 +673,10 @@ struct SolutionSidePane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "person.2").foregroundStyle(UF.accent)
-                Text(layer.label).font(.caption).bold().lineLimit(1)
-                Spacer()
-                Text("nur ansehen").font(.caption).foregroundStyle(.secondary)
-                Button { onClose() } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Schließen")
+            // Kopf wie KI-Hilfe und Dokument daneben (UFPaneHeader); "nur ansehen" als ruhiges Abzeichen
+            UFPaneHeader(layer.label, icon: "users", close: onClose) {
+                UFBadge("nur ansehen", tone: .neutral)
             }
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(.bar)
             GeometryReader { geo in
                 ScrollView {
                     LazyVStack(spacing: 14) {
@@ -694,7 +689,7 @@ struct SolutionSidePane: View {
                     .padding(12)
                 }
             }
-            .background(Color(uiColor: .secondarySystemBackground))
+            .background(UF.surface2)
         }
     }
 }
@@ -711,13 +706,12 @@ private struct SolutionSidePage: View {
             Group {
                 if let image {
                     Image(uiImage: image).resizable().scaledToFit()
-                        .overlay(Rectangle().stroke(UF.line))
-                        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                        .overlay(Rectangle().stroke(UF.lineStrong))
                 } else {
                     ProgressView().frame(height: width * 1.3)
                 }
             }
-            Text(page.pdfIndex.map { "PDF-Seite \($0)" } ?? "Eigene Seite der Lösung").font(.caption2).foregroundStyle(.secondary)
+            Text(page.pdfIndex.map { "PDF-Seite \($0)" } ?? "Eigene Seite der Lösung").ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted)
         }
         .task(id: "\(page.key)-\(Int(width))") {
             let p = page, imgs = images, pp = pdfPage, w = width

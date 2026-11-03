@@ -140,6 +140,8 @@ final class Session: ObservableObject {
 ///                                     Raumwechsel, eine Learnweb-Frist; `CalendarSample`) fuer Bildvergleiche
 ///   -UFNoStudIPSync YES               kein automatischer Stud.IP-Abgleich beim Oeffnen (ebenso bei -UFServer,
 ///                                     -UFDisconnect, -UFRoute, -UFAction und immer unter XCTest)
+///   -UFDemo YES                       legt vor -UFRoute/-UFAction die Demo-Inhalte an (wie Einstellungen -> Erweitert),
+///                                     fuer Bildvergleiche mit Inhalt ohne Hochschulkonto
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
     /// Tarif aus -UFPlan (nur Debug); nil = Tarif aus StoreKit

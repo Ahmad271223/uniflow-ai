@@ -126,7 +126,18 @@ struct UniFlowApp: App {
                     // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
                     if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
                 }
-                .task { await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer) }
+                .task {
+                    #if DEBUG
+                    // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie Einstellungen -> Erweitert)
+                    if UserDefaults.standard.bool(forKey: "UFDemo"), !session.isOwnServer {
+                        for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+                        // nur anlegen, wenn sie fehlt (erneutes Anlegen entfernte die PDFs der vorhandenen Demo)
+                        let on = (try? await containers.active?.api.value("/api/demo"))?["enabled"]?.bool == true
+                        if !on { _ = try? await containers.setDemo(true) }
+                    }
+                    #endif
+                    await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer)
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)

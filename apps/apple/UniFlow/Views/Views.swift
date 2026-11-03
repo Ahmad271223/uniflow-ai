@@ -22,17 +22,41 @@ struct FileOutsideEditorView: View {
         f.downloaded_at == nil ? DocumentOpenText.notLoaded : DocumentOpenText.notPDF
     }
 
+    /// Design-Ueberarbeitung 03.11.2026: geladene Dateien zeigt die Ansicht gleich eingebettet (QuickLook in der App,
+    /// wie die PDF im Editor) statt einer leeren Seite mit Knopf; darueber eine schmale Leiste mit Titel und dezentem
+    /// "Öffnen in …" (Teilen-Blatt des Systems). Nicht geladen oder Fehler: die bisherige Meldung.
     var body: some View {
-        VStack(spacing: 16) {
-            ContentUnavailableView(file.displayTitle, systemImage: file.downloaded_at == nil ? "icloud.and.arrow.down" : "doc",
-                                   description: Text(problem ?? Self.message(for: file)))
-            if file.downloaded_at != nil {
-                Button { Task { await open() } } label: { Label("Vorschau und „Öffnen in …“", systemImage: "eye") }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(loading)
+        Group {
+            if let preview {
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        UFIcon("file-text", size: 16).foregroundStyle(UF.muted)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(file.displayTitle).ufFont(14.5, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
+                            Text("Vorschau · nur ansehen").ufFont(12, lh: 1.3).foregroundStyle(UF.muted)
+                        }
+                        Spacer(minLength: 8)
+                        ShareLink(item: preview) {
+                            Label("Öffnen in …", systemImage: "square.and.arrow.up").ufFont(13.12, 500)
+                        }
+                        .buttonStyle(UFButtonStyle(kind: .normal, size: .small))
+                        .accessibilityIdentifier("file.openIn")
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 8)
+                    .background(UF.surface)
+                    .ufBorderBottom()
+                    UFQuickLookView(url: preview)
+                        .accessibilityIdentifier("file.preview")
+                }
+            } else if loading {
+                ProgressView("Vorschau wird geladen …").frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ContentUnavailableView(file.displayTitle, systemImage: file.downloaded_at == nil ? "icloud.and.arrow.down" : "doc",
+                                       description: Text(problem ?? Self.message(for: file)))
             }
         }
-        .quickLookPreview($preview)
+        .background(UF.bg)
+        .task(id: file.id) { if file.downloaded_at != nil, preview == nil { await open() } }
     }
 
     /// Inhalt in einen eigenen Ordner des Containers (`AppTemp`, Name bereinigt) und mit QuickLook zeigen
@@ -48,6 +72,32 @@ struct FileOutsideEditorView: View {
         } catch {
             problem = error.localizedDescription
         }
+    }
+}
+
+/// QLPreviewController eingebettet (Word, PowerPoint, Excel, Bilder, Text …): eine Datei, ohne eigene Leiste
+struct UFQuickLookView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeCoordinator() -> Coordinator { Coordinator(url: url) }
+
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let c = QLPreviewController()
+        c.dataSource = context.coordinator
+        return c
+    }
+
+    func updateUIViewController(_ c: QLPreviewController, context: Context) {
+        guard context.coordinator.url != url else { return }
+        context.coordinator.url = url
+        c.reloadData()
+    }
+
+    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+        var url: URL
+        init(url: URL) { self.url = url }
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem { url as NSURL }
     }
 }
 
@@ -170,6 +220,10 @@ struct LibraryView: View {
                 // statt "Dokument wählen" ohne Erklaerung
                 if file(o) == nil { await loadSingle(o) }
                 fileSelection = o
+                // Beim Oeffnen ueber eine Route griff `.detailOnly` aus onChange noch vor dem ersten Bild nicht: die
+                // Dokumentliste lag hochkant ueber dem Dokument (und ueber der KI-Hilfe). Nach dem ersten Bild erneut.
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                columns = .detailOnly
             }
         }
     }
@@ -183,21 +237,28 @@ struct LibraryView: View {
     private var tabStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                // Farben aus UF.* wie die uebrige App (vorher Systemfarben); Schliessen mit groesserer Trefferflaeche
                 ForEach(openTabs, id: \.self) { id in
-                    HStack(spacing: 6) {
+                    let active = id == fileSelection
+                    HStack(spacing: 2) {
                         Text(file(id)?.displayTitle ?? "Dokument").lineLimit(1).frame(maxWidth: 220)
-                        Button { close(id) } label: { Image(systemName: "xmark").font(.caption2) }
-                            .accessibilityLabel("Tab schließen")
+                            .ufFont(12.8, active ? 600 : 500, lh: 1.25)
+                        Button { close(id) } label: {
+                            UFIcon("x", size: 12).frame(width: 28, height: 28).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Tab schließen")
                     }
-                    .font(.caption)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(id == fileSelection ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.08), in: Capsule())
+                    .foregroundStyle(active ? UF.accentText : UF.text2)
+                    .padding(.leading, 12).padding(.trailing, 4)
+                    .background(active ? UF.accentSoft : UF.surface2, in: Capsule())
                     .onTapGesture { fileSelection = id }
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
         }
-        .background(.bar)
+        .background(UF.surface)
+        .ufBorderBottom()
     }
 
     private func close(_ id: String) {
