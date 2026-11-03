@@ -49,6 +49,9 @@ APP = ROOT / "apps" / "apple" / "UniFlow"
 # Aufrufe, deren Pfad nicht als Text im Quelltext steht
 EXTRA = {
     "GET /api/assets/{}/{}": "UniFlow/Services/DocumentStore.swift (Bilder aus Notizen, src)",
+    # Seit 0f8e0649 ruft die App die Lernslot-Konflikte nicht mehr auf (Stundenplan nur mit Uni-Terminen); die Route
+    # gibt es in app/server.py und im Kern (TimetableEndpoints) weiter, Inhalte pruefen gen-timetable/gen-study-fixture
+    "GET /api/timetable/conflicts": "app/server.py + LocalBackend/Endpoints/TimetableEndpoints.swift (kein App-Aufruf mehr, Route bleibt)",
 }
 
 # Pfade, die die App nur als Text vorhaelt und in V1 nie aufruft (Dienst kommt spaeter): kein Aufruf, keine Probe
@@ -212,6 +215,20 @@ SAMPLES: dict[str, dict] = {
                                          "reason": "nur auf dem Geraet (DueEndpoints)"}},
     "PATCH /api/due/{}": {"path": "/api/due/due-0000000000000000", "body": {"hidden": True}, "python": False,
                           "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne erkannten Termin 404"}},
+    # Fruehere Semester in der Bibliothek gibt es nur auf dem Geraet (OlderSemesterEndpoints, a0d6277); die PC-Fassung
+    # kennt sie nicht (am PC 404, die App fragt nur lokal). Auf leerer Datenbank: kein frueheres Semester, kein Kurs
+    "GET /api/older-semesters": {"path": "/api/older-semesters", "python": False,
+                                 "expect": {"status": 200, "type": "object", "keys": ["choice", "current", "semesters"],
+                                            "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
+    "POST /api/older-semesters/choice": {"path": "/api/older-semesters/choice", "body": {"choice": "current"}, "python": False,
+                                         "expect": {"status": 200, "type": "object", "keys": ["choice"],
+                                                    "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
+    "POST /api/older-semesters/request": {"path": "/api/older-semesters/request", "body": {"course_ids": []}, "python": False,
+                                          "expect": {"status": 200, "type": "object", "keys": ["requested"],
+                                                     "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
+    "GET /api/older-semesters/courses/{}/files": {"path": "/api/older-semesters/courses/k1/files", "python": False,
+                                                  "expect": {"status": 404,
+                                                             "reason": "nur auf dem Geraet; ohne Kurs 404"}},
     # Demo-Inhalte fuer die App-Pruefung (app/demo.py, DemoEndpoints); Inhalte und Tabellen vergleicht
     # tools/gen-demo-fixture.py, hier nur die Form. Ausschalten, damit die Beispielanfrage nichts anlegt
     "GET /api/demo": {"path": "/api/demo"},

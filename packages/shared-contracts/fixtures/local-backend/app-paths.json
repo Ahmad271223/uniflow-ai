@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 106,
+ "count": 111,
  "paths": [
   {
    "method": "DELETE",
@@ -228,6 +228,7 @@
    "method": "GET",
    "shape": "/api/calendar",
    "sources": [
+    "UniFlow/Services/Session.swift",
     "UniFlow/Views/Plan/PlanView.swift"
    ],
    "request": {
@@ -827,6 +828,7 @@
    "method": "GET",
    "shape": "/api/demo",
    "sources": [
+    "UniFlow/UniFlowApp.swift",
     "UniFlow/Views/DemoViews.swift"
    ],
    "request": {
@@ -1173,6 +1175,8 @@
    "method": "GET",
    "shape": "/api/modules",
    "sources": [
+    "UniFlow/Views/CommunityChannelView.swift",
+    "UniFlow/Views/CommunityStyle.swift",
     "UniFlow/Views/Exams/ExamsPage.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
@@ -1199,6 +1203,7 @@
    "shape": "/api/modules/{}",
    "sources": [
     "UniFlow/Services/CommunityCloudKit.swift",
+    "UniFlow/Views/CommunityChannelView.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift"
@@ -1272,6 +1277,42 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/older-semesters",
+   "sources": [
+    "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Library/OlderSemestersViews.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/older-semesters"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "choice",
+     "current",
+     "semesters"
+    ],
+    "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/older-semesters/courses/{}/files",
+   "sources": [
+    "UniFlow/Views/Library/LibraryPage.swift"
+   ],
+   "request": {
+    "path": "/api/older-semesters/courses/k1/files"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet; ohne Kurs 404"
    }
   },
   {
@@ -1822,7 +1863,7 @@
    "method": "GET",
    "shape": "/api/timetable/conflicts",
    "sources": [
-    "UniFlow/Views/Timetable/TimetableView.swift"
+    "app/server.py + LocalBackend/Endpoints/TimetableEndpoints.swift (kein App-Aufruf mehr, Route bleibt)"
    ],
    "request": {
     "path": "/api/timetable/conflicts"
@@ -2254,6 +2295,34 @@
   },
   {
    "method": "PATCH",
+   "shape": "/api/flashcards/{}",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift",
+    "UniFlow/Views/Exams/FlashcardTrainer.swift"
+   ],
+   "request": {
+    "path": "/api/flashcards/1",
+    "body": {
+     "bookmarked": true
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "PATCH",
    "shape": "/api/folders/{}",
    "sources": [
     "UniFlow/Views/Library/LibraryDialogs.swift"
@@ -2586,7 +2655,8 @@
    "shape": "/api/demo",
    "sources": [
     "UniFlow/Services/DataContainers.swift",
-    "UniFlow/Views/DemoViews.swift"
+    "UniFlow/Views/DemoViews.swift",
+    "UniFlow/Views/Plan/CalendarSample.swift"
    ],
    "request": {
     "path": "/api/demo",
@@ -3165,6 +3235,49 @@
   },
   {
    "method": "POST",
+   "shape": "/api/older-semesters/choice",
+   "sources": [
+    "UniFlow/Views/Library/OlderSemestersViews.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/older-semesters/choice",
+    "body": {
+     "choice": "current"
+    }
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "choice"
+    ],
+    "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/older-semesters/request",
+   "sources": [
+    "UniFlow/Views/Library/OlderSemestersViews.swift"
+   ],
+   "request": {
+    "path": "/api/older-semesters/request",
+    "body": {
+     "course_ids": []
+    }
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "requested"
+    ],
+    "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/packages",
    "sources": [
     "UniFlow/Views/Plan/PlanActions.swift"
@@ -3441,6 +3554,7 @@
    "method": "POST",
    "shape": "/api/timetable/attendance",
    "sources": [
+    "UniFlow/Views/Plan/CalendarHints.swift",
     "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
