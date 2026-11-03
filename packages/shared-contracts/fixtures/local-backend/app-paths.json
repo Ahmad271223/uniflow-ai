@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 111,
+ "count": 115,
  "paths": [
   {
    "method": "DELETE",
@@ -1684,6 +1684,78 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/studip/blubber",
+   "sources": [
+    "UniFlow/Views/Modules/StudIPTextsCard.swift"
+   ],
+   "request": {
+    "path": "/api/studip/blubber"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "count",
+     "fetched_at",
+     "threads"
+    ],
+    "reason": "nur auf dem Geraet (StudIPBlubberEndpoints, Abgleich vorerst aus)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/studip/blubber/{}",
+   "sources": [
+    "UniFlow/Views/Modules/StudIPTextsCard.swift"
+   ],
+   "request": {
+    "path": "/api/studip/blubber/x1"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet; unbekannter Thread 404"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/studip/bulletin",
+   "sources": [
+    "UniFlow/Views/DashboardView.swift",
+    "UniFlow/Views/Services/BulletinCard.swift"
+   ],
+   "request": {
+    "path": "/api/studip/bulletin"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "available",
+     "entries",
+     "fetched_at",
+     "new_count",
+     "topics",
+     "url"
+    ],
+    "reason": "nur auf dem Geraet (StudIPBulletinEndpoints)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/studip/bulletin/{}",
+   "sources": [
+    "UniFlow/Views/Services/BulletinCard.swift"
+   ],
+   "request": {
+    "path": "/api/studip/bulletin/x1"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet; unbekannte Anzeige 404"
    }
   },
   {
