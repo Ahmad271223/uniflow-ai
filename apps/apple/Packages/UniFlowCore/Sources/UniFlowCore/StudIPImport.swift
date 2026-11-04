@@ -56,17 +56,33 @@ public enum StudIPImport {
     ///   aeltere werden nur gemeldet; abgewaehlte bleiben abgewaehlt, eine leere Auswahl bleibt leer
     /// Vorher legte nur der erste Abgleich die Auswahl fest: neue Kurse kamen still nie an, und wer alles abwaehlte,
     /// bekam beim naechsten Lauf wieder die Vorauswahl.
-    public static func selection(courses: [StudIPCourse], selected: Set<String>, known: Set<String>?) -> Selection {
+    /// `today`: heutiger Tag (ISO) fuer die Semesterregel; Kurse, die laut Regel laufen, zaehlen wie das juengste Semester.
+    public static func selection(courses: [StudIPCourse], selected: Set<String>, known: Set<String>?,
+                                 today: String = UniFlowClock.system.today) -> Selection {
         let ids = Set(courses.map(\.id))
         guard let known else {
-            return Selection(selected: selected.isEmpty ? defaultSelection(courses) : selected, known: ids, newUnselected: [])
+            return Selection(selected: selected.isEmpty ? defaultSelection(courses, today: today) : selected, known: ids, newUnselected: [])
         }
         let newest = courses.compactMap(\.semesterStart).max()
         var out = Selection(selected: selected, known: known.union(ids), newUnselected: [])
         for c in courses where !known.contains(c.id) {
-            if newest == nil || c.semesterStart == nil || c.semesterStart == newest { out.selected.insert(c.id) } else { out.newUnselected.append(c) }
+            if isCurrentByDefault(c, newest: newest, today: today) { out.selected.insert(c.id) } else { out.newUnselected.append(c) }
         }
         return out
+    }
+
+    /// Kurs, der von selbst in die Auswahl gehoert: laut Semesterregel laufend (`Semesters.isCurrent`, auch
+    /// "unbegrenzt" und ein Endsemester bis heute), oder ohne Entscheidung der Regel mit dem juengsten Startsemester
+    /// bzw. ohne Startsemester. Vorher zaehlte nur das Startsemester: ein Kurs aus einem frueheren Semester mit
+    /// Endsemester "unbegrenzt" (Dauerveranstaltung) oder bis ins laufende Semester war weder "juengstes Semester"
+    /// noch "frueher" und wurde beim ersten Abgleich still gar nicht gespeichert, obwohl der PC-Abgleich ihn als
+    /// aktuell holt (Riesentest 03.11.2026).
+    static func isCurrentByDefault(_ c: StudIPCourse, newest: String?, today: String) -> Bool {
+        switch Semesters.isCurrent(semester: c.semesterTitle, semesterEnd: c.semesterEnd, endsAt: c.semesterEndsAt, today: today) {
+        case true?: return true
+        case false?: return false
+        case nil: return newest == nil || c.semesterStart == nil || c.semesterStart == newest
+        }
     }
 
     /// Dateiname ohne Pfadtrenner und Steuerzeichen, hoechstens 120 Zeichen, Endung bleibt erhalten.
@@ -101,9 +117,12 @@ public enum StudIPImport {
         "files/\(safeFileName(fileID))/\(safeFileName(name))"
     }
 
-    /// Vorauswahl beim ersten Abgleich: Kurse des juengsten Startsemesters (aeltere Semester bleiben aus).
-    public static func defaultSelection(_ courses: [StudIPCourse]) -> Set<String> {
-        guard let newest = courses.compactMap(\.semesterStart).max() else { return Set(courses.map(\.id)) }
-        return Set(courses.filter { $0.semesterStart == newest }.map(\.id))
+    /// Vorauswahl beim ersten Abgleich: Kurse des juengsten Startsemesters (aeltere Semester bleiben aus). Kurse ohne
+    /// Startsemester (keine Beziehung `start-semester`, z. B. Vorkurse und Dauerveranstaltungen) zaehlen wie in Python
+    /// als aktuell und kommen mit (Riesentest 03.11.2026: vorher fielen sie beim ersten Abgleich still weg, obwohl
+    /// `selection` sie bei spaeteren Abgleichen von selbst dazunahm und der PC-Abgleich ihre Dateien holt).
+    public static func defaultSelection(_ courses: [StudIPCourse], today: String = UniFlowClock.system.today) -> Set<String> {
+        let newest = courses.compactMap(\.semesterStart).max()
+        return Set(courses.filter { isCurrentByDefault($0, newest: newest, today: today) }.map(\.id))
     }
 }

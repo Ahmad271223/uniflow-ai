@@ -344,7 +344,7 @@ public enum StudIPTexts {
 
         private func fetchJSON(_ path: String) async throws -> JSONValue {
             do {
-                return try await client.json(path)
+                return try await client.json(path, retryTransient: false)     // Budget: kein zweiter Versuch, wie am PC
             } catch let e as StudIPError {
                 switch e {
                 case .sessionExpired: throw e

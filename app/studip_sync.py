@@ -185,6 +185,22 @@ def fetch_courses(page: Page) -> list[dict]:
     return out
 
 
+RETRY_STATUS = (429, 500, 502, 503, 504)
+
+
+def api_get(page: Page, url: str, headers: dict | None = None, attempts: int = 3):
+    """Eine Anfrage an Stud.IP; 429 (zu viele Anfragen) und 5xx werden wie bei `stream_download` bis zu zweimal mit
+    Pause wiederholt (1,5 s, 3 s), dieselbe Regel wie `UniRetry` im Kern der iPad-App. Andere Antworten sofort.
+    Riesentest 03.11.2026: ein einzelnes 429 mitten im Abgleich liess vorher einen Ordner (PC) bzw. den ganzen Kurs
+    (iPad) fuer diesen Lauf aus."""
+    for attempt in range(attempts):
+        r = page.request.get(url, headers=headers if headers is not None else {"Accept": "application/vnd.api+json"})
+        if r.status not in RETRY_STATUS or attempt == attempts - 1:
+            return r
+        time.sleep(1.5 * (attempt + 1))
+    return r
+
+
 def api_list(page: Page, url: str, max_pages: int = 50) -> list[dict] | None:
     """Alle Seiten einer JSON:API-Liste (`links.next`, wie StudIPClient.list im Swift-Kern). None, wenn eine Seite nicht
     lesbar ist (HTTP-Fehler, keine Liste `data`): der Aufrufer laesst dann seinen Bestand stehen."""
@@ -192,7 +208,7 @@ def api_list(page: Page, url: str, max_pages: int = 50) -> list[dict] | None:
     seen: set[str] = set()
     while url and url not in seen and len(seen) < max_pages:
         seen.add(url)
-        r = page.request.get(url, headers={"Accept": "application/vnd.api+json"})
+        r = api_get(page, url)
         if not r.ok:
             return None
         j = r.json()
@@ -240,7 +256,7 @@ def fetch_events(page: Page, course_id: str) -> list[dict]:
     out = []
     url = f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/events?page[limit]=200"
     while url:
-        resp = page.request.get(url, headers={"Accept": "application/vnd.api+json"})
+        resp = api_get(page, url)
         if not resp.ok:
             break
         j = resp.json()
@@ -264,7 +280,7 @@ def fetch_news(page: Page, course_id: str) -> list[dict] | None:
 
 def _api_get(page: Page, path: str) -> tuple[int, dict | None]:
     """JSON:API-Abruf fuer app/studip_extras.py: (HTTP-Status, JSON oder None), nur lesend."""
-    r = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/{path}", headers={"Accept": "application/vnd.api+json"})
+    r = api_get(page, f"{STUDIP_BASE}/jsonapi.php/v1/{path}")
     try:
         return r.status, (r.json() if r.ok else None)
     except Exception:  # noqa: BLE001 - kein JSON (z. B. Anmeldeseite)
@@ -273,7 +289,7 @@ def _api_get(page: Page, path: str) -> tuple[int, dict | None]:
 
 def fetch_schedule_entries(page: Page, uid: str) -> list[dict]:
     """Persoenliche Eintraege aus dem Stud.IP-Stundenplan des Nutzers (selbst angelegte Termine)."""
-    resp = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/schedule", headers={"Accept": "application/vnd.api+json"})
+    resp = api_get(page, f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/schedule")
     if not resp.ok:
         return []
     out = []
@@ -289,7 +305,7 @@ def fetch_calendar_ids(page: Page, uid: str) -> list[str] | None:
     """Termin-IDs des eigenen Stud.IP-Kalenders (users/{id}/events.ics, siehe timetable.calendar_date_ids); None, wenn
     Stud.IP ihn nicht liefert (alte Fassung, Fehler, Anmeldeseite statt Kalender)."""
     from . import timetable
-    resp = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/events.ics", headers={"Accept": "text/calendar"})
+    resp = api_get(page, f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/events.ics", headers={"Accept": "text/calendar"})
     if not resp.ok:
         return None
     text = resp.text()
@@ -337,7 +353,7 @@ def store_course_texts(conn, c: dict) -> None:
 
 
 def fetch_files(page: Page, course_id: str) -> list[dict]:
-    resp = page.request.get(f"{STUDIP_BASE}/dispatch.php/course/files/flat?cid={course_id}")
+    resp = api_get(page, f"{STUDIP_BASE}/dispatch.php/course/files/flat?cid={course_id}", headers={})
     text = resp.text()
     m = re.search(r'data-files="([^"]*)"', text)
     if not m:
@@ -577,15 +593,21 @@ def classify(title: str) -> tuple[str, str]:
         kind = "hoersaaluebung"
     elif re.search(r"\b(Übung|Uebung|Fragestunde)", t, re.I):
         kind = "uebung"
-    elif re.search(r"Tutorium", t, re.I):
+    elif re.search(r"Tutori(?:um|en)", t, re.I):                    # "Tutorien X" (Riesentest 03.11.2026)
         kind = "tutorium"
+    # "Vorlesung und Übung X", "Vorlesung + Übung X": ein Kurs mit Vorlesung, also vorlesung (Riesentest 03.11.2026)
+    if re.search(r"Vorlesung\s*(?:und|\+|&|/)\s*(?:Übung|Uebung)", t, re.I):
+        kind = "vorlesung"
     if re.search(r"Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester", t, re.I):
         kind = "sonstiges"
     s = t
     s = re.sub(r"^\d+\s+", "", s)                                   # Nummer vorne
-    s = re.sub(r"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Tutorien|Tutorium|Fragestunde)(?:en|n)?\b\s*(zur|zu|:)?\s*", "", s, flags=re.I)
-    s = re.sub(r"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung).*$", "", s, flags=re.I)
-    s = re.sub(r"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*)\)", "", s, flags=re.I)
+    # Riesentest 03.11.2026: "Vorlesung und Übung X" vorne, "Übung zur Vorlesung X" / "Fragestunde zur Vorlesung X"
+    # (die Art-Angabe nimmt "Vorlesung" mit), "Übung X - Gruppe 7" und "X (Gruppe B)" hinten
+    s = re.sub(r"^Vorlesung\s*(?:und|\+|&|/)\s*(?:Übung|Uebung)(?:en)?\b\s*(?:zur|zu|:)?\s*", "", s, flags=re.I)
+    s = re.sub(r"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Tutorien|Tutorium|Fragestunde)(?:en|n)?\b\s*(zur|zu|:)?\s*(?:Vorlesung\s+)?", "", s, flags=re.I)
+    s = re.sub(r"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Gruppe\s*\w+).*$", "", s, flags=re.I)
+    s = re.sub(r"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*|Gruppe\s*\w+)\)", "", s, flags=re.I)
     s = re.sub(r",?\s*Tranche\s*\w+.*$", "", s, flags=re.I)
     s = re.sub(r"\s+", " ", s).strip(" -:,(")
     return s, kind

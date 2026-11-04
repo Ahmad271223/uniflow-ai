@@ -107,6 +107,9 @@ public struct UniRetry: Sendable {
     /// `HildesheimError.isTransient` (5xx, 429)
     public static func isTransient(_ error: Error) -> Bool {
         if let e = error as? HildesheimError { return e.isTransient }
+        // Stud.IP: 429 (zu viele Anfragen) und 5xx wie beim Learnweb (Riesentest 03.11.2026: vorher fiel bei einem
+        // einzelnen 429 auf eine Ordnerliste der ganze Kurs fuer diesen Lauf aus)
+        if case StudIPError.http(let s, _)? = error as? StudIPError { return s == 429 || s >= 500 }
         if let e = error as? URLError { return ![.cancelled, .cannotWriteToFile, .cannotCreateFile].contains(e.code) }
         return false
     }

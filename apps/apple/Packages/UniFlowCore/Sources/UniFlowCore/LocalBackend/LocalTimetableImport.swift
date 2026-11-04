@@ -396,8 +396,12 @@ enum LocalTimetableImport {
         // Kurszeit: die anderen stehen ueber ihre Kurszeiten im Kalender bzw. kommen als Frage (StudIPCalendar).
         let byCycles = decisions.isEmpty ? [] : try StudIPCalendar.decidedCourses(c)
         let missing = Set(decisions.filter { !$0.value.isEmpty && $0.value.allSatisfy { $0 == 0 } && !byCycles.contains($0.key) }.keys)
+        // Einzeltermine (Ersatztermin, Blockseminar) sind keine parallelen Gruppen: nur woechentliche Serien zaehlen
+        // (Riesentest 03.11.2026, wie `studip_entries` in app/timetable.py)
         var perCourse: [JSONValue: Int] = [:]
-        for e in merged where e["calendar"] == nil || e["calendar"] == .null { perCourse[e["course_id"] ?? .null, default: 0] += 1 }
+        for e in merged where (e["calendar"] == nil || e["calendar"] == .null) && e["rrule"]?.string != "once" {
+            perCourse[e["course_id"] ?? .null, default: 0] += 1
+        }
         for i in merged.indices {
             merged[i].removeValue(forKey: "event_id")
             if let course = merged[i]["course_id"]?.string, missing.contains(course) {

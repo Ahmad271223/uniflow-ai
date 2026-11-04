@@ -135,6 +135,9 @@ def main(check: bool) -> bool:
             ("Am 28.10. 10-12 Uhr Sprechstunde. Am 28.10. auch Abgabe.", "2026-10-26"),
             ("Wie am 01.09. besprochen.", "2026-10-26"),
             ("Die Klausur ist am 5.2.27 um 9 Uhr.", "2026-10-26"),
+            # Riesentest 03.11.2026: Pruefung und Frist vor Raum
+            ("Die Klausur findet am 12.02.2027 um 9 Uhr im Hörsaal F 303 statt.", "2026-11-03"),
+            ("Abgabe im Raum 101 bis zum 12.11.2026.", "2026-11-03"),
             ("Termin: 31.12. und 1.1.", "2026-12-01"),
             ("Ersatztermin am 30. Februar oder 7.1.", "2026-12-01"),
             ("Keine Vorlesung am 24.12., stattdessen am 7. Januar 2027 von 10.15 bis 11.45 Uhr.", "2026-12-01"),
@@ -184,7 +187,12 @@ def main(check: bool) -> bool:
             (f"moodlemobile://token={good}", "falsch"), ("moodlemobile://token=%%%", "pass123"), ("moodlemobile://nix", "pass123"))]}
     titles_kind = ["Übung zu Mathematik I", "Gruppenübung Programmieren", "Hörsaalübung Mathe", "Tutorium Physik",
                    "Seminar: Kindheit", "Labor Elektrotechnik", "9406 Theorien der Testwissenschaft",
-                   "Begrüßung Erstsemester", "Mathematik I (Tranche A)", "Fragestunde Numerik"]
+                   "Begrüßung Erstsemester", "Mathematik I (Tranche A)", "Fragestunde Numerik",
+                   # Riesentest 03.11.2026: Muster aus Stud.IP der LUH, die vorher kein gemeinsames Fach ergaben
+                   "Übung zur Vorlesung Signale und Systeme", "Fragestunde zur Vorlesung Mathematik für Ingenieure I",
+                   "Tutorien Programmieren I", "Übung Programmieren I - Gruppe 7", "Vorlesung und Übung Numerische Mathematik",
+                   "Vorlesung + Übung Technische Mechanik II", "Grundlagen der Elektrotechnik I (Gruppe B)",
+                   "Übung Vorlesungsbegleitende Statistik"]
     out["classify"] = [{"title": t, "subject": studip_sync.classify(t)[0], "kind": studip_sync.classify(t)[1],
                         "event_kind": timetable.guess_kind(t)} for t in titles_kind]
     out["file-kind"] = [{"name": n, "mime": m, "kind": studip_sync.file_kind(n, m)} for n, m in (

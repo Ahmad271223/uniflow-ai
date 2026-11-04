@@ -1075,6 +1075,30 @@
    ]
   },
   {
+   "text": "Die Klausur findet am 12.02.2027 um 9 Uhr im Hörsaal F 303 statt.",
+   "posted": "2026-11-03",
+   "dates": [
+    {
+     "date": "2027-02-12",
+     "time": "09:00",
+     "kind": "pruefung",
+     "snippet": "Die Klausur findet am 12.02.2027 um 9 Uhr im Hörsaal F 303 statt."
+    }
+   ]
+  },
+  {
+   "text": "Abgabe im Raum 101 bis zum 12.11.2026.",
+   "posted": "2026-11-03",
+   "dates": [
+    {
+     "date": "2026-11-12",
+     "time": null,
+     "kind": "frist",
+     "snippet": "Abgabe im Raum 101 bis zum 12.11.2026."
+    }
+   ]
+  },
+  {
    "text": "Termin: 31.12. und 1.1.",
    "posted": "2026-12-01",
    "dates": [
@@ -1616,6 +1640,54 @@
    "subject": "Numerik",
    "kind": "uebung",
    "event_kind": "vorlesung"
+  },
+  {
+   "title": "Übung zur Vorlesung Signale und Systeme",
+   "subject": "Signale und Systeme",
+   "kind": "uebung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Fragestunde zur Vorlesung Mathematik für Ingenieure I",
+   "subject": "Mathematik für Ingenieure I",
+   "kind": "uebung",
+   "event_kind": "vorlesung"
+  },
+  {
+   "title": "Tutorien Programmieren I",
+   "subject": "Programmieren I",
+   "kind": "tutorium",
+   "event_kind": "vorlesung"
+  },
+  {
+   "title": "Übung Programmieren I - Gruppe 7",
+   "subject": "Programmieren I",
+   "kind": "uebung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Vorlesung und Übung Numerische Mathematik",
+   "subject": "Numerische Mathematik",
+   "kind": "vorlesung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Vorlesung + Übung Technische Mechanik II",
+   "subject": "Technische Mechanik II",
+   "kind": "vorlesung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Grundlagen der Elektrotechnik I (Gruppe B)",
+   "subject": "Grundlagen der Elektrotechnik I",
+   "kind": "vorlesung",
+   "event_kind": "vorlesung"
+  },
+  {
+   "title": "Übung Vorlesungsbegleitende Statistik",
+   "subject": "Vorlesungsbegleitende Statistik",
+   "kind": "uebung",
+   "event_kind": "uebung"
   }
  ],
  "file-kind": [

@@ -599,7 +599,10 @@ def studip_entries(conn) -> list[dict]:
     per_course = defaultdict(int)
     hidden = {c for c, d in decisions.items() if d and all(v == 0 for v in d)}
     for e in merged:
-        if e.get("calendar") is None:
+        # Einzeltermine (Ersatztermin, Blockseminar) sind keine parallelen Gruppen: nur woechentliche Serien zaehlen.
+        # Vorher zaehlte ein Nachholtermin mit, und eine Vorlesung mit zwei Serien galt ohne Kalender als "3 parallele
+        # Gruppen" und kam nicht in den Stundenplan (Riesentest 03.11.2026); gleiche Regel auf dem iPad
+        if e.get("calendar") is None and e.get("rrule") != "once":
             per_course[e["course_id"]] += 1
     for e in merged:
         e.pop("event_id", None)

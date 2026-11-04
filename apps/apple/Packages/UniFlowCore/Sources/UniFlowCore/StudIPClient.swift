@@ -204,22 +204,46 @@ public actor StudIPClient {
         return noQuery.replacingOccurrences(of: "[0-9a-f]{32}", with: ":id", options: .regularExpression)
     }
 
-    private func send(_ pathOrLink: String, accept: String?) async throws -> HTTPReply {
+    private func send(_ pathOrLink: String, accept: String?, retry mode: RetryMode = .status) async throws -> HTTPReply {
         let transport = self.transport
-        return try await perform(pathOrLink) { try await transport.get($0, accept: accept) }
+        return try await perform(pathOrLink, retry: mode) { try await transport.get($0, accept: accept) }
     }
+
+    /// Was `perform` wiederholt (Riesentest 03.11.2026, `UniRetry`: hoechstens 3 Versuche, 1,5 s und 3 s Pause):
+    /// - `.status`: Listen und JSON mit 429 (zu viele Anfragen) oder 5xx, wie `api_get` am PC; Netzfehler nicht (sonst
+    ///   wartete jeder weitere Kurs bis zum Zeitlimit)
+    /// - `.transport`: Downloads bei abgerissener Verbindung oder Zeitueberschreitung wie `stream_download`; HTTP-Fehler
+    ///   nicht ("aendern sich durch Wiederholen nicht")
+    /// - `.none`: nichts (Lerntexte mit Anfragebudget, Seiten mit beliebigem Status)
+    enum RetryMode { case status, transport, none }
 
     /// Eine Anfrage mit Pause und Anfragegrenze; abgelaufene Sitzung und HTTP-Fehler werden zu `StudIPError`. Mit
     /// `anyStatus` kommt jeder andere HTTP-Status zurueck (serverseitig gerenderte Seiten wie die Aufzeichnungen).
-    private func perform(_ pathOrLink: String, anyStatus: Bool = false,
+    /// 429 (zu viele Anfragen), 5xx und abgerissene Verbindungen werden wie beim Learnweb mit `UniRetry` wiederholt
+    /// (hoechstens 3 Versuche, 1,5 s und 3 s Pause; jeder Versuch zaehlt zur Anfragegrenze). Vorher nur Downloads:
+    /// ein einzelnes 429 auf eine Ordnerliste liess den ganzen Kurs fuer diesen Lauf aus (Riesentest 03.11.2026).
+    private func perform(_ pathOrLink: String, anyStatus: Bool = false, retry mode: RetryMode = .none,
                          _ call: (URL) async throws -> HTTPReply) async throws -> HTTPReply {
-        guard requestCount < maxRequests else { throw StudIPError.requestLimit }
-        if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
-        requestCount += 1
-        let reply = try await call(try url(pathOrLink))
-        if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
-        guard anyStatus || (200..<300).contains(reply.status) else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
-        return reply
+        var attempt = 0
+        while true {
+            guard requestCount < maxRequests else { throw StudIPError.requestLimit }
+            if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
+            requestCount += 1
+            let failure: Error
+            do {
+                let reply = try await call(try url(pathOrLink))
+                if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
+                if anyStatus || (200..<300).contains(reply.status) { return reply }
+                guard mode == .status else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
+                failure = StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink))
+            } catch let e as URLError where mode == .transport {
+                failure = e
+            }
+            attempt += 1
+            guard attempt < max(1, retry.attempts), UniRetry.isTransient(failure), !Task.isCancelled else { throw failure }
+            try? await Task.sleep(nanoseconds: retry.delayNanos(attempt))
+            try Task.checkCancellation()
+        }
     }
 
     /// Serverseitig gerenderte Stud.IP-Seite (z. B. Opencast-Aufzeichnungen) mit jedem HTTP-Status: das Plugin
@@ -249,8 +273,10 @@ public actor StudIPClient {
     }
 
     /// Eine JSON:API-Antwort (nur GET); oeffentlich fuer Pruefungen auf dem Geraet (Geraete-Probe in den App-Tests)
-    public func json(_ pathOrLink: String) async throws -> JSONValue {
-        let r = try await send(pathOrLink, accept: Self.jsonAPI)
+    /// `retryTransient: false`: 429/5xx nicht wiederholen (Lerntexte: jede Anfrage zaehlt zum Budget, ein Fehler gilt wie am PC
+    /// fuer diesen Teil, der naechste Abgleich fragt erneut)
+    public func json(_ pathOrLink: String, retryTransient: Bool = true) async throws -> JSONValue {
+        let r = try await send(pathOrLink, accept: Self.jsonAPI, retry: retryTransient ? .status : .none)
         if r.contentType.lowercased().contains("text/html") { throw StudIPError.sessionExpired }
         do { return try JSONValue.parse(r.body) } catch { throw StudIPError.badResponse("kein JSON (\(Self.scrub(pathOrLink)))") }
     }
@@ -402,7 +428,7 @@ public actor StudIPClient {
         let transport = self.transport
         let path = "jsonapi.php/v1/file-refs/\(fileID)/content"
         do {
-            let r = try await retry.run { try await perform(path) { try await transport.download($0, to: file) } }
+            let r = try await perform(path, retry: .transport) { try await transport.download($0, to: file) }
             // eine echte HTML-Datei (.html/.htm) mit "login" im Text ist keine Anmeldeseite: sonst brach jeder Abgleich
             // an ihr mit "Erneut anmelden" ab (die Anmeldeseite selbst erkennt `perform` an 401 bzw. der Weiterleitung)
             if !Self.isHTMLFileName(name), r.contentType.lowercased().contains("text/html"),

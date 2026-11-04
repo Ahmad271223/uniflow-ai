@@ -9,12 +9,18 @@ public enum UniRules {
     private static let kindGroup = PyRegex("Gruppenübung|Gruppenuebung", ignoreCase: true)
     private static let kindLectureHall = PyRegex("Hörsaalübung|Hoersaaluebung|Zentralübung", ignoreCase: true)
     private static let kindExercise = PyRegex(#"\b(Übung|Uebung|Fragestunde)"#, ignoreCase: true)
-    private static let kindTutorial = PyRegex("Tutorium", ignoreCase: true)
+    /// "Tutorien X" (Riesentest 03.11.2026)
+    private static let kindTutorial = PyRegex("Tutori(?:um|en)", ignoreCase: true)
+    /// "Vorlesung und Übung X", "Vorlesung + Übung X": ein Kurs mit Vorlesung, also vorlesung (Riesentest 03.11.2026)
+    private static let kindCombined = PyRegex(#"Vorlesung\s*(?:und|\+|&|/)\s*(?:Übung|Uebung)"#, ignoreCase: true)
     private static let kindOther = PyRegex("Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester", ignoreCase: true)
     private static let leadingNumber = PyRegex(#"^\d+\s+"#)
-    private static let leadingKind = PyRegex(#"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Tutorien|Tutorium|Fragestunde)(?:en|n)?\b\s*(zur|zu|:)?\s*"#, ignoreCase: true)
-    private static let trailingQuestions = PyRegex(#"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung).*$"#, ignoreCase: true)
-    private static let bracketNote = PyRegex(#"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*)\)"#, ignoreCase: true)
+    // Riesentest 03.11.2026: "Vorlesung und Übung X" vorne, "Übung zur Vorlesung X" / "Fragestunde zur Vorlesung X" (die
+    // Art-Angabe nimmt "Vorlesung" mit), "Übung X - Gruppe 7" und "X (Gruppe B)" hinten; dieselben Muster wie `classify`
+    private static let leadingCombined = PyRegex(#"^Vorlesung\s*(?:und|\+|&|/)\s*(?:Übung|Uebung)(?:en)?\b\s*(?:zur|zu|:)?\s*"#, ignoreCase: true)
+    private static let leadingKind = PyRegex(#"^(Vorlesung|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Tutorien|Tutorium|Fragestunde)(?:en|n)?\b\s*(zur|zu|:)?\s*(?:Vorlesung\s+)?"#, ignoreCase: true)
+    private static let trailingQuestions = PyRegex(#"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Gruppe\s*\w+).*$"#, ignoreCase: true)
+    private static let bracketNote = PyRegex(#"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*|Gruppe\s*\w+)\)"#, ignoreCase: true)
     private static let trailingTranche = PyRegex(#",?\s*Tranche\s*\w+.*$"#, ignoreCase: true)
     private static let spaces = PyRegex(#"\s+"#)
 
@@ -22,9 +28,11 @@ public enum UniRules {
     /// sonstiges (Begruessung, Einfuehrung, Erstsemester). Vorlesung und Uebung eines Fachs ergeben dasselbe Fach.
     public static func classify(_ title: String) -> (subject: String, kind: String) {
         var kind = kindPattern(title)
+        if kindCombined.found(in: title) { kind = "vorlesung" }
         if kindOther.found(in: title) { kind = "sonstiges" }
         var s = title
         s = leadingNumber.sub(s)                                                  // Nummer vorne
+        s = leadingCombined.sub(s)
         s = leadingKind.sub(s)
         s = trailingQuestions.sub(s)
         s = bracketNote.sub(s)

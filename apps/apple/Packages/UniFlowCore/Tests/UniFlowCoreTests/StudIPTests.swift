@@ -230,7 +230,9 @@ final class StudIPImportTests: XCTestCase {
                        StudIPCourse(id: "neu1", title: "B", semesterStart: "2026-10-01"),
                        StudIPCourse(id: "neu2", title: "C", semesterStart: "2026-10-01"),
                        StudIPCourse(id: "ohne", title: "D")]
-        XCTAssertEqual(StudIPImport.defaultSelection(courses), ["neu1", "neu2"])
+        // Kurse ohne Startsemester zaehlen wie das juengste Semester (Riesentest 03.11.2026, Befund 3: Vorkurse,
+        // Dauerveranstaltungen fehlten sonst beim ersten Abgleich still)
+        XCTAssertEqual(StudIPImport.defaultSelection(courses), ["neu1", "neu2", "ohne"])
         XCTAssertEqual(StudIPImport.defaultSelection([StudIPCourse(id: "x", title: "X")]), ["x"])
     }
 }

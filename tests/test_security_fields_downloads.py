@@ -77,13 +77,15 @@ def test_foreign_download_url_from_studip_falls_back_to_sendfile(monkeypatch):
     page_html = '<div data-files="' + json.dumps(files).replace('"', "&quot;") + '"></div>'
 
     class Resp:
+        status = 200
+
         def text(self):
             return page_html
 
     class Page:
         class request:  # noqa: N801
             @staticmethod
-            def get(url):
+            def get(url, headers=None):
                 return Resp()
     out = studip_sync.fetch_files(Page(), "c1")
     assert out[0]["download_url"].startswith(studip_sync.STUDIP_BASE + "/sendfile.php?") and "boese" not in out[0]["download_url"]
