@@ -4,6 +4,7 @@ import { installCard, bindInstallBanner } from "./pwa.js?v=13";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=41";
 import * as FC from "./flashcards.js?v=3";
+import { mountStacks } from "./flashcard-stacks-ui.js?v=1";
 import { mountBulletin } from "./bulletin.js?v=3";
 import { mountStudipTexts } from "./studip-texts.js?v=3";
 import { settingHtml } from "./older-semesters.js?v=1";
@@ -143,7 +144,8 @@ export async function viewCards(_, __, view) {
   let [due, all] = await Promise.all([api("/flashcards?due=true"), api("/flashcards")]);
   let i = 0, shown = false;
   const trainer = FC.createTrainer({ patch: (id, body) => api(`/flashcards/${id}`, { method: "PATCH", body }) });
-  const reload = async () => { [due, all] = await Promise.all([api("/flashcards?due=true"), api("/flashcards")]); i = 0; shown = false; render(); };
+  let stackOv = null;                                                       // Stapel (flashcard-stacks-ui.js), je Laden einmal
+  const reload = async () => { [due, all] = await Promise.all([api("/flashcards?due=true"), api("/flashcards")]); stackOv = null; i = 0; shown = false; render(); };
   const attempt = async (what, fn) => { try { await fn(); } catch (e) { toast(`${what}: ${e.message}`, 4000); } render(); };
   const sub = c => [esc(c.answer), `Fach ${c.box}`, ...(FC.isHidden(c) ? [] : [`fällig ${fmtDate(c.due)}`]), ...(FC.isBookmarked(c) ? ["Lesezeichen"] : []), ...(FC.isHidden(c) ? ["versteckt, nicht in „Heute fällig“"] : [])].join(" · ");
   const list = () => `<div class="card" style="margin-top:1rem"><div class="card-head"><h2>Alle Karten</h2><span class="muted small">${all.length}</span></div><div class="list">${all.map(c => `<div class="item${FC.isHidden(c) ? " fc-hidden" : ""}"><div class="main"><div class="title">${esc(c.question)}</div><div class="sub">${sub(c)}</div></div>
@@ -209,7 +211,7 @@ export async function viewCards(_, __, view) {
     const c = due[i];
     const review = c ? `<p class="muted small">Karte ${i + 1} von ${due.length} · Fach ${c.box} · ${esc(c.subject || "")}</p><div class="fc-card" id="fc"><div>${esc(c.question)}</div>${shown ? `<div class="ans">${esc(c.answer)}</div>` : `<div class="muted small" style="margin-top:.6rem">Klicken zum Aufdecken</div>`}</div><div class="row" style="justify-content:center;margin-top:.7rem" ${shown ? "" : "hidden"}><button class="btn danger" id="fcW">Falsch</button><button class="btn ok" id="fcR">Richtig</button></div>` : `<div class="card empty">${icon("check", 36)}<div>Heute nichts fällig.</div></div>`;
     view.innerHTML = `<div class="content" style="max-width:820px"><div class="page-head"><div><h1>Karteikarten</h1><div class="sub">${due.length} fällig · Leitner-System: richtig = seltener, falsch = morgen wieder.</div></div><a class="btn sm" href="#/exams">${icon("arrow-left", 14)} Tests</a></div>
-      ${trainer.active ? trainerHtml() : `${review}${practice()}${list()}`}</div>`;
+      ${trainer.active ? trainerHtml() : `${review}${practice()}<div id="fcStacksHost"></div>${list()}`}</div>`;
     if (trainer.active) {
       $("#trEnd", view).onclick = close; $("#trDone", view)?.addEventListener("click", close);
       $("#trRestart", view).onclick = () => { trainer.restart(); render(); }; $("#trRestart2", view)?.addEventListener("click", () => { trainer.restart(); render(); });
@@ -223,6 +225,8 @@ export async function viewCards(_, __, view) {
       const card = $("#trCard", view); if (card) { bindSwipe(card); card.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); flip(); } }); }
       return;
     }
+    mountStacks($("#fcStacksHost", view), { all, ov: stackOv, onLoaded: o => { stackOv = o; }, reload: () => reload().catch(e => toast(e.message, 4000)),
+                                           onLearn: cards => { trainer.start(cards); render(); } });
     $("#fc")?.addEventListener("click", () => { shown = true; render(); });
     $("#fcW")?.addEventListener("click", async () => { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct: false } }); i++; shown = false; render(); });
     $("#fcR")?.addEventListener("click", async () => { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct: true } }); i++; shown = false; render(); });

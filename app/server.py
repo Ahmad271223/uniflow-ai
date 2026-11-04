@@ -52,6 +52,8 @@ app.include_router(library_api.router)
 app.include_router(doc_index.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
+from . import flashcards_api  # noqa: E402 - Karteikarten-Stapel und KI-Auftrag nach Modul/Lernwoche (04.11.2026)
+app.include_router(flashcards_api.router)
 db.init_db()
 
 
@@ -685,15 +687,23 @@ def api_sync_push(request: Request, body: dict = Body(...)):
     items, deletes = body.get("items") or [], body.get("deletes") or []
     if not isinstance(items, list) or not isinstance(deletes, list):
         raise HTTPException(400, "items und deletes muessen Listen sein")
-    refused = []
+    refused, refused_cards = [], []
     if not entitlements.has(entitlements.user_of(request), "can_sync_annotations"):
         refused = [it for it in items if isinstance(it, dict) and it.get("entity") == "annotations"]
         items = [it for it in items if not (isinstance(it, dict) and it.get("entity") == "annotations")]
+    if not entitlements.has(entitlements.user_of(request), "can_create_flashcards"):
+        # neue Karteikarten (ohne id) erst ab StudiNow Plus (04.11.2026); bestehende Karten gleichen weiter ab
+        new_card = lambda it: isinstance(it, dict) and it.get("entity") == "flashcards" and it.get("id") is None  # noqa: E731
+        refused_cards = [it for it in items if new_card(it)]
+        items = [it for it in items if not new_card(it)]
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")
         out = sync.push(conn, body.get("device_id"), items, deletes)
-    out["results"] = [{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
-                       "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused] + out["results"]
+    out["results"] = ([{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
+                        "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused]
+                      + [{"entity": "flashcards", "local_id": it.get("local_id"), "status": "plan_required",
+                          "required_plan": entitlements.required_plan("can_create_flashcards")} for it in refused_cards]
+                      + out["results"])
     return out
 
 
@@ -1165,8 +1175,11 @@ def _page_list(raw, total: int) -> list[int]:
 @app.post("/api/ai/flashcards")
 def ai_flashcards(request: Request, body: dict = Body(...)):
     """Karteikarten aus den Seiten eines Dokuments: {file_id, pages?: [int], count?, topic?} -> {cards, pages, count}.
-    Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file)."""
+    Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file).
+    Ohne file_id, mit module_id: KI-Auftrag nach Modul und Lernwoche (app/flashcards_api.py, Pro AI)."""
     from . import ai, scriptsearch
+    if not body.get("file_id") and body.get("module_id") is not None:
+        return flashcards_api.ai_stack(request, body)
     hosted = config.is_hosted()
     if hosted:
         entitlements.require(request, "can_use_ai_generated_questions")
@@ -1280,7 +1293,9 @@ def list_flashcards(file_id: str | None = None, due: bool = False):
 
 
 @app.post("/api/flashcards")
-def add_flashcards(body: dict = Body(...)):
+def add_flashcards(request: Request, body: dict = Body(...)):
+    if config.is_hosted():                          # Karteikarten selbst anlegen ab StudiNow Plus (04.11.2026)
+        entitlements.require(request, "can_create_flashcards")
     cards = body.get("cards") or []
     file_id = body.get("file_id")
     with db.cursor() as conn:

@@ -188,10 +188,11 @@ class CommunityError(ValueError):
 
 
 def _schema(conn) -> None:
-    from . import community_corrections, community_qa
+    from . import community_corrections, community_decks, community_qa
     conn.executescript(SCHEMA)
     conn.executescript(community_qa.SCHEMA)
     conn.executescript(community_corrections.SCHEMA)
+    conn.executescript(community_decks.SCHEMA)          # Karteikarten-Stapel (04.11.2026)
     if "community_key" not in {r[1] for r in conn.execute("PRAGMA table_info(solutions)")}:
         conn.execute("ALTER TABLE solutions ADD COLUMN community_key TEXT")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_community ON solutions(community_key, status)")
@@ -701,6 +702,8 @@ def withdraw_all(author_id: str, reason: str) -> int:
         rows = conn.execute("SELECT id FROM solutions WHERE author_id=? AND status IN ('active','hidden')", (author_id,)).fetchall()
         conn.execute("UPDATE solutions SET status='withdrawn', status_reason=? WHERE author_id=? AND status IN ('active','hidden')",
                      (reason, author_id))
+        from . import community_decks
+        community_decks.withdraw_all(conn, author_id)                # geteilte Karteikarten ebenso
     for r in rows:
         (package_dir() / f"{r['id']}.uniflowsolution").unlink(missing_ok=True)
     return len(rows)
@@ -711,8 +714,9 @@ def forget_author(user_id: str) -> int:
     Bann-Eintrag entfernen. Liefert die Zahl der entfernten Loesungen."""
     with cursor() as conn:
         ids = [r[0] for r in conn.execute("SELECT id FROM solutions WHERE author_id=?", (user_id,))]
-        from . import community_corrections
+        from . import community_corrections, community_decks
         community_corrections.forget(conn, user_id, ids)         # Korrekturen verweisen auf Loesungen: zuerst
+        community_decks.forget(conn, user_id)                    # geteilte Karteikarten, Meldungen und Nutzungen
         for sid in ids:
             conn.execute("DELETE FROM reports WHERE solution_id=?", (sid,))
             conn.execute("DELETE FROM likes WHERE solution_id=?", (sid,))

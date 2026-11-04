@@ -35,7 +35,7 @@ ENTITIES: dict[str, dict] = {
     "event_exceptions": {"pk": "id", "fk": {"event_id": "course_events"}},
     "study_packages": {"pk": "id", "fk": {"module_id": "modules"}},
     "study_tasks": {"pk": "id", "fk": {"package_id": "study_packages"}},
-    "flashcards": {"pk": "id", "fk": {}},
+    "flashcards": {"pk": "id", "fk": {"module_id": "modules"}},      # Stapel: Modul (04.11.2026), Lehrwoche ohne Bezug
     "settings": {"pk": "key", "fk": {}},
     "annotations": {"pk": "file_id", "fk": {}},
 }

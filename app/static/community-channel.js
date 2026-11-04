@@ -2,7 +2,8 @@
 // Kopf mit Modulname und Hochschule, Reiter "Diskussion" (Fragen und Antworten, darueber die neuesten geteilten Notizen) und
 // "Dokumente (N)" (Kanal nach Lehrwoche als Karten je Vorlesung, Uebung, ... oder als Liste). Tippen auf eine Karte zeigt, wer
 // dazu Notizen geteilt hat; Tippen auf eine Person zeigt ihre Notizen, mit Pfeilen geht es zur naechsten bzw. vorherigen.
-// Dort "Korrektur vorschlagen", Likes und Kommentare. Aufruf: #/community?space=<schluessel>&tab=discussion|docs&layout=weeks|list
+// Dort "Korrektur vorschlagen", Likes und Kommentare. Reiter "Karteikarten": geteilte Stapel je Lehrwoche (community-decks-ui.js).
+// Aufruf: #/community?space=<schluessel>&tab=discussion|docs|cards&layout=weeks|list
 import { icon } from "./icons.js?v=31";
 import { $, $$, api, toast, modal } from "./core.js?v=41";
 import * as S from "./solutions.js?v=6";
@@ -11,6 +12,7 @@ import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=3";
 import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=17";
 import { capi, openQuestion } from "./views-qa.js?v=5";
+import { renderDecksPanel } from "./community-decks-ui.js?v=1";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
@@ -34,7 +36,7 @@ export async function renderSpacePage(view, params, info) {
   if (!space) { root.innerHTML = `${back}<div class="card">${empty("users", esc(L.TEXTS.missing))}</div>`; $("[data-go]", root).onclick = () => (location.hash = "#/community"); return; }
 
   const st = { space, spaces: [space, ...data.spaces.filter(s => s !== space)], university: UNI[data.university] || data.university, info,
-               tab: params.tab === "docs" ? "docs" : "discussion", layout: params.layout === "list" ? "list" : "weeks", sort: params.sort === "newest" ? "newest" : "relevance",
+               tab: ["docs", "cards"].includes(params.tab) ? params.tab : "discussion", layout: params.layout === "list" ? "list" : "weeks", sort: params.sort === "newest" ? "newest" : "relevance",
                items: null, module: null, notice: null, error: null, joining: false, filter: "newest", reading: false };
   const sync = () => { try { history.replaceState(null, "", `#/community?space=${space.key}&tab=${st.tab}&layout=${st.layout}&sort=${st.sort}`); } catch {} };
   let observer = null;
@@ -55,7 +57,7 @@ export async function renderSpacePage(view, params, info) {
   function draw() {
     st.reading = false; observer?.disconnect();
     const sub = L.subtitle(st.space, st.university);
-    const tabs = [["discussion", "Diskussion"], ["docs", L.documentsLabel(st.items?.length ?? 0)]];
+    const tabs = [["discussion", "Diskussion"], ["docs", L.documentsLabel(st.items?.length ?? 0)], ["cards", "Karteikarten"]];
     root.innerHTML = `<div class="cc-top">${back}</div>
       <header class="cc-head" ${tone()}><span class="cc-tile" aria-hidden="true">${st.space.kind === "group" ? icon("users", 26) : esc(L.initial(st.space.name))}</span>
         <div><h1>${esc(st.space.name)}</h1>${sub ? `<div class="small muted">${esc(sub)}</div>` : ""}</div><span class="cc-deco">${icon(st.space.kind === "group" ? "users" : "graduation", 64)}</span></header>
@@ -71,7 +73,8 @@ export async function renderSpacePage(view, params, info) {
     if (!st.space.joined) { panel.innerHTML = `<div class="card">${empty(st.space.kind === "group" ? "users" : "book", esc(L.TEXTS.joinHint))}</div>`; return; }
     U.renderInbox($("#ccInbox", root), { communityKey: st.space.key, toast, onChange: draw });
     if (st.items === null) { panel.innerHTML = `<p class="small muted">Lösungen werden geladen …</p>`; return; }
-    if (st.tab === "discussion") discussion(panel); else documents(panel);
+    if (st.tab === "cards") renderDecksPanel(panel, { space: st.space, weeks: weeks() });     // Karteikarten der Wochen (community-decks-ui.js)
+    else if (st.tab === "discussion") discussion(panel); else documents(panel);
   }
   async function join() {
     st.joining = true; draw();

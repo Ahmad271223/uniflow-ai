@@ -53,7 +53,7 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von StudiNow", "status": "available"},
     # Karteikarten (Entscheidung des Inhabers vom 04.11.2026): selbst anlegen, teilen und die anderer nutzen ab Plus
     "can_create_flashcards": {"from": "plus", "label": "Karteikarten selbst anlegen und lernen", "status": "available"},
-    "can_share_flashcards": {"from": "plus", "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)", "status": "coming_soon"},
+    "can_share_flashcards": {"from": "plus", "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)", "status": "available"},
     # Pro Connect
     "can_use_advanced_analytics": {"from": "pro_connect", "label": "Erweiterte Lernstatistiken", "status": "available"},
     "can_use_advanced_planner": {"from": "pro_connect", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
@@ -68,7 +68,7 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "available"},
     # 04.11.2026: KI erstellt Karteikarten nach Fach, Lernwoche und Anzahl; fertige Fragen je Vorlesungswoche aus der
     # Bibliothek (2-3 Saetze zu je 15 Fragen, Loesungen und Erklaerungen schon vorbereitet)
-    "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "coming_soon"},
+    "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "available"},
     "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "coming_soon"},
 }
 

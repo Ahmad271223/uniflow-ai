@@ -259,7 +259,7 @@
   "can_share_flashcards": {
    "from": "plus",
    "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)",
-   "status": "coming_soon"
+   "status": "available"
   },
   "can_use_advanced_analytics": {
    "from": "pro_connect",
@@ -314,7 +314,7 @@
   "can_generate_ai_flashcards": {
    "from": "pro_ai",
    "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)",
-   "status": "coming_soon"
+   "status": "available"
   },
   "can_use_prepared_week_sets": {
    "from": "pro_ai",

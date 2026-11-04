@@ -48,6 +48,8 @@ LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60),
           "report_user": (10, 1440),
           # Korrekturvorschlaege an fremde Loesungen (03.11.2026): je Konto und Tag
           "correction_user": (20, 1440),
+          # Karteikarten-Stapel teilen (04.11.2026): neue Stapel je Konto und Tag (Ersetzen zaehlt auf update_user)
+          "deck_user": (10, 1440),
           # Neue Kurs-/Modulschluessel je Konto und Tag (Community-Meldungen, Sicherheitspruefung 3.11.2026)
           "course_keys_user": (30, 1440)}
 PASSWORD_MIN = 10

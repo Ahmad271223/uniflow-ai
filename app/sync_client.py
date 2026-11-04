@@ -112,7 +112,8 @@ def natural_key(table: str, row: dict, fk_local: dict | None = None) -> tuple | 
     if table == "study_tasks":
         return (f.get("package_id", row.get("package_id")), _norm(row.get("type")), _norm(row.get("title")), _norm(row.get("file_id")))
     if table == "flashcards":
-        return (_norm(row.get("question")), _norm(row.get("file_id")))
+        # Stapel (04.11.2026): dieselbe Frage in zwei Stapeln (Modul, Lehrwoche) ist nicht dieselbe Karte
+        return (_norm(row.get("question")), _norm(row.get("file_id")), f.get("module_id", row.get("module_id")), row.get("lecture_week"))
     return None
 
 
