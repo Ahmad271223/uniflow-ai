@@ -75,8 +75,8 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | Teil | Stand |
 | --- | --- |
 | Tarife, Kontingente (Plus 4, Pro AI 20) | **umgestellt** in `app/plans.py`, Prüfdaten neu; iPad (`Plans.swift`) muss die Mac-Sitzung nachziehen |
-| Karteikarten selbst anlegen | gebaut (iPad, Web, Windows) |
-| Karteikarten teilen / nutzen | **im Bau** (Status `coming_soon` bis fertig) |
-| KI-Karteikarten nach Fach/Woche/Anzahl | **im Bau** (aus einem Dokument gibt es sie schon) |
+| Karteikarten selbst anlegen | gebaut (iPad, Web, Windows); jetzt mit Stapeln je Modul und Lernwoche; im Dienst nur mit Plus (`can_create_flashcards`, auch beim Geräte-Abgleich) |
+| Karteikarten teilen / nutzen | **gebaut** im Dienst, Web und Windows (Stapel je Lernwoche oder Modul, Community-Reiter „Karteikarten“; `docs/LOESUNGEN-TEILEN.md` 6c), Status `available`; iPad zieht die Mac-Sitzung nach (`docs/UEBERGABE-MAC-KARTEIKARTEN-2026-11-04.md`) |
+| KI-Karteikarten nach Fach/Woche/Anzahl | **gebaut** im Dienst, Web und Windows (`POST /api/ai/flashcards` mit Modul, Lernwoche, 5–50 Karten; Material genau dieser Woche, keine Doppel; Vorschau, erst dann speichern), Status `available`; am PC über die eigene KI |
 | Fertige Wochenfragen mit Erklärungen | **im Bau** |
 | Pro AI im App Store | erst mit dem Online-Dienst; bis dahin auf der Tarifseite „kommt mit dem StudiNow-Dienst“, ohne Kaufknopf |

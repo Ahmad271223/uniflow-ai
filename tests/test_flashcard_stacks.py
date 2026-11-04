@@ -62,6 +62,8 @@ def test_inputs_and_duplicates():
          {"question": "Was ist der Konvergenzradius?", "answer": "d"}],
         ["Was besagt das Quotientenkriterium fuer Reihen?"])
     assert [c["answer"] for c in cards] == ["a", "d"] and dropped == 2, "gleiche und fast gleiche Fragen fallen weg"
+    assert fs.without_duplicates([{"question": "Ableitung?", "answer": "a"}, {"question": "Integral?", "answer": "b"}], ["ableitung"]) == \
+        ([{"question": "Integral?", "answer": "b"}], 1), "kurze Fragen: gleicher Text zaehlt"
     with pytest.raises(fs.StackError):
         fs.clean_cards([{"question": "q", "answer": "x" * (fs.MAX_SIDE + 1)}])
     with pytest.raises(fs.StackError):
@@ -221,3 +223,14 @@ def test_device_sync_carries_stack_and_maps_the_module(app):
     pulled = sync.changes(conn, None)
     assert pulled["changes"]["flashcards"][0]["lecture_week"] == 4
     assert sync.ENTITIES["flashcards"]["fk"] == {"module_id": "modules"}
+
+
+def test_stacks_fixture_is_current():
+    """Vertrag fuer die Mac-Sitzung (packages/shared-contracts/fixtures/flashcards/stacks.json) ist aktuell."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    r = subprocess.run([sys.executable, "tools/gen-flashcard-stacks-fixture.py", "--check"], cwd=root, capture_output=True, text=True,
+                       encoding="utf-8", timeout=300)
+    assert r.returncode == 0, f"python tools/gen-flashcard-stacks-fixture.py neu ausfuehren\n{r.stdout}\n{r.stderr}"

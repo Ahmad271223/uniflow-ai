@@ -21,9 +21,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
 
-from . import db
+from . import db, study
 
 STACK_COUNT_MIN, STACK_COUNT_MAX, STACK_COUNT_DEFAULT = 5, 50, 20
 STACK_TEXT_CHARS = 24_000            # Material im Prompt (Zeichen)
@@ -179,14 +178,12 @@ def module_questions(conn, module_id: int, week: int | None) -> list[str]:
 
 
 def _week_info(conn) -> tuple:
-    from . import study
     start = study.semester_start(conn)
     return start, study.day_week(start, study.today())
 
 
 def module_weeks(conn, module_id: int, start=None) -> list[dict]:
     """Lehrwochen eines Moduls mit Unterlagen (gleiche Regel wie das Moduldetail): Woche, Beschriftung, Thema, Dateien."""
-    from . import study
     start = start or study.semester_start(conn)
     groups: dict[int, list] = {}
     for f in study._file_rows(conn, module_id):
@@ -202,7 +199,6 @@ def stack_label(week: int | None, start=None) -> str:
         return "Ganzes Modul"
     if start is None:
         return f"Woche {week}"
-    from . import study
     return study.week_label(start, week)
 
 
@@ -210,7 +206,7 @@ def overview(conn, with_weeks: bool = True) -> dict:
     """Alle Stapel (auch "Ohne Modul") mit Zahlen und Karten-IDs, dazu die aktiven Module samt Lehrwochen fuer den
     KI-Auftrag und die aktuelle Lehrwoche."""
     start, current = _week_info(conn)
-    today = date.today().isoformat()
+    today = study.today().isoformat()                 # eine Uhr mit study (Pruefdaten frieren sie ein)
     rows = db.rows(conn, f"""SELECT fc.id, fc.due, fc.hidden, fc.last_result, fc.origin, fc.lecture_week, {EFFECTIVE_MODULE} AS mid
                              FROM {CARD_JOIN} ORDER BY fc.id""")
     names = {m["id"]: m for m in db.rows(conn, "SELECT id, name, color, COALESCE(active, 1) AS active FROM modules")}
@@ -259,7 +255,7 @@ def add_cards(conn, module_id, week, raw_cards, origin=None, file_id=None) -> di
     existing = [c["question"] for c in stack_cards(conn, mid, w)]
     fresh, skipped = without_duplicates(cards, existing)
     ids = []
-    today, now = date.today().isoformat(), db.now_iso()
+    today, now = study.today().isoformat(), db.now_iso()
     for c in fresh:
         cur = conn.execute("""INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due, module_id, lecture_week, origin)
                               VALUES (?,?,?,?,?,1,?,?,?,?)""", (fid, m["name"], c["question"], c["answer"], now, today, mid, w, org))
@@ -315,7 +311,7 @@ def _pick(pages: list[tuple[int, str]], budget: int) -> list[tuple[int, str]]:
 
 def week_material(conn, module_id: int, week: int | None, budget: int = STACK_TEXT_CHARS) -> dict:
     """Text fuer den KI-Auftrag: {"text", "sources": [{file_id, name, pages}], "markers": bool}. Leer ohne lesbaren Text."""
-    from . import scriptsearch, study
+    from . import scriptsearch
     start = study.semester_start(conn)
     files = study._file_rows(conn, module_id)
     by_id = {f["id"]: f for f in files}

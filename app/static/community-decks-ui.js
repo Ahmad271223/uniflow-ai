@@ -4,7 +4,7 @@
 import { $, $$, api, esc, icon, can } from "./core.js?v=41";
 import { capi } from "./views-qa.js?v=5";
 import * as F from "./flashcard-stacks.js?v=1";
-import { showDeck, adoptDeck } from "./flashcard-stacks-ui.js?v=1";
+import { showDeck, adoptDeck, lockIcon } from "./flashcard-stacks-ui.js?v=1";
 
 /** Panel fuellen. space: {key, kind, moduleId, name}; weeks: Lehrwochen des Moduls ({week, label, topic}) fuer die Beschriftung */
 export async function renderDecksPanel(panel, { space, weeks = [] } = {}) {
@@ -22,7 +22,7 @@ export async function renderDecksPanel(panel, { space, weeks = [] } = {}) {
       <div class="sub">${esc(F.deckMeta(d))}${d.preview?.length ? ` · ${esc(d.preview.join(" · "))}` : ""}</div></div>
       <button class="btn sm ghost" data-view="${esc(d.id)}">${icon("eye", 13)} Ansehen</button>
       ${d.mine ? "" : `<button class="btn sm${d.used_by_me ? "" : " primary"}" data-adopt="${esc(d.id)}" ${locked.locked ? "disabled" : ""}>${icon("download", 13)} ${d.used_by_me ? "Erneut übernehmen" : "Übernehmen"}</button>`}</div>`;
-  panel.innerHTML = `${locked.locked ? `<div class="cc-note">${icon("lock", 13)} ${esc(locked.text)} <a href="${locked.href}">Tarife ansehen</a></div>` : ""}
+  panel.innerHTML = `${locked.locked ? `<div class="cc-note">${lockIcon(13)} ${esc(locked.text)} <a href="${locked.href}">Tarife ansehen</a></div>` : ""}
     ${space.moduleId ? "" : `<label class="field" style="max-width:340px">Übernehmen in<select class="input" id="cdMod">${modules.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join("")}</select></label>`}
     ${groups.map(g => `<div class="card" style="margin-top:.7rem"><div class="card-head"><h3 style="margin:0">${esc(g.label)}${g.week != null && topic(g.week) ? ` <span class="small muted">· ${esc(topic(g.week))}</span>` : ""}</h3><span class="muted small">${g.decks.length} ${g.decks.length === 1 ? "Stapel" : "Stapel"}</span></div>
       <div class="list">${g.decks.map(deckHtml).join("")}</div></div>`).join("")

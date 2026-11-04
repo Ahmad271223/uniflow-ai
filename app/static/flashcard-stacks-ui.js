@@ -6,7 +6,9 @@ import { $, $$, api, esc, icon, toast, showError, modal, can } from "./core.js?v
 import { capi } from "./views-qa.js?v=5";
 import * as F from "./flashcard-stacks.js?v=1";
 
-const lockHtml = a => `<div class="small" style="display:flex;gap:.5rem;align-items:flex-start;padding:.6rem .7rem;border:1px dashed var(--line-strong);border-radius:10px">${icon("lock", 16)}<span>${esc(a.text)} <a href="${a.href}" data-close>Tarife ansehen</a></span></div>`;
+/** Schloss (icons.js hat keins): gleiche Strichart wie die anderen Symbole */
+export const lockIcon = (size = 16) => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+const lockHtml = a => `<div class="small" style="display:flex;gap:.5rem;align-items:flex-start;padding:.6rem .7rem;border:1px dashed var(--line-strong);border-radius:10px">${lockIcon(16)}<span>${esc(a.text)} <a href="${a.href}" data-close>Tarife ansehen</a></span></div>`;
 const swatch = c => (c && /^#[0-9a-f]{6}$/i.test(c) ? `<span aria-hidden="true" style="display:inline-block;width:.7rem;height:.7rem;border-radius:3px;background:${c};margin-right:.35rem"></span>` : "");
 
 let spacesCache = null;
@@ -30,7 +32,7 @@ export async function mountStacks(el, { all = [], onLearn, reload, ov = null, on
       <button class="btn sm" data-learn="${i}" ${s.count ? "" : "disabled"}>${icon("play", 13)} Lernen</button>
       ${s.module_id == null ? "" : `<button class="btn sm ghost" data-share="${i}" title="Stapel in der Community teilen">${icon("share", 13)} Teilen</button><button class="btn sm ghost" data-comm="${i}" title="Stapel anderer zu dieser Woche">${icon("users", 13)} Community</button>`}</div>`;
   el.innerHTML = `<div class="card" style="margin-top:1rem" id="fcStacks"><div class="card-head"><h2>${icon("layers", 18)} Stapel</h2><span class="spacer"></span>
-      <button class="btn sm${ai.locked ? "" : " primary"}" id="stAi">${icon(ai.locked ? "lock" : "sparkles", 14)} KI-Karteikarten</button>
+      <button class="btn sm${ai.locked ? "" : " primary"}" id="stAi">${(ai.locked ? lockIcon(14) : icon("sparkles", 14))} KI-Karteikarten</button>
       <button class="btn sm" id="stComm">${icon("users", 14)} Aus der Community</button></div>
     <p class="small muted" style="margin:0 0 .4rem">Karten gehören zu einem Modul und einer Lernwoche – oder zum ganzen Modul.</p>
     <div class="list">${ov.stacks.map(row).join("") || `<div class="empty small">Noch keine Stapel. Lass dir Karten von der KI machen oder übernimm welche aus der Community.</div>`}</div></div>`;
@@ -62,7 +64,7 @@ const picked = box => ({ moduleId: +$("#pkMod", box).value, week: F.weekValue($(
 
 export function openAiDialog(ov, preset = {}, done) {
   const access = F.aiAccess(can);
-  if (access.locked) { modal(`<h3>${icon("lock", 18)} KI-Karteikarten</h3>${lockHtml(access)}<div class="modal-foot"><button class="btn" data-close>Schließen</button><a class="btn primary" href="#/abo" data-close>Zu den Tarifen</a></div>`); return; }
+  if (access.locked) { modal(`<h3>${lockIcon(18)} KI-Karteikarten</h3>${lockHtml(access)}<div class="modal-foot"><button class="btn" data-close>Schließen</button><a class="btn primary" href="#/abo" data-close>Zu den Tarifen</a></div>`); return; }
   if (!ov.modules?.length) { toast("Noch keine Module. Gleiche zuerst deine Hochschule ab.", 4000); return; }
   const m = modal(`<h3>${icon("sparkles", 18)} KI-Karteikarten</h3><div id="aiBody"></div>`, { wide: true });
   const box = $("#aiBody", m);
@@ -115,7 +117,7 @@ export function openAiDialog(ov, preset = {}, done) {
 
 export async function openShareDialog(stack, cards) {
   const access = F.shareAccess(can);
-  if (access.locked) { modal(`<h3>${icon("lock", 18)} Stapel teilen</h3>${lockHtml(access)}<div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`); return; }
+  if (access.locked) { modal(`<h3>${lockIcon(18)} Stapel teilen</h3>${lockHtml(access)}<div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`); return; }
   const m = modal(`<h3>${icon("share", 18)} Stapel teilen</h3><div id="shBody"><p class="small muted">Community wird geladen …</p></div>`);
   const box = $("#shBody", m);
   const { cards: usable, tooLong, cut } = F.shareCards(cards);

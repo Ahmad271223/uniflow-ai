@@ -175,7 +175,7 @@ def list_decks(user: dict, university: str, community_key, week=None) -> dict:
         _require_member(conn, user, key)
         blocked, banned = _hidden_for(conn, user)
         rows = conn.execute("SELECT * FROM flashcard_decks WHERE community_key=? AND university=? AND status='active' "
-                            "ORDER BY uses DESC, created_at DESC, id", (key, university)).fetchall()
+                            "ORDER BY uses DESC, created_at DESC, rowid DESC", (key, university)).fetchall()
         rows = [r for r in rows if r["pseudonym"] not in blocked and r["author_id"] not in banned]
         weeks: dict[str, int] = {}
         for r in rows:
@@ -195,7 +195,7 @@ def get(user: dict, deck_id: str) -> dict:
 
 def mine(user: dict) -> list[dict]:
     with community.cursor() as conn:
-        rows = conn.execute("SELECT * FROM flashcard_decks WHERE author_id=? AND status<>'withdrawn' ORDER BY created_at DESC",
+        rows = conn.execute("SELECT * FROM flashcard_decks WHERE author_id=? AND status<>'withdrawn' ORDER BY created_at DESC, rowid DESC",
                             (user["id"],)).fetchall()
         return [_out(conn, r, user["id"]) for r in rows]
 
@@ -206,7 +206,7 @@ def publish(user: dict, university: str, community_key, title, lecture_week, car
     """Stapel veroeffentlichen. Je Konto, Community und Lehrwoche einer: ein zweiter antwortet 409 already_published."""
     from .community_qa import _require_member
     _can_share(user, "Karteikarten teilen")
-    _require_verified(user, "Karteikarten zu teilen")
+    _require_verified(user, "teilen")
     key = community._community_key(community_key)
     week = _week(lecture_week)
     t, cs = _title(title, week), _cards(cards)
@@ -231,7 +231,7 @@ def update(user: dict, deck_id: str, title, cards) -> dict:
     """Karten (und Titel) des eigenen Stapels ersetzen; ID, Community, Woche und Nutzungen bleiben."""
     from .community_qa import _require_member
     _can_share(user, "Karteikarten teilen")
-    _require_verified(user, "Karteikarten zu teilen")
+    _require_verified(user, "teilen")
     cs = _cards(cards)
     with community.cursor() as conn:
         r = conn.execute("SELECT * FROM flashcard_decks WHERE id=? AND status<>'withdrawn'", (_deck_id(deck_id),)).fetchone()
@@ -283,7 +283,7 @@ def withdraw(user: dict, deck_id: str) -> dict:
 def report(user: dict, deck_id: str, reason) -> dict:
     if reason not in REPORT_REASONS:
         raise CommunityError("reason_invalid", "Unbekannter Meldegrund.")
-    _require_verified(user, "Karteikarten zu melden")
+    _require_verified(user, "melden")
     with community.cursor() as conn:
         r = _visible(conn, user, deck_id)
         if r["author_id"] == user["id"]:
@@ -305,7 +305,7 @@ def moderation_items(conn) -> list[dict]:
     """Gemeldete oder verborgene Stapel fuer die Moderation (Titel und die ersten Fragen als Text)."""
     items = []
     for r in conn.execute("SELECT * FROM flashcard_decks WHERE status='hidden' OR (status='active' AND report_count>0) "
-                          "ORDER BY status='hidden' DESC, report_count DESC, created_at DESC"):
+                          "ORDER BY status='hidden' DESC, report_count DESC, created_at DESC, rowid DESC"):
         reps = [{"reason": x["reason"], "created_at": x["created_at"], "reporter": community.reporter_info(x["reporter_id"])}
                 for x in conn.execute("SELECT reason, created_at, reporter_id FROM deck_reports WHERE deck_id=? ORDER BY created_at, rowid", (r["id"],))]
         cards = json.loads(r["cards"] or "[]")
@@ -347,4 +347,4 @@ def exported(user: dict) -> list[dict]:
         return [{"id": r["id"], "community_key": r["community_key"], "title": r["title"], "lecture_week": r["lecture_week"],
                  "created_at": r["created_at"], "updated_at": r["updated_at"], "status": r["status"], "uses": r["uses"],
                  "cards": json.loads(r["cards"] or "[]")}
-                for r in conn.execute("SELECT * FROM flashcard_decks WHERE author_id=? ORDER BY created_at", (user["id"],))]
+                for r in conn.execute("SELECT * FROM flashcard_decks WHERE author_id=? ORDER BY created_at, rowid", (user["id"],))]
