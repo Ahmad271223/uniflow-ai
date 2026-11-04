@@ -438,17 +438,17 @@ def test_weekly_quota_follows_the_plan(hosted):
     accounts.set_plan(u["id"], "plus")
     q = jobs.HostedQuota(accounts.get_user(u["id"]))
     assert q.check() is None
-    for i in range(3):
+    for i in range(4):                                                  # Plus: 4 seit 04.11.2026
         q.consume(f"weekly:{i}:1")
     q.consume("weekly:0:1")                                             # dieselbe Anfrage zaehlt einmal
     conn = billing.connect()
     try:
-        assert billing.used(conn, u["id"], "ai_tests_new") == 3
+        assert billing.used(conn, u["id"], "ai_tests_new") == 4
     finally:
         conn.close()
-    assert "aufgebraucht" in q.check() and "3 von 3" in q.check()
+    assert "aufgebraucht" in q.check() and "4 von 4" in q.check()
     accounts.set_plan(u["id"], "pro_ai")
-    assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None, "Pro AI: 40 im Monat"
+    assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None, "Pro AI: 20 im Monat"
 
 
 def test_weekly_job_runs_in_account_context_with_quota_and_after_sync(hosted, monkeypatch):

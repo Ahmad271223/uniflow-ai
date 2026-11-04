@@ -235,19 +235,19 @@ def test_02_plus_can_annotate_and_sync(hosted):
 
 # ---------------------------------------------------------------- 3, 4, 5: Kontingente und Rechte je Tarif
 
-def test_03_plus_gets_three_new_ai_tests_per_month(hosted):
+def test_03_plus_gets_four_new_ai_tests_per_month(hosted):
     from app import ai_backend
     fake = FakeAI()
     ai_backend.set_provider(fake)
     u, h = user(hosted, "plus3@beispiel.de", plan="plus")
-    for topic in ("Determinanten", "Basiswechsel", "Orthogonalprojektion"):
+    for topic in ("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Spektralsatz"):                 # 4 seit 04.11.2026
         st, d = library_test(hosted, h, topic)
         assert st == 200 and d["charged"] == "ai_tests_new" and d["generated"] >= 5, d
     st, d = library_test(hosted, h, "Eigenwerte")
-    assert (st, d["code"], d["limit"]) == (429, "quota_exhausted", 3), d
-    assert fake.calls == 3, "nach dem Kontingent keine weitere bezahlte Generierung"
+    assert (st, d["code"], d["limit"]) == (429, "quota_exhausted", 4), d
+    assert fake.calls == 4, "nach dem Kontingent keine weitere bezahlte Generierung"
     q = ent(hosted, h)["quotas"]["ai_tests_new"]
-    assert (q["used"], q["limit"]) == (3, 3)
+    assert (q["used"], q["limit"]) == (4, 4)
 
 
 def test_04_pro_connect_entitlements(hosted):
@@ -259,20 +259,20 @@ def test_04_pro_connect_entitlements(hosted):
                  "can_use_extended_test_history", "can_get_recommendations", "can_access_shared_tests"):
         assert e["entitlements"][name], name
     assert not e["entitlements"]["can_use_ai_explanations"], "StudiNow-KI erst mit Pro AI"
-    assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 3
+    assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 4
     for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
         assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, path
         st, d = _j(asgi_call(hosted, "GET", path, headers=h_plus))
         assert (st, d["required_plan"]) == (403, "pro_connect"), path
 
 
-def test_05_pro_ai_gets_forty_tests_and_studora_ai(hosted):
+def test_05_pro_ai_gets_twenty_tests_and_studora_ai(hosted):
     from app import ai_backend
     fake = FakeAI()
     ai_backend.set_provider(fake)
     _, h = user(hosted, "ai@beispiel.de", plan="pro_ai")
     e = ent(hosted, h)
-    assert e["quotas"]["ai_tests_new"]["limit"] == 40 and e["entitlements"]["can_use_ai_explanations"]
+    assert e["quotas"]["ai_tests_new"]["limit"] == 20 and e["entitlements"]["can_use_ai_explanations"]
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({"mode": "explain", "page_text": "Matrizen"})))
     assert st == 200 and "Matrix" in d["answer"], d
     assert ent(hosted, h)["quotas"]["ai_assist"]["used"] == 1
@@ -607,7 +607,7 @@ def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted):
     fake = FakeAI()
     ai_backend.set_provider(fake)
     _, h = user(hosted, "wdh-lib@beispiel.de", plan="plus")
-    for i, topic in enumerate(("Determinanten", "Basiswechsel", "Orthogonalprojektion")):
+    for i, topic in enumerate(("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Spektralsatz")):
         st, d = library_test(hosted, h, topic, request_id=f"lib-{i}")
         assert st == 200 and d["charged"] == "ai_tests_new", d
     calls = fake.calls
@@ -617,7 +617,7 @@ def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted):
     assert (st, d["code"]) == (409, "duplicate_request")
     assert fake.calls == calls
     q = ent(hosted, h)["quotas"]["ai_tests_new"]
-    assert (q["used"], q["limit"]) == (3, 3)
+    assert (q["used"], q["limit"]) == (4, 4)
 
 
 def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_own_row(hosted):

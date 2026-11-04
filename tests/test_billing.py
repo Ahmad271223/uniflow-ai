@@ -5,9 +5,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app import billing
+from app import billing, plans
 
 NOW = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+PLUS_TESTS = plans.quota_limit("plus", "ai_tests_new")      # 4 seit 04.11.2026 (Entscheidung des Inhabers)
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ def test_parallel_requests_cannot_exceed_quota(db_path):
     threads = [threading.Thread(target=worker, args=(i,)) for i in range(20)]
     [t.start() for t in threads]
     [t.join(30) for t in threads]
-    assert results.count(True) == 3, f"Plus erlaubt genau 3 neue KI-Tests, {results.count(True)} wurden vergeben"
+    assert results.count(True) == PLUS_TESTS, f"Plus erlaubt genau {PLUS_TESTS} neue KI-Tests, {results.count(True)} wurden vergeben"
 
 
 def test_retry_with_same_request_id_counts_once(db_path):
@@ -61,7 +62,7 @@ def test_retry_with_same_request_id_counts_once(db_path):
 def test_refund_returns_quota(db_path):
     c = connect(db_path)
     billing.set_entitlement(c, "u3", "manual", "plus", now=NOW)
-    for i in range(3):
+    for i in range(PLUS_TESTS):
         assert billing.consume(c, "u3", "ai_tests_new", f"x{i}", NOW).ok
     assert not billing.consume(c, "u3", "ai_tests_new", "x9", NOW).ok
     assert billing.refund(c, "u3", "ai_tests_new", "x1")
@@ -71,7 +72,7 @@ def test_refund_returns_quota(db_path):
 def test_quota_resets_each_month(db_path):
     c = connect(db_path)
     billing.set_entitlement(c, "u4", "manual", "plus", now=NOW)
-    for i in range(3):
+    for i in range(PLUS_TESTS):
         assert billing.consume(c, "u4", "ai_tests_new", f"m{i}", NOW).ok
     assert not billing.consume(c, "u4", "ai_tests_new", "m9", NOW).ok
     assert billing.consume(c, "u4", "ai_tests_new", "m10", NOW + timedelta(days=10)).ok, "November: neues Kontingent"
@@ -113,7 +114,7 @@ def test_foreign_request_id_does_not_bypass_exhausted_quota(db_path):
     c = connect(db_path)
     billing.set_entitlement(c, "ua", "manual", "plus", now=NOW)
     billing.set_entitlement(c, "ub", "manual", "plus", now=NOW)
-    for i in range(3):
+    for i in range(PLUS_TESTS):
         assert billing.consume(c, "ua", "ai_tests_new", f"k{i}", NOW).ok
         assert billing.consume(c, "ub", "ai_tests_new", f"b{i}", NOW).ok
     r = billing.consume(c, "ub", "ai_tests_new", "k1", NOW)       # fremde ID, eigenes Kontingent leer

@@ -51,6 +51,9 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
     "can_access_shared_tests": {"from": "plus", "label": "Tests aus der StudiNow-Bibliothek", "status": "available"},
     "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von StudiNow", "status": "available"},
+    # Karteikarten (Entscheidung des Inhabers vom 04.11.2026): selbst anlegen, teilen und die anderer nutzen ab Plus
+    "can_create_flashcards": {"from": "plus", "label": "Karteikarten selbst anlegen und lernen", "status": "available"},
+    "can_share_flashcards": {"from": "plus", "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)", "status": "coming_soon"},
     # Pro Connect
     "can_use_advanced_analytics": {"from": "pro_connect", "label": "Erweiterte Lernstatistiken", "status": "available"},
     "can_use_advanced_planner": {"from": "pro_connect", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
@@ -63,16 +66,19 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
     "can_use_ai_summaries": {"from": "pro_ai", "label": "KI-Zusammenfassungen", "status": "available"},
     "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "available"},
+    # 04.11.2026: KI erstellt Karteikarten nach Fach, Lernwoche und Anzahl; fertige Fragen je Vorlesungswoche aus der
+    # Bibliothek (2-3 Saetze zu je 15 Fragen, Loesungen und Erklaerungen schon vorbereitet)
+    "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "coming_soon"},
+    "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "coming_soon"},
 }
 
 # Kontingente je Abrechnungsmonat. None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).
-# Plus: 3 neue KI-Tests laut Tariftabelle des Auftrags (Testfall 3 im Auftrag nennt "sechs" – Widerspruch, hier
-# 3 nach der Tabelle; der Wert steht nur hier und laesst sich zentral aendern).
+# Entscheidung des Inhabers vom 04.11.2026: Plus 4 neue KI-Tests im Monat, Pro AI 20 (vorher 3 und 40).
 QUOTAS: dict[str, dict[str, int | None]] = {
     "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0},
-    "plus": {"ai_tests_new": 3, "library_tests": 4, "ai_assist": 0},
-    "pro_connect": {"ai_tests_new": 3, "library_tests": None, "ai_assist": 0},
-    "pro_ai": {"ai_tests_new": 40, "library_tests": None, "ai_assist": 150},
+    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0},
+    "pro_connect": {"ai_tests_new": 4, "library_tests": None, "ai_assist": 0},
+    "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150},
 }
 
 # Grenze fuer "unbegrenzt" (Schutz vor automatisierten Abrufen), je Monat

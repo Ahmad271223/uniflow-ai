@@ -34,6 +34,8 @@
     "can_share_solutions": false,
     "can_access_shared_tests": false,
     "can_generate_studora_ai_tests": false,
+    "can_create_flashcards": false,
+    "can_share_flashcards": false,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -43,7 +45,9 @@
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false
+    "can_use_ai_recommendations": false,
+    "can_generate_ai_flashcards": false,
+    "can_use_prepared_week_sets": false
    },
    "quotas": {
     "ai_tests_new": 0,
@@ -73,6 +77,8 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
+    "can_create_flashcards": true,
+    "can_share_flashcards": true,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -82,10 +88,12 @@
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false
+    "can_use_ai_recommendations": false,
+    "can_generate_ai_flashcards": false,
+    "can_use_prepared_week_sets": false
    },
    "quotas": {
-    "ai_tests_new": 3,
+    "ai_tests_new": 4,
     "library_tests": 4,
     "ai_assist": 0
    }
@@ -112,6 +120,8 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
+    "can_create_flashcards": true,
+    "can_share_flashcards": true,
     "can_use_advanced_analytics": true,
     "can_use_advanced_planner": true,
     "can_review_wrong_answers": true,
@@ -121,10 +131,12 @@
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false
+    "can_use_ai_recommendations": false,
+    "can_generate_ai_flashcards": false,
+    "can_use_prepared_week_sets": false
    },
    "quotas": {
-    "ai_tests_new": 3,
+    "ai_tests_new": 4,
     "library_tests": null,
     "ai_assist": 0
    }
@@ -151,6 +163,8 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
+    "can_create_flashcards": true,
+    "can_share_flashcards": true,
     "can_use_advanced_analytics": true,
     "can_use_advanced_planner": true,
     "can_review_wrong_answers": true,
@@ -160,10 +174,12 @@
     "can_use_ai_explanations": true,
     "can_use_ai_generated_questions": true,
     "can_use_ai_summaries": true,
-    "can_use_ai_recommendations": true
+    "can_use_ai_recommendations": true,
+    "can_generate_ai_flashcards": true,
+    "can_use_prepared_week_sets": true
    },
    "quotas": {
-    "ai_tests_new": 40,
+    "ai_tests_new": 20,
     "library_tests": null,
     "ai_assist": 150
    }
@@ -235,6 +251,16 @@
    "label": "Neue KI-Tests von StudiNow",
    "status": "available"
   },
+  "can_create_flashcards": {
+   "from": "plus",
+   "label": "Karteikarten selbst anlegen und lernen",
+   "status": "available"
+  },
+  "can_share_flashcards": {
+   "from": "plus",
+   "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)",
+   "status": "coming_soon"
+  },
   "can_use_advanced_analytics": {
    "from": "pro_connect",
    "label": "Erweiterte Lernstatistiken",
@@ -284,6 +310,16 @@
    "from": "pro_ai",
    "label": "KI-gestützte Lernempfehlungen",
    "status": "available"
+  },
+  "can_generate_ai_flashcards": {
+   "from": "pro_ai",
+   "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)",
+   "status": "coming_soon"
+  },
+  "can_use_prepared_week_sets": {
+   "from": "pro_ai",
+   "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen",
+   "status": "coming_soon"
   }
  },
  "quotas": {
