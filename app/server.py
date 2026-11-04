@@ -679,7 +679,7 @@ def api_sync_changes(since: str | None = None, device_id: str | None = None, lim
 @app.post("/api/sync/push")
 def api_sync_push(request: Request, body: dict = Body(...)):
     """Vertrag G2: Aenderungen eines Geraets uebernehmen; Antwort mit Ergebnis je Eintrag, ID-Zuordnung, Konflikten.
-    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab StudiNow Plus); sonst Ergebnis `plan_required`
+    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab StudiNow Pro AI, Entscheidung vom 04.11.2026); sonst Ergebnis `plan_required`
     fuer genau diese Eintraege, alles andere wird normal uebernommen."""
     from . import sync
     items, deletes = body.get("items") or [], body.get("deletes") or []

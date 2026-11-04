@@ -46,7 +46,6 @@ ENTITLEMENTS: dict[str, dict] = {
     # Plus
     "can_annotate_pdf": {"from": "plus", "label": "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder", "status": "available"},
     "can_use_pencilkit": {"from": "plus", "label": "Apple Pencil (PencilKit) und handschriftliche Notizen", "status": "available"},
-    "can_sync_annotations": {"from": "plus", "label": "Notizen auf allen Geräten", "status": "available"},
     "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "available"},
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
     "can_access_shared_tests": {"from": "plus", "label": "Tests aus der StudiNow-Bibliothek", "status": "available"},
@@ -66,6 +65,8 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
     "can_use_ai_summaries": {"from": "pro_ai", "label": "KI-Zusammenfassungen", "status": "available"},
     "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "available"},
+    # 04.11.2026: Plus gilt je Geraet, der Abgleich der Notizen zwischen iPad, PC und Web erst mit Pro AI
+    "can_sync_annotations": {"from": "pro_ai", "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)", "status": "available"},
     # 04.11.2026: KI erstellt Karteikarten nach Fach, Lernwoche und Anzahl; fertige Fragen je Vorlesungswoche aus der
     # Bibliothek (2-3 Saetze zu je 15 Fragen, Loesungen und Erklaerungen schon vorbereitet)
     "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "coming_soon"},

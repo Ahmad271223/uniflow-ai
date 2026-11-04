@@ -9,13 +9,18 @@ Jeder Tarif enthält alles aus dem Tarif darunter.
 | Tarif | Preis | Für wen | Wo kaufbar |
 | --- | --- | --- | --- |
 | **StudiNow Free** | 0 € | Studium organisieren und Unterlagen lesen | überall |
-| **StudiNow Plus** | **1,99 € / Monat**, 1 Woche gratis | Schreiben, teilen, Karteikarten, Tests mit dem eigenen ChatGPT | iPad (App Store), später Web/Windows (Stripe) |
+| **StudiNow Plus** | **1,99 € / Monat**, 1 Woche gratis | Schreiben, teilen, Karteikarten, Tests mit dem eigenen ChatGPT – **je Gerät, ohne Notizen-Abgleich** | iPad (App Store), später Web/Windows (Stripe) |
 | **StudiNow Pro AI** | **3,99 € / Monat** | Die StudiNow-KI macht die Arbeit: Karteikarten, fertige Fragen, Erklärungen | **erst mit dem Online-Dienst** (Version 2) |
 
 Alle Preise sind Endkundenpreise inklusive Mehrwertsteuer. Pro Connect (2,99 €) steht weiter im Code, wird aber nicht
 verkauft und nirgends angezeigt; ob es wegfällt, ist noch offen.
 
 ## Was jeder Tarif kann
+
+**Plus gilt je Gerät** (Entscheidung vom 04.11.2026): Das Abo schaltet auf jedem Gerät mit derselben Apple-ID frei
+(Apple verlangt „Käufe wiederherstellen“), aber Notizen wandern erst mit Pro AI zwischen iPad, PC und Web. Wer nur
+im Browser arbeitet, hat seine Notizen im Dienst und sieht sie in jedem Browser, in dem er angemeldet ist.
+
 
 | Funktion | Free | Plus | Pro AI |
 | --- | :-: | :-: | :-: |
@@ -25,7 +30,7 @@ verkauft und nirgends angezeigt; ob es wegfällt, ist noch offen.
 | Community lesen (nach Beitritt zum eigenen Kurs) | ✅ | ✅ | ✅ |
 | Eigenes ChatGPT verbinden und die KI-Hilfe damit nutzen ¹ | ✅ | ✅ | ✅ |
 | Stift, Textmarker, Notizen, Apple Pencil | – | ✅ | ✅ |
-| Notizen auf allen Geräten | – | ✅ | ✅ |
+| **Notizen auf allen Geräten** (Abgleich zwischen iPad, PC und Web) | – | – (Plus gilt je Gerät) | ✅ |
 | Kommentieren, Fragen stellen, Lösungen teilen, Korrekturen vorschlagen | – | ✅ | ✅ |
 | **Karteikarten selbst anlegen und lernen** | – | ✅ | ✅ |
 | **Karteikarten teilen und die anderer nutzen** (je Lernwoche oder fürs ganze Modul) | – | ✅ | ✅ |
@@ -74,7 +79,7 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 
 | Teil | Stand |
 | --- | --- |
-| Tarife, Kontingente (Plus 4, Pro AI 20) | **umgestellt** in `app/plans.py`, Prüfdaten neu; iPad (`Plans.swift`) muss die Mac-Sitzung nachziehen |
+| Tarife, Kontingente (Plus 4, Pro AI 20), Notizen-Abgleich erst mit Pro AI | **umgestellt** in `app/plans.py`, Prüfdaten neu; iPad (`Plans.swift`) muss die Mac-Sitzung nachziehen |
 | Karteikarten selbst anlegen | gebaut (iPad, Web, Windows) |
 | Karteikarten teilen / nutzen | **im Bau** (Status `coming_soon` bis fertig) |
 | KI-Karteikarten nach Fach/Woche/Anzahl | **im Bau** (aus einem Dokument gibt es sie schon) |

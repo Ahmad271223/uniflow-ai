@@ -51,7 +51,7 @@ def two_devices(app, monkeypatch, tmp_path):
     assert st == 201
     accounts.mark_email_verified(d["user"]["id"])
     accounts.end_trial(d["user"]["id"])             # Tarif-Tests meinen den Stand nach der 7-Tage-Probe
-    accounts.set_plan(d["user"]["id"], "plus")
+    accounts.set_plan(d["user"]["id"], "pro_ai")               # Notizen-Abgleich zwischen Geraeten ab Pro AI (04.11.2026)
     ipad = {"Authorization": f"Bearer {d['token']}"}
     with db.cursor() as conn:
         conn.execute("INSERT INTO courses(id, title, semester) VALUES ('kurs-1', 'Mathematik I', 'WiSe 26/27')")
@@ -167,11 +167,13 @@ def test_notes_for_a_file_not_yet_on_this_pc_wait(two_devices):
         assert json.loads(db.row(conn, "SELECT data FROM annotations WHERE file_id='studip-neu-9'")["data"])["pages"]["p1"]["objects"][0]["id"] == "x"
 
 
-def test_free_plan_keeps_notes_local_but_syncs_plans(two_devices):
+@pytest.mark.parametrize("plan", ["free", "plus"])
+def test_free_and_plus_keep_notes_local_but_sync_plans(two_devices, plan):
+    """Plus gilt je Geraet (Entscheidung des Inhabers vom 04.11.2026): Notizen bleiben lokal, Plaene gleichen ab."""
     app, ipad = two_devices
     from app import accounts, db, sync_client
     u = accounts.authenticate(ipad["Authorization"][7:])
-    accounts.set_plan(u["id"], "free")
+    accounts.set_plan(u["id"], plan)
     with db.cursor() as conn:
         conn.execute("INSERT INTO modules(name) VALUES ('Nur Plan')")
         conn.execute("INSERT INTO annotations(file_id, data, version) VALUES (?, ?, 1)", (FILE, json.dumps(page("lokal"))))

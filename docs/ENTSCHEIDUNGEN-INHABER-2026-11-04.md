@@ -10,4 +10,5 @@
     Lernwoche und Anzahl, fertige Fragen je Vorlesungswoche (2–3 × 15) mit vorbereiteten Lösungen und Erklärungen aus
     der Bibliothek.
   - Eigenes ChatGPT verbinden bleibt für alle Tarife frei (OpenAI-Regeln); Plus verkauft Tests, Karteikarten und Teilen.
+  - Plus gilt je Gerät: kein Notizen-Abgleich zwischen Geräten (Recht `can_sync_annotations` erst ab Pro AI).
   - Offen: ob Pro Connect (2,99 €) wegfällt; bis dahin unverändert im Code und nicht verkauft.
