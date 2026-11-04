@@ -329,7 +329,7 @@ export async function viewCommunity(_, params, view) {
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=5")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=6")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
