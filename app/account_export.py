@@ -52,6 +52,7 @@ def _account(user: dict) -> dict:
             "ki_credits_anfragen": _rows(conn, "SELECT period, day, purpose, funding, state, model, reserved, charged, cost_microeur, "
                                                "input_tokens, cached_tokens, output_tokens, images, created_at, settled_at "
                                                "FROM credit_ledger WHERE user_id=? ORDER BY created_at", (uid,)),
+            "einladungen": _invites(conn, uid),
             "abgleich_auftraege": _rows(conn, "SELECT kind, trigger, status, requested_at, started_at, finished_at, message, new_files "
                                               "FROM sync_jobs WHERE user_id=? ORDER BY id", (uid,)),
         }
@@ -60,6 +61,12 @@ def _account(user: dict) -> dict:
         creds[name] = value if name.endswith("_USER") else SECRET_HINT
     out["hochschul_zugangsdaten"] = creds
     return out
+
+
+def _invites(conn, uid: str) -> dict:
+    """Eigene Einladungslinks, angekommene Personen (nur Code und Zeitpunkt), eigene Einloesung, Belohnungen (app/invites.py)."""
+    from . import invites
+    return invites.export_rows(conn, uid)
 
 
 def _add_db(z: zipfile.ZipFile, src: Path, arc: str) -> None:

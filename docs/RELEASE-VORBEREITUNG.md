@@ -5,8 +5,9 @@ App-Store-Connect-Einträge und echte In-App-Produkte nur nach ausdrücklicher F
 
 V1 läuft **ohne Server**: Daten aus Stud.IP (LUH) bzw. Learnweb/LSF (Uni Hildesheim) holt das iPad selbst, alles liegt
 im lokalen Backend des Geräts (`docs/AUFTRAG-APPSTORE-V1.md`, `docs/IPAD-OHNE-PC.md`). Kein KI-Dienst, kein PC, kein
-UniFlow-Konto auf einem Server; Abos nur über StoreKit (V1 verkauft StudiNow Free und Plus, Entscheidung 28.10.2026;
-Pro Connect und Pro AI erst mit dem StudiNow-Dienst; Prüfung nur auf dem Gerät). Die App heißt seit 03.11.2026
+UniFlow-Konto auf einem Server; Abos nur über StoreKit (die App bietet StudiNow Free, Plus und Pro AI an, Entscheidung
+04.11.2026; die Pro-AI-Karte erscheint erst, wenn das Produkt im Store ist, also mit dem StudiNow-Dienst; keine
+Einführungsangebote, dafür 7 Tage Probe mit allem auf dem iPad ohne Zahlungsdaten; Prüfung nur auf dem Gerät). Die App heißt seit 03.11.2026
 „StudiNow“ (vorher Studora; Name auf dem Home-Bildschirm und alle Texte); Bundle-ID `de.uniflow.ai` und interne Kennungen bleiben.
 
 ## Umgebungen
@@ -30,7 +31,7 @@ Release-Builds für den Simulator (kein ATS-Schlüssel, kein `NSLocalNetworkUsag
 | Version (Marketing) | `MARKETING_VERSION` in `apps/apple/project.yml` | |
 | Build-Nummer | `CURRENT_PROJECT_VERSION`, je Upload +1 | |
 | Mindestversion | iPadOS 17 | wegen PDFKit-Overlays (16) und SwiftUI-APIs (17) |
-| Abo | `de.uniflow.plus.monthly` (StudiNow Plus, 1,99 €, Probewoche); Pro-Produkte erst mit dem StudiNow-Dienst | Abo-Gruppe „StudiNow“ in App Store Connect, mit der ersten Version einreichen (`docs/release/APP-STORE.md`, In-App-Käufe) |
+| Abo | `de.uniflow.plus.monthly` (StudiNow Plus, 1,99 €, Stufe 2) und `de.uniflow.proai.monthly` (StudiNow Pro AI, 3,99 €, Stufe 1), beide ohne Einführungsangebot; 7 Tage Probe läuft in der App (Schlüsselbund und iCloud-Schlüssel-Wert-Speicher) | Abo-Gruppe „StudiNow“ in App Store Connect; Plus mit der ersten Version einreichen, Pro AI erst mit dem StudiNow-Dienst (`docs/release/APP-STORE.md`, In-App-Käufe) |
 
 ## App-Icon und Startbildschirm
 
@@ -148,8 +149,11 @@ Code und Build (umgesetzt, Stand Abnahme 26.10.2026):
 Inhaber:
 
 - [ ] Apple Developer Program, `Team.xcconfig`, App-ID `de.uniflow.ai` mit Sign in with Apple
-- [ ] App Store Connect: App-Eintrag „StudiNow“, Abo-Gruppe „StudiNow“ nur mit `de.uniflow.plus.monthly` (1,99 €,
-      Probewoche), zusammen mit der ersten Version einreichen; Pro-Produkte später (`docs/OFFEN-V1.md`)
+- [ ] App Store Connect: App-Eintrag „StudiNow“, Abo-Gruppe „StudiNow“ mit `de.uniflow.plus.monthly` (1,99 €, Stufe 2)
+      und `de.uniflow.proai.monthly` (3,99 €, Stufe 1), **ohne Einführungsangebot**; Plus zusammen mit der ersten
+      Version einreichen, Pro AI erst mit dem StudiNow-Dienst (`docs/release/APP-STORE.md`, `docs/OFFEN-V1.md`)
+- [x] `UniFlow.entitlements`: `com.apple.developer.ubiquity-kvstore-identifier` (`$(TeamIdentifierPrefix)$(CFBundleIdentifier)`)
+      für den Probe-Beginn in iCloud (`docs/ABO-SYSTEM.md`, 3b); ohne die Berechtigung zählt nur der Schlüsselbund
 - [ ] Vertrag für kostenpflichtige Apps mit Bank- und Steuerdaten
 - [x] URLs für Datenschutzerklärung, EULA, Impressum und Support in der App (`UFLegalLinks`, 03.11.2026) und in
       `docs/release/APP-STORE.md`; in App Store Connect vom Inhaber eintragen, sobald der Eintrag existiert

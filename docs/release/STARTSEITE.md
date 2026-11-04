@@ -33,7 +33,8 @@ nur und schreibt nichts in die Hochschulsysteme.
 ## StudiNow Free und Plus
 
 StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und
-Lernplanung. StudiNow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Apple Pencil,
+Lernplanung. Zum Start hast du 7 Tage Probe mit allem – ohne Zahlungsdaten, danach gilt Free. StudiNow Plus
+(1,99 € pro Monat) schaltet das Schreiben mit dem Apple Pencil,
 Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Das Abo verlängert sich
 automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen
 deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.

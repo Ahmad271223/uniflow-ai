@@ -16,8 +16,8 @@ final class EntitlementTests: XCTestCase {
         XCTAssertNil(UFPlan(productID: "de.uniflow.pro.monthly"))
         XCTAssertNil(UFPlan(productID: "fremd"))
         XCTAssertNil(UFPlan.free.productID)
-        // V1 bietet nur Plus an (UFPlanCatalog.sellable, Entscheidung 28.10.2026); die Pro-Produkte bleiben in der Tabelle
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly"])
+        // das iPad bietet Plus und Pro AI an (UFPlanCatalog.sellable, Entscheidung 04.11.2026); Pro Connect bleibt in der Tabelle
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
         XCTAssertEqual(UFPlan.paid, [.plus, .proConnect, .proAI])
         XCTAssertLessThan(UFPlan.free, .plus)
         XCTAssertLessThan(UFPlan.plus, .proConnect)
@@ -169,15 +169,13 @@ final class EntitlementTests: XCTestCase {
         XCTAssertNil(UFEntitlementResolver.pendingPlan(current: .free, willAutoRenew: true, autoRenewProductID: "de.uniflow.plus.monthly"))
     }
 
-    func testTrialEndsAfterWeek() {
+    /// gekuendigtes Abo: Zugang endet mit dem Zeitraum, danach Free (kein Einfuehrungsangebot mehr, 04.11.2026)
+    func testSubscriptionEndsWithItsPeriod() {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
-        let end = start.addingTimeInterval(7 * 86_400)
-        let trial = UFEntitlementEntry(productID: "de.uniflow.plus.monthly", expirationDate: end, isIntroOffer: true)
-        XCTAssertEqual(UFEntitlementResolver.plan(from: [trial], now: start), .plus)
-        XCTAssertTrue(UFEntitlementResolver.inIntroOffer([trial], plan: .plus, now: start))
-        // gekuendigt: Zugang endet mit der Woche, danach Free
-        XCTAssertEqual(UFEntitlementResolver.plan(from: [trial], now: end), .free)
-        XCTAssertFalse(UFEntitlementResolver.inIntroOffer([trial], plan: .free, now: end))
+        let end = start.addingTimeInterval(30 * 86_400)
+        let sub = UFEntitlementEntry(productID: "de.uniflow.plus.monthly", expirationDate: end)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [sub], now: start), .plus)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [sub], now: end), .free)
     }
 
     @MainActor
@@ -226,18 +224,14 @@ final class EntitlementTests: XCTestCase {
 
     func testOfferTexts() {
         let month = (1, Product.SubscriptionPeriod.Unit.month)
-        let week = (1, Product.SubscriptionPeriod.Unit.week)
-        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: week, eligible: true),
-                       "1 Woche gratis, danach 1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: week, eligible: false),
-                       "1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: nil, eligible: true),
-                       "1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: true), "StudiNow Plus – 1 Woche gratis")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: false), "StudiNow Plus für 1,99 €/Monat")
-        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "3,99 €", period: month, freeTrial: week, eligible: true), "StudiNow Pro AI – 1 Woche gratis")
-        XCTAssertEqual(UFOfferText.button(plan: .proConnect, price: "2,99 €", period: month, freeTrial: week, eligible: false),
-                       "StudiNow Pro Connect für 2,99 €/Monat")
+        // kein "1 Woche gratis, danach …" mehr (Entscheidung 04.11.2026): nur Preis, Zeitraum, Kuendigung
+        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month), "1,99 €/Monat, monatlich kündbar")
+        XCTAssertEqual(UFOfferText.summary(price: "19,99 €", period: (1, .year)), "19,99 €/Jahr, jährlich kündbar")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month), "StudiNow Plus für 1,99 €/Monat")
+        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "3,99 €", period: month), "StudiNow Pro AI für 3,99 €/Monat")
+        XCTAssertEqual(UFOfferText.button(plan: .proConnect, price: "2,99 €", period: month), "StudiNow Pro Connect für 2,99 €/Monat")
+        XCTAssertFalse(UFOfferText.summary(price: "1,99 €", period: month).contains("gratis"))
+        XCTAssertEqual(UFTrialTexts.offer, "7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten")
         // Wechsel in der Abo-Gruppe: hoeher sofort, kleiner ab der naechsten Verlaengerung (regelt Apple)
         XCTAssertEqual(UFOfferText.switchButton(to: .proAI), "Zu StudiNow Pro AI wechseln")
         XCTAssertEqual(UFOfferText.switchNote(to: .proAI, from: .plus), "Gilt sofort. Apple verrechnet den bisherigen Tarif anteilig.")

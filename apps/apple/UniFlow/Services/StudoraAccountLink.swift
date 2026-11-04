@@ -174,6 +174,16 @@ final class StudoraAccountLink: ObservableObject {
             self.sessions = me.sessions
             self.planStatus = try await a.planStatus()
         }
+        if user != nil, PendingInvite.current() != nil { _ = await redeemPendingInvite() }
+    }
+
+    /// Gemerkte Einladung (`https://studinow.app/i/<CODE>`, Views/Settings/InviteView.swift) einmal beim Dienst einloesen,
+    /// sobald ein Konto angemeldet ist; ohne Konto bleibt der Code liegen. Nur eine Angebotscode-Belohnung fuer die
+    /// einladende Person haengt daran, nie ein Tarif fuer dieses Konto.
+    func redeemPendingInvite() async -> PendingInvite.Outcome {
+        let out = await PendingInvite.redeem(using: account, signedIn: user != nil)
+        if out == .accepted { notice = InviteTexts.accepted }
+        return out
     }
 
     /// "Bei Free bleiben" nach der Probe

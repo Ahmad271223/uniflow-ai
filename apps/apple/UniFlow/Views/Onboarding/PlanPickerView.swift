@@ -2,11 +2,13 @@ import StoreKit
 import SwiftUI
 
 // Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): Karten fuer
-// die kaufbaren Tarife aus `UFPlanCatalog` – in V1 StudiNow Free und Plus (Entscheidung des Inhabers vom 28.10.2026),
-// darunter ein nicht anklickbarer Hinweis auf die Pro-Tarife ohne Preis. Inhalt der Karten aus `UFPlanCard`: enthalten
-// ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht unter "in Vorbereitung". Preise nur aus
-// Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das Einfuehrungsangebot (Apple fuehrt ihn je
-// Abo-Gruppe). Wechsel zwischen Abo-Tarifen (ab V2) regelt Apple in der Gruppe.
+// die Tarife aus `UFPlanCatalog` – StudiNow Free, Plus und Pro AI (Entscheidung des Inhabers vom 04.11.2026); die
+// Pro-AI-Karte nur, wenn StoreKit das Produkt liefert, sonst ein nicht anklickbarer Hinweis ohne Preis. Inhalt der
+// Karten aus `UFPlanCard`: enthalten ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht
+// unter "in Vorbereitung", die Pro-AI-Karte sagt, dass sie den Dienst braucht. Preise nur aus Product.displayPrice.
+// Kein Einfuehrungsangebot: die 7 Tage Probe laufen ohne Kauf auf dem iPad (LocalTrial.swift), der Kopf nennt sie.
+// Welche Karte "Aktueller Tarif" traegt, richtet sich nach dem Kauf (`purchasedPlan`), nicht nach der Probe. Wechsel
+// zwischen Abo-Tarifen regelt Apple in der Gruppe.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
 
@@ -53,12 +55,12 @@ struct PlanPickerView: View {
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
-                ForEach(UFPlanCatalog.cards(current: ent.plan)) { planCard($0) }
+                ForEach(UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs)) { planCard($0) }
             }
             .environment(\.ufFillsCell, true)
-            if !UFPlanCatalog.upcoming.isEmpty {
+            if Self.showsProAIMissingNote(loaded: store.loadedProductIDs, loading: store.loadingProducts, current: ent.purchasedPlan) {
                 // nur ein Hinweis: kein Preis, kein Knopf, nichts zum Antippen
-                Text(UFPlanCatalog.upcomingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
+                Text(UFPlanCatalog.proAIMissingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
                     .accessibilityAddTraits(.isStaticText)
             }
             footer.padding(.top, 22.4)
@@ -70,12 +72,14 @@ struct PlanPickerView: View {
         .manageSubscriptionsSheet(isPresented: $manage)
         .onChange(of: manage) { _, open in
             // nach dem Verwalten (Kuendigen, Wechsel) den Tarif neu lesen
-            if !open { Task { await store.refreshEntitlements(); await store.refreshEligibility() } }
+            if !open { Task { await store.refreshEntitlements() } }
         }
-        // Anspruch auf die Probewoche gilt je Abo-Gruppe: nach jedem Tarifwechsel und jeder neuen Transaktion
-        // (Kauf auf dieser Seite, Wiederherstellen, Transaction.updates) fuer alle Tarife neu lesen
-        .onChange(of: ent.plan) { _, _ in Task { await store.refreshEligibility() } }
-        .onChange(of: ent.transactionCount) { _, _ in Task { await store.refreshEligibility() } }
+    }
+
+    /// Hinweis "Pro AI folgt mit dem Dienst": wenn die Produkte geladen sind, Pro AI fehlt und niemand es schon hat
+    static func showsProAIMissingNote(loaded: Set<String>, loading: Bool, current: UFPlan) -> Bool {
+        guard !loading, !loaded.isEmpty, current != .proAI, let id = UFPlan.proAI.productID else { return false }
+        return !loaded.contains(id)
     }
 
     // MARK: Kopf
@@ -89,18 +93,19 @@ struct PlanPickerView: View {
     }
 
     private var subtitle: String {
-        // Dauer des Angebots aus dem Produkt, nicht fest im Code; der Anspruch gilt fuer die ganze Abo-Gruppe
-        let plus = store.product(for: .plus)
-        let trial = plus.flatMap { p in store.introEligible[p.id] == true ? p.ufFreeTrial : nil }
-        return Self.subtitle(trial: trial.map { UFOfferText.period(value: $0.0, unit: $0.1) })
+        Self.subtitle(proAI: store.loadedProductIDs.contains(UFPlan.proAI.productID ?? ""),
+                      trial: ent.purchasedPlan == .free ? ent.localTrial : nil)
     }
 
-    /// Untertitel; `trial` z. B. "1 Woche", wenn der Anspruch auf das Einfuehrungsangebot besteht. Nennt nur die
-    /// kaufbaren Tarife (V1: Free und Plus).
-    static func subtitle(trial: String?) -> String {
+    /// Untertitel: die angebotenen Tarife (Pro AI nur mit Produkt aus dem Store) und die Probe auf dem iPad
+    /// (`UFTrialTexts.offer`), solange sie laeuft und kein Tarif gekauft ist
+    static func subtitle(proAI: Bool, trial: UFLocalTrial.State?) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
         s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
-        s += trial.map { "; \($0) gratis zum Start. " } ?? ". "
+        s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
+        if let trial, trial.isActive {
+            s += "\(UFTrialTexts.offer). \(UFTrialTexts.running(trial.daysLeft)). "
+        }
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
     }
@@ -108,7 +113,8 @@ struct PlanPickerView: View {
     // MARK: Karten
 
     private func planCard(_ plan: UFPlan) -> some View {
-        let current = !ent.loading && ent.plan == plan
+        // "Aktueller Tarif" ist der gekaufte (bzw. Free ohne Kauf), nie die laufende Probe
+        let current = !ent.loading && ent.purchasedPlan == plan
         let showCurrent = current && context != .onboarding
         let included = UFPlanCard.included(plan)
         let preparing = UFPlanCard.preparing(plan)
@@ -124,6 +130,10 @@ struct PlanPickerView: View {
             }
             if let t = UFPlanCard.tagline(plan) {
                 Text(t).ufFont(13.12).foregroundStyle(UF.text2).padding(.top, 3.2)
+            }
+            if let s = UFPlanCatalog.serviceNote(plan) {
+                // ehrlich: Pro AI braucht den StudiNow-Dienst
+                Text(s).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.top, 3.2)
             }
             priceBlock(plan).padding(.top, 6.4)
             Rectangle().fill(UF.line).frame(height: 1).padding(.vertical, 14.4)
@@ -179,15 +189,12 @@ struct PlanPickerView: View {
                 Text("dauerhaft kostenlos, ohne Abo").ufFont(13.12).foregroundStyle(UF.muted)
             }
         } else if let p = store.product(for: plan) {
-            let eligible = store.introEligible[p.id] == true
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 3.2) {
                     Text(p.displayPrice).ufFont(26, 700, lh: 1.2, em: -0.02).foregroundStyle(UF.text)
                     Text(UFOfferText.per(value: p.ufPeriod.0, unit: p.ufPeriod.1)).ufFont(14.5).foregroundStyle(UF.muted)
                 }
-                Text(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial, eligible: eligible))
-                    .ufFont(13.12, eligible && p.ufFreeTrial != nil ? 600 : 400)
-                    .foregroundStyle(eligible && p.ufFreeTrial != nil ? UF.accentText : UF.muted)
+                Text(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod)).ufFont(13.12).foregroundStyle(UF.muted)
             }
         } else if store.loadingProducts {
             HStack(spacing: 8) {
@@ -202,8 +209,8 @@ struct PlanPickerView: View {
         }
     }
 
-    /// laeuft gerade ein Abo (nicht Free)? Dann sind die anderen Abo-Tarife ein Wechsel in der Gruppe.
-    private var hasSubscription: Bool { !ent.loading && ent.plan != .free }
+    /// laeuft gerade ein gekauftes Abo (nicht Free)? Dann sind die anderen Abo-Tarife ein Wechsel in der Gruppe.
+    private var hasSubscription: Bool { !ent.loading && ent.purchasedPlan != .free }
 
     @ViewBuilder
     private func actionButton(_ plan: UFPlan, current: Bool) -> some View {
@@ -228,25 +235,23 @@ struct PlanPickerView: View {
         } else if let p = store.product(for: plan) {
             let label = hasSubscription
                 ? UFOfferText.switchButton(to: plan)
-                : UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                     eligible: store.introEligible[p.id] == true)
+                : UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod)
             fullButton(label, kind: .primary, enabled: !store.busy) { Task { await buy(p, plan: plan) } }
         } else {
             fullButton("\(plan.name) wählen", kind: .primary, enabled: false) {}
         }
     }
 
-    /// kleine Zeile unter dem Knopf: Gratiswoche, Kuendigung, vorgemerkter Wechsel, wann ein Wechsel gilt
+    /// kleine Zeile unter dem Knopf: Kuendigung, vorgemerkter Wechsel, wann ein Wechsel gilt
     private func buttonNote(_ plan: UFPlan, current: Bool) -> String? {
         guard plan != .free, !ent.loading else { return nil }
         if current {
             if let next = ent.pendingPlan { return UFOfferText.pendingNote(next, at: ent.expiresAt) }
             if ent.willRenew == false { return UFOfferText.cancelledNote(plan, endsAt: ent.expiresAt) }
-            if context == .settings && ent.inIntroOffer { return trialEndText }
             return nil
         }
         if ent.pendingPlan == plan { return UFOfferText.pendingNote(plan, at: ent.expiresAt) }
-        if hasSubscription && store.product(for: plan) != nil { return UFOfferText.switchNote(to: plan, from: ent.plan) }
+        if hasSubscription && store.product(for: plan) != nil { return UFOfferText.switchNote(to: plan, from: ent.purchasedPlan) }
         return nil
     }
 
@@ -265,10 +270,10 @@ struct PlanPickerView: View {
 
     private func buy(_ p: Product, plan: UFPlan) async {
         info = nil
-        let before = ent.plan
+        let before = ent.purchasedPlan
         switch await store.purchase(p) {
         case .success:
-            if ent.plan != plan, ent.pendingPlan == plan {
+            if ent.purchasedPlan != plan, ent.pendingPlan == plan {
                 // Downgrade: Apple stellt erst zur naechsten Verlaengerung um, die Seite bleibt offen und sagt es
                 info = UFOfferText.pendingNote(plan, at: ent.expiresAt) + " Bis dahin bleibt \(before.name)."
             } else {
@@ -279,11 +284,6 @@ struct PlanPickerView: View {
         case .cancelled, .failed:
             break                                    // Seite bleibt; Fehler zeigt die Fehlerkarte
         }
-    }
-
-    private var trialEndText: String {
-        guard let d = ent.expiresAt else { return "Gratiswoche läuft." }
-        return "Gratiswoche bis \(UFOfferText.day(d)). Danach verlängert sich das Abo, wenn du nicht kündigst."
     }
 
     // MARK: Hinweise

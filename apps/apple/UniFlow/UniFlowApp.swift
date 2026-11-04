@@ -126,6 +126,16 @@ struct UniFlowApp: App {
                             }
                             return
                         }
+                        // Einladung https://studinow.app/i/<CODE> (Universal Link) oder uniflow://invite/<CODE> (QR "App-Code"):
+                        // Code merken, bis das StudiNow-Konto da ist, dann einmal einloesen (Views/Settings/InviteView.swift)
+                        if let code = InviteLink.code(from: url) {
+                            PendingInvite.store(code)
+                            Task {
+                                let out = await containers.account.redeemPendingInvite()
+                                if let text = PendingInvite.toast(out) { toast.show(text, seconds: 5) }
+                            }
+                            return
+                        }
                         // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
                         if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
                     }
@@ -277,6 +287,7 @@ struct RootView: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var containers: ContainerManager
     @EnvironmentObject private var overlay: UFOverlay
+    @Environment(\.scenePhase) private var scenePhase
     @State private var choosingPlan = false
 
     /// was den Container bestimmt (Anmeldung, Hochschulwahl, Wechsel in den Einstellungen)
@@ -293,6 +304,15 @@ struct RootView: View {
             }
             .onChange(of: ContainerTrigger(user: account.account?.userID, university: account.university)) { _, _ in
                 containers.sync(account: account)
+            }
+            // Probe auf dem iPad (LocalTrial.swift): beginnt mit der Anmeldung, einmal je Apple-ID; nie unter XCTest
+            // (Tests bauen eigene Entitlements, der Testhost soll den Schluesselbund nicht fuellen)
+            .onChange(of: account.account?.userID, initial: true) { _, id in
+                guard !StudIPSync.isUnderTest() else { return }
+                if let id { Entitlements.shared.beginLocalTrial(userID: id) } else { Entitlements.shared.useLocalTrial(startedAt: nil) }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Entitlements.shared.refreshLocalTrial() }   // Resttage nach dem Tageswechsel
             }
             // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
             // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto

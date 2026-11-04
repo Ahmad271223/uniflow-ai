@@ -63,7 +63,7 @@ DEINE DATEN
 • Was du mit anderen teilst, liegt verschlüsselt in Apples iCloud – nie mit deinem Namen oder deiner E-Mail-Adresse.
 
 STUDINOW FREE UND PLUS
-StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender, Lernplanung, Zeitmesser und Lösungen anderer in der Community ansehen. StudiNow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender, Lernplanung, Zeitmesser und Lösungen anderer in der Community ansehen. Zum Start hast du 7 Tage Probe mit allem – ohne Zahlungsdaten, danach gilt Free. StudiNow Plus (1,99 € pro Monat) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -175,30 +175,31 @@ eingerichteten Funktion gespeichert werden; [[mit Apple-Dokumentation zum Zeitpu
 ## In-App-Käufe
 
 Tarife nach `docs/ABO-SYSTEM.md`; Namen, Preise und Produkt-IDs aus `packages/shared-contracts/fixtures/plans/plans.json`.
-**V1 verkauft nur StudiNow Free und StudiNow Plus** (Entscheidung des Inhabers vom 28.10.2026, `UFPlanCatalog.sellable`
-in der App). StudiNow Free hat kein Produkt. Für V1 legt der Inhaber in App Store Connect **nur das Plus-Produkt** an,
-als automatisch verlängerbares Abo in der Abo-Gruppe „StudiNow“:
+**Die App bietet StudiNow Free, StudiNow Plus und StudiNow Pro AI an** (Entscheidung des Inhabers vom 04.11.2026,
+`UFPlanCatalog.sellable`). StudiNow Free hat kein Produkt. **Keine Einführungsangebote:** die 7-Tage-Probe läuft in der
+App selbst, ohne Kauf und ohne Zahlungsdaten (einmal je Apple-ID), danach gilt Free. Der Inhaber legt in App Store
+Connect zwei automatisch verlängerbare Abos in der Abo-Gruppe „StudiNow“ an:
 
-| Feld | Wert |
-|---|---|
-| Produkt-ID | `de.uniflow.plus.monthly` (die Kennung bleibt bei `de.uniflow`, Bundle-ID `de.uniflow.ai`) |
-| Abo-Gruppe | StudiNow |
-| Referenzname | StudiNow Plus (monatlich) |
-| Anzeigename (max. 30) | StudiNow Plus |
-| Beschreibung (max. 45) | Stift, Karteikarten, Lösungen teilen |
-| Preis | 1,99 € pro Monat (Preisstufe nach App Store Connect) |
-| Einführungsangebot | 1 Woche gratis, einmal je Apple-ID |
-| Prüf-Screenshot | Tarifseite der App mit den Karten Free und Plus (`~/Studora-Builds/appstore-screenshots/iap-tarifseite.png`) |
-| Prüfhinweis zum Abo | „Plus schaltet Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Kaufen und Wiederherstellen auf der Tarifseite (Einstellungen → Zugang & Darstellung → Tarif → „Tarif wechseln“).“ |
+| Feld | StudiNow Plus | StudiNow Pro AI |
+|---|---|---|
+| Produkt-ID | `de.uniflow.plus.monthly` (die Kennung bleibt bei `de.uniflow`, Bundle-ID `de.uniflow.ai`) | `de.uniflow.proai.monthly` |
+| Abo-Gruppe / Stufe | StudiNow / Stufe 2 | StudiNow / Stufe 1 (höchste) |
+| Referenzname | StudiNow Plus (monatlich) | StudiNow Pro AI (monatlich) |
+| Anzeigename (max. 30) | StudiNow Plus | StudiNow Pro AI |
+| Beschreibung (max. 45) | Stift, Karteikarten, Lösungen teilen | Alles aus Plus, mehr über den StudiNow-Dienst |
+| Preis | 1,99 € pro Monat (Preisstufe nach App Store Connect) | 3,99 € pro Monat |
+| Einführungsangebot | keins | keins |
+| Einreichen | **mit der ersten App-Version** | **erst, wenn der StudiNow-Dienst läuft** (vorher nicht anlegen oder nicht zur Prüfung geben) |
+| Prüf-Screenshot | Tarifseite der App (`~/Studora-Builds/appstore-screenshots/iap-tarifseite.png`) | Tarifseite mit der Pro-AI-Karte (erst mit dem Dienst) |
+| Prüfhinweis zum Abo | „Plus schaltet Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Kaufen und Wiederherstellen auf der Tarifseite (Einstellungen → Zugang & Darstellung → Tarif → „Tarif wechseln“).“ | „Pro AI enthält alles aus Plus; die weiteren Funktionen laufen über den StudiNow-Dienst, die App sagt das auf der Karte.“ |
 
-Das Abo muss **zusammen mit der ersten App-Version** eingereicht werden (Version → In-App-Käufe und Abonnements →
-Produkt auswählen), sonst prüft Apple es nicht mit.
-
-**Später, nicht in V1:** StudiNow Pro Connect (`de.uniflow.proconnect.monthly`, 2,99 €) und StudiNow Pro AI
-(`de.uniflow.proai.monthly`, 3,99 €) kommen erst mit dem StudiNow-Dienst in dieselbe Gruppe, dann mit Stufen nach Rang
-(Pro AI höchste, Plus niedrigste). Werte stehen in `apps/apple/UniFlowTests/UniFlowAlleTarife.storekit`; die
-Tarifseite zeigt bis dahin nur den Satz „Pro-Tarife folgen mit dem StudiNow-Dienst.“ ohne Preis und ohne Kaufknopf.
-In V1 prüft die App den Kauf nur auf dem Gerät (StoreKit 2); kein Konto beim Dienst, kein `appAccountToken`.
+Das Plus-Abo muss **zusammen mit der ersten App-Version** eingereicht werden (Version → In-App-Käufe und Abonnements →
+Produkt auswählen), sonst prüft Apple es nicht mit. Solange Pro AI in App Store Connect fehlt, liefert StoreKit das
+Produkt nicht; die Tarifseite zeigt dann nur Free und Plus und darunter den Satz „StudiNow Pro AI folgt mit dem
+StudiNow-Dienst.“ ohne Preis und ohne Kaufknopf. Sobald das Produkt da ist, erscheint die Pro-AI-Karte mit dem Preis aus
+dem Store und der Zeile, dass Pro AI den StudiNow-Dienst braucht. StudiNow Pro Connect (`de.uniflow.proconnect.monthly`,
+2,99 €) wird auf dem iPad nicht angeboten (nur Web/Windows über den Dienst, `docs/ABO-SYSTEM.md`). Die App prüft den Kauf
+nur auf dem Gerät (StoreKit 2); kein Konto beim Dienst, kein `appAccountToken`.
 
 Pflichttexte auf der Tarifseite in der App: Preis und Laufzeit, automatische Verlängerung, Kündigung in den
 Einstellungen, Links zu Nutzungsbedingungen und Datenschutzerklärung, „Käufe wiederherstellen“. Was den
@@ -216,11 +217,11 @@ ChatGPT (Richtlinie 2.3.1: keine versteckten Funktionen) – sie sind kein Werbe
 StudiNow is a study app for students of Leibniz Universität Hannover (Germany). Its university features (course files, timetable) use the student's personal university account, which we cannot share. Please use the built-in demo content, which needs no university account:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It is required because the app keeps the data of each Apple account and each university strictly separate on the device. Nothing is sent to a server of ours; the Apple user ID stays on the iPad.
-2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover".
+2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover". A 7-day trial with everything unlocked starts automatically with the first sign-in, no purchase and no payment details needed (once per Apple ID, stored on the device, not on a server). After the trial the app falls back to "StudiNow Free" and locked features show an unlock prompt; nothing created during the trial is lost.
 3. On the following university login page tap "Ohne Hochschulkonto ansehen (Demo)" at the bottom. This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us, no university content). In demo mode the app does not contact the university and asks for no login.
 The demo can also be created at any time under "Einstellungen" → "Erweitert" → "Demo-Inhalte anlegen"; "Entfernen" (overview or the same place) removes it again.
 
-Subscription: "StudiNow Plus" (monthly, first week free) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards and sharing own solutions. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
+Subscriptions: "StudiNow Plus" (monthly, no introductory offer) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards and sharing own solutions. The plan page lists "StudiNow Pro AI" only when the App Store returns that product; it is submitted later together with our online service, and its card states that it needs that service. The free trial is not an App Store offer: it is the app's own 7-day trial described above. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto" → "Konto löschen" deletes all data of the account on the device.
 

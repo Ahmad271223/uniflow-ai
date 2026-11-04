@@ -52,6 +52,8 @@ app.include_router(library_api.router)
 app.include_router(doc_index.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
+from . import invites_api  # noqa: E402 - Einladungen mit Angebotscodes (Routen /api/invites, /api/billing/offer-codes)
+app.include_router(invites_api.router)
 db.init_db()
 
 

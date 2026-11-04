@@ -832,7 +832,8 @@ private struct AppAccountCards: View {
     private var planCard: some View {
         UFCard {
             UFCardHead("Tarif", icon: "star") {
-                if !ent.loading { UFBadge(ent.plan.name, tone: ent.plan == .free ? .neutral : .ok) }
+                // waehrend der Probe ohne Kauf "Probe: noch n Tage alles frei", sonst der Tarif
+                if !ent.loading { UFBadge(ent.statusLabel, tone: ent.plan == .free ? .neutral : .ok) }
             }
             Text(canSwitchPlan
                  ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
@@ -956,7 +957,10 @@ private struct LocalAccountTab: View {
             if demo { DemoActiveBar() }
             SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) {
                 AppAccountCards()
-                if StudoraAccountLink.available, let studoraAccount { StudoraAccountCard(link: studoraAccount) }
+                if StudoraAccountLink.available, let studoraAccount {
+                    StudoraAccountCard(link: studoraAccount)
+                    InviteCard(link: studoraAccount)                     // Freunde einladen (docs/EINLADUNGEN.md)
+                }
             }
             SettingsSection("Studium", sub: studip.offersStudIP ? SettingsSections.studyLUH : SettingsSections.studyHildesheim) {
                 UFGridLayout(spacing: 16, minWidth: 340) {

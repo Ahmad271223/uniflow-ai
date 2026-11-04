@@ -1,25 +1,25 @@
 import StoreKit
 import SwiftUI
 
-/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. V1 bietet nur StudiNow Plus an
-/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 28.10.2026); Pro Connect und Pro AI kommen mit dem
-/// StudiNow-Dienst in dieselbe Abo-Gruppe (docs/ABO-SYSTEM.md). Upgrade und Downgrade innerhalb der Gruppe regelt Apple:
-/// hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in PlanSwitchPurchaseTests geprueft).
+/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. Angeboten werden StudiNow Plus und Pro AI
+/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 04.11.2026) in einer Abo-Gruppe; die Pro-AI-Karte erscheint
+/// nur, wenn StoreKit das Produkt liefert (vor dem StudiNow-Dienst steht es nicht im Store). Kein Apple-
+/// Einfuehrungsangebot: die 7 Tage Probe laufen auf dem iPad ohne Zahlungsdaten (LocalTrial.swift). Upgrade und
+/// Downgrade innerhalb der Gruppe regelt Apple: hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in
+/// PurchaseV2PlanSwitchTests geprueft).
 ///
 /// NUR TESTKONFIGURATION: Die Produkte existieren ausschliesslich in `UniFlow.storekit` (lokales StoreKit-Testen in
 /// Xcode/Simulator). Echte Produkte in App Store Connect werden erst nach ausdruecklicher Freigabe angelegt.
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
-    /// in V1 nur Plus (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
+    /// Plus und Pro AI (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
     static let productIDs = UFPlanCatalog.sellableProductIDs
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
     enum Outcome: Equatable { case success, cancelled, pending, failed }
 
     @Published private(set) var products: [Product] = []
-    /// Anspruch auf das Einfuehrungsangebot je Produkt-ID (Apple merkt sich die Nutzung je Abo-Gruppe und Apple ID)
-    @Published private(set) var introEligible: [String: Bool] = [:]
     @Published private(set) var loadingProducts = false
     @Published private(set) var lastError: String?
     @Published private(set) var busy = false
@@ -39,29 +39,21 @@ final class PurchaseStore: ObservableObject {
         products.first { $0.id == plan.productID }
     }
 
+    /// Produkt-IDs, die der Store geliefert hat (Tarifkarten: Pro AI nur mit Produkt, `UFPlanCatalog.cards`)
+    var loadedProductIDs: Set<String> { Set(products.map(\.id)) }
+
     /// Produkte laden. Kommt nichts (kein Netz, Store nicht erreichbar), bleibt der Tarif, wie StoreKit ihn zuletzt
     /// kannte (currentEntitlements aus dem Geraete-Zwischenspeicher); die Seite nennt den Grund, "Erneut versuchen".
+    /// Fehlt nur ein Produkt (Pro AI vor dem Dienst), ist das kein Fehler: die Karte erscheint dann nicht.
     func loadProducts() async {
         loadingProducts = true
         defer { loadingProducts = false }
         do {
             products = try await Product.products(for: requestedProductIDs).sorted { $0.price < $1.price }
-            await refreshEligibility()
             lastError = products.isEmpty ? "Die Tarife konnten nicht geladen werden. Prüfe die Verbindung und versuche es erneut." : nil
         } catch {
             lastError = "Die Tarife konnten nicht geladen werden: \(error.localizedDescription)"
         }
-    }
-
-    /// Anspruch auf das Einfuehrungsangebot fuer alle geladenen Produkte neu lesen. Apple fuehrt ihn je Abo-Gruppe:
-    /// Nach einem Kauf, Wiederherstellen oder einer Aktualisierung (Transaction.updates) entfaellt er fuer die ganze
-    /// Gruppe. Ohne neues Lesen wuerde die Seite weiter mit "1 Woche gratis" werben (Richtlinie 3.1.2).
-    func refreshEligibility() async {
-        var eligible: [String: Bool] = [:]
-        for p in products {
-            if let sub = p.subscription { eligible[p.id] = await sub.isEligibleForIntroOffer }
-        }
-        introEligible = eligible
     }
 
     /// Apple-Kaufdialog. Bei Abbruch bleibt alles, wie es war.
@@ -78,7 +70,6 @@ final class PurchaseStore: ObservableObject {
                 lastError = "Der Kauf konnte nicht bestätigt werden."
                 return .failed
             }
-            await refreshEligibility()
             return .success
         } catch {
             let f = Self.failure(error)
@@ -119,7 +110,6 @@ final class PurchaseStore: ObservableObject {
             lastError = "Wiederherstellen fehlgeschlagen: \(error.localizedDescription)"
         }
         await entitlements.refresh()
-        await refreshEligibility()
     }
 
     func refreshEntitlements() async {
@@ -158,24 +148,15 @@ enum UFOfferText {
         return "jederzeit kündbar"
     }
 
-    /// Text unter dem Preis: bei Anspruch "1 Woche gratis, danach 1,99 €/Monat, monatlich kündbar", sonst
-    /// "1,99 €/Monat, monatlich kündbar". `freeTrial` = Dauer des kostenlosen Einfuehrungsangebots.
-    static func summary(price: String, period: (Int, Product.SubscriptionPeriod.Unit),
-                        freeTrial: (Int, Product.SubscriptionPeriod.Unit)?, eligible: Bool) -> String {
-        let regular = price + per(value: period.0, unit: period.1)
-        let note = cancelNote(value: period.0, unit: period.1)
-        if eligible, let t = freeTrial {
-            return "\(self.period(value: t.0, unit: t.1)) gratis, danach \(regular), \(note)"
-        }
-        return "\(regular), \(note)"
+    /// Text unter dem Preis: "1,99 €/Monat, monatlich kündbar". Kein Einfuehrungsangebot (Entscheidung 04.11.2026):
+    /// die Probe laeuft ohne Kauf auf dem iPad (UFTrialTexts.offer).
+    static func summary(price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
+        "\(price)\(per(value: period.0, unit: period.1)), \(cancelNote(value: period.0, unit: period.1))"
     }
 
-    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus – 1 Woche gratis" bzw.
-    /// "StudiNow Plus fuer 1,99 €/Monat"
-    static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit),
-                       freeTrial: (Int, Product.SubscriptionPeriod.Unit)?, eligible: Bool) -> String {
-        if eligible, let t = freeTrial { return "\(plan.name) – \(self.period(value: t.0, unit: t.1)) gratis" }
-        return "\(plan.name) für \(price)\(per(value: period.0, unit: period.1))"
+    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus fuer 1,99 €/Monat"
+    static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
+        "\(plan.name) für \(price)\(per(value: period.0, unit: period.1))"
     }
 
     /// Kaufknopf bei laufendem Abo (Wechsel innerhalb der Abo-Gruppe); der Preis steht darueber auf der Karte
@@ -207,12 +188,6 @@ enum UFOfferText {
 }
 
 extension Product {
-    /// Dauer des kostenlosen Einfuehrungsangebots (paymentMode free), sonst nil
-    var ufFreeTrial: (Int, Product.SubscriptionPeriod.Unit)? {
-        guard let o = subscription?.introductoryOffer, o.paymentMode == .freeTrial else { return nil }
-        return (o.period.value * max(1, o.periodCount), o.period.unit)
-    }
-
     /// Abrechnungszeitraum, Standard ein Monat
     var ufPeriod: (Int, Product.SubscriptionPeriod.Unit) {
         guard let p = subscription?.subscriptionPeriod else { return (1, .month) }

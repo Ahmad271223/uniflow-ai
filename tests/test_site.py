@@ -16,6 +16,9 @@ TOOL = ROOT / "tools" / "gen-site.py"
 SITE = ROOT / "site"
 PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.html", "impressum.html", "konto-loeschen.html")
 FILES = PAGES + ("style.css", "icon.svg")
+# ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE> und Universal Links der iPad-App
+NESTED = ("i/index.html", ".well-known/apple-app-site-association")
+TEAM_ID = re.compile(r"\b(?:[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
 COMPANY = ("IT solutions by Ahmad Fakih", "Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
 OPEN_ALLOWED = {"Hoster", "Serverstandort", "Mail-Anbieter"}      # Hosting des Dienstes ist nicht entschieden
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")
@@ -27,7 +30,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert "8 Dateien" in p.stdout and "datenschutz.html: 3 Platzhalter offen" in p.stdout
+    assert "10 Dateien" in p.stdout and "datenschutz.html: 3 Platzhalter offen" in p.stdout
     return out
 
 
@@ -38,8 +41,12 @@ def page(name: str) -> str:
 def test_site_matches_the_generator_output(generated):
     """site/ ist eingecheckt; nach jeder Aenderung an docs/release neu erzeugen (python tools/gen-site.py)."""
     assert sorted(p.name for p in SITE.iterdir() if p.is_file()) == sorted(FILES)
-    for name in FILES:
+    assert sorted(p.relative_to(SITE).as_posix() for p in SITE.rglob("*") if p.is_file()) == sorted(FILES + NESTED)
+    for name in FILES + NESTED[:1]:
         assert (SITE / name).read_bytes() == (generated / name).read_bytes(), f"{name}: tools/gen-site.py ausfuehren"
+    # die Team-ID kommt aus der nicht eingecheckten Team.xcconfig: ohne sie steht der Platzhalter im Erzeugten
+    aasa = NESTED[1]
+    assert TEAM_ID.sub("TEAM.de.uniflow.ai", page(aasa)) == TEAM_ID.sub("TEAM.de.uniflow.ai", (generated / aasa).read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("name", PAGES)
@@ -109,6 +116,37 @@ def test_start_page_describes_the_product_with_store_and_screenshot_placeholders
     assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf der Produktseite (docs/release/README.md)"
 
 
+def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_promises():
+    """https://studinow.app/i/<CODE> (docs/EINLADUNGEN.md): erklaert die Einladung, fuehrt zum App Store, Stufen wie
+    in app/invites.py, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
+    html = page("i/index.html")
+    assert html.startswith("<!doctype html>\n<html lang=\"de\">") and "<script" not in html
+    assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../icon.svg"' in html and 'href="../index.html"' in html
+    assert '<main class="home">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
+    assert 'class="badge"' in html and "Laden im App Store" in html
+    for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
+              "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 € pro Monat)", "30 Tage", "Pro Person zählt eine Einladung",
+              "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):
+        assert s in html, s
+    assert 'href="../support.html"' in html and 'href="../datenschutz.html"' in html and 'class="active"' not in html
+    assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf oeffentlichen Seiten (docs/release/README.md)"
+    assert not PLACEHOLDER.findall(html)
+
+
+def test_apple_app_site_association_declares_the_invite_links():
+    """Universal Links: appID <TEAMID>.de.uniflow.ai fuer /i/* (beide Schreibweisen), gueltiges JSON ohne Platzhalter,
+    sobald Config/Team.xcconfig da ist (sonst [[TEAMID]], gelb wie die anderen offenen Stellen)."""
+    import json
+    doc = json.loads(page(".well-known/apple-app-site-association"))
+    details = doc["applinks"]["details"]
+    assert details[0]["paths"] == ["/i/*"] and details[1]["components"][0]["/"] == "/i/*"
+    app_id = details[0]["appID"]
+    assert TEAM_ID.fullmatch(app_id) and details[1]["appIDs"] == [app_id] and doc["webcredentials"]["apps"] == [app_id]
+    team = ROOT / "apps" / "apple" / "Config" / "Team.xcconfig"
+    if team.exists() and re.search(r"^\s*DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]{10}", team.read_text(encoding="utf-8"), re.M):
+        assert "[[TEAMID]]" not in app_id, "Team-ID aus Team.xcconfig eintragen: tools/gen-site.py ausfuehren"
+
+
 def test_css_has_app_tokens_and_dark_mode_without_script():
     css = page("style.css")
     assert "--accent: #4f5bd5" in css and "--accent: #7b86f0" in css, "Akzent der App hell/dunkel"
@@ -132,7 +170,7 @@ def test_pages_are_served_by_a_plain_static_server():
                 break
             except OSError:
                 time.sleep(0.1)
-        for name in PAGES + ("style.css", "icon.svg"):
+        for name in FILES + NESTED:
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/{name}", timeout=5) as r:
                 assert r.status == 200, name
                 body = r.read()

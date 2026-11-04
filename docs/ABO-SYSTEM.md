@@ -112,6 +112,40 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
 - Tests: `tests/test_trial_stripe.py` (17), dazu `tests/test_subscriptions.py` (die Tarif-Tests beenden die Probe zuerst).
 - Offen: Microsoft-Store-Beleg, Stripe-Preise in Partner-Konto anlegen (Inhaber).
 
+## 3b. Probe auf dem iPad ohne Dienst (04.11.2026)
+
+Entscheidung des Inhabers (ersetzt „Apple-Einführungsangebot auf Plus, eigene Probe wird nicht gebaut“ vom 25.10.2026 in
+`docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 5): Die iPad-App bietet **drei Tarife** an – Free, Plus 1,99 €/Monat
+(`de.uniflow.plus.monthly`) und Pro AI 3,99 €/Monat (`de.uniflow.proai.monthly`), **ohne Apple-Einführungsangebote**.
+Jede Person bekommt ab dem ersten Start **dieselbe Probe wie beim Dienst** (`TRIAL`: 7 Tage, alles wie Pro AI), ohne
+Zahlungsdaten, einmal je Apple-ID, danach automatisch Free – nur dass das iPad sie **ohne Dienst** führt.
+
+- **Ablage** (`apps/apple/UniFlow/Purchases/LocalTrial.swift`, `UFLocalTrial`, `UFTrialRecordStore`): nur der Beginn,
+  geschlüsselt mit einem Hash der Apple-Nutzer-ID (`DataContainerKey.userScope`), im Schlüsselbund des Geräts (Dienst
+  `de.uniflow.ai.trial`, nur dieses Gerät; überlebt die Neuinstallation) und im iCloud-Schlüssel-Wert-Speicher
+  (`NSUbiquitousKeyValueStore`, Schlüssel `uniflow.trial.<hash>`; zweites iPad). Beide werden gelesen, der frühere Beginn
+  gilt und wird in die andere Ablage nachgetragen; ohne iCloud zählt der Schlüsselbund allein. Die Antwort „Bei Free
+  bleiben“ steht in den UserDefaults (`uniflow.trial.choice.<hash>`). Beim Löschen des Kontos bleibt der Eintrag
+  (einmal je Apple-ID; er enthält nur Hash und Datum).
+- **Rechnung** (reine Funktionen, Uhr von außen): `state(startedAt:now:)` liefert Ende und Resttage (aufgerundet wie
+  `billing.trial_info`, 0 = vorbei), `resolve(keychain:cloud:now:)` den gültigen Beginn. Werte wie `plans.TRIAL`
+  (geprüft in `PlanContractTests.testLocalTrialMatchesContract`).
+- **Vorrang** (`UFPlanPrecedence`, in `Entitlements`): Dienst-Probe (`StudoraAccountLink.planStatus`, sobald ein
+  StudiNow-Konto verbunden ist) > App Store (`Transaction.currentEntitlements`, `purchasedPlan`) > Probe auf dem iPad >
+  Free. Wer Plus kauft, hat Plus; wer Pro AI kauft, Pro AI. Während der Probe gilt die Rechte-Tabelle von Pro AI
+  (dieselbe wie im Dienst, `plans.json`); auf dem iPad bedeutet das heute den Umfang von Plus.
+- **Oberfläche:** `TrialBanner` auf der Übersicht („Probe: noch n Tage alles frei“, danach „Deine Probe ist vorbei“ mit
+  „Tarife ansehen“ und „Bei Free bleiben“, Dienst vor iPad); Tarifseite mit Free, Plus und Pro AI – die Pro-AI-Karte nur,
+  wenn StoreKit das Produkt liefert (vor dem Dienst nicht im Store: dann nur Free und Plus und der Satz „StudiNow Pro AI
+  folgt mit dem StudiNow-Dienst.“), mit der Zeile „StudiNow Pro AI braucht den StudiNow-Dienst …“; Kopf „7 Tage Probe mit
+  allem, danach Free – ohne Zahlungsdaten“ statt „1 Woche gratis, danach …“; Preise nur aus `Product.displayPrice`.
+- **StoreKit-Testkonfigurationen:** `UniFlow.storekit` (Plus Stufe 2, Pro AI Stufe 1) und `UniFlowAlleTarife.storekit`
+  ohne `introductoryOffer`. Tests: `LocalTrialTests`, `TrialAppTests`, `PurchaseTests`, `PurchaseV2PlanSwitchTests`,
+  `PlanContractTests`, `EntitlementTests`.
+- Berechtigung `com.apple.developer.ubiquity-kvstore-identifier` steht in `UniFlow.entitlements` (04.11.2026; mit
+  Personal Team oder im Simulator zählt nur der Schlüsselbund).
+- **Offen (Inhaber):** Produkte in App Store Connect ohne Einführungsangebot, Pro AI erst mit dem Dienst.
+
 ## 4. ChatGPT-Verbindung
 
 `chatgpt_connection_premium` (ab Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle

@@ -67,14 +67,15 @@ auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/veri
 
 - Developer Program aktiv → Team-ID in `apps/apple/Config/Team.xcconfig`; dann „Mit Apple anmelden“ und CloudKit
   echt testbar (iCloud-Container `iCloud.de.uniflow.ai` anlegen, Schema nach Production).
-- App Store Connect für V1: App-Eintrag „StudiNow“, Datenschutz-Angaben und **nur das Plus-Produkt**: Abo-Gruppe
-  „StudiNow“, `de.uniflow.plus.monthly`, Anzeigename „StudiNow Plus“, 1,99 €/Monat, Einführungsangebot 1 Woche gratis
-  (Texte in `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration
-  `apps/apple/UniFlowTests/UniFlow.storekit` mit denselben Werten). **Pro Connect und Pro AI kommen später** mit dem
-  StudiNow-Dienst (`de.uniflow.proconnect.monthly` 2,99 €, `de.uniflow.proai.monthly` 3,99 €, in derselben Gruppe mit
-  Stufen nach Rang: Pro AI höchste, Plus niedrigste; dazu App Store Server Notifications V2 auf
-  `/api/billing/apple/notifications`, `docs/ABO-SYSTEM.md`, Abschnitt 8). Die Werte liegen in
-  `apps/apple/UniFlowTests/UniFlowAlleTarife.storekit`.
+- App Store Connect für V1 (Stand 04.11.2026): App-Eintrag „StudiNow“, Datenschutz-Angaben und die Abo-Gruppe
+  „StudiNow“ mit `de.uniflow.plus.monthly` (Anzeigename „StudiNow Plus“, 1,99 €/Monat, Stufe 2) und
+  `de.uniflow.proai.monthly` („StudiNow Pro AI“, 3,99 €/Monat, Stufe 1), **beide ohne Einführungsangebot** – die 7 Tage
+  Probe läuft in der App ohne Zahlungsdaten (`docs/ABO-SYSTEM.md`, Abschnitt 3b). Plus mit der ersten Version einreichen,
+  **Pro AI erst mit dem StudiNow-Dienst** (bis dahin zeigt die Tarifseite nur Free und Plus). Texte in
+  `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration
+  `apps/apple/UniFlowTests/UniFlow.storekit` mit denselben Werten. Pro Connect (`de.uniflow.proconnect.monthly`, 2,99 €)
+  gibt es auf dem iPad nicht (Werte für die Wechsel-Tests in `apps/apple/UniFlowTests/UniFlowAlleTarife.storekit`); dazu
+  App Store Server Notifications V2 auf `/api/billing/apple/notifications`, `docs/ABO-SYSTEM.md`, Abschnitt 8.
 - Datenschutzerklärung, Nutzungsbedingungen, Impressum veröffentlichen (Entwürfe macht die PC-Sitzung in
   `docs/release/`), Links auf der Abo-Seite eintragen.
 - Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Learnweb-Schlüssel) – Entwürfe PC-Sitzung. Passwort-Merken

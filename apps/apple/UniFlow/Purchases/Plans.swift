@@ -88,31 +88,44 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     static var paid: [UFPlan] { allCases.filter { $0.productID != nil } }
 }
 
-// MARK: - Was V1 verkauft
+// MARK: - Was das iPad anbietet
 
-/// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 28.10.2026: V1 verkauft nur StudiNow Free und Plus.
-/// Pro Connect und Pro AI kommen erst mit dem StudiNow-Dienst; ihre Zeilen in der Tabelle, die Produkt-IDs und die
-/// Dienst-Verknuepfung (BillingServiceLink.swift) bleiben dafuer im Code, werden aber weder angezeigt noch gekauft.
-/// Freischalten fuer V2: `sellable` um die Pro-Tarife erweitern, Produkte in UniFlow.storekit und App Store Connect
-/// anlegen (Werte in UniFlowAlleTarife.storekit).
+/// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 04.11.2026 (ersetzt "nur Free und Plus" vom
+/// 28.10.2026): drei Tarife StudiNow Free, Plus (1,99 €) und Pro AI (3,99 €), kein Apple-Einfuehrungsangebot, dafuer
+/// 7 Tage Probe mit allem auf dem iPad (LocalTrial.swift). Die Pro-AI-Karte erscheint nur, wenn StoreKit das Produkt
+/// liefert: vor dem StudiNow-Dienst steht `de.uniflow.proai.monthly` nicht im Store, dann zeigt die Seite nur Free und
+/// Plus. Pro Connect gibt es auf dem iPad nicht (Zeile und Produkt-ID bleiben fuer den Vertrag im Code).
 enum UFPlanCatalog {
-    /// in V1 kaufbar bzw. waehlbar
-    static let sellable: [UFPlan] = [.free, .plus]
+    /// auf dem iPad waehlbar
+    static let sellable: [UFPlan] = [.free, .plus, .proAI]
 
     /// Apple-Produkte, die die App laedt und anbietet
     static var sellableProductIDs: [String] { sellable.compactMap(\.productID) }
 
-    /// noch nicht angebotene Tarife (Hinweis unter den Karten, ohne Preis und ohne Kaufknopf)
-    static var upcoming: [UFPlan] { UFPlan.allCases.filter { !sellable.contains($0) } }
+    /// nicht auf dem iPad angeboten (Pro Connect)
+    static var notOffered: [UFPlan] { UFPlan.allCases.filter { !sellable.contains($0) } }
 
-    /// dezenter, nicht anklickbarer Hinweis unter den Tarifkarten
-    static let upcomingNote = "Pro-Tarife folgen mit dem StudiNow-Dienst."
+    /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
+    static let needsProduct: Set<UFPlan> = [.proAI]
 
-    /// Karten der Tarifwahl: die kaufbaren Tarife, dazu ein laufender, der nicht (mehr) angeboten wird – wer ihn hat,
-    /// sieht ihn mit "Abo verwalten" (in V1 nicht erreichbar, aber nie eine Karte, die fehlt)
-    static func cards(current: UFPlan) -> [UFPlan] {
-        UFPlan.allCases.filter { sellable.contains($0) || $0 == current }
+    /// ehrliche Zeile auf der Pro-AI-Karte: braucht den StudiNow-Dienst
+    static let proAIServiceNote = "StudiNow Pro AI braucht den StudiNow-Dienst. Ohne ihn bietet es auf dem iPad denselben Umfang wie StudiNow Plus."
+
+    /// dezenter, nicht anklickbarer Hinweis unter den Karten, solange der Store kein Pro-AI-Produkt liefert
+    static let proAIMissingNote = "StudiNow Pro AI folgt mit dem StudiNow-Dienst."
+
+    /// Karten der Tarifwahl: Free und Plus immer, Pro AI nur mit Produkt aus dem Store (`loaded`), dazu ein laufender
+    /// Tarif, der gerade nicht angeboten wird – wer ihn hat, sieht ihn mit "Abo verwalten" (nie eine Karte, die fehlt)
+    static func cards(current: UFPlan, loaded: Set<String>) -> [UFPlan] {
+        UFPlan.allCases.filter { p in
+            guard p != current else { return true }
+            guard sellable.contains(p) else { return false }
+            return !needsProduct.contains(p) || p.productID.map(loaded.contains) == true
+        }
     }
+
+    /// Zusatz zur Karte eines Tarifs (nur Pro AI)
+    static func serviceNote(_ plan: UFPlan) -> String? { plan == .proAI ? proAIServiceNote : nil }
 }
 
 // MARK: - Rechte aus dem Vertrag

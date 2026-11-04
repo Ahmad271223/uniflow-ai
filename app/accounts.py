@@ -664,7 +664,8 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
 # Tabellen in accounts.db mit Spalte user_id, die beim endgueltigen Loeschen geleert werden (dazu jede Tabelle mit
 # Fremdschluessel auf users, siehe _purge_user). ai_usage_log bleibt ohne Konto-Bezug fuer die Kostenrechnung.
 ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
-                  "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months")
+                  "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months",
+                  "invites", "invite_redemptions", "invite_rewards")
 
 
 def _has_table(conn, name: str) -> bool:
@@ -691,6 +692,9 @@ def _purge_user(conn, user_id: str) -> None:
     if "credit_ledger" in tables:                           # Kosten bleiben fuer die Kostenansicht, ohne Konto und ohne Antworten
         import secrets
         conn.execute("UPDATE credit_ledger SET user_id=?, result=NULL WHERE user_id=?", ("deleted:" + secrets.token_hex(8), user_id))
+    if "invite_redemptions" in tables:                      # Einladungen: auch als Einladender vergessen (app/invites.py)
+        from . import invites
+        invites.forget_user(conn, user_id)
     conn.execute("DELETE FROM users WHERE id=?", (user_id,))
     vault._cache.pop(user_id, None)
 
