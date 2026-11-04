@@ -2,7 +2,7 @@
 // Es wird nur als enthalten gezeigt, was technisch freigeschaltet ist (status "available"); alles andere steht als
 // "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen: Apple-App (App Store) oder, wenn Stripe eingerichtet ist, im Web.
 // Jedes neue Konto hat 7 Tage Probe (plans.TRIAL); danach einmal die Aufforderung, einen Tarif zu wählen (planChoicePrompt).
-import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=41";
+import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=42";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {

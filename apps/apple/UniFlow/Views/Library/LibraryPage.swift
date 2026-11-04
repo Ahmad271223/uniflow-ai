@@ -10,6 +10,8 @@ import UniFlowCore
 // Lokal (ohne PC) zusaetzlich: Stud.IP-Kurse ohne Modul als Ordner (Pfad "c<Kurs-ID>", Kursliste aus GET /api/courses).
 // Seit S4 ordnet der Abgleich die Kurse nach Fach in Module (Modulordner wie im Web); ohne Modul bleiben nur Kurse ohne
 // Fach oder mit der Art "sonstiges" (z. B. eine Begruessung). Mit eigenem Server wie im Web.
+// Seit 04.11.2026 oben der Umschalter "Ordner | Regal": "Mein Regal" (section "shelf", LibraryShelf.swift) ordnet jede
+// Datei nach Semester, Modul, Lehrwoche und Art (GET /api/index/shelf, nur lokal).
 
 enum LibraryStyle {
     /// FILE_COLORS in views-lib.js
@@ -117,7 +119,7 @@ struct LibraryPage: View {
 
     var body: some View {
         Group {
-            if let lib { content(lib) } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
+            if let lib { if isShelf { shelfContent(lib) } else { content(lib) } } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
                 UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
         }
@@ -287,6 +289,7 @@ struct LibraryPage: View {
             // Kopf: Titel und die eine Hauptaktion "Neu"; Suche, Filter, Sortierung und Ansicht als eigene Werkzeugzeile
             // darunter (vorher fuenf Steuerelemente rechts vom Titel, "Neu" brach hochkant allein in eine Zeile)
             UFPageHead("Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort.") {
+                viewSwitch
                 UFButton("Neu", icon: "plus", kind: .primary) {
                     overlay.modal { LibraryNewDialog(lib: lib, path: inCourse ? "" : path, current: inCourse ? b.crumbs[0] : (b.crumbs.last ?? ("", ""))) }
                 }
@@ -379,6 +382,35 @@ struct LibraryPage: View {
             } else {
                 itemsView(b.items, lib: lib, inCard: true)
             }
+        }
+    }
+
+    // MARK: Mein Regal (04.11.2026)
+
+    /// Regal statt Ordner (`#/files?section=shelf`)
+    private var isShelf: Bool { section == "shelf" }
+
+    /// Umschalter "Ordner | Regal" oben in der Bibliothek; nur ohne eigenen Server (das Regal ist eine Abfrage des
+    /// lokalen Backends, `GET /api/index/shelf`)
+    @ViewBuilder private var viewSwitch: some View {
+        if session.api?.isLocal ?? true {
+            UFSegmented(options: [("folders", "Ordner"), ("shelf", "Regal")],
+                        selection: Binding(get: { isShelf ? "shelf" : "folders" },
+                                           set: { router.go($0 == "shelf" ? .files(section: "shelf") : .files()) }))
+                .accessibilityIdentifier("library.viewSwitch")
+        }
+    }
+
+    /// Kopf wie bei den Ordnern (mit Umschalter und "Neu"), darunter "Mein Regal"
+    private func shelfContent(_ lib: JSONValue) -> some View {
+        UFContent(maxWidth: 1480) {
+            UFPageHead("Dokumente & Notizen", sub: LibraryShelf.subtitle) {
+                viewSwitch
+                UFButton("Neu", icon: "plus", kind: .primary) {
+                    overlay.modal { LibraryNewDialog(lib: lib, path: "", current: ("Dokumente & Notizen", "")) }
+                }
+            }
+            LibraryShelfView()
         }
     }
 

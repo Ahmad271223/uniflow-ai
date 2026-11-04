@@ -29,9 +29,12 @@ beliebigen statischen Host legen (z. B. Cloudflare Pages, Netlify, GitHub Pages;
 
 Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 
-- **Keine KI-Versprechen.** V1 enthält keine generativen Funktionen; die Texte nennen weder „KI“ noch „automatisch
-  erstellte Tests“ noch Zusammenfassungen. Wenn KI-Funktionen später kommen, werden Store-Texte und
-  Datenschutzerklärung zuerst ergänzt (`tests/test_release_texts.py` prüft die Store-Texte darauf).
+- **Keine KI-Versprechen in öffentlichen Texten.** Die öffentlichen Store-Felder (Name, Untertitel, Werbetext,
+  Beschreibung, Schlüsselwörter, Neuigkeiten) nennen weder „KI“ noch „automatisch erstellte Tests“ noch
+  Zusammenfassungen (`tests/test_release_texts.py`). Stand 04.11.2026: Die iPad-App enthält die freiwillige KI über das
+  **eigene ChatGPT** des Nutzers; die Datenschutzerklärung beschreibt sie (Abschnitt 8a), die Hinweise für die
+  App-Prüfung ebenfalls (nicht öffentlich, Richtlinie 2.3.1). Ob 1.0 sie bewirbt, entscheidet der Inhaber
+  (`APP-STORE.md`, „Offene Entscheidung KI“); dann zuerst diesen Absatz und den Test ändern.
 - **Nur, was wirklich funktioniert.** Uni & Noten auf dem iPad und die Online-Community gelten erst als Funktion,
   wenn sie am Gerät laufen („bald“ ist kein Store-Text). Fristen, Termine und Noten sind Abbilder der
   Hochschulsysteme; verbindlich bleibt immer die Hochschule – das steht in jedem Text.

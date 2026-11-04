@@ -1,17 +1,17 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=41";
-import { viewDashboard as viewHome } from "./views-home.js?v=14";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=59";
-import { viewFiles } from "./views-lib.js?v=58";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=46";
-import { viewTimetable, openEvent } from "./views-tt.js?v=44";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=71";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=42";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=42";
+import { viewDashboard as viewHome } from "./views-home.js?v=15";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=60";
+import { viewFiles } from "./views-lib.js?v=59";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=47";
+import { viewTimetable, openEvent } from "./views-tt.js?v=45";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=72";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=43";
 import { resendNote } from "./service-errors.js?v=1";
-import { askOlderSemesters } from "./older-semesters-ui.js?v=2";
+import { askOlderSemesters } from "./older-semesters-ui.js?v=3";
 import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=1";
-import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=13";
+import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=14";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -66,12 +66,12 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 // Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit StudiNow-Konto), alle 2 Minuten
 window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
   b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
-async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=6"); window.updateBell(await unreadCount()); } catch {} }
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=7"); window.updateBell(await unreadCount()); } catch {} }
 setTimeout(askOlderSemesters, 6000);   // einmalige Frage "Auch frühere Semester laden?" (older-semesters-ui.js)
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
 // Abzeichen mit der Zahl offener Korrekturhinweise am Menuepunkt "Community" (03.11.2026, wie auf dem iPad), sparsam geholt
-import("./community-corrections-ui.js?v=3").then(m => m.startBadgePolling()).catch(() => {});
+import("./community-corrections-ui.js?v=4").then(m => m.startBadgePolling()).catch(() => {});
 
 function accountMenu() {
   const a = state.account;
@@ -125,7 +125,7 @@ async function viewDashboard(p, q, v) {
   await viewHome(p, q, v, trialHint);
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
-    const U = await import("./community-corrections-ui.js?v=3"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
+    const U = await import("./community-corrections-ui.js?v=4"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
     (await import("./community-logic.js?v=2")).ensureCss();
     const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
     await U.renderInbox(box, { toast, onChange: () => route() });

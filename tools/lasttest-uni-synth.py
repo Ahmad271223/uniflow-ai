@@ -921,7 +921,7 @@ class Account:
                 inactive.append(f["id"]); continue
             if c.get("transient"):
                 transient.append(f["id"])
-            if f["depth"] > 6:
+            if f["depth"] > 12:                                       # StudIPClient.maxFolderDepth / MAX_FOLDER_DEPTH
                 deep.append(f["id"])
             files_rows.append(f["id"])
         subjects = {}

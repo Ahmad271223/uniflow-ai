@@ -878,6 +878,10 @@ enum DeleteAccountText {
     }
 
     static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
+
+    /// Nur mit iCloud-Container im Build (Community ueber CloudKit, docs/release/DATENSCHUTZ.md Abschnitt 8b): was in der
+    /// oeffentlichen Datenbank liegt, entfernt "Konto loeschen" auf dem iPad nicht von selbst - ehrlich sagen, wie es geht
+    static let community = "Was du in der Community veröffentlicht hast (Lösungen, Kommentare, Korrekturen), liegt verschlüsselt in Apples iCloud und bleibt unter deinem Pseudonym, bis du es zurückziehst. Zieh es vorher unter „Meine geteilten Lösungen“ zurück oder schreib an support@studinow.app – dann löschen wir es für dich."
 }
 
 /// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
@@ -901,6 +905,7 @@ private struct DeleteAccountDialog: View {
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
                 Text(DeleteAccountText.appleID)
+                if SolutionSharing.community.isConnected { Text(DeleteAccountText.community) }
                 ContainerSyncGate { syncing in
                     if syncing { ContainerSyncNotice() }
                 }

@@ -58,6 +58,32 @@ def test_folder_paths_follow_pages_and_skip_forbidden_subfolders(monkeypatch):
     assert f"{v}/folders/tut/folders?page[limit]=200" not in page.calls, "gesperrter Ordner: keine Unterordner"
 
 
+def test_folder_paths_read_deeper_than_six_levels_up_to_the_limit(monkeypatch):
+    """Ordnerkette tiefer als die alte Grenze von 6 Ebenen (Riesentest 03.11.2026): bis MAX_FOLDER_DEPTH (12, wie
+    StudIPClient.maxFolderDepth) wird gelesen, erst darunter nicht mehr und ohne Anfrage; eine Schleife zur Wurzel
+    wird nicht erneut gelesen."""
+    from app import studip_sync
+    monkeypatch.setattr(studip_sync, "log", lambda m: None)
+    assert studip_sync.MAX_FOLDER_DEPTH == 12
+    deepest = studip_sync.MAX_FOLDER_DEPTH
+    v = "/jsonapi.php/v1"
+    routes = {
+        f"{v}/courses/c1/folders?page[limit]=200": {"data": [_folder("root", "", "RootFolder")]},
+        f"{v}/folders/root/file-refs?page[limit]=500": {"data": [{"id": "f0"}]},
+        f"{v}/folders/root/folders?page[limit]=200": {"data": [_folder("e1", "Ebene 1")]},
+    }
+    for d in range(1, deepest + 3):                                   # zwei Ebenen mehr als gelesen werden
+        routes[f"{v}/folders/e{d}/file-refs?page[limit]=500"] = {"data": [{"id": f"f{d}"}]}
+        back = [_folder("root", "Zurück")] if d == 3 else []            # Ebene 3 zeigt auf die Wurzel zurueck
+        routes[f"{v}/folders/e{d}/folders?page[limit]=200"] = {"data": [_folder(f"e{d + 1}", f"Ebene {d + 1}")] + back}
+    page = _Page(routes)
+    paths = studip_sync.fetch_folder_paths(page, "c1")
+    assert sorted(paths, key=lambda k: int(k[1:])) == [f"f{d}" for d in range(deepest + 1)], "Wurzel und 12 Ebenen, nicht 13"
+    assert paths[f"f{deepest}"] == "/".join(f"Ebene {d}" for d in range(1, deepest + 1))
+    assert not any(f"/folders/e{deepest + 1}/" in c for c in page.calls), "unter der Grenze keine Anfrage"
+    assert page.calls.count(f"{v}/folders/root/file-refs?page[limit]=500") == 1, "Schleife zur Wurzel nur einmal"
+
+
 def test_news_follow_pages_and_keep_stock_on_failure():
     from app import studip_sync
     v = "/jsonapi.php/v1"

@@ -1125,8 +1125,10 @@ def ai_tutor(request: Request, body: dict = Body(...)):
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
     sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
+    credits_state = None
     if hosted:
-        answer = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip)
+        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip)
+        answer, credits_state = c.text, _credits_state(request, c)
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
@@ -1140,7 +1142,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
         except ai.AIError:
             cards = None
     cited = {int(n) for n in re.findall(r"\[(\d{1,2})\]", answer or "")}
-    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources]}
+    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state}
 
 
 # Karteikarten aus einem Dokument (03.11.2026): hoechstens so viele Seiten je Anfrage
@@ -1188,18 +1190,23 @@ def ai_flashcards(request: Request, body: dict = Body(...)):
     count = ai.flashcards_count(body.get("count"))
     topic = str(body.get("topic") or "")
     prompt = ai.flashcards_prompt(f["course_title"], f["name"], pages, text, count, topic)
+    credits_state = None
     if hosted:
         from . import ai_backend
         rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
-        entitlements.consume(request, "ai_assist", rid)
-        try:
-            answer = ai_backend.complete(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA, cache=True).text
-        except ai_backend.AIUnavailable as e:
-            entitlements.refund(request, "ai_assist", rid)
-            raise HTTPException(e.status, {"detail": e.message, "code": e.code})
-        except Exception:
-            entitlements.refund(request, "ai_assist", rid)
-            raise
+        c = _ai_replay(request, rid)
+        if c is None:
+            entitlements.consume(request, "ai_assist", rid)
+            try:
+                c = ai_backend.complete(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA, cache=True,
+                                        request_id=rid, keep_result=True)
+            except ai_backend.AIUnavailable as e:
+                entitlements.refund(request, "ai_assist", rid)
+                raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
+            except Exception:
+                entitlements.refund(request, "ai_assist", rid)
+                raise
+        answer, credits_state = c.text, _credits_state(request, c)
     else:
         try:
             answer = ai.ask(prompt, ai.SYSTEM, schema=ai.FLASHCARDS_SCHEMA)
@@ -1211,7 +1218,7 @@ def ai_flashcards(request: Request, body: dict = Body(...)):
         cards = []
     if not cards:
         raise HTTPException(502, {"detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"})
-    return {"cards": cards, "pages": pages, "count": count}
+    return {"cards": cards, "pages": pages, "count": count, "credits": credits_state}
 
 
 def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: dict, limit: int = 4) -> list[dict]:
@@ -1248,19 +1255,45 @@ def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: 
     return out
 
 
+def _ai_replay(request: Request, rid: str):
+    """Dieselbe request_id noch einmal (Credits, 04.11.2026): die gespeicherte Antwort der letzten 24 h ohne neue Kosten,
+    409 duplicate_request, solange sie noch laeuft; None = neue Anfrage."""
+    from . import ai_backend
+    try:
+        return ai_backend.replay(request.state.user["id"], rid)
+    except ai_backend.AIUnavailable as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
+
+
+def _credits_state(request: Request, c) -> dict | None:
+    """Credits-Stand des Kontos fuer die Antwort: {period, allowance, used, reserved, remaining, resets_at, plan, charged,
+    replay}; charged = Credits dieser Anfrage (0 bei Wiederholung oder aus dem Zwischenspeicher)."""
+    from . import ai_backend
+    state = ai_backend.credits_balance(request.state.user["id"])
+    if state is None:
+        return None
+    return {**state, "charged": int(getattr(c, "credits_charged", 0) or 0), "replay": bool(getattr(c, "replay", False))}
+
+
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
-                  sources: list[dict] | None = None, studip: str = "") -> str:
-    """StudiNow-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
+                  sources: list[dict] | None = None, studip: str = ""):
+    """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
+    zurueckgebucht. Liefert die Completion (Text und berechnete Credits); mit request_id des Clients wird dieselbe
+    Anfrage nie zweimal berechnet (Wiederholung aus dem Speicher, app/credits.py)."""
     from . import ai, ai_backend
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
+    c = _ai_replay(request, rid)
+    if c is not None:
+        return c
     entitlements.consume(request, "ai_assist", rid)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip)
     try:
-        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
+        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True,
+                                   request_id=rid, keep_result=True)
     except ai_backend.AIUnavailable as e:
         entitlements.refund(request, "ai_assist", rid)
-        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
     except Exception:
         entitlements.refund(request, "ai_assist", rid)
         raise

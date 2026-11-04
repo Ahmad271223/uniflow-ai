@@ -196,7 +196,7 @@ def test_switches_true_keep_the_optional_sentences(tmp_path):
     ap = (out / "APP-STORE.md").read_text(encoding="utf-8")
     assert "HANNOVER UND DER UNIVERSITÄT HILDESHEIM" in ap and "Stud.IP bzw. Learnweb an" in ap
     assert "• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick\n" in ap
-    assert "nebeneinander, mit Skriptsuche zur Aufgabe" in ap and "; später online in der Community deines Kurses, unter Pseudonym" in ap
+    assert "nebeneinander, mit Skriptsuche zur Aufgabe" in ap and "; dazu online in der Community deines Kurses nach Lehrwoche, mit Fragen und Antworten, unter Pseudonym" in ap
     pl = (out / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "• Eigene Karteikarten mit Wiederholung (Plus)\n" in pl and "frei, dazu Karteikarten und das Teilen von Lösungen." in pl
     assert "[[" not in ap and "[[" not in pl

@@ -1,7 +1,7 @@
 // Stundenplan: Wochenraster nur mit Hochschulterminen, Termin-Panel mit Teilnahme, Import-Vorschau. Alles zu Lernslots
 // (Verfügbarkeit, freie Fenster, Sperrzeiten, Konflikte, Neu legen) steht im Lernkalender (views-plan.js).
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=41";
-import { useFreeWindow } from "./views-plan.js?v=46";
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=42";
+import { useFreeWindow } from "./views-plan.js?v=47";
 
 let ttDate = todayISO();
 export async function viewTimetable(_, params, view) {

@@ -77,6 +77,16 @@ Endpunkte des lokalen Backends: `GET/POST /api/index/file/{id}/page/{n}`, `POST 
    liefert den Baum `university → programs → semesters → modules → weeks (week, label, from, to) → kinds → files`
    (je Datei Stand des Index: `ready`, `partial`, `none`, `indexed_pages`, `failed_pages`). Die KI-Hilfe zeigt den Platz
    der Datei im Regal („Im Regal: … › Woche 3 › Vorlesung“, `shelf_path`).
+   Jede PDF eines Kurses steht im Regal, auch ohne Index und ohne Download – eingeordnet nur aus den lokalen Daten
+   (Modul des Kurses, Lehrwoche und Art wie die Bibliothek). Dazu je Modul die Fachfarbe (`color`), je Datei die Seiten
+   mit eigenen Notizen (`note_pages`, nur lokal) und `downloaded`, oben `indexed` (ganz oder teilweise eingeordnet) und
+   `explained` (ganz erklärt).
+   **„Mein Regal“ in der App** (Dokumente & Notizen, Umschalter „Ordner | Regal“, Route `#/files?section=shelf`,
+   `Views/Library/LibraryShelf.swift`): Studiengang und Semester als Abschnitte, jedes Modul ein Regal in seiner
+   Fachfarbe, jede Lehrwoche ein Brett mit Datum, jede Art ein Etikett in den Farben der Community-Etiketten, jede Datei
+   ein Buch mit Titel, Seitenzahl, „erklärt“ und den Seiten mit Notizen. Antippen öffnet das Dokument. Ohne Dateien
+   bzw. solange nichts eingeordnet ist: „Noch nichts eingeordnet – öffne eine Datei mit KI-Hilfe“. Nur ohne eigenen
+   Server (das Regal ist eine Abfrage des lokalen Backends).
 3. **Sehr genau.** Feste Reihenfolge überall: Elemente nach `order` (1..n lückenlos, sonst ungültig), Aufgaben nach
    `label`, Begriffe ohne Doppelte, Datensätze nach Seite; im Regal Studiengänge und Module nach Name, Semester neueste
    zuerst, Wochen wie das Moduldetail, Arten in fester Reihenfolge, Dateien nach Name und Kennung. Deterministische
@@ -102,7 +112,6 @@ Endpunkte des lokalen Backends: `GET/POST /api/index/file/{id}/page/{n}`, `POST 
 
 - KI-Aufruf im Dienst (V2) anschließen; Speicherort der Einträge beim Dienst festlegen.
 - `DocIndex` im CloudKit-Dashboard für Production anlegen (docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md).
-- Regal (`/api/index/shelf`) hat noch keine eigene Ansicht in der App; die KI-Hilfe zeigt nur den Pfad der offenen Datei.
 - Tabellenname im Container ist `page_index` (der Name `doc_index` war schon durch den Aufgaben-Index der Wochentests
   belegt, `SchemaSQL.weekly`).
 - Test auf dem echten iPad mit iCloud (zwei Konten, dieselbe Datei).

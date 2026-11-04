@@ -37,6 +37,15 @@ final class FirstStartAppTests: XCTestCase {
         XCTAssertTrue(FirstLoginPage.laterHint.contains("Karte zum Verbinden"))
     }
 
+    /// Schluesselbund-Hinweis unter dem Anmeldefenster (Audit 03.11.2026, P3): eingeklappt "Mehr", ausgeklappt "Weniger"
+    func testLoginHintToggleTitle() {
+        XCTAssertEqual(UniversityLoginHint.toggleTitle(expanded: false), "Mehr")
+        XCTAssertEqual(UniversityLoginHint.toggleTitle(expanded: true), "Weniger")
+        XCTAssertEqual(UniversityLoginHint.more, "Mehr")
+        XCTAssertEqual(UniversityLoginHint.less, "Weniger")
+        XCTAssertFalse(UniversityLoginHint.detail.isEmpty, "ausgeklappt steht der zweite Absatz")
+    }
+
     func testSyncRowsFollowTheStudIPPhaseAndQIS() {
         // Stud.IP nie angemeldet, QIS nicht verbunden: alles uebersprungen, fertig
         let skipped = FirstSyncProgress.luh(phase: .signedOut, hasSession: false, summary: nil, qis: .notConnected, qisMessage: nil)

@@ -484,6 +484,28 @@ struct FlashcardCreateDialog: View {
     @State private var file = ""
     @State private var saving = false
 
+    /// Leer (Karteikarten-Seite) oder vorbelegt: "Als Karteikarte" aus markiertem PDF-Text im Editor (Vorderseite
+    /// der Text, Modul und Dokument der offenen Datei, Rueckseite leer)
+    init(deck: FlashcardDeck, entitlements: Entitlements, question: String = "", moduleID: Int? = nil, fileID: String? = nil) {
+        self.deck = deck
+        self.entitlements = entitlements
+        let p = Self.prefill(question: question, moduleID: moduleID, fileID: fileID, modules: deck.modules, files: deck.files)
+        _question = State(initialValue: p.question)
+        _module = State(initialValue: p.module)
+        _file = State(initialValue: p.file)
+    }
+
+    /// Vorbelegung: Modul und Dokument nur, wenn der Stapel sie kennt (sonst "– keins –", wie in der Auswahl)
+    static func prefill(question: String, moduleID: Int?, fileID: String?, modules: [JSONValue], files: [JSONValue])
+        -> (question: String, module: Int, file: String) {
+        let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        let file = files.first { $0.s("id") == fileID }
+        let known = moduleID.flatMap { id in modules.contains { $0.i("id") == id } ? id : nil }
+        // Modul der Datei, sonst das uebergebene Modul (Dokument eines anderen Moduls bliebe sonst ohne Auswahl)
+        let module = file?.i("module_id") ?? known ?? 0
+        return (q, module, file?.s("id") ?? "")
+    }
+
     var body: some View {
         UFDialog("Karte anlegen", icon: "cards") {
             UFField("Frage") { UFTextArea(placeholder: "Vorderseite", text: $question, minHeight: 64) }

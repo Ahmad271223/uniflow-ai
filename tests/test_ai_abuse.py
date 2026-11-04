@@ -31,6 +31,9 @@ def scaled_budgets(monkeypatch, total="0.1", user_="1", trial="0.04"):
     monkeypatch.setenv("LERNAPP_AI_BUDGET_EUR", total)
     monkeypatch.setenv("LERNAPP_AI_USER_BUDGET_EUR", user_)
     monkeypatch.setenv("LERNAPP_AI_TRIAL_BUDGET_EUR", trial)
+    # Bei 100 EUR je 1 Mio. Tokens reserviert jede Anfrage ~25 Credits (app/credits.py); diese Tests pruefen die Becken
+    # des Dienstes, nicht die Credits je Konto (tests/test_credits.py) - darum hier genug Credits fuer die Probe
+    monkeypatch.setenv("LERNAPP_CREDITS_TRIAL", "1000")
 
 
 # ---------------------------------------------------------------- E-Mail bestaetigt

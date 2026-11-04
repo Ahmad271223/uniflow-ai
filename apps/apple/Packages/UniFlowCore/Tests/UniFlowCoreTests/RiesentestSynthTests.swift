@@ -451,7 +451,8 @@ final class RiesentestSynthTests: XCTestCase {
         check("module_count", Set(names).count == expectedModules, ["got": Set(names).count, "expected": expectedModules])
 
         // Dateien: Erwartung des Kerns = Python-Erwartung ohne Kurse mit Transportfehler (429/503/kaputtes JSON: der
-        // ganze Kurs wird uebersprungen) und ohne Dateien tiefer als 6 Ebenen (StudIPClient.walk). Beides wird gezaehlt.
+        // ganze Kurs wird uebersprungen) und ohne Dateien tiefer als `StudIPClient.maxFolderDepth` Ebenen (seit 04.11.2026
+        // 12, davor 6; `files_deep` im Erwartungs-JSON). Beides wird gezaehlt.
         let transientCourses = Set(expectedCourses.filter { $0["bad_folder"]?.string != nil }.compactMap { $0["db_id"]?.string })
         let meta = e["files_meta"]?.object ?? [:]
         let expectedAll = Set(e["files_expected"]?.array?.compactMap(\.string) ?? [])

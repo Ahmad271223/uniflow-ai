@@ -382,6 +382,12 @@ def fetch_files(page: Page, course_id: str) -> list[dict]:
     return files
 
 
+# Tiefste gelesene Ordnerebene unter dem Wurzelordner (Wurzel = 0); gleicher Wert wie `StudIPClient.maxFolderDepth`
+# im Swift-Kern. Bis 03.11.2026 waren es 6 (docs/RIESENTEST-2026-11-03.md: Dateien tiefer als 6 Ebenen fehlten auf dem
+# iPad). Schleifen faengt `seen` ab, die Grenze schuetzt nur vor Entartung.
+MAX_FOLDER_DEPTH = 12
+
+
 def fetch_folder_paths(page: Page, course_id: str) -> dict[str, str]:
     """Ordnerpfad je Datei (FileRef-ID) ueber die JSON-API: /courses/{id}/folders -> /folders/{id}/folders|file-refs,
     alle Seiten (`links.next`). Nicht lesbare Unterordner (z. B. 403/404) werden uebersprungen und gezaehlt, der Rest
@@ -395,7 +401,7 @@ def fetch_folder_paths(page: Page, course_id: str) -> dict[str, str]:
     skipped = [0]
 
     def walk(fid: str, path: str, depth: int) -> None:
-        if fid in seen or depth > 6:
+        if fid in seen or depth > MAX_FOLDER_DEPTH:
             return
         seen.add(fid)
         refs = api_list(page, f"{STUDIP_BASE}/jsonapi.php/v1/folders/{fid}/file-refs?page[limit]=500")

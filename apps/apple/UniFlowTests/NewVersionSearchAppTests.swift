@@ -443,7 +443,8 @@ final class NewVersionSearchAppTests: XCTestCase {
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
         // StudIPSync wie in der App ueber der Seite (das Dokument fragt dessen Aufzeichnungen nach einem Vorschlag)
-        let win = window(DocumentView(file: file, api: dev.api).environmentObject(sync))
+        // UFRouter wie in der App: der Editor fragt beim Laden, ob die KI-Hilfe gleich offen sein soll (KI-Start)
+        let win = window(DocumentView(file: file, api: dev.api).environmentObject(sync).environmentObject(UFRouter()))
         let title = "Neue Fassung aus Stud.IP – Notizen übernommen (1 Seite prüfen)"
         XCTAssertTrue(pump { self.shows(win, title) }, texts(win).joined(separator: "\n"))
         XCTAssertTrue(shows(win, "Geänderte Seite 4"))

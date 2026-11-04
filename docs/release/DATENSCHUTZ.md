@@ -9,7 +9,9 @@ eingeschaltet hast.
 
 ## 1. Das Wichtigste in Kürze
 
-- **Ohne StudiNow-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts.
+- **Ohne StudiNow-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts – außer dem, was du
+  auf dem iPad bewusst mit anderen teilst: Community-Beiträge, gemeinsame Wochentests und Einträge der Bibliothek liegen
+  verschlüsselt in Apples iCloud (Abschnitt 8b).
 - **Mit StudiNow-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
   und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
   schaltest du einzeln ein (Abschnitte 6–8).
@@ -47,8 +49,10 @@ Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls r
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.
 Wir speichern auf deinem Gerät nur, was für die Funktion nötig ist oder was du selbst einstellst (§ 25 Abs. 2 TDDDG).
 
-Für **Version 1 der iPad-App** gilt ausschließlich dieser Abschnitt: Sie läuft ohne StudiNow-Dienst. „Mit Apple
-anmelden“ und das Abo laufen allein über Apple (Abschnitt 9); an uns wird dabei nichts übertragen.
+Für **Version 1 der iPad-App** gelten dieser Abschnitt, Abschnitt 4 (Hochschule) und – nur wenn du die Funktionen
+nutzt – die Abschnitte 8a (KI über dein ChatGPT) und 8b (Community, gemeinsame Wochentests und Bibliothek über Apple
+iCloud). Sie läuft ohne StudiNow-Dienst. „Mit Apple anmelden“ und das Abo laufen allein über Apple (Abschnitt 9); an uns
+wird dabei nichts übertragen, deine Apple-Kennung bleibt auf dem iPad.
 
 ## 4. Systeme deiner Hochschule
 
@@ -168,6 +172,74 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 - **Verantwortlich bei OpenAI:** Für die Verarbeitung bei OpenAI gelten deren Bedingungen und Datenschutzerklärung,
   auch deine Einstellung, ob Inhalte zum Training verwendet werden dürfen. Übermittlung in die USA: siehe Abschnitt 12.
 
+## 8b. iPad: Community, gemeinsame Wochentests und Bibliothek über Apple iCloud (CloudKit)
+
+Ergänzt am 04.11.2026. Die iPad-App (Version 1, ohne StudiNow-Dienst und ohne StudiNow-Konto) speichert alles, was du
+mit anderen Studierenden teilst, in der **öffentlichen Datenbank von Apple CloudKit** im iCloud-Container von StudiNow
+(`iCloud.de.uniflow.ai`). Die Rechenzentren betreibt Apple; für die Inhalte dieser Datenbank sind wir verantwortlich
+(Abschnitt 2). Es gibt drei Funktionen:
+
+- **Community (Lösungen, Diskussion, Korrekturen):** Wenn du eine Lösung veröffentlichst (ab Plus), eine Frage, Antwort
+  oder einen Kommentar schreibst, etwas likest, einen Korrekturvorschlag machst, etwas meldest oder eine Lerngruppe
+  anlegst.
+- **Gemeinsame Wochentests:** Wenn du mit deiner KI einen Wochentest erstellst, legt die App den Test für alle mit
+  denselben Unterlagen ab (höchstens drei Varianten); wer dieselben Dateien hat, übernimmt ihn, statt neu zu erzeugen.
+- **Bibliothek (gemeinsamer Dokument-Index):** Wenn deine KI eine Seite einer Kursdatei einordnet („Seite einordnen“
+  oder – nur bei verbundener KI, im WLAN und beim Laden – bis zu drei neue Dateien der laufenden Woche nach einem
+  Abgleich), legt die App die Einordnung für alle mit derselben Datei ab. Wer dieselbe Datei hat, sieht sie als „Schon
+  erklärt“, ohne eigene KI-Anfrage.
+
+**Welche Daten:**
+
+| Funktion | Gespeichert | Verschlüsselt |
+|---|---|---|
+| Lösung | Paket mit deinen Notizen (nie die Original-PDF), Fingerabdruck der PDF (SHA-256), Hochschule, Kurs- bzw. Gruppen-Schlüssel (Hashwerte, nie Kurs-ID, Kursname oder Beitrittscode), Sichtbarkeit, Pseudonym (leer bei „anonym“), Titel, Seitenzahl, Lehrwoche, Zeitpunkt | das Paket |
+| Frage, Antwort, Kommentar, Korrekturvorschlag | Text, Pseudonym, Seite und Stelle bzw. Korrektur-Tinte; im Klartext nur, zu welcher Lösung oder Community er gehört, Status und Zeitpunkte | Text, Pseudonym, Stelle, Tinte |
+| Like | worauf (Kennung der Lösung oder Frage), Zeitpunkt | – |
+| Meldung | Grund, dein Hinweis (höchstens 500 Zeichen), Zeitpunkt; sichtbar nur für dich und uns | – |
+| Lerngruppe | Gruppen-Schlüssel (Hash aus Hochschule und Code, nie der Code), Name, Hochschule | – |
+| Wochentest | Fragen und Musterlösungen, Schlüssel des Tests (Hash), Variante, Status, Zeitpunkt – keine Antworten, keine Ergebnisse, keine Namen | der Test |
+| Bibliothek | je Seite Zusammenfassung, Fachbegriffe, Elemente und Aufgaben; Datei-Schlüssel (HMAC des Fingerabdrucks), Seite, Fassung, Zeitpunkt – kein Seitentext, kein Seitenbild, keine Notizen, keine Namen | der Eintrag |
+
+Jeder Datensatz trägt die **CloudKit-Nutzerkennung**: eine zufällige Kennung deines iCloud-Kontos, die Apple nur für
+StudiNow vergibt und als Ersteller einträgt. Wir sehen nicht, wer dahinter steht; sie dient dem Zurückziehen eigener
+Beiträge, dem Melden, dem Blockieren und der Moderation. Nie gespeichert werden Apple-ID, Name, E-Mail-Adresse,
+Matrikelnummer, Kurs-ID, Kursname, Hochschul-Zugangsdaten oder deine Antworten in Tests. Deine eigene Sperrliste liegt
+in der privaten Datenbank deines iCloud-Kontos; nur du siehst sie.
+
+**Verschlüsselung und wer was lesen kann:** Inhalte sind mit AES-256-GCM verschlüsselt. Die Schlüssel entstehen auf
+deinem Gerät (HKDF-SHA256) aus der Kurs-Kennung bzw. dem Beitrittscode (Community) oder aus den Fingerabdrücken der
+Dateien (Wochentests, Bibliothek); sie gehen nie an Apple oder an uns. Lesen kann deshalb nur, wer denselben Kurs bzw.
+dieselbe Datei hat. Die Kopfdaten in der Tabelle ohne Verschlüsselung (z. B. Titel, Pseudonym, Lehrwoche,
+Seitenzahl, Fingerabdruck) kann jeder abrufen, der den Container kennt. Andere Nutzer sehen Pseudonym, Titel,
+Seitenzahl, Lehrwoche, Zeitpunkt und die Zahl der Likes. Wir sehen im CloudKit Dashboard die Datensätze und Meldungen,
+aber keine verschlüsselten Inhalte; hätten wir die Kurs-Kennung oder die Datei, könnten wir sie technisch öffnen – wir
+tun es nicht. Beim Suchen fragt die App nur mit Schlüsseln (Fingerabdruck, Kurs-, Gruppen- oder Datei-Schlüssel);
+Lesen geht ohne iCloud-Konto, Schreiben braucht eines.
+
+**Wo:** in den Rechenzentren von Apple (iCloud). Für dein iCloud-Konto selbst ist Apple eigener Verantwortlicher; eine
+Übermittlung in die USA ist möglich (Abschnitt 12).
+
+**Moderation:** Meldungen sehen wir im CloudKit Dashboard. Wir können Lösungen und Kommentare verbergen oder löschen und
+eine CloudKit-Nutzerkennung für die Community sperren. Eine automatische Schwelle gibt es auf dem iPad nicht.
+
+**Löschen und Widerruf:**
+
+- **Lösung zurückziehen** („Meine geteilten Lösungen“ → Zurückziehen): das Paket mit deinen Notizen wird sofort
+  gelöscht; die Kopfdaten bleiben als „zurückgezogen“ markiert, bis wir sie löschen (auf Anfrage sofort). Wer die
+  Lösung schon geladen hat, behält seine Kopie.
+- **Eigene Fragen, Antworten und Kommentare** löschst du in der Diskussion, **Likes** nimmst du mit einem zweiten
+  Tippen zurück.
+- **Wochentests und Bibliothek** enthalten keine persönlichen Inhalte; auf Anfrage löschen wir die Datensätze deiner
+  Nutzerkennung.
+- **„Konto löschen“ in der App** entfernt alle Daten auf dem iPad, aber nicht von selbst, was du in iCloud
+  veröffentlicht hast – darauf weist der Dialog hin. Zieh deine Beiträge vorher zurück oder schreib an
+  support@studinow.app; wir löschen dann alle Datensätze deiner Nutzerkennung.
+
+Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bzw. nutzt die Funktion bewusst); Moderation und
+Sperren Art. 6 Abs. 1 lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer). Alle drei Funktionen sind freiwillig;
+ohne sie funktioniert StudiNow genauso.
+
 ## 9. Käufe und Abos
 
 Das Abo StudiNow Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
@@ -203,6 +275,10 @@ Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetz
 - **Apple** (App Store, „Mit Apple anmelden“, Abo) und **Google** (Google Play, „Mit Google anmelden“, Abo) sind
   eigene Verantwortliche. Sitz in den USA; für die Übermittlung gelten die EU-Standardvertragsklauseln bzw. die
   Zertifizierung nach dem EU-US Data Privacy Framework der jeweiligen Anbieter.
+- **Apple als Betreiber von iCloud/CloudKit** speichert für uns die Community-Beiträge, gemeinsamen Wochentests und
+  Einträge der Bibliothek der iPad-App (Abschnitt 8b), verschlüsselt und nur mit der CloudKit-Nutzerkennung; die
+  Datenbank stellt Apple im Rahmen des Apple Developer Program bereit (Rechenzentren auch in den USA, EU-US Data
+  Privacy Framework bzw. Standardvertragsklauseln).
 - **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4).
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
@@ -232,6 +308,9 @@ Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
 - **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen, Bestätigung mit Passwort) oder per
   E-Mail an support@studinow.app. Das Konto wird sofort gesperrt, alle Sitzungen enden; die Daten werden nach 30 Tagen
   endgültig gelöscht (Frist für versehentliche Löschung). Das Abo kündigst du zusätzlich bei Apple bzw. Google.
+- **iPad ohne StudiNow-Konto:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) entfernt sofort alle
+  Daten auf dem iPad; was du in der Community, als Wochentest oder in der Bibliothek geteilt hast, löschen wir auf
+  Anfrage (Abschnitt 8b).
 - **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
   (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
   Notizen, Kalender, Lernpakete, Karteikarten, Tests, eigene Dateien und Community-Beiträge. Gespeicherte Passwörter

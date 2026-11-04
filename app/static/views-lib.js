@@ -1,9 +1,9 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
-import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=41";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=62";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=42";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=63";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 import { currentHeading, courseIdOf, findCourse } from "./older-semesters.js?v=1";
-import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=2";
+import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=3";
 
 // "Neu" wie auf der Uebersicht, den Modulkarten und in der iPad-App (study.NEW_FILE_SQL): noch nicht angesehen
 // (seen_by_user 0); aeltere Antworten ohne das Feld: Lernstand "neu"

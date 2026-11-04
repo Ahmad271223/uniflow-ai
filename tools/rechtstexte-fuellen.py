@@ -89,7 +89,9 @@ FEATURES = {
     "• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick": ("ipad_fristen",),
     " mit Fristen und Feiertagen": ("ipad_fristen",),
     ", mit Skriptsuche zur Aufgabe": ("ipad_skriptsuche",),
-    "; später online in der Community deines Kurses, unter Pseudonym, mit Melden und Sperren": ("ipad_community_online",),
+    # seit 04.11.2026: Community ueber CloudKit ist in 1.0 gebaut (Kanal nach Lehrwoche, Fragen und Antworten)
+    "; dazu online in der Community deines Kurses nach Lehrwoche, mit Fragen und Antworten, unter Pseudonym, mit Melden und Sperren":
+        ("ipad_community_online",),
     "• Eigene Karteikarten mit Wiederholung (Plus)": ("android_karteikarten",),
     "• Lösungen zu Übungsblättern mit anderen vergleichen – verschlüsselt, unter Pseudonym, mit Melden und Sperren (Plus)":
         ("android_community",),

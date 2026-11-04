@@ -595,10 +595,13 @@ def test_replayed_request_id_gets_409_and_no_provider_call_tutor(hosted):
     st, d = _tutor(hosted, h, "r7")
     assert (st, d["code"]) == (409, "duplicate_request")
     assert fake.calls == 0 and ent(hosted, h)["quotas"]["ai_assist"]["used"] == 150
-    # auch mit freiem Kontingent: Wiederholung derselben ID = 409, nicht zweiter Aufruf und nicht zweite Abbuchung
+    # auch mit freiem Kontingent: Wiederholung derselben fertigen ID = die gespeicherte Antwort (Credits, 04.11.2026,
+    # tests/test_credits.py), nicht zweiter Aufruf und nicht zweite Abbuchung
     u2, h2 = user(hosted, "wdh-tutor2@beispiel.de", plan="pro_ai")
-    assert _tutor(hosted, h2, "x1")[0] == 200 and fake.calls == 1
-    assert _tutor(hosted, h2, "x1")[1]["code"] == "duplicate_request" and fake.calls == 1
+    st, first = _tutor(hosted, h2, "x1")
+    assert st == 200 and fake.calls == 1
+    st, again = _tutor(hosted, h2, "x1")
+    assert (st, again["answer"], again["credits"]["replay"], fake.calls) == (200, first["answer"], True, 1)
     assert ent(hosted, h2)["quotas"]["ai_assist"]["used"] == 1
 
 

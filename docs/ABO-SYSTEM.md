@@ -168,6 +168,36 @@ Reservierung in einer Schreibtransaktion, danach Tokens und Kosten (`LERNAPP_AI_
 für den Betrieb: `GET /api/billing/ai-usage` (Admin). Alle Grenzen gelten je Kalendermonat (UTC) und setzen sich
 ohne Aufräumlauf zurück.
 
+## 6a. Credits (04.11.2026, `app/credits.py`, `app/ai_prices.py`)
+
+Entscheidung des Inhabers: Fragen, Erklärungen, Karteikarten, Dokument-Index und Wochentests über den Dienst kosten das
+Konto **Credits**; 1 Credit = 1 Cent echter OpenAI-Kosten (Preistabelle je Modell in `app/ai_prices.py`, USD → EUR mit
+`LERNAPP_AI_USD_EUR`, Standard 1:1; Überschreibungen `LERNAPP_AI_PRICES`; ohne Preis für das Modell sperrt der Dienst).
+
+- **Rahmen je Kalendermonat (Europe/Berlin):** Pro AI 100 (`LERNAPP_CREDITS_PRO_AI`, höchstens 1 EUR Kosten je Konto),
+  Pro Connect/Plus/Free 0 (`LERNAPP_CREDITS_PRO_CONNECT`, `_PLUS`, `_FREE`), 7-Tage-Probe 25 (`LERNAPP_CREDITS_TRIAL`).
+  Nicht Verbrauchtes verfällt; die Zeile des Monats (`credit_months`) entsteht bei der ersten Nutzung, kein nächtlicher
+  Lauf. Der Rahmen folgt dem aktuellen Tarif: wer mitten im Monat Pro AI abschließt, hat sofort 100.
+- **Ablauf je Anfrage** (`ai_backend.complete`): Schätzung reservieren (`reserve`), Aufruf, mit `usage` der Antwort
+  abrechnen (`settle`, aufgerundet auf ganze Cent) oder bei einem Fehler ohne Kosten zurückgeben (`refund`); eine
+  abgebrochene Antwort mit `usage` wird abgerechnet. Reicht der Rest nicht für die Reservierung: `429 credits_exhausted`
+  mit „Credits für diesen Monat aufgebraucht – am 1. gibt es neue.“ und dem Stand unter `credits` (mit `needed`).
+  Liegengebliebene Reservierungen verfallen nach 15 Minuten. Dem Client wird nie geglaubt: Kosten nur aus `usage`.
+- **`request_id`** (Client, je Konto eindeutig; ohne Angabe vergibt der Server eine): dieselbe ID wird nie zweimal
+  berechnet. Läuft sie noch: `409 duplicate_request`; ist sie fertig: die gespeicherte Antwort kommt 24 Stunden lang
+  ohne neue Kosten zurück (`credits.replay = true`, `charged = 0`), danach wird die Antwort geleert.
+- **Reihenfolge der Bezahlung:** erst Geteiltes (gemeinsamer Wochentest, Seite aus der Bibliothek: 0 Credits, kein
+  KI-Aufruf), dann das eigene ChatGPT-Abo des Nutzers (0 Credits, läuft auf dem Gerät), erst dann Credits. Das
+  Erzeugen für den gemeinsamen Fragenpool (`test_generation`) und die automatischen Wochentests (`weekly_test`) laufen
+  weiter über die Kontingente des Tarifs (Abschnitt 1), nicht über Credits.
+- **Antworten an die Apps:** `POST /api/ai/tutor` und `POST /api/ai/flashcards` liefern `credits`
+  (`period`, `allowance`, `used`, `reserved`, `remaining`, `resets_at`, `plan`, `credit_eur`, `charged`, `replay`);
+  `GET /api/entitlements` denselben Stand ohne `charged`/`replay`. Am eigenen PC ist `credits` null.
+- **Betrieb:** `GET /api/billing/ai-costs?days=31` (Admin): `credit_ledger` je Tag und Modell, laufender Monat
+  (Anfragen, Konten, Kosten, Credits, erschöpfte Konten), Preistabelle mit Prüfdatum. Konto-Export enthält
+  `ki_credits` und `ki_credits_anfragen`; beim endgültigen Löschen wird `credit_months` gelöscht und `credit_ledger`
+  ohne Konto und ohne gespeicherte Antworten behalten (Kostenrechnung). Tests: `tests/test_credits.py`.
+
 ## 7. Tests
 
 `tests/test_subscriptions.py` (Testfälle 1–14 des Auftrags und mehr) und `tests/test_billing.py`; Apple-Signaturen

@@ -48,6 +48,10 @@ def _account(user: dict) -> dict:
             "nutzung": _rows(conn, "SELECT period, feature, count FROM usage WHERE user_id=? ORDER BY period, feature", (uid,)),
             "ki_nutzung": _rows(conn, "SELECT period, purpose, provider, model, input_tokens, output_tokens, cost_microeur, state, "
                                       "created_at FROM ai_usage_log WHERE user_id=? ORDER BY created_at", (uid,)),
+            "ki_credits": _rows(conn, "SELECT period, allowance, used, reserved, plan FROM credit_months WHERE user_id=? ORDER BY period", (uid,)),
+            "ki_credits_anfragen": _rows(conn, "SELECT period, day, purpose, funding, state, model, reserved, charged, cost_microeur, "
+                                               "input_tokens, cached_tokens, output_tokens, images, created_at, settled_at "
+                                               "FROM credit_ledger WHERE user_id=? ORDER BY created_at", (uid,)),
             "abgleich_auftraege": _rows(conn, "SELECT kind, trigger, status, requested_at, started_at, finished_at, message, new_files "
                                               "FROM sync_jobs WHERE user_id=? ORDER BY id", (uid,)),
         }

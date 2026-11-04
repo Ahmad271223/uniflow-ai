@@ -18,20 +18,26 @@ final class AIViewsAppTests: XCTestCase {
         private let lock = NSLock()
         private var canned: [String: JSONValue] = [:]
         private var status: [String: Int] = [:]
+        /// Rohdaten statt JSON (Inhalt einer PDF fuer den Editor)
+        private var raw: [String: (data: Data, type: String)] = [:]
         private var log: [(method: String, path: String, body: JSONValue?)] = []
 
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
             let path = request.url?.path ?? ""
             let body = request.httpBody.flatMap { try? JSONValue.parse($0) }
-            let (answer, code): (JSONValue?, Int) = lock.withLock {
+            let (answer, code, bytes): (JSONValue?, Int, (data: Data, type: String)?) = lock.withLock {
                 log.append((request.httpMethod ?? "GET", path, body))
-                return (canned[path], status[path] ?? 200)
+                return (canned[path], status[path] ?? 200, raw[path])
+            }
+            if let bytes {
+                return (bytes.data, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": bytes.type])!)
             }
             let data = (answer ?? ["detail": .string("Testfehler \(code)")]).serialized()
             return (data, HTTPURLResponse(url: request.url!, statusCode: answer == nil ? 404 : code, httpVersion: nil, headerFields: nil)!)
         }
 
         func answer(_ path: String, _ v: JSONValue) { lock.withLock { canned[path] = v } }
+        func answer(_ path: String, data: Data, type: String) { lock.withLock { raw[path] = (data, type) } }
         func fail(_ path: String, _ code: Int, _ v: JSONValue) { lock.withLock { canned[path] = v; status[path] = code } }
         func count(_ method: String, _ path: String) -> Int { lock.withLock { log.filter { $0.method == method && $0.path == path }.count } }
         func bodies(_ path: String) -> [JSONValue] { lock.withLock { log.filter { $0.path == path }.compactMap(\.body) } }
@@ -358,6 +364,75 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(tap("Im Dokument mit KI-Hilfe öffnen", in: env.view))
         XCTAssertTrue(env.wait { env.router.route == .doc("f-1") })
         XCTAssertEqual(env.router.tutorOpenRequest, "f-1")
+    }
+
+    /// KI-Start oder Editor, je nach Route (wie MainView): "Im Dokument mit KI-Hilfe öffnen" fuehrt in den Editor
+    private struct StartThenDocument: View {
+        let file: LibFile
+        let start: AIStartView
+        @EnvironmentObject private var router: UFRouter
+        @EnvironmentObject private var session: Session
+
+        var body: some View {
+            if case .doc(let id, _, _) = router.route, id == file.id, let api = session.api {
+                NavigationStack { DocumentView(file: file, api: api) }
+            } else {
+                start
+            }
+        }
+    }
+
+    /// Zweiseitige PDF fuer den Editor
+    private func makePDF() -> Data {
+        UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+            for i in 1...2 {
+                ctx.beginPage()
+                ("Folgen Seite \(i)" as NSString).draw(at: CGPoint(x: 72, y: 72), withAttributes: [.font: UIFont.systemFont(ofSize: 24)])
+            }
+        }
+    }
+
+    /// Geladene PDF `id` im Schein-Transport (Inhalt, leere Notizen) und als Datei der Bibliothek
+    private func document(_ t: Transport, id: String) throws -> LibFile {
+        t.answer("/api/files/\(id)/content", data: makePDF(), type: "application/pdf")
+        t.answer("/api/files/\(id)/annotations", ["data": AnnotationDocument.emptyRoot, "version": 0, "updated_at": .null])
+        let meta: JSONValue = ["id": .string(id), "name": "VL01.pdf", "title": "VL01.pdf", "kind": "pdf", "module_id": 1,
+                               "downloaded_at": "2026-10-20T10:00:00", "page_count": 2, "doc_type": "vorlesung"]
+        return try JSONDecoder().decode(LibFile.self, from: meta.serialized())
+    }
+
+    /// KI-Start -> "Im Dokument mit KI-Hilfe öffnen": der Editor nimmt den Wunsch nach dem Laden (`takeTutorOpenRequest`)
+    /// und zeigt die KI-Hilfe gleich offen; der Wunsch ist danach verbraucht
+    func testTutorOpensInDocumentFromStartPage() throws {
+        let t = transport()
+        let id = "f-tutor-\(UUID().uuidString.prefix(8))"
+        let file = try document(t, id: id)
+        let recents = AIRecents(defaults: try suite(), scope: "t")
+        recents.record(question: "Was ist eine Folge?", answer: "Eine Abbildung von ℕ nach ℝ.", fileID: id, fileName: "VL01.pdf")
+        let start = AIStartView(entitlements: plan(.plus), recents: recents)
+        let env = try hostWithEnvironment(StartThenDocument(file: file, start: start).environment(\.ufAIEnabled, true), api: api(t))
+        XCTAssertTrue(env.wait { self.button("Zuletzt: Was ist eine Folge?", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Zuletzt: Was ist eine Folge?", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Im Dokument mit KI-Hilfe öffnen", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Im Dokument mit KI-Hilfe öffnen", in: env.view))
+        XCTAssertTrue(env.wait { env.router.route == .doc(id) })
+        XCTAssertTrue(env.wait(timeout: 20) { self.button("KI-Start öffnen", in: env.view) != nil }, "KI-Hilfe offen\n" + texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("KI-Hilfe schließen", in: env.view), "Kopf der KI-Hilfe")
+        XCTAssertNil(env.router.tutorOpenRequest, "der Editor hat den Wunsch genommen")
+        XCTAssertEqual(t.count("GET", "/api/files/\(id)/content"), 1)
+    }
+
+    /// Ein Wunsch fuer eine andere Datei oeffnet die KI-Hilfe nicht und bleibt fuer jene Datei stehen
+    func testTutorStaysClosedForAnotherFile() throws {
+        let t = transport()
+        let id = "f-plain-\(UUID().uuidString.prefix(8))"
+        let file = try document(t, id: id)
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t)) }.environment(\.ufAIEnabled, true), api: api(t))
+        env.router.tutorOpenRequest = "f-anders"
+        XCTAssertTrue(env.wait(timeout: 20) { self.shows(env.view, "Seite 1 / 2") }, texts(env.view).joined(separator: "\n"))
+        env.pump(0.5)
+        XCTAssertNil(button("KI-Start öffnen", in: env.view), "KI-Hilfe bleibt zu")
+        XCTAssertEqual(env.router.tutorOpenRequest, "f-anders")
     }
 
     func testStartPageWithoutAIShowsTheWayAndDisablesAsking() throws {

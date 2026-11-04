@@ -197,7 +197,7 @@ Ich habe alle Swift-Dateien unter `apps/apple/UniFlow`, `apps/apple/UniFlowTests
 - **Transport:** flüchtige `URLSession` ohne Cookie-Speicher. Cookies werden nach Domain und Ablauf gefiltert. Timeouts 30 s pro Anfrage und 600 s pro Ressource (StudIPSync.swift:62-90).
 - **Client:**
   - nur lesend, 250 ms Pause zwischen Anfragen, höchstens 1500 Anfragen
-  - Ordnerbaum ab `RootFolder`, höchstens 6 Ebenen
+  - Ordnerbaum ab `RootFolder`, höchstens 12 Ebenen (`StudIPClient.maxFolderDepth`, wie `MAX_FOLDER_DEPTH` am PC; bis 03.11.2026 waren es 6)
   - Kennungen werden aus Fehlermeldungen entfernt (`scrub`)
   - 401 oder Login-Weiterleitung ergeben `sessionExpired` (StudIPClient.swift:91-236)
 - **Ablauf `run()`:**

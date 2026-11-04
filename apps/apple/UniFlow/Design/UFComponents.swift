@@ -499,6 +499,7 @@ struct UFSegmented<Value: Hashable>: View {
                         .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 1, bottom: .infinity, trailing: 1))   // seitlich halbe Luecke
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(active ? .isSelected : [])          // VoiceOver: "ausgewaehlt"
             }
         }
         .padding(3)

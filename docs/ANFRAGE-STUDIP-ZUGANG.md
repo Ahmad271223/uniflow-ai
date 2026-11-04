@@ -1,3 +1,5 @@
+**Veraltet, neue Fassung: docs/release/ANSCHREIBEN-HOCHSCHULEN-2026-11-04.md**
+
 # Entwurf: Anfrage an das Stud.IP-Team der LUH (ZQS/elsa)
 
 Nur ein Entwurf – abschicken musst du ihn selbst (an: elearning@uni-hannover.de). Vorher Namen, Studiengang und

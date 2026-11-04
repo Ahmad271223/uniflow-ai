@@ -59,7 +59,7 @@ auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/veri
 6. **S8** Abgleich im Hintergrund (frühestens 8/15/20 Uhr, Erinnerungen) – nach Messung der Sitzungsdauer.
 7. **Karteikarten** selbst anlegen: **erledigt (`wip/karteikarten`)** – vier Endpunkte lokal wie `app/server.py`,
    Seite „Karteikarten“ mit Anlegen, Liste je Modul, Wiederholen und Löschen, nur mit Plus; „bald“ entfällt.
-   Offen: „Als Karteikarte“ aus markiertem Text im Editor (der Editor hat keine Textauswahl, `isInMarkupMode`).
+   **Erledigt (04.11.2026):** „Als Karteikarte“ aus markiertem PDF-Text im Editor (Bearbeitungsmenü der Auswahl und Leiste „Text markieren“), Vorderseite, Modul und Dokument vorbelegt (`FlashcardCreateDialog.prefill`).
 8. Kleinere Abnahme-Reste: Strichbreite der fremden Ebene, Stundenplan-Hinweis, E2E-Lage nach Zoom – siehe
    Commits „Abnahme: …“ und offene Punkte in `docs/IPAD-OHNE-PC.md`.
 
