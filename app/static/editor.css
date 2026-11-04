@@ -199,3 +199,10 @@ html.ed-inking .ed-pageinfo { opacity: .2; pointer-events: none; }
 .ed .ed-mk-c.active { border-color: var(--text, #1d2130); }
 .ed-ai-src { margin-top: .6rem; font-size: .82rem; } .ed-ai-src ul { margin: .2rem 0 0; padding-left: 1.1rem; } .ed-src { color: var(--accent); text-decoration: none; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .ed *, .ed *::before, .ed *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+/* KI fuer das ganze Dokument (05.11.2026): Umfang, Schnellknoepfe, Bloecke mit Seiten */
+.ed-ai-range { display: flex; align-items: center; gap: .35rem; color: var(--muted); } .ed-ai .ed-ai-range input { width: 4.2rem; }
+.ed-ai-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.ed-doc-title { margin-bottom: .4rem; } .ed-doc-confirm { border: 1px solid var(--line); border-radius: 10px; padding: .6rem; background: var(--surface-2); }
+.ed-doc-block { margin: .7rem 0; } .ed-doc-overview { background: var(--surface-2); border-radius: 10px; padding: .5rem .6rem; }
+.ed-doc-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.ed-doc-page { color: var(--accent); text-decoration: none; font-weight: 600; font-size: .8rem; white-space: nowrap; }

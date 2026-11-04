@@ -13,7 +13,7 @@ import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=19";
 import { renderLinkCard } from "./studora-link.js?v=7";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=5";
-import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=5";
+import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=6";
 import { ensureCss } from "./community-logic.js?v=2";
 
 const $ =(s, el = document) => el.querySelector(s);

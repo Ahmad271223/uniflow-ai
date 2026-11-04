@@ -1,11 +1,11 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=43";
 import { viewDashboard as viewHome } from "./views-home.js?v=19";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=63";
-import { viewFiles } from "./views-lib.js?v=62";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=64";
+import { viewFiles } from "./views-lib.js?v=63";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
 import { viewTimetable, openEvent } from "./views-tt.js?v=46";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=81";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=82";
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=46";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=4";

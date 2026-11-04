@@ -42,6 +42,11 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
 
 ## 2. Dialog „Lösung teilen“
 
+> **Stand 5.11.2026 (Wunsch des Inhabers):** Seitennotizen und Seiten des Blatts daneben gehen standardmäßig mit, direkt
+> hinter der Folie, neben der sie geschrieben wurden (Schalter „Notizen und Blätter mitschicken“, Schlüssel `sn-…`
+> statt `nb-…` hinten), und bringen ihre Folie mit; beim Empfänger heißen sie „Notiz zu Folie N“. Details:
+> docs/NOTIZEN-MITSCHICKEN-2026-11-05.md. Wo unten „Seiten des Notizblatts nicht vorausgewählt“ steht, gilt das.
+
 - Vorschau **ohne Original**: je Seite eine Miniatur auf weißem Grund (Leerseiten mit ihrer Vorlage), gezeichnet von
   `SolutionPreview` mit derselben Routine wie PDF-Export und Miniaturen, aber ohne PDF-Seite.
 - Auswahl der Seiten, Standard: Seiten mit eigenen Anmerkungen. Knöpfe „Alle“ und „Nur mit Notizen“.

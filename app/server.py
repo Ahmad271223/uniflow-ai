@@ -57,6 +57,8 @@ from . import invites_api  # noqa: E402 - Einladungen mit Angebotscodes (Routen 
 app.include_router(invites_api.router)
 from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/explain, app/page_explain.py)
 app.include_router(page_explain_api.router)
+from . import doc_explain_api  # noqa: E402 - KI-Hilfe fuer das ganze Dokument (/api/ai/document, docs/KI-GANZES-DOKUMENT-2026-11-05.md)
+app.include_router(doc_explain_api.router)
 from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan, docs/STUDIENVERLAUF-2026-11-04.md)
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
@@ -1154,7 +1156,8 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
-                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip)
+                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip,
+                              own_notes=_own_notes(body))
         except ai.AIError as e:
             raise HTTPException(500, str(e))
     cards = None
@@ -1370,6 +1373,14 @@ def _credits_state(request: Request, c) -> dict | None:
     return {**state, "charged": int(getattr(c, "credits_charged", 0) or 0), "replay": bool(getattr(c, "replay", False))}
 
 
+def _own_notes(body: dict) -> str:
+    """Eigene Notizen zur Seite aus der Anfrage (`own_notes`, 05.11.2026): Seitennotizen und Blatt daneben; nur Text,
+    gekuerzt wie im Prompt"""
+    from . import ai
+    v = body.get("own_notes")
+    return v.strip()[:ai.OWN_NOTES_CHARS] if isinstance(v, str) else ""
+
+
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
                   sources: list[dict] | None = None, studip: str = ""):
     """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
@@ -1381,10 +1392,13 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     if c is not None:
         return c
     entitlements.consume(request, "ai_assist", rid)
+    notes = _own_notes(body)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
-                             body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip)
+                             body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip,
+                             own_notes=notes)
     try:
-        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True,
+        # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
+        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=not notes,
                                    request_id=rid, keep_result=True)
     except ai_backend.AIUnavailable as e:
         entitlements.refund(request, "ai_assist", rid)

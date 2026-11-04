@@ -12,8 +12,8 @@ import WebKit
 ///   gilt als angemeldet, sobald die Webansicht sie zeigt (der Knopf "Anmelden" der Nachbildung fuehrt dorthin).
 /// - `routes.json`: Antworten der Abgleiche (Stud.IP JSON:API, Opencast, QIS, Learnweb, LSF): Liste von
 ///   `{"match": "<Teil der Adresse>", "bodyMatch": "<Teil des Anfrage-Koerpers>", "file": "<Datei im Ordner>" | "body": "<Text>",
-///   "status": 200, "contentType": "..."}`; die erste passende Zeile antwortet (Learnweb-REST unterscheidet sich nur im
-///   Koerper), ohne Treffer 404.
+///   "status": 200, "contentType": "...", "method": "POST", "location": "..."}`; die erste passende Zeile antwortet
+///   (Learnweb-REST unterscheidet sich nur im Koerper, Abgeben nur in der Methode), ohne Treffer 404.
 enum DebugUniStub {
     /// Ordner der Nachbildungen; nil ohne Startargument oder im Release
     static var directory: URL? {
@@ -63,9 +63,13 @@ enum DebugUniStub {
 }
 
 /// Feste Antworten aus `routes.json` eines Ordners (nur Debug-Stub). Nichts geht ins Netz.
-final class DebugStubTransport: UniTransport, StudIPTransport, @unchecked Sendable {
+final class DebugStubTransport: UniTransport, StudIPWritingTransport, @unchecked Sendable {
     struct Route: Decodable {
         let match: String
+        /// nur fuer diese Methode (z. B. "POST" beim Abgeben); ohne Angabe jede
+        var method: String?
+        /// Kopfzeile `Location` der Antwort (Abgeben: Adresse der neuen Datei)
+        var location: String?
         /// Text, der im Koerper der Anfrage stehen muss (POST-Formulare des Learnweb)
         var bodyMatch: String?
         var status: Int?
@@ -83,10 +87,11 @@ final class DebugStubTransport: UniTransport, StudIPTransport, @unchecked Sendab
         routes = (try? JSONDecoder().decode([Route].self, from: data)) ?? []
     }
 
-    func reply(_ url: URL, body: Data? = nil) -> UniResponse {
+    func reply(_ url: URL, body: Data? = nil, method: String = "GET") -> UniResponse {
         let address = url.absoluteString.removingPercentEncoding ?? url.absoluteString
         let text = String(decoding: body ?? Data(), as: UTF8.self).removingPercentEncoding ?? ""
-        guard let r = routes.first(where: { address.contains($0.match) && ($0.bodyMatch.map { text.contains($0) } ?? true) }) else {
+        guard let r = routes.first(where: { address.contains($0.match) && ($0.method.map { $0.uppercased() == method.uppercased() } ?? true)
+                                            && ($0.bodyMatch.map { text.contains($0) } ?? true) }) else {
             return UniResponse(status: 404, headers: ["Content-Type": "text/plain"], finalURL: url, body: Data("nicht im Stub".utf8))
         }
         var body = Data()
@@ -94,11 +99,13 @@ final class DebugStubTransport: UniTransport, StudIPTransport, @unchecked Sendab
         else if let b = r.body { body = Data(b.utf8) }
         let type = r.contentType ?? (r.file?.hasSuffix(".json") == true ? "application/vnd.api+json"
                                      : r.file?.hasSuffix(".pdf") == true ? "application/pdf" : "text/html; charset=utf-8")
-        return UniResponse(status: r.status ?? 200, headers: ["Content-Type": type], finalURL: url, body: body)
+        var headers = ["Content-Type": type]
+        if let loc = r.location { headers["Location"] = loc }
+        return UniResponse(status: r.status ?? 200, headers: headers, finalURL: url, body: body)
     }
 
     // UniTransport
-    func send(_ request: UniRequest) async throws -> UniResponse { reply(request.url, body: request.body) }
+    func send(_ request: UniRequest) async throws -> UniResponse { reply(request.url, body: request.body, method: request.method) }
 
     func download(_ request: UniRequest, to destination: URL) async throws -> UniResponse {
         let r = reply(request.url, body: request.body)
@@ -115,5 +122,12 @@ final class DebugStubTransport: UniTransport, StudIPTransport, @unchecked Sendab
     func download(_ url: URL, to file: URL) async throws -> HTTPReply {
         let r = try await download(UniRequest(url: url), to: file)
         return HTTPReply(status: r.status, contentType: r.headers["content-type"] ?? "", finalURL: r.finalURL)
+    }
+
+    /// Abgeben (POST/PATCH) gegen die Nachbildung; der Koerper geht nirgendwohin
+    func send(_ url: URL, method: String, headers: [String: String], body: Data) async throws -> HTTPReply {
+        let r = reply(url, body: nil, method: method)
+        return HTTPReply(status: r.status, contentType: r.headers["content-type"] ?? "", finalURL: r.finalURL, body: r.body,
+                         location: r.headers["location"])
     }
 }

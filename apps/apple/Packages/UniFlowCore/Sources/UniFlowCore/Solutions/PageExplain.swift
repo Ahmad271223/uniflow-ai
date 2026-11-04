@@ -27,6 +27,10 @@ public enum PageExplain {
     /// so viel Einordnung aus der Bibliothek geht in den Prompt einer eigenen Frage
     public static let indexContextChars = 1200
 
+    /// Modus eines gespeicherten Datensatzes: ein geteilter Modus der KI-Hilfe oder ein Teil eines Laufs fuer das ganze
+    /// Dokument (`DocExplain.isStoreMode`, 05.11.2026)
+    public static func isStoredMode(_ mode: String) -> Bool { sharedModes.contains(mode) || DocExplain.isStoreMode(mode) }
+
     /// Wird die Antwort geteilt? Nur ein geteilter Modus fuer die ganze Seite: ohne markierten Text und ohne eigene Frage
     public static func isShareable(mode: String, selection: String, question: String) -> Bool {
         sharedModes.contains(mode) && PyText.strip(selection).isEmpty && PyText.strip(question).isEmpty
@@ -41,7 +45,7 @@ public enum PageExplain {
     public static func parse(recordName: String) -> (fileKey: String, page: Int, mode: String, variant: Int)? {
         let parts = recordName.split(separator: "#", maxSplits: 3, omittingEmptySubsequences: false)
         guard parts.count == 4, DocIndexFingerprint.isSHA256Hex(String(parts[0])), let page = Int(parts[1]), page >= 1,
-              sharedModes.contains(String(parts[2])), let variant = Int(parts[3]), (1...maxVariants).contains(variant) else { return nil }
+              isStoredMode(String(parts[2])), let variant = Int(parts[3]), (1...maxVariants).contains(variant) else { return nil }
         return (String(parts[0]), page, String(parts[2]), variant)
     }
 

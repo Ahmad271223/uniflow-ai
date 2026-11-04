@@ -12,7 +12,7 @@ Die Swift-Seite (`UniFlowCore/Solutions/PageExplain.swift`, `PageExplainTests`) 
 | `recordName` | String | `<fileKey>#<page>#<mode>#<variant>` |
 | `fileKey` | String, abfragbar | HMAC-SHA256 des Datei-SHA mit Kontext `uniflow.docindex.filekey.v1` (wie `DocIndex`, `file_key` in `app/doc_index.py`), 64 Hexziffern |
 | `page` | Int | Seite der PDF, ab 1 (Seite 0 gibt es hier nicht) |
-| `mode` | String | `explain`, `explain_simple`, `summary`, `terms`, `steps`, `hints` (die Modi der KI-Hilfe, `ai.TUTOR_MODES`) |
+| `mode` | String | `explain`, `explain_simple`, `summary`, `terms`, `steps`, `hints` (die Modi der KI-Hilfe, `ai.TUTOR_MODES`); seit 05.11.2026 auch Teile eines Laufs fürs ganze Dokument `doc<Fassung>_<Art>_<n>_<bis>` (`page` = erste Seite des Teils, Abdruck = Schlüssel des Teils, docs/KI-GANZES-DOKUMENT-2026-11-05.md) |
 | `variant` | Int | 1…3 |
 | `payload` | String | Chiffrat, Base64 (unten), höchstens 256 KiB |
 | `version` | Int | Formatfassung, heute `1` |

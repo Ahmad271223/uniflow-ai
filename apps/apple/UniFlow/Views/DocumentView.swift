@@ -180,6 +180,8 @@ struct DocumentView: View {
     @State private var suggestionCache: [Int: ScriptSuggestion?] = [:]
     /// PDF-Export (privat) wartet auf die Bestaetigung des Hinweises
     @State private var pendingExport: ShareScope?
+    /// Blatt "In Stud.IP abgeben" (docs/ABGEBEN-STUDIP-2026-11-05.md)
+    @State private var submittingToStudIP = false
     @State private var solutionSheet: SolutionSheet?
     @State private var importingSolution = false
     /// "Meine Notizen" sichtbar; ausgeblendet = nur ansehen
@@ -346,7 +348,11 @@ struct DocumentView: View {
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
                    close: { showTutor = false }, request: $bridge.tutorRequest,
-                   moduleID: store.file.module_id)                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
+                   moduleID: store.file.module_id,                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
+                   // Seitennotizen und Blatt daneben dieser Folie gehen als Kontext mit (05.11.2026)
+                   ownNotes: { [store, bridge, api, companionStore] in
+                       await AttachedNotes.text(for: store, pageKey: bridge.pageKey, api: api, open: companionStore)
+                   })
     }
 
     private var isExercise: Bool {
@@ -450,6 +456,7 @@ struct DocumentView: View {
             }
         }
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .sheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
@@ -646,13 +653,28 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
-                      pencilOnly: pencilOnly, canEdit: canWrite, onStore: { s, shown in
+                      pencilOnly: pencilOnly, canEdit: canWrite, onStore: { [store, bridge] s, shown in
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
+                          Self.linkSideSheet(s, shown: shown, main: store, bridge: bridge)
                       }) {
             companion = nil
         }
         .id(c.id + "-" + String(c.pdfPage ?? -1))
+    }
+
+    /// Blatt daneben (Notizbuch): wer darauf schreibt, schreibt neben der gerade angezeigten Seite dieses Dokuments.
+    /// Das Dokument merkt sich je Blattseite die erste Seite (docs/NOTIZEN-MITSCHICKEN-2026-11-05.md), damit die
+    /// Notizen beim Teilen, Exportieren und Abgeben direkt hinter dieser Folie mitgehen.
+    static func linkSideSheet(_ sheet: DocumentStore, shown: Bool, main: DocumentStore, bridge: EditorBridge) {
+        guard shown, sheet.isNotebook, sheet.file.id != main.file.id else {
+            if !shown { sheet.onLocalEdit = nil }
+            return
+        }
+        sheet.onLocalEdit = { [weak main, weak bridge, weak sheet] sheetPage in
+            guard let main, let sheet, let mainKey = bridge?.pageKey else { return }
+            Task { await main.linkSideSheet(file: sheet.file.id, sheetPage: sheetPage, to: mainKey) }
+        }
     }
 
     private func splitHandle(width: CGFloat) -> some View {
@@ -842,6 +864,18 @@ struct DocumentView: View {
                               systemImage: entitlements.allows(.shareSolutions) ? "person.2" : "lock")
                     }
                     Button { openSolutionSheet(.shared) } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
+                }
+                // C) eigene Loesung mit Notizen in Stud.IP hochladen (Entscheidung des Inhabers 05.11.2026)
+                if StudIPSubmitEntry.offered(api: api, readOnly: readOnly || store.isOldVersion) {
+                    Section("Abgeben") {
+                        Button { submittingToStudIP = true } label: {
+                            Label {
+                                Text("In Stud.IP abgeben …")
+                                if let last = StudIPSubmitEntry.lastLine(documentID: store.file.id) { Text(last) }
+                            } icon: { Image(systemName: "tray.and.arrow.up") }
+                        }
+                        .accessibilityIdentifier("doc.submitStudIP")
+                    }
                 }
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
@@ -1280,8 +1314,9 @@ struct DocumentView: View {
         Task {
             defer { exporting = false }
             do {
-                let payload = try await store.sharePayload(scope, loadImage: ShareExport.serverImageLoader(api))
-                exportFile = ExportFile(url: try ShareExport.writeFile(payload), notice: payload.missingImagesNotice)
+                // Seitennotizen und Blaetter daneben gehen direkt hinter ihrer Folie mit (NotesExport, 05.11.2026)
+                let result = try await NotesExport.pdf(for: store, api: api, options: .init(scope: scope))
+                exportFile = ExportFile(url: result.url, notice: result.payload.missingImagesNotice)
             } catch {
                 actionError = "Teilen fehlgeschlagen: \(error.localizedDescription)"
             }

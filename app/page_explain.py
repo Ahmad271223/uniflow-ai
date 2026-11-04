@@ -93,7 +93,9 @@ def check_page(value) -> int:
 
 
 def check_mode(value) -> str:
-    if not isinstance(value, str) or value not in SHARED_MODES:
+    from . import doc_explain
+    # Teile eines Laufs fuer das ganze Dokument (05.11.2026, doc_explain.store_mode): doc<Fassung>_<Art>_<n>_<bis>
+    if not isinstance(value, str) or (value not in SHARED_MODES and not doc_explain.is_store_mode(value)):
         raise PageExplainError("bad_mode", "mode muss einer der geteilten Modi sein: " + ", ".join(SHARED_MODES) + ".")
     return value
 

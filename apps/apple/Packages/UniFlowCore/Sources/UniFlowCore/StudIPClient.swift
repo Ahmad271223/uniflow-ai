@@ -11,12 +11,15 @@ public struct HTTPReply: Sendable {
     public let contentType: String
     public let finalURL: URL?
     public let body: Data
+    /// Kopfzeile `Location` (Abgeben: Stud.IP antwortet auf ein Hochladen mit 201 und der Adresse der neuen Datei)
+    public let location: String?
 
-    public init(status: Int, contentType: String = "", finalURL: URL? = nil, body: Data = Data()) {
+    public init(status: Int, contentType: String = "", finalURL: URL? = nil, body: Data = Data(), location: String? = nil) {
         self.status = status
         self.contentType = contentType
         self.finalURL = finalURL
         self.body = body
+        self.location = location
     }
 
     /// Erfolg mit JSON-Inhalt (Inhaltstyp `application/json` bzw. `application/vnd.api+json`; ohne Inhaltstyp zaehlt
@@ -36,6 +39,12 @@ public protocol StudIPTransport: Sendable {
     func get(_ url: URL, accept: String?) async throws -> HTTPReply
     /// Antwort direkt in `file` schreiben (grosse Dateien nicht im Arbeitsspeicher); `body` der Rueckgabe ist leer.
     func download(_ url: URL, to file: URL) async throws -> HTTPReply
+}
+
+/// Schreibende Anfrage (nur "Abgeben", docs/ABGEBEN-STUDIP-2026-11-05.md): POST/PATCH mit Koerper. Getrennt vom
+/// Lese-Transport, damit der Abgleich nie schreiben kann; Transporte ohne diese Faehigkeit lehnen ab.
+public protocol StudIPWritingTransport: StudIPTransport {
+    func send(_ url: URL, method: String, headers: [String: String], body: Data) async throws -> HTTPReply
 }
 
 extension StudIPTransport {
@@ -165,7 +174,7 @@ public struct StudIPFileListing: Sendable, Equatable {
 /// Abgleich die Hochschule nicht staerker belastet als ein Mensch, der durch die Ordner klickt.
 public actor StudIPClient {
     public let base: URL
-    private let transport: StudIPTransport
+    let transport: StudIPTransport
     private let pauseNanos: UInt64
     private let maxRequests: Int
     /// Downloads: abgerissene Verbindungen wiederholen wie `stream_download` (dieselbe Regel wie fuer Learnweb)
@@ -222,7 +231,7 @@ public actor StudIPClient {
     /// 429 (zu viele Anfragen), 5xx und abgerissene Verbindungen werden wie beim Learnweb mit `UniRetry` wiederholt
     /// (hoechstens 3 Versuche, 1,5 s und 3 s Pause; jeder Versuch zaehlt zur Anfragegrenze). Vorher nur Downloads:
     /// ein einzelnes 429 auf eine Ordnerliste liess den ganzen Kurs fuer diesen Lauf aus (Riesentest 03.11.2026).
-    private func perform(_ pathOrLink: String, anyStatus: Bool = false, retry mode: RetryMode = .none,
+    func perform(_ pathOrLink: String, anyStatus: Bool = false, retry mode: RetryMode = .none,
                          _ call: (URL) async throws -> HTTPReply) async throws -> HTTPReply {
         var attempt = 0
         while true {

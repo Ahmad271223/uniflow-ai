@@ -955,12 +955,12 @@ struct CommunityPersonPane: View {
                     if let message = error ?? failure { CommunityNotice(text: message) }
                     if showsNotes {
                         if let content {
-                            ForEach(content.pages, id: \.key) { page in
+                            ForEach(Array(content.pages.enumerated()), id: \.element.key) { i, page in
                                 CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: discussion ? { anchor in
                                     resetComposer()
                                     spot = (page.key, anchor)
                                     tab = .discussion
-                                } : nil)
+                                } : nil, title: SolutionBuilder.pageTitle(content.pages, at: i))
                             }
                         } else if failure == nil { CommunityLoading(text: "Notizen werden geladen …") }
                     } else {

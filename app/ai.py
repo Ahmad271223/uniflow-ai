@@ -321,8 +321,9 @@ def tutor_history(raw) -> list[dict]:
 
 def tutor(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
           course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
-          history: list[dict] | None = None, studip: str = "") -> str:
-    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history, studip),
+          history: list[dict] | None = None, studip: str = "", own_notes: str = "") -> str:
+    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history, studip,
+                            own_notes=own_notes),
                TUTOR_SYSTEM)
 
 
@@ -353,9 +354,16 @@ def studip_context(course_desc: str | None, misc: str | None, sessions: list[dic
     return "\n".join(lines)[:STUDIP_CONTEXT_CHARS]
 
 
+# Eigene Notizen zur Seite im Tutor-Prompt (05.11.2026, docs/NOTIZEN-MITSCHICKEN-2026-11-05.md): Seitennotizen und Blatt
+# daneben (Textfelder und erkannte Handschrift), gleich in AIPrompts.swift (`ownNotesHeading`, `SideNotes.aiNotesChars`)
+OWN_NOTES_HEADING = ("MEINE NOTIZEN ZU DIESER SEITE (Seitennotizen und Blatt daneben; Handschrift automatisch erkannt, "
+                     "kann Lesefehler enthalten):")
+OWN_NOTES_CHARS = 4000
+
+
 def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
                  course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
-                 history: list[dict] | None = None, studip: str = "") -> str:
+                 history: list[dict] | None = None, studip: str = "", own_notes: str = "") -> str:
     """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die StudiNow-KI im Dienst (app/ai_backend.py).
     `sources` (28.10.2026): nummerierte Stellen aus den eigenen Unterlagen (diese Seite und passende Seiten aus dem
     Modul); die Antwort belegt Aussagen daraus mit [Nummer], die Oberflaeche macht daraus Links zur Seite.
@@ -367,6 +375,8 @@ def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str =
         parts += ["", "MARKIERTER TEXT:", "<<<", selection.strip()[:4000], ">>>"]
     if own_solution.strip():
         parts += ["", "MEINE LOESUNG:", "<<<", own_solution.strip()[:4000], ">>>"]
+    if isinstance(own_notes, str) and own_notes.strip():
+        parts += ["", OWN_NOTES_HEADING, "<<<", own_notes.strip()[:OWN_NOTES_CHARS], ">>>"]
     if history:
         parts += ["", "BISHERIGES GESPRAECH (aeltestes zuerst; schliesst meine Frage daran an, beziehe dich darauf):"]
         for h in history:

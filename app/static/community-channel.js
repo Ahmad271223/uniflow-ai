@@ -7,6 +7,7 @@
 import { icon } from "./icons.js?v=32";
 import { $, $$, api, toast, modal } from "./core.js?v=43";
 import * as S from "./solutions.js?v=6";
+import { pageTitle } from "./solution-labels.js?v=1";
 import * as L from "./community-logic.js?v=2";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=5";
@@ -113,7 +114,7 @@ export async function renderSpacePage(view, params, info) {
         if (!en.isIntersecting) continue; observer.unobserve(en.target);
         const id = en.target.dataset.fid; if (!id || en.target.querySelector("img")) continue;
         try {
-          const ed = await import("./editor.js?v=65");
+          const ed = await import("./editor.js?v=66");
           const data = await ed.renderThumbnail(id, `/api/files/${id}/content`, en.target.dataset.ver, 220);
           if (data) { const img = new Image(); img.alt = ""; img.src = data; en.target.prepend(img); $(".cc-sheet", en.target)?.remove(); }
         } catch { /* Platzhalter bleibt */ }
@@ -249,10 +250,10 @@ export async function renderSpacePage(view, params, info) {
         const local = await U.localFile(s.fingerprint);
         pane.innerHTML = `<p class="small ${local ? "" : "muted"}">${local ? `Du hast dieselbe PDF. <a href="#/doc/${esc(local.file_id)}">Im Dokument ansehen</a> – dort liegt die Lösung über deiner PDF.` : "Du hast diese PDF nicht, darum stehen die Notizen auf leeren Seiten."}</p><div class="cc-pages"></div>`;
         const box = $(".cc-pages", pane);
-        for (const page of o.content.pages) {
+        for (const [pi, page] of o.content.pages.entries()) {
           const fig = document.createElement("figure"), cv = document.createElement("canvas"), sc = 2; cv.width = page.width * sc; cv.height = page.height * sc;
           const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); ctx.scale(sc, sc); S.drawObjects(ctx, page, o.images);
-          const cap = document.createElement("figcaption"); cap.className = "tiny muted"; cap.textContent = page.pdfIndex ? `PDF-Seite ${page.pdfIndex}` : "Eigene Seite der Lösung";
+          const cap = document.createElement("figcaption"); cap.className = "tiny muted"; cap.textContent = pageTitle(o.content.pages, pi);
           fig.append(cv, cap); box.append(fig);
         }
       } catch (e) { pane.innerHTML = `<div class="cc-note bad">${esc(e.message)}</div>`; }
