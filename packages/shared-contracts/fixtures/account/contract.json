@@ -26,6 +26,10 @@
     "count": 30,
     "minutes": 1440
    },
+   "deck_user": {
+    "count": 10,
+    "minutes": 1440
+   },
    "export_user": {
     "count": 3,
     "minutes": 1440
@@ -798,6 +802,7 @@
    "content_type": "application/zip",
    "zip_entries_ohne_daten": [
     "LIESMICH.txt",
+    "community/meine-karteikarten.json",
     "community/meine-korrekturen.json",
     "community/meine-loesungen.json",
     "community/meine-meldungen.json",

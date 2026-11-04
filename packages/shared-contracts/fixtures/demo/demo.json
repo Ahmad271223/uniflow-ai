@@ -882,7 +882,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 2,
@@ -895,7 +898,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 3,
@@ -908,7 +914,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 4,
@@ -921,7 +930,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 5,
@@ -934,7 +946,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -1475,7 +1490,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 7,
@@ -1488,7 +1506,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 8,
@@ -1501,7 +1522,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 9,
@@ -1514,7 +1538,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 10,
@@ -1527,7 +1554,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -2635,7 +2665,10 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -3151,7 +3184,10 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 2,
@@ -3164,7 +3200,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 3,
@@ -3177,7 +3216,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 4,
@@ -3190,7 +3232,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 5,
@@ -3203,7 +3248,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 6,
@@ -3216,7 +3264,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -3976,7 +4027,10 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 2,
@@ -3989,7 +4043,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 3,
@@ -4002,7 +4059,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 4,
@@ -4015,7 +4075,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 5,
@@ -4028,7 +4091,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 6,
@@ -4041,7 +4107,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -4669,7 +4738,10 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -5196,7 +5268,10 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 7,
@@ -5209,7 +5284,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 8,
@@ -5222,7 +5300,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 9,
@@ -5235,7 +5316,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 10,
@@ -5248,7 +5332,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        },
        {
         "id": 11,
@@ -5261,7 +5348,10 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [
@@ -5866,7 +5956,10 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "module_id": null,
+        "lecture_week": null,
+        "origin": null
        }
       ],
       "course_events": [

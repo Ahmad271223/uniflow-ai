@@ -526,6 +526,12 @@ def _init_db(conn) -> None:
     if "last_result" not in {r[1] for r in conn.execute("PRAGMA table_info(flashcards)")}:
         conn.execute("ALTER TABLE flashcards ADD COLUMN last_result TEXT")
         conn.execute(FLASHCARD_RESULT_BACKFILL)
+    # Karteikarten-Stapel (04.11.2026, app/flashcard_stacks.py): Modul und Lehrwoche (NULL = ganzes Modul) und Herkunft
+    # (NULL = selbst angelegt, 'ai' = KI-Auftrag, 'community:<stapel-id>' = aus der Community uebernommen). Ohne
+    # module_id gilt das Modul des Dokuments (file_id); bestehende Karten bleiben unveraendert.
+    add_col("flashcards", "module_id", "INTEGER")
+    add_col("flashcards", "lecture_week", "INTEGER")
+    add_col("flashcards", "origin", "TEXT")
     # Fachfarben (27.10.2026, app/colors.py): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
     # Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
     # bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.

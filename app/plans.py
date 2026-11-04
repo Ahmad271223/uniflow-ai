@@ -49,7 +49,7 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von StudiNow", "status": "available"},
     # Karteikarten (Entscheidung des Inhabers vom 04.11.2026): selbst anlegen, teilen und die anderer nutzen ab Plus
     "can_create_flashcards": {"from": "plus", "label": "Karteikarten selbst anlegen und lernen", "status": "available"},
-    "can_share_flashcards": {"from": "plus", "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)", "status": "coming_soon"},
+    "can_share_flashcards": {"from": "plus", "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)", "status": "available"},
     # Pro AI (bis 04.11.2026 ab Pro Connect; der Tarif entfaellt)
     "can_use_advanced_analytics": {"from": "pro_ai", "label": "Erweiterte Lernstatistiken", "status": "available"},
     "can_use_advanced_planner": {"from": "pro_ai", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
@@ -66,7 +66,8 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_sync_annotations": {"from": "pro_ai", "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)", "status": "available"},
     # 04.11.2026: KI erstellt Karteikarten nach Fach, Lernwoche und Anzahl; fertige Fragen je Vorlesungswoche aus der
     # Bibliothek (2-3 Saetze zu je 15 Fragen, Loesungen und Erklaerungen schon vorbereitet)
-    "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "coming_soon"},
+    # gebaut 04.11.2026: app/flashcards_api.py, app/flashcard_stacks.py, app/community_decks.py
+    "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "available"},
     # gebaut 04.11.2026: app/week_library.py, app/week_library_api.py (docs/BIBLIOTHEK-WOCHENFRAGEN.md)
     "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "available"},
 }

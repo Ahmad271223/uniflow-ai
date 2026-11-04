@@ -298,7 +298,7 @@ def qa_report(request: Request, kind: str, target_id: str, body: dict = Body(...
 def qa_moderate(request: Request, kind: str, target_id: str, body: dict = Body(...)):
     """Nur Admin: verborgenen Kommentar, verborgene Frage oder Antwort wiederherstellen ({action: restore});
     kind = comments | questions | answers."""
-    k = {"comments": "comment", "questions": "question", "answers": "answer", "corrections": "correction"}.get(kind)
+    k = {"comments": "comment", "questions": "question", "answers": "answer", "corrections": "correction", "decks": "deck"}.get(kind)
     if not k:
         raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
     return _run(community_qa.moderate_post, _user(request), k, target_id, body.get("action") or "")
@@ -376,3 +376,58 @@ def correction_delete(request: Request, correction_id: str):
 @router.post("/corrections/{correction_id}/report")
 def correction_report(request: Request, correction_id: str, body: dict = Body(...)):
     return _run(community_corrections.report, _user(request), correction_id, body.get("reason"))
+
+
+# ---------------------------------------------------------------- Karteikarten teilen und nutzen (04.11.2026, app/community_decks.py)
+
+from . import community_decks  # noqa: E402
+
+
+@router.get("/communities/{community_key}/decks")
+def decks_list(request: Request, community_key: str, week: str | None = None):
+    """Karteikarten-Stapel der Community (nur Mitglieder), meistgenutzte zuerst. `week`: Zahl = diese Lehrwoche,
+    `module` = Stapel fuers ganze Modul, leer = alle. Dazu `weeks` = Zahl der Stapel je Woche."""
+    return _run(community_decks.list_decks, _user(request), config.university(), community_key, week)
+
+
+@router.post("/communities/{community_key}/decks", status_code=201)
+def decks_publish(request: Request, community_key: str, body: dict = Body(...)):
+    """{title?, lecture_week (Zahl oder null = ganzes Modul), cards: [{question, answer}]}; ab StudiNow Plus, bestaetigte
+    E-Mail, Mitglied, `deck_user` je Tag, 1-500 Karten, je Seite 1000 Zeichen. Schon geteilt: 409 already_published + deck_id."""
+    return _run(community_decks.publish, _user(request), config.university(), community_key, body.get("title"),
+                body.get("lecture_week"), body.get("cards"))
+
+
+@router.get("/decks/mine")
+def decks_mine(request: Request):
+    return {"decks": community_decks.mine(_user(request))}
+
+
+@router.get("/decks/{deck_id}")
+def decks_get(request: Request, deck_id: str):
+    """Ein Stapel mit allen Karten (Mitglieder der Community)."""
+    return _run(community_decks.get, _user(request), deck_id)
+
+
+@router.put("/decks/{deck_id}")
+def decks_update(request: Request, deck_id: str, body: dict = Body(...)):
+    """Eigenen Stapel ersetzen: {cards, title?}."""
+    return _run(community_decks.update, _user(request), deck_id, body.get("title"), body.get("cards"))
+
+
+@router.delete("/decks/{deck_id}")
+def decks_withdraw(request: Request, deck_id: str):
+    return _run(community_decks.withdraw, _user(request), deck_id)
+
+
+@router.post("/decks/{deck_id}/adopt")
+def decks_adopt(request: Request, deck_id: str):
+    """Uebernehmen: {deck, cards, origin}; die Kopie legt der Client mit POST /api/flashcards/stack (origin) an."""
+    return _run(community_decks.adopt, _user(request), deck_id)
+
+
+@router.post("/decks/{deck_id}/report")
+def decks_report(request: Request, deck_id: str, body: dict = Body(...)):
+    """Melden {reason}: bestaetigte E-Mail, `report_user` je Tag, ab 3 Meldungen verborgen; Freigabe ueber
+    POST /api/community/decks/{id}/moderate {action: restore} (Moderation)."""
+    return _run(community_decks.report, _user(request), deck_id, body.get("reason"))
