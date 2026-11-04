@@ -55,7 +55,8 @@ KI-Budget je Konto (`LERNAPP_AI_USER_BUDGET_EUR`, Standard 2 €).
    die Themen, Hinweise aus Ankündigungen und die Aufgaben der Übungsblätter und hat die Lösungen samt Erklärung schon
    erarbeitet. Das passiert **einmal je Inhalt** (gleiche PDF = gleiche Arbeit) und gilt für alle Pro-AI-Nutzer.
 2. **Fertige Fragen je Woche:** Zu jeder Vorlesungswoche entstehen 2–3 Sätze à 15 Fragen. Pro AI öffnet sie sofort,
-   ohne zu warten und ohne ein Test-Kontingent zu verbrauchen.
+   ohne ein Test-Kontingent zu verbrauchen. Nur wer eine Woche als Erster öffnet, wartet einmal ein bis zwei Minuten,
+   danach ist sie für alle sofort da.
 3. **Karteikarten auf Auftrag:** „Analysis I, Lernwoche 5, 30 Karten“ – die KI nimmt dafür das Material genau dieser
    Woche. Die Karten kann man bearbeiten, lernen und teilen.
 4. **Teilen:** Karteikarten-Stapel gibt es je Vorlesungswoche oder fürs ganze Modul in der Community des Kurses

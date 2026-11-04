@@ -61,7 +61,7 @@ async function viewModule(id, view) {
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
     if ($("#stHost", view)) mountStudipTexts($("#stHost", view), id, api);   // Courseware, Wiki, Forum (Blubber) aus Stud.IP
     // Fertige Fragen je Lehrwoche (Pro AI, Bibliothek des Dienstes): week-sets.js
-    if ($(".ws-host", view)) import("./week-sets.js?v=1").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
+    if ($(".ws-host", view)) import("./week-sets.js?v=2").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
   };
   render();
 }
