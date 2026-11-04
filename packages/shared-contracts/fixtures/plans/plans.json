@@ -319,7 +319,7 @@
   "can_use_prepared_week_sets": {
    "from": "pro_ai",
    "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen",
-   "status": "coming_soon"
+   "status": "available"
   }
  },
  "quotas": {

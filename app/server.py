@@ -52,6 +52,8 @@ app.include_router(library_api.router)
 app.include_router(doc_index.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
+from . import week_library_api  # noqa: E402 - Fertige Fragen je Vorlesungswoche (Pro AI, /api/library/week-sets)
+app.include_router(week_library_api.router)
 db.init_db()
 
 

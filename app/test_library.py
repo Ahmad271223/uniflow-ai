@@ -136,6 +136,8 @@ def forget_owner(user_id: str) -> dict:
         # gemeinsame Wochentests bleiben fuer die anderen (ohne Besitzer); leere Belegungen werden frei
         conn.execute("DELETE FROM shared_tests WHERE owner_hash=? AND status='pending'", (owner,))
         kept += conn.execute("UPDATE shared_tests SET owner_hash=NULL WHERE owner_hash=?", (owner,)).rowcount
+    from . import week_library
+    week_library.forget_owner(owner)                     # fertige Wochenfragen bleiben, der Kurzwert faellt weg
     return {"deleted": gone, "anonymized": kept, "seen": seen}
 
 
