@@ -9,6 +9,13 @@
 - GET  /api/learning/review                     falsch beantwortete Fragen (can_review_wrong_answers)
 - POST /api/learning/review/test                Wiederholungstest aus falschen Antworten, ohne KI
 - GET  /api/learning/recommendations            Lernempfehlungen (can_get_recommendations)
+
+Gemeinsame Wochentests (app/testshare.py, Varianten-Regel: hoechstens 3 Tests je Schluessel, feste Variante je Konto)
+fuer Geraete, die selbst erzeugen (iPad mit Dienst, V2); Windows/Web lassen den Dienst ueber planner.create_test erzeugen:
+- GET    /api/v2/shared-tests/{key}             eigene Variante und was zu tun ist: adopt (mit Test) | wait | generate
+- POST   /api/v2/shared-tests/{key}/claim       Platz fuer die Variante belegen (vor dem Erzeugen); {variant, claimed}
+- POST   /api/v2/shared-tests/{key}/{variant}   fertigen Test in den eigenen Platz schreiben {title, questions}
+- DELETE /api/v2/shared-tests/{key}/{variant}   eigenen leeren Platz freigeben (Erzeugen gescheitert)
 """
 from __future__ import annotations
 
@@ -350,3 +357,104 @@ def learning_recommendations(request: Request):
     if not recs:
         recs.append({"kind": "keep_going", "text": "Alles im grünen Bereich. Mach mit dem Lernplan weiter."})
     return {"recommendations": recs, "based_on_tests": st["tests_total"]}
+
+
+# ---------------------------------------------------------------- Gemeinsame Wochentests (Varianten, V2)
+
+_SHARE_KEY_RE = re.compile(r"^wt\d+:[0-9a-f]{64}$")
+
+
+def _share_key(key: str) -> str:
+    if not _SHARE_KEY_RE.match(key or ""):
+        raise HTTPException(400, {"detail": "Ungültiger Schlüssel.", "code": "share_key_invalid"})
+    return key
+
+
+def _share_variant(variant: int) -> int:
+    from . import testshare
+    if not isinstance(variant, int) or not 0 <= variant < testshare.MAX_VARIANTS:
+        raise HTTPException(400, {"detail": f"Variante 0 bis {testshare.MAX_VARIANTS - 1}.", "code": "variant_invalid"})
+    return variant
+
+
+def _slot_public(slot: dict | None) -> dict | None:
+    if not slot:
+        return None
+    return {"variant": slot["variant"], "status": slot["status"], "title": slot.get("title"),
+            "questions": slot.get("questions") if slot["status"] == "ready" else None, "published_at": slot.get("published_at")}
+
+
+@router.get("/api/v2/shared-tests/{key}")
+def shared_test_lookup(request: Request, key: str):
+    """Eigene Variante zum Schluessel und die Entscheidung nach testshare.pick: `adopt` (Test liegt bei), `wait`
+    (ein anderes Konto erzeugt genau diese Variante gerade; spaeter erneut fragen) oder `generate` (selbst erzeugen,
+    vorher /claim). Der Dienst gibt keine Liste von Schluesseln heraus: wer fragt, kennt die Dateien schon."""
+    from . import testshare
+    user = _hosted(request)
+    key = _share_key(key)
+    assigned = testshare.variant(user["id"], key)
+    slots = test_library.shared_slots(key)
+    ready = {v for v, s in slots.items() if s["status"] == "ready"}
+    pending = {v for v, s in slots.items() if s["status"] == "pending"}
+    out = {"key": key, "variant": assigned, "of": testshare.MAX_VARIANTS,
+           "variants": {str(v): s["status"] for v, s in sorted(slots.items())}}
+    if assigned in ready:
+        return {**out, "action": "adopt", "test": _slot_public(test_library.shared_get(key, assigned))}
+    if assigned in pending:
+        return {**out, "action": "wait", "test": None}
+    action, v = testshare.pick(ready | pending, assigned)
+    if action == "generate":
+        return {**out, "action": "generate", "generate_as": v, "test": None}
+    others = sorted(ready, key=lambda x: (x - assigned) % testshare.MAX_VARIANTS)
+    if others:
+        return {**out, "action": "adopt", "adopt_variant": others[0], "test": _slot_public(test_library.shared_get(key, others[0]))}
+    return {**out, "action": "wait", "test": None}            # alle Plaetze belegt, keiner fertig
+
+
+@router.post("/api/v2/shared-tests/{key}/claim")
+def shared_test_claim(request: Request, key: str, body: dict = Body(default={})):
+    """Platz belegen, bevor das Geraet erzeugt (atomar, hoechstens 3 je Schluessel). Ohne `variant` entscheidet
+    testshare.pick; ist die Lage inzwischen anders (Wettlauf), kommt `claimed: false` mit dem neuen Stand."""
+    from . import testshare
+    user = _hosted(request)
+    key = _share_key(key)
+    assigned = testshare.variant(user["id"], key)
+    slots = test_library.shared_slots(key)
+    have = set(slots)
+    if body.get("variant") is not None:
+        v = _share_variant(body.get("variant"))
+    else:
+        action, v = testshare.pick(have, assigned)
+        if action != "generate":
+            return {"key": key, "variant": assigned, "claimed": False, "reason": "all_variants_exist",
+                    "variants": {str(x): s["status"] for x, s in sorted(slots.items())}}
+    claimed = test_library.shared_claim(key, v, user["id"])
+    return {"key": key, "variant": v, "claimed": claimed,
+            "variants": {str(x): s["status"] for x, s in sorted(test_library.shared_slots(key).items())}}
+
+
+@router.post("/api/v2/shared-tests/{key}/{variant}")
+def shared_test_publish(request: Request, key: str, variant: int, body: dict = Body(...)):
+    from . import ai as ai_rules
+    user = _hosted(request)
+    key, variant = _share_key(key), _share_variant(variant)
+    questions = body.get("questions")
+    if not isinstance(questions, list) or not questions:
+        raise HTTPException(400, {"detail": "Aufgaben fehlen.", "code": "questions_required"})
+    why = ai_rules.check_week_test({"questions": questions}, exam=False)       # Regel vom 29.10.2026: 15 Aufgaben 4/6/5
+    if why:
+        raise HTTPException(400, {"detail": f"Test nicht in der geforderten Form: {why}", "code": "week_test_form"})
+    try:
+        test_library.shared_publish(key, variant, user["id"], (body.get("title") or "")[:200] or None,
+                                    [test_library.scrub_question(q) if isinstance(q, dict) else q for q in questions])
+    except KeyError:
+        raise HTTPException(409, {"detail": "Dieser Platz ist nicht von dir belegt.", "code": "not_claimed"})
+    return {"key": key, "variant": variant, "published": True}
+
+
+@router.delete("/api/v2/shared-tests/{key}/{variant}")
+def shared_test_release(request: Request, key: str, variant: int):
+    user = _hosted(request)
+    key, variant = _share_key(key), _share_variant(variant)
+    test_library.shared_release(key, variant, user["id"])
+    return {"key": key, "variant": variant, "released": True}

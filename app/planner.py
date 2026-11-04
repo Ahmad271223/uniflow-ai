@@ -196,12 +196,21 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
         from . import testshare, universities
         key = testshare.share_key(universities.current_key(), duration_min, mats + ([exam] if exam else [])) if (auto and mats) else None
         shared = testshare.lookup_local(conn, key) if key else None
+        uid = testshare.user_id(conn) if key and not shared else None
     if not mats:
         raise RuntimeError(f"Keine Materialien fuer {subject}")
+    share_variant = adopted_from = None
     if shared:
         # Lehrwochen-Nummer gehoert dem jeweiligen Nutzer: aus dem geteilten Titel entfernen, unten neu setzen
         res = {"title": re.sub(r"^Lehrwoche \d+:\s*", "", shared["title"] or ""), "questions": json.loads(shared["questions"] or "[]")}
+        share_variant, adopted_from = shared.get("share_variant"), shared.get("adopted_from") or testshare.ADOPTED_LOCAL
         log(f"Gemeinsamer Wochentest wiederverwendet ({key[:16]}…)")
+    elif key:
+        # Varianten-Regel (hoechstens 3 Tests je Schluessel, feste Variante je Nutzer): im Dienst ueber den Pool,
+        # am Einzelplatz nur die eigene Variante merken
+        got = testshare.obtain(key, uid, lambda: ai.generate_test(subject, duration_min, mats, exam=exam), log=log)
+        res = {"title": re.sub(r"^Lehrwoche \d+:\s*", "", got.get("title") or ""), "questions": got["questions"]}
+        share_variant, adopted_from = got["share_variant"], got["adopted_from"]
     else:
         res = ai.generate_test(subject, duration_min, mats, exam=exam)
     title = res.get("title") or f"Wochentest {subject}"
@@ -210,8 +219,9 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
     with db.cursor() as conn:
         try:
             cur = conn.execute(
-                "INSERT INTO tests(subject, week_start, title, duration_min, questions, created_at, module_id, week_no, auto, share_key) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (subject, ws, title, duration_min, json.dumps(res.get("questions") or [], ensure_ascii=False), db.now_iso(), module_id, week_no, 1 if auto else 0, key),
+                "INSERT INTO tests(subject, week_start, title, duration_min, questions, created_at, module_id, week_no, auto, share_key, share_variant, adopted_from) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (subject, ws, title, duration_min, json.dumps(res.get("questions") or [], ensure_ascii=False), db.now_iso(), module_id, week_no, 1 if auto else 0, key,
+                 share_variant, adopted_from),
             )
         except Exception:  # noqa: BLE001 - Unique-Index: parallel entstandener Wochentest
             ex = db.row(conn, "SELECT id FROM tests WHERE module_id=? AND week_no=? AND auto=1", (module_id, week_no))

@@ -665,6 +665,8 @@
           {"name": "week_no", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "share_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "share_variant", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "adopted_from", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "def_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "user_id", "type": "TEXT", "notnull": 0, "default": "'local'", "pk": 0},
           {"name": "duration_sec", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}

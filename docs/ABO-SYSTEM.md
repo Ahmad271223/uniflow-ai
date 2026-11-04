@@ -152,6 +152,12 @@ E-Mail, Telefon, Matrikelnummer, Adressen und Namen nach „Name:“ vor dem Ein
 `GET /api/library/moderation`, `POST /api/library/questions/{id}/moderate {action}`. Bewertung ohne KI
 (Multiple-Choice, Musterlösung) für Tests im Dienst.
 
+Gemeinsame **Wochentests** (04.11.2026, docs/GEMEINSAME-WOCHENTESTS.md): je Schlüssel (Hochschule, Dauer, Inhalts-Hashes
+der Dateien) höchstens drei Tests im Pool `shared_tests` derselben `library.db`, feste Variante je Konto
+(`testshare.variant`). Geräte, die selbst erzeugen, nutzen `GET /api/v2/shared-tests/{key}` (`adopt` | `wait` |
+`generate`), `POST …/{key}/claim`, `POST …/{key}/{variant}`, `DELETE …/{key}/{variant}` (nur Anmeldung, kein
+Kontingent; ob ein übernommener Test zählt, ist offen).
+
 ## 6. KI-Kostenkontrolle (`app/ai_backend.py`)
 
 Anbieter, Schlüssel und Modell zentral auf dem Server (`LERNAPP_AI_PROVIDER`, `LERNAPP_OPENAI_API_KEY`,

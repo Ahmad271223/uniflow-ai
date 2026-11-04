@@ -499,6 +499,10 @@ def _init_db(conn) -> None:
     add_col("tests", "week_no", "INTEGER")
     add_col("tests", "auto", "INTEGER DEFAULT 0")
     add_col("tests", "share_key", "TEXT")               # gemeinsamer Wochentest (app/testshare.py)
+    # Varianten gemeinsamer Wochentests (04.11.2026): feste Variante 0..2 des Nutzers (testshare.variant) und woher der
+    # Test uebernommen wurde (local | service | cloudkit), NULL = selbst erzeugt
+    add_col("tests", "share_variant", "INTEGER")
+    add_col("tests", "adopted_from", "TEXT")
     add_col("files", "content_sha256", "TEXT")          # Inhalts-Hash fuer gemeinsame Tests
     add_col("deadlines", "full_title", "TEXT")          # Learnweb-Name mit Zeitangabe (Tooltip)
     add_col("deadlines", "overdue", "INTEGER DEFAULT 0")  # laut Learnweb ueberfaellig und nicht erledigt

@@ -1792,7 +1792,8 @@
      "week_no": 2,
      "auto": 0,
      "def_id": 1,
-     "question_count": 15
+     "question_count": 15,
+     "shared": null
     }
    ]
   },
@@ -1975,9 +1976,12 @@
     "week_no": 2,
     "auto": 0,
     "share_key": null,
+    "share_variant": null,
+    "adopted_from": null,
     "def_id": 1,
     "user_id": "local",
-    "duration_sec": null
+    "duration_sec": null,
+    "shared": null
    }
   },
   {

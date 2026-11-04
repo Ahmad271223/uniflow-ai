@@ -74,6 +74,21 @@ CREATE TABLE IF NOT EXISTS seen (
     seen_at TEXT NOT NULL,
     PRIMARY KEY (owner_hash, question_id)
 );
+-- Gemeinsame Wochentests (app/testshare.py, docs/GEMEINSAME-WOCHENTESTS.md): je Schluessel hoechstens
+-- testshare.MAX_VARIANTS Plaetze (variant 0..2). Ein Platz wird zuerst belegt (status pending, ohne Inhalt), dann mit
+-- dem fertigen Test gefuellt (ready). Besitzer nur als nicht umkehrbarer Kurzwert (owner_hash), keine Antworten.
+CREATE TABLE IF NOT EXISTS shared_tests (
+    share_key TEXT NOT NULL,
+    variant INTEGER NOT NULL,
+    status TEXT NOT NULL,                 -- pending | ready
+    owner_hash TEXT,
+    title TEXT,
+    questions TEXT,                       -- JSON-Liste, erst bei ready
+    created_at TEXT NOT NULL,
+    published_at TEXT,
+    uses INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (share_key, variant)
+);
 """
 
 REUSABLE = ("auto_checked", "approved")
@@ -118,6 +133,9 @@ def forget_owner(user_id: str) -> dict:
                                OR source IN ('user_shared','chatgpt_user'))""", (owner,)).rowcount
         kept = conn.execute("UPDATE questions SET owner_hash=NULL WHERE owner_hash=?", (owner,)).rowcount
         seen = conn.execute("DELETE FROM seen WHERE owner_hash=?", (owner,)).rowcount
+        # gemeinsame Wochentests bleiben fuer die anderen (ohne Besitzer); leere Belegungen werden frei
+        conn.execute("DELETE FROM shared_tests WHERE owner_hash=? AND status='pending'", (owner,))
+        kept += conn.execute("UPDATE shared_tests SET owner_hash=NULL WHERE owner_hash=?", (owner,)).rowcount
     return {"deleted": gone, "anonymized": kept, "seen": seen}
 
 
@@ -408,3 +426,88 @@ def grade(questions: list[dict], answers: dict) -> dict:
         items.append({"nr": nr, "correct": ok, "points": pts if ok else 0, "max": pts, "answer": q.get("answer"),
                       "given": given, "topic": q.get("topic"), "question_id": q.get("library_id")})
     return {"total": total, "max": mx, "items": items, "graded_by": "studora"}
+
+
+# ---------------------------------------------------------------- Gemeinsame Wochentests: Plaetze je Schluessel
+
+# so lange wartet ein Nutzer auf die Variante, die ein anderer gerade erzeugt (dann uebernimmt er sie ohne KI)
+SHARED_WAIT_S = 90.0
+SHARED_POLL_S = 1.0
+
+
+def _shared_row(r: sqlite3.Row) -> dict:
+    return {"variant": int(r["variant"]), "status": r["status"], "title": r["title"],
+            "questions": json.loads(r["questions"]) if r["questions"] else [], "created_at": r["created_at"],
+            "published_at": r["published_at"], "owner_hash": r["owner_hash"]}
+
+
+def _stale_cutoff(now: datetime | None = None) -> str:
+    from . import testshare
+    from datetime import timedelta
+    return ((now or datetime.now(timezone.utc)) - timedelta(seconds=testshare.PENDING_STALE_S)).isoformat()
+
+
+def shared_slots(key: str, now: datetime | None = None) -> dict[int, dict]:
+    """Vorhandene Plaetze eines Schluessels: Variante -> {status, title, questions, ...}. Verwaiste Belegungen
+    (pending, aelter als testshare.PENDING_STALE_S) werden dabei freigegeben."""
+    with cursor() as conn:
+        conn.execute("DELETE FROM shared_tests WHERE share_key=? AND status='pending' AND created_at<?", (key, _stale_cutoff(now)))
+        rows = conn.execute("SELECT * FROM shared_tests WHERE share_key=? ORDER BY variant", (key,)).fetchall()
+    return {int(r["variant"]): _shared_row(r) for r in rows}
+
+
+def shared_claim(key: str, variant: int, user_id: str, now: datetime | None = None) -> bool:
+    """Platz atomar belegen (PRIMARY KEY). False, wenn ihn gerade ein anderer belegt hat (Wettlauf)."""
+    from . import testshare
+    if not 0 <= int(variant) < testshare.MAX_VARIANTS:
+        raise ValueError("Variante ausserhalb 0..2")
+    t = (now or datetime.now(timezone.utc)).isoformat()
+    with cursor() as conn:
+        conn.execute("DELETE FROM shared_tests WHERE share_key=? AND variant=? AND status='pending' AND created_at<?",
+                     (key, int(variant), _stale_cutoff(now)))
+        got = conn.execute("INSERT OR IGNORE INTO shared_tests(share_key, variant, status, owner_hash, created_at) VALUES (?,?,'pending',?,?)",
+                           (key, int(variant), owner_hash(user_id), t)).rowcount == 1
+    return got
+
+
+def shared_publish(key: str, variant: int, user_id: str, title: str | None, questions: list[dict], now: datetime | None = None) -> None:
+    """Fertigen Test in den eigenen (belegten) Platz schreiben; fremde oder nicht belegte Plaetze bleiben unberuehrt."""
+    t = (now or datetime.now(timezone.utc)).isoformat()
+    with cursor() as conn:
+        n = conn.execute("""UPDATE shared_tests SET status='ready', title=?, questions=?, published_at=?
+                            WHERE share_key=? AND variant=? AND owner_hash=? AND status='pending'""",
+                         (title, json.dumps(questions, ensure_ascii=False), t, key, int(variant), owner_hash(user_id))).rowcount
+    if n != 1:
+        raise KeyError("Platz nicht belegt oder nicht der eigene")
+
+
+def shared_release(key: str, variant: int, user_id: str) -> None:
+    """Eigenen, noch leeren Platz wieder freigeben (Erzeugen gescheitert)."""
+    with cursor() as conn:
+        conn.execute("DELETE FROM shared_tests WHERE share_key=? AND variant=? AND owner_hash=? AND status='pending'",
+                     (key, int(variant), owner_hash(user_id)))
+
+
+def shared_get(key: str, variant: int, count_use: bool = True) -> dict | None:
+    """Fertiger Test eines Platzes oder None (nicht da oder noch in Arbeit)."""
+    with cursor() as conn:
+        r = conn.execute("SELECT * FROM shared_tests WHERE share_key=? AND variant=? AND status='ready'", (key, int(variant))).fetchone()
+        if r and count_use:
+            conn.execute("UPDATE shared_tests SET uses=uses+1 WHERE share_key=? AND variant=?", (key, int(variant)))
+    return _shared_row(r) if r else None
+
+
+def shared_wait(key: str, variant: int, timeout_s: float = SHARED_WAIT_S, poll_s: float = SHARED_POLL_S) -> dict | None:
+    """Wartet, bis der Platz fertig ist (ein anderer Nutzer erzeugt ihn gerade). Liefert den Test oder None, wenn er in
+    der Zeit nicht fertig wurde oder der Platz wieder frei ist."""
+    import time
+    end = time.monotonic() + max(0.0, timeout_s)
+    while True:
+        slot = shared_slots(key).get(int(variant))
+        if slot is None:
+            return None                                  # freigegeben (gescheitert oder verwaist): selbst erzeugen
+        if slot["status"] == "ready":
+            return shared_get(key, variant)
+        if time.monotonic() >= end:
+            return None
+        time.sleep(min(poll_s, max(0.0, end - time.monotonic())) or 0.01)

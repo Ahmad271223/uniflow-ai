@@ -6,11 +6,21 @@ public actor LocalBackgroundJob {
     private var running = false
     private var task: String?
     private var message = ""
+    /// Stand waehrend des Auftrags fuer die Oberflaeche (`WeeklyTestShare.Phase`: "Suche gemeinsamen Test …"); nur
+    /// waehrend er laeuft im JSON (`phase`), sonst wie am PC
+    private var phase: String?
 
     public init() {}
 
     public var state: JSONValue {
-        ["running": .bool(running), "task": task.map(JSONValue.string) ?? .null, "message": .string(message)]
+        var o: [String: JSONValue] = ["running": .bool(running), "task": task.map(JSONValue.string) ?? .null, "message": .string(message)]
+        if let phase { o["phase"] = .string(phase) }
+        return .object(o)
+    }
+
+    /// Stand des laufenden Auftrags setzen (nil = keiner)
+    public func setPhase(_ value: String?) {
+        phase = running ? value : nil
     }
 
     /// Startet `op` im Hintergrund; laeuft schon einer, 409 wie am PC
@@ -19,6 +29,7 @@ public actor LocalBackgroundJob {
         running = true
         task = name
         message = ""
+        phase = nil
         Task {
             var text: String
             do {
@@ -40,6 +51,7 @@ public actor LocalBackgroundJob {
         message = text
         running = false
         task = nil
+        phase = nil
     }
 }
 
@@ -58,13 +70,16 @@ enum TestEndpoints: LocalEndpointModule {
         router.get("/api/tests") { _, ctx in
             let rows = try await ctx.database.rows("""
                 SELECT id, subject, week_start, title, duration_min, created_at, started_at, submitted_at,
-                       score, max_score, module_id, week_no, auto, def_id, questions FROM tests WHERE COALESCE(user_id,'local')='local'
+                       score, max_score, module_id, week_no, auto, def_id, questions, share_variant, adopted_from
+                FROM tests WHERE COALESCE(user_id,'local')='local'
                 ORDER BY created_at DESC LIMIT \(historyBasic)
                 """)
             return .json(.array(rows.map { r in
                 var o = r
                 let qs = o.removeValue(forKey: "questions")
                 o["question_count"] = (qs?.string).flatMap { try? JSONValue.parse(Data($0.utf8)) }?.array.map { .number(Double($0.count)) } ?? .null
+                // "Gemeinsamer Test · Variante 2 von 3" (Varianten-Regel, TestShare): nur die Anzeige, Spalten bleiben
+                o["shared"] = TestShare.sharedInfo(variant: o.removeValue(forKey: "share_variant"), adoptedFrom: o.removeValue(forKey: "adopted_from"))
                 return .object(o)
             }))
         }
@@ -91,6 +106,7 @@ enum TestEndpoints: LocalEndpointModule {
             t["questions"] = .array(questions)
             t["answers"] = (t["answers"]?.string).flatMap { try? JSONValue.parse(Data($0.utf8)) } ?? .object([:])
             t["feedback"] = (t["feedback"]?.string).flatMap { try? JSONValue.parse(Data($0.utf8)) } ?? .null
+            t["shared"] = TestShare.sharedInfo(variant: t["share_variant"], adoptedFrom: t["adopted_from"])   // {variant (1-basiert), of, adopted} oder null
             return .json(.object(t))
         }
 
@@ -98,13 +114,15 @@ enum TestEndpoints: LocalEndpointModule {
             guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noTests) }
             let body = try req.pythonObjectBody()
             let duration = AIPrompts.truthy(body.value("duration_min")) ? try LocalTerms.pyInt(body.value("duration_min"), field: "duration_min") : nil
+            // Lehrwoche (03.11.2026, Dialog "Wochentest erstellen"): nur die Materialien dieser Woche, sonst die neuesten
+            let week = AIPrompts.truthy(body.value("week_no")) ? try LocalTerms.pyInt(body.value("week_no"), field: "week_no") : nil
             if AIPrompts.truthy(body.value("module_id")) {
                 let mid = try LocalTerms.pyInt(body.value("module_id"), field: "module_id")
                 guard let name = try await ctx.database.queryOne("SELECT name FROM modules WHERE id=?", [.integer(Int64(mid))])?["name"]?.string else {
                     throw LocalHTTPError.notFound("Modul nicht gefunden")
                 }
                 return .json(try await ctx.jobs.start("Test") {
-                    String(try await WeekTests.create(ctx: ctx, ai: ai, subject: name, duration: duration, moduleID: Int64(mid), weekNo: nil, auto: false))
+                    String(try await WeekTests.create(ctx: ctx, ai: ai, subject: name, duration: duration, moduleID: Int64(mid), weekNo: week, auto: false))
                 })
             }
             guard case .string(let subject)? = body.value("subject"), !subject.isEmpty else { throw LocalHTTPError(status: 400, message: "subject fehlt") }
@@ -329,15 +347,33 @@ enum WeekTests {
         let mats = try await materials(ctx: ctx, subject: subject, moduleID: module, weekNo: weekNo)
         let ex = try await exam(ctx: ctx, moduleID: module)
         // gemeinsamer Wochentest: gleiche Materialien (Inhalt) und Dauer -> derselbe Test ohne neue KI-Anfrage
-        let key = auto && !mats.isEmpty
-            ? TestShare.shareKey(university: pre.university, minutes: pre.minutes, contentHashes: (mats + (ex.map { [$0] } ?? [])).map { $0["content_sha256"]?.string })
+        let material = auto && !mats.isEmpty
+            ? WeeklyTestMaterial(university: pre.university, minutes: pre.minutes, contentHashes: (mats + (ex.map { [$0] } ?? [])).map { $0["content_sha256"]?.string })
             : nil
+        let key = material?.key
         guard !mats.isEmpty else { throw AIError("no_materials", "Keine Materialien fuer \(subject)") }
         var title: String
         var questions: PyJSON
-        if let key, let shared = try await ctx.database.queryOne("SELECT title, questions FROM tests WHERE share_key=? ORDER BY id LIMIT 1", [.text(key)]) {
+        var shareVariant: Int?, adoptedFrom: String?
+        if let key, let shared = try await ctx.database.queryOne("SELECT title, questions, share_variant, adopted_from FROM tests WHERE share_key=? ORDER BY id LIMIT 1", [.text(key)]) {
+            // eigener Test mit demselben Schluessel (zweites Modul mit denselben Dateien): dieselbe Person, dieselbe Variante
             title = weekPrefix.sub(shared["title"]?.string ?? "")
             questions = (try? PyJSON.parse(shared["questions"]?.string ?? "[]")) ?? .array([])
+            shareVariant = shared["share_variant"]?.int
+            adoptedFrom = shared["adopted_from"]?.string.flatMap { $0.isEmpty ? nil : $0 } ?? TestShare.adoptedLocal
+        } else if let material {
+            // Varianten-Regel (hoechstens 3 Tests je Schluessel, feste Variante je Nutzer) ueber den Dienst der App
+            // (CloudKit); ohne Dienst wird erzeugt und nur die Variante gemerkt. Stand fuer die Oberflaeche: /api/bg `phase`
+            let jobs = ctx.jobs, share = ctx.testShare, clock = ctx.clock
+            let outcome = try await WeeklyTestShare.obtain(material, provider: share.provider, waiting: share.waiting,
+                                                           now: { Double(clock.utcSeconds) }, phase: { await jobs.setPhase($0.rawValue) }) {
+                let res = try await generate(ai: ai, subject: subject, duration: pre.minutes, materials: mats, exam: ex)
+                let t = AIPrompts.truthy(AIPrompts.get(res, "title")) ? AIPrompts.str(AIPrompts.get(res, "title")) : "Wochentest \(subject)"
+                return SharedWeeklyTest(title: t, questions: AIPrompts.get(res, "questions") ?? .array([]))
+            }
+            title = weekPrefix.sub(outcome.test.title)
+            questions = outcome.test.questions
+            (shareVariant, adoptedFrom) = outcome.columns
         } else {
             let res = try await generate(ai: ai, subject: subject, duration: pre.minutes, materials: mats, exam: ex)
             title = AIPrompts.truthy(AIPrompts.get(res, "title")) ? AIPrompts.str(AIPrompts.get(res, "title")) : "Wochentest \(subject)"
@@ -349,14 +385,16 @@ enum WeekTests {
         }
         let now = ctx.clock.nowISO
         let finalTitle = title, json = questions.dumps(ensureASCII: false)
+        let variantValue: SQLiteValue = shareVariant.map { .integer(Int64($0)) } ?? .null
+        let adoptedValue: SQLiteValue = adoptedFrom.map(SQLiteValue.text) ?? .null
         return try await ctx.database.transaction { c in
             do {
                 _ = try c.execute("""
-                    INSERT INTO tests(subject, week_start, title, duration_min, questions, created_at, module_id, week_no, auto, share_key)
-                    VALUES (?,?,?,?,?,?,?,?,?,?)
+                    INSERT INTO tests(subject, week_start, title, duration_min, questions, created_at, module_id, week_no, auto, share_key, share_variant, adopted_from)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                     """, [.text(subject), .text(ws), .text(finalTitle), .integer(Int64(pre.minutes)), .text(json), .text(now),
                           module.map(SQLiteValue.integer) ?? .null, weekNo.map { .integer(Int64($0)) } ?? .null, .integer(auto ? 1 : 0),
-                          key.map(SQLiteValue.text) ?? .null])
+                          key.map(SQLiteValue.text) ?? .null, variantValue, adoptedValue])
             } catch {
                 // eindeutiger Index: parallel entstandener Wochentest
                 if let m = module, let w = weekNo,

@@ -102,6 +102,10 @@ public enum Migrations {
         .addColumn("tests", "week_no", "INTEGER"),
         .addColumn("tests", "auto", "INTEGER DEFAULT 0"),
         .addColumn("tests", "share_key", "TEXT"),               // gemeinsamer Wochentest (app/testshare.py)
+        // Varianten gemeinsamer Wochentests (04.11.2026): feste Variante 0..2 des Nutzers (TestShare.variant) und woher
+        // der Test uebernommen wurde (local | service | cloudkit), NULL = selbst erzeugt
+        .addColumn("tests", "share_variant", "INTEGER"),
+        .addColumn("tests", "adopted_from", "TEXT"),
         .addColumn("files", "content_sha256", "TEXT"),          // Inhalts-Hash fuer gemeinsame Tests
         .addColumn("deadlines", "full_title", "TEXT"),          // Learnweb-Name mit Zeitangabe (Tooltip)
         .addColumn("deadlines", "overdue", "INTEGER DEFAULT 0"),  // laut Learnweb ueberfaellig und nicht erledigt

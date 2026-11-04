@@ -81,5 +81,215 @@
    ],
    "expected_key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5"
   }
+ ],
+ "max_variants": 3,
+ "variant_rule": "sha256('<user_id>|<key>'), erste 4 Byte big-endian als Zahl, modulo max_variants (0-basiert); pick(ready, assigned, pending): eigene fertig -> adopt; sonst generate (eigene, bei Wettlauf die naechste freie), solange weniger als 3 Plaetze belegt (fertig oder in Arbeit); bei 3 belegten nie generate: naechste fertige adopt, sonst none",
+ "variants": [
+  {
+   "user_id": "_user-ada",
+   "key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5",
+   "expected": 1
+  },
+  {
+   "user_id": "_user-ben",
+   "key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5",
+   "expected": 0
+  },
+  {
+   "user_id": "_user-cem",
+   "key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5",
+   "expected": 1
+  },
+  {
+   "user_id": "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+   "key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5",
+   "expected": 1
+  },
+  {
+   "user_id": "local",
+   "key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5",
+   "expected": 1
+  },
+  {
+   "user_id": "",
+   "key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5",
+   "expected": 1
+  },
+  {
+   "user_id": "_user-ada",
+   "key": "wt2:e896f9e8589db9e8484bfcf2c3428d1cd45c0dde290162b5937ab29166aea243",
+   "expected": 1
+  }
+ ],
+ "pick_cases": [
+  {
+   "ready": [],
+   "pending": [],
+   "assigned": 0,
+   "action": "generate",
+   "variant": 0
+  },
+  {
+   "ready": [],
+   "pending": [],
+   "assigned": 2,
+   "action": "generate",
+   "variant": 2
+  },
+  {
+   "ready": [
+    1
+   ],
+   "pending": [],
+   "assigned": 1,
+   "action": "adopt",
+   "variant": 1
+  },
+  {
+   "ready": [
+    1
+   ],
+   "pending": [],
+   "assigned": 2,
+   "action": "generate",
+   "variant": 2
+  },
+  {
+   "ready": [
+    0,
+    1
+   ],
+   "pending": [],
+   "assigned": 2,
+   "action": "generate",
+   "variant": 2
+  },
+  {
+   "ready": [
+    0,
+    2
+   ],
+   "pending": [],
+   "assigned": 2,
+   "action": "adopt",
+   "variant": 2
+  },
+  {
+   "ready": [
+    0,
+    1,
+    2
+   ],
+   "pending": [],
+   "assigned": 1,
+   "action": "adopt",
+   "variant": 1
+  },
+  {
+   "ready": [
+    2
+   ],
+   "pending": [],
+   "assigned": 0,
+   "action": "generate",
+   "variant": 0
+  },
+  {
+   "ready": [
+    0,
+    1
+   ],
+   "pending": [],
+   "assigned": 0,
+   "action": "adopt",
+   "variant": 0
+  },
+  {
+   "ready": [],
+   "pending": [
+    1
+   ],
+   "assigned": 1,
+   "action": "generate",
+   "variant": 2
+  },
+  {
+   "ready": [],
+   "pending": [
+    1
+   ],
+   "assigned": 2,
+   "action": "generate",
+   "variant": 2
+  },
+  {
+   "ready": [
+    0
+   ],
+   "pending": [
+    1
+   ],
+   "assigned": 1,
+   "action": "generate",
+   "variant": 2
+  },
+  {
+   "ready": [
+    0,
+    2
+   ],
+   "pending": [
+    1
+   ],
+   "assigned": 1,
+   "action": "adopt",
+   "variant": 2
+  },
+  {
+   "ready": [],
+   "pending": [
+    0,
+    1,
+    2
+   ],
+   "assigned": 1,
+   "action": "none",
+   "variant": null
+  },
+  {
+   "ready": [
+    2
+   ],
+   "pending": [
+    0,
+    1
+   ],
+   "assigned": 1,
+   "action": "adopt",
+   "variant": 2
+  },
+  {
+   "ready": [
+    0
+   ],
+   "pending": [
+    1,
+    2
+   ],
+   "assigned": 1,
+   "action": "adopt",
+   "variant": 0
+  },
+  {
+   "ready": [
+    7
+   ],
+   "pending": [
+    1
+   ],
+   "assigned": 1,
+   "action": "generate",
+   "variant": 2
+  }
  ]
 }

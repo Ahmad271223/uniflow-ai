@@ -713,6 +713,8 @@
           {"name": "week_no", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "share_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "share_variant", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "adopted_from", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "def_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "user_id", "type": "TEXT", "notnull": 0, "default": "'local'", "pk": 0},
           {"name": "duration_sec", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
@@ -804,7 +806,7 @@
       {"file_id": "f6", "data": "{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}", "updated_at": "2026-10-03T11:00:00", "version": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
     ],
     "tests": [
-      {"id": 1, "subject": "Algebra", "week_start": null, "title": "Probetest", "duration_min": 45, "questions": "[]", "created_at": null, "started_at": null, "submitted_at": null, "answers": null, "score": 7.5, "max_score": null, "feedback": null, "module_id": null, "week_no": null, "auto": 0, "share_key": null, "def_id": null, "user_id": "local", "duration_sec": null}
+      {"id": 1, "subject": "Algebra", "week_start": null, "title": "Probetest", "duration_min": 45, "questions": "[]", "created_at": null, "started_at": null, "submitted_at": null, "answers": null, "score": 7.5, "max_score": null, "feedback": null, "module_id": null, "week_no": null, "auto": 0, "share_key": null, "share_variant": null, "adopted_from": null, "def_id": null, "user_id": "local", "duration_sec": null}
     ],
     "settings": [
       {"key": "hours_per_day", "value": "6", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
