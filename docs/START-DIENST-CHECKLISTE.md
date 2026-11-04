@@ -206,6 +206,7 @@ Ausgabenlimit setzen.
 | `LERNAPP_AI_PRICE_IN_EUR` / `LERNAPP_AI_PRICE_OUT_EUR` | **Pflicht:** Preise je 1 Mio. Tokens aus der OpenAI-Preisliste, in Euro umgerechnet. Bei 0 oder leer sperrt der Dienst alle KI-Aufrufe (503 `ai_not_configured_prices`), weil die Budgets sonst nichts zählen |
 | `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_USER_BUDGET_EUR` | Monatsgrenze gesamt (Standard 50) und je Konto (Standard 2); erreicht = Sperre bis zum nächsten Monat |
 | `LERNAPP_AI_TRIAL_BUDGET_EUR` | Eigenes Monatsbudget für alle Probekonten zusammen (Standard 5), zusätzlich zum Gesamtbudget: die Probe verbraucht nie das Budget zahlender Konten. StudiNow-KI gibt es nur mit bestätigter E-Mail-Adresse (403 `email_unverified`) |
+| `LERNAPP_AI_LIBRARY_BUDGET_EUR` / `LERNAPP_AI_LIBRARY_PREP_PER_DAY` | Eigenes Monatsbudget der Bibliothek für die fertigen Wochenfragen (Standard 20 €, zusätzlich zum Gesamtbudget; erreicht = 429 `ai_library_budget_exhausted` für neue Wochen) und neue Wochen je Konto und Tag (Standard 10). Siehe `docs/BIBLIOTHEK-WOCHENFRAGEN.md` |
 
 ### 5.5 Registrierungen je IP (Hochschulnetz)
 

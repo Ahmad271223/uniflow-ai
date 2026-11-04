@@ -83,5 +83,5 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | Karteikarten selbst anlegen | gebaut (iPad, Web, Windows) |
 | Karteikarten teilen / nutzen | **im Bau** (Status `coming_soon` bis fertig) |
 | KI-Karteikarten nach Fach/Woche/Anzahl | **im Bau** (aus einem Dokument gibt es sie schon) |
-| Fertige Wochenfragen mit Erklärungen | **im Bau** |
+| Fertige Wochenfragen mit Erklärungen | **gebaut** im Dienst und in der Web-/Windows-Oberfläche (Status `available`, `docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad zieht die Mac-Sitzung nach |
 | Pro AI im App Store | erst mit dem Online-Dienst; bis dahin auf der Tarifseite „kommt mit dem StudiNow-Dienst“, ohne Kaufknopf |

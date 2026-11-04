@@ -70,7 +70,8 @@ ENTITLEMENTS: dict[str, dict] = {
     # 04.11.2026: KI erstellt Karteikarten nach Fach, Lernwoche und Anzahl; fertige Fragen je Vorlesungswoche aus der
     # Bibliothek (2-3 Saetze zu je 15 Fragen, Loesungen und Erklaerungen schon vorbereitet)
     "can_generate_ai_flashcards": {"from": "pro_ai", "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)", "status": "coming_soon"},
-    "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "coming_soon"},
+    # gebaut 04.11.2026: app/week_library.py, app/week_library_api.py (docs/BIBLIOTHEK-WOCHENFRAGEN.md)
+    "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "available"},
 }
 
 # Kontingente je Abrechnungsmonat. None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).
