@@ -209,7 +209,7 @@ def scrub(text: str | None) -> str:
 
 def scrub_question(q: dict) -> dict:
     q = dict(q)
-    for k in ("question", "answer", "explanation"):
+    for k in ("question", "answer", "explanation", "blank"):
         if q.get(k):
             q[k] = scrub(str(q[k]))
     if isinstance(q.get("options"), list):

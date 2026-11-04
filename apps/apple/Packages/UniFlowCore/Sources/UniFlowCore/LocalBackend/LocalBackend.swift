@@ -32,6 +32,7 @@ public final class LocalBackend: Sendable {
         PendingOverviewEndpoints.self,
         PendingServicesEndpoints.self,
         DocIndexEndpoints.self,
+        OwnRecordingEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

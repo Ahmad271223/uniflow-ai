@@ -19,6 +19,12 @@
   - Datei-Zeitstempel (C617.1): Alter der Antworten im Zwischenspeicher im App-Container (ResponseCache)
   - Freier Speicher (E174.1): vor dem Laden einer Aufzeichnung pruefen, ob sie Platz hat (RecordingLibrary), ebenso
     vor jeder Datei des Hochschul-Abgleichs (DeviceStorage)
+  Vorlesung aufnehmen (04.11.2026, docs/VORLESUNG-AUFNEHMEN.md, LectureRecorder): Mikrofon und Spracherkennung nur nach
+  Antippen und Zustimmung (NSMicrophoneUsageDescription, NSSpeechRecognitionUsageDescription in Info.plist), die
+  Erkennung laeuft nur auf dem Geraet (requiresOnDeviceRecognition); Aufnahme (m4a) und Mitschrift (txt) bleiben im
+  Container (recordings/eigene). Keine API mit Begruendungspflicht, keine erhobene Datenart (nichts verlaesst das
+  Geraet); geht auf Antippen der Text eines Teils der Mitschrift an das ChatGPT des Nutzers, ist das derselbe Fall wie
+  oben (OtherUserContent), Audio geht nie.
   Abgleich im Hintergrund (S8, BGTaskScheduler, lokale Benachrichtigungen): keine weitere API mit Begruendungspflicht,
   keine neuen Daten; er laeuft wie der Abgleich beim Oeffnen nur zwischen dem Geraet und der Hochschule, die
   Mitteilungen entstehen auf dem Geraet (ohne Push, ohne Server, ohne Dateinamen).

@@ -50,15 +50,18 @@ public enum AIAnswers {
     }
 
     /// `ai.check_week_test`: nil = der Test hat die Form vom 29.10.2026 (15 Aufgaben, 4 leicht, 6 mittel, 5 schwer,
-    /// mit Altklausur genau eine schwere im Stil der Klausur), sonst der Grund
-    public static func checkWeekTest(_ res: PyJSON, exam: Bool = false) -> String? {
+    /// mit Altklausur genau eine schwere im Stil der Klausur) bzw. die der gewaehlten Parameter (04.11.2026: Zahl,
+    /// Verteilung, nur gewaehlte Aufgabenarten, Wahr/Falsch mit genau den Optionen Wahr und Falsch, Lueckentext mit
+    /// `blank`, Erklaerung je Aufgabe), sonst der Grund
+    public static func checkWeekTest(_ res: PyJSON, exam: Bool = false, options: WeekTestOptions = .standard) -> String? {
         guard case .object = res else { return "keine JSON-Objekt-Antwort" }
-        let total = AIPromptTexts.weekTestTotal
+        let total = options.count
         guard case .array(let qs)? = AIPrompts.get(res, "questions"), qs.count == total else {
             if case .array(let qs)? = AIPrompts.get(res, "questions") { return "\(qs.count) statt \(total) Aufgaben" }
             return "0 statt \(total) Aufgaben"
         }
         var counts = Dictionary(uniqueKeysWithValues: AIPromptTexts.weekTestDifficulty.map { ($0.level, 0) })
+        func text(_ q: PyJSON, _ key: String) -> String { PyText.strip(AIPrompts.str(AIPrompts.or(AIPrompts.get(q, key), .string("")))) }
         for (i, q) in qs.enumerated() {
             let n = i + 1
             guard case .object = q else { return "Aufgabe \(n) ist kein Objekt" }
@@ -69,8 +72,8 @@ public enum AIAnswers {
             guard case .string(let type)? = AIPrompts.get(q, "type"), AIPromptTexts.weekTestTypes.contains(type) else {
                 return "Aufgabe \(n) mit unbekanntem Typ"
             }
-            let question = AIPrompts.or(AIPrompts.get(q, "question"), .string("")), answer = AIPrompts.or(AIPrompts.get(q, "answer"), .string(""))
-            if PyText.strip(AIPrompts.str(question)).isEmpty || PyText.strip(AIPrompts.str(answer)).isEmpty {
+            if !options.types.contains(type) { return "Aufgabe \(n) mit nicht gewaehlter Aufgabenart" }
+            if text(q, "question").isEmpty || text(q, "answer").isEmpty {
                 return "Aufgabe \(n) ohne Text oder Musterloesung"
             }
             if type == "mc" {
@@ -78,18 +81,27 @@ public enum AIAnswers {
                     return "Aufgabe \(n) (Multiple-Choice) ohne Antwortmoeglichkeiten"
                 }
             }
+            if type == "tf" {
+                guard case .array(let opts)? = AIPrompts.get(q, "options"), opts.map({ PyText.strip(AIPrompts.str($0)) }) == WeekTestOptions.tfOptions else {
+                    return "Aufgabe \(n) (Wahr/Falsch) ohne die Optionen Wahr und Falsch"
+                }
+                if !WeekTestOptions.tfOptions.contains(text(q, "answer")) { return "Aufgabe \(n) (Wahr/Falsch) mit Loesung ausserhalb von Wahr und Falsch" }
+            }
+            if type == "cloze", text(q, "blank").isEmpty { return "Aufgabe \(n) (Lueckentext) ohne Luecke" }
+            if text(q, "explanation").isEmpty { return "Aufgabe \(n) ohne Erklaerung" }
             switch AIPrompts.get(q, "points") {
             case .some(.int(let digits)) where (Int(digits) ?? (digits.hasPrefix("-") ? -1 : 1)) > 0: break
             case .some(.float(let p)) where !(p <= 0): break             // NaN zaehlt wie in Python als gueltig
             default: return "Aufgabe \(n) ohne Punkte"
             }
         }
-        let wanted = Dictionary(uniqueKeysWithValues: AIPromptTexts.weekTestDifficulty.map { ($0.level, $0.count) })
+        let wanted = options.distributionByLevel
         if counts != wanted {
-            return "Verteilung " + AIPromptTexts.weekTestDifficulty.map { "\(counts[$0.level] ?? 0) \($0.level)" }.joined(separator: ", ")
-                + " statt 4 leicht, 6 mittel, 5 schwer"
+            func line(_ m: [String: Int]) -> String { AIPromptTexts.weekTestDifficulty.map { "\(m[$0.level] ?? 0) \($0.level)" }.joined(separator: ", ") }
+            return "Verteilung " + line(counts) + " statt " + line(wanted)
         }
         let styled = qs.filter { if case .bool(true)? = AIPrompts.get($0, "exam_style") { return true }; return false }
+        let exam = exam && (wanted["schwer"] ?? 0) > 0
         if exam {
             if styled.count != 1 { return "nicht genau eine schwere Aufgabe im Stil der Altklausur" }
             guard case .string("schwer")? = AIPrompts.get(styled[0], "difficulty") else {

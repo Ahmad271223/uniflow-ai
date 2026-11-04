@@ -236,7 +236,7 @@ def test_scope_empty_result_new_version_and_failure(app, tmp_path, engine):
     fid = seed(tmp_path, [SCAN, SCAN, SCAN])
     ocr = engine(FakeOCR({2: "Ohmsches Gesetz und Widerstand"}))
     get = lambda page: json.loads(asgi_call(app, "GET", f"/api/files/{fid}/pagetext?page={page}")[2])   # noqa: E731
-    assert get(2) == {"text": "Ohmsches Gesetz und Widerstand", "pages": 3}
+    assert get(2) == {"text": "Ohmsches Gesetz und Widerstand", "pages": 3, "kind": "pdf"}
     assert ocr.calls == [[2]], "nur die gefragte Seite"
     # Seite 1: nichts erkannt -> gemerkt, kein zweiter Versuch
     assert get(1)["text"] == "" and get(1)["text"] == ""
@@ -262,7 +262,7 @@ def test_scope_empty_result_new_version_and_failure(app, tmp_path, engine):
 def test_endpoint_without_engine_unchanged(app, tmp_path):
     fid = seed(tmp_path, [FULL_PAGE.split("\n"), SCAN])
     st, _, b = asgi_call(app, "GET", f"/api/files/{fid}/pagetext?page=2")
-    assert st == 200 and json.loads(b) == {"text": "", "pages": 2}
+    assert st == 200 and json.loads(b) == {"text": "", "pages": 2, "kind": "pdf"}
 
 
 def test_tutor_and_related_read_recognized_page(app, tmp_path, engine):

@@ -221,6 +221,8 @@ public enum LocalModules {
             """, [moduleID, .text(BerlinClock.isoDate(dates.today))])
         return ["module": .object(m.json), "courses": .array(courses.map(JSONValue.object)), "weeks": .array(outWeeks),
                 "files": .array(files.map { .object($0.json) }), "progress": .number(Double(progress)),
+                // Lernstand (docs/LERNSTAND-2026-11-04.md): aus Wochentests, Karteikarten und Aufgaben, null ohne Signal
+                "mastery": try Mastery.forModule(c, moduleID: moduleID, name: m["name"] ?? .null),
                 "new_count": .number(Double(try LocalLibrary.newFilesCount(c, moduleID: moduleID))),
                 "open_tasks": .number(Double(tasks.filter { open.contains($0["status"]?.string ?? "") }.count)),
                 "next_package": next.map { .object($0.json) } ?? .null,
@@ -274,6 +276,7 @@ public enum LocalModules {
             row["new_count"] = d["new_count"]
             row["open_tasks"] = d["open_tasks"]
             row["progress"] = d["progress"]
+            row["mastery"] = d["mastery"]
             row["next_package"] = d["next_package"]
             row["next_event"] = next.map(JSONValue.object) ?? .null
             row["task_count"] = .number(Double(tasks))

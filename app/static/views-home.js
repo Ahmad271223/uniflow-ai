@@ -9,6 +9,7 @@ import { installBanner, bindInstallBanner } from "./pwa.js?v=14";
 import { staggerOnce, countUp } from "./motion.js?v=2";
 import { newsCard, bindNews } from "./news.js?v=4";
 import { ofWeek } from "./task-progress.js?v=1";
+import { masteryHtml } from "./mastery.js?v=1";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -121,7 +122,7 @@ function termineCard(d) {
 function modulesCard(d) {
   const mods = (d.modules || []).filter(m => m.active !== 0).slice(0, 5);
   if (!mods.length) return "";
-  return `<section class="card ov-card"><div class="card-head"><h2>${icon("book", 18)} Deine Module</h2><a class="small" href="#/modules">Alle</a></div><div class="list">${mods.map(m => `<a class="item ov-mod" href="#/modules/${m.id}" style="--mc:${esc(m.color || "var(--accent)")}">${dot(m.color)}<div class="main"><div class="title">${esc(shortName(m.name))}</div><div class="sub">${m.open_tasks ? `${m.open_tasks} offen` : "nichts offen"}${m.exam_date ? ` · Klausur ${fmtShort(m.exam_date)}` : m.next_event ? ` · ${esc(m.next_event.kind === "vorlesung" ? "Vorlesung" : "Termin")} ${esc(dayLabel(m.next_event.date, d.today.date))} ${esc(m.next_event.start)}` : ""}</div><div class="progress ov-mod-bar" role="progressbar" aria-valuenow="${m.progress || 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Lernfortschritt ${m.progress || 0} Prozent"><i style="width:${m.progress || 0}%"></i></div></div></a>`).join("")}</div></section>`;
+  return `<section class="card ov-card"><div class="card-head"><h2>${icon("book", 18)} Deine Module</h2><a class="small" href="#/modules">Alle</a></div><div class="list">${mods.map(m => `<a class="item ov-mod" href="#/modules/${m.id}" style="--mc:${esc(m.color || "var(--accent)")}">${dot(m.color)}<div class="main"><div class="title">${esc(shortName(m.name))}</div><div class="sub">${m.open_tasks ? `${m.open_tasks} offen` : "nichts offen"}${m.exam_date ? ` · Klausur ${fmtShort(m.exam_date)}` : m.next_event ? ` · ${esc(m.next_event.kind === "vorlesung" ? "Vorlesung" : "Termin")} ${esc(dayLabel(m.next_event.date, d.today.date))} ${esc(m.next_event.start)}` : ""}</div><div class="progress ov-mod-bar" role="progressbar" aria-valuenow="${m.progress || 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Lernfortschritt ${m.progress || 0} Prozent"><i style="width:${m.progress || 0}%"></i></div><div class="ov-mastery">${masteryHtml(m.mastery, "sm")}</div></div></a>`).join("")}</div></section>`;
 }
 
 /// Dieselbe Zahl wie "Aufgaben erledigt" in der Kennzahlenzeile (ofWeek); ohne Aufgaben keine Zahl und kein leerer Balken

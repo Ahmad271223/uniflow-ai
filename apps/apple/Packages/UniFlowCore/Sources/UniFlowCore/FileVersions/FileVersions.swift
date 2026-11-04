@@ -210,7 +210,7 @@ public struct FileVersionKeeper: Sendable {
     /// liegt, `newPath`: ihr kuenftiger Ablageort (Pfad wie `local_path`, entscheidet ueber "PDF").
     public func prepare(fileID: String, newSHA: String?, newFile: URL? = nil, newPath: String? = nil) async throws -> Prepared {
         let id = SQLiteValue.text(fileID)
-        let newTexts = newFile.flatMap { url in newPath.flatMap { ScriptSearch.hasPDFSuffix($0) ? files.tools.pdfPageTexts(url) : nil } }
+        let newTexts = newFile.flatMap { url in newPath.flatMap { ScriptSearch.readPages(url: url, stored: $0, files: files) } }
         // die Datei und ihre Kopien, die dieselbe PDF benutzen, je mit ihren Notizen
         let (file, notes) = try await database.withConnection { c -> (SQLiteRow?, [(id: String, data: String?)]) in
             guard let f = try c.queryOne("SELECT local_path, content_sha256, chdate, size, mime, name FROM files WHERE id=?", [id]) else { return (nil, []) }
@@ -272,8 +272,8 @@ public struct FileVersionKeeper: Sendable {
                 return s
             }) {
                 texts = pages
-            } else if ScriptSearch.hasPDFSuffix(oldPath) {
-                texts = files.tools.pdfPageTexts(target)
+            } else if ScriptSearch.isTextSource(oldPath) {
+                texts = ScriptSearch.readPages(url: target, stored: oldPath, files: files)
             }
         } else {
             // alte Datei fehlt (z. B. nach "Dateien löschen"): nur noch gespeicherte Seitentexte derselben Fassung

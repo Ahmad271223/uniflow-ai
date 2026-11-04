@@ -145,6 +145,10 @@ struct DashboardView: View {
                     if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
                     DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
                     upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4).dashboardSlot(.flow)
+                    // "Deine Module" mit Lernstand (docs/LERNSTAND-2026-11-04.md), wie modulesCard im Web
+                    if !Self.activeModules(d).isEmpty {
+                        modulesCard(Self.activeModules(d)).ufAppear("dashboard", index: 5).dashboardSlot(.flow)
+                    }
                     if !news.isEmpty {                                                   // Neuigkeiten (+ Schwarzes Brett, eine Zeile)
                         NewsCard(items: news, today: todayDate, bulletinNew: bulletinNew, openBulletin: { router.go(.services) }) { showNews = true }
                             .ufAppear("dashboard", index: 6).dashboardSlot(.flow)
@@ -271,6 +275,48 @@ struct DashboardView: View {
                     .accessibilityLabel(isDeadline ? "Frist: \(u.s("title") ?? "") · \(Self.upcomingSub(u))" : "\(u.s("title") ?? "") · \(Self.upcomingSub(u))")
                     .ufBorderBottom(row.id != rows.last?.id)                     // .item:last-child { border-bottom: 0 }
                 }
+            }
+        }
+    }
+
+    /// modules[] aus /api/dashboard ohne abgeschaltete Module, hoechstens fuenf (wie modulesCard in views-home.js)
+    static func activeModules(_ d: JSONValue) -> [JSONValue] {
+        Array(d.list("modules").filter { ($0.i("active") ?? 1) != 0 }.prefix(5))
+    }
+
+    /// Unterzeile der Modulzeile wie im Web: offene Aufgaben, dazu Klausur oder der naechste Termin
+    static func moduleSub(_ m: JSONValue) -> String {
+        var s = (m.i("open_tasks") ?? 0) > 0 ? "\(m.i("open_tasks") ?? 0) offen" : "nichts offen"
+        if let exam = m.s("exam_date"), !exam.isEmpty {
+            s += " · Klausur \(UFFmt.short(exam))"
+        } else if let e = m["next_event"], !e.isNull {
+            s += " · \(e.s("kind") == "vorlesung" ? "Vorlesung" : "Termin") \(UFFmt.short(e.s("date"))) \(e.s("start") ?? "")"
+        }
+        return s
+    }
+
+    /// "Deine Module": Name, Unterzeile und rechts der Lernstand (Ring in Modulfarbe, grau "noch kein Lernstand");
+    /// jede Zeile oeffnet das Modul, "Alle" die Modulseite
+    private func modulesCard(_ mods: [JSONValue]) -> some View {
+        UFCard {
+            UFCardHead("Deine Module", icon: "book") {
+                Button("Alle") { router.go(.modules) }.font(.uf(13.12, 600)).foregroundStyle(UF.accentText).buttonStyle(.plain)
+            }
+            let rows = Row.rows(mods)
+            ForEach(rows) { row in
+                let m = row.value
+                let mc = Color(hex: m.s("color"))
+                Button { router.go(.module(m.i("id") ?? 0)) } label: {
+                    UFItemRow(UFFmt.shortName(m.s("name")), sub: Self.moduleSub(m), wraps: true, leading: {
+                        UFDot(color: mc)
+                    }, trailing: {
+                        LernstandBadge(m: m["mastery"], color: mc, size: .small)
+                    })
+                    .foregroundStyle(UF.text)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(m.s("name") ?? "") · \(Self.moduleSub(m)) · \(LernstandText.accessibility(m["mastery"]))")
+                .ufBorderBottom(row.id != rows.last?.id)
             }
         }
     }

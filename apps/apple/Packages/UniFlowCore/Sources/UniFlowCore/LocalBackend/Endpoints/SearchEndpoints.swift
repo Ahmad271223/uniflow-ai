@@ -34,8 +34,13 @@ public enum SearchEndpoints: LocalEndpointModule {
                     SELECT t.id, t.title, t.type, t.status, t.file_id, t.package_id, p.date, p.subject, p.module_id
                     FROM study_tasks t JOIN study_packages p ON p.id=t.package_id ORDER BY p.date DESC, t.id
                     """).filter { ScriptSearch.contains(q, $0["title"]?.string) }.prefix(10)
-                return ["files": .array(files.map(JSONValue.object)), "modules": .array(mods.map(JSONValue.object)),
-                        "tasks": .array(tasks.map(JSONValue.object)), "pages": .array(try ScriptSearch.findPages(c, q))]
+                var out: [String: JSONValue] = ["files": .array(files.map(JSONValue.object)), "modules": .array(mods.map(JSONValue.object)),
+                                                "tasks": .array(tasks.map(JSONValue.object)), "pages": .array(try ScriptSearch.findPages(c, q))]
+                // Transkripte eigener Vorlesungsaufnahmen (nur auf dem Geraet, docs/VORLESUNG-AUFNEHMEN.md); der
+                // Schluessel kommt nur mit Treffern dazu, sonst bleibt die Antwort wie am PC
+                let recordings = try OwnRecordingStore.search(c, q)
+                if !recordings.isEmpty { out["recordings"] = .array(recordings) }
+                return .object(out)
             }
             return .json(result)
         }
@@ -84,9 +89,11 @@ public enum SearchEndpoints: LocalEndpointModule {
                 page = v
             }
             let id = req.param("file_id")
-            guard try await ctx.database.queryOne("SELECT 1 FROM files WHERE id=?", [.text(id)]) != nil else {
+            guard let f = try await ctx.database.queryOne("SELECT name FROM files WHERE id=?", [.text(id)]) else {
                 throw LocalHTTPError.notFound("Datei nicht gefunden")
             }
+            // `kind` (pdf | docx | pptx | audio) seit 04.11.2026 (docs/DATEIARTEN.md): Word und PowerPoint liefern Seiten wie PDF
+            let kind = OfficeText.kind(f["name"]?.string).map(JSONValue.string) ?? .null
             let pages: [String]
             do {
                 // nur die gefragte Seite erkennen (beim Oeffnen fragt die App Seite 1, nicht alle)
@@ -99,8 +106,8 @@ public enum SearchEndpoints: LocalEndpointModule {
             }
             // keine gueltigen gespeicherten Texte und keine lesbare lokale PDF (nie gelesen, nicht lesbar, keine PDF)
             guard !pages.isEmpty else { return .json(["detail": "Kein Seitentext vorhanden.", "code": "no_content"], status: 404) }
-            guard page >= 1, page <= pages.count else { return .json(["text": "", "pages": .number(Double(pages.count))]) }
-            return .json(["text": .string(pages[page - 1]), "pages": .number(Double(pages.count))])
+            guard page >= 1, page <= pages.count else { return .json(["text": "", "pages": .number(Double(pages.count)), "kind": kind]) }
+            return .json(["text": .string(pages[page - 1]), "pages": .number(Double(pages.count)), "kind": kind])
         }
     }
 }

@@ -105,7 +105,7 @@ def test_planner_finds_the_module_exam_and_keys_it(app, tmp_path, monkeypatch):
             assert planner._exam_for_test(conn, None) is None
         seen = {}
 
-        def fake_generate(subject, minutes, materials, exam=None):
+        def fake_generate(subject, minutes, materials, exam=None, options=None):
             seen["exam"] = exam
             return valid_test()
 
@@ -115,7 +115,7 @@ def test_planner_finds_the_module_exam_and_keys_it(app, tmp_path, monkeypatch):
         assert seen["exam"]["id"] == "wk-k2"
         with db.cursor() as conn:
             key = db.row(conn, "SELECT share_key FROM tests WHERE id=?", (tid,))["share_key"]
-        assert key.startswith("wt2:")
+        assert key.startswith("wt3:")
         assert key == testshare.share_key("luh", 45, [{"content_sha256": "h-wk-v"}, {"content_sha256": "h-wk-k2"}])
         assert key != testshare.share_key("luh", 45, [{"content_sha256": "h-wk-v"}]), "Klausur aendert den Schluessel"
     finally:

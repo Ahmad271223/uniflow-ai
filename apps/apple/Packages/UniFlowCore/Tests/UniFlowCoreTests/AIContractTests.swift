@@ -97,7 +97,8 @@ final class AIContractTests: XCTestCase {
             same(block, s(c, "text_block"), "Materialblock \(i)")
             same(exam, s(c, "exam_block"), "Klausurblock \(i)")
             guard case .int(let minutes)? = g(a, "duration_min") else { return XCTFail("duration_min") }
-            same(AIPrompts.weekTest(subject: s(a, "subject"), durationMin: Int(minutes)!, materialsBlock: block, examBlock: exam),
+            let options = try WeekTestOptions.parse(g(a, "options"))              // nil/null = Standard
+            same(AIPrompts.weekTest(subject: s(a, "subject"), durationMin: Int(minutes)!, materialsBlock: block, examBlock: exam, options: options),
                  s(c, "prompt"), "Wochentest \(i)")
         }
     }
@@ -123,7 +124,8 @@ final class AIContractTests: XCTestCase {
         for c in cases {
             let exam = g(c, "exam") == .bool(true)
             let expected: String? = { if case .string(let r)? = g(c, "reason") { return r }; return nil }()
-            XCTAssertEqual(AIAnswers.checkWeekTest(g(c, "in") ?? .null, exam: exam), expected, s(c, "name"))
+            let options = try WeekTestOptions.parse(g(c, "options"))              // nil/null = Standard
+            XCTAssertEqual(AIAnswers.checkWeekTest(g(c, "in") ?? .null, exam: exam, options: options), expected, s(c, "name"))
         }
     }
 

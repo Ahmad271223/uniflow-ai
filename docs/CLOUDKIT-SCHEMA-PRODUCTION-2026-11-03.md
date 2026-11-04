@@ -27,6 +27,10 @@ keine Korrekturen, statt abzustürzen.
 | | `payload`, `createdAt`, `ownerRecordName` | String | – |
 | | `page`, `version` | Int(64) | – |
 
+| `PageExplain` (04.11.2026) | `fileKey` | String | Queryable |
+| | `mode`, `payload`, `createdAt`, `ownerRecordName` | String | – |
+| | `page`, `variant`, `version` | Int(64) | – |
+
 Bei allen neuen Typen zusätzlich: Index `recordName` → Queryable.
 
 Hinweise:
@@ -40,6 +44,11 @@ Hinweise:
   `<fileKey>#<page>` (Seite 0 = Zusammenfassung der Datei); `fileKey` ist ein HMAC des Datei-SHA, nicht der SHA.
   `payload` ist der Eintrag der Seite, verschlüsselt mit einem Schlüssel aus Datei-SHA und Seiten-Abdruck (HKDF-SHA256,
   AES-256-GCM); lesen kann nur, wer dieselbe Datei hat. Kein Seitentext, kein Bild, keine Namen.
+- `PageExplain` (docs/ERKLAERUNGSSPEICHER-2026-11-04.md, PageExplainCloudKit.swift): Erklärungsspeicher der KI-Hilfe,
+  Antworten für ganze Seiten (erklären, einfach erklären, zusammenfassen, Fachbegriffe, Aufgabe lösen, Hinweise).
+  `recordName` ist `<fileKey>#<page>#<mode>#<variant>` (variant 1…3, nie überschrieben, höchstens drei je Schlüssel wie
+  `WeeklyTest`); `payload` ist die Antwort, verschlüsselt mit demselben Schlüsselstoff wie `DocIndex` (Datei-SHA und
+  Seiten-Abdruck), Zusatzdaten binden an Datei, Seite, Modus, Variante und Formatfassung. Kein Seitentext, keine Namen.
 - Fragen und Antworten im Reiter „Diskussion“ einer Community sind `Comment`-Datensätze mit
   `solutionID = "space:<Community-Schlüssel>"`; Likes auf Fragen sind `Like` mit `solutionID = "post:<ID>"`.
   Dafür ist kein weiterer Typ nötig.
@@ -52,5 +61,5 @@ Hinweise:
 
 ## Rechte (Security Roles)
 
-Standard für `Comment`, `Like`, `Correction`, `WeeklyTest`, `DocIndex`: Lesen für alle, Erstellen für angemeldete iCloud-Nutzer,
+Standard für `Comment`, `Like`, `Correction`, `WeeklyTest`, `DocIndex`, `PageExplain`: Lesen für alle, Erstellen für angemeldete iCloud-Nutzer,
 Ändern/Löschen nur für den Ersteller. Moderation (z. B. `status = hidden`) über das CloudKit Dashboard.

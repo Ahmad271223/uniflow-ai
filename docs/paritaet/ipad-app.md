@@ -635,3 +635,4 @@ Summe Paket: 48 Testfunktionen. Gesamt: 72.
 | Kalender: Standardmodus „3 Tage“, Ladezeitraum 7 Tage | CalendarView.swift:10, 30 |
 | Neue-Version-Format `version 2`, `zoom 1.2` | AnnotationDocument.swift:14-16 |
 | `MARKETING_VERSION 0.2.0`, Build 2, Bundle `de.uniflow.ai` | project.yml:15-16, 28 |
+| Lernstand je Modul (04.11.2026): Gewichte 0,5 Wochentests (neuester wiegt am meisten) / 0,3 Karteikarten / 0,2 Aufgaben, halbe Prozent aufwärts, `mastery: null` ohne Signal; Python und Kern gleich (`packages/shared-contracts/fixtures/mastery/cases.json`, docs/LERNSTAND-2026-11-04.md) | Mastery.swift; app/mastery.py; LernstandView.swift; app/static/mastery.js |

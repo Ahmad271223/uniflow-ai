@@ -174,9 +174,14 @@ def _exam_for_test(conn, module_id: int | None) -> dict | None:
 
 
 def create_test(subject: str, duration_min: int | None = None, week_start: date | None = None, log=print,
-                module_id: int | None = None, week_no: int | None = None, auto: bool = False) -> int:
-    """Erstellt einen Test. auto=True: gemeinsamer Wochentest des Moduls fuer die Lehrwoche (hoechstens einer)."""
+                module_id: int | None = None, week_no: int | None = None, auto: bool = False,
+                options: dict | None = None) -> int:
+    """Erstellt einen Test. auto=True: gemeinsamer Wochentest des Moduls fuer die Lehrwoche (hoechstens einer).
+    options: Parameter des Dialogs (ai.week_test_options: count, difficulty, types, topic); nur die Standardeinstellung
+    (None) wird ueber den Schluessel geteilt, alles andere ist ein eigener Test des Nutzers ohne share_key."""
     ws = (week_start or planning_week()).isoformat()
+    options = ai.week_test_options(options)
+    standard = ai.week_test_is_standard(options)
     with db.cursor() as conn:
         if module_id is None:
             m = db.row(conn, "SELECT id FROM modules WHERE name=?", (subject,))
@@ -194,7 +199,9 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
         # Gemeinsamer Wochentest: gleiche Materialien (Inhalt) + gleiche Dauer -> derselbe Test, ohne neue KI-Anfrage;
         # die Altklausur gehoert mit in den Schluessel (sie praegt eine Aufgabe)
         from . import testshare, universities
-        key = testshare.share_key(universities.current_key(), duration_min, mats + ([exam] if exam else [])) if (auto and mats) else None
+        # geteilt wird nur die Standardeinstellung (15 Aufgaben, beliebig, alle Arten, kein Thema); ein eigener Test mit
+        # anderen Parametern bekommt keinen Schluessel (Vorgabe des Inhabers: nichts gibt sich als geteilt aus)
+        key = testshare.share_key(universities.current_key(), duration_min, mats + ([exam] if exam else [])) if (standard and mats) else None
         shared = testshare.lookup_local(conn, key) if key else None
         uid = testshare.user_id(conn) if key and not shared else None
     if not mats:
@@ -208,11 +215,11 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
     elif key:
         # Varianten-Regel (hoechstens 3 Tests je Schluessel, feste Variante je Nutzer): im Dienst ueber den Pool,
         # am Einzelplatz nur die eigene Variante merken
-        got = testshare.obtain(key, uid, lambda: ai.generate_test(subject, duration_min, mats, exam=exam), log=log)
+        got = testshare.obtain(key, uid, lambda: ai.generate_test(subject, duration_min, mats, exam=exam, options=options), log=log)
         res = {"title": re.sub(r"^Lehrwoche \d+:\s*", "", got.get("title") or ""), "questions": got["questions"]}
         share_variant, adopted_from = got["share_variant"], got["adopted_from"]
     else:
-        res = ai.generate_test(subject, duration_min, mats, exam=exam)
+        res = ai.generate_test(subject, duration_min, mats, exam=exam, options=options)
     title = res.get("title") or f"Wochentest {subject}"
     if week_no:
         title = f"Lehrwoche {week_no}: " + title.replace(f"Wochentest {subject}", "").strip(" –-:") or title

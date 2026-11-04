@@ -6694,6 +6694,14 @@
        "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
+       "mastery": {
+        "score": 60,
+        "reason": "3 von 5 Aufgaben",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 3,
+        "tasks_total": 5
+       },
        "next_package": {
         "date": "2026-11-21",
         "title": "Testmathematik I – Nachholen"
@@ -6728,6 +6736,14 @@
        "new_count": 10,
        "open_tasks": 1,
        "progress": 12,
+       "mastery": {
+        "score": 0,
+        "reason": "0 von 1 Aufgabe",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 0,
+        "tasks_total": 1
+       },
        "next_package": {
         "date": "2027-01-20",
         "title": "Beispieltechnik – Woche 14"
@@ -6763,6 +6779,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -6792,6 +6809,7 @@
        "new_count": 5,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -6821,6 +6839,7 @@
        "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -6850,6 +6869,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -6879,6 +6899,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -7851,6 +7872,14 @@
        }
       ],
       "progress": 30,
+      "mastery": {
+       "score": 60,
+       "reason": "3 von 5 Aufgaben",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 3,
+       "tasks_total": 5
+      },
       "new_count": 15,
       "open_tasks": 2,
       "next_package": {
@@ -8529,6 +8558,14 @@
        }
       ],
       "progress": 12,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 1
+      },
       "new_count": 10,
       "open_tasks": 1,
       "next_package": {
@@ -8594,6 +8631,7 @@
       "weeks": [],
       "files": [],
       "progress": 0,
+      "mastery": null,
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
@@ -8966,6 +9004,7 @@
        }
       ],
       "progress": 0,
+      "mastery": null,
       "new_count": 5,
       "open_tasks": 0,
       "next_package": null,
@@ -9131,6 +9170,7 @@
        }
       ],
       "progress": 50,
+      "mastery": null,
       "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
@@ -9172,6 +9212,7 @@
       "weeks": [],
       "files": [],
       "progress": 0,
+      "mastery": null,
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
@@ -9213,6 +9254,7 @@
       "weeks": [],
       "files": [],
       "progress": 0,
+      "mastery": null,
       "new_count": 0,
       "open_tasks": 0,
       "next_package": null,
@@ -9296,6 +9338,14 @@
        "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
+       "mastery": {
+        "score": 60,
+        "reason": "3 von 5 Aufgaben",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 3,
+        "tasks_total": 5
+       },
        "next_package": null,
        "next_event": null,
        "task_count": 5,
@@ -9327,6 +9377,14 @@
        "new_count": 10,
        "open_tasks": 1,
        "progress": 12,
+       "mastery": {
+        "score": 0,
+        "reason": "0 von 1 Aufgabe",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 0,
+        "tasks_total": 1
+       },
        "next_package": {
         "date": "2027-01-20",
         "title": "Beispieltechnik – Woche 14"
@@ -9362,6 +9420,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -9391,6 +9450,7 @@
        "new_count": 5,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -9420,6 +9480,7 @@
        "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -9449,6 +9510,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -9478,6 +9540,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -10450,6 +10513,14 @@
        }
       ],
       "progress": 30,
+      "mastery": {
+       "score": 60,
+       "reason": "3 von 5 Aufgaben",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 3,
+       "tasks_total": 5
+      },
       "new_count": 15,
       "open_tasks": 2,
       "next_package": null,
@@ -11125,6 +11196,14 @@
        }
       ],
       "progress": 12,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 1
+      },
       "new_count": 10,
       "open_tasks": 1,
       "next_package": {
@@ -11194,6 +11273,14 @@
        "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
+       "mastery": {
+        "score": 60,
+        "reason": "3 von 5 Aufgaben",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 3,
+        "tasks_total": 5
+       },
        "next_package": null,
        "next_event": null,
        "task_count": 5,
@@ -11223,6 +11310,14 @@
        "new_count": 10,
        "open_tasks": 1,
        "progress": 12,
+       "mastery": {
+        "score": 0,
+        "reason": "0 von 1 Aufgabe",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 0,
+        "tasks_total": 1
+       },
        "next_package": null,
        "next_event": null,
        "task_count": 1,
@@ -11252,6 +11347,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -11281,6 +11377,7 @@
        "new_count": 5,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -11310,6 +11407,7 @@
        "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -11339,6 +11437,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -11368,6 +11467,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -11537,6 +11637,7 @@
        }
       ],
       "progress": 50,
+      "mastery": null,
       "new_count": 2,
       "open_tasks": 0,
       "next_package": null,
@@ -12027,6 +12128,14 @@
        "new_count": 11,
        "open_tasks": 1,
        "progress": 11,
+       "mastery": {
+        "score": 0,
+        "reason": "0 von 1 Aufgabe",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 0,
+        "tasks_total": 1
+       },
        "next_package": {
         "date": "2027-01-20",
         "title": "Beispieltechnik – Woche 14"
@@ -12062,6 +12171,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12091,6 +12201,7 @@
        "new_count": 4,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12120,6 +12231,7 @@
        "new_count": 2,
        "open_tasks": 0,
        "progress": 50,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12149,6 +12261,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12178,6 +12291,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12207,6 +12321,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12236,6 +12351,14 @@
        "new_count": 15,
        "open_tasks": 2,
        "progress": 30,
+       "mastery": {
+        "score": 60,
+        "reason": "3 von 5 Aufgaben",
+        "tests": 0,
+        "cards": 0,
+        "tasks_done": 3,
+        "tasks_total": 5
+       },
        "next_package": {
         "date": "2026-11-21",
         "title": "Testmathematik I – Nachholen"
@@ -12270,6 +12393,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -12299,6 +12423,7 @@
        "new_count": 0,
        "open_tasks": 0,
        "progress": 0,
+       "mastery": null,
        "next_package": null,
        "next_event": null,
        "task_count": 0,
@@ -13010,6 +13135,14 @@
        }
       ],
       "progress": 11,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 1
+      },
       "new_count": 11,
       "open_tasks": 1,
       "next_package": {
@@ -13206,6 +13339,7 @@
        }
       ],
       "progress": 50,
+      "mastery": null,
       "new_count": 2,
       "open_tasks": 0,
       "next_package": null,

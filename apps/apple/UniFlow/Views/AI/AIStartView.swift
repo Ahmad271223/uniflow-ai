@@ -1,11 +1,15 @@
 import SwiftUI
 import UniFlowCore
 
-/// KI-Start (03.11.2026): "Was möchtest du heute lernen?" mit dem Frage-Feld als Mittelpunkt, vier Aktionen (Fragen,
-/// Karteikarten, Erklären / PDF analysieren, Wochentest), den letzten drei Antworten und der Kostenzeile. Erreichbar
-/// aus "Tests & Wiederholung" und aus der KI-Hilfe im Editor. Kontext ist das gewaehlte Modul bzw. Dokument (Vorgabe:
-/// das zuletzt geoeffnete); Fragen gehen an `POST /api/ai/tutor` (die KI des Nutzers, `LocalContext.ai`), nur nach dem
-/// Antippen. Ohne verbundene KI steht oben der Weg dorthin, die Aktionen bleiben sichtbar.
+/// KI-Start (03.11.2026, Feinschliff 04.11.2026): Logo und die eine Frage "Was möchtest du heute lernen?" in der
+/// Mitte, darunter die Aktionen als umrandete Pillen in ihren Farben (Fragen, Karteikarten, Erklären / PDF
+/// analysieren, Wochentest, Hilfe) direkt ueber dem Frage-Feld, das der Mittelpunkt der Seite ist; dann die Antwort
+/// bzw. die Hilfe ohne KI, "Zuletzt" und die Kostenzeile. Erreichbar aus "Tests & Wiederholung" und aus der KI-Hilfe
+/// im Editor. Kontext ist das gewaehlte Modul und das angehaengte Dokument (Vorgabe: das zuletzt geoeffnete, als
+/// Chip mit "Entfernen"; "Dokument anhängen" oeffnet die Dateien des Moduls); Fragen gehen an `POST /api/ai/tutor`
+/// (die KI des Nutzers, `LocalContext.ai`) wie aus der KI-Hilfe im Editor (file_id, page, mode, history), nur nach
+/// dem Antippen. "Hilfe" fragt keine KI (0 Credits). Ohne verbundene KI steht oben der Weg dorthin, die Aktionen
+/// bleiben sichtbar.
 struct AIStartView: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
@@ -14,6 +18,7 @@ struct AIStartView: View {
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufWindowWidth) private var windowWidth
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject private var recents: AIRecents
     @ObservedObject private var ent: Entitlements
     @State private var modules: [JSONValue] = []
@@ -26,6 +31,7 @@ struct AIStartView: View {
     @State private var busyLabel = ""
     @State private var error: String?
     @State private var answer: Answer?
+    @State private var help = false
     @FocusState private var askFocused: Bool
 
     /// Eine Antwort im Antwortbereich (frisch oder aus "Zuletzt")
@@ -60,16 +66,19 @@ struct AIStartView: View {
 
     private var documents: [JSONValue] { Self.documents(files, module: module) }
     private var currentFile: JSONValue? { documents.first { $0.s("id") == fileID } ?? documents.first }
+    private var attachment: AIAttachment? { Self.attachment(fileID: fileID, documents: documents) }
 
     var body: some View {
         UFContent(maxWidth: 960) {
-            UFPageHead("Was möchtest du heute lernen?", sub: "Frag die KI zu deinen Unterlagen, lass Karteikarten und Wochentests erstellen.") {
-                UFButton("Tests", icon: "arrow-left", size: .small) { router.go(.exams) }.accessibilityIdentifier("ai.start.tests")
-            }
+            head
             if !aiEnabled { connectCard.padding(.bottom, 16) }
+            actions.padding(.bottom, 12)
             askBox
-            actions.padding(.top, 20)
-            if let answer { answerCard(answer).padding(.top, 20) }
+            if help {
+                helpCard.padding(.top, 20)
+            } else if let answer {
+                answerCard(answer).padding(.top, 20)
+            }
             if !recents.entries.isEmpty { recentRow.padding(.top, 24) }
         }
         .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
@@ -89,9 +98,31 @@ struct AIStartView: View {
             let (mv, lv) = try await (m, l)
             modules = mv.items
             files = lv.list("files")
-            if fileID.isEmpty, let f = currentFile?.s("id") { fileID = f }
+            // Vorgabe nur beim ersten Laden: ein entferntes Dokument kommt beim Neuladen nicht zurueck
+            if !loaded, fileID.isEmpty, let f = currentFile?.s("id") { fileID = f }
             loaded = true
         } catch { if !loaded { toast.show(error.localizedDescription) } }
+    }
+
+    // MARK: Kopf: Logo und die eine Frage
+
+    private var head: some View {
+        VStack(spacing: 6) {
+            HStack {
+                UFButton("Tests", icon: "arrow-left", kind: .ghost, size: .small) { router.go(.exams) }.accessibilityIdentifier("ai.start.tests")
+                Spacer(minLength: 0)
+            }
+            UFLogoMark(size: 44).padding(.bottom, 6)
+            Text("Was möchtest du heute lernen?").ufFont(23.2, 650, lh: 1.25, em: -0.01).foregroundStyle(UF.text)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text("Frag die KI zu deinen Unterlagen, lass Karteikarten und Wochentests erstellen.")
+                .ufFont(14.5).foregroundStyle(UF.muted)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 560)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 20)
     }
 
     // MARK: Verbinden
@@ -108,23 +139,72 @@ struct AIStartView: View {
         }
     }
 
+    // MARK: Aktionen (direkt ueber dem Frage-Feld)
+
+    private var actions: some View {
+        let layout = Self.actionsLayout(width: windowWidth, typeSize: typeSize)
+        return Group {
+            if layout == .row {
+                UFFlexWrap(gap: 10, rowGap: 10, justify: .center) { pills(compact: true) }
+            } else {
+                VStack(spacing: 10) { pills(compact: false) }
+            }
+        }
+        .accessibilityIdentifier("ai.start.actions")
+    }
+
+    /// Reihenfolge und Farben der Aktionen: Fragen (Teal), Karteikarten (Orange), Erklaeren (Gruen), Wochentest
+    /// (Blau), Hilfe (Violett) – Paarungen aus der Palette der Community
+    @ViewBuilder private func pills(compact: Bool) -> some View {
+        AIActionPill(title: "Fragen", sub: "Zur Seite, zur Aufgabe, zum Begriff", icon: "sparkles", pair: CommunityPalette.teal, compact: compact) {
+            help = false
+            askFocused = true
+        }
+        .accessibilityIdentifier("ai.start.pill.ask")
+        AIActionPill(title: "Karteikarten", sub: "Aus einem Dokument, zum Durchsehen vor dem Speichern", icon: "cards",
+                     pair: CommunityPalette.peach, compact: compact) { openFlashcards() }
+            .accessibilityIdentifier("ai.start.pill.cards")
+        AIActionPill(title: "Erklären / PDF analysieren", sub: "Zusammenfassung des Dokuments, dann weiter im Editor", icon: "book",
+                     pair: CommunityPalette.mint, compact: compact) { Task { await explain() } }
+            .accessibilityIdentifier("ai.start.pill.explain")
+        AIActionPill(title: "Wochentest", sub: "15 Aufgaben zu einer Lehrwoche, gemeinsam je Modul", icon: "exam",
+                     pair: CommunityPalette.sky, compact: compact) { openQuiz() }
+            .accessibilityIdentifier("ai.start.pill.quiz")
+        AIActionPill(title: "Hilfe", sub: "Was die KI-Hilfe kann und wie du anfängst, ohne KI", icon: "life-buoy",
+                     pair: CommunityPalette.lavender, compact: compact) { showHelp() }
+            .accessibilityIdentifier("ai.start.pill.help")
+    }
+
+    private func openFlashcards() {
+        overlay.modal(wide: true) {
+            FlashcardComposer(moduleID: module, fileID: currentFile?.s("id"), entitlements: ent)
+        }
+    }
+
+    private func openQuiz() {
+        overlay.modal { QuizComposer(moduleID: module != 0 ? module : modules.first?.i("id") ?? 0, entitlements: ent) }
+    }
+
+    private func showHelp() {
+        answer = nil
+        help = true
+    }
+
     // MARK: Frag etwas …
 
     private var askBox: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Kontext: Modul und Dokument, zu dem die Frage gehoert
+            // Kontext: Modul und das angehaengte Dokument, zu dem die Frage gehoert
             UFFlexWrap(gap: 8, rowGap: 8) {
                 UFSelect(options: [(0, "Alle Module")] + modules.compactMap { m in m.i("id").map { ($0, UFFmt.shortName(m.s("name"))) } },
                          selection: $module, small: true)
                     .accessibilityLabel("Modul")
                     .accessibilityIdentifier("ai.start.module")
-                UFSelect(options: [("", documents.isEmpty ? "Kein Dokument" : "– Dokument –")]
-                         + documents.prefix(40).compactMap { f in f.s("id").map { ($0, Self.title(f)) } },
-                         selection: $fileID, small: true)
-                    .accessibilityLabel("Dokument")
-                    .accessibilityIdentifier("ai.start.file")
-                if let f = currentFile, f.s("id") == fileID {
-                    UFBadge(f.s("last_opened") != nil ? "zuletzt geöffnet" : "neuestes Dokument", tone: .neutral)
+                if let a = attachment {
+                    attachmentChip(a)
+                } else {
+                    UFButton("Dokument anhängen", icon: "file-text", size: .small) { openPicker() }
+                        .accessibilityIdentifier("ai.start.attach")
                 }
             }
             HStack(alignment: .bottom, spacing: 10) {
@@ -157,39 +237,53 @@ struct AIStartView: View {
         .animation(UF.transition, value: askFocused)
     }
 
+    /// Das angehaengte Dokument als Chip: Antippen waehlt ein anderes, das x entfernt es (die Frage geht dann ohne
+    /// Dokument)
+    private func attachmentChip(_ a: AIAttachment) -> some View {
+        HStack(spacing: 4) {
+            Button { openPicker() } label: {
+                HStack(spacing: 4.8) {
+                    UFIcon("file-text", size: 13)
+                    Text(a.label).lineLimit(1)
+                }
+                .padding(.vertical, 4 + ufB).padding(.leading, 10.4 + ufB).padding(.trailing, 4)
+                .contentShape(Rectangle())
+                .ufHitArea()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Angehängt: \(a.label). Anderes Dokument wählen")
+            .accessibilityIdentifier("ai.start.attach.chip")
+            Button { fileID = "" } label: {
+                UFIcon("x", size: 12).padding(.vertical, 6).padding(.horizontal, 6).contentShape(Rectangle()).ufHitArea()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dokument entfernen")
+            .accessibilityIdentifier("ai.start.attach.remove")
+            .padding(.trailing, 2)
+        }
+        .ufFont(12.8, 600)
+        .foregroundStyle(UF.accentText)
+        .background(Capsule().fill(UF.accentSoft))
+    }
+
+    private func openPicker() {
+        let docs = documents
+        overlay.modal {
+            AIDocumentPicker(documents: docs, selected: fileID) { f in fileID = f.s("id") ?? "" }
+        }
+    }
+
     private var statusLine: String {
         AICost.status(chatgpt: aiEnabled, model: chatgpt?.status?.model, plan: ent.plan, requestsThisMonth: recents.requestsThisMonth)
     }
 
-    // MARK: Aktionen
+    // MARK: Hilfe ohne KI
 
-    private var actions: some View {
-        let grid = windowWidth <= 640 ? UFGridLayout(columns: 1, spacing: 10) : UFGridLayout(columns: 2, spacing: 10)
-        return grid {
-            AIActionPill(title: "Fragen", sub: "Zur Seite, zur Aufgabe, zum Begriff", icon: "sparkles", pair: CommunityPalette.sky) {
-                askFocused = true
-            }
-            .accessibilityIdentifier("ai.start.pill.ask")
-            AIActionPill(title: "Karteikarten", sub: "Aus einem Dokument, zum Durchsehen vor dem Speichern", icon: "cards",
-                         pair: CommunityPalette.mint, strong: true) { openFlashcards() }
-                .accessibilityIdentifier("ai.start.pill.cards")
-            AIActionPill(title: "Erklären / PDF analysieren", sub: "Zusammenfassung des Dokuments, dann weiter im Editor", icon: "book",
-                         pair: CommunityPalette.lavender) { Task { await explain() } }
-                .accessibilityIdentifier("ai.start.pill.explain")
-            AIActionPill(title: "Wochentest", sub: "15 Aufgaben zu einer Lehrwoche, gemeinsam je Modul", icon: "exam",
-                         pair: CommunityPalette.peach) { openQuiz() }
-                .accessibilityIdentifier("ai.start.pill.quiz")
-        }
-    }
-
-    private func openFlashcards() {
-        overlay.modal(wide: true) {
-            FlashcardComposer(moduleID: module, fileID: currentFile?.s("id"), entitlements: ent)
-        }
-    }
-
-    private func openQuiz() {
-        overlay.modal { QuizComposer(moduleID: module != 0 ? module : modules.first?.i("id") ?? 0, entitlements: ent) }
+    private var helpCard: some View {
+        AIHelpCard(example: { text in
+            question = text
+            askFocused = true
+        }, openSettings: { router.go(.settings(tab: "account")) }, close: { help = false })
     }
 
     // MARK: Antwort
@@ -232,10 +326,11 @@ struct AIStartView: View {
                 Spacer()
                 UFButton("Leeren", kind: .ghost, size: .small) { recents.clear() }.accessibilityIdentifier("ai.start.recent.clear")
             }
-            let grid = windowWidth <= 640 ? UFGridLayout(columns: 1, spacing: 10) : UFGridLayout(columns: 3, spacing: 10)
+            let grid = windowWidth <= 640 || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 10) : UFGridLayout(columns: 3, spacing: 10)
             grid {
                 ForEach(Array(recents.entries.enumerated()), id: \.element.id) { i, e in
                     Button {
+                        help = false
                         answer = Answer(question: e.question, text: e.answer, mode: "ask", fileID: e.fileID, fileName: e.fileName)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
@@ -280,11 +375,11 @@ struct AIStartView: View {
         await send(mode: s.mode, question: s.question, label: s.question.isEmpty ? s.label : s.question, busyLabel: "Die KI antwortet …", history: history)
     }
 
-    /// Eine Frage an `POST /api/ai/tutor` mit dem gewaehlten Dokument (Seite 1) als Kontext; die Antwort kommt in den
-    /// Antwortbereich und nach "Zuletzt"
+    /// Eine Frage an `POST /api/ai/tutor` mit dem angehaengten Dokument (Seite 1) als Kontext, wie die KI-Hilfe im
+    /// Editor (file_id, page, mode, history); die Antwort kommt in den Antwortbereich und nach "Zuletzt"
     private func send(mode: String, question q: String, label: String, busyLabel: String, history: JSONValue = .array([])) async {
         guard let api = session.api, !busy else { return }
-        // Kontext: das gewaehlte Dokument (Seite 1); ohne Dokument geht nur die Frage
+        // Kontext: das angehaengte Dokument (Seite 1); ohne Dokument geht nur die Frage
         let f = fileID.isEmpty ? nil : currentFile
         var body: [String: JSONValue] = ["mode": .string(mode), "page": 1, "history": history]
         if let id = f?.s("id") { body["file_id"] = .string(id) }
@@ -292,6 +387,7 @@ struct AIStartView: View {
         busy = true
         self.busyLabel = busyLabel
         error = nil
+        help = false
         defer { busy = false }
         do {
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))

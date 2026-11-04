@@ -198,9 +198,9 @@ def content(conn, file_id: str) -> tuple[bytes, str, str]:
     mime = f["mime"] or ctype or "application/octet-stream"
     conn.execute("UPDATE files SET content_sha256=?, size=CASE WHEN COALESCE(size,0)=0 THEN ? ELSE size END, mime=COALESCE(mime, ?) WHERE id=?",
                  (sha, len(data), ctype or None, file_id))
-    if (f["name"] or "").lower().endswith(".pdf") or mime == "application/pdf":
-        from . import scriptsearch
-        scriptsearch.index_bytes(conn, file_id, data, f["chdate"])
+    from . import scriptsearch
+    if scriptsearch.is_text_source(f["name"]) or mime == "application/pdf":
+        scriptsearch.index_bytes(conn, file_id, data, f["chdate"], f["name"])
     conn.commit()
     with _lock:
         _cache[key] = (time.time(), data, mime, sha)

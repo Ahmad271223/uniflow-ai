@@ -184,6 +184,8 @@ struct ModuleCard: View {
                 Text(desc).ufFont(13.76).foregroundStyle(UF.text2).lineLimit(2)        // .desc: min-height 2.6em
                     .frame(minHeight: 13.76 * 2.6, alignment: .topLeading)
                     .padding(.bottom, 12.8)
+                // Lernstand (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung; grau ohne Signal
+                LernstandBadge(m: m["mastery"], color: mc).padding(.bottom, 12.8)
                 HStack {                                                    // .pr
                     (Text("\(progress)%").font(.uf(12.8, 700)).foregroundColor(UF.text) + Text(" bearbeitet"))
                         .ufNumber(progress, numeric: Double(progress))
@@ -280,7 +282,11 @@ struct ModuleListRow: View {
                     Text(topics.isEmpty ? "\(m.i("courses") ?? 0) Veranstaltungen" : topics).ufFont(12.48).foregroundStyle(UF.muted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text).frame(width: 120, alignment: .leading)
+                VStack(alignment: .leading, spacing: 1.6) {
+                    Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text)
+                    LernstandBadge(m: m["mastery"], color: Color(hex: m.s("color")), size: .small)   // docs/LERNSTAND-2026-11-04.md
+                }
+                .frame(width: 120, alignment: .leading)
                 Text("\(m.i("file_count") ?? 0) \(m.i("file_count") == 1 ? "Datei" : "Dateien") · \(m.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 Text(nx.map { "\(UFFmt.short($0.s("date"))) \($0.s("start") ?? "")" } ?? "–").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 36)
@@ -370,6 +376,8 @@ struct ModulePage: View {
                     UFKPI(value: "\(progress)%", label: "Lernfortschritt")
                     UFProgress(value: Double(progress) / 100).padding(.top, 8)
                 }),
+                // Lernstand (docs/LERNSTAND-2026-11-04.md) neben "bearbeitet": Ring in Modulfarbe, Begruendung darunter
+                AnyView(LernstandBadge(m: d["mastery"], color: Color(hex: m.s("color")))),
                 // fehlender Wert: grauer Strich statt eines Strichs in voller Textfarbe (liest sich sonst wie Laden)
                 AnyView(VStack(alignment: .leading, spacing: 2.4) {
                     Text(cur.map { ($0.s("label") ?? "").components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "–" } ?? "–")
@@ -391,7 +399,8 @@ struct ModulePage: View {
             ModuleKPIStrip(cells: cells).padding(.bottom, 20)
             // Aufzeichnungen (Opencast) gibt es nur lokal: der Stud.IP-Abgleich des iPads holt sie
             // (nur an Hochschulen mit Stud.IP)
-            let recordings: [(value: String, label: String)] = session.api?.isLocal == true && studip.offersStudIP
+            // (seit 04.11.2026 auch ohne Stud.IP: eigene Aufnahmen mit dem Mikrofon, docs/VORLESUNG-AUFNEHMEN.md)
+            let recordings: [(value: String, label: String)] = session.api?.isLocal == true
                 ? [("recordings", "Aufzeichnungen")] : []
             // Community (Loesungen aus der Community nach Lehrwoche, Plus) nur lokal (sie gehoert zum Container) und
             // nur mit CloudKit-Dienst im Build (sonst kein Platzhalter-Reiter)

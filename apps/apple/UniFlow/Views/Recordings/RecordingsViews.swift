@@ -35,6 +35,9 @@ private struct RecordingsPanelContent: View {
     var body: some View {
         ScrollViewReader { proxy in
             VStack(alignment: .leading, spacing: 0) {
+                // eigene Aufnahmen des Moduls (Mikrofon, Mitschrift auf dem Geraet; docs/VORLESUNG-AUFNEHMEN.md) stehen vor
+                // den Opencast-Aufzeichnungen, auch ohne Stud.IP
+                OwnRecordingsSection(moduleID: moduleID)
                 if let blocks {
                     if blocks.isEmpty {
                         UFCard { UFEmpty(icon: "play", text: emptyText) }

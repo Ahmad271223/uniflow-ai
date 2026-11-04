@@ -333,35 +333,51 @@ struct AIMarkdownText: View {
 
 // MARK: - Bunte Aktions-Pillen (KI-Start)
 
-/// Eine der vier Aktionen auf KI-Start: Symbol in einem weichen Farbkreis, Titel, Unterzeile; mindestens 44 pt hoch,
-/// gibt beim Druecken leicht nach (UFPressStyle). Farben aus der verspielten Palette der Community.
+/// Eine der Aktionen auf KI-Start (Feinschliff 04.11.2026): umrandete Pille in ihrer Farbe aus der Palette der
+/// Community – Symbol und Titel in der Farbe der Paarung, Rand `solid`, Flaeche weiss bzw. `bg` bei `strong`.
+/// `compact` (Reihe ueber dem Frage-Feld): nur Symbol und Titel, der Titel bricht bei grosser Schrift um, nichts
+/// wird gekuerzt; die Unterzeile bleibt fuer VoiceOver. Sonst (schmal, sehr grosse Schrift): volle Breite mit
+/// Unterzeile. Mindestens 44 pt hoch, gibt beim Druecken leicht nach (UFPressStyle).
 struct AIActionPill: View {
     let title: String
     let sub: String
     let icon: String
     let pair: CommunityPair
     var strong = false
+    var compact = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(strong ? pair.solid : pair.bg)
-                    UFIcon(icon, size: 18).foregroundStyle(strong ? .white : pair.fg)
+            Group {
+                if compact {
+                    HStack(spacing: 8) {
+                        UFIcon(icon, size: 16).foregroundStyle(pair.fg)
+                        Text(title).ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 8).padding(.horizontal, 16)
+                    .frame(minHeight: 44)
+                } else {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(strong ? pair.solid : pair.bg)
+                            UFIcon(icon, size: 18).foregroundStyle(strong ? .white : pair.fg)
+                        }
+                        .frame(width: 40, height: 40)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(title).ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                            Text(sub).ufFont(12.8, lh: 1.3).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 10).padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
                 }
-                .frame(width: 40, height: 40)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text).lineLimit(1)
-                    Text(sub).ufFont(12.8, lh: 1.3).foregroundStyle(UF.muted).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
             }
-            .padding(.vertical, 10).padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: UF.rLg).fill(strong ? pair.bg : UF.surface))
-            .overlay(RoundedRectangle(cornerRadius: UF.rLg).strokeBorder(strong ? Color.clear : UF.line, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: UF.rLg))
+            .background(RoundedRectangle(cornerRadius: compact ? 22 : UF.rLg).fill(strong ? pair.bg : UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: compact ? 22 : UF.rLg).strokeBorder(pair.solid, lineWidth: 1.5))
+            .contentShape(RoundedRectangle(cornerRadius: compact ? 22 : UF.rLg))
         }
         .buttonStyle(UFPressStyle())
         .accessibilityLabel("\(title). \(sub)")

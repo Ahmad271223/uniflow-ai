@@ -10,7 +10,7 @@ import Foundation
 /// fixtures/testshare/cases.json (`variants`, `pick_cases`). Der Ablauf mit Dienst (CloudKit in V1) steht in
 /// `WeeklyTestShare`, die Anbindung im Wochentest-Endpunkt (`WeekTests.create`).
 public enum TestShare {
-    public static let version = "wt2"
+    public static let version = "wt3"
     public static let minuteSteps = [15, 30, 45, 60, 90, 120]
     /// hoechstens so viele Tests je Schluessel (`testshare.MAX_VARIANTS`)
     public static let maxVariants = 3

@@ -31,6 +31,10 @@ def render(ai, cl) -> str:
     modes = "\n".join(f"        ({raw(k)}, {raw(v)})," for k, v in ai.TUTOR_MODES.items())
     diff = ", ".join(f"({raw(k)}, {v})" for k, v in ai.WEEK_TEST_DIFFICULTY.items())
     types = ", ".join(raw(t) for t in ai.WEEK_TEST_TYPES)
+    counts = ", ".join(str(c) for c in ai.WEEK_TEST_COUNTS)
+    levels = ", ".join(raw(l) for l in ai.WEEK_TEST_LEVELS)
+    type_names = "\n".join(f"        ({raw(k)}, {raw(v)})," for k, v in ai.WEEK_TEST_TYPE_NAMES.items())
+    tf = ", ".join(raw(t) for t in ai.TF_OPTIONS)
     consts = [("authURL", cl.AUTH_URL), ("tokenURL", cl.TOKEN_URL), ("issuer", cl.ISSUER), ("jwksURL", cl.JWKS_URL),
               ("resource", cl.RESOURCE), ("responsesURL", cl.RESPONSES_URL), ("modelsURL", cl.MODELS_URL),
               ("usageHelpURL", cl.USAGE_HELP_URL), ("scope", cl.SCOPE), ("usageScope", cl.USAGE_SCOPE),
@@ -63,6 +67,19 @@ enum AIPromptTexts {{
 
     /// `ai.WEEK_TEST_TYPES`
     static let weekTestTypes = [{types}]
+
+    /// `ai.WEEK_TEST_COUNTS` / `ai.WEEK_TEST_LEVELS` / `ai.WEEK_TEST_TOPIC_CHARS`: Dialog "Wochentest erstellen" (04.11.2026)
+    static let weekTestCounts = [{counts}]
+    static let weekTestLevels = [{levels}]
+    static let weekTestTopicChars = {ai.WEEK_TEST_TOPIC_CHARS}
+
+    /// `ai.WEEK_TEST_TYPE_NAMES` in der Reihenfolge von Python (Namen der Aufgabenarten im Prompt)
+    static let weekTestTypeNames: [(key: String, text: String)] = [
+{type_names}
+    ]
+
+    /// `ai.TF_OPTIONS`: die beiden Antworten einer Wahr/Falsch-Aufgabe
+    static let tfOptions = [{tf}]
 
     /// `ai.UNTRUSTED`: Kennzeichnung fremder Texte in Tutor und Wochentest (Sicherheitspruefung 3.11.2026)
     static let untrusted = {raw(ai.UNTRUSTED)}

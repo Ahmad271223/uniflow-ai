@@ -95,6 +95,10 @@ Endpunkte des lokalen Backends: `GET/POST /api/index/file/{id}/page/{n}`, `POST 
    Zusatzdaten der Verschlüsselung (`schema:1`); eine neue Fassung lässt alte Einträge unberührt und wird nicht
    vermischt.
 
+Die Antworten der KI-Hilfe für ganze Seiten (erklären, zusammenfassen, Fachbegriffe, Aufgabe lösen, Hinweise) werden
+seit dem 04.11.2026 ebenso geteilt – Schlüssel, Varianten und der Schalter „Vorab einordnen“ stehen in
+docs/ERKLAERUNGSSPEICHER-2026-11-04.md (CloudKit-Typ `PageExplain`, lokale Tabelle `page_explain`).
+
 ## Dienst (V2, Web/Windows): Entwurf mit Stub, 15-Minuten-Regel
 
 `app/doc_index.py`:

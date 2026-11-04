@@ -26,8 +26,8 @@ final class TestEndpointsTests: XCTestCase {
         let diffs = Array(repeating: "leicht", count: 4) + Array(repeating: "mittel", count: 6) + Array(repeating: "schwer", count: 5)
         let qs: [JSONValue] = diffs.enumerated().map { i, d in
             ["nr": .number(Double(i + 1)), "type": i == 0 ? "mc" : "calc", "difficulty": .string(d), "question": .string("Aufgabe \(i + 1)"),
-             "options": i == 0 ? ["A 1", "B 2"] : .null, "answer": i == 0 ? "B" : "1", "points": .number(i < 10 ? 6 : 8),
-             "exam_style": .bool(examStyle && i == 14)]
+             "options": i == 0 ? ["A 1", "B 2"] : .null, "answer": i == 0 ? "B" : "1", "explanation": "Weil es so ist.",
+             "points": .number(i < 10 ? 6 : 8), "exam_style": .bool(examStyle && i == 14)]
         }
         return JSONValue.object(["title": .string(title), "questions": .array(qs)]).jsonString()
     }

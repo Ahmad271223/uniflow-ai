@@ -37,6 +37,12 @@ Die Apps arbeiten zuerst lokal. Auf dem Gerät gespeichert werden:
 - Dateien, Kurse, Termine, Fristen und Ankündigungen aus den Systemen deiner Hochschule, die die App für dich abruft;
 - deine Notizen (Handschrift, Text, Formen, Bilder), eigene Dokumente, Lesezeichen, Papierkorb;
 - Stundenplan, Lernkalender, Lernpakete, Aufgaben, Karteikarten, Zeitmesser und Einstellungen;
+- iPad: eigene Vorlesungsaufnahmen (Audio) und ihre Mitschrift. Aufgenommen wird nur, wenn du „Aufnehmen“ antippst
+  und dem Zugriff auf das Mikrofon zustimmst; die Mitschrift erzeugt die Spracherkennung von iOS ausschließlich auf
+  dem Gerät (ohne Apple-Server, nur nach deiner Zustimmung zur Spracherkennung). Aufnahme und Mitschrift verlassen
+  das iPad nicht; „Löschen“ entfernt beides. Nur wenn du es ausdrücklich antippst, geht der **Text** eines Teils der
+  Mitschrift an dein ChatGPT (Abschnitt 8a) – nie die Audioaufnahme. Ob du eine Vorlesung aufnehmen darfst, klärst du
+  mit den Lehrenden;
 - Hochschul-Zugangsdaten merkt sich – wenn du das beim Anmelden erlaubst – der Passwort-Manager deines Geräts
   (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Passwort-Autofill von iOS mit dem
   Schlüsselbund bzw. iCloud-Schlüsselbund, verantwortlich ist Apple; am PC das von der App geöffnete Browserfenster); die App
@@ -160,7 +166,9 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 - **Was gesendet wird:** erst wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung,
   Bewertung eines Tests): der Text der betroffenen Seite oder deiner Markierung, deine Frage oder Lösung, die Namen von
   Kurs und Datei, passende Stellen aus deinen eigenen Unterlagen (Quellen) und bei Wochentests die Texte der Unterlagen
-  der Woche. Nie gesendet werden Zugangsdaten, Hochschul-Sitzungen, Noten, ganze Dateien oder Notizen anderer.
+  der Woche; auf dem iPad auf Wunsch auch der Text eines Teils der Mitschrift einer eigenen Vorlesungsaufnahme
+  (Abschnitt 3), nie die Audioaufnahme. Nie gesendet werden Zugangsdaten, Hochschul-Sitzungen, Noten, ganze Dateien
+  oder Notizen anderer.
 - **Wohin:** direkt von deinem Gerät an OpenAI (OpenAI OpCo, LLC, USA) über die Schnittstelle „Sign in with ChatGPT“.
   Die Anfragen laufen über dein ChatGPT-Abo und zählen gegen dessen Grenzen. **StudiNow sieht weder Anfragen noch
   Antworten** und speichert sie auf keinem Server; Antworten bleiben auf deinem Gerät.

@@ -3,6 +3,7 @@ import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadg
 import { PdfEditor } from "./editor.js?v=63";
 import { setupLectureMarker } from "./views-weekly.js?v=13";
 import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
+import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -150,6 +151,27 @@ export async function mountDoc(host, f, { page = 1, onPage, penInput, restore, p
     } catch (e) {
       host.innerHTML = `<div class="pane-empty">${icon("alert", 24)} ${e.message}<a class="btn sm" href="/api/files/${f.id}/content" download>${icon("download", 14)} Herunterladen</a></div>`;
     }
+    return null;
+  }
+  if (sourceKind(f.name) === "pptx") {
+    // PowerPoint: Folientexte aus dem Seitentext-Index (app/extract.py) in der Textansicht, je Folie ein Abschnitt mit Notizen
+    host.innerHTML = `<div class="pane-empty">Folien werden gelesen …</div>`;
+    try {
+      const first = await api(`/files/${f.id}/pagetext?page=1`);
+      const n = first.pages || 0; const pages = [first.text || ""];
+      for (let i = 2; i <= n; i++) pages.push((await api(`/files/${f.id}/pagetext?page=${i}`)).text || "");
+      const pre = document.createElement("div"); pre.className = "nonpdf textpages";
+      pre.innerHTML = `<div class="docx-bar"><span class="badge neutral">${icon("layers", 12)} PowerPoint – Text der Folien</span><span class="spacer"></span><a class="btn sm" href="/api/files/${f.id}/content" download>${icon("download", 14)} Original herunterladen</a></div>` + pagesHtml(pages, "pptx", esc);
+      host.innerHTML = ""; host.append(pre);
+      if (page > 1) pre.querySelector(`[data-page="${page}"]`)?.scrollIntoView();
+    } catch (e) {
+      host.innerHTML = `<div class="pane-empty">${icon("alert", 24)} ${esc(e.message || "Folien nicht lesbar")}<a class="btn sm" href="/api/files/${f.id}/content" download>${icon("download", 14)} Herunterladen</a></div>`;
+    }
+    return null;
+  }
+  if (sourceKind(f.name) === "audio") {
+    // Audio: Transkript gibt es nur auf dem iPad (Spracherkennung auf dem Geraet); hier nur die Datei selbst
+    host.innerHTML = `<div class="pane-empty">${icon("play", 24)} Audiodatei. Ein Transkript (Text zum Suchen und für die KI-Hilfe) entsteht nur in der iPad-App.<a class="btn sm" href="/api/files/${f.id}/content" download>${icon("download", 14)} Herunterladen</a></div>`;
     return null;
   }
   if (/\.(png|jpe?g|gif|webp)$/i.test(f.name)) { host.innerHTML = `<div class="nonpdf" style="text-align:center"><img src="/api/files/${f.id}/content" style="max-width:100%"></div>`; return null; }

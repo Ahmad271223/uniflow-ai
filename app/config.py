@@ -296,4 +296,4 @@ def secret(key: str) -> str:
 
 
 # Dateitypen, deren Text fuer die KI extrahiert wird
-TEXT_EXTENSIONS = {".pdf", ".txt", ".md", ".py", ".c", ".h", ".java", ".tex", ".csv", ".pf"}
+TEXT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".txt", ".md", ".py", ".c", ".h", ".java", ".tex", ".csv", ".pf"}   # docx/pptx: app/extract.py (04.11.2026)

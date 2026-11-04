@@ -14,7 +14,7 @@ import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from . import colors, db, holidays
+from . import colors, db, holidays, mastery
 from .holidays import DEADLINE_LABELS
 
 PALETTE = colors.PALETTE          # Fachfarben: app/colors.py
@@ -327,7 +327,9 @@ def module_detail(conn, module_id: int) -> dict:
     learnable = [f for f in files if f.get("doc_type") in ("vorlesung", "uebung", "skript")]
     progress = round(100 * len([f for f in learnable if f["id"] in done_files]) / len(learnable)) if learnable else 0
     next_pkg = db.row(conn, "SELECT date, title FROM study_packages WHERE module_id=? AND date>=? AND status IN ('geplant','in_bearbeitung') ORDER BY date LIMIT 1", (module_id, today().isoformat()))
+    # Lernstand (docs/LERNSTAND-2026-11-04.md): aus Wochentests, Karteikarten und Aufgaben, None ohne Signal
     return {"module": dict(m), "courses": courses, "weeks": out_weeks, "files": files, "progress": progress,
+            "mastery": mastery.for_module(conn, module_id, m["name"]),
             "new_count": new_files_count(conn, module_id), "open_tasks": len([t for t in tasks if t["status"] in OPEN]),
             "next_package": next_pkg, "notes": [f for f in files if f["has_notes"]]}
 
@@ -349,7 +351,7 @@ def modules_overview(conn) -> list[dict]:
         tests = db.row(conn, "SELECT COUNT(*) AS n FROM tests WHERE module_id=?", (m["id"],))["n"]
         tasks = db.row(conn, "SELECT COUNT(*) AS n FROM study_tasks st JOIN study_packages p ON p.id=st.package_id WHERE p.module_id=?", (m["id"],))["n"]
         out.append({**m, "file_count": len(d["files"]), "new_count": d["new_count"], "open_tasks": d["open_tasks"],
-                    "progress": d["progress"], "next_package": d["next_package"], "next_event": nxt,
+                    "progress": d["progress"], "mastery": d["mastery"], "next_package": d["next_package"], "next_event": nxt,
                     "task_count": tasks, "test_count": tests, "topics": topics[-3:],
                     "courses": len(d["courses"]), "weeks": len([w for w in d["weeks"] if w["week"] >= 1])})
     return out

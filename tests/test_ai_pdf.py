@@ -19,7 +19,8 @@ def valid_test(title="Wochentest"):
     """Wochentest in der Form vom 29.10.2026: 15 Aufgaben, 4 leicht, 6 mittel, 5 schwer"""
     diffs = ["leicht"] * 4 + ["mittel"] * 6 + ["schwer"] * 5
     return {"title": title, "questions": [{"nr": i + 1, "type": "calc", "difficulty": d, "question": f"Aufgabe {i + 1}",
-                                           "answer": "1", "points": 6 if i < 10 else 8, "exam_style": False}
+                                           "answer": "1", "explanation": "Weil es so ist.", "points": 6 if i < 10 else 8,
+                                           "exam_style": False}
                                           for i, d in enumerate(diffs)]}
 
 

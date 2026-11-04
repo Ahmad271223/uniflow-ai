@@ -4536,6 +4536,7 @@
      "new_count": 7,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": {
       "date": "2026-10-29",
       "title": "Paket A"
@@ -4586,6 +4587,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": {
       "date": "2026-10-29",
       "title": "Paket B"
@@ -4636,6 +4638,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": {
       "date": "2026-10-25",
       "title": "Paket C"
@@ -8691,6 +8694,7 @@
      "new_count": 7,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": {
       "date": "2026-10-29",
       "title": "Paket A"
@@ -8740,6 +8744,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": {
       "date": "2026-10-29",
       "title": "Paket B"
@@ -8790,6 +8795,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": {
       "date": "2026-10-25",
       "title": "Paket C"

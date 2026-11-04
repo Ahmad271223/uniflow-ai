@@ -188,7 +188,7 @@ final class LocalSearchTests: XCTestCase {
         XCTAssertEqual(tools.readCount, 2)
         // Seitentext ueber den Endpunkt aus der Tabelle
         let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-v1/pagetext", query: [.init("page", "3")]))
-        XCTAssertEqual(r.json, ["text": "Neue Seite drei", "pages": 3])
+        XCTAssertEqual(r.json, ["text": "Neue Seite drei", "pages": 3, "kind": "pdf"])
         // nicht lesbar: leer, nichts gespeichert, Endpunkt 404 ohne Seitentext (wie page_text seit b718cfb)
         try await db.execute("UPDATE files SET chdate=1760400000 WHERE id='f-la-v1'")
         tools.set("VL01 Eigenwerte.pdf", nil)

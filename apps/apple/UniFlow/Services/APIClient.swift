@@ -314,4 +314,8 @@ struct LibFile: Decodable, Identifiable, Hashable {
     var isNotebook: Bool { kind == "notebook" || kind == "whiteboard" }
     /// Oeffnet sich im Editor (geladene PDF, Notizbuch, Whiteboard); sonst `DocumentOpenText`
     var opensInEditor: Bool { isPDF || isNotebook }
+    /// pdf | docx | pptx | audio aus dem Namen (`OfficeText.kind`), sonst nil (docs/DATEIARTEN.md)
+    var sourceKind: String? { OfficeText.kind(name) }
+    /// Oeffnet sich als Textansicht mit KI-Hilfe (Word, PowerPoint, Audio mit Transkript; `TextDocumentView`)
+    var opensAsText: Bool { downloaded_at != nil && !opensInEditor && ["docx", "pptx", "audio"].contains(sourceKind ?? "") }
 }

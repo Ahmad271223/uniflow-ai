@@ -48,9 +48,13 @@ enum DocIndexEndpoints: LocalEndpointModule {
 
         router.get("/api/index/status") { _, ctx in
             let c = try await ctx.database.withConnection { try DocIndexStore.counts($0) }
+            let e = try await ctx.database.withConnection { try PageExplainStore.counts($0) }
             return .json(["files": .number(Double(c.files)), "pages": .number(Double(c.pages)), "failed": .number(Double(c.failed)),
                           "unshared": .number(Double(c.unshared)), "library": .bool(ctx.docIndex.cloud != nil),
-                          "can_build": .bool(ctx.ai.provider != nil)])
+                          "can_build": .bool(ctx.ai.provider != nil),
+                          // Erklaerungsspeicher: Antworten im Zwischenspeicher, davon beim Dienst
+                          "explanations": .number(Double(e.answers)), "explanations_shared": .number(Double(e.shared)),
+                          "explain_library": .bool(ctx.docIndex.explainCloud != nil)])
         }
     }
 

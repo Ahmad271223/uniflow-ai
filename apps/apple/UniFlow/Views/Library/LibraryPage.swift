@@ -25,6 +25,23 @@ enum LibraryStyle {
     /// fileType(f): PDFs nach Dokumenttyp, sonst die Art (notebook, whiteboard, image)
     static func fileType(_ f: JSONValue) -> String { f.s("kind") == "pdf" ? (f.s("doc_type") ?? "sonstiges") : (f.s("kind") ?? "file") }
 
+    /// Anzeige-Art fuer Symbol und Beschriftung (displayType in filekinds.js): eine "file" nach ihrer Endung
+    /// (word | slides | audio, `OfficeText.kind`), sonst die Art aus dem Backend
+    static func displayKind(_ f: JSONValue) -> String {
+        let kind = f.s("kind") ?? "file"
+        return kind == "file" ? displayKind(OfficeText.kind(f.s("name"))) : kind
+    }
+
+    /// word | slides | audio zu pdf | docx | pptx | audio, sonst "file"
+    static func displayKind(_ source: String?) -> String {
+        switch source {
+        case "docx": return "word"
+        case "pptx": return "slides"
+        case "audio": return "audio"
+        default: return "file"
+        }
+    }
+
     /// ago(v): heute, gestern, vor N Tagen, sonst Datum
     static func ago(_ f: JSONValue) -> String {
         let v = f.s("edited_at") ?? f.s("last_opened")
@@ -379,9 +396,18 @@ struct LibraryPage: View {
                     UFEmpty(icon: "folder", text: section == "trash" ? "Papierkorb ist leer." : !(q ?? "").isEmpty ? "Keine Treffer."
                             : "Hier ist noch nichts. Über „Neu“ ein Notizbuch anlegen oder eine PDF importieren.")
                 }
+                videoLinks
             } else {
                 itemsView(b.items, lib: lib, inCard: true)
+                videoLinks
             }
+        }
+    }
+
+    /// "Videos & Links" im Modulordner (nur lokal, aus `RecordingLibrary`; docs/DATEIARTEN.md)
+    @ViewBuilder private var videoLinks: some View {
+        if (section ?? "docs") == "docs", (q ?? "").isEmpty, session.api?.isLocal ?? true, let mid = LibraryVideoLinks.moduleID(path: path) {
+            LibraryVideoLinks(moduleID: mid)
         }
     }
 
@@ -721,6 +747,7 @@ struct LibraryThumb: View {
     var body: some View {
         let kind = f.s("kind") ?? "pdf"
         let isPdf = kind == "pdf" && f.s("downloaded_at") != nil
+        let shown = LibraryStyle.displayKind(f)                       // Word, PowerPoint, Audio mit eigenem Symbol
         ZStack(alignment: .topTrailing) {
             Group {
                 if let image {
@@ -734,7 +761,7 @@ struct LibraryThumb: View {
                     .overlay(UFIcon("note", size: 28).foregroundStyle(UF.lineStrong))
                 } else {
                     (kind == "whiteboard" ? Color(hex: 0xfafbfd) : Color.white)
-                        .overlay(UFIcon(isPdf ? "file-text" : kind == "whiteboard" ? "square" : "note", size: 28).foregroundStyle(UF.lineStrong))
+                        .overlay(UFIcon(isPdf ? "file-text" : kind == "whiteboard" ? "square" : ((shown != "file" ? ShellState.typeIcon[shown] : nil) ?? "note"), size: 28).foregroundStyle(UF.lineStrong))
                 }
             }
             .frame(width: 112, height: 86)
@@ -782,7 +809,7 @@ struct LibraryListRow: View {
             } else {
                 let f = it.f
                 let isPdf = f.s("kind") == "pdf" && f.s("downloaded_at") != nil
-                let t = f.s("kind") == "pdf" ? (f.s("doc_type") ?? "pdf") : (f.s("kind") ?? "file")
+                let t = f.s("kind") == "pdf" ? (f.s("doc_type") ?? "pdf") : LibraryStyle.displayKind(f)
                 RoundedRectangle(cornerRadius: 6).fill(UF.surface2).frame(width: 36, height: 36)
                     .overlay {
                         if let image { Image(uiImage: image).resizable().scaledToFill().frame(width: 36, height: 36, alignment: .top).clipped() }
@@ -824,7 +851,7 @@ struct LibraryQuickItem: View {
 
     var body: some View {
         let t = LibraryStyle.fileType(f)
-        let ic = f.s("kind") == "pdf" ? "file-text" : (ShellState.typeIcon[f.s("kind") ?? ""] ?? "file")
+        let ic = f.s("kind") == "pdf" ? "file-text" : (ShellState.typeIcon[LibraryStyle.displayKind(f)] ?? "file")
         HStack(spacing: 11.2) {
             RoundedRectangle(cornerRadius: 10).fill(Color(hex: LibraryStyle.fileColors[t] ?? LibraryStyle.fileColors["sonstiges"]!)).frame(width: 38, height: 38)
                 .overlay(UFIcon(ic, size: 18).foregroundStyle(.white))

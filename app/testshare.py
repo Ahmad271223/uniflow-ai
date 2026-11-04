@@ -16,7 +16,8 @@ weniger als drei Varianten da sind (belegt die eigene, bei einem Wettlauf die na
 wird nie erzeugt. Die KI ist fuer Fragen, Karteikarten und PDF-Analyse da, nicht fuer einen Test je Person.
 
 Version: aendert sich der Aufbau eines Tests (Prompt, Format), wird sie erhoeht, damit alte Tests nicht mit neuen
-vermischt werden. "wt2" seit 29.10.2026: genau 15 Aufgaben (4 leicht, 6 mittel, 5 schwer), Altklausur im Schluessel. Dieselbe Berechnung steht fuer die iPad-App in
+vermischt werden. "wt2" seit 29.10.2026: genau 15 Aufgaben (4 leicht, 6 mittel, 5 schwer), Altklausur im Schluessel;
+"wt3" seit 04.11.2026: dazu Wahr/Falsch und Lueckentext als Aufgabenarten und eine Erklaerung je Aufgabe. Dieselbe Berechnung steht fuer die iPad-App in
 packages/shared-contracts/fixtures/testshare/ (Erwartungswerte, auch fuer `variant`).
 """
 from __future__ import annotations
@@ -26,7 +27,7 @@ import json
 import uuid
 from pathlib import Path
 
-VERSION = "wt2"
+VERSION = "wt3"
 MINUTE_STEPS = (15, 30, 45, 60, 90, 120)
 # hoechstens so viele Tests je Schluessel (Regel des Inhabers: 3 Tests fuer 100 wie fuer 200 Studierende)
 MAX_VARIANTS = 3

@@ -131,8 +131,14 @@ targets:
           - de.uniflow.ai.sync.refresh
           - de.uniflow.ai.sync.files
         UIBackgroundModes:
+          - audio
           - fetch
           - processing
+        # Vorlesung aufnehmen (04.11.2026, docs/VORLESUNG-AUFNEHMEN.md): Mikrofon und Spracherkennung nur auf dem
+        # Geraet, nur nach Antippen von "Aufnehmen"; "audio" oben haelt die Aufnahme bei gesperrtem Bildschirm am Laufen.
+        # Aufnahme und Mitschrift verlassen das iPad nie (an die KI geht nur Text nach Antippen).
+        NSMicrophoneUsageDescription: StudiNow nimmt mit dem Mikrofon Vorlesungen auf, wenn du „Aufnehmen“ antippst. Die Aufnahme bleibt auf diesem iPad.
+        NSSpeechRecognitionUsageDescription: StudiNow schreibt deine Vorlesungsaufnahme auf dem Gerät mit (Spracherkennung ohne Server). Der Text bleibt auf diesem iPad.
         # kein NSAppTransportSecurity: nur HTTPS (Stud.IP, Learnweb, LSF, Opencast); Debug siehe postBuildScripts
   UniFlowTests:
     type: bundle.unit-test

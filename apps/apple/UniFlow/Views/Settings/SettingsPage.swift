@@ -1139,17 +1139,46 @@ struct ConnectView: View {
 
 // MARK: - Erweitert
 
-/// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`), Demo-Inhalte fuer
-/// die App-Pruefung (Views/DemoViews.swift)
+/// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`) mit dem Schalter
+/// "Vorab einordnen" (Erklaerungsspeicher), Demo-Inhalte fuer die App-Pruefung (Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
     @Environment(\.ufChatGPTLink) private var chatgpt
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if ChatGPTLink.available, let chatgpt { ChatGPTCard(link: chatgpt) }
+            if ChatGPTLink.available, let chatgpt {
+                ChatGPTCard(link: chatgpt)
+                DocIndexPrewarmCard()
+            }
             DemoContentCard()
         }
         .frame(maxWidth: 720, alignment: .leading)
+    }
+}
+
+/// KI-Bereich: "Vorab einordnen" (Entscheidung des Inhabers 04.11.2026, docs/ERKLAERUNGSSPEICHER-2026-11-04.md).
+/// Standard: nach dem Abgleich nur Zusammenfassung und Begriffe (Dokument-Index). "Alles": dazu Erklaerungen und
+/// Loesungen fuer alle mit derselben Datei - mit ehrlichem Kostenhinweis. Gilt nur im WLAN und beim Laden.
+struct DocIndexPrewarmCard: View {
+    @AppStorage(DocIndexPrewarmSetting.key) private var raw = DocIndexPrewarmSetting.defaultRaw
+
+    private var level: Binding<DocIndexPrewarmLevel> {
+        Binding(get: { DocIndexPrewarmSetting.level(raw: raw) }, set: { raw = $0.rawValue })
+    }
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Vorab einordnen", icon: "book")
+            Text("Nach dem Abgleich ordnet StudiNow bis zu drei Dateien der laufenden Woche vorab ein – nur im WLAN und beim Laden, einmal für alle mit derselben Datei.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            UFSegmented(options: DocIndexPrewarmLevel.allCases.map { (value: $0, label: DocIndexPrewarmSetting.label($0)) }, selection: level)
+                .padding(.top, 8)
+                .accessibilityIdentifier("docIndex.prewarmLevel")
+            Text(DocIndexPrewarmSetting.costNote)
+                .ufFont(12.5).foregroundStyle(level.wrappedValue == .full ? UF.bad : UF.muted).fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+                .accessibilityIdentifier("docIndex.prewarmCost")
+        }
     }
 }
 

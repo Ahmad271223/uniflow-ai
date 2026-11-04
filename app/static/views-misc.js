@@ -8,6 +8,8 @@ import { mountBulletin } from "./bulletin.js?v=4";
 import { mountStudipTexts } from "./studip-texts.js?v=4";
 import { settingHtml } from "./older-semesters.js?v=1";
 import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=3";
+// Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
+import { masteryHtml } from "./mastery.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -21,6 +23,7 @@ export function modCard(m) {
     <div class="hd"><div class="ini">${initial(m.name)}</div><div class="nm">${esc(m.name)}</div></div>
     <div class="desc">${esc(desc)}</div>
     <div class="pr"><span><strong>${m.progress}%</strong> bearbeitet</span>${m.new_count ? `<b>${m.new_count} neue Inhalte</b>` : `<span class="muted">${m.exam_date ? "Klausur " + fmtDate(m.exam_date) : "aktuell"}</span>`}</div><div class="progress"><i style="width:${m.progress}%"></i></div>
+    <div class="mod2-mastery">${masteryHtml(m.mastery)}</div>
     ${nxt}
     <div class="stats"><div>${icon("file-text", 18)}<span><b>${m.file_count}</b>Dateien</span></div><div>${icon("tasks", 18)}<span><b>${m.task_count ?? m.open_tasks}</b>Aufgaben</span></div><div>${icon("exam", 18)}<span><b>${m.test_count ?? 0}</b>Wochentest${m.test_count === 1 ? "" : "s"}</span></div></div></a>`;
 }
@@ -29,7 +32,7 @@ export async function viewModules(parts, _, view) {
   const mods = await api("/modules");
   view.innerHTML = `<div class="content" style="max-width:1480px"><div class="page-head"><div><h1>Meine Module</h1><div class="sub">Alle Module deines Studiums – Vorlesungen, Übungen, Materialien und Tests an einem Ort.</div></div>
       <div class="actions"><div class="seg pill"><button class="${modMode === "cards" ? "active" : ""}" data-mm="cards">Karten</button><button class="${modMode === "list" ? "active" : ""}" data-mm="list">Liste</button></div><a class="btn" href="#/settings?tab=modules">${icon("settings", 15)} Module & Wochentests</a></div></div>
-    ${mods.length ? (modMode === "cards" ? `<div class="mod2-grid">${mods.map(modCard).join("")}</div>` : `<div class="card pad-0 lib-list mod2-list">${mods.map(m => `<a class="lib-row" href="#/modules/${m.id}" style="color:inherit"><div class="mini folder" style="--fc:${m.color}">${initial(m.name)}</div><div><b>${esc(m.name)}</b><div class="muted tiny">${esc((m.topics || []).join(", ")) || `${m.courses} Veranstaltungen`}</div></div><span class="small">${m.progress}% bearbeitet</span><span class="small muted">${m.file_count} Dateien · ${m.new_count} neu</span><span class="small muted">${m.next_event ? `${fmtShort(m.next_event.date)} ${m.next_event.start}` : "–"}</span><span>${icon("chevron-right", 16)}</span></a>`).join("")}</div>`) : `<div class="card empty">Noch keine Module. Erst synchronisieren.</div>`}</div>`;
+    ${mods.length ? (modMode === "cards" ? `<div class="mod2-grid">${mods.map(modCard).join("")}</div>` : `<div class="card pad-0 lib-list mod2-list">${mods.map(m => `<a class="lib-row" href="#/modules/${m.id}" style="color:inherit"><div class="mini folder" style="--fc:${m.color}">${initial(m.name)}</div><div><b>${esc(m.name)}</b><div class="muted tiny">${esc((m.topics || []).join(", ")) || `${m.courses} Veranstaltungen`}</div></div><span class="small">${m.progress}% bearbeitet<br>${masteryHtml(m.mastery, "sm")}</span><span class="small muted">${m.file_count} Dateien · ${m.new_count} neu</span><span class="small muted">${m.next_event ? `${fmtShort(m.next_event.date)} ${m.next_event.start}` : "–"}</span><span>${icon("chevron-right", 16)}</span></a>`).join("")}</div>`) : `<div class="card empty">Noch keine Module. Erst synchronisieren.</div>`}</div>`;
   $$("[data-mm]", view).forEach(b => b.onclick = () => { modMode = b.dataset.mm; try { localStorage.setItem("mod-mode", modMode); } catch {} state.route(); });
   staggerOnce($(".mod2-grid", view), "modules");                          // Kacheln beim ersten Oeffnen leicht gestaffelt
 }
@@ -47,7 +50,7 @@ async function viewModule(id, view) {
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
       <div class="page-head"><div class="mod-head"><div class="color" style="background:${m.color}">${initial(m.name)}</div><div><h1>${esc(m.name)}</h1><div class="sub">${d.courses.length} Veranstaltungen: ${d.courses.map(c => KIND_TXT[c.kind] || c.kind).join(", ")}${m.exam_date ? ` · Klausur ${fmtDate(m.exam_date)}` : ""}</div></div></div>
         <div class="actions"><button class="btn sm" id="modEdit">${icon("settings", 14)} Modul</button><div class="seg"><button class="${mode === "list" ? "active" : ""}" data-mode="list">${icon("list", 15)}</button><button class="${mode === "cards" ? "active" : ""}" data-mode="cards">${icon("grid", 15)}</button></div></div></div>
-      <div class="grid cols-3" style="margin-bottom:1rem"><div class="card kpi"><b>${d.progress}%</b><span>Lernfortschritt</span><div class="progress" style="margin-top:.4rem"><i style="width:${d.progress}%"></i></div></div><div class="card kpi"><b>${curWeek ? curWeek.label.split("·")[0].trim() : "–"}</b><span>Aktuelle Lehrwoche${curWeek?.topic ? ` · ${esc(curWeek.topic)}` : ""}</span></div><div class="card kpi"><b>${d.next_package ? fmtShort(d.next_package.date) : "–"}</b><span>${d.next_package ? esc(d.next_package.title) : "Kein Lernblock geplant"}${d.next_package ? ` · <a href="#/plan?view=day&date=${d.next_package.date}">öffnen</a>` : ""}</span></div></div>
+      <div class="grid cols-3" style="margin-bottom:1rem"><div class="card kpi"><b>${d.progress}%</b><span>Lernfortschritt</span><div class="progress" style="margin-top:.4rem"><i style="width:${d.progress}%"></i></div><div class="mod2-mastery">${masteryHtml(d.mastery)}</div></div><div class="card kpi"><b>${curWeek ? curWeek.label.split("·")[0].trim() : "–"}</b><span>Aktuelle Lehrwoche${curWeek?.topic ? ` · ${esc(curWeek.topic)}` : ""}</span></div><div class="card kpi"><b>${d.next_package ? fmtShort(d.next_package.date) : "–"}</b><span>${d.next_package ? esc(d.next_package.title) : "Kein Lernblock geplant"}${d.next_package ? ` · <a href="#/plan?view=day&date=${d.next_package.date}">öffnen</a>` : ""}</span></div></div>
       <div class="tabs">${[["overview", "Übersicht"], ["lectures", "Vorlesungen"], ["exercises", "Übungen"], ["solutions", "Lösungen"], ["scripts", "Skripte"], ["exams", "Klausuren"], ["notes", "Notizen"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
       <div class="tab-panel${switched ? " uf-panel-in" : ""}">${body}</div></div>`;
     $$("[data-tab]", view).forEach(b => b.onclick = () => { if (tab === b.dataset.tab) return; tab = b.dataset.tab; render(true); });

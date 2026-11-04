@@ -1079,9 +1079,9 @@ def get_asset(file_id: str, name: str):
 @app.get("/api/files/{file_id}/pagetext")
 def page_text(file_id: str, page: int = 1):
     """Text einer Seite aus dem Seitentext-Index (Datei auf der Platte oder, im Dienst, beim Durchreichen abgelegt)."""
-    from . import scriptsearch
+    from . import extract, scriptsearch
     with db.cursor() as conn:
-        _found(db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)), "Datei")
+        f = _found(db.row(conn, "SELECT name FROM files WHERE id=?", (file_id,)), "Datei")
         try:
             # nur die gefragte Seite erkennen, wenn ihre Textebene fast leer ist (beim Oeffnen fragt die App Seite 1, nicht alle)
             pages = scriptsearch.page_texts(conn, file_id, pageocr.Scope.only(page))
@@ -1089,9 +1089,11 @@ def page_text(file_id: str, page: int = 1):
             return {"text": "", "error": str(e)}
     if not pages:
         raise HTTPException(404, {"detail": "Kein Seitentext vorhanden.", "code": "no_content"})
+    # `kind` (pdf | docx | pptx | audio) seit 04.11.2026 (docs/DATEIARTEN.md): Word und PowerPoint liefern Seiten wie PDF
+    kind = extract.text_kind(f["name"])
     if page < 1 or page > len(pages):
-        return {"text": "", "pages": len(pages)}
-    return {"text": pages[page - 1], "pages": len(pages)}
+        return {"text": "", "pages": len(pages), "kind": kind}
+    return {"text": pages[page - 1], "pages": len(pages), "kind": kind}
 
 
 # ----------------------------------------------------------------------------
@@ -1460,16 +1462,22 @@ def gen_test(body: dict = Body(...)):
     dur = int(body["duration_min"]) if body.get("duration_min") else None
     # Lehrwoche (03.11.2026, Dialog "Wochentest erstellen"): dann nur die Materialien dieser Woche, sonst die neuesten
     week = int(body["week_no"]) if body.get("week_no") else None
+    # Zahl, Schwierigkeit, Aufgabenarten, Thema (04.11.2026); nur die Standardeinstellung wird geteilt
+    from . import ai
+    try:
+        options = ai.week_test_options(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     if body.get("module_id"):
         with db.cursor() as conn:
             m = db.row(conn, "SELECT name FROM modules WHERE id=?", (int(body["module_id"]),))
         if not m:
             raise HTTPException(404, "Modul nicht gefunden")
-        return _run_bg("Test", lambda: planner.create_test(m["name"], dur, module_id=int(body["module_id"]), week_no=week, auto=False))
+        return _run_bg("Test", lambda: planner.create_test(m["name"], dur, module_id=int(body["module_id"]), week_no=week, auto=False, options=options))
     subject = body.get("subject")
     if not subject:
         raise HTTPException(400, "subject fehlt")
-    return _run_bg("Test", lambda: planner.create_test(subject, dur, auto=False))
+    return _run_bg("Test", lambda: planner.create_test(subject, dur, auto=False, options=options))
 
 
 @app.post("/api/tests/generate-week")
@@ -1489,8 +1497,8 @@ def get_test(test_id: int):
     t["questions"] = json.loads(t["questions"])
     if not t["submitted_at"]:
         for q in t["questions"]:
-            for k in ("answer", "steps", "rubric", "refs", "from_exam", "exam_mode"):
-                q.pop(k, None)   # Loesung, Loesungsweg und Quellen erst nach Abgabe sichtbar
+            for k in ("answer", "steps", "rubric", "refs", "from_exam", "exam_mode", "explanation", "blank"):
+                q.pop(k, None)   # Loesung, Loesungsweg, Erklaerung, Luecke und Quellen erst nach Abgabe sichtbar
     t["answers"] = json.loads(t["answers"]) if t["answers"] else {}
     t["feedback"] = json.loads(t["feedback"]) if t["feedback"] else None
     from . import testshare

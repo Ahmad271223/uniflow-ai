@@ -134,9 +134,9 @@ def test_put_pagetext_is_stored_readable_and_searchable(hosted):
     assert rows[1]["search"] == "der satz von rolle und der mittelwertsatz", "Suchform wie index_bytes"
     # lesbar ueber den Index, ohne Datei und ohne Abruf bei der Hochschule
     st, d = _j(asgi_call(hosted, "GET", "/api/files/f1/pagetext?page=2", headers=h))
-    assert (st, d) == (200, {"text": pages[1], "pages": 3})
+    assert (st, d) == (200, {"text": pages[1], "pages": 3, "kind": "pdf"})
     st, d = _j(asgi_call(hosted, "GET", "/api/files/f1/pagetext?page=3", headers=h))
-    assert (st, d) == (200, {"text": "", "pages": 3})
+    assert (st, d) == (200, {"text": "", "pages": 3, "kind": "pdf"})
     # globale Suche findet die Seite (Datei ohne local_path, aber mit Quelle: das Geraet hat sie)
     st, d = _j(asgi_call(hosted, "GET", "/api/search?q=MITTELWERTSATZ", headers=h))
     assert st == 200 and [(p["file_id"], p["page"]) for p in d["pages"]] == [("f1", 2)]
@@ -145,7 +145,7 @@ def test_put_pagetext_is_stored_readable_and_searchable(hosted):
     st, d = _j(asgi_call(hosted, "PUT", "/api/files/f1/pagetext", headers=h, body=json.dumps({"pages": ["Nur eine Seite"]})))
     assert (st, d) == (200, {"pages": 1})
     st, d = _j(asgi_call(hosted, "GET", "/api/files/f1/pagetext?page=1", headers=h))
-    assert (st, d) == (200, {"text": "Nur eine Seite", "pages": 1})
+    assert (st, d) == (200, {"text": "Nur eine Seite", "pages": 1, "kind": "pdf"})
     assert _j(asgi_call(hosted, "GET", "/api/search?q=mittelwertsatz", headers=h))[1]["pages"] == []
 
 

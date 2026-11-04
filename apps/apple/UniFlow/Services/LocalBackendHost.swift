@@ -117,9 +117,10 @@ final class LocalBackendHost: @unchecked Sendable {
         // Gemeinsame Wochentests ueber CloudKit (hoechstens drei je Schluessel, WeeklyTestCloudKit.swift); ohne
         // iCloud-Container im Build nur die eigene Variante
         backend.context.testShare.set(WeeklyTestShareFactory.make())
-        // Gemeinsamer Dokument-Index ueber CloudKit (DocIndexCloudKit.swift); ohne iCloud-Container nur lokal
+        // Gemeinsamer Dokument-Index ueber CloudKit (DocIndexCloudKit.swift) und Erklaerungsspeicher
+        // (PageExplainCloudKit.swift); ohne iCloud-Container nur lokal
         backend.context.docIndex.configure(cloud: DocIndexCloudFactory.make(), cipher: SolutionSharing.cipher,
-                                           makeAI: { DocIndexCloudFactory.makeAI($0) })
+                                           makeAI: { DocIndexCloudFactory.makeAI($0) }, explainCloud: PageExplainCloudFactory.make())
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
     }

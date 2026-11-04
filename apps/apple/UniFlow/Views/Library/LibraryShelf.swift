@@ -503,6 +503,13 @@ struct ShelfBook: View {
     let open: () -> Void
     @ScaledMetric(relativeTo: .body) private var minHeight: CGFloat = 112
 
+    /// Symbol und Name der Art fuer Nicht-PDF (word | slides | audio), nil fuer PDF und Unbekanntes
+    private var sourceIcon: String? {
+        let k = LibraryStyle.displayKind(OfficeText.kind(file.name))
+        return k == "file" ? nil : ShellState.typeIcon[k]
+    }
+    private var sourceLabel: String? { ShellState.typeText[LibraryStyle.displayKind(OfficeText.kind(file.name))] }
+
     private var meta: String {
         var parts: [String] = []
         if let n = file.pageCount { parts.append(n == 1 ? "1 Seite" : "\(n) Seiten") }
@@ -529,7 +536,13 @@ struct ShelfBook: View {
                             if file.notePages > 0 { UFBadge(file.notePages == 1 ? "1 Seite Notizen" : "\(file.notePages) Seiten Notizen", tone: .accent, icon: "pencil") }
                         }
                     }
-                    if !meta.isEmpty { Text(meta).ufFont(11.52).foregroundStyle(UF.muted).lineLimit(1).monospacedDigit() }
+                    if !meta.isEmpty || sourceIcon != nil {
+                        HStack(spacing: 4) {
+                            // Word, PowerPoint, Audio mit Symbol der Art (docs/DATEIARTEN.md); PDF ohne
+                            if let sourceIcon { UFIcon(sourceIcon, size: 11).foregroundStyle(UF.muted).accessibilityLabel(sourceLabel ?? "") }
+                            Text(meta).ufFont(11.52).foregroundStyle(UF.muted).lineLimit(1).monospacedDigit()
+                        }
+                    }
                 }
                 .padding(.vertical, 10).padding(.leading, 11).padding(.trailing, 10)
             }

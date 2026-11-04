@@ -39,7 +39,19 @@ struct TutorPanel: View {
         var saved = false
         /// Modus der Anfrage, zu der diese Antwort gehoert (Anschlussfragen, `AIFollowUps`)
         var mode: String = "ask"
+        /// `explain` der Antwort (Erklaerungsspeicher): gespeicherte Antwort mit Quelle, oder null bei einer Live-Antwort
+        var explain: JSONValue? = nil
     }
+
+    /// Erklaerungsspeicher (04.11.2026): Beschriftung unter einer gespeicherten Antwort - ehrlich, woher sie kommt;
+    /// nil bei einer Live-Antwort (nichts Besonderes zu zeigen)
+    static func storedLabel(_ explain: JSONValue?) -> String? {
+        guard let explain, explain["stored"]?.bool == true else { return nil }
+        return explain["source"]?.string == "cloud" ? "Schon erklärt · sofort da · 0 Credits" : "Schon erklärt · 0 Credits"
+    }
+
+    /// "Neu erklaeren lassen" nur unter einer gespeicherten Antwort
+    static func offersRebuild(_ explain: JSONValue?) -> Bool { storedLabel(explain) != nil }
 
     @State private var messages: [Message] = []
     @State private var input = ""
@@ -187,6 +199,18 @@ struct TutorPanel: View {
                 } else {
                     // Markdown (Ueberschriften, Aufzaehlungen, Fett) in den Schriften des Designsystems
                     AIMarkdownText(msg.text).accessibilityIdentifier("tutor.answer")
+                    // gespeicherte Antwort (Erklaerungsspeicher): Herkunft und der Weg zu einer frischen Antwort
+                    if let stored = Self.storedLabel(msg.explain) {
+                        HStack(spacing: 6) {
+                            UFIcon("check", size: 13).foregroundStyle(UF.ok)
+                            Text(stored).ufFont(12).foregroundStyle(UF.muted)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("tutor.stored")
+                        UFButton("Neu erklären lassen", icon: "refresh", kind: .ghost, size: .small) { Task { await send(mode: msg.mode, force: true) } }
+                            .disabled(busy)
+                            .accessibilityIdentifier("tutor.rebuild")
+                    }
                     // zwei bis drei Anschlussfragen je nach Modus (lokal; Antippen fragt im selben Gespraech nach)
                     let followUps = AIFollowUps.suggest(after: msg.mode)
                     if !followUps.isEmpty {
@@ -239,17 +263,19 @@ struct TutorPanel: View {
         })
     }
 
-    /// Text, der im Verlauf fuer einen Schnellknopf steht
-    static func label(mode: String, input: String) -> String {
+    /// Text, der im Verlauf fuer einen Schnellknopf steht; `force` = "Neu erklaeren lassen"
+    static func label(mode: String, input: String, force: Bool = false) -> String {
         let name = modes.first { $0.key == mode }?.label ?? mode
         switch mode {
         case "ask": return input
         case "check": return "Lösung prüfen:\n" + input
-        default: return input.isEmpty ? name : "\(name): \(input)"
+        default: return input.isEmpty ? (force ? "\(name) (neu)" : name) : "\(name): \(input)"
         }
     }
 
-    private func send(mode: String, selection given: String? = nil) async {
+    /// `force` ("Neu erklaeren lassen"): am Erklaerungsspeicher vorbei live fragen; die Antwort belegt den naechsten
+    /// freien Platz oder bleibt lokal
+    private func send(mode: String, selection given: String? = nil, force: Bool = false) async {
         guard let api = session.api, !busy else { return }
         let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         let page = page(), selection = given ?? selection()
@@ -257,7 +283,8 @@ struct TutorPanel: View {
                                          "history": Self.history(messages)]
         if mode == "check" { body["own_solution"] = .string(typed) } else if !typed.isEmpty { body["question"] = .string(typed) }
         if !selection.isEmpty { body["selection"] = .string(selection) }
-        messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed)
+        if force { body["force"] = true }
+        messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed, force: force)
                                 + (given.map { "\n„\(String($0.prefix(160)))\($0.count > 160 ? " …" : "")“" } ?? "")))
         input = ""
         if mode == "check" { checking = false }
@@ -267,7 +294,7 @@ struct TutorPanel: View {
         do {
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
-                                    sources: r["sources"]?.array ?? [], mode: mode))
+                                    sources: r["sources"]?.array ?? [], mode: mode, explain: r["explain"].flatMap { $0.isNull ? nil : $0 }))
             // fuer "Zuletzt" auf KI-Start (lokal, je Container)
             if mode != "flashcards" { AIRecents.shared.record(question: Self.label(mode: mode, input: typed), answer: r.s("answer") ?? "", fileID: fileID) }
         } catch {

@@ -6,6 +6,7 @@ import Foundation
 public final class LocalDocIndex: @unchecked Sendable {
     private let lock = NSLock()
     private var _cloud: DocIndexCloud?
+    private var _explainCloud: PageExplainCloud?
     private var _cipher: SolutionCipher?
     private var _makeAI: @Sendable (AIProvider) -> DocIndexAI = { TextDocIndexAI($0) }
     private var running: Set<String> = []
@@ -13,11 +14,15 @@ public final class LocalDocIndex: @unchecked Sendable {
     public init() {}
 
     public var cloud: DocIndexCloud? { lock.withLock { _cloud } }
+    /// Erklaerungsspeicher beim Dienst (CloudKit `PageExplain`); nil = Antworten bleiben auf dem Geraet
+    public var explainCloud: PageExplainCloud? { lock.withLock { _explainCloud } }
     public var cipher: SolutionCipher? { lock.withLock { _cipher } }
 
-    public func configure(cloud: DocIndexCloud?, cipher: SolutionCipher?, makeAI: (@Sendable (AIProvider) -> DocIndexAI)? = nil) {
+    public func configure(cloud: DocIndexCloud?, cipher: SolutionCipher?, makeAI: (@Sendable (AIProvider) -> DocIndexAI)? = nil,
+                          explainCloud: PageExplainCloud? = nil) {
         lock.withLock {
             _cloud = cloud
+            _explainCloud = explainCloud
             _cipher = cipher
             if let makeAI { _makeAI = makeAI }
         }
@@ -339,14 +344,17 @@ public enum DocIndexBuilder {
     public struct PrewarmReport: Equatable, Sendable {
         public var candidates = 0
         public var started: [DocIndexBuildReport] = []
+        /// Stufe "Alles": Erklaerungen je Datei (Erklaerungsspeicher)
+        public var explained: [PageExplainBuilder.Report] = []
         public var stopped = false
         public var log: [String] = []
         public init() {}
     }
 
     /// Dateien der laufenden Lehrwoche (aktive Kurse, PDF auf dem Geraet), deren Index noch nicht vollstaendig ist;
-    /// neueste zuerst, dann nach Kennung (feste Reihenfolge)
-    static func prewarmCandidates(_ c: SQLiteConnection, ctx: LocalContext) throws -> [DocIndexStore.FileMeta] {
+    /// neueste zuerst, dann nach Kennung (feste Reihenfolge). Stufe `full`: auch Dateien mit Index, denen noch
+    /// Erklaerungen fehlen (`PageExplain.prewarmPlan`)
+    static func prewarmCandidates(_ c: SQLiteConnection, ctx: LocalContext, level: DocIndexPrewarmLevel = .basic) throws -> [DocIndexStore.FileMeta] {
         let dates = try LocalModules.Dates(c, clock: ctx.clock)
         let current = StudyWeeks.dayWeek(start: dates.start, day: dates.today, today: dates.today)
         let rows = try c.query(DocIndexStore.fileSQL + """
@@ -357,7 +365,11 @@ public enum DocIndexBuilder {
         for r in rows {
             let m = try DocIndexStore.fileMeta(c, r, dates: dates)
             guard m.week == current, let p = m.localPath, ctx.files?.exists(stored: p) == true else { continue }
-            if let sha = m.sha, try DocIndexStore.row(c, fileSHA: sha, page: 0)?.isOK == true { continue }
+            if let sha = m.sha, let summary = try DocIndexStore.row(c, fileSHA: sha, page: 0), summary.isOK {
+                guard level == .full, let n = summary.content?["pageCount"]?.int, n >= 1,
+                      !PageExplain.prewarmPlan(level: level, pageCount: n, pagesWithTasks: try PageExplainBuilder.pagesWithTasks(c, fileSHA: sha),
+                                               have: try PageExplainStore.have(c, fileSHA: sha)).isEmpty else { continue }
+            }
             out.append(m)
         }
         return out
@@ -366,10 +378,15 @@ public enum DocIndexBuilder {
     /// Nach dem Abgleich: fuer bis zu `maxFiles` Dateien der laufenden Woche den Index bauen (Text, sparsames Modell), erst
     /// die Bibliothek fragen. Ob jetzt ein guter Zeitpunkt ist (WLAN, Laden), entscheidet der Aufrufer; `shouldStop`
     /// beendet zwischen zwei Seiten, der naechste Lauf macht dort weiter. Fehler der KI (Kontingent) beenden den Lauf.
+    /// Stufe `full` mit `tutorAI` (Schalter "Vorab einordnen: Alles"): dieselben Dateien bekommen danach je Seite eine
+    /// Erklaerung und fuer Seiten mit Aufgaben eine Loesung, geteilt wie die Antworten der KI-Hilfe
+    /// (`PageExplainBuilder.prewarm`); `basic` aendert nichts am bisherigen Lauf.
     public static func prewarm(ctx: LocalContext, cloud: DocIndexCloud?, ai: DocIndexAI?, cipher: SolutionCipher?,
-                               maxFiles: Int = prewarmFilesPerRun, shouldStop: @escaping @Sendable () -> Bool = { false }) async -> PrewarmReport {
+                               maxFiles: Int = prewarmFilesPerRun, level: DocIndexPrewarmLevel = .basic, tutorAI: AIProvider? = nil,
+                               shouldStop: @escaping @Sendable () -> Bool = { false }) async -> PrewarmReport {
         var report = PrewarmReport()
-        let candidates = (try? await ctx.database.withConnection { try prewarmCandidates($0, ctx: ctx) }) ?? []
+        let full = level == .full && tutorAI != nil
+        let candidates = (try? await ctx.database.withConnection { try prewarmCandidates($0, ctx: ctx, level: full ? .full : .basic) }) ?? []
         report.candidates = candidates.count
         for m in candidates.prefix(max(0, maxFiles)) {
             if shouldStop() { report.stopped = true; break }
@@ -378,6 +395,12 @@ public enum DocIndexBuilder {
                                         options: DocIndexBuildOptions(withImage: false, small: true), shouldStop: shouldStop)
                 report.started.append(r)
                 if r.skipped > 0, shouldStop() { report.stopped = true; break }
+                if full, let tutorAI {
+                    let e = try await PageExplainBuilder.prewarm(fileID: m.fileID, ctx: ctx, ai: tutorAI, cloud: ctx.docIndex.explainCloud,
+                                                                 cipher: cipher, shouldStop: shouldStop)
+                    report.explained.append(e)
+                    if e.skipped > 0, shouldStop() { report.stopped = true; break }
+                }
             } catch let e as AIError {
                 report.log.append("\(m.name): \(e.message)")
                 if isFatal(e) { report.stopped = true; break }
