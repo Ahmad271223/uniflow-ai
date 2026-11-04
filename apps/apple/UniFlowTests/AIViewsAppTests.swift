@@ -350,7 +350,9 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertEqual(recents.entries.count, 1)
         XCTAssertEqual(recents.entries.first?.fileID, "f-1")
         XCTAssertTrue(env.wait { self.shows(env.view, "1 Anfrage diesen Monat") })
-        XCTAssertTrue(shows(env.view, "Zuletzt: Zusammenfassung"))
+        // Gespraech offen (Neugestaltung 04.11.2026): "Zuletzt" steht erst nach "Neues Gespräch" wieder unter dem Feld
+        XCTAssertEqual(recents.entries.first?.question, "Zusammenfassung: Folgen und Grenzwerte")
+        XCTAssertFalse(shows(env.view, "Zuletzt: Zusammenfassung"), "im Gespraech kein Zuletzt")
         // Anschlussfrage: dieselbe Datei, mit Verlauf
         XCTAssertTrue(tap("Was muss ich können?", in: env.view))
         XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 2 })

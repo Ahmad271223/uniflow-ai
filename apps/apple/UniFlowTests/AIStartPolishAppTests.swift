@@ -228,7 +228,7 @@ final class AIStartPolishAppTests: XCTestCase {
         XCTAssertTrue(tap("Frage senden", in: env.view))
         XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 1 })
         XCTAssertNil(t.bodies("/api/ai/tutor").first?["file_id"], "entfernt: keine Datei in der Anfrage")
-        XCTAssertTrue(env.wait { self.button("Antwort schließen", in: env.view) != nil })
+        XCTAssertTrue(env.wait { self.button("Neues Gespräch", in: env.view) != nil }, "Gespraech statt Antwortkarte (vorher: Antwort schließen)")
         // Waehler: nur die lesbaren Dokumente des Moduls, zuletzt geoeffnete zuerst
         XCTAssertTrue(tap("Dokument anhängen", in: env.view))
         XCTAssertTrue(env.wait { self.shows(env.view, "Blatt01.pdf. Übungen · 3 Seiten") }, texts(env.view).joined(separator: "\n"))
@@ -278,6 +278,153 @@ final class AIStartPolishAppTests: XCTestCase {
         both(envP, "ki-start-hochformat")
     }
 
+    // MARK: - Neugestaltung 04.11.2026: Reiter der KI-Hilfe, Gespraech auf KI-Start
+
+    /// Jeder Modus ausser der freien Frage liegt in genau einem Reiter; Farben und Reihenfolge wie besprochen
+    func testTutorTabsMapEveryModeExactlyOnce() {
+        XCTAssertEqual(TutorPanel.Tab.allCases.map(\.title), ["Erklären", "Karteikarten", "Test"])
+        XCTAssertEqual(TutorPanel.Tab.explain.pair, CommunityPalette.mint, "Erklären gruen")
+        XCTAssertEqual(TutorPanel.Tab.cards.pair, CommunityPalette.peach, "Karteikarten orange")
+        XCTAssertEqual(TutorPanel.Tab.test.pair, CommunityPalette.sky, "Test blau")
+        let inTabs = TutorPanel.Tab.allCases.flatMap(\.modes)
+        XCTAssertEqual(inTabs.count, Set(inTabs).count, "kein Modus doppelt")
+        XCTAssertEqual(Set(inTabs), Set(TutorPanel.modes.map(\.key).filter { $0 != "ask" }), "alle Modi erreichbar")
+        XCTAssertEqual(TutorPanel.Tab.explain.modes, ["explain", "explain_simple", "summary", "terms", "steps", "hints"])
+        XCTAssertEqual(TutorPanel.Tab.tab(for: "explain"), .explain)
+        XCTAssertEqual(TutorPanel.Tab.tab(for: "hints"), .explain)
+        XCTAssertEqual(TutorPanel.Tab.tab(for: "flashcards"), .cards)
+        XCTAssertEqual(TutorPanel.Tab.tab(for: "similar"), .test)
+        XCTAssertEqual(TutorPanel.Tab.tab(for: "check"), .test)
+        XCTAssertNil(TutorPanel.Tab.tab(for: "ask"), "freie Frage: kein Reiter")
+        // Anschlussfragen nur unter der letzten Antwort
+        let ms = [TutorPanel.Message(fromUser: true, text: "F1"), TutorPanel.Message(fromUser: false, text: "A1"),
+                  TutorPanel.Message(fromUser: true, text: "F2"), TutorPanel.Message(fromUser: false, text: "A2")]
+        XCTAssertFalse(TutorPanel.showsFollowUps(at: 1, in: ms))
+        XCTAssertTrue(TutorPanel.showsFollowUps(at: 3, in: ms))
+        XCTAssertFalse(TutorPanel.showsFollowUps(at: 2, in: ms), "keine unter einer Frage")
+        XCTAssertFalse(TutorPanel.showsFollowUps(at: 9, in: ms))
+        // Abschnittstitel in den UF-Groessen (h2/h3/h4), nie kleiner als der Lesetext
+        XCTAssertEqual(AIMarkdownText.headingSize(level: 2, body: 13.76), 17.6)
+        XCTAssertEqual(AIMarkdownText.headingSize(level: 3, body: 13.76), 15.2)
+        XCTAssertEqual(AIMarkdownText.headingSize(level: 4, body: 13.76), 13.76)
+        XCTAssertEqual(AIMarkdownText.headingSize(level: 2, body: 17), 19)
+    }
+
+    /// Start oder Gespraech, "Zuletzt" nur ohne Gespraech, Verlauf als history (hoechstens die letzten Beitraege)
+    func testChatLayoutStateAndHistory() {
+        XCTAssertEqual(AIStartView.layout(turns: 0, pending: false), .start)
+        XCTAssertEqual(AIStartView.layout(turns: 0, pending: true), .chat, "die erste Frage ist unterwegs: schon Gespraech")
+        XCTAssertEqual(AIStartView.layout(turns: 2, pending: false), .chat)
+        XCTAssertTrue(AIStartView.showsRecents(.start))
+        XCTAssertFalse(AIStartView.showsRecents(.chat))
+        XCTAssertEqual(AIStartView.history([]), .array([]))
+        let one = [AIStartView.Answer(question: "Was ist eine Folge?", text: "Eine Abbildung.", mode: "ask")]
+        XCTAssertEqual(AIStartView.history(one).array?.count, 2)
+        XCTAssertEqual(AIStartView.history(one).array?.first?["role"], "user")
+        XCTAssertEqual(AIStartView.history(one).array?.last?["text"], "Eine Abbildung.")
+        let many = (1...5).map { AIStartView.Answer(question: "F\($0)", text: "A\($0)", mode: "ask") }
+        let h = AIStartView.history(many).array ?? []
+        XCTAssertEqual(h.count, AIPrompts.tutorHistoryTurns)
+        XCTAssertEqual(h.last?["text"], "A5", "die neuesten Beitraege")
+        XCTAssertEqual(AIStartView.plain("## Kurz\n- **fett** und `x`\n- zwei"), "Kurz fett und x · zwei")
+    }
+
+    /// Nach der ersten Frage wird die Seite ein Gespraech (Frage als Blase, Antwort, Feld unten), "Zuletzt" weicht;
+    /// die zweite Frage schickt den Verlauf mit; "Neues Gespräch" fuehrt zurueck zum Start mit "Zuletzt"
+    func testStartPageBecomesChatAndNewConversationReturns() throws {
+        let t = transport()
+        let recents = AIRecents(defaults: try suite(), scope: "chat")
+        recents.record(question: "Alte Frage", answer: "Alte Antwort")
+        let env = try hostWithEnvironment(AIStartView(entitlements: Entitlements(observe: false, plan: .plus), recents: recents)
+                                              .environment(\.ufAIEnabled, true), api: api(t))
+        XCTAssertTrue(env.wait { self.button("Angehängt:", in: env.view, exact: false) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("Zuletzt: Alte Frage", in: env.view), "Start: Zuletzt unter dem Feld")
+        XCTAssertNil(button("Neues Gespräch", in: env.view), "Start: kein Neues Gespräch")
+        XCTAssertTrue(shows(env.view, "Modul: Alle Module"), "Modul als kleines Menue im Feld")
+        XCTAssertTrue(tap("Hilfe.", in: env.view, exact: false))
+        XCTAssertTrue(env.wait { self.button("Beispiel: \(AIHelpContent.examples[1])", in: env.view) != nil })
+        XCTAssertTrue(tap("Beispiel: \(AIHelpContent.examples[1])", in: env.view))
+        XCTAssertTrue(env.wait { self.enabledState("Frage senden", env) == true })
+        XCTAssertTrue(tap("Frage senden", in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "Abbildung von ℕ nach ℝ") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Du: \(AIHelpContent.examples[1])"), "Frage als Blase")
+        XCTAssertNotNil(button("Neues Gespräch", in: env.view))
+        XCTAssertNil(button("Zuletzt: Alte Frage", in: env.view), "im Gespraech kein Zuletzt")
+        XCTAssertNotNil(button("Wochentest.", in: env.view, exact: false), "Aktionen bleiben ueber dem Feld")
+        XCTAssertNotNil(button("Frage senden", in: env.view), "Feld unten")
+        both(env, "ki-start-gespraech")
+        // zweite Frage ueber eine Anschlussfrage: der Verlauf geht mit
+        XCTAssertTrue(tap("Einfacher erklären", in: env.view))
+        XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 2 })
+        XCTAssertEqual(t.bodies("/api/ai/tutor").last?["history"]?.array?.count, 2)
+        XCTAssertEqual(t.bodies("/api/ai/tutor").last?["mode"], "explain_simple")
+        XCTAssertTrue(env.wait { self.shows(env.view, "Du: Einfacher erklären") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(env.wait { !self.busyShown(env) }, "zweite Antwort da")
+        both(env, "ki-start-gespraech-2")
+        XCTAssertTrue(tap("Neues Gespräch", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Zuletzt: Alte Frage", in: env.view) != nil }, "zurueck zum Start")
+        XCTAssertNil(button("Neues Gespräch", in: env.view))
+        XCTAssertTrue(shows(env.view, "Was möchtest du heute lernen?"))
+    }
+
+    /// KI-Hilfe im Editor: Reiter oben, Aktionen des Reiters darunter, Antwort als Markdown, Frage rechts; der Reiter
+    /// folgt dem Modus einer Anschlussfrage
+    func testTutorPanelTabsSendTheirModes() throws {
+        let t = AIViewsAppTests.Transport()
+        t.answer("/api/index/file/f-1/page/2", ["file_id": "f-1", "page": 2, "status": "none", "can_build": false])
+        t.answer("/api/ai/tutor", ["answer": "## Kurz gesagt\nEine Folge heißt **konvergent**, wenn sie einen Grenzwert hat.\n\n### Woran du es erkennst\n- Ab einem Index liegen alle Glieder nah am Grenzwert\n- Beschränkt allein reicht nicht\n\n1. Grenzwert raten\n2. Mit der Epsilon-Definition prüfen",
+                                   "cards": .null, "sources": []])
+        let tutorAPI = APIClient(base: URL(string: "http://erfunden.test/")!, transport: t)
+        let panel = TutorPanel(fileID: "f-1", page: { 2 }, selection: { "" }, open: { _, _ in }, close: {}).environment(\.ufAIEnabled, true)
+        let env = try hostWithEnvironment(panel.frame(width: 377), api: tutorAPI, size: CGSize(width: 377, height: 1000))
+        XCTAssertTrue(env.wait { self.button("Bereich Erklären", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("Bereich Karteikarten", in: env.view))
+        XCTAssertNotNil(button("Bereich Test", in: env.view))
+        for label in ["Erklären", "Einfach erklären", "Zusammenfassen", "Fachbegriffe", "Aufgabe lösen", "Nur Hinweise"] {
+            XCTAssertNotNil(button(label, in: env.view), label)
+        }
+        XCTAssertNil(button("Ähnliche Aufgabe", in: env.view), "liegt im Reiter Test")
+        both(env, "ki-hilfe-leer")
+        XCTAssertTrue(tap("Bereich Test", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Ähnliche Aufgabe", in: env.view) != nil })
+        XCTAssertNotNil(button("Lösung prüfen", in: env.view))
+        XCTAssertNotNil(button("Wochentest erstellen", in: env.view))
+        XCTAssertNil(button("Nur Hinweise", in: env.view))
+        XCTAssertTrue(tap("Bereich Karteikarten", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Karteikarten zur Seite erstellen", in: env.view) != nil })
+        XCTAssertTrue(tap("Bereich Erklären", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Zusammenfassen", in: env.view) != nil })
+        XCTAssertTrue(tap("Zusammenfassen", in: env.view))
+        XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 1 })
+        XCTAssertEqual(t.bodies("/api/ai/tutor").first?["mode"], "summary")
+        XCTAssertTrue(env.wait { self.shows(env.view, "Woran du es erkennst") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Du: Zusammenfassen"), "Frage als Blase rechts")
+        XCTAssertTrue(shows(env.view, "Seite 2 · über dein ChatGPT"), "Kostenzeile unter dem Feld")
+        both(env, "ki-hilfe-antwort")
+        // Anschlussfrage "Ähnliche Aufgabe": der Reiter Test ist danach offen
+        XCTAssertTrue(tap("Ähnliche Aufgabe", in: env.view))
+        XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 2 })
+        XCTAssertEqual(t.bodies("/api/ai/tutor").last?["mode"], "similar")
+        XCTAssertTrue(env.wait { self.button("Lösung prüfen", in: env.view) != nil }, "Reiter Test offen")
+        // Loesung pruefen: das Feld wechselt, Senden heisst so
+        XCTAssertTrue(tap("Lösung prüfen", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Lösung prüfen beenden", in: env.view) != nil })
+        XCTAssertTrue(tap("Lösung prüfen beenden", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Lösung prüfen beenden", in: env.view) == nil })
+        // Hochformat: schmale Leiste
+        let narrow = try hostWithEnvironment(TutorPanel(fileID: "f-1", page: { 2 }, selection: { "" }, open: { _, _ in }, close: {})
+                                                 .environment(\.ufAIEnabled, true).frame(width: 300), api: tutorAPI, size: CGSize(width: 300, height: 1000))
+        XCTAssertTrue(narrow.wait { self.button("Bereich Test", in: narrow.view) != nil })
+        both(narrow, "ki-hilfe-schmal")
+        // sehr grosse Schrift: Reiter untereinander, alles erreichbar
+        let big = try hostWithEnvironment(TutorPanel(fileID: "f-1", page: { 2 }, selection: { "" }, open: { _, _ in }, close: {})
+                                              .environment(\.ufAIEnabled, true).environment(\.dynamicTypeSize, .accessibility3).frame(width: 377),
+                                          api: tutorAPI, size: CGSize(width: 377, height: 1000))
+        XCTAssertTrue(big.wait { self.button("Bereich Test", in: big.view) != nil })
+        XCTAssertNotNil(button("Nur Hinweise", in: big.view))
+        both(big, "ki-hilfe-grosse-schrift")
+    }
+
     /// Bildschirmfoto nach UF_SCREENSHOT_DIR (wenn gesetzt), hell und dunkel; scheitert nie
     private func both(_ env: HostedEnvironment, _ name: String) {
         guard let dir = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !dir.isEmpty else { return }
@@ -295,6 +442,8 @@ final class AIStartPolishAppTests: XCTestCase {
         }
         env.window.overrideUserInterfaceStyle = .unspecified
     }
+
+    private func busyShown(_ env: HostedEnvironment) -> Bool { shows(env.view, "Die KI antwortet") }
 
     private func enabledState(_ label: String, _ env: HostedEnvironment) -> Bool? {
         button(label, in: env.view).map { !$0.accessibilityTraits.contains(.notEnabled) }

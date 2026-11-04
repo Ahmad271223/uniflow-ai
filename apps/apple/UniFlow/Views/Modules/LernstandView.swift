@@ -79,3 +79,73 @@ struct LernstandRing: View {
         }
     }
 }
+
+/// Kachel "Lernstand" im Stil einer Kennzahl-Karte (Neugestaltung 04.11.2026): Symbolkachel, Titel, Begruendung
+/// ("3 Wochentests, 42 Karten, 12 von 20 Aufgaben") und rechts der Ring mit der Prozentzahl, auf einem leisen Verlauf
+/// aus der Modulfarbe in die Kartenflaeche (nur UF-Farben gemischt, darum hell wie dunkel). Ohne Lernstand ruhig grau
+/// mit dem Hinweis, was ihn hebt. `.card`: Modulseite; `.inline`: Modulkarten und Modulzeilen der Uebersicht. Schrift
+/// und Ring wachsen mit Dynamic Type; VoiceOver liest einen Satz wie `LernstandBadge`.
+struct LernstandTile: View {
+    enum Style { case card, inline }
+    let m: JSONValue?
+    var color: Color = UF.accent
+    var style: Style = .card
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let score = LernstandText.score(m)
+        let has = score != nil
+        let big = style == .card
+        let radius: CGFloat = big ? UF.r : 10
+        let ring = min(UFScaledFont.scaled(big ? 58 : 44, typeSize), big ? 92 : 72)
+        HStack(alignment: .center, spacing: big ? 14 : 10) {
+            iconTile(has: has, big: big)
+            VStack(alignment: .leading, spacing: big ? 2 : 1) {
+                Text(has ? "Lernstand" : LernstandText.label(m))
+                    .ufFont(big ? 15.2 : 13.6, 650, lh: 1.3)
+                    .foregroundStyle(has ? UF.text : UF.text2)
+                Text(LernstandText.sub(m))
+                    .ufFont(big ? 13.12 : 12.48, lh: 1.35)
+                    .foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            ZStack {
+                LernstandRing(percent: Double(score ?? 0), color: has ? color : UF.lineStrong, lineWidth: big ? 5 : 4)
+                Text(score.map { "\($0)\u{00A0}%" } ?? "–")
+                    .ufFont(big ? 13.6 : 11.2, 700, lh: 1)
+                    .monospacedDigit()
+                    .foregroundStyle(has ? UF.text : UF.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, big ? 7 : 5)
+            }
+            .frame(width: ring, height: ring)
+        }
+        .padding(big ? 14 : 10)
+        .background(RoundedRectangle(cornerRadius: radius).fill(wash(has)))
+        .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(has ? Color.mix(color, 0.22, UF.line) : UF.line, lineWidth: 1))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(LernstandText.accessibility(m))
+        .accessibilityIdentifier("lernstand")
+    }
+
+    /// Symbolkachel: Stern auf einer Flaeche in der Modulfarbe, ohne Lernstand grau
+    private func iconTile(has: Bool, big: Bool) -> some View {
+        let side: CGFloat = big ? 40 : 30
+        let r: CGFloat = big ? 11 : 8
+        return RoundedRectangle(cornerRadius: r)
+            .fill(has ? Color.mix(color, 0.2, UF.surface) : UF.surface2)
+            .overlay(RoundedRectangle(cornerRadius: r).strokeBorder(has ? Color.mix(color, 0.4, UF.surface) : UF.line, lineWidth: 1))
+            .overlay(UFIcon("star", size: big ? 19 : 15).foregroundStyle(has ? Color.mix(color, 0.72, UF.text) : UF.muted))
+            .frame(width: side, height: side)
+            .accessibilityHidden(true)
+    }
+
+    /// leiser Verlauf: oben links ein Hauch Modulfarbe, unten rechts die Kartenflaeche
+    private func wash(_ has: Bool) -> LinearGradient {
+        LinearGradient(colors: has ? [Color.mix(color, 0.13, UF.surface), Color.mix(color, 0.03, UF.surface)]
+                                   : [UF.surface2, Color.mix(UF.surface2, 0.4, UF.surface)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}

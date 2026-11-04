@@ -18,6 +18,10 @@ import UniFlowCore
 // "Übung Woche n" (einmal erzeugt, von allen uebernommen, 0 Credits), "Woche n komplett" uebt beide nacheinander
 // (bewusste Wahl, kein Mischen); eigene Stapel lassen sich je Stapel in die Modul-Community teilen, geteilte Stapel
 // anderer stehen je Modul mit Pseudonym, "Übernehmen" (eigene Kopie, Lernstand getrennt), Like und Melden.
+// Neugestaltung 04.11.2026 (Vorbild-Vergleich): die Stapel stehen als Kacheln (quer 2-3, hochkant 1-2 Spalten) mit
+// farbiger Kante nach Art (Vorlesung gruen, Uebung blau, Eigene violett, von anderen bernstein), "heute fällig" gross,
+// den Leitner-Faechern als kleinem Balken und einem grossen Knopf "Üben" (faellige Karten zuerst, sonst frei ueben);
+// Bearbeiten, Teilen und Loeschen im Menue (…). Wiederholung und Trainer zeigen eine grosse Karte (FlashcardTrainer.swift).
 
 /// Stand der Karteikarten-Seite: alle Karten, die Stapel, der gewaehlte Stapel, die laufende Wiederholung, Anlegen,
 /// Bearbeiten und Loeschen. Gehoert zu genau einer Datenquelle: wechselt sie (anderes Konto, andere Hochschule,
@@ -553,6 +557,290 @@ final class FlashcardDeck: ObservableObject {
     }
 }
 
+// MARK: - Kacheln: Art, Leitner-Faecher, Faelligkeit (Neugestaltung 04.11.2026)
+
+/// Art eines Stapels fuer Farbe und Symbol der Kachel: Vorlesung gruen, Uebung blau, Eigene violett, von anderen
+/// uebernommen (Community) bernsteinfarben. Die Farben sind Paare aus `CommunityPalette` (hell und dunkel lesbar).
+enum FlashcardStackKind: String, CaseIterable {
+    case lecture, exercise, own, community
+
+    static func of(_ stack: JSONValue) -> FlashcardStackKind {
+        if stack.s("source") == "community" { return .community }
+        switch stack.s("kind") {
+        case "vorlesung": return .lecture
+        case "uebung": return .exercise
+        default: return .own
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .lecture: return "Vorlesung"
+        case .exercise: return "Übung"
+        case .own: return "Eigene"
+        case .community: return "Von anderen"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .lecture: return "book"
+        case .exercise: return "pen"
+        case .own: return "cards"
+        case .community: return "users"
+        }
+    }
+
+    var pair: CommunityPair {
+        switch self {
+        case .lecture: return CommunityPalette.mint
+        case .exercise: return CommunityPalette.sky
+        case .own: return CommunityPalette.lavender
+        case .community: return CommunityPalette.butter
+        }
+    }
+}
+
+extension FlashcardDeck {
+    /// Zahl der Leitner-Faecher (1 = neu oder falsch, 5 = sitzt)
+    static let boxCount = 5
+
+    /// Karten je Fach 1...5 (Fach ausserhalb wird auf 1 bzw. 5 begrenzt, fehlendes Fach = 1)
+    static func boxCounts(_ cards: [JSONValue]) -> [Int] {
+        var out = Array(repeating: 0, count: boxCount)
+        for c in cards { out[min(boxCount, max(1, c.i("box") ?? 1)) - 1] += 1 }
+        return out
+    }
+
+    /// Faecher eines Stapels aus den geladenen Karten
+    func boxCounts(stack id: Int?) -> [Int] { Self.boxCounts(all.filter { $0.i("stack_id") == id }) }
+
+    /// VoiceOver und Test: "Fach 1: 3 · Fach 2: 0 · …"
+    static func boxSummary(_ counts: [Int]) -> String {
+        counts.enumerated().map { "Fach \($0.offset + 1): \($0.element)" }.joined(separator: " · ")
+    }
+
+    /// heute faellig in einem Stapel (Feld der Stapelliste)
+    static func dueCount(_ stack: JSONValue) -> Int { stack.i("due") ?? 0 }
+
+    /// Chip der Lehrwoche: "Woche 3" bzw. "Allgemein"
+    static func weekChip(_ stack: JSONValue) -> String { stack.i("week").map { "Woche \($0)" } ?? "Allgemein" }
+
+    /// "Üben" auf der Kachel: mit faelligen Karten zuerst die Wiederholung (Leitner), sonst frei ueben
+    static func practiceStartsReview(_ stack: JSONValue) -> Bool { dueCount(stack) > 0 }
+
+    /// Zeile unter "Üben"
+    static func practiceHint(_ stack: JSONValue) -> String {
+        let due = dueCount(stack), n = stack.i("cards") ?? 0
+        if n == 0 { return "Noch keine Karte im Stapel" }
+        if due > 0 { return "Zuerst \(due == 1 ? "die fällige Karte" : "die \(due) fälligen Karten")" }
+        return "Frei üben, der Plan bleibt"
+    }
+}
+
+/// Eine Kachel je Stapel: farbige Kante und Symbol nach Art, Name, Modul, Woche, "heute fällig" gross, Karten,
+/// die Leitner-Faecher als kleiner Balken und ein grosser Knopf "Üben"; Bearbeiten, Teilen und Loeschen im Menue (…).
+struct FlashcardStackTile: View {
+    let stack: JSONValue
+    let boxes: [Int]
+    let canEdit: Bool
+    let entitlements: Entitlements
+    let menuOpen: Bool
+    let open: () -> Void
+    let practise: () -> Void
+    let toggleMenu: () -> Void
+
+    var body: some View {
+        let kind = FlashcardStackKind.of(stack)
+        let pair = kind.pair
+        let name = stack.s("name") ?? ""
+        let due = FlashcardDeck.dueCount(stack)
+        let n = stack.i("cards") ?? 0
+        let badge = FlashcardDeck.badge(stack)
+        let line = FlashcardDeck.stackLine(stack)
+        VStack(alignment: .leading, spacing: 0) {
+            // oberer Teil: oeffnet den Stapel (Karten lesen, Wiederholen, Frei ueben)
+            Button(action: open) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(pair.bg)
+                            UFIcon(kind.icon, size: 20).foregroundStyle(pair.fg)
+                        }
+                        .frame(width: 44, height: 44)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(name).ufFont(15.2, 650, lh: 1.3, em: -0.01).foregroundStyle(UF.text)
+                                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            Text(stack.s("subject").flatMap { $0.isEmpty ? nil : $0 } ?? "Ohne Modul")
+                                .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    UFFlexWrap(gap: 6, rowGap: 6) {
+                        chip(kind.label, fg: pair.fg, bg: pair.bg)
+                        chip(FlashcardDeck.weekChip(stack), fg: UF.text2, bg: UF.surface2)
+                        if stack.s("source") == "week" { chip("gemeinsam", fg: UF.text2, bg: UF.surface2) }
+                        if !(stack.s("shared_id") ?? "").isEmpty { chip("geteilt", fg: UF.accentText, bg: UF.accentSoft) }
+                    }
+                    .padding(.top, 12)
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        Text("\(due)").ufFont(32, 750, lh: 1.1, em: -0.02).monospacedDigit()
+                            .foregroundStyle(due > 0 ? UF.accentText : UF.muted)
+                        Text("heute fällig").ufFont(13.6, 600).foregroundStyle(due > 0 ? UF.text : UF.muted)
+                        Spacer(minLength: 4)
+                        Text("\(n) \(n == 1 ? "Karte" : "Karten")").ufFont(13.12, 500).foregroundStyle(UF.text2)
+                    }
+                    .padding(.top, 14)
+                    FlashcardBoxBar(counts: boxes, tint: pair.solid).padding(.top, 10)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Stapel öffnen: \(name)")
+            .accessibilityValue(badge + " · " + line + " · " + FlashcardDeck.boxSummary(boxes))
+            Spacer(minLength: 14)
+            // unten: der eine starke Knopf und das Menue
+            HStack(spacing: 8) {
+                practiseButton(name: name, cards: n)
+                if canEdit {
+                    Button(action: toggleMenu) {
+                        UFIcon("more", size: 18)
+                            .foregroundStyle(menuOpen ? UF.accentText : UF.text2)
+                            .frame(width: 44, height: 44)
+                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(menuOpen ? UF.accentSoft : UF.surface2))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .anchorPreference(key: FlashcardMenuAnchor.self, value: .bounds) { menuOpen ? $0 : nil }
+                    .accessibilityLabel("Aktionen für Stapel: \(name)")
+                    .accessibilityHint("Bearbeiten, teilen oder löschen")
+                    .accessibilityAddTraits(menuOpen ? .isSelected : [])
+                }
+            }
+            Text(FlashcardDeck.practiceHint(stack)).ufFont(12.16).foregroundStyle(UF.muted).lineLimit(1)
+                .padding(.top, 6)
+                .accessibilityHidden(true)
+        }
+        .padding(.top, 18 + 4).padding(.bottom, 16).padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(UF.surface))
+        .overlay(alignment: .top) { Rectangle().fill(pair.solid).frame(height: 4) }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+        .ufShadow(.sm)
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder private func practiseButton(name: String, cards: Int) -> some View {
+        let button = Button(action: practise) {
+            HStack(spacing: 8) {
+                UFIcon("play", size: 16)
+                Text("Üben")
+            }
+            .ufFont(15.2, 650)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.accentFill))
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .opacity(cards == 0 ? 0.5 : 1)
+        }
+        .buttonStyle(UFPressStyle())
+        .disabled(cards == 0)
+        .accessibilityLabel("Üben: \(name)")
+        .accessibilityHint(FlashcardDeck.practiceHint(stack))
+        // Lesemodus (Free): sichtbar mit Schloss, Tippen oeffnet die Tarifwahl
+        if canEdit { button } else { button.ufRequires(.flashcards, entitlements: entitlements) }
+    }
+
+    private func chip(_ text: String, fg: Color, bg: Color) -> some View {
+        Text(text).ufFont(11.52, 650).foregroundStyle(fg).lineLimit(1)
+            .padding(.horizontal, 8).padding(.vertical, 2.5)
+            .background(Capsule().fill(bg))
+    }
+}
+
+/// Leitner-Faecher als kleine Saeulen 1...5 mit Zahl darunter; die Hoehe zeigt den Anteil am groessten Fach
+struct FlashcardBoxBar: View {
+    let counts: [Int]
+    var tint: Color = UF.accent
+
+    var body: some View {
+        let top = max(1, counts.max() ?? 0)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text("Lernstand").ufFont(11.2, 650).foregroundStyle(UF.muted)
+                Spacer(minLength: 4)
+                Text("Fach 1 → 5").ufFont(11.2).foregroundStyle(UF.muted)
+            }
+            HStack(alignment: .bottom, spacing: 5) {
+                ForEach(Array(counts.enumerated()), id: \.offset) { i, n in
+                    VStack(spacing: 3) {
+                        ZStack(alignment: .bottom) {
+                            RoundedRectangle(cornerRadius: 3).fill(UF.surface2)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(tint.opacity(0.45 + 0.55 * Double(i) / Double(max(1, counts.count - 1))))
+                                .frame(height: n == 0 ? 0 : max(3, 22 * CGFloat(n) / CGFloat(top)))
+                        }
+                        .frame(height: 22)
+                        Text("\(n)").ufFont(10.88, 600).monospacedDigit().foregroundStyle(n == 0 ? UF.muted : UF.text2)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Leitner-Fächer")
+        .accessibilityValue(FlashcardDeck.boxSummary(counts))
+    }
+}
+
+/// Ort des geoeffneten Menues (…) einer Kachel; die Seite legt das Menue darueber
+struct FlashcardMenuAnchor: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = value ?? nextValue() }
+}
+
+/// Wochenfilter als Segmentzeile, die bei vielen Wochen waagerecht scrollt ("Alle · Allgemein · W1 … Wn")
+struct FlashcardWeekFilter: View {
+    let weeks: [Int]
+    @Binding var selection: Int?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 2) {
+                segment(nil, "Alle", spoken: "Alle Wochen")
+                segment(FlashcardDeck.generalWeek, "Allgemein", spoken: "Allgemein, ohne Lehrwoche")
+                ForEach(weeks, id: \.self) { w in segment(w, "W\(w)", spoken: "Woche \(w)") }
+            }
+            .padding(3)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.surface2))
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Lehrwoche")
+    }
+
+    private func segment(_ value: Int?, _ label: String, spoken: String) -> some View {
+        let on = selection == value
+        return Button { selection = value } label: {
+            Text(label)
+                .ufFont(14.08, on ? 650 : 500)
+                .fixedSize()
+                .foregroundStyle(on ? UF.text : UF.text2)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 36)
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(on ? UF.surface : .clear))
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(on ? UF.line : .clear, lineWidth: 1))
+                .contentShape(Rectangle())
+                .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 1, bottom: .infinity, trailing: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(spoken)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
 // MARK: - Seite
 
 struct CardsPage: View {
@@ -560,11 +848,17 @@ struct CardsPage: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
+    @Environment(\.ufWindowWidth) private var windowWidth
+    @Environment(\.dynamicTypeSize) private var typeSize
     @StateObject private var deck = FlashcardDeck()
     @StateObject private var trainer = FlashcardTrainer()
     @ObservedObject private var ent: Entitlements
     /// Wochenfilter der Stapelliste (nil = alle)
     @State private var weekFilter: Int?
+    /// Stapel, dessen Menue (…) offen ist
+    @State private var menuStack: JSONValue?
+    /// Unterzeile des Trainers (Stapel bzw. "Woche n komplett")
+    @State private var trainerTitle: String?
 
     /// `entitlements: nil` = `Entitlements.shared`
     @MainActor
@@ -576,6 +870,10 @@ struct CardsPage: View {
     private var needsPlus: Bool { session.api?.isLocal != false }
     /// Ueben, Anlegen, Bearbeiten, Teilen, Uebernehmen; sonst Lesemodus (Free, nach der Probe)
     private var canEdit: Bool { !needsPlus || ent.flashcards.canEdit }
+    /// noch keine Karte und kein Stapel
+    private var isEmpty: Bool { deck.all.isEmpty && deck.stacks.isEmpty && !deck.inSession }
+    /// gerade wird geuebt (Trainer oder Wiederholung): der Kopf wird ruhig
+    private var practising: Bool { (trainer.active && canEdit) || deck.inSession }
 
     /// Knopf, der Plus braucht: im Lesemodus sichtbar mit Schloss, Tippen oeffnet die Tarifwahl
     @ViewBuilder private func plusOnly<V: View>(_ v: V) -> some View {
@@ -583,14 +881,19 @@ struct CardsPage: View {
     }
 
     var body: some View {
-        UFContent(maxWidth: 820) {
-            UFPageHead("Karteikarten", sub: "Eigene Stapel je Modul · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
+        UFContent(maxWidth: 1120) {
+            UFPageHead("Karteikarten", sub: practising ? nil : "Deine Stapel je Modul · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
                 if !needsPlus { UFButton("Tests", icon: "arrow-left", size: .small) { router.go(.exams) } }
                 if deck.loaded {
                     if deck.selected != nil && !(trainer.active && canEdit) {
                         UFButton("Alle Stapel", icon: "layers", size: .small) { deck.select(nil) }
                     }
-                    if canEdit { UFButton("Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() } }
+                    if canEdit && !practising && !isEmpty && deck.selected == nil {
+                        UFButton("Neuer Stapel", icon: "layers", size: .small) { openStack(nil) }
+                    }
+                    if canEdit && !practising && !isEmpty {
+                        UFButton("Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() }
+                    }
                 }
             }
             cards
@@ -610,33 +913,28 @@ struct CardsPage: View {
                     }
                 }
             } else if !deck.loaded {
-                UFSkeleton().frame(height: 180)
+                UFGridLayout(spacing: 14, minWidth: 260) {
+                    ForEach(0..<3, id: \.self) { _ in UFSkeleton().frame(height: 260) }
+                }
             } else if trainer.active && canEdit {
-                FlashcardTrainerView(trainer: trainer, onClose: {
+                FlashcardTrainerView(trainer: trainer, subtitle: trainerTitle, onClose: {
                     trainer.end()
                     Task { await deck.reload(toast: toast) }
                 }, onEdit: { c in openEdit(c) })
-            } else if deck.all.isEmpty && deck.stacks.isEmpty && !deck.inSession && !canEdit {
+            } else if isEmpty && !canEdit {
                 UFLockedCard(.flashcards, entitlements: ent)
-            } else if deck.all.isEmpty && deck.stacks.isEmpty && !deck.inSession {
-                UFCard {
-                    UFEmpty(icon: "cards", text: "Noch keine Karteikarten. Lege deine erste Karte an: vorn die Frage, hinten die Antwort. Richtig beantwortete Karten kommen seltener wieder, falsche am nächsten Tag.") {
-                        UFFlexWrap(gap: 9.6, rowGap: 9.6) {
-                            UFButton("Erste Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() }
-                            if !deck.modules.isEmpty {
-                                UFButton("Karten für eine Woche holen …", icon: "download", size: .small) { openWeekFetch(moduleID: nil, week: nil) }
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                }
+            } else if isEmpty {
+                emptyState
             } else if deck.selected == nil {
                 stackList
             } else if !canEdit {
+                stackHead.padding(.bottom, 16)
                 list                                                   // Lesemodus: Karten des Stapels ohne Ueben
-            } else {
+            } else if deck.inSession {
                 reviewCard
-                if !deck.inSession { practiceCard.padding(.top, 16) }
+            } else {
+                stackHead.padding(.bottom, 16)
+                stackPanels
                 list.padding(.top, 16)
             }
         }
@@ -647,155 +945,325 @@ struct CardsPage: View {
             if await deck.reload(toast: toast) { await deck.loadShared() }
         }
         .ufReload { if await deck.reload(toast: toast) { await deck.loadShared() } }
+        .onChange(of: deck.selected) { _, _ in menuStack = nil }
     }
 
-    // MARK: Stapel je Modul
+    // MARK: Leerer Zustand: eine klare Aktion
+
+    private var emptyState: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(CommunityPalette.lavender.bg)
+                    .frame(width: 64, height: 76).rotationEffect(.degrees(-8)).offset(x: -10)
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(UF.surface)
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+                    .overlay(UFIcon("cards", size: 28).foregroundStyle(CommunityPalette.lavender.fg))
+                    .frame(width: 64, height: 76).rotationEffect(.degrees(6)).offset(x: 8)
+                    .ufShadow(.sm)
+            }
+            .frame(height: 96)
+            .accessibilityHidden(true)
+            Text("Noch keine Karteikarten").ufFont(21.6, 700, em: -0.01).foregroundStyle(UF.text).padding(.top, 14)
+                .accessibilityAddTraits(.isHeader)
+            Text("Lege deine erste Karte an: vorn die Frage, hinten die Antwort. Richtig beantwortete Karten kommen seltener wieder, falsche am nächsten Tag.")
+                .ufFont(15.2).foregroundStyle(UF.text2).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 480)
+                .padding(.top, 6)
+            Button { openCreate() } label: {
+                HStack(spacing: 8) { UFIcon("plus", size: 16); Text("Erste Karte anlegen") }
+                    .ufFont(15.2, 650).foregroundStyle(.white)
+                    .padding(.horizontal, 22).frame(minHeight: 48)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.accentFill))
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(UFPressStyle())
+            .accessibilityLabel("Erste Karte anlegen")
+            .padding(.top, 20)
+            if !deck.modules.isEmpty {
+                UFButton("Karten für eine Woche holen …", icon: "download", kind: .ghost, size: .small) { openWeekFetch(moduleID: nil, week: nil) }
+                    .padding(.top, 10)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40).padding(.horizontal, 24)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+    }
+
+    // MARK: Stapel je Modul als Kacheln
+
+    /// Spalten: so viele 260-pt-Kacheln wie passen (quer 2-3, hochkant 1-2); grosse Schrift eine Spalte
+    private var tileGrid: UFGridLayout {
+        typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 14) : UFGridLayout(spacing: 14, minWidth: 250)
+    }
 
     private var stackList: some View {
-        UFCard {
-            UFCardHead("Stapel", icon: "layers", wrap: true) {
-                Text("\(deck.dueAll.count) heute fällig").ufFont(13.12).foregroundStyle(UF.muted)
-                if !deck.modules.isEmpty {
-                    plusOnly(UFButton("Karten für eine Woche holen …", icon: "download", size: .small) { openWeekFetch(moduleID: nil, week: nil) })
-                }
-                if canEdit { UFButton("Neuer Stapel", icon: "plus", size: .small) { openStack(nil) } }
-            }
-            Text(canEdit ? "Geübt wird immer in einem Stapel: Tippe einen an, um seine fälligen Karten zu wiederholen oder frei zu üben. "
-                 + "Je Modul und Woche gibt es die gemeinsamen Stapel „Vorlesung“ und „Übung“ – einmal erzeugt, von allen übernommen."
-                 : "Tippe einen Stapel an, um seine Karten zu lesen.")
-                .ufFont(14.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: 0) {
+            overviewBar.padding(.bottom, 14)
             // Filterzeile "Alle · Allgemein · W1 … Wn" nur mit Lehrwochen, die vorkommen
             if !deck.weeks.isEmpty {
-                UFFlexWrap(gap: 6, rowGap: 6) {
-                    AIChoiceChip(text: "Alle", on: weekFilter == nil) { weekFilter = nil }
-                    AIChoiceChip(text: "Allgemein", on: weekFilter == FlashcardDeck.generalWeek) { weekFilter = FlashcardDeck.generalWeek }
-                    ForEach(deck.weeks, id: \.self) { w in
-                        AIChoiceChip(text: "W\(w)", on: weekFilter == w) { weekFilter = w }
-                    }
-                }
-                .padding(.vertical, 6)
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("Lehrwoche")
+                FlashcardWeekFilter(weeks: deck.weeks, selection: $weekFilter).padding(.bottom, 18)
             }
             let groups = deck.stackGroups(week: weekFilter)
             if groups.isEmpty && !deck.stacks.isEmpty {
-                Text("Kein Stapel in dieser Woche.").ufFont(14.5).foregroundStyle(UF.text2).padding(.vertical, 8)
+                UFCard {
+                    UFEmpty(icon: "filter", text: "Kein Stapel in dieser Woche.", small: true) {
+                        UFButton("Alle Wochen zeigen", size: .small) { weekFilter = nil }.padding(.top, 4)
+                    }
+                }
             }
             ForEach(groups) { g in
-                let moduleID = g.id.hasPrefix("m") ? Int(g.id.dropFirst()) : nil
-                HStack(spacing: 7.2) {
-                    UFDot(color: g.color.map { Color(hex: $0) } ?? UF.lineStrong)
-                    Text(g.title).ufFont(13.6, 650).foregroundStyle(UF.text2)
-                    Text("\(g.stacks.count)").ufFont(12.8).foregroundStyle(UF.muted)
-                    Spacer(minLength: 0)
-                    // bei gewaehlter Lehrwoche: die gemeinsamen Stapel holen bzw. "Woche n komplett" ueben (Vorlesung, dann Uebung)
-                    if let moduleID, let w = weekFilter, w != FlashcardDeck.generalWeek {
-                        if deck.hasCompleteWeek(subject: g.title, week: w) && !canEdit {
-                            EmptyView()                                // ueben ab Plus
-                        } else if deck.hasCompleteWeek(subject: g.title, week: w) {
-                            UFButton("Woche \(w) komplett", icon: "play", size: .small) { trainer.start(with: deck.weekCompleteCards(subject: g.title, week: w)) }
-                                .accessibilityLabel("Woche \(w) komplett üben: \(g.title)")
-                        } else {
-                            plusOnly(UFButton("Karten für Woche \(w) holen", icon: "download", size: .small) { openWeekFetch(moduleID: moduleID, week: w) }
-                                .disabled(deck.fetchingWeek.contains(moduleID))
-                                .accessibilityLabel("Karten für Woche \(w) holen: \(g.title)"))
-                        }
-                    }
-                }
-                .padding(.top, g.id == groups.first?.id ? 4 : 14.4)
-                .padding(.bottom, 4)
-                let rows = Row.rows(g.stacks)
-                ForEach(rows) { row in
-                    let s = row.value
-                    let name = s.s("name") ?? ""
-                    let line = FlashcardDeck.stackLine(s)
-                    let badge = FlashcardDeck.badge(s)
-                    HStack(spacing: 12) {
-                        // Zeile wie UFItemRow(link: true); der Stapel oeffnet sich beim Tippen auf Name oder Unterzeile
-                        Button { deck.select(s.i("id")) } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 8) {
-                                    Text(name).ufFont(14.5, 550).foregroundStyle(UF.accentText).lineLimit(1)
-                                    Text(badge).ufFont(11.5, 600).foregroundStyle(UF.text2)                 // Art-Etikett
-                                        .padding(.horizontal, 7).padding(.vertical, 2)
-                                        .background(Capsule().fill(UF.surface2))
-                                }
-                                Text(line).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Stapel öffnen: \(name)")
-                        .accessibilityValue(badge + " · " + line)
-                        if canEdit { HStack(spacing: 2) {
-                            if deck.sharingAvailable, let subject = s.s("subject"), !subject.isEmpty, (s.i("cards") ?? 0) > 0 {
-                                let shared = !(s.s("shared_id") ?? "").isEmpty
-                                UFButton(icon: "users", kind: .ghost, size: .small) { shared ? confirmUnshare(s) : openShare(s) }
-                                    .ufHitSlop(trailing: 1)
-                                    .foregroundStyle(shared ? UF.accentText : UF.text2)
-                                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(shared ? UF.accentSoft : .clear))
-                                    .accessibilityLabel(shared ? "Teilen zurückziehen: \(name)" : "Stapel teilen: \(name)")
-                                    .accessibilityAddTraits(shared ? .isSelected : [])
-                            }
-                            UFButton(icon: "pen", kind: .ghost, size: .small) { openStack(s) }
-                                .ufHitSlop(leading: 1, trailing: 1)
-                                .accessibilityLabel("Stapel bearbeiten: \(name)")
-                            UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDeleteStack(s) }
-                                .ufHitSlop(leading: 1)
-                                .accessibilityLabel("Stapel löschen: \(name)")
-                        } }
-                    }
-                    .padding(.vertical, 8)
-                    .ufBorderBottom(row.id != rows.last?.id)
-                }
-                // Geteilte Stapel anderer im Modul (Filter nach Woche): uebernehmen, liken, melden
-                if let moduleID {
-                    let sharedRows = Row.rows(deck.shared(module: moduleID, week: weekFilter).filter { $0["mine"]?.bool != true })
-                    if !sharedRows.isEmpty {
-                        Text("Geteilte Stapel aus der Community").ufFont(12.8, 650).foregroundStyle(UF.muted)
-                            .padding(.top, 10).padding(.bottom, 2)
-                        ForEach(sharedRows) { row in
-                            let sh = row.value
-                            let name = sh.s("name") ?? ""
-                            let adopted = sh["adopted"]?.bool ?? false
-                            let liked = sh["liked_by_me"]?.bool ?? false
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack(spacing: 8) {
-                                        Text(name).ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(1)
-                                        Text(FlashcardDeck.badge(sh)).ufFont(11.5, 600).foregroundStyle(UF.text2)
-                                            .padding(.horizontal, 7).padding(.vertical, 2)
-                                            .background(Capsule().fill(UF.surface2))
-                                    }
-                                    Text(FlashcardDeck.sharedLine(sh)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .accessibilityElement(children: .combine)
-                                HStack(spacing: 2) {
-                                    plusOnly(UFButton(adopted ? "Übernommen" : "Übernehmen", icon: "download", kind: adopted ? .ghost : .primary, size: .small) { adopt(sh) }
-                                        .disabled(adopted)
-                                        .accessibilityLabel(adopted ? "Schon übernommen: \(name)" : "Übernehmen: \(name)"))
-                                    UFButton(icon: "star", kind: .ghost, size: .small) { like(sh) }
-                                        .ufHitSlop(leading: 1, trailing: 1)
-                                        .foregroundStyle(liked ? UF.accentText : UF.text2)
-                                        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(liked ? UF.accentSoft : .clear))
-                                        .accessibilityLabel(liked ? "Like entfernen: \(name)" : "Like: \(name)")
-                                        .accessibilityAddTraits(liked ? .isSelected : [])
-                                    UFButton(icon: "flag", kind: .ghost, size: .small) { openReport(sh) }
-                                        .ufHitSlop(leading: 1)
-                                        .disabled(sh["reported_by_me"]?.bool == true)
-                                        .accessibilityLabel("Melden: \(name)")
-                                }
-                            }
-                            .padding(.vertical, 8)
-                            .ufBorderBottom(row.id != sharedRows.last?.id)
-                        }
+                group(g, first: g.id == groups.first?.id)
+            }
+        }
+        .overlayPreferenceValue(FlashcardMenuAnchor.self) { anchor in
+            GeometryReader { geo in
+                if let anchor, let s = menuStack {
+                    let r = geo[anchor]
+                    ZStack(alignment: .topLeading) {
+                        // Tippen daneben schliesst das Menue
+                        Color.clear.contentShape(Rectangle()).onTapGesture { menuStack = nil }
+                            .accessibilityHidden(true)
+                        stackMenu(s)
+                            .alignmentGuide(.top) { d in d[.bottom] - (r.minY - 8) }
+                            .alignmentGuide(.leading) { d in d[.trailing] - r.maxX }
                     }
                 }
             }
         }
+    }
+
+    /// Kopfleiste der Liste: heute faellig gesamt (gross), Stapel und Karten, "Karten fuer eine Woche holen"
+    private var overviewBar: some View {
+        let n = deck.dueAll.count
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 18) { overviewStats(n); Spacer(minLength: 8); overviewActions }
+            VStack(alignment: .leading, spacing: 12) { overviewStats(n); overviewActions }
+        }
+        .padding(.vertical, 14).padding(.horizontal, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+    }
+
+    private func overviewStats(_ due: Int) -> some View {
+        HStack(alignment: .center, spacing: 18) {
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text("\(due)").ufFont(28.8, 750, lh: 1.1, em: -0.02).monospacedDigit().foregroundStyle(due > 0 ? UF.accentText : UF.muted)
+                Text("heute fällig").ufFont(14.5, 600).foregroundStyle(UF.text)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(due) heute fällig")
+            Rectangle().fill(UF.line).frame(width: 1, height: 28).accessibilityHidden(true)
+            Text("\(deck.stacks.count) \(deck.stacks.count == 1 ? "Stapel" : "Stapel") · \(deck.all.count) \(deck.all.count == 1 ? "Karte" : "Karten")")
+                .ufFont(13.6).foregroundStyle(UF.text2).fixedSize()
+        }
+    }
+
+    @ViewBuilder private var overviewActions: some View {
+        if !deck.modules.isEmpty {
+            plusOnly(UFButton("Karten für eine Woche holen …", icon: "download", size: .small) { openWeekFetch(moduleID: nil, week: nil) })
+        }
+    }
+
+    /// Ein Modul: Kopf (Farbe, Name, Zahl, Wochenaktionen), Kacheln, darunter geteilte Stapel der Community
+    @ViewBuilder private func group(_ g: FlashcardDeck.Group, first: Bool) -> some View {
+        let moduleID = g.id.hasPrefix("m") ? Int(g.id.dropFirst()) : nil
+        HStack(spacing: 8) {
+            UFDot(color: g.color.map { Color(hex: $0) } ?? UF.lineStrong)
+            Text(g.title).ufFont(16, 700, em: -0.01).foregroundStyle(UF.text).lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
+            Text("\(g.stacks.count)").ufFont(12.8, 600).foregroundStyle(UF.muted)
+                .padding(.horizontal, 7).padding(.vertical, 1).background(Capsule().fill(UF.surface2))
+            Spacer(minLength: 0)
+            // bei gewaehlter Lehrwoche: die gemeinsamen Stapel holen bzw. "Woche n komplett" ueben (Vorlesung, dann Uebung)
+            if let moduleID, let w = weekFilter, w != FlashcardDeck.generalWeek {
+                if deck.hasCompleteWeek(subject: g.title, week: w) && !canEdit {
+                    EmptyView()                                // ueben ab Plus
+                } else if deck.hasCompleteWeek(subject: g.title, week: w) {
+                    UFButton("Woche \(w) komplett", icon: "play", kind: .primary, size: .small) {
+                        trainerTitle = "\(g.title) · Woche \(w) komplett"
+                        trainer.start(with: deck.weekCompleteCards(subject: g.title, week: w))
+                    }
+                    .accessibilityLabel("Woche \(w) komplett üben: \(g.title)")
+                } else {
+                    plusOnly(UFButton("Karten für Woche \(w) holen", icon: "download", size: .small) { openWeekFetch(moduleID: moduleID, week: w) }
+                        .disabled(deck.fetchingWeek.contains(moduleID))
+                        .accessibilityLabel("Karten für Woche \(w) holen: \(g.title)"))
+                }
+            }
+        }
+        .padding(.top, first ? 0 : 22)
+        .padding(.bottom, 10)
+        tileGrid {
+            ForEach(Array(Row.rows(g.stacks).enumerated()), id: \.element.id) { i, row in
+                let s = row.value
+                FlashcardStackTile(stack: s, boxes: deck.boxCounts(stack: s.i("id")), canEdit: canEdit, entitlements: ent,
+                                   menuOpen: menuStack?.i("id") != nil && menuStack?.i("id") == s.i("id"),
+                                   open: { menuStack = nil; deck.select(s.i("id")) },
+                                   practise: { practise(s) },
+                                   toggleMenu: { menuStack = menuStack?.i("id") == s.i("id") ? nil : s })
+                    .ufAppear("cards.tiles", index: i)
+            }
+        }
+        .environment(\.ufFillsCell, true)
+        // Geteilte Stapel anderer im Modul (Filter nach Woche): uebernehmen, liken, melden
+        if let moduleID {
+            let sharedRows = Row.rows(deck.shared(module: moduleID, week: weekFilter).filter { $0["mine"]?.bool != true })
+            if !sharedRows.isEmpty {
+                sharedList(sharedRows).padding(.top, 12)
+            }
+        }
+    }
+
+    /// Menue (…) einer Kachel: Bearbeiten, Teilen bzw. Teilen zurueckziehen, Loeschen
+    private func stackMenu(_ s: JSONValue) -> some View {
+        let name = s.s("name") ?? ""
+        let shared = !(s.s("shared_id") ?? "").isEmpty
+        let canShare = deck.sharingAvailable && !(s.s("subject") ?? "").isEmpty && (s.i("cards") ?? 0) > 0
+        return VStack(alignment: .leading, spacing: 0) {
+            menuRow("Bearbeiten", icon: "pen", label: "Stapel bearbeiten: \(name)") { openStack(s) }
+            if canShare {
+                menuRow(shared ? "Teilen zurückziehen" : "In der Community teilen", icon: "users",
+                        label: shared ? "Teilen zurückziehen: \(name)" : "Stapel teilen: \(name)") { shared ? confirmUnshare(s) : openShare(s) }
+            }
+            Rectangle().fill(UF.line).frame(height: 1).padding(.vertical, 4).accessibilityHidden(true)
+            menuRow("Löschen", icon: "trash", label: "Stapel löschen: \(name)", danger: true) { confirmDeleteStack(s) }
+        }
+        .padding(6)
+        .frame(width: 250)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(UF.lineStrong, lineWidth: 1))
+        .ufShadow(.lg)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Aktionen für \(name)")
+    }
+
+    private func menuRow(_ title: String, icon: String, label: String, danger: Bool = false, action: @escaping () -> Void) -> some View {
+        Button {
+            menuStack = nil
+            action()
+        } label: {
+            HStack(spacing: 10) {
+                UFIcon(icon, size: 16)
+                Text(title).ufFont(14.5, 500)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(danger ? UF.badText : UF.text)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private func sharedList(_ rows: [Row]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous).fill(CommunityPalette.butter.bg)
+                    UFIcon("users", size: 14).foregroundStyle(CommunityPalette.butter.fg)
+                }
+                .frame(width: 28, height: 28)
+                .accessibilityHidden(true)
+                Text("Geteilte Stapel aus der Community").ufFont(13.6, 650).foregroundStyle(UF.text2)
+            }
+            .padding(.bottom, 4)
+            ForEach(rows) { row in
+                let sh = row.value
+                let name = sh.s("name") ?? ""
+                let adopted = sh["adopted"]?.bool ?? false
+                let liked = sh["liked_by_me"]?.bool ?? false
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 8) {
+                            Text(name).ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(1)
+                            Text(FlashcardDeck.badge(sh)).ufFont(11.5, 600).foregroundStyle(UF.text2)
+                                .padding(.horizontal, 7).padding(.vertical, 2)
+                                .background(Capsule().fill(UF.surface2))
+                        }
+                        Text(FlashcardDeck.sharedLine(sh)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                    HStack(spacing: 2) {
+                        plusOnly(UFButton(adopted ? "Übernommen" : "Übernehmen", icon: "download", kind: adopted ? .ghost : .primary, size: .small) { adopt(sh) }
+                            .disabled(adopted)
+                            .accessibilityLabel(adopted ? "Schon übernommen: \(name)" : "Übernehmen: \(name)"))
+                        UFButton(icon: "star", kind: .ghost, size: .small) { like(sh) }
+                            .ufHitSlop(leading: 1, trailing: 1)
+                            .foregroundStyle(liked ? UF.accentText : UF.text2)
+                            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(liked ? UF.accentSoft : .clear))
+                            .accessibilityLabel(liked ? "Like entfernen: \(name)" : "Like: \(name)")
+                            .accessibilityAddTraits(liked ? .isSelected : [])
+                        UFButton(icon: "flag", kind: .ghost, size: .small) { openReport(sh) }
+                            .ufHitSlop(leading: 1)
+                            .disabled(sh["reported_by_me"]?.bool == true)
+                            .accessibilityLabel("Melden: \(name)")
+                    }
+                }
+                .padding(.vertical, 8)
+                .ufBorderBottom(row.id != rows.last?.id)
+            }
+        }
+        .padding(.vertical, 12).padding(.horizontal, 16)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+    }
+
+    /// "Üben" auf der Kachel: Stapel waehlen, dann die faelligen Karten (Leitner) oder frei ueben
+    private func practise(_ s: JSONValue) {
+        guard let id = s.i("id"), canEdit else { return }
+        menuStack = nil
+        deck.select(id)
+        if FlashcardDeck.practiceStartsReview(s), !deck.due.isEmpty {
+            deck.startReview()
+        } else {
+            trainerTitle = s.s("name")
+            trainer.start(with: deck.cards)
+        }
+    }
+
+    // MARK: Gewaehlter Stapel: Kopf, Heute faellig, Frei ueben
+
+    @ViewBuilder private var stackHead: some View {
+        if let s = deck.stack {
+            let kind = FlashcardStackKind.of(s)
+            HStack(alignment: .center, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous).fill(kind.pair.bg)
+                    UFIcon(kind.icon, size: 24).foregroundStyle(kind.pair.fg)
+                }
+                .frame(width: 52, height: 52)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(s.s("name") ?? "").ufFont(19.2, 700, em: -0.01).foregroundStyle(UF.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(FlashcardDeck.badge(s) + " · " + (s.s("subject").flatMap { $0.isEmpty ? nil : $0 } ?? "Ohne Modul"))
+                        .ufFont(13.12).foregroundStyle(UF.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 14).padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(UF.surface))
+            .overlay(alignment: .leading) { Rectangle().fill(kind.pair.solid).frame(width: 4) }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+        }
+    }
+
+    /// "Heute fällig" und "Frei üben" nebeneinander (schmal untereinander)
+    private var stackPanels: some View {
+        let grid = windowWidth < 760 || typeSize.isAccessibilitySize ? UFGridLayout(columns: 1, spacing: 16) : UFGridLayout(columns: 2, spacing: 16)
+        return grid {
+            reviewCard
+            practiceCard
+        }
+        .environment(\.ufFillsCell, true)
     }
 
     // MARK: Heute faellig (im gewaehlten Stapel)
@@ -803,80 +1271,120 @@ struct CardsPage: View {
     @ViewBuilder private var reviewCard: some View {
         let stackName = deck.stack?.s("name") ?? "Stapel"
         if deck.finished {
-            UFCard {
-                UFCardHead("Wiederholung geschafft", icon: "check")
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle().fill(UF.okSoft)
+                    UFIcon("check", size: 30).foregroundStyle(UF.okText)
+                }
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
+                Text("Wiederholung geschafft").ufFont(23.2, 700, em: -0.01).foregroundStyle(UF.text).padding(.top, 14)
+                    .accessibilityAddTraits(.isHeader)
                 let n = deck.right + deck.wrong                              // bewertete Karten (geloeschte zaehlen mit)
                 Text("\(n) \(n == 1 ? "Karte" : "Karten") aus „\(stackName)“ wiederholt: \(deck.right) richtig, \(deck.wrong) falsch.")
-                    .ufFont(14.5).foregroundStyle(UF.text2)
-                UFButton("Fertig", kind: .primary, size: .small) {
+                    .ufFont(15.2).foregroundStyle(UF.text2).multilineTextAlignment(.center).padding(.top, 6)
+                    .fixedSize(horizontal: false, vertical: true)
+                UFButton("Fertig", icon: "check", kind: .primary) {
                     deck.endSession()
                     Task { await deck.reload(toast: toast) }
                 }
-                .padding(.top, 12.8)
+                .padding(.top, 18)
             }
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 32).padding(.horizontal, 24)
+            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+            .ufShadow(.md)
         } else if let c = deck.current {
-            UFCard {
-                UFCardHead("Heute fällig (\(deck.queue.count))", icon: "cards", wrap: true) {
-                    UFButton("Bearbeiten", icon: "pen", size: .small) { openEdit(c) }.disabled(deck.rating)
-                    UFButton("Beenden", size: .small) {
-                        deck.endSession()
-                        Task { await deck.reload(toast: toast) }
-                    }
-                }
-                Text("Karte \(deck.position + 1) von \(deck.queue.count) · Fach \(c.i("box") ?? 1) · \(stackName) · Nur dieser Stapel wird abgefragt")
-                    .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 8)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button { deck.reveal() } label: {                         // .fc-card
-                    VStack(spacing: 0) {
-                        Text(c.s("question") ?? "").foregroundStyle(UF.text)
-                        if deck.revealed {
-                            Rectangle().fill(UF.line).frame(height: 1).padding(.vertical, 12.8)
-                            Text(c.s("answer") ?? "").foregroundStyle(UF.accentText)
-                        } else {
-                            Text("Tippen zum Aufdecken").ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 9.6)
-                        }
-                    }
-                    .ufFont(16.8)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(25.6 + ufB)
-                    .frame(maxWidth: .infinity, minHeight: 180)
-                    .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
-                    .overlay(RoundedRectangle(cornerRadius: UF.rLg).strokeBorder(UF.line, lineWidth: 1))
-                    .ufShadow(.sm)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(deck.revealed ? "Antwort: \(c.s("answer") ?? "")" : "Frage: \(c.s("question") ?? "")")
-                HStack(spacing: 9.6) {
-                    if deck.revealed {
-                        UFButton("Falsch", icon: "x", kind: .danger) { rate(false) }.disabled(deck.rating)
-                        UFButton("Richtig", icon: "check", kind: .ok) { rate(true) }.disabled(deck.rating)
-                    } else {
-                        UFButton("Antwort zeigen", kind: .primary) { deck.reveal() }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 12.8)
-            }
+            reviewStage(c, stackName: stackName)
         } else {
             UFCard {
-                UFCardHead("Heute fällig (\(deck.due.count))", icon: "cards") {
-                    Text(stackName).ufFont(13.12, 650).foregroundStyle(UF.text2)
+                UFCardHead("Heute fällig (\(deck.due.count))", icon: "cards")
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text("\(deck.due.count)").ufFont(36, 750, lh: 1.1, em: -0.02).monospacedDigit()
+                        .foregroundStyle(deck.due.isEmpty ? UF.muted : UF.accentText)
+                    Text(deck.due.count == 1 ? "Karte wartet" : "Karten warten").ufFont(14.5, 600).foregroundStyle(UF.text2)
                 }
+                .accessibilityElement(children: .combine)
+                .padding(.bottom, 6)
                 if deck.due.isEmpty {
                     Text(deck.nextDue.map { "In diesem Stapel ist heute nichts fällig. Die nächste Wiederholung ist am \(UFFmt.date($0))." }
                          ?? "In diesem Stapel ist heute nichts fällig.")
                         .ufFont(14.5).foregroundStyle(UF.text2)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text("Erst die Frage lesen, dann aufdecken und selbst bewerten. Nur dieser Stapel wird abgefragt.")
                         .ufFont(14.5).foregroundStyle(UF.text2)
                         .fixedSize(horizontal: false, vertical: true)
-                    UFButton("Wiederholen", icon: "play", kind: .primary, size: .small) { deck.startReview() }
+                    UFButton("Wiederholen", icon: "play", kind: .primary) { deck.startReview() }
                         .padding(.top, 12.8)
                 }
             }
         }
+    }
+
+    /// Wiederholung "Heute fällig": Fortschritt oben, die grosse Karte (Tippen deckt auf und dreht sie), darunter
+    /// "Antwort zeigen" bzw. die grossen Knoepfe "Falsch" und "Richtig" (Leitner: richtig = naechstes Fach)
+    private func reviewStage(_ c: JSONValue, stackName: String) -> some View {
+        let q = c.s("question") ?? "", a = c.s("answer") ?? ""
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Heute fällig (\(deck.queue.count))").ufFont(17.6, 700, em: -0.01).foregroundStyle(UF.text)
+                    Text(stackName).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                UFButton("Bearbeiten", icon: "pen", size: .small) { openEdit(c) }.disabled(deck.rating)
+                UFButton("Beenden", size: .small) {
+                    deck.endSession()
+                    Task { await deck.reload(toast: toast) }
+                }
+            }
+            .padding(.bottom, 16)
+            FlashcardProgressHeader(current: deck.position + 1, total: deck.queue.count, done: deck.position,
+                                    detail: "Fach \(c.i("box") ?? 1) · Nur dieser Stapel wird abgefragt")
+                .padding(.bottom, 20)
+            Button { reveal() } label: {
+                FlashcardFlip(flipped: deck.revealed) {
+                    FlashcardFace(label: "Frage", text: q)
+                } back: {
+                    FlashcardFace(label: "Antwort", text: a, front: false, context: q, tint: UF.okText)
+                }
+                .id(c.i("id") ?? 0)
+                .contentShape(RoundedRectangle(cornerRadius: 22))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(deck.revealed ? "Antwort: \(a)" : "Frage: \(q)")
+            .accessibilityHint(deck.revealed ? "" : "Doppeltippen deckt die Antwort auf.")
+            Text(deck.revealed ? "Wie war's? → richtig · ← falsch" : "Tippen oder Leertaste deckt die Antwort auf")
+                .ufFont(12.8).foregroundStyle(UF.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12)
+                .accessibilityHidden(true)
+            HStack(spacing: 12) {
+                if deck.revealed {
+                    FlashcardAnswerButton(title: "Falsch", icon: "x", tone: .bad) { rate(false) }
+                        .disabled(deck.rating)
+                        .keyboardShortcut(.leftArrow, modifiers: [])
+                    FlashcardAnswerButton(title: "Richtig", icon: "check", tone: .ok) { rate(true) }
+                        .disabled(deck.rating)
+                        .keyboardShortcut(.rightArrow, modifiers: [])
+                } else {
+                    FlashcardAnswerButton(title: "Antwort zeigen", icon: "rotate", tone: .accent) { reveal() }
+                        .keyboardShortcut(.space, modifiers: [])
+                }
+            }
+            .padding(.top, 16)
+        }
+        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func reveal() {
+        if let a = UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled) { withAnimation(a) { deck.reveal() } } else { deck.reveal() }
     }
 
     // MARK: Frei ueben (Trainer, nur dieser Stapel)
@@ -890,12 +1398,20 @@ struct CardsPage: View {
             Text("Die Karten dieses Stapels im eigenen Tempo: umdrehen, nach rechts wischen für gewusst, nach links für nicht gewusst. Ändert den Wiederholungsplan nicht.")
                 .ufFont(14.5).foregroundStyle(UF.text2)
                 .fixedSize(horizontal: false, vertical: true)
+            FlashcardBoxBar(counts: FlashcardDeck.boxCounts(stackCards), tint: FlashcardStackKind.of(deck.stack ?? .null).pair.solid)
+                .padding(.top, 12)
             Text("\(counts[.right] ?? 0) richtig · \(counts[.wrong] ?? 0) falsch · \(counts[.unlearned] ?? 0) noch nicht gelernt"
                  + (bookmarks > 0 ? " · \(bookmarks) mit Lesezeichen" : "") + ((counts[.hidden] ?? 0) > 0 ? " · \(counts[.hidden] ?? 0) versteckt" : ""))
-                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 4)
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 8)
+                .fixedSize(horizontal: false, vertical: true)
             UFFlexWrap(gap: 9.6, rowGap: 9.6) {
-                UFButton("Üben", icon: "play", size: .small) { trainer.start(with: stackCards) }.disabled(stackCards.isEmpty)
-                UFButton("Optionen", icon: "filter", kind: .ghost, size: .small) {
+                UFButton("Üben", icon: "play") {
+                    trainerTitle = deck.stack?.s("name")
+                    trainer.start(with: stackCards)
+                }
+                .disabled(stackCards.isEmpty)
+                UFButton("Optionen", icon: "filter", kind: .ghost) {
+                    trainerTitle = deck.stack?.s("name")
                     trainer.start(with: stackCards)
                     overlay.modal { FlashcardTrainerOptionsDialog(trainer: trainer) }
                 }

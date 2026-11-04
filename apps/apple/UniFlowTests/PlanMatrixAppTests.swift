@@ -226,12 +226,13 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertFalse(shows(afterTrial, "Karte anlegen"))
         XCTAssertFalse(shows(afterTrial, "Neuer Stapel"))
         XCTAssertFalse(shows(afterTrial, "Stapel bearbeiten"))
+        XCTAssertFalse(shows(afterTrial, "Aktionen für Stapel"), "Lesemodus: kein Menue (…) an den Kacheln")
 
         for (name, ent) in [("plus", plan(.plus)), ("probe", trial(active: true))] {
             let t = withCards(transport())
             let env = try hostWithEnvironment(CardsPage(entitlements: ent), api: local(t))
             XCTAssertTrue(env.wait { self.shows(env, "Karte anlegen") }, "\(name): \(env.labels().joined(separator: " | "))")
-            XCTAssertTrue(shows(env, "Stapel bearbeiten: Folgen"), name)
+            XCTAssertTrue(shows(env, "Aktionen für Stapel: Folgen"), name)       // Bearbeiten, Teilen, Loeschen im Menue (…) der Kachel
             XCTAssertFalse(shows(env, "Mit Plus übst"), name)
             XCTAssertFalse(shows(env, "freischalten"), name)
         }

@@ -185,7 +185,7 @@ struct ModuleCard: View {
                     .frame(minHeight: 13.76 * 2.6, alignment: .topLeading)
                     .padding(.bottom, 12.8)
                 // Lernstand (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung; grau ohne Signal
-                LernstandBadge(m: m["mastery"], color: mc).padding(.bottom, 12.8)
+                LernstandTile(m: m["mastery"], color: mc, style: .inline).padding(.bottom, 12.8)
                 HStack {                                                    // .pr
                     (Text("\(progress)%").font(.uf(12.8, 700)).foregroundColor(UF.text) + Text(" bearbeitet"))
                         .ufNumber(progress, numeric: Double(progress))
@@ -376,8 +376,6 @@ struct ModulePage: View {
                     UFKPI(value: "\(progress)%", label: "Lernfortschritt")
                     UFProgress(value: Double(progress) / 100).padding(.top, 8)
                 }),
-                // Lernstand (docs/LERNSTAND-2026-11-04.md) neben "bearbeitet": Ring in Modulfarbe, Begruendung darunter
-                AnyView(LernstandBadge(m: d["mastery"], color: Color(hex: m.s("color")))),
                 // fehlender Wert: grauer Strich statt eines Strichs in voller Textfarbe (liest sich sonst wie Laden)
                 AnyView(VStack(alignment: .leading, spacing: 2.4) {
                     Text(cur.map { ($0.s("label") ?? "").components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) ?? "–" } ?? "–")
@@ -396,6 +394,9 @@ struct ModulePage: View {
                     .ufFont(12.8)
                 }),
             ]
+            // Lernstand (docs/LERNSTAND-2026-11-04.md) als eigene Kachel ueber der Kennzahlenleiste: Ring mit Prozent in
+            // Modulfarbe, Begruendung, ohne Lernstand grau mit dem Hinweis (`LernstandTile`)
+            LernstandTile(m: d["mastery"], color: Color(hex: m.s("color"))).padding(.bottom, 14.4)
             ModuleKPIStrip(cells: cells).padding(.bottom, 20)
             // Aufzeichnungen (Opencast) gibt es nur lokal: der Stud.IP-Abgleich des iPads holt sie
             // (nur an Hochschulen mit Stud.IP)

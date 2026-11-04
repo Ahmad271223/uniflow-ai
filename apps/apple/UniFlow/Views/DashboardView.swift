@@ -178,10 +178,7 @@ struct DashboardView: View {
     }
 
     /// Name der Begruessung in der Reihenfolge von `UFGreeting.pick`; das StudiNow-Konto hat in V1 keinen Anzeigenamen
-    private var greetingName: String? {
-        let a = account.account
-        return UFGreeting.pick(rufname: Rufname.current(), accountName: nil, appleGivenName: a?.givenName, appleFullName: a?.name)
-    }
+    private var greetingName: String? { UFGreeting.name(for: account.account) }    // dieselbe Quelle wie die Seitenleiste
 
     /// "Sonntag, 25. Oktober · heute 2 Lernpakete · 3 Uni-Termine"
     private func dateLine(pk: [JSONValue], evs: [JSONValue]) -> String {
@@ -325,12 +322,18 @@ struct DashboardView: View {
                 let m = row.value
                 let mc = Color(hex: m.s("color"))
                 Button { router.go(.module(m.i("id") ?? 0)) } label: {
-                    UFItemRow(UFFmt.shortName(m.s("name")), sub: Self.moduleSub(m), wraps: true, leading: {
-                        UFDot(color: mc)
-                    }, trailing: {
-                        LernstandBadge(m: m["mastery"], color: mc, size: .small)
-                    })
+                    // Name und Unterzeile, darunter die Kachel "Lernstand" (Ring mit Prozent und Begruendung, `LernstandTile`)
+                    VStack(alignment: .leading, spacing: 0) {
+                        UFItemRow(UFFmt.shortName(m.s("name")), sub: Self.moduleSub(m), wraps: true, leading: {
+                            UFDot(color: mc)
+                        }, trailing: {
+                            UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                        })
+                        LernstandTile(m: m["mastery"], color: mc, style: .inline)
+                            .padding(.horizontal, 8).padding(.bottom, 12)
+                    }
                     .foregroundStyle(UF.text)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(m.s("name") ?? "") · \(Self.moduleSub(m)) · \(LernstandText.accessibility(m["mastery"]))")

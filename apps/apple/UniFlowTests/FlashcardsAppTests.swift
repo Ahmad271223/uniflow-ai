@@ -763,7 +763,7 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertTrue(shows(page.view, "Tarife ansehen"), dump(page.view))
         XCTAssertTrue(shows(page.view, "Stapel öffnen: Ohne Modul"), "Stapel bleiben sichtbar: \(dump(page.view))")
         XCTAssertGreaterThanOrEqual(rec.count("GET", "/api/flashcards"), 1, "Lesen bleibt frei")
-        for hidden in ["Karte anlegen", "Neuer Stapel", "Stapel bearbeiten: Ohne Modul", "Stapel löschen: Ohne Modul"] {
+        for hidden in ["Karte anlegen", "Neuer Stapel", "Aktionen für Stapel: Ohne Modul", "Stapel bearbeiten: Ohne Modul", "Stapel löschen: Ohne Modul"] {
             XCTAssertFalse(shows(page.view, hidden), "\(hidden): \(dump(page.view))")
         }
         XCTAssertFalse(shows(page.view, "Enthalten ab StudiNow Plus"), "mit Karten keine grosse Sperrkarte")
@@ -923,13 +923,15 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertEqual(try awaiting { try await self.cards(api) }, [])
         // Stapel loeschen: Rueckfrage, Abbrechen loescht nichts, dann weg -> leere Seite
         XCTAssertTrue(tap("Alle Stapel", in: page.view))
+        XCTAssertTrue(tapSoon("Aktionen für Stapel: Ohne Modul", in: page.view), dump(page.view))   // Menue (…) der Kachel
         XCTAssertTrue(tapSoon("Stapel löschen: Ohne Modul", in: page.view), dump(page.view))
         XCTAssertTrue(pump { self.shows(page.view, "Stapel löschen?") }, dump(page.view))
         XCTAssertTrue(shows(page.view, "Der Stapel ist leer und wird gelöscht."))
         XCTAssertTrue(tap("Abbrechen", in: page.view))
         XCTAssertTrue(pump { page.overlay.modals.isEmpty })
         XCTAssertEqual(rec.count("DELETE", "/api/flashcard-stacks/1"), 0)
-        XCTAssertTrue(tap("Stapel löschen: Ohne Modul", in: page.view))
+        XCTAssertTrue(tapSoon("Aktionen für Stapel: Ohne Modul", in: page.view), dump(page.view))
+        XCTAssertTrue(tapSoon("Stapel löschen: Ohne Modul", in: page.view), dump(page.view))
         XCTAssertTrue(tapSoon("Löschen", in: page.view), dump(page.view))
         XCTAssertTrue(pump { page.toast.message == "Stapel gelöscht" }, page.toast.message ?? "-")
         XCTAssertTrue(pump { self.shows(page.view, "Noch keine Karteikarten") }, dump(page.view))
@@ -1001,6 +1003,7 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertTrue(shows(page.view, "Eigene · Allgemein · Ohne Modul · 0 Karten · Heute fällig (0) · noch nicht geübt"), "Etikett und Zeile: \(dump(page.view))")
         XCTAssertEqual(rec.count("POST", "/api/flashcard-stacks"), 1)
         // umbenennen
+        XCTAssertTrue(tapSoon("Aktionen für Stapel: Klausur", in: page.view), dump(page.view))
         XCTAssertTrue(tapSoon("Stapel bearbeiten: Klausur", in: page.view))
         XCTAssertTrue(pump { self.shows(page.view, "Stapel bearbeiten") }, dump(page.view))
         XCTAssertTrue(type(" 2", field: 0, in: page.view))
@@ -1009,6 +1012,7 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertTrue(pump { page.toast.message == "Stapel gespeichert" && page.overlay.modals.isEmpty }, page.toast.message ?? "-")
         XCTAssertTrue(pump { self.shows(page.view, "Stapel öffnen: Klausur 2") }, dump(page.view))
         // loeschen eines Stapels mit Karten: Rueckfrage mit Wahl
+        XCTAssertTrue(tapSoon("Aktionen für Stapel: Ohne Modul", in: page.view), dump(page.view))
         XCTAssertTrue(tapSoon("Stapel löschen: Ohne Modul", in: page.view))
         XCTAssertTrue(pump { self.shows(page.view, "Was soll mit der Karte geschehen?") }, dump(page.view))
         XCTAssertTrue(shows(page.view, "Die Karten und ihr Lernstand werden gelöscht."), dump(page.view))
@@ -1095,6 +1099,243 @@ final class FlashcardsAppTests: XCTestCase {
     }
 
     /// Ergebnis einer async-Aufgabe aus einem synchronen Test (die Seitentests pumpen die RunLoop)
+    // MARK: - Neugestaltung 04.11.2026: Kacheln, Buehne, Ergebnis mit "Frag die KI"
+
+    /// Schein-Transport mit festen Antworten je Pfad (Ergebnisseite eines Tests, KI-Antwort); merkt sich die Rumpfe
+    final class Canned: APITransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var answers: [String: JSONValue] = [:]
+        private var log: [(method: String, path: String, body: JSONValue?)] = []
+
+        func answer(_ path: String, _ v: JSONValue) { lock.withLock { answers[path] = v } }
+        func bodies(_ path: String) -> [JSONValue] { lock.withLock { log.filter { $0.path == path }.compactMap(\.body) } }
+
+        func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+            let path = request.url?.path ?? ""
+            let body = request.httpBody.flatMap { try? JSONValue.parse($0) }
+            let a: JSONValue? = lock.withLock { log.append((request.httpMethod ?? "GET", path, body)); return answers[path] }
+            let data = (a ?? ["detail": "nicht da"]).serialized()
+            return (data, HTTPURLResponse(url: request.url!, statusCode: a == nil ? 404 : 200, httpVersion: nil, headerFields: nil)!)
+        }
+    }
+
+    /// Erfundener abgegebener Wochentest (Zahlensysteme): Aufgabe 1 und 3 falsch, 2 richtig
+    private var submittedTest: JSONValue {
+        ["id": 8, "title": "Wochentest Demo Informatik – Zahlensysteme", "subject": "Demo Informatik", "duration_min": 15, "week_no": 1,
+         "submitted_at": "2026-11-03T10:00:00", "started_at": "2026-11-03T09:40:00",
+         "answers": ["1": "Wahr", "2": "1101", "3": ""],
+         "questions": [
+            ["nr": 1, "type": "tf", "difficulty": "leicht", "question": "Die Dezimalzahl 255 ist hexadezimal F0.", "options": ["Wahr", "Falsch"],
+             "points": 20, "answer": "Falsch", "explanation": "255 = 15·16 + 15, also FF. F0 wäre 240."],
+            ["nr": 2, "type": "mc", "difficulty": "leicht", "question": "Wie lautet die Dezimalzahl 13 im Dualsystem?", "options": ["1011", "1101", "1110", "1001"],
+             "points": 20, "answer": "1101", "explanation": "13 = 8 + 4 + 1, also 1101."],
+            ["nr": 3, "type": "short", "difficulty": "mittel", "question": "Was ist das Zweierkomplement von 0101 (4 Bit)?", "points": 20,
+             "answer": "1011", "explanation": "Bits umkehren (1010) und 1 addieren: 1011."]],
+         "feedback": ["total": 20, "max": 60, "summary": "Das Dualsystem sitzt; Hexadezimal und Zweierkomplement lohnen eine Wiederholung.",
+                      "weak_topics": ["Hexadezimalsystem", "Zweierkomplement"],
+                      "per_question": [["nr": 1, "points": 0, "max": 20, "feedback": "F0 ist 240, nicht 255."],
+                                       ["nr": 2, "points": 20, "max": 20, "feedback": "Richtig."],
+                                       ["nr": 3, "points": 0, "max": 20, "feedback": "Keine Antwort."]]]]
+    }
+
+    /// Ergebnis: Ring, falsche Aufgaben mit "Frag die KI zu Aufgabe n"; der Knopf oeffnet die KI-Hilfe, die erste
+    /// Frage traegt Aufgabe, eigene und richtige Antwort als Kontext (POST /api/ai/tutor, mode ask)
+    func testResultAsksTheAIWithTheQuestionContext() throws {
+        HostedEnvironment.accessibilityAutomation(true)
+        addTeardownBlock { HostedEnvironment.accessibilityAutomation(false) }
+        let t = Canned()
+        t.answer("/api/tests/8", submittedTest)
+        t.answer("/api/ai/tutor", ["answer": "**Kurz:** 255 ist FF.", "cards": .null, "sources": []])
+        let api = APIClient(base: URL(string: "http://erfunden.test/")!, transport: t)
+        let env = try hostWithEnvironment(ExamRunPage(id: 8, task: nil).environment(\.ufAIEnabled, true).environment(\.ufWindowWidth, 1180), api: api)
+        XCTAssertTrue(env.wait { self.shows(env.view, "33 %") }, dump(env.view))
+        XCTAssertTrue(shows(env.view, "1/3 richtig"))
+        XCTAssertTrue(shows(env.view, "Frag die KI zu Aufgabe 1"), dump(env.view))
+        XCTAssertTrue(shows(env.view, "Frag die KI zu Aufgabe 3"))
+        XCTAssertFalse(shows(env.view, "Frag die KI zu Aufgabe 2"), "nur bei falschen Aufgaben")
+        XCTAssertTrue(shows(env.view, "Aufgabe 1 von 3 · Wahr / Falsch, falsch"), "Kopf mit grosser Aufgabennummer")
+        XCTAssertTrue(tap("Frag die KI zu Aufgabe 1", in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "KI-Hilfe") }, dump(env.view))
+        XCTAssertTrue(shows(env.view, "Richtige Antwort: Falsch"), dump(env.view))
+        XCTAssertTrue(shows(env.view, "Deine Antwort: Wahr"))
+        XCTAssertTrue(t.bodies("/api/ai/tutor").isEmpty, "erst nach dem Antippen")
+        XCTAssertTrue(tap("Warum ist meine Antwort zu Aufgabe 1 falsch?", in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "255 ist FF") }, dump(env.view))
+        let body = try XCTUnwrap(t.bodies("/api/ai/tutor").first)
+        XCTAssertEqual(body["mode"]?.string, "ask")
+        let q = body["question"]?.string ?? ""
+        XCTAssertTrue(q.contains("Aufgabe: Die Dezimalzahl 255 ist hexadezimal F0."), q)
+        XCTAssertTrue(q.contains("Meine Antwort: Wahr"), q)
+        XCTAssertTrue(q.contains("Richtige Antwort: Falsch"), q)
+        XCTAssertTrue(q.contains("Erklärung aus dem Test: 255 = 15·16 + 15, also FF."), q)
+        XCTAssertTrue(tap("KI-Hilfe schließen", in: env.view))
+        XCTAssertTrue(env.wait { !self.shows(env.view, "Richtige Antwort: Falsch") }, dump(env.view))
+    }
+
+    /// Lokales Backend mit Stapeln aller Arten, Lehrwochen und verteilten Faechern (fuer Kacheln und Bilder)
+    private func richAPI() throws -> APIClient {
+        let (api, _, _) = try awaiting { try await self.seededAPI() }
+        try awaiting {
+            func stack(_ name: String, _ subject: String?, week: Int?, kind: String) async throws -> Int {
+                var b: [String: JSONValue] = ["name": .string(name), "subject": subject.map(JSONValue.string) ?? .null, "kind": .string(kind)]
+                b["week"] = week.map { .number(Double($0)) } ?? .null
+                let r = try await api.value("/api/flashcard-stacks", method: "POST", body: .object(b))
+                return try XCTUnwrap(r.i("id"))
+            }
+            func cards(_ stackID: Int, _ pairs: [(String, String)], promote: [Int]) async throws {
+                for (i, p) in pairs.enumerated() {
+                    _ = try await api.value("/api/flashcards", method: "POST",
+                                            body: ["cards": [["question": .string(p.0), "answer": .string(p.1)]], "stack_id": .number(Double(stackID))])
+                    let all = try await api.value("/api/flashcards").items
+                    let id = try XCTUnwrap(all.first?.i("id"))
+                    for _ in 0..<(i < promote.count ? promote[i] : 0) {
+                        _ = try await api.value("/api/flashcards/\(id)/review", method: "POST", body: ["correct": true])
+                    }
+                }
+            }
+            let la = "Lineare Algebra Test", an = "Analysis Beispiel"
+            try await cards(try await stack("Eigenwerte und Eigenvektoren", la, week: 3, kind: "vorlesung"),
+                            [("Was ist ein Eigenwert?", "Ein λ mit Av = λv für ein v ≠ 0."), ("Charakteristisches Polynom?", "det(A − λE)"),
+                             ("Spur und Eigenwerte?", "Die Spur ist die Summe der Eigenwerte."), ("Diagonalisierbar heißt?", "Es gibt eine Basis aus Eigenvektoren."),
+                             ("Eigenraum?", "Kern von A − λE"), ("Determinante und Eigenwerte?", "Produkt der Eigenwerte")], promote: [0, 0, 1, 2, 3, 0])
+            try await cards(try await stack("Übungsblatt 3 – Basen", la, week: 3, kind: "uebung"),
+                            [("Ist {(1,0),(1,1)} eine Basis?", "Ja, linear unabhängig und erzeugend."), ("Dimension von R³?", "3"),
+                             ("Basisergänzung?", "Jede l. u. Menge lässt sich zu einer Basis ergänzen.")], promote: [1, 1, 4])
+            try await cards(try await stack("Klausur-Basics", la, week: nil, kind: "eigene"),
+                            [("Rang einer Matrix?", "Zahl der linear unabhängigen Zeilen."), ("Kern?", "Alle x mit Ax = 0"),
+                             ("Bild?", "Alle Ax"), ("Dimensionssatz?", "dim V = dim Kern + dim Bild")], promote: [0, 0, 0, 0])
+            try await cards(try await stack("Folgen und Grenzwerte", an, week: 2, kind: "vorlesung"),
+                            [("Konvergent heißt?", "Es gibt einen Grenzwert."), ("Cauchy-Folge?", "Glieder kommen sich beliebig nahe."),
+                             ("Beschränkt und monoton?", "Dann konvergent.")], promote: [2, 3, 4])
+            return ()
+        }
+        return api
+    }
+
+    /// Kacheln: heute faellig, Faecher, Art, Menue (…); "Üben" beginnt mit den faelligen Karten
+    func testStackTilesShowDueBoxesAndPractise() throws {
+        HostedEnvironment.accessibilityAutomation(true)
+        addTeardownBlock { HostedEnvironment.accessibilityAutomation(false) }
+        let api = try richAPI()
+        let env = try hostWithEnvironment(CardsPage(entitlements: Entitlements(observe: false, plan: .plus)), api: api)
+        XCTAssertTrue(env.wait { self.shows(env.view, "Stapel öffnen: Klausur-Basics") }, dump(env.view))
+        let value = elements(in: env.view).first { $0.accessibilityLabel == "Stapel öffnen: Übungsblatt 3 – Basen" }?.accessibilityValue ?? ""
+        XCTAssertTrue(value.hasPrefix("Übung · W3 · Lineare Algebra Test · 3 Karten · Heute fällig (0)"), value)
+        XCTAssertTrue(value.hasSuffix("Fach 1: 0 · Fach 2: 2 · Fach 3: 0 · Fach 4: 0 · Fach 5: 1"), value)
+        XCTAssertTrue(shows(env.view, "7 heute fällig"), "Kopfleiste: faellig ueber alle Stapel: \(dump(env.view))")
+        XCTAssertTrue(shows(env.view, "Lehrwoche"), "Wochenfilter mit Wochen")
+        XCTAssertTrue(shows(env.view, "Aktionen für Stapel: Klausur-Basics"))
+        XCTAssertFalse(shows(env.view, "Stapel bearbeiten: Klausur-Basics"), "Menue zu")
+        XCTAssertTrue(tap("Aktionen für Stapel: Klausur-Basics", in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "Stapel bearbeiten: Klausur-Basics") }, dump(env.view))
+        XCTAssertTrue(shows(env.view, "Stapel löschen: Klausur-Basics"))
+        XCTAssertTrue(tap("Aktionen für Stapel: Klausur-Basics", in: env.view), "zweites Tippen schliesst")
+        XCTAssertTrue(env.wait { !self.shows(env.view, "Stapel bearbeiten: Klausur-Basics") }, dump(env.view))
+        // Wochenfilter: nur Woche 2
+        XCTAssertTrue(tap("Woche 2", in: env.view))
+        XCTAssertTrue(env.wait { !self.shows(env.view, "Stapel öffnen: Klausur-Basics") }, dump(env.view))
+        XCTAssertTrue(shows(env.view, "Stapel öffnen: Folgen und Grenzwerte"))
+        XCTAssertTrue(tap("Alle Wochen", in: env.view))
+        // Üben mit faelligen Karten: Wiederholung "Heute fällig" des Stapels
+        XCTAssertTrue(env.wait { self.button("Üben: Klausur-Basics", in: env.view) != nil }, dump(env.view))
+        XCTAssertTrue(tap("Üben: Klausur-Basics", in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "Karte 1 von 4") }, dump(env.view))
+        XCTAssertTrue(shows(env.view, "Heute fällig (4)"))
+        XCTAssertNotNil(button("Antwort zeigen", in: env.view))
+        XCTAssertNil(button("Richtig", in: env.view), "erst nach dem Aufdecken")
+    }
+
+    /// Bilder der neuen Ansichten (hell und dunkel, quer und hochkant) nach UF_SCREENSHOT_DIR; ohne die Variable
+    /// uebersprungen
+    func testScreenshotsOfCardsPracticeAndResult() throws {
+        guard let dir = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !dir.isEmpty else { throw XCTSkip("UF_SCREENSHOT_DIR nicht gesetzt") }
+        HostedEnvironment.accessibilityAutomation(true)
+        addTeardownBlock { HostedEnvironment.accessibilityAutomation(false) }
+        let api = try richAPI()
+        // quer: Inhalt neben der Seitenleiste (1180 - 248), hochkant: ganze Breite
+        let sizes: [(String, CGSize, CGFloat)] = [("quer", CGSize(width: 932, height: 820), 1180), ("hochkant", CGSize(width: 820, height: 1180), 820)]
+        for (name, size, window) in sizes {
+            let page = try hostWithEnvironment(CardsPage(entitlements: Entitlements(observe: false, plan: .plus)).environment(\.ufWindowWidth, window), api: api, size: size)
+            XCTAssertTrue(page.wait { self.shows(page.view, "Stapel öffnen: Klausur-Basics") }, dump(page.view))
+            both(page, dir, "karteikarten-\(name)")
+            if name == "quer" {
+                XCTAssertTrue(tap("Aktionen für Stapel: Klausur-Basics", in: page.view))
+                page.pump(0.3)
+                both(page, dir, "karteikarten-menue-\(name)")
+                tap("Aktionen für Stapel: Klausur-Basics", in: page.view)
+            }
+            // Wiederholung: Frage, dann aufgedeckt
+            XCTAssertTrue(page.wait { self.button("Üben: Eigenwerte und Eigenvektoren", in: page.view) != nil })
+            XCTAssertTrue(tap("Üben: Eigenwerte und Eigenvektoren", in: page.view))
+            XCTAssertTrue(page.wait { self.shows(page.view, "Karte 1 von") }, dump(page.view))
+            both(page, dir, "wiederholung-frage-\(name)")
+            XCTAssertTrue(tap("Antwort zeigen", in: page.view))
+            XCTAssertTrue(page.wait { self.button("Richtig", in: page.view) != nil })
+            both(page, dir, "wiederholung-antwort-\(name)")
+            XCTAssertTrue(tap("Beenden", in: page.view))
+            // Frei ueben im Stapel
+            XCTAssertTrue(page.wait { self.button("Üben", in: page.view) != nil }, dump(page.view))
+            both(page, dir, "stapel-\(name)")
+            XCTAssertTrue(tap("Üben", in: page.view))
+            XCTAssertTrue(page.wait { self.shows(page.view, "Frei üben") && self.shows(page.view, "Karte 1 von") }, dump(page.view))
+            both(page, dir, "frei-ueben-\(name)")
+            page.window.isHidden = true
+        }
+        // leerer Zustand
+        let (emptyAPI, _, _) = try awaiting { try await self.seededAPI() }
+        let empty = try hostWithEnvironment(CardsPage(entitlements: Entitlements(observe: false, plan: .plus)), api: emptyAPI, size: CGSize(width: 932, height: 820))
+        XCTAssertTrue(empty.wait { self.shows(empty.view, "Noch keine Karteikarten") })
+        both(empty, dir, "karteikarten-leer-quer")
+        empty.window.isHidden = true
+        // Ergebnis mit KI-Hilfe: quer als Spalte, hochkant als Dialog
+        let t = Canned()
+        t.answer("/api/tests/8", submittedTest)
+        t.answer("/api/ai/tutor", ["answer": "## Kurz gesagt\n255 ist im Hexadezimalsystem **FF**, nicht F0.\n\n- F steht für 15\n- 15 · 16 + 15 = 255\n- F0 wäre 15 · 16 = 240", "cards": .null, "sources": []])
+        let examAPI = APIClient(base: URL(string: "http://erfunden.test/")!, transport: t)
+        for (name, size, window) in sizes {
+            let result = try hostWithEnvironment(ExamRunPage(id: 8, task: nil).environment(\.ufAIEnabled, true).environment(\.ufWindowWidth, window), api: examAPI, size: size)
+            XCTAssertTrue(result.wait { self.shows(result.view, "33 %") }, dump(result.view))
+            both(result, dir, "ergebnis-\(name)")
+            XCTAssertTrue(tap("Frag die KI zu Aufgabe 1", in: result.view))
+            XCTAssertTrue(result.wait { self.shows(result.view, "KI-Hilfe") })
+            XCTAssertTrue(tap("Warum ist meine Antwort zu Aufgabe 1 falsch?", in: result.view))
+            XCTAssertTrue(result.wait { self.shows(result.view, "Kurz gesagt") }, dump(result.view))
+            both(result, dir, "ergebnis-ki-\(name)")
+            result.window.isHidden = true
+        }
+        // Testlauf mit stehendem Fortschritt
+        var open = submittedTest.object ?? [:]
+        open["id"] = 9
+        open["submitted_at"] = .null
+        open["feedback"] = .null
+        open["answers"] = ["1": "Wahr"]
+        t.answer("/api/tests/9", .object(open))
+        let run = try hostWithEnvironment(ExamRunPage(id: 9, task: nil).environment(\.ufWindowWidth, 1180), api: examAPI, size: CGSize(width: 932, height: 820))
+        XCTAssertTrue(run.wait { self.shows(run.view, "Fortschritt 1 von 3") }, dump(run.view))
+        both(run, dir, "testlauf-quer")
+        (ActiveContainer.current?.defaults ?? .standard).removeObject(forKey: "exam-draft:http://erfunden.test/:9")
+    }
+
+    private func button(_ label: String, in view: UIView) -> NSObject? {
+        elements(in: view).first { $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel == label }
+    }
+
+    private func both(_ env: HostedEnvironment, _ dir: String, _ name: String) {
+        for (style, suffix) in [(UIUserInterfaceStyle.light, "hell"), (.dark, "dunkel")] {
+            env.window.overrideUserInterfaceStyle = style
+            env.pump(0.4)
+            let view = env.view
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 2
+            let png = UIGraphicsImageRenderer(bounds: view.bounds, format: format).pngData { _ in
+                _ = view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+            }
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name)-\(suffix).png"))
+        }
+        env.window.overrideUserInterfaceStyle = .unspecified
+    }
+
     private func awaiting<T>(_ body: @escaping @MainActor () async throws -> T) throws -> T {
         var result: Result<T, Error>?
         let done = expectation(description: "async")
