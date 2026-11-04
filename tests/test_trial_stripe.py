@@ -351,7 +351,7 @@ def test_schedule_without_a_real_change_sets_no_pending_plan(hosted, stripe):
     assert ent(hosted, h)["plan"] == "pro_ai" and ent(hosted, h)["pending_plan"] is None
     # ohne current_phase zaehlt die erste Phase, die nach jetzt beginnt; Phasen in der Vergangenheit nicht
     now = dt.datetime.now(UTC)
-    sched = {"phases": [{"start_date": end - 60 * 86400, "items": [{"price": "price_pc"}]},
+    sched = {"phases": [{"start_date": end - 60 * 86400, "items": [{"price": "price_ai"}]},
                         {"start_date": end + 10, "items": [{"price": {"id": "price_plus"}}]}]}
     assert sb.pending_plan_for({"schedule": sched}, "pro_ai", now) == "plus"
     assert sb.pending_plan_for({"schedule": None}, "pro_ai", now) is None

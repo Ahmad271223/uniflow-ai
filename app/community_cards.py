@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS card_stacks (
     cards TEXT NOT NULL,                 -- JSON [{question, answer}]
     card_count INTEGER NOT NULL,
     created_at TEXT NOT NULL,
+    updated_at TEXT,                     -- zuletzt ersetzt (PUT /api/flashcard-stacks/{id}/share)
     status TEXT NOT NULL DEFAULT 'active',   -- active | withdrawn | hidden
     report_count INTEGER NOT NULL DEFAULT 0,
     adopt_count INTEGER NOT NULL DEFAULT 0
@@ -72,8 +73,20 @@ def _now() -> str:
 def cursor():
     """community.db mit den Tabellen dieses Moduls (und denen von app/community.py: Mitglieder, Sperren, Bann)."""
     with community.cursor() as conn:
-        db.schema_once(conn, "community_cards", community.db_path(), lambda c: c.executescript(SCHEMA))
+        db.schema_once(conn, "community_cards", community.db_path(), ensure_schema)
         yield conn
+
+
+def _schema(conn) -> None:
+    """Schema auf einer fremden Verbindung zu community.db (Moderation, Bann): einmal je Prozess wie `cursor`."""
+    db.schema_once(conn, "community_cards", community.db_path(), ensure_schema)
+
+
+def ensure_schema(conn) -> None:
+    """Tabellen anlegen; aeltere community.db bekommt die Spalte updated_at (Ersetzen, 04.11.2026)."""
+    conn.executescript(SCHEMA)
+    if "updated_at" not in {r[1] for r in conn.execute("PRAGMA table_info(card_stacks)")}:
+        conn.execute("ALTER TABLE card_stacks ADD COLUMN updated_at TEXT")
 
 
 # ---------------------------------------------------------------- Pruefungen
@@ -106,7 +119,8 @@ def _week(v):
 
 def _summary(r, me: str, conn, reported: set[str], adopted: set[str] | None = None) -> dict:
     return {"id": r["id"], "community_key": r["community_key"], "name": r["name"], "kind": r["kind"], "week": r["week"],
-            "cards": r["card_count"], "pseudonym": r["pseudonym"], "created_at": r["created_at"], "status": r["status"],
+            "cards": r["card_count"], "pseudonym": r["pseudonym"], "created_at": r["created_at"], "updated_at": r["updated_at"],
+            "status": r["status"],
             "mine": r["author_id"] == me, "reported_by_me": r["id"] in reported,
             "adopted": r["id"] in (adopted or set()), "adopt_count": r["adopt_count"],
             "likes": conn.execute("SELECT COUNT(*) FROM card_stack_likes WHERE stack_id=?", (r["id"],)).fetchone()[0],
@@ -150,14 +164,39 @@ def share(user: dict, university: str, community_key, name, kind, week, cards, s
         if community._kind_is(conn, key, "group"):
             raise CommunityError("community_invalid", "Stapel lassen sich nur in der Community eines Moduls teilen.", 422)
         _require_member(conn, user, key)
+        if conn.execute("SELECT 1 FROM bans WHERE author_id=?", (user["id"],)).fetchone():
+            raise CommunityError("author_banned", "Dein Konto darf in der Community nichts mehr schreiben.", 403)
         if conn.execute("SELECT 1 FROM card_stacks WHERE id=?", (sid,)).fetchone():
             raise CommunityError("already_shared", "Dieser Stapel ist schon geteilt.", 409)
+        community._limit("deck_user", user["id"])               # neue geteilte Stapel je Konto und Tag
         conn.execute("""INSERT INTO card_stacks(id, community_key, university, author_id, pseudonym, name, kind, week, cards, card_count, created_at)
                         VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                      (sid, key, university, user["id"], community.pseudonym(user["id"]), name.strip()[:MAX_NAME], kind, week,
                       json.dumps(clean, ensure_ascii=False), len(clean), _now()))
         r = conn.execute("SELECT * FROM card_stacks WHERE id=?", (sid,)).fetchone()
         return _summary(r, user["id"], conn, set())
+
+
+def replace(user: dict, stack_id: str, name, cards) -> dict:
+    """Geteilten Stapel mit dem aktuellen Stand des eigenen ersetzen (Karten und Name); Kennung, Modul, Woche, Likes
+    und Uebernahmen bleiben. Nur der Autor, nicht nach dem Zurueckziehen, nicht solange er nach Meldungen verborgen ist.
+    Wer schon uebernommen hat, behaelt seine Kopie."""
+    community._require_verified(user, "Stapel zu teilen")
+    clean = clean_cards(cards)
+    with cursor() as conn:
+        r = conn.execute("SELECT * FROM card_stacks WHERE id=? AND status<>'withdrawn'", ((stack_id or "").lower(),)).fetchone()
+        if not r:
+            raise CommunityError("not_found", "Geteilter Stapel nicht gefunden.", 404)
+        if r["author_id"] != user["id"]:
+            raise CommunityError("not_owner", "Nur der Autor kann einen geteilten Stapel ändern.", 403)
+        if r["status"] == "hidden":
+            raise CommunityError("stack_hidden", "Der Stapel ist nach Meldungen verborgen und wird geprüft.", 403)
+        _require_member(conn, user, r["community_key"])
+        n = name.strip()[:MAX_NAME] if isinstance(name, str) and name.strip() else r["name"]
+        community._limit("update_user", user["id"])
+        conn.execute("UPDATE card_stacks SET name=?, cards=?, card_count=?, updated_at=? WHERE id=?",
+                     (n, json.dumps(clean, ensure_ascii=False), len(clean), _now(), r["id"]))
+        return _summary(conn.execute("SELECT * FROM card_stacks WHERE id=?", (r["id"],)).fetchone(), user["id"], conn, set())
 
 
 def withdraw(user: dict, stack_id: str) -> dict:
@@ -254,6 +293,51 @@ def report(user: dict, stack_id: str, reason: str, note: str | None) -> dict:
         else:
             conn.execute("UPDATE card_stacks SET report_count=? WHERE id=?", (n, r["id"]))
     return {"reported": True, "hidden": hidden, "reports": n}
+
+
+# ---------------------------------------------------------------- Moderation, Bann, Konto, Export
+
+def moderation_items(conn) -> list[dict]:
+    """Gemeldete oder verborgene Stapel fuer die Moderation (Name und die ersten Karten als Text); `conn` auf community.db."""
+    _schema(conn)
+    items = []
+    for r in conn.execute("SELECT * FROM card_stacks WHERE status='hidden' OR (status='active' AND report_count>0) "
+                          "ORDER BY status='hidden' DESC, report_count DESC, created_at DESC, rowid DESC"):
+        reps = [{"reason": x["reason"], "created_at": x["created_at"], "reporter": community.reporter_info(x["reporter_id"])}
+                for x in conn.execute("SELECT reason, created_at, reporter_id FROM card_stack_reports WHERE stack_id=? ORDER BY created_at, rowid",
+                                      (r["id"],))]
+        cards = json.loads(r["cards"] or "[]")
+        text = r["name"] + "\n" + "\n".join(f"{c['question']} — {c['answer']}" for c in cards[:5])
+        items.append({"id": r["id"], "kind": "card_stack", "status": r["status"], "pseudonym": r["pseudonym"], "text": text[:300],
+                      "context": r["community_key"], "week": r["week"], "cards": r["card_count"],
+                      "created_at": r["created_at"], "report_count": r["report_count"], "reports": reps})
+    return items
+
+
+def restore(conn, stack_id: str):
+    """Moderation: verborgenen Stapel freigeben (Meldungen werden geloescht). None = kein verborgener mit dieser Kennung."""
+    _schema(conn)
+    r = conn.execute("SELECT id FROM card_stacks WHERE id=? AND status='hidden'", ((stack_id or "").lower(),)).fetchone()
+    if r:
+        conn.execute("UPDATE card_stacks SET status='active', report_count=0 WHERE id=?", (r["id"],))
+        conn.execute("DELETE FROM card_stack_reports WHERE stack_id=?", (r["id"],))
+    return r
+
+
+def withdraw_all(conn, user_id: str) -> int:
+    """Bann oder Konto geloescht (community.withdraw_all): alle geteilten Stapel sofort weg (Karten geleert)."""
+    _schema(conn)
+    return conn.execute("UPDATE card_stacks SET status='withdrawn', cards='[]' WHERE author_id=? AND status<>'withdrawn'",
+                        (user_id,)).rowcount
+
+
+def exported(user: dict) -> list[dict]:
+    """Eigene geteilte Stapel fuer den Datenexport (mit Karten), ohne Konto-IDs."""
+    with cursor() as conn:
+        return [{"id": r["id"], "community_key": r["community_key"], "name": r["name"], "kind": r["kind"], "week": r["week"],
+                 "created_at": r["created_at"], "updated_at": r["updated_at"], "status": r["status"], "adopt_count": r["adopt_count"],
+                 "cards": json.loads(r["cards"] or "[]")}
+                for r in conn.execute("SELECT * FROM card_stacks WHERE author_id=? ORDER BY created_at, rowid", (user["id"],))]
 
 
 def forget_author(user_id: str) -> int:

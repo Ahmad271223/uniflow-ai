@@ -14,12 +14,13 @@ const QUOTA_TXT = (q, key, labels) => {
 };
 const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos.",
-  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern, Notizen auf allen Geräten, eigene Karteikarten und Wochentests.",
-  pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig.",
+  // Plus gilt je Geraet (Entscheidung 04.11.2026): Notizen-Abgleich zwischen iPad, PC und Web erst mit Pro AI
+  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), eigene Karteikarten und Wochentests.",
+  pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig, Notizen auf allen Geräten.",
 };
 
 // Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
-const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations"]);
+const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations", "can_use_prepared_week_sets"]);
 
 function featureRows(contract, key) {
   const order = contract.order, idx = order.indexOf(key);

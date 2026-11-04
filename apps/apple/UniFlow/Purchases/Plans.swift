@@ -163,7 +163,6 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     // Plus
     case canAnnotatePDF = "can_annotate_pdf"
     case canUsePencilKit = "can_use_pencilkit"
-    case canSyncAnnotations = "can_sync_annotations"
     case canWriteCommunityComments = "can_write_community_comments"
     case canShareSolutions = "can_share_solutions"
     case canAccessSharedTests = "can_access_shared_tests"
@@ -182,6 +181,10 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canUseAIGeneratedQuestions = "can_use_ai_generated_questions"
     case canUseAISummaries = "can_use_ai_summaries"
     case canUseAIRecommendations = "can_use_ai_recommendations"
+    /// Notizen-Abgleich zwischen iPad, PC und Web (Entscheidung 04.11.2026: Plus gilt je Geraet, Abgleich ab Pro AI)
+    case canSyncAnnotations = "can_sync_annotations"
+    /// fertige KI-Fragen je Vorlesungswoche aus der Bibliothek des Dienstes (04.11.2026)
+    case canUsePreparedWeekSets = "can_use_prepared_week_sets"
 
     var id: String { rawValue }
 
@@ -190,12 +193,12 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         switch self {
         case .canViewPDF, .canManageCourses, .canImportDocuments, .canViewTimetable, .canUseBasicPlanner, .canReadCommunity:
             return .free
-        case .canAnnotatePDF, .canUsePencilKit, .canSyncAnnotations, .canWriteCommunityComments, .canShareSolutions,
+        case .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
              .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards:
             return .plus
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,
-             .canUseAISummaries, .canUseAIRecommendations:
+             .canUseAISummaries, .canUseAIRecommendations, .canSyncAnnotations, .canUsePreparedWeekSets:
             return .proAI
         }
     }
@@ -211,7 +214,6 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canReadCommunity: return "Community-Beiträge lesen"
         case .canAnnotatePDF: return "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder"
         case .canUsePencilKit: return "Apple Pencil (PencilKit) und handschriftliche Notizen"
-        case .canSyncAnnotations: return "Notizen auf allen Geräten"
         case .canWriteCommunityComments: return "Community-Kommentare schreiben"
         case .canShareSolutions: return "Eigene Lösungen teilen"
         case .canAccessSharedTests: return "Tests aus der StudiNow-Bibliothek"
@@ -227,6 +229,8 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canUseAIGeneratedQuestions: return "Automatische Lernfragen und Wiederholungsaufgaben"
         case .canUseAISummaries: return "KI-Zusammenfassungen"
         case .canUseAIRecommendations: return "KI-gestützte Lernempfehlungen"
+        case .canSyncAnnotations: return "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)"
+        case .canUsePreparedWeekSets: return "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen"
         }
     }
 
@@ -279,7 +283,7 @@ extension UFEntitlement {
         case .canSyncAnnotations, .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
              .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,
-             .canUseAISummaries, .canUseAIRecommendations:
+             .canUseAISummaries, .canUseAIRecommendations, .canUsePreparedWeekSets:
             return .needsService
         }
     }

@@ -1,0 +1,400 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-week-sets-fixture.py aus app/week_library.py; nicht von Hand aendern.",
+ "constants": {
+  "version": "wl1",
+  "sets_per_week": 3,
+  "min_sets": 2,
+  "set_size": 15,
+  "statuses": [
+   "none",
+   "preparing",
+   "ready",
+   "failed",
+   "no_material",
+   "missing_content"
+  ],
+  "right": "can_use_prepared_week_sets",
+  "quota_on_start": "library_tests",
+  "never_charged": [
+   "ai_tests_new",
+   "ai_assist"
+  ],
+  "codes": {
+   "plan_required": 403,
+   "email_unverified": 403,
+   "not_hosted": 501,
+   "not_found": 404,
+   "week_invalid": 400,
+   "not_prepared": 409,
+   "no_material": 409,
+   "missing_content": 409,
+   "set_not_found": 404,
+   "set_empty": 409,
+   "quota_exhausted": 429,
+   "library_prep_limit": 429,
+   "ai_library_budget_exhausted": 429,
+   "ai_not_configured": 503,
+   "ai_not_configured_prices": 503,
+   "generation_failed": "status failed (im Rumpf error_code)"
+  }
+ },
+ "endpoints": [
+  {
+   "method": "GET",
+   "path": "/api/library/week-sets/{module_id}",
+   "right": "can_use_prepared_week_sets",
+   "returns": "module_id, sets_per_week, set_size, weeks[{week, label, files, status, sets}]"
+  },
+  {
+   "method": "GET",
+   "path": "/api/library/week-sets/{module_id}/{week}",
+   "right": "can_use_prepared_week_sets",
+   "returns": "module_id, week, status, topics, hints, solutions, sets[{nr, title, focus, count}], error_code, error"
+  },
+  {
+   "method": "POST",
+   "path": "/api/library/week-sets/{module_id}/{week}/prepare",
+   "body": {
+    "wait_s": "0..60, optional"
+   },
+   "right": "can_use_prepared_week_sets",
+   "needs": "bestaetigte E-Mail",
+   "returns": "wie GET und started (bool)",
+   "charges": "nichts beim Konto; Kosten im Bibliotheksbudget"
+  },
+  {
+   "method": "POST",
+   "path": "/api/library/week-sets/{module_id}/{week}/sets/{nr}/start",
+   "body": {
+    "request_id": "optional"
+   },
+   "right": "can_use_prepared_week_sets",
+   "returns": "test_id, title, question_count, charged (library_tests | null), reused",
+   "charges": "library_tests (offener Test desselben Satzes: nichts)"
+  },
+  {
+   "method": "GET",
+   "path": "/api/library/week-sets/{module_id}/{week}/explain?question_id=…|task=…",
+   "right": "can_use_prepared_week_sets",
+   "returns": "kind question|task mit answer, explanation (task: steps, label)"
+  }
+ ],
+ "key_cases": [
+  {
+   "university": "luh",
+   "prints": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   ],
+   "key": "wl1:cec689ed15ebc33ad147d7c43d93355f8cc72ce9a65ff454351764fd9471c45b"
+  },
+  {
+   "university": "luh",
+   "prints": [
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   ],
+   "key": "wl1:f6a022f95dfc4ef6a1bb7fcc0875e5e2050209c5007b80f612999645e952ccfb"
+  },
+  {
+   "university": "luh",
+   "prints": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   ],
+   "key": "wl1:f6a022f95dfc4ef6a1bb7fcc0875e5e2050209c5007b80f612999645e952ccfb"
+  },
+  {
+   "university": "hildesheim",
+   "prints": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+   ],
+   "key": "wl1:6b2ca446c544197c63be28b22322a171b467acea2717c373a0115132017239e5"
+  }
+ ],
+ "form_cases": [
+  {
+   "name": "gueltig",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "det = ad + bc",
+     "det = ad - bc",
+     "det = ab - cd",
+     "det = 0"
+    ],
+    "answer": "det = ad - bc",
+    "explanation": "Die Formel lautet ad minus bc.",
+    "difficulty": 2
+   },
+   "ok": true,
+   "errors": [],
+   "answer": "det = ad - bc"
+  },
+  {
+   "name": "Buchstabe als Loesung",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "A) ad + bc",
+     "B) ad - bc",
+     "C) ab - cd"
+    ],
+    "answer": "B",
+    "explanation": "Die Formel lautet ad minus bc.",
+    "difficulty": "3"
+   },
+   "ok": true,
+   "errors": [],
+   "answer": "B) ad - bc"
+  },
+  {
+   "name": "Loesung nicht unter den Antworten",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "a",
+     "b",
+     "c",
+     "d"
+    ],
+    "answer": "e",
+    "explanation": "Die Formel lautet ad minus bc.",
+    "difficulty": 3
+   },
+   "ok": false,
+   "errors": [
+    "Lösung ist keine der Antwortmöglichkeiten"
+   ],
+   "answer": null
+  },
+  {
+   "name": "Link in der Erklaerung",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "a",
+     "b",
+     "c",
+     "d"
+    ],
+    "answer": "b",
+    "explanation": "Siehe https://example.org/det",
+    "difficulty": 3
+   },
+   "ok": false,
+   "errors": [
+    "enthält persönliche Daten oder Links"
+   ],
+   "answer": null
+  },
+  {
+   "name": "E-Mail in der Frage",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig? Fragen an tutor@uni-beispiel.de",
+    "options": [
+     "a",
+     "b",
+     "c",
+     "d"
+    ],
+    "answer": "b",
+    "explanation": "Die Formel lautet ad minus bc.",
+    "difficulty": 3
+   },
+   "ok": false,
+   "errors": [
+    "enthält persönliche Daten oder Links"
+   ],
+   "answer": null
+  },
+  {
+   "name": "Erklaerung fehlt",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "a",
+     "b",
+     "c",
+     "d"
+    ],
+    "answer": "b",
+    "explanation": "",
+    "difficulty": 3
+   },
+   "ok": false,
+   "errors": [
+    "Erklärung fehlt"
+   ],
+   "answer": null
+  },
+  {
+   "name": "doppelte Antworten",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "gleich",
+     "gleich"
+    ],
+    "answer": "gleich",
+    "explanation": "Die Formel lautet ad minus bc.",
+    "difficulty": 3
+   },
+   "ok": false,
+   "errors": [
+    "Antwortmöglichkeiten fehlen oder doppelt"
+   ],
+   "answer": null
+  },
+  {
+   "name": "Schwierigkeit ausserhalb",
+   "question": {
+    "question": "Welche Aussage zur Determinante einer 2x2-Matrix ist richtig?",
+    "options": [
+     "a",
+     "b"
+    ],
+    "answer": "b",
+    "explanation": "Die Formel lautet ad minus bc.",
+    "difficulty": 7
+   },
+   "ok": false,
+   "errors": [
+    "Schwierigkeit muss 1 bis 5 sein"
+   ],
+   "answer": null
+  }
+ ],
+ "card_modes": [
+  {
+   "hosted": false,
+   "allowed": true,
+   "status": "ready",
+   "current": true,
+   "mode": "service_only"
+  },
+  {
+   "hosted": false,
+   "allowed": true,
+   "status": "ready",
+   "current": false,
+   "mode": "hidden"
+  },
+  {
+   "hosted": true,
+   "allowed": false,
+   "status": "ready",
+   "current": true,
+   "mode": "locked"
+  },
+  {
+   "hosted": true,
+   "allowed": false,
+   "status": "none",
+   "current": false,
+   "mode": "locked"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "ready",
+   "current": false,
+   "mode": "show"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "preparing",
+   "current": false,
+   "mode": "poll"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "none",
+   "current": true,
+   "mode": "auto_prepare"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "none",
+   "current": false,
+   "mode": "offer_prepare"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "failed",
+   "current": true,
+   "mode": "retry"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "missing_content",
+   "current": false,
+   "mode": "info"
+  },
+  {
+   "hosted": true,
+   "allowed": true,
+   "status": "no_material",
+   "current": true,
+   "mode": "hidden"
+  }
+ ],
+ "example_ready": {
+  "module_id": 7,
+  "week": 3,
+  "status": "ready",
+  "topics": [
+   {
+    "title": "Determinanten",
+    "summary": "Rechenregeln für 2x2-Matrizen."
+   }
+  ],
+  "hints": [
+   "Auf das Vorzeichen beim Zeilentausch achten."
+  ],
+  "solutions": [
+   {
+    "task_hash": "0123456789abcdef",
+    "nr": "1",
+    "source": "uebungsblatt",
+    "label": "Übungsblatt · Aufgabe 1",
+    "answer": "det(A) = -2",
+    "explanation": "ad - bc = 1·4 - 2·3.",
+    "steps": [
+     "Formel ad - bc",
+     "einsetzen"
+    ],
+    "official": true
+   }
+  ],
+  "sets": [
+   {
+    "nr": 1,
+    "title": "Satz 1",
+    "focus": "Begriffe und Grundlagen der Woche",
+    "count": 15
+   },
+   {
+    "nr": 2,
+    "title": "Satz 2",
+    "focus": "Anwenden und Rechnen",
+    "count": 15
+   },
+   {
+    "nr": 3,
+    "title": "Satz 3",
+    "focus": "Klausurnah: Zusammenhaenge und typische Fehler",
+    "count": 15
+   }
+  ],
+  "error_code": null,
+  "error": null,
+  "prepared_at": "2026-11-04T10:00:00+00:00"
+ }
+}

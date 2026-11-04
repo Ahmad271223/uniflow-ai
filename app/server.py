@@ -61,6 +61,8 @@ from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan,
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
 app.include_router(study_catalog.router)
+from . import week_library_api  # noqa: E402 - Fertige Fragen je Vorlesungswoche (Pro AI, /api/library/week-sets)
+app.include_router(week_library_api.router)
 db.init_db()
 
 
@@ -688,21 +690,30 @@ def api_sync_changes(since: str | None = None, device_id: str | None = None, lim
 @app.post("/api/sync/push")
 def api_sync_push(request: Request, body: dict = Body(...)):
     """Vertrag G2: Aenderungen eines Geraets uebernehmen; Antwort mit Ergebnis je Eintrag, ID-Zuordnung, Konflikten.
-    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab StudiNow Plus); sonst Ergebnis `plan_required`
-    fuer genau diese Eintraege, alles andere wird normal uebernommen."""
+    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab StudiNow Pro AI, Entscheidung vom 04.11.2026); sonst Ergebnis `plan_required`
+    fuer genau diese Eintraege, alles andere wird normal uebernommen. Neue Karteikarten und Stapel (ohne `id`) nur mit
+    can_use_flashcards (ab Plus), sonst ebenso `plan_required`; bestehende gleichen weiter ab."""
     from . import sync
     items, deletes = body.get("items") or [], body.get("deletes") or []
     if not isinstance(items, list) or not isinstance(deletes, list):
         raise HTTPException(400, "items und deletes muessen Listen sein")
-    refused = []
+    refused, refused_cards = [], []
     if not entitlements.has(entitlements.user_of(request), "can_sync_annotations"):
         refused = [it for it in items if isinstance(it, dict) and it.get("entity") == "annotations"]
         items = [it for it in items if not (isinstance(it, dict) and it.get("entity") == "annotations")]
+    if not entitlements.has(entitlements.user_of(request), "can_use_flashcards"):
+        # neue Karteikarten und Stapel (ohne id) erst ab StudiNow Plus (04.11.2026); bestehende gleichen weiter ab
+        new_card = lambda it: isinstance(it, dict) and it.get("entity") in ("flashcards", "flashcard_stacks") and it.get("id") is None  # noqa: E731
+        refused_cards = [it for it in items if new_card(it)]
+        items = [it for it in items if not new_card(it)]
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")
         out = sync.push(conn, body.get("device_id"), items, deletes)
-    out["results"] = [{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
-                       "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused] + out["results"]
+    out["results"] = ([{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
+                        "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused]
+                      + [{"entity": it.get("entity"), "local_id": it.get("local_id"), "status": "plan_required",
+                          "required_plan": entitlements.required_plan("can_use_flashcards")} for it in refused_cards]
+                      + out["results"])
     return out
 
 
@@ -1178,8 +1189,11 @@ def _page_list(raw, total: int) -> list[int]:
 @app.post("/api/ai/flashcards")
 def ai_flashcards(request: Request, body: dict = Body(...)):
     """Karteikarten aus den Seiten eines Dokuments: {file_id, pages?: [int], count?, topic?} -> {cards, pages, count}.
-    Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file)."""
+    Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file).
+    Ohne file_id, mit module_id: KI-Auftrag nach Modul und Lernwoche (`_ai_flashcards_order`, app/flashcard_order.py)."""
     from . import ai, scriptsearch
+    if not body.get("file_id") and body.get("module_id") is not None:
+        return _ai_flashcards_order(request, body)
     hosted = config.is_hosted()
     if hosted:
         entitlements.require(request, "can_use_ai_generated_questions")
@@ -1205,10 +1219,69 @@ def ai_flashcards(request: Request, body: dict = Body(...)):
     return {"cards": cards, "pages": pages, "count": count, "credits": credits_state}
 
 
-def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict) -> tuple[list[dict], dict | None]:
+@app.get("/api/ai/flashcards/weeks")
+def ai_flashcards_weeks(module_id: int):
+    """Lehrwochen eines Moduls mit Unterlagen fuer den KI-Auftrag ({module_id, weeks: [{week, label, topic, files}],
+    current_week}); gleiche Wochenregel wie das Moduldetail. Nur Lesen, ohne Tarif."""
+    from . import flashcard_order as fo, study
+    with db.cursor() as conn:
+        try:
+            fo.module_row(conn, module_id)
+        except fo.OrderError as e:
+            raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+        start = study.semester_start(conn)
+        current = study.day_week(start, study.today())
+        return {"module_id": module_id, "weeks": fo.module_weeks(conn, module_id, start), "current_week": current if current >= 1 else None}
+
+
+def _ai_flashcards_order(request: Request, body: dict) -> dict:
+    """KI-Karteikarten auf Auftrag (04.11.2026, app/flashcard_order.py): {module_id, week (oder lecture_week; null =
+    ganzes Modul), count (5-50), topic?, request_id?, material?: [{title, text}], again?} -> {cards, count, module_id,
+    module_name, week, sources, duplicates_removed, existing, credits}. Nur ein Vorschlag: gespeichert wird in einen
+    Stapel des Moduls (POST /api/flashcard-stacks, dann POST /api/flashcards mit stack_id). Im Dienst Pro AI
+    (can_use_ai_generated_questions), bestaetigte E-Mail, Kontingent ai_assist und Credits wie "Karteikarten aus Dokument"."""
+    from . import flashcard_order as fo
+    hosted = config.is_hosted()
+    if hosted:
+        entitlements.require(request, "can_use_ai_generated_questions")
+        entitlements.require_verified_for_ai(request)
+    try:
+        mid = fo.parse_module(body.get("module_id"))
+        week = fo.parse_week(body.get("week", body.get("lecture_week")))
+        with db.cursor() as conn:
+            m = fo.module_row(conn, mid)
+            mat = fo.week_material(conn, mid, week)
+            existing = fo.module_questions(conn, m["name"], week)
+    except fo.OrderError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    count = fo.stack_count(body.get("count"))
+    topic = str(body.get("topic") or "")[:fo.TOPIC_CHARS]
+    if not mat["text"].strip():
+        mat = fo.client_material(body.get("material"))
+    if not mat["text"].strip():
+        what = f"Lernwoche {week}" if week is not None else "dieses Modul"
+        raise HTTPException(404, {"detail": f"Für {what} gibt es noch keinen lesbaren Text (Vorlesung, Skript oder Übung). "
+                                            "Gleiche zuerst deine Hochschule ab oder wähle eine andere Woche.", "code": "no_content"})
+    prompt = fo.stack_prompt(m["name"], week, mat["sources"], mat["text"], count, topic, existing)
+    body = {**body, "request_id": str(body.get("request_id") or uuid.uuid4().hex)[:80]}
+    raw, credits_state = _flashcards_complete(request, hosted, prompt, body, parse=lambda a: fo.parse_answer(a, count),
+                                              cache=not body.get("again"))
+    cards, dropped = fo.without_duplicates(raw, existing)
+    if not cards:
+        if hosted:
+            entitlements.refund(request, "ai_assist", body["request_id"])   # nur Doppel: nicht auf das Kontingent
+        raise HTTPException(502, {"detail": "Die KI hat keine neuen Karteikarten geliefert. Bitte erneut versuchen oder "
+                                            "einen anderen Schwerpunkt wählen.", "code": "ai_no_cards"})
+    return {"cards": cards, "count": count, "module_id": mid, "module_name": m["name"], "week": week, "sources": mat["sources"],
+            "duplicates_removed": dropped, "existing": len(existing), "credits": credits_state}
+
+
+def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict, parse=None,
+                         cache: bool = True) -> tuple[list[dict], dict | None]:
     """Karteikarten von der KI: im Dienst die StudiNow-KI (Kontingent ai_assist, Credits, request_id-Wiederholung,
     Rueckbuchung bei Fehlern), am Einzelplatz die KI des PCs. Liefert (Karten, Credits-Stand); ohne Karten 502.
-    Auch fuer die geteilten Wochenstapel (`week_stack_get_or_generate`): dieselbe Anfrage, derselbe Preis."""
+    Auch fuer die geteilten Wochenstapel (`week_stack_get_or_generate`) und den KI-Auftrag (`_ai_flashcards_order`,
+    eigene Auswertung `parse` mit bis zu 50 Karten): dieselbe Anfrage, derselbe Preis."""
     from . import ai
     credits_state = None
     if hosted:
@@ -1218,7 +1291,7 @@ def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict
         if c is None:
             entitlements.consume(request, "ai_assist", rid)
             try:
-                c = ai_backend.complete(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA, cache=True,
+                c = ai_backend.complete(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA, cache=cache,
                                         request_id=rid, keep_result=True)
             except ai_backend.AIUnavailable as e:
                 entitlements.refund(request, "ai_assist", rid)
@@ -1233,10 +1306,12 @@ def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict
         except ai.AIError as e:
             raise HTTPException(500, str(e))
     try:
-        cards = ai.check_flashcards(ai.parse_json(answer))
+        cards = parse(answer) if parse else ai.check_flashcards(ai.parse_json(answer))
     except ai.AIError:
         cards = []
     if not cards:
+        if hosted:
+            entitlements.refund(request, "ai_assist", rid)        # nichts Brauchbares: nicht auf das Kontingent
         raise HTTPException(502, {"detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"})
     return cards, credits_state
 

@@ -3,8 +3,9 @@ gehosteten Modus mit Sitzung (sonst 501 wie die Community); Fehler wie beim Kont
 Dieselben Pfade und Antworten hat der Swift-Kern (CardStackEndpoints.swift) ueber CloudKit.
 
 - POST   /api/flashcard-stacks/{id}/share        eigenen Stapel in die Modul-Community kopieren (merkt shared_id)
+- PUT    /api/flashcard-stacks/{id}/share        geteilte Kopie durch den aktuellen Stand ersetzen (Karten, Name)
 - DELETE /api/flashcard-stacks/{id}/share        zurueckziehen (nur der Autor)
-- GET    /api/community/card-stacks?module=<Schluessel>|module_id=<lokal>&week=   geteilte Stapel des Moduls
+- GET    /api/community/card-stacks?module=<Schluessel>|module_id=<lokal>&week=   geteilte Stapel des Moduls (+ `weeks`)
 - GET    /api/community/card-stacks/mine         eigene geteilte Stapel
 - GET    /api/community/card-stacks/{id}         ein geteilter Stapel mit Karten
 - POST   /api/community/card-stacks/{id}/adopt   als eigenen Stapel uebernehmen (Lernstand getrennt, 0 Credits)
@@ -88,6 +89,24 @@ def share_stack(request: Request, stack_id: int, body: dict = Body(default={})):
     return out
 
 
+@router.put("/api/flashcard-stacks/{stack_id}/share")
+def replace_shared_stack(request: Request, stack_id: int):
+    """Geteilte Kopie durch den aktuellen Stand des eigenen Stapels ersetzen (Karten, Name); Kennung, Likes und
+    Uebernahmen bleiben, wer schon uebernommen hat, behaelt seine Kopie. 404 not_shared, wenn der Stapel nicht geteilt ist.
+    Aus der Cloud-Sitzung vom 04.11.2026 ("Stapel ersetzen") an das Stapel-Modell angepasst."""
+    u = _flashcards(request)
+    with db.cursor() as conn:
+        s = _local_stack(conn, stack_id)
+        sid = s.get("shared_id")
+        cards = db.rows(conn, "SELECT question, answer FROM flashcards WHERE stack_id=? ORDER BY id", (stack_id,))
+    if not sid:
+        raise HTTPException(404, {"detail": "Dieser Stapel ist nicht geteilt.", "code": "not_shared"})
+    out = _run(community_cards.replace, u, sid, s["name"], cards)
+    with db.cursor() as conn:
+        out["stack"] = _local_stack(conn, stack_id)
+    return out
+
+
 @router.delete("/api/flashcard-stacks/{stack_id}/share")
 def unshare_stack(request: Request, stack_id: int):
     # Zurueckziehen geht in jedem Tarif (wie bei Loesungen): wer nach der Probe oder nach dem Herabstufen auf Free
@@ -108,7 +127,8 @@ def unshare_stack(request: Request, stack_id: int):
 @router.get("/api/community/card-stacks")
 def list_card_stacks(request: Request, module: str = "", module_id: int | None = None, week: int | None = None):
     """Geteilte Stapel eines Moduls (Schluessel `module` oder lokale `module_id`), `week` 0 = Allgemein; `adopted`
-    sagt, ob dieses Geraet den Stapel schon uebernommen hat."""
+    sagt, ob dieses Geraet den Stapel schon uebernommen hat; `weeks` zaehlt alle sichtbaren Stapel je Woche
+    ("0" = Allgemein), unabhaengig vom Filter."""
     u = _user(request)
     with db.cursor() as conn:
         key = module
@@ -117,7 +137,14 @@ def list_card_stacks(request: Request, module: str = "", module_id: int | None =
             if not key:
                 raise HTTPException(404, {"detail": "Modul nicht gefunden", "code": "not_found"})
         adopted = _adopted_ids(conn)
-    return {"community_key": key, "stacks": _run(community_cards.listing, u, key, week, adopted)}
+    every = _run(community_cards.listing, u, key, None, adopted)
+    weeks: dict[str, int] = {}
+    for x in every:
+        k = str(x["week"] or 0)
+        weeks[k] = weeks.get(k, 0) + 1
+    if week is not None:
+        every = [x for x in every if (x["week"] is None if week == 0 else x["week"] == week)]
+    return {"community_key": key, "stacks": every, "weeks": weeks}
 
 
 @router.get("/api/community/card-stacks/mine")

@@ -8,6 +8,7 @@ import pytest
 from app import billing, plans
 
 NOW = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+PLUS_TESTS = plans.quota_limit("plus", "ai_tests_new")      # 4 seit 04.11.2026 (Entscheidung des Inhabers)
 
 
 @pytest.fixture

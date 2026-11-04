@@ -701,6 +701,8 @@ def withdraw_all(author_id: str, reason: str) -> int:
         rows = conn.execute("SELECT id FROM solutions WHERE author_id=? AND status IN ('active','hidden')", (author_id,)).fetchall()
         conn.execute("UPDATE solutions SET status='withdrawn', status_reason=? WHERE author_id=? AND status IN ('active','hidden')",
                      (reason, author_id))
+        from . import community_cards
+        community_cards.withdraw_all(conn, author_id)                # geteilte Karteikarten-Stapel ebenso
     for r in rows:
         (package_dir() / f"{r['id']}.uniflowsolution").unlink(missing_ok=True)
     return len(rows)
