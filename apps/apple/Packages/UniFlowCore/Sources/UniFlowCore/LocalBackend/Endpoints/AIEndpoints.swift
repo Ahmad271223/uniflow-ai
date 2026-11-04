@@ -71,6 +71,80 @@ enum AIEndpoints: LocalEndpointModule {
             guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
             return .json(try await analyze(fileID: req.param("file_id"), ai: ai, ctx: ctx))
         }
+
+        // Karteikarten aus den Seiten eines Dokuments (03.11.2026, wie `ai_flashcards` in app/server.py):
+        // {file_id, pages?: [int], count?, topic?} -> {cards, pages, count}. Nur Vorschlaege; gespeichert wird mit
+        // POST /api/flashcards (source = file), nachdem der Nutzer sie durchgesehen hat.
+        router.post("/api/ai/flashcards") { req, ctx in
+            guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
+            let body = try req.pythonObjectBody()
+            guard AIPrompts.truthy(body.value("file_id")) else { throw LocalHTTPError(status: 400, message: "file_id fehlt") }
+            let fileID = AIPrompts.str(body.value("file_id"))
+            guard let f = try await ctx.database.queryOne(
+                "SELECT f.name, c.title AS course_title FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", [.text(fileID)]) else {
+                throw LocalHTTPError.notFound("Datei nicht gefunden")
+            }
+            let wanted = pageList(body.value("pages"), total: nil)
+            let allPages: [String]
+            do {
+                // nur die gewuenschten Seiten erkennen (Texterkennung je Seite); ohne Angabe die ersten
+                allPages = try await ScriptSearch.pageTexts(fileID: fileID, ctx: ctx,
+                                                            ocrScope: wanted.isEmpty ? .leading(flashcardPagesMax) : .pages(Set(wanted)))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                throw LocalHTTPError(status: 500, message: "Seitentext nicht lesbar")
+            }
+            guard !allPages.isEmpty else {
+                throw LocalHTTPError(status: 404, detail: ["detail": "Kein Seitentext vorhanden.", "code": "no_content"])
+            }
+            let pages = pageList(body.value("pages"), total: allPages.count)
+            let text = pages.map { allPages[$0 - 1] }.joined(separator: "\n\n")
+            let count = AIPrompts.flashcardsCount(body.value("count"))
+            let topicValue = AIPrompts.or(body.value("topic"), .string(""))
+            let topic: String = { if case .string(let s)? = topicValue { return s }; return AIPrompts.str(topicValue) }()
+            let prompt = AIPrompts.flashcards(course: f["course_title"]?.string ?? "", fileName: f["name"]?.string ?? "",
+                                              pages: pages, text: text, count: count, topic: topic)
+            let answer: String
+            do {
+                answer = try await ai.answer(system: AIPromptTexts.system, prompt: prompt, schema: AIPrompts.flashcardsSchema)
+            } catch let e as AIError {
+                throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
+            }
+            let cards = (try? AIAnswers.parseJSON(answer)).map(AIAnswers.checkFlashcards) ?? []
+            guard !cards.isEmpty else {
+                throw LocalHTTPError(status: 502, detail: ["detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"])
+            }
+            return .json(["cards": .array(cards.map(\.json)), "pages": .array(pages.map { .number(Double($0)) }),
+                          "count": .number(Double(count))])
+        }
+    }
+
+    /// `FLASHCARD_PAGES_MAX`: hoechstens so viele Seiten je Anfrage
+    static let flashcardPagesMax = 20
+
+    /// `_page_list(raw, total)`: ganze Zahlen 1..total (ohne `total`: nur >= 1), aufsteigend ohne Doppelte, hoechstens
+    /// `flashcardPagesMax`; leer oder unbrauchbar = die ersten Seiten (mit `total`), sonst leer
+    static func pageList(_ raw: PyJSON?, total: Int?) -> [Int] {
+        var pages: [Int] = []
+        if case .array(let items)? = raw {
+            for p in items {
+                let v: Int?
+                switch p {
+                case .int(let d): v = Int(d)
+                case .float(let f) where f.isFinite: v = Int(f.rounded(.towardZero))
+                case .string(let s): v = PyConvert.int(s)
+                case .bool(let b): v = b ? 1 : 0
+                default: v = nil
+                }
+                guard let v, v >= 1, total.map({ v <= $0 }) ?? true, !pages.contains(v) else { continue }
+                pages.append(v)
+            }
+        }
+        let chosen = Array(pages.sorted().prefix(flashcardPagesMax))
+        if !chosen.isEmpty { return chosen }
+        guard let total else { return [] }
+        return Array(1...max(1, min(total, flashcardPagesMax)))
     }
 
     private static let citation = PyRegex(#"\[(\d{1,2})\]"#)

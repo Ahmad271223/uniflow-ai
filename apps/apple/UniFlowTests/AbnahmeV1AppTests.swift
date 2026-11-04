@@ -55,8 +55,8 @@ final class AbnahmeV1AppTests: XCTestCase {
         XCTAssertFalse(UFNavItem.cards.isActive(.exams))
         XCTAssertTrue(UFNavItem.main.first { $0.id == "exams" }?.isActive(.cards) == true, "am eigenen Server unter Tests & Wiederholung")
         XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false, community: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
-        // dieser Testlauf hat keinen Container: der Eintrag fehlt, die Einstellungen sagen ehrlich warum
-        XCTAssertFalse(SolutionSharing.community.isConnected)
+        // ohne Container im Build (CI, Personal Team) fehlt der Eintrag; mit eigener Team.xcconfig ist er verbunden
+        XCTAssertEqual(SolutionSharing.community.isConnected, CommunityCloudFactory.containerIdentifier() != nil)
         XCTAssertTrue(CommunityTexts.unavailableHint.contains("kein") && CommunityTexts.unavailableHint.contains("verschlüsselte Datei"))
     }
 

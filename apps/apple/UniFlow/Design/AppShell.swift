@@ -18,6 +18,8 @@ enum UFRoute: Hashable {
     case exams
     case exam(Int, task: Int? = nil)
     case cards
+    /// KI-Start (03.11.2026): Fragen, Karteikarten, Erklären, Wochentest – unter "Tests & Wiederholung"
+    case aiStart
     case services
     case community
     /// Seite einer Community (Modul oder Lerngruppe) ueber ihren Schluessel, 03.11.2026: ganze Seite statt Vollbild-Blatt
@@ -32,7 +34,7 @@ enum UFRoute: Hashable {
         case .timetable: return "timetable"
         case .modules, .module: return "modules"
         case .files, .doc: return "files"
-        case .exams, .exam, .cards: return "exams"
+        case .exams, .exam, .cards, .aiStart: return "exams"
         case .services: return "services"
         case .community, .communitySpace: return "community"
         case .settings: return "settings"
@@ -59,6 +61,7 @@ enum UFRoute: Hashable {
         case .exams: return "#/exams"
         case .exam(let id, let t): return "#/exams/\(id)" + q([("task", t.map { "\($0)" })])
         case .cards: return "#/cards"
+        case .aiStart: return "#/ki"
         case .services: return "#/services"
         case .community: return "#/community"
         case .communitySpace(let key): return "#/community/\(key)"
@@ -91,6 +94,7 @@ enum UFRoute: Hashable {
         case "doc": self = second.map { .doc($0, task: q["task"].flatMap(Int.init), page: q["page"].flatMap(Int.init)) } ?? .files()
         case "exams": self = second.flatMap(Int.init).map { .exam($0, task: q["task"].flatMap(Int.init)) } ?? .exams
         case "cards": self = .cards
+        case "ki": self = .aiStart
         case "services": self = .services
         case "community": self = second.map { .communitySpace($0) } ?? .community
         case "settings": self = .settings(tab: q["tab"])
@@ -113,6 +117,9 @@ final class UFRouter: ObservableObject {
     @Published var drawerOpen = false
     @Published var fullscreenDoc = false
     @Published var examFocus = false
+    /// KI-Start "Erklären": dieses Dokument soll gleich mit offener KI-Hilfe erscheinen (der Editor nimmt die Kennung
+    /// beim Laden und leert sie; eine andere Datei laesst sie unberuehrt)
+    @Published var tutorOpenRequest: String?
     /// state.route(): aktuelle Ansicht neu laden (nach Aenderungen in Dialogen und Drawern)
     @Published private(set) var reloadToken = 0
     /// Zaehler an den Menuepunkten, Schluessel = `UFRoute.navKey` ("community": neue Korrekturhinweise an eigene
@@ -149,6 +156,13 @@ final class UFRouter: ObservableObject {
 
     /// Es gibt eine vorige Seite (sonst fuehrt "Zurück" auf die uebergeordnete Seite)
     var canGoBack: Bool { !history.isEmpty }
+
+    /// Der Editor fragt beim Laden: soll die KI-Hilfe fuer diese Datei gleich offen sein? (einmalig)
+    func takeTutorOpenRequest(for fileID: String) -> Bool {
+        guard tutorOpenRequest == fileID else { return false }
+        tutorOpenRequest = nil
+        return true
+    }
 }
 
 // MARK: - Menue (NAV in app.js)

@@ -381,6 +381,8 @@ extension UFNoServerPage.Spec {
     /// mit KI ueber das ChatGPT-Abo des Nutzers (`ufAIEnabled`): Wochentests auch auf dem Geraet (lokales Backend)
     static let examsWithAI = Self(title: "Tests & Wiederholung", sub: "Wochentests deiner Module, erstellt mit deinem ChatGPT.", kind: .exams)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
+    /// KI-Start (03.11.2026): lokal immer echt; ohne verbundene KI zeigt die Seite selbst den Weg dorthin
+    static let aiStart = Self(title: "KI-Start", sub: "Fragen, Karteikarten, Erklären und Wochentests mit deinem ChatGPT.", kind: .exams, maxWidth: 960)
     // Notenspiegel auf dem Geraet an beiden Hochschulen: LUH aus dem QIS (QISConnection), Uni Hildesheim aus dem LSF
     // (HildesheimSync); die Seite ist lokal immer echt
     static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",

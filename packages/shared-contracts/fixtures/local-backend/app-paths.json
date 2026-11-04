@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 115,
+ "count": 116,
  "paths": [
   {
    "method": "DELETE",
@@ -1090,6 +1090,8 @@
    "method": "GET",
    "shape": "/api/library",
    "sources": [
+    "UniFlow/Views/AI/AIStartView.swift",
+    "UniFlow/Views/AI/FlashcardComposer.swift",
     "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Exams/CardsPage.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
@@ -1175,6 +1177,9 @@
    "method": "GET",
    "shape": "/api/modules",
    "sources": [
+    "UniFlow/Views/AI/AIStartView.swift",
+    "UniFlow/Views/AI/FlashcardComposer.swift",
+    "UniFlow/Views/AI/QuizComposer.swift",
     "UniFlow/Views/CommunityChannelView.swift",
     "UniFlow/Views/CommunityStyle.swift",
     "UniFlow/Views/Exams/ExamsPage.swift",
@@ -1203,6 +1208,7 @@
    "shape": "/api/modules/{}",
    "sources": [
     "UniFlow/Services/CommunityCloudKit.swift",
+    "UniFlow/Views/AI/QuizComposer.swift",
     "UniFlow/Views/CommunityChannelView.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
@@ -2587,8 +2593,27 @@
   },
   {
    "method": "POST",
+   "shape": "/api/ai/flashcards",
+   "sources": [
+    "UniFlow/Views/AI/FlashcardComposer.swift"
+   ],
+   "request": {
+    "path": "/api/ai/flashcards",
+    "body": {
+     "file_id": "f1",
+     "count": 5
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/ai/tutor",
    "sources": [
+    "UniFlow/Views/AI/AIStartView.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/TutorPanel.swift"
    ],
@@ -2929,6 +2954,7 @@
    "method": "POST",
    "shape": "/api/flashcards",
    "sources": [
+    "UniFlow/Views/AI/FlashcardComposer.swift",
     "UniFlow/Views/Exams/CardsPage.swift",
     "UniFlow/Views/TutorPanel.swift"
    ],
@@ -3566,7 +3592,7 @@
    "method": "POST",
    "shape": "/api/tests/generate",
    "sources": [
-    "UniFlow/Views/Exams/ExamsPage.swift"
+    "UniFlow/Views/AI/QuizComposer.swift"
    ],
    "request": {
     "path": "/api/tests/generate",

@@ -7,6 +7,7 @@ Aufruf im Projektordner: python tools/gen-swift-ai-texts.py [--check]
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -65,6 +66,14 @@ enum AIPromptTexts {{
 
     /// `ai.UNTRUSTED`: Kennzeichnung fremder Texte in Tutor und Wochentest (Sicherheitspruefung 3.11.2026)
     static let untrusted = {raw(ai.UNTRUSTED)}
+
+    /// `ai.FLASHCARDS_DEFAULT` / `ai.FLASHCARDS_MAX` / `ai.FLASHCARDS_TEXT_CHARS`: Karteikarten aus einem Dokument
+    static let flashcardsDefault = {ai.FLASHCARDS_DEFAULT}
+    static let flashcardsMax = {ai.FLASHCARDS_MAX}
+    static let flashcardsTextChars = {ai.FLASHCARDS_TEXT_CHARS}
+
+    /// `ai.FLASHCARDS_SCHEMA` als JSON (Responses API: text.format json_schema)
+    static let flashcardsSchemaJSON = {raw(json.dumps(ai.FLASHCARDS_SCHEMA, ensure_ascii=False, separators=(", ", ": ")))}
 }}
 
 /// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py (oeffentlich: die App baut damit die Rueckleitung)

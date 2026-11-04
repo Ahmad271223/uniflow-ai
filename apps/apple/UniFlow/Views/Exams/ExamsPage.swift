@@ -1,9 +1,11 @@
 import SwiftUI
 import UniFlowCore
 
-// Tests & Wiederholung 1:1 nach viewExams(), runTest() und viewCards() in app/static/views-misc.js.
+// Tests & Wiederholung nach viewExams(), runTest() und viewCards() in app/static/views-misc.js; seit 03.11.2026 mit
+// dem Dialog "Wochentest erstellen" (QuizComposer), KI-Start, Platzhalterkarten waehrend der Erstellung, gemeinsamen
+// Tests (`shared` im Test) und einem Testlauf mit Fortschritt, einer Karte je Aufgabe und einer Ergebnisseite.
 
-/// Tests & Wiederholung: Zusatztest, Wochentests erstellen, Statusleiste, Testkarten, Löschen-Dialog.
+/// Tests & Wiederholung: Wochentest erstellen, KI-Start, Statusleiste, Testkarten, Löschen-Dialog.
 struct ExamsPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
@@ -11,12 +13,20 @@ struct ExamsPage: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
+    @ObservedObject private var generation: TestGenerationState
     @State private var tests: [JSONValue]?
     @State private var mods: [JSONValue] = []
     @State private var dueCards = 0
     @State private var error: String?
     @State private var subject = 0
-    @State private var duration = 30
+    /// Tests, die es vor der laufenden Erstellung schon gab (danach den neuen erkennen)
+    @State private var knownIDs: Set<Int>?
+
+    /// `generation: nil` = `TestGenerationState.shared`
+    @MainActor
+    init(generation: TestGenerationState? = nil) {
+        _generation = ObservedObject(wrappedValue: generation ?? .shared)
+    }
 
     var body: some View {
         Group {
@@ -26,6 +36,7 @@ struct ExamsPage: View {
         }
         .task { await load() }
         .ufReload { await load() }
+        .onChange(of: generation.job == nil) { _, idle in if idle { Task { await load() } } }
     }
 
     private func load() async {
@@ -38,6 +49,15 @@ struct ExamsPage: View {
             mods = mv.items
             dueCards = cv.items.count
             if subject == 0 { subject = mods.first?.i("id") ?? 0 }
+            let ids = Set(tv.items.compactMap { $0.i("id") })
+            if generation.job != nil, knownIDs == nil { knownIDs = ids }
+            if generation.job == nil, let known = knownIDs {
+                // Erstellung vorbei: ein gemeinsamer Test wurde uebernommen? (Felder vom Dienst, nur wenn vorhanden)
+                if let new = tv.items.first(where: { $0.i("id").map { !known.contains($0) } ?? false }), let label = Self.sharedLabel(new) {
+                    toast.show("\(label) übernommen – 0 Credits")
+                }
+                knownIDs = nil
+            }
             tests = tv.items
             error = nil
         } catch { if tests == nil { self.error = error.localizedDescription } }
@@ -49,6 +69,14 @@ struct ExamsPage: View {
         if let r = s.range(of: #"^Wochentest\s+[^–-]+[–-]\s*"#, options: .regularExpression) { s.removeSubrange(r) }
         if let r = s.range(of: #"\(.*?Minuten.*?\)"#, options: .regularExpression) { s.removeSubrange(r) }
         return s.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// "Gemeinsamer Test · Variante 2 von 3" aus `shared: {variant, of, adopted}` (Regel des Inhabers: hoechstens 3
+    /// Varianten je Modul und Lehrwoche; die Felder liefert der Dienst, ohne sie nichts)
+    static func sharedLabel(_ t: JSONValue) -> String? {
+        guard let s = t["shared"], !s.isNull, s.object != nil else { return nil }
+        guard let v = s.i("variant"), let of = s.i("of") else { return "Gemeinsamer Test" }
+        return "Gemeinsamer Test · Variante \(v) von \(of)"
     }
 
     @ViewBuilder private func content(_ tests: [JSONValue]) -> some View {
@@ -66,10 +94,12 @@ struct ExamsPage: View {
         let byName = Dictionary(mods.map { ($0.s("name") ?? "", $0) }, uniquingKeysWith: { a, _ in a })
         UFContent {
             UFPageHead("Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.") {
-                UFSelect(options: mods.compactMap { m in m.i("id").map { ($0, UFFmt.shortName(m.s("name"))) } }, selection: $subject)
-                UFSelect(options: [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $duration)
-                UFButton("Zusatztest", icon: "plus", size: .small) { Task { await generate() } }
-                UFButton("Wochentests erstellen", icon: "sparkles", kind: .primary, size: .small) { Task { await generateWeek() } }
+                UFButton("KI-Start", icon: "sparkles", kind: .ghost, size: .small) { router.go(.aiStart) }.accessibilityIdentifier("exams.aiStart")
+                UFButton("Fehlende Wochentests", icon: "refresh", size: .small) { Task { await generateWeek() } }
+                    .disabled(generation.job != nil)
+                UFButton("Wochentest erstellen", icon: "plus", kind: .primary, size: .small) { openComposer() }
+                    .disabled(generation.job != nil)
+                    .accessibilityIdentifier("exams.compose")
             }
             UFFlexWrap(gap: 25.6, rowGap: 8) {                               // .statbar
                 statItem("\(tests.count - done.count)", " offene Tests")
@@ -85,18 +115,24 @@ struct ExamsPage: View {
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
             .padding(.bottom, 16)
-            if tests.isEmpty {
+            if let job = generation.job {
+                TestGeneratingCard(job: job).padding(.bottom, 16)
+            }
+            if tests.isEmpty && generation.job == nil {
                 UFCard {
-                    UFEmpty(icon: "exam", text: "Noch keine Wochentests. Sie entstehen automatisch pro Modul und Lehrwoche, sobald neue Inhalte da sind, oder manuell unten.")
+                    UFEmpty(icon: "exam", text: "Noch keine Wochentests. Sie entstehen automatisch pro Modul und Lehrwoche, sobald neue Inhalte da sind, oder mit „Wochentest erstellen“.") {
+                        UFButton("Wochentest erstellen", icon: "plus", kind: .primary, size: .small) { openComposer() }.padding(.top, 8)
+                    }
                 }
-            } else {
+            } else if !tests.isEmpty {
                 // .test-grid: auto-fill minmax(280px), bis 1366 px zwei Spalten, bis 640 px eine
                 let grid = windowWidth <= 640 ? UFGridLayout(columns: 1) : windowWidth <= 1366 ? UFGridLayout(columns: 2) : UFGridLayout(minWidth: 280)
                 grid {
-                    ForEach(Row.rows(flat)) { row in
+                    ForEach(Array(Row.rows(flat).enumerated()), id: \.element.id) { i, row in
                         TestCard(t: row.value, color: byName[row.value.s("subject") ?? ""].flatMap { $0.s("color") }) {
                             overlay.modal { TestDeleteDialog(t: row.value) }
                         }
+                        .ufAppear("exams.cards", index: i)
                     }
                 }
                 .environment(\.ufFillsCell, true)
@@ -108,22 +144,74 @@ struct ExamsPage: View {
         Text(n).font(.uf(16.8, 700)).foregroundColor(UF.text) + Text(text)
     }
 
-    private func generate() async {
-        guard let api = session.api else { return }
-        do {
-            _ = try await api.value("/api/tests/generate", method: "POST", body: ["module_id": .number(Double(subject)), "duration_min": .number(Double(duration))])
-            toast.show("Zusatztest wird erstellt (ca. 1 Minute)…")
-            await shell.pollBackground(toast: toast)
-        } catch { toast.show(error.localizedDescription) }
+    private func openComposer() {
+        overlay.modal { QuizComposer(moduleID: subject) }
     }
 
     private func generateWeek() async {
         guard let api = session.api else { return }
         do {
             _ = try await api.value("/api/tests/generate-week", method: "POST")
-            toast.show("Fehlende Wochentests werden erstellt…")
+            generation.start(subject: "alle Module", weekNo: nil)
             await shell.pollBackground(toast: toast)
+            generation.finish()
         } catch { toast.show(error.localizedDescription) }
+    }
+}
+
+/// Platzhalter waehrend ein Wochentest entsteht: Phase (gemeinsamer Test wird gesucht, dann erstellt die KI die
+/// Aufgaben), Zaehler, verstrichene Zeit und 15 Karten mit Schimmer. Nichts davon ist ein Stand aus dem Backend, nur
+/// die Erwartung; fertig ist der Test, wenn `/api/bg` endet und die Seite neu laedt.
+struct TestGeneratingCard: View {
+    let job: TestGenerationState.Job
+    @Environment(\.ufWindowWidth) private var windowWidth
+
+    var body: some View {
+        let searching = job.phase == .searching
+        UFCard {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Wochentest \(UFFmt.shortName(job.subject))" + (job.weekNo.map { " · Lehrwoche \($0)" } ?? "")).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
+                    UFShimmerText(searching ? "Gemeinsamer Test wird gesucht …" : "Aufgaben werden erstellt … 0/\(QuizComposer.total)", size: 13.12)
+                        .accessibilityIdentifier("exams.generating.phase")
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    TimelineView(.periodic(from: job.startedAt, by: 1)) { ctx in
+                        let s = max(0, Int(ctx.date.timeIntervalSince(job.startedAt)))
+                        Text(searching ? "sucht" : "KI arbeitet · \(s / 60):\(String(format: "%02d", s % 60))").ufFont(12, 600).monospacedDigit()
+                    }
+                }
+                .foregroundStyle(UF.accentText)
+                .padding(.vertical, 3).padding(.horizontal, 10)
+                .background(Capsule().fill(UF.accentSoft))
+                .accessibilityIdentifier("exams.generating.chip")
+            }
+            .padding(.bottom, 10)
+            let grid = windowWidth <= 640 ? UFGridLayout(columns: 1, spacing: 8) : windowWidth <= 1000 ? UFGridLayout(columns: 3, spacing: 8) : UFGridLayout(columns: 5, spacing: 8)
+            grid {
+                ForEach(0..<QuizComposer.total, id: \.self) { i in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Aufgabe \(i + 1)").ufFont(12, 600).foregroundStyle(UF.muted)
+                            Spacer()
+                            UFShimmerText("wird erstellt …", size: 11.52)
+                        }
+                        UFSkeleton().frame(height: 10)
+                        UFSkeleton().frame(height: 10).frame(maxWidth: 120)
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
+                    .ufAppear("exams.generating", index: i)
+                }
+            }
+            Text(searching ? "Gibt es für dieses Modul schon einen gemeinsamen Test, bekommst du eine Variante ohne neue KI-Anfrage."
+                 : "Die KI erstellt \(QuizComposer.total) Aufgaben aus den Unterlagen (ca. 1 Minute). Du kannst die Seite derweil verlassen.")
+                .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("exams.generating")
     }
 }
 
@@ -153,6 +241,9 @@ struct TestCard: View {
             }
             Text("\(week) · \(t.i("duration_min") ?? 0) min · \(t.i("question_count").map(String.init) ?? "?") Aufgaben")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 4.8)
+            if let shared = ExamsPage.sharedLabel(t) {
+                UFBadge(shared, tone: .info, icon: "users").padding(.bottom, 6).accessibilityIdentifier("exams.shared")
+            }
             Text(ExamsPage.cleanTitle(t.s("title"))).ufFont(13.12).foregroundStyle(UF.text)
                 .frame(minHeight: 13.12 * 2.6, alignment: .topLeading)
             Spacer(minLength: 0)
@@ -214,7 +305,7 @@ struct TestDeleteDialog: View {
             (Text(UFFmt.shortName(t.s("subject"))).font(.uf(14.5, 700)) + Text(" · \(ExamsPage.cleanTitle(t.s("title")))"))
                 .ufFont(14.5).foregroundStyle(UF.text).padding(.vertical, 5.6)
             if t.i("auto") == 1 {
-                Text("Dieser Wochentest wird danach nicht automatisch neu erstellt. Einen neuen Test legst du jederzeit mit „Zusatztest“ an.")
+                Text("Dieser Wochentest wird danach nicht automatisch neu erstellt. Einen neuen Test legst du jederzeit mit „Wochentest erstellen“ an.")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
             }
             if t["submitted_at"].map({ !$0.isNull }) == true {
@@ -238,6 +329,11 @@ struct TestDeleteDialog: View {
 
 // MARK: - Testlauf (runTest)
 
+/// Testlauf (03.11.2026): Fortschritt "n/15" oben, eine Karte je Aufgabe untereinander, Auswahl deutlich (gruener
+/// Rand), zwei grosse Antworten bei genau zwei Optionen (Wahr/Falsch), Textfeld bei Kurzantwort und Rechnen, unten
+/// "Abbrechen" und "Abgeben & bewerten". Nach der Abgabe die Ergebnisseite: Prozent, Balken, "n/15 richtig", je
+/// Aufgabe die eigene Antwort (falsch rot mit ✕), die Musterlösung und die Erklärung der KI. Die Aufgabentexte sind
+/// LaTeX-frei (Formeln als Text, so verlangt es der Prompt), darum keine Formelsatz-Darstellung.
 struct ExamRunPage: View {
     let id: Int
     let task: Int?
@@ -247,10 +343,8 @@ struct ExamRunPage: View {
     @EnvironmentObject private var router: UFRouter
     @State private var t: JSONValue?
     @State private var error: String?
-    @State private var cur = 0
     @State private var answers: [String: String] = [:]
     @State private var submitting = false
-    @State private var warned = false
 
     /// Entwurf der Antworten je Server und Test (im Web nur im Speicher, s. Bestandsaufnahme E.8). Gespeichert in den
     /// Einstellungen des Containers (Apple-Nutzer, Hochschule), nie in UserDefaults.standard: ein anderes Konto auf
@@ -288,129 +382,117 @@ struct ExamRunPage: View {
         draftStore.set(answers, forKey: draftKey)
     }
 
+    static func nrOf(_ q: JSONValue) -> String { q["nr"].map { JSONValue.format($0.double ?? 0) } ?? "" }
+
+    /// Eine Aufgabe gilt als richtig, wenn sie mindestens 60 % ihrer Punkte bekam (wie die Farbe der Chips im Web)
+    static func isRight(_ f: JSONValue?) -> Bool? { f.map { ($0.n("points") ?? 0) >= ($0.n("max") ?? 0) * 0.6 } }
+
+    /// Zahl der richtigen Aufgaben aus `per_question`
+    static func rightCount(_ fb: JSONValue?) -> Int { (fb?.list("per_question") ?? []).filter { isRight($0) == true }.count }
+
     @ViewBuilder private func content(_ t: JSONValue) -> some View {
         let qs = t.list("questions")
         let submitted = t["submitted_at"].map { !$0.isNull } == true
         let fb = t["feedback"].flatMap { $0.isNull ? nil : $0 }
         var perQ: [String: JSONValue] = [:]
         let _ = fb?.list("per_question").forEach { if let nr = $0["nr"].map({ JSONValue.format($0.double ?? 0) }) { perQ[nr] = $0 } }
+        let answered = qs.filter { !(answers[Self.nrOf($0)] ?? "").isEmpty }.count
         UFContent(maxWidth: 900) {
             UFFlexWrap(gap: 9.6) {
-                UFButton(submitted ? "Zurück" : "Abbrechen", icon: "arrow-left", size: .small) {
-                    router.examFocus = false
-                    router.go(task != nil ? .plan() : .exams)
-                }
+                UFButton(submitted ? "Zurück" : "Abbrechen", icon: "arrow-left", size: .small) { leave() }
+                    .accessibilityIdentifier("exam.back")
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(t.s("title") ?? "").ufFont(14.5, 700).foregroundStyle(UF.text)
-                    Text("\(t.s("subject") ?? "") · \(t.i("duration_min") ?? 0) min · \(qs.count) Aufgaben · KI-generiert\(t.i("week_no").map { " · Lehrwoche \($0)" } ?? "")")
+                    Text((submitted ? "Ergebnis: " : "Test: ") + ExamsPage.cleanTitle(t.s("title"))).ufFont(14.5, 700).foregroundStyle(UF.text)
+                    Text("\(t.s("subject") ?? "") · \(t.i("duration_min") ?? 0) min · \(qs.count) Aufgaben · KI-generiert\(t.i("week_no").map { " · Lehrwoche \($0)" } ?? "")"
+                         + (ExamsPage.sharedLabel(t).map { " · \($0)" } ?? ""))
                         .ufFont(13.12).foregroundStyle(UF.muted)
                 }
                 UFFlexSpacer()
                 if !submitted { ExamTimer(startedAt: t.s("started_at"), minutes: t.i("duration_min") ?? 0) }
             }
             .padding(.bottom, 16)
-            if submitted, let fb { resultCard(fb) }
-            if !qs.isEmpty {
-                UFFlexWrap(gap: 4.8) {                                       // Aufgaben-Chips
-                    ForEach(qs.indices, id: \.self) { i in
-                        let nr = nrOf(qs[i])
-                        let f = perQ[nr]
-                        let border: Color? = f.map { ($0.n("points") ?? 0) >= ($0.n("max") ?? 0) * 0.6 ? UF.ok : UF.bad } ?? ((answers[nr] ?? "").isEmpty ? nil : UF.accent)
-                        Button { cur = i } label: {
-                            Text(nr).ufFont(12.8, i == cur ? 600 : 400)
-                                .foregroundStyle(i == cur ? UF.accentText : UF.text2)
-                                .padding(.vertical, 4 + ufB).padding(.horizontal, 10.4 + ufB)
-                                .background(Capsule().fill(i == cur ? UF.accentSoft : UF.surface))
-                                .overlay(Capsule().strokeBorder(border ?? (i == cur ? .clear : UF.line), lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.bottom, 12.8)
-                question(qs[min(cur, qs.count - 1)], index: min(cur, qs.count - 1), count: qs.count, submitted: submitted, f: perQ[nrOf(qs[min(cur, qs.count - 1)])])
+            if submitted, let fb {
+                resultCard(fb, questions: qs.count)
+            } else if !qs.isEmpty {
+                progressBar(answered: answered, total: qs.count).padding(.bottom, 16)
+            }
+            ForEach(Array(qs.enumerated()), id: \.offset) { i, q in
+                ExamQuestionCard(q: q, index: i, count: qs.count, submitted: submitted, feedback: perQ[Self.nrOf(q)],
+                                 answer: Binding(get: { answers[Self.nrOf(q)] ?? "" }, set: { setAnswer(Self.nrOf(q), $0) }))
+                    .padding(.bottom, 12.8)
+                    .ufAppear("exam.\(id)", index: i)
+            }
+            if !submitted, !qs.isEmpty {
                 HStack {
-                    UFButton("Zurück", icon: "chevron-left") { cur -= 1 }.disabled(cur == 0)
+                    UFButton("Abbrechen", icon: "x") { leave() }
                     Spacer()
-                    if cur < qs.count - 1 {
-                        Button { cur += 1 } label: { HStack(spacing: 7.2) { Text("Weiter"); UFIcon("chevron-right", size: 14) } }
-                            .buttonStyle(UFButtonStyle(kind: .primary))
-                    } else if !submitted {
-                        UFButton(submitting ? "Wird bewertet…" : "Abgeben & bewerten", icon: submitting ? nil : "check", kind: .ok) { Task { await submit(qs) } }
-                            .disabled(submitting)
-                    }
+                    Text("\(answered) von \(qs.count) beantwortet").ufFont(13.12).foregroundStyle(UF.muted)
+                    UFButton(submitting ? "Wird bewertet…" : "Abgeben & bewerten", icon: submitting ? nil : "check", kind: .ok) { Task { await submit(qs) } }
+                        .disabled(submitting)
+                        .accessibilityIdentifier("exam.submit")
                 }
+                .padding(.top, 4)
             }
         }
     }
 
-    private func nrOf(_ q: JSONValue) -> String { q["nr"].map { JSONValue.format($0.double ?? 0) } ?? "" }
+    private func leave() {
+        router.examFocus = false
+        router.go(task != nil ? .plan() : .exams)
+    }
 
-    private func resultCard(_ fb: JSONValue) -> some View {
+    private func progressBar(answered: Int, total: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Fortschritt").ufFont(13.12, 650).foregroundStyle(UF.text2)
+                Spacer()
+                Text("\(answered)/\(total)").ufFont(13.12, 650).foregroundStyle(UF.text).monospacedDigit().ufNumber(answered)
+            }
+            UFProgress(value: total == 0 ? 0 : Double(answered) / Double(total), height: 8)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Fortschritt \(answered) von \(total) beantwortet")
+        .accessibilityIdentifier("exam.progress")
+    }
+
+    private func resultCard(_ fb: JSONValue, questions: Int) -> some View {
         let total = fb.n("total") ?? 0, max = fb.n("max") ?? 1
+        let pct = Int((100 * total / Swift.max(1, max)).rounded())
+        let right = Self.rightCount(fb)
         return UFCard {
-            (Text("\(Int(total.rounded())) / \(Int(max.rounded())) Punkte ").font(.uf(32, 800)).foregroundColor(UF.text)
-             + Text("(\(Int((100 * total / Swift.max(1, max)).rounded())) %)").font(.uf(16)).foregroundColor(UF.muted))
-                .ufFont(32, 800)
-            Text(fb.s("summary") ?? "").ufFont(14.5).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(pct) %").font(.uf(36, 800)).foregroundStyle(pct >= 60 ? UF.okText : UF.badText).ufNumber(pct)
+                    .accessibilityIdentifier("exam.result.percent")
+                Text("\(Int(total.rounded())) / \(Int(max.rounded())) Punkte").ufFont(14.5).foregroundStyle(UF.muted)
+                Spacer(minLength: 0)
+                UFBadge(pct >= 60 ? "Bestanden" : "Nochmal üben", tone: pct >= 60 ? .ok : .bad, icon: pct >= 60 ? "check" : "alert")
+            }
+            UFProgress(value: Double(pct) / 100, ok: pct >= 60, color: pct < 60 ? UF.bad : nil, height: 10).padding(.vertical, 8)
+            HStack {
+                Text("\(right)/\(questions) richtig").ufFont(13.6, 650).foregroundStyle(UF.text)
+                Text("· \(questions - right) zum Nacharbeiten").ufFont(13.6).foregroundStyle(UF.muted)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("exam.result.right")
+            if let summary = fb.s("summary"), !summary.isEmpty {
+                Text(summary).ufFont(14.5).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.top, 8)
+            }
             let weak = fb.list("weak_topics").compactMap(\.string)
             if !weak.isEmpty {
-                (Text("Nochmal anschauen: ").font(.uf(13.12, 700)) + Text(weak.joined(separator: ", "))).ufFont(13.12).foregroundStyle(UF.text).padding(.vertical, 5.6)
+                UFFlexWrap(gap: 6, rowGap: 6) {
+                    Text("Nochmal anschauen:").ufFont(13.12, 650).foregroundStyle(UF.text2)
+                    ForEach(weak, id: \.self) { UFBadge($0, tone: .warn) }
+                }
+                .padding(.top, 8)
             }
         }
         .padding(.bottom, 16)
     }
 
-    /// .q: Kopf (Aufgabe N von M · Art, Punkte), Frage, Optionen oder Textfeld, Feedback mit Musterlösung
-    private func question(_ q: JSONValue, index: Int, count: Int, submitted: Bool, f: JSONValue?) -> some View {
-        let nr = nrOf(q)
-        let type = q.s("type")
-        let kind = type == "mc" ? "Multiple Choice" : type == "calc" ? "Rechnen / Programmieren" : "Kurzantwort"
-        let good = f.map { ($0.n("points") ?? 0) >= ($0.n("max") ?? 0) * 0.6 }
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Aufgabe \(nr) von \(count) · \(kind)")
-                Spacer()
-                Text("\(JSONValue.format(q.n("points") ?? 0)) P.\(f.map { " → \(JSONValue.format($0.n("points") ?? 0))" } ?? "")")
-            }
-            .ufFont(12.8).foregroundStyle(UF.muted).padding(.bottom, 6.4)
-            Text(q.s("question") ?? "").ufFont(16.32).foregroundStyle(UF.text).padding(.bottom, 11.2)
-            if type == "mc" {
-                ForEach(q.list("options").compactMap(\.string), id: \.self) { o in
-                    Button { if !submitted { setAnswer(nr, o) } } label: {
-                        HStack(spacing: 8) { UFRadio(on: answers[nr] == o); Text(o).foregroundStyle(UF.text); Spacer(minLength: 0) }
-                            .ufFont(14.5)
-                            .padding(.vertical, 6.4 + ufB).padding(.horizontal, 9.6 + ufB)
-                            .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.line, lineWidth: 1))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(submitted)
-                    .padding(.vertical, 4.8)
-                }
-            } else {
-                UFTextArea(placeholder: "Deine Antwort / Rechenweg", text: Binding(get: { answers[nr] ?? "" }, set: { setAnswer(nr, $0) }), minHeight: 80)
-                    .disabled(submitted)
-            }
-            if let f {
-                (Text("Feedback: ").font(.uf(14.08, 700)) + Text(f.s("feedback") ?? "") + Text("\n") + Text("Musterlösung: ").font(.uf(14.08, 700)) + Text(q.s("answer") ?? ""))
-                    .ufFont(14.08).foregroundStyle(UF.text)
-                    .padding(.vertical, 9.6).padding(.horizontal, 11.2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
-                    .padding(.top, 9.6)
-            }
-        }
-        .padding(.vertical, 16 + ufB).padding(.horizontal, 17.6 + ufB)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
-        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(good == nil ? UF.line : (good! ? UF.ok : UF.bad), lineWidth: 1))
-        .padding(.bottom, 12.8)
-    }
-
     /// confirm("Test abgeben? …"), POST /api/tests/:id/submit, mit task zusaetzlich Aufgabe erledigt
     private func submit(_ qs: [JSONValue]) async {
         guard let api = session.api else { return }
-        let open = qs.filter { (answers[nrOf($0)] ?? "").isEmpty }.count
+        let open = qs.filter { (answers[Self.nrOf($0)] ?? "").isEmpty }.count
         guard await overlay.confirm("Test abgeben?\(open > 0 ? " \(open) Aufgaben sind unbeantwortet." : "") Die KI bewertet deine Antworten.") else { return }
         submitting = true
         do {
@@ -432,6 +514,172 @@ struct ExamRunPage: View {
         }
         submitting = false
         await load()
+    }
+}
+
+/// Eine Aufgabe als Karte: Kopf (Aufgabe N · Art · Punkte), Frage, Antwortmoeglichkeiten (Radio mit gruenem Rand bei
+/// Auswahl; genau zwei Optionen als zwei grosse Flaechen) oder Textfeld; nach der Abgabe die eigene Antwort (richtig
+/// gruen mit Haken, falsch rot mit ✕), "Richtige Antwort" und "Erklärung".
+struct ExamQuestionCard: View {
+    let q: JSONValue
+    let index: Int
+    let count: Int
+    let submitted: Bool
+    let feedback: JSONValue?
+    @Binding var answer: String
+
+    static func kind(_ type: String?) -> String {
+        type == "mc" ? "Multiple Choice" : type == "calc" ? "Rechnen / Programmieren" : "Kurzantwort"
+    }
+
+    /// Zwei Optionen (Wahr/Falsch, Ja/Nein): zwei grosse Flaechen nebeneinander
+    static func isTwoWay(_ options: [String]) -> Bool { options.count == 2 }
+
+    var body: some View {
+        let nr = ExamRunPage.nrOf(q)
+        let type = q.s("type")
+        let options = q.list("options").compactMap(\.string)
+        let right = ExamRunPage.isRight(feedback)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text("Aufgabe \(nr) von \(count) · \(Self.kind(type))").ufFont(12.8).foregroundStyle(UF.muted)
+                if let d = q.s("difficulty") { UFBadge(d, tone: d == "schwer" ? .warn : .neutral) }
+                Spacer()
+                Text("\(JSONValue.format(q.n("points") ?? 0)) P.\(feedback.map { " → \(JSONValue.format($0.n("points") ?? 0))" } ?? "")")
+                    .ufFont(12.8, feedback == nil ? 400 : 650).foregroundStyle(right == nil ? UF.muted : (right! ? UF.okText : UF.badText))
+            }
+            .padding(.bottom, 6.4)
+            Text(q.s("question") ?? "").ufFont(16.32).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.bottom, 11.2)
+                .textSelection(.enabled)
+            if submitted {
+                review(options: options)
+            } else if type == "mc" {
+                if Self.isTwoWay(options) {
+                    HStack(spacing: 10) { ForEach(options, id: \.self) { o in bigOption(o) } }
+                } else {
+                    ForEach(options, id: \.self) { o in option(o) }
+                }
+            } else {
+                UFTextArea(placeholder: type == "calc" ? "Deine Antwort / Rechenweg" : "Deine Antwort", text: $answer, minHeight: 80)
+                    .accessibilityLabel("Antwort zu Aufgabe \(nr)")
+            }
+        }
+        .padding(.vertical, 16 + ufB).padding(.horizontal, 17.6 + ufB)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(right == nil ? UF.line : (right! ? UF.ok : UF.bad), lineWidth: right == nil ? 1 : 1.5))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("exam.question.\(nr)")
+    }
+
+    private func option(_ o: String) -> some View {
+        let on = answer == o
+        return Button { answer = o } label: {
+            HStack(spacing: 10) {
+                UFRadio(on: on).foregroundStyle(on ? UF.ok : UF.muted)
+                Text(o).ufFont(14.5, on ? 600 : 400).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8 + ufB).padding(.horizontal, 11.2 + ufB)
+            .frame(minHeight: 44)
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(on ? UF.okSoft : UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(on ? UF.ok : UF.line, lineWidth: on ? 1.5 : 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(UFPressStyle())
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .padding(.vertical, 4)
+    }
+
+    private func bigOption(_ o: String) -> some View {
+        let on = answer == o
+        return Button { answer = o } label: {
+            VStack(spacing: 6) {
+                UFIcon(on ? "check" : "circle", size: 18).foregroundStyle(on ? UF.okText : UF.muted)
+                Text(o).ufFont(15.2, 650).foregroundStyle(on ? UF.okText : UF.text).multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 14).padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .background(RoundedRectangle(cornerRadius: UF.r).fill(on ? UF.okSoft : UF.surface2))
+            .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(on ? UF.ok : UF.line, lineWidth: on ? 2 : 1))
+            .contentShape(RoundedRectangle(cornerRadius: UF.r))
+        }
+        .buttonStyle(UFPressStyle())
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    /// Nach der Abgabe: eigene Antwort, richtige Antwort, Erklaerung
+    @ViewBuilder private func review(options: [String]) -> some View {
+        let right = ExamRunPage.isRight(feedback)
+        let given = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let model = q.s("answer") ?? ""
+        VStack(alignment: .leading, spacing: 10) {
+            if !options.isEmpty {
+                ForEach(options, id: \.self) { o in
+                    let mine = o == given
+                    let correct = Self.matches(option: o, model: model)
+                    HStack(spacing: 10) {
+                        if mine && right == false { UFIcon("x", size: 15).foregroundStyle(UF.bad) }
+                        else if correct || (mine && right == true) { UFIcon("check", size: 15).foregroundStyle(UF.ok) }
+                        else { UFIcon("circle", size: 15).foregroundStyle(UF.lineStrong) }
+                        Text(o).ufFont(14.5, mine || correct ? 600 : 400)
+                            .foregroundStyle(mine && right == false ? UF.badText : (correct ? UF.okText : UF.text2))
+                            .underline(mine && right == false, color: UF.bad)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if mine { UFBadge("deine Antwort", tone: right == false ? .bad : .ok) }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 6).padding(.horizontal, 10)
+                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(mine && right == false ? UF.badSoft : (correct ? UF.okSoft : .clear)))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel((mine ? "Deine Antwort: " : "") + o + (correct ? ", richtig" : (mine && right == false ? ", falsch" : "")))
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        if let right { UFIcon(right ? "check" : "x", size: 14).foregroundStyle(right ? UF.ok : UF.bad) }
+                        Text("Deine Antwort").ufFont(12.8, 650).foregroundStyle(right == false ? UF.badText : UF.text2)
+                    }
+                    Text(given.isEmpty ? "[keine Antwort]" : given).ufFont(14.08).foregroundStyle(given.isEmpty ? UF.muted : UF.text)
+                        .underline(right == false && !given.isEmpty, color: UF.bad)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 8).padding(.horizontal, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(right == false ? UF.badSoft : UF.surface2))
+                .accessibilityElement(children: .combine)
+            }
+            if !model.isEmpty {
+                box(title: "Richtige Antwort", icon: "check", text: model, fill: UF.okSoft, tint: UF.okText)
+                    .accessibilityIdentifier("exam.answer.\(ExamRunPage.nrOf(q))")
+            }
+            if let f = feedback?.s("feedback"), !f.isEmpty {
+                box(title: "Erklärung", icon: "sparkles", text: f, fill: UF.accentSoft, tint: UF.accentText)
+                    .accessibilityIdentifier("exam.explanation.\(ExamRunPage.nrOf(q))")
+            }
+        }
+    }
+
+    /// Option entspricht der Musterloesung ("B", "B ...", gleicher Text)
+    static func matches(option: String, model: String) -> Bool {
+        let o = option.trimmingCharacters(in: .whitespaces), m = model.trimmingCharacters(in: .whitespaces)
+        guard !o.isEmpty, !m.isEmpty else { return false }
+        if o.caseInsensitiveCompare(m) == .orderedSame { return true }
+        let letter = String(o.prefix(1)).uppercased()
+        let mLetter = String(m.prefix(1)).uppercased()
+        if m.count <= 2, letter == mLetter, o.count > 1, o.dropFirst().first.map({ $0 == ")" || $0 == "." || $0 == " " }) ?? false { return true }
+        return o.lowercased().hasPrefix(m.lowercased()) || m.lowercased().hasPrefix(o.lowercased())
+    }
+
+    private func box(title: String, icon: String, text: String, fill: Color, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) { UFIcon(icon, size: 14).foregroundStyle(tint); Text(title).ufFont(12.8, 650).foregroundStyle(tint) }
+            Text(text).ufFont(14.08).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+        }
+        .padding(.vertical, 9.6).padding(.horizontal, 11.2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(fill))
     }
 }
 

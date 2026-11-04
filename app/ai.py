@@ -75,11 +75,11 @@ def uses_chatgpt() -> bool:
         return False
 
 
-def ask_chatgpt(prompt: str, system: str = "") -> str:
-    """Antwort ueber das ChatGPT-Abo (Responses API, Modell aus den Einstellungen)."""
+def ask_chatgpt(prompt: str, system: str = "", schema: dict | None = None) -> str:
+    """Antwort ueber das ChatGPT-Abo (Responses API, Modell aus den Einstellungen); `schema` verlangt JSON dieser Form."""
     from . import ai_backend, chatgpt_login
     try:
-        text = ai_backend.ChatGPTProvider(chatgpt_login.model()).complete(system, prompt).text
+        text = ai_backend.ChatGPTProvider(chatgpt_login.model()).complete(system, prompt, schema).text
     except ai_backend.AIUnavailable as e:
         raise AIError(e.message) from None
     with open(LOG_DIR / "ai.log", "a", encoding="utf-8") as f:
@@ -100,16 +100,18 @@ def no_console() -> dict:
 
 
 def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[str] | None = None,
-        model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None) -> str:
+        model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None,
+        schema: dict | None = None) -> str:
     """Schickt einen Prompt an `claude -p` und gibt den Antworttext zurueck; mit verbundenem ChatGPT-Abo an die
     Responses API (dann ohne Werkzeuge: Bilder und PDF-Seiten kann nur Claude lesen, Text geht ueber beide).
     allowed_tools: z. B. ["Read"], damit Claude eine Bilddatei (Stundenplan-Screenshot) lesen darf.
-    cwd: Arbeitsordner der CLI (Lesen nur dort erlaubt); blocked_tools: ausdruecklich gesperrte Werkzeuge."""
+    cwd: Arbeitsordner der CLI (Lesen nur dort erlaubt); blocked_tools: ausdruecklich gesperrte Werkzeuge.
+    schema: JSON-Schema der Antwort (nur ChatGPT erzwingt es; der Prompt verlangt die Form ohnehin)."""
     _refuse_hosted()
     if uses_chatgpt():
         if allowed_tools or cwd:
             raise AIError("Bilder und PDF-Seiten liest nur Claude; mit ChatGPT wird der Text der Datei genutzt.")
-        return ask_chatgpt(prompt, system)
+        return ask_chatgpt(prompt, system, schema)
     env = _child_env()
     cmd = cli_command(model or CLAUDE_MODEL, allowed_tools, blocked_tools, system)
     import tempfile
@@ -541,3 +543,83 @@ Gib ein JSON-Objekt zurueck:
   "weak_topics": ["Thema", ...]
 }}"""
     return prompt
+
+
+# ----------------------------------------------------------------------------
+# 4) Karteikarten aus einem Dokument (03.11.2026, "Karteikarten aus Dokument" auf dem iPad und am PC)
+# ----------------------------------------------------------------------------
+
+# Zahl der Karten: Vorgabe, Hoechstwert; so viel Text der gewaehlten Seiten geht in den Prompt
+FLASHCARDS_DEFAULT = 10
+FLASHCARDS_MAX = 30
+FLASHCARDS_TEXT_CHARS = 12000
+# JSON-Schema der Antwort (Responses API: text.format json_schema); der Prompt verlangt dieselbe Form
+FLASHCARDS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "cards": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"question": {"type": "string"}, "answer": {"type": "string"}},
+                "required": ["question", "answer"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["cards"],
+    "additionalProperties": False,
+}
+
+
+def flashcards_count(n) -> int:
+    """Zahl der Karten aus der Anfrage: 1 bis FLASHCARDS_MAX, sonst FLASHCARDS_DEFAULT (auch fuer Unlesbares)."""
+    try:
+        v = int(n)
+    except (TypeError, ValueError):
+        return FLASHCARDS_DEFAULT
+    return min(FLASHCARDS_MAX, v) if v >= 1 else FLASHCARDS_DEFAULT
+
+
+def flashcards_prompt(course: str, file_name: str, pages: list[int] | None, text: str, count: int = FLASHCARDS_DEFAULT,
+                      topic: str = "") -> str:
+    """Prompt fuer Karteikarten aus einem Dokument (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai):
+    genau `count` Karten aus dem Text der Seiten `pages` (aufsteigend) von `file_name`; `topic` grenzt den Stoff ein.
+    Die Antwort hat die Form von FLASHCARDS_SCHEMA; der Text ist Material, keine Anweisung (UNTRUSTED)."""
+    where = ""
+    if pages:
+        where = f", Seite {pages[0]}" if len(pages) == 1 else f", Seiten {pages[0]}–{pages[-1]}"
+    parts = [f"Kurs: {course}", f"Datei: {file_name}{where}", "",
+             f"AUFGABE: Erstelle genau {count} Karteikarten aus dem Inhalt. Vorn eine klare Frage, hinten eine kurze, "
+             "vollstaendige Antwort (1-3 Saetze, Formeln als Text). Decke die wichtigsten Begriffe, Zusammenhaenge und "
+             "Rechenwege ab; keine Karte doppelt, nichts erfinden, was nicht im Inhalt steht."]
+    if topic.strip():
+        parts += ["", f"SCHWERPUNKT: {topic.strip()[:300]}"]
+    parts += ["", f"INHALT. {UNTRUSTED}:", "<<<", (text or "").strip()[:FLASHCARDS_TEXT_CHARS] or "[kein Text extrahierbar]", ">>>",
+              "", 'Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort"}]}']
+    return "\n".join(parts)
+
+
+def check_flashcards(res) -> list[dict]:
+    """Karten aus der Antwort: {"cards": [...]} oder eine Liste wie beim Tutor-Modus flashcards; nur Karten mit Frage
+    und Antwort (als Text, aussen ohne Leerraum), hoechstens FLASHCARDS_MAX; leer, wenn die Antwort keine Karten hat."""
+    items = res.get("cards") if isinstance(res, dict) else res
+    if not isinstance(items, list):
+        return []
+    out = []
+    for c in items:
+        if not isinstance(c, dict):
+            continue
+        q, a = str(c.get("question") or "").strip(), str(c.get("answer") or "").strip()
+        if q and a:
+            out.append({"question": q, "answer": a})
+    return out[:FLASHCARDS_MAX]
+
+
+def flashcards(course: str, file_name: str, pages: list[int] | None, text: str, count: int = FLASHCARDS_DEFAULT, topic: str = "") -> list[dict]:
+    """Karteikarten mit der KI des PCs (Textweg); ohne Karten in der Antwort AIError."""
+    res = parse_json(ask(flashcards_prompt(course, file_name, pages, text, count, topic), SYSTEM, schema=FLASHCARDS_SCHEMA))
+    cards = check_flashcards(res)
+    if not cards:
+        raise AIError("Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.")
+    return cards

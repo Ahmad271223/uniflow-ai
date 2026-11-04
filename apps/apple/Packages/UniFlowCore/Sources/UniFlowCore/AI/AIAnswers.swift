@@ -26,6 +26,29 @@ public enum AIAnswers {
         }
     }
 
+    /// Eine vorgeschlagene Karteikarte (Frage vorn, Antwort hinten), beide ohne Leerraum aussen
+    public struct Flashcard: Equatable, Sendable {
+        public let question: String
+        public let answer: String
+        public init(question: String, answer: String) { self.question = question; self.answer = answer }
+        public var json: JSONValue { ["question": .string(question), "answer": .string(answer)] }
+    }
+
+    /// `ai.check_flashcards`: Karten aus {"cards": [...]} oder einer Liste (Tutor-Modus flashcards); nur Karten mit
+    /// Frage und Antwort (`str()` wie in Python, aussen ohne Leerraum), hoechstens `flashcardsMax`; leer ohne Karten
+    public static func checkFlashcards(_ res: PyJSON) -> [Flashcard] {
+        let items: PyJSON? = { if case .object = res { return AIPrompts.get(res, "cards") }; return res }()
+        guard case .array(let list)? = items else { return [] }
+        var out: [Flashcard] = []
+        for c in list {
+            guard case .object = c else { continue }
+            let q = PyText.strip(AIPrompts.str(AIPrompts.or(AIPrompts.get(c, "question"), .string(""))))
+            let a = PyText.strip(AIPrompts.str(AIPrompts.or(AIPrompts.get(c, "answer"), .string(""))))
+            if !q.isEmpty, !a.isEmpty { out.append(Flashcard(question: q, answer: a)) }
+        }
+        return Array(out.prefix(AIPrompts.flashcardsMax))
+    }
+
     /// `ai.check_week_test`: nil = der Test hat die Form vom 29.10.2026 (15 Aufgaben, 4 leicht, 6 mittel, 5 schwer,
     /// mit Altklausur genau eine schwere im Stil der Klausur), sonst der Grund
     public static func checkWeekTest(_ res: PyJSON, exam: Bool = false) -> String? {

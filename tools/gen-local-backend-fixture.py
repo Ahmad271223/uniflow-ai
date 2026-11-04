@@ -176,6 +176,8 @@ SAMPLES: dict[str, dict] = {
     "PATCH /api/flashcards/{}": {"path": "/api/flashcards/1", "body": {"bookmarked": True}},
     "POST /api/ai/tutor": {"path": "/api/ai/tutor", "body": {"mode": "explain"}, "python": False,
                            "expect": {"status": 404, "reason": "KI entfaellt in V1"}},
+    "POST /api/ai/flashcards": {"path": "/api/ai/flashcards", "body": {"file_id": "f1", "count": 5}, "python": False,
+                                "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
     "POST /api/files/{}/analyze": {"path": "/api/files/f1/analyze", "python": False,
                                    "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
     "GET /api/settings": {"path": "/api/settings"},

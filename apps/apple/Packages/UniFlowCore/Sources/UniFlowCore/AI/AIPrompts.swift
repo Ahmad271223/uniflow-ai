@@ -236,6 +236,50 @@ public enum AIPrompts {
         """
     }
 
+    // MARK: Karteikarten aus einem Dokument (`ai.flashcards_prompt`, 03.11.2026)
+
+    /// `ai.FLASHCARDS_DEFAULT` / `ai.FLASHCARDS_MAX`: Vorgabe und Hoechstzahl der Karten je Anfrage
+    public static var flashcardsDefault: Int { AIPromptTexts.flashcardsDefault }
+    public static var flashcardsMax: Int { AIPromptTexts.flashcardsMax }
+
+    /// `ai.FLASHCARDS_SCHEMA`: JSON-Schema der Antwort (Responses API `text.format`), {"cards": [{question, answer}]}
+    public static let flashcardsSchema: JSONValue = (try? JSONValue.parse(Data(AIPromptTexts.flashcardsSchemaJSON.utf8))) ?? .null
+
+    /// `ai.flashcards_count(n)`: 1 bis `flashcardsMax`, sonst die Vorgabe (auch fuer Unlesbares; `int()` wie in Python)
+    public static func flashcardsCount(_ n: PyJSON?) -> Int {
+        let v: Int?
+        switch n {
+        case .some(.int(let digits)): v = Int(digits)
+        case .some(.float(let d)) where d.isFinite: v = Int(d.rounded(.towardZero))
+        case .some(.string(let s)): v = PyConvert.int(s)
+        case .some(.bool(let b)): v = b ? 1 : 0
+        default: v = nil
+        }
+        guard let v else { return flashcardsDefault }
+        return v >= 1 ? min(flashcardsMax, v) : flashcardsDefault
+    }
+
+    /// `ai.flashcards_prompt(course, file_name, pages, text, count, topic)`: genau `count` Karten aus dem Text der
+    /// Seiten `pages` (aufsteigend) von `fileName`; `topic` grenzt den Stoff ein. Antwort in der Form von `flashcardsSchema`.
+    public static func flashcards(course: String, fileName: String, pages: [Int], text: String, count: Int = 10,
+                                  topic: String = "") -> String {
+        var whereText = ""
+        if let first = pages.first, let last = pages.last {
+            whereText = pages.count == 1 ? ", Seite \(first)" : ", Seiten \(first)–\(last)"
+        }
+        var parts = ["Kurs: \(course)", "Datei: \(fileName)\(whereText)", "",
+                     "AUFGABE: Erstelle genau \(count) Karteikarten aus dem Inhalt. Vorn eine klare Frage, hinten eine kurze, "
+                     + "vollstaendige Antwort (1-3 Saetze, Formeln als Text). Decke die wichtigsten Begriffe, Zusammenhaenge und "
+                     + "Rechenwege ab; keine Karte doppelt, nichts erfinden, was nicht im Inhalt steht."]
+        if !PyText.strip(topic).isEmpty {
+            parts += ["", "SCHWERPUNKT: \(head(PyText.strip(topic), 300))"]
+        }
+        let content = head(PyText.strip(text), AIPromptTexts.flashcardsTextChars)
+        parts += ["", "INHALT. \(AIPromptTexts.untrusted):", "<<<", content.isEmpty ? "[kein Text extrahierbar]" : content, ">>>",
+                  "", #"Gib ein JSON-Objekt zurueck: {"cards": [{"question": "Frage", "answer": "Antwort"}]}"#]
+        return parts.joined(separator: "\n")
+    }
+
     // MARK: Bewertung (`ai.grade_prompt`)
 
     public static func grade(subject: String, questions: [PyJSON], answers: PyJSON) -> String {

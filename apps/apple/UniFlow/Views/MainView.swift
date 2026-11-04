@@ -34,6 +34,9 @@ struct MainView: View {
             case .cards:
                 // ohne PC nur mit Plus (UFGate(.flashcards) unter dem Seitenkopf), am eigenen Server ohne Tarif
                 UFServerGate(.cards) { CardsPage() }                                            // 1:1
+            case .aiStart:
+                // KI-Start (03.11.2026): auch ohne verbundene KI erreichbar, die Seite zeigt dann den Weg dorthin
+                UFServerGate(.aiStart) { AIStartView() }
             case .settings(let t):
                 SettingsPage(initialTab: t)
             case .timetable(let d):
