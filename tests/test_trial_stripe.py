@@ -143,10 +143,10 @@ def webhook(app, payload, sig):
 
 def test_prices_and_channels(hosted, stripe):
     sb = stripe.module
-    assert sb.prices() == {"plus": "price_plus", "pro_connect": "price_pc", "pro_ai": "price_ai"}, "nur kaufbare, bekannte Tarife"
+    assert sb.prices() == {"plus": "price_plus", "pro_ai": "price_ai"}, "nur kaufbare, bekannte Tarife (pro_connect entfaellt, wird ignoriert)"
     assert sb.plan_for_price("price_ai") == "pro_ai" and sb.plan_for_price("price_nein") is None and sb.available()
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
-    assert d["purchase"]["web"]["available"] is True and d["purchase"]["web"]["plans"] == ["plus", "pro_connect", "pro_ai"]
+    assert d["purchase"]["web"]["available"] is True and d["purchase"]["web"]["plans"] == ["plus", "pro_ai"]
     assert "Stripe" in d["purchase"]["web"]["note"]
 
 
@@ -169,8 +169,8 @@ def test_checkout_creates_customer_once_and_returns_the_url(hosted, stripe):
         assert st == 400 and d["code"] == "plan_invalid"
     assert asgi_call(hosted, "POST", "/api/billing/stripe/checkout", body=json.dumps({"plan": "plus"}))[0] == 401
     # Tarifwahl nach der Probe mit bezahltem Tarif: Antwort gemerkt und gleich die Checkout-Adresse
-    st, d = _j(asgi_call(hosted, "POST", "/api/billing/plan-choice", headers=h, body=json.dumps({"plan": "pro_connect"})))
-    assert st == 200 and d["checkout_url"] == "https://checkout.stripe.com/c/cs_1" and d["entitlements"]["plan_choice"] == "pro_connect"
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/plan-choice", headers=h, body=json.dumps({"plan": "pro_ai"})))
+    assert st == 200 and d["checkout_url"] == "https://checkout.stripe.com/c/cs_1" and d["entitlements"]["plan_choice"] == "pro_ai"
 
 
 def test_checkout_without_stripe_is_honest(hosted, monkeypatch):
@@ -304,9 +304,9 @@ def test_portal_downgrade_is_scheduled_to_the_period_end(hosted, stripe):
     assert e["entitlements"]["can_use_ai_explanations"], "bis zum Periodenende gilt der alte Tarif"
     # eingebetteter Schedule (expand) geht ohne weiteren Aufruf
     before = len(stripe.calls)
-    sub2 = {**sub, "schedule": schedule(next_price="price_pc", cur_end=end)}
+    sub2 = {**sub, "schedule": schedule(next_price="price_plus", cur_end=end)}
     payload, sig = event("evt_d3", "customer.subscription.updated", sub2)
-    assert webhook(hosted, payload, sig)[1]["pending_plan"] == "pro_connect" and len(stripe.calls) == before
+    assert webhook(hosted, payload, sig)[1]["pending_plan"] == "plus" and len(stripe.calls) == before
     # Periodenende: Stripe stellt den Posten um, der Schedule ist abgeschlossen/abgehaengt
     payload, sig = event("evt_d4", "customer.subscription.updated", subscription(price="price_plus", end=end + 30 * 86400, meta={"user_id": u["id"]}))
     d = webhook(hosted, payload, sig)[1]
@@ -349,7 +349,7 @@ def test_schedule_without_a_real_change_sets_no_pending_plan(hosted, stripe):
     assert ent(hosted, h)["plan"] == "pro_ai" and ent(hosted, h)["pending_plan"] is None
     # ohne current_phase zaehlt die erste Phase, die nach jetzt beginnt; Phasen in der Vergangenheit nicht
     now = dt.datetime.now(UTC)
-    sched = {"phases": [{"start_date": end - 60 * 86400, "items": [{"price": "price_pc"}]},
+    sched = {"phases": [{"start_date": end - 60 * 86400, "items": [{"price": "price_ai"}]},
                         {"start_date": end + 10, "items": [{"price": {"id": "price_plus"}}]}]}
     assert sb.pending_plan_for({"schedule": sched}, "pro_ai", now) == "plus"
     assert sb.pending_plan_for({"schedule": None}, "pro_ai", now) is None
@@ -400,8 +400,8 @@ def test_immediate_change_in_the_portal_switches_at_once(hosted, stripe):
     e = ent(hosted, h)
     assert e["plan"] == "pro_ai" and e["pending_plan"] is None and e["entitlements"]["can_use_ai_explanations"]
     # sofortiges Downgrade genauso: Preis am Posten entscheidet
-    payload, sig = event("evt_u3", "customer.subscription.updated", subscription(price="price_pc", end=end, meta={"user_id": u["id"]}))
-    assert webhook(hosted, payload, sig)[1]["plan"] == "pro_connect" and ent(hosted, h)["plan"] == "pro_connect"
+    payload, sig = event("evt_u3", "customer.subscription.updated", subscription(price="price_plus", end=end, meta={"user_id": u["id"]}))
+    assert webhook(hosted, payload, sig)[1]["plan"] == "plus" and ent(hosted, h)["plan"] == "plus"
     assert not [c for c in stripe.calls if c[0] == "GET"], "ohne Schedule wird nichts nachgeladen"
 
 

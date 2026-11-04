@@ -28,13 +28,13 @@ from . import plans
 
 PLANS = plans.PLANS
 LOCAL_PLAN = "local"            # Einzelplatz: alle Rechte, keine Kontingente
-LEGACY = {"pro": "pro_ai"}      # fruehere Tarifnamen
+LEGACY = {"pro": "pro_ai", "pro_connect": "pro_ai"}      # fruehere Tarifnamen (Pro Connect entfaellt seit 04.11.2026)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entitlements (
     user_id TEXT NOT NULL,
     source TEXT NOT NULL,                 -- app_store | manual
-    plan TEXT NOT NULL,                   -- free | plus | pro_connect | pro_ai
+    plan TEXT NOT NULL,                   -- free | plus | pro_ai (frueher auch pro, pro_connect -> pro_ai)
     original_transaction_id TEXT,
     expires_at TEXT,                      -- ISO-8601 UTC, NULL = unbefristet
     status TEXT NOT NULL DEFAULT 'active',-- active | grace | billing_retry | expired | revoked

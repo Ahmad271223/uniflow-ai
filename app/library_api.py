@@ -1,4 +1,4 @@
-"""Endpunkte der gemeinsamen Testbibliothek und der Lernfunktionen ab Pro Connect (gehosteter Dienst).
+"""Endpunkte der gemeinsamen Testbibliothek und der Lernfunktionen ab Pro AI (gehosteter Dienst; bis 04.11.2026 ab Pro Connect).
 
 - POST /api/library/tests                       Test zusammenstellen: erst Pool, dann nur Fehlendes generieren
 - POST /api/library/tests/{id}/share            eigenen Test ausdruecklich zur gemeinsamen Nutzung einreichen (Moderation)
@@ -241,7 +241,7 @@ def submit(request: Request, test_id: int, body: dict = Body(...)):
     return grade_and_store(test_id, answers)
 
 
-# ---------------------------------------------------------------- Lernfunktionen ab Pro Connect (ohne KI)
+# ---------------------------------------------------------------- Lernfunktionen ab Pro AI (ohne KI)
 
 def _submitted() -> list[dict]:
     with db.cursor() as conn:

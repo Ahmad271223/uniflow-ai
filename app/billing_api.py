@@ -196,7 +196,7 @@ def chatgpt_state(user: dict | None) -> dict:
     enabled = integ["status"] == "enabled"
     return {
         "status": integ["status"], "available": enabled, "connected": False, "reason": None if enabled else integ["reason"],
-        # Produktregel: in der Oberflaeche ab Pro Connect angeboten. Die Kontingentnutzung selbst haengt nicht am Tarif,
+        # Produktregel: seit 04.11.2026 fuer alle Tarife. Die Kontingentnutzung selbst haengt nicht am Tarif,
         # solange die Bedingungen von OpenAI das nicht erlauben (plan_gating_allowed = False).
         "premium_rule_plan": plans.ENTITLEMENTS["chatgpt_connection_premium"]["from"],
         "plan_gating_allowed": integ["plan_gating_allowed"],

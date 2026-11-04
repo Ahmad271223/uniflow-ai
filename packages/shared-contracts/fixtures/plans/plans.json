@@ -4,7 +4,6 @@
  "order": [
   "free",
   "plus",
-  "pro_connect",
   "pro_ai"
  ],
  "trial": {
@@ -40,7 +39,7 @@
     "can_review_wrong_answers": false,
     "can_use_extended_test_history": false,
     "can_get_recommendations": false,
-    "chatgpt_connection_premium": false,
+    "chatgpt_connection_premium": true,
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
@@ -83,7 +82,7 @@
     "can_review_wrong_answers": false,
     "can_use_extended_test_history": false,
     "can_get_recommendations": false,
-    "chatgpt_connection_premium": false,
+    "chatgpt_connection_premium": true,
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
@@ -98,51 +97,8 @@
     "ai_assist": 0
    }
   },
-  "pro_connect": {
-   "rank": 2,
-   "name": "StudiNow Pro Connect",
-   "price_cents": 299,
-   "currency": "EUR",
-   "period": "month",
-   "apple_product_id": "de.uniflow.proconnect.monthly",
-   "tagline": "Lernstatistiken, intelligente Planung und Wiederholung",
-   "entitlements": {
-    "can_view_pdf": true,
-    "can_manage_courses": true,
-    "can_import_documents": true,
-    "can_view_timetable": true,
-    "can_use_basic_planner": true,
-    "can_read_community": true,
-    "can_annotate_pdf": true,
-    "can_use_pencilkit": true,
-    "can_write_community_comments": true,
-    "can_share_solutions": true,
-    "can_access_shared_tests": true,
-    "can_generate_studora_ai_tests": true,
-    "can_create_flashcards": true,
-    "can_share_flashcards": true,
-    "can_use_advanced_analytics": true,
-    "can_use_advanced_planner": true,
-    "can_review_wrong_answers": true,
-    "can_use_extended_test_history": true,
-    "can_get_recommendations": true,
-    "chatgpt_connection_premium": true,
-    "can_use_ai_explanations": false,
-    "can_use_ai_generated_questions": false,
-    "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false,
-    "can_sync_annotations": false,
-    "can_generate_ai_flashcards": false,
-    "can_use_prepared_week_sets": false
-   },
-   "quotas": {
-    "ai_tests_new": 4,
-    "library_tests": null,
-    "ai_assist": 0
-   }
-  },
   "pro_ai": {
-   "rank": 3,
+   "rank": 2,
    "name": "StudiNow Pro AI",
    "price_cents": 399,
    "currency": "EUR",
@@ -257,32 +213,32 @@
    "status": "coming_soon"
   },
   "can_use_advanced_analytics": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Erweiterte Lernstatistiken",
    "status": "available"
   },
   "can_use_advanced_planner": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Intelligente Lernplanung (Empfehlungen für die Woche)",
    "status": "available"
   },
   "can_review_wrong_answers": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Automatische Wiederholung falscher Antworten",
    "status": "available"
   },
   "can_use_extended_test_history": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Erweiterte Testhistorie",
    "status": "available"
   },
   "can_get_recommendations": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Personalisierte Lernempfehlungen",
    "status": "available"
   },
   "chatgpt_connection_premium": {
-   "from": "pro_connect",
+   "from": "free",
    "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)",
    "status": "disabled"
   },

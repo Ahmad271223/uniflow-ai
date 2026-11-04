@@ -14,7 +14,6 @@ const QUOTA_TXT = (q, key, labels) => {
 const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos.",
   plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern, Notizen auf allen Geräten.",
-  pro_connect: "Für Studierende, die mehr aus ihren Tests holen wollen: Statistiken, Wiederholung, Empfehlungen.",
   pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig.",
 };
 

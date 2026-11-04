@@ -256,20 +256,29 @@ def test_03_plus_gets_four_new_ai_tests_per_month(hosted):
     assert (q["used"], q["limit"]) == (4, 4)
 
 
-def test_04_pro_connect_entitlements(hosted):
+def test_04_learning_features_moved_from_pro_connect_to_pro_ai(hosted):
+    """Pro Connect entfaellt (04.11.2026): Statistiken, Wiederholung und Empfehlungen gibt es mit Pro AI; ein alter
+    Eintrag "pro_connect" zaehlt als Pro AI, damit niemand etwas verliert."""
+    from app import accounts, billing, plans
+    assert "pro_connect" not in plans.PLANS and billing.normalize_plan("pro_connect") == "pro_ai"
     _, h_plus = user(hosted, "p@beispiel.de", plan="plus")
-    _, h = user(hosted, "pc@beispiel.de", plan="pro_connect")
+    u, h = user(hosted, "pc@beispiel.de", plan="pro_ai")
     e = ent(hosted, h)
-    assert e["plan"] == "pro_connect" and e["plan_name"] == "StudiNow Pro Connect"
+    assert e["plan"] == "pro_ai" and e["plan_name"] == "StudiNow Pro AI"
     for name in ("can_annotate_pdf", "can_use_advanced_analytics", "can_use_advanced_planner", "can_review_wrong_answers",
                  "can_use_extended_test_history", "can_get_recommendations", "can_access_shared_tests"):
         assert e["entitlements"][name], name
-    assert not e["entitlements"]["can_use_ai_explanations"], "StudiNow-KI erst mit Pro AI"
-    assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 4
+    assert e["entitlements"]["can_use_ai_explanations"] and e["quotas"]["library_tests"]["unlimited"]
     for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
         assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, path
         st, d = _j(asgi_call(hosted, "GET", path, headers=h_plus))
-        assert (st, d["required_plan"]) == (403, "pro_connect"), path
+        assert (st, d["required_plan"]) == (403, "pro_ai"), path
+    conn = billing.connect()
+    try:                                        # alter Eintrag aus der Zeit mit Pro Connect
+        billing.set_entitlement(conn, u["id"], "manual", "pro_connect")
+        assert billing.current_plan(conn, u["id"]) == "pro_ai"
+    finally:
+        conn.close()
 
 
 def test_05_pro_ai_gets_twenty_tests_and_studora_ai(hosted):
@@ -568,7 +577,7 @@ def test_plans_fixture_is_current():
 
 def test_plan_table_matches_the_order():
     from app import plans
-    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 199, 299, 399]
+    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 199, 399]      # Pro Connect entfaellt (04.11.)
     for low, high in zip(plans.ORDER, plans.ORDER[1:]):
         assert all(plans.has(high, e) for e in plans.ENTITLEMENTS if plans.has(low, e)), f"{high} enthält alles aus {low}"
     assert not plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"]

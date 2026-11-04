@@ -5,12 +5,12 @@
   "type": "object",
   "required": ["plan", "status", "original_transaction_id"],
   "properties": {
-    "plan": { "enum": ["free", "plus", "pro_connect", "pro_ai"] },
+    "plan": { "enum": ["free", "plus", "pro_ai"] },
     "status": { "enum": ["active", "grace", "expired", "revoked", "billing_retry"] },
     "original_transaction_id": { "type": "string" },
     "expires_at": { "type": ["string", "null"] },
     "will_renew": { "type": "boolean" },
-    "pending_plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", null] },
+    "pending_plan": { "enum": ["free", "plus", "pro_ai", null] },
     "environment": { "enum": ["Sandbox", "Production", "Xcode", null] },
     "stale": { "type": "boolean" }
   }

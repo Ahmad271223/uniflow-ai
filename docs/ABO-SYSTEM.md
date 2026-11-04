@@ -1,5 +1,8 @@
 # StudiNow-Abosystem: vier Tarife, Berechtigungen, KI-Testbibliothek (Stand 27.10.2026)
 
+> **Stand 04.11.2026:** Pro Connect entfällt, Kontingente und Rechte haben sich geändert. Gültig ist `docs/PREISLISTE.md`
+> (Quelle im Code: `app/plans.py`). Dieses Dokument beschreibt das technische Abo-System.
+
 Auftrag des Inhabers vom 27.10.2026. Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
 Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ aus `docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 6.
@@ -10,7 +13,6 @@ Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ 
 |---|---:|---:|---:|---:|:---:|
 | StudiNow Free | 0,00 € | 0 | 0 | 0 | nein |
 | StudiNow Plus | 1,99 € | 3 | 4 | 0 | ja |
-| StudiNow Pro Connect | 2,99 € | 3 | unbegrenzt (Fair Use 300) | 0 | ja |
 | StudiNow Pro AI | 3,99 € | 40 | unbegrenzt (Fair Use 300) | 150 | ja |
 
 Jeder Tarif enthält alle Rechte des niedrigeren. **Quelle aller Werte: `app/plans.py`.** Daraus erzeugt
@@ -56,7 +58,7 @@ Einstellungen → Abo & Tarife.
 Tabellen in `accounts.db` (`app/billing.py`): `entitlements` (je Konto und Quelle: Tarif, Ablauf, Status,
 `will_renew`, `pending_plan`), `usage` und `usage_requests` (Kontingente je Monat, Anfrage-ID gegen Doppelzählung,
 `BEGIN IMMEDIATE` gegen parallele Anfragen), `apple_transactions`, `apple_notifications`. Quellen: `app_store` und
-`manual` (Betrieb: `python -m app.accounts plan <email> free|plus|pro_connect|pro_ai [bis YYYY-MM-DD]`, bisheriges
+`manual` (Betrieb: `python -m app.accounts plan <email> free|plus|pro_ai [bis YYYY-MM-DD]`, bisheriges
 Feld `users.plan`). Es gilt der höchste aktive Tarif.
 
 **Apple (StoreKit 2, `app/apple_store.py`):**
@@ -96,7 +98,7 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
   Verlängerung. Unbekannter Preis oder Kunde: quittiert (200), nie als Tarif übernommen. Ein Abo gehört genau einem
   Konto (409 `subscription_owned_by_other_account`).
 - Konfiguration des Dienstes: `LERNAPP_STRIPE_SECRET_KEY`, `LERNAPP_STRIPE_WEBHOOK_SECRET`,
-  `LERNAPP_STRIPE_PRICES="plus=price_…,pro_connect=price_…,pro_ai=price_…"`, `LERNAPP_PUBLIC_URL`. Ohne Schlüssel bleibt
+  `LERNAPP_STRIPE_PRICES="plus=price_…,pro_ai=price_…"`, `LERNAPP_PUBLIC_URL`. Ohne Schlüssel bleibt
   der Web-Abschluss ehrlich aus (`purchase.web.available = false`, 503 `stripe_not_configured`).
 - Wechsel im Kundenportal (seit 1.11.2026): ein **sofortiger** Wechsel (anteilig berechnet) ändert den Preis am Posten,
   der Tarif wechselt sofort, `pending_plan` bleibt leer. Ein Wechsel **zum Periodenende** (Downgrade) hängt Stripe als
@@ -114,7 +116,7 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
 
 ## 4. ChatGPT-Verbindung
 
-`chatgpt_connection_premium` (ab Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle
+`chatgpt_connection_premium` (seit 04.11.2026 für alle Tarife) ist eine **reine Produktregel für die Anzeige**. Die offizielle
 Kontingentnutzung hängt nicht daran: Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ (openai.com/policies/
 sign-in-with-chatgpt-terms; die Seite selbst war für die Prüfung nicht abrufbar) müssen Nutzer ihr ChatGPT-Abo über
 die Funktion nutzen können, ohne den Partner zu bezahlen oder einen bezahlten Partner-Tarif abzuschließen; ein

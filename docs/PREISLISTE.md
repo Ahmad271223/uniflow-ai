@@ -12,8 +12,9 @@ Jeder Tarif enthält alles aus dem Tarif darunter.
 | **StudiNow Plus** | **1,99 € / Monat**, 1 Woche gratis | Schreiben, teilen, Karteikarten, Tests mit dem eigenen ChatGPT – **je Gerät, ohne Notizen-Abgleich** | iPad (App Store), später Web/Windows (Stripe) |
 | **StudiNow Pro AI** | **3,99 € / Monat** | Die StudiNow-KI macht die Arbeit: Karteikarten, fertige Fragen, Erklärungen | **erst mit dem Online-Dienst** (Version 2) |
 
-Alle Preise sind Endkundenpreise inklusive Mehrwertsteuer. Pro Connect (2,99 €) steht weiter im Code, wird aber nicht
-verkauft und nirgends angezeigt; ob es wegfällt, ist noch offen.
+Alle Preise sind Endkundenpreise inklusive Mehrwertsteuer. **Pro Connect (2,99 €) entfällt** (Entscheidung vom 04.11.2026);
+seine Funktionen (Lernstatistiken, Wiederholung falscher Antworten, Empfehlungen) sind in Pro AI. Es gibt nur noch
+Free, Plus und Pro AI.
 
 ## Was jeder Tarif kann
 

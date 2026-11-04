@@ -1,7 +1,7 @@
 """StudiNow-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
 
-Auftrag des Inhabers vom 27.10.2026 (docs/ABO-SYSTEM.md): vier Tarife Free 0 EUR, Plus 1,99 EUR, Pro Connect 2,99 EUR,
-Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
+Auftrag des Inhabers vom 27.10.2026 (docs/ABO-SYSTEM.md), geaendert am 04.11.2026 (docs/PREISLISTE.md): drei Tarife
+Free 0 EUR, Plus 1,99 EUR, Pro AI 3,99 EUR (Monatspreise, Endkundenpreise); Pro Connect entfaellt, seine Rechte sind in Pro AI. Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
 
 Diese Datei ist die Quelle. `tools/gen-plans-fixture.py` schreibt daraus
 `packages/shared-contracts/fixtures/plans/plans.json`; die Apps (Swift, Kotlin) lesen die Fixture und pruefen ihre
@@ -12,12 +12,12 @@ Regeln:
   (`None` = unbegrenzt, dann gilt die Fair-Use-Grenze aus `FAIR_USE`).
 - `status` je Recht sagt der Oberflaeche, ob die Funktion schon technisch freigeschaltet ist (`available`), noch
   gebaut wird (`coming_soon`) oder bewusst aus ist (`disabled`). Nur `available` darf als enthalten beworben werden.
-- `chatgpt_connection_premium` ist eine reine Produktregel (Anzeige ab Pro Connect). Die offizielle Verbindung zu
+- `chatgpt_connection_premium` ist eine reine Produktregel (seit 04.11.2026 fuer alle Tarife). Die offizielle Verbindung zu
   ChatGPT haengt davon NICHT ab: siehe `INTEGRATIONS["chatgpt"]` und docs/ABO-SYSTEM.md, Abschnitt 4.
 """
 from __future__ import annotations
 
-ORDER = ("free", "plus", "pro_connect", "pro_ai")
+ORDER = ("free", "plus", "pro_ai")
 
 PLANS: dict[str, dict] = {
     "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": "month",
@@ -26,10 +26,7 @@ PLANS: dict[str, dict] = {
     "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 199, "currency": "EUR", "period": "month",
              "apple_product_id": "de.uniflow.plus.monthly",
              "tagline": "Mit Stift auf deinen Unterlagen schreiben"},
-    "pro_connect": {"rank": 2, "name": "StudiNow Pro Connect", "price_cents": 299, "currency": "EUR", "period": "month",
-                    "apple_product_id": "de.uniflow.proconnect.monthly",
-                    "tagline": "Lernstatistiken, intelligente Planung und Wiederholung"},
-    "pro_ai": {"rank": 3, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
+    "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
                "apple_product_id": "de.uniflow.proai.monthly",
                "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},
 }
@@ -53,13 +50,13 @@ ENTITLEMENTS: dict[str, dict] = {
     # Karteikarten (Entscheidung des Inhabers vom 04.11.2026): selbst anlegen, teilen und die anderer nutzen ab Plus
     "can_create_flashcards": {"from": "plus", "label": "Karteikarten selbst anlegen und lernen", "status": "available"},
     "can_share_flashcards": {"from": "plus", "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)", "status": "coming_soon"},
-    # Pro Connect
-    "can_use_advanced_analytics": {"from": "pro_connect", "label": "Erweiterte Lernstatistiken", "status": "available"},
-    "can_use_advanced_planner": {"from": "pro_connect", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
-    "can_review_wrong_answers": {"from": "pro_connect", "label": "Automatische Wiederholung falscher Antworten", "status": "available"},
-    "can_use_extended_test_history": {"from": "pro_connect", "label": "Erweiterte Testhistorie", "status": "available"},
-    "can_get_recommendations": {"from": "pro_connect", "label": "Personalisierte Lernempfehlungen", "status": "available"},
-    "chatgpt_connection_premium": {"from": "pro_connect", "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)", "status": "disabled"},
+    # Pro AI (bis 04.11.2026 ab Pro Connect; der Tarif entfaellt)
+    "can_use_advanced_analytics": {"from": "pro_ai", "label": "Erweiterte Lernstatistiken", "status": "available"},
+    "can_use_advanced_planner": {"from": "pro_ai", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
+    "can_review_wrong_answers": {"from": "pro_ai", "label": "Automatische Wiederholung falscher Antworten", "status": "available"},
+    "can_use_extended_test_history": {"from": "pro_ai", "label": "Erweiterte Testhistorie", "status": "available"},
+    "can_get_recommendations": {"from": "pro_ai", "label": "Personalisierte Lernempfehlungen", "status": "available"},
+    "chatgpt_connection_premium": {"from": "free", "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)", "status": "disabled"},
     # Pro AI (StudiNow-KI ueber das Backend)
     "can_use_ai_explanations": {"from": "pro_ai", "label": "KI-Erklärungen zu Aufgaben", "status": "available"},
     "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
@@ -79,7 +76,6 @@ ENTITLEMENTS: dict[str, dict] = {
 QUOTAS: dict[str, dict[str, int | None]] = {
     "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0},
     "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0},
-    "pro_connect": {"ai_tests_new": 4, "library_tests": None, "ai_assist": 0},
     "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150},
 }
 
@@ -96,7 +92,7 @@ INTEGRATIONS: dict[str, dict] = {
         "reason": "Die offizielle ChatGPT-Verbindung („Sign in with ChatGPT“) ist für StudiNow noch nicht von OpenAI "
                   "freigegeben. Bis dahin gibt es keine Verbindung.",
         # Laut den "Sign in with ChatGPT Terms" muss die Nutzung des eigenen ChatGPT-Abos ohne Zahlung an den Partner
-        # und ohne bezahlten Partner-Tarif moeglich sein. Deshalb wird die Kontingentnutzung nie an Pro Connect gekoppelt.
+        # und ohne bezahlten Partner-Tarif moeglich sein. Deshalb haengt die Verbindung an keinem Tarif.
         "plan_gating_allowed": False,
     },
 }

@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified INTEGER DEFAULT 0,
     pw_hash TEXT,                        -- scrypt$n$r$p$salz$hash (hex); NULL bei reinem Apple/Google-Konto
     university TEXT NOT NULL,            -- luh | hildesheim
-    plan TEXT DEFAULT 'free',            -- free | plus | pro_connect | pro_ai (Quelle "manual", app/billing.py)
+    plan TEXT DEFAULT 'free',            -- free | plus | pro_ai (Quelle "manual", app/billing.py)
     plan_until TEXT,
     role TEXT DEFAULT 'user',            -- user | admin
     status TEXT DEFAULT 'active',        -- active | deleted
@@ -722,7 +722,7 @@ def set_plan(user_id: str, plan: str, until: str | None = None) -> dict:
     from . import billing
     plan = billing.normalize_plan(plan) or ""
     if not plan:
-        raise AccountError("plan_invalid", "Unbekannter Tarif (free, plus, pro_connect, pro_ai).")
+        raise AccountError("plan_invalid", "Unbekannter Tarif (free, plus, pro_ai).")
     with cursor() as conn:
         conn.execute("UPDATE users SET plan=?, plan_until=? WHERE id=?", (plan, until, user_id))
         return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
@@ -751,7 +751,7 @@ def get_user(user_id: str) -> dict | None:
 # ---------------------------------------------------------------- Kommandozeile (Betrieb)
 
 def main(argv: list[str]) -> int:
-    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus|pro_connect|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
+    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
     cmd = argv[0] if argv else ""
     if cmd in ("plan", "role") and len(argv) >= 3:
         u = user_by_email(argv[1])

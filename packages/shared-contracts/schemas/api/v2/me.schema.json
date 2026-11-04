@@ -5,12 +5,12 @@
   "type": "object",
   "required": ["plan", "plan_name", "entitlements", "quotas", "integrations", "mode"],
   "properties": {
-    "plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", "local"] },
+    "plan": { "enum": ["free", "plus", "pro_ai", "local"] },
     "plan_name": { "type": "string" },
     "source": { "enum": ["app_store", "manual", null] },
     "expires_at": { "type": ["string", "null"] },
     "will_renew": { "type": "boolean" },
-    "pending_plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", null] },
+    "pending_plan": { "enum": ["free", "plus", "pro_ai", null] },
     "mode": { "enum": ["hosted", "local"] },
     "apple_account_token": { "type": "string" },
     "entitlements": {
