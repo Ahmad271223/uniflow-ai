@@ -58,6 +58,33 @@ Endpunkte des lokalen Backends: `GET/POST /api/index/file/{id}/page/{n}`, `POST 
 `GET /api/index/shelf?module=` (Regal: Hochschule › Studiengang › Semester › Modul › Woche › Art › Datei),
 `GET /api/index/status`.
 
+## Regeln des Inhabers (Ergänzung 04.11.2026)
+
+1. **Dedupe vor jeder Analyse.** Vor dem ersten KI-Aufruf fragt das Gerät die Bibliothek nach dem **Datei-Abdruck**
+   (`fileKey` = HMAC des SHA-256 der Datei): „Kenne ich die Datei schon?“ Eine bekannte Datei wird nie noch einmal
+   analysiert, eine bekannte Seite (Seiten-Abdruck stimmt) nie noch einmal gesendet. Das Protokoll des Laufs nennt
+   `bereits bekannt: <Datei> (lokal|Bibliothek)` bzw. `Seite n bereits bekannt (Bibliothek)` (`DocIndexBuildReport.log`,
+   getestet in `DocIndexTests`). Erst danach gehen ausschließlich die fehlenden Seiten an die KI.
+2. **Geordneter Katalog („Regal“).** Jede Zusammenfassung (Seite 0) trägt die Katalogangaben `catalog`:
+   Hochschule → Studiengang (aus dem Notenspiegel, sonst „Allgemein“) → Semester (z. B. „WiSe 2026/27“, aus dem Kurs,
+   sonst das aktive Semester) → Modul (`moduleKey` wie die Community, `moduleName`) → Lehrwoche des Moduls (`week`) + Datum
+   der Datei (`date`) → Art (`kind`/`kindLabel`) → Datei → Seiten/Elemente. Die Art kommt aus der bestehenden Einordnung
+   der Bibliothek (`StudyClassify.effectiveType`: `doc_type` + `sub_label`), damit Regal und Bibliothek dieselben Worte
+   benutzen: Vorlesung, Übung, Hörsaalübung, Gruppenübung, Tutorium, Klausur, Altklausur, Skript, Lösung, Sonstiges
+   (`DocIndexCatalog.kind`, in Python `catalog_kind`, Erwartungswerte in `fixtures/doc-index/cases.json`). Bei CloudKit
+   liegt der Katalog nur im verschlüsselten `payload` und enthält nur, was sich aus den Kursdaten ableiten lässt – keine
+   Namen. Das Regal selbst ist eine **lokale** Abfrage über die eigenen Dateien: `GET /api/index/shelf?module=<id>`
+   liefert den Baum `university → programs → semesters → modules → weeks (week, label, from, to) → kinds → files`
+   (je Datei Stand des Index: `ready`, `partial`, `none`, `indexed_pages`, `failed_pages`). Die KI-Hilfe zeigt den Platz
+   der Datei im Regal („Im Regal: … › Woche 3 › Vorlesung“, `shelf_path`).
+3. **Sehr genau.** Feste Reihenfolge überall: Elemente nach `order` (1..n lückenlos, sonst ungültig), Aufgaben nach
+   `label`, Begriffe ohne Doppelte, Datensätze nach Seite; im Regal Studiengänge und Module nach Name, Semester neueste
+   zuerst, Wochen wie das Moduldetail, Arten in fester Reihenfolge, Dateien nach Name und Kennung. Deterministische
+   Kennungen: `recordName` = `<fileKey>#<page>`, Seiten-Abdruck aus normalisiertem Text (Bildseiten aus Datei-SHA und
+   Seitennummer). Versioniertes Schema: `version` im Vertrag, im Datensatz (`version`), im Inhalt (`v`) und in den
+   Zusatzdaten der Verschlüsselung (`schema:1`); eine neue Fassung lässt alte Einträge unberührt und wird nicht
+   vermischt.
+
 ## Dienst (V2, Web/Windows): Entwurf mit Stub, 15-Minuten-Regel
 
 `app/doc_index.py`:
@@ -75,5 +102,7 @@ Endpunkte des lokalen Backends: `GET/POST /api/index/file/{id}/page/{n}`, `POST 
 
 - KI-Aufruf im Dienst (V2) anschließen; Speicherort der Einträge beim Dienst festlegen.
 - `DocIndex` im CloudKit-Dashboard für Production anlegen (docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md).
-- Regal (`/api/index/shelf`) hat noch keine eigene Ansicht in der App.
+- Regal (`/api/index/shelf`) hat noch keine eigene Ansicht in der App; die KI-Hilfe zeigt nur den Pfad der offenen Datei.
+- Tabellenname im Container ist `page_index` (der Name `doc_index` war schon durch den Aufgaben-Index der Wochentests
+  belegt, `SchemaSQL.weekly`).
 - Test auf dem echten iPad mit iCloud (zwei Konten, dieselbe Datei).

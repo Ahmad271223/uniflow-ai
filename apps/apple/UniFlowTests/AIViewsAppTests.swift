@@ -224,6 +224,14 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertNil(ExamsPage.sharedLabel(["id": 1, "shared": .null]))
         XCTAssertEqual(ExamsPage.sharedLabel(["shared": ["variant": 2, "of": 3, "adopted": true]]), "Gemeinsamer Test · Variante 2 von 3")
         XCTAssertEqual(ExamsPage.sharedLabel(["shared": ["adopted": false]]), "Gemeinsamer Test")
+        // Phasen aus /api/bg
+        XCTAssertEqual(TestGenerationState.Phase(backend: "shared_lookup"), .searching)
+        XCTAssertEqual(TestGenerationState.Phase(backend: "shared_wait"), .waiting)
+        XCTAssertEqual(TestGenerationState.Phase(backend: "generate"), .generating)
+        XCTAssertEqual(TestGenerationState.Phase(backend: "shared_adopted"), .adopted)
+        XCTAssertNil(TestGenerationState.Phase(backend: ""))
+        XCTAssertEqual(TestGeneratingCard.chip(.generating, seconds: 65), "KI arbeitet · 1:05")
+        XCTAssertEqual(TestGeneratingCard.chip(.adopted, seconds: 3), "0 Credits")
         // Musterloesung zu Option
         XCTAssertTrue(ExamQuestionCard.matches(option: "B) Zwei", model: "B"))
         XCTAssertTrue(ExamQuestionCard.matches(option: "Zwei", model: "zwei"))
@@ -243,6 +251,27 @@ final class AIViewsAppTests: XCTestCase {
     }
 
     // MARK: - Dokument-Index in der KI-Hilfe
+
+    /// Ohne verbundene KI zeigt die KI-Hilfe trotzdem, was die Bibliothek zur Seite weiss (lesen darf jeder, 0 Credits),
+    /// mit dem Platz im Regal; der Weg zur Verbindung bleibt, "Neu erklaeren lassen" gibt es ohne KI nicht
+    func testTutorPanelShowsKnownPageWithoutAI() throws {
+        let t = transport()
+        t.answer("/api/index/file/f-1/page/3", ["file_id": "f-1", "page": 3, "status": "ready", "known": true, "source": "cloud", "can_build": false,
+                                                "shelf_path": ["Leibniz Universität Hannover", "Allgemein", "WiSe 2026/27", "Testmathematik I", "Woche 3 (26.10.–01.11.)", "Vorlesung"],
+                                                "entry": ["summary": "Konvergenz von Folgen.", "terms": [],
+                                                          "elements": [["order": 1, "type": "definition", "title": "Konvergente Folge",
+                                                                        "explanation": "Grenzwert a mit |a_n − a| < ε.", "position": "oben", "uncertain": false]],
+                                                          "tasks": []],
+                                                "cross_refs": [], "own_notes": []])
+        let env = try hostWithEnvironment(TutorPanel(fileID: "f-1", page: { 3 }, selection: { "" }, open: { _, _ in }, close: {}), api: api(t))
+        XCTAssertTrue(env.wait { self.shows(env.view, "Schon erklärt") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Konvergente Folge"))
+        XCTAssertTrue(shows(env.view, "Im Regal: Leibniz Universität Hannover › Allgemein › WiSe 2026/27 › Testmathematik I › Woche 3 (26.10.–01.11.) › Vorlesung"),
+                      texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Verbinde dein ChatGPT"), "der Weg zur KI bleibt")
+        XCTAssertFalse(shows(env.view, "Neu erklären lassen"), "ohne KI kein Neubau")
+        XCTAssertEqual(t.count("POST", "/api/index/file/f-1/page/3"), 0, "lesen kostet nichts und fragt keine KI")
+    }
 
     func testDocIndexCardShowsKnownPageWithReferencesNotesAndRebuild() throws {
         let t = transport()
@@ -324,7 +353,7 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertEqual(second["file_id"], "f-1")
         XCTAssertEqual(second["history"]?.array?.count, 2, "Frage und Antwort als Verlauf")
         XCTAssertTrue((second["question"]?.string ?? "").contains("können"))
-        XCTAssertEqual(recents.entries.count, 2)
+        XCTAssertTrue(env.wait { recents.entries.count == 2 }, "zweite Antwort unter Zuletzt")
         // "Im Dokument mit KI-Hilfe öffnen": Route zum Dokument, Wunsch fuer den Editor gemerkt
         XCTAssertTrue(tap("Im Dokument mit KI-Hilfe öffnen", in: env.view))
         XCTAssertTrue(env.wait { env.router.route == .doc("f-1") })
@@ -366,6 +395,7 @@ final class AIViewsAppTests: XCTestCase {
         t.answer("/api/tests/generate", ["started": "Test"])
         let generation = TestGenerationState()
         let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.plus), generation: generation).environment(\.ufAIEnabled, true), api: api(t))
+        env.pump(0.8)                                                        // Module und Lehrwochen laden, Baum aufbauen
         // Unterlagen mit KI-Titel erscheinen unter dem Titel ("Folgen und Grenzwerte" statt VL03.pdf)
         XCTAssertTrue(env.wait { self.shows(env.view, "Blatt03.pdf") }, texts(env.view).joined(separator: "\n"))
         XCTAssertTrue(shows(env.view, "Folgen und Grenzwerte"))
@@ -414,6 +444,16 @@ final class AIViewsAppTests: XCTestCase {
         generation.advance()
         XCTAssertTrue(env.wait { self.shows(env.view, "Aufgaben werden erstellt … 0/15") })
         XCTAssertTrue(shows(env.view, "KI arbeitet"))
+        // Stand des Backends (/api/bg phase) geht vor der Schaetzung
+        generation.apply(backendPhase: "shared_wait")
+        XCTAssertTrue(env.wait { self.shows(env.view, "kurz warten") })
+        generation.apply(backendPhase: "shared_adopted")
+        XCTAssertTrue(env.wait { self.shows(env.view, "Gemeinsamer Test gefunden") })
+        XCTAssertTrue(shows(env.view, "0 Credits"))
+        generation.apply(backendPhase: "unbekannt")
+        XCTAssertEqual(generation.job?.phase, .adopted, "Unbekanntes aendert nichts")
+        generation.advance()
+        XCTAssertEqual(generation.job?.phase, .adopted, "nach einem Stand vom Backend keine Schaetzung mehr")
         generation.finish()
         XCTAssertTrue(env.wait { !self.shows(env.view, "wird erstellt …") })
         XCTAssertEqual(enabled("Wochentest erstellen", in: env.view), true)
@@ -565,26 +605,29 @@ final class AIViewsAppTests: XCTestCase {
         recents.record(question: "Fachbegriffe", answer: "Folge: Abbildung von N nach R. Grenzwert: Wert, dem sich die Glieder nähern.", fileID: "f-1", fileName: "Folgen und Grenzwerte")
 
         let start = try hostWithEnvironment(AIStartView(entitlements: plan(.plus), recents: recents).environment(\.ufAIEnabled, true), api: api(t))
+        start.pump(0.8)
         XCTAssertTrue(start.wait { self.button("Wochentest.", in: start.view, exact: false) != nil })
-        tap("Erklären / PDF analysieren.", in: start.view, exact: false)
-        XCTAssertTrue(start.wait { self.shows(start.view, "Kurz gesagt") })
+        XCTAssertTrue(tap("Erklären / PDF analysieren.", in: start.view, exact: false))
+        XCTAssertTrue(start.wait { self.shows(start.view, "Kurz gesagt") }, texts(start.view).joined(separator: "\n"))
         both(start, "ki-start")
 
         let quiz = try hostWithEnvironment(dialogFrame(QuizComposer(moduleID: 1, entitlements: plan(.plus), generation: TestGenerationState())).environment(\.ufAIEnabled, true), api: api(t))
-        XCTAssertTrue(quiz.wait { self.shows(quiz.view, "Blatt03.pdf") })
+        quiz.pump(0.8)
+        XCTAssertTrue(quiz.wait { self.shows(quiz.view, "Blatt03.pdf") }, texts(quiz.view).joined(separator: "\n"))
         both(quiz, "wochentest-erstellen")
 
         let cards = try hostWithEnvironment(dialogFrame(FlashcardComposer(moduleID: 1, fileID: "f-1", entitlements: plan(.plus)), wide: true).environment(\.ufAIEnabled, true), api: api(t))
-        XCTAssertTrue(cards.wait { self.button("Karten erstellen", in: cards.view) != nil })
-        tap("Karten erstellen", in: cards.view)
-        XCTAssertTrue(cards.wait { self.shows(cards.view, "Cauchy-Folge") })
+        cards.pump(0.8)
+        XCTAssertTrue(cards.wait { self.button("Karten erstellen", in: cards.view) != nil }, texts(cards.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Karten erstellen", in: cards.view))
+        XCTAssertTrue(cards.wait { self.shows(cards.view, "Cauchy-Folge") }, texts(cards.view).joined(separator: "\n"))
         both(cards, "karteikarten-aus-dokument")
 
         let generation = TestGenerationState()
         let exams = try hostWithEnvironment(ExamsPage(generation: generation).environment(\.ufAIEnabled, true), api: api(t))
         XCTAssertTrue(exams.wait { self.button("Wochentest erstellen", in: exams.view) != nil })
         generation.start(subject: "Testmathematik I", weekNo: 3)
-        generation.advance()
+        generation.apply(backendPhase: "generate")
         XCTAssertTrue(exams.wait { self.shows(exams.view, "Aufgaben werden erstellt") })
         both(exams, "test-wird-erstellt")
         generation.finish()

@@ -37,6 +37,8 @@ struct ExamsPage: View {
         .task { await load() }
         .ufReload { await load() }
         .onChange(of: generation.job == nil) { _, idle in if idle { Task { await load() } } }
+        // Stand des Backends waehrend der Erstellung (`/api/bg` phase): sucht, wartet, KI erstellt, uebernommen
+        .onChange(of: shell.backgroundPhase) { _, p in generation.apply(backendPhase: p) }
     }
 
     private func load() async {
@@ -166,26 +168,35 @@ struct TestGeneratingCard: View {
     let job: TestGenerationState.Job
     @Environment(\.ufWindowWidth) private var windowWidth
 
+    /// Text im Chip rechts: Phase, bei der KI mit verstrichener Zeit
+    static func chip(_ phase: TestGenerationState.Phase, seconds s: Int) -> String {
+        switch phase {
+        case .searching: return "sucht"
+        case .waiting: return "wartet"
+        case .generating: return "KI arbeitet · \(s / 60):\(String(format: "%02d", s % 60))"
+        case .adopted: return "0 Credits"
+        }
+    }
+
     var body: some View {
-        let searching = job.phase == .searching
+        let generating = job.phase == .generating
         UFCard {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Wochentest \(UFFmt.shortName(job.subject))" + (job.weekNo.map { " · Lehrwoche \($0)" } ?? "")).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-                    UFShimmerText(searching ? "Gemeinsamer Test wird gesucht …" : "Aufgaben werden erstellt … 0/\(QuizComposer.total)", size: 13.12)
+                    UFShimmerText(job.phase.text, size: 13.12)
                         .accessibilityIdentifier("exams.generating.phase")
                 }
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
                     TimelineView(.periodic(from: job.startedAt, by: 1)) { ctx in
-                        let s = max(0, Int(ctx.date.timeIntervalSince(job.startedAt)))
-                        Text(searching ? "sucht" : "KI arbeitet · \(s / 60):\(String(format: "%02d", s % 60))").ufFont(12, 600).monospacedDigit()
+                        Text(Self.chip(job.phase, seconds: max(0, Int(ctx.date.timeIntervalSince(job.startedAt))))).ufFont(12, 600).monospacedDigit()
                     }
                 }
-                .foregroundStyle(UF.accentText)
+                .foregroundStyle(job.phase == .adopted ? UF.okText : UF.accentText)
                 .padding(.vertical, 3).padding(.horizontal, 10)
-                .background(Capsule().fill(UF.accentSoft))
+                .background(Capsule().fill(job.phase == .adopted ? UF.okSoft : UF.accentSoft))
                 .accessibilityIdentifier("exams.generating.chip")
             }
             .padding(.bottom, 10)
@@ -196,7 +207,7 @@ struct TestGeneratingCard: View {
                         HStack {
                             Text("Aufgabe \(i + 1)").ufFont(12, 600).foregroundStyle(UF.muted)
                             Spacer()
-                            UFShimmerText("wird erstellt …", size: 11.52)
+                            UFShimmerText(generating ? "wird erstellt …" : "…", size: 11.52)
                         }
                         UFSkeleton().frame(height: 10)
                         UFSkeleton().frame(height: 10).frame(maxWidth: 120)
@@ -206,9 +217,7 @@ struct TestGeneratingCard: View {
                     .ufAppear("exams.generating", index: i)
                 }
             }
-            Text(searching ? "Gibt es für dieses Modul schon einen gemeinsamen Test, bekommst du eine Variante ohne neue KI-Anfrage."
-                 : "Die KI erstellt \(QuizComposer.total) Aufgaben aus den Unterlagen (ca. 1 Minute). Du kannst die Seite derweil verlassen.")
-                .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+            Text(job.phase.note).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("exams.generating")

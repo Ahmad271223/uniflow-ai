@@ -16,6 +16,9 @@ final class ShellState: ObservableObject {
 
     @Published private(set) var syncChip: String?
     @Published private(set) var syncRunning = false
+    /// `phase` aus `/api/bg`, solange ein Wochentest entsteht (gemeinsamer Test gesucht, gewartet, KI erstellt,
+    /// uebernommen); nil ohne laufenden Auftrag oder ohne Angabe des Backends
+    @Published private(set) var backgroundPhase: String?
     @Published private(set) var lastSyncOK = true
     @Published private(set) var searchHits: [SearchHit] = []
     /// Suche gescheitert (Server nicht erreichbar, Fehlerantwort): Meldung statt alter Treffer
@@ -135,10 +138,13 @@ final class ShellState: ObservableObject {
                 was = true
                 syncRunning = true
                 syncChip = "\(bg.s("task") ?? "Aufgabe") läuft…"
+                // Stand eines Wochentests (03.11.2026): shared_lookup | shared_wait | generate | shared_adopted, sonst nichts
+                backgroundPhase = bg.s("phase")
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 continue
             }
             syncRunning = false
+            backgroundPhase = nil
             if was {
                 toast?.show(bg.s("message") ?? "Fertig")
                 reloadToken += 1

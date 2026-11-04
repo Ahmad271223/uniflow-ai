@@ -26,6 +26,28 @@ final class DocIndexCloudKitTests: XCTestCase {
         XCTAssertEqual(none, [])
     }
 
+    /// Verschluesselung mit CryptoKit (wie in der App, `SolutionSharing.cipher`): Rundlauf; eine andere Datei, eine andere
+    /// Seite oder ein veraendertes Chiffrat lassen sich nicht lesen; der Klartext steht nirgends im Datensatz
+    func testCryptoKitRoundTripAndWrongFileCannotDecrypt() throws {
+        let cipher = CryptoKitSolutionCipher()
+        let sha = String(repeating: "7", count: 64), other = String(repeating: "8", count: 64)
+        let key = try XCTUnwrap(DocIndexFingerprint.fileKey(fileSHA: sha)), otherKey = try XCTUnwrap(DocIndexFingerprint.fileKey(fileSHA: other))
+        let hash = DocIndexFingerprint.pageHash(text: "Konvergenz von Folgen und Reihen, Grenzwertsaetze und Beispiele", fileSHA: sha, page: 4)
+        let content: JSONValue = ["summary": "Konvergenz.", "terms": ["Grenzwert"], "elements": [], "tasks": []]
+        let payload = try DocIndexCrypto.seal(content, fileSHA: sha, pageHash: hash, fileKey: key, page: 4, cipher: cipher)
+        XCTAssertEqual(try DocIndexCrypto.open(payload, fileSHA: sha, pageHash: hash, fileKey: key, page: 4, cipher: cipher), content)
+        XCTAssertFalse(payload.contains("Konvergenz") || payload.contains("Grenzwert"))
+        XCTAssertThrowsError(try DocIndexCrypto.open(payload, fileSHA: other, pageHash: hash, fileKey: otherKey, page: 4, cipher: cipher), "andere Datei")
+        XCTAssertThrowsError(try DocIndexCrypto.open(payload, fileSHA: sha, pageHash: hash, fileKey: key, page: 5, cipher: cipher), "andere Seite")
+        var raw = try XCTUnwrap(Data(base64Encoded: payload))
+        raw[raw.count - 3] ^= 0x01
+        XCTAssertThrowsError(try DocIndexCrypto.open(raw.base64EncodedString(), fileSHA: sha, pageHash: hash, fileKey: key, page: 4, cipher: cipher), "veraendert")
+        // zweites Versiegeln: neues Salz und neue Nonce, gleicher Inhalt
+        let again = try DocIndexCrypto.seal(content, fileSHA: sha, pageHash: hash, fileKey: key, page: 4, cipher: cipher)
+        XCTAssertNotEqual(again, payload)
+        XCTAssertEqual(try DocIndexCrypto.open(again, fileSHA: sha, pageHash: hash, fileKey: key, page: 4, cipher: cipher), content)
+    }
+
     func testForeignShapeIsIgnored() {
         var r = CommunityRecord(type: DocIndexCloudRecord.type, name: "falsch#3")
         r[DocIndexCloudRecord.Field.fileKey] = .string("k")

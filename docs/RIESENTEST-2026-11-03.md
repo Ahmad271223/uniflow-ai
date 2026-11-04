@@ -90,7 +90,8 @@ Swift-Kern = Abgleich wie auf dem iPad, iPad-App = echter `StudIPSync` der App i
 ## 4. Gefundene Defekte und was geändert wurde
 
 Alle Änderungen klein, mit Regressionstests (`tests/test_riesentest_regressions.py`, `RiesentestRegressionTests.swift`)
-und wo nötig neu erzeugten Paritäts-Fixtures (`fixtures/hildesheim/expected.json`, `fixtures/local-backend/timetable-logic.json`).
+und wo nötig neu erzeugten Paritäts-Fixtures (`fixtures/hildesheim/expected.json`, `fixtures/local-backend/timetable-logic.json`,
+`fixtures/local-backend/study-modules.json` für `LocalModulesTests.testClassifyLikePython`).
 
 | Nr. | Befund | Wo | Änderung |
 | --- | --- | --- | --- |

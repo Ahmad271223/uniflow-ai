@@ -7,17 +7,53 @@ import UniFlowCore
 /// /api/tests/generate` (`/api/bg`); die Phase hier ist die Erwartung des Nutzers, nicht ein Stand aus dem Backend.
 @MainActor
 final class TestGenerationState: ObservableObject {
-    enum Phase: Equatable { case searching, generating }
+    /// Stand wie `phase` in `/api/bg` (shared_lookup, shared_wait, generate, shared_adopted)
+    enum Phase: Equatable {
+        case searching, waiting, generating, adopted
+
+        /// Wert des Backends -> Phase; unbekannte Werte nil
+        init?(backend raw: String) {
+            switch raw {
+            case "shared_lookup": self = .searching
+            case "shared_wait": self = .waiting
+            case "generate": self = .generating
+            case "shared_adopted": self = .adopted
+            default: return nil
+            }
+        }
+
+        /// Zeile unter dem Titel der Platzhalterkarte
+        var text: String {
+            switch self {
+            case .searching: return "Gemeinsamer Test wird gesucht …"
+            case .waiting: return "Jemand erstellt den gemeinsamen Test gerade – kurz warten …"
+            case .generating: return "Aufgaben werden erstellt … 0/\(QuizComposer.total)"
+            case .adopted: return "Gemeinsamer Test gefunden – wird übernommen …"
+            }
+        }
+
+        /// Hinweis unter den Platzhalterkarten
+        var note: String {
+            switch self {
+            case .searching: return "Gibt es für dieses Modul schon einen gemeinsamen Test, bekommst du eine Variante ohne neue KI-Anfrage."
+            case .waiting: return "Ein anderer Studierender erstellt diesen Test gerade; du bekommst gleich dieselbe Variante (0 Credits)."
+            case .generating: return "Die KI erstellt \(QuizComposer.total) Aufgaben aus den Unterlagen (ca. 1 Minute). Du kannst die Seite derweil verlassen."
+            case .adopted: return "Variante eines gemeinsamen Tests, ohne KI-Anfrage – 0 Credits."
+            }
+        }
+    }
 
     struct Job: Equatable {
         let subject: String
         let weekNo: Int?
         let startedAt: Date
         var phase: Phase = .searching
+        /// das Backend hat seinen Stand gemeldet (dann keine Schaetzung mehr)
+        var fromBackend = false
     }
 
     static let shared = TestGenerationState()
-    /// nach so vielen Sekunden gilt die Suche nach einem gemeinsamen Test als vorbei (sie ist eine Datenbankabfrage)
+    /// ohne Stand vom Backend gilt die Suche nach so vielen Sekunden als vorbei (sie ist eine Datenbankabfrage)
     static let searchSeconds: Double = 4
 
     @Published private(set) var job: Job?
@@ -38,8 +74,16 @@ final class TestGenerationState: ObservableObject {
         }
     }
 
-    /// Nach der Suche: die KI erstellt die Aufgaben
-    func advance() { if job != nil { job?.phase = .generating } }
+    /// Ohne Stand vom Backend nach der Suche: die KI erstellt die Aufgaben
+    func advance() { if let j = job, !j.fromBackend { job?.phase = .generating } }
+
+    /// Stand aus `/api/bg` (`phase`); nil oder Unbekanntes aendert nichts
+    func apply(backendPhase raw: String?) {
+        guard job != nil, let raw, let p = Phase(backend: raw) else { return }
+        phaseTask?.cancel()
+        job?.phase = p
+        job?.fromBackend = true
+    }
 
     func finish(message: String? = nil) {
         phaseTask?.cancel()

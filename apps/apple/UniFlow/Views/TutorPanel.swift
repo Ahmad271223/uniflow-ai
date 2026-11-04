@@ -73,11 +73,17 @@ struct TutorPanel: View {
         }
     }
 
+    /// Ohne KI: der Weg zur Verbindung - und darueber, was die Bibliothek zur offenen Seite schon weiss (lesen darf
+    /// jeder, 0 Credits; die Karte bleibt leer, wenn der Index die Seite nicht kennt)
     @ViewBuilder private var notConnected: some View {
-        if let chatgpt {
-            TutorConnectState(link: chatgpt) { router.go(.settings(tab: "advanced")) }
-        } else {
-            TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { router.go(.settings(tab: "advanced")) }
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) { DocIndexPageCard(fileID: fileID, page: page, open: open) }
+                .padding(.horizontal, 14).padding(.top, 14)
+            if let chatgpt {
+                TutorConnectState(link: chatgpt) { router.go(.settings(tab: "advanced")) }
+            } else {
+                TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { router.go(.settings(tab: "advanced")) }
+            }
         }
     }
 

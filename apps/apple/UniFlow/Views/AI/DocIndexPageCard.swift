@@ -31,7 +31,9 @@ struct DocIndexPageCard: View {
     }
 
     var body: some View {
-        content
+        // ein echter Knoten (VStack), auch wenn noch nichts zu zeigen ist: an einer EmptyView in einem VStack liefe `.task`
+        // nie an, die Karte fragte den Index nicht einmal (Befund 04.11.2026)
+        VStack(alignment: .leading, spacing: 0) { content }
             .task(id: fileID) {
                 // die Seite des Editors wechselt ohne Ereignis an die Leiste: kurz nachsehen, solange die Karte lebt
                 while !Task.isCancelled {
@@ -83,6 +85,12 @@ struct DocIndexPageCard: View {
             if expanded {
                 if let summary = entry.s("summary"), !summary.isEmpty {
                     Text(summary).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
+                // Platz im Regal (Hochschule › Studiengang › Semester › Modul › Woche › Art), aus den Kursdaten des Geraets
+                if let path = view?["shelf_path"]?.array?.compactMap(\.string), !path.isEmpty {
+                    Text("Im Regal: " + path.joined(separator: " › ")).ufFont(11.5).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("docIndex.shelf")
                 }
                 let refs = view?["cross_refs"]?.array ?? []
                 ForEach(Array((entry["elements"]?.array ?? []).enumerated()), id: \.offset) { _, e in
