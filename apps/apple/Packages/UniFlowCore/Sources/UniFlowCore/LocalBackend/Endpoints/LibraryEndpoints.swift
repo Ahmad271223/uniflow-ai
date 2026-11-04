@@ -237,6 +237,9 @@ public enum LibraryEndpoints: LocalEndpointModule {
                 for t in ["annotation_versions", "annotations", "analysis", "flashcards", "recordings"] {
                     try c.execute("DELETE FROM \(t) WHERE file_id=?", [id])
                 }
+                // Stapel des Dokuments: leer -> weg, sonst bleibt er ohne Quelle (Karten aus anderen Dokumenten darin)
+                try c.execute("DELETE FROM flashcard_stacks WHERE file_id=? AND NOT EXISTS (SELECT 1 FROM flashcards fc WHERE fc.stack_id=flashcard_stacks.id)", [id])
+                try c.execute("UPDATE flashcard_stacks SET file_id=NULL WHERE file_id=?", [id])
                 try c.execute("UPDATE study_tasks SET file_id=NULL WHERE file_id=?", [id])
                 try c.execute("DELETE FROM files WHERE id=?", [id])
                 // Duplikate teilen sich die Datei: nur loeschen, wenn sie kein anderes Dokument mehr nutzt

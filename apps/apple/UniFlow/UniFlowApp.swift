@@ -210,6 +210,9 @@ struct SceneObjects<Content: View>: View {
     @StateObject private var toast = UFToastCenter()
     @StateObject private var overlay = UFOverlay()
     @Environment(\.scenePhase) private var scenePhase
+    /// Kennung dieses Fensters fuer "Weitermachen wie zuvor" (iOS legt sie mit dem Fenster wieder an; nach einem
+    /// Beenden durch den Nutzer neu, dann gilt der zuletzt geschriebene Stand, `ResumeTracker`)
+    @SceneStorage("uniflow.scene") private var sceneID = ""
 
     init(scenes: SceneRegistry, @ViewBuilder content: @escaping (UFRouter, ShellState, UFToastCenter, UFOverlay) -> Content) {
         self.scenes = scenes
@@ -218,7 +221,11 @@ struct SceneObjects<Content: View>: View {
 
     var body: some View {
         content(router, shell, toast, overlay)
-            .onAppear { scenes.register(router: router, overlay: overlay) }
+            .onAppear {
+                scenes.register(router: router, overlay: overlay)
+                if sceneID.isEmpty { sceneID = UUID().uuidString }
+                router.resume.sceneID = sceneID
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { scenes.activate(router: router, overlay: overlay) }
             }

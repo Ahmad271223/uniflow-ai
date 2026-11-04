@@ -1,7 +1,10 @@
 """StudiNow-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
 
-Auftrag des Inhabers vom 27.10.2026 (docs/ABO-SYSTEM.md): vier Tarife Free 0 EUR, Plus 1,99 EUR, Pro Connect 2,99 EUR,
-Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
+Entscheidung des Inhabers vom 04.11.2026 (docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free 0 EUR, Plus
+1,99 EUR, Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
+Pro Connect (2,99 EUR, Auftrag vom 27.10.2026) gibt es nicht mehr: der Schluessel bleibt nur fuer alte Zeilen in
+accounts.db/entitlements lesbar (`LEGACY_PLANS`), wird nirgends angeboten oder gezeigt; seine frueheren Rechte
+(Lernstatistik, Wiederholung, Empfehlungen, Testhistorie) gehoeren jetzt zu Pro AI.
 
 Diese Datei ist die Quelle. `tools/gen-plans-fixture.py` schreibt daraus
 `packages/shared-contracts/fixtures/plans/plans.json`; die Apps (Swift, Kotlin) lesen die Fixture und pruefen ihre
@@ -12,12 +15,19 @@ Regeln:
   (`None` = unbegrenzt, dann gilt die Fair-Use-Grenze aus `FAIR_USE`).
 - `status` je Recht sagt der Oberflaeche, ob die Funktion schon technisch freigeschaltet ist (`available`), noch
   gebaut wird (`coming_soon`) oder bewusst aus ist (`disabled`). Nur `available` darf als enthalten beworben werden.
-- `chatgpt_connection_premium` ist eine reine Produktregel (Anzeige ab Pro Connect). Die offizielle Verbindung zu
+- Begriffe: "Lernstand" ist die Zahl je Modul aus eigenen Daten (app/mastery.py, Mastery.swift) und in jedem Tarif
+  frei; "Lernstatistik" ist die moduluebergreifende Auswertung des Dienstes (/api/learning/*) ab Pro AI.
+- `chatgpt_connection_premium` ist eine reine Produktregel (Anzeige ab Pro AI). Die offizielle Verbindung zu
   ChatGPT haengt davon NICHT ab: siehe `INTEGRATIONS["chatgpt"]` und docs/ABO-SYSTEM.md, Abschnitt 4.
 """
 from __future__ import annotations
 
-ORDER = ("free", "plus", "pro_connect", "pro_ai")
+# die drei Tarife, die es gibt (Reihenfolge der Karten und des Rangs)
+ORDER = ("free", "plus", "pro_ai")
+
+# nicht mehr angebotene Tarife, deren Schluessel in alten Zeilen stehen kann; sie gelten wie der Tarif, auf den sie
+# zeigen (Rechte und Kontingente), erscheinen aber in keiner Liste und sind nicht kaufbar
+LEGACY_PLANS = {"pro_connect": "pro_ai"}
 
 PLANS: dict[str, dict] = {
     "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": "month",
@@ -25,13 +35,14 @@ PLANS: dict[str, dict] = {
              "tagline": "Studium organisieren und Unterlagen lesen"},
     "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 199, "currency": "EUR", "period": "month",
              "apple_product_id": "de.uniflow.plus.monthly",
-             "tagline": "Mit Stift auf deinen Unterlagen schreiben"},
-    "pro_connect": {"rank": 2, "name": "StudiNow Pro Connect", "price_cents": 299, "currency": "EUR", "period": "month",
-                    "apple_product_id": "de.uniflow.proconnect.monthly",
-                    "tagline": "Lernstatistiken, intelligente Planung und Wiederholung"},
-    "pro_ai": {"rank": 3, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
+             "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"},
+    "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
                "apple_product_id": "de.uniflow.proai.monthly",
                "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},
+    # nur fuer alte Zeilen (LEGACY_PLANS): Rang wie Pro AI, nicht in ORDER, nicht kaufbar, nicht sichtbar
+    "pro_connect": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 399, "currency": "EUR", "period": "month",
+                    "apple_product_id": "de.uniflow.proconnect.monthly",
+                    "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig", "legacy": True},
 }
 
 # Recht -> niedrigster Tarif, der es hat (Tarife sind aufsteigend enthalten), dazu Text und Stand der Umsetzung
@@ -51,35 +62,44 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
     "can_access_shared_tests": {"from": "plus", "label": "Tests aus der StudiNow-Bibliothek", "status": "available"},
     "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von StudiNow", "status": "available"},
-    # Pro Connect
-    "can_use_advanced_analytics": {"from": "pro_connect", "label": "Erweiterte Lernstatistiken", "status": "available"},
-    "can_use_advanced_planner": {"from": "pro_connect", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "available"},
-    "can_review_wrong_answers": {"from": "pro_connect", "label": "Automatische Wiederholung falscher Antworten", "status": "available"},
-    "can_use_extended_test_history": {"from": "pro_connect", "label": "Erweiterte Testhistorie", "status": "available"},
-    "can_get_recommendations": {"from": "pro_connect", "label": "Personalisierte Lernempfehlungen", "status": "available"},
-    "chatgpt_connection_premium": {"from": "pro_connect", "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)", "status": "disabled"},
+    # Eigene Karteikarten (Entscheidung 04.11.2026): anlegen, bearbeiten, ueben, Stapel, teilen und geteilte bzw.
+    # Wochenstapel uebernehmen ab Plus. Lesen (GET /api/flashcards, /api/flashcard-stacks) bleibt in jedem Tarif frei:
+    # nach der Probe sind die eigenen Karten in Free weiter sichtbar, nur nicht mehr bearbeit- oder uebbar.
+    "can_use_flashcards": {"from": "plus", "label": "Eigene Karteikarten mit Wiederholung", "status": "available"},
+    # Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect). Die Endpunkte /api/learning/* gibt es,
+    # eine Oberflaeche dafuer noch nicht (Web und iPad): darum coming_soon, nie als enthalten beworben.
+    "can_use_advanced_analytics": {"from": "pro_ai", "label": "Lernstatistik über alle Module", "status": "coming_soon"},
+    "can_use_advanced_planner": {"from": "pro_ai", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "coming_soon"},
+    "can_review_wrong_answers": {"from": "pro_ai", "label": "Automatische Wiederholung falscher Antworten", "status": "coming_soon"},
+    "can_use_extended_test_history": {"from": "pro_ai", "label": "Vollständige Testliste (Free und Plus: die letzten 10)", "status": "available"},
+    "can_get_recommendations": {"from": "pro_ai", "label": "Personalisierte Lernempfehlungen", "status": "coming_soon"},
+    "chatgpt_connection_premium": {"from": "pro_ai", "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)", "status": "disabled"},
     # Pro AI (StudiNow-KI ueber das Backend)
     "can_use_ai_explanations": {"from": "pro_ai", "label": "KI-Erklärungen zu Aufgaben", "status": "available"},
     "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
     "can_use_ai_summaries": {"from": "pro_ai", "label": "KI-Zusammenfassungen", "status": "available"},
-    "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "available"},
+    # KI-Lernempfehlungen: noch kein Endpunkt und keine Oberflaeche (04.11.2026), darum nicht als enthalten beworben
+    "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "coming_soon"},
 }
 
-# Kontingente je Abrechnungsmonat. None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).
-# Plus: 3 neue KI-Tests laut Tariftabelle des Auftrags (Testfall 3 im Auftrag nennt "sechs" – Widerspruch, hier
-# 3 nach der Tabelle; der Wert steht nur hier und laesst sich zentral aendern).
+# Kontingente je Abrechnungsmonat (Tabelle des Inhabers vom 04.11.2026). None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).
+# Plus: 4 neue KI-Tests und 4 Bibliothekstests; Pro AI: 20 neue KI-Tests, Bibliothek unbegrenzt (Fair Use).
 QUOTAS: dict[str, dict[str, int | None]] = {
     "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0},
-    "plus": {"ai_tests_new": 3, "library_tests": 4, "ai_assist": 0},
-    "pro_connect": {"ai_tests_new": 3, "library_tests": None, "ai_assist": 0},
-    "pro_ai": {"ai_tests_new": 40, "library_tests": None, "ai_assist": 150},
+    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0},
+    "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150},
 }
+QUOTAS["pro_connect"] = QUOTAS["pro_ai"]        # alte Zeilen gelten wie Pro AI
 
 # Grenze fuer "unbegrenzt" (Schutz vor automatisierten Abrufen), je Monat
-FAIR_USE: dict[str, int] = {"library_tests": 300, "ai_tests_new": 40, "ai_assist": 150}
+FAIR_USE: dict[str, int] = {"library_tests": 300, "ai_tests_new": 20, "ai_assist": 150}
 
 QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Tests aus der Bibliothek",
                 "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen"}
+
+# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 1 Cent OpenAI-Kosten): Pro AI 100,
+# sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.
+CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
 
 # Integrationen, die nicht am Tarif haengen duerfen, bis die Bedingungen des Anbieters es erlauben
 INTEGRATIONS: dict[str, dict] = {
@@ -88,10 +108,19 @@ INTEGRATIONS: dict[str, dict] = {
         "reason": "Die offizielle ChatGPT-Verbindung („Sign in with ChatGPT“) ist für StudiNow noch nicht von OpenAI "
                   "freigegeben. Bis dahin gibt es keine Verbindung.",
         # Laut den "Sign in with ChatGPT Terms" muss die Nutzung des eigenen ChatGPT-Abos ohne Zahlung an den Partner
-        # und ohne bezahlten Partner-Tarif moeglich sein. Deshalb wird die Kontingentnutzung nie an Pro Connect gekoppelt.
+        # und ohne bezahlten Partner-Tarif moeglich sein. Deshalb wird die Kontingentnutzung nie an Pro AI gekoppelt.
         "plan_gating_allowed": False,
     },
 }
+
+
+def is_legacy(plan: str) -> bool:
+    return plan in LEGACY_PLANS
+
+
+def is_sellable(plan: str) -> bool:
+    """Kaufbar: ein Tarif aus ORDER ausser Free (alte Schluessel wie pro_connect nie)."""
+    return plan in ORDER and plan != "free"
 
 
 def rank(plan: str) -> int:
@@ -126,20 +155,22 @@ def plan_for_product(product_id: str | None) -> str | None:
     return None
 
 
-# Probe fuer jedes neue Konto (Entscheidung 30.10.2026): 7 Tage alles frei wie Pro AI, danach Aufforderung, einen
-# Tarif zu waehlen; ohne Wahl gilt Free. Quelle "trial" in app/billing.py, nie verlaengerbar, einmal je Konto.
+# Probe fuer jedes neue Konto (Entscheidung 30.10.2026, iPad 04.11.2026): 7 Tage alles wie Pro AI mit CREDITS["trial"]
+# Credits, danach Aufforderung, einen Tarif zu waehlen; ohne Wahl gilt Free, Daten bleiben. Quelle "trial" in
+# app/billing.py, nie verlaengerbar, einmal je Konto.
 TRIAL = {"days": 7, "plan": "pro_ai"}
 
 
 def contract() -> dict:
-    """Die Tabelle als JSON fuer die Fixture und GET /api/billing/plans."""
+    """Die Tabelle als JSON fuer die Fixture und GET /api/billing/plans (nur die drei Tarife aus ORDER)."""
     return {
         "version": 1,
         "order": list(ORDER),
-        "trial": dict(TRIAL),
-        "plans": {k: {**PLANS[k], "entitlements": entitlements(k), "quotas": QUOTAS[k]} for k in ORDER},
+        "trial": {**TRIAL, "credits": CREDITS["trial"]},
+        "plans": {k: {**PLANS[k], "entitlements": entitlements(k), "quotas": QUOTAS[k], "credits": CREDITS[k]} for k in ORDER},
         "entitlements": ENTITLEMENTS,
         "quotas": {"labels": QUOTA_LABELS, "fair_use": FAIR_USE},
+        "credits": dict(CREDITS),
         "integrations": {k: {"status": v["status"], "reason": v["reason"], "plan_gating_allowed": v["plan_gating_allowed"]}
                          for k, v in INTEGRATIONS.items()},
     }

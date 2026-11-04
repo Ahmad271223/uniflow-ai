@@ -218,7 +218,7 @@ def cursor():
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
     conn.execute("PRAGMA foreign_keys=ON")
     db.schema_once(conn, "community", p, _schema)
     try:

@@ -88,3 +88,36 @@ def test_module_endpoints_carry_mastery(app):
             conn.execute("DELETE FROM files WHERE id='ls-f1'")
             conn.execute("DELETE FROM courses WHERE id='ls-vl'")
             conn.execute("DELETE FROM modules WHERE id=?", (mid,))
+
+
+# ---------------------------------------------------------------- Sicherheitspruefung 04.11.2026
+
+def test_no_division_by_zero_bounds_and_determinism():
+    """Null-Nenner (Hoechstpunkte 0, keine Karten, keine Aufgaben) sind kein Signal statt eines Absturzes; jede
+    Kombination auch abwegiger Werte bleibt zwischen 0 und 100; derselbe Eingang gibt immer dasselbe Ergebnis."""
+    import itertools
+    import random
+    from app import mastery
+    inf, nan = float("inf"), float("nan")
+    assert mastery.compute([(5, 0), (0, 0), (3, -2), (nan, 10), (4, nan)], 0, 0, 0, 0) is None
+    assert mastery.compute([], 0, 0, 7, 0) is None, "erledigte Aufgaben ohne Aufgaben zaehlen nicht"
+    odd_tests = [[], [(inf, 10)], [(10, inf)], [(inf, inf)], [(-50, 10)], [(500, 10)], [(1e308, 1e-308)], [(0, 10), (10, 10)]]
+    odd_counts = [0, 1, 7, 10**9]
+    for tests, r, w, d, n in itertools.product(odd_tests, odd_counts, [0, 3], [0, 5, 10**9], [0, 3, 10**9]):
+        got = mastery.compute(tests, r, w, d, n)
+        if got is None:
+            continue
+        assert isinstance(got["score"], int) and 0 <= got["score"] <= 100, (tests, r, w, d, n, got)
+        assert got == mastery.compute(list(tests), r, w, d, n)
+    assert mastery.compute([(inf, inf)], 0, 0, 0, 0)["score"] == 0, "inf/inf ist NaN -> 0 wie max(0, NaN) in Swift"
+    # Zufall mit festem Startwert: Grenzen und Wiederholbarkeit
+    rnd = random.Random(20261104)
+    for _ in range(2000):
+        tests = [(rnd.uniform(-20, 120), rnd.choice([0, 10, 100, 0.5])) for _ in range(rnd.randint(0, 6))]
+        args = (tests, rnd.randint(0, 50), rnd.randint(0, 50), rnd.randint(0, 40), rnd.randint(0, 30))
+        a, b = mastery.compute(*args), mastery.compute(*args)
+        assert a == b
+        assert a is None or 0 <= a["score"] <= 100
+    # Reihenfolge der Tests zaehlt (neuester wiegt mehr), sonst nichts Zufaelliges
+    assert mastery.compute([(0, 10), (10, 10)], 0, 0, 0, 0)["score"] == 67
+    assert mastery.compute([(10, 10), (0, 10)], 0, 0, 0, 0)["score"] == 33

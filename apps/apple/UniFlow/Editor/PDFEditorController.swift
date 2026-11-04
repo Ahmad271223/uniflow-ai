@@ -215,12 +215,33 @@ final class PageInkView: UIView {
         }
     }
 
+    /// PDFKit gibt dem Overlay einer gedrehten Seite (`/Rotate`, auch mit Drehung aus `pageOrder`) den Rahmen der
+    /// UNGEDREHTEN Seitenbox und dreht das Overlay selbst per `transform` in die Anzeige (gemessen iPadOS 26,
+    /// /Rotate 90: bounds 595 x 842, transform 90 Grad, Seite quer 842 x 595). `content` rechnet in Punkten der
+    /// ANGEZEIGTEN Seite (Web-Vertrag) und wird deshalb um dieselbe Drehung zurueckgedreht; der Massstab kommt aus der
+    /// angezeigten Groesse. Vorher lag der Inhalt quer im Overlay, die Canvas deckte nur einen Streifen der Seite
+    /// (Stift "hoert ploetzlich auf zu schreiben") und gespeicherte Punkte lagen ausserhalb der Seite (GDS, 04.11.2026).
     override func layoutSubviews() {
         super.layoutSubviews()
-        let s = geometry.scale(forViewSize: bounds.size)
+        let turns = Self.quarterTurns(of: transform)
+        let shown = turns % 2 == 0 ? bounds.size : CGSize(width: bounds.height, height: bounds.width)
+        let s = geometry.scale(forViewSize: shown)
         content.bounds = CGRect(origin: .zero, size: geometry.pageSize)
         content.center = CGPoint(x: bounds.midX, y: bounds.midY)
-        content.transform = abs(s - 1) < 0.0001 ? .identity : CGAffineTransform(scaleX: s, y: s)
+        var t = turns == 0 ? CGAffineTransform.identity : CGAffineTransform(rotationAngle: -CGFloat(turns) * .pi / 2)
+        if abs(s - 1) >= 0.0001 { t = t.scaledBy(x: s, y: s) }
+        content.transform = t
+    }
+
+    /// Vierteldrehungen (0...3) im Drehanteil von `t` (der Massstab spielt keine Rolle)
+    static func quarterTurns(of t: CGAffineTransform) -> Int {
+        let q = Int((atan2(t.b, t.a) / (.pi / 2)).rounded())
+        return ((q % 4) + 4) % 4
+    }
+
+    /// Dreht PDFKit das Overlay erst nach dem Einsetzen, folgt der Inhalt beim naechsten Layout
+    override var transform: CGAffineTransform {
+        didSet { if Self.quarterTurns(of: transform) != Self.quarterTurns(of: oldValue) { setNeedsLayout() } }
     }
 }
 

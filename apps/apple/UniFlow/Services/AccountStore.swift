@@ -21,6 +21,9 @@ final class AccountStore: ObservableObject {
         var userID: String
         var name: String?
         var email: String?
+        /// Vorname aus der Apple-Anmeldung (nur bei der ersten Zustimmung geliefert; seitdem im Schluesselbund) fuer
+        /// die Begruessung auf der Uebersicht (`UFGreeting`); nil bei Konten von vorher (dann das erste Wort von `name`)
+        var givenName: String? = nil
         /// nur Debug-Builds: "Anmeldung ueberspringen (Debug)" ohne Apple-ID
         var isDebug: Bool { userID.hasPrefix(AccountStore.debugUserPrefix) }
     }
@@ -154,7 +157,7 @@ final class AccountStore: ObservableObject {
                 return
             }
             let name = c.fullName.map { PersonNameComponentsFormatter.localizedString(from: $0, style: .default) }
-            signIn(userID: c.user, name: name, email: c.email)
+            signIn(userID: c.user, name: name, email: c.email, givenName: c.fullName?.givenName)
         case .failure(let error):
             lastError = Self.message(for: error)
         }
@@ -163,11 +166,12 @@ final class AccountStore: ObservableObject {
     /// Kern der Anmeldung (auch fuer Tests): Name/E-Mail fehlen bei spaeteren Anmeldungen derselben Apple-ID,
     /// dann bleiben die gespeicherten Werte. Nimmt der Schluesselbund die Anmeldung nicht an, gilt sie nicht (vorher
     /// war man nur bis zum naechsten Start angemeldet, Pruefbericht 512).
-    func signIn(userID: String, name: String?, email: String?) {
+    func signIn(userID: String, name: String?, email: String?, givenName: String? = nil) {
         let same = account?.userID == userID
         let next = Account(userID: userID,
                            name: Self.clean(name) ?? (same ? account?.name : nil),
-                           email: Self.clean(email) ?? (same ? account?.email : nil))
+                           email: Self.clean(email) ?? (same ? account?.email : nil),
+                           givenName: Self.clean(givenName) ?? (same ? account?.givenName : nil))
         guard secrets.store(Self.encode(next), for: Keys.account) else {
             lastError = "Die Anmeldung ließ sich auf diesem iPad nicht speichern. Bitte versuche es erneut."
             return
@@ -235,17 +239,19 @@ final class AccountStore: ObservableObject {
         var user: String
         var name: String?
         var email: String?
+        /// Vorname (seit 04.11.2026; aeltere Eintraege ohne ihn lesen sich weiter)
+        var given: String?
     }
 
     private static func encode(_ a: Account) -> String {
-        let data = (try? JSONEncoder().encode(StoredAccount(user: a.userID, name: a.name, email: a.email))) ?? Data()
+        let data = (try? JSONEncoder().encode(StoredAccount(user: a.userID, name: a.name, email: a.email, given: a.givenName))) ?? Data()
         return String(decoding: data, as: UTF8.self)
     }
 
     /// Gemeinsamer Eintrag, sonst die drei Eintraege von vorher
     private static func storedAccount(_ secrets: AccountSecretStore) -> Account? {
         if let raw = secrets.get(Keys.account), let s = try? JSONDecoder().decode(StoredAccount.self, from: Data(raw.utf8)), !s.user.isEmpty {
-            return Account(userID: s.user, name: s.name, email: s.email)
+            return Account(userID: s.user, name: s.name, email: s.email, givenName: s.given)
         }
         return secrets.get(Keys.user).map { Account(userID: $0, name: secrets.get(Keys.name), email: secrets.get(Keys.email)) }
     }

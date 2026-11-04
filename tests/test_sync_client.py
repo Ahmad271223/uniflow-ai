@@ -28,6 +28,10 @@ def _hosted(app, method, path, body=None, headers=None):
 @pytest.fixture
 def two_devices(app, monkeypatch, tmp_path):
     from app import accounts, community, config, db, service_link, sync_client
+    # kein Hintergrund-Abgleich: /api/studora/login startet sonst den Thread studora-sync, der den Rest der Sitzung
+    # weiterlaeuft und nach jedem POST (sync_kick) sync_client.run() startet - gleichzeitig mit den Aufrufen der Tests
+    # ("Abgleich laeuft schon", test_sync_client je nach Reihenfolge) und auf der gerade umgelenkten Datenbank
+    monkeypatch.setattr(sync_client, "start_background", lambda *a, **k: None)
     accounts.db_path().unlink(missing_ok=True)
     community.db_path().unlink(missing_ok=True)
     service_link.state_path().unlink(missing_ok=True)

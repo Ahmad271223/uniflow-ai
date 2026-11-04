@@ -101,7 +101,8 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
     assert "Baldurstraße 5<br>\n30657 Hannover<br>\nDeutschland" in im and "USt-IdNr. nach § 27a UStG: DE462836430" in im
     assert "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV" in im and "Variante" not in im
-    assert "Stand 03.11.2026 (26.10.2026)" in ds and "Stand 03.11.2026 (26.10.2026)" in (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
+    # Nutzungsbedingungen 04.11.2026: drei Tarife, Probe wie Pro AI, Grenzen je Tarif (Abschnitt 5a)
+    assert "Stand 03.11.2026 (26.10.2026)" in ds and "Stand 04.11.2026 (26.10.2026)" in (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl
 

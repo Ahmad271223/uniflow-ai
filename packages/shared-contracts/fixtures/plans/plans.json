@@ -4,12 +4,12 @@
  "order": [
   "free",
   "plus",
-  "pro_connect",
   "pro_ai"
  ],
  "trial": {
   "days": 7,
-  "plan": "pro_ai"
+  "plan": "pro_ai",
+  "credits": 25
  },
  "plans": {
   "free": {
@@ -34,6 +34,7 @@
     "can_share_solutions": false,
     "can_access_shared_tests": false,
     "can_generate_studora_ai_tests": false,
+    "can_use_flashcards": false,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -49,7 +50,8 @@
     "ai_tests_new": 0,
     "library_tests": 0,
     "ai_assist": 0
-   }
+   },
+   "credits": 0
   },
   "plus": {
    "rank": 1,
@@ -58,7 +60,7 @@
    "currency": "EUR",
    "period": "month",
    "apple_product_id": "de.uniflow.plus.monthly",
-   "tagline": "Mit Stift auf deinen Unterlagen schreiben",
+   "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests",
    "entitlements": {
     "can_view_pdf": true,
     "can_manage_courses": true,
@@ -73,6 +75,7 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
+    "can_use_flashcards": true,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
@@ -85,52 +88,14 @@
     "can_use_ai_recommendations": false
    },
    "quotas": {
-    "ai_tests_new": 3,
+    "ai_tests_new": 4,
     "library_tests": 4,
     "ai_assist": 0
-   }
-  },
-  "pro_connect": {
-   "rank": 2,
-   "name": "StudiNow Pro Connect",
-   "price_cents": 299,
-   "currency": "EUR",
-   "period": "month",
-   "apple_product_id": "de.uniflow.proconnect.monthly",
-   "tagline": "Lernstatistiken, intelligente Planung und Wiederholung",
-   "entitlements": {
-    "can_view_pdf": true,
-    "can_manage_courses": true,
-    "can_import_documents": true,
-    "can_view_timetable": true,
-    "can_use_basic_planner": true,
-    "can_read_community": true,
-    "can_annotate_pdf": true,
-    "can_use_pencilkit": true,
-    "can_sync_annotations": true,
-    "can_write_community_comments": true,
-    "can_share_solutions": true,
-    "can_access_shared_tests": true,
-    "can_generate_studora_ai_tests": true,
-    "can_use_advanced_analytics": true,
-    "can_use_advanced_planner": true,
-    "can_review_wrong_answers": true,
-    "can_use_extended_test_history": true,
-    "can_get_recommendations": true,
-    "chatgpt_connection_premium": true,
-    "can_use_ai_explanations": false,
-    "can_use_ai_generated_questions": false,
-    "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false
    },
-   "quotas": {
-    "ai_tests_new": 3,
-    "library_tests": null,
-    "ai_assist": 0
-   }
+   "credits": 0
   },
   "pro_ai": {
-   "rank": 3,
+   "rank": 2,
    "name": "StudiNow Pro AI",
    "price_cents": 399,
    "currency": "EUR",
@@ -151,6 +116,7 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
+    "can_use_flashcards": true,
     "can_use_advanced_analytics": true,
     "can_use_advanced_planner": true,
     "can_review_wrong_answers": true,
@@ -163,10 +129,11 @@
     "can_use_ai_recommendations": true
    },
    "quotas": {
-    "ai_tests_new": 40,
+    "ai_tests_new": 20,
     "library_tests": null,
     "ai_assist": 150
-   }
+   },
+   "credits": 100
   }
  },
  "entitlements": {
@@ -235,33 +202,38 @@
    "label": "Neue KI-Tests von StudiNow",
    "status": "available"
   },
-  "can_use_advanced_analytics": {
-   "from": "pro_connect",
-   "label": "Erweiterte Lernstatistiken",
+  "can_use_flashcards": {
+   "from": "plus",
+   "label": "Eigene Karteikarten mit Wiederholung",
    "status": "available"
+  },
+  "can_use_advanced_analytics": {
+   "from": "pro_ai",
+   "label": "Lernstatistik über alle Module",
+   "status": "coming_soon"
   },
   "can_use_advanced_planner": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Intelligente Lernplanung (Empfehlungen für die Woche)",
-   "status": "available"
+   "status": "coming_soon"
   },
   "can_review_wrong_answers": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Automatische Wiederholung falscher Antworten",
-   "status": "available"
+   "status": "coming_soon"
   },
   "can_use_extended_test_history": {
-   "from": "pro_connect",
-   "label": "Erweiterte Testhistorie",
+   "from": "pro_ai",
+   "label": "Vollständige Testliste (Free und Plus: die letzten 10)",
    "status": "available"
   },
   "can_get_recommendations": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Personalisierte Lernempfehlungen",
-   "status": "available"
+   "status": "coming_soon"
   },
   "chatgpt_connection_premium": {
-   "from": "pro_connect",
+   "from": "pro_ai",
    "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)",
    "status": "disabled"
   },
@@ -283,7 +255,7 @@
   "can_use_ai_recommendations": {
    "from": "pro_ai",
    "label": "KI-gestützte Lernempfehlungen",
-   "status": "available"
+   "status": "coming_soon"
   }
  },
  "quotas": {
@@ -294,9 +266,15 @@
   },
   "fair_use": {
    "library_tests": 300,
-   "ai_tests_new": 40,
+   "ai_tests_new": 20,
    "ai_assist": 150
   }
+ },
+ "credits": {
+  "free": 0,
+  "plus": 0,
+  "pro_ai": 100,
+  "trial": 25
  },
  "integrations": {
   "chatgpt": {

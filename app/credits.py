@@ -3,7 +3,7 @@
 Regeln:
 - Ein Credit ist ein Cent echter OpenAI-Kosten (app/ai_prices.py rechnet, aufgerundet auf ganze Cent). Pro AI hat 100
   Credits je Monat (= hoechstens 1 EUR KI-Kosten je Konto), alle anderen Tarife 0; einstellbar je Tarif ueber
-  LERNAPP_CREDITS_PRO_AI, LERNAPP_CREDITS_PRO_CONNECT, LERNAPP_CREDITS_PLUS, LERNAPP_CREDITS_FREE und fuer die 7-Tage-Probe
+  LERNAPP_CREDITS_PRO_AI, LERNAPP_CREDITS_PLUS, LERNAPP_CREDITS_FREE und fuer die 7-Tage-Probe
   LERNAPP_CREDITS_TRIAL (Vorschlag 25, damit das Probe-Becken in app/ai_backend.py fuer viele Probekonten reicht).
 - Nicht verbrauchte Credits verfallen am Monatsende. Der Monat ist der Kalendermonat in Europe/Berlin; der neue Monat
   beginnt "faul": die Zeile des Monats entsteht bei der ersten Nutzung (kein naechtlicher Lauf noetig).
@@ -28,14 +28,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import ai_prices, billing, db
+from . import ai_prices, billing, db, plans
 
 TZ = ZoneInfo("Europe/Berlin")
 EXHAUSTED_MESSAGE = "Credits für diesen Monat aufgebraucht – am 1. gibt es neue."
-# Tarif -> Umgebungsvariable und Standard (Inhaber: 100 fuer Pro AI, sonst 0)
-ALLOWANCE_ENV = {"pro_ai": ("LERNAPP_CREDITS_PRO_AI", 100), "pro_connect": ("LERNAPP_CREDITS_PRO_CONNECT", 0),
-                 "plus": ("LERNAPP_CREDITS_PLUS", 0), "free": ("LERNAPP_CREDITS_FREE", 0)}
-TRIAL_ENV = ("LERNAPP_CREDITS_TRIAL", 25)
+# Tarif -> Umgebungsvariable und Standard aus dem Vertrag (plans.CREDITS: 100 fuer Pro AI, sonst 0, Probe 25)
+ALLOWANCE_ENV = {"pro_ai": ("LERNAPP_CREDITS_PRO_AI", plans.CREDITS["pro_ai"]),
+                 "plus": ("LERNAPP_CREDITS_PLUS", plans.CREDITS["plus"]), "free": ("LERNAPP_CREDITS_FREE", plans.CREDITS["free"])}
+TRIAL_ENV = ("LERNAPP_CREDITS_TRIAL", plans.CREDITS["trial"])
 # Reservierungen ohne Abrechnung (Prozess abgestuerzt) verfallen nach so vielen Minuten
 STALE_MINUTES = 15
 # so lange liefert dieselbe request_id die fertige Antwort noch einmal

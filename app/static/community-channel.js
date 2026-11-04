@@ -110,7 +110,7 @@ export async function renderSpacePage(view, params, info) {
         if (!en.isIntersecting) continue; observer.unobserve(en.target);
         const id = en.target.dataset.fid; if (!id || en.target.querySelector("img")) continue;
         try {
-          const ed = await import("./editor.js?v=63");
+          const ed = await import("./editor.js?v=64");
           const data = await ed.renderThumbnail(id, `/api/files/${id}/content`, en.target.dataset.ver, 220);
           if (data) { const img = new Image(); img.alt = ""; img.src = data; en.target.prepend(img); $(".cc-sheet", en.target)?.remove(); }
         } catch { /* Platzhalter bleibt */ }

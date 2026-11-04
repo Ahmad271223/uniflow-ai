@@ -235,44 +235,47 @@ def test_02_plus_can_annotate_and_sync(hosted):
 
 # ---------------------------------------------------------------- 3, 4, 5: Kontingente und Rechte je Tarif
 
-def test_03_plus_gets_three_new_ai_tests_per_month(hosted):
+def test_03_plus_gets_four_new_ai_tests_per_month(hosted):
+    """Plus: 4 neue KI-Tests im Monat (Tabelle des Inhabers vom 04.11.2026; vorher 3)."""
     from app import ai_backend
     fake = FakeAI()
     ai_backend.set_provider(fake)
     u, h = user(hosted, "plus3@beispiel.de", plan="plus")
-    for topic in ("Determinanten", "Basiswechsel", "Orthogonalprojektion"):
+    for topic in ("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Spektralsatz"):
         st, d = library_test(hosted, h, topic)
         assert st == 200 and d["charged"] == "ai_tests_new" and d["generated"] >= 5, d
     st, d = library_test(hosted, h, "Eigenwerte")
-    assert (st, d["code"], d["limit"]) == (429, "quota_exhausted", 3), d
-    assert fake.calls == 3, "nach dem Kontingent keine weitere bezahlte Generierung"
+    assert (st, d["code"], d["limit"]) == (429, "quota_exhausted", 4), d
+    assert fake.calls == 4, "nach dem Kontingent keine weitere bezahlte Generierung"
     q = ent(hosted, h)["quotas"]["ai_tests_new"]
-    assert (q["used"], q["limit"]) == (3, 3)
+    assert (q["used"], q["limit"]) == (4, 4)
 
 
-def test_04_pro_connect_entitlements(hosted):
+def test_04_learning_stats_are_pro_ai_and_old_pro_connect_rows_count_as_pro_ai(hosted):
+    """Pro Connect gibt es seit dem 04.11.2026 nicht mehr: seine Rechte (Lernstatistik, Wiederholung, Empfehlungen,
+    Testliste) gehoeren zu Pro AI; eine alte Zeile mit pro_connect gilt wie Pro AI (plans.LEGACY_PLANS)."""
     _, h_plus = user(hosted, "p@beispiel.de", plan="plus")
     _, h = user(hosted, "pc@beispiel.de", plan="pro_connect")
     e = ent(hosted, h)
-    assert e["plan"] == "pro_connect" and e["plan_name"] == "StudiNow Pro Connect"
+    assert e["plan"] == "pro_ai" and e["plan_name"] == "StudiNow Pro AI"
     for name in ("can_annotate_pdf", "can_use_advanced_analytics", "can_use_advanced_planner", "can_review_wrong_answers",
-                 "can_use_extended_test_history", "can_get_recommendations", "can_access_shared_tests"):
+                 "can_use_extended_test_history", "can_get_recommendations", "can_access_shared_tests", "can_use_ai_explanations"):
         assert e["entitlements"][name], name
-    assert not e["entitlements"]["can_use_ai_explanations"], "StudiNow-KI erst mit Pro AI"
-    assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 3
+    assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 20
     for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
         assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, path
         st, d = _j(asgi_call(hosted, "GET", path, headers=h_plus))
-        assert (st, d["required_plan"]) == (403, "pro_connect"), path
+        assert (st, d["required_plan"]) == (403, "pro_ai"), path
 
 
-def test_05_pro_ai_gets_forty_tests_and_studora_ai(hosted):
+def test_05_pro_ai_gets_twenty_tests_and_studora_ai(hosted):
+    """Pro AI: 20 neue KI-Tests im Monat (Tabelle des Inhabers vom 04.11.2026; vorher 40)."""
     from app import ai_backend
     fake = FakeAI()
     ai_backend.set_provider(fake)
     _, h = user(hosted, "ai@beispiel.de", plan="pro_ai")
     e = ent(hosted, h)
-    assert e["quotas"]["ai_tests_new"]["limit"] == 40 and e["entitlements"]["can_use_ai_explanations"]
+    assert e["quotas"]["ai_tests_new"]["limit"] == 20 and e["entitlements"]["can_use_ai_explanations"]
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({"mode": "explain", "page_text": "Matrizen"})))
     assert st == 200 and "Matrix" in d["answer"], d
     assert ent(hosted, h)["quotas"]["ai_assist"]["used"] == 1
@@ -282,7 +285,7 @@ def test_05_pro_ai_gets_forty_tests_and_studora_ai(hosted):
 
 
 def test_06_all_plans_keep_basic_functions(hosted):
-    for plan in ("free", "plus", "pro_connect", "pro_ai"):
+    for plan in ("free", "plus", "pro_ai"):
         _, h = user(hosted, f"basis-{plan}@beispiel.de", plan=plan)
         add_file(hosted, h)
         for path in ("/api/modules", "/api/library", "/api/files/f1/annotations", "/api/timetable/week?start=2026-10-26",
@@ -460,6 +463,34 @@ def test_13_parallel_generation_creates_no_duplicates(hosted):
     assert n[0] == n[1], "keine doppelten Fragen im Pool"
 
 
+def test_13b_fresh_library_db_opened_by_two_threads_at_once(hosted, monkeypatch, tmp_path):
+    """Deterministische Fassung der Sperre aus Test 13 (fiel etwa jeden dritten Lauf): zwei Threads oeffnen gleichzeitig
+    eine neue library.db. Frueher lief `PRAGMA journal_mode=WAL` in jeder Verbindung; auf einer neuen Datei hielten beide
+    die Lesesperre und wollten den Dateikopf schreiben, SQLite gab sofort 'database is locked' zurueck (ohne das
+    Zeitlimit zu nutzen). Jetzt wechselt nur die Schema-Einrichtung unter der Schema-Sperre in den WAL-Modus."""
+    from app import test_library
+    errors = []
+    for i in range(40):
+        monkeypatch.setattr(test_library, "db_path", lambda i=i: tmp_path / f"lib-{i}.db")
+        gate = threading.Barrier(2, timeout=10)
+
+        def run(n):
+            try:
+                gate.wait()
+                with test_library.cursor() as conn:
+                    conn.execute("INSERT INTO seen(owner_hash, question_id, seen_at) VALUES (?, ?, 'x')", (f"o{n}", f"q{n}"))
+            except Exception as e:                        # noqa: BLE001  (jeder Fehler zaehlt)
+                errors.append((i, n, repr(e)))
+        threads = [threading.Thread(target=run, args=(n,)) for n in range(2)]
+        [t.start() for t in threads]
+        [t.join(30) for t in threads]
+        assert not any(t.is_alive() for t in threads)
+    assert errors == []
+    with test_library.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM seen").fetchone()[0] == 2
+        assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+
 def test_harder_test_uses_harder_questions_or_generates_only_missing(hosted):
     from app import ai_backend, test_library
     fake = FakeAI()
@@ -562,7 +593,9 @@ def test_plans_fixture_is_current():
 
 def test_plan_table_matches_the_order():
     from app import plans
-    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 199, 299, 399]
+    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 199, 399], "drei Tarife (04.11.2026)"
+    assert plans.ORDER == ("free", "plus", "pro_ai") and not any(plans.PLANS[k].get("legacy") for k in plans.ORDER)
+    assert [plans.is_sellable(k) for k in ("free", "plus", "pro_ai", "pro_connect")] == [False, True, True, False]
     for low, high in zip(plans.ORDER, plans.ORDER[1:]):
         assert all(plans.has(high, e) for e in plans.ENTITLEMENTS if plans.has(low, e)), f"{high} enthält alles aus {low}"
     assert not plans.INTEGRATIONS["chatgpt"]["plan_gating_allowed"]
@@ -610,7 +643,7 @@ def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted):
     fake = FakeAI()
     ai_backend.set_provider(fake)
     _, h = user(hosted, "wdh-lib@beispiel.de", plan="plus")
-    for i, topic in enumerate(("Determinanten", "Basiswechsel", "Orthogonalprojektion")):
+    for i, topic in enumerate(("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Spektralsatz")):
         st, d = library_test(hosted, h, topic, request_id=f"lib-{i}")
         assert st == 200 and d["charged"] == "ai_tests_new", d
     calls = fake.calls
@@ -620,7 +653,7 @@ def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted):
     assert (st, d["code"]) == (409, "duplicate_request")
     assert fake.calls == calls
     q = ent(hosted, h)["quotas"]["ai_tests_new"]
-    assert (q["used"], q["limit"]) == (3, 3)
+    assert (q["used"], q["limit"]) == (4, 4)
 
 
 def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_own_row(hosted):

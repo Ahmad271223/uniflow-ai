@@ -117,6 +117,10 @@ final class LocalBackendHost: @unchecked Sendable {
         // Gemeinsame Wochentests ueber CloudKit (hoechstens drei je Schluessel, WeeklyTestCloudKit.swift); ohne
         // iCloud-Container im Build nur die eigene Variante
         backend.context.testShare.set(WeeklyTestShareFactory.make())
+        // Geteilte Wochenstapel (dieselbe Varianten-Regel, Datensatz WeekCardStack) und eigene Stapel in der
+        // Modul-Community (CardStackShare), CardStackCloudKit.swift; ohne Container eigener Stapel bzw. nicht verfuegbar
+        backend.context.cardShare.set(CardStackCloudFactory.makeWeek())
+        backend.context.cardCommunity.set(CardStackCloudFactory.makeCommunity())
         // Gemeinsamer Dokument-Index ueber CloudKit (DocIndexCloudKit.swift) und Erklaerungsspeicher
         // (PageExplainCloudKit.swift); ohne iCloud-Container nur lokal
         backend.context.docIndex.configure(cloud: DocIndexCloudFactory.make(), cipher: SolutionSharing.cipher,

@@ -139,6 +139,9 @@ targets:
         # Aufnahme und Mitschrift verlassen das iPad nie (an die KI geht nur Text nach Antippen).
         NSMicrophoneUsageDescription: StudiNow nimmt mit dem Mikrofon Vorlesungen auf, wenn du „Aufnehmen“ antippst. Die Aufnahme bleibt auf diesem iPad.
         NSSpeechRecognitionUsageDescription: StudiNow schreibt deine Vorlesungsaufnahme auf dem Gerät mit (Spracherkennung ohne Server). Der Text bleibt auf diesem iPad.
+        # Exportkontrolle (docs/release/APP-STORE.md "Weitere Angaben"): nur Verschluesselung des Betriebssystems (HTTPS
+        # ueber URLSession, AES-GCM/HKDF aus CryptoKit), keine eigene Krypto-Bibliothek -> keine Dokumente noetig
+        ITSAppUsesNonExemptEncryption: false
         # kein NSAppTransportSecurity: nur HTTPS (Stud.IP, Learnweb, LSF, Opencast); Debug siehe postBuildScripts
   UniFlowTests:
     type: bundle.unit-test

@@ -113,7 +113,7 @@ def stripe_checkout(request: Request, body: dict = Body(...)):
     _hosted()
     u = _user(request)
     plan = str(body.get("plan") or "")
-    if plan not in plans.PLANS or plan == "free":
+    if not plans.is_sellable(plan):
         raise HTTPException(400, {"detail": "Bitte einen kostenpflichtigen Tarif angeben.", "code": "plan_invalid"})
     return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan))
 
@@ -141,7 +141,7 @@ def plan_choice(request: Request, body: dict = Body(...)):
     _hosted()
     u = _user(request)
     plan = str(body.get("plan") or "")
-    if plan not in plans.PLANS:
+    if plan not in plans.ORDER:
         raise HTTPException(400, {"detail": "Unbekannter Tarif.", "code": "plan_invalid"})
     conn = billing.connect()
     try:
@@ -214,7 +214,7 @@ def chatgpt_state(user: dict | None) -> dict:
     enabled = integ["status"] == "enabled"
     return {
         "status": integ["status"], "available": enabled, "connected": False, "reason": None if enabled else integ["reason"],
-        # Produktregel: in der Oberflaeche ab Pro Connect angeboten. Die Kontingentnutzung selbst haengt nicht am Tarif,
+        # Produktregel: in der Oberflaeche ab Pro AI angeboten. Die Kontingentnutzung selbst haengt nicht am Tarif,
         # solange die Bedingungen von OpenAI das nicht erlauben (plan_gating_allowed = False).
         "premium_rule_plan": plans.ENTITLEMENTS["chatgpt_connection_premium"]["from"],
         "plan_gating_allowed": integ["plan_gating_allowed"],

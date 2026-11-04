@@ -1,34 +1,41 @@
-# StudiNow-Abosystem: vier Tarife, Berechtigungen, KI-Testbibliothek (Stand 27.10.2026)
+# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 04.11.2026)
 
-Auftrag des Inhabers vom 27.10.2026. Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
+Auftrag des Inhabers vom 27.10.2026, Tarife und Kontingente nach der Entscheidung vom 04.11.2026 (`docs/PREISLISTE.md`). Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
 Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ aus `docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 6.
 
 ## 1. Tarife
 
-| Tarif | Preis/Monat | Neue KI-Tests | Bibliothekstests | KI-Erklärungen u. a. | PDF bearbeiten |
-|---|---:|---:|---:|---:|:---:|
-| StudiNow Free | 0,00 € | 0 | 0 | 0 | nein |
-| StudiNow Plus | 1,99 € | 3 | 4 | 0 | ja |
-| StudiNow Pro Connect | 2,99 € | 3 | unbegrenzt (Fair Use 300) | 0 | ja |
-| StudiNow Pro AI | 3,99 € | 40 | unbegrenzt (Fair Use 300) | 150 | ja |
+| Tarif | Preis/Monat | Neue KI-Tests | Bibliothekstests | KI-Erklärungen u. a. | Credits | PDF bearbeiten |
+|---|---:|---:|---:|---:|---:|:---:|
+| StudiNow Free | 0,00 € | 0 | 0 | 0 | 0 | nein |
+| StudiNow Plus | 1,99 € | 4 | 4 | 0 | 0 | ja |
+| StudiNow Pro AI | 3,99 € | 20 | unbegrenzt (Fair Use 300) | 150 | 100 | ja |
+
+**Pro Connect** (2,99 €) gibt es seit dem 04.11.2026 nicht mehr: seine Rechte (Lernstatistik, Wiederholung,
+Empfehlungen, vollständige Testliste, Anzeige der ChatGPT-Verbindung) gehören zu Pro AI. Der Schlüssel `pro_connect`
+bleibt nur für alte Zeilen lesbar und gilt wie Pro AI (`plans.LEGACY_PLANS`, `billing.normalize_plan`); er ist nicht
+kaufbar, nicht wählbar und erscheint auf keiner Karte.
 
 Jeder Tarif enthält alle Rechte des niedrigeren. **Quelle aller Werte: `app/plans.py`.** Daraus erzeugt
 `tools/gen-plans-fixture.py` die Datei `packages/shared-contracts/fixtures/plans/plans.json`; Swift und Kotlin prüfen
 ihre Tabellen dagegen, `tests/test_subscriptions.py::test_plans_fixture_is_current` hält sie aktuell.
 
-**Widerspruch im Auftrag:** Die Tariftabelle nennt für Plus 3 neue KI-Tests, Testfall 3 „maximal sechs“. Umgesetzt
-ist 3 (Tabelle). Der Wert steht nur in `app/plans.py` (`QUOTAS["plus"]["ai_tests_new"]`) und lässt sich dort ändern.
+Kontingente nach der Tabelle des Inhabers vom 04.11.2026 (vorher Plus 3 und Pro AI 40 neue KI-Tests). Die Werte
+stehen nur in `app/plans.py` (`QUOTAS`) und lassen sich dort ändern.
 
 Apple-Produkte (eine Abo-Gruppe, damit Apple Upgrades, Downgrades und Doppel-Abos regelt):
-`de.uniflow.plus.monthly`, `de.uniflow.proconnect.monthly`, `de.uniflow.proai.monthly`. Die Kennungen bleiben bei
-`de.uniflow`, weil die Bundle-ID `de.uniflow.ai` ist; in App Store Connect sind sie noch nicht angelegt.
+`de.uniflow.plus.monthly`, `de.uniflow.proai.monthly`. Die Kennungen bleiben bei `de.uniflow`, weil die Bundle-ID
+`de.uniflow.ai` ist. Ein früheres `de.uniflow.proconnect.monthly` gilt wie Pro AI, wird aber nicht angeboten.
 
 ## 2. Berechtigungen
 
 Ein Recht ist ein Name mit Ja/Nein je Tarif (`app/plans.py::ENTITLEMENTS`), dazu der Stand der Umsetzung:
-`available` (darf beworben werden), `coming_soon` (Community-Kommentare: die Funktion gibt es noch nicht) und
-`disabled` (ChatGPT-Verbindung, Abschnitt 4). Die Abo-Seite zeigt nur `available` als enthalten. Funktionen der
+`available` (darf beworben werden), `coming_soon` (es fehlt noch die Oberfläche oder der Endpunkt: Lernstatistik über
+alle Module, intelligente Lernplanung, Wiederholung falscher Antworten, Lernempfehlungen, KI-Lernempfehlungen) und
+`disabled` (ChatGPT-Verbindung, Abschnitt 4). Begriffe: „Lernstand“ ist die Zahl je Modul aus den eigenen Daten
+(`app/mastery.py`), in jedem Tarif frei; „Lernstatistik“ ist die modulübergreifende Auswertung des Dienstes
+(`/api/learning/*`) ab Pro AI. Die Abo-Seite zeigt nur `available` als enthalten. Funktionen der
 StudiNow-KI erscheinen als „in Vorbereitung“, solange auf dem Server kein KI-Schlüssel eingerichtet ist.
 
 Serverseitig (`app/entitlements.py`): Der Tarif kommt immer aus der Datenbank, nie aus der Anfrage. Geprüft wird an:
@@ -39,8 +46,8 @@ Serverseitig (`app/entitlements.py`): Der Tarif kommt immer aus der Datenbank, n
 | `POST /api/sync/push` (nur Einträge `annotations`, Ergebnis `plan_required`) | `can_sync_annotations` |
 | `POST /api/community/solutions` (Lesen und Laden für alle) | `can_share_solutions` |
 | `POST /api/library/tests` | `can_access_shared_tests` bzw. `can_generate_studora_ai_tests` |
-| `GET /api/learning/stats` · `…/review` · `…/recommendations` | `can_use_advanced_analytics` · `can_review_wrong_answers` · `can_get_recommendations` |
-| `GET /api/tests` (ohne Recht die letzten 10) | `can_use_extended_test_history` |
+| `GET /api/learning/stats` · `…/review` · `…/recommendations` (Pro AI) | `can_use_advanced_analytics` · `can_review_wrong_answers` · `can_get_recommendations` |
+| `GET /api/tests` (ohne Recht die letzten 10; ältere bleiben gespeichert, Nutzungsbedingungen 5a) | `can_use_extended_test_history` (Pro AI) |
 | `POST /api/ai/tutor` im Dienst (je Modus) | `can_use_ai_explanations`, `…_summaries`, `…_generated_questions` |
 
 Antwort ohne Recht: `403 {"code": "plan_required", "entitlement", "required_plan"}`. Kontingent leer:
@@ -56,7 +63,7 @@ Einstellungen → Abo & Tarife.
 Tabellen in `accounts.db` (`app/billing.py`): `entitlements` (je Konto und Quelle: Tarif, Ablauf, Status,
 `will_renew`, `pending_plan`), `usage` und `usage_requests` (Kontingente je Monat, Anfrage-ID gegen Doppelzählung,
 `BEGIN IMMEDIATE` gegen parallele Anfragen), `apple_transactions`, `apple_notifications`. Quellen: `app_store` und
-`manual` (Betrieb: `python -m app.accounts plan <email> free|plus|pro_connect|pro_ai [bis YYYY-MM-DD]`, bisheriges
+`manual` (Betrieb: `python -m app.accounts plan <email> free|plus|pro_ai [bis YYYY-MM-DD]`, bisheriges
 Feld `users.plan`). Es gilt der höchste aktive Tarif.
 
 **Apple (StoreKit 2, `app/apple_store.py`):**
@@ -78,11 +85,13 @@ meldet `purchase.web.available = false`; ein Abo aus der Apple-App gilt automati
 
 ## 3a. Probe und Stripe (30.10.2026)
 
-Entscheidung des Inhabers: **jedes neue Konto bekommt 7 Tage Probe mit allen Rechten** (wie Pro AI), danach die
+Entscheidung des Inhabers: **jedes neue Konto bekommt 7 Tage Probe mit allen Rechten** (wie Pro AI, mit 25 Credits;
+Text auf der Abo-Seite „Probe: alles wie StudiNow Pro AI, mit 25 Credits für die StudiNow-KI“), danach die
 Aufforderung, einen Tarif zu wählen; ohne Wahl gilt Free. Im Web und unter Windows wird über **Stripe** abgeschlossen,
 in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten desselben Kontos.
 
-- `plans.TRIAL = {"days": 7, "plan": "pro_ai"}` steht im Vertrag (`plans.json`, `GET /api/billing/plans`).
+- `plans.TRIAL = {"days": 7, "plan": "pro_ai"}` steht mit `credits: 25` (`plans.CREDITS["trial"]`) im Vertrag
+  (`plans.json`, `GET /api/billing/plans`); jede Tarifkarte trägt `credits` (Pro AI 100, sonst 0).
 - `billing.start_trial` beim Anlegen des Kontos (`accounts.register`, Apple/Google-Anmeldung), Quelle `trial`, läuft
   nie nach, nur einmal je Konto; `billing.end_trial` für Betrieb und Tests. `GET /api/entitlements` liefert `trial`
   (`active`, `ends_at`, `days_left`, `expired`), `plan_choice` und `needs_plan_choice` (Probe vorbei, kein bezahlter
@@ -96,7 +105,8 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
   Verlängerung. Unbekannter Preis oder Kunde: quittiert (200), nie als Tarif übernommen. Ein Abo gehört genau einem
   Konto (409 `subscription_owned_by_other_account`).
 - Konfiguration des Dienstes: `LERNAPP_STRIPE_SECRET_KEY`, `LERNAPP_STRIPE_WEBHOOK_SECRET`,
-  `LERNAPP_STRIPE_PRICES="plus=price_…,pro_connect=price_…,pro_ai=price_…"`, `LERNAPP_PUBLIC_URL`. Ohne Schlüssel bleibt
+  `LERNAPP_STRIPE_PRICES="plus=price_…,pro_ai=price_…"` (nur kaufbare Tarife; ein `pro_connect=` wird ignoriert),
+  `LERNAPP_PUBLIC_URL`. Ohne Schlüssel bleibt
   der Web-Abschluss ehrlich aus (`purchase.web.available = false`, 503 `stripe_not_configured`).
 - Wechsel im Kundenportal (seit 1.11.2026): ein **sofortiger** Wechsel (anteilig berechnet) ändert den Preis am Posten,
   der Tarif wechselt sofort, `pending_plan` bleibt leer. Ein Wechsel **zum Periodenende** (Downgrade) hängt Stripe als
@@ -138,7 +148,12 @@ Zahlungsdaten, einmal je Apple-ID, danach automatisch Free – nur dass das iPad
   „Tarife ansehen“ und „Bei Free bleiben“, Dienst vor iPad); Tarifseite mit Free, Plus und Pro AI – die Pro-AI-Karte nur,
   wenn StoreKit das Produkt liefert (vor dem Dienst nicht im Store: dann nur Free und Plus und der Satz „StudiNow Pro AI
   folgt mit dem StudiNow-Dienst.“), mit der Zeile „StudiNow Pro AI braucht den StudiNow-Dienst …“; Kopf „7 Tage Probe mit
-  allem, danach Free – ohne Zahlungsdaten“ statt „1 Woche gratis, danach …“; Preise nur aus `Product.displayPrice`.
+  allem, danach Free – ohne Zahlungsdaten“ statt „1 Woche gratis, danach …“, mit Pro-AI-Produkt „7 Tage Probe: alles wie
+  StudiNow Pro AI, mit 25 Credits für die StudiNow-KI, …“ (`UFTrialTexts.offerProAI`; die Probe-Karte des
+  StudiNow-Kontos ebenso); Preise nur aus `Product.displayPrice`.
+- **Auf dem iPad ohne Dienst am Tarif (Plus):** eigene Karteikarten (`UFGate(.flashcards)`) und seit 04.11.2026
+  „Wochentest erstellen“ über das eigene ChatGPT (`UFFeature.weeklyTests`, Sperrkarte im Dialog `QuizComposer`).
+  Mit Dienst entscheidet der Dienst.
 - **StoreKit-Testkonfigurationen:** `UniFlow.storekit` (Plus Stufe 2, Pro AI Stufe 1) und `UniFlowAlleTarife.storekit`
   ohne `introductoryOffer`. Tests: `LocalTrialTests`, `TrialAppTests`, `PurchaseTests`, `PurchaseV2PlanSwitchTests`,
   `PlanContractTests`, `EntitlementTests`.
@@ -148,7 +163,7 @@ Zahlungsdaten, einmal je Apple-ID, danach automatisch Free – nur dass das iPad
 
 ## 4. ChatGPT-Verbindung
 
-`chatgpt_connection_premium` (ab Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle
+`chatgpt_connection_premium` (ab Pro AI, vorher Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle
 Kontingentnutzung hängt nicht daran: Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ (openai.com/policies/
 sign-in-with-chatgpt-terms; die Seite selbst war für die Prüfung nicht abrufbar) müssen Nutzer ihr ChatGPT-Abo über
 die Funktion nutzen können, ohne den Partner zu bezahlen oder einen bezahlten Partner-Tarif abzuschließen; ein
@@ -209,7 +224,8 @@ Konto **Credits**; 1 Credit = 1 Cent echter OpenAI-Kosten (Preistabelle je Model
 `LERNAPP_AI_USD_EUR`, Standard 1:1; Überschreibungen `LERNAPP_AI_PRICES`; ohne Preis für das Modell sperrt der Dienst).
 
 - **Rahmen je Kalendermonat (Europe/Berlin):** Pro AI 100 (`LERNAPP_CREDITS_PRO_AI`, höchstens 1 EUR Kosten je Konto),
-  Pro Connect/Plus/Free 0 (`LERNAPP_CREDITS_PRO_CONNECT`, `_PLUS`, `_FREE`), 7-Tage-Probe 25 (`LERNAPP_CREDITS_TRIAL`).
+  Plus/Free 0 (`LERNAPP_CREDITS_PLUS`, `_FREE`), 7-Tage-Probe 25 (`LERNAPP_CREDITS_TRIAL`); Standardwerte aus
+  `plans.CREDITS`. Alte Zeilen mit `pro_connect` gelten wie Pro AI.
   Nicht Verbrauchtes verfällt; die Zeile des Monats (`credit_months`) entsteht bei der ersten Nutzung, kein nächtlicher
   Lauf. Der Rahmen folgt dem aktuellen Tarif: wer mitten im Monat Pro AI abschließt, hat sofort 100.
 - **Ablauf je Anfrage** (`ai_backend.complete`): Schätzung reservieren (`reserve`), Aufruf, mit `usage` der Antwort
@@ -240,13 +256,13 @@ mit einer selbst erzeugten Zertifikatskette, KI mit einer Attrappe. Gesamtlauf: 
 
 ## 8. Offen
 
-- **Inhaber:** Produkte in App Store Connect (eine Abo-Gruppe, drei Produkte), App Store Server Notifications auf
+- **Inhaber:** Produkte in App Store Connect (eine Abo-Gruppe, zwei Produkte: Plus, Pro AI), App Store Server Notifications auf
   `/api/billing/apple/notifications` einstellen, Apples Wurzelzertifikat auf dem Server ablegen; OpenAI-Konto mit
   API-Schlüssel und Modellwahl für Pro AI; Interessenformular „Sign in with ChatGPT“ mit der Frage nach der
   Tarif-Kopplung; Datenschutzerklärung (KI über das Backend, Weitergabe an OpenAI) und Preise in den Rechtstexten.
 - **Mac-Sitzung:** Swift-Tarife auf `fixtures/plans/plans.json` umstellen (`UFPlan`, `UFFeature`,
   `PurchaseStore.productIDs`), `appAccountToken` setzen, Transaktionen an `/api/billing/apple/verify` melden,
-  Abo-Seite mit vier Tarifen, PencilKit nur mit `can_use_pencilkit`. Siehe Nachtrag in `docs/STAND-MAC-SITZUNG.md`.
+  Abo-Seite mit drei Tarifen, PencilKit nur mit `can_use_pencilkit`. Siehe Nachtrag in `docs/STAND-MAC-SITZUNG.md`.
 - **Noch nicht gebaut:** Zahlung im Web/Windows, Community-Kommentare, die ChatGPT-Verbindung selbst,
   Einbettungen für die Themenerkennung. Den KI-Wochenplan (`/api/plan/generate`) gibt es seit dem 30.10.2026 nicht
   mehr: Der Lernplan ist regelbasiert (`app/study.py`, nur Stoff der Lehrwoche plus Skriptrest nach dem Marker).

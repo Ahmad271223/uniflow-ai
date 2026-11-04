@@ -49,7 +49,9 @@ LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60),
           # Korrekturvorschlaege an fremde Loesungen (03.11.2026): je Konto und Tag
           "correction_user": (20, 1440),
           # Neue Kurs-/Modulschluessel je Konto und Tag (Community-Meldungen, Sicherheitspruefung 3.11.2026)
-          "course_keys_user": (30, 1440)}
+          "course_keys_user": (30, 1440),
+          # Erklaerungsspeicher (04.11.2026, app/page_explain.py): Speichern und Loeschen je Konto und Tag
+          "explain_user": (120, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -62,7 +64,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified INTEGER DEFAULT 0,
     pw_hash TEXT,                        -- scrypt$n$r$p$salz$hash (hex); NULL bei reinem Apple/Google-Konto
     university TEXT NOT NULL,            -- luh | hildesheim
-    plan TEXT DEFAULT 'free',            -- free | plus | pro_connect | pro_ai (Quelle "manual", app/billing.py)
+    plan TEXT DEFAULT 'free',            -- free | plus | pro_ai (Quelle "manual", app/billing.py; alte Zeilen: pro_connect)
     plan_until TEXT,
     role TEXT DEFAULT 'user',            -- user | admin
     status TEXT DEFAULT 'active',        -- active | deleted
@@ -156,9 +158,9 @@ def cursor():
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p, check_same_thread=False, timeout=15)      # wie billing.connect: bei Last nicht nach 5 s aufgeben
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
     from . import db
+    db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
+    conn.execute("PRAGMA foreign_keys=ON")
     db.schema_once(conn, "accounts", p, lambda c: (c.executescript(SCHEMA), _migrate(c)))
     try:
         yield conn
@@ -676,8 +678,9 @@ def _purge_user(conn, user_id: str) -> None:
     """Alles eines Kontos endgueltig entfernen (28.10.2026). Vorher loeschte purge_deleted nur Sitzungen und die
     Nutzerzeile; Tresor (Hochschul-Zugangsdaten) und Abgleich-Auftraege verweisen per Fremdschluessel auf users, also
     scheiterte das Loeschen, sobald ein Konto Zugangsdaten hatte, und Abo-, Nutzungs- und Community-Daten blieben."""
-    from . import community, test_library, vault
+    from . import community, community_cards, test_library, vault
     community.forget_author(user_id)
+    community_cards.forget_author(user_id)
     test_library.forget_owner(user_id)
     tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
     for t in ACCOUNT_TABLES:
@@ -692,6 +695,9 @@ def _purge_user(conn, user_id: str) -> None:
     if "credit_ledger" in tables:                           # Kosten bleiben fuer die Kostenansicht, ohne Konto und ohne Antworten
         import secrets
         conn.execute("UPDATE credit_ledger SET user_id=?, result=NULL WHERE user_id=?", ("deleted:" + secrets.token_hex(8), user_id))
+    if "page_explain" in tables:                            # Erklaerungsspeicher: Chiffrate bleiben, Besitzer anonym (app/page_explain.py)
+        from . import page_explain
+        page_explain.forget_owner(conn, user_id)
     if "invite_redemptions" in tables:                      # Einladungen: auch als Einladender vergessen (app/invites.py)
         from . import invites
         invites.forget_user(conn, user_id)
@@ -729,7 +735,7 @@ def set_plan(user_id: str, plan: str, until: str | None = None) -> dict:
     from . import billing
     plan = billing.normalize_plan(plan) or ""
     if not plan:
-        raise AccountError("plan_invalid", "Unbekannter Tarif (free, plus, pro_connect, pro_ai).")
+        raise AccountError("plan_invalid", "Unbekannter Tarif (free, plus, pro_ai).")
     with cursor() as conn:
         conn.execute("UPDATE users SET plan=?, plan_until=? WHERE id=?", (plan, until, user_id))
         return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
@@ -758,7 +764,7 @@ def get_user(user_id: str) -> dict | None:
 # ---------------------------------------------------------------- Kommandozeile (Betrieb)
 
 def main(argv: list[str]) -> int:
-    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus|pro_connect|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
+    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
     cmd = argv[0] if argv else ""
     if cmd in ("plan", "role") and len(argv) >= 3:
         u = user_by_email(argv[1])

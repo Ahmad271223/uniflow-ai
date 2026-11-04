@@ -256,7 +256,23 @@ struct DocumentView: View {
         lastPageTask = Task {
             try? await Task.sleep(nanoseconds: 800_000_000)
             guard !Task.isCancelled else { return }
+            router.resume.notePage(page, of: id)          // Weitermachen wie zuvor (ResumeState.swift)
             _ = try? await api.value("/api/files/\(id)/opened", method: "POST", body: ["last_page": .number(Double(page))])
+        }
+    }
+
+    /// Weitermachen wie zuvor (ResumeState.swift): Dokument fuer den naechsten Start merken; wurde es beim Start
+    /// wiederhergestellt, die KI-Hilfe (ihr Gespraech laedt `TutorPanel` aus `TutorConversations`) und "Daneben öffnen"
+    /// wie zuvor oeffnen. Ein verschwundenes zweites Dokument bleibt still weg.
+    private func restorePanels() async {
+        guard !readOnly, !store.isOldVersion, store.errorMessage == nil else { return }
+        let id = store.file.id
+        router.resume.noteDocument(id: id, page: initialPDFPage)
+        guard let p = router.resume.takeRestoredPanels(for: id) else { return }
+        if p.tutorOpen { showTutor = true }
+        if let cid = p.companionID, cid != id, companion == nil, solutionSide == nil,
+           let f = try? await api.json("/api/files/\(cid)", as: LibFile.self) {
+            companion = Companion(file: f, pdfPage: p.companionPage)
         }
     }
 
@@ -325,7 +341,7 @@ struct DocumentView: View {
     /// KI-Hilfe neben der PDF; Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem
     /// Schluessel, beides beim Senden
     private var tutorPanel: some View {
-        TutorPanel(fileID: store.file.id,
+        TutorPanel(fileID: store.file.id, fileName: store.file.displayTitle,
                    page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
@@ -508,10 +524,16 @@ struct DocumentView: View {
             scheduleSuggestion(page)
             rememberPage(page)
         }
+        // Weitermachen wie zuvor: KI-Hilfe und "Daneben öffnen" fuer den naechsten Start merken (ResumeState.swift)
+        .onChange(of: showTutor) { _, open in if !readOnly { router.resume.noteTutor(open: open, of: store.file.id) } }
+        .onChange(of: companion) { _, c in
+            if !readOnly { router.resume.noteCompanion(id: c?.file.id, page: c?.pdfPage, of: store.file.id) }
+        }
         .task {
             await store.load()
             // KI-Start "Im Dokument mit KI-Hilfe öffnen": die KI-Hilfe gleich offen (einmalig, nur fuer diese Datei)
             if router.takeTutorOpenRequest(for: store.file.id) { showTutor = true }
+            await restorePanels()
             #if DEBUG
             // -UFDocPanel tutor|companion: Seitenspalte bzw. "Daneben öffnen" gleich offen (nur Bildvergleiche)
             switch UserDefaults.standard.string(forKey: "UFDocPanel") {

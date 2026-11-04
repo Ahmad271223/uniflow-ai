@@ -144,6 +144,11 @@ def test_content_is_streamed_hashed_indexed_and_cached(app, hosted, monkeypatch)
     from app import config, vault
     user, h = _user(hosted)
     _seed(user)
+    # Dateiablage am PC (ausserhalb eines Kontos) teilen sich alle Tests der Sitzung: nur neue Dateien zaehlen
+    def stored_files():
+        dirs = (config.files_dir(), config.user_data_dir(user["id"], "luh") / "files")
+        return {q for d in dirs if d.exists() for q in d.rglob("*") if q.is_file()}
+    before = stored_files()
     vault.set_values(user["id"], {"STUDIP_COOKIES": json.dumps([{"name": "Seminar_Session", "value": "abc", "domain": "studip.uni-hannover.de", "path": "/", "expires": -1}])})
     calls = _fake_http(monkeypatch, [(MIN_PDF, "application/pdf")])
     st, hdr, body = asgi_call(hosted, "GET", "/api/files/f1/content", headers=h)
@@ -158,7 +163,7 @@ def test_content_is_streamed_hashed_indexed_and_cached(app, hosted, monkeypatch)
         rows = db.rows(conn, "SELECT page, text FROM page_texts WHERE file_id='f1' ORDER BY page")
         assert len(rows) == 1 and "Hallo Netzwerk" in rows[0]["text"], "Seitentext beim Durchreichen abgelegt"
     _with_user(user, "luh", check)
-    assert not any(p.is_file() for p in config.files_dir().rglob("*")), "nichts gespeichert"
+    assert stored_files() == before, "nichts gespeichert"
     st, _, body = asgi_call(hosted, "GET", "/api/files/f1/content", headers=h)
     assert st == 200 and body == MIN_PDF and len(calls) == 1, "zweiter Abruf aus dem Zwischenspeicher"
     st, _, body = asgi_call(hosted, "GET", "/api/files/f1/pagetext?page=1", headers=h)

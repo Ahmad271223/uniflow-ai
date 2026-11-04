@@ -174,6 +174,8 @@ struct QuizSettings: Equatable {
 /// Kurzantwort, Rechnen/Programmieren), ein Thema oder Hinweis, die Unterlagen, die einfliessen, und die Kostenzeile.
 /// "Test erstellen" schickt genau die Parameter, die `POST /api/tests/generate` kennt; in der Standardeinstellung sucht
 /// das Backend erst einen gemeinsamen Test, bei eigenen Einstellungen entsteht ein eigener Test (so beschriftet).
+/// Ohne PC (lokales Backend, eigenes ChatGPT) ist der Dialog eine Plus-Funktion wie die Karteikarten (Entscheidung
+/// 04.11.2026): Free sieht die Sperrkarte `UFLockedCard(.weeklyTests)` mit dem Weg zu Plus; mit Dienst entscheidet er.
 struct QuizComposer: View {
     let initialModuleID: Int
     @ObservedObject private var ent: Entitlements
@@ -231,29 +233,39 @@ struct QuizComposer: View {
         }
     }
 
-    /// Der Dialog lässt sich abschicken: Modul gewaehlt, KI da, nichts laeuft
-    var canStart: Bool { module != 0 && aiEnabled && !starting && generation.job == nil }
+    /// Ohne PC (lokales Backend) nur mit Plus; am eigenen Server bzw. mit Dienst ohne Sperre in der App
+    private var needsPlus: Bool { session.api?.isLocal != false }
+    private var allowed: Bool { !needsPlus || ent.allows(.weeklyTests) }
+
+    /// Der Dialog lässt sich abschicken: Tarif passt, Modul gewaehlt, KI da, nichts laeuft
+    var canStart: Bool { allowed && module != 0 && aiEnabled && !starting && generation.job == nil }
 
     private var selectedWeek: JSONValue? { Self.weeks(detail).first { $0.i("week") == week } }
 
     var body: some View {
         UFDialog("Wochentest erstellen", icon: "exam") {
-            if !aiEnabled {
+            if !allowed {
+                UFLockedCard(.weeklyTests, entitlements: ent).padding(.vertical, 4)
+            } else if !aiEnabled {
                 connect
             } else {
                 form
             }
         } foot: {
             UFButton("Abbrechen") { close() }.accessibilityIdentifier("quiz.cancel")
-            UFButton(starting ? (settings.isStandard ? "Gemeinsamer Test wird gesucht …" : "Test wird erstellt …") : "Test erstellen",
-                     icon: starting ? nil : "sparkles", kind: .primary) {
-                Task { await start() }
+            if allowed {
+                UFButton(starting ? (settings.isStandard ? "Gemeinsamer Test wird gesucht …" : "Test wird erstellt …") : "Test erstellen",
+                         icon: starting ? nil : "sparkles", kind: .primary) {
+                    Task { await start() }
+                }
+                .disabled(!canStart)
+                .accessibilityIdentifier("quiz.start")
             }
-            .disabled(!canStart)
-            .accessibilityIdentifier("quiz.start")
         }
         .task { await load() }
         .onChange(of: module) { _, _ in Task { await loadDetail() } }
+        // nach einem Kauf aus der Sperrkarte heraus die Module nachladen
+        .onChange(of: allowed) { _, ok in if ok, !loaded { Task { await load() } } }
     }
 
     @ViewBuilder private var connect: some View {
@@ -378,7 +390,7 @@ struct QuizComposer: View {
     }
 
     private func load() async {
-        guard let api = session.api else { return }
+        guard let api = session.api, allowed else { return }
         do {
             modules = try await api.value("/api/modules").items
             if module == 0, modules.count == 1, let only = modules.first?.i("id") { module = only }

@@ -74,6 +74,20 @@ CREATE TABLE IF NOT EXISTS flashcards (
     due TEXT
 );
 
+CREATE TABLE IF NOT EXISTS flashcard_stacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    subject TEXT,                 -- Modul (Fach) wie flashcards.subject
+    file_id TEXT,                 -- Quelldokument, optional
+    created_at TEXT,
+    last_practised TEXT,          -- letzte Wiederholung oder Uebung im Stapel
+    week INTEGER,                 -- Lehrwoche 1..n, NULL = "Allgemein"
+    kind TEXT DEFAULT 'eigene',   -- vorlesung | uebung | eigene
+    source TEXT,                  -- uebernommen: week (geteilter Wochenstapel) | community (geteilter Stapel), NULL = eigener
+    source_ref TEXT,              -- Schluessel des Wochenstapels bzw. Kennung des geteilten Stapels
+    shared_id TEXT                -- Kennung des eigenen geteilten Stapels in der Modul-Community, NULL = privat
+);
+
 CREATE TABLE IF NOT EXISTS plans (
     week_start TEXT PRIMARY KEY,   -- Montag, YYYY-MM-DD
     generated_at TEXT,

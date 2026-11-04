@@ -122,16 +122,76 @@ enum AICost {
         return "Braucht dein ChatGPT (Einstellungen → Erweitert)"
     }
 
-    /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI
-    static func status(chatgpt: Bool, model: String?, plan: UFPlan, requestsThisMonth: Int, usage: (used: Int, total: Int)? = nil) -> String {
+    /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)
+    /// steht der echte Rest statt der Schaetzung (`creditsLine`)
+    static func status(chatgpt: Bool, model: String?, plan: UFPlan, requestsThisMonth: Int, usage: (used: Int, total: Int)? = nil,
+                       credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false) -> String {
         if let usage { return "\(usage.used) von \(usage.total) Credits" }
         let count = requestsThisMonth == 1 ? "1 Anfrage diesen Monat" : "\(requestsThisMonth) Anfragen diesen Monat"
-        if chatgpt {
-            let m = (model ?? "").isEmpty ? "" : " · \(model!)"
-            return "\(count) · über dein ChatGPT\(m)"
+        let m = chatgpt && !(model ?? "").isEmpty ? " · \(model!)" : ""
+        if credits != nil, let line = creditsLine(credits: credits, chatgpt: chatgpt, charge: charge, trial: trial) {
+            return "\(count) · \(line)\(m)"
         }
+        if chatgpt { return "\(count) · über dein ChatGPT\(m)" }
         if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
         return "Noch kein ChatGPT verbunden · \(count)"
+    }
+
+    // MARK: Echter Stand vom Dienst (Credits, docs/ABO-SYSTEM.md Abschnitt 6a)
+
+    /// Die Kostenzeile aus dem echten Stand, in der Reihenfolge der Bezahlung: eine uebernommene gemeinsame Antwort
+    /// "Schon erklärt · 0 Credits", das eigene ChatGPT "Dein ChatGPT – 0 Credits", eine berechnete Antwort
+    /// "– 3 Credits (37 übrig)", sonst der Stand "Credits: 37 von 100 übrig · neu am 1. Dezember". nil ohne Stand.
+    static func creditsLine(credits: StudoraCredits?, chatgpt: Bool, adopted: Bool = false, charge: StudoraCredits.Charge? = nil,
+                            trial: Bool = false) -> String? {
+        if adopted { return "Schon erklärt · 0 Credits" }
+        if chatgpt { return "Dein ChatGPT – 0 Credits" }
+        if let charge, let line = chargeLine(charge, remaining: credits?.remaining) { return line }
+        return balanceLine(credits, trial: trial)
+    }
+
+    /// "Credits: 37 von 100 übrig · neu am 1. Dezember"; in der Probe mit "Probe"; ohne Rahmen im Tarif ehrlich
+    /// "Keine Credits in deinem Tarif"; nil ohne Stand. `labelled: false` laesst "Credits: " weg (Einstellungen)
+    static func balanceLine(_ c: StudoraCredits?, trial: Bool = false, labelled: Bool = true) -> String? {
+        guard let c else { return nil }
+        guard c.allowance > 0 else { return "Keine Credits in deinem Tarif" }
+        var s = (labelled ? "Credits: " : "") + "\(c.remaining) von \(c.allowance) übrig"
+        if trial { s += " · Probe" }
+        if let reset = resetLabel(c.resetsAt) { s += " · \(reset)" }
+        return s
+    }
+
+    /// Eine berechnete Antwort: "– 3 Credits (37 übrig)", "– 1 Credit (37 übrig)"; eine Wiederholung derselben Anfrage
+    /// (`replay`) "Schon berechnet · 0 Credits"; nil, wenn nichts berechnet wurde (dann gilt der Stand)
+    static func chargeLine(_ charge: StudoraCredits.Charge, remaining: Int?) -> String? {
+        if charge.replay { return "Schon berechnet · 0 Credits" }
+        guard charge.credits > 0 else { return nil }
+        let n = charge.credits == 1 ? "1 Credit" : "\(charge.credits) Credits"
+        guard let remaining else { return "– \(n)" }
+        return "– \(n) (\(remaining) übrig)"
+    }
+
+    /// "neu am 1. Dezember" aus `resets_at` (ISO mit Versatz, Beginn des naechsten Monats in Berlin); nil ohne Datum
+    static func resetLabel(_ iso: String?) -> String? {
+        guard let iso, let date = isoDate(iso) else { return nil }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
+        let p = cal.dateComponents([.day, .month], from: date)
+        guard let d = p.day, let m = p.month, (1...12).contains(m) else { return nil }
+        return "neu am \(d). \(germanMonths[m - 1])"
+    }
+
+    static let germanMonths = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
+                               "November", "Dezember"]
+
+    private static func isoDate(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withFullDate]
+        return f.date(from: String(s.prefix(10)))
     }
 }
 

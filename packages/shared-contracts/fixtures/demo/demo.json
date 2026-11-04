@@ -882,7 +882,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 2,
@@ -895,7 +896,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 3,
@@ -908,7 +910,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 4,
@@ -921,7 +924,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 5,
@@ -934,7 +938,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -1475,7 +1480,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 7,
@@ -1488,7 +1494,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 8,
@@ -1501,7 +1508,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 9,
@@ -1514,7 +1522,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 10,
@@ -1527,7 +1536,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -2635,7 +2645,8 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -3151,7 +3162,8 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 2,
@@ -3164,7 +3176,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 3,
@@ -3177,7 +3190,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 4,
@@ -3190,7 +3204,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 5,
@@ -3203,7 +3218,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 6,
@@ -3216,7 +3232,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -3976,7 +3993,8 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 2,
@@ -3989,7 +4007,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 3,
@@ -4002,7 +4021,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 4,
@@ -4015,7 +4035,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 5,
@@ -4028,7 +4049,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 6,
@@ -4041,7 +4063,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -4669,7 +4692,8 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -5196,7 +5220,8 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 7,
@@ -5209,7 +5234,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 8,
@@ -5222,7 +5248,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 9,
@@ -5235,7 +5262,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 10,
@@ -5248,7 +5276,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        },
        {
         "id": 11,
@@ -5261,7 +5290,8 @@
         "due": "2026-10-28",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -5866,7 +5896,8 @@
         "due": "2026-10-22",
         "bookmarked": 0,
         "hidden": 0,
-        "last_result": null
+        "last_result": null,
+        "stack_id": null
        }
       ],
       "course_events": [

@@ -4,8 +4,8 @@ import XCTest
 @testable import UniFlow
 
 /// Wechsel zwischen den Abo-Tarifen als Logik in der Abo-Gruppe. Diese Klasse laeuft mit der eigenen
-/// Testkonfiguration `UniFlowAlleTarife.storekit` (alle drei Abo-Tarife des Vertrags in einer Gruppe, Stufe 1 = Pro
-/// AI, auch Pro Connect, das das iPad nicht anbietet), nicht mit der der App. Geprueft wird, was `Entitlements` und
+/// Testkonfiguration `UniFlowAlleTarife.storekit` (alle Abo-Tarife des Vertrags in einer Gruppe: Plus und Pro AI,
+/// Stufe 1 = Pro AI; Pro Connect gibt es seit dem 04.11.2026 nicht mehr), nicht mit der der App. Geprueft wird, was `Entitlements` und
 /// `PurchaseStore` daraus machen: Kauf je Tarif, hoechster Tarif, Upgrade sofort, Downgrade zur Verlaengerung, Ablauf,
 /// Kaufanfrage, Wiederherstellen. Kein Einfuehrungsangebot (Entscheidung 04.11.2026).
 /// Der Name sortiert hinter `PurchaseTests`, damit dort test0 der erste Kauf im Testprozess bleibt.
@@ -17,7 +17,7 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
     /// Die Testkonfiguration hat alle Abo-Tarife, die App bietet davon nur Plus und Pro AI an
     func testAllPlansConfigurationOffersEveryPaidPlan() async throws {
         let (store, ent) = await makeStore()
-        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proconnect.monthly", "de.uniflow.proai.monthly"])
+        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
         XCTAssertEqual(ent.plan, .free)
         for plan in UFPlan.paid {
             let q = try XCTUnwrap(store.product(for: plan), plan.rawValue)
@@ -58,19 +58,15 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
         }
     }
 
-    /// Upgrade in der Gruppe gilt sofort: Plus -> Pro Connect -> Pro AI; der ersetzte Kauf zaehlt nicht mehr, es gilt
-    /// der hoechste Tarif
+    /// Upgrade in der Gruppe gilt sofort: Plus -> Pro AI; der ersetzte Kauf zaehlt nicht mehr, es gilt der hoechste Tarif
     func testUpgradeTakesEffectImmediatelyAndHighestPlanWins() async throws {
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
         XCTAssertEqual(ent.plan, .plus)
-        let up = await store.purchase(try XCTUnwrap(store.product(for: .proConnect)))
-        XCTAssertEqual(up, .success, store.lastError ?? "")
-        XCTAssertEqual(ent.plan, .proConnect, "Upgrade gilt sofort")
-        XCTAssertNil(ent.pendingPlan)
         let top = await store.purchase(try XCTUnwrap(store.product(for: .proAI)))
         XCTAssertEqual(top, .success, store.lastError ?? "")
-        XCTAssertEqual(ent.plan, .proAI)
+        XCTAssertEqual(ent.plan, .proAI, "Upgrade gilt sofort")
+        XCTAssertNil(ent.pendingPlan)
         XCTAssertTrue(ent.allows(.pencilWriting))
         // nach dem Upgrade fuehrt StoreKit fuer die Gruppe nur noch den hoechsten Tarif als gueltig
         var active: [String] = []
@@ -107,18 +103,18 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
     /// Ablauf eines Pro-Tarifs (gekuendigt, Zeitraum vorbei): zurueck auf Free, Notizen bleiben lesbar
     func testExpiryOfProPlanFallsBackToFree() async throws {
         let (store, ent) = await makeStore()
-        let proConnect = try XCTUnwrap(store.product(for: .proConnect))
-        _ = await store.purchase(proConnect)
-        XCTAssertEqual(ent.plan, .proConnect)
-        let bought = session.allTransactions().filter { $0.productIdentifier == proConnect.id }
+        let pro = try XCTUnwrap(store.product(for: .proAI))
+        _ = await store.purchase(pro)
+        XCTAssertEqual(ent.plan, .proAI)
+        let bought = session.allTransactions().filter { $0.productIdentifier == pro.id }
         XCTAssertFalse(bought.isEmpty)
         for t in bought { try session.disableAutoRenewForTransaction(identifier: t.identifier) }
         // gekuendigt: laeuft bis zum Ende des Zeitraums weiter, die Karte sagt es
         let cancelled = await eventually { await ent.refresh(); return ent.willRenew == false }
         XCTAssertTrue(cancelled, "Kündigung kommt in der RenewalInfo an")
-        XCTAssertEqual(ent.plan, .proConnect)
+        XCTAssertEqual(ent.plan, .proAI)
         XCTAssertNil(ent.pendingPlan)
-        try session.expireSubscription(productIdentifier: proConnect.id)
+        try session.expireSubscription(productIdentifier: pro.id)
         // Eigenheit der Testsitzung (Xcode 27.1, gemessen): nach einer erzwungenen Verlaengerung in einem frueheren
         // Test desselben Laufs (testDowngradeWaitsForNextRenewal) meldet currentEntitlements den Ablauf eines Pro-Abos
         // erst nach etwa 15 Sekunden, allein nach unter einer. Die Testsitzung hat ihn sofort. Darum bis zu 30 Sekunden;

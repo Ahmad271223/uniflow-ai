@@ -77,3 +77,29 @@ und kann die Antworten nicht lesen; er verwahrt nur Chiffrate je `fileKey`.
 - `PageExplain` im CloudKit-Dashboard für Production anlegen (docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md).
 - Lokal erzeugte Antworten ohne Dienst (Variante 0) werden später nicht nachgereicht.
 - Test auf dem echten iPad mit iCloud (zwei Konten, dieselbe Datei): erster „Erklären“ live, zweiter „sofort da“.
+
+## Dienst (Python), Stand 04.11.2026 – Spiegel fuer Web und Windows
+
+`app/page_explain.py` (Regeln, Ablage) und `app/page_explain_api.py` (Routen), Tests in `tests/test_page_explain.py`. Das iPad
+bleibt in V1 bei CloudKit; der Dienst bietet dieselben Regeln fuer spaeter, damit kein Geraet etwas aendern muss.
+
+| Endpunkt | Was |
+| --- | --- |
+| `GET /api/explain?file_key=&page=&mode=` | Varianten eines Schluessels, niedrigste zuerst; dazu `free` (freie Plaetze), `full`, `preferred`. Ohne `page`/`mode`: alle Datensaetze der Datei (hoechstens 900) |
+| `GET /api/explain/{file_key}/{page}/{mode}/{variant}` | ein Datensatz (`404 not_found`) |
+| `POST /api/explain` | `{file_key, page, mode, payload, version?, variant?}` → `201` mit dem Datensatz. Ohne `variant` der niedrigste freie Platz 1…3, mit `variant` genau dieser (belegt: `409 explain_taken`). Sind alle drei belegt: `409 explain_full` („Fuer diese Seite gibt es schon drei geteilte Antworten in diesem Modus. Die neue Antwort bleibt nur auf dem Geraet.“). Nie ueberschreiben, auch nicht der Ersteller. `created_at` setzt der Dienst (UTC) |
+| `DELETE /api/explain/{file_key}/{page}/{mode}/{variant}` | nur Ersteller oder Inhaber (Rolle admin), sonst `403 not_owner` |
+
+- Sitzung noetig (gehosteter Dienst, sonst `501 not_hosted`); Speichern nur mit bestaetigter E-Mail-Adresse
+  (`403 email_unverified`, wie Veroeffentlichen in der Community). Speichern und Loeschen zaehlen gegen
+  `accounts.LIMITS["explain_user"]` (120 je Konto und Tag, `LERNAPP_LIMIT_EXPLAIN_USER`), `429 rate_limited` mit `Retry-After`.
+- Pruefung nur der Form: `file_key` 64 Hexziffern, `page` 1…10000, `mode` einer der sechs geteilten Modi, `variant` 1…3,
+  `payload` Base64 ohne Zeilenumbrueche, hoechstens 256 KiB (wie `DocIndexCrypto.maxPayloadChars`), erstes Byte des
+  Chiffrats = `version` (`400 version_mismatch`). Der Dienst kennt weder Datei-SHA noch Seiten-Abdruck und liest nichts.
+- Antwort eines Datensatzes: `record_name, file_key, page, mode, variant, payload, version, created_at, mine`; die
+  Ersteller-Kennung (`owner_id`) sieht nur der Inhaber (Moderation), wie `ownerRecordName` bei CloudKit.
+- Ablage: Tabelle `page_explain` in `accounts.db` (`UNIQUE(file_key, page, mode, variant)` entscheidet einen Wettlauf;
+  der zweite bekommt den naechsten freien Platz). Beim endgueltigen Loeschen eines Kontos (`accounts._purge_user`)
+  bleibt das Chiffrat fuer die anderen, der Besitzer wird anonymisiert wie in `credit_ledger` (`deleted:<zufall>`).
+- Offen: Web und Windows rufen die Endpunkte noch nicht; iPad und Dienst teilen sich noch keinen Speicher (CloudKit
+  und `page_explain` sind getrennte Welten, bis der Dienst die CloudKit-Datensaetze spiegelt oder umgekehrt).

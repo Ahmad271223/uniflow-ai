@@ -165,12 +165,20 @@ final class AuditApp20261103Tests: XCTestCase {
 
     // MARK: 13 #/exams ohne KI
 
-    func testExamsWithoutAIHighlightsCards() {
+    func testExamsWithoutAIHighlightsCards() throws {
         let items = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: false)
         XCTAssertTrue(UFNavItem.active(UFNavItem.cards, in: items, route: .exams))
         let withAI = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true)
         XCTAssertFalse(UFNavItem.active(UFNavItem.cards, in: withAI, route: .exams), "mit KI: \"Tests & Wiederholung\" markiert")
         XCTAssertTrue(UFNoServerContent.examsText.contains("nur mit verbundenem ChatGPT"))
+        // beide im Menue, Karteikarten angetippt: nur die Karteikarten leuchten (Rueckmeldung 04.11.2026)
+        let exams = try XCTUnwrap(withAI.first { $0.id == "exams" })
+        XCTAssertTrue(UFNavItem.active(UFNavItem.cards, in: withAI, route: .cards))
+        XCTAssertFalse(UFNavItem.active(exams, in: withAI, route: .cards), "Tests & Wiederholung nicht mit markiert")
+        XCTAssertTrue(UFNavItem.active(exams, in: withAI, route: .exams))
+        XCTAssertFalse(UFNavItem.active(UFNavItem.cards, in: withAI, route: .exams))
+        // am eigenen Server (nur "Tests & Wiederholung" im Menue) fuehrt die Karteikarten-Seite weiter darunter
+        XCTAssertTrue(UFNavItem.active(exams, in: UFNavItem.main, route: .cards))
     }
 
     // MARK: Feinschliff: Demo-Texte

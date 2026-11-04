@@ -1,7 +1,9 @@
 import Foundation
 
-// StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, Entscheidung des Inhabers 27.10.2026):
-// vier Tarife Free, Plus, Pro Connect, Pro AI. Quelle aller Werte ist app/plans.py; tools/gen-plans-fixture.py
+// StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, docs/PREISLISTE.md, Entscheidung des
+// Inhabers vom 04.11.2026): drei Tarife Free, Plus (1,99 EUR), Pro AI (3,99 EUR). Pro Connect gibt es nicht mehr; sein
+// Schluessel `pro_connect` und sein Produkt gelten wie Pro AI (`UFPlan(rawValue:)`, `UFPlan(productID:)`, wie
+// plans.LEGACY_PLANS im Dienst). Quelle aller Werte ist app/plans.py; tools/gen-plans-fixture.py
 // schreibt daraus packages/shared-contracts/fixtures/plans/plans.json, und PlanContractTests prueft diese Tabelle
 // Zeile fuer Zeile dagegen (Namen, Preise, Produkte, Rechte je Tarif, Stand). Aendert sich plans.py, hier nachziehen.
 //
@@ -15,8 +17,25 @@ import Foundation
 enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     case free
     case plus
-    case proConnect = "pro_connect"
     case proAI = "pro_ai"
+
+    /// frueherer Tarif Pro Connect (bis 04.11.2026): gilt wie Pro AI, nur fuer alte Werte und Aufrufer
+    static var proConnect: UFPlan { .proAI }
+
+    /// alte Schluessel, die wie ein heutiger Tarif gelten (plans.LEGACY_PLANS)
+    static let legacyKeys: [String: UFPlan] = ["pro_connect": .proAI]
+
+    /// Schluessel aus plans.json, dem Dienst oder -UFPlan; `pro_connect` gilt wie Pro AI
+    init?(rawValue: String) {
+        switch rawValue {
+        case "free": self = .free
+        case "plus": self = .plus
+        case "pro_ai": self = .proAI
+        default:
+            guard let p = UFPlan.legacyKeys[rawValue] else { return nil }
+            self = p
+        }
+    }
 
     var id: String { rawValue }
 
@@ -25,8 +44,7 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return 0
         case .plus: return 1
-        case .proConnect: return 2
-        case .proAI: return 3
+        case .proAI: return 2
         }
     }
 
@@ -37,7 +55,6 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return "StudiNow Free"
         case .plus: return "StudiNow Plus"
-        case .proConnect: return "StudiNow Pro Connect"
         case .proAI: return "StudiNow Pro AI"
         }
     }
@@ -48,7 +65,6 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return 0
         case .plus: return 199
-        case .proConnect: return 299
         case .proAI: return 399
         }
     }
@@ -58,7 +74,6 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return nil
         case .plus: return "de.uniflow.plus.monthly"
-        case .proConnect: return "de.uniflow.proconnect.monthly"
         case .proAI: return "de.uniflow.proai.monthly"
         }
     }
@@ -68,8 +83,7 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     var tagline: String {
         switch self {
         case .free: return "Studium organisieren und Unterlagen lesen"
-        case .plus: return "Mit Stift auf deinen Unterlagen schreiben"
-        case .proConnect: return "Lernstatistiken, intelligente Planung und Wiederholung"
+        case .plus: return "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"
         case .proAI: return "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"
         }
     }
@@ -77,10 +91,13 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     /// naechstkleinerer Tarif (Free: keiner)
     var lower: UFPlan? { UFPlan.allCases.last { $0 < self } }
 
+    /// Produkte frueherer Tarife, die wie ein heutiger gelten (Pro Connect -> Pro AI, wie im Dienst)
+    static let legacyProductIDs: [String: UFPlan] = ["de.uniflow.proconnect.monthly": .proAI]
+
     /// Produkt -> Tarif; fremde und nicht mehr angebotene Produkte (z. B. das fruehere de.uniflow.pro.monthly)
-    /// geben keinen Tarif
+    /// geben keinen Tarif, das fruehere Pro-Connect-Produkt gilt wie Pro AI
     init?(productID: String) {
-        guard let p = UFPlan.allCases.first(where: { $0.productID == productID }) else { return nil }
+        guard let p = UFPlan.allCases.first(where: { $0.productID == productID }) ?? UFPlan.legacyProductIDs[productID] else { return nil }
         self = p
     }
 
@@ -94,16 +111,13 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
 /// 28.10.2026): drei Tarife StudiNow Free, Plus (1,99 €) und Pro AI (3,99 €), kein Apple-Einfuehrungsangebot, dafuer
 /// 7 Tage Probe mit allem auf dem iPad (LocalTrial.swift). Die Pro-AI-Karte erscheint nur, wenn StoreKit das Produkt
 /// liefert: vor dem StudiNow-Dienst steht `de.uniflow.proai.monthly` nicht im Store, dann zeigt die Seite nur Free und
-/// Plus. Pro Connect gibt es auf dem iPad nicht (Zeile und Produkt-ID bleiben fuer den Vertrag im Code).
+/// Plus. Pro Connect gibt es nicht mehr (Entscheidung 04.11.2026).
 enum UFPlanCatalog {
     /// auf dem iPad waehlbar
     static let sellable: [UFPlan] = [.free, .plus, .proAI]
 
     /// Apple-Produkte, die die App laedt und anbietet
     static var sellableProductIDs: [String] { sellable.compactMap(\.productID) }
-
-    /// nicht auf dem iPad angeboten (Pro Connect)
-    static var notOffered: [UFPlan] { UFPlan.allCases.filter { !sellable.contains($0) } }
 
     /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
     static let needsProduct: Set<UFPlan> = [.proAI]
@@ -154,7 +168,9 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canShareSolutions = "can_share_solutions"
     case canAccessSharedTests = "can_access_shared_tests"
     case canGenerateStudoraAITests = "can_generate_studora_ai_tests"
-    // Pro Connect
+    /// eigene Karteikarten anlegen, bearbeiten, ueben, teilen, uebernehmen (04.11.2026); Lesen bleibt in jedem Tarif
+    case canUseFlashcards = "can_use_flashcards"
+    // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect)
     case canUseAdvancedAnalytics = "can_use_advanced_analytics"
     case canUseAdvancedPlanner = "can_use_advanced_planner"
     case canReviewWrongAnswers = "can_review_wrong_answers"
@@ -175,12 +191,11 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canViewPDF, .canManageCourses, .canImportDocuments, .canViewTimetable, .canUseBasicPlanner, .canReadCommunity:
             return .free
         case .canAnnotatePDF, .canUsePencilKit, .canSyncAnnotations, .canWriteCommunityComments, .canShareSolutions,
-             .canAccessSharedTests, .canGenerateStudoraAITests:
+             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards:
             return .plus
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
-             .canGetRecommendations, .chatgptConnectionPremium:
-            return .proConnect
-        case .canUseAIExplanations, .canUseAIGeneratedQuestions, .canUseAISummaries, .canUseAIRecommendations:
+             .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,
+             .canUseAISummaries, .canUseAIRecommendations:
             return .proAI
         }
     }
@@ -201,10 +216,11 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canShareSolutions: return "Eigene Lösungen teilen"
         case .canAccessSharedTests: return "Tests aus der StudiNow-Bibliothek"
         case .canGenerateStudoraAITests: return "Neue KI-Tests von StudiNow"
-        case .canUseAdvancedAnalytics: return "Erweiterte Lernstatistiken"
+        case .canUseFlashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .canUseAdvancedAnalytics: return "Lernstatistik über alle Module"
         case .canUseAdvancedPlanner: return "Intelligente Lernplanung (Empfehlungen für die Woche)"
         case .canReviewWrongAnswers: return "Automatische Wiederholung falscher Antworten"
-        case .canUseExtendedTestHistory: return "Erweiterte Testhistorie"
+        case .canUseExtendedTestHistory: return "Vollständige Testliste (Free und Plus: die letzten 10)"
         case .canGetRecommendations: return "Personalisierte Lernempfehlungen"
         case .chatgptConnectionPremium: return "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)"
         case .canUseAIExplanations: return "KI-Erklärungen zu Aufgaben"
@@ -218,6 +234,10 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     var status: UFContractStatus {
         switch self {
         case .chatgptConnectionPremium: return .disabled
+        // Endpunkte (/api/learning/*) ohne Oberflaeche bzw. noch gar nicht gebaut: nie als enthalten beworben
+        case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canGetRecommendations,
+             .canUseAIRecommendations:
+            return .comingSoon
         default: return .available
         }
     }
@@ -254,6 +274,8 @@ extension UFEntitlement {
         case .canReadCommunity: return .onDevice([.communityRead])
         case .canAnnotatePDF, .canUsePencilKit: return .onDevice([.pencilWriting])
         case .canShareSolutions: return .onDevice([.shareSolutions])
+        // eigene Karteikarten: CardsPage, "Als Karteikarte", FlashcardComposer; ohne Plus nur lesen (UFFlashcardAccess)
+        case .canUseFlashcards: return .onDevice([.flashcards])
         case .canSyncAnnotations, .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
              .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,

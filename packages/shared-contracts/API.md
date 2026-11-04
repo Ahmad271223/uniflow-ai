@@ -35,7 +35,7 @@ Regeln für Notizen (`packages/shared-contracts/annotations.schema.json`):
 
 Übersicht `/api/dashboard`, Module `/api/modules`, `/api/modules/{id}`, Lernkalender `/api/calendar?start=&end=`,
 Aufgaben `/api/tasks/open`, `/api/tasks/{id}/status`, Lernpakete `/api/packages/{id}`, Stundenplan `/api/timetable/week?start=`,
-`/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards`, KI-Tutor `/api/ai/tutor`,
+`/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards` (mit `?stack_id=&due=1`; PATCH auch `question`, `answer`, `subject`, `stack_id`) und ihre Stapel `/api/flashcard-stacks` (GET/POST/PATCH/DELETE `?move_to=`, docs/KARTEIKARTEN-STAPEL-2026-11-04.md), KI-Tutor `/api/ai/tutor`,
 Karteikarten aus einem Dokument `/api/ai/flashcards` (nur Vorschlaege; `{file_id, pages?, count?, topic?}` -> `{cards, pages, count}`),
 Noten `/api/grades`, Learnweb-Fristen `/api/deadlines`, Dienste `/api/services`, Netzwerk/PIN `/api/network` (nur vom PC sinnvoll).
 

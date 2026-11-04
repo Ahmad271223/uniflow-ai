@@ -22,7 +22,7 @@
           "codeOffers": [],
           "displayPrice": "1.99",
           "familyShareable": false,
-          "groupNumber": 3,
+          "groupNumber": 2,
           "internalID": "6500000001",
           "localizations": [
             {
@@ -34,26 +34,6 @@
           "productID": "de.uniflow.plus.monthly",
           "recurringSubscriptionPeriod": "P1M",
           "referenceName": "StudiNow Plus monatlich",
-          "subscriptionGroupID": "21500001",
-          "type": "RecurringSubscription"
-        },
-        {
-          "adHocOffers": [],
-          "codeOffers": [],
-          "displayPrice": "2.99",
-          "familyShareable": false,
-          "groupNumber": 2,
-          "internalID": "6500000002",
-          "localizations": [
-            {
-              "description": "Alles aus Plus, mehr in Vorbereitung",
-              "displayName": "StudiNow Pro Connect",
-              "locale": "de"
-            }
-          ],
-          "productID": "de.uniflow.proconnect.monthly",
-          "recurringSubscriptionPeriod": "P1M",
-          "referenceName": "StudiNow Pro Connect monatlich",
           "subscriptionGroupID": "21500001",
           "type": "RecurringSubscription"
         },

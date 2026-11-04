@@ -213,6 +213,8 @@ extension LocalModulesAppTests {
     /// Versuch verbraucht), im kurzen Hintergrundlauf (`weekly: false`) nicht, sonst ja. Der Plan ohne markierten
     /// Stoff scheitert dabei und zaehlt einen Versuch (so ist der Lauf sichtbar).
     func testAutoPlanAfterSyncRunsTheWeeklyTick() async throws {
+        UFWeeklyAutoGate.allowed = { true }                         // Plus: automatische Wochentests (04.11.2026)
+        defer { UFWeeklyAutoGate.allowed = { Entitlements.shared.allows(.weeklyTests) } }
         let (_, recorder) = try await seededAPI()                   // Freitag, 20.11.2026
         let host = recorder.inner.host
         let backend = try await host.backend()
@@ -233,6 +235,11 @@ extension LocalModulesAppTests {
         await StudIPSync.autoPlan(host: host, newFiles: 0, weekly: false)
         let lists = try await plan()
         XCTAssertEqual(lists["attempts"], .number(0), "kurzer Hintergrundlauf: kein Takt")
+        UFWeeklyAutoGate.allowed = { false }
+        await StudIPSync.autoPlan(host: host, newFiles: 0)
+        let locked = try await plan()
+        XCTAssertEqual(locked["attempts"], .number(0), "Free: kein automatischer Wochentest")
+        UFWeeklyAutoGate.allowed = { true }
         await StudIPSync.autoPlan(host: host, newFiles: 0)
         let after = try await plan()
         XCTAssertEqual(after["attempts"], .number(1), "der Takt lief nach dem vollen Abgleich")
@@ -250,6 +257,8 @@ extension LocalModulesAppTests {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true),
                                     clock: .fixed(berlin: "2026-11-20T10:00:00")!)
         let backend = try await host.backend()
+        UFWeeklyAutoGate.allowed = { true }                         // Plus
+        defer { UFWeeklyAutoGate.allowed = { Entitlements.shared.allows(.weeklyTests) } }
         let ticker = WeeklyAutoTicker(backend: { backend })
         let none = await ticker.runOnce()
         XCTAssertEqual(none, .noAI, "ohne KI kein Lauf")
@@ -259,6 +268,10 @@ extension LocalModulesAppTests {
         _ = try await backend.context.database.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('auto_tests', '0')")
         let off = await ticker.runOnce()
         XCTAssertEqual(off, .off)
+        _ = try await backend.context.database.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('auto_tests', '1')")
+        UFWeeklyAutoGate.allowed = { false }
+        let locked = await ticker.runOnce()
+        XCTAssertEqual(locked, .off, "Free (auch nach der Probe): kein automatischer Wochentest, auch mit KI")
         let empty = WeeklyAutoTicker(backend: { nil })
         let missing = await empty.runOnce()
         XCTAssertNil(missing, "ohne Hochschule kein Backend")

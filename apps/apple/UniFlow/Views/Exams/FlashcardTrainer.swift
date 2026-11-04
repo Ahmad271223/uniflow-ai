@@ -237,12 +237,14 @@ final class FlashcardTrainer: ObservableObject {
         }
     }
 
-    /// Gespeicherten Stand (Antwort von PATCH, ohne file_name) in Durchgang und Ausgangsliste uebernehmen
-    private func merge(_ saved: JSONValue) {
+    /// Gespeicherten Stand (Antwort von PATCH, ohne file_name) in Durchgang und Ausgangsliste uebernehmen; nach
+    /// "Bearbeiten" (04.11.2026) auch Frage, Antwort, Fach und Stapel, die Karte bleibt an ihrer Stelle
+    func merge(_ saved: JSONValue) {
         guard let id = saved.i("id") else { return }
         func updated(_ c: JSONValue) -> JSONValue {
             var c = c
             for k in ["bookmarked", "hidden", "last_result"] { c[k] = saved[k] ?? .null }
+            for k in ["question", "answer", "subject", "stack_id"] where saved[k] != nil { c[k] = saved[k] }
             return c
         }
         cards = cards.map { $0.i("id") == id ? updated($0) : $0 }
@@ -261,6 +263,8 @@ struct FlashcardTrainerView: View {
     @ObservedObject var trainer: FlashcardTrainer
     /// Trainer verlassen (die Seite laedt danach neu)
     let onClose: () -> Void
+    /// "Bearbeiten" im Menue der Karte: oeffnet den Dialog der Seite; der neue Text kommt ueber `trainer.merge`
+    var onEdit: ((JSONValue) -> Void)?
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -371,8 +375,12 @@ struct FlashcardTrainerView: View {
         .accessibilityAction(named: "Erneut fragen") { askAgain() }
         .accessibilityAction(named: bookmarked ? "Lesezeichen entfernen" : "Lesezeichen setzen") { bookmark() }
         .accessibilityAction(named: hidden ? "Karte wieder zeigen" : "Karte verstecken") { hide() }
+        .accessibilityAction(named: "Bearbeiten") { edit() }
         .overlay(alignment: .topTrailing) {
             HStack(spacing: 0) {
+                if onEdit != nil {
+                    TrainerIconButton(icon: "pen", label: "Bearbeiten") { edit() }
+                }
                 TrainerIconButton(icon: "bookmark", label: bookmarked ? "Lesezeichen entfernen" : "Lesezeichen setzen",
                                   on: bookmarked) { bookmark() }
                 Button { hide() } label: {
@@ -502,6 +510,12 @@ struct FlashcardTrainerView: View {
 
     private func bookmark() {
         Task { _ = await toast.attempt("Lesezeichen") { try await trainer.toggleBookmark() } }
+    }
+
+    /// "Bearbeiten": Dialog der Seite mit der aktuellen Karte (Frage, Antwort, Modul, Stapel), Lernstand bleibt
+    private func edit() {
+        guard let c = trainer.current, !trainer.busy else { return }
+        onEdit?(c)
     }
 
     private func hide() {

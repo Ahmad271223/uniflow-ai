@@ -1,6 +1,8 @@
 """Erzeugt packages/shared-contracts/fixtures/local-backend/flashcards.json (M8): eigene Karteikarten aus app/server.py
-(`GET /api/flashcards` mit file_id und due, `POST /api/flashcards`, `POST /api/flashcards/{id}/review`,
-`DELETE /api/flashcards/{id}`) auf erfundenen Daten. Der Swift-Kern (LocalFlashcardTests) legt dieselben Daten an,
+(`GET /api/flashcards` mit file_id, due und stack_id, `POST /api/flashcards`, `POST /api/flashcards/{id}/review`,
+`PATCH /api/flashcards/{id}`, `DELETE /api/flashcards/{id}`) und die Stapel (`/api/flashcard-stacks`, Szenario
+"stapel": anlegen, umbenennen, verschieben, geschlossenes Ueben je Stapel, Karte bearbeiten ohne Fachwechsel,
+Loeschen mit und ohne Umzug der Karten, Bestand ohne Stapel bekommt Stapel wie die Migration) auf erfundenen Daten. Der Swift-Kern (LocalFlashcardTests) legt dieselben Daten an,
 schickt dieselben Anfragen mit derselben Uhr an das lokale Backend und vergleicht Status, Antwort und Tabelle.
 
 Inhalt je Szenario:
@@ -8,7 +10,7 @@ Inhalt je Szenario:
   und Faelligkeiten, die nur Daten von aussen haben koennen)
 - steps: Anfragen mit eingefrorener, weitergestellter Uhr (`now`, Ortszeit Berlin; date.today() und db.now_iso()),
   dem genau gesendeten Rumpf (`raw`), Status und Antwort (bei 500 keine, Starlette antwortet mit Text)
-- tables_after: Tabelle flashcards nach allen Anfragen
+- tables_after: Tabellen flashcards und flashcard_stacks nach allen Anfragen
 
 Versteckte Karten (Trainer, hidden != 0) sind nie faellig: `?due=true` laesst sie weg, die Liste ohne due zeigt sie.
 
@@ -207,6 +209,125 @@ H0 = "2026-11-03T12:00:00"
 HIDDEN_STEPS = [(H0, "GET", "/api/flashcards?due=true", None), (H0, "GET", "/api/flashcards", None)]
 
 
+# Geschlossene Stapel (04.11.2026): Bestand ohne Stapel (Karten mit Datei, mit Fach ohne Datei, ohne beides) bekommt beim
+# ersten Lesen Stapel wie die Migration; danach Stapel-Endpunkte, Ueben je Stapel, Bearbeiten, Loeschen mit Umzug.
+STACK_SEED_CARDS = [  # id, file_id, subject, question
+    (1, "f-la1", "Lineare Algebra Test", "Alt mit Datei"),
+    (2, "f-la1", "Lineare Algebra Test", "Alt mit Datei 2"),
+    (3, None, "Analysis Beispiel", "Alt nur Fach"),
+    (4, None, None, "Alt ohne alles"),
+    (5, "", "", "Alt mit leeren Werten"),
+    (6, "f-weg", None, "Alt mit fehlender Datei"),
+]
+S0, S1 = "2026-11-04T10:00:00", "2026-11-06T09:30:00"
+STACK_STEPS = [
+    (S0, "GET", "/api/flashcard-stacks", None),                                                      # Migration beim Lesen
+    (S0, "GET", "/api/flashcards", None),
+    (S0, "GET", "/api/flashcards?stack_id=1", None),
+    (S0, "GET", "/api/flashcards?stack_id=abc", None),                                               # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "  Klausur 1  ", "subject": "Analysis Beispiel"}),
+    (S0, "POST", "/api/flashcard-stacks", {"name": "Aus Skript", "file_id": "f-an1"}),               # Fach des Dokuments
+    (S0, "POST", "/api/flashcard-stacks", {"name": "Eigenes Fach", "file_id": "f-an1", "subject": "Physik Test"}),
+    (S0, "POST", "/api/flashcard-stacks", {"name": "Leer", "subject": ""}),                          # leeres Fach = null
+    (S0, "POST", "/api/flashcard-stacks", {"name": ""}),                                             # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": 5}),                                              # 422
+    (S0, "POST", "/api/flashcard-stacks", {}),                                                       # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "subject": 3}),                              # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "file_id": "gibtsnicht"}),                   # 404
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "file_id": 5}),                              # 422
+    (S0, "POST", "/api/flashcard-stacks", [1]),                                                      # 422
+    (S0, "POST", "/api/flashcards", {"cards": [card("In Klausur 1", "ja"), card("Auch", "ja")], "stack_id": 5}),
+    (S0, "POST", "/api/flashcards", {"cards": [card("Im Dokumentstapel", "ja")], "file_id": "f-an1", "stack_id": 6}),
+    (S0, "POST", "/api/flashcards", {"cards": [card("Neuer Name", "ja")], "file_id": "f-an1", "stack_name": " Blatt 1 "}),   # neuer Stapel
+    (S0, "POST", "/api/flashcards", {"cards": [card("Gleicher Name", "ja")], "file_id": "f-an1", "stack_name": "Blatt 1"}),  # derselbe
+    (S0, "POST", "/api/flashcards", {"cards": [card("Name ohne Fach", "ja")], "stack_name": "Blatt 1"}),                     # anderes Fach: neu
+    (S0, "POST", "/api/flashcards", {"cards": [card("Automatisch", "ja")], "file_id": "f-la1"}),                              # Stapel der Datei
+    (S0, "POST", "/api/flashcards", {"cards": [card("Automatisch frei", "ja")]}),                                            # Ohne Modul
+    (S0, "POST", "/api/flashcards", {"cards": [card("Neue Datei", "ja")], "file_id": "5"}),                                  # neuer Dateistapel
+    (S0, "POST", "/api/flashcards", {"cards": [card("x", "y")], "stack_id": 9999}),                                           # 404
+    (S0, "POST", "/api/flashcards", {"cards": [card("x", "y")], "stack_id": "5"}),                                            # Text trifft 5
+    (S0, "POST", "/api/flashcards", {"cards": [], "stack_id": 9999}),                                                         # keine Karte: 200
+    (S0, "POST", "/api/flashcards", {"cards": [card("", "y")], "stack_id": 9999}),                                            # uebersprungen: 200
+    # Lehrwoche und Art (Ergaenzung 04.11.2026): eigene Angabe, Vorgabe aus dem Dokument (Blatt_01 -> uebung, Woche 1), Fehler
+    (S0, "POST", "/api/flashcard-stacks", {"name": "Woche 3", "subject": "Analysis Beispiel", "week": 3, "kind": "uebung"}),
+    (S0, "POST", "/api/flashcard-stacks", {"name": "Folien", "file_id": "f-la1", "kind": "vorlesung", "week": None}),
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "week": 0}),                                 # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "week": "3"}),                               # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "week": True}),                              # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "week": 2.0}),                               # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "kind": "klausur"}),                         # 422
+    (S0, "POST", "/api/flashcard-stacks", {"name": "x", "kind": None}),                              # 422
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"week": 2, "kind": "vorlesung"}),
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"week": None}),
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"kind": ""}),                                          # 422
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"week": -1}),                                          # 422
+    (S0, "GET", "/api/flashcard-stacks", None),
+    (S0, "GET", "/api/flashcards?stack_id=5", None),
+    (S0, "GET", "/api/flashcards?stack_id=5&due=1", None),
+    (S0, "GET", "/api/flashcards?due=true&stack_id=1", None),
+    (S0, "GET", "/api/flashcards?stack_id=0", None),
+    (S0, "GET", "/api/flashcards?stack_id=", None),                                                  # 422
+    # geschlossenes Ueben: nur Karten des Stapels 5, Wiederholung setzt last_practised des Stapels
+    (S0, "POST", "/api/flashcards/7/review", {"correct": True}),
+    (S0, "PATCH", "/api/flashcards/8", {"last_result": "wrong"}),
+    (S0, "GET", "/api/flashcard-stacks", None),
+    (S0, "GET", "/api/flashcards?stack_id=5&due=1", None),
+    # bearbeiten: Frage, Antwort, Fach, Stapel; Fach und Termin bleiben
+    (S0, "PATCH", "/api/flashcards/7", {"question": "  In Klausur 1 (neu)  ", "answer": "nein"}),
+    (S0, "PATCH", "/api/flashcards/7", {"subject": "Physik Test"}),
+    (S0, "PATCH", "/api/flashcards/7", {"subject": None}),
+    (S0, "PATCH", "/api/flashcards/8", {"stack_id": 6}),                                             # Fach des Stapels
+    (S0, "PATCH", "/api/flashcards/8", {"stack_id": 5, "subject": "Eigen"}),                         # eigenes Fach bleibt
+    (S0, "PATCH", "/api/flashcards/8", {"question": ""}),                                            # 422
+    (S0, "PATCH", "/api/flashcards/8", {"answer": "   "}),                                           # 422
+    (S0, "PATCH", "/api/flashcards/8", {"question": 7}),                                             # 422
+    (S0, "PATCH", "/api/flashcards/8", {"subject": 7}),                                              # 422
+    (S0, "PATCH", "/api/flashcards/8", {"stack_id": "6"}),                                           # 422
+    (S0, "PATCH", "/api/flashcards/8", {"stack_id": True}),                                          # 422
+    (S0, "PATCH", "/api/flashcards/8", {"stack_id": None}),                                          # 422
+    (S0, "PATCH", "/api/flashcards/8", {"stack_id": 9999}),                                          # 404
+    (S0, "PATCH", "/api/flashcards/9999", {"question": "x"}),                                        # 404
+    (S0, "PATCH", "/api/flashcards/8", {"question": "Nur Frage", "bookmarked": True, "last_result": "right"}),
+    (S0, "GET", "/api/flashcards?stack_id=5", None),
+    # Stapel aendern
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"name": " Klausur 1 neu "}),
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"subject": "Physik Test"}),                            # Karten folgen
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"file_id": "f-la1"}),
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"file_id": None}),
+    (S0, "PATCH", "/api/flashcard-stacks/5", {}),
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"name": ""}),                                          # 422
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"subject": 1}),                                        # 422
+    (S0, "PATCH", "/api/flashcard-stacks/5", {"file_id": "gibtsnicht"}),                             # 404
+    (S0, "PATCH", "/api/flashcard-stacks/9999", {"name": "x"}),                                      # 404
+    (S0, "PATCH", "/api/flashcard-stacks/fuenf", {"name": "x"}),                                     # 422
+    (S0, "PATCH", "/api/flashcard-stacks/5", [1]),                                                   # 422
+    (S0, "GET", "/api/flashcards?stack_id=5", None),
+    # loeschen: mit Umzug (Karten bekommen das Fach des Ziels), ohne Umzug (Karten weg), Fehler
+    (S1, "DELETE", "/api/flashcard-stacks/5?move_to=5", None),                                       # 422
+    (S1, "DELETE", "/api/flashcard-stacks/5?move_to=9999", None),                                    # 404
+    (S1, "DELETE", "/api/flashcard-stacks/9999", None),                                              # 404
+    (S1, "DELETE", "/api/flashcard-stacks/5?move_to=abc", None),                                     # 422
+    (S1, "DELETE", "/api/flashcard-stacks/5?move_to=6", None),
+    (S1, "GET", "/api/flashcards?stack_id=6", None),
+    (S1, "DELETE", "/api/flashcard-stacks/6", None),
+    (S1, "DELETE", "/api/flashcard-stacks/6", None),                                                 # 404
+    (S1, "DELETE", "/api/flashcard-stacks/8", None),                                                 # leerer Stapel
+    (S1, "GET", "/api/flashcard-stacks", None),
+    (S1, "GET", "/api/flashcards", None),
+    # Karte einer geloeschten Datei-Zuordnung: Stapel ohne Karten entstehen nicht neu
+    (S1, "DELETE", "/api/flashcards/1", None),
+    (S1, "GET", "/api/flashcard-stacks", None),
+]
+
+
+def stack_seed() -> list[tuple[str, list]]:
+    seed = base_seed()
+    for cid, fid, subject, question in STACK_SEED_CARDS:
+        seed.append(("INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+                     [cid, fid, subject, question, "Antwort", f"2026-10-2{cid}T08:00:00"]))
+    return seed
+
+
 def edge_seed() -> list[tuple[str, list]]:
     seed = base_seed()
     for cid, fid, box, due in EDGE_CARDS:
@@ -244,7 +365,9 @@ def run(src: SchemaSource, gen, server, name: str, seed: list, steps: list) -> d
         out.append(step)
     with src.db.cursor() as conn:
         table = src.db.rows(conn, "SELECT * FROM flashcards ORDER BY id")
-    return {"name": name, "seed": [{"sql": q, "params": p} for q, p in seed], "steps": out, "tables_after": {"flashcards": table}}
+        stacks = src.db.rows(conn, "SELECT * FROM flashcard_stacks ORDER BY id")
+    return {"name": name, "seed": [{"sql": q, "params": p} for q, p in seed], "steps": out,
+            "tables_after": {"flashcards": table, "flashcard_stacks": stacks}}
 
 
 def main() -> int:
@@ -259,7 +382,8 @@ def main() -> int:
             scenarios = [run(src, gen, server, "haupt", base_seed(), MAIN_STEPS),
                          run(src, gen, server, "grenzen", edge_seed(), EDGE_STEPS),
                          run(src, gen, server, "trainer", base_seed(), TRAINER_STEPS),
-                         run(src, gen, server, "versteckt", hidden_seed(), HIDDEN_STEPS)]
+                         run(src, gen, server, "versteckt", hidden_seed(), HIDDEN_STEPS),
+                         run(src, gen, server, "stapel", stack_seed(), STACK_STEPS)]
     finally:
         src.cleanup()
     out = without_sync({"generator": "tools/gen-flashcards-fixture.py", "intervals": [1, 2, 4, 8, 16], "scenarios": scenarios})

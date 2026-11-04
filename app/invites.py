@@ -22,6 +22,7 @@ Tabellen in accounts.db: invites, invite_redemptions, offer_codes, invite_reward
 from __future__ import annotations
 
 import os
+import re
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -37,6 +38,14 @@ CREATE_DAYS = 7                                              # Links nur in der 
 STOCK_WARN_BELOW = 5                                         # Hinweis fuer den Betrieb, wenn der Vorrat einer Stufe knapp wird
 APP_ID_ENV = "LERNAPP_APPLE_APP_ID"
 EXHAUSTED_MESSAGE = "Für diese Belohnung sind gerade keine Codes hinterlegt – bitte später noch einmal versuchen."
+# Grenzen je Konto (Anzahl, Minuten) fuer Anlegen, Einloesen und Belohnung abholen (Sicherheitspruefung 04.11.2026):
+# gezaehlt in accounts.db `rate_limits` wie accounts.LIMITS, ueberschreibbar mit LERNAPP_LIMIT_<NAME>=Anzahl/Minuten
+# (deploy/.env.example). Einloesen knapp, damit sich fremde Codes nicht durchprobieren lassen (31^10 Moeglichkeiten).
+LIMITS = {"invite_create_user": (40, 1440), "invite_redeem_user": (10, 60), "invite_claim_user": (10, 60)}
+# Angebotscodes aus App Store Connect: Buchstaben, Ziffern, Bindestrich, Unterstrich, 3 bis 64 Zeichen; andere Zeilen
+# des Stapels (Kopfzeilen, Tabellenreste) werden uebergangen, nie gespeichert
+OFFER_CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$")
+MAX_UPLOAD_LINES = 10_000
 
 # Stufen (aufsteigend). `choices`: welche Angebotscodes es fuer die Stufe gibt (Produkt in offer_codes.product).
 TIERS: tuple[dict, ...] = (
@@ -93,9 +102,9 @@ CREATE TABLE IF NOT EXISTS invite_rewards (
 
 
 class InviteError(Exception):
-    def __init__(self, code: str, message: str, status: int = 400):
+    def __init__(self, code: str, message: str, status: int = 400, retry_after: int | None = None):
         super().__init__(message)
-        self.code, self.message, self.status = code, message, status
+        self.code, self.message, self.status, self.retry_after = code, message, status, retry_after
 
 
 def _now(now: datetime | None = None) -> datetime:
@@ -145,6 +154,49 @@ def contract() -> dict:
     return {"max_links": MAX_PER_USER, "link_days": LINK_DAYS, "create_days": CREATE_DAYS, "link_base": LINK_BASE,
             "tiers": [{"count": t["count"], "choices": list(t["choices"]),
                        "rewards": {c: REWARD_LABELS[(t["count"], c)] for c in t["choices"]}} for t in TIERS]}
+
+
+# ---------------------------------------------------------------- Grenzen je Konto
+
+def limit_of(name: str) -> tuple[int, int]:
+    """(Anzahl, Minuten) aus LIMITS, mit LERNAPP_LIMIT_<NAME>=Anzahl/Minuten ueberschrieben (wie accounts._limit)."""
+    raw = (os.environ.get(f"LERNAPP_LIMIT_{name.upper()}") or "").strip()
+    if raw:
+        try:
+            n, m = (int(x) for x in raw.split("/", 1))
+            if n > 0 and m > 0:
+                return n, m
+        except ValueError:
+            pass
+    return LIMITS[name]
+
+
+def hit_limit(conn: sqlite3.Connection, name: str, user_id: str, now: datetime | None = None) -> None:
+    """Versuch zaehlen (eigene Transaktion, bleibt auch bei einem spaeteren Fehler gezaehlt, wie accounts._hit); ueber
+    der Grenze 429 rate_limited mit Wartezeit."""
+    limit, minutes = limit_of(name)
+    key, t = f"{name}:{user_id}", _now(now)
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        r = conn.execute("SELECT count, window_start FROM rate_limits WHERE key=?", (key,)).fetchone()
+        start = _parse(r[1]) if r else None
+        if start and t - start < timedelta(minutes=minutes):
+            if r[0] >= limit:
+                wait = int((start + timedelta(minutes=minutes) - t).total_seconds()) + 1
+                conn.execute("COMMIT")
+                raise InviteError("rate_limited", f"Zu viele Versuche. Bitte in {max(1, wait // 60)} Minuten erneut versuchen.",
+                                  429, retry_after=wait)
+            conn.execute("UPDATE rate_limits SET count=count+1 WHERE key=?", (key,))
+        else:
+            conn.execute("INSERT INTO rate_limits(key, count, window_start) VALUES (?,1,?) "
+                         "ON CONFLICT(key) DO UPDATE SET count=1, window_start=excluded.window_start", (key, t.isoformat()))
+        conn.execute("COMMIT")
+    except InviteError:
+        raise
+    except Exception:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
 
 
 # ---------------------------------------------------------------- Codes
@@ -200,6 +252,7 @@ def create_window(conn: sqlite3.Connection, user_id: str, now: datetime | None =
 def create(conn: sqlite3.Connection, user_id: str, now: datetime | None = None) -> dict:
     """Neuen Einladungslink anlegen (hoechstens 20 je Konto, nur im Anlegefenster)."""
     uid, t = str(user_id), _now(now)
+    hit_limit(conn, "invite_create_user", uid, t)
     conn.execute("BEGIN IMMEDIATE")
     try:
         ok, until = create_window(conn, uid, t)
@@ -280,6 +333,7 @@ def redeem(conn: sqlite3.Connection, user: dict, code: str, now: datetime | None
     Konto nach dem Link angelegt, innerhalb der 30 Tage."""
     uid, t = str(user["id"]), _now(now)
     code = normalize_code(code)
+    hit_limit(conn, "invite_redeem_user", uid, t)
     conn.execute("BEGIN IMMEDIATE")
     try:
         old = conn.execute("SELECT code, inviter_id, created_at FROM invite_redemptions WHERE user_id=?", (uid,)).fetchone()
@@ -334,6 +388,7 @@ def claim(conn: sqlite3.Connection, user: dict, tier: int, choice: str, now: dat
     if choice not in tdef["choices"]:
         raise InviteError("invite_choice_invalid", "Diese Belohnung gibt es für die Stufe nicht.", 400)
     product = CHOICES[choice]["product"]
+    hit_limit(conn, "invite_claim_user", uid, t)
     conn.execute("BEGIN IMMEDIATE")
     try:
         old = conn.execute("SELECT choice, offer_code, claimed_at FROM invite_rewards WHERE user_id=? AND tier=?", (uid, tier)).fetchone()
@@ -370,8 +425,11 @@ def _claimed(tier: int, choice: str, code: str, at: str, already: bool) -> dict:
 # ---------------------------------------------------------------- Betrieb: Vorrat hochladen
 
 def upload_codes(conn: sqlite3.Connection, product: str, tier: int, codes: list[str], now: datetime | None = None) -> dict:
-    """Stapel aus App Store Connect (eine Zeile je Code) in den Vorrat legen. Doppelte werden uebersprungen."""
+    """Stapel aus App Store Connect (eine Zeile je Code) in den Vorrat legen. Doppelte werden uebersprungen, Zeilen ohne
+    die Form eines Codes (OFFER_CODE_RE) uebergangen (`ignored`), hoechstens MAX_UPLOAD_LINES Zeilen je Stapel (413)."""
     t = _now(now)
+    if len(codes) > MAX_UPLOAD_LINES:
+        raise InviteError("offer_codes_too_many", f"Der Stapel ist zu groß (höchstens {MAX_UPLOAD_LINES} Zeilen je Upload).", 413)
     product = billing.normalize_plan(product) or ""
     try:
         tier = int(tier)
@@ -382,15 +440,21 @@ def upload_codes(conn: sqlite3.Connection, product: str, tier: int, codes: list[
         raise InviteError("invite_tier_invalid", "Unbekannte Stufe (5, 10 oder 20).", 400)
     if product not in {CHOICES[c]["product"] for c in tdef["choices"]}:
         raise InviteError("offer_product_invalid", f"Für Stufe {tier} gibt es keine Codes für dieses Produkt.", 400)
-    clean, total = [], 0
+    clean, total, ignored = [], 0, 0
+    seen: set[str] = set()
     for c in codes:
         s = str(c or "").strip()
-        if s and not s.startswith("#"):
-            total += 1
-            if s not in clean:
-                clean.append(s)
+        if not s or s.startswith("#"):
+            continue
+        if not OFFER_CODE_RE.match(s):
+            ignored += 1
+            continue
+        total += 1
+        if s not in seen:
+            seen.add(s)
+            clean.append(s)
     if not clean:
-        raise InviteError("offer_codes_missing", "Keine Codes im Stapel.", 400)
+        raise InviteError("offer_codes_missing", "Keine Codes im Stapel." + (f" {ignored} Zeilen ohne Code-Form übergangen." if ignored else ""), 400)
     added = 0
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -402,7 +466,7 @@ def upload_codes(conn: sqlite3.Connection, product: str, tier: int, codes: list[
     except Exception:
         conn.execute("ROLLBACK")
         raise
-    return {"added": added, "skipped": total - added, "stock": stock(conn)}
+    return {"added": added, "skipped": total - added, "ignored": ignored, "stock": stock(conn)}
 
 
 # ---------------------------------------------------------------- Loeschen und Export

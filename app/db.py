@@ -76,6 +76,20 @@ CREATE TABLE IF NOT EXISTS flashcards (
     due TEXT
 );
 
+CREATE TABLE IF NOT EXISTS flashcard_stacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    subject TEXT,                 -- Modul (Fach) wie flashcards.subject
+    file_id TEXT,                 -- Quelldokument, optional
+    created_at TEXT,
+    last_practised TEXT,          -- letzte Wiederholung oder Uebung im Stapel
+    week INTEGER,                 -- Lehrwoche 1..n, NULL = "Allgemein"
+    kind TEXT DEFAULT 'eigene',   -- vorlesung | uebung | eigene
+    source TEXT,                  -- uebernommen: week (geteilter Wochenstapel) | community (geteilter Stapel), NULL = eigener
+    source_ref TEXT,              -- Schluessel des Wochenstapels bzw. Kennung des geteilten Stapels
+    shared_id TEXT                -- Kennung des eigenen geteilten Stapels in der Modul-Community, NULL = privat
+);
+
 CREATE TABLE IF NOT EXISTS plans (
     week_start TEXT PRIMARY KEY,   -- Montag, YYYY-MM-DD
     generated_at TEXT,
@@ -372,6 +386,35 @@ CREATE TABLE IF NOT EXISTS sync_log (
 # Einmalige Vorbelegung von flashcards.last_result (siehe _init_db); woertlich auch in Migrations.swift
 FLASHCARD_RESULT_BACKFILL = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"
 
+# Geschlossene Stapel (04.11.2026, docs/KARTEIKARTEN-STAPEL-2026-11-04.md): jede Karte gehoert zu genau einem Stapel.
+# Karten ohne Stapel bekommen einen: Karten eines Dokuments den Stapel dieses Dokuments (Name = Titel, sonst Dateiname,
+# sonst die Kennung), die uebrigen je Fach den Stapel "Allgemein", ohne Fach "Ohne Modul". Laeuft bei jedem Start und
+# vor dem Lesen der Karten und Stapel (idempotent: nur Karten mit stack_id NULL, etwa nach einem Abgleich mit einem
+# aelteren Geraet); woertlich auch in Migrations.swift (flashcardStackSQL).
+FLASHCARD_STACK_SQL = (
+    "INSERT INTO flashcard_stacks(name, subject, file_id, created_at) "
+    "SELECT COALESCE(NULLIF(f.title, ''), NULLIF(f.name, ''), fc.file_id), MAX(fc.subject), fc.file_id, MIN(fc.created_at) "
+    "FROM flashcards fc LEFT JOIN files f ON f.id = fc.file_id "
+    "WHERE fc.stack_id IS NULL AND fc.file_id IS NOT NULL AND fc.file_id <> '' "
+    "AND NOT EXISTS (SELECT 1 FROM flashcard_stacks s WHERE s.file_id = fc.file_id) GROUP BY fc.file_id",
+    "UPDATE flashcards SET stack_id = (SELECT s.id FROM flashcard_stacks s WHERE s.file_id = flashcards.file_id ORDER BY s.id LIMIT 1) "
+    "WHERE stack_id IS NULL AND file_id IS NOT NULL AND file_id <> ''",
+    "INSERT INTO flashcard_stacks(name, subject, file_id, created_at) "
+    "SELECT CASE WHEN fc.subject IS NULL OR fc.subject = '' THEN 'Ohne Modul' ELSE 'Allgemein' END, NULLIF(fc.subject, ''), NULL, MIN(fc.created_at) "
+    "FROM flashcards fc WHERE fc.stack_id IS NULL "
+    "AND NOT EXISTS (SELECT 1 FROM flashcard_stacks s WHERE s.file_id IS NULL AND s.subject IS NULLIF(fc.subject, '') "
+    "AND s.name = CASE WHEN fc.subject IS NULL OR fc.subject = '' THEN 'Ohne Modul' ELSE 'Allgemein' END) GROUP BY NULLIF(fc.subject, '')",
+    "UPDATE flashcards SET stack_id = (SELECT s.id FROM flashcard_stacks s WHERE s.file_id IS NULL AND s.subject IS NULLIF(flashcards.subject, '') "
+    "AND s.name = CASE WHEN flashcards.subject IS NULL OR flashcards.subject = '' THEN 'Ohne Modul' ELSE 'Allgemein' END ORDER BY s.id LIMIT 1) "
+    "WHERE stack_id IS NULL",
+)
+
+
+def ensure_flashcard_stacks(conn) -> None:
+    """FLASHCARD_STACK_SQL ausfuehren (Start und vor dem Lesen der Karten); ohne Karten ohne Stapel ohne Wirkung."""
+    for sql in FLASHCARD_STACK_SQL:
+        conn.execute(sql)
+
 DEFAULT_SETTINGS = {
     "hours_per_day": "4",
     "free_days": "[6]",            # Sonntag frei
@@ -426,12 +469,46 @@ def schema_once(conn: sqlite3.Connection, key: str, path, fn) -> None:
             _schema_done.add(ident)
 
 
+_wal_done: set = set()
+_wal_lock = __import__("threading").Lock()
+
+
+def wal_once(conn: sqlite3.Connection, path) -> None:
+    """WAL-Modus je Datenbankdatei einmal je Prozess einschalten, nicht bei jeder Verbindung (04.11.2026). Der Wechsel
+    schreibt in den Dateikopf: liefen zwei Verbindungen gleichzeitig `PRAGMA journal_mode=WAL` auf einer neuen Datei,
+    hielten beide die Lesesperre und wollten schreiben - SQLite bricht dann sofort mit 'database is locked' ab, ohne
+    das Zeitlimit (busy_timeout) zu nutzen. Gilt fuer alle Oeffner derselben Datei (Schluessel ist nur der Pfad, z. B.
+    accounts.cursor und billing.connect auf accounts.db). Unter der Sperre wird erst der aktuelle Modus gelesen; nur
+    eine Datei im alten Modus wird umgestellt. WAL bleibt in der Datei gespeichert. Eine neu angelegte oder ersetzte
+    Datei (andere Dateinummer oder Aenderungszeit) wird erneut geprueft, wie bei schema_once."""
+    import os
+    try:
+        st = os.stat(path)
+        ident = (str(path), st.st_ino, st.st_ctime_ns)       # vor dem Umstellen gelesen, siehe tests/test_db_wal_race.py
+    except OSError:
+        ident = None
+    if ident is not None and ident in _wal_done:
+        return
+    with _wal_lock:
+        mode = (conn.execute("PRAGMA journal_mode").fetchone() or [""])[0]
+        if str(mode).lower() != "wal":
+            conn.execute("PRAGMA journal_mode=WAL")
+        if ident is not None:
+            _wal_done.add(ident)
+            try:                                            # der Wechsel aendert die Zeit der Datei: auch den neuen Stand merken
+                st = os.stat(path)
+                _wal_done.add((str(path), st.st_ino, st.st_ctime_ns))
+            except OSError:
+                pass
+
+
 def connect() -> sqlite3.Connection:
     from . import config
     # hosted: Datenbank des angemeldeten Kontos; sonst DB_PATH (Modulvariable, von Werkzeugen und Tests umlenkbar)
-    conn = sqlite3.connect(config.db_path() if config.current_user_id() else DB_PATH, check_same_thread=False, timeout=15)
+    p = config.db_path() if config.current_user_id() else DB_PATH
+    conn = sqlite3.connect(p, check_same_thread=False, timeout=15)      # timeout = busy_timeout 15 s je Verbindung
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    wal_once(conn, p)
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
@@ -526,6 +603,14 @@ def _init_db(conn) -> None:
     if "last_result" not in {r[1] for r in conn.execute("PRAGMA table_info(flashcards)")}:
         conn.execute("ALTER TABLE flashcards ADD COLUMN last_result TEXT")
         conn.execute(FLASHCARD_RESULT_BACKFILL)
+    # Geschlossene Stapel (04.11.2026): Stapel je Karte, Bestand bekommt Stapel je Dokument bzw. Fach (FLASHCARD_STACK_SQL)
+    add_col("flashcards", "stack_id", "INTEGER")
+    ensure_flashcard_stacks(conn)
+    # Geteilte Stapel (04.11.2026, app/cardshare.py, app/community_cards.py): Herkunft eines uebernommenen Stapels und
+    # die Kennung des eigenen geteilten Stapels
+    add_col("flashcard_stacks", "source", "TEXT")
+    add_col("flashcard_stacks", "source_ref", "TEXT")
+    add_col("flashcard_stacks", "shared_id", "TEXT")
     # Fachfarben (27.10.2026, app/colors.py): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
     # Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
     # bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.

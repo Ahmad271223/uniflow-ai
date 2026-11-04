@@ -8,6 +8,8 @@ struct MainView: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var overlay: UFOverlay
+    /// Router dieses Fensters (Weitermachen wie zuvor: `router.resume`)
+    @EnvironmentObject private var router: UFRouter
     /// KI ueber das ChatGPT-Abo verbunden: Wochentests auch ohne PC
     @Environment(\.ufAIEnabled) private var aiEnabled
 
@@ -50,12 +52,25 @@ struct MainView: View {
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }
+        // Weitermachen wie zuvor (Services/ResumeState.swift): nach dem ersten Bild das zuletzt offene Dokument wieder
+        // oeffnen (einmal je Fenster, nie blockierend, still bei Fehlern); nicht unter XCTest und nicht mit
+        // Startparametern, die selbst eine Seite waehlen (-UFRoute/-UFAction der Bildvergleiche)
+        .task(id: session.api?.base) {
+            guard Self.restoresAtLaunch() else { return }
+            await router.resume.restoreIfNeeded(api: session.api, router: router)
+        }
         .modifier(CommunityBadgeHost())                                      // Zahl neuer Korrekturhinweise an "Community"
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
         // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle
         .onChange(of: session.api?.base) { _, _ in shell.attach(session.api); UFSessionState.reset(); overlay.closeAll() }
+    }
+
+    /// Wiederherstellung nur in der laufenden App ohne Startparameter fuer eine Seite
+    static func restoresAtLaunch(defaults d: UserDefaults = .standard, underTest: Bool = StudIPSync.isUnderTest()) -> Bool {
+        if underTest { return false }
+        return d.string(forKey: "UFRoute") == nil && d.string(forKey: "UFAction") == nil && d.string(forKey: "UFDocPanel") == nil
     }
 }
 

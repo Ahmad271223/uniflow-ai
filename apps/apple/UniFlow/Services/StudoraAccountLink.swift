@@ -67,6 +67,11 @@ final class StudoraAccountLink: ObservableObject {
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
         didSet { Entitlements.shared.useServiceTrial(planStatus?.trialPlan.flatMap(UFPlan.init(rawValue:))) }
     }
+    /// Credits der StudiNow-KI in diesem Monat (`credits` aus `GET /api/entitlements`); nil ohne Konto oder ohne Stand
+    @Published private(set) var credits: StudoraCredits?
+    /// Was die letzte KI-Antwort gekostet hat (`charged`), fuer die Kostenzeile; nil bis zur ersten Antwort mit Stand
+    @Published private(set) var lastCharge: StudoraCredits.Charge?
+    private var creditsClient: StudoraCredits.Client?
     @Published private(set) var busy = false
     @Published var message: String?
     /// Handlung zur letzten Fehlermeldung (z. B. Bestaetigungslink erneut senden)
@@ -143,11 +148,51 @@ final class StudoraAccountLink: ObservableObject {
         user = nil
         sessions = []
         planStatus = nil
+        clearCredits()
         account = nil
+        creditsClient = nil
         guard let userScope, let base = Self.serviceURL else { return }
-        account = StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: StudoraAccountKeychain(userScope: userScope),
+        let tokens = StudoraAccountKeychain(userScope: userScope)
+        account = StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: tokens,
                                  deviceID: Self.deviceID, deviceName: UIDevice.current.name)
+        creditsClient = StudoraCredits.Client(base: base, http: URLSessionServiceTransport(), tokens: tokens)
         Task { await refresh() }
+    }
+
+    // MARK: Credits
+
+    /// Nur Tests und Vorschauen: Credits ueber einen Schein-Dienst laden, ohne Dienst-Adresse im Build
+    func attach(creditsClient: StudoraCredits.Client?) {
+        self.creditsClient = creditsClient
+    }
+
+    private func clearCredits() {
+        credits = nil
+        lastCharge = nil
+    }
+
+    /// Stand neu laden (`GET /api/entitlements`); ein Fehler laesst den letzten Stand stehen, abgemeldet wird er nil
+    func refreshCredits() async {
+        guard let creditsClient else { clearCredits(); return }
+        if let c = try? await creditsClient.fetch() { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
+    }
+
+    /// Antwort von `/api/ai/tutor` oder `/api/ai/flashcards`: neuer Stand und was sie gekostet hat (`charged`,
+    /// `replay`). Ohne `credits` in der Antwort (eigener PC, ChatGPT auf dem Geraet) aendert sich nichts.
+    func noteAIResponse(_ response: JSONValue) {
+        guard let c = StudoraCredits.parse(response["credits"]) else { return }
+        credits = c
+        lastCharge = StudoraCredits.charge(in: response)
+    }
+
+    /// Fehler einer KI-Anfrage: beim 429 `credits_exhausted` den Stand aus dem Rumpf uebernehmen (Rest 0).
+    /// Rueckgabe: war es dieser Fehler? Die Oberflaeche zeigt dann `localizedDescription` und den Weg zum Tarif.
+    @discardableResult
+    func noteAIError(_ error: Error) -> Bool {
+        guard StudoraCredits.isExhausted(error) else { return false }
+        if let c = StudoraCredits.exhaustedState(error) { credits = c } else if var c = credits { c.remaining = 0; credits = c }
+        lastCharge = nil
+        return true
     }
 
     private func run(_ op: @escaping (StudoraAccount) async throws -> Void) async {
@@ -160,19 +205,21 @@ final class StudoraAccountLink: ObservableObject {
             // Texte der Fehlercodes: ServiceErrorText (UniFlowCore), mit Retry-After
             message = e.userMessage
             messageAction = e.action
-            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil }
+            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearCredits() }
         } catch {
             message = error.localizedDescription
         }
     }
 
     func refresh() async {
-        guard let account, await account.isSignedIn else { user = nil; sessions = []; planStatus = nil; return }
+        guard let account, await account.isSignedIn else { user = nil; sessions = []; planStatus = nil; clearCredits(); return }
         await run { a in
             let me = try await a.me()
             self.user = me.user
             self.sessions = me.sessions
             self.planStatus = try await a.planStatus()
+            // Credits-Stand aus derselben Antwort (`credits`); ohne Stand bleibt die Zeile weg
+            await self.refreshCredits()
         }
         if user != nil, PendingInvite.current() != nil { _ = await redeemPendingInvite() }
     }
@@ -222,6 +269,7 @@ final class StudoraAccountLink: ObservableObject {
         user = nil
         sessions = []
         planStatus = nil
+        clearCredits()
     }
 
     /// ZIP in eine temporaere Datei (zum Teilen); nil bei Fehler
@@ -246,8 +294,80 @@ final class StudoraAccountLink: ObservableObject {
     func delete(password: String?) async -> Bool {
         var ok = false
         await run { a in _ = try await a.delete(password: password); ok = true }
-        if ok { user = nil; sessions = []; planStatus = nil }
+        if ok { user = nil; sessions = []; planStatus = nil; clearCredits() }
         return ok
+    }
+}
+
+/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 1 Cent echter KI-Kosten, Pro AI
+/// 100 je Kalendermonat, Probe 25, andere Tarife 0. Stand aus `credits` in `GET /api/entitlements` und in den
+/// KI-Antworten (`/api/ai/tutor`, `/api/ai/flashcards`: zusaetzlich `charged`, `replay`). Reihenfolge der Bezahlung:
+/// Geteiltes (0) -> eigenes ChatGPT (0) -> Credits. Am eigenen PC und ohne Konto ist der Stand nil.
+struct StudoraCredits: Equatable {
+    /// "2026-11"
+    var period: String
+    var allowance: Int
+    var used: Int
+    var remaining: Int
+    /// Beginn des naechsten Monats (ISO mit Versatz, Europe/Berlin): ab dann gibt es neue Credits
+    var resetsAt: String?
+    var plan: String?
+
+    /// Was die letzte KI-Antwort gekostet hat (`charged`); `replay`: gespeicherte Antwort zur selben request_id, nichts
+    /// neu berechnet
+    struct Charge: Equatable {
+        var credits: Int
+        var replay: Bool
+    }
+
+    /// Fehlercode des Dienstes, wenn der Rest des Monats nicht reicht (429)
+    static let exhaustedCode = "credits_exhausted"
+
+    /// `credits` einer Antwort; nil, wenn es fehlt oder null ist (eigener PC, kein Konto)
+    static func parse(_ v: JSONValue?) -> StudoraCredits? {
+        guard let v, let allowance = v["allowance"]?.double else { return nil }
+        let used = Int(v["used"]?.double ?? 0)
+        let reserved = Int(v["reserved"]?.double ?? 0)
+        let remaining = v["remaining"]?.double.map(Int.init) ?? max(0, Int(allowance) - used - reserved)
+        return StudoraCredits(period: v["period"]?.string ?? "", allowance: Int(allowance), used: used, remaining: max(0, remaining),
+                              resetsAt: v["resets_at"]?.string, plan: v["plan"]?.string)
+    }
+
+    /// `charged`/`replay` einer KI-Antwort (im `credits`-Objekt, zur Sicherheit auch oben); nil ohne Credits-Stand
+    static func charge(in response: JSONValue) -> Charge? {
+        let c = response["credits"]
+        guard let charged = c?["charged"]?.double ?? response["charged"]?.double else { return nil }
+        return Charge(credits: Int(charged), replay: c?["replay"]?.bool ?? response["replay"]?.bool ?? false)
+    }
+
+    /// Ist das der 429 `credits_exhausted` des Dienstes? Die Meldung dazu ("Credits für diesen Monat aufgebraucht – am
+    /// 1. gibt es neue.") kommt als `detail` und steht schon in `localizedDescription` (APIError, AccountError).
+    static func isExhausted(_ error: Error) -> Bool {
+        if let e = error as? APIError { return e.code == exhaustedCode }
+        if let e = error as? AccountError { return e.code == exhaustedCode }
+        return false
+    }
+
+    /// Stand aus dem Rumpf des 429 (`credits` mit `needed`); nil, wenn der gekuerzte Text kein JSON mehr ist
+    static func exhaustedState(_ error: Error) -> StudoraCredits? {
+        guard let e = error as? APIError, e.code == exhaustedCode, let j = try? JSONValue.parse(Data(e.message.utf8)) else { return nil }
+        return parse(j["credits"] ?? j["detail"]?["credits"])
+    }
+
+    /// Holt den Stand aus `GET /api/entitlements` mit dem Sitzungs-Token des Kontos (dieselbe Antwort wie
+    /// `StudoraAccount.planStatus`, nur das Feld `credits`); nil ohne Token oder ohne `credits`
+    struct Client: Sendable {
+        let base: String
+        let http: ServiceHTTPTransport
+        let tokens: AccountTokenStore
+
+        func fetch() async throws -> StudoraCredits? {
+            guard let t = tokens.load() else { return nil }
+            let url = (base.hasSuffix("/") ? String(base.dropLast()) : base) + "/api/entitlements"
+            let r = try await http.send(AIHTTPRequest(method: "GET", url: url, headers: ["Accept": "application/json", "Authorization": "Bearer \(t)"], body: nil))
+            guard (200..<300).contains(r.status), let j = try? JSONValue.parse(r.body) else { return nil }
+            return parse(j["credits"])
+        }
     }
 }
 

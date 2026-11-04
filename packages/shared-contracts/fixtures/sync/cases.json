@@ -8,6 +8,7 @@
    "event_exceptions",
    "study_packages",
    "study_tasks",
+   "flashcard_stacks",
    "flashcards",
    "settings",
    "annotations"
@@ -998,6 +999,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -1091,6 +1093,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -1107,6 +1110,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2449,6 +2453,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2465,6 +2470,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2496,6 +2502,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2512,6 +2519,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -2566,6 +2574,7 @@
          "bookmarked": 0,
          "hidden": 0,
          "last_result": null,
+         "stack_id": null,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"

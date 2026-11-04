@@ -816,7 +816,8 @@ final class StudIPSync: ObservableObject {
         guard !Task.isCancelled, let backend = try? await host.backend() else { return }
         _ = try? await StudyAutoPlan.afterSync(backend, newFiles: newFiles)
         guard weekly, !Task.isCancelled else { return }
-        if case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
+        // automatische Wochentests ab Plus (UFWeeklyAutoGate); der Index unten laeuft in jedem Tarif
+        if await UFWeeklyAutoGate.check(), case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
             await MainActor.run { NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil) }
         }
         // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden

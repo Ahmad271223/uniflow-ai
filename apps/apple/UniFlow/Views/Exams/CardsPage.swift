@@ -1,37 +1,81 @@
 import SwiftUI
 import UniFlowCore
 
-// Eigene Karteikarten nach viewCards() in app/static/views-misc.js, fuer das iPad ohne PC erweitert: Karte anlegen
-// (Frage, Antwort, optional Modul und Dokument), Liste je Modul, "Heute faellig (N)", Wiederholen mit Aufdecken und
-// Richtig/Falsch, Loeschen mit Rueckfrage. Daten ueber /api/flashcards* (lokal FlashcardEndpoints in der Datenbank des
-// Containers, also je Apple-Nutzer und Hochschule). Karten entstehen nur von Hand, keine KI. Lokal nur mit Plus: die
-// Seite zeigt unter ihrem Kopf UFGate(.flashcards) wie die Community; ohne Plus wird nichts geladen.
+// Eigene Karteikarten nach viewCards() in app/static/views-misc.js, fuer das iPad ohne PC erweitert, seit 04.11.2026
+// mit geschlossenen Stapeln (docs/KARTEIKARTEN-STAPEL-2026-11-04.md): jede Karte gehoert zu genau einem Stapel (Name,
+// Modul, optional Quelldokument). Die Seite zeigt zuerst die Stapel je Modul (Name, Modul, Zahl der Karten, "Heute
+// faellig (n)", zuletzt geuebt); in einem gewaehlten Stapel laufen "Heute faellig", Wiederholen und "Frei ueben" nur
+// mit seinen Karten, nie gemischt. Karten lassen sich anlegen (mit Stapelwahl), bearbeiten (Frage, Antwort, Modul,
+// Stapel; der Lernstand bleibt) und loeschen; Stapel umbenennen, verschieben und loeschen (Karten mit oder Umzug).
+// Daten ueber /api/flashcards* und /api/flashcard-stacks (lokal FlashcardEndpoints in der Datenbank des Containers).
+// Tarif (Entscheidung 04.11.2026, docs/TARIF-MATRIX-2026-11-04.md): lokal sind Ueben, Anlegen, Bearbeiten, Teilen,
+// Uebernehmen und "Karten fuer Woche n holen" Plus. Free (auch nach der Probe) sieht die eigenen Stapel und Karten
+// weiter, nur lesend (UFFlashcardAccess, wie Notizen): oben der Hinweis "Mit Plus übst und bearbeitest du deine Karten
+// wieder." mit dem Weg zur Tarifwahl, Wochenstapel und "Übernehmen" mit Schloss (ufRequires), ohne eigene Karten die
+// Sperrkarte UFLockedCard(.flashcards). Mit Dienst prueft der Dienst (403 "Karteikarten gibt es ab StudiNow Plus.").
+// Geteilte Wochenstapel und "Stapel teilen" (Entscheidung des Inhabers vom 04.11.2026, CardStackEndpoints im Kern,
+// CardStackCloudKit.swift): "Karten fuer Woche n holen" bringt je Modul und Woche die Stapel "Vorlesung Woche n" und
+// "Übung Woche n" (einmal erzeugt, von allen uebernommen, 0 Credits), "Woche n komplett" uebt beide nacheinander
+// (bewusste Wahl, kein Mischen); eigene Stapel lassen sich je Stapel in die Modul-Community teilen, geteilte Stapel
+// anderer stehen je Modul mit Pseudonym, "Übernehmen" (eigene Kopie, Lernstand getrennt), Like und Melden.
 
-/// Stapel der Karteikarten-Seite: alle Karten, die heute faelligen, die laufende Wiederholung, Anlegen und Loeschen.
-/// Gehoert zu genau einer Datenquelle: wechselt sie (anderes Konto, andere Hochschule, eigener Server), beginnt der
-/// Stapel von vorn, und Antworten der alten Quelle werden verworfen (Pruefpunkt 270). Eine Karte wird in einer
-/// Wiederholung hoechstens einmal bewertet, auch bei schnellen Doppeltipps (Pruefpunkt 269).
+/// Stand der Karteikarten-Seite: alle Karten, die Stapel, der gewaehlte Stapel, die laufende Wiederholung, Anlegen,
+/// Bearbeiten und Loeschen. Gehoert zu genau einer Datenquelle: wechselt sie (anderes Konto, andere Hochschule,
+/// eigener Server), beginnt alles von vorn, und Antworten der alten Quelle werden verworfen (Pruefpunkt 270). Eine
+/// Karte wird in einer Wiederholung hoechstens einmal bewertet, auch bei schnellen Doppeltipps (Pruefpunkt 269).
 @MainActor
 final class FlashcardDeck: ObservableObject {
-    /// Karten eines Moduls (Modul der Datei, sonst Fach der Karte, sonst "Ohne Modul")
+    /// Stapel eines Moduls in der Stapelliste (Modul mit dem Namen des Fachs, sonst das Fach, sonst "Ohne Modul")
     struct Group: Identifiable {
         let id: String
         let title: String
         let color: String?
-        let cards: [JSONValue]
+        let stacks: [JSONValue]
     }
 
-    /// Datenquelle, zu der der Stapel gehoert
+    /// Kennung fuer "Neuer Stapel …" in den Auswahlfeldern
+    static let newStack = -1
+    /// Arten eines Stapels (Ergaenzung 04.11.2026): KI-Karten aus einem Dokument bekommen die Art seiner Einordnung
+    static let kinds: [(value: String, label: String)] = [("eigene", "Eigene"), ("vorlesung", "Vorlesung"), ("uebung", "Übung")]
+    /// Wochenfilter der Stapelliste: 0 = "Allgemein" (ohne Lehrwoche), sonst die Woche; nil = alle
+    static let generalWeek = 0
+
+    static func kindLabel(_ kind: String?) -> String { kinds.first { $0.value == kind }?.label ?? "Eigene" }
+
+    /// Etikett eines Stapels: Art und Lehrwoche ("Übung · W3", "Vorlesung", "Eigene · Allgemein")
+    static func badge(_ s: JSONValue) -> String {
+        var out = kindLabel(s.s("kind")) + " · " + (s.i("week").map { "W\($0)" } ?? "Allgemein")
+        if s.s("source") == "week" { out += " · gemeinsam" } else if s.s("source") == "community" { out += " · übernommen" }
+        if let shared = s.s("shared_id"), !shared.isEmpty { out += " · geteilt" }
+        return out
+    }
+
+    /// Arten der geteilten Wochenstapel in der Reihenfolge von "Woche n komplett": erst Vorlesung, dann Uebung
+    static let weekKinds = ["vorlesung", "uebung"]
+    /// Meldegruende wie bei Loesungen (`CommunityReportReason`)
+    static let reportReasons: [(value: String, label: String)] = CommunityReportReason.allCases.map { ($0.rawValue, $0.title) }
+
+    /// Datenquelle, zu der der Stand gehoert
     private(set) var api: APIClient?
     @Published private(set) var all: [JSONValue] = []
-    @Published private(set) var due: [JSONValue] = []
-    /// Module und Dokumente der Bibliothek (Zuordnung der Karten, Auswahl beim Anlegen)
+    /// heute faellig ueber alle Stapel (Zaehler); geuebt wird nur je Stapel (`due`)
+    @Published private(set) var dueAll: [JSONValue] = []
+    @Published private(set) var stacks: [JSONValue] = []
+    /// gewaehlter Stapel (nil = Stapelliste)
+    @Published private(set) var selected: Int?
+    /// Module und Dokumente der Bibliothek (Zuordnung der Stapel, Auswahl beim Anlegen)
     @Published private(set) var modules: [JSONValue] = []
     @Published private(set) var files: [JSONValue] = []
     @Published private(set) var loaded = false
     /// erstes Laden gescheitert (ohne Stand)
     @Published private(set) var failed: String?
-    // Wiederholung: die bei Beginn faelligen Karten in fester Reihenfolge
+    /// Geteilte Stapel der Modul-Community je Modul-Kennung (`loadShared`); leer ohne Dienst
+    @Published private(set) var shared: [Int: [JSONValue]] = [:]
+    /// false, sobald der Dienst "nicht verfuegbar" meldet (kein iCloud-Container): Teilen-Knoepfe bleiben weg
+    @Published private(set) var sharingAvailable = true
+    /// Module, fuer die gerade "Karten fuer Woche n holen" laeuft
+    @Published private(set) var fetchingWeek: Set<Int> = []
+    // Wiederholung: die bei Beginn faelligen Karten des Stapels in fester Reihenfolge
     @Published private(set) var inSession = false
     @Published private(set) var queue: [JSONValue] = []
     @Published private(set) var position = 0
@@ -53,11 +97,16 @@ final class FlashcardDeck: ObservableObject {
         api = new
         generation += 1
         all = []
-        due = []
+        dueAll = []
+        stacks = []
+        selected = nil
         modules = []
         files = []
         loaded = false
         failed = nil
+        shared = [:]
+        sharingAvailable = true
+        fetchingWeek = []
         endSession()
     }
 
@@ -66,13 +115,16 @@ final class FlashcardDeck: ObservableObject {
         let mine = generation
         async let a = api.value("/api/flashcards")
         async let d = api.value("/api/flashcards?due=true")
+        async let s = api.value("/api/flashcard-stacks")
         async let l = api.value("/api/library")
-        let (av, dv, lv) = try await (a, d, l)
+        let (av, dv, sv, lv) = try await (a, d, s, l)
         guard mine == generation else { return }
         all = av.items
-        due = dv.items
+        dueAll = dv.items
+        stacks = sv.items
         modules = lv.list("modules")
         files = lv.list("files")
+        if let selected, !stacks.contains(where: { $0.i("id") == selected }) { select(nil) }   // Stapel inzwischen weg
         loaded = true
         failed = nil
     }
@@ -86,14 +138,282 @@ final class FlashcardDeck: ObservableObject {
         return ok
     }
 
+    // MARK: Stapel
+
+    /// der gewaehlte Stapel
+    var stack: JSONValue? { stacks.first { $0.i("id") == selected } }
+    /// Karten des gewaehlten Stapels (neueste zuerst wie die Antwort)
+    var cards: [JSONValue] { all.filter { $0.i("stack_id") == selected } }
+    /// heute faellig im gewaehlten Stapel: nur dieser Stapel wird abgefragt
+    var due: [JSONValue] { selected == nil ? [] : dueAll.filter { $0.i("stack_id") == selected } }
+
+    /// Stapel waehlen (nil = zurueck zur Liste); eine laufende Wiederholung endet
+    func select(_ id: Int?) {
+        guard id != selected else { return }
+        endSession()
+        selected = id
+    }
+
+    func stackName(_ id: Int?) -> String? { stacks.first { $0.i("id") == id }?.s("name") }
+
+    /// Name des Stapels einer Karte (aus der Liste, sonst aus der Antwort)
+    func stackTitle(_ card: JSONValue) -> String { stackName(card.i("stack_id")) ?? card.s("stack_name") ?? "Stapel" }
+
+    /// Modul eines Fachs (Name = Fach), sonst nil
+    func module(named subject: String?) -> JSONValue? {
+        guard let subject, !subject.isEmpty else { return nil }
+        return modules.first { $0.s("name") == subject }
+    }
+
+    /// Fach eines Moduls (0 = keins)
+    func subject(ofModule id: Int) -> String? { id == 0 ? nil : modules.first { $0.i("id") == id }?.s("name") }
+
+    /// Stapel eines Fachs (nil = ohne Modul), zuletzt geuebte zuerst, dann die neuesten
+    func stacks(subject: String?) -> [JSONValue] {
+        stacks.filter { ($0.s("subject") ?? "") == (subject ?? "") }
+            .sorted { ($0.s("last_practised") ?? "", $0.i("id") ?? 0) > ($1.s("last_practised") ?? "", $1.i("id") ?? 0) }
+    }
+
+    /// Vorgabe beim Anlegen: der zuletzt benutzte Stapel des Moduls (zuletzt geuebt, sonst der neueste), sonst nil
+    func lastUsedStack(subject: String?) -> JSONValue? { stacks(subject: subject).first }
+
+    /// Lehrwochen, die in Stapeln vorkommen (Filterzeile "Alle · Allgemein · W1 … Wn"); nur, wenn es Wochen gibt
+    var weeks: [Int] { Array(Set(stacks.compactMap { $0.i("week") })).sorted() }
+
+    /// Stapel nach Woche (nil = alle, `generalWeek` = ohne Lehrwoche)
+    func stacks(week: Int?) -> [JSONValue] {
+        guard let week else { return stacks }
+        return stacks.filter { week == Self.generalWeek ? $0.i("week") == nil : $0.i("week") == week }
+    }
+
+    /// Stapelliste je Modul in der Reihenfolge der Module, danach Faecher ohne Modul, zuletzt "Ohne Modul"
+    var stackGroups: [Group] { stackGroups(week: nil) }
+
+    func stackGroups(week: Int?) -> [Group] {
+        var buckets: [String: [JSONValue]] = [:]
+        for s in stacks(week: week) { buckets[s.s("subject") ?? "", default: []].append(s) }
+        var out: [Group] = []
+        for m in modules {
+            guard let name = m.s("name"), let list = buckets.removeValue(forKey: name) else { continue }
+            out.append(Group(id: "m\(m.i("id") ?? 0)", title: name, color: m.s("color"), stacks: list))
+        }
+        for k in buckets.keys.filter({ !$0.isEmpty }).sorted() {
+            out.append(Group(id: "s" + k, title: k, color: nil, stacks: buckets[k] ?? []))
+        }
+        if let rest = buckets[""] { out.append(Group(id: "none", title: "Ohne Modul", color: nil, stacks: rest)) }
+        return out
+    }
+
+    // MARK: Geteilte Wochenstapel und Stapel teilen (04.11.2026)
+
+    /// uebernommener Wochenstapel eines Fachs (source = week) fuer Woche und Art
+    func weekStack(subject: String?, week: Int, kind: String) -> JSONValue? {
+        stacks.first { $0.s("source") == "week" && ($0.s("subject") ?? "") == (subject ?? "") && $0.i("week") == week && $0.s("kind") == kind }
+    }
+
+    /// beide Wochenstapel da: "Woche n komplett" laesst sich ueben
+    func hasCompleteWeek(subject: String?, week: Int) -> Bool {
+        Self.weekKinds.allSatisfy { weekStack(subject: subject, week: week, kind: $0) != nil }
+    }
+
+    /// Karten fuer "Woche n komplett": erst der Vorlesungsstapel, dann der Uebungsstapel, je in der Reihenfolge des
+    /// Anlegens (bewusste Wahl des Nutzers, kein automatisches Mischen)
+    func weekCompleteCards(subject: String?, week: Int) -> [JSONValue] {
+        Self.weekKinds.flatMap { kind -> [JSONValue] in
+            guard let id = weekStack(subject: subject, week: week, kind: kind)?.i("id") else { return [] }
+            return all.filter { $0.i("stack_id") == id }.sorted { ($0.i("id") ?? 0) < ($1.i("id") ?? 0) }
+        }
+    }
+
+    /// Ergebnis je Art beim Holen
+    struct WeekFetch: Equatable {
+        let kind: String
+        /// exists | adopted | generated | unshared | no_materials
+        let status: String
+        let cards: Int
+        let message: String
+    }
+
+    /// Text einer Zeile des Ergebnisses ("Vorlesung: übernommen · 20 Karten · 0 Credits")
+    static func fetchLabel(kind: String, status: String, cards: Int, variant: Int?) -> String {
+        let name = kind == "vorlesung" ? "Vorlesung" : "Übung"
+        let n = "\(cards) \(cards == 1 ? "Karte" : "Karten")"
+        switch status {
+        case "exists": return "\(name): Stapel ist schon da"
+        case "adopted": return "\(name): übernommen · \(n) · 0 Credits" + (variant.map { " · Variante \($0) von 3" } ?? "")
+        case "generated": return "\(name): neu erzeugt und geteilt · \(n)"
+        case "unshared": return "\(name): eigener Stapel · \(n)"
+        case "no_materials": return "\(name): keine Unterlagen in dieser Woche"
+        default: return "\(name): \(status)"
+        }
+    }
+
+    /// "Karten fuer Woche n holen": Vorlesung und Uebung nacheinander (vorhandener oder gemeinsamer Stapel = 0 Credits,
+    /// sonst erzeugt die KI einmal fuer alle). Ohne Unterlagen einer Art steht das im Ergebnis, andere Fehler brechen ab.
+    func fetchWeek(moduleID: Int, week: Int) async throws -> [WeekFetch] {
+        guard let api else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let mine = generation
+        fetchingWeek.insert(moduleID)
+        defer { if mine == generation { fetchingWeek.remove(moduleID) } }
+        var out: [WeekFetch] = []
+        for kind in Self.weekKinds {
+            do {
+                let r = try await api.value("/api/flashcard-stacks/week/\(moduleID)/\(week)/\(kind)", method: "POST", body: .object([:]))
+                let status = r.s("status") ?? "", cards = r["stack"]?.i("cards") ?? 0
+                out.append(WeekFetch(kind: kind, status: status, cards: cards, message: Self.fetchLabel(kind: kind, status: status, cards: cards, variant: r.i("variant"))))
+            } catch let e as APIError where e.code == "no_materials" {
+                out.append(WeekFetch(kind: kind, status: "no_materials", cards: 0, message: Self.fetchLabel(kind: kind, status: "no_materials", cards: 0, variant: nil)))
+            }
+            guard mine == generation else { return out }
+        }
+        try await load()
+        return out
+    }
+
+    /// Geteilte Stapel aller Module nachladen (Beiwerk: ein Fehler laesst die Liste des Moduls leer; "nicht verfuegbar"
+    /// blendet das Teilen aus)
+    func loadShared() async {
+        guard let api else { return }
+        let mine = generation
+        var out: [Int: [JSONValue]] = [:]
+        var available = true
+        for m in modules {
+            guard let id = m.i("id") else { continue }
+            do {
+                out[id] = try await api.value("/api/community/card-stacks?module_id=\(id)").list("stacks")
+            } catch let e as APIError where e.code == "not_available" {
+                available = false
+                break
+            } catch {
+                out[id] = []
+            }
+        }
+        guard mine == generation else { return }
+        shared = out
+        sharingAvailable = available
+    }
+
+    /// Geteilte Stapel eines Moduls nach Woche (nil = alle, `generalWeek` = Allgemein), meistgelikte zuerst wie die Antwort
+    func shared(module id: Int, week: Int?) -> [JSONValue] {
+        let list = shared[id] ?? []
+        guard let week else { return list }
+        return list.filter { week == Self.generalWeek ? $0.i("week") == nil : $0.i("week") == week }
+    }
+
+    /// "Stapel teilen": Kopie der Karten in die Modul-Community; danach traegt der Stapel `shared_id`
+    @discardableResult
+    func share(_ stack: JSONValue) async throws -> JSONValue {
+        guard let api, let id = stack.i("id") else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let mine = generation
+        let r = try await api.value("/api/flashcard-stacks/\(id)/share", method: "POST", body: .object([:]))
+        guard mine == generation else { return r }
+        try await load()
+        await loadShared()
+        return r
+    }
+
+    /// Teilen zurueckziehen (nur der eigene Stapel); wer ihn schon uebernommen hat, behaelt seine Kopie
+    func unshare(_ stack: JSONValue) async throws {
+        guard let api, let id = stack.i("id") else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let mine = generation
+        _ = try await api.value("/api/flashcard-stacks/\(id)/share", method: "DELETE")
+        guard mine == generation else { return }
+        try await load()
+        await loadShared()
+    }
+
+    /// "Übernehmen": eigener Stapel mit Kopie der Karten (Fach 1, Lernstand getrennt); schon uebernommen = der vorhandene
+    @discardableResult
+    func adopt(_ sharedStack: JSONValue) async throws -> (stack: JSONValue, already: Bool) {
+        guard let api, let id = sharedStack.s("id") else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let mine = generation
+        let r = try await api.value("/api/community/card-stacks/\(id)/adopt", method: "POST", body: .object([:]))
+        guard mine == generation else { return (r["stack"] ?? .null, r["already"]?.bool ?? false) }
+        try await load()
+        await loadShared()
+        return (r["stack"] ?? .null, r["already"]?.bool ?? false)
+    }
+
+    /// Gefaellt mir setzen oder entfernen (nicht beim eigenen)
+    func like(_ sharedStack: JSONValue) async throws {
+        guard let api, let id = sharedStack.s("id") else { return }
+        let mine = generation
+        let on = !(sharedStack["liked_by_me"]?.bool ?? false)
+        _ = try await api.value("/api/community/card-stacks/\(id)/like", method: on ? "POST" : "DELETE")
+        guard mine == generation else { return }
+        await loadShared()
+    }
+
+    func report(_ sharedStack: JSONValue, reason: String, note: String) async throws {
+        guard let api, let id = sharedStack.s("id") else { return }
+        let mine = generation
+        _ = try await api.value("/api/community/card-stacks/\(id)/report", method: "POST", body: ["reason": .string(reason), "note": .string(note)])
+        guard mine == generation else { return }
+        await loadShared()
+    }
+
+    /// Unterzeile eines geteilten Stapels: Pseudonym, Karten, Likes
+    static func sharedLine(_ s: JSONValue) -> String {
+        let n = s.i("cards") ?? 0, likes = s.i("likes") ?? 0
+        var parts = ["von \(s.s("pseudonym") ?? "Anonym")", "\(n) \(n == 1 ? "Karte" : "Karten")", "\(likes) \(likes == 1 ? "Like" : "Likes")"]
+        if s["mine"]?.bool == true { parts.append("dein Stapel") }
+        if s["adopted"]?.bool == true { parts.append("übernommen") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Neuer Stapel (Name Pflicht, Fach des Moduls, optional Quelldokument, Lehrwoche und Art; ohne Angabe kommen Art
+    /// und Woche aus dem Dokument); liefert seine Kennung und laedt neu
+    @discardableResult
+    func createStack(name: String, subject: String?, fileID: String? = nil, week: Int?? = nil, kind: String? = nil) async throws -> Int {
+        guard let api else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { throw APIError(status: -1, message: "", text: "Der Stapel braucht einen Namen.") }
+        let mine = generation
+        var body: [String: JSONValue] = ["name": .string(n), "subject": subject.map(JSONValue.string) ?? .null]
+        if let fileID, !fileID.isEmpty { body["file_id"] = .string(fileID) }
+        if let week { body["week"] = week.map { .number(Double($0)) } ?? .null }
+        if let kind { body["kind"] = .string(kind) }
+        let r = try await api.value("/api/flashcard-stacks", method: "POST", body: .object(body))
+        guard let id = r.i("id") else { throw APIError(status: -1, message: "", text: "Der Stapel wurde nicht gespeichert.") }
+        guard mine == generation else { return id }
+        try await load()
+        return id
+    }
+
+    /// Umbenennen, in ein anderes Modul verschieben (die Karten folgen), Lehrwoche und Art aendern
+    func updateStack(_ id: Int, name: String, subject: String?, week: Int?? = nil, kind: String? = nil) async throws {
+        guard let api else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { throw APIError(status: -1, message: "", text: "Der Stapel braucht einen Namen.") }
+        let mine = generation
+        var body: [String: JSONValue] = ["name": .string(n), "subject": subject.map(JSONValue.string) ?? .null]
+        if let week { body["week"] = week.map { .number(Double($0)) } ?? .null }
+        if let kind { body["kind"] = .string(kind) }
+        _ = try await api.value("/api/flashcard-stacks/\(id)", method: "PATCH", body: .object(body))
+        guard mine == generation else { return }
+        try await load()
+    }
+
+    /// Stapel loeschen: ohne `moveTo` samt Karten, sonst wandern die Karten mit Lernstand in den anderen Stapel
+    func deleteStack(_ id: Int, moveTo: Int? = nil) async throws {
+        guard let api else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let mine = generation
+        _ = try await api.value("/api/flashcard-stacks/\(id)" + (moveTo.map { "?move_to=\($0)" } ?? ""), method: "DELETE")
+        guard mine == generation else { return }
+        if selected == id { select(moveTo) }
+        try await load()
+    }
+
     // MARK: Wiederholung
 
     var current: JSONValue? { inSession && position < queue.count ? queue[position] : nil }
     var finished: Bool { inSession && position >= queue.count }
 
+    /// Wiederholung der heute faelligen Karten des gewaehlten Stapels (nie gemischt)
     func startReview() {
-        guard !due.isEmpty else { return }
-        queue = due
+        let list = due
+        guard !list.isEmpty else { return }
+        queue = list
         position = 0
         revealed = false
         right = 0
@@ -132,21 +452,52 @@ final class FlashcardDeck: ObservableObject {
         return true
     }
 
-    // MARK: Anlegen und Loeschen
+    // MARK: Anlegen, Bearbeiten und Loeschen
 
-    /// Eine Karte anlegen; Frage und Antwort ohne Leerraum aussen, beide Pflicht. Mit Dokument bekommt sie das Fach
-    /// seines Kurses (wie `add_flashcards`).
-    func create(question: String, answer: String, fileID: String?) async throws {
+    /// Eine Karte anlegen; Frage und Antwort ohne Leerraum aussen, beide Pflicht. Stapel: `stackID` (vorhanden) oder
+    /// `newStackName` (neuer Stapel mit `subject`, Dokument als Quelle), sonst der Stapel des Dokuments bzw.
+    /// "Allgemein"/"Ohne Modul" (wie `add_flashcards`). Danach ist der Stapel der Karte gewaehlt.
+    func create(question: String, answer: String, fileID: String?, stackID: Int? = nil, newStackName: String? = nil,
+                subject: String? = nil) async throws {
         guard let api else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
         let q = question.trimmingCharacters(in: .whitespacesAndNewlines), a = answer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, !a.isEmpty else { throw APIError(status: -1, message: "", text: "Frage und Antwort sind nötig.") }
         let mine = generation
+        var sid = stackID
+        if sid == nil, let newStackName {
+            sid = try await createStack(name: newStackName, subject: subject, fileID: fileID)
+            guard mine == generation else { return }
+        }
         var body: [String: JSONValue] = ["cards": [["question": .string(q), "answer": .string(a)]]]
         if let fileID, !fileID.isEmpty { body["file_id"] = .string(fileID) }
+        if let sid { body["stack_id"] = .number(Double(sid)) }
         let r = try await api.value("/api/flashcards", method: "POST", body: .object(body))
         guard r.i("count") == 1 else { throw APIError(status: -1, message: "", text: "Die Karte wurde nicht gespeichert.") }
         guard mine == generation else { return }
         try await load()
+        if let id = r.i("stack_id") ?? sid { select(id) }
+    }
+
+    /// Karte nachtraeglich aendern (PATCH): Frage, Antwort, Fach und Stapel; Fach und Termin der Wiederholung bleiben.
+    /// Eine laufende Wiederholung zeigt den neuen Text, die Karte bleibt an ihrer Stelle.
+    @discardableResult
+    func update(_ card: JSONValue, question: String, answer: String, subject: String?, stackID: Int) async throws -> JSONValue {
+        guard let api, let id = card.i("id") else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        let q = question.trimmingCharacters(in: .whitespacesAndNewlines), a = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty, !a.isEmpty else { throw APIError(status: -1, message: "", text: "Frage und Antwort sind nötig.") }
+        let mine = generation
+        let saved = try await api.value("/api/flashcards/\(id)", method: "PATCH",
+                                        body: ["question": .string(q), "answer": .string(a), "subject": subject.map(JSONValue.string) ?? .null,
+                                               "stack_id": .number(Double(stackID))])
+        guard mine == generation else { return saved }
+        queue = queue.map { c in
+            guard c.i("id") == id else { return c }
+            var c = c
+            for k in ["question", "answer", "subject", "stack_id"] { c[k] = saved[k] ?? c[k] }
+            return c
+        }
+        try await load()
+        return saved
     }
 
     /// Lesezeichen bzw. "versteckt" einer Karte setzen (PATCH, Leitner bleibt unberuehrt), danach neu laden
@@ -173,12 +524,12 @@ final class FlashcardDeck: ObservableObject {
 
     // MARK: Anzeige
 
-    var dueIDs: Set<Int> { Set(due.compactMap { $0.i("id") }) }
+    var dueIDs: Set<Int> { Set(dueAll.compactMap { $0.i("id") }) }
 
-    /// Naechster Termin, wenn heute nichts faellig ist (alle Termine liegen dann in der Zukunft). Versteckte Karten
-    /// zaehlen nicht: sie sind nie faellig (der Server laesst sie bei ?due=true weg).
+    /// Naechster Termin im gewaehlten Stapel, wenn heute nichts faellig ist (alle Termine liegen dann in der Zukunft).
+    /// Versteckte Karten zaehlen nicht: sie sind nie faellig (der Server laesst sie bei ?due=true weg).
     var nextDue: String? {
-        all.filter { ($0.i("hidden") ?? 0) == 0 }.compactMap { $0.s("due") }.filter { !$0.isEmpty }.min()
+        cards.filter { ($0.i("hidden") ?? 0) == 0 }.compactMap { $0.s("due") }.filter { !$0.isEmpty }.min()
     }
 
     /// Titel des Dokuments einer Karte (Bibliothek), sonst der Dateiname aus der Antwort
@@ -192,33 +543,13 @@ final class FlashcardDeck: ObservableObject {
         files.filter { module == 0 || $0.i("module_id") == module }
     }
 
-    func groupTitle(_ card: JSONValue) -> String { groups.first { g in g.cards.contains { $0.i("id") == card.i("id") } }?.title ?? "Ohne Modul" }
-
-    /// Liste je Modul in der Reihenfolge der Module, danach Faecher ohne Modul, zuletzt "Ohne Modul"
-    var groups: [Group] {
-        let moduleOfFile = Dictionary(files.compactMap { f in f.s("id").map { ($0, f.i("module_id")) } }, uniquingKeysWith: { a, _ in a })
-        let byID = Dictionary(modules.compactMap { m in m.i("id").map { ($0, m) } }, uniquingKeysWith: { a, _ in a })
-        let byName = Dictionary(modules.compactMap { m in m.s("name").map { ($0, m) } }, uniquingKeysWith: { a, _ in a })
-        func key(_ c: JSONValue) -> String {
-            if let f = c.s("file_id"), let mid = moduleOfFile[f] ?? nil, byID[mid] != nil { return "m\(mid)" }
-            if let s = c.s("subject"), !s.isEmpty {
-                if let mid = byName[s]?.i("id") { return "m\(mid)" }
-                return "s" + s
-            }
-            return ""
-        }
-        var buckets: [String: [JSONValue]] = [:]
-        for c in all { buckets[key(c), default: []].append(c) }
-        var out: [Group] = []
-        for m in modules {
-            guard let mid = m.i("id"), let cards = buckets.removeValue(forKey: "m\(mid)") else { continue }
-            out.append(Group(id: "m\(mid)", title: m.s("name") ?? "", color: m.s("color"), cards: cards))
-        }
-        for k in buckets.keys.filter({ $0.hasPrefix("s") }).sorted() {
-            out.append(Group(id: k, title: String(k.dropFirst()), color: nil, cards: buckets[k] ?? []))
-        }
-        if let rest = buckets[""] { out.append(Group(id: "none", title: "Ohne Modul", color: nil, cards: rest)) }
-        return out
+    /// Unterzeile eines Stapels in der Liste: Modul, Karten, heute faellig, zuletzt geuebt
+    static func stackLine(_ s: JSONValue) -> String {
+        let n = s.i("cards") ?? 0
+        var parts = [s.s("subject").flatMap { $0.isEmpty ? nil : $0 } ?? "Ohne Modul", "\(n) \(n == 1 ? "Karte" : "Karten")",
+                     "Heute fällig (\(s.i("due") ?? 0))"]
+        if let p = s.s("last_practised"), !p.isEmpty { parts.append("zuletzt geübt am \(UFFmt.date(String(p.prefix(10))))") } else { parts.append("noch nicht geübt") }
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -232,6 +563,8 @@ struct CardsPage: View {
     @StateObject private var deck = FlashcardDeck()
     @StateObject private var trainer = FlashcardTrainer()
     @ObservedObject private var ent: Entitlements
+    /// Wochenfilter der Stapelliste (nil = alle)
+    @State private var weekFilter: Int?
 
     /// `entitlements: nil` = `Entitlements.shared`
     @MainActor
@@ -239,27 +572,37 @@ struct CardsPage: View {
         _ent = ObservedObject(wrappedValue: entitlements ?? .shared)
     }
 
-    /// Ohne PC (lokales Backend) nur mit Plus; am eigenen Server (Entwicklung) ohne Tarif
+    /// Ohne PC (lokales Backend) gilt der Tarif der App; am Dienst bzw. eigenen Server entscheidet der Server
     private var needsPlus: Bool { session.api?.isLocal != false }
-    private var allowed: Bool { !needsPlus || ent.allows(.flashcards) }
+    /// Ueben, Anlegen, Bearbeiten, Teilen, Uebernehmen; sonst Lesemodus (Free, nach der Probe)
+    private var canEdit: Bool { !needsPlus || ent.flashcards.canEdit }
+
+    /// Knopf, der Plus braucht: im Lesemodus sichtbar mit Schloss, Tippen oeffnet die Tarifwahl
+    @ViewBuilder private func plusOnly<V: View>(_ v: V) -> some View {
+        if canEdit { v } else { v.ufRequires(.flashcards, entitlements: ent) }
+    }
 
     var body: some View {
         UFContent(maxWidth: 820) {
-            UFPageHead("Karteikarten", sub: "Selbst angelegt · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
+            UFPageHead("Karteikarten", sub: "Eigene Stapel je Modul · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
                 if !needsPlus { UFButton("Tests", icon: "arrow-left", size: .small) { router.go(.exams) } }
-                if allowed && deck.loaded { UFButton("Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() } }
+                if deck.loaded {
+                    if deck.selected != nil && !(trainer.active && canEdit) {
+                        UFButton("Alle Stapel", icon: "layers", size: .small) { deck.select(nil) }
+                    }
+                    if canEdit { UFButton("Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() } }
+                }
             }
-            if needsPlus {
-                UFGate(.flashcards, entitlements: ent) { cards }
-            } else {
-                cards
-            }
+            cards
         }
     }
 
-    /// Inhalt unter dem Kopf; laedt erst, wenn er sichtbar ist (mit Plus bzw. am eigenen Server)
+    /// Inhalt unter dem Kopf; laedt in jedem Tarif (Lesen bleibt frei), im Lesemodus ohne Ueben und Bearbeiten
     private var cards: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if !canEdit && deck.loaded && deck.failed == nil && !(deck.all.isEmpty && deck.stacks.isEmpty) {
+                FlashcardReadOnlyHint().padding(.bottom, 16)
+            }
             if let failed = deck.failed {
                 UFCard {
                     UFEmpty(icon: "alert", text: failed) {
@@ -268,17 +611,29 @@ struct CardsPage: View {
                 }
             } else if !deck.loaded {
                 UFSkeleton().frame(height: 180)
-            } else if trainer.active {
-                FlashcardTrainerView(trainer: trainer) {
+            } else if trainer.active && canEdit {
+                FlashcardTrainerView(trainer: trainer, onClose: {
                     trainer.end()
                     Task { await deck.reload(toast: toast) }
-                }
-            } else if deck.all.isEmpty && !deck.inSession {
+                }, onEdit: { c in openEdit(c) })
+            } else if deck.all.isEmpty && deck.stacks.isEmpty && !deck.inSession && !canEdit {
+                UFLockedCard(.flashcards, entitlements: ent)
+            } else if deck.all.isEmpty && deck.stacks.isEmpty && !deck.inSession {
                 UFCard {
                     UFEmpty(icon: "cards", text: "Noch keine Karteikarten. Lege deine erste Karte an: vorn die Frage, hinten die Antwort. Richtig beantwortete Karten kommen seltener wieder, falsche am nächsten Tag.") {
-                        UFButton("Erste Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() }.padding(.top, 8)
+                        UFFlexWrap(gap: 9.6, rowGap: 9.6) {
+                            UFButton("Erste Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() }
+                            if !deck.modules.isEmpty {
+                                UFButton("Karten für eine Woche holen …", icon: "download", size: .small) { openWeekFetch(moduleID: nil, week: nil) }
+                            }
+                        }
+                        .padding(.top, 8)
                     }
                 }
+            } else if deck.selected == nil {
+                stackList
+            } else if !canEdit {
+                list                                                   // Lesemodus: Karten des Stapels ohne Ueben
             } else {
                 reviewCard
                 if !deck.inSession { practiceCard.padding(.top, 16) }
@@ -289,19 +644,169 @@ struct CardsPage: View {
         .task(id: session.api.map(ObjectIdentifier.init)) {
             deck.attach(session.api)
             trainer.attach(session.api)
-            await deck.reload(toast: toast)
+            if await deck.reload(toast: toast) { await deck.loadShared() }
         }
-        .ufReload { await deck.reload(toast: toast) }
+        .ufReload { if await deck.reload(toast: toast) { await deck.loadShared() } }
     }
 
-    // MARK: Heute faellig
+    // MARK: Stapel je Modul
+
+    private var stackList: some View {
+        UFCard {
+            UFCardHead("Stapel", icon: "layers", wrap: true) {
+                Text("\(deck.dueAll.count) heute fällig").ufFont(13.12).foregroundStyle(UF.muted)
+                if !deck.modules.isEmpty {
+                    plusOnly(UFButton("Karten für eine Woche holen …", icon: "download", size: .small) { openWeekFetch(moduleID: nil, week: nil) })
+                }
+                if canEdit { UFButton("Neuer Stapel", icon: "plus", size: .small) { openStack(nil) } }
+            }
+            Text(canEdit ? "Geübt wird immer in einem Stapel: Tippe einen an, um seine fälligen Karten zu wiederholen oder frei zu üben. "
+                 + "Je Modul und Woche gibt es die gemeinsamen Stapel „Vorlesung“ und „Übung“ – einmal erzeugt, von allen übernommen."
+                 : "Tippe einen Stapel an, um seine Karten zu lesen.")
+                .ufFont(14.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 4)
+            // Filterzeile "Alle · Allgemein · W1 … Wn" nur mit Lehrwochen, die vorkommen
+            if !deck.weeks.isEmpty {
+                UFFlexWrap(gap: 6, rowGap: 6) {
+                    AIChoiceChip(text: "Alle", on: weekFilter == nil) { weekFilter = nil }
+                    AIChoiceChip(text: "Allgemein", on: weekFilter == FlashcardDeck.generalWeek) { weekFilter = FlashcardDeck.generalWeek }
+                    ForEach(deck.weeks, id: \.self) { w in
+                        AIChoiceChip(text: "W\(w)", on: weekFilter == w) { weekFilter = w }
+                    }
+                }
+                .padding(.vertical, 6)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Lehrwoche")
+            }
+            let groups = deck.stackGroups(week: weekFilter)
+            if groups.isEmpty && !deck.stacks.isEmpty {
+                Text("Kein Stapel in dieser Woche.").ufFont(14.5).foregroundStyle(UF.text2).padding(.vertical, 8)
+            }
+            ForEach(groups) { g in
+                let moduleID = g.id.hasPrefix("m") ? Int(g.id.dropFirst()) : nil
+                HStack(spacing: 7.2) {
+                    UFDot(color: g.color.map { Color(hex: $0) } ?? UF.lineStrong)
+                    Text(g.title).ufFont(13.6, 650).foregroundStyle(UF.text2)
+                    Text("\(g.stacks.count)").ufFont(12.8).foregroundStyle(UF.muted)
+                    Spacer(minLength: 0)
+                    // bei gewaehlter Lehrwoche: die gemeinsamen Stapel holen bzw. "Woche n komplett" ueben (Vorlesung, dann Uebung)
+                    if let moduleID, let w = weekFilter, w != FlashcardDeck.generalWeek {
+                        if deck.hasCompleteWeek(subject: g.title, week: w) && !canEdit {
+                            EmptyView()                                // ueben ab Plus
+                        } else if deck.hasCompleteWeek(subject: g.title, week: w) {
+                            UFButton("Woche \(w) komplett", icon: "play", size: .small) { trainer.start(with: deck.weekCompleteCards(subject: g.title, week: w)) }
+                                .accessibilityLabel("Woche \(w) komplett üben: \(g.title)")
+                        } else {
+                            plusOnly(UFButton("Karten für Woche \(w) holen", icon: "download", size: .small) { openWeekFetch(moduleID: moduleID, week: w) }
+                                .disabled(deck.fetchingWeek.contains(moduleID))
+                                .accessibilityLabel("Karten für Woche \(w) holen: \(g.title)"))
+                        }
+                    }
+                }
+                .padding(.top, g.id == groups.first?.id ? 4 : 14.4)
+                .padding(.bottom, 4)
+                let rows = Row.rows(g.stacks)
+                ForEach(rows) { row in
+                    let s = row.value
+                    let name = s.s("name") ?? ""
+                    let line = FlashcardDeck.stackLine(s)
+                    let badge = FlashcardDeck.badge(s)
+                    HStack(spacing: 12) {
+                        // Zeile wie UFItemRow(link: true); der Stapel oeffnet sich beim Tippen auf Name oder Unterzeile
+                        Button { deck.select(s.i("id")) } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 8) {
+                                    Text(name).ufFont(14.5, 550).foregroundStyle(UF.accentText).lineLimit(1)
+                                    Text(badge).ufFont(11.5, 600).foregroundStyle(UF.text2)                 // Art-Etikett
+                                        .padding(.horizontal, 7).padding(.vertical, 2)
+                                        .background(Capsule().fill(UF.surface2))
+                                }
+                                Text(line).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Stapel öffnen: \(name)")
+                        .accessibilityValue(badge + " · " + line)
+                        if canEdit { HStack(spacing: 2) {
+                            if deck.sharingAvailable, let subject = s.s("subject"), !subject.isEmpty, (s.i("cards") ?? 0) > 0 {
+                                let shared = !(s.s("shared_id") ?? "").isEmpty
+                                UFButton(icon: "users", kind: .ghost, size: .small) { shared ? confirmUnshare(s) : openShare(s) }
+                                    .ufHitSlop(trailing: 1)
+                                    .foregroundStyle(shared ? UF.accentText : UF.text2)
+                                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(shared ? UF.accentSoft : .clear))
+                                    .accessibilityLabel(shared ? "Teilen zurückziehen: \(name)" : "Stapel teilen: \(name)")
+                                    .accessibilityAddTraits(shared ? .isSelected : [])
+                            }
+                            UFButton(icon: "pen", kind: .ghost, size: .small) { openStack(s) }
+                                .ufHitSlop(leading: 1, trailing: 1)
+                                .accessibilityLabel("Stapel bearbeiten: \(name)")
+                            UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDeleteStack(s) }
+                                .ufHitSlop(leading: 1)
+                                .accessibilityLabel("Stapel löschen: \(name)")
+                        } }
+                    }
+                    .padding(.vertical, 8)
+                    .ufBorderBottom(row.id != rows.last?.id)
+                }
+                // Geteilte Stapel anderer im Modul (Filter nach Woche): uebernehmen, liken, melden
+                if let moduleID {
+                    let sharedRows = Row.rows(deck.shared(module: moduleID, week: weekFilter).filter { $0["mine"]?.bool != true })
+                    if !sharedRows.isEmpty {
+                        Text("Geteilte Stapel aus der Community").ufFont(12.8, 650).foregroundStyle(UF.muted)
+                            .padding(.top, 10).padding(.bottom, 2)
+                        ForEach(sharedRows) { row in
+                            let sh = row.value
+                            let name = sh.s("name") ?? ""
+                            let adopted = sh["adopted"]?.bool ?? false
+                            let liked = sh["liked_by_me"]?.bool ?? false
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 8) {
+                                        Text(name).ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(1)
+                                        Text(FlashcardDeck.badge(sh)).ufFont(11.5, 600).foregroundStyle(UF.text2)
+                                            .padding(.horizontal, 7).padding(.vertical, 2)
+                                            .background(Capsule().fill(UF.surface2))
+                                    }
+                                    Text(FlashcardDeck.sharedLine(sh)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityElement(children: .combine)
+                                HStack(spacing: 2) {
+                                    plusOnly(UFButton(adopted ? "Übernommen" : "Übernehmen", icon: "download", kind: adopted ? .ghost : .primary, size: .small) { adopt(sh) }
+                                        .disabled(adopted)
+                                        .accessibilityLabel(adopted ? "Schon übernommen: \(name)" : "Übernehmen: \(name)"))
+                                    UFButton(icon: "star", kind: .ghost, size: .small) { like(sh) }
+                                        .ufHitSlop(leading: 1, trailing: 1)
+                                        .foregroundStyle(liked ? UF.accentText : UF.text2)
+                                        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(liked ? UF.accentSoft : .clear))
+                                        .accessibilityLabel(liked ? "Like entfernen: \(name)" : "Like: \(name)")
+                                        .accessibilityAddTraits(liked ? .isSelected : [])
+                                    UFButton(icon: "flag", kind: .ghost, size: .small) { openReport(sh) }
+                                        .ufHitSlop(leading: 1)
+                                        .disabled(sh["reported_by_me"]?.bool == true)
+                                        .accessibilityLabel("Melden: \(name)")
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .ufBorderBottom(row.id != sharedRows.last?.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Heute faellig (im gewaehlten Stapel)
 
     @ViewBuilder private var reviewCard: some View {
+        let stackName = deck.stack?.s("name") ?? "Stapel"
         if deck.finished {
             UFCard {
                 UFCardHead("Wiederholung geschafft", icon: "check")
                 let n = deck.right + deck.wrong                              // bewertete Karten (geloeschte zaehlen mit)
-                Text("\(n) \(n == 1 ? "Karte" : "Karten") wiederholt: \(deck.right) richtig, \(deck.wrong) falsch.")
+                Text("\(n) \(n == 1 ? "Karte" : "Karten") aus „\(stackName)“ wiederholt: \(deck.right) richtig, \(deck.wrong) falsch.")
                     .ufFont(14.5).foregroundStyle(UF.text2)
                 UFButton("Fertig", kind: .primary, size: .small) {
                     deck.endSession()
@@ -311,14 +816,16 @@ struct CardsPage: View {
             }
         } else if let c = deck.current {
             UFCard {
-                UFCardHead("Heute fällig (\(deck.queue.count))", icon: "cards") {
+                UFCardHead("Heute fällig (\(deck.queue.count))", icon: "cards", wrap: true) {
+                    UFButton("Bearbeiten", icon: "pen", size: .small) { openEdit(c) }.disabled(deck.rating)
                     UFButton("Beenden", size: .small) {
                         deck.endSession()
                         Task { await deck.reload(toast: toast) }
                     }
                 }
-                Text("Karte \(deck.position + 1) von \(deck.queue.count) · Fach \(c.i("box") ?? 1) · \(deck.groupTitle(c))")
+                Text("Karte \(deck.position + 1) von \(deck.queue.count) · Fach \(c.i("box") ?? 1) · \(stackName) · Nur dieser Stapel wird abgefragt")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 8)
+                    .fixedSize(horizontal: false, vertical: true)
                 Button { deck.reveal() } label: {                         // .fc-card
                     VStack(spacing: 0) {
                         Text(c.s("question") ?? "").foregroundStyle(UF.text)
@@ -354,12 +861,17 @@ struct CardsPage: View {
             }
         } else {
             UFCard {
-                UFCardHead("Heute fällig (\(deck.due.count))", icon: "cards")
+                UFCardHead("Heute fällig (\(deck.due.count))", icon: "cards") {
+                    Text(stackName).ufFont(13.12, 650).foregroundStyle(UF.text2)
+                }
                 if deck.due.isEmpty {
-                    Text(deck.nextDue.map { "Heute ist nichts fällig. Die nächste Wiederholung ist am \(UFFmt.date($0))." } ?? "Heute ist nichts fällig.")
+                    Text(deck.nextDue.map { "In diesem Stapel ist heute nichts fällig. Die nächste Wiederholung ist am \(UFFmt.date($0))." }
+                         ?? "In diesem Stapel ist heute nichts fällig.")
                         .ufFont(14.5).foregroundStyle(UF.text2)
                 } else {
-                    Text("Erst die Frage lesen, dann aufdecken und selbst bewerten.").ufFont(14.5).foregroundStyle(UF.text2)
+                    Text("Erst die Frage lesen, dann aufdecken und selbst bewerten. Nur dieser Stapel wird abgefragt.")
+                        .ufFont(14.5).foregroundStyle(UF.text2)
+                        .fixedSize(horizontal: false, vertical: true)
                     UFButton("Wiederholen", icon: "play", kind: .primary, size: .small) { deck.startReview() }
                         .padding(.top, 12.8)
                 }
@@ -367,25 +879,27 @@ struct CardsPage: View {
         }
     }
 
-    // MARK: Frei ueben (Trainer)
+    // MARK: Frei ueben (Trainer, nur dieser Stapel)
 
     private var practiceCard: some View {
         UFCard {
             UFCardHead("Frei üben", icon: "layers")
-            let counts = FlashcardTrainer.counts(deck.all)
-            let bookmarks = deck.all.filter { ($0.i("bookmarked") ?? 0) != 0 }.count
-            Text("Alle Karten im eigenen Tempo: umdrehen, nach rechts wischen für gewusst, nach links für nicht gewusst. Ändert den Wiederholungsplan nicht.")
+            let stackCards = deck.cards
+            let counts = FlashcardTrainer.counts(stackCards)
+            let bookmarks = stackCards.filter { ($0.i("bookmarked") ?? 0) != 0 }.count
+            Text("Die Karten dieses Stapels im eigenen Tempo: umdrehen, nach rechts wischen für gewusst, nach links für nicht gewusst. Ändert den Wiederholungsplan nicht.")
                 .ufFont(14.5).foregroundStyle(UF.text2)
                 .fixedSize(horizontal: false, vertical: true)
             Text("\(counts[.right] ?? 0) richtig · \(counts[.wrong] ?? 0) falsch · \(counts[.unlearned] ?? 0) noch nicht gelernt"
                  + (bookmarks > 0 ? " · \(bookmarks) mit Lesezeichen" : "") + ((counts[.hidden] ?? 0) > 0 ? " · \(counts[.hidden] ?? 0) versteckt" : ""))
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 4)
             UFFlexWrap(gap: 9.6, rowGap: 9.6) {
-                UFButton("Üben", icon: "play", size: .small) { trainer.start(with: deck.all) }
+                UFButton("Üben", icon: "play", size: .small) { trainer.start(with: stackCards) }.disabled(stackCards.isEmpty)
                 UFButton("Optionen", icon: "filter", kind: .ghost, size: .small) {
-                    trainer.start(with: deck.all)
+                    trainer.start(with: stackCards)
                     overlay.modal { FlashcardTrainerOptionsDialog(trainer: trainer) }
                 }
+                .disabled(stackCards.isEmpty)
             }
             .padding(.top, 12.8)
         }
@@ -399,50 +913,46 @@ struct CardsPage: View {
         Task { _ = await toast.attempt("Bewerten") { try await deck.rate(correct: correct) } }
     }
 
-    // MARK: Alle Karten je Modul
+    // MARK: Karten des Stapels
 
     private var list: some View {
         UFCard {
-            UFCardHead("Alle Karten") { Text("\(deck.all.count)").ufFont(13.12).foregroundStyle(UF.muted) }
+            UFCardHead("Karten im Stapel") { Text("\(deck.cards.count)").ufFont(13.12).foregroundStyle(UF.muted) }
             let due = deck.dueIDs
-            ForEach(deck.groups) { g in
-                HStack(spacing: 7.2) {
-                    UFDot(color: g.color.map { Color(hex: $0) } ?? UF.lineStrong)
-                    Text(g.title).ufFont(13.6, 650).foregroundStyle(UF.text2)
-                    Text("\(g.cards.count)").ufFont(12.8).foregroundStyle(UF.muted)
-                }
-                .padding(.top, g.id == deck.groups.first?.id ? 0 : 14.4)
-                .padding(.bottom, 4)
-                .accessibilityElement(children: .combine)
-                let rows = Row.rows(g.cards)
-                ForEach(rows) { row in
-                    let c = row.value
-                    UFItemRow(c.s("question") ?? "", sub: subline(c, due: due)) {
-                        EmptyView()
-                    } trailing: {
-                        let q = c.s("question") ?? ""
-                        let marked = (c.i("bookmarked") ?? 0) != 0
-                        HStack(spacing: 2) {
-                            if (c.i("hidden") ?? 0) != 0 {
-                                UFButton("Zeigen", kind: .ghost, size: .small) { setFlag(c, "hidden", false) }
-                                    .ufHitSlop(trailing: 1)
-                                    .accessibilityLabel("Karte wieder zeigen: \(q)")
-                            }
-                            // 28-pt-Symbole 2 pt auseinander: zwischen ihnen je die halbe Luecke, der Rest der 44 pt
-                            // nach aussen (links frei, ausser "Zeigen" steht davor)
-                            UFButton(icon: "bookmark", kind: .ghost, size: .small) { setFlag(c, "bookmarked", !marked) }
-                                .ufHitSlop(leading: (c.i("hidden") ?? 0) != 0 ? 1 : .infinity, trailing: 1)
-                                .foregroundStyle(marked ? UF.accentText : UF.text2)
-                                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(marked ? UF.accentSoft : .clear))
-                                .accessibilityLabel(marked ? "Lesezeichen entfernen: \(q)" : "Lesezeichen setzen: \(q)")
-                                .accessibilityAddTraits(marked ? .isSelected : [])
-                            UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDelete(c) }
-                                .ufHitSlop(leading: 1)
-                                .accessibilityLabel("Karte löschen: \(q)")
+            let rows = Row.rows(deck.cards)
+            if rows.isEmpty {
+                Text("Noch keine Karte in diesem Stapel.").ufFont(14.5).foregroundStyle(UF.text2).padding(.vertical, 8)
+            }
+            ForEach(rows) { row in
+                let c = row.value
+                UFItemRow(c.s("question") ?? "", sub: subline(c, due: due)) {
+                    EmptyView()
+                } trailing: {
+                    let q = c.s("question") ?? ""
+                    let marked = (c.i("bookmarked") ?? 0) != 0
+                    if canEdit { HStack(spacing: 2) {
+                        if (c.i("hidden") ?? 0) != 0 {
+                            UFButton("Zeigen", kind: .ghost, size: .small) { setFlag(c, "hidden", false) }
+                                .ufHitSlop(trailing: 1)
+                                .accessibilityLabel("Karte wieder zeigen: \(q)")
                         }
-                    }
-                    .ufBorderBottom(row.id != rows.last?.id)
+                        // 28-pt-Symbole 2 pt auseinander: zwischen ihnen je die halbe Luecke, der Rest der 44 pt
+                        // nach aussen (links frei, ausser "Zeigen" steht davor)
+                        UFButton(icon: "pen", kind: .ghost, size: .small) { openEdit(c) }
+                            .ufHitSlop(leading: (c.i("hidden") ?? 0) != 0 ? 1 : .infinity, trailing: 1)
+                            .accessibilityLabel("Karte bearbeiten: \(q)")
+                        UFButton(icon: "bookmark", kind: .ghost, size: .small) { setFlag(c, "bookmarked", !marked) }
+                            .ufHitSlop(leading: 1, trailing: 1)
+                            .foregroundStyle(marked ? UF.accentText : UF.text2)
+                            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(marked ? UF.accentSoft : .clear))
+                            .accessibilityLabel(marked ? "Lesezeichen entfernen: \(q)" : "Lesezeichen setzen: \(q)")
+                            .accessibilityAddTraits(marked ? .isSelected : [])
+                        UFButton(icon: "trash", kind: .ghost, size: .small) { confirmDelete(c) }
+                            .ufHitSlop(leading: 1)
+                            .accessibilityLabel("Karte löschen: \(q)")
+                    } }
                 }
+                .ufBorderBottom(row.id != rows.last?.id)
             }
         }
     }
@@ -460,21 +970,265 @@ struct CardsPage: View {
     }
 
     private func openCreate() {
-        overlay.modal { FlashcardCreateDialog(deck: deck, entitlements: ent) }
+        let stack = deck.stack
+        overlay.modal {
+            FlashcardCreateDialog(deck: deck, entitlements: ent, question: "", moduleID: deck.module(named: stack?.s("subject"))?.i("id"),
+                                  fileID: nil, stackID: stack?.i("id"))
+        }
+    }
+
+    /// "Bearbeiten": derselbe Dialog wie beim Anlegen, mit der Karte vorbelegt; der Trainer uebernimmt den neuen Text
+    private func openEdit(_ c: JSONValue) {
+        overlay.modal {
+            FlashcardCreateDialog(deck: deck, entitlements: ent, card: c) { saved in trainer.merge(saved) }
+        }
     }
 
     private func confirmDelete(_ c: JSONValue) {
         overlay.modal { FlashcardDeleteDialog(deck: deck, card: c) }
     }
+
+    private func openStack(_ s: JSONValue?) {
+        overlay.modal { FlashcardStackDialog(deck: deck, stack: s) }
+    }
+
+    private func confirmDeleteStack(_ s: JSONValue) {
+        overlay.modal { FlashcardStackDeleteDialog(deck: deck, stack: s) }
+    }
+
+    // MARK: Geteilte Wochenstapel und Stapel teilen
+
+    private func openWeekFetch(moduleID: Int?, week: Int?) {
+        overlay.modal { FlashcardWeekFetchDialog(deck: deck, moduleID: moduleID, week: week) }
+    }
+
+    private func openShare(_ s: JSONValue) {
+        overlay.modal { FlashcardShareDialog(deck: deck, stack: s) }
+    }
+
+    private func confirmUnshare(_ s: JSONValue) {
+        overlay.modal { FlashcardUnshareDialog(deck: deck, stack: s) }
+    }
+
+    private func openReport(_ sh: JSONValue) {
+        overlay.modal { FlashcardSharedReportDialog(deck: deck, shared: sh) }
+    }
+
+    private func adopt(_ sh: JSONValue) {
+        Task {
+            var already = false
+            if await toast.attempt("Stapel übernehmen", { already = try await deck.adopt(sh).already }) {
+                toast.show(already ? "Diesen Stapel hast du schon übernommen" : "Stapel übernommen – „\(sh.s("name") ?? "")“ ist jetzt deiner")
+            }
+        }
+    }
+
+    private func like(_ sh: JSONValue) {
+        Task { _ = await toast.attempt("Like") { try await deck.like(sh) } }
+    }
+}
+
+/// Lesemodus der Karteikarten (Free, nach der Probe): ruhiger Hinweis ueber der Liste mit dem Weg zur Tarifwahl. Die
+/// Karten bleiben erhalten und sichtbar; Ueben und Bearbeiten gibt es wieder mit Plus.
+struct FlashcardReadOnlyHint: View {
+    @Environment(\.ufShowPlans) private var showPlans
+    @State private var sheet = false
+
+    var body: some View {
+        UFCard {
+            HStack(alignment: .top, spacing: 14.4) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: UF.r).fill(UF.accentSoft)
+                    Image(systemName: "rectangle.on.rectangle").font(.system(size: 17, weight: .semibold)).foregroundStyle(UF.accentText)
+                }
+                .frame(width: 40, height: 40)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(UFFlashcardAccess.readOnlyHint).ufFont(14.5, 600).foregroundStyle(UF.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Deine Stapel und Karten bleiben erhalten – hier kannst du sie lesen.").ufFont(13.12).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    UFButton("Tarife ansehen", icon: "star", size: .small) { if let showPlans { showPlans() } else { sheet = true } }
+                        .padding(.top, 8)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .sheet(isPresented: $sheet) { UFPlanSheet(required: .plus, close: { sheet = false }) }
+    }
+}
+
+/// "Karten fuer Woche n holen": Modul (wenn nicht vorgegeben) und Lehrwoche waehlen; holt Vorlesung und Uebung
+/// nacheinander und zeigt je Art, was geschah (uebernommen = 0 Credits, erzeugt, eigener Stapel, keine Unterlagen)
+struct FlashcardWeekFetchDialog: View {
+    @ObservedObject var deck: FlashcardDeck
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+    @State private var module: Int
+    @State private var week: Int
+    @State private var running = false
+    @State private var results: [FlashcardDeck.WeekFetch] = []
+
+    static let costNote = "Je Woche gibt es zwei gemeinsame Stapel: „Vorlesung Woche n“ aus den Vorlesungsunterlagen und „Übung Woche n“ aus den Übungsblättern. "
+        + "Sie werden einmal erzeugt und von allen übernommen, die dieselben Unterlagen haben – übernehmen kostet 0 Credits. "
+        + "Nur wenn noch niemand sie hat, erzeugt deine KI den Stapel (eine Anfrage je Stapel, bis zu 20 Karten). Geübt wird danach privat."
+
+    @MainActor
+    init(deck: FlashcardDeck, moduleID: Int?, week: Int?) {
+        self.deck = deck
+        _module = State(initialValue: moduleID ?? deck.modules.first?.i("id") ?? 0)
+        _week = State(initialValue: week ?? max(1, deck.weeks.last ?? 1))
+    }
+
+    private var weekOptions: [(Int, String)] { Array(Set(Array(1...16) + deck.weeks + [week])).sorted().map { ($0, "Woche \($0)") } }
+
+    var body: some View {
+        UFDialog("Karten für eine Woche holen", icon: "download") {
+            UFField("Modul") {
+                UFSelect(options: deck.modules.compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } }, selection: $module, fill: true)
+            }
+            UFField("Lehrwoche") { UFSelect(options: weekOptions, selection: $week, fill: true) }
+            Text(Self.costNote).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            if !results.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(results, id: \.kind) { r in
+                        Text(r.message).ufFont(13.12, r.status == "no_materials" ? 400 : 600).foregroundStyle(r.status == "no_materials" ? UF.muted : UF.text)
+                    }
+                }
+                .padding(.top, 6)
+                .accessibilityElement(children: .combine)
+            }
+        } foot: {
+            UFButton(results.isEmpty ? "Abbrechen" : "Fertig") { close() }
+            if results.isEmpty {
+                UFButton(running ? "Wird geholt …" : "Karten für Woche \(week) holen", icon: "download", kind: .primary) { Task { await run() } }
+                    .disabled(running || module == 0)
+            }
+        }
+    }
+
+    private func run() async {
+        guard !running, module != 0 else { return }
+        running = true
+        defer { running = false }
+        var got: [FlashcardDeck.WeekFetch] = []
+        if await toast.attempt("Karten holen", { got = try await deck.fetchWeek(moduleID: module, week: week) }) {
+            results = got
+            if got.allSatisfy({ $0.status == "no_materials" }) {
+                toast.show("Für Woche \(week) gibt es in diesem Modul keine Unterlagen.")
+            } else if got.contains(where: { $0.status == "adopted" }) {
+                toast.show("Karten für Woche \(week) übernommen – 0 Credits")
+            } else {
+                toast.show("Karten für Woche \(week) sind da")
+            }
+        }
+    }
+}
+
+/// Rueckfrage vor "Stapel teilen": was geteilt wird (Kopie der Karten, Pseudonym, Modul-Community), was nicht (Lernstand)
+struct FlashcardShareDialog: View {
+    @ObservedObject var deck: FlashcardDeck
+    let stack: JSONValue
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+    @State private var saving = false
+
+    static func note(cards: Int, module: String) -> String {
+        "Eine Kopie der \(cards) \(cards == 1 ? "Karte" : "Karten") erscheint für alle im Modul „\(module)“ unter deinem Pseudonym"
+            + " – ohne Lehrwoche unter „Allgemein“, sonst in der Woche des Stapels. Dein Lernstand wird nicht geteilt; wer den Stapel übernimmt, lernt mit eigener Kopie."
+            + " Du kannst das Teilen jederzeit zurückziehen. Teile nur eigene Karten, keine fremden Folien oder Aufgabenstellungen."
+    }
+
+    var body: some View {
+        UFDialog("Stapel teilen?", icon: "users") {
+            Text(stack.s("name") ?? "").ufFont(14.5, 650).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            Text(Self.note(cards: stack.i("cards") ?? 0, module: stack.s("subject") ?? ""))
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+                .fixedSize(horizontal: false, vertical: true)
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton("Stapel teilen", icon: "users", kind: .primary) { Task { await share() } }.disabled(saving)
+        }
+    }
+
+    private func share() async {
+        guard !saving else { return }
+        saving = true
+        defer { saving = false }
+        if await toast.attempt("Stapel teilen", { try await deck.share(stack) }) {
+            toast.show("Stapel geteilt – sichtbar für alle im Modul")
+            close()
+        }
+    }
+}
+
+/// Teilen zurueckziehen: der geteilte Stapel verschwindet aus der Community, Kopien anderer bleiben
+struct FlashcardUnshareDialog: View {
+    @ObservedObject var deck: FlashcardDeck
+    let stack: JSONValue
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+
+    var body: some View {
+        UFDialog("Teilen zurückziehen?", icon: "users") {
+            Text(stack.s("name") ?? "").ufFont(14.5, 650).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            Text("Der Stapel verschwindet aus der Community des Moduls. Wer ihn schon übernommen hat, behält seine Kopie. Dein eigener Stapel bleibt.")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+                .fixedSize(horizontal: false, vertical: true)
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton("Zurückziehen", icon: "x", kind: .danger) {
+                close()
+                Task { if await toast.attempt("Teilen zurückziehen", { try await deck.unshare(stack) }) { toast.show("Teilen zurückgezogen") } }
+            }
+        }
+    }
+}
+
+/// Geteilten Stapel melden (Grund und Hinweis), wie bei Loesungen
+struct FlashcardSharedReportDialog: View {
+    @ObservedObject var deck: FlashcardDeck
+    let shared: JSONValue
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+    @State private var reason = CommunityReportReason.foreignMaterial.rawValue
+    @State private var note = ""
+    @State private var sending = false
+
+    var body: some View {
+        UFDialog("Stapel melden", icon: "flag") {
+            Text(shared.s("name") ?? "").ufFont(14.5, 650).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            UFField("Grund") { UFSelect(options: FlashcardDeck.reportReasons.map { ($0.value, $0.label) }, selection: $reason, fill: true) }
+            UFField("Hinweis (optional, keine persönlichen Daten)") { UFTextArea(placeholder: "Was ist das Problem?", text: $note, minHeight: 64) }
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton("Melden", icon: "flag", kind: .danger) { Task { await send() } }.disabled(sending)
+        }
+    }
+
+    private func send() async {
+        guard !sending else { return }
+        sending = true
+        defer { sending = false }
+        if await toast.attempt("Melden", { try await deck.report(shared, reason: reason, note: note) }) {
+            toast.show("Danke, die Meldung ist eingegangen")
+            close()
+        }
+    }
 }
 
 // MARK: - Dialoge
 
-/// Karte anlegen: Frage und Antwort (Pflicht), Modul und Dokument (optional). Das Modul einer Karte ergibt sich wie am
-/// PC aus dem Dokument (Fach seines Kurses); die Modulauswahl grenzt die Dokumente ein.
+/// Karte anlegen oder bearbeiten: Frage und Antwort (Pflicht), Modul (optional), Stapel (Pflicht: ein Stapel des
+/// Moduls, Vorgabe der zuletzt benutzte, sonst "Neuer Stapel …" mit Namen) und beim Anlegen das Dokument (optional).
+/// Beim Bearbeiten bleibt der Lernstand (Fach, Termin) unberuehrt.
 struct FlashcardCreateDialog: View {
     @ObservedObject var deck: FlashcardDeck
     let entitlements: Entitlements
+    /// zu bearbeitende Karte (nil = anlegen)
+    let card: JSONValue?
+    /// nach dem Speichern (Bearbeiten): die gespeicherte Karte, z. B. fuer den Trainer
+    var onSaved: ((JSONValue) -> Void)?
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.ufClose) private var close
@@ -482,17 +1236,39 @@ struct FlashcardCreateDialog: View {
     @State private var answer = ""
     @State private var module = 0
     @State private var file = ""
+    @State private var stack = FlashcardDeck.newStack
+    @State private var newStackName = ""
     @State private var saving = false
 
     /// Leer (Karteikarten-Seite) oder vorbelegt: "Als Karteikarte" aus markiertem PDF-Text im Editor (Vorderseite
-    /// der Text, Modul und Dokument der offenen Datei, Rueckseite leer)
-    init(deck: FlashcardDeck, entitlements: Entitlements, question: String = "", moduleID: Int? = nil, fileID: String? = nil) {
+    /// der Text, Modul und Dokument der offenen Datei, Rueckseite leer); `stackID` = Vorgabe des Stapels (sonst der
+    /// zuletzt benutzte des Moduls, sonst "Neuer Stapel …")
+    init(deck: FlashcardDeck, entitlements: Entitlements, question: String = "", moduleID: Int? = nil, fileID: String? = nil, stackID: Int? = nil) {
         self.deck = deck
         self.entitlements = entitlements
+        card = nil
         let p = Self.prefill(question: question, moduleID: moduleID, fileID: fileID, modules: deck.modules, files: deck.files)
         _question = State(initialValue: p.question)
         _module = State(initialValue: p.module)
         _file = State(initialValue: p.file)
+        let subject = deck.subject(ofModule: p.module)
+        let known = stackID.flatMap { id in deck.stacks.first { $0.i("id") == id } }
+        let s = Self.defaultStack(known: known, subject: subject, deck: deck)
+        _stack = State(initialValue: s.stack)
+        _newStackName = State(initialValue: s.name ?? Self.suggestedName(fileID: p.file, subject: subject, deck: deck))
+    }
+
+    /// Bearbeiten: Felder aus der Karte, Modul ueber ihr Fach, Stapel ihr Stapel
+    init(deck: FlashcardDeck, entitlements: Entitlements, card: JSONValue, onSaved: ((JSONValue) -> Void)? = nil) {
+        self.deck = deck
+        self.entitlements = entitlements
+        self.card = card
+        self.onSaved = onSaved
+        _question = State(initialValue: card.s("question") ?? "")
+        _answer = State(initialValue: card.s("answer") ?? "")
+        _module = State(initialValue: deck.module(named: card.s("subject"))?.i("id") ?? 0)
+        _file = State(initialValue: card.s("file_id") ?? "")
+        _stack = State(initialValue: card.i("stack_id") ?? FlashcardDeck.newStack)
     }
 
     /// Vorbelegung: Modul und Dokument nur, wenn der Stapel sie kennt (sonst "– keins –", wie in der Auswahl)
@@ -506,36 +1282,76 @@ struct FlashcardCreateDialog: View {
         return (q, module, file?.s("id") ?? "")
     }
 
+    /// Vorgabe des Stapels: der uebergebene (wenn er zum Fach passt), sonst der zuletzt benutzte des Fachs, sonst
+    /// "Neuer Stapel …"
+    @MainActor
+    static func defaultStack(known: JSONValue?, subject: String?, deck: FlashcardDeck) -> (stack: Int, name: String?) {
+        if let known, let id = known.i("id"), (known.s("subject") ?? "") == (subject ?? "") { return (id, nil) }
+        if let last = deck.lastUsedStack(subject: subject), let id = last.i("id") { return (id, nil) }
+        return (FlashcardDeck.newStack, nil)
+    }
+
+    /// Name fuer "Neuer Stapel …": Titel des Dokuments, sonst "Allgemein" im Modul, sonst "Ohne Modul" (wie die Vorgabe
+    /// des Servers fuer Karten ohne Stapel)
+    @MainActor
+    static func suggestedName(fileID: String, subject: String?, deck: FlashcardDeck) -> String {
+        if !fileID.isEmpty, let f = deck.files.first(where: { $0.s("id") == fileID }), let t = f.s("title") ?? f.s("name"), !t.isEmpty { return t }
+        return subject == nil ? "Ohne Modul" : "Allgemein"
+    }
+
+    private var editing: Bool { card != nil }
+    private var subject: String? { deck.subject(ofModule: module) }
+    private var stackOptions: [(Int, String)] {
+        [(FlashcardDeck.newStack, "Neuer Stapel …")] + deck.stacks(subject: subject).compactMap { s in s.i("id").map { ($0, s.s("name") ?? "") } }
+    }
+
     var body: some View {
-        UFDialog("Karte anlegen", icon: "cards") {
+        UFDialog(editing ? "Karte bearbeiten" : "Karte anlegen", icon: editing ? "pen" : "cards") {
             UFField("Frage") { UFTextArea(placeholder: "Vorderseite", text: $question, minHeight: 64) }
             UFField("Antwort") { UFTextArea(placeholder: "Rückseite", text: $answer, minHeight: 64) }
             UFField("Modul (optional)") {
                 UFSelect(options: [(0, "– keins –")] + deck.modules.compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } },
                          selection: $module, fill: true)
             }
-            UFField("Dokument (optional)") {
-                UFSelect(options: [("", "– keins –")] + deck.documents(module: module).compactMap { f in
-                    f.s("id").map { ($0, f.s("title") ?? f.s("name") ?? $0) }
-                }, selection: $file, fill: true)
+            UFField("Stapel") {
+                UFSelect(options: stackOptions, selection: $stack, fill: true)
             }
-            if module != 0 && file.isEmpty {
-                Text("Wähle ein Dokument des Moduls, damit die Karte unter diesem Modul steht.")
+            if stack == FlashcardDeck.newStack {
+                UFField("Name des neuen Stapels") { UFTextInput("z. B. Klausur, Kapitel 3", text: $newStackName) }
+            }
+            if !editing {
+                UFField("Dokument (optional)") {
+                    UFSelect(options: [("", "– keins –")] + deck.documents(module: module).compactMap { f in
+                        f.s("id").map { ($0, f.s("title") ?? f.s("name") ?? $0) }
+                    }, selection: $file, fill: true)
+                }
+            }
+            if editing {
+                Text("Fach \(card?.i("box") ?? 1) und Termin der Wiederholung bleiben beim Bearbeiten erhalten.")
                     .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 2)
             }
         } foot: {
             UFButton("Abbrechen") { close() }
-            UFButton("Anlegen", icon: "plus", kind: .primary) { Task { await save() } }
+            UFButton(editing ? "Speichern" : "Anlegen", icon: editing ? "check" : "plus", kind: .primary) { Task { await save() } }
                 .disabled(!canSave || saving)
         }
         .onChange(of: module) { _, m in
-            // Dokument eines anderen Moduls passt nicht mehr
+            // Dokument eines anderen Moduls passt nicht mehr; Stapel neu vorbelegen (zuletzt benutzter des Moduls)
             if m != 0, !file.isEmpty, !deck.documents(module: m).contains(where: { $0.s("id") == file }) { file = "" }
+            let subject = deck.subject(ofModule: m)
+            if !deck.stacks(subject: subject).contains(where: { $0.i("id") == stack }) {
+                stack = Self.defaultStack(known: nil, subject: subject, deck: deck).stack
+            }
+            if stack == FlashcardDeck.newStack, !editing { newStackName = Self.suggestedName(fileID: file, subject: subject, deck: deck) }
+        }
+        .onChange(of: file) { _, f in
+            if stack == FlashcardDeck.newStack, !editing { newStackName = Self.suggestedName(fileID: f, subject: subject, deck: deck) }
         }
     }
 
     private var canSave: Bool {
         !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (stack != FlashcardDeck.newStack || !newStackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     private func save() async {
@@ -547,7 +1363,22 @@ struct FlashcardCreateDialog: View {
         }
         saving = true
         defer { saving = false }
-        if await toast.attempt("Karte anlegen", { try await deck.create(question: question, answer: answer, fileID: file.isEmpty ? nil : file) }) {
+        let newName = stack == FlashcardDeck.newStack ? newStackName : nil
+        if let card {
+            let ok = await toast.attempt("Karte speichern") {
+                var sid = stack
+                if let newName { sid = try await deck.createStack(name: newName, subject: subject, fileID: card.s("file_id")) }
+                let saved = try await deck.update(card, question: question, answer: answer, subject: subject, stackID: sid)
+                onSaved?(saved)
+            }
+            if ok {
+                toast.show("Karte gespeichert")
+                close()
+            }
+        } else if await toast.attempt("Karte anlegen", {
+            try await deck.create(question: question, answer: answer, fileID: file.isEmpty ? nil : file,
+                                  stackID: newName == nil ? stack : nil, newStackName: newName, subject: subject)
+        }) {
             toast.show("Karte angelegt")
             close()
         }
@@ -573,6 +1404,122 @@ struct FlashcardDeleteDialog: View {
                 close()
                 Task {
                     if await toast.attempt("Karte löschen", { try await deck.delete(card) }) { toast.show("Karte gelöscht") }
+                }
+            }
+        }
+    }
+}
+
+/// Stapel anlegen bzw. umbenennen und in ein anderes Modul verschieben (die Karten folgen)
+struct FlashcardStackDialog: View {
+    @ObservedObject var deck: FlashcardDeck
+    /// zu bearbeitender Stapel (nil = neu)
+    let stack: JSONValue?
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+    @State private var name: String
+    @State private var module: Int
+    /// Lehrwoche, 0 = Allgemein
+    @State private var week: Int
+    @State private var kind: String
+    @State private var saving = false
+
+    /// waehlbare Lehrwochen (1…16, dazu vorkommende groessere)
+    static func weekOptions(_ deck: FlashcardDeck, current: Int) -> [(Int, String)] {
+        let all = Array(Set(Array(1...16) + deck.weeks + (current > 0 ? [current] : []))).sorted()
+        return [(FlashcardDeck.generalWeek, "Allgemein")] + all.map { ($0, "W\($0)") }
+    }
+
+    @MainActor
+    init(deck: FlashcardDeck, stack: JSONValue?) {
+        self.deck = deck
+        self.stack = stack
+        _name = State(initialValue: stack?.s("name") ?? "")
+        _module = State(initialValue: deck.module(named: stack?.s("subject"))?.i("id") ?? 0)
+        _week = State(initialValue: stack?.i("week") ?? FlashcardDeck.generalWeek)
+        _kind = State(initialValue: stack?.s("kind") ?? "eigene")
+    }
+
+    private var canSave: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var body: some View {
+        UFDialog(stack == nil ? "Neuer Stapel" : "Stapel bearbeiten", icon: "layers") {
+            UFField("Name") { UFTextInput("z. B. Klausur, Kapitel 3", text: $name) }
+            UFField("Modul") {
+                UFSelect(options: [(0, "– keins –")] + deck.modules.compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } },
+                         selection: $module, fill: true)
+            }
+            UFField("Lehrwoche") { UFSelect(options: Self.weekOptions(deck, current: week), selection: $week, fill: true) }
+            UFField("Art") { UFSelect(options: FlashcardDeck.kinds.map { ($0.value, $0.label) }, selection: $kind, fill: true) }
+            if let n = stack?.i("cards"), n > 0 {
+                Text("Die \(n) \(n == 1 ? "Karte" : "Karten") des Stapels wechseln das Modul mit.")
+                    .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 2)
+            }
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton(stack == nil ? "Anlegen" : "Speichern", icon: stack == nil ? "plus" : "check", kind: .primary) { Task { await save() } }
+                .disabled(!canSave || saving)
+        }
+    }
+
+    private func save() async {
+        guard canSave, !saving else { return }
+        saving = true
+        defer { saving = false }
+        let subject = deck.subject(ofModule: module)
+        let w: Int?? = .some(week == FlashcardDeck.generalWeek ? nil : week)
+        if let id = stack?.i("id") {
+            if await toast.attempt("Stapel speichern", { try await deck.updateStack(id, name: name, subject: subject, week: w, kind: kind) }) {
+                toast.show("Stapel gespeichert")
+                close()
+            }
+        } else if await toast.attempt("Stapel anlegen", { try await deck.createStack(name: name, subject: subject, week: w, kind: kind) }) {
+            toast.show("Stapel angelegt")
+            close()
+        }
+    }
+}
+
+/// Rueckfrage vor dem Loeschen eines Stapels: Karten mitloeschen oder in einen anderen Stapel verschieben
+struct FlashcardStackDeleteDialog: View {
+    @ObservedObject var deck: FlashcardDeck
+    let stack: JSONValue
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+    /// 0 = Karten loeschen, sonst Zielstapel
+    @State private var target = 0
+
+    private var others: [(Int, String)] {
+        deck.stacks.filter { $0.i("id") != stack.i("id") }.compactMap { s in
+            s.i("id").map { ($0, (s.s("name") ?? "") + (s.s("subject").map { " (\($0))" } ?? "")) }
+        }
+    }
+
+    var body: some View {
+        let n = stack.i("cards") ?? 0
+        UFDialog("Stapel löschen?", icon: "trash") {
+            Text(stack.s("name") ?? "").ufFont(14.5, 650).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            if n == 0 {
+                Text("Der Stapel ist leer und wird gelöscht.").ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+            } else {
+                Text("Was soll mit \(n == 1 ? "der Karte" : "den \(n) Karten") geschehen?").ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+                UFField("Karten") {
+                    UFSelect(options: [(0, "Mit dem Stapel löschen")] + others.map { ($0.0, "Verschieben in: \($0.1)") }, selection: $target, fill: true)
+                }
+                Text(target == 0 ? "Die Karten und ihr Lernstand werden gelöscht. Das lässt sich nicht rückgängig machen."
+                                 : "Die Karten behalten ihren Lernstand und bekommen das Modul des Zielstapels.")
+                    .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton(target == 0 ? "Löschen" : "Verschieben und löschen", icon: "trash", kind: .danger) {
+                close()
+                let moveTo = target == 0 ? nil : target
+                Task {
+                    if await toast.attempt("Stapel löschen", { try await deck.deleteStack(stack.i("id") ?? 0, moveTo: moveTo) }) {
+                        toast.show(moveTo == nil ? "Stapel gelöscht" : "Karten verschoben, Stapel gelöscht")
+                    }
                 }
             }
         }

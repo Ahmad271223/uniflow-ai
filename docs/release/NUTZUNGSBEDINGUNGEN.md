@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Entwurf, Stand 03.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
+**Entwurf, Stand 04.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
 (insbesondere Abschnitt 5: Widerrufsbelehrung und Erlöschen des Widerrufsrechts nach § 356 Abs. 5 BGB, Zuständigkeit
 von Apple/Google als Vertragspartner des Kaufs; Abschnitt 9: Haftung; Abschnitt 11).**
 
@@ -16,20 +16,24 @@ App Store oder Google Play gelten zusätzlich die Bedingungen von Apple bzw. Goo
 
 StudiNow ist eine Lern-App für Studierende: Sie ruft Dateien, Termine, Fristen und Ankündigungen aus den Systemen
 deiner Hochschule ab, zeigt sie in Bibliothek, Stundenplan und Lernkalender und lässt dich Dokumente lesen und – mit
-Plus – mit dem Stift beschreiben, Karteikarten führen und Lösungen zu Übungsblättern mit anderen teilen.
+Plus – mit dem Stift beschreiben, Karteikarten führen, Wochentests erstellen und Lösungen zu Übungsblättern mit anderen
+teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den StudiNow-Dienst.
 
-| Funktion | Free | Plus |
-|---|:---:|:---:|
-| Konto, Hochschule verbinden, Kurse, Ordner und neue Dateien abgleichen | ✓ | ✓ |
-| Dokumente öffnen, lesen, durchsuchen; Bibliothek, Ordner, Favoriten | ✓ | ✓ |
-| Module, Stundenplan, Lernkalender, Lernplanung, Aufgaben, Zeitmesser | ✓ | ✓ |
-| Fristen und Ankündigungen der Lehrenden, Feiertage und vorlesungsfreie Zeit im Kalender | ✓ | ✓ |
-| Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ |
-| Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ |
-| Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ |
-| Eigene Karteikarten mit Wiederholung | – | ✓ |
-| Lösungen zu Übungsblättern teilen und vergleichen (Community) | – | ✓ |
-| Abgleich zwischen eigenen Geräten über den StudiNow-Dienst (sobald verfügbar) | – | ✓ |
+| Funktion | Free | Plus | Pro AI |
+|---|:---:|:---:|:---:|
+| Konto, Hochschule verbinden, Kurse, Ordner und neue Dateien abgleichen | ✓ | ✓ | ✓ |
+| Dokumente öffnen, lesen, durchsuchen; Bibliothek, Ordner, Favoriten | ✓ | ✓ | ✓ |
+| Module, Stundenplan, Lernkalender, Lernplanung, Aufgaben, Zeitmesser | ✓ | ✓ | ✓ |
+| Fristen und Ankündigungen der Lehrenden, Feiertage und vorlesungsfreie Zeit im Kalender | ✓ | ✓ | ✓ |
+| Lernstand je Modul aus deinen eigenen Tests, Karteikarten und Aufgaben | ✓ | ✓ | ✓ |
+| Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ | ✓ |
+| Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
+| Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
+| Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
+| Wochentests aus deinen Unterlagen erstellen (über dein eigenes ChatGPT oder den StudiNow-Dienst, Abschnitt 5a) | – | ✓ | ✓ |
+| Lösungen zu Übungsblättern teilen und vergleichen (Community) | – | ✓ | ✓ |
+| Abgleich zwischen eigenen Geräten über den StudiNow-Dienst (sobald verfügbar) | – | ✓ | ✓ |
+| KI von StudiNow ohne eigenes ChatGPT-Konto (Erklärungen, Zusammenfassungen, Karteikarten aus Dokumenten) mit Credits, nur mit dem StudiNow-Dienst | – | – | ✓ |
 
 Welche Funktionen in deiner App-Version verfügbar sind, zeigt die App selbst an; was nicht freigeschaltet ist,
 ist als gesperrt gekennzeichnet und wird nicht vorgetäuscht. Wir entwickeln StudiNow weiter und können Funktionen
@@ -56,20 +60,44 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   dort.
 - StudiNow ist kein Angebot der Hochschulen und nicht mit ihnen verbunden.
 
-## 5. StudiNow Plus (Abo)
+## 5. Probe und Abos (StudiNow Plus, StudiNow Pro AI)
 
-- Plus ist ein monatliches Abo. Den Preis zeigt die App vor dem Kauf an (Stand: 1,99 € pro Monat inkl. USt).
-  Neue Abonnentinnen und Abonnenten erhalten, sofern angeboten, eine kostenlose Testwoche; das Abo wird danach
-  kostenpflichtig, wenn du es nicht vor Ablauf der Testwoche kündigst.
-- Das Abo verlängert sich automatisch um einen Monat, wenn du es nicht spätestens 24 Stunden vor Ende des laufenden
-  Zeitraums kündigst. Kündigen und verwalten kannst du es in den Abo-Einstellungen deines Apple- bzw.
-  Google-Kontos; das Löschen der App beendet das Abo nicht.
+- **Probe:** Jede Person erhält einmal eine kostenlose Probe von 7 Tagen mit dem Umfang von StudiNow Pro AI, ohne
+  Zahlungsdaten; mit StudiNow-Konto gehören dazu 25 Credits für die KI von StudiNow. Nach der Probe gilt automatisch
+  StudiNow Free, es sei denn, du schließt ein Abo ab; die Probe wird nie von selbst kostenpflichtig.
+- **StudiNow Plus** ist ein monatliches Abo (Stand: 1,99 € pro Monat inkl. USt) mit den Plus-Funktionen aus
+  Abschnitt 2.
+- **StudiNow Pro AI** ist ein monatliches Abo (Stand: 3,99 € pro Monat inkl. USt). Es enthält alles aus Plus und die
+  KI von StudiNow über den StudiNow-Dienst, ohne eigenes ChatGPT-Konto. Dafür brauchst du ein StudiNow-Konto; die App
+  bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 100 Credits je
+  Kalendermonat, ein Credit entspricht einem Cent der tatsächlichen Kosten beim KI-Anbieter. Nicht verbrauchte
+  Credits verfallen am Monatsende; sind sie aufgebraucht, steht die KI von StudiNow bis zum nächsten Monat nicht zur
+  Verfügung, alle anderen Funktionen bleiben. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen
+  deiner Hochschule.
+- Den Preis zeigt die App vor dem Kauf an. Ein Abo verlängert sich automatisch um einen Monat, wenn du es nicht
+  spätestens 24 Stunden vor Ende des laufenden Zeitraums kündigst. Kündigen und verwalten kannst du es in den
+  Abo-Einstellungen deines Apple- bzw. Google-Kontos; das Löschen der App beendet das Abo nicht. Ein Wechsel zu einem
+  höheren Tarif gilt sofort, zu einem niedrigeren ab der nächsten Verlängerung.
 - Kauf, Zahlung, Rechnung, Rückerstattung und Widerruf wickelt Apple bzw. Google nach deren Bedingungen ab. Mit dem
-  Start der Testwoche bzw. des Abos verlangst du die sofortige Bereitstellung digitaler Inhalte.
-- Nach dem Ende von Plus bleiben alle deine Notizen erhalten, lesbar und als PDF exportierbar; nur das Bearbeiten
-  und die anderen Plus-Funktionen sind gesperrt, bis du wieder abonnierst.
+  Start des Abos verlangst du die sofortige Bereitstellung digitaler Inhalte.
+- Nach dem Ende eines Abos oder der Probe bleiben alle deine Notizen erhalten, lesbar und als PDF exportierbar; nur das
+  Bearbeiten und die anderen Funktionen des Tarifs sind gesperrt, bis du wieder abonnierst.
 - Preisänderungen gelten nur für neue Abo-Zeiträume nach vorheriger Ankündigung über den Store; du kannst dann
   kündigen.
+
+## 5a. Grenzen je Tarif im StudiNow-Dienst
+
+Mit StudiNow-Konto gelten im Dienst monatliche Grenzen, die die App anzeigt:
+
+| Je Kalendermonat | Free | Plus | Pro AI |
+|---|:---:|:---:|:---:|
+| Neue KI-Tests von StudiNow (Wochentests, Testbibliothek) | – | 4 | 20 |
+| Tests aus der gemeinsamen Testbibliothek | – | 4 | unbegrenzt (Fair Use: 300) |
+| Credits für die KI von StudiNow | – | – | 100 |
+
+Ein gemeinsamer Wochentest, den andere schon erstellt haben, zählt nicht. Die Testliste im Dienst zeigt in Free und
+Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und zählen weiter für den Lernstand.
+Wochentests über dein eigenes ChatGPT laufen auf deinem Gerät und kosten keine Credits.
 
 ## 6. Deine Inhalte und die Inhalte deiner Hochschule
 

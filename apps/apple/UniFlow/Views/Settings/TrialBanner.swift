@@ -4,14 +4,21 @@ import UniFlowCore
 /// Texte wie im Web (`app/static/views-abo.js`); der App-Store-Hinweis ersetzt den Stripe-Abschluss. Dieselben Texte
 /// fuer die Probe des StudiNow-Kontos und die Probe auf dem iPad ohne Dienst (LocalTrial.swift).
 enum UFTrialTexts {
+    /// Credits der Probe fuer die StudiNow-KI (plans.json `trial.credits`, app/credits.py); nur mit StudiNow-Dienst,
+    /// ohne ihn laeuft die KI auf dem iPad ueber das eigene ChatGPT und Pro AI wird nicht genannt (UFPlanCatalog)
+    static let credits = 25
     static func running(_ days: Int) -> String { "Probe: noch \(days) \(days == 1 ? "Tag" : "Tage") alles frei" }
     static let runningText = "Danach wählst du einen Tarif oder bleibst bei Free. Deine Notizen bleiben in jedem Fall erhalten."
+    /// Probe des StudiNow-Kontos (Dienst): alles wie Pro AI mit 25 Credits (Entscheidung 04.11.2026)
+    static let runningTextService = "Alles wie StudiNow Pro AI, mit \(credits) Credits für die StudiNow-KI. " + runningText
     static let overTitle = "Deine Probe ist vorbei"
     static let overText = "Sieben Tage lang war alles frei. Wähle jetzt einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar."
     static let plans = "Tarife ansehen"
     static let stayFree = "Bei Free bleiben"
     /// Angebotssatz auf der Tarifseite (ersetzt "1 Woche gratis, danach …" des Einfuehrungsangebots, 04.11.2026)
     static let offer = "7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten"
+    /// dasselbe, sobald der Store Pro AI anbietet (StudiNow-Dienst): "Probe: alles wie Pro AI, 25 Credits"
+    static let offerProAI = "7 Tage Probe: alles wie StudiNow Pro AI, mit \(credits) Credits für die StudiNow-KI, danach Free – ohne Zahlungsdaten"
 }
 
 /// Probe auf der Uebersicht: laufend mit Resttagen, danach die Aufforderung zur Tarifwahl (Free bleibt nutzbar).

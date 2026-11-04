@@ -4,8 +4,10 @@ import UniFlowCore
 /// "Karteikarten aus Dokument" (03.11.2026): Modul und Dokument waehlen, Seiten und Zahl der Karten, optional ein
 /// Schwerpunkt; `POST /api/ai/flashcards` schlaegt Karten vor (KI des Nutzers, Schema `AIPrompts.flashcardsSchema`),
 /// die Vorschau laesst jede Karte aendern oder streichen, "Übernehmen" speichert mit `POST /api/flashcards`
-/// (source = Dokument, Fach aus dessen Kurs). Ohne PC nur mit Plus (Sperrkarte wie die Karteikarten-Seite), ohne
-/// verbundene KI der Weg dorthin. Gesendet wird nur nach dem Antippen.
+/// (source = Dokument, Fach aus dessen Kurs). Die Karten landen in einem Stapel (04.11.2026): ein vorhandener Stapel
+/// des Moduls oder ein neuer mit Namen, Vorgabe "Neuer Stapel …" mit dem Titel des Dokuments (`stack_name`; der
+/// Server nimmt einen gleichnamigen Stapel des Fachs, sonst legt er ihn mit dem Dokument als Quelle an). Ohne PC nur
+/// mit Plus (Sperrkarte wie die Karteikarten-Seite), ohne verbundene KI der Weg dorthin. Gesendet wird nur nach dem Antippen.
 struct FlashcardComposer: View {
     let initialModuleID: Int
     let initialFileID: String?
@@ -31,6 +33,12 @@ struct FlashcardComposer: View {
     @State private var error: String?
     @State private var cards: [Card] = []
     @State private var editing: String?
+    /// Stapel (GET /api/flashcard-stacks; ohne Antwort leer: dann nur "Neuer Stapel …")
+    @State private var stacks: [JSONValue] = []
+    @State private var stack = FlashcardDeck.newStack
+    @State private var stackName = ""
+    /// Name selbst geaendert: die Vorgabe (Titel des Dokuments) ueberschreibt ihn nicht mehr
+    @State private var stackNameEdited = false
 
     /// Vorgeschlagene Karte in der Vorschau
     struct Card: Identifiable, Equatable {
@@ -71,7 +79,23 @@ struct FlashcardComposer: View {
 
     var pages: [Int] { Self.pages(from: pageFrom, to: pageTo, pageCount: pageCount) }
     var canGenerate: Bool { allowed && aiEnabled && !generating && !saving && file != nil }
-    var canSave: Bool { allowed && !saving && !generating && cards.contains { !$0.question.isEmpty && !$0.answer.isEmpty } }
+    var canSave: Bool {
+        allowed && !saving && !generating && cards.contains { !$0.question.isEmpty && !$0.answer.isEmpty }
+            && (stack != FlashcardDeck.newStack || !stackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    /// Fach des gewaehlten Moduls (Name), 0 = alle Module -> Fach des Dokuments ueber sein Modul
+    private var subject: String? {
+        let mid = module != 0 ? module : file?.i("module_id")
+        return modules.first { $0.i("id") == mid }?.s("name")
+    }
+
+    /// Stapel des Fachs zur Auswahl (zuletzt geuebte zuerst) plus "Neuer Stapel …"
+    static func stackOptions(_ stacks: [JSONValue], subject: String?) -> [(Int, String)] {
+        let mine = stacks.filter { ($0.s("subject") ?? "") == (subject ?? "") }
+            .sorted { ($0.s("last_practised") ?? "", $0.i("id") ?? 0) > ($1.s("last_practised") ?? "", $1.i("id") ?? 0) }
+        return [(FlashcardDeck.newStack, "Neuer Stapel …")] + mine.compactMap { s in s.i("id").map { ($0, s.s("name") ?? "") } }
+    }
 
     var body: some View {
         UFDialog("Karteikarten aus Dokument", icon: "cards") {
@@ -101,8 +125,12 @@ struct FlashcardComposer: View {
         .task { await load() }
         .onChange(of: module) { _, _ in
             if !fileID.isEmpty, !documents.contains(where: { $0.s("id") == fileID }) { fileID = documents.first?.s("id") ?? "" }
+            resetStack()
         }
-        .onChange(of: fileID) { _, _ in clampPages() }
+        .onChange(of: fileID) { _, _ in
+            clampPages()
+            resetStack()
+        }
     }
 
     @ViewBuilder private var connect: some View {
@@ -160,6 +188,16 @@ struct FlashcardComposer: View {
             UFField("Schwerpunkt (optional)") {
                 UFTextInput("z. B. nur Definitionen, nur Rechenwege", text: $topic).accessibilityIdentifier("cards.composer.topic")
             }
+            UFField("Stapel") {
+                UFSelect(options: Self.stackOptions(stacks, subject: subject), selection: $stack, fill: true)
+                    .accessibilityIdentifier("cards.composer.stack")
+            }
+            if stack == FlashcardDeck.newStack {
+                UFField("Name des neuen Stapels") {
+                    UFTextInput("z. B. Kapitel 3", text: Binding(get: { stackName }, set: { stackName = $0; stackNameEdited = true }))
+                        .accessibilityIdentifier("cards.composer.stackName")
+                }
+            }
             HStack(spacing: 8) {
                 UFIcon("sparkles", size: 14).foregroundStyle(UF.accent)
                 Text(AICost.line(chatgpt: aiEnabled, plan: ent.plan, credits: 5)).ufFont(12.8).foregroundStyle(UF.muted)
@@ -186,6 +224,13 @@ struct FlashcardComposer: View {
         out.append((n <= Self.pagesMax ? "Alle (\(min(n, Self.pagesMax)))" : "Erste \(Self.pagesMax)", 1, min(n, Self.pagesMax)))
         if let c = pageCount, c > Self.pagesMax { out.append(("Letzte \(Self.pagesMax)", c - Self.pagesMax + 1, c)) }
         return out.map { (label: $0.0, from: $0.1, to: $0.2) }
+    }
+
+    /// Stapelvorgabe nach Modul- oder Dokumentwechsel: Stapel eines anderen Fachs passt nicht mehr, der Name des neuen
+    /// Stapels ist der Titel des Dokuments (solange er nicht selbst geaendert wurde)
+    private func resetStack() {
+        if stack != FlashcardDeck.newStack, !Self.stackOptions(stacks, subject: subject).contains(where: { $0.0 == stack }) { stack = FlashcardDeck.newStack }
+        if !stackNameEdited { stackName = file.map(AIStartView.title) ?? "" }
     }
 
     private func clampPages() {
@@ -277,6 +322,8 @@ struct FlashcardComposer: View {
             let (mv, lv) = try await (m, l)
             modules = mv.items
             files = lv.list("files")
+            // Stapel: ohne Endpunkt (aelterer Server) bleibt nur "Neuer Stapel …"
+            stacks = (try? await api.value("/api/flashcard-stacks"))?.items ?? []
             if let id = initialFileID, let f = files.first(where: { $0.s("id") == id }), module == 0 || f.i("module_id") == module {
                 fileID = id
             } else if fileID.isEmpty || !documents.contains(where: { $0.s("id") == fileID }) {
@@ -284,6 +331,7 @@ struct FlashcardComposer: View {
             }
             loaded = true
             clampPages()
+            resetStack()
         } catch { self.error = error.localizedDescription }
     }
 
@@ -314,10 +362,12 @@ struct FlashcardComposer: View {
         defer { saving = false }
         let payload = usableCards
         do {
-            let r = try await api.value("/api/flashcards", method: "POST",
-                                        body: ["file_id": .string(id), "cards": .array(payload.map { ["question": .string($0.question), "answer": .string($0.answer)] })])
+            var body: [String: JSONValue] = ["file_id": .string(id), "cards": .array(payload.map { ["question": .string($0.question), "answer": .string($0.answer)] })]
+            if stack != FlashcardDeck.newStack { body["stack_id"] = .number(Double(stack)) } else { body["stack_name"] = .string(stackName.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let r = try await api.value("/api/flashcards", method: "POST", body: .object(body))
             let n = r.i("count") ?? payload.count
-            toast.show(n == 1 ? "1 Karte gespeichert" : "\(n) Karten gespeichert")
+            let into = stack != FlashcardDeck.newStack ? (stacks.first { $0.i("id") == stack }?.s("name") ?? "") : stackName.trimmingCharacters(in: .whitespacesAndNewlines)
+            toast.show((n == 1 ? "1 Karte gespeichert" : "\(n) Karten gespeichert") + (into.isEmpty ? "" : " in „\(into)“"))
             close()
             router.reload()
         } catch {

@@ -16,7 +16,7 @@ Fassung einfügen.
 | Skriptsuche zur Aufgabe | `ipad_skriptsuche` | gebaut (Kandidatenseiten ohne KI, Plus) | am Gerät mit einem echten Übungsblatt geprüft |
 | Community online (Kanal nach Lehrwoche, Fragen und Antworten) | `ipad_community_online` | gebaut (CloudKit, Container `iCloud.de.uniflow.ai`) | neue Datensatztypen in Production deployt (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`) und mit zwei iCloud-Konten durchgespielt |
 | „ohne Tracking“ | – | stimmt | solange kein Analyse-SDK eingebaut wird |
-| Nur StudiNow Free und Plus | – | stimmt (`UFPlanCatalog.sellable`) | Pro Connect und Pro AI erst mit dem StudiNow-Dienst nennen und einreichen |
+| StudiNow Free, Plus und Pro AI (Pro-AI-Karte nur mit Produkt aus dem Store) | – | stimmt (`UFPlanCatalog.sellable`, Entscheidung 04.11.2026) | Pro AI erst mit dem StudiNow-Dienst einreichen (Abschnitt „In-App-Käufe“); Pro Connect gibt es auf dem iPad nicht |
 
 ## Name, Untertitel, Werbetext
 
@@ -197,8 +197,8 @@ Das Plus-Abo muss **zusammen mit der ersten App-Version** eingereicht werden (Ve
 Produkt auswählen), sonst prüft Apple es nicht mit. Solange Pro AI in App Store Connect fehlt, liefert StoreKit das
 Produkt nicht; die Tarifseite zeigt dann nur Free und Plus und darunter den Satz „StudiNow Pro AI folgt mit dem
 StudiNow-Dienst.“ ohne Preis und ohne Kaufknopf. Sobald das Produkt da ist, erscheint die Pro-AI-Karte mit dem Preis aus
-dem Store und der Zeile, dass Pro AI den StudiNow-Dienst braucht. StudiNow Pro Connect (`de.uniflow.proconnect.monthly`,
-2,99 €) wird auf dem iPad nicht angeboten (nur Web/Windows über den Dienst, `docs/ABO-SYSTEM.md`). Die App prüft den Kauf
+dem Store und der Zeile, dass Pro AI den StudiNow-Dienst braucht. StudiNow Pro Connect gibt es seit dem 04.11.2026
+nicht mehr (`docs/PREISLISTE.md`); `de.uniflow.proconnect.monthly` nicht anlegen. Die App prüft den Kauf
 nur auf dem Gerät (StoreKit 2); kein Konto beim Dienst, kein `appAccountToken`.
 
 Pflichttexte auf der Tarifseite in der App: Preis und Laufzeit, automatische Verlängerung, Kündigung in den
@@ -221,7 +221,7 @@ StudiNow is a study app for students of Leibniz Universität Hannover (Germany).
 3. On the following university login page tap "Ohne Hochschulkonto ansehen (Demo)" at the bottom. This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us, no university content). In demo mode the app does not contact the university and asks for no login.
 The demo can also be created at any time under "Einstellungen" → "Erweitert" → "Demo-Inhalte anlegen"; "Entfernen" (overview or the same place) removes it again.
 
-Subscriptions: "StudiNow Plus" (monthly, no introductory offer) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards and sharing own solutions. The plan page lists "StudiNow Pro AI" only when the App Store returns that product; it is submitted later together with our online service, and its card states that it needs that service. The free trial is not an App Store offer: it is the app's own 7-day trial described above. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
+Subscriptions: "StudiNow Plus" (monthly, no introductory offer) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, creating weekly tests (with the user's own ChatGPT, see AI below) and sharing own solutions. The plan page lists "StudiNow Pro AI" only when the App Store returns that product; it is submitted later together with our online service, and its card states that it needs that service. The free trial is not an App Store offer: it is the app's own 7-day trial described above. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto" → "Konto löschen" deletes all data of the account on the device.
 

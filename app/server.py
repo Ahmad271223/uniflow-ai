@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
+from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -47,6 +47,7 @@ async def _lifespan(_app):
 app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)
 app.include_router(account_api.router)
 app.include_router(community_api.router)
+app.include_router(community_cards_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
 app.include_router(doc_index.router)
@@ -54,6 +55,8 @@ from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibli
 app.include_router(older_semesters_api.router)
 from . import invites_api  # noqa: E402 - Einladungen mit Angebotscodes (Routen /api/invites, /api/billing/offer-codes)
 app.include_router(invites_api.router)
+from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/explain, app/page_explain.py)
+app.include_router(page_explain_api.router)
 db.init_db()
 
 
@@ -1194,6 +1197,15 @@ def ai_flashcards(request: Request, body: dict = Body(...)):
     count = ai.flashcards_count(body.get("count"))
     topic = str(body.get("topic") or "")
     prompt = ai.flashcards_prompt(f["course_title"], f["name"], pages, text, count, topic)
+    cards, credits_state = _flashcards_complete(request, hosted, prompt, body)
+    return {"cards": cards, "pages": pages, "count": count, "credits": credits_state}
+
+
+def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict) -> tuple[list[dict], dict | None]:
+    """Karteikarten von der KI: im Dienst die StudiNow-KI (Kontingent ai_assist, Credits, request_id-Wiederholung,
+    Rueckbuchung bei Fehlern), am Einzelplatz die KI des PCs. Liefert (Karten, Credits-Stand); ohne Karten 502.
+    Auch fuer die geteilten Wochenstapel (`week_stack_get_or_generate`): dieselbe Anfrage, derselbe Preis."""
+    from . import ai
     credits_state = None
     if hosted:
         from . import ai_backend
@@ -1222,7 +1234,7 @@ def ai_flashcards(request: Request, body: dict = Body(...)):
         cards = []
     if not cards:
         raise HTTPException(502, {"detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"})
-    return {"cards": cards, "pages": pages, "count": count, "credits": credits_state}
+    return cards, credits_state
 
 
 def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: dict, limit: int = 4) -> list[dict]:
@@ -1303,38 +1315,362 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
         raise
 
 
+# Karteikarten und Stapel (04.11.2026, docs/KARTEIKARTEN-STAPEL-2026-11-04.md): jede Karte gehoert zu genau einem Stapel
+# (Name, Modul = Fach, optional Quelldokument). Geuebt wird immer in EINEM Stapel (?stack_id=), die Zaehler "Heute faellig"
+# gelten je Stapel. Frage, Antwort, Fach und Stapel einer Karte lassen sich nachtraeglich aendern (PATCH), Fach und
+# Faelligkeit (Leitner) bleiben dabei. Lokal gleich: FlashcardEndpoints.swift (Fixture flashcards.json).
+
+STACK_SQL = """SELECT s.*, f.name AS file_name,
+                      (SELECT COUNT(*) FROM flashcards fc WHERE fc.stack_id = s.id) AS cards,
+                      (SELECT COUNT(*) FROM flashcards fc WHERE fc.stack_id = s.id AND (fc.due IS NULL OR fc.due <= ?)
+                                                               AND COALESCE(fc.hidden, 0) = 0) AS due
+               FROM flashcard_stacks s LEFT JOIN files f ON f.id = s.file_id"""
+
+
+def _stack_row(conn, stack_id):
+    return db.row(conn, STACK_SQL + " WHERE s.id=?", (date.today().isoformat(), stack_id))
+
+
+STACK_KINDS = ("vorlesung", "uebung", "eigene")
+
+
+def _file_info(conn, file_id):
+    """Fach und Art des Kurses, Titel (sonst Dateiname), Name, Ordner und KI-Einordnung eines Dokuments; None, wenn es
+    die Datei nicht gibt"""
+    return db.row(conn, "SELECT c.subject, c.kind AS course_kind, COALESCE(NULLIF(f.title, ''), f.name) AS title, f.name, "
+                        "f.studip_folder, a.doc_type FROM files f LEFT JOIN courses c ON c.id=f.course_id "
+                        "LEFT JOIN analysis a ON a.file_id=f.id WHERE f.id=?", (file_id,))
+
+
+def _file_stack_meta(f) -> tuple[str, int | None]:
+    """Art und Lehrwoche eines Stapels aus seinem Dokument (04.11.2026): Einordnung des Dokuments (study.effective_type:
+    Vorlesungsfolien -> vorlesung, Uebungsblaetter -> uebung, sonst eigene) und die Lehrwoche aus Dateiname/Ordner
+    (study.week_hint), wenn bekannt."""
+    if not f:
+        return "eigene", None
+    from . import study
+    t, _ = study.effective_type(f.get("name"), f.get("studip_folder"), f.get("doc_type"), f.get("course_kind"))
+    return (t if t in ("vorlesung", "uebung") else "eigene"), study.week_hint(f.get("name"), f.get("studip_folder"))
+
+
+def _week_value(v):
+    """Lehrwoche: ganze Zahl ab 1 oder null (= Allgemein)"""
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+        raise HTTPException(422, "week: ganze Zahl ab 1 oder null erwartet")
+    return v
+
+
+def _kind_value(v) -> str:
+    if not isinstance(v, str) or v not in STACK_KINDS:
+        raise HTTPException(422, "kind: vorlesung, uebung oder eigene erwartet")
+    return v
+
+
+def _stack_name(v) -> str:
+    if not isinstance(v, str) or not v.strip():
+        raise HTTPException(422, "Name des Stapels fehlt")
+    return v.strip()
+
+
+def _subject_value(v):
+    """Fach: Text (ohne Leerraum aussen, leer = kein Fach) oder null"""
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        raise HTTPException(422, "subject: Text oder null erwartet")
+    return v.strip() or None
+
+
+def _file_value(conn, v):
+    """Quelldokument eines Stapels: Kennung eines vorhandenen Dokuments oder null"""
+    if v is None or v == "":
+        return None
+    if not isinstance(v, str):
+        raise HTTPException(422, "file_id: Text oder null erwartet")
+    _found(_file_info(conn, v), "Dokument")
+    return v
+
+
+def _auto_stack(conn, file_id, subject, now) -> int:
+    """Stapel fuer Karten ohne Stapelangabe, wie die Migration (db.FLASHCARD_STACK_SQL): der Stapel des Dokuments
+    (Name = Titel bzw. Dateiname, sonst die Kennung), ohne Dokument "Allgemein" je Fach bzw. "Ohne Modul"."""
+    if file_id:
+        s = db.row(conn, "SELECT id FROM flashcard_stacks WHERE file_id=? ORDER BY id LIMIT 1", (file_id,))
+        if s:
+            return s["id"]
+        f = _file_info(conn, file_id)
+        name = (f["title"] if f else None) or str(file_id)
+        kind, week = _file_stack_meta(f)
+    else:
+        name = "Allgemein" if subject else "Ohne Modul"
+        kind, week = "eigene", None
+        s = db.row(conn, "SELECT id FROM flashcard_stacks WHERE file_id IS NULL AND subject IS ? AND name=? ORDER BY id LIMIT 1",
+                   (subject or None, name))
+        if s:
+            return s["id"]
+    cur = conn.execute("INSERT INTO flashcard_stacks(name, subject, file_id, created_at, kind, week) VALUES (?,?,?,?,?,?)",
+                       (name, subject or None, file_id or None, now, kind, week))
+    return cur.lastrowid
+
+
+def _require_flashcards(request: Request) -> None:
+    """Eigene Karteikarten schreiben und ueben ab Plus (Recht can_use_flashcards, Entscheidung 04.11.2026): 403
+    plan_required "Karteikarten gibt es ab StudiNow Plus."; Lesen (GET) bleibt in jedem Tarif frei, damit Free nach
+    der Probe seine Karten weiter sieht. Am Einzelplatz ohne Tarif immer erlaubt (entitlements.has)."""
+    entitlements.require(request, "can_use_flashcards")
+
+
+def _touch_stack(conn, card_id: int) -> None:
+    """Wiederholung oder Uebung einer Karte: letzte Uebung ihres Stapels"""
+    conn.execute("UPDATE flashcard_stacks SET last_practised=? WHERE id=(SELECT stack_id FROM flashcards WHERE id=?)",
+                 (db.now_iso(), card_id))
+
+
+@app.get("/api/flashcard-stacks")
+def list_flashcard_stacks():
+    with db.cursor() as conn:
+        db.ensure_flashcard_stacks(conn)
+        return db.rows(conn, STACK_SQL + " ORDER BY s.id DESC", (date.today().isoformat(),))
+
+
+@app.post("/api/flashcard-stacks")
+def add_flashcard_stack(request: Request, body: dict = Body(...)):
+    """Neuer Stapel: name (Pflicht), subject (Fach, sonst das Fach des Dokuments), file_id (optionales Quelldokument),
+    week (Lehrwoche, null = Allgemein) und kind (vorlesung | uebung | eigene); ohne Angabe kommen Art und Woche aus
+    der Einordnung des Dokuments, sonst eigene/Allgemein. Ab Plus."""
+    _require_flashcards(request)
+    name = _stack_name(body.get("name"))
+    with db.cursor() as conn:
+        file_id = _file_value(conn, body.get("file_id"))
+        subject = _subject_value(body.get("subject"))
+        f = _file_info(conn, file_id) if file_id else None
+        if "subject" not in body and f:
+            subject = f["subject"]
+        kind, week = _file_stack_meta(f)
+        if "week" in body:
+            week = _week_value(body["week"])
+        if "kind" in body:
+            kind = _kind_value(body["kind"])
+        cur = conn.execute("INSERT INTO flashcard_stacks(name, subject, file_id, created_at, kind, week) VALUES (?,?,?,?,?,?)",
+                           (name, subject, file_id, db.now_iso(), kind, week))
+        return _stack_row(conn, cur.lastrowid)
+
+
+@app.patch("/api/flashcard-stacks/{stack_id}")
+def patch_flashcard_stack(request: Request, stack_id: int, body: dict = Body(...)):
+    """Umbenennen, in ein anderes Modul verschieben (die Karten folgen), Quelldokument setzen oder loesen, Lehrwoche und
+    Art aendern (ab Plus)"""
+    _require_flashcards(request)
+    sets, params = [], []
+    if "name" in body:
+        sets.append("name=?"); params.append(_stack_name(body["name"]))
+    if "subject" in body:
+        sets.append("subject=?"); params.append(_subject_value(body["subject"]))
+    if "week" in body:
+        sets.append("week=?"); params.append(_week_value(body["week"]))
+    if "kind" in body:
+        sets.append("kind=?"); params.append(_kind_value(body["kind"]))
+    with db.cursor() as conn:
+        if "file_id" in body:
+            sets.append("file_id=?"); params.append(_file_value(conn, body["file_id"]))
+        _found(db.row(conn, "SELECT id FROM flashcard_stacks WHERE id=?", (stack_id,)), "Stapel")
+        if sets:
+            conn.execute(f"UPDATE flashcard_stacks SET {', '.join(sets)} WHERE id=?", (*params, stack_id))
+        if "subject" in body:
+            conn.execute("UPDATE flashcards SET subject=? WHERE stack_id=?", (_subject_value(body["subject"]), stack_id))
+        return _stack_row(conn, stack_id)
+
+
+@app.delete("/api/flashcard-stacks/{stack_id}")
+def delete_flashcard_stack(request: Request, stack_id: int, move_to: int | None = None):
+    """Stapel loeschen: ohne move_to samt Karten, mit move_to wandern die Karten (mit Lernstand) in den Zielstapel
+    und bekommen dessen Fach. Ab Plus (Free behaelt seine Karten lesbar, Loeschen gehoert zum Bearbeiten)."""
+    _require_flashcards(request)
+    with db.cursor() as conn:
+        _found(db.row(conn, "SELECT id FROM flashcard_stacks WHERE id=?", (stack_id,)), "Stapel")
+        moved = deleted = 0
+        if move_to is not None:
+            if move_to == stack_id:
+                raise HTTPException(422, "Zielstapel ist der gelöschte Stapel")
+            target = _found(db.row(conn, "SELECT id, subject FROM flashcard_stacks WHERE id=?", (move_to,)), "Zielstapel")
+            moved = conn.execute("UPDATE flashcards SET stack_id=?, subject=? WHERE stack_id=?", (move_to, target["subject"], stack_id)).rowcount
+        else:
+            deleted = conn.execute("DELETE FROM flashcards WHERE stack_id=?", (stack_id,)).rowcount
+        conn.execute("DELETE FROM flashcard_stacks WHERE id=?", (stack_id,))
+    return {"ok": True, "moved": moved, "deleted": deleted}
+
+
+# Geteilte Wochenstapel (04.11.2026, app/cardshare.py): je Modul, Lehrwoche und Art (vorlesung | uebung) EIN erzeugter
+# Stapel fuer alle mit denselben Dateien, hoechstens drei Varianten je Schluessel; uebernommen wird als eigener Stapel
+# (source = week), der Lernstand bleibt je Person. Erzeugt wird nur auf Wunsch ("Karten fuer Woche n holen").
+
+def _week_files(conn, module_id: int, week: int, kind: str) -> list[dict]:
+    """Dateien einer Lehrwoche des Moduls fuer die Art (cardshare.WEEK_DOC_TYPES), aelteste zuerst, hoechstens
+    WEEK_FILES_MAX, mit Text (Auszug, sonst aus der Datei) und Inhalts-Hash."""
+    from . import cardshare, study
+    from .extract import extract_text
+    start = study.semester_start(conn)
+    types = cardshare.WEEK_DOC_TYPES.get(kind, ())
+    files = [f for f in study._file_rows(conn, module_id) if study.file_week(start, f) == week and f.get("doc_type") in types]
+    out = []
+    for f in files[:cardshare.WEEK_FILES_MAX]:
+        p = db.row(conn, "SELECT text_excerpt, local_path, content_sha256 FROM files WHERE id=?", (f["id"],)) or {}
+        text = p.get("text_excerpt") or (extract_text(p["local_path"], cardshare.WEEK_TEXT_CHARS) if p.get("local_path") else "")
+        out.append({"id": f["id"], "name": f["name"], "text": text, "content_sha256": p.get("content_sha256"), "local_path": p.get("local_path")})
+    return out
+
+
+def _week_kind(kind: str) -> str:
+    from . import cardshare
+    if kind not in cardshare.KINDS:
+        raise HTTPException(422, "kind: vorlesung oder uebung erwartet")
+    return kind
+
+
+def _week_stack(conn, subject: str, week: int, kind: str):
+    """Vorhandener uebernommener Wochenstapel des Moduls (source = week)"""
+    from . import cardshare
+    r = db.row(conn, "SELECT id FROM flashcard_stacks WHERE source=? AND subject=? AND week=? AND kind=? ORDER BY id LIMIT 1",
+               (cardshare.SOURCE_WEEK, subject, week, kind))
+    return _stack_row(conn, r["id"]) if r else None
+
+
+@app.get("/api/flashcard-stacks/week/{module_id}/{week}/{kind}")
+def week_stack_status(module_id: int, week: int, kind: str):
+    """Stand ohne Erzeugen: der uebernommene Stapel (oder null), die Zahl der Dateien der Woche und ob sich der Stapel
+    teilen laesst (alle Dateien mit Inhalts-Hash)."""
+    from . import cardshare, universities
+    kind = _week_kind(kind)
+    if week < 1:
+        raise HTTPException(422, "week: ganze Zahl ab 1 erwartet")
+    with db.cursor() as conn:
+        m = _found(db.row(conn, "SELECT id, name FROM modules WHERE id=?", (module_id,)), "Modul")
+        files = _week_files(conn, module_id, week, kind)
+        return {"stack": _week_stack(conn, m["name"], week, kind), "files": len(files), "name": cardshare.stack_name(kind, week),
+                "shareable": cardshare.week_key(universities.current_key(), kind, files) is not None}
+
+
+@app.post("/api/flashcard-stacks/week/{module_id}/{week}/{kind}")
+def week_stack_get_or_generate(request: Request, module_id: int, week: int, kind: str, body: dict = Body(default={})):
+    """Holen oder erzeugen: ein vorhandener uebernommener Stapel kommt zurueck (status exists); sonst der gemeinsame
+    Stapel zum Schluessel der Dateien (adopted = uebernommen, 0 Credits; generated = selbst erzeugt und geteilt;
+    unshared = eigener Stapel, weil die Dateien keinen Inhalts-Hash haben oder der Dienst fehlt). Der Stapel heisst
+    "Vorlesung Woche n" bzw. "Übung Woche n", seine Karten sind Fach 1 und heute faellig.
+    Tarif (04.11.2026): Holen und Uebernehmen ab Plus (can_use_flashcards), 0 Credits, ohne bestaetigte E-Mail; nur
+    das Erzeugen eines NEUEN Satzes ist StudiNow-KI (Pro AI, bestaetigte E-Mail, Credits). Plus uebernimmt darum jede
+    fertige Variante des Pools (auch eine fremde) und wartet auf eine, die gerade entsteht, statt selbst zu erzeugen."""
+    from . import cardshare, universities
+    kind = _week_kind(kind)
+    if week < 1:
+        raise HTTPException(422, "week: ganze Zahl ab 1 erwartet")
+    _require_flashcards(request)
+    hosted = config.is_hosted()
+    with db.cursor() as conn:
+        m = _found(db.row(conn, "SELECT id, name FROM modules WHERE id=?", (module_id,)), "Modul")
+        ex = _week_stack(conn, m["name"], week, kind)
+        if ex:
+            return {"stack": ex, "status": "exists", "variant": None, "of": cardshare.MAX_VARIANTS, "credits": None}
+        files = _week_files(conn, module_id, week, kind)
+    if not files:
+        what = "Vorlesungsunterlagen" if kind == "vorlesung" else "Übungsblätter"
+        raise HTTPException(404, {"detail": f"Für Woche {week} gibt es keine {what} in diesem Modul.", "code": "no_materials"})
+    key = cardshare.week_key(universities.current_key(), kind, files)
+    prompt = cardshare.prompt(m["name"], kind, week, files)
+    state: dict = {"credits": None}
+    user = entitlements.user_of(request)
+    can_generate = not hosted or (entitlements.has(user, "can_use_ai_generated_questions") and bool((user or {}).get("email_verified")))
+
+    def generate():
+        if hosted:                         # nur das Erzeugen ist StudiNow-KI; Uebernehmen kostet nichts
+            entitlements.require(request, "can_use_ai_generated_questions")
+            entitlements.require_verified_for_ai(request)
+        cards, state["credits"] = _flashcards_complete(request, hosted, prompt, body)
+        return cards
+
+    if key:
+        with db.cursor() as conn:
+            from . import testshare
+            uid = testshare.user_id(conn)
+        got = cardshare.obtain(key, uid, generate, log=print, can_generate=can_generate)
+        status = "adopted" if got["adopted_from"] else ("generated" if hosted else "unshared")
+        from . import ai
+        cards, variant = got["cards"][:ai.FLASHCARDS_MAX], got["variant"]       # Deckel je Satz wie checkFlashcards im Kern
+    else:
+        cards, variant, status = generate(), None, "unshared"
+    with db.cursor() as conn:
+        ex = _week_stack(conn, m["name"], week, kind)
+        if ex:                                                       # parallel entstanden
+            return {"stack": ex, "status": "exists", "variant": None, "of": cardshare.MAX_VARIANTS, "credits": state["credits"]}
+        now = db.now_iso()
+        cur = conn.execute("INSERT INTO flashcard_stacks(name, subject, file_id, created_at, kind, week, source, source_ref) VALUES (?,?,?,?,?,?,?,?)",
+                           (cardshare.stack_name(kind, week), m["name"], None, now, kind, week, cardshare.SOURCE_WEEK, key or ""))
+        sid = cur.lastrowid
+        for c in cards:
+            conn.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due, stack_id) VALUES (NULL,?,?,?,?,1,?,?)",
+                         (m["name"], c["question"], c["answer"], now, date.today().isoformat(), sid))
+        return {"stack": _stack_row(conn, sid), "status": status, "variant": None if variant is None else variant + 1,
+                "of": cardshare.MAX_VARIANTS, "credits": state["credits"]}
+
+
 @app.get("/api/flashcards")
-def list_flashcards(file_id: str | None = None, due: bool = False):
-    sql = "SELECT fc.*, f.name AS file_name FROM flashcards fc LEFT JOIN files f ON f.id=fc.file_id WHERE 1=1"
+def list_flashcards(file_id: str | None = None, due: bool = False, stack_id: int | None = None):
+    sql = ("SELECT fc.*, f.name AS file_name, s.name AS stack_name FROM flashcards fc LEFT JOIN files f ON f.id=fc.file_id "
+           "LEFT JOIN flashcard_stacks s ON s.id=fc.stack_id WHERE 1=1")
     params: list = []
     if file_id:
         sql += " AND fc.file_id=?"; params.append(file_id)
+    if stack_id is not None:                   # geuebt wird in einem Stapel
+        sql += " AND fc.stack_id=?"; params.append(stack_id)
     if due:  # versteckte Karten (Trainer) sind nie faellig; Liste ohne due zeigt sie weiter
         sql += " AND (fc.due IS NULL OR fc.due <= ?) AND COALESCE(fc.hidden, 0) = 0"; params.append(date.today().isoformat())
     sql += " ORDER BY fc.id DESC"
     with db.cursor() as conn:
+        db.ensure_flashcard_stacks(conn)
         return db.rows(conn, sql, params)
 
 
 @app.post("/api/flashcards")
-def add_flashcards(body: dict = Body(...)):
+def add_flashcards(request: Request, body: dict = Body(...)):
+    """Karten anlegen. Stapel: stack_id (vorhandener Stapel; die Karten bekommen sein Fach), sonst stack_name (Stapel mit
+    diesem Namen im Fach des Dokuments, sonst neu mit dem Dokument als Quelle), sonst der Stapel des Dokuments bzw.
+    "Allgemein"/"Ohne Modul" (_auto_stack). Ab Plus."""
+    _require_flashcards(request)
     cards = body.get("cards") or []
     file_id = body.get("file_id")
+    stack_id = body.get("stack_id")
+    stack_name = body.get("stack_name")
     with db.cursor() as conn:
-        subj = None
+        subj, r = None, None
         if file_id:
-            r = db.row(conn, "SELECT c.subject FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", (file_id,))
+            r = _file_info(conn, file_id)
             subj = r["subject"] if r else None
+        sid = None
         for c in cards:
             if c.get("question") and c.get("answer"):
-                conn.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due) VALUES (?,?,?,?,?,1,?)",
-                             (file_id, subj, c["question"], c["answer"], db.now_iso(), date.today().isoformat()))
-    return {"ok": True, "count": len(cards)}
+                if sid is None:
+                    if stack_id:
+                        st = _found(db.row(conn, "SELECT id, subject FROM flashcard_stacks WHERE id=?", (stack_id,)), "Stapel")
+                        sid, subj = st["id"], st["subject"]
+                    elif isinstance(stack_name, str) and stack_name.strip():
+                        name = stack_name.strip()
+                        st = db.row(conn, "SELECT id FROM flashcard_stacks WHERE name=? AND subject IS ? ORDER BY id LIMIT 1", (name, subj))
+                        kind, week = _file_stack_meta(r if file_id else None)
+                        sid = st["id"] if st else conn.execute(
+                            "INSERT INTO flashcard_stacks(name, subject, file_id, created_at, kind, week) VALUES (?,?,?,?,?,?)",
+                            (name, subj, file_id or None, db.now_iso(), kind, week)).lastrowid
+                    else:
+                        sid = _auto_stack(conn, file_id, subj, db.now_iso())
+                conn.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due, stack_id) VALUES (?,?,?,?,?,1,?,?)",
+                             (file_id, subj, c["question"], c["answer"], db.now_iso(), date.today().isoformat(), sid))
+    return {"ok": True, "count": len(cards), "stack_id": sid}
 
 
 @app.post("/api/flashcards/{card_id}/review")
-def review_flashcard(card_id: int, body: dict = Body(...)):
-    """Leitner: richtig -> naechstes Fach (1,2,4,8,16 Tage), falsch -> Fach 1."""
+def review_flashcard(request: Request, card_id: int, body: dict = Body(...)):
+    """Leitner: richtig -> naechstes Fach (1,2,4,8,16 Tage), falsch -> Fach 1. Ueben ab Plus."""
+    _require_flashcards(request)
     ok = bool(body.get("correct"))
     with db.cursor() as conn:
         c = db.row(conn, "SELECT box FROM flashcards WHERE id=?", (card_id,))
@@ -1343,6 +1679,7 @@ def review_flashcard(card_id: int, body: dict = Body(...)):
         box = min(5, (c["box"] or 1) + 1) if ok else 1
         due = (date.today() + timedelta(days=[1, 2, 4, 8, 16][box - 1])).isoformat()
         conn.execute("UPDATE flashcards SET box=?, due=?, last_result=? WHERE id=?", (box, due, "right" if ok else "wrong", card_id))
+        _touch_stack(conn, card_id)
     return {"box": box, "due": due}
 
 
@@ -1350,10 +1687,13 @@ FLASHCARD_RESULTS = (None, "right", "wrong")
 
 
 @app.patch("/api/flashcards/{card_id}")
-def patch_flashcard(card_id: int, body: dict = Body(...)):
+def patch_flashcard(request: Request, card_id: int, body: dict = Body(...)):
     """Karteikarten-Trainer (freies Ueben): Lesezeichen, versteckt und letztes Urteil ('right' | 'wrong' | None =
-    noch nicht gelernt). Fach und Faelligkeit (Leitner) bleiben unberuehrt; die Wiederholung bleibt der einzige Weg,
-    der den Lernplan der Karte aendert."""
+    noch nicht gelernt). Nachtraeglich bearbeiten (04.11.2026): question, answer (nicht leer), subject (Fach oder null)
+    und stack_id (vorhandener Stapel; die Karte bekommt sein Fach, wenn subject nicht mitkommt). Fach und Faelligkeit
+    (Leitner) bleiben unberuehrt; die Wiederholung bleibt der einzige Weg, der den Lernplan der Karte aendert.
+    Ab Plus (Trainer und Bearbeiten)."""
+    _require_flashcards(request)
     sets, params = [], []
     for k in ("bookmarked", "hidden"):
         if k in body:
@@ -1363,14 +1703,33 @@ def patch_flashcard(card_id: int, body: dict = Body(...)):
         if not (v is None or (isinstance(v, str) and v in FLASHCARD_RESULTS)):
             raise HTTPException(422, "last_result: right, wrong oder null erwartet")
         sets.append("last_result=?"); params.append(v)
+    for k in ("question", "answer"):
+        if k in body:
+            v = body[k]
+            if not isinstance(v, str) or not v.strip():
+                raise HTTPException(422, "Frage und Antwort dürfen nicht leer sein")
+            sets.append(f"{k}=?"); params.append(v.strip())
+    if "subject" in body:
+        sets.append("subject=?"); params.append(_subject_value(body["subject"]))
+    stack_id = body.get("stack_id")
+    if "stack_id" in body and (isinstance(stack_id, bool) or not isinstance(stack_id, int)):
+        raise HTTPException(422, "stack_id: ganze Zahl erwartet")
     with db.cursor() as conn:
+        if "stack_id" in body:
+            target = _found(db.row(conn, "SELECT id, subject FROM flashcard_stacks WHERE id=?", (stack_id,)), "Stapel")
+            sets.append("stack_id=?"); params.append(stack_id)
+            if "subject" not in body:
+                sets.append("subject=?"); params.append(target["subject"])
         if sets:
             _changed(conn.execute(f"UPDATE flashcards SET {', '.join(sets)} WHERE id=?", (*params, card_id)), "Karteikarte")
+        if body.get("last_result") in ("right", "wrong"):
+            _touch_stack(conn, card_id)
         return _found(db.row(conn, "SELECT * FROM flashcards WHERE id=?", (card_id,)), "Karteikarte")
 
 
 @app.delete("/api/flashcards/{card_id}")
-def delete_flashcard(card_id: int):
+def delete_flashcard(request: Request, card_id: int):
+    _require_flashcards(request)
     with db.cursor() as conn:
         _changed(conn.execute("DELETE FROM flashcards WHERE id=?", (card_id,)), "Karteikarte")
     return {"ok": True}
@@ -1435,6 +1794,8 @@ def subjects():
                                 FROM courses c WHERE active=1 AND kind!='sonstiges' GROUP BY subject ORDER BY subject""")
 
 
+# Testliste ohne can_use_extended_test_history (Free, Plus): die letzten 10; aeltere Tests bleiben gespeichert und
+# zaehlen weiter fuer den Lernstand. So dokumentiert in docs/PREISLISTE.md und docs/release/NUTZUNGSBEDINGUNGEN.md.
 HISTORY_BASIC = 10
 
 
@@ -3002,6 +3363,9 @@ def api_library_file_patch(file_id: str, body: dict = Body(...)):
                 raise HTTPException(400, "Stud.IP-Dokumente können nur in den Papierkorb, nicht endgültig gelöscht werden.")
             for t in ("annotation_versions", "annotations", "analysis", "flashcards", "recordings"):
                 conn.execute(f"DELETE FROM {t} WHERE file_id=?", (file_id,))
+            # Stapel des Dokuments: leer -> weg, sonst bleibt er ohne Quelle (Karten aus anderen Dokumenten darin)
+            conn.execute("DELETE FROM flashcard_stacks WHERE file_id=? AND NOT EXISTS (SELECT 1 FROM flashcards fc WHERE fc.stack_id=flashcard_stacks.id)", (file_id,))
+            conn.execute("UPDATE flashcard_stacks SET file_id=NULL WHERE file_id=?", (file_id,))
             conn.execute("UPDATE study_tasks SET file_id=NULL WHERE file_id=?", (file_id,))
             conn.execute("DELETE FROM files WHERE id=?", (file_id,))
             # Duplikate teilen sich die Datei: nur loeschen, wenn sie kein anderes Dokument mehr nutzt

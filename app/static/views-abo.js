@@ -1,7 +1,8 @@
-// StudiNow – Abo-Übersicht: vier Tarife, eigener Stand, Kontingente (Server: /api/billing/plans, /api/entitlements).
+// StudiNow – Abo-Übersicht: drei Tarife (Free, Plus, Pro AI; Entscheidung 04.11.2026), eigener Stand, Kontingente
+// (Server: /api/billing/plans, /api/entitlements). Die Karten kommen aus contract.order; Pro Connect gibt es nicht mehr.
 // Es wird nur als enthalten gezeigt, was technisch freigeschaltet ist (status "available"); alles andere steht als
 // "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen: Apple-App (App Store) oder, wenn Stripe eingerichtet ist, im Web.
-// Jedes neue Konto hat 7 Tage Probe (plans.TRIAL); danach einmal die Aufforderung, einen Tarif zu wählen (planChoicePrompt).
+// Jedes neue Konto hat 7 Tage Probe (plans.TRIAL: alles wie Pro AI, 25 Credits); danach einmal die Aufforderung, einen Tarif zu wählen (planChoicePrompt).
 import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=42";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
@@ -13,8 +14,7 @@ const QUOTA_TXT = (q, key, labels) => {
 };
 const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos.",
-  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern, Notizen auf allen Geräten.",
-  pro_connect: "Für Studierende, die mehr aus ihren Tests holen wollen: Statistiken, Wiederholung, Empfehlungen.",
+  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern, Notizen auf allen Geräten, eigene Karteikarten und Wochentests.",
   pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig.",
 };
 
@@ -51,7 +51,7 @@ export async function viewAbo(_, params, view) {
   const web = contract.purchase.web || {}, viaStripe = me.source === "stripe";
   const tr = me.trial || {};
   const trial = local || !tr.granted ? "" : tr.active
-    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen von ${esc(contract.plans[tr.plan]?.name || "StudiNow Pro AI")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</p></div></div>`
+    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Probe: alles wie ${esc(contract.plans[tr.plan]?.name || "StudiNow Pro AI")}, mit ${contract.trial?.credits ?? 25} Credits für die StudiNow-KI, bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen, Karten und Tests bleiben.</p></div></div>`
     : me.needs_plan_choice
       ? `<div class="abo-note warn">${icon("alert", 18)}<div><b>Deine Probe ist vorbei</b><p>Wähle unten einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten und lesbar.</p></div><button class="btn sm" id="aboStayFree">Bei Free bleiben</button></div>`
       : "";
@@ -67,6 +67,7 @@ export async function viewAbo(_, params, view) {
     const q = p.quotas;
     const facts = [
       p.entitlements.can_annotate_pdf ? `${icon("pen", 13)} PDF-Bearbeitung und Apple Pencil` : `${icon("book", 13)} PDFs lesen, keine Bearbeitung`,
+      p.credits ? `${icon("sparkles", 13)} ${p.credits} Credits für die StudiNow-KI pro Monat` : null,
       ...[QUOTA_TXT(q, "ai_tests_new", labels), QUOTA_TXT(q, "library_tests", labels), QUOTA_TXT(q, "ai_assist", labels)]
         .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die StudiNow-KI eingerichtet ist)` : t),
     ].filter(Boolean).map(t => `<div>${t}</div>`).join("");
@@ -111,7 +112,7 @@ export async function viewAbo(_, params, view) {
 export function planChoicePrompt(me) {
   try { if (sessionStorage.getItem("plan-choice-prompted")) return; sessionStorage.setItem("plan-choice-prompted", "1"); } catch {}
   const m = modal(`<h2 style="margin-top:0">${icon("sparkles", 18)} Deine Probe ist vorbei</h2>
-    <p class="small muted">Sieben Tage lang war alles frei. Wähle jetzt einen Tarif – oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar; bei Free ist nur das Bearbeiten und die KI gesperrt.</p>
+    <p class="small muted">Sieben Tage lang war alles frei wie in StudiNow Pro AI. Wähle jetzt einen Tarif – oder bleib bei Free. Deine Notizen, Karten und Tests bleiben in jedem Fall erhalten und lesbar; bei Free ist nur das Bearbeiten und die KI gesperrt.</p>
     <div class="row wrap" style="gap:.5rem;margin-top:.8rem"><a class="btn primary" href="#/abo" data-close>Tarife ansehen</a><button class="btn" id="pcFree">Bei Free bleiben</button><button class="btn ghost" data-close>Später</button></div>`);
   $("#pcFree", m).onclick = async () => { try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free"); if (state.entitlements) state.entitlements.needs_plan_choice = false; } catch (e) { toast(e.message, 5000); } m.remove(); };
 }

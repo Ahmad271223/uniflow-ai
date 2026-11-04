@@ -109,6 +109,7 @@ def remove(conn) -> dict:
     conn.execute("DELETE FROM annotations WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM analysis WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM flashcards WHERE file_id LIKE 'demo-%'")
+    conn.execute("DELETE FROM flashcard_stacks WHERE file_id LIKE 'demo-%'")
     try:
         conn.execute("DELETE FROM page_texts WHERE file_id LIKE 'demo-%'")
         if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='page_ocr'").fetchone():

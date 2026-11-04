@@ -177,8 +177,8 @@ Der Mail-Anbieter kommt in die Datenschutzerklärung (Abschnitt 11) und braucht 
 
 Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 
-1. **Produkte**: drei Produkte mit je einem monatlichen Preis anlegen: StudiNow Plus 1,99 €, StudiNow Pro Connect 2,99 €,
-   StudiNow Pro AI 3,99 €. Jede Preis-ID beginnt mit `price_`.
+1. **Produkte**: zwei Produkte mit je einem monatlichen Preis anlegen: StudiNow Plus 1,99 € und StudiNow Pro AI 3,99 €
+   (Pro Connect gibt es seit dem 04.11.2026 nicht mehr, `docs/PREISLISTE.md`). Jede Preis-ID beginnt mit `price_`.
 2. **Entwickler → API-Schlüssel**: geheimer Schlüssel (`sk_test_…`, später `sk_live_…`).
 3. **Entwickler → Webhooks → Endpunkt hinzufügen**: Adresse `https://app.studinow.app/api/billing/stripe/webhook`,
    Ereignisse `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
@@ -189,7 +189,7 @@ Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 |---|---|
 | `LERNAPP_STRIPE_SECRET_KEY` | `sk_test_…` / `sk_live_…` |
 | `LERNAPP_STRIPE_WEBHOOK_SECRET` | `whsec_…` |
-| `LERNAPP_STRIPE_PRICES` | `plus=price_…,pro_connect=price_…,pro_ai=price_…` |
+| `LERNAPP_STRIPE_PRICES` | `plus=price_…,pro_ai=price_…` |
 
 Erst mit Test-Schlüsseln und Stripe-Testkarte (4242 4242 4242 4242) einen Abschluss durchspielen, dann Live-Schlüssel
 und Live-Preise eintragen und den Webhook im Live-Modus noch einmal anlegen (eigenes `whsec_`).

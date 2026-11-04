@@ -7,6 +7,10 @@ import UniFlowCore
 // Seit 04.11.2026: Wahr/Falsch und Lueckentext als Aufgabenarten, Erklaerung der KI je Aufgabe aus dem Test selbst,
 // eigene Tests sind als "Eigener Test, nicht geteilt" beschriftet, Formeln lesbar (FormulaText).
 
+// Tarif (04.11.2026): ohne Dienst sind "Fehlende Wochentests" (Woche erzeugen) und die automatischen Wochentests
+// (UFWeeklyAutoGate) Plus wie "Wochentest erstellen" (QuizComposer); Free sieht das Schloss bzw. ohne Tests die
+// Sperrkarte UFLockedCard(.weeklyTests). Vorhandene Tests lesen, durchfuehren und abgeben bleibt in jedem Tarif frei.
+
 /// Tests & Wiederholung: Wochentest erstellen, KI-Start, Statusleiste, Testkarten, Löschen-Dialog.
 struct ExamsPage: View {
     @EnvironmentObject private var session: Session
@@ -16,6 +20,7 @@ struct ExamsPage: View {
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
     @ObservedObject private var generation: TestGenerationState
+    @ObservedObject private var ent: Entitlements
     @State private var tests: [JSONValue]?
     @State private var mods: [JSONValue] = []
     @State private var dueCards = 0
@@ -24,10 +29,20 @@ struct ExamsPage: View {
     /// Tests, die es vor der laufenden Erstellung schon gab (danach den neuen erkennen)
     @State private var knownIDs: Set<Int>?
 
-    /// `generation: nil` = `TestGenerationState.shared`
+    /// `generation: nil` = `TestGenerationState.shared`, `entitlements: nil` = `Entitlements.shared`
     @MainActor
-    init(generation: TestGenerationState? = nil) {
+    init(generation: TestGenerationState? = nil, entitlements: Entitlements? = nil) {
         _generation = ObservedObject(wrappedValue: generation ?? .shared)
+        _ent = ObservedObject(wrappedValue: entitlements ?? .shared)
+    }
+
+    /// Ohne Dienst (lokales Backend) gilt der Tarif der App; mit Dienst entscheidet der Dienst
+    private var needsPlus: Bool { session.api?.isLocal != false }
+    /// neue Wochentests erzeugen (von Hand oder automatisch); vorhandene lesen und durchfuehren ist immer frei
+    private var weeklyAllowed: Bool { !needsPlus || ent.allows(.weeklyTests) }
+
+    @ViewBuilder private func plusOnly<V: View>(_ v: V) -> some View {
+        if weeklyAllowed { v } else { v.ufRequires(.weeklyTests, entitlements: ent) }
     }
 
     var body: some View {
@@ -103,8 +118,9 @@ struct ExamsPage: View {
         UFContent {
             UFPageHead("Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.") {
                 UFButton("KI-Start", icon: "sparkles", kind: .ghost, size: .small) { router.go(.aiStart) }.accessibilityIdentifier("exams.aiStart")
-                UFButton("Fehlende Wochentests", icon: "refresh", size: .small) { Task { await generateWeek() } }
+                plusOnly(UFButton("Fehlende Wochentests", icon: "refresh", size: .small) { Task { await generateWeek() } }
                     .disabled(generation.job != nil)
+                    .accessibilityIdentifier("exams.generateWeek"))
                 UFButton("Wochentest erstellen", icon: "plus", kind: .primary, size: .small) { openComposer() }
                     .disabled(generation.job != nil)
                     .accessibilityIdentifier("exams.compose")
@@ -126,7 +142,9 @@ struct ExamsPage: View {
             if let job = generation.job {
                 TestGeneratingCard(job: job).padding(.bottom, 16)
             }
-            if tests.isEmpty && generation.job == nil {
+            if tests.isEmpty && generation.job == nil && !weeklyAllowed {
+                UFLockedCard(.weeklyTests, entitlements: ent)
+            } else if tests.isEmpty && generation.job == nil {
                 UFCard {
                     UFEmpty(icon: "exam", text: "Noch keine Wochentests. Sie entstehen automatisch pro Modul und Lehrwoche, sobald neue Inhalte da sind, oder mit „Wochentest erstellen“.") {
                         UFButton("Wochentest erstellen", icon: "plus", kind: .primary, size: .small) { openComposer() }.padding(.top, 8)
@@ -157,7 +175,7 @@ struct ExamsPage: View {
     }
 
     private func generateWeek() async {
-        guard let api = session.api else { return }
+        guard let api = session.api, weeklyAllowed else { return }
         do {
             _ = try await api.value("/api/tests/generate-week", method: "POST")
             generation.start(subject: "alle Module", weekNo: nil)

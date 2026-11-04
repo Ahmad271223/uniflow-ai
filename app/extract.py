@@ -14,6 +14,7 @@ from __future__ import annotations
 import io
 import re
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -28,7 +29,16 @@ HARD_PAGE_CHARS = 6000
 TEXT_SOURCE_SUFFIXES = (".pdf", ".docx", ".pptx")
 #: Art fuer `kind` in Antworten (/pagetext, Seitentreffer der Suche); Audio nur auf dem iPad (Transkript)
 KINDS = {".pdf": "pdf", ".docx": "docx", ".pptx": "pptx", ".mp3": "audio", ".m4a": "audio"}
+#: Grenzen gegen Dekompressionsbomben (Sicherheitspruefung 04.11.2026): je gelesener Teil-Datei entpackt, je Archiv
+#: entpackt (alle gelesenen Teile zusammen), Eintraege im Archiv und Folien je Praesentation. Gelesen wird stueckweise
+#: und gegen die Grenze gezaehlt, nicht nach der (faelschbaren) Groesse im Kopf des Eintrags.
 MAX_ZIP_ENTRY = 40 << 20
+MAX_ZIP_TOTAL = 200 << 20
+MAX_ZIP_ENTRIES = 20_000
+MAX_SLIDES = 2_000
+_ZIP_CHUNK = 1 << 20
+#: Fehler beim Entpacken oder Parsen, die eine Datei "nicht lesbar" machen (nie ein Absturz des Aufrufers)
+_UNREADABLE = (zipfile.BadZipFile, zipfile.LargeZipFile, zlib.error, EOFError, RuntimeError, ET.ParseError)
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
@@ -75,17 +85,54 @@ def pages_from_paragraphs(paragraphs: list[str], headings: set[int] | None = Non
     return pages
 
 
-def _read_entry(z: zipfile.ZipFile, name: str) -> bytes | None:
-    try:
-        info = z.getinfo(name)
-    except KeyError:
-        return None
-    if info.file_size > MAX_ZIP_ENTRY:
-        raise ValueError("Eintrag zu gross")
+class _Archive:
+    """OOXML-Paket (Zip) mit Grenzen: hoechstens MAX_ZIP_ENTRIES Eintraege, je gelesener Teil-Datei MAX_ZIP_ENTRY und je
+    Archiv MAX_ZIP_TOTAL entpackte Bytes. Namen im Archiv sind nur Schluessel fuer `getinfo`; nichts wird auf die
+    Platte geschrieben, ein Name wie "../x" kann also nirgends hinfuehren."""
+
+    def __init__(self, data: bytes):
+        self.z = zipfile.ZipFile(io.BytesIO(data))
+        if len(self.z.namelist()) > MAX_ZIP_ENTRIES:
+            raise ValueError("Archiv mit zu vielen Eintraegen")
+        self.left = MAX_ZIP_TOTAL
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.z.close()
+
+    def names(self) -> list[str]:
+        return self.z.namelist()
+
+    def read(self, name: str) -> bytes | None:
+        try:
+            info = self.z.getinfo(name)
+        except KeyError:
+            return None
+        if info.file_size > MAX_ZIP_ENTRY or info.compress_size > MAX_ZIP_ENTRY:
+            raise ValueError("Eintrag zu gross")
+        cap = min(MAX_ZIP_ENTRY, self.left)
+        parts: list[bytes] = []
+        n = 0
+        with self.z.open(info) as f:
+            while True:
+                chunk = f.read(_ZIP_CHUNK)
+                if not chunk:
+                    break
+                n += len(chunk)
+                if n > cap:
+                    raise ValueError("Eintrag zu gross" if n > MAX_ZIP_ENTRY else "Archiv entpackt zu gross")
+                parts.append(chunk)
+        self.left -= n
+        return b"".join(parts)
+
+
+def _read_entry(z: _Archive, name: str) -> bytes | None:
     return z.read(name)
 
 
-def _rels(z: zipfile.ZipFile, name: str) -> dict[str, tuple[str, str]]:
+def _rels(z: _Archive, name: str) -> dict[str, tuple[str, str]]:
     """Beziehungen einer Teil-Datei: Id -> (Type, Target)."""
     data = _read_entry(z, name)
     if not data:
@@ -99,7 +146,7 @@ def _rels(z: zipfile.ZipFile, name: str) -> dict[str, tuple[str, str]]:
 def _resolve(base_dir: str, target: str) -> str:
     """Ziel einer Beziehung relativ zur Teil-Datei ("../slides/slide1.xml" neben ppt/_rels -> ppt/slides/slide1.xml)."""
     if target.startswith("/"):
-        return target.lstrip("/")
+        base_dir, target = "", target.lstrip("/")
     parts = [p for p in base_dir.split("/") if p]
     for seg in target.split("/"):
         if seg == "..":
@@ -190,13 +237,13 @@ class _Paragraphs:
 def docx_pages(data: bytes) -> list[str]:
     """Seiten eines Word-Dokuments (siehe Modulkopf); [] ohne Text, ValueError bei kaputter Datei."""
     try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
+        with _Archive(data) as z:
             doc = _read_entry(z, "word/document.xml")
             if doc is None:
                 raise ValueError("word/document.xml fehlt")
             ps = _Paragraphs(W + "p", W + "t", W + "tab", W + "br", W + "pStyle")
             ps.parse(doc)
-    except (zipfile.BadZipFile, ET.ParseError) as e:
+    except _UNREADABLE as e:
         raise ValueError(f"Word-Datei nicht lesbar: {e}") from e
     return pages_from_paragraphs(ps.paragraphs, ps.headings, ps.breaks)
 
@@ -205,7 +252,7 @@ def pptx_pages(data: bytes) -> list[str]:
     """Seiten einer PowerPoint-Datei: je Folie der Text ihrer Formen, dahinter die Notizen; eine Folie ohne Text bleibt
     eine leere Seite (die Seitenzahl ist die Foliennummer)."""
     try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
+        with _Archive(data) as z:
             pres = _read_entry(z, "ppt/presentation.xml")
             if pres is None:
                 raise ValueError("ppt/presentation.xml fehlt")
@@ -216,8 +263,10 @@ def pptx_pages(data: bytes) -> list[str]:
                 if rel and rel[0].endswith("/slide"):
                     slides.append(_resolve("ppt", rel[1]))
             if not slides:      # ohne Liste: slide1.xml, slide2.xml ... in Nummernreihenfolge
-                names = [n for n in z.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)]
+                names = [n for n in z.names() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)]
                 slides = sorted(names, key=lambda n: int(re.search(r"(\d+)\.xml$", n).group(1)))
+            if len(slides) > MAX_SLIDES:
+                raise ValueError(f"zu viele Folien (hoechstens {MAX_SLIDES})")
             pages = []
             for slide in slides:
                 body = _slide_text(z, slide)
@@ -228,12 +277,12 @@ def pptx_pages(data: bytes) -> list[str]:
                         notes = _slide_text(z, _resolve(slide.rsplit("/", 1)[0], target))
                         break
                 pages.append(body + ("\n\nNotizen:\n" + notes if notes else "") if body or notes else "")
-    except (zipfile.BadZipFile, ET.ParseError) as e:
+    except _UNREADABLE as e:
         raise ValueError(f"PowerPoint-Datei nicht lesbar: {e}") from e
     return pages
 
 
-def _slide_text(z: zipfile.ZipFile, name: str) -> str:
+def _slide_text(z: _Archive, name: str) -> str:
     data = _read_entry(z, name)
     if data is None:
         return ""

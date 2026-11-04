@@ -2,6 +2,17 @@ import Foundation
 import os
 import UniFlowCore
 
+/// Automatische Wochentests ohne Dienst (Takt im Vordergrund, nach dem vollen Abgleich, im langen Hintergrundlauf):
+/// ab Plus wie "Wochentest erstellen" (`UFFeature.weeklyTests`, Entscheidung 04.11.2026). Free (auch nach der Probe)
+/// erzeugt und uebernimmt keine neuen Wochentests mehr; vorhandene Tests bleiben les- und durchfuehrbar. Der Kern
+/// (`WeeklyAutoTick`) kennt keinen Tarif, darum prueft die App vor jedem Lauf. Tests setzen `allowed`.
+enum UFWeeklyAutoGate {
+    @MainActor static var allowed: () -> Bool = { Entitlements.shared.allows(.weeklyTests) }
+
+    /// aus nicht isoliertem Code (Abgleich, Hintergrundlauf)
+    nonisolated static func check() async -> Bool { await MainActor.run { allowed() } }
+}
+
 /// Takt der gemeinsamen Wochentests auf dem iPad (am PC `_weekly_loop` in app/server.py): kurz nach dem Oeffnen der
 /// App, danach alle 10 min, solange sie im Vordergrund ist. Die Regeln (nur mit `auto_tests`, nur mit verbundener
 /// KI, nicht neben einem anderen Hintergrundauftrag) stehen in `WeeklyAutoTick`. Hat ein Lauf etwas veroeffentlicht,
@@ -41,6 +52,7 @@ final class WeeklyAutoTicker {
     @discardableResult
     func runOnce() async -> WeeklyAutoTick.Outcome? {
         guard let b = await backend() else { return nil }
+        guard UFWeeklyAutoGate.allowed() else { return .off }       // Free: keine automatischen Wochentests
         let r = await WeeklyAutoTick.run(b.context)
         switch r {
         case .ran(let text, let changed):

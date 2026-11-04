@@ -48,7 +48,7 @@ struct TextDocumentView: View {
                 }
                 if showTutor {
                     Divider()
-                    TutorPanel(fileID: file.id, page: { page }, selection: { "" },
+                    TutorPanel(fileID: file.id, fileName: file.displayTitle, page: { page }, selection: { "" },
                                open: { id, p in if id == file.id, p >= 1, p <= max(pages, 1) { page = p } },
                                close: { showTutor = false })
                         .frame(width: DocumentView.tutorWidth(geo.size.width))

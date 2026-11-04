@@ -8,6 +8,8 @@ import UniFlowCore
 /// `LocalContext.ai`); gesendet wird nur nach dem Antippen. Ohne verbundene KI erklaert die Leiste den Weg dorthin.
 struct TutorPanel: View {
     let fileID: String
+    /// Titel des Dokuments fuer "Zuletzt benutzt" (Gespraeche, `TutorConversations`)
+    var fileName: String? = nil
     /// Seite der PDF beim Senden (1 = erste), wie `page_texts`
     let page: () -> Int
     /// Markierter PDF-Text beim Senden ("" ohne Markierung)
@@ -21,6 +23,7 @@ struct TutorPanel: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufChatGPTLink) private var chatgpt
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.openURL) private var openURL
 
     /// Alle Modi in der Reihenfolge von `ai.TUTOR_MODES`; "ask" ist das Eingabefeld, die anderen sind Schnellknoepfe
@@ -58,6 +61,8 @@ struct TutorPanel: View {
     @State private var checking = false
     @State private var busy = false
     @State private var error: String?
+    /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
+    @State private var creditsExhausted = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,6 +70,10 @@ struct TutorPanel: View {
             if aiEnabled { conversation } else { notConnected }
         }
         .background(UF.surface)
+        // Weitermachen wie zuvor (04.11.2026): das gemerkte Gespraech dieses Dokuments mit Antworten, Karten,
+        // Anschlussfragen und "Schon erklärt" wieder zeigen (`TutorConversations`, bleibt auf dem Geraet)
+        .onAppear { restoreConversation() }
+        .onChange(of: fileID) { _, _ in messages = []; error = nil; restoreConversation() }
         .task(id: request.wrappedValue?.id) {
             guard aiEnabled, let r = request.wrappedValue else { return }
             request.wrappedValue = nil
@@ -79,7 +88,7 @@ struct TutorPanel: View {
             UFButton(icon: "grid", kind: .ghost, size: .small) { router.go(.aiStart) }
                 .accessibilityLabel("KI-Start öffnen").accessibilityIdentifier("tutor.aiStart")
             if !messages.isEmpty {
-                UFButton("Neu", kind: .ghost, size: .small) { messages = []; error = nil }
+                UFButton("Neu", kind: .ghost, size: .small) { messages = []; error = nil; persistConversation() }
                     .disabled(busy).accessibilityIdentifier("tutor.reset")
             }
         }
@@ -122,6 +131,10 @@ struct TutorPanel: View {
                         if let error {
                             Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("tutor.error")
+                            if creditsExhausted {
+                                UFButton("Tarif ansehen", icon: "star", size: .small) { router.go(.settings(tab: "account")) }
+                                    .accessibilityIdentifier("tutor.plans")
+                            }
                         }
                     }
                     .padding(14)
@@ -160,17 +173,25 @@ struct TutorPanel: View {
                     .accessibilityLabel(checking ? "Lösung prüfen" : "Senden")
                     .accessibilityIdentifier("tutor.ask")
             }
-            Text(Self.footer(page: page(), model: chatgpt?.status?.model)).ufFont(11.5).foregroundStyle(UF.muted)
+            Text(Self.footer(page: page(), model: chatgpt?.status?.model, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
+                             adopted: Self.storedLabel(messages.last?.explain) != nil, trial: studoraAccount?.planStatus?.trialActive ?? false))
+                .ufFont(11.5).foregroundStyle(UF.muted)
                 .accessibilityIdentifier("tutor.footer")
         }
         .padding(12)
     }
 
     /// Fusszeile des Eingabefelds: Seite, Weg (dein ChatGPT) und das Modell, das zuletzt geantwortet hat (ChatGPT lehnt
-    /// Modelle je Konto ab; die Sitzung wechselt dann, und hier steht, womit die Antwort wirklich kam)
-    static func footer(page: Int, model: String?) -> String {
+    /// Modelle je Konto ab; die Sitzung wechselt dann, und hier steht, womit die Antwort wirklich kam). Mit Credits-Stand
+    /// vom Dienst steht der Weg mit den Credits (`AICost.creditsLine`): "Dein ChatGPT – 0 Credits", nach einer
+    /// gespeicherten Antwort "Schon erklärt · 0 Credits", nach einer berechneten "– 3 Credits (37 übrig)".
+    static func footer(page: Int, model: String?, credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil,
+                       adopted: Bool = false, trial: Bool = false) -> String {
         let m = (model ?? "").trimmingCharacters(in: .whitespaces)
-        return "Seite \(page) · über dein ChatGPT" + (m.isEmpty ? "" : " · \(m)")
+        let way = credits != nil
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil && !adopted, adopted: adopted, charge: charge, trial: trial) ?? "über dein ChatGPT"
+            : "über dein ChatGPT"
+        return "Seite \(page) · \(way)" + (m.isEmpty ? "" : " · \(m)")
     }
 
     @ViewBuilder private func bubble(_ m: Binding<Message>) -> some View {
@@ -290,22 +311,46 @@ struct TutorPanel: View {
         if mode == "check" { checking = false }
         busy = true
         error = nil
+        creditsExhausted = false
         defer { busy = false }
         do {
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
+            studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Fusszeile
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
                                     sources: r["sources"]?.array ?? [], mode: mode, explain: r["explain"].flatMap { $0.isNull ? nil : $0 }))
             // fuer "Zuletzt" auf KI-Start (lokal, je Container)
             if mode != "flashcards" { AIRecents.shared.record(question: Self.label(mode: mode, input: typed), answer: r.s("answer") ?? "", fileID: fileID) }
+            persistConversation()
         } catch {
             // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), Eingabe zurueck ins Feld
             if messages.last?.fromUser == true { messages.removeLast() }
             input = typed
             if mode == "check" { checking = true }
             self.error = error.localizedDescription
+            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
         }
         // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Fusszeile nennt es
         await chatgpt?.refresh()
+    }
+
+    /// Gemerktes Gespraech laden, solange hier noch keins laeuft
+    private func restoreConversation() {
+        guard messages.isEmpty else { return }
+        messages = Self.restored(TutorConversations.shared.messages(for: fileID))
+    }
+
+    /// Stand nach jeder Antwort, "Neu" und gespeicherten Karten merken (leer = Gespraech entfernen)
+    private func persistConversation() {
+        TutorConversations.shared.save(fileID: fileID, fileName: fileName, messages: Self.stored(messages))
+    }
+
+    /// Beitraege fuer die Datei und zurueck (reine Umwandlung, UniFlowTests/TutorConversationsAppTests.swift)
+    static func stored(_ ms: [Message]) -> [TutorConversations.Message] {
+        ms.map { .init(fromUser: $0.fromUser, text: $0.text, cards: $0.cards, sources: $0.sources, saved: $0.saved, mode: $0.mode, explain: $0.explain) }
+    }
+
+    static func restored(_ ms: [TutorConversations.Message]) -> [Message] {
+        ms.map { Message(fromUser: $0.fromUser, text: $0.text, cards: $0.cards, sources: $0.sources, saved: $0.saved, mode: $0.mode, explain: $0.explain) }
     }
 
     private func saveCards(_ m: Binding<Message>) async {
@@ -313,6 +358,7 @@ struct TutorPanel: View {
         do {
             _ = try await api.value("/api/flashcards", method: "POST", body: ["file_id": .string(fileID), "cards": .array(m.wrappedValue.cards)])
             m.wrappedValue.saved = true
+            persistConversation()
         } catch {
             self.error = error.localizedDescription
         }

@@ -72,3 +72,22 @@ def _ai_prices(monkeypatch):
     runden auf 0), einzelne Tests ueberschreiben sie."""
     monkeypatch.setenv("LERNAPP_AI_PRICE_IN_EUR", "0.001")
     monkeypatch.setenv("LERNAPP_AI_PRICE_OUT_EUR", "0.001")
+
+
+@pytest.fixture(autouse=True)
+def _no_leaked_job_runner():
+    """Kein Job-Runner (app/jobs.py) darf einen Test ueberleben: ein vergessener Arbeiter-Thread holte unter Last die
+    Jobs der folgenden Tests (test_qis_isolation: claim_next fand nichts, test_hosted_sync, test_retention). Uebrig
+    gebliebene Runner werden angehalten, der verursachende Test meldet einen Fehler beim Abbau."""
+    yield
+    import threading
+    leaked = [t for t in threading.enumerate() if t.name.startswith("uniflow-job-") or t.name == "uniflow-schedule"]
+    if not leaked:
+        return
+    for t in leaked:
+        runner = getattr(getattr(t, "_target", None), "__self__", None)
+        if runner is not None and hasattr(runner, "_stop"):
+            runner._stop.set()
+    for t in leaked:
+        t.join(30)
+    pytest.fail(f"Job-Runner nach dem Test noch aktiv (angehalten): {sorted(t.name for t in leaked)}")

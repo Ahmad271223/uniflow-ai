@@ -2,8 +2,8 @@ import StoreKit
 import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
-// Entscheidung des Inhabers vom 27.10.2026: vier StudiNow-Tarife (Plans.swift, Vertrag plans.json). Die Rechte von Plus
-// bleiben auf dem iPad, wie sie waren; Pro Connect und Pro AI enthalten alles aus Plus. Was den gehosteten Dienst
+// Entscheidung des Inhabers vom 04.11.2026: drei StudiNow-Tarife Free, Plus, Pro AI (Plans.swift, Vertrag plans.json).
+// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten und Wochentests (eigenes ChatGPT) zu Plus. Was den gehosteten Dienst
 // braucht (StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen Geraeten, ChatGPT), erscheint als
 // "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
 // und geprueft, hoechster gueltiger Tarif). Dazu die Probe auf dem iPad (Entscheidung 04.11.2026, LocalTrial.swift):
@@ -33,6 +33,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
+    case weeklyTests         // Wochentest erstellen mit dem eigenen ChatGPT (QuizComposer, lokales Backend),
+                             // Entscheidung 04.11.2026: Plus wie die Karteikarten
     // ab V2
     case uniflowEditor
     case deviceSync
@@ -46,7 +48,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
              .uniGrades, .communityRead:
             return .free
-        case .pencilWriting, .shareSolutions, .splitView, .flashcards, .uniflowEditor, .deviceSync:
+        case .pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests, .uniflowEditor, .deviceSync:
             return .plus
         }
     }
@@ -73,6 +75,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .weeklyTests: return "Wochentests erstellen"
         case .uniflowEditor: return "StudiNow-Editor"
         case .deviceSync: return "Abgleich zwischen deinen Geräten"
         }
@@ -89,6 +92,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
+        case .weeklyTests: return "Aus deinen Unterlagen, mit deinem eigenen ChatGPT"
         default: return nil
         }
     }
@@ -108,6 +112,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "users"
         case .splitView: return "columns"
         case .flashcards: return "cards"
+        case .weeklyTests: return "exam"
         case .uniflowEditor: return "pen"
         case .deviceSync: return "refresh"
         }
@@ -178,6 +183,24 @@ enum UFFeatureMatrix {
     static func notes(plan: UFPlan) -> UFNoteAccess {
         UFNoteAccess(canView: true, canExport: true, canEdit: access(.pencilWriting, plan: plan).isAllowed)
     }
+
+    /// Herabstufen bei Karteikarten (Entscheidung 04.11.2026, wie Notizen): eigene Stapel und Karten bleiben in jedem
+    /// Tarif sichtbar (auch nach der Probe); Ueben, Anlegen, Bearbeiten, Teilen und Uebernehmen ab Plus.
+    static func flashcards(plan: UFPlan) -> UFFlashcardAccess {
+        UFFlashcardAccess(canView: true, canEdit: access(.flashcards, plan: plan).isAllowed)
+    }
+}
+
+/// Was mit vorhandenen Karteikarten im aktuellen Tarif moeglich ist
+struct UFFlashcardAccess: Equatable {
+    let canView: Bool
+    /// anlegen, bearbeiten, loeschen, Stapel, teilen, uebernehmen, Wochenstapel holen
+    let canEdit: Bool
+    /// "Heute fällig", Wiederholen, Trainer (gehoert zu Plus wie das Bearbeiten)
+    var canPractise: Bool { canEdit }
+
+    /// ruhiger Hinweis ueber der Liste im Lesemodus
+    static let readOnlyHint = "Mit Plus übst und bearbeitest du deine Karten wieder."
 }
 
 /// Was mit vorhandenen Notizen im aktuellen Tarif moeglich ist
@@ -222,7 +245,7 @@ enum UFPlanCard {
     }
 
     /// Tarif, dessen Umfang dieser Tarif auf dem iPad heute hat: der hoechste bis hierhin mit eigenen Funktionen
-    /// (Pro Connect und Pro AI: Plus, solange ihre Funktionen den Dienst brauchen)
+    /// (Pro AI: Plus, solange seine Funktionen den Dienst brauchen)
     static func sameScope(as plan: UFPlan) -> UFPlan {
         UFPlan.allCases.filter { $0 <= plan && UFFeatureMatrix.hasAvailableExtras(in: $0) }.max() ?? .free
     }
@@ -348,6 +371,8 @@ final class Entitlements: ObservableObject {
 
     var notes: UFNoteAccess { UFFeatureMatrix.notes(plan: plan) }
 
+    var flashcards: UFFlashcardAccess { UFFeatureMatrix.flashcards(plan: plan) }
+
     /// Tarif neu aus Transaction.currentEntitlements bestimmen (nur verifizierte Transaktionen, hoechster gueltiger
     /// Tarif der Abo-Gruppe), dazu Verlaengerung und vorgemerkter Wechsel aus der RenewalInfo
     /// Laufende Probe des StudiNow-Kontos (docs/ABO-SYSTEM.md 3a): gilt zusaetzlich zum App-Store-Kauf, solange der
@@ -416,7 +441,7 @@ final class Entitlements: ObservableObject {
         var renewal: (willAutoRenew: Bool, productID: String?)?
         if let id = p.productID, let t = active[id] { renewal = await Self.renewal(of: t) }
         #if DEBUG
-        // Startargument -UFPlan free|plus|pro_connect|pro_ai: fester Tarif fuer Simulator-Ablaeufe ohne
+        // Startargument -UFPlan free|plus|pro_ai (alt: pro_connect = pro_ai): fester Tarif fuer Simulator-Ablaeufe ohne
         // StoreKit-Testkonfiguration
         if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil; planIsForced = true }
         #endif

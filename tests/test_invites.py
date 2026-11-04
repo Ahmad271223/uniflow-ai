@@ -309,3 +309,214 @@ def test_export_lists_own_invites_without_guest_identities(hosted):
     st, hdrs, raw = asgi_call(hosted, "GET", "/api/account/export", headers=guests[0])
     g = json.loads(zipfile.ZipFile(io.BytesIO(raw)).read("konto.json"))["einladungen"]
     assert [r["code"] for r in g["eingeloest"]] == [code] and g["links"] == [] and g["angekommen"] == []
+
+
+# ---------------------------------------------------------------- Sicherheitspruefung 04.11.2026
+
+def test_code_space_is_large_and_a_collision_draws_again(hosted, monkeypatch):
+    """31^10 Codes (ueber 2^49) aus secrets; trifft ein gezogener Code einen vorhandenen, wird neu gezogen."""
+    import math
+    from app import invites
+    assert math.log2(len(invites.CODE_ALPHABET) ** invites.CODE_LENGTH) > 49
+    src = Path(invites.__file__).read_text(encoding="utf-8")
+    assert "secrets.choice(CODE_ALPHABET)" in src and "import random" not in src
+    assert len(set(invites.CODE_ALPHABET)) == len(invites.CODE_ALPHABET) == 31
+    u, h = trial_account(hosted, "kollision@beispiel.de")
+    first = create(hosted, h)[1]["invite"]["code"]
+    draws = iter([first, first, "KKKKKKKKKK"])
+    monkeypatch.setattr(invites, "new_code", lambda: next(draws))
+    st, d = create(hosted, h)
+    assert (st, d["invite"]["code"]) == (201, "KKKKKKKKKK")
+    assert sorted(c["code"] for c in d["codes"]) == sorted([first, "KKKKKKKKKK"])
+
+
+def test_rate_limits_on_create_redeem_and_claim(hosted, monkeypatch):
+    """Je Konto gezaehlt, auch fehlgeschlagene Versuche (sonst liessen sich fremde Codes durchprobieren); 429 mit
+    deutschem Text und Retry-After; ein anderes Konto ist nicht betroffen."""
+    monkeypatch.setenv("LERNAPP_LIMIT_INVITE_REDEEM_USER", "3/60")
+    monkeypatch.setenv("LERNAPP_LIMIT_INVITE_CREATE_USER", "2/60")
+    monkeypatch.setenv("LERNAPP_LIMIT_INVITE_CLAIM_USER", "2/60")
+    u, h = trial_account(hosted, "rate@beispiel.de")
+    code = create(hosted, h)[1]["invite"]["code"]
+    assert create(hosted, h)[0] == 201
+    st, hdrs, raw = asgi_call(hosted, "POST", "/api/invites", headers=h)
+    d = json.loads(raw)
+    assert (st, d["code"]) == (429, "rate_limited") and "Zu viele Versuche" in d["detail"]
+    assert any(k == b"retry-after" and int(v) > 0 for k, v in hdrs)
+    assert len(get(hosted, h)["codes"]) == 2, "abgewiesener Versuch legt keinen Link an"
+    # Einloesen: drei falsche Codes, dann ist auch der richtige gesperrt
+    g, hg = trial_account(hosted, "rater@beispiel.de")
+    for guess in ("AAAAAAAAAA", "BBBBBBBBBB", "CCCCCCCCCC"):
+        assert redeem(hosted, hg, guess)[1]["code"] == "invite_unknown"
+    st, d = redeem(hosted, hg, code)
+    assert (st, d["code"]) == (429, "rate_limited")
+    assert get(hosted, h)["arrived"] == 0
+    g2, hg2 = trial_account(hosted, "rater2@beispiel.de")
+    assert redeem(hosted, hg2, code)[1]["redeemed"] is True, "eigene Grenze je Konto"
+    # Belohnung abholen
+    assert claim(hosted, h, 5)[0] == 403
+    assert claim(hosted, h, 5)[0] == 403
+    assert claim(hosted, h, 5)[1]["code"] == "rate_limited"
+    # nach Ablauf des Fensters geht es wieder
+    from app import invites
+    conn = invites.connect()
+    try:
+        with pytest.raises(invites.InviteError):
+            invites.hit_limit(conn, "invite_redeem_user", g["id"])                   # noch im Fenster: gesperrt
+        later = datetime.now(UTC) + timedelta(minutes=61)
+        invites.hit_limit(conn, "invite_redeem_user", g["id"], later)              # neues Fenster, kein Fehler
+    finally:
+        conn.close()
+    # kaputte Umgebungswerte fallen auf den Standard zurueck
+    monkeypatch.setenv("LERNAPP_LIMIT_INVITE_CLAIM_USER", "viele")
+    assert invites.limit_of("invite_claim_user") == invites.LIMITS["invite_claim_user"]
+    monkeypatch.setenv("LERNAPP_LIMIT_INVITE_CLAIM_USER", "0/60")
+    assert invites.limit_of("invite_claim_user") == invites.LIMITS["invite_claim_user"]
+
+
+def test_upload_ignores_malformed_lines_and_caps_the_batch(hosted):
+    from app import invites
+    _, admin = user(hosted, "betrieb@beispiel.de", admin=True)
+    text = ("# Export\nOffer Code,Expiration\nGUT-CODE-1,2027-01-01\nGUTCODE2\n<script>x</script>\n"
+            "x\n" + "Z" * 65 + "\n'; DROP TABLE offer_codes;--\nGUTCODE3\nGUTCODE2\n")
+    st, d = upload(hosted, admin, "plus", 5, text=text)
+    assert st == 200, d
+    assert (d["added"], d["skipped"], d["ignored"]) == (2, 1, 6), d
+    conn = invites.connect()
+    try:
+        assert sorted(r[0] for r in conn.execute("SELECT code FROM offer_codes")) == ["GUTCODE2", "GUTCODE3"]
+    finally:
+        conn.close()
+    # Listeneintraege, die keine Zeichenketten sind, werden uebergangen, nie gespeichert
+    st, d = upload(hosted, admin, "plus", 10, codes=[{"code": "OBJ-1"}, 12345, None, "LISTE-1"])
+    assert (st, d["added"]) == (200, 1)
+    st, d = upload(hosted, admin, "plus", 10, codes=["?", "!!"])
+    assert (st, d["code"]) == (400, "offer_codes_missing") and "übergangen" in d["detail"]
+    st, d = upload(hosted, admin, "plus", 5, codes=["C%05d" % i for i in range(invites.MAX_UPLOAD_LINES + 1)])
+    assert (st, d["code"]) == (413, "offer_codes_too_many") and "groß" in d["detail"]
+    with pytest.raises(invites.InviteError) as e:
+        conn = invites.connect()
+        try:
+            invites.upload_codes(conn, "plus", 5, ["C"] * (invites.MAX_UPLOAD_LINES + 1))
+        finally:
+            conn.close()
+    assert e.value.status == 413
+    # Upload und Vorrat nur fuer Admins, auch fuer zahlende Konten nicht
+    _, pro = user(hosted, "pro@beispiel.de", plan="pro_ai")
+    assert upload(hosted, pro, "plus", 5, codes=["PRO-CODE"])[0] == 403
+    assert asgi_call(hosted, "GET", "/api/billing/offer-codes", headers=pro)[0] == 403
+
+
+def test_offer_codes_never_reach_others_errors_or_logs(hosted, caplog):
+    """Ein Angebotscode erscheint nur in der Antwort an das Konto, das ihn abholt (und beim Admin nur als Zahl im
+    Vorrat); nie in Fehlern, nie in der Uebersicht anderer, nie im Protokoll."""
+    import logging
+    from app import invites
+    caplog.set_level(logging.DEBUG)
+    _, admin = user(hosted, "betrieb@beispiel.de", admin=True)
+    upload(hosted, admin, "plus", 5, codes=["GEHEIM-AAA", "GEHEIM-BBB"])
+    u, h = trial_account(hosted, "holer@beispiel.de")
+    code = create(hosted, h)[1]["invite"]["code"]
+    guests = invitees(hosted, h, code, 5)
+    seen = []
+    for hh in (guests[0], admin):
+        st, hdrs, raw = asgi_call(hosted, "GET", "/api/invites", headers=hh)
+        seen.append(raw)
+    st, mine = claim(hosted, h, 5)
+    assert st == 200 and mine["offer_code"] == "GEHEIM-AAA"
+    # andere: eigene (leere) Uebersicht, Fehler ohne Code
+    for hh in guests[:2]:
+        seen.append(asgi_call(hosted, "GET", "/api/invites", headers=hh)[2])
+        seen.append(asgi_call(hosted, "POST", "/api/invites/claim", headers=hh, body=json.dumps({"tier": 5}))[2])
+    seen.append(asgi_call(hosted, "GET", "/api/invites", headers=admin)[2])
+    seen.append(asgi_call(hosted, "GET", "/api/billing/offer-codes", headers=admin)[2])
+    blob = b"\n".join(seen).decode("utf-8")
+    assert "GEHEIM-" not in blob, blob
+    assert "GEHEIM-" not in caplog.text
+    # Quelltext: kein Protokoll in invites.py / invites_api.py
+    for mod in ("invites.py", "invites_api.py"):
+        src = (ROOT / "app" / mod).read_text(encoding="utf-8")
+        assert "logging" not in src and "print(" not in src, mod
+    # leerer Vorrat: Text ohne Code
+    with pytest.raises(invites.InviteError) as e:
+        conn = invites.connect()
+        try:
+            conn.execute("UPDATE offer_codes SET assigned_to='x' WHERE assigned_to IS NULL")
+            u2, h2 = trial_account(hosted, "zweiter@beispiel.de")
+            c2 = create(hosted, h2)[1]["invite"]["code"]
+            invitees(hosted, h2, c2, 5, prefix="zwei")
+            invites.claim(conn, u2, 5, "plus")
+        finally:
+            conn.close()
+    assert (e.value.status, e.value.code) == (409, "offer_codes_exhausted") and "GEHEIM" not in e.value.message
+
+
+def test_no_enumeration_of_other_accounts_codes_or_counts(hosted):
+    """Uebersicht und Export zeigen nur Eigenes; Antworten beim Einloesen nennen weder Einladenden noch dessen Zahlen."""
+    a, ha = trial_account(hosted, "a@beispiel.de")
+    b, hb = trial_account(hosted, "b@beispiel.de")
+    code_a = create(hosted, ha)[1]["invite"]["code"]
+    create(hosted, hb)
+    da = get(hosted, ha)
+    db_ = get(hosted, hb)
+    assert [c["code"] for c in da["codes"]] == [code_a] and code_a not in json.dumps(db_)
+    g, hg = trial_account(hosted, "g@beispiel.de")
+    st, d = redeem(hosted, hg, code_a)
+    assert st == 200 and set(d) == {"redeemed", "already", "code", "created_at"}
+    assert a["id"] not in json.dumps(d) and "a@beispiel.de" not in json.dumps(d)
+    assert get(hosted, hb)["arrived"] == 0 and get(hosted, ha)["arrived"] == 1
+    # Fehlerantworten ohne Konto-Bezug
+    for wrong in (code_a, "ZZZZZZZZZZ"):
+        st, d = redeem(hosted, ha, wrong)
+        assert a["id"] not in json.dumps(d) and set(d) <= {"detail", "code"}
+
+
+def test_parallel_claims_hand_out_one_code_and_exhaust_cleanly(hosted):
+    """Zwei gleichzeitige Abholungen desselben Kontos: ein Code, einer aus dem Vorrat; zwei Konten um den letzten Code:
+    einer bekommt ihn, der andere 409 (BEGIN IMMEDIATE)."""
+    import threading
+    from app import invites
+    _, admin = user(hosted, "betrieb@beispiel.de", admin=True)
+    upload(hosted, admin, "plus", 5, codes=["PAR-ONE", "PAR-TWO"])
+    people = []
+    for i in range(3):
+        u, h = trial_account(hosted, f"p{i}@beispiel.de")
+        c = create(hosted, h)[1]["invite"]["code"]
+        invitees(hosted, h, c, 5, prefix=f"p{i}gast")
+        people.append(u)
+
+    def run(u, out):
+        conn = invites.connect()
+        try:
+            out.append(invites.claim(conn, u, 5, "plus")["offer_code"])
+        except invites.InviteError as e:
+            out.append(e.code)
+        finally:
+            conn.close()
+
+    same: list = []
+    ts = [threading.Thread(target=run, args=(people[0], same)) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert len(same) == 4 and len(set(same)) == 1 and same[0].startswith("PAR-"), same
+    rest: list = []
+    ts = [threading.Thread(target=run, args=(people[i], rest)) for i in (1, 2)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert sorted(rest)[0].startswith("PAR-") and sorted(rest)[1] == "offer_codes_exhausted", rest
+    conn = invites.connect()
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM offer_codes WHERE assigned_to IS NULL").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(DISTINCT offer_code) FROM invite_rewards").fetchone()[0] == 2
+    finally:
+        conn.close()
+
+
+def test_sql_is_parametrised():
+    """Keine Werte per f-String oder % in SQL (Tabellennamen in accounts._purge_user sind feste Konstanten)."""
+    import re
+    for mod in ("invites.py", "credits.py", "page_explain.py"):
+        src = (ROOT / "app" / mod).read_text(encoding="utf-8")
+        assert not re.search(r"execute\(\s*f[\"']", src), mod
+        assert not re.search(r"execute\([^)]*\"\s*%\s*", src), mod
+        assert ".format(" not in src, mod

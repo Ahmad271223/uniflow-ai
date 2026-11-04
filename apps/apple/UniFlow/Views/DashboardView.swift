@@ -15,6 +15,8 @@ struct DashboardView: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    /// Name fuer die Begruessung (Vorname aus "Mit Apple anmelden", `UFGreeting`)
+    @EnvironmentObject private var account: AccountStore
     @Environment(\.ufDemoActive) private var demo
     @Environment(\.openURL) private var openURL
     @Environment(\.ufWindowWidth) private var windowWidth
@@ -31,6 +33,8 @@ struct DashboardView: View {
     @State private var showNews = false
     /// neue Anzeigen im Schwarzen Brett (GET /api/studip/bulletin, nur lokal; eine Zeile in der Karte "Neuigkeiten")
     @State private var bulletinNew = 0
+    /// "Zuletzt benutzt" (Weitermachen wie zuvor, `RecentCard`): Dokumente, KI-Gespraeche, Wochentests
+    @State private var recent: [RecentItem] = []
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -76,7 +80,11 @@ struct DashboardView: View {
         if let shown = data.value?["today"]?.s("date"), shown != device {
             studipCancelled = await StudIPCancelled.keys(api, from: shown, to: shown)
         }
+        recent = await RecentItem.load(api: api, conversations: .shared, limit: Self.recentLimit)
     }
+
+    /// so viele Eintraege in "Zuletzt benutzt" auf der Uebersicht (KI-Start: 15)
+    static let recentLimit = 10
 
     // MARK: Inhalt
 
@@ -92,7 +100,9 @@ struct DashboardView: View {
 
         UFContent {
             VStack(alignment: .leading, spacing: 0) {
-                UFPageHeadGreet(title: "\(UFFmt.greeting())!", sub: dateLine(pk: pk, evs: evs)) {
+                // "Hallo Ahmad – lass uns gemeinsam lernen." (Wunsch des Inhabers 04.11.2026, `UFGreeting`): Rufname,
+                // sonst Vorname der Apple-Anmeldung, sonst ohne Namen; `day` haelt die Tageszeit nach Mitternacht aktuell
+                UFPageHeadGreet(title: UFGreeting.text(name: greetingName), sub: dateLine(pk: pk, evs: evs)) {
                     UFButton("Tagesansicht", icon: "calendar") { router.go(.plan(view: "day", date: todayDate)) }
                     if let n = nextOpen {
                         UFButton("Weiterlernen", icon: "play", kind: .primary) {
@@ -145,6 +155,7 @@ struct DashboardView: View {
                     todayCard(pk: pk).ufAppear("dashboard", index: 3).dashboardSlot(.main)
                     if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
                     DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
+                    if !recent.isEmpty { RecentCard(items: recent).ufAppear("dashboard", index: 4).dashboardSlot(.flow) }
                     upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4).dashboardSlot(.flow)
                     // "Deine Module" mit Lernstand (docs/LERNSTAND-2026-11-04.md), wie modulesCard im Web
                     if !Self.activeModules(d).isEmpty {
@@ -164,6 +175,12 @@ struct DashboardView: View {
 
     private func statusBar(_ mode: UFDataMode) -> Bool {
         UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase).showsStatusBar
+    }
+
+    /// Name der Begruessung in der Reihenfolge von `UFGreeting.pick`; das StudiNow-Konto hat in V1 keinen Anzeigenamen
+    private var greetingName: String? {
+        let a = account.account
+        return UFGreeting.pick(rufname: Rufname.current(), accountName: nil, appleGivenName: a?.givenName, appleFullName: a?.name)
     }
 
     /// "Sonntag, 25. Oktober · heute 2 Lernpakete · 3 Uni-Termine"

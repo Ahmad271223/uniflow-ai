@@ -252,6 +252,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 .fc-bar { margin-top: .9rem; gap: .6rem; flex-wrap: wrap; } .fc-bar .btn { min-height: 48px; padding: 0 1rem; }
 .btn.fc-on { color: var(--accent-text); background: var(--accent-soft); }
 .item.fc-hidden .title { color: var(--muted); }
+.fc-group { display: flex; align-items: center; gap: .45rem; margin: .9rem 0 .25rem; font-size: .86rem; }
+.fc-group:first-of-type { margin-top: .3rem; }
+.fc-group .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.fc-weeks { gap: .35rem; margin: .3rem 0 .5rem; }
+.fc-badge-kind { font-size: .72rem; margin-left: .35rem; vertical-align: middle; }
+.item.fc-edit { align-items: stretch; }
+.item.fc-edit form.main { display: flex; flex-direction: column; gap: .45rem; }
+.item.fc-edit .field { margin: 0; }
 .fc-opt { margin-top: .9rem; display: flex; flex-direction: column; gap: .45rem; }
 .fc-opt > small { font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .fc-opt .chip { min-height: 44px; padding: 0 .9rem; }

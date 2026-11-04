@@ -776,6 +776,7 @@ private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufSwitchPlan) private var switchPlan
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.openURL) private var openURL
     @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
@@ -816,6 +817,9 @@ private struct AppAccountCards: View {
                     SettingsValue(label: "Name", value: a?.name ?? "nicht freigegeben", muted: a?.name == nil)
                     SettingsValue(label: "E-Mail", value: a?.email ?? "nicht freigegeben", muted: a?.email == nil)
                 }
+                // Rufname fuer "Hallo Ahmad – lass uns gemeinsam lernen." auf der Uebersicht (je Container, nur auf dem
+                // iPad; leer: der Vorname aus der Anmeldung, `UFGreeting`)
+                RufnameField().padding(.top, 4.8)
                 Text("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -825,6 +829,24 @@ private struct AppAccountCards: View {
             SettingsDangerZone {
                 UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) { overlay.modal { DeleteAccountDialog() } }
             }
+        }
+    }
+
+    /// Rufname (Einstellungen -> Konto): ein Feld, gespeichert je Container beim Tippen (`Rufname.save`)
+    struct RufnameField: View {
+        @State private var name = Rufname.current() ?? ""
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4.8) {
+                Text("Rufname").ufFont(13.12, 600).foregroundStyle(UF.text)
+                UFTextField("Wie sollen wir dich nennen?", text: $name)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("settings.rufname")
+                Text("Für die Begrüßung auf der Übersicht. Leer: dein Vorname aus der Anmeldung. Bleibt auf diesem iPad.")
+                    .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .onChange(of: name) { _, now in Rufname.save(now) }
         }
     }
 
@@ -839,6 +861,8 @@ private struct AppAccountCards: View {
                  ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
                  : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
+            // Credits der StudiNow-KI (nur mit Konto beim Dienst und Stand aus GET /api/entitlements)
+            if let studoraAccount { StudoraCreditsRow(link: studoraAccount) }
             UFFlexWrap(gap: 9.6) {
                 UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {
                     if let switchPlan { switchPlan() } else { plans = true }
@@ -863,6 +887,27 @@ private struct AppAccountCards: View {
                 UFButton("Impressum", size: .small) { openURL(UFLegalLinks.imprint) }
             }
             .padding(.top, 9.6)
+        }
+    }
+}
+
+/// Zeile "Credits" auf der Tarif-Karte (04.11.2026, docs/ABO-SYSTEM.md Abschnitt 6a): der echte Stand des Monats vom
+/// Dienst mit einem ehrlichen Satz dazu; ohne Konto beim Dienst oder ohne Stand bleibt sie weg. Beobachtet den Anschluss,
+/// damit eine berechnete Antwort den Rest sofort nachzieht.
+struct StudoraCreditsRow: View {
+    @ObservedObject var link: StudoraAccountLink
+
+    /// "1 Credit = 1 Cent echter KI-Kosten …" – die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
+    static let explanation = "1 Credit ist 1 Cent echter KI-Kosten: Pro AI hat 100 im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang – welcher Tarif was enthält, steht unter „Tarif wechseln“."
+
+    var body: some View {
+        if let c = link.credits, let value = AICost.balanceLine(c, trial: link.planStatus?.trialActive ?? false, labelled: false) {
+            VStack(alignment: .leading, spacing: 4.8) {
+                SettingsValue(label: "Credits", value: value)
+                Text(Self.explanation).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 7.2)
+            .accessibilityIdentifier("settings.credits")
         }
     }
 }

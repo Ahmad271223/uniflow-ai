@@ -17,6 +17,7 @@ struct AIStartView: View {
     @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufChatGPTLink) private var chatgpt
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject private var recents: AIRecents
@@ -30,7 +31,11 @@ struct AIStartView: View {
     @State private var busy = false
     @State private var busyLabel = ""
     @State private var error: String?
+    /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
+    @State private var creditsExhausted = false
     @State private var answer: Answer?
+    /// "Zuletzt benutzt" (`RecentCard`, GET /api/recent und die Gespraeche der KI-Hilfe)
+    @State private var recentUsed: [RecentItem] = []
     @State private var help = false
     @FocusState private var askFocused: Bool
 
@@ -80,6 +85,8 @@ struct AIStartView: View {
                 answerCard(answer).padding(.top, 20)
             }
             if !recents.entries.isEmpty { recentRow.padding(.top, 24) }
+            // "Zuletzt benutzt" (Weitermachen wie zuvor): Dokumente, KI-Gespraeche, Wochentests nach Zeit
+            if !recentUsed.isEmpty { RecentCard(items: recentUsed).padding(.top, 24) }
         }
         .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
         .ufReload { await load() }
@@ -102,6 +109,7 @@ struct AIStartView: View {
             if !loaded, fileID.isEmpty, let f = currentFile?.s("id") { fileID = f }
             loaded = true
         } catch { if !loaded { toast.show(error.localizedDescription) } }
+        recentUsed = await RecentItem.load(api: api, conversations: .shared, limit: 15)
     }
 
     // MARK: Kopf: Logo und die eine Frage
@@ -228,6 +236,10 @@ struct AIStartView: View {
             if let error {
                 Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("ai.start.error")
+                if creditsExhausted {
+                    UFButton("Tarif ansehen", icon: "star", size: .small) { router.go(.settings(tab: "account")) }
+                        .accessibilityIdentifier("ai.start.plans")
+                }
             }
         }
         .padding(16)
@@ -273,8 +285,10 @@ struct AIStartView: View {
         }
     }
 
+    /// Mit Konto beim Dienst der echte Credits-Stand (`credits`), sonst der Weg der KI
     private var statusLine: String {
-        AICost.status(chatgpt: aiEnabled, model: chatgpt?.status?.model, plan: ent.plan, requestsThisMonth: recents.requestsThisMonth)
+        AICost.status(chatgpt: aiEnabled, model: chatgpt?.status?.model, plan: ent.plan, requestsThisMonth: recents.requestsThisMonth,
+                      credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge, trial: studoraAccount?.planStatus?.trialActive ?? false)
     }
 
     // MARK: Hilfe ohne KI
@@ -387,10 +401,12 @@ struct AIStartView: View {
         busy = true
         self.busyLabel = busyLabel
         error = nil
+        creditsExhausted = false
         help = false
         defer { busy = false }
         do {
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
+            studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Kostenzeile
             var text = r.s("answer") ?? ""
             if mode == "flashcards", let cards = r["cards"]?.array, !cards.isEmpty {
                 text = cards.map { "- **\($0.s("question") ?? "")** – \($0.s("answer") ?? "")" }.joined(separator: "\n")
@@ -401,6 +417,7 @@ struct AIStartView: View {
             if mode == "ask" { question = "" }
         } catch {
             self.error = error.localizedDescription
+            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
         }
     }
 }

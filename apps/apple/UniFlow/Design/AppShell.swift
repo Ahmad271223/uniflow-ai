@@ -126,6 +126,9 @@ final class UFRouter: ObservableObject {
     /// Loesungen, `CommunityBadge`; spaeter z. B. "exams": faellige Karteikarten). 0 oder fehlend = kein Abzeichen.
     @Published private(set) var badges: [String: Int] = [:]
     private var history: [UFRoute] = []
+    /// Weitermachen wie zuvor (Services/ResumeState.swift): Stand dieses Fensters mitschreiben und beim Start einmal
+    /// wiederherstellen
+    let resume = ResumeTracker()
 
     func reload() { reloadToken += 1 }
 
@@ -146,12 +149,13 @@ final class UFRouter: ObservableObject {
         drawerOpen = false
         fullscreenDoc = false            // route() entfernt exam-focus, fullscreen-doc, doc-open
         examFocus = false
+        resume.noteRoute(r)
     }
 
     func go(hash: String) { go(UFRoute(hash: hash)) }
 
     func back() {
-        if let r = history.popLast() { route = r }
+        if let r = history.popLast() { route = r; resume.noteRoute(r) }
     }
 
     /// Es gibt eine vorige Seite (sonst fuehrt "Zurück" auf die uebergeordnete Seite)
@@ -211,13 +215,19 @@ struct UFNavItem: Identifiable {
     /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
     /// die Karteikarten-Seite weiter unter "Tests & Wiederholung"). Steht "Tests & Wiederholung" nicht im Menue (ohne KI),
     /// markiert `#/exams` die Karteikarten, auf die die Seite dann verweist (Audit 03.11.2026: vorher nichts markiert)
-    func isActive(_ route: UFRoute, examsShown: Bool = true) -> Bool {
-        id == "cards" ? route == .cards || (!examsShown && route.navKey == "exams") : route.navKey == id
+    /// Stehen beide im Menue (iPad mit KI), markiert `#/cards` nur die Karteikarten, nie zusaetzlich "Tests &
+    /// Wiederholung" (Rueckmeldung des Inhabers 04.11.2026: beide leuchteten).
+    func isActive(_ route: UFRoute, examsShown: Bool = true, cardsShown: Bool = false) -> Bool {
+        switch id {
+        case "cards": return route == .cards || (!examsShown && route.navKey == "exams")
+        case "exams": return route.navKey == "exams" && !(cardsShown && route == .cards)
+        default: return route.navKey == id
+        }
     }
 
     /// Markierung in einer Liste sichtbarer Eintraege (Seitenleiste, Schublade, "Mehr")
     static func active(_ item: UFNavItem, in items: [UFNavItem], route: UFRoute) -> Bool {
-        item.isActive(route, examsShown: items.contains { $0.id == "exams" })
+        item.isActive(route, examsShown: items.contains { $0.id == "exams" }, cardsShown: items.contains { $0.id == "cards" })
     }
 
     /// Was die Zahl am Menuepunkt bedeutet (VoiceOver): "2 neue Hinweise" an der Community, sonst "2 neu"

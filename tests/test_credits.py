@@ -52,7 +52,7 @@ class FailingAI(FakeAI):
 def test_allowance_per_plan_and_env(monkeypatch):
     from app import credits
     assert credits.allowance("pro_ai", False) == 100
-    assert [credits.allowance(p, False) for p in ("pro_connect", "plus", "free", "unbekannt")] == [0, 0, 0, 0]
+    assert [credits.allowance(p, False) for p in ("plus", "free", "unbekannt")] == [0, 0, 0]
     assert credits.allowance("free", True) == 25, "Probe: eigener Rahmen"
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "40")
     monkeypatch.setenv("LERNAPP_CREDITS_PLUS", "5")
@@ -356,3 +356,161 @@ def test_admin_costs_view(hosted, monkeypatch):
     day = d["per_day_model"][0]
     assert (day["day"], day["model"], day["requests"], day["credits"], day["input_tokens"], day["output_tokens"]) == (credits.day_of(), "fake", 2, 16, 240, 80)
     assert d["prices_checked"] == "2026-11-04" and any(p["model"] == "gpt-6-luna" for p in d["prices"])
+
+
+# ---------------------------------------------------------------- Sicherheitspruefung 04.11.2026
+
+def _threads(n, fn):
+    import threading
+    out: list = []
+    lock = threading.Lock()
+    start = threading.Barrier(n)
+
+    def run(i):
+        start.wait()
+        try:
+            r = fn(i)
+        except Exception as e:  # noqa: BLE001 - Ergebnis des Fadens
+            r = e
+        with lock:
+            out.append(r)
+    ts = [threading.Thread(target=run, args=(i,)) for i in range(n)]
+    [t.start() for t in ts]
+    [t.join(30) for t in ts]
+    return out
+
+
+def test_parallel_reservations_never_exceed_the_allowance(hosted):
+    """Zwoelf Faeden, je eine eigene sqlite-Verbindung, reservieren 10 von 100 Credits: genau zehn kommen durch, der Rest
+    429; danach gleichzeitig abrechnen und zurueckgeben: nie negativ, nie doppelt."""
+    from app import credits
+    u, _ = user(hosted, "parallel@beispiel.de", plan="pro_ai")
+    uid = u["id"]
+
+    def reserve(i):
+        conn = ledger_conn()
+        try:
+            return credits.reserve(conn, uid, f"p{i}", "tutor:explain", 10, now=T0)
+        finally:
+            conn.close()
+    res = _threads(12, reserve)
+    ok = [r for r in res if isinstance(r, credits.Reservation)]
+    errs = [r for r in res if isinstance(r, credits.CreditsError)]
+    assert len(ok) == 10 and len(errs) == 2 and all(e.code == "credits_exhausted" and e.status == 429 for e in errs), res
+    conn = ledger_conn()
+    try:
+        b = credits.balance(conn, uid, now=T0)
+        assert (b["reserved"], b["used"], b["remaining"]) == (100, 0, 0)
+    finally:
+        conn.close()
+    ids = sorted(r.request_id for r in ok)
+
+    # jede ID zweimal abrechnen und einmal zurueckgeben, alles gleichzeitig: genau eine Abrechnung je ID zaehlt
+    def finish(i):
+        rid = ids[i % len(ids)]
+        conn = ledger_conn()
+        try:
+            if i < 2 * len(ids):
+                return credits.settle(conn, uid, rid, 30_000, now=T0)
+            return credits.refund(conn, uid, rid)
+        finally:
+            conn.close()
+    _threads(3 * len(ids), finish)
+    conn = ledger_conn()
+    try:
+        b = credits.balance(conn, uid, now=T0)
+        states = dict(conn.execute("SELECT state, COUNT(*) FROM credit_ledger WHERE user_id=? GROUP BY state", (uid,)).fetchall())
+        charged = conn.execute("SELECT COALESCE(SUM(charged), 0) FROM credit_ledger WHERE user_id=?", (uid,)).fetchone()[0]
+        assert b["reserved"] == 0 and b["remaining"] >= 0
+        assert b["used"] == charged == 3 * states.get("settled", 0), (b, states)
+        assert states.get("settled", 0) + states.get("refunded", 0) == 10
+        row = conn.execute("SELECT used, reserved FROM credit_months WHERE user_id=?", (uid,)).fetchone()
+        assert row[0] >= 0 and row[1] >= 0
+    finally:
+        conn.close()
+
+
+def test_parallel_same_request_id_is_reserved_once(hosted):
+    from app import credits
+    u, _ = user(hosted, "gleich@beispiel.de", plan="pro_ai")
+
+    def reserve(i):
+        conn = ledger_conn()
+        try:
+            return credits.reserve(conn, u["id"], "dieselbe", "tutor:explain", 7, now=T0)
+        finally:
+            conn.close()
+    res = _threads(6, reserve)
+    ok = [r for r in res if isinstance(r, credits.Reservation)]
+    dup = [r for r in res if isinstance(r, credits.CreditsError) and r.code == "duplicate_request"]
+    assert (len(ok), len(dup)) == (1, 5), res
+    conn = ledger_conn()
+    try:
+        assert credits.balance(conn, u["id"], now=T0)["reserved"] == 7
+    finally:
+        conn.close()
+
+
+def test_request_id_of_another_account_never_replays_its_answer(hosted):
+    from app import ai_backend, credits
+    a, _ = user(hosted, "eigen@beispiel.de", plan="pro_ai")
+    b, _ = user(hosted, "fremd@beispiel.de", plan="pro_ai")
+    conn = ledger_conn()
+    try:
+        credits.reserve(conn, a["id"], "geteilt", "tutor:explain", 3, now=T0)
+        credits.settle(conn, a["id"], "geteilt", 10_000, result="Antwort nur fuer A", now=T0)
+        assert credits.lookup(conn, b["id"], "geteilt", now=T0) is None
+        assert ai_backend.replay(b["id"], "geteilt", now=T0) is None
+        assert ai_backend.replay(a["id"], "geteilt", now=T0).text == "Antwort nur fuer A"
+        r = credits.reserve(conn, b["id"], "geteilt", "tutor:explain", 3, now=T0)
+        assert (r.replay, r.result) == (False, None)
+    finally:
+        conn.close()
+
+
+def test_exhausted_credits_stop_before_the_provider_even_with_a_client_cost_claim(hosted, monkeypatch):
+    """Rahmen 0: 429 credits_exhausted, ohne den Anbieter zu rufen, auch wenn der Client 0 Kosten oder Credits behauptet.
+    (Plus ohne KI scheitert schon vorher mit 403 plan_required.)"""
+    from app import ai_backend
+    fake = FakeAI()
+    ai_backend.set_provider(fake)
+    cheap_calls(monkeypatch)
+    monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "0")
+    _, h = user(hosted, "null@beispiel.de", plan="pro_ai")
+    st, d = ask(hosted, h, "Gratis?", "z1", credits=1000, cost_microeur=0, estimate=0, charged=0)
+    assert (st, d["code"], d["credits"]["remaining"]) == (429, "credits_exhausted", 0), d
+    _, hp = user(hosted, "plus@beispiel.de", plan="plus")
+    assert ask(hosted, hp, "Gratis?", "z2", credits=1000)[1]["code"] == "plan_required"
+    assert fake.calls == 0, "kein Aufruf des Anbieters"
+
+
+def test_admin_cost_view_needs_a_session_and_the_admin_role(hosted):
+    assert asgi_call(hosted, "GET", "/api/billing/ai-costs")[0] == 401
+    _, h = user(hosted, "kein-admin@beispiel.de", plan="pro_ai")
+    st, d = _j(asgi_call(hosted, "GET", "/api/billing/ai-costs?days=-5", headers=h))
+    assert (st, d["code"]) == (403, "admin_required") and "Betrieb" in d["detail"]
+
+
+def test_api_key_never_reaches_logs_errors_or_repr(monkeypatch, caplog):
+    """Der Schluessel des Dienstes erscheint weder im Protokoll noch in Fehlermeldungen noch in repr(); dazu ein Blick
+    in den Quelltext: keine Protokollzeile nennt api_key."""
+    import logging
+    import re
+    from pathlib import Path
+    from app import ai_backend
+    caplog.set_level(logging.DEBUG)
+    secret = "sk-proj-GEHEIMGEHEIMGEHEIM1234567890"
+    monkeypatch.setenv("LERNAPP_OPENAI_API_KEY", secret)
+    for status, body in ((401, f'{{"error": {{"message": "Incorrect API key provided: {secret}"}}}}'),
+                         (400, f'{{"error": {{"message": "bad request for key {secret}"}}}}')):
+        p = ai_backend.OpenAIProvider(ai_backend.api_key(), "gpt-6-luna", transport=lambda *a, b=body, s=status: (s, [b]))
+        assert secret not in repr(p)
+        with pytest.raises(ai_backend.AIUnavailable) as e:
+            p.complete("System", "Frage")
+        assert secret not in e.value.message and secret[8:] not in e.value.message, e.value.message
+    assert secret not in caplog.text
+    root = Path(__file__).resolve().parents[1] / "app"
+    for f in root.glob("*.py"):
+        for line in f.read_text(encoding="utf-8").splitlines():
+            if re.search(r"\b(log|logger|logging)\.\w+\(|print\(", line):
+                assert "api_key" not in line and "API_KEY" not in line, f"{f.name}: {line.strip()}"

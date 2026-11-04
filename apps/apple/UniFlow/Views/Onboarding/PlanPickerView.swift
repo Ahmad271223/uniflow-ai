@@ -98,13 +98,14 @@ struct PlanPickerView: View {
     }
 
     /// Untertitel: die angebotenen Tarife (Pro AI nur mit Produkt aus dem Store) und die Probe auf dem iPad
-    /// (`UFTrialTexts.offer`), solange sie laeuft und kein Tarif gekauft ist
+    /// (`UFTrialTexts.offer`, mit Pro-AI-Produkt `offerProAI`: alles wie Pro AI, 25 Credits), solange sie laeuft und
+    /// kein Tarif gekauft ist
     static func subtitle(proAI: Bool, trial: UFLocalTrial.State?) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
         s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
         s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
         if let trial, trial.isActive {
-            s += "\(UFTrialTexts.offer). \(UFTrialTexts.running(trial.daysLeft)). "
+            s += "\(proAI ? UFTrialTexts.offerProAI : UFTrialTexts.offer). \(UFTrialTexts.running(trial.daysLeft)). "
         }
         s += "Du kannst den Tarif jederzeit wechseln."
         return s

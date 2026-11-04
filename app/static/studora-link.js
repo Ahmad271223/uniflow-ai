@@ -6,7 +6,8 @@ import { serviceError, resendNote } from "./service-errors.js?v=1";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const PLAN = { free: "StudiNow Free", plus: "StudiNow Plus", pro_connect: "StudiNow Pro Connect", pro_ai: "StudiNow Pro AI" };
+// pro_connect: alter Schluessel (Tarif gibt es seit 04.11.2026 nicht mehr), gilt wie Pro AI
+const PLAN = { free: "StudiNow Free", plus: "StudiNow Plus", pro_ai: "StudiNow Pro AI", pro_connect: "StudiNow Pro AI" };
 
 async function call(path, body) {
   const r = await fetch("/api/studora" + path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

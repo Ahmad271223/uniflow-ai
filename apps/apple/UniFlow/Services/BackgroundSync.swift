@@ -300,8 +300,10 @@ final class BackgroundSyncController: ObservableObject {
     var graceNanos: UInt64 = 1_000_000_000
     /// Hintergrundaktualisierung in den iPad-Einstellungen (Karte: Hinweis, wenn aus)
     var refreshStatus: () -> UIBackgroundRefreshStatus = { UIApplication.shared.backgroundRefreshStatus }
-    /// Takt der Wochentests im langen Lauf (Tests: Attrappe)
-    var weeklyTick: (LocalContext) async -> WeeklyAutoTick.Outcome = { await WeeklyAutoTick.run($0) }
+    /// Takt der Wochentests im langen Lauf (Tests: Attrappe); ab Plus (UFWeeklyAutoGate), sonst `.off`
+    var weeklyTick: (LocalContext) async -> WeeklyAutoTick.Outcome = { ctx in
+        await UFWeeklyAutoGate.check() ? await WeeklyAutoTick.run(ctx) : .off
+    }
     /// Ergebnis des letzten Wochentest-Schritts eines Hintergrundlaufs in diesem Prozess (nil: noch keiner; Tests)
     private(set) var lastWeekly: WeeklyAutoTick.Outcome?
 

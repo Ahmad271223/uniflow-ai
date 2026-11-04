@@ -1,11 +1,11 @@
-"""Endpunkte der gemeinsamen Testbibliothek und der Lernfunktionen ab Pro Connect (gehosteter Dienst).
+"""Endpunkte der gemeinsamen Testbibliothek und der Lernstatistik ab Pro AI (gehosteter Dienst).
 
 - POST /api/library/tests                       Test zusammenstellen: erst Pool, dann nur Fehlendes generieren
 - POST /api/library/tests/{id}/share            eigenen Test ausdruecklich zur gemeinsamen Nutzung einreichen (Moderation)
 - GET  /api/library/moderation                  wartende Fragen (Admin)
 - POST /api/library/questions/{id}/moderate     {action: approve | reject} (Admin)
 - POST /api/library/tests/{id}/submit           Bewertung ohne KI (Multiple-Choice, Musterloesung)
-- GET  /api/learning/stats                      erweiterte Lernstatistiken (can_use_advanced_analytics)
+- GET  /api/learning/stats                      Lernstatistik über alle Module (can_use_advanced_analytics, Pro AI)
 - GET  /api/learning/review                     falsch beantwortete Fragen (can_review_wrong_answers)
 - POST /api/learning/review/test                Wiederholungstest aus falschen Antworten, ohne KI
 - GET  /api/learning/recommendations            Lernempfehlungen (can_get_recommendations)
@@ -241,7 +241,7 @@ def submit(request: Request, test_id: int, body: dict = Body(...)):
     return grade_and_store(test_id, answers)
 
 
-# ---------------------------------------------------------------- Lernfunktionen ab Pro Connect (ohne KI)
+# ---------------------------------------------------------------- Lernstatistik ab Pro AI (ohne KI; Endpunkte ohne Oberflaeche)
 
 def _submitted() -> list[dict]:
     with db.cursor() as conn:

@@ -28,13 +28,13 @@ from . import plans
 
 PLANS = plans.PLANS
 LOCAL_PLAN = "local"            # Einzelplatz: alle Rechte, keine Kontingente
-LEGACY = {"pro": "pro_ai"}      # fruehere Tarifnamen
+LEGACY = {"pro": "pro_ai", **plans.LEGACY_PLANS}      # fruehere Tarifnamen (pro, pro_connect) gelten wie Pro AI
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entitlements (
     user_id TEXT NOT NULL,
     source TEXT NOT NULL,                 -- app_store | manual
-    plan TEXT NOT NULL,                   -- free | plus | pro_connect | pro_ai
+    plan TEXT NOT NULL,                   -- free | plus | pro_ai (alte Zeilen: pro_connect, gilt wie pro_ai)
     original_transaction_id TEXT,
     expires_at TEXT,                      -- ISO-8601 UTC, NULL = unbefristet
     status TEXT NOT NULL DEFAULT 'active',-- active | grace | billing_retry | expired | revoked
@@ -136,9 +136,9 @@ def connect() -> sqlite3.Connection:
     p = accounts.db_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p, isolation_level=None, timeout=15, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=15000")
     from . import db
+    db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
     db.schema_once(conn, "billing", p, ensure_schema)
     return conn
 

@@ -127,6 +127,14 @@ public enum Migrations {
         .addColumn("flashcards", "bookmarked", "INTEGER DEFAULT 0"),
         .addColumn("flashcards", "hidden", "INTEGER DEFAULT 0"),
         .addColumnOnce("flashcards", "last_result", "TEXT", then: { try $0.execute(flashcardResultBackfill) }),
+        // Geschlossene Stapel (04.11.2026): Stapel je Karte, Bestand bekommt Stapel je Dokument bzw. Fach (flashcardStackSQL)
+        .addColumn("flashcards", "stack_id", "INTEGER"),
+        .sql(flashcardStackSQL[0]), .sql(flashcardStackSQL[1]), .sql(flashcardStackSQL[2]), .sql(flashcardStackSQL[3]),
+        // Geteilte Stapel (04.11.2026, CardStackShare.swift): Herkunft eines uebernommenen Stapels und die Kennung des
+        // eigenen geteilten Stapels
+        .addColumn("flashcard_stacks", "source", "TEXT"),
+        .addColumn("flashcard_stacks", "source_ref", "TEXT"),
+        .addColumn("flashcard_stacks", "shared_id", "TEXT"),
         // Fachfarben (27.10.2026, ModuleColors): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
         // Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
         // bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.
@@ -135,6 +143,28 @@ public enum Migrations {
 
     /// `db.FLASHCARD_RESULT_BACKFILL`: einmalige Vorbelegung von flashcards.last_result, woertlich
     static let flashcardResultBackfill = "UPDATE flashcards SET last_result='right' WHERE typeof(box)='integer' AND box > 1"
+
+    /// `db.FLASHCARD_STACK_SQL`, woertlich: jede Karte gehoert zu genau einem Stapel (docs/KARTEIKARTEN-STAPEL-2026-11-04.md).
+    /// Karten ohne Stapel bekommen einen: Karten eines Dokuments den Stapel dieses Dokuments (Name = Titel, sonst
+    /// Dateiname, sonst die Kennung), die uebrigen je Fach "Allgemein", ohne Fach "Ohne Modul". Laeuft bei jedem Start
+    /// und vor dem Lesen der Karten und Stapel (idempotent, nur Karten mit stack_id NULL).
+    static let flashcardStackSQL: [String] = [
+        "INSERT INTO flashcard_stacks(name, subject, file_id, created_at) "
+            + "SELECT COALESCE(NULLIF(f.title, ''), NULLIF(f.name, ''), fc.file_id), MAX(fc.subject), fc.file_id, MIN(fc.created_at) "
+            + "FROM flashcards fc LEFT JOIN files f ON f.id = fc.file_id "
+            + "WHERE fc.stack_id IS NULL AND fc.file_id IS NOT NULL AND fc.file_id <> '' "
+            + "AND NOT EXISTS (SELECT 1 FROM flashcard_stacks s WHERE s.file_id = fc.file_id) GROUP BY fc.file_id",
+        "UPDATE flashcards SET stack_id = (SELECT s.id FROM flashcard_stacks s WHERE s.file_id = flashcards.file_id ORDER BY s.id LIMIT 1) "
+            + "WHERE stack_id IS NULL AND file_id IS NOT NULL AND file_id <> ''",
+        "INSERT INTO flashcard_stacks(name, subject, file_id, created_at) "
+            + "SELECT CASE WHEN fc.subject IS NULL OR fc.subject = '' THEN 'Ohne Modul' ELSE 'Allgemein' END, NULLIF(fc.subject, ''), NULL, MIN(fc.created_at) "
+            + "FROM flashcards fc WHERE fc.stack_id IS NULL "
+            + "AND NOT EXISTS (SELECT 1 FROM flashcard_stacks s WHERE s.file_id IS NULL AND s.subject IS NULLIF(fc.subject, '') "
+            + "AND s.name = CASE WHEN fc.subject IS NULL OR fc.subject = '' THEN 'Ohne Modul' ELSE 'Allgemein' END) GROUP BY NULLIF(fc.subject, '')",
+        "UPDATE flashcards SET stack_id = (SELECT s.id FROM flashcard_stacks s WHERE s.file_id IS NULL AND s.subject IS NULLIF(flashcards.subject, '') "
+            + "AND s.name = CASE WHEN flashcards.subject IS NULL OR flashcards.subject = '' THEN 'Ohne Modul' ELSE 'Allgemein' END ORDER BY s.id LIMIT 1) "
+            + "WHERE stack_id IS NULL",
+    ]
 
     /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer Aenderungen, die es in app/db.py nicht gibt (etwa
     /// Tabellen oder Werte nur fuer das Geraet). Alles aus Python laeuft oben ohne Versionsnummer, damit eine

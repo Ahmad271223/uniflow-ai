@@ -272,37 +272,60 @@ def test_schedule_due_reads_vault_once_and_uses_one_connection_per_slot(hosted, 
 def test_runner_stop_marks_jobs_of_this_process_as_aborted(hosted, monkeypatch):
     """`python -m app.jobs` bekommt SIGTERM (docker stop): laufende Jobs bis zur Frist abwarten, den Rest als abgebrochen
     markieren – sonst stuenden sie 6 Stunden auf 'running' (recover_stale)."""
-    from app import accounts, jobs
+    from app import accounts, jobs, retention
+    # Ohne Zeitplan: nach 08:00 legte der Zeitplan-Thread sonst echte Fenster an (Tresor-Durchlauf unter der
+    # Schreibsperre von accounts.db); unter Last wartete der Arbeiter darauf laenger als 5 s, der Test fiel aus und
+    # liess den Runner weiterlaufen - der holte dann die Jobs der folgenden Tests (test_hosted_credentials_and_sync_
+    # endpoints, test_retention, test_qis_isolation: claim_next fand nichts mehr).
+    monkeypatch.setenv("LERNAPP_SYNC_TIMES", "")
+    monkeypatch.setattr(retention, "schedule_due", lambda *a, **k: None)
     u = accounts.register("stop@beispiel.de", "sehr-geheim-123", "luh")
     j = jobs.enqueue(u["id"], "weekly", "scheduled")
     started, release = threading.Event(), threading.Event()
 
     def slow_job(job):
         started.set()
-        release.wait(5)
+        release.wait(30)
         return {"ok": True}
     monkeypatch.setattr(jobs, "run_job", slow_job)
-    r = jobs.Runner(workers=1, poll_seconds=0.05)
-    r.start()
-    assert started.wait(5) and r.alive()
-    assert r.running_jobs() == [j["id"]]
-    assert r.stop(0.2) == [j["id"]], "nach der Frist noch am Laufen: markiert"
-    got = jobs.latest(u["id"])
-    assert got["status"] == "failed" and got["message"] == "Abgebrochen (Dienst gestoppt)"
-    release.set()
-    for t in r._threads:
-        t.join(5)
-    assert not r.alive()
-    # ohne laufende Jobs: nichts zu markieren
-    r2 = jobs.Runner(workers=1, poll_seconds=0.05)
-    r2.start()
-    assert r2.stop(1) == []
+    runners = []
+    try:
+        r = jobs.Runner(workers=1, poll_seconds=0.05)
+        runners.append(r)
+        r.start()
+        assert started.wait(30) and r.alive()
+        assert r.running_jobs() == [j["id"]]
+        assert r.stop(0.2) == [j["id"]], "nach der Frist noch am Laufen: markiert"
+        got = jobs.latest(u["id"])
+        assert got["status"] == "failed" and got["message"] == "Abgebrochen (Dienst gestoppt)"
+        release.set()
+        for t in r._threads:
+            t.join(30)
+        assert not r.alive()
+        # ohne laufende Jobs: nichts zu markieren
+        r2 = jobs.Runner(workers=1, poll_seconds=0.05)
+        runners.append(r2)
+        r2.start()
+        assert r2.stop(30) == []
+    finally:
+        # Arbeiter nie in den naechsten Test durchsickern lassen, auch wenn eine Pruefung oben fehlschlaegt
+        release.set()
+        for x in runners:
+            x._stop.set()
+            for t in x._threads:
+                t.join(30)
+        assert not any(x.alive() for x in runners)
 
 
 def test_jobs_main_writes_heartbeat_for_healthcheck_and_stops_cleanly(hosted, monkeypatch, tmp_path, capsys):
-    from app import config, jobs
+    from app import config, jobs, retention
     monkeypatch.setattr(config, "BASE_LOG_DIR", tmp_path / "logs")
     monkeypatch.setenv("LERNAPP_JOB_WORKERS", "1")
+    # Ohne Zeitplan: nach 08:00 legte der Zeitplan-Thread sonst ein Fenster an und wartete mit offener Schreibsperre auf
+    # die zweite Verbindung des Tresors (Tabelle vault in der frischen accounts.db) - 15 s Sperrzeit, unter Last ueber
+    # STOP_GRACE_S hinaus, dann lief der Runner in den naechsten Test weiter
+    monkeypatch.setenv("LERNAPP_SYNC_TIMES", "")
+    monkeypatch.setattr(retention, "schedule_due", lambda *a, **k: None)
     assert jobs.main(["--healthcheck"]) == 1, "ohne Lebenszeichen unhealthy"
     stop = threading.Event()
     stop.set()                                              # wie SIGTERM gleich nach dem Start
@@ -438,15 +461,15 @@ def test_weekly_quota_follows_the_plan(hosted):
     accounts.set_plan(u["id"], "plus")
     q = jobs.HostedQuota(accounts.get_user(u["id"]))
     assert q.check() is None
-    for i in range(3):
+    for i in range(4):                                                  # Plus: 4 neue KI-Tests im Monat (04.11.2026)
         q.consume(f"weekly:{i}:1")
     q.consume("weekly:0:1")                                             # dieselbe Anfrage zaehlt einmal
     conn = billing.connect()
     try:
-        assert billing.used(conn, u["id"], "ai_tests_new") == 3
+        assert billing.used(conn, u["id"], "ai_tests_new") == 4
     finally:
         conn.close()
-    assert "aufgebraucht" in q.check() and "3 von 3" in q.check()
+    assert "aufgebraucht" in q.check() and "4 von 4" in q.check()
     accounts.set_plan(u["id"], "pro_ai")
     assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None, "Pro AI: 40 im Monat"
 

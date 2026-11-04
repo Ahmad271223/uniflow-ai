@@ -83,7 +83,6 @@ final class PurchaseTests: StoreKitSessionTestCase {
         let (store, ent) = await makeStore()
         XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
         XCTAssertEqual(store.loadedProductIDs, ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
-        XCTAssertNil(store.product(for: .proConnect))
         let other = try await Product.products(for: ["de.uniflow.proconnect.monthly", "de.uniflow.pro.monthly"])
         XCTAssertEqual(other.map(\.id), [], "kein Pro Connect und kein frueheres Pro in der Konfiguration der App")
         XCTAssertEqual(ent.plan, .free)

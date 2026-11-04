@@ -1,7 +1,31 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 118,
+ "count": 129,
  "paths": [
+  {
+   "method": "DELETE",
+   "shape": "/api/flashcard-stacks/{}",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks/1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
   {
    "method": "DELETE",
    "shape": "/api/flashcards/{}",
@@ -96,6 +120,20 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/recordings/own/{}",
+   "sources": [
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift"
+   ],
+   "request": {
+    "path": "/api/recordings/own/gibtsnicht"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "eigene Aufnahmen nur auf dem Geraet"
    }
   },
   {
@@ -966,6 +1004,7 @@
    "shape": "/api/files/{}/pagetext",
    "sources": [
     "UniFlow/Services/DocumentVersions.swift",
+    "UniFlow/Views/Library/TextDocumentView.swift",
     "UniFlow/Views/Modules/ModulesPage.swift"
    ],
    "request": {
@@ -1003,6 +1042,27 @@
      "versions"
     ],
     "reason": "nur auf dem Geraet (FileVersionEndpoints)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/flashcard-stacks",
+   "sources": [
+    "UniFlow/Views/AI/FlashcardComposer.swift",
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {
@@ -1098,6 +1158,20 @@
    "expect": {
     "status": 404,
     "reason": "Dokument-Index nur auf dem Geraet (V1); leere Datenbank: Datei f1 fehlt"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/index/shelf",
+   "sources": [
+    "UniFlow/Views/Library/LibraryShelf.swift"
+   ],
+   "request": {
+    "path": "/api/index/shelf"
+   },
+   "expect": {
+    "status": 200,
+    "reason": "Regal des Dokument-Index auf dem Geraet (DocIndexStore)"
    }
   },
   {
@@ -1381,6 +1455,48 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/recordings/own",
+   "sources": [
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift"
+   ],
+   "request": {
+    "path": "/api/recordings/own"
+   },
+   "expect": {
+    "status": 200,
+    "reason": "eigene Aufnahmen nur auf dem Geraet (Mikrofon, Spracherkennung)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/recordings/own/suggest",
+   "sources": [
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift"
+   ],
+   "request": {
+    "path": "/api/recordings/own/suggest"
+   },
+   "expect": {
+    "status": 200,
+    "reason": "Vorschlag aus dem Stundenplan, nur auf dem Geraet"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/recordings/own/{}",
+   "sources": [
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift"
+   ],
+   "request": {
+    "path": "/api/recordings/own/gibtsnicht"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "eigene Aufnahmen nur auf dem Geraet"
    }
   },
   {
@@ -2436,6 +2552,33 @@
   },
   {
    "method": "PATCH",
+   "shape": "/api/flashcard-stacks/{}",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks/1",
+    "body": {
+     "name": "Teststapel"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "PATCH",
    "shape": "/api/flashcards/{}",
    "sources": [
     "UniFlow/Views/Exams/CardsPage.swift",
@@ -2602,6 +2745,23 @@
   },
   {
    "method": "PATCH",
+   "shape": "/api/recordings/own/{}",
+   "sources": [
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift"
+   ],
+   "request": {
+    "path": "/api/recordings/own/gibtsnicht",
+    "body": {
+     "title": "x"
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "eigene Aufnahmen nur auf dem Geraet"
+   }
+  },
+  {
+   "method": "PATCH",
    "shape": "/api/tasks/{}",
    "sources": [
     "UniFlow/Views/Plan/PlanActions.swift"
@@ -2678,6 +2838,7 @@
    "sources": [
     "UniFlow/Views/AI/AIStartView.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift",
     "UniFlow/Views/TutorPanel.swift"
    ],
    "request": {
@@ -3015,10 +3176,78 @@
   },
   {
    "method": "POST",
+   "shape": "/api/flashcard-stacks",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks",
+    "body": {
+     "name": "Teststapel",
+     "subject": "Testfach"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "cards": {
+       "type": "number"
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "due": {
+       "type": "number"
+      },
+      "file_id": {
+       "type": "null"
+      },
+      "file_name": {
+       "type": "null"
+      },
+      "id": {
+       "type": "number"
+      },
+      "kind": {
+       "type": "string"
+      },
+      "last_practised": {
+       "type": "null"
+      },
+      "name": {
+       "type": "string"
+      },
+      "shared_id": {
+       "type": "null"
+      },
+      "source": {
+       "type": "null"
+      },
+      "source_ref": {
+       "type": "null"
+      },
+      "subject": {
+       "type": "string"
+      },
+      "week": {
+       "type": "null"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/flashcards",
    "sources": [
     "UniFlow/Views/AI/FlashcardComposer.swift",
     "UniFlow/Views/Exams/CardsPage.swift",
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift",
     "UniFlow/Views/TutorPanel.swift"
    ],
    "request": {
@@ -3042,6 +3271,9 @@
       },
       "ok": {
        "type": "bool"
+      },
+      "stack_id": {
+       "type": "number"
       }
      }
     }
@@ -3543,6 +3775,23 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/recordings/own",
+   "sources": [
+    "UniFlow/Views/Recordings/LectureRecorderViews.swift"
+   ],
+   "request": {
+    "path": "/api/recordings/own",
+    "body": {
+     "title": "Testaufnahme"
+    }
+   },
+   "expect": {
+    "status": 201,
+    "reason": "eigene Aufnahmen nur auf dem Geraet (angelegt: 201)"
    }
   },
   {

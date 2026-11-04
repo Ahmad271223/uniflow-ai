@@ -216,6 +216,7 @@ enum UFTrialBannerContent: Equatable {
 
     var text: String {
         switch self {
+        case .running(_, .service): return UFTrialTexts.runningTextService
         case .running: return UFTrialTexts.runningText
         case .over: return UFTrialTexts.overText
         }

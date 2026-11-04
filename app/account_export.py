@@ -8,7 +8,7 @@ und loescht sie danach. Inhalt:
   Abgleich-Auftraege, gespeicherte Hochschul-Zugangsdaten (Name und Benutzername; Passwoerter, Schluessel und Cookies
   nur als "gespeichert", damit eine verlorene ZIP keine Zugaenge verraet)
 - `daten/`: der Nutzerordner je Hochschule: Datenbanken (`lernapp.db`, konsistent ueber die SQLite-Sicherung kopiert)
-  mit Kursen, Notizen, Kalender, Lernpaketen, Karteikarten, Tests, dazu eigene Dateien und Protokolle. Ohne
+  mit Kursen, Notizen, Kalender, Lernpaketen, Karteikarten samt Stapeln, Tests, dazu eigene Dateien und Protokolle. Ohne
   Browser-Profile (Sitzungs-Cookies der Hochschule) und ohne Arbeitsordner der KI.
 - `community/`: eigene Loesungen (Liste und Pakete), eigene Korrekturvorschlaege, eigene Meldungen und Sperrliste
 - `testbibliothek.json`: eigene Fragen in der gemeinsamen Testbibliothek
@@ -138,7 +138,7 @@ konto.json            Konto, angemeldete Geräte, Anmeldewege (Apple/Google), Ta
                       Cookies nur als „gespeichert“).
 daten/                Deine Daten je Hochschule. lernapp.db ist eine SQLite-Datenbank (öffnen z. B. mit „DB Browser
                       for SQLite“): Kurse, Module, Notizen (Tabelle annotations), Stundenplan, Lernpakete, Aufgaben,
-                      Karteikarten, Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule
+                      Karteikarten mit ihren Stapeln (flashcards, flashcard_stacks), Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule
                       speichert der Dienst nicht; sie bleiben in Stud.IP bzw. im Learnweb.
 community/            Deine veröffentlichten Lösungen (Liste und Pakete), deine Korrekturvorschläge, deine Meldungen und deine Sperrliste.
 testbibliothek.json   Deine Fragen in der gemeinsamen Testbibliothek.

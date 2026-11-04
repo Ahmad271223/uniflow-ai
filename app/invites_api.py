@@ -7,6 +7,9 @@
 - POST /api/invites/claim {tier, choice}   Angebotscode fuer eine erreichte Stufe + Apples Einloese-Adresse
 - POST /api/billing/offer-codes {product, tier, codes|text}   Vorrat hochladen (nur Admin, Export aus App Store Connect)
 - GET  /api/billing/offer-codes     Vorrat je Produkt und Stufe (nur Admin)
+
+Anlegen, Einloesen und Belohnung abholen zaehlen je Konto gegen invites.LIMITS (429 rate_limited mit Retry-After),
+zusaetzlich zur Grenze aller /api-Aufrufe in app/server.py.
 """
 from __future__ import annotations
 
@@ -41,7 +44,8 @@ def _call(fn):
     try:
         return fn(conn)
     except invites.InviteError as e:
-        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+        headers = {"Retry-After": str(e.retry_after)} if e.retry_after else None
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code}, headers=headers)
     finally:
         conn.close()
 
@@ -97,4 +101,8 @@ def upload_offer_codes(request: Request, body: dict = Body(...)):
     codes = body.get("codes")
     if not isinstance(codes, list):
         codes = str(body.get("text") or "").splitlines()
-    return _call(lambda conn: invites.upload_codes(conn, str(body.get("product") or ""), body.get("tier"), [str(c) for c in codes]))
+    if len(codes) > invites.MAX_UPLOAD_LINES:
+        raise HTTPException(413, {"detail": f"Der Stapel ist zu groß (höchstens {invites.MAX_UPLOAD_LINES} Zeilen je Upload).",
+                                  "code": "offer_codes_too_many"})
+    return _call(lambda conn: invites.upload_codes(conn, str(body.get("product") or ""), body.get("tier"),
+                                                   [c if isinstance(c, str) else "" for c in codes]))
