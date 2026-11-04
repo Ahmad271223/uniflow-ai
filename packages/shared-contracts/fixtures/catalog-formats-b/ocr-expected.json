@@ -1,0 +1,5 @@
+{
+ "plain": "Modulkatalog Fach Beispielkunde\nPflichtmodul Grundlagen der Beispielkunde\nAnbieter Institut fuer Beispielkunde\nHäufigkeit des Angebots jedes Wintersemester\nECTS-LP/Workload 5 LP / 150 Std.\nPrüfungsleistungen Klausur (60 Minuten)\n1",
+ "layout": "              Modulkatalog Fach Beispielkunde\n              Pflichtmodul                 Grundlagen der Beispielkunde\n              Anbieter                     Institut fuer Beispielkunde\n              Häufigkeit des Angebots      jedes Wintersemester\n              ECTS-LP/Workload             5 LP / 150 Std.\n              Prüfungsleistungen           Klausur (60 Minuten)\n                                                            1",
+ "template": "phil"
+}

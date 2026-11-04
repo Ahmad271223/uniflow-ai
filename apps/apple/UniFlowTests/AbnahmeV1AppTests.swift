@@ -38,25 +38,59 @@ final class AbnahmeV1AppTests: XCTestCase {
 
     // MARK: Navigation, Texte
 
-    func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() {
+    /// Container eines erfundenen Apple-Nutzers in einem Temp-Ordner (eigene Einstellungs-Suiten, Schluesselbund-Dienst
+    /// nur fuer den Test); wird nicht zum aktiven Container
+    @MainActor
+    private func container(cloud: CommunityCloud?) throws -> ActiveContainer {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-abnahme-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let appSuite = "uniflow-abnahme-\(UUID().uuidString)"
+        let appDefaults = try XCTUnwrap(UserDefaults(suiteName: appSuite))
+        let key = DataContainerKey(userID: "001234.erfunden-ada.\(UUID().uuidString.prefix(8))", university: .luh)
+        let c = ActiveContainer(key: key, base: base, keychain: UniversityKeychain(service: "de.uniflow.ai.university.test.\(UUID().uuidString)"),
+                                cookieService: "de.uniflow.ai.test.\(UUID().uuidString)", appDefaults: appDefaults, cloud: cloud)
+        let suite = c.defaultsSuite
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: base)
+            UserDefaults().removePersistentDomain(forName: appSuite)
+            UserDefaults().removePersistentDomain(forName: suite)
+        }
+        return c
+    }
+
+    @MainActor
+    func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() throws {
         let without = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
-        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "files", "cards"])
+        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards"])
         let both = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
-        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "files", "cards", "services"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
+        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
         // Community nur mit CloudKit-Dienst im Build (iCloud-Container)
         let withCloud = UFNavItem.visible(local: true, gradesOnDevice: true, community: true).map(\.id)
-        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "files", "cards", "services", "community"])
+        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "community"])
         // eigene Karteikarten an Stelle der Wochentests (KI), ohne Funktion auf dem Geraet kein Eintrag
         XCTAssertEqual(UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: false).map(\.id),
-                       ["dashboard", "plan", "timetable", "modules", "files", "services"])
+                       ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services"])
         XCTAssertFalse(UFNavItem.visible(local: true, gradesOnDevice: true, community: true).contains { $0.id == "exams" })
         XCTAssertEqual(UFNavItem.cards.title, "Karteikarten")
         XCTAssertTrue(UFNavItem.cards.isActive(.cards))
         XCTAssertFalse(UFNavItem.cards.isActive(.exams))
         XCTAssertTrue(UFNavItem.main.first { $0.id == "exams" }?.isActive(.cards) == true, "am eigenen Server unter Tests & Wiederholung")
         XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false, community: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
-        // ohne Container im Build (CI, Personal Team) fehlt der Eintrag; mit eigener Team.xcconfig ist er verbunden
-        XCTAssertEqual(SolutionSharing.community.isConnected, CommunityCloudFactory.containerIdentifier() != nil)
+        // ohne Container im Build (CI, Personal Team) fehlt der Eintrag; mit eigener Team.xcconfig ist er verbunden.
+        // Geprueft an einem Container, wie die App ihn beim Anmelden oeffnet (CloudKit aus `CommunityCloudFactory`), nicht
+        // am gerade aktiven: der haengt davon ab, ob auf dem Simulator jemand angemeldet ist oder ein frueherer Test
+        // einen Container offen gelassen hat (ohne Anmeldung "nicht verbunden", mit Anmeldung verbunden)
+        let built = CommunityCloudFactory.containerIdentifier() != nil
+        let signedIn = try container(cloud: CommunityCloudFactory.make())
+        XCTAssertEqual(signedIn.community.isConnected, built)
+        XCTAssertEqual(SolutionSharing.community(account: nil, container: signedIn).isConnected, built)
+        XCTAssertFalse(SolutionSharing.community(account: nil, container: nil).isConnected, "niemand angemeldet")
+        let noCloud = try container(cloud: nil)
+        XCTAssertFalse(SolutionSharing.community(account: nil, container: noCloud).isConnected)
+        // StudiNow-Konto derselben Hochschule (G4) geht vor CloudKit
+        let account = CloudKitCommunityService(cloud: CommunityCloudKitTests.FakeCommunityCloud(assetDir: signedIn.layout.root),
+                                               university: .luh, membership: CommunityMembership(defaults: nil), courseKeys: { [] })
+        XCTAssertTrue(SolutionSharing.community(account: account, container: noCloud) as AnyObject === account)
         XCTAssertTrue(CommunityTexts.unavailableHint.contains("kein") && CommunityTexts.unavailableHint.contains("verschlüsselte Datei"))
     }
 

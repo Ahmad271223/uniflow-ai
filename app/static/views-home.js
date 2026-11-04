@@ -1,13 +1,17 @@
 // StudiNow – Übersicht (Startseite): beantwortet "Was mache ich heute?" (Design 2, style.css Abschnitt "Übersicht (Design 2)").
 // Oben links der größte Block mit der wichtigsten Information und dem Hauptknopf, daneben "Heute für dich geplant";
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
-// GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
-import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=41";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=46";
-import { openEvent } from "./views-tt.js?v=44";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=13";
+// GET /api/dashboard (study.dashboard); dazu Ergaenzungen, deren Fehler die Seite nicht anhalten: Neuigkeiten, Schwarzes
+// Brett und die Karte "Nächste Klausuren" (GET /api/exams/upcoming, exams.js; nur wenn es welche gibt).
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=43";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=48";
+import { openEvent } from "./views-tt.js?v=46";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=15";
 import { staggerOnce, countUp } from "./motion.js?v=2";
-import { newsCard, bindNews } from "./news.js?v=3";
+import { newsCard, bindNews } from "./news.js?v=5";
+import { ofWeek } from "./task-progress.js?v=1";
+import { masteryTile } from "./mastery.js?v=2";
+import { examsCard } from "./exams.js?v=1";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -99,12 +103,15 @@ function emptyAside() {
 }
 
 /// Die frühere Kästchenreihe als schlichte Zeile. "nachzuholen" steht schon groß im Fokus-Block und entfällt hier.
-function statLine(d, ctx) {
+/// "Aufgaben erledigt" zaehlt wie die Karte "Diese Woche" und der Lernkalender die Woche Mo–So (task-progress.js,
+/// Audit 03.11.2026); ohne Aufgaben "–" statt "0 / 0".
+function statLine(d) {
   const t = d.today; const free = t.free?.length ? t.free.reduce((a, w) => a + w.minutes, 0) : 0;
   const items = [];
   if (t.minutes) items.push(`<span><b>${fmtMin(t.minutes)}</b> heute geplant${free ? `, ${fmtMin(free)} frei` : ""}</span>`);
-  if (ctx.totalToday) items.push(`<span><b>${ctx.doneToday} / ${ctx.totalToday}</b> Aufgaben erledigt</span>`);
-  return items.length ? `<p class="ov-stats" aria-label="Kennzahlen von heute">${items.join("")}</p>` : "";   // nichts zu zählen: keine leere Zeile
+  const w = ofWeek(d.week);
+  items.push(w.empty ? `<span><b>–</b> diese Woche keine Aufgaben geplant</span>` : `<span><b>${w.text}</b> Aufgaben erledigt · diese Woche</span>`);
+  return `<p class="ov-stats" aria-label="Kennzahlen von heute und dieser Woche">${items.join("")}</p>`;
 }
 
 function termineCard(d) {
@@ -117,12 +124,14 @@ function termineCard(d) {
 function modulesCard(d) {
   const mods = (d.modules || []).filter(m => m.active !== 0).slice(0, 5);
   if (!mods.length) return "";
-  return `<section class="card ov-card"><div class="card-head"><h2>${icon("book", 18)} Deine Module</h2><a class="small" href="#/modules">Alle</a></div><div class="list">${mods.map(m => `<a class="item ov-mod" href="#/modules/${m.id}" style="--mc:${esc(m.color || "var(--accent)")}">${dot(m.color)}<div class="main"><div class="title">${esc(shortName(m.name))}</div><div class="sub">${m.open_tasks ? `${m.open_tasks} offen` : "nichts offen"}${m.exam_date ? ` · Klausur ${fmtShort(m.exam_date)}` : m.next_event ? ` · ${esc(m.next_event.kind === "vorlesung" ? "Vorlesung" : "Termin")} ${esc(dayLabel(m.next_event.date, d.today.date))} ${esc(m.next_event.start)}` : ""}</div><div class="progress ov-mod-bar" role="progressbar" aria-valuenow="${m.progress || 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Lernfortschritt ${m.progress || 0} Prozent"><i style="width:${m.progress || 0}%"></i></div></div></a>`).join("")}</div></section>`;
+  return `<section class="card ov-card"><div class="card-head"><h2>${icon("book", 18)} Deine Module</h2><a class="small" href="#/modules">Alle</a></div><div class="list">${mods.map(m => `<a class="item ov-mod" href="#/modules/${m.id}" style="--mc:${esc(m.color || "var(--accent)")}">${dot(m.color)}<div class="main"><div class="title">${esc(shortName(m.name))}</div><div class="sub">${m.open_tasks ? `${m.open_tasks} offen` : "nichts offen"}${m.exam_date ? ` · Klausur ${fmtShort(m.exam_date)}` : m.next_event ? ` · ${esc(m.next_event.kind === "vorlesung" ? "Vorlesung" : "Termin")} ${esc(dayLabel(m.next_event.date, d.today.date))} ${esc(m.next_event.start)}` : ""}</div><div class="progress ov-mod-bar" role="progressbar" aria-valuenow="${m.progress || 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Lernfortschritt ${m.progress || 0} Prozent"><i style="width:${m.progress || 0}%"></i></div><div class="ov-mastery">${masteryTile(m.mastery)}</div></div></a>`).join("")}</div></section>`;
 }
 
+/// Dieselbe Zahl wie "Aufgaben erledigt" in der Kennzahlenzeile (ofWeek); ohne Aufgaben keine Zahl und kein leerer Balken
 function weekCard(d) {
-  if (!d.week?.total) return "";
-  return `<section class="card ov-card"><div class="card-head"><h2>${icon("clock", 18)} Diese Woche</h2><span class="ov-t2 small">${d.week.done}/${d.week.total} erledigt</span></div><div class="progress ok" style="margin-bottom:.7rem"><i style="width:${Math.round(100 * d.week.done / d.week.total)}%"></i></div><div class="week-strip">${d.week.days.map(w => `<a class="d ${w.date === d.today.date ? "today" : ""}" href="#/plan?view=day&date=${w.date}"><b>${DAYS[(parseISO(w.date).getDay() + 6) % 7]}</b><span class="sd ${w.status}" style="margin:0 auto"></span><span class="m"${w.minutes ? ` title="${fmtMin(w.minutes)}"` : ""}>${w.minutes ? `${Math.floor(w.minutes / 60)}:${String(w.minutes % 60).padStart(2, "0")}` : "–"}</span></a>`).join("")}</div></section>`;
+  if (!d.week?.days?.length) return "";
+  const w = ofWeek(d.week);
+  return `<section class="card ov-card"><div class="card-head"><h2>${icon("clock", 18)} Diese Woche</h2>${w.empty ? "" : `<span class="ov-t2 small">${w.text} erledigt</span>`}</div>${w.empty ? "" : `<div class="progress ok" style="margin-bottom:.7rem"><i style="width:${Math.round(100 * w.fraction)}%"></i></div>`}<div class="week-strip">${d.week.days.map(w => `<a class="d ${w.date === d.today.date ? "today" : ""}" href="#/plan?view=day&date=${w.date}"><b>${DAYS[(parseISO(w.date).getDay() + 6) % 7]}</b><span class="sd ${w.status}" style="margin:0 auto"></span><span class="m"${w.minutes ? ` title="${fmtMin(w.minutes)}"` : ""}>${w.minutes ? `${Math.floor(w.minutes / 60)}:${String(w.minutes % 60).padStart(2, "0")}` : "–"}</span></a>`).join("")}</div></section>`;
 }
 
 function newFilesCard(d) {
@@ -143,7 +152,8 @@ function announcementsCard(d) {
 /// `hints()` liefert die Hinweiskarten des Dienstes (Probe, siehe app.js trialHint); sie stehen unter dem Tagesplan.
 export async function viewDashboard(_, __, view, hints = () => "") {
   // Neuigkeiten (Ankuendigungen, Nachrichten, Aenderungen) und neue Anzeigen im Schwarzen Brett sind Ergaenzungen: ein Fehler haelt die Uebersicht nicht an
-  const [d, news, bulletin] = await Promise.all([api("/dashboard"), api("/news").catch(() => null), api("/studip/bulletin").catch(() => null)]);
+  const [d, news, bulletin, exams] = await Promise.all([api("/dashboard"), api("/news").catch(() => null), api("/studip/bulletin").catch(() => null),
+    api("/exams/upcoming").catch(() => null)]);
   const h = new Date().getHours(); const greet = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
   const today = d.today, pk = today.packages;
   const evs = (today.events || []).filter(e => e.status !== "verschoben");
@@ -164,7 +174,8 @@ export async function viewDashboard(_, __, view, hints = () => "") {
   view.innerHTML = `<div class="content ov" style="max-width:1120px">
     <div class="page-head greet"><div><h1>${greet}!</h1><div class="date">${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })} · ${pk.length ? `heute ${pk.length} Lernpaket${pk.length > 1 ? "e" : ""}` : "heute kein Lernpaket"}${nEv ? ` · ${nEv} Uni-Termin${nEv > 1 ? "e" : ""}` : ""}</div></div>
       <div class="actions"><a class="btn" href="#/plan?view=day&date=${today.date}">${icon("calendar", 16)} Tagesansicht</a></div></div>
-    ${statLine(d, ctx)}
+    ${statLine(d)}
+    ${examsCard(exams?.items, icon("flag", 18))}
     <div class="ov-top${planEmpty ? " solo" : ""}">${focusBlock(d, ctx, focus, lecture, planEmpty && !soloFocus ? emptyAside() : "")}${planEmpty ? "" : planCard(d, ctx)}</div>
     ${installBanner()}${hints()}
     ${rest.length ? `<div class="ov-rest">${rest.join("")}</div>` : ""}</div>`;

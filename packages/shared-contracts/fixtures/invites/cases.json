@@ -1,0 +1,26 @@
+{
+  "about": "Belohnungsstufen der Einladungen (docs/EINLADUNGEN.md): app/invites.py reward_tier(count) (tests/test_invites.py) und InviteRewards.tier(count:) im Swift-Kern (InviteRewardsTests) muessen genau diese Werte liefern. 'tiers' ist die Tabelle selbst; beide Seiten pruefen ihre Tabelle dagegen.",
+  "max_links": 20,
+  "link_days": 30,
+  "create_days": 7,
+  "link_base": "https://studinow.app/i/",
+  "tiers": [
+    {"count": 5, "choices": ["plus"], "rewards": {"plus": "1 Monat StudiNow Plus gratis"}},
+    {"count": 10, "choices": ["plus"], "rewards": {"plus": "3 Monate StudiNow Plus gratis"}},
+    {"count": 20, "choices": ["plus", "proai"], "rewards": {"plus": "12 Monate StudiNow Plus gratis", "proai": "12 Monate StudiNow Pro AI zum Plus-Preis (1,99 € statt 3,99 €)"}}
+  ],
+  "cases": [
+    {"count": 0, "tier": null, "reached": []},
+    {"count": 1, "tier": null, "reached": []},
+    {"count": 4, "tier": null, "reached": []},
+    {"count": 5, "tier": 5, "reached": [5]},
+    {"count": 6, "tier": 5, "reached": [5]},
+    {"count": 9, "tier": 5, "reached": [5]},
+    {"count": 10, "tier": 10, "reached": [5, 10]},
+    {"count": 11, "tier": 10, "reached": [5, 10]},
+    {"count": 19, "tier": 10, "reached": [5, 10]},
+    {"count": 20, "tier": 20, "reached": [5, 10, 20]},
+    {"count": 21, "tier": 20, "reached": [5, 10, 20]},
+    {"count": 100, "tier": 20, "reached": [5, 10, 20]}
+  ]
+}

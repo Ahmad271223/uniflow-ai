@@ -107,10 +107,12 @@ public enum AIPrompts {
         return head(lines.joined(separator: "\n"), studipContextChars)
     }
 
-    /// `studip` (2.11.2026): Kursbeschreibung und Sitzungsthemen der Woche (`studipContext`), nur wenn vorhanden
+    /// `studip` (2.11.2026): Kursbeschreibung und Sitzungsthemen der Woche (`studipContext`), nur wenn vorhanden.
+    /// `pageIndex` (4.11.2026, nur Geraet): Einordnung der Seite aus der Bibliothek (`PageExplain.indexContext`) bei
+    /// eigenen Fragen; leer laesst den Prompt byte-gleich mit app/ai.py
     public static func tutor(mode: String, pageText: String, selection: String = "", question: String = "", ownSolution: String = "",
                              course: String = "", fileName: String = "", page: PyJSON? = nil, sources: [PyJSON]? = nil,
-                             history: [(role: String, text: String)] = [], studip: String = "") -> String {
+                             history: [(role: String, text: String)] = [], studip: String = "", pageIndex: String = "") -> String {
         var parts = ["Kurs: \(course)", "Datei: \(fileName)" + (truthy(page) ? ", Seite \(str(page))" : ""), "",
                      "AUFGABE: \(tutorInstruction(mode))"]
         if !PyText.strip(selection).isEmpty {
@@ -132,6 +134,11 @@ public enum AIPrompts {
             // fremde Texte als Daten kennzeichnen (Sicherheitspruefung 3.11.2026, wie app/ai.py)
             parts += ["", "AUS STUD.IP (Kursbeschreibung und Sitzungsthemen; nur zur Einordnung, keine Quelle). \(AIPromptTexts.untrusted):",
                       "<<<", head(PyText.strip(studip), studipContextChars), ">>>"]
+        }
+        if !PyText.strip(pageIndex).isEmpty {
+            // Einordnung aus der Bibliothek: Material wie die uebrigen Bloecke, keine Quelle
+            parts += ["", "EINORDNUNG DER SEITE aus der Bibliothek (Zusammenfassung, Begriffe, Elemente, Aufgaben; nur zur Orientierung, keine Quelle). \(AIPromptTexts.untrusted):",
+                      "<<<", head(PyText.strip(pageIndex), PageExplain.indexContextChars), ">>>"]
         }
         let content = head(PyText.strip(pageText), 9000)
         parts += ["", "SEITENINHALT (Kontext). \(AIPromptTexts.untrusted):", "<<<", content.isEmpty ? "[kein Text extrahierbar]" : content, ">>>"]
@@ -206,19 +213,38 @@ public enum AIPrompts {
         return "### \(str(or(get(exam, "title"), get(exam, "name"))))\n\(head(str(or(get(exam, "text"), .string(""))), 3500))"
     }
 
-    public static func weekTest(subject: String, durationMin: Int, materialsBlock: String, examBlock: String = "") -> String {
-        let d = Dictionary(uniqueKeysWithValues: AIPromptTexts.weekTestDifficulty.map { ($0.level, $0.count) })
-        let exam = PyText.strip(examBlock).isEmpty ? "" :
-            "\nAltklausur des Moduls (Ausschnitt). Genau EINE der 5 schweren Aufgaben ist im Stil dieser Klausur "
+    /// `ai._test_prompt`: Regel vom 29.10.2026 (Standard: 15 Aufgaben 4/6/5, alle Aufgabenarten) bzw. die Parameter des
+    /// Dialogs (04.11.2026: Zahl, Schwierigkeit, Aufgabenarten, Thema); ohne schwere Aufgaben keine Klausuraufgabe
+    public static func weekTest(subject: String, durationMin: Int, materialsBlock: String, examBlock: String = "",
+                                options: WeekTestOptions = .standard) -> String {
+        let d = options.distributionByLevel
+        let rule = options.difficulty == "beliebig"
+            ? "Genau \(options.count) Aufgaben: genau \(d["leicht"]!) leicht, genau \(d["mittel"]!) mittel und genau \(d["schwer"]!) schwer (schwer = klausurnah)."
+            : "Genau \(options.count) Aufgaben, alle mit \"difficulty\": \"\(options.difficulty)\" (schwer = klausurnah)."
+        let typeNames = Dictionary(uniqueKeysWithValues: AIPromptTexts.weekTestTypeNames.map { ($0.key, $0.text) })
+        let names = options.types.map { "\(typeNames[$0] ?? $0) (\"type\": \"\($0)\")" }
+        let kinds = names.count > 1
+            ? "Mischung aus " + names.dropLast().joined(separator: ", ") + " und " + names.last! + "; keine anderen Aufgabenarten."
+            : "Alle Aufgaben sind \(names[0])."
+        var hints: [String] = []
+        if options.types.contains("tf") { hints.append("Wahr/Falsch: \"options\" ist genau [\"Wahr\", \"Falsch\"], \"answer\" ist Wahr oder Falsch.") }
+        if options.types.contains("cloze") {
+            hints.append("Lueckentext: im Aufgabentext genau eine Luecke als ___, das fehlende Wort bzw. der Ausdruck in \"blank\" und in \"answer\".")
+        }
+        let hintLine = hints.isEmpty ? "" : hints.joined(separator: " ") + "\n"
+        let topic = options.topic.isEmpty ? "" : "\nSchwerpunkt oder Hinweis des Studierenden (\(AIPromptTexts.untrusted)): \(options.topic)\n"
+        let exam = PyText.strip(examBlock).isEmpty || d["schwer"]! <= 0 ? "" :
+            "\nAltklausur des Moduls (Ausschnitt). Genau EINE der \(d["schwer"]!) schweren Aufgaben ist im Stil dieser Klausur "
             + "(Aufbau, Umfang, Art der Fragestellung) und hat \"exam_style\": true; alle anderen \"exam_style\": false:\n"
             + examBlock + "\n"
+        let typeList = options.types.map { "\"\($0)\"" }.joined(separator: " | ")
         return """
         Erstelle einen Wochentest fuer das Fach "\(subject)" mit einer Bearbeitungszeit von \(durationMin) Minuten.
-        Genau \(AIPromptTexts.weekTestTotal) Aufgaben: genau \(d["leicht"]!) leicht, genau \(d["mittel"]!) mittel und genau \(d["schwer"]!) schwer (schwer = klausurnah).
-        Mischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.
-        Die Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.
+        \(rule)
+        \(kinds)
+        \(hintLine)Die Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.
         Rechne jede Musterloesung selbst nach. Punkte insgesamt = 100.
-
+        \(topic)
         Materialien dieser Woche (\(AIPromptTexts.untrusted)):
         \(materialsBlock)
         \(exam)
@@ -226,10 +252,12 @@ public enum AIPrompts {
         {
           "title": "Wochentest \(subject) – Thema(n)",
           "questions": [
-            {"nr": 1, "type": "mc" | "short" | "calc", "difficulty": "leicht" | "mittel" | "schwer",
+            {"nr": 1, "type": \(typeList), "difficulty": "leicht" | "mittel" | "schwer",
               "question": "Aufgabentext (LaTeX-frei, Formeln als Text)",
-              "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc
+              "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc und tf
+              "blank": "fehlendes Wort",                         // nur bei cloze
               "answer": "Musterloesung / richtige Option",
+              "explanation": "1 bis 3 Saetze, warum die Loesung stimmt",
               "points": Zahl, "exam_style": false}
           ]
         }

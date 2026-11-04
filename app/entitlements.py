@@ -46,10 +46,15 @@ def required_plan(entitlement: str) -> str | None:
     return e["from"] if e else None
 
 
+# eigene Meldungen fuer Rechte, deren Sperre der Nutzer an einer bestimmten Stelle sieht (sonst "Diese Funktion ...")
+MESSAGES = {"can_use_flashcards": "Karteikarten gibt es ab StudiNow Plus."}
+
+
 def forbidden(entitlement: str) -> HTTPException:
     need = required_plan(entitlement)
     name = plans.PLANS[need]["name"] if need else "einem höheren Tarif"
-    return HTTPException(403, {"detail": f"Diese Funktion gibt es ab {name}.", "code": "plan_required",
+    detail = MESSAGES.get(entitlement) or f"Diese Funktion gibt es ab {name}."
+    return HTTPException(403, {"detail": detail, "code": "plan_required",
                                "entitlement": entitlement, "required_plan": need})
 
 

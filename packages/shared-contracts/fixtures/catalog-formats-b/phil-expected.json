@@ -1,0 +1,177 @@
+{
+ "luh|beispielkunde-im-faecheruebergreifenden-bachelor|b.a.|2016": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielkunde",
+  "degree": "B.A.",
+  "po": "2016",
+  "catalog_term": "WS 2026/27",
+  "code": "beispielkunde-im-faecheruebergreifenden-bachelor|b.a.|2016",
+  "regular_semesters": 6,
+  "total_lp": null,
+  "source": {
+   "url": "https://example.invalid/beispielkunde.pdf",
+   "fetched_at": "2026-11-04T21:00:00Z",
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "pflichtmodule",
+    "name": "Pflichtmodule",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "abschlussbereich",
+    "name": "Abschlussbereich",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "abschluss"
+   }
+  ],
+  "modules": [
+   {
+    "id": "grundlagen-der-beispielkunde",
+    "title": "Grundlagen der Beispielkunde",
+    "code": "10 100",
+    "area": "pflichtmodule",
+    "kind": "pflicht",
+    "lp": 8,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur (90 Minuten)",
+    "coursework": "Eine Studienleistung pro Lehrveranstaltung",
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 240,
+    "source_page": 1
+   },
+   {
+    "id": "vertiefung-der-beispielkunde",
+    "title": "Vertiefung der Beispielkunde",
+    "code": null,
+    "area": "pflichtmodule",
+    "kind": "pflicht",
+    "lp": 10,
+    "semester": 2,
+    "turnus": "WS+SS",
+    "exam": "Hausarbeit (15 Seiten)",
+    "coursework": "Referat",
+    "prerequisites": [
+     "grundlagen-der-beispielkunde"
+    ],
+    "language": null,
+    "workload_h": 300,
+    "source_page": 2
+   },
+   {
+    "id": "bachelorarbeit",
+    "title": "Bachelorarbeit",
+    "code": "9999",
+    "area": "abschlussbereich",
+    "kind": "abschluss",
+    "lp": 10,
+    "semester": 6,
+    "turnus": "WS+SS",
+    "exam": "Bachelorarbeit (40 Seiten)",
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 300,
+    "source_page": 4
+   }
+  ]
+ },
+ "luh|beispielkunde-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielkunde",
+  "degree": "M.Ed.",
+  "po": "2016",
+  "catalog_term": "WS 2026/27",
+  "code": "beispielkunde-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
+  "regular_semesters": 4,
+  "total_lp": null,
+  "source": {
+   "url": "https://example.invalid/beispielkunde.pdf",
+   "fetched_at": "2026-11-04T21:00:00Z",
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "pflichtmodule",
+    "name": "Pflichtmodule",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "wahlpflichtmodule",
+    "name": "Wahlpflichtmodule",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "wahlpflicht"
+   },
+   {
+    "id": "wahlpflichtbereich",
+    "name": "Wahlpflichtbereich",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "wahlpflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "grundlagen-der-beispielkunde",
+    "title": "Grundlagen der Beispielkunde",
+    "code": "10 100",
+    "area": "pflichtmodule",
+    "kind": "pflicht",
+    "lp": 8,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur (90 Minuten)",
+    "coursework": "Eine Studienleistung pro Lehrveranstaltung",
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 240,
+    "source_page": 1
+   },
+   {
+    "id": "vertiefung-der-beispielkunde",
+    "title": "Vertiefung der Beispielkunde",
+    "code": null,
+    "area": "wahlpflichtmodule",
+    "kind": "wahlpflicht",
+    "lp": 10,
+    "semester": 2,
+    "turnus": "WS+SS",
+    "exam": "Hausarbeit (15 Seiten)",
+    "coursework": "Referat",
+    "prerequisites": [
+     "grundlagen-der-beispielkunde"
+    ],
+    "language": null,
+    "workload_h": 300,
+    "source_page": 2
+   },
+   {
+    "id": "beispielpraxis-im-lehramt",
+    "title": "Beispielpraxis im Lehramt",
+    "code": null,
+    "area": "wahlpflichtbereich",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": 2,
+    "turnus": "SS",
+    "exam": "Portfolio",
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 150,
+    "source_page": 3
+   }
+  ]
+ }
+}

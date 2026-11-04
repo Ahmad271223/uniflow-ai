@@ -237,12 +237,14 @@ final class FlashcardTrainer: ObservableObject {
         }
     }
 
-    /// Gespeicherten Stand (Antwort von PATCH, ohne file_name) in Durchgang und Ausgangsliste uebernehmen
-    private func merge(_ saved: JSONValue) {
+    /// Gespeicherten Stand (Antwort von PATCH, ohne file_name) in Durchgang und Ausgangsliste uebernehmen; nach
+    /// "Bearbeiten" (04.11.2026) auch Frage, Antwort, Fach und Stapel, die Karte bleibt an ihrer Stelle
+    func merge(_ saved: JSONValue) {
         guard let id = saved.i("id") else { return }
         func updated(_ c: JSONValue) -> JSONValue {
             var c = c
             for k in ["bookmarked", "hidden", "last_result"] { c[k] = saved[k] ?? .null }
+            for k in ["question", "answer", "subject", "stack_id"] where saved[k] != nil { c[k] = saved[k] }
             return c
         }
         cards = cards.map { $0.i("id") == id ? updated($0) : $0 }
@@ -255,12 +257,216 @@ final class FlashcardTrainer: ObservableObject {
     }
 }
 
+// MARK: - Buehne: Fortschritt, grosse Karte, grosse Antworten (Trainer und "Heute fällig")
+
+// Neugestaltung 04.11.2026 (Vorbild-Vergleich): Karteikarten wirken wie Gegenstaende. Oben "Karte 3 von 12" mit
+// Balken, in der Mitte eine grosse Karte (Tippen dreht sie um die senkrechte Achse; bei "Bewegung reduzieren" nur
+// Ueberblenden), darunter die beiden grossen Antworten in Gruen und Rot. Dieselben Bausteine nutzt die Wiederholung
+// "Heute fällig" auf der Karteikarten-Seite.
+
+/// Fortschritt oben: "Karte 3 von 12" gross, Zusatz darunter, Zaehler rechts, Balken der erledigten Karten
+struct FlashcardProgressHeader<Trailing: View>: View {
+    /// aktuelle Karte, 1-basiert
+    let current: Int
+    let total: Int
+    /// erledigte Karten (fuer den Balken)
+    let done: Int
+    var detail: String?
+    @ViewBuilder var trailing: Trailing
+
+    init(current: Int, total: Int, done: Int, detail: String? = nil, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+        self.current = current
+        self.total = total
+        self.done = done
+        self.detail = detail
+        self.trailing = trailing()
+    }
+
+    /// "Karte 3 von 12"; am Ende die letzte Karte, nie "Karte 0"
+    static func label(current: Int, total: Int) -> String { "Karte \(min(max(current, 1), max(total, 1))) von \(total)" }
+
+    /// Anteil fuer den Balken (0...1)
+    static func fraction(done: Int, total: Int) -> Double { total <= 0 ? 0 : min(1, max(0, Double(done) / Double(total))) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 12) {
+                    titles
+                    Spacer(minLength: 8)
+                    HStack(spacing: 8) { trailing }.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    titles
+                    HStack(spacing: 8) { trailing }
+                }
+            }
+            UFProgress(value: Self.fraction(done: done, total: total), height: 8)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var titles: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(Self.label(current: current, total: total))
+                .ufFont(19.2, 700, em: -0.01).monospacedDigit().foregroundStyle(UF.text)
+            if let detail {
+                Text(detail).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Grosse Karte: Vorder- und Rueckseite. Mit Bewegung dreht sie sich um die senkrechte Achse (die Seite wechselt bei
+/// 90 Grad, die Rueckseite steht nie spiegelverkehrt); bei "Bewegung reduzieren" und unter XCTest nur Ueberblenden.
+struct FlashcardFlip<Front: View, Back: View>: View {
+    let flipped: Bool
+    @ViewBuilder var front: Front
+    @ViewBuilder var back: Back
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if reduceMotion || !UFMotion.moves {
+            ZStack {
+                if flipped { back.transition(.opacity) } else { front.transition(.opacity) }
+            }
+        } else {
+            FlashcardFlipEffect(angle: flipped ? 180 : 0, front: front, back: back)
+        }
+    }
+}
+
+/// Drehung mit animierbarem Winkel: bis 90 Grad die Vorderseite, danach die (gegengedrehte) Rueckseite
+private struct FlashcardFlipEffect<Front: View, Back: View>: View, Animatable {
+    var angle: Double
+    let front: Front
+    let back: Back
+
+    var animatableData: Double {
+        get { angle }
+        set { angle = newValue }
+    }
+
+    var body: some View {
+        ZStack {
+            if angle < 90 { front } else { back.rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0)) }
+        }
+        .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
+    }
+}
+
+/// Hoehe der grossen Lernkarte (Frei ueben und "Heute fällig"): quer wie bisher 340 pt; hochkant waechst sie mit
+/// der sichtbaren Seite (die Haelfte der Hoehe, hoechstens 720 pt), damit unter den Knoepfen keine leere Flaeche
+/// bleibt. Bedienungshilfen-Schriftgroessen: Kopf, Hinweis und Knoepfe sind hoeher, darum waechst die Karte bei den
+/// ersten beiden Stufen nur auf 40 % und ab der dritten (dort endet die Schriftskalierung) gar nicht; die Knoepfe
+/// bleiben so ohne Scrollen sichtbar.
+enum FlashcardCardLayout {
+    static let baseMinHeight: CGFloat = 340
+    static let portraitCap: CGFloat = 720
+
+    /// Anteil der sichtbaren Hoehe hochkant (0 = nicht wachsen)
+    static func portraitFraction(_ typeSize: DynamicTypeSize) -> CGFloat {
+        if typeSize >= .accessibility3 { return 0 }
+        return typeSize.isAccessibilitySize ? 0.4 : 0.5
+    }
+
+    /// `viewport`: sichtbare Flaeche der Seite (Scrollbereich); `.zero` (noch nicht gemessen) = Grundhoehe
+    static func minHeight(viewport: CGSize, typeSize: DynamicTypeSize) -> CGFloat {
+        guard viewport.height > viewport.width, viewport.width > 0 else { return baseMinHeight }
+        return min(portraitCap, max(baseMinHeight, (viewport.height * portraitFraction(typeSize)).rounded()))
+    }
+}
+
+/// Eine Seite der grossen Karte: Etikett oben links, Text gross in der Mitte, optional die Frage klein darueber
+struct FlashcardFace: View {
+    let label: String
+    let text: String
+    /// Vorderseite: groesser und fett; Rueckseite: ruhiger
+    var front = true
+    /// Frage klein ueber der Antwort (Rueckseite der Wiederholung)
+    var context: String?
+    var tint: Color = UF.accentText
+    /// Rand (beim Wischen gruen bzw. rot)
+    var stroke: Color?
+    var minHeight: CGFloat = 340
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Circle().fill(tint).frame(width: 7, height: 7)
+                Text(label.uppercased()).ufFont(11.84, 700, em: 0.08).foregroundStyle(tint)
+                Spacer(minLength: 0)
+            }
+            .accessibilityHidden(true)
+            Spacer(minLength: 16)
+            if let context, !context.isEmpty {
+                Text(FormulaText.render(context)).ufFont(14.5, 500).foregroundStyle(UF.muted)
+                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 14)
+            }
+            Text(FormulaText.render(text))
+                .ufFont(front ? 26 : 20.8, front ? 650 : 450, lh: 1.35, em: front ? -0.01 : 0)
+                .foregroundStyle(UF.text)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 16)
+        }
+        .padding(.horizontal, 32).padding(.top, 20).padding(.bottom, 28)
+        .frame(maxWidth: .infinity, minHeight: minHeight)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(stroke ?? UF.line, lineWidth: stroke == nil ? 1 : 2.5))
+        .ufShadow(.md)
+    }
+}
+
+/// Grosse Antwort unter der Karte (mindestens 60 pt hoch): Gruen fuer gewusst/richtig, Rot fuer nicht gewusst/falsch,
+/// Akzent fuer "Antwort zeigen". Weiche Flaeche, kraeftiger Rand und Schrift: lesbar in hell und dunkel.
+struct FlashcardAnswerButton: View {
+    let title: String
+    let icon: String
+    let tone: UFTone
+    let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        let (fg, bg, border): (Color, Color, Color) = switch tone {
+        case .ok: (UF.okText, UF.okSoft, UF.ok)
+        case .bad: (UF.badText, UF.badSoft, UF.bad)
+        default: (.white, UF.accentFill, UF.accentFill)
+        }
+        Button(action: action) {
+            HStack(spacing: 10) {
+                UFIcon(icon, size: 20)
+                Text(title).lineLimit(1).minimumScaleFactor(0.75)
+            }
+            .ufFont(17.6, 650)
+            .foregroundStyle(fg)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(bg))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(border, lineWidth: 1.5))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(isEnabled ? 1 : 0.5)
+        }
+        .buttonStyle(UFPressStyle())
+        .accessibilityLabel(title)
+    }
+}
+
 // MARK: - Lernansicht
 
 struct FlashcardTrainerView: View {
     @ObservedObject var trainer: FlashcardTrainer
+    /// Unterzeile im Kopf (Name des Stapels, "Woche 3 komplett")
+    var subtitle: String?
     /// Trainer verlassen (die Seite laedt danach neu)
     let onClose: () -> Void
+    /// "Bearbeiten" im Menue der Karte: oeffnet den Dialog der Seite; der neue Text kommt ueber `trainer.merge`
+    var onEdit: ((JSONValue) -> Void)?
+    /// Mindesthoehe der Karte (`FlashcardCardLayout.minHeight`, hochkant hoeher)
+    var cardMinHeight: CGFloat = FlashcardCardLayout.baseMinHeight
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -270,28 +476,33 @@ struct FlashcardTrainerView: View {
     private let swipeThreshold: CGFloat = 110
 
     var body: some View {
-        UFCard {
-            topBar
+        VStack(alignment: .leading, spacing: 0) {
+            topBar.padding(.bottom, 16)
             if trainer.empty {
-                UFEmpty(icon: "filter", text: trainer.options.scope == .bookmarked
-                        ? "Keine Karte mit Lesezeichen passt zu diesen Optionen."
-                        : "Keine Karte passt zu diesen Optionen.") {
-                    UFButton("Optionen", icon: "filter", size: .small) { openOptions() }.padding(.top, 8)
+                UFCard {
+                    UFEmpty(icon: "filter", text: trainer.options.scope == .bookmarked
+                            ? "Keine Karte mit Lesezeichen passt zu diesen Optionen."
+                            : "Keine Karte passt zu diesen Optionen.") {
+                        UFButton("Optionen", icon: "filter", size: .small) { openOptions() }.padding(.top, 8)
+                    }
                 }
             } else if trainer.finished {
                 summary
             } else if let c = trainer.current {
-                counters.padding(.vertical, 12)
+                FlashcardProgressHeader(current: trainer.position + 1, total: trainer.cards.count, done: trainer.position) { counters }
+                    .padding(.bottom, 20)
                 card(c)
-                Text("Tippen zum Umdrehen · nach rechts wischen: gewusst · nach links: nicht gewusst")
+                Text("Tippen oder Leertaste zum Umdrehen · → gewusst · ← nicht gewusst · auch wischen")
                     .ufFont(12.8).foregroundStyle(UF.muted)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 10)
+                    .padding(.top, 12)
                     .accessibilityHidden(true)
-                answerBar.padding(.top, 14)
+                answerBar.padding(.top, 16)
             }
         }
+        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: Kopf: Beenden, Neu starten, Optionen
@@ -299,8 +510,14 @@ struct FlashcardTrainerView: View {
     private var topBar: some View {
         HStack(spacing: 8) {
             TrainerIconButton(icon: "arrow-left", label: "Üben beenden") { onClose() }
-            Text("Frei üben").ufFont(15.2, 650).foregroundStyle(UF.text)
-                .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Frei üben").ufFont(17.6, 700, em: -0.01).foregroundStyle(UF.text)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             TrainerIconButton(icon: "refresh", label: "Neu starten") { trainer.restart() }
                 .disabled(trainer.busy || trainer.source.isEmpty)
@@ -308,16 +525,11 @@ struct FlashcardTrainerView: View {
         }
     }
 
-    // MARK: Zaehler: nicht gewusst | n/gesamt | gewusst
+    // MARK: Zaehler: nicht gewusst | gewusst
 
     private var counters: some View {
         HStack(spacing: 8) {
             CounterPill(label: "Nicht gewusst", value: trainer.unknown, tone: .bad)
-            Spacer(minLength: 4)
-            Text(trainer.progressText)
-                .ufFont(15.2, 650).monospacedDigit().foregroundStyle(UF.text)
-                .accessibilityLabel("Karte \(min(trainer.position + 1, trainer.cards.count)) von \(trainer.cards.count)")
-            Spacer(minLength: 4)
             CounterPill(label: "Gewusst", value: trainer.known, tone: .ok)
         }
     }
@@ -331,31 +543,20 @@ struct FlashcardTrainerView: View {
         let bookmarked = (c.i("bookmarked") ?? 0) != 0
         let hidden = (c.i("hidden") ?? 0) != 0
         let lean = drag.width / swipeThreshold                          // -1 ... 1 und weiter
-        return ZStack(alignment: .topLeading) {
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                Text(text)
-                    .ufFont(definition ? 17.6 : 21, definition ? 400 : 600)
-                    .foregroundStyle(definition ? UF.text2 : UF.text)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 56)
-                    .id("\(c.i("id") ?? 0)-\(definition)")
-                    .transition(reduceMotion || !UFMotion.moves ? .identity : .opacity)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, minHeight: 300)
-            Text(side.uppercased())
-                .ufFont(11.84, 650, em: 0.06).foregroundStyle(UF.muted)
-                .padding(.top, 14).padding(.leading, 18)
-                .accessibilityHidden(true)
+        // Vorderseite = die zuerst gezeigte Seite (Optionen: Begriff oder Definition)
+        let firstIsTerm = trainer.options.firstSide == .term
+        let frontText = (firstIsTerm ? c.s("question") : c.s("answer")) ?? ""
+        let backText = (firstIsTerm ? c.s("answer") : c.s("question")) ?? ""
+        return FlashcardFlip(flipped: trainer.flipped) {
+            FlashcardFace(label: firstIsTerm ? "Begriff" : "Definition", text: frontText, front: firstIsTerm,
+                          tint: UF.accentText, stroke: swipeTint(lean), minHeight: cardMinHeight)
+        } back: {
+            FlashcardFace(label: firstIsTerm ? "Definition" : "Begriff", text: backText, front: !firstIsTerm,
+                          tint: UF.okText, stroke: swipeTint(lean), minHeight: cardMinHeight)
         }
-        .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
-        .overlay(RoundedRectangle(cornerRadius: UF.rLg).strokeBorder(swipeTint(lean) ?? UF.line, lineWidth: swipeTint(lean) == nil ? 1 : 2))
+        .id(c.i("id") ?? 0)                                             // neue Karte: neue Ansicht, keine Rueckdrehung
         .overlay(alignment: .top) { swipeBadge(lean) }
-        .ufShadow(.md)
-        .contentShape(RoundedRectangle(cornerRadius: UF.rLg))
+        .contentShape(RoundedRectangle(cornerRadius: 22))
         .offset(x: drag.width)
         .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag.width) / 30))
         .onTapGesture { flip() }
@@ -371,8 +572,12 @@ struct FlashcardTrainerView: View {
         .accessibilityAction(named: "Erneut fragen") { askAgain() }
         .accessibilityAction(named: bookmarked ? "Lesezeichen entfernen" : "Lesezeichen setzen") { bookmark() }
         .accessibilityAction(named: hidden ? "Karte wieder zeigen" : "Karte verstecken") { hide() }
+        .accessibilityAction(named: "Bearbeiten") { edit() }
         .overlay(alignment: .topTrailing) {
             HStack(spacing: 0) {
+                if onEdit != nil {
+                    TrainerIconButton(icon: "pen", label: "Bearbeiten") { edit() }
+                }
                 TrainerIconButton(icon: "bookmark", label: bookmarked ? "Lesezeichen entfernen" : "Lesezeichen setzen",
                                   on: bookmarked) { bookmark() }
                 Button { hide() } label: {
@@ -386,7 +591,7 @@ struct FlashcardTrainerView: View {
                 .accessibilityLabel(hidden ? "Karte wieder zeigen" : "Karte verstecken")
             }
             .disabled(trainer.busy)
-            .padding(4)
+            .padding(6)
             .offset(x: drag.width)
             .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag.width) / 30))
         }
@@ -408,6 +613,7 @@ struct FlashcardTrainerView: View {
                 .background(Capsule().fill(known ? UF.okSoft : UF.badSoft))
                 .opacity(min(1, Double(abs(lean))))
                 .padding(.top, 12)
+                .offset(x: drag.width)
                 .accessibilityHidden(true)
         }
     }
@@ -433,40 +639,58 @@ struct FlashcardTrainerView: View {
         if let a = UFMotion.animation(reduce: reduceMotion, fadeWhenReduced: false) { withAnimation(a) { drag = to } } else { drag = to }
     }
 
-    // MARK: Knoepfe unten: Vorherige | Nicht gewusst | Gewusst
+    // MARK: Knoepfe unten: Nicht gewusst | Gewusst, darunter Vorherige | Umdrehen | Erneut fragen
 
     private var answerBar: some View {
-        HStack(spacing: 10) {
-            TrainerWideButton(title: "Vorherige", icon: "undo", tone: .neutral) { previous() }
-                .disabled(!trainer.canGoBack)
-                .keyboardShortcut("z", modifiers: .command)
-            // Karte ein paar Fragen spaeter noch einmal (Wunsch des Inhabers 03.11.2026), ohne Urteil
-            TrainerWideButton(title: "Erneut fragen", icon: "refresh", tone: .neutral) { askAgain() }
-                .disabled(!trainer.canAskAgain)
-                .keyboardShortcut("r", modifiers: [])
-                .accessibilityIdentifier("trainer.askAgain")
-            Spacer(minLength: 0)
-            TrainerWideButton(title: "Nicht gewusst", icon: "x", tone: .bad) { answer(false) }
-                .disabled(trainer.busy)
-                .keyboardShortcut(.leftArrow, modifiers: [])
-            TrainerWideButton(title: "Gewusst", icon: "check", tone: .ok) { answer(true) }
-                .disabled(trainer.busy)
-                .keyboardShortcut(.rightArrow, modifiers: [])
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                FlashcardAnswerButton(title: "Nicht gewusst", icon: "x", tone: .bad) { answer(false) }
+                    .disabled(trainer.busy)
+                    .keyboardShortcut(.leftArrow, modifiers: [])
+                FlashcardAnswerButton(title: "Gewusst", icon: "check", tone: .ok) { answer(true) }
+                    .disabled(trainer.busy)
+                    .keyboardShortcut(.rightArrow, modifiers: [])
+            }
+            HStack(spacing: 10) {
+                TrainerWideButton(title: "Vorherige", icon: "undo", tone: .neutral) { previous() }
+                    .disabled(!trainer.canGoBack)
+                    .keyboardShortcut("z", modifiers: .command)
+                Spacer(minLength: 0)
+                TrainerWideButton(title: "Umdrehen", icon: "rotate", tone: .neutral) { flip() }
+                    .keyboardShortcut(.space, modifiers: [])
+                Spacer(minLength: 0)
+                // Karte ein paar Fragen spaeter noch einmal (Wunsch des Inhabers 03.11.2026), ohne Urteil
+                TrainerWideButton(title: "Erneut fragen", icon: "refresh", tone: .neutral) { askAgain() }
+                    .disabled(!trainer.canAskAgain)
+                    .keyboardShortcut("r", modifiers: [])
+                    .accessibilityIdentifier("trainer.askAgain")
+            }
         }
     }
 
     // MARK: Ende des Durchgangs
 
     private var summary: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            counters.padding(.vertical, 12)
-            Text("Durchgang geschafft").ufFont(17.6, 650).foregroundStyle(UF.text).padding(.top, 8)
+        let n = trainer.known + trainer.unknown
+        return VStack(spacing: 0) {
+            ZStack {
+                Circle().fill(UF.okSoft)
+                UFIcon("check", size: 30).foregroundStyle(UF.okText)
+            }
+            .frame(width: 72, height: 72)
+            .accessibilityHidden(true)
+            Text("Durchgang geschafft").ufFont(23.2, 700, em: -0.01).foregroundStyle(UF.text).padding(.top, 14)
                 .accessibilityAddTraits(.isHeader)
-            let n = trainer.known + trainer.unknown
             Text("\(n) \(n == 1 ? "Karte" : "Karten") geübt: \(trainer.known) gewusst, \(trainer.unknown) nicht gewusst.")
-                .ufFont(14.5).foregroundStyle(UF.text2).padding(.top, 4)
+                .ufFont(15.2).foregroundStyle(UF.text2).multilineTextAlignment(.center).padding(.top, 6)
+            HStack(spacing: 12) {
+                summaryStat(trainer.known, "gewusst", tone: .ok)
+                summaryStat(trainer.unknown, "nicht gewusst", tone: .bad)
+            }
+            .padding(.top, 18)
+            .accessibilityHidden(true)
             Text("Der Wiederholungsplan („Heute fällig“) bleibt davon unverändert.")
-                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 2)
+                .ufFont(13.12).foregroundStyle(UF.muted).multilineTextAlignment(.center).padding(.top, 14)
             UFFlexWrap(gap: 9.6, rowGap: 9.6) {
                 if trainer.unknown > 0 {
                     UFButton("Nicht gewusste üben (\(trainer.unknown))", icon: "play", kind: .primary) { trainer.practiceUnknown() }
@@ -475,8 +699,23 @@ struct FlashcardTrainerView: View {
                 UFButton("Vorherige", icon: "undo") { previous() }.disabled(!trainer.canGoBack)
                 UFButton("Fertig", icon: "check") { onClose() }
             }
-            .padding(.top, 14)
+            .padding(.top, 18)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32).padding(.horizontal, 24)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+        .ufShadow(.md)
+    }
+
+    private func summaryStat(_ value: Int, _ label: String, tone: UFTone) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)").ufFont(28.8, 750).monospacedDigit().foregroundStyle(tone.fg)
+            Text(label).ufFont(12.8, 500).foregroundStyle(UF.muted)
+        }
+        .frame(minWidth: 120)
+        .padding(.vertical, 12).padding(.horizontal, 16)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tone.bg))
     }
 
     // MARK: Aktionen
@@ -502,6 +741,12 @@ struct FlashcardTrainerView: View {
 
     private func bookmark() {
         Task { _ = await toast.attempt("Lesezeichen") { try await trainer.toggleBookmark() } }
+    }
+
+    /// "Bearbeiten": Dialog der Seite mit der aktuellen Karte (Frage, Antwort, Modul, Stapel), Lernstand bleibt
+    private func edit() {
+        guard let c = trainer.current, !trainer.busy else { return }
+        onEdit?(c)
     }
 
     private func hide() {

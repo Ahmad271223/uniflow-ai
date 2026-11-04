@@ -31,13 +31,18 @@ enum WeeklyTestRecord {
 final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendable {
     let cloud: CommunityCloud
     let cipher: SolutionCipher
+    /// Datensatztyp: `WeeklyTest` (Wochentests) oder `WeekCardStack` (geteilte Wochenstapel, CardStackCloudKit.swift) -
+    /// dieselben Felder, dieselbe Varianten-Regel, derselbe Schluessel aus den Inhalts-Hashes
+    let recordType: String
     private let now: @Sendable () -> Date
     private let lock = NSLock()
     private var cachedUser: String?
 
-    init(cloud: CommunityCloud, cipher: SolutionCipher = SolutionSharing.cipher, now: @escaping @Sendable () -> Date = { Date() }) {
+    init(cloud: CommunityCloud, cipher: SolutionCipher = SolutionSharing.cipher, recordType: String = WeeklyTestRecord.type,
+         now: @escaping @Sendable () -> Date = { Date() }) {
         self.cloud = cloud
         self.cipher = cipher
+        self.recordType = recordType
         self.now = now
     }
 
@@ -74,8 +79,8 @@ final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendabl
     static func name(_ material: WeeklyTestMaterial, _ variant: Int) -> String { WeeklyTestCrypto.recordName(key: material.key, variant: variant) }
 
     /// Platz aus einem Datensatz; nil, wenn er nicht zum Schluessel passt (fremde Form)
-    static func slot(_ r: CommunityRecord, material: WeeklyTestMaterial, cipher: SolutionCipher) -> (Int, WeeklyTestSlot)? {
-        guard r.type == WeeklyTestRecord.type, r[WeeklyTestRecord.Field.shareKey]?.string == material.key,
+    static func slot(_ r: CommunityRecord, material: WeeklyTestMaterial, cipher: SolutionCipher, recordType: String = WeeklyTestRecord.type) -> (Int, WeeklyTestSlot)? {
+        guard r.type == recordType, r[WeeklyTestRecord.Field.shareKey]?.string == material.key,
               let v = r[WeeklyTestRecord.Field.variant]?.int, (0..<TestShare.maxVariants).contains(v),
               r.name == name(material, v) else { return nil }
         switch r[WeeklyTestRecord.Field.status]?.string {
@@ -91,12 +96,12 @@ final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendabl
     }
 
     func slots(_ material: WeeklyTestMaterial) async throws -> [Int: WeeklyTestSlot] {
-        let records = try await cloud.query(CommunityQuery(type: WeeklyTestRecord.type,
+        let records = try await cloud.query(CommunityQuery(type: recordType,
                                                            equals: [WeeklyTestRecord.Field.shareKey: .string(material.key)],
                                                            limit: TestShare.maxVariants * 2), in: .publicDB)
         var out: [Int: WeeklyTestSlot] = [:]
         for r in records {
-            if let (v, s) = Self.slot(r, material: material, cipher: cipher) { out[v] = s }
+            if let (v, s) = Self.slot(r, material: material, cipher: cipher, recordType: recordType) { out[v] = s }
         }
         return out
     }
@@ -106,8 +111,8 @@ final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendabl
     func claim(_ material: WeeklyTestMaterial, variant: Int) async throws -> Bool {
         let user = try await me()
         let name = Self.name(material, variant)
-        if try await cloud.fetch(name: name, type: WeeklyTestRecord.type, in: .publicDB) != nil { return false }
-        var record = CommunityRecord(type: WeeklyTestRecord.type, name: name)
+        if try await cloud.fetch(name: name, type: recordType, in: .publicDB) != nil { return false }
+        var record = CommunityRecord(type: recordType, name: name)
         record[WeeklyTestRecord.Field.shareKey] = .string(material.key)
         record[WeeklyTestRecord.Field.variant] = .int(variant)
         record[WeeklyTestRecord.Field.status] = .string(WeeklyTestRecord.pending)
@@ -118,11 +123,11 @@ final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendabl
             _ = try await cloud.save(record, in: .publicDB)
         } catch {
             // zeitgleich von einem anderen angelegt: vergeben; sonst echter Fehler (offline, Kontingent)
-            if let other = try? await cloud.fetch(name: name, type: WeeklyTestRecord.type, in: .publicDB), !Self.isMine(other, me: user) { return false }
+            if let other = try? await cloud.fetch(name: name, type: recordType, in: .publicDB), !Self.isMine(other, me: user) { return false }
             throw error
         }
         // nur der Ersteller aendert in der oeffentlichen Datenbank: steht nach dem Speichern ein fremder Datensatz da, hat er gewonnen
-        guard let stored = try await cloud.fetch(name: name, type: WeeklyTestRecord.type, in: .publicDB), Self.isMine(stored, me: user) else { return false }
+        guard let stored = try await cloud.fetch(name: name, type: recordType, in: .publicDB), Self.isMine(stored, me: user) else { return false }
         return true
     }
 
@@ -131,7 +136,7 @@ final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendabl
     func publish(_ material: WeeklyTestMaterial, variant: Int, test: SharedWeeklyTest) async throws {
         let user = try await me()
         let name = Self.name(material, variant)
-        guard var record = try await cloud.fetch(name: name, type: WeeklyTestRecord.type, in: .publicDB), Self.isMine(record, me: user) else {
+        guard var record = try await cloud.fetch(name: name, type: recordType, in: .publicDB), Self.isMine(record, me: user) else {
             throw CommunityCloudError.permission
         }
         record[WeeklyTestRecord.Field.status] = .string(WeeklyTestRecord.ready)
@@ -142,9 +147,9 @@ final class CloudKitWeeklyTestShare: WeeklyTestShareProvider, @unchecked Sendabl
     func release(_ material: WeeklyTestMaterial, variant: Int) async throws {
         let user = try await me()
         let name = Self.name(material, variant)
-        guard let record = try await cloud.fetch(name: name, type: WeeklyTestRecord.type, in: .publicDB), Self.isMine(record, me: user),
+        guard let record = try await cloud.fetch(name: name, type: recordType, in: .publicDB), Self.isMine(record, me: user),
               record[WeeklyTestRecord.Field.status]?.string == WeeklyTestRecord.pending else { return }
-        try await cloud.delete(name: name, type: WeeklyTestRecord.type, in: .publicDB)
+        try await cloud.delete(name: name, type: recordType, in: .publicDB)
     }
 }
 

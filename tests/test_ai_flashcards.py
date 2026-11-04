@@ -80,7 +80,8 @@ def test_generate_passes_the_lecture_week(app, monkeypatch):
     try:
         st, _, b = asgi_call(app, "POST", "/api/tests/generate", body=json.dumps({"module_id": mid, "duration_min": 30, "week_no": "4"}))
         assert st == 200, b
-        assert seen == {"subject": "Wochen-Test", "dur": 30, "module_id": mid, "week_no": 4, "auto": False}
+        assert seen == {"subject": "Wochen-Test", "dur": 30, "module_id": mid, "week_no": 4, "auto": False,
+                        "options": {"count": 15, "difficulty": "beliebig", "types": ["mc", "tf", "cloze", "short", "calc"], "topic": ""}}
         st, _, _ = asgi_call(app, "POST", "/api/tests/generate", body=json.dumps({"module_id": mid}))
         assert st == 200 and seen["week_no"] is None and seen["dur"] is None, "ohne Woche wie bisher"
     finally:

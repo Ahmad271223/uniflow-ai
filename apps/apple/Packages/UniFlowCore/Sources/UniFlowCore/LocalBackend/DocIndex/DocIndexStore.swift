@@ -200,6 +200,11 @@ enum DocIndexStore {
     /// `GET /api/index/shelf?module=`: Baum Hochschule -> Studiengang -> Semester -> Modul -> Lehrwoche + Datum -> Art ->
     /// Datei (mit Stand des Index). Feste Reihenfolge: Studiengaenge und Module nach Name, Semester neueste zuerst (nach
     /// juengster Datei, dann Name), Wochen wie das Moduldetail, Arten wie `DocIndexCatalog.kindOrder`, Dateien nach Name.
+    /// Jede PDF eines Kurses steht darin, auch ohne Index (`status` "none"): eingeordnet nur aus den lokalen Daten
+    /// (Modul, Lehrwoche und Art wie die Bibliothek, `StudyClassify`). Fuer "Mein Regal" (04.11.2026) dazu je Modul die
+    /// Fachfarbe (`color`, nil ohne Modul), je Datei die Seiten mit eigenen Notizen (`note_pages`, nur lokal) und ob sie
+    /// geladen ist (`downloaded`), oben die Zahl der Dateien mit Index (`indexed`: ganz oder teilweise) und der ganz
+    /// erklaerten (`explained`).
     static func shelf(_ c: SQLiteConnection, moduleID: Int?, clock: UniFlowClock) throws -> JSONValue {
         let uni = try university(c)
         let program = try studyProgram(c)
@@ -212,23 +217,31 @@ enum DocIndexStore {
             ($0["file_sha"]?.string ?? "", $0["page"]?.int ?? 0, $0["status"]?.string ?? "")
         }, by: \.0) : [:]
         let activeTerm = try c.scalar("SELECT name FROM terms WHERE active=1 ORDER BY id DESC LIMIT 1")?.string ?? ""
+        let colors = try moduleColors(c)
+        let notes = try notePageCounts(c, fileIDs: Set(metas.map(\.fileID)))
 
         struct Leaf { let semester: String; let module: String; let moduleID: Int?; let week: Int; let kind: String; let meta: FileMeta }
         let leaves = metas.map { m in
             Leaf(semester: (m.courseSemester?.isEmpty == false ? m.courseSemester! : activeTerm), module: m.moduleName, moduleID: m.moduleID,
                  week: m.week, kind: m.kind.kind, meta: m)
         }
-        func fileJSON(_ m: FileMeta) -> JSONValue {
+        /// Stand des Index einer Datei: Seiten mit Eintrag, gescheiterte Seiten, ready | partial | none
+        func state(_ m: FileMeta) -> (ok: Int, failed: Int, status: String) {
             let rows = m.sha.flatMap { index[$0] } ?? []
             let ok = rows.filter { $0.1 > 0 && $0.2 == "ok" }.count
             let failed = rows.filter { $0.2 == "failed" }.count
             let summary = rows.contains { $0.1 == 0 && $0.2 == "ok" }
-            let status = summary ? "ready" : (ok > 0 ? "partial" : "none")
+            return (ok, failed, summary ? "ready" : (ok > 0 ? "partial" : "none"))
+        }
+        func fileJSON(_ m: FileMeta) -> JSONValue {
+            let s = state(m)
             return ["file_id": .string(m.fileID), "name": .string(m.name), "title": .string(m.displayTitle), "date": .string(m.date),
                     "sha": m.sha.map(JSONValue.string) ?? .null, "page_count": m.pageCount.map { .number(Double($0)) } ?? .null,
-                    "indexed_pages": .number(Double(ok)), "failed_pages": .number(Double(failed)), "status": .string(status),
-                    "kind": .string(m.kind.kind), "kind_label": .string(m.kind.label)]
+                    "indexed_pages": .number(Double(s.ok)), "failed_pages": .number(Double(s.failed)), "status": .string(s.status),
+                    "kind": .string(m.kind.kind), "kind_label": .string(m.kind.label),
+                    "note_pages": .number(Double(notes[m.fileID] ?? 0)), "downloaded": .bool(!(m.localPath ?? "").isEmpty)]
         }
+        let states = metas.map { state($0).status }
         let semesters = Dictionary(grouping: leaves, by: \.semester)
         let semesterOrder = semesters.keys.sorted { a, b in
             let da = semesters[a]!.map(\.meta.date).max() ?? "", db = semesters[b]!.map(\.meta.date).max() ?? ""
@@ -255,13 +268,41 @@ enum DocIndexStore {
                 }
                 let first = modules[name]!.first!
                 moduleJSON.append(["name": .string(name), "module_id": first.moduleID.map { .number(Double($0)) } ?? .null,
-                                   "key": .string(CommunityKeys.courseKey(university: uni.key, courseName: name) ?? ""), "weeks": .array(weekJSON)])
+                                   "key": .string(CommunityKeys.courseKey(university: uni.key, courseName: name) ?? ""),
+                                   "color": first.moduleID.flatMap { colors[$0] }.map(JSONValue.string) ?? .null, "weeks": .array(weekJSON)])
             }
             semesterJSON.append(["name": .string(s), "modules": .array(moduleJSON)])
         }
         return ["university": ["key": .string(uni.key), "name": .string(uni.name)],
                 "programs": [["name": .string(program), "semesters": .array(semesterJSON)]],
-                "files": .number(Double(metas.count))]
+                "files": .number(Double(metas.count)), "indexed": .number(Double(states.filter { $0 != "none" }.count)),
+                "explained": .number(Double(states.filter { $0 == "ready" }.count))]
+    }
+
+    /// Fachfarbe je Modul ("#rrggbb" aus `modules.color`; leere Werte fehlen)
+    static func moduleColors(_ c: SQLiteConnection) throws -> [Int: String] {
+        var out: [Int: String] = [:]
+        for r in try c.query("SELECT id, color FROM modules") {
+            guard let id = r["id"]?.int, let color = r["color"]?.string, !color.isEmpty else { continue }
+            out[id] = color
+        }
+        return out
+    }
+
+    /// Seiten mit eigenen Notizen je Datei (Objekte, Striche oder PencilKit-Zeichnung; auch eingefuegte Seiten, aber
+    /// nur solche, die noch in der Seitenliste stehen). Nur lokal, nichts davon verlaesst das Geraet; Dateien ohne
+    /// Notizen fehlen.
+    static func notePageCounts(_ c: SQLiteConnection, fileIDs: Set<String>) throws -> [String: Int] {
+        var out: [String: Int] = [:]
+        for r in try c.query("SELECT file_id, data FROM annotations") {
+            guard let id = r["file_id"]?.string, fileIDs.contains(id), let text = r["data"]?.string,
+                  let root = try? JSONValue.parse(text) else { continue }
+            let doc = AnnotationDocument(root: root)
+            let keys = doc.pageOrder.isEmpty ? Array(doc.pages.keys) : doc.pageOrder.compactMap { $0["key"]?.string }
+            let n = Set(keys).filter { doc.page($0).map(hasContent) ?? false }.count
+            if n > 0 { out[id] = n }
+        }
+        return out
     }
 
     // MARK: Eigene Notizen (nur lokal)

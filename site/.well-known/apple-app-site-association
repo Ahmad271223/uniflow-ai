@@ -1,0 +1,29 @@
+{
+ "applinks": {
+  "apps": [],
+  "details": [
+   {
+    "appID": "78MQGF36BD.de.uniflow.ai",
+    "paths": [
+     "/i/*"
+    ]
+   },
+   {
+    "appIDs": [
+     "78MQGF36BD.de.uniflow.ai"
+    ],
+    "components": [
+     {
+      "/": "/i/*",
+      "comment": "Einladungslink"
+     }
+    ]
+   }
+  ]
+ },
+ "webcredentials": {
+  "apps": [
+   "78MQGF36BD.de.uniflow.ai"
+  ]
+ }
+}

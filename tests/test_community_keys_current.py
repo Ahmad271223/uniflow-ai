@@ -42,12 +42,17 @@ def test_only_modules_from_the_university_sync_and_the_module_id_for_the_channel
     with db.cursor() as conn:
         mid = conn.execute("INSERT INTO modules(name, semester, color) VALUES ('Lineare Algebra Eigenname', '', '#175ee8')").lastrowid
         conn.execute("INSERT INTO courses(id, title, kind, active, module_id, created_at) VALUES ('ck-la', 'Lineare Algebra', 'vorlesung', 1, ?, 't')", (mid,))
-        conn.execute("INSERT OR IGNORE INTO courses(id, title, kind, active, created_at) VALUES ('__user__', 'Eigene Dokumente', 'sonstiges', 1, 't')")
+        # `__user__` legt init_db an, andere Tests haengen Dateien daran: nur loeschen, wenn dieser Test ihn angelegt hat
+        # (sonst Fremdschluesselfehler bzw. fehlender Kurs in spaeter laufenden Tests, z. B. bei umgekehrter Reihenfolge)
+        own_user_course = conn.execute("INSERT OR IGNORE INTO courses(id, title, kind, active, created_at) "
+                                       "VALUES ('__user__', 'Eigene Dokumente', 'sonstiges', 1, 't')").rowcount == 1
     try:
         every = _keys(app, "?all=true")
         assert every["ck-la"]["module_id"] == mid and every["ck-la"]["module"] == "Lineare Algebra", "der Schluessel kommt aus dem Kurstitel, nicht aus dem Namen im Modul"
         assert "__user__" not in every and "Eigenname" not in json.dumps(every)
     finally:
         with db.cursor() as conn:
-            conn.execute("DELETE FROM courses WHERE id IN ('ck-la', '__user__')")
+            conn.execute("DELETE FROM courses WHERE id='ck-la'")
+            if own_user_course and not conn.execute("SELECT 1 FROM files WHERE course_id='__user__' LIMIT 1").fetchone():
+                conn.execute("DELETE FROM courses WHERE id='__user__'")
             conn.execute("DELETE FROM modules WHERE id=?", (mid,))

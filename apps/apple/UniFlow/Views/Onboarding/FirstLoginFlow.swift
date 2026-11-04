@@ -8,8 +8,9 @@ import UniFlowCore
 // Auf jeder Anmeldeseite ein kleiner Link "Später anmelden": dann die bisherigen Karten "… verbinden" auf der
 // Uebersicht. Der Schritt erscheint einmal je (Nutzer, Hochschule) (`AccountStore.loginDone`); Uni-Wechsel nur in den
 // Einstellungen. Debug: -UFOnboarding login (mit -UFLoginStub <ordner> gegen lokale Nachbildungen, DebugUniStub).
-// Ohne Hochschulkonto (App-Pruefung, Ausprobieren): klein daneben "Ohne Hochschulkonto ansehen (Demo)" legt die
-// Demo-Inhalte im offenen Container an (`ContainerManager.setDemo`, kein Netz) und fuehrt gleich zur Oberflaeche.
+// Ohne Hochschulkonto (nur App-Pruefung, Entscheidung 04.11.2026 "Nur für Prüfer"): ganz unten ein kleiner Textlink
+// "Ohne Hochschulkonto ansehen (Demo)" legt die Demo-Inhalte im offenen Container an (`ContainerManager.setDemo`, kein
+// Netz) und fuehrt gleich zur Oberflaeche. Das ist der einzige Weg zur Demo (Views/DemoViews.swift).
 
 /// Eine Anmeldeseite des ersten Starts
 enum FirstLoginStep: String, CaseIterable, Identifiable {
@@ -127,18 +128,18 @@ struct FirstLoginFlow: View {
     }
 
     /// Demo-Inhalte im offenen Container anlegen (keine Anmeldung, keine Anfrage an die Hochschule), dann die Oberflaeche
-    /// (der Schritt gilt als erledigt; anmelden geht spaeter in den Einstellungen, nachdem die Demo entfernt ist)
+    /// (der Schritt gilt als erledigt; "Beenden" in der Demo-Leiste fuehrt wieder hierher, `DemoActions.end`)
     static func startDemo(containers: ContainerManager, account: AccountStore) async throws {
         try await containers.setDemo(true)
         account.markLoginDone()
     }
 }
 
-/// "Ohne Hochschulkonto ansehen (Demo)" auf der Anmeldeseite
+/// Textlink "Ohne Hochschulkonto ansehen (Demo)" ganz unten auf der Anmeldeseite
 enum FirstLoginDemo: Equatable { case hidden, offered, starting }
 
 /// Eine Anmeldeseite: Kopf mit Schritt und Erklaerung, darunter die Anmeldeansicht der Quelle (Webansicht der
-/// Hochschule mit dem Hinweis `UniversityLoginHint`), ganz unten der kleine Link "Später anmelden"
+/// Hochschule mit dem Hinweis `UniversityLoginHint`), unten "Später anmelden" und darunter klein der Textlink zur Demo
 struct FirstLoginPage: View {
     let step: FirstLoginStep
     let index: Int
@@ -223,27 +224,45 @@ struct FirstLoginPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Link "Später anmelden" unter dem Hinweis zu den Passwoertern, davor klein der Weg ohne Hochschulkonto
-    private var later: some View {
-        HStack(spacing: 8) {
-            Text(Self.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            if demo != .hidden {
-                UFButton(demo == .starting ? DemoTexts.firstStartRunning : DemoTexts.firstStart, icon: "sparkles", kind: .ghost, size: .small) { onDemo() }
-                    .disabled(demo == .starting)
-                    .accessibilityIdentifier("firststart.demo")
+    /// Unterer Rand der Anmeldeseite (`FirstLoginBottomBar`)
+    private var later: some View { FirstLoginBottomBar(demo: demo, onLater: onLater, onDemo: onDemo) }
+
+    static let laterHint = "Du kannst dich auch später anmelden – die Übersicht zeigt dann die Karte zum Verbinden."
+    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. StudiNow speichert sie nicht; merken kann sie iOS im Schlüsselbund."
+}
+
+/// Unterer Rand jeder Anmeldeseite: Hinweis und "Später anmelden"; darunter, ganz unten, klein und zurueckhaltend der
+/// Textlink "Ohne Hochschulkonto ansehen (Demo)" (nur fuer die App-Pruefung gedacht, kein Knopf; einziger Weg zur Demo)
+struct FirstLoginBottomBar: View {
+    var demo: FirstLoginDemo = .hidden
+    let onLater: () -> Void
+    var onDemo: () -> Void = {}
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 8) {
+                Text(FirstLoginPage.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                UFButton("Später anmelden", icon: "arrow-right", kind: .ghost, size: .small) { onLater() }
+                    .accessibilityIdentifier("firststart.later")
             }
-            UFButton("Später anmelden", icon: "arrow-right", kind: .ghost, size: .small) { onLater() }
-                .accessibilityIdentifier("firststart.later")
+            if demo != .hidden {
+                Button { onDemo() } label: {
+                    Text(demo == .starting ? DemoTexts.firstStartRunning : DemoTexts.firstStart)
+                        .ufFont(11.5).underline().foregroundStyle(UF.muted)
+                        .ufHitArea()
+                }
+                .buttonStyle(.plain)
+                .disabled(demo == .starting)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityIdentifier("firststart.demo")
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .background(UF.surface)
         .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
     }
-
-    static let laterHint = "Du kannst dich auch später anmelden – die Übersicht zeigt dann die Karte zum Verbinden."
-    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. StudiNow speichert sie nicht; merken kann sie iOS im Schlüsselbund."
 }
 
 /// Learnweb- bzw. LSF-Anmeldung als Schritt des ersten Starts (eigener `HildesheimLogin` je Schritt)

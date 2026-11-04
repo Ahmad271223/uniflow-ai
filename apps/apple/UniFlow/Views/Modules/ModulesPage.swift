@@ -184,6 +184,8 @@ struct ModuleCard: View {
                 Text(desc).ufFont(13.76).foregroundStyle(UF.text2).lineLimit(2)        // .desc: min-height 2.6em
                     .frame(minHeight: 13.76 * 2.6, alignment: .topLeading)
                     .padding(.bottom, 12.8)
+                // Lernstand (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung; grau ohne Signal
+                LernstandTile(m: m["mastery"], color: mc, style: .inline).padding(.bottom, 12.8)
                 HStack {                                                    // .pr
                     (Text("\(progress)%").font(.uf(12.8, 700)).foregroundColor(UF.text) + Text(" bearbeitet"))
                         .ufNumber(progress, numeric: Double(progress))
@@ -280,7 +282,11 @@ struct ModuleListRow: View {
                     Text(topics.isEmpty ? "\(m.i("courses") ?? 0) Veranstaltungen" : topics).ufFont(12.48).foregroundStyle(UF.muted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text).frame(width: 120, alignment: .leading)
+                VStack(alignment: .leading, spacing: 1.6) {
+                    Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text)
+                    LernstandBadge(m: m["mastery"], color: Color(hex: m.s("color")), size: .small)   // docs/LERNSTAND-2026-11-04.md
+                }
+                .frame(width: 120, alignment: .leading)
                 Text("\(m.i("file_count") ?? 0) \(m.i("file_count") == 1 ? "Datei" : "Dateien") · \(m.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 Text(nx.map { "\(UFFmt.short($0.s("date"))) \($0.s("start") ?? "")" } ?? "–").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 36)
@@ -388,10 +394,14 @@ struct ModulePage: View {
                     .ufFont(12.8)
                 }),
             ]
+            // Lernstand (docs/LERNSTAND-2026-11-04.md) als eigene Kachel ueber der Kennzahlenleiste: Ring mit Prozent in
+            // Modulfarbe, Begruendung, ohne Lernstand grau mit dem Hinweis (`LernstandTile`)
+            LernstandTile(m: d["mastery"], color: Color(hex: m.s("color"))).padding(.bottom, 14.4)
             ModuleKPIStrip(cells: cells).padding(.bottom, 20)
             // Aufzeichnungen (Opencast) gibt es nur lokal: der Stud.IP-Abgleich des iPads holt sie
             // (nur an Hochschulen mit Stud.IP)
-            let recordings: [(value: String, label: String)] = session.api?.isLocal == true && studip.offersStudIP
+            // (seit 04.11.2026 auch ohne Stud.IP: eigene Aufnahmen mit dem Mikrofon, docs/VORLESUNG-AUFNEHMEN.md)
+            let recordings: [(value: String, label: String)] = session.api?.isLocal == true
                 ? [("recordings", "Aufzeichnungen")] : []
             // Community (Loesungen aus der Community nach Lehrwoche, Plus) nur lokal (sie gehoert zum Container) und
             // nur mit CloudKit-Dienst im Build (sonst kein Platzhalter-Reiter)
@@ -443,6 +453,8 @@ struct ModulePage: View {
                 UFWordWrapText(m.s("name") ?? "", size: 30.4, weight: 700, em: -0.02).foregroundStyle(UF.text)
                 Text("\(d.list("courses").count) Veranstaltungen: \(kinds)\(m.s("exam_date").map { " · Klausur " + UFFmt.date($0) } ?? "")")
                     .ufFont(14.5).foregroundStyle(UF.muted)
+                // naechste Klausur aus allen Quellen mit Countdown, Uhrzeit, Raum und Quelle (04.11.2026, `ModuleNextExam`)
+                ModuleNextExam(api: session.api, moduleID: id).padding(.top, 4)
             }
         }
     }
@@ -451,6 +463,11 @@ struct ModulePage: View {
         HStack(spacing: 8) {
             UFButton("Modul", icon: "settings", size: .small) {
                 if let m = d?["module"] { overlay.modal { ModuleEditDialog(m: m) } }
+            }
+            // Studienverlauf (04.11.2026): das Modul im persoenlichen Plan zeigen (Zuordnung ueber den Modulnamen)
+            if let name = d?["module"]?["name"]?.string, !name.isEmpty {
+                UFButton("Im Studienverlauf", icon: "columns", size: .small) { router.go(.studyPlan(module: name)) }
+                    .accessibilityIdentifier("module.studyPlan")
             }
             UFIconSegmented(options: [("list", "list"), ("cards", "grid")], selection: $mode)
         }

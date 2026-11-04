@@ -1,65 +1,67 @@
 {
-  "identifier" : "5F1D2C3B",
-  "nonRenewingSubscriptions" : [
-
-  ],
-  "products" : [
-
-  ],
-  "settings" : {
-    "_compatibilityTimeRate" : {
-      "3" : 6
+  "identifier": "5F1D2C3B",
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {
+    "_compatibilityTimeRate": {
+      "3": 6
     },
-    "_failTransactionsEnabled" : false,
-    "_locale" : "de_DE",
-    "_storefront" : "DEU",
-    "_storeKitErrors" : [
-
-    ]
+    "_failTransactionsEnabled": false,
+    "_locale": "de_DE",
+    "_storefront": "DEU",
+    "_storeKitErrors": []
   },
-  "subscriptionGroups" : [
+  "subscriptionGroups": [
     {
-      "id" : "21500001",
-      "localizations" : [
-
-      ],
-      "name" : "StudiNow",
-      "subscriptions" : [
+      "id": "21500001",
+      "localizations": [],
+      "name": "StudiNow",
+      "subscriptions": [
         {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "1.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "6500000001",
-          "introductoryOffer" : {
-            "internalID" : "6500000011",
-            "numberOfPeriods" : 1,
-            "paymentMode" : "free",
-            "subscriptionPeriod" : "P1W"
-          },
-          "localizations" : [
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "1.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "6500000001",
+          "localizations": [
             {
-              "description" : "Stift, Karteikarten, Lösungen teilen",
-              "displayName" : "StudiNow Plus",
-              "locale" : "de"
+              "description": "Stift, Karteikarten, Lösungen teilen",
+              "displayName": "StudiNow Plus",
+              "locale": "de"
             }
           ],
-          "productID" : "de.uniflow.plus.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "StudiNow Plus monatlich",
-          "subscriptionGroupID" : "21500001",
-          "type" : "RecurringSubscription"
+          "productID": "de.uniflow.plus.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "StudiNow Plus monatlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "3.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6500000003",
+          "localizations": [
+            {
+              "description": "Alles aus Plus, KI über den StudiNow-Dienst",
+              "displayName": "StudiNow Pro AI",
+              "locale": "de"
+            }
+          ],
+          "productID": "de.uniflow.proai.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "StudiNow Pro AI monatlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription"
         }
       ]
     }
   ],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "version": {
+    "major": 3,
+    "minor": 0
   }
 }

@@ -30,11 +30,27 @@ final class EditorBridge: ObservableObject {
         let selection: String
     }
 
+    /// "KI fragen" am Rand der Palette (Schritt F): jede Erhoehung oeffnet die KI-Hilfe
+    @Published var askAIRequested = 0
+    /// "Als Karteikarte" aus markiertem PDF-Text (Schritt K): Vorderseite fuer das Blatt "Karte anlegen"
+    @Published var flashcardRequest: FlashcardRequest?
+
+    struct FlashcardRequest: Equatable {
+        let id = UUID()
+        let question: String
+    }
+
     /// Markierten Text an die KI-Hilfe geben (oeffnet sie und fragt sofort)
     func askTutor(_ mode: String) {
         let text = controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !text.isEmpty else { return }
         tutorRequest = TutorRequest(mode: mode, selection: text)
+    }
+
+    /// Markierten Text als Vorderseite einer neuen Karteikarte anbieten (Leiste "Text markieren" und Bearbeitungsmenue)
+    func makeFlashcard(_ selection: String? = nil) {
+        guard let text = PDFEditorController.flashcardText(selection ?? controller?.pdfView.currentSelection?.string) else { return }
+        flashcardRequest = FlashcardRequest(question: text)
     }
 
     func setObjectMode(_ on: Bool) {
@@ -132,6 +148,8 @@ struct DocumentView: View {
     @State private var showSidebar = false
     @State private var showSearch = false
     @State private var showTutor = false
+    /// KI-Start bittet um offene KI-Hilfe (`UFRouter.tutorOpenRequest`)
+    @EnvironmentObject private var router: UFRouter
     /// KI ueber das ChatGPT-Abo verbunden (Vorlesungsmarker; die KI-Hilfe zeigt ohne Verbindung den Weg dorthin)
     @Environment(\.ufAIEnabled) private var aiEnabled
     @State private var showInfo = false
@@ -177,6 +195,10 @@ struct DocumentView: View {
     @ObservedObject private var entitlements = Entitlements.shared
     /// gesperrte Plus-Funktion, deren Sperrkarte gerade offen ist (Schreiben, geteilte Ansicht)
     @State private var lockedFeature: UFFeature?
+    /// "Als Karteikarte": Vorderseite aus markiertem PDF-Text, solange das Blatt "Karte anlegen" offen ist (Schritt K)
+    @State private var flashcardQuestion: String?
+    /// Stapel fuer das Blatt (Module und Dokumente zur Auswahl); erst beim ersten "Als Karteikarte" geladen
+    @StateObject private var flashcards = FlashcardDeck()
     /// geoeffnete alte Fassung (S7, nur zum Ansehen)
     @State private var openedVersion: FileVersionInfo?
     /// alte Original-Fassung: nur ansehen (S7)
@@ -234,7 +256,23 @@ struct DocumentView: View {
         lastPageTask = Task {
             try? await Task.sleep(nanoseconds: 800_000_000)
             guard !Task.isCancelled else { return }
+            router.resume.notePage(page, of: id)          // Weitermachen wie zuvor (ResumeState.swift)
             _ = try? await api.value("/api/files/\(id)/opened", method: "POST", body: ["last_page": .number(Double(page))])
+        }
+    }
+
+    /// Weitermachen wie zuvor (ResumeState.swift): Dokument fuer den naechsten Start merken; wurde es beim Start
+    /// wiederhergestellt, die KI-Hilfe (ihr Gespraech laedt `TutorPanel` aus `TutorConversations`) und "Daneben öffnen"
+    /// wie zuvor oeffnen. Ein verschwundenes zweites Dokument bleibt still weg.
+    private func restorePanels() async {
+        guard !readOnly, !store.isOldVersion, store.errorMessage == nil else { return }
+        let id = store.file.id
+        router.resume.noteDocument(id: id, page: initialPDFPage)
+        guard let p = router.resume.takeRestoredPanels(for: id) else { return }
+        if p.tutorOpen { showTutor = true }
+        if let cid = p.companionID, cid != id, companion == nil, solutionSide == nil,
+           let f = try? await api.json("/api/files/\(cid)", as: LibFile.self) {
+            companion = Companion(file: f, pdfPage: p.companionPage)
         }
     }
 
@@ -269,6 +307,22 @@ struct DocumentView: View {
         markerPage = MarkerPage(page: page, key: e.key)
     }
 
+    /// "Als Karteikarte" (Schritt K): lokal nur mit Plus (Sperrkarte wie auf der Karteikarten-Seite), sonst das Blatt
+    /// "Karte anlegen" mit der Auswahl vorn, Modul und Dokument dieser Datei; der Stapel laedt Module und Dokumente
+    /// vorher, damit die Auswahl im Blatt stimmt (ein Fehler dabei sperrt das Blatt nicht)
+    private func openFlashcard(_ question: String) {
+        bridge.flashcardRequest = nil
+        if api.isLocal, !entitlements.allows(.flashcards) {
+            lockedFeature = .flashcards
+            return
+        }
+        flashcards.attach(api)
+        Task {
+            if !flashcards.loaded { try? await flashcards.load() }
+            flashcardQuestion = question
+        }
+    }
+
     /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
     private var scriptLeft: Bool { hand != "left" }
 
@@ -287,11 +341,12 @@ struct DocumentView: View {
     /// KI-Hilfe neben der PDF; Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem
     /// Schluessel, beides beim Senden
     private var tutorPanel: some View {
-        TutorPanel(fileID: store.file.id,
+        TutorPanel(fileID: store.file.id, fileName: store.file.displayTitle,
                    page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
-                   close: { showTutor = false }, request: $bridge.tutorRequest)
+                   close: { showTutor = false }, request: $bridge.tutorRequest,
+                   moduleID: store.file.module_id)                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
     }
 
     private var isExercise: Bool {
@@ -311,7 +366,7 @@ struct DocumentView: View {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
                         // nicht verdeckt oder beruehrt
                         if showSidebar, scriptLeft {
-                            PageSidebar(store: store, bridge: bridge, markers: markers).frame(width: 200)
+                            PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                             Divider()
                         }
                         if showTutor, scriptLeft {
@@ -333,7 +388,7 @@ struct DocumentView: View {
                         }
                         if showSidebar, !scriptLeft {
                             Divider()
-                            PageSidebar(store: store, bridge: bridge, markers: markers).frame(width: 200)
+                            PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                         }
                     }
                     .coordinateSpace(NamedCoordinateSpace.named("split"))
@@ -358,6 +413,17 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         .onChange(of: bridge.tutorRequest) { _, r in if r != nil { showTutor = true } }
+        // "KI fragen" am Rand der Palette (Schritt F): dieselbe KI-Hilfe wie der Knopf oben
+        .onChange(of: bridge.askAIRequested) { _, _ in showTutor = true }
+        // "Als Karteikarte" (Schritt K): Blatt "Karte anlegen" mit dem markierten Text als Vorderseite
+        .onChange(of: bridge.flashcardRequest) { _, r in if let r { openFlashcard(r.question) } }
+        .ufModal(isPresented: Binding(get: { flashcardQuestion != nil }, set: { if !$0 { flashcardQuestion = nil } })) {
+            if let q = flashcardQuestion {
+                FlashcardCreateDialog(deck: flashcards, entitlements: entitlements, question: q, moduleID: store.file.module_id,
+                                      fileID: store.file.id)
+                    .environment(\.ufClose, { flashcardQuestion = nil })
+            }
+        }
         .sheet(item: $markerPage) { mp in
             LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
                                goTo: { pdfPage in
@@ -459,8 +525,16 @@ struct DocumentView: View {
             scheduleSuggestion(page)
             rememberPage(page)
         }
+        // Weitermachen wie zuvor: KI-Hilfe und "Daneben öffnen" fuer den naechsten Start merken (ResumeState.swift)
+        .onChange(of: showTutor) { _, open in if !readOnly { router.resume.noteTutor(open: open, of: store.file.id) } }
+        .onChange(of: companion) { _, c in
+            if !readOnly { router.resume.noteCompanion(id: c?.file.id, page: c?.pdfPage, of: store.file.id) }
+        }
         .task {
             await store.load()
+            // KI-Start "Im Dokument mit KI-Hilfe öffnen": die KI-Hilfe gleich offen (einmalig, nur fuer diese Datei)
+            if router.takeTutorOpenRequest(for: store.file.id) { showTutor = true }
+            await restorePanels()
             #if DEBUG
             // -UFDocPanel tutor|companion: Seitenspalte bzw. "Daneben öffnen" gleich offen (nur Bildvergleiche)
             switch UserDefaults.standard.string(forKey: "UFDocPanel") {
@@ -500,7 +574,7 @@ struct DocumentView: View {
                       foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
-                      onCorrectionNote: { event in correctionNoteEvent(event) })
+                      onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
             .overlay(alignment: .top) {
@@ -1505,137 +1579,7 @@ struct CompanionPicker: View {
     }
 }
 
-/// Seitenuebersicht (Miniaturen mit Notizen) und Lesezeichen.
-struct PageSidebar: View {
-    @ObservedObject var store: DocumentStore
-    @ObservedObject var bridge: EditorBridge
-    /// Vorlesungs-Seitenmarker des Dokuments (Kennzeichen "bis hier" an der Miniatur)
-    var markers: LectureMarkers?
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if !store.bookmarks.isEmpty {
-                List {
-                    Section("Lesezeichen") {
-                        ForEach(store.bookmarks) { b in
-                            Button(b.title) {
-                                if let i = store.layout?.index(ofKey: b.key) { bridge.controller?.goToPage(i) }
-                            }
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                .frame(maxHeight: 180)
-                Divider()
-            }
-            ThumbnailStrip(store: store, bridge: bridge, markers: markers)
-        }
-        .background(Color(uiColor: .secondarySystemBackground))
-    }
-}
-
-/// Seitenminiaturen mit Handschrift, Text und Formen (gleiche Zeichenroutine wie der PDF-Export).
-/// Eine Miniatur wird nur neu gezeichnet, wenn sich die Objekte ihrer Seite, ihre geladenen Bilder oder der
-/// Seitenaufbau geaendert haben. Geprueft wird beim Erscheinen, beim Seitenwechsel, bei Statuswechseln und in einer
-/// kurzen Schleife fuer die sichtbaren Zellen. Die Schleife ist noetig, weil der Speicherstatus offline (bzw. bei
-/// localSaveFailed/conflictUnresolved) gleich bleibt, waehrend weitere Striche dazukommen.
-struct ThumbnailStrip: View {
-    @ObservedObject var store: DocumentStore
-    @ObservedObject var bridge: EditorBridge
-    var markers: LectureMarkers?
-    @StateObject private var cache = ThumbnailCache()
-    @Environment(\.displayScale) private var displayScale
-
-    static let width: CGFloat = 140
-    /// Abstand der Pruefschleife (Nanosekunden).
-    static let pollInterval: UInt64 = 1_500_000_000
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 14) {
-                    ForEach(Array((store.layout?.entries ?? []).enumerated()), id: \.element.key) { i, entry in
-                        Button { bridge.controller?.goToPage(i) } label: { cell(i, entry) }
-                            .buttonStyle(.plain)
-                            .id(entry.key)
-                            .onAppear { cache.visible.insert(entry.key) }
-                            .onDisappear { cache.visible.remove(entry.key) }
-                            .task(id: "\(entry.key)|\(store.layoutVersion)") { await refresh(entry.key) }
-                    }
-                }
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-            }
-            .onChange(of: bridge.pageIndex) { old, i in
-                if let key = store.layout?.key(at: i) { withAnimation { proxy.scrollTo(key, anchor: .center) } }
-                // Seite verlassen: dort zuletzt geschrieben, daher sofort pruefen
-                if let key = store.layout?.key(at: old) { Task { await refresh(key) } }
-            }
-        }
-        .onChange(of: store.status) { _, _ in Task { await refreshVisible() } }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: Self.pollInterval)
-                guard !Task.isCancelled else { break }
-                await refreshVisible()
-            }
-        }
-    }
-
-    private func refreshVisible() async {
-        for key in cache.visible.sorted() { await refresh(key) }
-    }
-
-    /// Miniatur einer Seite pruefen (Index aus dem aktuellen Seitenaufbau, er verschiebt sich beim Einfuegen).
-    private func refresh(_ key: String) async {
-        guard let layout = store.layout, let i = layout.index(ofKey: key), let entry = layout.entry(at: i) else { return }
-        let objects = await store.objects(forPageKey: key)
-        guard let current = store.layout, current.entry(at: i) == entry, let page = current.pdf.page(at: i) else { return }
-        await cache.refresh(key: key, page: page, entry: entry, objects: objects, images: store.images,
-                            layoutVersion: store.layoutVersion, width: Self.width, scale: max(1, displayScale))
-    }
-
-    private func cell(_ i: Int, _ entry: DisplayLayout.Entry) -> some View {
-        let current = i == bridge.pageIndex
-        return VStack(spacing: 4) {
-            Group {
-                if let img = cache.images[entry.key] {
-                    Image(uiImage: img).resizable().scaledToFit()
-                } else {
-                    Color.white.aspectRatio(595.0 / 842.0, contentMode: .fit)
-                }
-            }
-            .frame(width: Self.width)
-            .overlay(Rectangle().strokeBorder(current ? Color.accentColor : Color(uiColor: .separator), lineWidth: current ? 2 : 1))
-            .overlay(alignment: .bottom) { if let lm = lectureMark(entry) { MarkerTag(review: LectureMarkers.reviewFlag(lm)) } }
-            Text("\(i + 1)").font(.caption2.monospacedDigit()).foregroundStyle(current ? Color.accentColor : .secondary)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Seite \(i + 1)" + (lectureMark(entry).map { LectureMarkers.reviewFlag($0) ? ", Vorlesung bis hier, bitte prüfen" : ", Vorlesung bis hier" } ?? ""))
-        .accessibilityAddTraits(current ? [.isSelected] : [])
-    }
-}
-
-extension ThumbnailStrip {
-    /// Marker, der auf dieser Originalseite endet (eingefuegte Seiten tragen keinen)
-    func lectureMark(_ entry: DisplayLayout.Entry) -> JSONValue? {
-        entry.kind == "pdf" ? markers?.mark(pdfPage: entry.pdfIndex) : nil
-    }
-}
-
-/// .ed-thumb-lm: Band "bis hier" am unteren Rand der Miniatur (Warnfarbe, wenn der Marker zu pruefen ist)
-struct MarkerTag: View {
-    let review: Bool
-    var body: some View {
-        Label("bis hier", systemImage: "flag.fill")
-            .font(.system(size: 10, weight: .semibold))
-            .labelStyle(.titleAndIcon)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 1)
-            .background(review ? UF.warn : UF.accent)
-    }
-}
+// Seitenleiste (PageSidebar, ThumbnailStrip, MarkerTag): Views/PageSidebar.swift (Schritt E)
 
 /// Gezeichnete Miniaturen je Seitenschluessel mit Hash-Signatur des gezeichneten Stands.
 /// Signatur und Zeichnen laufen ausserhalb des Hauptthreads (Stifteingabe hat Vorrang); nur das Ergebnis wird hier
@@ -1897,6 +1841,8 @@ struct ObjectToolbar: View {
                             .accessibilityIdentifier("objects.markup.tutorExplain")
                         Button { bridge.askTutor("steps") } label: { Label("KI löst", systemImage: "sparkles") }
                             .accessibilityIdentifier("objects.markup.tutorSolve")
+                        Button { bridge.makeFlashcard() } label: { Label(PDFEditorController.flashcardTitle, systemImage: "rectangle.on.rectangle") }
+                            .accessibilityIdentifier("objects.markup.flashcard")
                     } else {
                         Text("Text in der PDF auswählen (gedrückt halten und ziehen)").font(.callout).foregroundStyle(.secondary)
                     }
@@ -2138,6 +2084,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var correction: CorrectionSession?
     var shownCorrection: CommunityCorrection?
     var onCorrectionNote: ((CorrectionNoteEvent) -> Void)?
+    /// KI verbunden: "KI fragen" am Rand der Palette (Schritt F)
+    var aiAvailable = false
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
@@ -2163,6 +2111,10 @@ struct PDFEditorView: UIViewControllerRepresentable {
         }
         if ownsToolPicker { bridge.toolsInPalette = vc.toolsInPalette }
         vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
+        // "KI fragen" an der Palette und "Als Karteikarte" im Bearbeitungsmenue melden sich ueber die Bruecke
+        vc.aiAvailable = aiAvailable
+        vc.onAskAI = { [weak bridge] in bridge?.askAIRequested += 1 }
+        vc.onFlashcardFromSelection = { [weak bridge] text in bridge?.makeFlashcard(text) }
         bridge.controller = vc
         return vc
     }
@@ -2175,6 +2127,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
         if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
         if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }
         if vc.canEdit != canEdit { vc.canEdit = canEdit }
+        if vc.aiAvailable != aiAvailable { vc.aiAvailable = aiAvailable }
         vc.onCorrectionNote = onCorrectionNote
         if vc.correction !== correction { vc.correction = correction }
         if vc.shownCorrection != shownCorrection { vc.shownCorrection = shownCorrection }

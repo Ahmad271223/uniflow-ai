@@ -118,7 +118,7 @@ final class PageOCRTests: XCTestCase {
         XCTAssertEqual(ocr.calls.count, 0)
         // Endpunkt ohne gesetzte Erkennung
         let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-v1/pagetext", query: [.init("page", "2")]))
-        XCTAssertEqual(r.json, ["text": "", "pages": 2])
+        XCTAssertEqual(r.json, ["text": "", "pages": 2, "kind": "pdf"])
     }
 
     /// Nur die gefragte Seite (`/pagetext`), ein leeres Ergebnis wird gemerkt, eine neue Fassung erkennt neu,
@@ -130,7 +130,7 @@ final class PageOCRTests: XCTestCase {
         let ocr = FakeOCR([2: "Ohmsches Gesetz und Widerstand"])
         backend.context.ocr.set(ocr)
         let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-v1/pagetext", query: [.init("page", "2")]))
-        XCTAssertEqual(r.json, ["text": "Ohmsches Gesetz und Widerstand", "pages": 3])
+        XCTAssertEqual(r.json, ["text": "Ohmsches Gesetz und Widerstand", "pages": 3, "kind": "pdf"])
         XCTAssertEqual(ocr.calls, [[2]], "nur die gefragte Seite")
         // Seite 1: nichts erkannt -> gemerkt, kein zweiter Versuch
         _ = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-v1/pagetext", query: [.init("page", "1")]))

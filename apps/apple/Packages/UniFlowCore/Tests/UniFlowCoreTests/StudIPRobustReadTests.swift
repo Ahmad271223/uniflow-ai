@@ -147,6 +147,32 @@ final class StudIPRobustReadTests: XCTestCase {
         }
     }
 
+    /// Ordnerkette tiefer als die alte Grenze von 6 Ebenen (Riesentest 03.11.2026: Dateien tiefer als 6 Ebenen fehlten
+    /// auf dem iPad): bis `maxFolderDepth` (12) wird gelesen, erst darunter nicht mehr - ohne eine Anfrage an die tieferen
+    /// Ordner. Ein Unterordner, der auf die Wurzel zurueckzeigt (Schleife), wird nicht erneut gelesen (`seen`).
+    func testFoldersDeeperThanSixLevelsAreReadUpToTheLimit() async throws {
+        XCTAssertEqual(StudIPClient.maxFolderDepth, 12)
+        let deepest = StudIPClient.maxFolderDepth
+        var routes: [String: HTTPReply] = [
+            "\(v1)/courses/c1/folders?page[limit]=200": api(#"{"data": [\#(folder("root", "", type: "RootFolder"))]}"#),
+            "\(v1)/folders/root/file-refs?page[limit]=500": api(#"{"data": [\#(ref("f0", "Folien.pdf"))]}"#),
+            "\(v1)/folders/root/folders?page[limit]=200": api(#"{"data": [\#(folder("e1", "Ebene 1"))]}"#),
+        ]
+        for d in 1...(deepest + 2) {                     // zwei Ebenen mehr als gelesen werden
+            routes["\(v1)/folders/e\(d)/file-refs?page[limit]=500"] = api(#"{"data": [\#(ref("f\(d)", "tief-\(d).pdf"))]}"#)
+            // Ebene 3 zeigt zusaetzlich auf die Wurzel zurueck
+            let back = d == 3 ? ", \(folder("root", "Zurück"))" : ""
+            routes["\(v1)/folders/e\(d)/folders?page[limit]=200"] = api(#"{"data": [\#(folder("e\(d + 1)", "Ebene \(d + 1)"))\#(back)]}"#)
+        }
+        let t = StubTransport(routes)
+        let listing = try await StudIPClient(base: base, transport: t, pauseMillis: 0).fileListing(courseID: "c1")
+        XCTAssertEqual(listing.files.map(\.id), (0...deepest).map { "f\($0)" }, "Wurzel und 12 Ebenen, nicht 13")
+        XCTAssertEqual(listing.files.last?.folderPath, (1...deepest).map { "Ebene \($0)" }.joined(separator: "/"))
+        XCTAssertEqual(listing.unreadableFolders, 0, "Grenze ist kein gesperrter Ordner")
+        XCTAssertFalse(t.requested.contains { $0.contains("/folders/e\(deepest + 1)/") }, "unter der Grenze keine Anfrage")
+        XCTAssertEqual(t.requested.filter { $0.contains("/folders/root/file-refs") }.count, 1, "Schleife zur Wurzel nur einmal")
+    }
+
     /// Einzeltermine: Sitzungsthema (HTML wie eine Ankuendigung als Text) und Ausfall; Kursbeschreibung und Sonstiges
     /// der Kursliste (fehlt das Feld: nil, dann bleibt der gespeicherte Text)
     func testEventTopicsCancellationsAndCourseTexts() throws {

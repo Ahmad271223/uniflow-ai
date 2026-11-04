@@ -1,14 +1,14 @@
-"""Karteikarten-Stapel im echten Browser (04.11.2026): Pro AI laesst sich Karten fuer eine Lernwoche machen (Vorschau,
-abwaehlen, uebernehmen) und teilt den Stapel in der Kurs-Community; ein Plus-Konto sieht im Community-Kanal den Reiter
-"Karteikarten" mit dem Stapel der Woche, uebernimmt ihn und hat ihn danach als Stapel "aus der Community"; ohne Pro AI
-zeigt "KI-Karteikarten" ein Schloss mit Weg zur Tarifseite. Dienst im gehosteten Modus, KI-Attrappe statt Anbieter.
-Ohne Chromium wird uebersprungen."""
+"""KI-Karteikarten und geteilte Stapel im echten Browser (04.11.2026, aus der Cloud-Sitzung an das Stapel-Modell
+angepasst): Pro AI laesst sich Karten fuer eine Lernwoche machen (Vorschau, abwaehlen, in den Stapel "KI · Woche 3"
+speichern) und teilt den Stapel in der Kurs-Community; ein Plus-Konto sieht bei "KI-Karteikarten" ein Schloss mit Weg
+zur Tarifseite, findet den Stapel im Community-Kanal im Reiter "Karteikarten" unter Woche 3, uebernimmt ihn und hat ihn
+danach als eigenen Stapel. Dienst im gehosteten Modus, KI-Attrappe statt Anbieter. Ohne Chromium wird uebersprungen."""
 import time
 
 import pytest
 from test_flashcards_hosted import FakeCardsAI
 from test_pwa import _browser
-from test_web_community_channel import login, new_user, shot, wait_text
+from test_web_community_channel import _http, login, new_user, shot, wait_text
 from test_web_hosted_e2e import T, _playwright, served_hosted  # noqa: F401
 
 MODULE = "Programmieren I"
@@ -29,9 +29,17 @@ def seed(user):
         config.reset_user_context(tok)
 
 
+def join(base, token, key):
+    assert _http(base, "POST", "/api/community/claims", {"fingerprints": [], "course_keys": [key]}, cookie=token)[0] == 200
+    assert _http(base, "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, cookie=token)[0] == 200
+
+
 def test_ai_cards_share_and_adopt_in_the_browser(served_hosted, monkeypatch):  # noqa: F811
     from app import accounts, ai_backend, scriptsearch
+    from app import solution_format as sf
+    from app.studip_sync import classify
     base = served_hosted
+    key = sf.community_module_key("luh", classify(MODULE)[0])
     monkeypatch.setattr(scriptsearch, "page_texts", lambda conn, file_id, *a, **k: ["Rekursion: Basisfall und Rekursionsschritt", "Fakultaet rekursiv"])
     fake = FakeCardsAI()
     ai_backend.set_provider(fake)
@@ -41,6 +49,8 @@ def test_ai_cards_share_and_adopt_in_the_browser(served_hosted, monkeypatch):  #
         plus, tl = new_user(base, "plus@example.org")
         seed(pro)
         seed(plus)
+        join(base, tp, key)
+        join(base, tl, key)
         with _playwright() as p:
             browser = _browser(p)
             if browser is None:
@@ -52,11 +62,11 @@ def test_ai_cards_share_and_adopt_in_the_browser(served_hosted, monkeypatch):  #
                 page = ctx.new_page()
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 page.goto(f"{base}/#/cards")
-                page.wait_for_selector("#fcStacks #stAi", timeout=T)
-                # KI-Auftrag: Fach und Woche 3 sind vorgewaehlt, 5 Karten
-                page.click("#stAi")
-                page.wait_for_selector("#pkWeek", timeout=T)
-                assert page.input_value("#pkWeek") == "3" and "Ganzes Modul" in page.inner_text("#pkWeek")
+                page.wait_for_selector("#aiOrder", timeout=T)
+                # KI-Auftrag: Fach und Woche 3 (Woche mit Unterlagen) sind vorgewaehlt, 5 Karten
+                page.click("#aiOrder")
+                page.wait_for_selector("#aiWeek option[value='3']", state="attached", timeout=T)
+                assert page.input_value("#aiWeek") == "3" and "Ganzes Modul" in page.inner_text("#aiWeek")
                 page.fill("#aiCount", "5")
                 page.dispatch_event("#aiCount", "input")
                 page.fill("#aiTopic", "Basisfall")
@@ -64,54 +74,41 @@ def test_ai_cards_share_and_adopt_in_the_browser(served_hosted, monkeypatch):  #
                 page.wait_for_selector("[data-keep]", timeout=T)
                 assert page.locator("[data-keep]").count() == 5 and "VL03_Rekursion.pdf" in page.inner_text("#aiBody")
                 assert "Umfang: Lernwoche 3" in fake.prompts[-1] and "SCHWERPUNKT: Basisfall" in fake.prompts[-1]
+                assert page.input_value("#aiStack") == "KI · Woche 3"
                 shot(page, "ki-vorschau")
                 page.locator("[data-keep]").nth(4).uncheck()
-                wait_text(page, "#aiSave", r"Übernehmen \(4\)")
+                wait_text(page, "#aiSave", r"Speichern \(4\)")
                 page.click("#aiSave")
-                wait_text(page, "#fcStacks", "4 Karten · 4 fällig · 4 von der KI")
-                assert "Woche 3" in page.inner_text("#fcStacks")
-                # Teilen: Community des Moduls beitreten, dann teilen
-                page.click("[data-share]")
-                page.wait_for_selector("#shBody #shTitle", timeout=T)
-                page.click("#shJoin")
-                page.wait_for_selector("#shGo:not([disabled])", timeout=T)
-                assert page.input_value("#shTitle") == "Programmieren I · Woche 3"
-                shot(page, "teilen")
+                wait_text(page, "#toastEl", "4 Karten gespeichert")
+                wait_text(page, ".fc-tiles", "KI · Woche 3")
+                # Teilen ueber das Menue des Stapels (die Community des Moduls ist schon beigetreten)
+                page.wait_for_selector(".fc-tile [data-menu]", timeout=T)
+                page.click(".fc-tile [data-menu]")
+                page.click(".fc-menu-pop [data-share]")
                 page.click("#shGo")
                 wait_text(page, "#toastEl", "Stapel geteilt")
                 ctx.close()
 
-                # Plus-Konto: Community-Kanal, Reiter Karteikarten, uebernehmen
+                # Plus-Konto: Schloss beim KI-Auftrag, Reiter Karteikarten im Community-Kanal, uebernehmen
                 ctx = browser.new_context(bypass_csp=True)
                 login(ctx, base, tl)
                 page = ctx.new_page()
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 page.goto(f"{base}/#/cards")
-                page.wait_for_selector("#fcStacks #stAi", timeout=T)
-                assert "primary" not in page.get_attribute("#stAi", "class") and page.locator("#stAi rect").count() == 1, "Schloss statt Funken"
-                page.click("#stAi")
+                page.wait_for_selector("#aiOrder", timeout=T)
+                assert page.locator("#aiOrder rect").count() == 1, "Schloss statt Funken"
+                page.click("#aiOrder")
                 page.wait_for_selector(".modal a[href='#/abo']", timeout=T)
                 assert "Pro AI" in page.inner_text(".modal")
                 page.click(".modal button[data-close]")
-                # ueber "Aus der Community": beitreten, Stapel der Woche sehen und uebernehmen
-                page.click("#stComm")
-                page.wait_for_selector("#cdJoin", timeout=T)
-                page.click("#cdJoin")
-                page.wait_for_selector("#cdList [data-adopt]", timeout=T)
-                assert "Programmieren I · Woche 3" in page.inner_text("#cdList") and "4 Karten" in page.inner_text("#cdList")
-                page.click(".modal button[data-close]")
-                # im Community-Kanal: Reiter Karteikarten mit der Woche
-                from app import solution_format as sf
-                from app.studip_sync import classify
-                key = sf.community_module_key("luh", classify(MODULE)[0])
                 page.goto(f"{base}/#/community?space={key}&tab=cards")
                 page.wait_for_selector("#ccPanel [data-adopt]", timeout=T)
-                assert "Woche 3" in page.inner_text("#ccPanel")
+                assert "Woche 3" in page.inner_text("#ccPanel") and "4 Karten" in page.inner_text("#ccPanel")
                 shot(page, "kanal-karteikarten")
                 page.click("#ccPanel [data-adopt]")
-                wait_text(page, "#toastEl", "4 Karten übernommen")
+                wait_text(page, "#toastEl", "Übernommen: 4 Karten")
                 page.goto(f"{base}/#/cards")
-                wait_text(page, "#fcStacks", "4 aus der Community")
+                wait_text(page, ".fc-tiles", "KI · Woche 3")
                 shot(page, "stapel")
                 assert not errors, errors
             finally:

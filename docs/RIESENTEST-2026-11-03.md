@@ -183,7 +183,10 @@ Prozesses auf diesem Mac, nicht eines gemieteten Servers (siehe `docs/LASTTEST-P
 - Am PC könnte die Flat-Ansicht durch `is-downloadable` aus der JSON:API ergänzt werden, damit der Rückfall über
   `sendfile.php` entfällt (nur Protokoll-Lärm).
 - Ordner tiefer als 6 Ebenen auf dem iPad (siehe Beobachtungen): Grenze anheben oder aus der Flat-Ansicht ergänzen,
-  falls so etwas je in echten Kursen auftaucht.
+  falls so etwas je in echten Kursen auftaucht. **Erledigt 04.11.2026:** Grenze auf 12 Ebenen angehoben, auf beiden
+  Seiten gleich (`StudIPClient.maxFolderDepth`, `MAX_FOLDER_DEPTH` in app/studip_sync.py), Schleifenschutz über `seen`
+  unverändert; Tests `StudIPRobustReadTests.testFoldersDeeperThanSixLevelsAreReadUpToTheLimit` und
+  `tests/test_studip_robust_read.py::test_folder_paths_read_deeper_than_six_levels_up_to_the_limit`.
 - Wiederholung: `python tools/lasttest-uni-synth.py --accounts 1000 --out <ordner>`, dann
   `.venv/bin/python tools/riesentest-python.py --dir <ordner> --out py.json --parallel 8`,
   `RIESENTEST_DIR=<ordner> RIESENTEST_OUT=swift.json RIESENTEST_PARALLEL=8 swift test --filter RiesentestSynthTests`

@@ -54,8 +54,9 @@ struct QISLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
+        // QIS hat ein eigenes Formular (kein WebSSO): kein Skript, auch nicht die Hilfe fuer den Benutzernamen
         StudIPWebView(url: DebugUniStub.loginPage("qis", real: QISClient.startURL), dataStore: connection.websiteDataStore,
-                      load: load) { webView in pageLoaded(webView) }
+                      load: load, loginHelper: false) { webView in pageLoaded(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
@@ -157,19 +158,16 @@ struct LUHSourcesCard: View {
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 9.6) {
-                    LUHSourcesCard.label("Stud.IP", "Dateien, Stundenplan")
-                    Spacer(minLength: 0)
-                    // Abzeichen und Knopf behalten ihre Breite (in der halben Karte unter "Uni & Noten" wurden sie
-                    // zu "nicht verbu…" / "Verbin…" gekuerzt); umbrechen darf nur die Beschriftung links
+                // Abzeichen und Knopf behalten ihre Breite (in der halben Karte unter "Uni & Noten" wurden sie
+                // zu "nicht verbu…" / "Verbin…" gekuerzt); reicht die Zeile nicht, rutscht der Knopf darunter
+                UFSourceRow("Stud.IP", "Dateien, Stundenplan") {
                     UFBadge(Self.studipText(studip.phase), tone: Self.studipTone(studip.phase)).fixedSize()
+                } actions: {
                     UFButton(studip.phase == .signedOut ? "Verbinden" : "Öffnen", icon: "arrow-right",
                              kind: studip.phase == .signedOut || studip.phase == .needsLogin ? .primary : .normal, size: .small) { studipSheet = true }
                         .fixedSize()
                         .accessibilityIdentifier("luh.settings.studip")
                 }
-                .padding(.vertical, 5.6)
-                .ufBorderBottom()
                 if let qis { QISRow(connection: qis) }
             }
             .padding(.top, 8)
@@ -216,10 +214,9 @@ struct LUHSourcesCard: View {
         @State private var confirmSignOut = false
 
         var body: some View {
-            HStack(spacing: 9.6) {
-                LUHSourcesCard.label("QIS", "Noten")
-                Spacer(minLength: 0)
+            UFSourceRow("QIS", "Noten") {
                 UFBadge(QISConnection.statusText(connection.state), tone: Self.tone(connection.state)).fixedSize()
+            } actions: {
                 if connection.needsAttention {
                     UFButton(connection.state == .needsLogin ? "Erneut anmelden" : "Verbinden", icon: "arrow-right", kind: .primary, size: .small) { login = true }
                         .fixedSize()
@@ -233,8 +230,6 @@ struct LUHSourcesCard: View {
                         .disabled(connection.isRunning)
                 }
             }
-            .padding(.vertical, 5.6)
-            .ufBorderBottom()
             .sheet(isPresented: $login) { QISLoginView(connection: connection) }
             .confirmationDialog("Vom QIS abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
@@ -252,5 +247,49 @@ struct LUHSourcesCard: View {
             case .connected, .notConnected: return .neutral
             }
         }
+    }
+}
+
+/// Zeile einer Quelle in den Karten "Stud.IP & QIS" und "Learnweb & LSF": links Name und darunter klein, was sie
+/// liefert, rechts Stand und Knoepfe. Passt das nicht in eine Zeile (Breiten-Audit 04.11.2026: im iPad (A16) quer ist
+/// die rechte Spalte unter "Uni & Noten" nur rund 280 pt breit, "Noten abrufen" und "Abmelden" ragten ueber den
+/// Bildschirm), steht der Stand neben dem Namen und die Knoepfe stehen in einer umbrechenden Zeile darunter; ganz
+/// schmal steht alles untereinander. Abzeichen und Knoepfe werden nie gekuerzt.
+struct UFSourceRow<Status: View, Actions: View>: View {
+    let name: String
+    let detail: String
+    @ViewBuilder let status: Status
+    @ViewBuilder let actions: Actions
+
+    init(_ name: String, _ detail: String, @ViewBuilder status: () -> Status, @ViewBuilder actions: () -> Actions) {
+        self.name = name
+        self.detail = detail
+        self.status = status()
+        self.actions = actions()
+    }
+
+    private var label: some View { LUHSourcesCard.label(name, detail).fixedSize() }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 9.6) {
+                label
+                Spacer(minLength: 0)
+                status
+                actions
+            }
+            VStack(alignment: .leading, spacing: 6.4) {
+                HStack(spacing: 9.6) { label; Spacer(minLength: 0); status }
+                UFFlexWrap(gap: 8) { actions }
+            }
+            VStack(alignment: .leading, spacing: 6.4) {
+                LUHSourcesCard.label(name, detail)
+                status
+                UFFlexWrap(gap: 8) { actions }
+            }
+        }
+        .padding(.vertical, 5.6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ufBorderBottom()
     }
 }

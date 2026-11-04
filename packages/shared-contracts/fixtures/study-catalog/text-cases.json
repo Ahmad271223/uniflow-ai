@@ -1,0 +1,88 @@
+{
+ "normalize": [
+  {
+   "text": "Pﬂicht und Qualiﬁkationsziele",
+   "lines": [
+    "Pflicht und Qualifikationsziele"
+   ]
+  },
+  {
+   "text": "A B\tC  D \r\nE\rF G H\fI\u000bJK",
+   "lines": [
+    "A B C D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K"
+   ]
+  },
+  {
+   "text": "  Leer  \n\n\n  zeilen  ",
+   "lines": [
+    "Leer",
+    "zeilen"
+   ]
+  },
+  {
+   "text": "Ver­teilte Sys​teme﻿",
+   "lines": [
+    "Verteilte Systeme"
+   ]
+  },
+  {
+   "text": "Ａｂｃ ① ½",
+   "lines": [
+    "Abc 1 1⁄2"
+   ]
+  },
+  {
+   "text": "",
+   "lines": []
+  }
+ ],
+ "slug": [
+  {
+   "text": "Programmieren I",
+   "slug": "programmieren-1"
+  },
+  {
+   "text": "Mathematik für die Ingenieurwissenschaften III - Numerik",
+   "slug": "mathematik-fuer-die-ingenieurwissenschaften-3-numerik"
+  },
+  {
+   "text": "Grundlagen der Software-Technik",
+   "slug": "grundlagen-der-software-technik"
+  },
+  {
+   "text": "Labor: Linux-Systemadministration",
+   "slug": "labor-linux-systemadministration"
+  },
+  {
+   "text": "Scientiﬁc Data Management and Knowledge Graphs ",
+   "slug": "scientific-data-management-and-knowledge-graphs"
+  },
+  {
+   "text": "Ökonomie & Straße",
+   "slug": "oekonomie-strasse"
+  },
+  {
+   "text": "Café Résumé",
+   "slug": "cafe-resume"
+  },
+  {
+   "text": "Mathe I-III, ET I-III",
+   "slug": "mathe-1-3-et-1-3"
+  },
+  {
+   "text": "!!!",
+   "slug": "modul"
+  },
+  {
+   "text": "Künstliche Intelligenz I",
+   "slug": "kuenstliche-intelligenz-1"
+  }
+ ]
+}

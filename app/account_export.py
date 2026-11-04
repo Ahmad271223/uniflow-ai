@@ -8,7 +8,7 @@ und loescht sie danach. Inhalt:
   Abgleich-Auftraege, gespeicherte Hochschul-Zugangsdaten (Name und Benutzername; Passwoerter, Schluessel und Cookies
   nur als "gespeichert", damit eine verlorene ZIP keine Zugaenge verraet)
 - `daten/`: der Nutzerordner je Hochschule: Datenbanken (`lernapp.db`, konsistent ueber die SQLite-Sicherung kopiert)
-  mit Kursen, Notizen, Kalender, Lernpaketen, Karteikarten, Tests, dazu eigene Dateien und Protokolle. Ohne
+  mit Kursen, Notizen, Kalender, Lernpaketen, Karteikarten samt Stapeln, Tests, dazu eigene Dateien und Protokolle. Ohne
   Browser-Profile (Sitzungs-Cookies der Hochschule) und ohne Arbeitsordner der KI.
 - `community/`: eigene Loesungen (Liste und Pakete), eigene Korrekturvorschlaege, eigene Karteikarten-Stapel, eigene Meldungen und Sperrliste
 - `testbibliothek.json`: eigene Fragen in der gemeinsamen Testbibliothek
@@ -48,6 +48,11 @@ def _account(user: dict) -> dict:
             "nutzung": _rows(conn, "SELECT period, feature, count FROM usage WHERE user_id=? ORDER BY period, feature", (uid,)),
             "ki_nutzung": _rows(conn, "SELECT period, purpose, provider, model, input_tokens, output_tokens, cost_microeur, state, "
                                       "created_at FROM ai_usage_log WHERE user_id=? ORDER BY created_at", (uid,)),
+            "ki_credits": _rows(conn, "SELECT period, allowance, used, reserved, plan FROM credit_months WHERE user_id=? ORDER BY period", (uid,)),
+            "ki_credits_anfragen": _rows(conn, "SELECT period, day, purpose, funding, state, model, reserved, charged, cost_microeur, "
+                                               "input_tokens, cached_tokens, output_tokens, images, created_at, settled_at "
+                                               "FROM credit_ledger WHERE user_id=? ORDER BY created_at", (uid,)),
+            "einladungen": _invites(conn, uid),
             "abgleich_auftraege": _rows(conn, "SELECT kind, trigger, status, requested_at, started_at, finished_at, message, new_files "
                                               "FROM sync_jobs WHERE user_id=? ORDER BY id", (uid,)),
         }
@@ -56,6 +61,12 @@ def _account(user: dict) -> dict:
         creds[name] = value if name.endswith("_USER") else SECRET_HINT
     out["hochschul_zugangsdaten"] = creds
     return out
+
+
+def _invites(conn, uid: str) -> dict:
+    """Eigene Einladungslinks, angekommene Personen (nur Code und Zeitpunkt), eigene Einloesung, Belohnungen (app/invites.py)."""
+    from . import invites
+    return invites.export_rows(conn, uid)
 
 
 def _add_db(z: zipfile.ZipFile, src: Path, arc: str) -> None:
@@ -102,8 +113,8 @@ def _community(z: zipfile.ZipFile, user: dict) -> int:
     z.writestr("community/meine-sperrliste.json", json.dumps(blocks, ensure_ascii=False, indent=1))
     from . import community_corrections
     z.writestr("community/meine-korrekturen.json", json.dumps(community_corrections.exported(user), ensure_ascii=False, indent=1))
-    from . import community_decks
-    z.writestr("community/meine-karteikarten.json", json.dumps(community_decks.exported(user), ensure_ascii=False, indent=1))
+    from . import community_cards
+    z.writestr("community/meine-karteikarten.json", json.dumps(community_cards.exported(user), ensure_ascii=False, indent=1))
     for s in sols:
         p = community.package_dir() / f"{s['solution_id']}.uniflowsolution"
         if p.exists():
@@ -129,7 +140,7 @@ konto.json            Konto, angemeldete Geräte, Anmeldewege (Apple/Google), Ta
                       Cookies nur als „gespeichert“).
 daten/                Deine Daten je Hochschule. lernapp.db ist eine SQLite-Datenbank (öffnen z. B. mit „DB Browser
                       for SQLite“): Kurse, Module, Notizen (Tabelle annotations), Stundenplan, Lernpakete, Aufgaben,
-                      Karteikarten, Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule
+                      Karteikarten mit ihren Stapeln (flashcards, flashcard_stacks), Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule
                       speichert der Dienst nicht; sie bleiben in Stud.IP bzw. im Learnweb.
 community/            Deine veröffentlichten Lösungen (Liste und Pakete), deine geteilten Karteikarten, deine Korrekturvorschläge, deine Meldungen und deine Sperrliste.
 testbibliothek.json   Deine Fragen in der gemeinsamen Testbibliothek.

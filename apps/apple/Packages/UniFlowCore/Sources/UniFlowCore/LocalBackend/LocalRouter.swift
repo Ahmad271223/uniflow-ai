@@ -23,6 +23,11 @@ public struct LocalContext: Sendable {
     public let testShare = LocalTestShare()
     /// Dokument-Index ("Bibliothek"): Dienst, Verschluesselung und Bild-KI setzt die App (`LocalDocIndex`)
     public let docIndex = LocalDocIndex()
+    /// Geteilte Wochenstapel beim Dienst (CloudKit `WeekCardStack`, dieselbe Varianten-Maschine wie die Wochentests,
+    /// CardStackShare.swift); nil = eigener Stapel, Variante nur gemerkt
+    public let cardShare = LocalTestShare()
+    /// Eigene Stapel in der Modul-Community (CloudKit `CardStackShare`), von der App gesetzt; nil = nicht verfuegbar
+    public let cardCommunity = LocalCardCommunity()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {

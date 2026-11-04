@@ -41,6 +41,8 @@ final class ShellState: ObservableObject {
         "vorlesung": "book", "uebung": "pencil", "test": "exam", "wiederholung": "rotate", "frei": "clock", "loesung": "check",
         "skript": "file-text", "klausur": "flag", "organisatorisch": "info", "sonstiges": "file", "notebook": "note",
         "whiteboard": "square", "pdf": "file-text", "image": "image",
+        // Dateiarten ohne PDF (KIND_ICON in filekinds.js, docs/DATEIARTEN.md)
+        "word": "file-text", "slides": "layers", "audio": "play", "video": "play",
     ]
 
     /// "Ahmad H." -> "AH": erste Buchstaben der ersten zwei Woerter
@@ -189,6 +191,13 @@ final class ShellState: ObservableObject {
                                       icon: Self.typeIcon[type] ?? "file", color: nil, route: .doc(id)))
             }
             hits += Self.taskAndPageHits(r)
+            // Mitschriften eigener Vorlesungsaufnahmen (nur lokal, docs/VORLESUNG-AUFNEHMEN.md): zum Modul mit dem Reiter
+            // Aufzeichnungen; der Schluessel fehlt ohne Treffer
+            for x in r["recordings"]?.array ?? [] {
+                guard let id = x.s("id"), let module = x.i("module_id") else { continue }
+                hits.append(SearchHit(id: "r\(id)", title: "\(x.s("title") ?? "Aufnahme") · \(TranscriptSections.timestamp(x.n("start") ?? 0))",
+                                      sub: x.s("snippet") ?? "", icon: "circle", color: nil, route: .module(module)))
+            }
             searchHits = hits
         }
     }
@@ -216,6 +225,7 @@ final class ShellState: ObservableObject {
         "vorlesung": "Vorlesung", "uebung": "Übung", "test": "Wochentest", "wiederholung": "Wiederholung", "frei": "Lernen",
         "loesung": "Lösung", "skript": "Skript", "klausur": "Klausur", "organisatorisch": "Organisatorisches",
         "sonstiges": "Sonstiges", "notebook": "Notizbuch", "whiteboard": "Whiteboard", "pdf": "PDF", "image": "Bild",
+        "word": "Word", "slides": "PowerPoint", "audio": "Audio", "video": "Video",
     ]
 
     /// Wochentage kurz (DAYS in core.js)

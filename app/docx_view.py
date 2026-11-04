@@ -14,6 +14,7 @@ import html
 import io
 import re
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -25,6 +26,7 @@ PR = "http://schemas.openxmlformats.org/package/2006/relationships"
 MAX_BYTES = 60 << 20
 MAX_IMAGE = 8 << 20
 MAX_XML = 40 << 20
+MAX_XML_TOTAL = 80 << 20       # Summe aller gelesenen XML-Teile (Dokument, Stile, Nummerierung, Verweise, Kopf)
 MAX_IMAGES_TOTAL = 32 << 20     # Summe aller eingebetteten Bilder (je Verweis gezaehlt, ein Bild mehrfach zaehlt mehrfach)
 MAX_RATIO = 200                 # hoeher komprimierte Eintraege gelten als Zip-Bombe (echte PNG/JPEG/GIF liegen bei ~1-10)
 IMG_MIME = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif"}
@@ -54,6 +56,7 @@ def _on(el, tag) -> bool:
 class Converter:
     def __init__(self, z: zipfile.ZipFile):
         self.z = z
+        self.xml_bytes = 0
         self.rels = self._rels("word/_rels/document.xml.rels")
         self.styles = self._styles()
         self.numfmt = self._numbering()
@@ -65,9 +68,19 @@ class Converter:
             info = self.z.getinfo(name)
         except KeyError:
             return None
-        if info.file_size > MAX_XML:
+        if info.file_size > MAX_XML or self.xml_bytes + info.file_size > MAX_XML_TOTAL:
             raise DocxError("Das Word-Dokument ist zu groß für die Vorschau.")
-        return self.z.read(name)
+        data = self._entry(name)
+        self.xml_bytes += len(data)
+        return data
+
+    def _entry(self, name) -> bytes:
+        """Eintrag lesen. zipfile liest hoechstens die Groesse aus dem Kopf und prueft danach die Pruefsumme; ein
+        gefaelschter Kopf (Zip-Bombe, die kleiner tut) endet so als BadZipFile - hier als verstaendliche Meldung."""
+        try:
+            return self.z.read(name)
+        except (zipfile.BadZipFile, zlib.error, NotImplementedError, RuntimeError, EOFError):
+            raise DocxError("Das Word-Dokument ist beschädigt.")
 
     def _rels(self, name) -> dict:
         data = self._read(name)
@@ -257,7 +270,7 @@ class Converter:
             return '<span class="dx-missing">[Bild zu groß]</span>'
         self.image_bytes += info.file_size
         self.images += 1
-        data = base64.b64encode(self.z.read(name)).decode()
+        data = base64.b64encode(self._entry(name)).decode()
         return f'<img src="data:{IMG_MIME[ext]};base64,{data}" alt="">'
 
     def table(self, t) -> str:

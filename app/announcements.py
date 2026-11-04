@@ -122,12 +122,10 @@ def _year(day: int, month: int, posted: date) -> int | None:
     return None
 
 
-def extract_dates(text: str, posted: date) -> list[dict]:
-    """Tage, die in einer Ankuendigung genannt werden: [{date, time, kind, snippet}], nach Datum sortiert, ohne Doppelte.
-    Erkannt: 12.11., 12.11.26, 12.11.2026, 12. November (2026). Uhrzeit direkt danach (14 Uhr, 14:15, 14.15 Uhr).
-    Art aus dem Satz (Ausfall, Verlegung, Raum, Pruefung, Frist, Online, sonst Termin). Tage mehr als 30 Tage vor
-    der Ankuendigung (z. B. Bezug auf Vergangenes) werden ignoriert."""
-    found: dict[tuple, dict] = {}
+def scan_dates(text: str, posted: date):
+    """Jede gueltige Datumsangabe im Text, in Reihenfolge der Muster: (Tag, Uhrzeit, Satz, Satzteil, Anfang, Ende).
+    Gemeinsame Grundlage von extract_dates und der Klausurerkennung (app/exams.py); gleiche Regeln im Swift-Kern
+    (Announcements.scanDates)."""
     for rx, named in ((NUM_DATE_RE, False), (NAME_DATE_RE, True)):
         for m in rx.finditer(text or ""):
             day = int(m.group(1))
@@ -146,14 +144,23 @@ def extract_dates(text: str, posted: date) -> list[dict]:
             t = None
             if tm and 6 <= int(tm.group(1)) <= 23 and int(tm.group(2) or 0) < 60:
                 t = f"{int(tm.group(1)):02d}:{tm.group(2) or '00'}"
-            sent = _sentence(text, m.start(), m.end())
-            # Art zuerst aus dem Satzteil um das Datum ("Keine Vorlesung am 24.12., stattdessen am 7.1." -> Ausfall, Verlegung)
-            kind = _kind(_clause(text, m.start(), m.end()))
-            if kind == "termin":
-                kind = _kind(sent)
-            key = (d.isoformat(), t)
-            if key not in found:
-                found[key] = {"date": d.isoformat(), "time": t, "kind": kind, "snippet": sent}
+            yield d, t, _sentence(text, m.start(), m.end()), _clause(text, m.start(), m.end()), m.start(), m.end()
+
+
+def extract_dates(text: str, posted: date) -> list[dict]:
+    """Tage, die in einer Ankuendigung genannt werden: [{date, time, kind, snippet}], nach Datum sortiert, ohne Doppelte.
+    Erkannt: 12.11., 12.11.26, 12.11.2026, 12. November (2026). Uhrzeit direkt danach (14 Uhr, 14:15, 14.15 Uhr).
+    Art aus dem Satz (Ausfall, Verlegung, Raum, Pruefung, Frist, Online, sonst Termin). Tage mehr als 30 Tage vor
+    der Ankuendigung (z. B. Bezug auf Vergangenes) werden ignoriert."""
+    found: dict[tuple, dict] = {}
+    for d, t, sent, clause, _a, _b in scan_dates(text, posted):
+        # Art zuerst aus dem Satzteil um das Datum ("Keine Vorlesung am 24.12., stattdessen am 7.1." -> Ausfall, Verlegung)
+        kind = _kind(clause)
+        if kind == "termin":
+            kind = _kind(sent)
+        key = (d.isoformat(), t)
+        if key not in found:
+            found[key] = {"date": d.isoformat(), "time": t, "kind": kind, "snippet": sent}
     # gleicher Tag mit und ohne Uhrzeit: nur der Eintrag mit Uhrzeit
     out = [v for (d, t), v in found.items() if t or not any(k[0] == d and k[1] for k in found)]
     return sorted(out, key=lambda x: (x["date"], x["time"] or ""))

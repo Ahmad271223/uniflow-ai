@@ -57,9 +57,10 @@ struct UniFlowApp: App {
             // und Zeitmesser gelten fuer alle Fenster
             SceneObjects(scenes: scenes) { router, shell, toast, overlay in
                 RootView()
-                    // Links aus KI-Antworten, Stud.IP-Texten usw.: nur http(s) ins System, alles andere verwerfen
-                    // (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
-                    .environment(\.openURL, OpenURLAction { SafeLinks.action(for: $0) })
+                    // Links aus KI-Antworten, Stud.IP-Texten usw.: Seiten der eigenen Hochschule (Stud.IP, WebSSO, QIS bzw.
+                    // Learnweb, LSF, CAS) im In-App-Browser mit der Anmeldung der App (`UniWebBrowser`, 04.11.2026), andere
+                    // http(s) ins System, alles andere verwerfen (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
+                    .environment(\.openURL, OpenURLAction { UniWebBrowser.action(for: $0, containers: containers) })
                     .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
                     .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
                     .modifier(UFToastOverlay(center: toast))
@@ -126,6 +127,16 @@ struct UniFlowApp: App {
                             }
                             return
                         }
+                        // Einladung https://studinow.app/i/<CODE> (Universal Link) oder uniflow://invite/<CODE> (QR "App-Code"):
+                        // Code merken, bis das StudiNow-Konto da ist, dann einmal einloesen (Views/Settings/InviteView.swift)
+                        if let code = InviteLink.code(from: url) {
+                            PendingInvite.store(code)
+                            Task {
+                                let out = await containers.account.redeemPendingInvite()
+                                if let text = PendingInvite.toast(out) { toast.show(text, seconds: 5) }
+                            }
+                            return
+                        }
                         // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
                         if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
                     }
@@ -133,7 +144,7 @@ struct UniFlowApp: App {
                         // Startparameter (nur Debug) gelten fuer das erste Fenster, nicht fuer jedes weitere
                         guard scenes.claimLaunchSetup() else { return }
                         #if DEBUG
-                        // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie Einstellungen -> Erweitert)
+                        // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie der Link auf der Anmeldeseite)
                         if UserDefaults.standard.bool(forKey: "UFDemo"), !session.isOwnServer {
                             for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
                             // nur anlegen, wenn sie fehlt (erneutes Anlegen entfernte die PDFs der vorhandenen Demo)
@@ -200,6 +211,9 @@ struct SceneObjects<Content: View>: View {
     @StateObject private var toast = UFToastCenter()
     @StateObject private var overlay = UFOverlay()
     @Environment(\.scenePhase) private var scenePhase
+    /// Kennung dieses Fensters fuer "Weitermachen wie zuvor" (iOS legt sie mit dem Fenster wieder an; nach einem
+    /// Beenden durch den Nutzer neu, dann gilt der zuletzt geschriebene Stand, `ResumeTracker`)
+    @SceneStorage("uniflow.scene") private var sceneID = ""
 
     init(scenes: SceneRegistry, @ViewBuilder content: @escaping (UFRouter, ShellState, UFToastCenter, UFOverlay) -> Content) {
         self.scenes = scenes
@@ -208,7 +222,11 @@ struct SceneObjects<Content: View>: View {
 
     var body: some View {
         content(router, shell, toast, overlay)
-            .onAppear { scenes.register(router: router, overlay: overlay) }
+            .onAppear {
+                scenes.register(router: router, overlay: overlay)
+                if sceneID.isEmpty { sceneID = UUID().uuidString }
+                router.resume.sceneID = sceneID
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { scenes.activate(router: router, overlay: overlay) }
             }
@@ -260,7 +278,8 @@ final class SceneRegistry {
     }
 }
 
-/// Ziele fuer `openURL` in der ganzen App: nur http:// und https:// mit Host gehen an das System
+/// Ziele fuer `openURL` in der ganzen App: nur http:// und https:// mit Host gehen an das System (Seiten der eigenen
+/// Hochschule vorher in den In-App-Browser, `UniLinks.route`)
 enum SafeLinks {
     static func allows(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return false }
@@ -277,6 +296,7 @@ struct RootView: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var containers: ContainerManager
     @EnvironmentObject private var overlay: UFOverlay
+    @Environment(\.scenePhase) private var scenePhase
     @State private var choosingPlan = false
 
     /// was den Container bestimmt (Anmeldung, Hochschulwahl, Wechsel in den Einstellungen)
@@ -293,6 +313,15 @@ struct RootView: View {
             }
             .onChange(of: ContainerTrigger(user: account.account?.userID, university: account.university)) { _, _ in
                 containers.sync(account: account)
+            }
+            // Probe auf dem iPad (LocalTrial.swift): beginnt mit der Anmeldung, einmal je Apple-ID; nie unter XCTest
+            // (Tests bauen eigene Entitlements, der Testhost soll den Schluesselbund nicht fuellen)
+            .onChange(of: account.account?.userID, initial: true) { _, id in
+                guard !StudIPSync.isUnderTest() else { return }
+                if let id { Entitlements.shared.beginLocalTrial(userID: id) } else { Entitlements.shared.useLocalTrial(startedAt: nil) }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Entitlements.shared.refreshLocalTrial() }   // Resttage nach dem Tageswechsel
             }
             // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
             // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto

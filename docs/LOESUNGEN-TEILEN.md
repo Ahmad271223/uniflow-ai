@@ -464,56 +464,45 @@ und `content_sha256` je Datei im Moduldetail (die Seite ordnet geteilte Lösunge
 - „Daneben ansehen“ im Editor: fremde Lösung neben dem Dokument, nur ansehen, die eigene PDF-Seite darunter, scharf in
   Spaltenbreite.
 
-## 6c. Karteikarten teilen und nutzen im Dienst (Web und Windows, 4.11.2026)
+## 6c. Karteikarten-Stapel teilen und übernehmen im Dienst (Web und Windows, 4.11.2026)
 
-Wunsch des Inhabers (`docs/PREISLISTE.md`): Karteikarten-Stapel je **Lernwoche** oder fürs **ganze Modul** in der
-Community des Kurses teilen und die Stapel anderer übernehmen, ab StudiNow Plus (`can_share_flashcards`). Referenz
-`app/community_decks.py`, Endpunkte in `app/community_api.py`, Prüfdaten `packages/shared-contracts/fixtures/flashcards/stacks.json`
-(`tools/gen-flashcard-stacks-fixture.py`, Teil `community`).
+Wunsch des Inhabers (`docs/PREISLISTE.md`): eigene Karteikarten-Stapel je **Lernwoche** oder „**Allgemein**“ in der
+Community des Moduls teilen und die Stapel anderer übernehmen, ab StudiNow Plus (`can_use_flashcards`; Lesen, Liken,
+Melden wie in der Community). Referenz `app/community_cards.py`, Endpunkte in `app/community_cards_api.py`, Regeln und
+CloudKit-Gegenstück (iPad) in `docs/KARTEIKARTEN-STAPEL-2026-11-04.md` („Einmal erzeugen, alle profitieren“), Prüfdaten
+`packages/shared-contracts/fixtures/flashcards/stacks.json` (`tools/gen-flashcard-stacks-fixture.py`, Teil `community`).
 
-**Entscheidung Speicherung und Verschlüsselung:** wie **Kommentare und Fragen im Dienst**, nicht wie Lösungspakete. Frage
-und Antwort liegen als Text in `community.db` (Tabelle `flashcard_decks`, Spalte `cards` als JSON); geschützt wird über die
-**Mitgliedschaft** (dieselbe Prüfung wie Fragen je Kurs, `community_qa._require_member`, nur wer den Kurs hat oder hatte),
-Autoren erscheinen nur mit Pseudonym. Gründe: Karteikarten sind eigener Text der Studierenden und kein Material aus der PDF
-(es gibt nichts, woran ein Schlüssel hängen könnte, den nur Kursteilnehmer haben), die Moderation muss gemeldete Stapel lesen
-können, und das Übernehmen soll ohne Schlüsselverwaltung im Browser gehen. Ende-zu-Ende verschlüsselt bleiben Lösungen und
-Korrekturen (Abschnitte 3, 6b). Für CloudKit (iPad) gilt, wie bei `Comment`, dass `payload` mit dem Community-Schlüssel
-verschlüsselt wird (die öffentliche Datenbank ist für jeden lesbar); siehe `docs/UEBERGABE-MAC-KARTEIKARTEN-2026-11-04.md`.
-
-**Form eines Stapels:** `id` (32 Hex-Zeichen), `community_key`, `title`, `lecture_week` (Zahl 1–30 oder `null` = ganzes
-Modul), `card_count`, `pseudonym`, `created_at`, `updated_at`, `uses` (Konten, die übernommen haben), `status`, `mine`,
-`used_by_me`, `reported_by_me`, `preview` (bis zu 3 Fragen); mit Karten zusätzlich `cards: [{question, answer}]`. Nie
-Konto-ID oder E-Mail.
+**Entscheidung Speicherung und Verschlüsselung:** im Dienst wie **Kommentare und Fragen**, nicht wie Lösungspakete. Frage
+und Antwort liegen als Text in `community.db` (Tabelle `card_stacks`, Spalte `cards` als JSON); geschützt wird über die
+**Mitgliedschaft** in der Community des Moduls, Autoren erscheinen nur mit Pseudonym. Gründe: Karteikarten sind eigener
+Text der Studierenden und kein Material aus der PDF, die Moderation muss gemeldete Stapel lesen können, und das
+Übernehmen soll ohne Schlüsselverwaltung im Browser gehen. Ende-zu-Ende verschlüsselt bleiben Lösungen und Korrekturen
+(Abschnitte 3, 6b). Auf dem iPad ohne Dienst liegt derselbe Stapel als CloudKit-Datensatz `CardStackShare`, `payload`
+verschlüsselt mit dem Modul-Geheimnis (die öffentliche Datenbank ist für jeden lesbar).
 
 **Endpunkte** (nur mit Sitzung, Fehler `{detail, code}`; am PC über die Weiterleitung `/api/community/...` an den Dienst):
-- `GET /api/community/communities/{key}/decks?week=` → `{decks, weeks}`; nur Mitglieder (sonst 403 `not_a_member`), auch Free
-  darf lesen. `week` = Zahl (diese Woche), `module` (nur Stapel fürs ganze Modul) oder leer (alle); `weeks` zählt die Stapel je
-  Woche (`"5": 2, "module": 1`). Meistübernommene zuerst; gesperrte Autoren und die eigene Sperrliste ausgeblendet.
-- `POST /api/community/communities/{key}/decks {title?, lecture_week, cards}` → 201. Plus (403 `plan_required`), bestätigte
-  E-Mail (403 `email_unverified`), Mitglied, nicht gesperrt (403 `author_banned`); 1–500 Karten (413 `too_many_cards`), je
-  Seite höchstens 1000 Zeichen (400 `text_too_long`), Titel höchstens 120 Zeichen (ohne Titel „Karteikarten Woche N“ bzw.
-  „Karteikarten zum Modul“), gleiche Fragen nur einmal, leere Karten fallen weg (keine übrig: 400 `cards_invalid`).
-  Tagesgrenze `deck_user` 10 neue Stapel je Konto (429 `rate_limited`). **Ein Stapel je Konto, Community und Woche:** ein
-  zweiter antwortet 409 `already_published` mit `deck_id`; der Client fragt „Aktualisieren?“ und ersetzt mit PUT.
-- `GET /api/community/decks/{id}` → Stapel mit Karten (Mitglieder; sonst 404).
-- `PUT /api/community/decks/{id} {cards, title?}` → nur der Autor (403 `not_owner`), Grenzen wie oben, `update_user`;
-  verborgene Stapel 403 `deck_blocked`. ID, Woche und `uses` bleiben, `updated_at` neu.
-- `POST /api/community/decks/{id}/adopt` → `{deck, cards, origin}` (Plus). Die Kopie legt der Client an:
-  `POST /api/flashcards/stack {module_id, lecture_week, cards, origin}` mit `origin = "community:<id>"` (gleiche Fragen im
-  Stapel werden übersprungen). Jedes Konto zählt einmal in `uses`, der Autor nie.
-- `DELETE /api/community/decks/{id}` → Zurückziehen (Autor oder Moderation); die Karten werden geleert.
-- `POST /api/community/decks/{id}/report {reason}` → wie Kommentare: bestätigte E-Mail, `report_user` 10 je Tag, eine Meldung
-  je Konto (409 `already_reported`), nie den eigenen (400 `own_post`), ab 3 verschiedenen Meldungen verborgen. Moderation:
-  `GET /api/community/moderation` nennt `decks` (Titel und die ersten Karten als Text, Meldende nur als Pseudonym/Kontoalter),
-  `POST /api/community/decks/{id}/moderate {action: restore}` gibt frei.
-- `GET /api/community/decks/mine` → eigene Stapel (nicht zurückgezogene).
-- Konto löschen: Stapel sofort zurückgezogen (Karten geleert), beim endgültigen Löschen samt Meldungen und Nutzungen entfernt;
-  der Datenexport enthält `community/meine-karteikarten.json`.
+- `POST /api/flashcard-stacks/{id}/share` → Kopie des eigenen Stapels (Frage, Antwort) in die Community seines Moduls;
+  Plus, bestätigte E-Mail (403 `email_unverified`), Mitglied (403 `not_a_member`), nicht gesperrt (403 `author_banned`),
+  nur Stapel eines Moduls mit Karten (422 `no_module`/`stack_empty`), höchstens 500 Karten (413), Tagesgrenze `deck_user`
+  10 je Konto (429 `rate_limited`), schon geteilt 409 `already_shared`. Der eigene Stapel trägt danach `shared_id`.
+- `PUT /api/flashcard-stacks/{id}/share` → geteilte Kopie durch den aktuellen Stand ersetzen (Karten, Name); Kennung,
+  Likes und Übernahmen bleiben, `updated_at` neu, `update_user`; nicht geteilt 404 `not_shared`, verborgen 403 `stack_hidden`.
+- `DELETE /api/flashcard-stacks/{id}/share` → Zurückziehen (nur der Autor, in jedem Tarif); die Karten werden geleert.
+- `GET /api/community/card-stacks?module=<Schlüssel>|module_id=<lokal>&week=` → `{community_key, stacks, weeks}`; nur
+  Mitglieder, auch Free darf lesen; `week` 0 = Allgemein; `weeks` zählt die sichtbaren Stapel je Woche (`"5": 2, "0": 1`).
+  Meistgelikte zuerst; gesperrte Autoren und die eigene Sperrliste ausgeblendet.
+- `GET /api/community/card-stacks/{id}` → mit `cards_list`; `GET /api/community/card-stacks/mine` → eigene geteilte.
+- `POST /api/community/card-stacks/{id}/adopt` → eigener Stapel im passenden lokalen Modul (`source = community`,
+  zweimal = derselbe Stapel, 404 `module_not_here` ohne das Modul), 0 Credits, ab Plus.
+- `POST|DELETE …/like`, `POST …/report {reason, note}` → wie Lösungen: bestätigte E-Mail, `report_user`, eine Meldung je
+  Konto, ab 3 verborgen. Moderation: `GET /api/community/moderation` nennt `card_stacks` (Name und die ersten Karten als
+  Text, Meldende nur als Pseudonym/Kontoalter), `POST /api/community/card-stacks/{id}/moderate {action: restore}` gibt frei.
+- Bann bzw. Konto löschen: geteilte Stapel sofort zurückgezogen (`community.withdraw_all`), beim endgültigen Löschen
+  Likes und Meldungen entfernt (`community_cards.forget_author`); der Datenexport enthält `community/meine-karteikarten.json`.
 
-**Oberfläche (Web/Windows):** Seite „Karteikarten“ → Karte „Stapel“ (je Modul und Lernwoche, „Lernen“, „Teilen“,
-„Community“), „KI-Karteikarten“ (Pro AI, sonst Schloss mit Weg zur Tarifseite) und „Aus der Community“; im Community-Kanal
-der Reiter „Karteikarten“ mit den Stapeln je Woche (`app/static/flashcard-stacks.js`, `flashcard-stacks-ui.js`,
-`community-decks-ui.js`).
+**Oberfläche (Web/Windows):** Seite „Karteikarten“ (Stapel-Kacheln, „…“ → Stapel teilen / Geteilte Kopie aktualisieren /
+Teilen zurückziehen, geteilte Stapel anderer je Modul und Woche, „KI-Karteikarten“ für Pro AI) und im Community-Kanal der
+Reiter „Karteikarten“ (`app/static/community-decks-ui.js`, `flashcard-stacks.js`, `flashcard-stacks-ui.js`).
 
 ## 7. Online-Community über CloudKit (S9b)
 

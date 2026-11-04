@@ -78,7 +78,7 @@ def test_plan_choice_endpoint(hosted, monkeypatch):
 
 def test_plans_contract_names_the_trial(hosted):
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
-    assert st == 200 and d["trial"] == {"days": 7, "plan": "pro_ai"} and d["purchase"]["web"]["available"] is False
+    assert st == 200 and d["trial"] == {"days": 7, "plan": "pro_ai", "credits": 25} and d["purchase"]["web"]["available"] is False
 
 
 # ================================================================ Stripe
@@ -143,7 +143,7 @@ def webhook(app, payload, sig):
 
 def test_prices_and_channels(hosted, stripe):
     sb = stripe.module
-    assert sb.prices() == {"plus": "price_plus", "pro_ai": "price_ai"}, "nur kaufbare, bekannte Tarife (pro_connect entfaellt, wird ignoriert)"
+    assert sb.prices() == {"plus": "price_plus", "pro_ai": "price_ai"}, "nur kaufbare, bekannte Tarife (Pro Connect gibt es nicht mehr)"
     assert sb.plan_for_price("price_ai") == "pro_ai" and sb.plan_for_price("price_nein") is None and sb.available()
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
     assert d["purchase"]["web"]["available"] is True and d["purchase"]["web"]["plans"] == ["plus", "pro_ai"]
@@ -171,6 +171,8 @@ def test_checkout_creates_customer_once_and_returns_the_url(hosted, stripe):
     # Tarifwahl nach der Probe mit bezahltem Tarif: Antwort gemerkt und gleich die Checkout-Adresse
     st, d = _j(asgi_call(hosted, "POST", "/api/billing/plan-choice", headers=h, body=json.dumps({"plan": "pro_ai"})))
     assert st == 200 and d["checkout_url"] == "https://checkout.stripe.com/c/cs_1" and d["entitlements"]["plan_choice"] == "pro_ai"
+    st, d = _j(asgi_call(hosted, "POST", "/api/billing/plan-choice", headers=h, body=json.dumps({"plan": "pro_connect"})))
+    assert (st, d["code"]) == (400, "plan_invalid"), "Pro Connect ist nicht mehr waehlbar"
 
 
 def test_checkout_without_stripe_is_honest(hosted, monkeypatch):

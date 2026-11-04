@@ -131,6 +131,24 @@ public enum ScriptSearch {
         Array(PyText.lower(s).unicodeScalars.suffix(4)) == Array(".pdf".unicodeScalars)
     }
 
+    /// `is_text_source(name)`: PDF, Word (.docx) oder PowerPoint (.pptx) liefern Seitentexte (`OfficeText`, 04.11.2026)
+    public static func isTextSource(_ s: String) -> Bool { OfficeText.isTextSource(s) }
+
+    /// Datei, deren Seitentexte der Kern selbst lesen kann: PDF (Werkzeug der App), Word/PowerPoint (`OfficeText`),
+    /// Audio mit Transkript neben der Datei (nur Geraet, docs/DATEIARTEN.md)
+    static func canRead(stored path: String, files: LocalFiles) -> Bool {
+        if isTextSource(path) { return true }
+        return OfficeText.isAudio(path) && files.exists(stored: OfficeText.transcriptPath(for: path))
+    }
+
+    /// Seitentexte neu lesen, je nach Art der Datei; nil, wenn sie sich nicht lesen laesst (Python: `page_texts` liefert [])
+    public static func readPages(url: URL, stored path: String, files: LocalFiles) -> [String]? {
+        if hasPDFSuffix(path) { return files.tools.pdfPageTexts(url) }
+        if OfficeText.isOffice(path) { return OfficeText.pages(url: url, name: path) }
+        if OfficeText.isAudio(path), let t = files.url(stored: OfficeText.transcriptPath(for: path)) { return OfficeText.transcriptPages(url: t) }
+        return nil
+    }
+
     // MARK: Seitentexte (page_texts)
 
     /// Was `page_texts(conn, file_id)` vorfindet
@@ -139,8 +157,8 @@ public enum ScriptSearch {
         case unavailable
         /// gespeichert und so alt wie die Datei (auch ohne lokale Datei, z. B. nach "Dateien loeschen")
         case fresh([String])
-        /// neu lesen (noch nicht gelesen oder die Datei hat eine neuere Aenderungszeit)
-        case read(URL, chdate: SQLiteValue)
+        /// neu lesen (noch nicht gelesen oder die Datei hat eine neuere Aenderungszeit); `stored` wie `local_path`
+        case read(URL, stored: String, chdate: SQLiteValue)
     }
 
     /// Erster Teil von `page_texts` (Stand b718cfb): gespeicherte Texte derselben Fassung gelten, auch wenn die Datei
@@ -154,9 +172,9 @@ public enum ScriptSearch {
         if !rows.isEmpty, rows.allSatisfy({ ($0["chdate"]?.double ?? 0) == (chdate.double ?? 0) }) {
             return .fresh(rows.map { $0["text"]?.string ?? "" })
         }
-        guard let path = f["local_path"]?.string, !path.isEmpty, let files, files.exists(stored: path), hasPDFSuffix(path),
+        guard let path = f["local_path"]?.string, !path.isEmpty, let files, files.exists(stored: path), canRead(stored: path, files: files),
               let url = files.url(stored: path) else { return .unavailable }
-        return .read(url, chdate: chdate)
+        return .read(url, stored: path, chdate: chdate)
     }
 
     /// Zweiter Teil von `page_texts`: neu gelesene Texte mit Suchform speichern (`chdate or 0`), nur wenn die Datei
@@ -189,8 +207,8 @@ public enum ScriptSearch {
         switch state {
         case .unavailable: return []
         case .fresh(let stored): pages = stored
-        case .read(let url, let chdate):
-            guard let read = files?.tools.pdfPageTexts(url) else { return [] }
+        case .read(let url, let stored, let chdate):
+            guard let files, let read = readPages(url: url, stored: stored, files: files) else { return [] }
             try await database.transaction { c in
                 if try storePages(c, fileID: fileID, pages: read, chdate: chdate) { try DueStore.refreshFile(c, fileID: fileID, clock: clock) }
             }
@@ -300,10 +318,11 @@ public enum ScriptSearch {
         }
     }
 
-    /// `_sources(conn, module_id, None)`: PDFs der Vorlesungen und Skripte eines Moduls (aktive Kurse, aelteste zuerst)
+    /// `_sources(conn, module_id, None)`: PDF-, Word- und PowerPoint-Dateien der Vorlesungen und Skripte eines Moduls
+    /// (aktive Kurse, aelteste zuerst)
     static func sources(_ c: SQLiteConnection, moduleID: SQLiteValue) throws -> [[String: JSONValue]] {
         try LocalModules.fileRows(c, moduleID: moduleID).map(\.json).filter { f in
-            hasPDFSuffix(f["name"]?.string ?? "") && ["vorlesung", "skript"].contains(f["doc_type"]?.string ?? "")
+            isTextSource(f["name"]?.string ?? "") && ["vorlesung", "skript"].contains(f["doc_type"]?.string ?? "")
         }
     }
 
@@ -429,6 +448,7 @@ public enum ScriptSearch {
             var o: [String: JSONValue] = [:]
             for k in ["file_id", "page", "name", "ai_title", "subject", "module_id"] { o[k] = r[k]?.json ?? .null }
             o["snippet"] = .string(snippet(normalize(r["text"]?.string ?? ""), terms: [q]))
+            o["kind"] = OfficeText.kind(r["name"]?.string).map(JSONValue.string) ?? .null     // pdf | docx | pptx | audio (04.11.2026)
             return .object(o)
         }
     }

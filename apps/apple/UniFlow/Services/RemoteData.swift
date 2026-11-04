@@ -158,6 +158,27 @@ enum Fmt {
 
     static func isoDay(_ d: Date) -> String { iso.string(from: d) }
 
+    /// Zeitpunkt wie das lokale Backend (`UniFlowClock.nowISO`, Berlin ohne Zone): "2026-11-04T08:15:00"
+    static let isoDateTimeF = formatter("yyyy-MM-dd'T'HH:mm:ss", locale: "en_US_POSIX")
+    static func isoDateTime(_ d: Date) -> String { isoDateTimeF.string(from: d) }
+
+    /// Zeitpunkt aus dem Backend ("2026-11-04T08:15:00", auch mit Leerzeichen, ohne Sekunden oder mit Bruchteilen,
+    /// Berlin) oder mit Zone ("…Z", "+01:00"); nil, wenn nichts davon passt. Fuer die Reihenfolge von "Zuletzt benutzt".
+    static func dateTime(_ s: String?) -> Date? {
+        guard let s = s?.trimmingCharacters(in: .whitespaces), s.count >= 10 else { return nil }
+        if s.count > 19, s.hasSuffix("Z") || s.suffix(6).contains("+") || s.suffix(6).dropFirst().contains("-") {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = iso.date(from: s) { return d }
+            iso.formatOptions = [.withInternetDateTime]
+            if let d = iso.date(from: s) { return d }
+        }
+        let plain = String(s.replacingOccurrences(of: " ", with: "T").prefix(19))
+        if let d = isoDateTimeF.date(from: plain) { return d }
+        if plain.count == 16, let d = isoDateTimeF.date(from: plain + ":00") { return d }
+        return date(s)
+    }
+
     static func relative(_ d: Date) -> String {
         let f = RelativeDateTimeFormatter()
         f.locale = Locale(identifier: "de_DE")

@@ -13,7 +13,7 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-from . import config, db, pageocr, study
+from . import config, db, extract, pageocr, study
 
 import logging
 logging.getLogger("pypdf").setLevel(logging.ERROR)
@@ -83,7 +83,15 @@ def ensure_table(conn) -> None:
         conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
 
 
+def is_text_source(name: str | None) -> bool:
+    """Liefert die Datei Seitentexte: PDF, Word (.docx) oder PowerPoint (.pptx), app/extract.py (04.11.2026)."""
+    return extract.is_text_source(name)
+
+
 def _extract_pages(path: str) -> list[str]:
+    office = extract.office_pages(path)          # Word/PowerPoint ohne pypdf (docs/DATEIARTEN.md)
+    if office is not None:
+        return office
     from pypdf import PdfReader
     reader = PdfReader(path)
     pages = []
@@ -95,8 +103,11 @@ def _extract_pages(path: str) -> list[str]:
     return pages
 
 
-def _extract_bytes(data: bytes) -> list[str]:
+def _extract_bytes(data: bytes, name: str | None = None) -> list[str]:
     import io
+    suffix = Path(name or "").suffix.lower()
+    if suffix in (".docx", ".pptx"):
+        return extract.office_pages_bytes(data, suffix)
     from pypdf import PdfReader
     reader = PdfReader(io.BytesIO(data))
     pages = []
@@ -121,14 +132,15 @@ def store_pages(conn, file_id: str, pages: list[str], chdate) -> None:
         _CACHE.clear()
 
 
-def index_bytes(conn, file_id: str, data: bytes, chdate) -> list[str]:
-    """Seitentexte aus Bytes (Betriebsart stream: Datei liegt nicht auf der Platte) ablegen, wenn noch nicht vorhanden."""
+def index_bytes(conn, file_id: str, data: bytes, chdate, name: str | None = None) -> list[str]:
+    """Seitentexte aus Bytes (Betriebsart stream: Datei liegt nicht auf der Platte) ablegen, wenn noch nicht vorhanden;
+    `name` entscheidet ueber PDF oder Word/PowerPoint (ohne Namen PDF)."""
     ensure_table(conn)
     rows = db.rows(conn, "SELECT page, text, chdate FROM page_texts WHERE file_id=? ORDER BY page", (file_id,))
     if rows and all((r["chdate"] or 0) == (chdate or 0) for r in rows):
         return [r["text"] or "" for r in rows]
     try:
-        pages = _extract_bytes(data)
+        pages = _extract_bytes(data, name)
     except Exception:  # noqa: BLE001
         return []
     store_pages(conn, file_id, pages, chdate)
@@ -170,9 +182,9 @@ def _page_texts(conn, file_id: str) -> list[str]:
     rows = db.rows(conn, "SELECT page, text, chdate FROM page_texts WHERE file_id=? ORDER BY page", (file_id,))
     if rows and all((r["chdate"] or 0) == (f["chdate"] or 0) for r in rows):
         return [r["text"] or "" for r in rows]
-    has_file = f["local_path"] and Path(f["local_path"]).exists() and f["local_path"].lower().endswith(".pdf")
+    has_file = f["local_path"] and Path(f["local_path"]).exists() and is_text_source(f["local_path"])
     if not has_file:
-        if config.streams_files() and f["download_url"] and (f["name"] or "").lower().endswith(".pdf"):
+        if config.streams_files() and f["download_url"] and is_text_source(f["name"]):
             from . import filestream
             try:
                 filestream.content(conn, file_id)
@@ -198,7 +210,7 @@ def _sources(conn, module_id: int, exclude: str | None) -> list[dict]:
     files = study._file_rows(conn, module_id)
     out = []
     for f in files:
-        if f["id"] == exclude or not (f.get("name") or "").lower().endswith(".pdf"):
+        if f["id"] == exclude or not is_text_source(f.get("name")):
             continue
         if f.get("doc_type") in ("vorlesung", "skript"):
             out.append(f)
@@ -306,7 +318,7 @@ def find_pages(conn, q: str, limit: int = 10) -> list[dict]:
                              ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""",
                    (1 if config.streams_files() else 0, like_pattern(search_form(q)), limit))
     return [{"file_id": r["file_id"], "page": r["page"], "name": r["name"], "ai_title": r["ai_title"], "subject": r["subject"],
-             "module_id": r["module_id"], "snippet": _snippet(normalize(r["text"]), [q])} for r in rows]
+             "module_id": r["module_id"], "snippet": _snippet(normalize(r["text"]), [q]), "kind": extract.text_kind(r["name"])} for r in rows]
 
 
 def index_all(conn, log=print) -> int:

@@ -7,7 +7,9 @@ Inhalt:
 - prompts: je Funktion Eingaben -> Prompt (Tutor mit Quellen und Kuerzungen, Analyse aus Text,
   Wochentest mit und ohne Altklausur samt Materialblock, Bewertung)
 - parse_json: Antworttext -> JSON oder Fehler
-- check_week_test: Antwort -> Grund (null = in Ordnung)
+- check_week_test: Antwort -> Grund (null = in Ordnung), auch mit Parametern des Dialogs (options)
+- week_test_options / week_test_distribution / week_test_is_standard: Parameter des Dialogs (04.11.2026) pruefen,
+  Schwierigkeiten verteilen, Standardeinstellung (nur sie wird geteilt) erkennen
 - chatgpt: Adressen, Scopes, Autorisierungsadressen, PKCE, Zugangsdaten aus Token-Antworten, Anfrage an die
   Responses API, Text aus der Antwort, Fehlercodes
 Alles erfunden; nichts geht ins Netz. Aufruf im Projektordner: python tools/gen-ai-contract.py [--check]
@@ -78,11 +80,37 @@ def _test_cases(ai) -> list[dict]:
             {"name": "ohne-text.pdf", "text": None}]
     exam = {"name": "klausur-ws25.pdf", "title": "Testklausur WiSe 25/26", "text": "Aufgabe 1: Bestimmen Sie ... " * 200}
     cases = []
-    for subject, minutes, ex in [("Testmathe", 45, None), ("Testmathe", 90, exam), ("Testphysik", 30, {"name": "alt.pdf", "text": ""})]:
+    options = [None, None, None,
+               {"count": 5, "difficulty": "leicht", "types": ["tf", "cloze"], "topic": "  nur Kapitel 3 "},
+               {"count": 20, "difficulty": "schwer", "types": ["calc"], "topic": "x" * 400},
+               {"count": 10, "difficulty": "mittel", "types": ["mc", "short", "cloze"]},
+               {"count": "15", "types": ["calc", "mc"], "topic": "Reihen ä€😀"}]
+    pairs = [("Testmathe", 45, None), ("Testmathe", 90, exam), ("Testphysik", 30, {"name": "alt.pdf", "text": ""}),
+             ("Testmathe", 30, exam), ("Testmathe", 60, exam), ("Testmathe", 45, exam), ("Testinfo", 45, None)]
+    for (subject, minutes, ex), opts in zip(pairs, options):
         block, exam_block = ai.test_text_block(mats), ai.exam_text_block(ex)
-        cases.append({"in": {"subject": subject, "duration_min": minutes, "materials": mats, "exam": ex},
-                      "text_block": block, "exam_block": exam_block, "prompt": ai._test_prompt(subject, minutes, block, exam_block)})
+        cases.append({"in": {"subject": subject, "duration_min": minutes, "materials": mats, "exam": ex, "options": opts},
+                      "text_block": block, "exam_block": exam_block, "prompt": ai._test_prompt(subject, minutes, block, exam_block, opts)})
     return cases
+
+
+def _options_cases(ai) -> dict:
+    """ai.week_test_options (Pruefung und Vervollstaendigung, Fehlertexte), week_test_distribution, week_test_is_standard"""
+    bodies = [None, {}, {"count": 15}, {"count": "10", "difficulty": "", "types": ["calc", "mc", "calc"], "topic": None},
+              {"count": 5, "difficulty": "schwer", "types": ["tf"], "topic": " nur Kapitel 3 "},
+              {"count": 20, "difficulty": "beliebig", "types": ["mc", "tf", "cloze", "short", "calc"], "topic": "x" * 400},
+              {"count": 12}, {"count": "abc"}, {"count": True}, {"count": 15.0}, {"count": None},
+              {"difficulty": "einfach"}, {"difficulty": 3}, {"types": "mc"}, {"types": ["essay"]}, {"types": []},
+              {"types": [1]}, {"topic": 42}, {"types": None, "difficulty": None, "topic": "  "},
+              {"module_id": 7, "duration_min": 30, "week_no": 3}]
+    parsed = []
+    for b in bodies:
+        try:
+            parsed.append({"in": b, "out": ai.week_test_options(b), "standard": ai.week_test_is_standard(b)})
+        except ValueError as e:
+            parsed.append({"in": b, "error": str(e)})
+    dist = [{"count": c, "difficulty": d, "out": ai.week_test_distribution(c, d)} for c in ai.WEEK_TEST_COUNTS for d in ai.WEEK_TEST_LEVELS]
+    return {"standard": ai.WEEK_TEST_STANDARD, "parse": parsed, "distribution": dist}
 
 
 def _flashcards_cases(ai) -> list[dict]:
@@ -129,15 +157,50 @@ def _parse_cases(ai) -> list[dict]:
 
 
 def _check_cases(ai) -> list[dict]:
-    def valid():
-        diffs = ["leicht"] * 4 + ["mittel"] * 6 + ["schwer"] * 5
-        return {"title": "T", "questions": [{"nr": i + 1, "type": "calc", "difficulty": d, "question": f"A{i}", "answer": "1",
-                                             "points": 6 if i < 10 else 8, "exam_style": False} for i, d in enumerate(diffs)]}
+    def valid(count=15, difficulty="beliebig", type_="calc"):
+        dist = ai.week_test_distribution(count, difficulty)
+        diffs = [k for k in ai.WEEK_TEST_DIFFICULTY for _ in range(dist[k])]
+        return {"title": "T", "questions": [{"nr": i + 1, "type": type_, "difficulty": d, "question": f"A{i}", "answer": "1",
+                                             "explanation": f"Weil {i}.", "points": 6 if i < 10 else 8, "exam_style": False}
+                                            for i, d in enumerate(diffs)]}
     cases = []
 
-    def add(name, res, exam=False):
-        cases.append({"name": name, "exam": exam, "in": res, "reason": ai.check_week_test(res, exam=exam)})
+    def add(name, res, exam=False, options=None):
+        cases.append({"name": name, "exam": exam, "options": options, "in": res, "reason": ai.check_week_test(res, exam=exam, options=options)})
     add("gueltig", valid())
+    t = valid(); t["questions"][0].pop("explanation"); add("ohne Erklaerung", t)
+    t = valid(); t["questions"][1]["explanation"] = "  "; add("leere Erklaerung", t)
+    t = valid(); t["questions"][2].update(type="tf", options=["Wahr", "Falsch"], answer="Falsch"); add("tf gueltig", t)
+    t = valid(); t["questions"][2].update(type="tf", options=[" Wahr", "Falsch "], answer=" Wahr "); add("tf mit Leerraum", t)
+    t = valid(); t["questions"][2].update(type="tf", options=["Ja", "Nein"], answer="Ja"); add("tf falsche Optionen", t)
+    t = valid(); t["questions"][2].update(type="tf", options=["Falsch", "Wahr"], answer="Wahr"); add("tf vertauscht", t)
+    t = valid(); t["questions"][2].update(type="tf", answer="Wahr"); add("tf ohne Optionen", t)
+    t = valid(); t["questions"][2].update(type="tf", options=["Wahr", "Falsch"], answer="B"); add("tf Loesung daneben", t)
+    t = valid(); t["questions"][3].update(type="cloze", blank="Konvergenz", question="Eine Folge heisst ___, wenn ..."); add("cloze gueltig", t)
+    t = valid(); t["questions"][3].update(type="cloze", question="Eine Folge heisst ___"); add("cloze ohne Luecke", t)
+    t = valid(); t["questions"][3].update(type="cloze", blank=""); add("cloze leere Luecke", t)
+    t = valid(); t["questions"][3].update(type="cloze", blank=7); add("cloze Luecke als Zahl", t)
+    add("5 leicht tf", valid(5, "leicht", "tf") | {}, options={"count": 5, "difficulty": "leicht", "types": ["tf"]})
+    t = valid(5, "leicht", "tf")
+    for q in t["questions"]:
+        q.update(options=["Wahr", "Falsch"], answer="Wahr")
+    add("5 leicht tf gueltig", t, options={"count": 5, "difficulty": "leicht", "types": ["tf"]})
+    t = valid(5, "leicht", "tf")
+    for q in t["questions"]:
+        q.update(options=["Wahr", "Falsch"], answer="Wahr")
+    t["questions"][4]["exam_style"] = True
+    add("5 leicht mit Klausuraufgabe", t, exam=True, options={"count": 5, "difficulty": "leicht", "types": ["tf"]})
+    t = valid(5, "leicht", "tf")
+    for q in t["questions"]:
+        q.update(options=["Wahr", "Falsch"], answer="Wahr")
+    add("5 leicht, Klausur ohne schwere Aufgabe", t, exam=True, options={"count": 5, "difficulty": "leicht", "types": ["tf"]})
+    add("10 beliebig calc", valid(10), options={"count": 10, "types": ["calc", "short"]})
+    add("10 statt 15", valid(10), options={"count": 15})
+    add("15 statt 10", valid(15), options={"count": 10})
+    t = valid(10); t["questions"][0]["difficulty"] = "schwer"; add("10 Verteilung", t, options={"count": 10})
+    add("nicht gewaehlte Art", valid(10), options={"count": 10, "types": ["mc", "tf"]})
+    t = valid(20, "schwer"); t["questions"][19]["exam_style"] = True; add("20 schwer mit Klausur", t, exam=True, options={"count": 20, "difficulty": "schwer"})
+    t = valid(20, "schwer"); t["questions"][0]["difficulty"] = "mittel"; add("20 schwer Verteilung", t, options={"count": 20, "difficulty": "schwer"})
     t = valid(); t["questions"].pop(); add("14 Aufgaben", t)
     t = valid(); t["questions"].append(dict(t["questions"][0])); add("16 Aufgaben", t)
     t = valid(); t["questions"][0]["difficulty"] = "mittel"; add("Verteilung", t)
@@ -316,6 +379,9 @@ def main() -> int:
         "texts": {"system": ai.SYSTEM, "tutor_system": ai.TUTOR_SYSTEM, "tutor_modes": ai.TUTOR_MODES,
                   "analysis_fields": ai.ANALYSIS_FIELDS, "week_test_difficulty": ai.WEEK_TEST_DIFFICULTY,
                   "week_test_total": ai.WEEK_TEST_TOTAL, "week_test_types": list(ai.WEEK_TEST_TYPES),
+                  "week_test_counts": list(ai.WEEK_TEST_COUNTS), "week_test_levels": list(ai.WEEK_TEST_LEVELS),
+                  "week_test_topic_chars": ai.WEEK_TEST_TOPIC_CHARS, "week_test_type_names": ai.WEEK_TEST_TYPE_NAMES,
+                  "tf_options": list(ai.TF_OPTIONS),
                   "tutor_history_turns": ai.TUTOR_HISTORY_TURNS, "tutor_history_chars": ai.TUTOR_HISTORY_CHARS,
                   "untrusted": ai.UNTRUSTED,
                   "flashcards_default": ai.FLASHCARDS_DEFAULT, "flashcards_max": ai.FLASHCARDS_MAX,
@@ -327,6 +393,7 @@ def main() -> int:
                     "week_test": _test_cases(ai), "grade": _grade_cases(ai), "flashcards": _flashcards_cases(ai)},
         "parse_json": _parse_cases(ai),
         "check_week_test": _check_cases(ai),
+        "week_test_options": _options_cases(ai),
         "check_flashcards": _flashcards_check_cases(ai),
         "chatgpt": _chatgpt(chatgpt_login, ai_backend),
     }

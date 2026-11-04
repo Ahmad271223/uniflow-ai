@@ -117,7 +117,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 1
      }
     },
     {
@@ -128,7 +129,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 5
+      "count": 5,
+      "stack_id": 2
      }
     },
     {
@@ -139,7 +141,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 3
      }
     },
     {
@@ -150,7 +153,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 2
+      "count": 2,
+      "stack_id": 4
      }
     },
     {
@@ -161,7 +165,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 5
      }
     },
     {
@@ -172,7 +177,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 6
      }
     },
     {
@@ -183,7 +189,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 7
      }
     },
     {
@@ -194,7 +201,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 3
      }
     },
     {
@@ -205,7 +213,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 3
      }
     },
     {
@@ -216,7 +225,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -227,7 +237,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -238,7 +249,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -249,7 +261,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -260,7 +273,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -271,7 +285,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -282,7 +297,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": null
      }
     },
     {
@@ -300,7 +316,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 0
+      "count": 0,
+      "stack_id": null
      }
     },
     {
@@ -411,10 +428,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -428,10 +444,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -445,10 +460,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -462,10 +476,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -479,10 +492,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -496,10 +508,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -513,10 +524,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -530,10 +540,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -547,10 +556,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -564,10 +572,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -581,10 +588,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -607,10 +613,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -633,10 +638,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -650,10 +654,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -667,10 +670,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -684,10 +686,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -701,10 +702,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -718,10 +718,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -735,10 +734,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -752,10 +750,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -769,10 +766,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -786,10 +782,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -803,10 +798,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -829,10 +823,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -846,10 +839,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       }
      ]
     },
@@ -872,10 +864,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       }
      ]
     },
@@ -898,10 +889,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -915,10 +905,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       }
      ]
     },
@@ -941,10 +930,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -958,10 +946,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -975,10 +962,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -992,10 +978,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -1009,10 +994,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -1026,10 +1010,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -1043,10 +1026,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -1060,10 +1042,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -1077,10 +1058,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -1094,10 +1074,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -1111,10 +1090,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -1137,10 +1115,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -1154,10 +1131,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -1171,10 +1147,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -1188,10 +1163,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -1205,10 +1179,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -1222,10 +1195,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -1239,10 +1211,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -1256,10 +1227,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -1273,10 +1243,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -1290,10 +1259,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -1307,10 +1275,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -1333,10 +1300,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -1350,10 +1316,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       }
      ]
     },
@@ -1565,10 +1530,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -1582,10 +1546,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -1599,10 +1562,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       }
      ]
     },
@@ -1625,10 +1587,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -1642,10 +1603,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -1659,10 +1619,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 7,
@@ -1676,10 +1635,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -1693,10 +1651,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -1710,10 +1667,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 2,
@@ -1727,10 +1683,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       }
      ]
     },
@@ -1775,7 +1730,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 1
+      "count": 1,
+      "stack_id": 3
      }
     },
     {
@@ -1797,10 +1753,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -1814,10 +1769,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -1831,10 +1785,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -1848,10 +1801,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 7,
@@ -1865,10 +1817,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -1882,10 +1833,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -1899,10 +1849,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 2,
@@ -1916,10 +1865,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       }
      ]
     },
@@ -1942,10 +1890,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -1959,10 +1906,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -1976,10 +1922,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -1993,10 +1938,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -2010,10 +1954,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -2027,10 +1970,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -2044,10 +1986,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -2061,10 +2002,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -2078,10 +2018,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -2095,10 +2034,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -2112,10 +2050,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -2129,10 +2066,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -2221,10 +2157,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -2238,10 +2173,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -2255,10 +2189,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -2272,10 +2205,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -2289,10 +2221,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -2306,10 +2237,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -2323,10 +2253,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -2340,10 +2269,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -2357,10 +2285,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 2,
@@ -2374,10 +2301,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -2391,10 +2317,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -2477,10 +2402,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -2494,10 +2418,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -2511,10 +2434,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -2528,10 +2450,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 7,
+       "file_name": null,
+       "stack_name": "5.0"
       },
       {
        "id": 8,
@@ -2545,10 +2466,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Zusatz.pdf"
+       "stack_id": 6,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
       },
       {
        "id": 7,
@@ -2562,10 +2482,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Seminar_Einfuehrung.pdf"
+       "stack_id": 5,
+       "file_name": "Seminar_Einfuehrung.pdf",
+       "stack_name": "Seminar_Einfuehrung.pdf"
       },
       {
        "id": 6,
@@ -2579,10 +2498,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 5,
@@ -2596,10 +2514,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "gibtsnicht"
       },
       {
        "id": 4,
@@ -2613,10 +2530,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -2630,10 +2546,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 2,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 1,
@@ -2647,10 +2562,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     }
@@ -2669,9 +2583,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 3,
@@ -2685,9 +2597,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 2
      },
      {
       "id": 4,
@@ -2701,9 +2611,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 3
      },
      {
       "id": 5,
@@ -2717,9 +2625,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 6,
@@ -2733,9 +2639,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 7,
@@ -2749,9 +2653,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 5
      },
      {
       "id": 8,
@@ -2765,9 +2667,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 6
      },
      {
       "id": 9,
@@ -2781,9 +2681,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 7
      },
      {
       "id": 10,
@@ -2797,9 +2695,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 3
      },
      {
       "id": 11,
@@ -2813,9 +2709,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 3
      },
      {
       "id": 12,
@@ -2829,9 +2723,100 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 3
+     }
+    ],
+    "flashcard_stacks": [
+     {
+      "id": 1,
+      "name": "LA_Vorlesung_01.pdf",
+      "subject": "Lineare Algebra Test",
+      "file_id": "f-la1",
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": "2026-11-30T07:05:00",
+      "week": 1,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 2,
+      "name": "Analysis_Blatt_01.pdf",
+      "subject": "Analysis Beispiel",
+      "file_id": "f-an1",
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": "2026-12-30T23:59:59",
+      "week": 1,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 3,
+      "name": "Ohne Modul",
+      "subject": null,
+      "file_id": null,
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": "2026-10-26T09:00:00",
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 4,
+      "name": "gibtsnicht",
+      "subject": null,
+      "file_id": "gibtsnicht",
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": "2026-10-26T09:00:00",
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 5,
+      "name": "Seminar_Einfuehrung.pdf",
+      "subject": null,
+      "file_id": "f-frei",
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": "2026-10-26T09:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 6,
+      "name": "LA_Zusatz.pdf",
+      "subject": "Lineare Algebra Test",
+      "file_id": "5",
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": "2026-10-26T09:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 7,
+      "name": "5.0",
+      "subject": null,
+      "file_id": "5.0",
+      "created_at": "2026-10-26T09:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
      }
     ]
    }
@@ -3070,10 +3055,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "f-weg"
       },
       {
        "id": 12,
@@ -3087,10 +3071,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -3104,10 +3087,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -3121,10 +3103,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -3138,10 +3119,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 8,
@@ -3155,10 +3135,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 7,
@@ -3172,10 +3151,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 6,
@@ -3189,10 +3167,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 5,
@@ -3206,10 +3183,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 4,
@@ -3223,10 +3199,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 1,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 3,
@@ -3240,10 +3215,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 1,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -3257,10 +3231,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 2,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -3274,10 +3247,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 2,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -3300,10 +3272,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "f-weg"
       },
       {
        "id": 12,
@@ -3317,10 +3288,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -3334,10 +3304,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -3351,10 +3320,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -3368,10 +3336,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 8,
@@ -3385,10 +3352,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 7,
@@ -3402,10 +3368,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 5,
@@ -3419,10 +3384,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -3436,10 +3400,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 1,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -3453,10 +3416,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 2,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -3470,10 +3432,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 2,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -3638,10 +3599,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "f-weg"
       }
      ]
     },
@@ -3664,10 +3624,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "f-weg"
       },
       {
        "id": 12,
@@ -3681,10 +3640,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 11,
@@ -3698,10 +3656,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 10,
@@ -3715,10 +3672,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 9,
@@ -3732,10 +3688,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 8,
@@ -3749,10 +3704,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 7,
@@ -3766,10 +3720,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 6,
@@ -3783,10 +3736,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 5,
@@ -3800,10 +3752,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 4,
@@ -3817,10 +3768,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 1,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 3,
@@ -3834,10 +3784,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "Analysis_Blatt_01.pdf"
+       "stack_id": 1,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Analysis_Blatt_01.pdf"
       },
       {
        "id": 2,
@@ -3851,10 +3800,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 2,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -3868,10 +3816,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 2,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     }
@@ -3890,9 +3837,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 2
      },
      {
       "id": 2,
@@ -3906,9 +3851,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 2
      },
      {
       "id": 3,
@@ -3922,9 +3865,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 4,
@@ -3938,9 +3879,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 5,
@@ -3954,9 +3893,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 6,
@@ -3970,9 +3907,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 7,
@@ -3986,9 +3921,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 8,
@@ -4002,9 +3935,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 9,
@@ -4018,9 +3949,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 10,
@@ -4034,9 +3963,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 11,
@@ -4050,9 +3977,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 12,
@@ -4066,9 +3991,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 4
      },
      {
       "id": 13,
@@ -4082,9 +4005,61 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 3
+     }
+    ],
+    "flashcard_stacks": [
+     {
+      "id": 1,
+      "name": "Analysis_Blatt_01.pdf",
+      "subject": null,
+      "file_id": "f-an1",
+      "created_at": "2026-10-20T08:00:00",
+      "last_practised": "2026-10-26T12:00:00",
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 2,
+      "name": "LA_Vorlesung_01.pdf",
+      "subject": null,
+      "file_id": "f-la1",
+      "created_at": "2026-10-20T08:00:00",
+      "last_practised": "2026-10-26T12:00:00",
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 3,
+      "name": "f-weg",
+      "subject": null,
+      "file_id": "f-weg",
+      "created_at": "2026-10-20T08:00:00",
+      "last_practised": "2026-10-26T12:00:00",
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 4,
+      "name": "Ohne Modul",
+      "subject": null,
+      "file_id": null,
+      "created_at": "2026-10-20T08:00:00",
+      "last_practised": "2026-10-26T12:00:00",
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
      }
     ]
    }
@@ -4182,7 +4157,8 @@
      "status": 200,
      "response": {
       "ok": true,
-      "count": 2
+      "count": 2,
+      "stack_id": 1
      }
     },
     {
@@ -4204,10 +4180,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -4221,10 +4196,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -4246,9 +4220,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4269,9 +4241,7 @@
       "bookmarked": 1,
       "hidden": 1,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4292,9 +4262,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4315,9 +4283,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4338,9 +4304,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4361,9 +4325,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4384,9 +4346,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4521,10 +4481,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -4538,10 +4497,9 @@
        "bookmarked": 1,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -4571,9 +4529,7 @@
       "bookmarked": 1,
       "hidden": 1,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4603,10 +4559,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -4620,10 +4575,9 @@
        "bookmarked": 1,
        "hidden": 1,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -4654,10 +4608,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     },
@@ -4679,9 +4632,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      }
     },
     {
@@ -4703,10 +4654,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": "right",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       },
       {
        "id": 1,
@@ -4720,10 +4670,9 @@
        "bookmarked": 1,
        "hidden": 0,
        "last_result": "wrong",
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": "LA_Vorlesung_01.pdf"
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
       }
      ]
     }
@@ -4742,9 +4691,7 @@
       "bookmarked": 1,
       "hidden": 0,
       "last_result": "wrong",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 2,
@@ -4758,9 +4705,22 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": "right",
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
+     }
+    ],
+    "flashcard_stacks": [
+     {
+      "id": 1,
+      "name": "LA_Vorlesung_01.pdf",
+      "subject": "Lineare Algebra Test",
+      "file_id": "f-la1",
+      "created_at": "2026-11-03T10:00:00",
+      "last_practised": "2026-11-03T10:00:00",
+      "week": 1,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
      }
     ]
    }
@@ -4933,10 +4893,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 2,
@@ -4950,10 +4909,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 1,
@@ -4967,10 +4925,9 @@
        "bookmarked": 0,
        "hidden": null,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       }
      ]
     },
@@ -4993,10 +4950,9 @@
        "bookmarked": 0,
        "hidden": -1,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 7,
@@ -5010,10 +4966,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 6,
@@ -5027,10 +4982,9 @@
        "bookmarked": 0,
        "hidden": "ja",
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 5,
@@ -5044,10 +4998,9 @@
        "bookmarked": 0,
        "hidden": "",
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 4,
@@ -5061,10 +5014,9 @@
        "bookmarked": 0,
        "hidden": 2,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 3,
@@ -5078,10 +5030,9 @@
        "bookmarked": 0,
        "hidden": 1,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 2,
@@ -5095,10 +5046,9 @@
        "bookmarked": 0,
        "hidden": 0,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       },
       {
        "id": 1,
@@ -5112,10 +5062,9 @@
        "bookmarked": 0,
        "hidden": null,
        "last_result": null,
-       "module_id": null,
-       "lecture_week": null,
-       "origin": null,
-       "file_name": null
+       "stack_id": 1,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
       }
      ]
     }
@@ -5134,9 +5083,7 @@
       "bookmarked": 0,
       "hidden": null,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 2,
@@ -5150,9 +5097,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 3,
@@ -5166,9 +5111,7 @@
       "bookmarked": 0,
       "hidden": 1,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 4,
@@ -5182,9 +5125,7 @@
       "bookmarked": 0,
       "hidden": 2,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 5,
@@ -5198,9 +5139,7 @@
       "bookmarked": 0,
       "hidden": "",
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 6,
@@ -5214,9 +5153,7 @@
       "bookmarked": 0,
       "hidden": "ja",
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 7,
@@ -5230,9 +5167,7 @@
       "bookmarked": 0,
       "hidden": 0,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
      },
      {
       "id": 8,
@@ -5246,9 +5181,3141 @@
       "bookmarked": 0,
       "hidden": -1,
       "last_result": null,
-      "module_id": null,
-      "lecture_week": null,
-      "origin": null
+      "stack_id": 1
+     }
+    ],
+    "flashcard_stacks": [
+     {
+      "id": 1,
+      "name": "Ohne Modul",
+      "subject": null,
+      "file_id": null,
+      "created_at": "2026-10-20T08:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "stapel",
+   "seed": [
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-la",
+      "Lineare Algebra Test",
+      "WiSe 2026/27",
+      "Lineare Algebra Test",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-an",
+      "Analysis Beispiel",
+      "WiSe 2026/27",
+      "Analysis Beispiel",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-frei",
+      "Freies Seminar Beispiel",
+      "WiSe 2026/27",
+      null,
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-la1",
+      "k-la",
+      "LA_Vorlesung_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-an1",
+      "k-an",
+      "Analysis_Blatt_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-frei",
+      "k-frei",
+      "Seminar_Einfuehrung.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "5",
+      "k-la",
+      "LA_Zusatz.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+     "params": [
+      1,
+      "f-la1",
+      "Lineare Algebra Test",
+      "Alt mit Datei",
+      "Antwort",
+      "2026-10-21T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+     "params": [
+      2,
+      "f-la1",
+      "Lineare Algebra Test",
+      "Alt mit Datei 2",
+      "Antwort",
+      "2026-10-22T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+     "params": [
+      3,
+      null,
+      "Analysis Beispiel",
+      "Alt nur Fach",
+      "Antwort",
+      "2026-10-23T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+     "params": [
+      4,
+      null,
+      null,
+      "Alt ohne alles",
+      "Antwort",
+      "2026-10-24T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+     "params": [
+      5,
+      "",
+      "",
+      "Alt mit leeren Werten",
+      "Antwort",
+      "2026-10-25T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (?, ?, ?, ?, ?, ?, 2, '2026-11-01')",
+     "params": [
+      6,
+      "f-weg",
+      null,
+      "Alt mit fehlender Datei",
+      "Antwort",
+      "2026-10-26T08:00:00"
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcard-stacks",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 4,
+       "name": "Allgemein",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-10-23T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 3,
+       "name": "Ohne Modul",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-10-24T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 2,
+       "due": 2
+      },
+      {
+       "id": 2,
+       "name": "f-weg",
+       "subject": null,
+       "file_id": "f-weg",
+       "created_at": "2026-10-26T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 1,
+       "name": "LA_Vorlesung_01.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-10-21T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 2,
+       "due": 2
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 6,
+       "file_id": "f-weg",
+       "subject": null,
+       "question": "Alt mit fehlender Datei",
+       "answer": "Antwort",
+       "created_at": "2026-10-26T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 2,
+       "file_name": null,
+       "stack_name": "f-weg"
+      },
+      {
+       "id": 5,
+       "file_id": "",
+       "subject": "",
+       "question": "Alt mit leeren Werten",
+       "answer": "Antwort",
+       "created_at": "2026-10-25T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Alt ohne alles",
+       "answer": "Antwort",
+       "created_at": "2026-10-24T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
+      },
+      {
+       "id": 3,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "Alt nur Fach",
+       "answer": "Antwort",
+       "created_at": "2026-10-23T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Allgemein"
+      },
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei 2",
+       "answer": "Antwort",
+       "created_at": "2026-10-22T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei",
+       "answer": "Antwort",
+       "created_at": "2026-10-21T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei 2",
+       "answer": "Antwort",
+       "created_at": "2026-10-22T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei",
+       "answer": "Antwort",
+       "created_at": "2026-10-21T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=abc",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "int_parsing",
+        "loc": [
+         "query",
+         "stack_id"
+        ],
+        "msg": "Input should be a valid integer, unable to parse string as an integer",
+        "input": "abc"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"  Klausur 1  \", \"subject\": \"Analysis Beispiel\"}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 0,
+      "due": 0
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"Aus Skript\", \"file_id\": \"f-an1\"}",
+     "status": 200,
+     "response": {
+      "id": 6,
+      "name": "Aus Skript",
+      "subject": "Analysis Beispiel",
+      "file_id": "f-an1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 1,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": "Analysis_Blatt_01.pdf",
+      "cards": 0,
+      "due": 0
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"Eigenes Fach\", \"file_id\": \"f-an1\", \"subject\": \"Physik Test\"}",
+     "status": 200,
+     "response": {
+      "id": 7,
+      "name": "Eigenes Fach",
+      "subject": "Physik Test",
+      "file_id": "f-an1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 1,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": "Analysis_Blatt_01.pdf",
+      "cards": 0,
+      "due": 0
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"Leer\", \"subject\": \"\"}",
+     "status": 200,
+     "response": {
+      "id": 8,
+      "name": "Leer",
+      "subject": null,
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 0,
+      "due": 0
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"\"}",
+     "status": 422,
+     "response": {
+      "detail": "Name des Stapels fehlt"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": 5}",
+     "status": 422,
+     "response": {
+      "detail": "Name des Stapels fehlt"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{}",
+     "status": 422,
+     "response": {
+      "detail": "Name des Stapels fehlt"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"subject\": 3}",
+     "status": 422,
+     "response": {
+      "detail": "subject: Text oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"file_id\": \"gibtsnicht\"}",
+     "status": 404,
+     "response": {
+      "detail": "Dokument nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"file_id\": 5}",
+     "status": 422,
+     "response": {
+      "detail": "file_id: Text oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "[1]",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "dict_type",
+        "loc": [
+         "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "input": [
+         1
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"In Klausur 1\", \"answer\": \"ja\"}, {\"question\": \"Auch\", \"answer\": \"ja\"}], \"stack_id\": 5}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 2,
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Im Dokumentstapel\", \"answer\": \"ja\"}], \"file_id\": \"f-an1\", \"stack_id\": 6}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 6
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Neuer Name\", \"answer\": \"ja\"}], \"file_id\": \"f-an1\", \"stack_name\": \" Blatt 1 \"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 9
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Gleicher Name\", \"answer\": \"ja\"}], \"file_id\": \"f-an1\", \"stack_name\": \"Blatt 1\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 9
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Name ohne Fach\", \"answer\": \"ja\"}], \"stack_name\": \"Blatt 1\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 10
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Automatisch\", \"answer\": \"ja\"}], \"file_id\": \"f-la1\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 1
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Automatisch frei\", \"answer\": \"ja\"}]}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 3
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Neue Datei\", \"answer\": \"ja\"}], \"file_id\": \"5\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 11
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"x\", \"answer\": \"y\"}], \"stack_id\": 9999}",
+     "status": 404,
+     "response": {
+      "detail": "Stapel nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"x\", \"answer\": \"y\"}], \"stack_id\": \"5\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [], \"stack_id\": 9999}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0,
+      "stack_id": null
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"\", \"answer\": \"y\"}], \"stack_id\": 9999}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1,
+      "stack_id": null
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"Woche 3\", \"subject\": \"Analysis Beispiel\", \"week\": 3, \"kind\": \"uebung\"}",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "name": "Woche 3",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 3,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 0,
+      "due": 0
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"Folien\", \"file_id\": \"f-la1\", \"kind\": \"vorlesung\", \"week\": null}",
+     "status": 200,
+     "response": {
+      "id": 13,
+      "name": "Folien",
+      "subject": "Lineare Algebra Test",
+      "file_id": "f-la1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": "LA_Vorlesung_01.pdf",
+      "cards": 0,
+      "due": 0
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"week\": 0}",
+     "status": 422,
+     "response": {
+      "detail": "week: ganze Zahl ab 1 oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"week\": \"3\"}",
+     "status": 422,
+     "response": {
+      "detail": "week: ganze Zahl ab 1 oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"week\": true}",
+     "status": 422,
+     "response": {
+      "detail": "week: ganze Zahl ab 1 oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"week\": 2.0}",
+     "status": 422,
+     "response": {
+      "detail": "week: ganze Zahl ab 1 oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"kind\": \"klausur\"}",
+     "status": 422,
+     "response": {
+      "detail": "kind: vorlesung, uebung oder eigene erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcard-stacks",
+     "raw": "{\"name\": \"x\", \"kind\": null}",
+     "status": 422,
+     "response": {
+      "detail": "kind: vorlesung, uebung oder eigene erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"week\": 2, \"kind\": \"vorlesung\"}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 2,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 3,
+      "due": 3
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"week\": null}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 3,
+      "due": 3
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"kind\": \"\"}",
+     "status": 422,
+     "response": {
+      "detail": "kind: vorlesung, uebung oder eigene erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"week\": -1}",
+     "status": 422,
+     "response": {
+      "detail": "week: ganze Zahl ab 1 oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcard-stacks",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "name": "Folien",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 12,
+       "name": "Woche 3",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 3,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 11,
+       "name": "LA_Zusatz.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "5",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Zusatz.pdf",
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 10,
+       "name": "Blatt 1",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 9,
+       "name": "Blatt 1",
+       "subject": "Analysis Beispiel",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 2,
+       "due": 2
+      },
+      {
+       "id": 8,
+       "name": "Leer",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 7,
+       "name": "Eigenes Fach",
+       "subject": "Physik Test",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 6,
+       "name": "Aus Skript",
+       "subject": "Analysis Beispiel",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 5,
+       "name": "Klausur 1",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 3,
+       "due": 3
+      },
+      {
+       "id": 4,
+       "name": "Allgemein",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-10-23T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 3,
+       "name": "Ohne Modul",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-10-24T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 3,
+       "due": 3
+      },
+      {
+       "id": 2,
+       "name": "f-weg",
+       "subject": null,
+       "file_id": "f-weg",
+       "created_at": "2026-10-26T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 1,
+       "name": "LA_Vorlesung_01.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-10-21T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 3,
+       "due": 3
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=5",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 16,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "x",
+       "answer": "y",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "Auch",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "In Klausur 1",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=5&due=1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 16,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "x",
+       "answer": "y",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "Auch",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "In Klausur 1",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true&stack_id=1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Automatisch",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei 2",
+       "answer": "Antwort",
+       "created_at": "2026-10-22T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei",
+       "answer": "Antwort",
+       "created_at": "2026-10-21T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=0",
+     "raw": null,
+     "status": 200,
+     "response": []
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "int_parsing",
+        "loc": [
+         "query",
+         "stack_id"
+        ],
+        "msg": "Input should be a valid integer, unable to parse string as an integer",
+        "input": ""
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/7/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-11-06"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"last_result\": \"wrong\"}",
+     "status": 200,
+     "response": {
+      "id": 8,
+      "file_id": null,
+      "subject": "Analysis Beispiel",
+      "question": "Auch",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": "wrong",
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcard-stacks",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "name": "Folien",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 12,
+       "name": "Woche 3",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 3,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 11,
+       "name": "LA_Zusatz.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "5",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Zusatz.pdf",
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 10,
+       "name": "Blatt 1",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 9,
+       "name": "Blatt 1",
+       "subject": "Analysis Beispiel",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 2,
+       "due": 2
+      },
+      {
+       "id": 8,
+       "name": "Leer",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 7,
+       "name": "Eigenes Fach",
+       "subject": "Physik Test",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 6,
+       "name": "Aus Skript",
+       "subject": "Analysis Beispiel",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 5,
+       "name": "Klausur 1",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": "2026-11-04T10:00:00",
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 3,
+       "due": 2
+      },
+      {
+       "id": 4,
+       "name": "Allgemein",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-10-23T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 3,
+       "name": "Ohne Modul",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-10-24T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 3,
+       "due": 3
+      },
+      {
+       "id": 2,
+       "name": "f-weg",
+       "subject": null,
+       "file_id": "f-weg",
+       "created_at": "2026-10-26T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 1,
+       "name": "LA_Vorlesung_01.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-10-21T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 3,
+       "due": 3
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=5&due=1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 16,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "x",
+       "answer": "y",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "Auch",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "wrong",
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/7",
+     "raw": "{\"question\": \"  In Klausur 1 (neu)  \", \"answer\": \"nein\"}",
+     "status": 200,
+     "response": {
+      "id": 7,
+      "file_id": null,
+      "subject": "Analysis Beispiel",
+      "question": "In Klausur 1 (neu)",
+      "answer": "nein",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 2,
+      "due": "2026-11-06",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": "right",
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/7",
+     "raw": "{\"subject\": \"Physik Test\"}",
+     "status": 200,
+     "response": {
+      "id": 7,
+      "file_id": null,
+      "subject": "Physik Test",
+      "question": "In Klausur 1 (neu)",
+      "answer": "nein",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 2,
+      "due": "2026-11-06",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": "right",
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/7",
+     "raw": "{\"subject\": null}",
+     "status": 200,
+     "response": {
+      "id": 7,
+      "file_id": null,
+      "subject": null,
+      "question": "In Klausur 1 (neu)",
+      "answer": "nein",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 2,
+      "due": "2026-11-06",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": "right",
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"stack_id\": 6}",
+     "status": 200,
+     "response": {
+      "id": 8,
+      "file_id": null,
+      "subject": "Analysis Beispiel",
+      "question": "Auch",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": "wrong",
+      "stack_id": 6
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"stack_id\": 5, \"subject\": \"Eigen\"}",
+     "status": 200,
+     "response": {
+      "id": 8,
+      "file_id": null,
+      "subject": "Eigen",
+      "question": "Auch",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": "wrong",
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"question\": \"\"}",
+     "status": 422,
+     "response": {
+      "detail": "Frage und Antwort dürfen nicht leer sein"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"answer\": \"   \"}",
+     "status": 422,
+     "response": {
+      "detail": "Frage und Antwort dürfen nicht leer sein"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"question\": 7}",
+     "status": 422,
+     "response": {
+      "detail": "Frage und Antwort dürfen nicht leer sein"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"subject\": 7}",
+     "status": 422,
+     "response": {
+      "detail": "subject: Text oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"stack_id\": \"6\"}",
+     "status": 422,
+     "response": {
+      "detail": "stack_id: ganze Zahl erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"stack_id\": true}",
+     "status": 422,
+     "response": {
+      "detail": "stack_id: ganze Zahl erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"stack_id\": null}",
+     "status": 422,
+     "response": {
+      "detail": "stack_id: ganze Zahl erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"stack_id\": 9999}",
+     "status": 404,
+     "response": {
+      "detail": "Stapel nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/9999",
+     "raw": "{\"question\": \"x\"}",
+     "status": 404,
+     "response": {
+      "detail": "Karteikarte nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcards/8",
+     "raw": "{\"question\": \"Nur Frage\", \"bookmarked\": true, \"last_result\": \"right\"}",
+     "status": 200,
+     "response": {
+      "id": 8,
+      "file_id": null,
+      "subject": "Eigen",
+      "question": "Nur Frage",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 1,
+      "hidden": 0,
+      "last_result": "right",
+      "stack_id": 5
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=5",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 16,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "x",
+       "answer": "y",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": "Eigen",
+       "question": "Nur Frage",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 1,
+       "hidden": 0,
+       "last_result": "right",
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": null,
+       "question": "In Klausur 1 (neu)",
+       "answer": "nein",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 2,
+       "due": "2026-11-06",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "right",
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"name\": \" Klausur 1 neu \"}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1 neu",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": "2026-11-04T10:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 3,
+      "due": 2
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"subject\": \"Physik Test\"}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1 neu",
+      "subject": "Physik Test",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": "2026-11-04T10:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 3,
+      "due": 2
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"file_id\": \"f-la1\"}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1 neu",
+      "subject": "Physik Test",
+      "file_id": "f-la1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": "2026-11-04T10:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": "LA_Vorlesung_01.pdf",
+      "cards": 3,
+      "due": 2
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"file_id\": null}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1 neu",
+      "subject": "Physik Test",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": "2026-11-04T10:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 3,
+      "due": 2
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{}",
+     "status": 200,
+     "response": {
+      "id": 5,
+      "name": "Klausur 1 neu",
+      "subject": "Physik Test",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": "2026-11-04T10:00:00",
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null,
+      "file_name": null,
+      "cards": 3,
+      "due": 2
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"name\": \"\"}",
+     "status": 422,
+     "response": {
+      "detail": "Name des Stapels fehlt"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"subject\": 1}",
+     "status": 422,
+     "response": {
+      "detail": "subject: Text oder null erwartet"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "{\"file_id\": \"gibtsnicht\"}",
+     "status": 404,
+     "response": {
+      "detail": "Dokument nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/9999",
+     "raw": "{\"name\": \"x\"}",
+     "status": 404,
+     "response": {
+      "detail": "Stapel nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/fuenf",
+     "raw": "{\"name\": \"x\"}",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "int_parsing",
+        "loc": [
+         "path",
+         "stack_id"
+        ],
+        "msg": "Input should be a valid integer, unable to parse string as an integer",
+        "input": "fuenf"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "PATCH",
+     "path": "/api/flashcard-stacks/5",
+     "raw": "[1]",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "dict_type",
+        "loc": [
+         "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "input": [
+         1
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-11-04T10:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=5",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 16,
+       "file_id": null,
+       "subject": "Physik Test",
+       "question": "x",
+       "answer": "y",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1 neu"
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": "Physik Test",
+       "question": "Nur Frage",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 1,
+       "hidden": 0,
+       "last_result": "right",
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1 neu"
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": "Physik Test",
+       "question": "In Klausur 1 (neu)",
+       "answer": "nein",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 2,
+       "due": "2026-11-06",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "right",
+       "stack_id": 5,
+       "file_name": null,
+       "stack_name": "Klausur 1 neu"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/5?move_to=5",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": "Zielstapel ist der gelöschte Stapel"
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/5?move_to=9999",
+     "raw": null,
+     "status": 404,
+     "response": {
+      "detail": "Zielstapel nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/9999",
+     "raw": null,
+     "status": 404,
+     "response": {
+      "detail": "Stapel nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/5?move_to=abc",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "int_parsing",
+        "loc": [
+         "query",
+         "move_to"
+        ],
+        "msg": "Input should be a valid integer, unable to parse string as an integer",
+        "input": "abc"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/5?move_to=6",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "ok": true,
+      "moved": 3,
+      "deleted": 0
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "GET",
+     "path": "/api/flashcards?stack_id=6",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 16,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "x",
+       "answer": "y",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 6,
+       "file_name": null,
+       "stack_name": "Aus Skript"
+      },
+      {
+       "id": 9,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Im Dokumentstapel",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 6,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Aus Skript"
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "Nur Frage",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 1,
+       "hidden": 0,
+       "last_result": "right",
+       "stack_id": 6,
+       "file_name": null,
+       "stack_name": "Aus Skript"
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "In Klausur 1 (neu)",
+       "answer": "nein",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 2,
+       "due": "2026-11-06",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": "right",
+       "stack_id": 6,
+       "file_name": null,
+       "stack_name": "Aus Skript"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/6",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "ok": true,
+      "moved": 0,
+      "deleted": 4
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/6",
+     "raw": null,
+     "status": 404,
+     "response": {
+      "detail": "Stapel nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcard-stacks/8",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "ok": true,
+      "moved": 0,
+      "deleted": 0
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "GET",
+     "path": "/api/flashcard-stacks",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "name": "Folien",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 12,
+       "name": "Woche 3",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 3,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 11,
+       "name": "LA_Zusatz.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "5",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Zusatz.pdf",
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 10,
+       "name": "Blatt 1",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 9,
+       "name": "Blatt 1",
+       "subject": "Analysis Beispiel",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 2,
+       "due": 2
+      },
+      {
+       "id": 7,
+       "name": "Eigenes Fach",
+       "subject": "Physik Test",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 4,
+       "name": "Allgemein",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-10-23T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 3,
+       "name": "Ohne Modul",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-10-24T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 3,
+       "due": 3
+      },
+      {
+       "id": 2,
+       "name": "f-weg",
+       "subject": null,
+       "file_id": "f-weg",
+       "created_at": "2026-10-26T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 1,
+       "name": "LA_Vorlesung_01.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-10-21T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 3,
+       "due": 3
+      }
+     ]
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 15,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Neue Datei",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 11,
+       "file_name": "LA_Zusatz.pdf",
+       "stack_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 14,
+       "file_id": null,
+       "subject": null,
+       "question": "Automatisch frei",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
+      },
+      {
+       "id": 13,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Automatisch",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Name ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 10,
+       "file_name": null,
+       "stack_name": "Blatt 1"
+      },
+      {
+       "id": 11,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Gleicher Name",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 9,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Blatt 1"
+      },
+      {
+       "id": 10,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Neuer Name",
+       "answer": "ja",
+       "created_at": "2026-11-04T10:00:00",
+       "box": 1,
+       "due": "2026-11-04",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 9,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "stack_name": "Blatt 1"
+      },
+      {
+       "id": 6,
+       "file_id": "f-weg",
+       "subject": null,
+       "question": "Alt mit fehlender Datei",
+       "answer": "Antwort",
+       "created_at": "2026-10-26T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 2,
+       "file_name": null,
+       "stack_name": "f-weg"
+      },
+      {
+       "id": 5,
+       "file_id": "",
+       "subject": "",
+       "question": "Alt mit leeren Werten",
+       "answer": "Antwort",
+       "created_at": "2026-10-25T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Alt ohne alles",
+       "answer": "Antwort",
+       "created_at": "2026-10-24T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 3,
+       "file_name": null,
+       "stack_name": "Ohne Modul"
+      },
+      {
+       "id": 3,
+       "file_id": null,
+       "subject": "Analysis Beispiel",
+       "question": "Alt nur Fach",
+       "answer": "Antwort",
+       "created_at": "2026-10-23T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 4,
+       "file_name": null,
+       "stack_name": "Allgemein"
+      },
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei 2",
+       "answer": "Antwort",
+       "created_at": "2026-10-22T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Alt mit Datei",
+       "answer": "Antwort",
+       "created_at": "2026-10-21T08:00:00",
+       "box": 2,
+       "due": "2026-11-01",
+       "bookmarked": 0,
+       "hidden": 0,
+       "last_result": null,
+       "stack_id": 1,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "stack_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "DELETE",
+     "path": "/api/flashcards/1",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "ok": true
+     }
+    },
+    {
+     "now": "2026-11-06T09:30:00",
+     "method": "GET",
+     "path": "/api/flashcard-stacks",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "name": "Folien",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 12,
+       "name": "Woche 3",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 3,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 11,
+       "name": "LA_Zusatz.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "5",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "vorlesung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Zusatz.pdf",
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 10,
+       "name": "Blatt 1",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 9,
+       "name": "Blatt 1",
+       "subject": "Analysis Beispiel",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 2,
+       "due": 2
+      },
+      {
+       "id": 7,
+       "name": "Eigenes Fach",
+       "subject": "Physik Test",
+       "file_id": "f-an1",
+       "created_at": "2026-11-04T10:00:00",
+       "last_practised": null,
+       "week": 1,
+       "kind": "uebung",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "Analysis_Blatt_01.pdf",
+       "cards": 0,
+       "due": 0
+      },
+      {
+       "id": 4,
+       "name": "Allgemein",
+       "subject": "Analysis Beispiel",
+       "file_id": null,
+       "created_at": "2026-10-23T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 3,
+       "name": "Ohne Modul",
+       "subject": null,
+       "file_id": null,
+       "created_at": "2026-10-24T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 3,
+       "due": 3
+      },
+      {
+       "id": 2,
+       "name": "f-weg",
+       "subject": null,
+       "file_id": "f-weg",
+       "created_at": "2026-10-26T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": null,
+       "cards": 1,
+       "due": 1
+      },
+      {
+       "id": 1,
+       "name": "LA_Vorlesung_01.pdf",
+       "subject": "Lineare Algebra Test",
+       "file_id": "f-la1",
+       "created_at": "2026-10-21T08:00:00",
+       "last_practised": null,
+       "week": null,
+       "kind": "eigene",
+       "source": null,
+       "source_ref": null,
+       "shared_id": null,
+       "file_name": "LA_Vorlesung_01.pdf",
+       "cards": 2,
+       "due": 2
+      }
+     ]
+    }
+   ],
+   "tables_after": {
+    "flashcards": [
+     {
+      "id": 2,
+      "file_id": "f-la1",
+      "subject": "Lineare Algebra Test",
+      "question": "Alt mit Datei 2",
+      "answer": "Antwort",
+      "created_at": "2026-10-22T08:00:00",
+      "box": 2,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 1
+     },
+     {
+      "id": 3,
+      "file_id": null,
+      "subject": "Analysis Beispiel",
+      "question": "Alt nur Fach",
+      "answer": "Antwort",
+      "created_at": "2026-10-23T08:00:00",
+      "box": 2,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 4
+     },
+     {
+      "id": 4,
+      "file_id": null,
+      "subject": null,
+      "question": "Alt ohne alles",
+      "answer": "Antwort",
+      "created_at": "2026-10-24T08:00:00",
+      "box": 2,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 3
+     },
+     {
+      "id": 5,
+      "file_id": "",
+      "subject": "",
+      "question": "Alt mit leeren Werten",
+      "answer": "Antwort",
+      "created_at": "2026-10-25T08:00:00",
+      "box": 2,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 3
+     },
+     {
+      "id": 6,
+      "file_id": "f-weg",
+      "subject": null,
+      "question": "Alt mit fehlender Datei",
+      "answer": "Antwort",
+      "created_at": "2026-10-26T08:00:00",
+      "box": 2,
+      "due": "2026-11-01",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 2
+     },
+     {
+      "id": 10,
+      "file_id": "f-an1",
+      "subject": "Analysis Beispiel",
+      "question": "Neuer Name",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 9
+     },
+     {
+      "id": 11,
+      "file_id": "f-an1",
+      "subject": "Analysis Beispiel",
+      "question": "Gleicher Name",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 9
+     },
+     {
+      "id": 12,
+      "file_id": null,
+      "subject": null,
+      "question": "Name ohne Fach",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 10
+     },
+     {
+      "id": 13,
+      "file_id": "f-la1",
+      "subject": "Lineare Algebra Test",
+      "question": "Automatisch",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 1
+     },
+     {
+      "id": 14,
+      "file_id": null,
+      "subject": null,
+      "question": "Automatisch frei",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 3
+     },
+     {
+      "id": 15,
+      "file_id": "5",
+      "subject": "Lineare Algebra Test",
+      "question": "Neue Datei",
+      "answer": "ja",
+      "created_at": "2026-11-04T10:00:00",
+      "box": 1,
+      "due": "2026-11-04",
+      "bookmarked": 0,
+      "hidden": 0,
+      "last_result": null,
+      "stack_id": 11
+     }
+    ],
+    "flashcard_stacks": [
+     {
+      "id": 1,
+      "name": "LA_Vorlesung_01.pdf",
+      "subject": "Lineare Algebra Test",
+      "file_id": "f-la1",
+      "created_at": "2026-10-21T08:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 2,
+      "name": "f-weg",
+      "subject": null,
+      "file_id": "f-weg",
+      "created_at": "2026-10-26T08:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 3,
+      "name": "Ohne Modul",
+      "subject": null,
+      "file_id": null,
+      "created_at": "2026-10-24T08:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 4,
+      "name": "Allgemein",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-10-23T08:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 7,
+      "name": "Eigenes Fach",
+      "subject": "Physik Test",
+      "file_id": "f-an1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 1,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 9,
+      "name": "Blatt 1",
+      "subject": "Analysis Beispiel",
+      "file_id": "f-an1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 1,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 10,
+      "name": "Blatt 1",
+      "subject": null,
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "eigene",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 11,
+      "name": "LA_Zusatz.pdf",
+      "subject": "Lineare Algebra Test",
+      "file_id": "5",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 12,
+      "name": "Woche 3",
+      "subject": "Analysis Beispiel",
+      "file_id": null,
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": 3,
+      "kind": "uebung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
+     },
+     {
+      "id": 13,
+      "name": "Folien",
+      "subject": "Lineare Algebra Test",
+      "file_id": "f-la1",
+      "created_at": "2026-11-04T10:00:00",
+      "last_practised": null,
+      "week": null,
+      "kind": "vorlesung",
+      "source": null,
+      "source_ref": null,
+      "shared_id": null
      }
     ]
    }

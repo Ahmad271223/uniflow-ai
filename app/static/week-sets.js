@@ -1,7 +1,7 @@
 // Karte "Fertige Fragen" je Lehrwoche im Modul (Pro AI): Saetze als Test starten, Themen, Hinweise und Loesungen mit
 // Erklaerung aufklappbar. Regeln in week-sets-logic.js, Dienst app/week_library_api.py. Eingebunden von views-misc.js.
-import { $, $$, api, esc, icon, toast, showError, can, state } from "./core.js?v=41";
-import { RIGHT, POLL_MS, cardMode, statusText, setsLabel, keepPolling } from "./week-sets-logic.js?v=2";
+import { $, $$, api, esc, icon, toast, showError, can, state } from "./core.js?v=43";
+import { RIGHT, POLL_MS, cardMode, statusText, setsLabel, keepPolling } from "./week-sets-logic.js?v=3";
 
 const LOCK = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
 const CSS = `.ws-card{border:1px solid var(--line);border-radius:12px;padding:.65rem .8rem;margin:.2rem 0 .7rem;background:var(--surface-2)}

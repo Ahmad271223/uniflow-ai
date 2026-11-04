@@ -127,12 +127,12 @@ enum Weekly {
         for id in fileIDs { _ = try await ScriptSearch.pageTexts(fileID: id, ctx: ctx, ocrScope: ocr) }
     }
 
-    /// PDFs eines Moduls (Vorlesungen, Skripte, Uebungen, Loesungen, Klausuren)
+    /// PDF-, Word- und PowerPoint-Dateien eines Moduls (Vorlesungen, Skripte, Uebungen, Loesungen, Klausuren)
     static func moduleFileIDs(_ moduleID: Int, _ ctx: LocalContext) async throws -> [String] {
         try await ctx.database.withConnection { c in
             try LocalModules.fileRows(c, moduleID: .integer(Int64(moduleID))).compactMap { f in
                 let t = f.docType ?? ""
-                guard lectureTypes.contains(t) || taskTypes.contains(t), PyText.lower(f.json["name"]?.string ?? "").hasSuffix(".pdf") else { return nil }
+                guard lectureTypes.contains(t) || taskTypes.contains(t), ScriptSearch.isTextSource(f.json["name"]?.string ?? "") else { return nil }
                 return f.json["id"]?.string
             }
         }

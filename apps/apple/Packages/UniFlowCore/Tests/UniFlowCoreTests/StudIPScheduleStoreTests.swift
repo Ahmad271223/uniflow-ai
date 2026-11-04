@@ -163,7 +163,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(ana.map(\.id), ["ev-ana-1", "ev-ana-2", "ev-ana-3", "ev-ana-4", "ev-ana-k"])
         XCTAssertEqual(ana.map(\.cancelled), [false, false, false, true, false])
         XCTAssertEqual(ana[0], StudIPCourseEvent(id: "ev-ana-1", courseID: "c-ana", title: "Sitzung 1", start: "2026-10-12T10:00:00",
-                                                 end: "2026-10-12T11:30:00", room: "Hörsaal Test 1 (9999 - A001)"))
+                                                 end: "2026-10-12T11:30:00", room: "Hörsaal Test 1 (9999 - A001)", category: "Sitzung"))
         XCTAssertEqual(ana[2].start, "2026-10-26T10:00:00", "Ortszeit wie geliefert, die ersten 19 Zeichen")
         XCTAssertEqual(ana[4].room, "Halle Test")
         XCTAssertEqual(d.events["c-sem"]?.map(\.room), ["Seminarraum Test", "Seminarraum Test", ""])

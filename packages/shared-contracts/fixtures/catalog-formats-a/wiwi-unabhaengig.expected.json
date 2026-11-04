@@ -1,0 +1,98 @@
+{
+ "format": "wiwi-modulhandbuch",
+ "meta": {
+  "university": "luh",
+  "program": "Beispielökonomie",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "code": "beispieloekonomie|b.sc.|2030",
+  "catalog_term": "WS 2026/27",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispieloekonomie-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  }
+ },
+ "catalog": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielökonomie",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "catalog_term": "WS 2026/27",
+  "code": "beispieloekonomie|b.sc.|2030",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispieloekonomie-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "betriebswirtschaftslehre",
+    "name": "Betriebswirtschaftslehre",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "vertiefung",
+    "name": "Vertiefung",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "wahl"
+   }
+  ],
+  "modules": [
+   {
+    "id": "beispiel-bwl-1-grundlagen",
+    "title": "Beispiel-BWL I: Grundlagen",
+    "code": "999101",
+    "area": "betriebswirtschaftslehre",
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur (60 Min.)",
+    "coursework": null,
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 180,
+    "source_page": 2
+   },
+   {
+    "id": "beispielmaerkte",
+    "title": "Beispielmärkte",
+    "code": "999202",
+    "area": "vertiefung",
+    "kind": "wahl",
+    "lp": 5,
+    "semester": 4,
+    "turnus": "SS",
+    "exam": "Hausarbeit (10 Seiten)",
+    "coursework": null,
+    "prerequisites": [
+     "beispiel-bwl-1-grundlagen"
+    ],
+    "language": "englisch",
+    "workload_h": 150,
+    "source_page": 3
+   }
+  ]
+ },
+ "module_texts": {
+  "beispiel-bwl-1-grundlagen": {
+   "content": "Erfundene Inhalte.",
+   "goals": "Erfundene Ziele.",
+   "literature": null
+  },
+  "beispielmaerkte": {
+   "content": null,
+   "goals": "Erfundene Ziele.",
+   "literature": null
+  }
+ }
+}

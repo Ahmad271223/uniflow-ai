@@ -185,8 +185,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var problem: String?
     /// zaehlt jeden Wechsel; die Oberflaeche baut sich damit neu auf
     @Published private(set) var generation = 0
-    /// Demo-Inhalte im offenen Container an (`DemoContent`, Einstellungen -> Erweitert oder "Ohne Hochschulkonto
-    /// ansehen" im ersten Start): die Uebersicht zeigt "Demo-Inhalte aktiv", die Karten "… verbinden" entfallen, kein
+    /// Demo-Inhalte im offenen Container an (`DemoContent`, nur ueber "Ohne Hochschulkonto ansehen (Demo)" auf der
+    /// Anmeldeseite im ersten Start): die App-Huelle zeigt die Demo-Leiste, die Karten "… verbinden" entfallen, kein
     /// Abgleich mit der Hochschule (die Abgleiche fragen selbst die Datenbank, `LocalBackendHost.demoActive`)
     @Published private(set) var demoActive = false
     /// wird nach jedem Wechsel aufgerufen (App: Session auf das Backend des Containers umstellen)
@@ -452,8 +452,10 @@ final class ContainerManager: ObservableObject {
         let s = WKWebsiteDataStore(forIdentifier: c.websiteDataStoreID)
         stores[c.websiteDataStoreID] = s
         // Uni-Anmeldung (WebSSO bzw. CAS) von vor dem Neustart zuruecksetzen (`UniWebSessions`)
+        // mit Einstellungen und Hochschule des Containers: Benutzername und "Angemeldet bleiben" auf der Anmeldeseite
+        // des WebSSO bzw. CAS (`UniLoginHelper`)
         UniWebSessions.attach(s, vault: UniWebSessions.vault(service: cookieService, container: c.layout.identifier),
-                              domains: UniWebSessions.domains(c.key.university))
+                              domains: UniWebSessions.domains(c.key.university), defaults: c.defaults, university: c.key.university)
         return s
     }
 

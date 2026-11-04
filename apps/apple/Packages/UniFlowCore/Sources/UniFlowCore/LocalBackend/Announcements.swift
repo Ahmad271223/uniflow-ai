@@ -200,15 +200,25 @@ public enum Announcements {
         return nil
     }
 
-    /// `extract_dates(text, posted)`: Tage, die in einer Ankuendigung genannt werden: [{date, time, kind, snippet}],
-    /// nach Datum sortiert, ohne Doppelte. Erkannt: 12.11., 12.11.26, 12.11.2026, 12. November (2026). Uhrzeit
-    /// direkt danach (14 Uhr, 14:15, 14.15 Uhr). Art aus dem Satz (Ausfall, Verlegung, Raum, Pruefung, Frist,
-    /// Online, sonst Termin). Tage mehr als 30 Tage vor der Ankuendigung werden ignoriert. `posted`: Tagesnummer.
-    public static func extractDates(_ text: String, posted: Int) -> [JSONValue] {
+    /// Eine Datumsangabe im Text (`scan_dates`): Tagesnummer, Uhrzeit, Satz, Satzteil und Lage im Text (Indizes der
+    /// Unicode-Zeichen wie in Python)
+    struct DateHit {
+        let day: Int
+        let time: String?
+        let sentence: String
+        let clause: String
+        let start: Int
+        let end: Int
+    }
+
+    /// Regel "Ausfall" aus `KINDS` (fuer die Klausurerkennung, `Exams`)
+    static var cancelRE: NSRegularExpression { kinds[0].1 }
+
+    /// `scan_dates(text, posted)`: jede gueltige Datumsangabe, in Reihenfolge der Muster (erst Zahlen, dann Monatsnamen).
+    /// Gemeinsame Grundlage von `extractDates` und der Klausurerkennung (`Exams.examDates`).
+    static func scanDates(_ text: String, posted: Int) -> [DateHit] {
         let s = Scalars(text)
-        var order: [(String, String?)] = []
-        var found: [String: [String: JSONValue]] = [:]
-        func key(_ d: String, _ t: String?) -> String { d + "|" + (t ?? "-") }
+        var out: [DateHit] = []
         let full = NSRange(location: 0, length: (text as NSString).length)
         for (re, named) in [(numDateRE, false), (nameDateRE, true)] {
             for m in re.matches(in: text, range: full) {
@@ -246,15 +256,29 @@ public enum Announcements {
                     let mi = tm.range(at: 2).location == NSNotFound ? nil : ns.substring(with: tm.range(at: 2))
                     if (6...23).contains(h), (Int(mi ?? "0") ?? 60) < 60 { t = String(format: "%02d:", h) + (mi ?? "00") }
                 }
-                let sent = sentence(s, mStart, mEnd)
-                // Art zuerst aus dem Satzteil um das Datum ("Keine Vorlesung am 24.12., stattdessen am 7.1." -> Ausfall, Verlegung)
-                var k = kind(of: clause(s, mStart, mEnd))
-                if k == "termin" { k = kind(of: sent) }
-                let iso = BerlinClock.isoDate(d)
-                if found[key(iso, t)] == nil {
-                    order.append((iso, t))
-                    found[key(iso, t)] = ["date": .string(iso), "time": t.map(JSONValue.string) ?? .null, "kind": .string(k), "snippet": .string(sent)]
-                }
+                out.append(DateHit(day: d, time: t, sentence: sentence(s, mStart, mEnd), clause: clause(s, mStart, mEnd), start: mStart, end: mEnd))
+            }
+        }
+        return out
+    }
+
+    /// `extract_dates(text, posted)`: Tage, die in einer Ankuendigung genannt werden: [{date, time, kind, snippet}],
+    /// nach Datum sortiert, ohne Doppelte. Erkannt: 12.11., 12.11.26, 12.11.2026, 12. November (2026). Uhrzeit
+    /// direkt danach (14 Uhr, 14:15, 14.15 Uhr). Art aus dem Satz (Ausfall, Verlegung, Raum, Pruefung, Frist,
+    /// Online, sonst Termin). Tage mehr als 30 Tage vor der Ankuendigung werden ignoriert. `posted`: Tagesnummer.
+    public static func extractDates(_ text: String, posted: Int) -> [JSONValue] {
+        var order: [(String, String?)] = []
+        var found: [String: [String: JSONValue]] = [:]
+        func key(_ d: String, _ t: String?) -> String { d + "|" + (t ?? "-") }
+        for h in scanDates(text, posted: posted) {
+            // Art zuerst aus dem Satzteil um das Datum ("Keine Vorlesung am 24.12., stattdessen am 7.1." -> Ausfall, Verlegung)
+            var k = kind(of: h.clause)
+            if k == "termin" { k = kind(of: h.sentence) }
+            let iso = BerlinClock.isoDate(h.day)
+            if found[key(iso, h.time)] == nil {
+                order.append((iso, h.time))
+                found[key(iso, h.time)] = ["date": .string(iso), "time": h.time.map(JSONValue.string) ?? .null, "kind": .string(k),
+                                           "snippet": .string(h.sentence)]
             }
         }
         // gleicher Tag mit und ohne Uhrzeit: nur der Eintrag mit Uhrzeit

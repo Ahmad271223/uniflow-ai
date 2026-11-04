@@ -1,7 +1,8 @@
-"""Karteikarten im Dienst (04.11.2026): selbst anlegen ab Plus (`can_create_flashcards`, auch beim Geraete-Abgleich),
-KI-Auftrag nach Modul/Lernwoche/Anzahl nur mit Pro AI (`can_generate_ai_flashcards`), bestaetigter E-Mail, Kontingent
-`ai_assist` mit Anfrage-ID und Rueckbuchung bei Fehlern, Budget/Preispflicht der StudiNow-KI. Mit einer Attrappe statt
-eines echten KI-Anbieters."""
+"""Karteikarten im Dienst (04.11.2026): selbst anlegen ab Plus (`can_use_flashcards`, auch beim Geraete-Abgleich: neue
+Karten und Stapel), KI-Auftrag nach Modul/Lernwoche/Anzahl nur mit Pro AI (`can_use_ai_generated_questions`),
+bestaetigter E-Mail, Kontingent `ai_assist` mit Anfrage-ID und Rueckbuchung bei Fehlern, Budget/Preispflicht der
+StudiNow-KI. Aus der Cloud-Sitzung an das Stapel-Modell angepasst (flashcard_stacks, POST /api/flashcards mit
+stack_id). Mit einer Attrappe statt eines echten KI-Anbieters."""
 import json
 import re
 import threading
@@ -59,31 +60,42 @@ def post(app, h, path, body):
     return _j(asgi_call(app, "POST", path, headers=h, body=json.dumps(body)))
 
 
+def save(app, h, cards, week=3, name="KI Woche 3"):
+    """Vorschlag in einen Stapel des Moduls legen (wie die Oberflaeche): Stapel anlegen, dann die Karten."""
+    st, stack = post(app, h, "/api/flashcard-stacks", {"name": name, "subject": "Lineare Algebra", "week": week})
+    assert st == 200, stack
+    st, d = post(app, h, "/api/flashcards", {"stack_id": stack["id"], "cards": cards})
+    assert st == 200, d
+    return stack["id"], d
+
+
 def test_free_cannot_create_but_plus_can(hosted):  # noqa: F811
     _, hf = user(hosted, "frei@beispiel.de")
     mid = seed(hosted, hf)
     card = {"cards": [{"question": "Was ist eine Matrix?", "answer": "Zahlenschema"}]}
     st, d = post(hosted, hf, "/api/flashcards", card)
-    assert (st, d["code"], d["entitlement"], d["required_plan"]) == (403, "plan_required", "can_create_flashcards", "plus"), d
-    st, d = post(hosted, hf, "/api/flashcards/stack", {"module_id": mid, "lecture_week": 3, **card})
-    assert (st, d["entitlement"]) == (403, "can_create_flashcards")
-    # Geraete-Abgleich: neue Karten abgewiesen, Module laufen weiter
+    assert (st, d["code"], d["entitlement"], d["required_plan"]) == (403, "plan_required", "can_use_flashcards", "plus"), d
+    st, d = post(hosted, hf, "/api/flashcard-stacks", {"name": "Woche 3", "subject": "Lineare Algebra", "week": 3})
+    assert (st, d["entitlement"]) == (403, "can_use_flashcards")
+    # Geraete-Abgleich: neue Karten und Stapel abgewiesen, Module laufen weiter
     st, d = post(hosted, hf, "/api/sync/push", {"device_id": "ipad", "items": [
+        {"entity": "flashcard_stacks", "local_id": -3, "data": {"name": "S", "subject": "M2", "created_at": "2026-11-04T10:00:00"}},
         {"entity": "flashcards", "local_id": -1, "data": {"question": "Q", "answer": "A"}},
         {"entity": "modules", "local_id": -2, "data": {"name": "M2"}}]})
-    assert st == 200 and {r["entity"]: r["status"] for r in d["results"]} == {"flashcards": "plan_required", "modules": "created"}, d
+    assert st == 200 and {r["entity"]: r["status"] for r in d["results"]} == {
+        "flashcards": "plan_required", "flashcard_stacks": "plan_required", "modules": "created"}, d
     assert next(r for r in d["results"] if r["entity"] == "flashcards") == {"entity": "flashcards", "local_id": -1, "status": "plan_required", "required_plan": "plus"}
     assert _j(asgi_call(hosted, "GET", "/api/flashcards", headers=hf)) == (200, []), "nichts gespeichert"
 
     _, hp = user(hosted, "plus@beispiel.de", plan="plus")
     mid = seed(hosted, hp)
-    st, d = post(hosted, hp, "/api/flashcards/stack", {"module_id": mid, "lecture_week": 3, **card})
-    assert st == 200 and d["added"] == 1, d
+    sid, d = save(hosted, hp, card["cards"])
+    assert d["count"] == 1, d
     st, d = post(hosted, hp, "/api/sync/push", {"device_id": "ipad", "items": [
-        {"entity": "flashcards", "local_id": -1, "data": {"question": "Q", "answer": "A", "module_id": mid, "lecture_week": 3}}]})
-    assert d["results"][0]["status"] == "created"
-    st, ov = _j(asgi_call(hosted, "GET", "/api/flashcards/stacks", headers=hp))
-    assert st == 200 and [s["count"] for s in ov["stacks"] if s["module_id"] == mid and s["lecture_week"] == 3] == [2]
+        {"entity": "flashcards", "local_id": -1, "data": {"question": "Q", "answer": "A", "stack_id": sid}}]})
+    assert d["results"][0]["status"] == "created", d
+    st, stacks = _j(asgi_call(hosted, "GET", "/api/flashcard-stacks", headers=hp))
+    assert st == 200 and [s["cards"] for s in stacks if s["id"] == sid] == [2]
 
 
 def test_ai_stack_needs_pro_ai_and_verified_email(hosted, texts):  # noqa: F811
@@ -93,7 +105,7 @@ def test_ai_stack_needs_pro_ai_and_verified_email(hosted, texts):  # noqa: F811
     _, hp = user(hosted, "plus2@beispiel.de", plan="plus")
     mid = seed(hosted, hp)
     st, d = post(hosted, hp, "/api/ai/flashcards", {"module_id": mid, "lecture_week": 3, "count": 10})
-    assert (st, d["code"], d["entitlement"], d["required_plan"]) == (403, "plan_required", "can_generate_ai_flashcards", "pro_ai"), d
+    assert (st, d["code"], d["entitlement"], d["required_plan"]) == (403, "plan_required", "can_use_ai_generated_questions", "pro_ai"), d
     _, hu = user(hosted, "unbestaetigt@beispiel.de", plan="pro_ai", verified=False)
     mid_u = seed(hosted, hu)
     st, d = post(hosted, hu, "/api/ai/flashcards", {"module_id": mid_u, "lecture_week": 3, "count": 10})
@@ -112,12 +124,13 @@ def test_ai_stack_consumes_ai_assist_and_refunds_on_errors(hosted, texts, monkey
     assert st == 200 and len(d["cards"]) == 12 and d["sources"][0]["file_id"] == "f3", d
     assert "Umfang: Lernwoche 3" in fake.prompts[-1] and "Laplace-Entwicklung" in fake.prompts[-1]
     assert used() == 1
-    st, d = post(hosted, h, "/api/ai/flashcards", {"module_id": mid, "lecture_week": 3, "count": 12, "request_id": "r-1"})
-    assert (st, d["code"]) == (409, "duplicate_request") and fake.calls == 1, "gleiche Anfrage-ID: nicht doppelt bezahlt"
-    # Vorschlag speichern (Herkunft ai), danach erneut: vorhandene Fragen stehen im Prompt
-    st, d = post(hosted, h, "/api/ai/flashcards", {"module_id": mid, "lecture_week": 3, "count": 5, "request_id": "r-2"})
-    st, s = post(hosted, h, "/api/flashcards/stack", {"module_id": mid, "lecture_week": 3, "cards": d["cards"], "origin": "ai"})
-    assert st == 200 and s["added"] == 5
+    st, again = post(hosted, h, "/api/ai/flashcards", {"module_id": mid, "lecture_week": 3, "count": 12, "request_id": "r-1"})
+    assert st == 200 and again["cards"] == d["cards"] and fake.calls == 1, "gleiche Anfrage-ID: gespeicherte Antwort, nicht doppelt bezahlt"
+    assert used() == 1
+    # Vorschlag in einen Stapel der Woche speichern, danach erneut: vorhandene Fragen stehen im Prompt
+    st, d = post(hosted, h, "/api/ai/flashcards", {"module_id": mid, "week": 3, "count": 5, "request_id": "r-2"})
+    _, s = save(hosted, h, d["cards"])
+    assert s["count"] == 5
     st, d = post(hosted, h, "/api/ai/flashcards", {"module_id": mid, "lecture_week": 3, "count": 5, "request_id": "r-3", "again": True})
     assert st == 200 and "SCHON VORHANDEN" in fake.prompts[-1] and "Frage 0 Lauf 2?" in fake.prompts[-1]
     assert used() == 3

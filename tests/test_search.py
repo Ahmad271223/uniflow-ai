@@ -7,6 +7,7 @@ from conftest import asgi_call
 FILLER = ["Wellen Schwingung Frequenz Amplitude Resonanz", "Strom Spannung Widerstand Kondensator Spule",
           "Graphen Knoten Kanten Pfade Zyklen", "Integral Stammfunktion Substitution Flaechen Grenzen",
           "Mengen Relationen Abbildungen Injektiv Surjektiv", "Wahrscheinlichkeit Zufall Erwartung Varianz Streuung"]
+MODULE_UML = 1092   # Modul des Umlaut-Tests; 91 ist das Suchmodul, 92/93 nutzt test_pageocr.py, 1934 test_office_text.py
 
 
 def _seed(tmp_path, file_id="s-skript", chdate=1760000000, texts=None, module=True):
@@ -141,14 +142,21 @@ def test_search_names_with_capital_umlauts_and_like_characters(app, tmp_path):
     from app import db
     _seed(tmp_path, file_id="s-name", chdate=1760000900, texts=["Seite 50% sicher"])
     with db.cursor() as conn:
-        conn.execute("INSERT INTO modules(id, name, color, created_at) VALUES (92, 'Ökonomie Übung', '#336699', '2026-10-26')")
-        conn.execute("INSERT INTO courses(id, title, subject, kind, module_id, active, created_at) VALUES ('c-alt', 'Alt', 'Alt', 'vorlesung', 92, 0, '2026-10-26')")
+        # eigene IDs und vorher aufgeraeumt: test_pageocr.py belegt 92/93 (INSERT OR IGNORE) in derselben Sitzungsdatenbank,
+        # test_office_text.py 1934; der Test darf in jeder Reihenfolge und mehrfach laufen
+        conn.execute("DELETE FROM study_tasks WHERE id=9002")
+        conn.execute("DELETE FROM study_packages WHERE id=902")
+        conn.execute("DELETE FROM files WHERE id IN ('s-ue', 's-pk', 's-inakt', 's-proz')")
+        conn.execute("DELETE FROM courses WHERE id='c-alt'")
+        conn.execute("DELETE FROM modules WHERE id=?", (MODULE_UML,))
+        conn.execute("INSERT INTO modules(id, name, color, created_at) VALUES (?, 'Ökonomie Übung', '#336699', '2026-10-26')", (MODULE_UML,))
+        conn.execute("INSERT INTO courses(id, title, subject, kind, module_id, active, created_at) VALUES ('c-alt', 'Alt', 'Alt', 'vorlesung', ?, 0, '2026-10-26')", (MODULE_UML,))
         conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-ue', 'c-such', 'Übung 1.pdf', 'pdf', 'neu', 1760000901)")
         conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-pk', 'c-such', 'Übung 2.pdf', 'pdf', 'neu', 1760000902)")
         conn.execute("UPDATE files SET deleted_at='2026-10-26T10:00:00' WHERE id='s-pk'")
         conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-inakt', 'c-alt', 'Übung 3.pdf', 'pdf', 'neu', 1760000903)")
         conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-proz', 'c-such', 'Rabatt_50%.pdf', 'pdf', 'neu', 1760000904)")
-        conn.execute("INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (902, '2026-10-28', 92, 'Ökonomie Übung', 'Woche 2', 60, 'geplant', '2026-10-26')")
+        conn.execute("INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (902, '2026-10-28', ?, 'Ökonomie Übung', 'Woche 2', 60, 'geplant', '2026-10-26')", (MODULE_UML,))
         conn.execute("INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) VALUES (9002, 902, 'uebung', 'Übungsblatt Ökonomie', 0, 30, 'geplant', '2026-10-26')")
 
     def search(q):
@@ -159,10 +167,10 @@ def test_search_names_with_capital_umlauts_and_like_characters(app, tmp_path):
     for q in ("%C3%BCbung", "%C3%9Cbung"):
         r = search(q)
         assert [f["id"] for f in r["files"]] == ["s-ue"]
-        assert [m["id"] for m in r["modules"]] == [92]
+        assert [m["id"] for m in r["modules"]] == [MODULE_UML]
         assert [t["id"] for t in r["tasks"]] == [9002]
-    assert [m["id"] for m in search("%C3%96konomie")["modules"]] == [92]
-    assert [m["id"] for m in search("u%CC%88bung")["modules"]] == [92]      # zerlegter Umlaut (NFD)
+    assert [m["id"] for m in search("%C3%96konomie")["modules"]] == [MODULE_UML]
+    assert [m["id"] for m in search("u%CC%88bung")["modules"]] == [MODULE_UML]      # zerlegter Umlaut (NFD)
     assert [f["id"] for f in search("%25%25")["files"]] == []
     assert [f["id"] for f in search("_5")["files"]] == ["s-proz"]
     assert [f["id"] for f in search("0%25")["files"]] == ["s-proz"]

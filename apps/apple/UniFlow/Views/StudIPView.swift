@@ -399,9 +399,11 @@ private struct UFWebLoadFailureCard: ViewModifier {
 /// sodass eine erneute Anmeldung oft ohne Passwort gelingt, und eine andere Hochschule oder ein anderes Konto sieht
 /// keines ihrer Cookies.
 ///
-/// Passwoerter (Entscheidung des Inhabers, 27.10.2026): merken darf sie nur iOS, nie die App. Die Webansicht hat
-/// deshalb keine eigenen Skripte, keinen Nachrichtenkanal zur Seite und greift nicht in Formulare oder `autocomplete`
-/// ein (`loginConfiguration`: nur der Datenspeicher, sonst der Standard von WebKit). Das Anmeldeformular ist genau die
+/// Passwoerter (Entscheidung des Inhabers, 27.10.2026, bekraeftigt 03.11.2026): merken darf sie nur iOS, nie die App.
+/// Die Webansicht hat deshalb keinen Kanal zur Seite und greift nicht in Passwortfelder oder `autocomplete` ein
+/// (`loginConfiguration`: nur der Datenspeicher, sonst der Standard von WebKit). Einzige Ausnahme seit 04.11.2026
+/// (Wunsch des Inhabers "nicht neu eintippen"): auf der Anmeldeseite des WebSSO bzw. CAS kreuzt `UniLoginHelper`
+/// "Angemeldet bleiben" an und setzt den gemerkten Benutzernamen ein, in eigener Inhaltswelt. Das Anmeldeformular ist genau die
 /// Seite der Hochschule; iOS bietet dort sein Passwort-Autofill aus dem (iCloud-)Schluesselbund an (Schluessel-Symbol
 /// ueber der Tastatur). Nach dem Laden liest eine Ansicht hoechstens den Seiteninhalt, um eine angemeldete Seite oder
 /// den Fehlertext des CAS zu erkennen (`outerHTML` enthaelt eingetippte Werte nicht).
@@ -415,6 +417,8 @@ struct StudIPWebView: UIViewRepresentable {
     let dataStore: WKWebsiteDataStore
     var interceptNavigation: (@MainActor (URL) -> Bool)? = nil
     var load: UFWebLoadState? = nil
+    /// Hilfe auf der Anmeldeseite des WebSSO bzw. CAS (`UniLoginHelper`); aus fuer das QIS (eigenes Formular, kein SSO)
+    var loginHelper = true
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -430,7 +434,12 @@ struct StudIPWebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let view = WKWebView(frame: .zero, configuration: Self.loginConfiguration(dataStore: dataStore))
+        let config = Self.loginConfiguration(dataStore: dataStore)
+        // nur auf der Anmeldeseite des WebSSO bzw. CAS: "Angemeldet bleiben" ankreuzen und den gemerkten Benutzernamen
+        // einsetzen (`UniLoginHelper`, nie das Passwort); Stud.IP, QIS, Learnweb und LSF bleiben ohne Skript
+        // (nicht fuer die lokale Nachbildung des Debug-Stubs: dort gibt es keinen Anbieter)
+        if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }
+        let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         load?.webView = view
         load?.lastURL = url

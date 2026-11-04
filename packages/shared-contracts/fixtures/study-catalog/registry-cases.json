@@ -1,0 +1,471 @@
+{
+ "matches": [
+  {
+   "label": "Technische Informatik (PO-Version 2017)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2025",
+    "code": "TIBSc25",
+    "qis_label": "Technische Informatik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Technische Informatik (PO-Version 2022)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2022",
+    "code": "TIBSc22",
+    "qis_label": "Technische Informatik (PO-Version 2022)",
+    "qis_po": "2022",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Technische Informatik (PO-Version 2017)",
+   "po": "TIBSc22",
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2022",
+    "code": "TIBSc22",
+    "qis_label": "Technische Informatik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Technische Informatik (PO-Version 2017)",
+   "po": "TIBSc25",
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2025",
+    "code": "TIBSc25",
+    "qis_label": "Technische Informatik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Technische Informatik (PO-Version 2025)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2025",
+    "code": "TIBSc25",
+    "qis_label": "Technische Informatik (PO-Version 2025)",
+    "qis_po": "2025",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Technische Informatik (PO-Version 2017)",
+   "po": "2022",
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2022",
+    "code": "TIBSc22",
+    "qis_label": "Technische Informatik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "  technische   informatik  ",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2025",
+    "code": "TIBSc25",
+    "qis_label": "  technische   informatik  ",
+    "qis_po": null,
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Informatik (PO-Version 2017)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "informatik-bsc",
+    "program": "Informatik",
+    "degree": "B.Sc.",
+    "po": "2022",
+    "code": "INFBSc22",
+    "qis_label": "Informatik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Informatik Bachelor (PO-Version 2022)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "informatik-bsc",
+    "program": "Informatik",
+    "degree": "B.Sc.",
+    "po": "2022",
+    "code": "INFBSc22",
+    "qis_label": "Informatik Bachelor (PO-Version 2022)",
+    "qis_po": "2022",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Informatik Master (PO-Version 2017)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "informatik-m-sc",
+    "program": "Informatik",
+    "degree": "M.Sc.",
+    "po": "2017",
+    "code": "INFMSc25",
+    "qis_label": "Informatik Master (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: Bachelor Informatik PO-Version: 2017",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "informatik-bsc",
+    "program": "Informatik",
+    "degree": "B.Sc.",
+    "po": "2022",
+    "code": "INFBSc22",
+    "qis_label": "Abschluss: Bachelor Informatik PO-Version: 2017",
+    "qis_po": "2017",
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Elektrotechnik und Informationstechnik (PO-Version 2017)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "elektrotechnik-und-informationstechnik-b-sc",
+    "program": "Elektrotechnik und Informationstechnik",
+    "degree": "B.Sc.",
+    "po": "2017",
+    "code": "ETBSc17",
+    "qis_label": "Elektrotechnik und Informationstechnik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Musterfach (PO-Version 2017)",
+   "po": null,
+   "result": null
+  },
+  {
+   "label": "Elektrotechnik und Informationstechnik (PO-Version 2025)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "elektrotechnik-und-informationstechnik-b-sc",
+    "program": "Elektrotechnik und Informationstechnik",
+    "degree": "B.Sc.",
+    "po": "2025",
+    "code": "ETBSc25",
+    "qis_label": "Elektrotechnik und Informationstechnik (PO-Version 2025)",
+    "qis_po": "2025",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Technische Informatik Master (PO-Version 2017)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-m-sc",
+    "program": "Technische Informatik",
+    "degree": "M.Sc.",
+    "po": "2017",
+    "code": "TIMSc25",
+    "qis_label": "Technische Informatik Master (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Maschinenbau (PO-Version 2017)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "maschinenbau-b-sc",
+    "program": "Maschinenbau",
+    "degree": "B.Sc.",
+    "po": "2017",
+    "code": "maschinenbau|b.sc.|2017",
+    "qis_label": "Maschinenbau (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Mathematik (PO-Version 2020)",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "mathematik-b-sc",
+    "program": "Mathematik",
+    "degree": "B.Sc.",
+    "po": "2020",
+    "code": "mathematik|b.sc.|2020",
+    "qis_label": "Mathematik (PO-Version 2020)",
+    "qis_po": "2020",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Physik Bachelor",
+   "po": null,
+   "result": {
+    "university": "luh",
+    "program_id": "physik-b-sc",
+    "program": "Physik",
+    "degree": "B.Sc.",
+    "po": "2020",
+    "code": "physik|b.sc.|2020",
+    "qis_label": "Physik Bachelor",
+    "qis_po": null,
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Technische Informatik (PO-Version 2017)",
+   "po": "ETBSc25",
+   "result": {
+    "university": "luh",
+    "program_id": "technische-informatik-bsc",
+    "program": "Technische Informatik",
+    "degree": "B.Sc.",
+    "po": "2025",
+    "code": "TIBSc25",
+    "qis_label": "Technische Informatik (PO-Version 2017)",
+    "qis_po": "2017",
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "",
+   "po": null,
+   "result": null
+  }
+ ],
+ "keys": [
+  {
+   "university": "luh",
+   "code": "TIBSc22",
+   "term": "WS 2025/26",
+   "key": "7fa8e7662fc4d4c74e51f06957e1b3ca29d4f1c2b5e6ecda6b239c39177c25b0"
+  },
+  {
+   "university": "luh",
+   "code": "INFBSc22",
+   "term": "WS 2024/25",
+   "key": "62770466946edc6778497fa858975925ef0a001a9a61d70822afd1f71e750ee6"
+  },
+  {
+   "university": "luh",
+   "code": "TIBSc22",
+   "term": "SS 2026",
+   "key": "9a3a4cb59ce60a0964ddf6e01a9adc7e7cf89224a040c092db682dd5de9af7e1"
+  },
+  {
+   "university": "luh",
+   "code": "TIBSc25",
+   "term": "WS 2026/27",
+   "key": "f850f6f6f581492908da83a545efee0d4258e67889e00dce35c8fc8970ea0a3f"
+  }
+ ],
+ "urls": [
+  {
+   "code": "TIBSc22",
+   "term": "WS 2025/26",
+   "urls": [
+    "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "https://modkat.fei.uni-hannover.de/material/modkat-TIBSc22-WS_2025_26.pdf"
+   ]
+  },
+  {
+   "code": "TIBSc25",
+   "term": "WS 2026/27",
+   "urls": [
+    "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc25-WS_2026_27.pdf",
+    "https://modkat.fei.uni-hannover.de/material/modkat-TIBSc25-WS_2026_27.pdf"
+   ]
+  },
+  {
+   "code": "INFBSc22",
+   "term": "SS 2026",
+   "urls": [
+    "https://modkat.fei.uni-hannover.de/material/modkat-full-INFBSc22-SS_2026.pdf",
+    "https://modkat.fei.uni-hannover.de/material/modkat-INFBSc22-SS_2026.pdf"
+   ]
+  },
+  {
+   "code": "XYZ",
+   "term": "WS 2025/26",
+   "urls": []
+  },
+  {
+   "code": "ETBSc25",
+   "term": "WS 2026/27",
+   "urls": [
+    "https://modkat.fei.uni-hannover.de/material/modkat-full-ETBSc25-WS_2026_27.pdf",
+    "https://modkat.fei.uni-hannover.de/material/modkat-ETBSc25-WS_2026_27.pdf"
+   ]
+  },
+  {
+   "code": "maschinenbau|b.sc.|2017",
+   "term": "WS 2026/27",
+   "urls": []
+  }
+ ],
+ "terms": [
+  {
+   "code": "TIBSc22",
+   "today": "2026-11-04",
+   "terms": [
+    "WS 2026/27",
+    "WS 2025/26"
+   ]
+  },
+  {
+   "code": "TIBSc22",
+   "today": "2025-11-04",
+   "terms": [
+    "WS 2025/26"
+   ]
+  },
+  {
+   "code": "TIBSc25",
+   "today": "2026-11-04",
+   "terms": [
+    "WS 2026/27"
+   ]
+  },
+  {
+   "code": "TIBSc25",
+   "today": "2027-10-15",
+   "terms": [
+    "WS 2027/28",
+    "WS 2026/27"
+   ]
+  },
+  {
+   "code": "INFBSc22",
+   "today": "2026-05-01",
+   "terms": [
+    "WS 2026/27",
+    "WS 2024/25"
+   ]
+  },
+  {
+   "code": "XYZ",
+   "today": "2026-11-04",
+   "terms": []
+  },
+  {
+   "code": "ETMSc17",
+   "today": "2027-05-01",
+   "terms": [
+    "SS 2027",
+    "WS 2026/27"
+   ]
+  },
+  {
+   "code": "mathematik|b.sc.|2020",
+   "today": "2027-05-01",
+   "terms": []
+  }
+ ],
+ "study_plans": [
+  {
+   "code": "TIBSc25",
+   "url": "https://www.fei.uni-hannover.de/fileadmin/fei/Dateien-Studium/Studiengaenge_Technische_Informatik/B.Sc/Studienverlaufsplan_Bachelor_Technische_Informatik_WS2026-27.pdf"
+  },
+  {
+   "code": "TIBSc22",
+   "url": null
+  },
+  {
+   "code": "INFBSc22",
+   "url": "https://www.fei.uni-hannover.de/fileadmin/fei/Dateien-Studium/Studiengaenge_Informatik/B.Sc/Studienverlaufsplan_Bachelor_Informatik_WS2026-27.pdf"
+  },
+  {
+   "code": "XYZ",
+   "url": null
+  }
+ ],
+ "modkat_parts": [
+  {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc25-WS_2026_27.pdf",
+   "parts": [
+    "TIBSc25",
+    "WS 2026/27"
+   ]
+  },
+  {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-TIBSc22-WS_2025_26.pdf",
+   "parts": [
+    "TIBSc22",
+    "WS 2025/26"
+   ]
+  },
+  {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-L_MEd_Sp-INF-SS_2027.pdf",
+   "parts": [
+    "L_MEd_Sp-INF",
+    "SS 2027"
+   ]
+  },
+  {
+   "url": "https://example.org/handbuch.pdf",
+   "parts": null
+  }
+ ],
+ "title_terms": [
+  {
+   "text": "im Wintersemester 2025/2026",
+   "term": "WS 2025/26"
+  },
+  {
+   "text": "im Sommersemester 2026",
+   "term": "SS 2026"
+  },
+  {
+   "text": "Sommer 2026",
+   "term": null
+  }
+ ]
+}

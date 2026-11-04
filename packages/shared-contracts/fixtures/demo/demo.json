@@ -883,9 +883,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 2,
@@ -899,9 +897,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 3,
@@ -915,9 +911,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 4,
@@ -931,9 +925,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 5,
@@ -947,9 +939,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -1491,9 +1481,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 7,
@@ -1507,9 +1495,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 8,
@@ -1523,9 +1509,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 9,
@@ -1539,9 +1523,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 10,
@@ -1555,9 +1537,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -2666,9 +2646,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -3185,9 +3163,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 2,
@@ -3201,9 +3177,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 3,
@@ -3217,9 +3191,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 4,
@@ -3233,9 +3205,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 5,
@@ -3249,9 +3219,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 6,
@@ -3265,9 +3233,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -4028,9 +3994,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 2,
@@ -4044,9 +4008,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 3,
@@ -4060,9 +4022,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 4,
@@ -4076,9 +4036,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 5,
@@ -4092,9 +4050,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 6,
@@ -4108,9 +4064,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -4739,9 +4693,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -5269,9 +5221,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 7,
@@ -5285,9 +5235,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 8,
@@ -5301,9 +5249,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 9,
@@ -5317,9 +5263,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 10,
@@ -5333,9 +5277,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        },
        {
         "id": 11,
@@ -5349,9 +5291,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [
@@ -5957,9 +5897,7 @@
         "bookmarked": 0,
         "hidden": 0,
         "last_result": null,
-        "module_id": null,
-        "lecture_week": null,
-        "origin": null
+        "stack_id": null
        }
       ],
       "course_events": [

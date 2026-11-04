@@ -23,15 +23,22 @@ public final class LocalBackend: Sendable {
         SearchEndpoints.self,
         FileVersionEndpoints.self,
         FlashcardEndpoints.self,
+        CardStackEndpoints.self,
         DueEndpoints.self,
+        ExamsEndpoints.self,
         StudIPTextEndpoints.self,
         StudIPBulletinEndpoints.self,
         StudIPBlubberEndpoints.self,
+        StudIPMessagesEndpoints.self,
         OlderSemesterEndpoints.self,
         DemoEndpoints.self,
         PendingOverviewEndpoints.self,
         PendingServicesEndpoints.self,
         DocIndexEndpoints.self,
+        OwnRecordingEndpoints.self,
+        RecentEndpoints.self,
+        StudyPlanEndpoints.self,
+        StudyCatalogEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

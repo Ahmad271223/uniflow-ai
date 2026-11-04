@@ -1527,6 +1527,14 @@
       "new_count": 6,
       "open_tasks": 2,
       "progress": 17,
+      "mastery": {
+       "score": 63,
+       "reason": "1 Wochentest, 1 von 3 Aufgaben",
+       "tests": 1,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 3
+      },
       "next_package": {
        "date": "2026-10-27",
        "title": "Wochentest"
@@ -1578,6 +1586,14 @@
       "new_count": 2,
       "open_tasks": 1,
       "progress": 33,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 1
+      },
       "next_package": null,
       "next_event": {
        "event_id": 3,
@@ -1626,6 +1642,14 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 50,
+      "mastery": {
+       "score": 100,
+       "reason": "1 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 1
+      },
       "next_package": null,
       "next_event": {
        "event_id": 5,
@@ -1672,6 +1696,7 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -1701,6 +1726,7 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -6026,6 +6052,14 @@
       "new_count": 5,
       "open_tasks": 6,
       "progress": 33,
+      "mastery": {
+       "score": 58,
+       "reason": "1 Wochentest, 1 von 7 Aufgaben",
+       "tests": 1,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 7
+      },
       "next_package": {
        "date": "2026-10-23",
        "title": "Woche 1 · 12.10. – 18.10."
@@ -6077,6 +6111,14 @@
       "new_count": 2,
       "open_tasks": 4,
       "progress": 33,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 4 Aufgaben",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 4
+      },
       "next_package": {
        "date": "2026-10-25",
        "title": "Woche 2 · 19.10. – 25.10."
@@ -6128,6 +6170,14 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 50,
+      "mastery": {
+       "score": 100,
+       "reason": "1 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 1
+      },
       "next_package": null,
       "next_event": {
        "event_id": 5,
@@ -6174,6 +6224,7 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -6203,6 +6254,7 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -6534,6 +6586,14 @@
      "new_count": 5,
      "open_tasks": 6,
      "progress": 33,
+     "mastery": {
+      "score": 58,
+      "reason": "1 Wochentest, 1 von 7 Aufgaben",
+      "tests": 1,
+      "cards": 0,
+      "tasks_done": 1,
+      "tasks_total": 7
+     },
      "next_package": {
       "date": "2026-10-23",
       "title": "Woche 1 · 12.10. – 18.10."
@@ -6585,6 +6645,14 @@
      "new_count": 2,
      "open_tasks": 4,
      "progress": 33,
+     "mastery": {
+      "score": 0,
+      "reason": "0 von 4 Aufgaben",
+      "tests": 0,
+      "cards": 0,
+      "tasks_done": 0,
+      "tasks_total": 4
+     },
      "next_package": {
       "date": "2026-10-25",
       "title": "Woche 2 · 19.10. – 25.10."
@@ -6636,6 +6704,14 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 50,
+     "mastery": {
+      "score": 100,
+      "reason": "1 von 1 Aufgabe",
+      "tests": 0,
+      "cards": 0,
+      "tasks_done": 1,
+      "tasks_total": 1
+     },
      "next_package": null,
      "next_event": {
       "event_id": 5,
@@ -6682,6 +6758,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": null,
      "next_event": null,
      "task_count": 0,
@@ -6711,6 +6788,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": null,
      "next_event": null,
      "task_count": 0,
@@ -7257,6 +7335,14 @@
      }
     ],
     "progress": 33,
+    "mastery": {
+     "score": 58,
+     "reason": "1 Wochentest, 1 von 7 Aufgaben",
+     "tests": 1,
+     "cards": 0,
+     "tasks_done": 1,
+     "tasks_total": 7
+    },
     "new_count": 5,
     "open_tasks": 6,
     "next_package": {
@@ -8465,6 +8551,14 @@
       "new_count": 7,
       "open_tasks": 6,
       "progress": 25,
+      "mastery": {
+       "score": 58,
+       "reason": "1 Wochentest, 1 von 7 Aufgaben",
+       "tests": 1,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 7
+      },
       "next_package": {
        "date": "2026-10-28",
        "title": "Woche 1 · 12.10. – 18.10."
@@ -8517,6 +8611,14 @@
       "new_count": 3,
       "open_tasks": 4,
       "progress": 25,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 4 Aufgaben",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 4
+      },
       "next_package": {
        "date": "2026-10-28",
        "title": "Physik wiederholen"
@@ -8568,6 +8670,14 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 50,
+      "mastery": {
+       "score": 100,
+       "reason": "1 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 1
+      },
       "next_package": null,
       "next_event": {
        "event_id": 5,
@@ -8614,6 +8724,7 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -8643,6 +8754,7 @@
       "new_count": 2,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -10820,6 +10932,14 @@
       "new_count": 7,
       "open_tasks": 8,
       "progress": 25,
+      "mastery": {
+       "score": 57,
+       "reason": "1 Wochentest, 1 von 9 Aufgaben",
+       "tests": 1,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 9
+      },
       "next_package": {
        "date": "2026-10-28",
        "title": "Woche 1 · 12.10. – 18.10."
@@ -10872,6 +10992,14 @@
       "new_count": 3,
       "open_tasks": 6,
       "progress": 25,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 6 Aufgaben",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 6
+      },
       "next_package": {
        "date": "2026-10-28",
        "title": "Physik wiederholen"
@@ -10923,6 +11051,14 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 50,
+      "mastery": {
+       "score": 100,
+       "reason": "1 von 1 Aufgabe",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 1,
+       "tasks_total": 1
+      },
       "next_package": null,
       "next_event": {
        "event_id": 5,
@@ -10969,6 +11105,7 @@
       "new_count": 1,
       "open_tasks": 0,
       "progress": 0,
+      "mastery": null,
       "next_package": null,
       "next_event": null,
       "task_count": 0,
@@ -10998,6 +11135,14 @@
       "new_count": 2,
       "open_tasks": 2,
       "progress": 0,
+      "mastery": {
+       "score": 0,
+       "reason": "0 von 2 Aufgaben",
+       "tests": 0,
+       "cards": 0,
+       "tasks_done": 0,
+       "tasks_total": 2
+      },
       "next_package": {
        "date": "2026-10-29",
        "title": "Woche 3 · 26.10. – 01.11."
@@ -11374,6 +11519,14 @@
      "new_count": 7,
      "open_tasks": 8,
      "progress": 25,
+     "mastery": {
+      "score": 57,
+      "reason": "1 Wochentest, 1 von 9 Aufgaben",
+      "tests": 1,
+      "cards": 0,
+      "tasks_done": 1,
+      "tasks_total": 9
+     },
      "next_package": {
       "date": "2026-10-28",
       "title": "Woche 1 · 12.10. – 18.10."
@@ -11426,6 +11579,14 @@
      "new_count": 3,
      "open_tasks": 6,
      "progress": 25,
+     "mastery": {
+      "score": 0,
+      "reason": "0 von 6 Aufgaben",
+      "tests": 0,
+      "cards": 0,
+      "tasks_done": 0,
+      "tasks_total": 6
+     },
      "next_package": {
       "date": "2026-10-28",
       "title": "Physik wiederholen"
@@ -11477,6 +11638,14 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 50,
+     "mastery": {
+      "score": 100,
+      "reason": "1 von 1 Aufgabe",
+      "tests": 0,
+      "cards": 0,
+      "tasks_done": 1,
+      "tasks_total": 1
+     },
      "next_package": null,
      "next_event": {
       "event_id": 5,
@@ -11523,6 +11692,7 @@
      "new_count": 1,
      "open_tasks": 0,
      "progress": 0,
+     "mastery": null,
      "next_package": null,
      "next_event": null,
      "task_count": 0,
@@ -11552,6 +11722,14 @@
      "new_count": 2,
      "open_tasks": 2,
      "progress": 0,
+     "mastery": {
+      "score": 0,
+      "reason": "0 von 2 Aufgaben",
+      "tests": 0,
+      "cards": 0,
+      "tasks_done": 0,
+      "tasks_total": 2
+     },
      "next_package": {
       "date": "2026-10-29",
       "title": "Woche 3 · 26.10. – 01.11."
@@ -14999,6 +15177,14 @@
         "new_count": 7,
         "open_tasks": 3,
         "progress": 25,
+        "mastery": {
+         "score": 65,
+         "reason": "1 Wochentest, 2 von 5 Aufgaben",
+         "tests": 1,
+         "cards": 0,
+         "tasks_done": 2,
+         "tasks_total": 5
+        },
         "next_package": {
          "date": "2026-10-28",
          "title": "Woche 3 · 26.10. – 01.11."
@@ -15051,6 +15237,14 @@
         "new_count": 3,
         "open_tasks": 3,
         "progress": 25,
+        "mastery": {
+         "score": 0,
+         "reason": "0 von 3 Aufgaben",
+         "tests": 0,
+         "cards": 0,
+         "tasks_done": 0,
+         "tasks_total": 3
+        },
         "next_package": {
          "date": "2026-10-28",
          "title": "Woche 3 · 26.10. – 01.11."
@@ -15102,6 +15296,14 @@
         "new_count": 1,
         "open_tasks": 0,
         "progress": 50,
+        "mastery": {
+         "score": 100,
+         "reason": "1 von 1 Aufgabe",
+         "tests": 0,
+         "cards": 0,
+         "tasks_done": 1,
+         "tasks_total": 1
+        },
         "next_package": null,
         "next_event": {
          "event_id": 5,
@@ -15148,6 +15350,7 @@
         "new_count": 1,
         "open_tasks": 0,
         "progress": 0,
+        "mastery": null,
         "next_package": null,
         "next_event": null,
         "task_count": 0,
@@ -15177,6 +15380,14 @@
         "new_count": 2,
         "open_tasks": 1,
         "progress": 0,
+        "mastery": {
+         "score": 0,
+         "reason": "0 von 1 Aufgabe",
+         "tests": 0,
+         "cards": 0,
+         "tasks_done": 0,
+         "tasks_total": 1
+        },
         "next_package": {
          "date": "2026-11-01",
          "title": "Woche 3 · 26.10. – 01.11."

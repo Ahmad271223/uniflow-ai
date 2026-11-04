@@ -1,6 +1,6 @@
 # Gemeinsame Wochentests
 
-Stand 04.11.2026 (Varianten-Regel; Schlüssel seit 25.10.2026). Vorgabe des Inhabers: Wer dieselbe Vorlesung und
+Stand 04.11.2026 (Varianten-Regel, Einstellungen im Dialog; Schlüssel seit 25.10.2026). Vorgabe des Inhabers: Wer dieselbe Vorlesung und
 dieselbe Übung hat, teilt sich den Wochentest. **Für ein Modul und eine Woche gibt es höchstens drei Tests, egal wie
 viele Studierende das Modul haben**: bei 100 Studierenden werden drei Tests erzeugt und etwa 34/33/33 bekommen je einen
 davon, bei 200 Studierenden 66/66/68. Tests werden also **übernommen, nicht je Person erzeugt**. Die KI ist für Fragen,
@@ -11,7 +11,8 @@ Karteikarten und die PDF-Analyse da, nicht für einen Test je Studierendem.
 ### Schlüssel
 
 Ein Wochentest wird durch einen **gemeinsamen Schlüssel** beschrieben (`app/testshare.py`, `TestShare.swift`; Version
-`wt2` seit 29.10.2026: 15 Aufgaben 4/6/5, Altklausur im Schlüssel):
+`wt2` seit 29.10.2026: 15 Aufgaben 4/6/5, Altklausur im Schlüssel; `wt3` seit 04.11.2026: dazu Wahr/Falsch und
+Lückentext als Aufgabenarten und eine Erklärung je Aufgabe):
 
 | Teil des Schlüssels | Warum |
 | --- | --- |
@@ -25,6 +26,28 @@ Datei der Inhalt, wird nicht geteilt (lieber ein eigener Test als ein falscher).
 
 Ändert sich der Aufbau eines Tests (Prompt, Format), wird `VERSION` erhöht. Dann entstehen neue Tests, alte werden nicht
 mit neuen vermischt.
+
+### Einstellungen im Dialog (04.11.2026): nur der Standard wird geteilt
+
+„Wochentest erstellen“ kennt neben Modul, Lehrwoche und Dauer jetzt die **Zahl der Aufgaben** (5/10/15/20, Vorgabe 15),
+die **Schwierigkeit** (Beliebig = 4/6/5 anteilig, sonst alle Aufgaben in einer Stufe), die **Aufgabenarten** als
+Schalter (Multiple Choice, Wahr/Falsch, Lückentext, Kurzantwort, Rechnen/Programmieren; mindestens eine) und ein
+freies **Thema oder Hinweise** („nur Kapitel 3“). Parameter von `POST /api/tests/generate`: `count`, `difficulty`
+(`beliebig|leicht|mittel|schwer`), `types` (`mc|tf|cloze|short|calc`), `topic` (höchstens 300 Zeichen); fehlende
+Felder sind der Standard, Unbrauchbares ist 400 (`ai.week_test_options`, `WeekTestOptions.parse`, gleiche Texte).
+
+**Geteilt wird nur die Standardeinstellung** (15 Aufgaben, Beliebig, alle fünf Arten, kein Thema; `week_test_is_standard`,
+`WeekTestOptions.isStandard`), und zwar jetzt auch aus dem Dialog (vorher nur der automatische Wochentest). Jede
+andere Einstellung ergibt einen **eigenen Test** des Nutzers mit seiner KI: ohne `share_key`, ohne Variante, in der
+App als „Eigener Test, nicht geteilt“ beschriftet (Dialog, Platzhalterkarte ohne Suchphase, Testkarte, Testlauf).
+Vorgabe des Inhabers: nichts gibt sich als geteilt aus, was es nicht ist. Verteilung bei „Beliebig“ nach größtem Rest
+aus 4/6/5: 5 → 1/2/2, 10 → 3/4/3, 20 → 5/8/7; ohne schwere Aufgaben (Leicht/Mittel) gibt es keine Klausuraufgabe.
+
+Je Aufgabe liefert die KI seit `wt3` eine `explanation` (1–3 Sätze), Wahr/Falsch (`tf`) genau die Optionen
+`["Wahr", "Falsch"]`, Lückentext (`cloze`) das Wort für die Lücke in `blank`; der Prüfer (`check_week_test`,
+`AIAnswers.checkWeekTest`) verwirft andere Formen, bis zur Abgabe bleiben `explanation` und `blank` wie `answer`
+verborgen. Erwartungswerte in `packages/shared-contracts/ai/contract.json` (`week_test_options`, `check_week_test`),
+Tests `tests/test_week_test_options.py`, `WeekTestOptionsTests` (Kern), `QuizOptionsAppTests` (App).
 
 ### Varianten (höchstens drei je Schlüssel)
 

@@ -113,34 +113,43 @@ public enum DocIndexCrypto {
     /// Inhalt verschluesseln: Base64 aus Version (1 Byte), Salz (32), Nonce (12) und Chiffrat mit Tag
     public static func seal(_ content: JSONValue, fileSHA: String, pageHash: String, fileKey: String, page: Int, cipher: SolutionCipher,
                             version: Int = DocIndexSchema.version, salt: Data? = nil, nonce: Data? = nil) throws -> String {
-        let salt = salt ?? SolutionPackage.randomBytes(saltBytes), nonce = nonce ?? SolutionPackage.randomBytes(nonceBytes)
-        guard salt.count == saltBytes, nonce.count == nonceBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
-        let plaintext = content.serialized(sortedKeys: true)
-        let sealed = try cipher.seal(plaintext, keyMaterial: keyMaterial(fileSHA: fileSHA, pageHash: pageHash), salt: salt,
-                                     info: keyInfo(page: page), nonce: nonce, aad: aad(fileKey: fileKey, page: page, version: version))
-        guard sealed.count == plaintext.count + tagBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
-        return (Data([payloadVersion]) + salt + nonce + sealed).base64EncodedString()
+        try sealRaw(content.serialized(sortedKeys: true), keyMaterial: keyMaterial(fileSHA: fileSHA, pageHash: pageHash), info: keyInfo(page: page),
+                    aad: aad(fileKey: fileKey, page: page, version: version), cipher: cipher, salt: salt, nonce: nonce)
     }
 
     /// Entschluesseln; falscher Schluessel (andere Datei, andere Seite), veraendertes oder umgehaengtes Chiffrat werfen
     /// `SolutionError.decryptionFailed`
     public static func open(_ payload: String, fileSHA: String, pageHash: String, fileKey: String, page: Int, cipher: SolutionCipher,
                             version: Int = DocIndexSchema.version) throws -> JSONValue {
+        let plaintext = try openRaw(payload, keyMaterial: keyMaterial(fileSHA: fileSHA, pageHash: pageHash), info: keyInfo(page: page),
+                                    aad: aad(fileKey: fileKey, page: page, version: version), cipher: cipher)
+        guard let json = try? JSONValue.parse(plaintext) else { throw SolutionError.decryptionFailed }
+        return json
+    }
+
+    /// Die Byte-Form (Version, Salz, Nonce, Chiffrat mit Tag; Base64) - dieselbe fuer den Erklaerungsspeicher
+    /// (`PageExplainCrypto`), der nur andere `info`- und Zusatzdaten mitgibt
+    static func sealRaw(_ plaintext: Data, keyMaterial: Data, info: Data, aad: Data, cipher: SolutionCipher, salt: Data? = nil,
+                        nonce: Data? = nil) throws -> String {
+        let salt = salt ?? SolutionPackage.randomBytes(saltBytes), nonce = nonce ?? SolutionPackage.randomBytes(nonceBytes)
+        guard salt.count == saltBytes, nonce.count == nonceBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
+        let sealed = try cipher.seal(plaintext, keyMaterial: keyMaterial, salt: salt, info: info, nonce: nonce, aad: aad)
+        guard sealed.count == plaintext.count + tagBytes else { throw SolutionError.invalidContent("Verschlüsselung") }
+        return (Data([payloadVersion]) + salt + nonce + sealed).base64EncodedString()
+    }
+
+    static func openRaw(_ payload: String, keyMaterial: Data, info: Data, aad: Data, cipher: SolutionCipher) throws -> Data {
         guard payload.count <= maxPayloadChars, let raw = Data(base64Encoded: payload),
               raw.count > 1 + saltBytes + nonceBytes + tagBytes, raw.first == payloadVersion else { throw SolutionError.decryptionFailed }
         let bytes = [UInt8](raw)
         let salt = Data(bytes[1..<(1 + saltBytes)])
         let nonce = Data(bytes[(1 + saltBytes)..<(1 + saltBytes + nonceBytes)])
         let sealed = Data(bytes[(1 + saltBytes + nonceBytes)...])
-        let plaintext: Data
         do {
-            plaintext = try cipher.open(sealed, keyMaterial: keyMaterial(fileSHA: fileSHA, pageHash: pageHash), salt: salt,
-                                        info: keyInfo(page: page), nonce: nonce, aad: aad(fileKey: fileKey, page: page, version: version))
+            return try cipher.open(sealed, keyMaterial: keyMaterial, salt: salt, info: info, nonce: nonce, aad: aad)
         } catch {
             throw SolutionError.decryptionFailed
         }
-        guard let json = try? JSONValue.parse(plaintext) else { throw SolutionError.decryptionFailed }
-        return json
     }
 
     /// Seiten-Abdruck der Zusammenfassung (Seite 0): der Abdruck aller Seiten-Abdruecke, damit auch Seite 0 an den

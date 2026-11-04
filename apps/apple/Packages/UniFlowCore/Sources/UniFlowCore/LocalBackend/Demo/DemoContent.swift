@@ -253,7 +253,7 @@ public enum DemoContent {
             }
             n.files += 1
         }
-        for t in ["annotations", "annotation_versions", "analysis", "page_texts", "flashcards", "recordings"] {
+        for t in ["annotations", "annotation_versions", "analysis", "page_texts", "flashcards", "flashcard_stacks", "recordings"] {
             try c.execute("DELETE FROM \(t) WHERE file_id LIKE 'demo-%'")
         }
         if try hasTable(c, "file_versions") { try c.execute("DELETE FROM file_versions WHERE file_id LIKE 'demo-%'") }

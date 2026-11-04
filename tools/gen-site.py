@@ -5,7 +5,9 @@ Die Markdown-Dateien sind die einzige Quelle (dieselben, die der Dienst unter /d
     STARTSEITE.md -> index.html            SUPPORT.md -> support.html
     DATENSCHUTZ.md -> datenschutz.html     NUTZUNGSBEDINGUNGEN.md -> nutzungsbedingungen.html
     IMPRESSUM.md -> impressum.html         KONTO-LOESCHEN.md -> konto-loeschen.html
-dazu style.css (eine Datei, Farben der App aus app/static/style.css bzw. UFTheme.swift, dunkel nach Systemeinstellung
+    EINLADUNG.md -> i/index.html           (Einladungsseite hinter https://studinow.app/i/<CODE>, nicht in der Navigation)
+dazu .well-known/apple-app-site-association (Universal Links /i/* fuer die iPad-App; Team-ID aus apps/apple/Config/Team.xcconfig,
+sonst Platzhalter [[TEAMID]]), style.css (eine Datei, Farben der App aus app/static/style.css bzw. UFTheme.swift, dunkel nach Systemeinstellung
 ohne Skript) und icon.svg (Kopie von app/static/icon.svg). Kein Skript, keine fremden Ressourcen, keine Schriften von
 Dritten. Fusszeile und Beschreibung kommen aus docs/release/angaben.json.
 
@@ -44,7 +46,15 @@ PAGES = [
     ("IMPRESSUM.md", "impressum.html", "Impressum", "Impressum von StudiNow (IT solutions by Ahmad Fakih)."),
     ("KONTO-LOESCHEN.md", "konto-loeschen.html", "Konto löschen", "So löschst du dein StudiNow-Konto in der App oder per E-Mail."),
 ]
+# Seiten ausserhalb der Navigation: (Markdown, Ausgabe in einem Unterordner, Titel-Rueckfall, Beschreibung)
+EXTRA_PAGES = [
+    ("EINLADUNG.md", "i/index.html", "Einladung",
+     "Du bist zu StudiNow eingeladen: App laden, Konto anlegen, Einladung annehmen. Die einladende Person bekommt Angebotscodes."),
+]
 SLUGS = {out[:-5]: out for _, out, _, _ in PAGES if out != "index.html"}
+AASA_PATH = ".well-known/apple-app-site-association"
+TEAM_XCCONFIG = ROOT / "apps" / "apple" / "Config" / "Team.xcconfig"
+BUNDLE_ID = "de.uniflow.ai"
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")
 SITE_LINK = re.compile(r'href="https://' + re.escape(DOMAIN) + r'(?:/([a-z-]+))?/?"')
 
@@ -128,12 +138,12 @@ TEMPLATE = """\
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{description}">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
+<link rel="icon" href="{root}icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{root}style.css">
 </head>
 <body>
 <header class="header"><div class="inner">
-<a class="brand" href="index.html"><img src="icon.svg" alt="" width="30" height="30">StudiNow</a>
+<a class="brand" href="{root}index.html"><img src="{root}icon.svg" alt="" width="30" height="30">StudiNow</a>
 <nav class="nav" aria-label="Seiten">{nav}</nav>
 </div></header>
 <main{main_class}>
@@ -141,10 +151,10 @@ TEMPLATE = """\
 </main>
 <footer class="footer"><div class="inner">
 <span>© {year} {owner}</span>
-<a href="impressum.html">Impressum</a>
-<a href="datenschutz.html">Datenschutz</a>
-<a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
-<a href="support.html">Support</a>
+<a href="{root}impressum.html">Impressum</a>
+<a href="{root}datenschutz.html">Datenschutz</a>
+<a href="{root}nutzungsbedingungen.html">Nutzungsbedingungen</a>
+<a href="{root}support.html">Support</a>
 </div></footer>
 </body>
 </html>
@@ -166,36 +176,64 @@ def title_of(text: str, fallback: str) -> str:
     return fallback
 
 
-def render_markdown(text: str) -> str:
+def render_markdown(text: str, root: str = "") -> str:
     body = markdown.markdown(text, extensions=["tables", "sane_lists"], output_format="html")
     body = PLACEHOLDER.sub(lambda m: f'<mark class="todo" title="noch auszufüllen">[[{m.group(1)}]]</mark>', body)
-    return SITE_LINK.sub(_relative_link, body)
+    return SITE_LINK.sub(lambda m: _relative_link(m, root), body)
 
 
-def _relative_link(m: re.Match) -> str:
-    """Links auf die eigenen Seiten relativ, damit sie auch ohne Host-Regeln funktionieren; andere bleiben."""
+def _relative_link(m: re.Match, root: str = "") -> str:
+    """Links auf die eigenen Seiten relativ, damit sie auch ohne Host-Regeln funktionieren; andere bleiben.
+    `root` ("../") fuer Seiten in einem Unterordner."""
     slug = m.group(1) or ""
     if not slug:
-        return 'href="index.html"'
-    return f'href="{SLUGS[slug]}"' if slug in SLUGS else m.group(0)
+        return f'href="{root}index.html"'
+    return f'href="{root}{SLUGS[slug]}"' if slug in SLUGS else m.group(0)
 
 
 def render_page(src_name: str, out_name: str, nav_name: str, description: str, owner: str, year: str) -> str:
     text = (SRC / src_name).read_text(encoding="utf-8")
     title = title_of(text, nav_name)
     full_title = title if title.startswith("StudiNow") else f"{title} – StudiNow"
-    nav = "".join(f'<a href="{o}"{" class=\"active\"" if o == out_name else ""}>{html.escape(n)}</a>' for _, o, n, _ in PAGES)
-    main_class = ' class="home"' if out_name == "index.html" else ""
-    return TEMPLATE.format(title=html.escape(full_title), description=html.escape(description), nav=nav,
-                           main_class=main_class, body=render_markdown(text), owner=html.escape(owner), year=year)
+    root = "../" * out_name.count("/")
+    nav = "".join(f'<a href="{root}{o}"{" class=\"active\"" if o == out_name else ""}>{html.escape(n)}</a>' for _, o, n, _ in PAGES)
+    main_class = ' class="home"' if out_name in ("index.html", "i/index.html") else ""
+    return TEMPLATE.format(title=html.escape(full_title), description=html.escape(description), nav=nav, root=root,
+                           main_class=main_class, body=render_markdown(text, root), owner=html.escape(owner), year=year)
+
+
+def team_id() -> str:
+    """Team-ID des Apple Developer Program aus apps/apple/Config/Team.xcconfig (nicht eingecheckt); sonst Platzhalter."""
+    try:
+        for line in TEAM_XCCONFIG.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\s*DEVELOPMENT_TEAM\s*=\s*([A-Z0-9]{10})\s*$", line)
+            if m:
+                return m.group(1)
+    except OSError:
+        pass
+    return "[[TEAMID]]"
+
+
+def apple_app_site_association(team: str | None = None) -> str:
+    """Universal Links fuer https://studinow.app/i/<CODE> (Einladungen, docs/EINLADUNGEN.md): die iPad-App oeffnet den Link,
+    wenn sie installiert ist (Associated Domains applinks:studinow.app in UniFlow.entitlements). Beide Schreibweisen
+    (appID/paths fuer aeltere Systeme, appIDs/components ab iOS 13). Der Host muss die Datei ohne Weiterleitung und als
+    application/json ausliefern."""
+    app_id = f"{team or team_id()}.{BUNDLE_ID}"
+    doc = {"applinks": {"apps": [], "details": [
+        {"appID": app_id, "paths": ["/i/*"]},
+        {"appIDs": [app_id], "components": [{"/": "/i/*", "comment": "Einladungslink"}]},
+    ]}, "webcredentials": {"apps": [app_id]}}
+    return json.dumps(doc, indent=1, ensure_ascii=False) + "\n"
 
 
 def build() -> dict[str, str | bytes]:
     """Alle Dateien der Website: Name -> Inhalt."""
     owner, year = owner_and_year()
     files: dict[str, str | bytes] = {"style.css": CSS, "icon.svg": ICON.read_bytes()}
-    for src_name, out_name, nav_name, description in PAGES:
+    for src_name, out_name, nav_name, description in PAGES + EXTRA_PAGES:
         files[out_name] = render_page(src_name, out_name, nav_name, description, owner, year)
+    files[AASA_PATH] = apple_app_site_association()
     return files
 
 
@@ -204,6 +242,7 @@ def write(out: Path) -> list[str]:
     names = []
     for name, content in build().items():
         p = out / name
+        p.parent.mkdir(parents=True, exist_ok=True)                  # i/, .well-known/
         if isinstance(content, bytes):
             p.write_bytes(content)
         else:

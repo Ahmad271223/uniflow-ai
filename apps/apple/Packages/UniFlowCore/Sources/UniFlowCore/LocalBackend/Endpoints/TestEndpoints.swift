@@ -99,7 +99,7 @@ enum TestEndpoints: LocalEndpointModule {
             if !LocalModules.truthy(t["submitted_at"]) {
                 questions = questions.map { q in                       // Loesung, Loesungsweg und Quellen erst nach Abgabe sichtbar
                     guard var o = q.object else { return q }
-                    for k in ["answer", "steps", "rubric", "refs", "from_exam", "exam_mode"] { o[k] = nil }
+                    for k in ["answer", "steps", "rubric", "refs", "from_exam", "exam_mode", "explanation", "blank"] { o[k] = nil }
                     return .object(o)
                 }
             }
@@ -116,18 +116,21 @@ enum TestEndpoints: LocalEndpointModule {
             let duration = AIPrompts.truthy(body.value("duration_min")) ? try LocalTerms.pyInt(body.value("duration_min"), field: "duration_min") : nil
             // Lehrwoche (03.11.2026, Dialog "Wochentest erstellen"): nur die Materialien dieser Woche, sonst die neuesten
             let week = AIPrompts.truthy(body.value("week_no")) ? try LocalTerms.pyInt(body.value("week_no"), field: "week_no") : nil
+            // Zahl, Schwierigkeit, Aufgabenarten, Thema (04.11.2026); nur die Standardeinstellung wird geteilt; 400 wie am PC
+            let options: WeekTestOptions
+            do { options = try WeekTestOptions.parse(.object(body)) } catch let e as AIError { throw LocalHTTPError(status: 400, message: e.message) }
             if AIPrompts.truthy(body.value("module_id")) {
                 let mid = try LocalTerms.pyInt(body.value("module_id"), field: "module_id")
                 guard let name = try await ctx.database.queryOne("SELECT name FROM modules WHERE id=?", [.integer(Int64(mid))])?["name"]?.string else {
                     throw LocalHTTPError.notFound("Modul nicht gefunden")
                 }
                 return .json(try await ctx.jobs.start("Test") {
-                    String(try await WeekTests.create(ctx: ctx, ai: ai, subject: name, duration: duration, moduleID: Int64(mid), weekNo: week, auto: false))
+                    String(try await WeekTests.create(ctx: ctx, ai: ai, subject: name, duration: duration, moduleID: Int64(mid), weekNo: week, auto: false, options: options))
                 })
             }
             guard case .string(let subject)? = body.value("subject"), !subject.isEmpty else { throw LocalHTTPError(status: 400, message: "subject fehlt") }
             return .json(try await ctx.jobs.start("Test") {
-                String(try await WeekTests.create(ctx: ctx, ai: ai, subject: subject, duration: duration, moduleID: nil, weekNo: nil, auto: false))
+                String(try await WeekTests.create(ctx: ctx, ai: ai, subject: subject, duration: duration, moduleID: nil, weekNo: nil, auto: false, options: options))
             })
         }
 
@@ -302,15 +305,17 @@ enum WeekTests {
         return e
     }
 
-    /// `ai.generate_test` (Textweg): hoechstens zwei Versuche, jede Antwort muss `check_week_test` bestehen
-    static func generate(ai: AIProvider, subject: String, duration: Int, materials: [[String: JSONValue]], exam: [String: JSONValue]?) async throws -> PyJSON {
+    /// `ai.generate_test` (Textweg): hoechstens zwei Versuche, jede Antwort muss `check_week_test` bestehen; ohne
+    /// schwere Aufgaben (Schwierigkeit leicht/mittel) keine Klausuraufgabe
+    static func generate(ai: AIProvider, subject: String, duration: Int, materials: [[String: JSONValue]], exam: [String: JSONValue]?,
+                         options: WeekTestOptions = .standard) async throws -> PyJSON {
         let block = AIPrompts.testTextBlock(materials.map { PyJSON(.object($0)) })
-        let examBlock = AIPrompts.examTextBlock(exam.map { PyJSON(.object($0)) })
-        let prompt = AIPrompts.weekTest(subject: subject, durationMin: duration, materialsBlock: block, examBlock: examBlock)
+        let examBlock = (options.distributionByLevel["schwer"] ?? 0) > 0 ? AIPrompts.examTextBlock(exam.map { PyJSON(.object($0)) }) : ""
+        let prompt = AIPrompts.weekTest(subject: subject, durationMin: duration, materialsBlock: block, examBlock: examBlock, options: options)
         var why: String?
         for _ in 0..<2 {
             let res = try AIAnswers.parseJSON(try await ai.answer(system: AIPromptTexts.system, prompt: prompt))
-            why = AIAnswers.checkWeekTest(res, exam: !examBlock.isEmpty)
+            why = AIAnswers.checkWeekTest(res, exam: !examBlock.isEmpty, options: options)
             if why == nil { return res }
         }
         throw AIError("ai_week_test_form", "Die KI hat den Wochentest zweimal nicht in der geforderten Form geliefert (\(why ?? "")). Bitte spaeter erneut versuchen.")
@@ -325,8 +330,11 @@ enum WeekTests {
 
     private static let weekPrefix = PyRegex(#"^Lehrwoche \d+:\s*"#)
 
-    /// `create_test`: Test anlegen; `auto` = gemeinsamer Wochentest des Moduls fuer die Lehrwoche (hoechstens einer)
-    static func create(ctx: LocalContext, ai: AIProvider, subject: String, duration: Int?, moduleID: Int64?, weekNo: Int?, auto: Bool) async throws -> Int {
+    /// `create_test`: Test anlegen; `auto` = gemeinsamer Wochentest des Moduls fuer die Lehrwoche (hoechstens einer).
+    /// `options`: Parameter des Dialogs; nur die Standardeinstellung (`.standard`) wird ueber den Schluessel geteilt,
+    /// alles andere ist ein eigener Test ohne `share_key` (Vorgabe des Inhabers: nichts gibt sich als geteilt aus)
+    static func create(ctx: LocalContext, ai: AIProvider, subject: String, duration: Int?, moduleID: Int64?, weekNo: Int?, auto: Bool,
+                       options: WeekTestOptions = .standard) async throws -> Int {
         let ws = planningWeek(ctx.clock)
         var module = moduleID
         let pre: (existing: Int?, minutes: Int, university: String) = try await ctx.database.withConnection { c in
@@ -346,8 +354,9 @@ enum WeekTests {
         if let existing = pre.existing { return existing }
         let mats = try await materials(ctx: ctx, subject: subject, moduleID: module, weekNo: weekNo)
         let ex = try await exam(ctx: ctx, moduleID: module)
-        // gemeinsamer Wochentest: gleiche Materialien (Inhalt) und Dauer -> derselbe Test ohne neue KI-Anfrage
-        let material = auto && !mats.isEmpty
+        // gemeinsamer Wochentest: gleiche Materialien (Inhalt) und Dauer -> derselbe Test ohne neue KI-Anfrage; nur in der
+        // Standardeinstellung (auch aus dem Dialog), ein Test mit eigenen Parametern bleibt privat
+        let material = options.isStandard && !mats.isEmpty
             ? WeeklyTestMaterial(university: pre.university, minutes: pre.minutes, contentHashes: (mats + (ex.map { [$0] } ?? [])).map { $0["content_sha256"]?.string })
             : nil
         let key = material?.key
@@ -367,7 +376,7 @@ enum WeekTests {
             let jobs = ctx.jobs, share = ctx.testShare, clock = ctx.clock
             let outcome = try await WeeklyTestShare.obtain(material, provider: share.provider, waiting: share.waiting,
                                                            now: { Double(clock.utcSeconds) }, phase: { await jobs.setPhase($0.rawValue) }) {
-                let res = try await generate(ai: ai, subject: subject, duration: pre.minutes, materials: mats, exam: ex)
+                let res = try await generate(ai: ai, subject: subject, duration: pre.minutes, materials: mats, exam: ex, options: options)
                 let t = AIPrompts.truthy(AIPrompts.get(res, "title")) ? AIPrompts.str(AIPrompts.get(res, "title")) : "Wochentest \(subject)"
                 return SharedWeeklyTest(title: t, questions: AIPrompts.get(res, "questions") ?? .array([]))
             }
@@ -375,7 +384,8 @@ enum WeekTests {
             questions = outcome.test.questions
             (shareVariant, adoptedFrom) = outcome.columns
         } else {
-            let res = try await generate(ai: ai, subject: subject, duration: pre.minutes, materials: mats, exam: ex)
+            // eigener Test (andere Parameter als der Standard oder keine Inhalts-Hashes): nie geteilt, kein Schluessel
+            let res = try await generate(ai: ai, subject: subject, duration: pre.minutes, materials: mats, exam: ex, options: options)
             title = AIPrompts.truthy(AIPrompts.get(res, "title")) ? AIPrompts.str(AIPrompts.get(res, "title")) : "Wochentest \(subject)"
             questions = AIPrompts.get(res, "questions") ?? .array([])
         }

@@ -44,7 +44,7 @@ final class LocalFlashcardTests: XCTestCase {
     func testScenariosMatchPythonServer() async throws {
         let fx = try fixture()
         let scenarios = fx["scenarios"]?.array ?? []
-        XCTAssertEqual(scenarios.map { $0["name"]?.string ?? "" }, ["haupt", "grenzen", "trainer", "versteckt"])
+        XCTAssertEqual(scenarios.map { $0["name"]?.string ?? "" }, ["haupt", "grenzen", "trainer", "versteckt", "stapel"])
         XCTAssertEqual(fx["intervals"], .array(FlashcardEndpoints.intervals.map { .number(Double($0)) }))
         var problems: [String] = []
         var checked = 0
@@ -80,16 +80,18 @@ final class LocalFlashcardTests: XCTestCase {
                     problems.append("\(label):\n  lokal  \(local.jsonString(sortedKeys: true).prefix(1200))\n  Python \(expected.jsonString(sortedKeys: true).prefix(1200))")
                 }
             }
-            let table = JSONValue.array(try await b.context.database.rows("SELECT * FROM flashcards ORDER BY id").map(JSONValue.object))
-            let expected = sc["tables_after"]?["flashcards"] ?? .null
-            if table != expected {
-                let l = table.array ?? [], e = expected.array ?? []
-                let diff = zip(l, e).first { $0 != $1 }.map { "\n  lokal  \($0.0.jsonString(sortedKeys: true))\n  Python \($0.1.jsonString(sortedKeys: true))" }
-                problems.append("\(name): Tabelle flashcards \(l.count) statt \(e.count) Zeilen\(diff ?? "")")
+            for table in ["flashcards", "flashcard_stacks"] {
+                let rows = JSONValue.array(try await b.context.database.rows("SELECT * FROM \(table) ORDER BY id").map(JSONValue.object))
+                let expected = sc["tables_after"]?[table] ?? .null
+                if rows != expected {
+                    let l = rows.array ?? [], e = expected.array ?? []
+                    let diff = zip(l, e).first { $0 != $1 }.map { "\n  lokal  \($0.0.jsonString(sortedKeys: true))\n  Python \($0.1.jsonString(sortedKeys: true))" }
+                    problems.append("\(name): Tabelle \(table) \(l.count) statt \(e.count) Zeilen\(diff ?? "")")
+                }
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        XCTAssertGreaterThanOrEqual(checked, 90, "alle Schritte verglichen")
+        XCTAssertGreaterThanOrEqual(checked, 160, "alle Schritte verglichen")
     }
 
     /// Gegenprobe zur Fixture: sie deckt Fach 5, falsch -> 1, Faelligkeit nach Tagen, 404 und Regel G6 wirklich ab
@@ -106,13 +108,100 @@ final class LocalFlashcardTests: XCTestCase {
         XCTAssertEqual(Set(steps.compactMap { $0["now"]?.string?.prefix(10) }).count, 4, "Uhr an vier Tagen")
     }
 
+    /// Gegenprobe zum Szenario "stapel" (04.11.2026): Bestand bekommt Stapel wie die Migration, geschlossenes Ueben je
+    /// Stapel, Bearbeiten laesst das Fach, Loeschen mit Umzug, Fehler mit Meldung
+    func testStackFixtureCoversTheDecisions() throws {
+        let fx = try fixture()
+        let sc = try XCTUnwrap(fx["scenarios"]?.array?.first { $0["name"] == "stapel" })
+        let steps = sc["steps"]?.array ?? []
+        let first = try XCTUnwrap(steps.first?["response"]?.array)
+        XCTAssertEqual(Set(first.compactMap { $0["name"]?.string }), ["LA_Vorlesung_01.pdf", "f-weg", "Ohne Modul", "Allgemein"], "Migration beim Lesen")
+        XCTAssertTrue(first.allSatisfy { $0["cards"]?.int ?? 0 > 0 && $0["due"] != nil })
+        let closed = steps.filter { $0["path"]?.string == "/api/flashcards?stack_id=5&due=1" }
+        XCTAssertEqual(closed.count, 2)
+        XCTAssertTrue(closed.allSatisfy { ($0["response"]?.array ?? []).allSatisfy { $0["stack_id"] == 5 } }, "nur dieser Stapel wird abgefragt")
+        let edit = try XCTUnwrap(steps.first { $0["raw"]?.string?.contains("In Klausur 1 (neu)") == true }?["response"])
+        XCTAssertEqual(edit["question"], "In Klausur 1 (neu)")
+        XCTAssertEqual(edit["box"], 2, "Bearbeiten setzt das Fach nicht zurueck")
+        XCTAssertTrue(steps.contains { $0["path"]?.string == "/api/flashcard-stacks/5?move_to=6" && $0["response"]?["moved"] == 3 })
+        XCTAssertTrue(steps.contains { $0["status"] == 404 && $0["response"]?["detail"] == "Stapel nicht gefunden" })
+        XCTAssertTrue(steps.contains { $0["status"] == 404 && $0["response"]?["detail"] == "Zielstapel nicht gefunden" })
+        XCTAssertTrue(steps.contains { $0["status"] == 422 && $0["response"]?["detail"] == "Frage und Antwort dürfen nicht leer sein" })
+        let stacks = sc["tables_after"]?["flashcard_stacks"]?.array ?? []
+        XCTAssertTrue(stacks.allSatisfy { ($0["name"]?.string?.isEmpty == false) })
+        XCTAssertTrue(sc["tables_after"]?["flashcards"]?.array?.allSatisfy { $0["stack_id"]?.int != nil } == true, "jede Karte hat einen Stapel")
+    }
+
+    /// Stapel einzeln: Karte ohne Angabe landet im Stapel des Dokuments bzw. "Allgemein"/"Ohne Modul"; Umzug mit
+    /// Lernstand; PATCH aendert Frage, Antwort, Fach und Stapel, nie Fach und Termin der Wiederholung
+    func testStacksKeepLeitnerStateAndStayClosed() async throws {
+        let clock = SettableClock("2026-11-04T09:00:00")
+        let b = try await backend(clock, seed: try fixture()["scenarios"]?.array?.first?["seed"]?.array ?? [])
+        _ = await call(b, "POST", "/api/flashcards", #"{"cards": [{"question": "Datei", "answer": "a"}], "file_id": "f-la1"}"#)
+        _ = await call(b, "POST", "/api/flashcards", #"{"cards": [{"question": "Frei", "answer": "a"}]}"#)
+        let stacks = await call(b, "GET", "/api/flashcard-stacks")
+        XCTAssertEqual(stacks.json?.array?.compactMap { $0["name"]?.string }, ["Ohne Modul", "LA_Vorlesung_01.pdf"])
+        XCTAssertEqual(stacks.json?.array?.first?["due"], 1)
+        let fileStack = try XCTUnwrap(stacks.json?.array?.last?["id"]?.int)
+        let other = await call(b, "POST", "/api/flashcard-stacks", #"{"name": "Klausur", "subject": "Analysis Beispiel"}"#)
+        XCTAssertEqual(other.status, 200)
+        let otherID = try XCTUnwrap(other.json?["id"]?.int)
+        XCTAssertEqual(other.json?["kind"], "eigene")
+        XCTAssertEqual(other.json?["week"], .null)
+        // Lehrwoche und Art aus dem Dokument (Blatt_01 -> uebung, Woche 1), eigene Angabe geht vor, Fehler mit Meldung
+        let sheet = await call(b, "POST", "/api/flashcard-stacks", #"{"name": "Blatt", "file_id": "f-an1"}"#)
+        XCTAssertEqual(sheet.json?["kind"], "uebung")
+        XCTAssertEqual(sheet.json?["week"], 1)
+        XCTAssertEqual(stacks.json?.array?.last?["kind"], "vorlesung", "LA_Vorlesung_01.pdf")
+        let own = await call(b, "POST", "/api/flashcard-stacks", #"{"name": "Eigen", "file_id": "f-an1", "kind": "eigene", "week": 4}"#)
+        XCTAssertEqual(own.json?["kind"], "eigene")
+        XCTAssertEqual(own.json?["week"], 4)
+        let badWeek = await call(b, "POST", "/api/flashcard-stacks", #"{"name": "x", "week": 0}"#)
+        XCTAssertEqual(badWeek.status, 422)
+        XCTAssertEqual(badWeek.json?["detail"], "week: ganze Zahl ab 1 oder null erwartet")
+        let badKind = await call(b, "PATCH", "/api/flashcard-stacks/\(otherID)", #"{"kind": "klausur"}"#)
+        XCTAssertEqual(badKind.status, 422)
+        // ueben nur im Dateistapel
+        let due = await call(b, "GET", "/api/flashcards?stack_id=\(fileStack)&due=true")
+        XCTAssertEqual(due.json?.array?.compactMap { $0["question"]?.string }, ["Datei"])
+        let id = try XCTUnwrap(due.json?.array?.first?["id"]?.int)
+        _ = await call(b, "POST", "/api/flashcards/\(id)/review", #"{"correct": true}"#)
+        let practised = await call(b, "GET", "/api/flashcard-stacks")
+        XCTAssertEqual(practised.json?.array?.first { $0["id"]?.int == fileStack }?["last_practised"], "2026-11-04T09:00:00")
+        XCTAssertEqual(practised.json?.array?.first { $0["id"]?.int == otherID }?["last_practised"], .null)
+        // bearbeiten und verschieben: Fach 2 und Termin bleiben, Fach des Zielstapels
+        let edited = await call(b, "PATCH", "/api/flashcards/\(id)", #"{"question": " Datei neu ", "stack_id": \#(otherID)}"#)
+        XCTAssertEqual(edited.status, 200)
+        XCTAssertEqual(edited.json?["question"], "Datei neu")
+        XCTAssertEqual(edited.json?["box"], 2)
+        XCTAssertEqual(edited.json?["due"], "2026-11-06")
+        XCTAssertEqual(edited.json?["subject"], "Analysis Beispiel")
+        XCTAssertEqual(edited.json?["stack_id"]?.int, otherID)
+        let blank = await call(b, "PATCH", "/api/flashcards/\(id)", #"{"answer": " "}"#)
+        XCTAssertEqual(blank.status, 422)
+        let unknown = await call(b, "PATCH", "/api/flashcards/\(id)", #"{"stack_id": 9999}"#)
+        XCTAssertEqual(unknown.status, 404)
+        // Stapel loeschen mit Umzug in den Dateistapel (Fach des Ziels), danach ohne Umzug samt Karten
+        let moved = await call(b, "DELETE", "/api/flashcard-stacks/\(otherID)?move_to=\(fileStack)")
+        XCTAssertEqual(moved.json?["moved"], 1)
+        let back = await call(b, "GET", "/api/flashcards?stack_id=\(fileStack)")
+        XCTAssertEqual(back.json?.array?.first?["subject"], "Lineare Algebra Test")
+        XCTAssertEqual(back.json?.array?.first?["box"], 2)
+        let gone = await call(b, "DELETE", "/api/flashcard-stacks/\(fileStack)")
+        XCTAssertEqual(gone.json?["deleted"], 1)
+        let empty = await call(b, "GET", "/api/flashcards?stack_id=\(fileStack)")
+        XCTAssertEqual(empty.json?.array?.count, 0)
+        let again = await call(b, "DELETE", "/api/flashcard-stacks/\(fileStack)")
+        XCTAssertEqual(again.status, 404)
+    }
+
     // MARK: Leitner einzeln
 
     func testLeitnerBoxesAndIntervals() async throws {
         let clock = SettableClock("2026-10-26T09:00:00")
         let b = try await backend(clock)
         let created = await call(b, "POST", "/api/flashcards", #"{"cards": [{"question": "Testfrage A", "answer": "Testantwort A"}]}"#)
-        XCTAssertEqual(created.json, ["ok": true, "count": 1])
+        XCTAssertEqual(created.json, ["ok": true, "count": 1, "stack_id": 1])
         let list = await call(b, "GET", "/api/flashcards")
         let card = try XCTUnwrap(list.json?.array?.first)
         XCTAssertEqual(card["box"], 1)

@@ -350,6 +350,7 @@ final class StudIPSync: ObservableObject {
         do {
             try self.cookies.save(cookies)
             setFlag(Keys.sessionExpired, false)
+            renewal.verified(at: Date())                       // neue Sitzung: Ruecknahme der stillen Versuche zurueck
             defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
             phase = .idle
             let store = websiteDataStore
@@ -375,8 +376,13 @@ final class StudIPSync: ObservableObject {
         all.filter { host.hasSuffix($0.domain.hasPrefix(".") ? String($0.domain.dropFirst()) : $0.domain) }
     }
 
-    /// Letzter stiller Erneuerungsversuch; hoechstens alle 10 Minuten (sonst laeuft er bei jeder Rueckkehr in die App)
-    private var lastSilentRenew: Date?
+    /// Stand der Pruefung und stillen Erneuerung (`UniRenewalPolicy`: Pruefung beim Oeffnen hoechstens alle 15 Minuten,
+    /// vor einem Abgleich hoechstens alle 5; nach gescheiterten stillen Versuchen 10, 20, 40 … Minuten Pause, hoechstens
+    /// 4 Stunden; eine neue Anmeldung setzt das zurueck)
+    private(set) var renewal = UniRenewalState()
+
+    /// Pruefen und still erneuern mit echten Anfragen: nie unter XCTest, nie mit der Debug-Nachbildung
+    var liveSessionWorkAllowed: Bool { !Self.isUnderTest() && DebugUniStub.studipTransport() == nil }
 
     /// Abgelaufene Stud.IP-Sitzung ohne Passwort erneuern: Die Uni-Anmeldung (WebSSO) liegt im eigenen Datenspeicher
     /// der Anmeldeansicht und gilt meist laenger als die Stud.IP-Sitzung. Eine unsichtbare Webansicht oeffnet den
@@ -387,30 +393,121 @@ final class StudIPSync: ObservableObject {
     private var renewing: Task<Bool, Never>?
 
     @discardableResult
-    func renewSilently() async -> Bool {
+    func renewSilently(trigger: UniRenewalTrigger = .foreground) async -> Bool {
         if let renewing { return await renewing.value }
-        guard phase == .needsLogin, offersStudIP, !Self.isUnderTest(), DebugUniStub.studipTransport() == nil,
-              UIApplication.shared.applicationState == .active else { return false }
-        if let t = lastSilentRenew, Date().timeIntervalSince(t) < 600 { return false }
-        lastSilentRenew = Date()
+        guard sessionKnownExpired, offersStudIP, liveSessionWorkAllowed else { return false }
+        // Ruecknahme nach gescheiterten Versuchen (`UniRenewalPolicy`); nur mit offener App
+        guard UniRenewalPolicy.decide(trigger, appActive: UIApplication.shared.applicationState == .active, connected: hasStoredSession,
+                                      knownExpired: true, state: renewal, now: Date()) == .renew else { return false }
+        if phase != .needsLogin, !isRunning { phase = .needsLogin }   // abgelaufen gemerkt (Neustart): wie im Lauf
         let store = websiteDataStore
         let task = Task { @MainActor () -> Bool in
             guard let fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store),
-                  self.phase == .needsLogin else { return false }
-            self.signedIn(cookies: fresh)                          // speichert und startet den Abgleich
+                  self.sessionKnownExpired else { return false }
+            self.signedIn(cookies: fresh)                          // speichert (auch die Uni-Anmeldung) und startet den Abgleich
             return true
         }
         renewing = task
         let ok = await task.value
         renewing = nil
+        renewal.attempted(at: Date(), ok: ok)
         return ok
+    }
+
+    /// Bereitschaft der gemerkten Sitzung vor einem Abgleich bzw. beim Oeffnen (`ensureSession`)
+    enum SessionReadiness: Equatable {
+        /// gilt (oder es gibt nichts zu pruefen): weiter wie geplant
+        case ready
+        /// still erneuert; `signedIn` hat den Abgleich mit der neuen Sitzung schon gestartet
+        case renewed
+        /// abgelaufen, still nicht zu erneuern: "Erneut anmelden" (Anmeldeseite mit Benutzername, iOS setzt das Passwort ein)
+        case needsUser
+        /// nicht entscheidbar (kein Netz): weiter, der Abgleich meldet den Fehler selbst
+        case unknown
+        case notConnected
+    }
+
+    /// Angemeldet bleiben (04.11.2026): vor dem Abgleich und beim Oeffnen der App die gemerkte Sitzung pruefen und, wenn
+    /// sie abgelaufen ist, gleich still erneuern - nicht erst nach einer gescheiterten Anfrage. Wann geprueft bzw.
+    /// erneuert wird, entscheidet `UniRenewalPolicy`; im Hintergrund nie (dort fehlt die Webansicht).
+    @discardableResult
+    func ensureSession(_ trigger: UniRenewalTrigger) async -> SessionReadiness {
+        guard offersStudIP, hasStoredSession, phase != .signedOut else { return .notConnected }
+        guard liveSessionWorkAllowed else { return .ready }
+        let active = UIApplication.shared.applicationState == .active
+        switch UniRenewalPolicy.decide(trigger, appActive: active, connected: true, knownExpired: sessionKnownExpired,
+                                       state: renewal, now: Date()) {
+        case .nothing:
+            return sessionKnownExpired ? needsUser() : .ready
+        case .wait:
+            return needsUser()
+        case .renew:
+            return await renewSilently(trigger: trigger) ? .renewed : needsUser()
+        case .check:
+            guard !isRunning else { return .ready }
+            switch await Self.sessionCheck(cookies.load()) {
+            case .valid:
+                renewal.verified(at: Date())
+                return .ready
+            case .unknown:
+                return .unknown
+            case .expired:
+                guard !isRunning, hasStoredSession else { return .ready }
+                phase = .needsLogin
+                setFlag(Keys.sessionExpired, true)
+                return await renewSilently(trigger: .requestFailed) ? .renewed : needsUser()
+            }
+        }
+    }
+
+    /// Abgelaufen und still nicht zu erneuern: "Erneut anmelden" zeigen (auch nach einem Neustart mit gemerktem Merker)
+    private func needsUser() -> SessionReadiness {
+        if phase != .needsLogin, !isRunning, hasStoredSession { phase = .needsLogin }
+        return .needsUser
     }
 
     /// Prueft mit den Cookies aus der Webansicht, ob Stud.IP die Sitzung annimmt.
     static func sessionIsValid(_ cookies: [HTTPCookie]) async -> Bool {
-        let t = URLSessionStudIPTransport(cookies: cookies, host: base.host ?? "")
+        await sessionCheck(cookies) == .valid
+    }
+
+    /// Eine leichte Anfrage (`users/me`): gilt die Sitzung, ist sie abgelaufen (401, Weiterleitung zur Anmeldung) oder
+    /// ist das nicht zu sagen (kein Netz, Stud.IP gestoert)? `transport`: nur Tests (feste Antworten).
+    static func sessionCheck(_ cookies: [HTTPCookie], transport: StudIPTransport? = nil) async -> UniSessionCheck {
+        let t = transport ?? URLSessionStudIPTransport(cookies: cookies, host: base.host ?? "")
         let c = StudIPClient(base: base, transport: t, pauseMillis: 0, maxRequests: 1)
-        return (try? await c.currentUserID()) != nil
+        do {
+            _ = try await c.currentUserID()
+            return .valid
+        } catch StudIPError.sessionExpired {
+            return .expired
+        } catch {
+            return .unknown
+        }
+    }
+
+    /// Stud.IP-Cookies des Abgleichs in den Datenspeicher der Webansicht, soweit sie dort fehlen (In-App-Browser: dieselbe
+    /// Sitzung wie der Abgleich)
+    func seedWebSession() async {
+        guard offersStudIP else { return }
+        await UniWebSessions.ready(websiteDataStore)
+        await UniWebSessions.insertMissing(cookies.load(), into: websiteDataStore)
+    }
+
+    /// In-App-Browser geschlossen: hat Stud.IP dort eine neue Sitzung gesetzt (z. B. nach einer Anmeldung auf der
+    /// Seite), uebernimmt der Abgleich sie, sobald `users/me` sie annimmt. War die Sitzung als abgelaufen bekannt, gilt
+    /// das wie eine Anmeldung (der Abgleich startet). Nur bei verbundenem Stud.IP; nie eine neue Verbindung.
+    func adoptBrowserSession() async {
+        guard offersStudIP, hasStoredSession, liveSessionWorkAllowed, !isRunning else { return }
+        let mine = Self.ownCookies(await websiteDataStore.httpCookieStore.allCookies())
+        guard !mine.isEmpty, UniCookiePolicy.differs(mine, cookies.load()) else { return }
+        guard await Self.sessionCheck(mine) == .valid, hasStoredSession, !isRunning else { return }
+        if sessionKnownExpired {
+            signedIn(cookies: mine)
+        } else {
+            try? cookies.save(mine)
+            renewal.verified(at: Date())
+        }
     }
 
     /// Abmelden: Cookie aus dem Schluesselbund und alle Daten der Webansicht dieses Containers (auch die SSO-Sitzung)
@@ -426,6 +523,8 @@ final class StudIPSync: ObservableObject {
         cookies.clear()
         setFlag(Keys.sessionExpired, false)
         defaults.removeObject(forKey: LoginReminder.lastLoginKey)
+        UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der Anmeldeseite
+        renewal = UniRenewalState()
         await UniWebSessions.forget(websiteDataStore)            // gemerkte Uni-Anmeldung zuerst (nie wiederverwenden)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         phase = .signedOut
@@ -467,20 +566,31 @@ final class StudIPSync: ObservableObject {
         return !DebugLaunch.skipTriggers.contains { defaults.object(forKey: $0) != nil }
     }
 
-    /// Beim Oeffnen: hoechstens alle 30 Minuten; warten Dateien aus einem Lauf nur mit Listen (Hintergrund), sofort
+    /// Beim Oeffnen: zuerst die Sitzung (Pruefung hoechstens alle 15 Minuten, abgelaufen: gleich still erneuern,
+    /// `ensureSession`), dann der Abgleich hoechstens alle 30 Minuten; warten Dateien aus einem Lauf nur mit Listen
+    /// (Hintergrund), sofort
     func runIfDue() {
         guard Self.automaticRunAllowed() else { return }
-        // abgelaufen: beim Oeffnen still erneuern (gelingt, solange die Uni-Anmeldung im WebSSO noch gilt)
-        if phase == .needsLogin { Task { await renewSilently() }; return }
-        guard phase == .idle || isFailed else { return }
-        if let last = lastRun, !downloadsPending, Date().timeIntervalSince(last) < 30 * 60 { return }
-        Task { await run() }
+        guard phase == .idle || isFailed || phase == .needsLogin else { return }
+        Task {
+            let ready = await ensureSession(.foreground)
+            // erneuert: `signedIn` hat den Abgleich schon gestartet; abgelaufen: "Erneut anmelden"
+            guard ready == .ready || ready == .unknown, phase == .idle || isFailed else { return }
+            if let last = lastRun, !downloadsPending, Date().timeIntervalSince(last) < 30 * 60 { return }
+            await run()
+        }
     }
 
     private var isFailed: Bool { if case .failed = phase { return true }; return false }
 
     func run(scope: UniSyncScope = .full) async {
         guard !isRunning, offersStudIP, !Self.isUnderTest() else { return }
+        guard !self.cookies.load().isEmpty else { phase = .signedOut; return }
+        // vorab pruefen bzw. still erneuern (nur mit offener App; im Hintergrund entscheidet die erste Anfrage)
+        switch await ensureSession(.beforeSync) {
+        case .renewed, .needsUser, .notConnected: return        // erneuert: der Abgleich laeuft schon mit der neuen Sitzung
+        case .ready, .unknown: break
+        }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { phase = .signedOut; return }
         await run(client: liveClient(cookies), scope: scope)
@@ -744,7 +854,7 @@ final class StudIPSync: ObservableObject {
             // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
             phase = expired ? .needsLogin : .idle
             setFlag(Keys.sessionExpired, expired)
-            if expired { Task { await renewSilently() } }
+            if expired { Task { await renewSilently(trigger: .requestFailed) } } else { renewal.verified(at: Date()) }
             return expired ? .sessionExpired : .completed
         } catch where Self.isCancellation(error) || Task.isCancelled {
             // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
@@ -757,7 +867,7 @@ final class StudIPSync: ObservableObject {
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))
             phase = .needsLogin
             setFlag(Keys.sessionExpired, true)
-            Task { await renewSilently() }
+            Task { await renewSilently(trigger: .requestFailed) }
             return .sessionExpired
         } catch {
             await refreshEntries()
@@ -816,7 +926,8 @@ final class StudIPSync: ObservableObject {
         guard !Task.isCancelled, let backend = try? await host.backend() else { return }
         _ = try? await StudyAutoPlan.afterSync(backend, newFiles: newFiles)
         guard weekly, !Task.isCancelled else { return }
-        if case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
+        // automatische Wochentests ab Plus (UFWeeklyAutoGate); der Index unten laeuft in jedem Tarif
+        if await UFWeeklyAutoGate.check(), case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
             await MainActor.run { NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil) }
         }
         // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden

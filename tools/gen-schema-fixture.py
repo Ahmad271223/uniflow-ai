@@ -75,7 +75,7 @@ INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Fach als
 """
 
 # Tabellen, deren Zeilen nach der Migration in legacy.json stehen
-LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms", "modules", "flashcards"]
+LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms", "modules", "flashcards", "flashcard_stacks"]
 
 
 def snapshot(conn: sqlite3.Connection) -> dict:

@@ -215,12 +215,33 @@ final class PageInkView: UIView {
         }
     }
 
+    /// PDFKit gibt dem Overlay einer gedrehten Seite (`/Rotate`, auch mit Drehung aus `pageOrder`) den Rahmen der
+    /// UNGEDREHTEN Seitenbox und dreht das Overlay selbst per `transform` in die Anzeige (gemessen iPadOS 26,
+    /// /Rotate 90: bounds 595 x 842, transform 90 Grad, Seite quer 842 x 595). `content` rechnet in Punkten der
+    /// ANGEZEIGTEN Seite (Web-Vertrag) und wird deshalb um dieselbe Drehung zurueckgedreht; der Massstab kommt aus der
+    /// angezeigten Groesse. Vorher lag der Inhalt quer im Overlay, die Canvas deckte nur einen Streifen der Seite
+    /// (Stift "hoert ploetzlich auf zu schreiben") und gespeicherte Punkte lagen ausserhalb der Seite (GDS, 04.11.2026).
     override func layoutSubviews() {
         super.layoutSubviews()
-        let s = geometry.scale(forViewSize: bounds.size)
+        let turns = Self.quarterTurns(of: transform)
+        let shown = turns % 2 == 0 ? bounds.size : CGSize(width: bounds.height, height: bounds.width)
+        let s = geometry.scale(forViewSize: shown)
         content.bounds = CGRect(origin: .zero, size: geometry.pageSize)
         content.center = CGPoint(x: bounds.midX, y: bounds.midY)
-        content.transform = abs(s - 1) < 0.0001 ? .identity : CGAffineTransform(scaleX: s, y: s)
+        var t = turns == 0 ? CGAffineTransform.identity : CGAffineTransform(rotationAngle: -CGFloat(turns) * .pi / 2)
+        if abs(s - 1) >= 0.0001 { t = t.scaledBy(x: s, y: s) }
+        content.transform = t
+    }
+
+    /// Vierteldrehungen (0...3) im Drehanteil von `t` (der Massstab spielt keine Rolle)
+    static func quarterTurns(of t: CGAffineTransform) -> Int {
+        let q = Int((atan2(t.b, t.a) / (.pi / 2)).rounded())
+        return ((q % 4) + 4) % 4
+    }
+
+    /// Dreht PDFKit das Overlay erst nach dem Einsetzen, folgt der Inhalt beim naechsten Layout
+    override var transform: CGAffineTransform {
+        didSet { if Self.quarterTurns(of: transform) != Self.quarterTurns(of: oldValue) { setNeedsLayout() } }
     }
 }
 
@@ -279,6 +300,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private(set) lazy var toolsInPalette = EditorPalette.hasCustomItems(toolPicker)
     /// Objektmodus an/aus oder anderes Objektwerkzeug (auch ueber die Palette); fuer die Leisten in SwiftUI
     var onObjectModeChange: ((Bool, ObjectEditing.Tool) -> Void)?
+    /// "KI fragen" am Rand der Palette (Schritt F, ab iPadOS 18): oeffnet die KI-Hilfe zur aktuellen Seite
+    var onAskAI: (() -> Void)?
+    /// KI verbunden (`ufAIEnabled`): nur dann traegt die Palette "KI fragen", wie der Knopf "KI-Hilfe" in der Leiste
+    /// seine KI-Teile nur mit Verbindung zeigt
+    var aiAvailable = false {
+        didSet { if aiAvailable != oldValue { updatePaletteAccessory() } }
+    }
+    /// "Als Karteikarte" aus markiertem PDF-Text (Schritt K): der markierte Text geht an das Blatt "Karte anlegen"
+    var onFlashcardFromSelection: ((String) -> Void)?
     /// In der geteilten Ansicht teilen sich beide Dokumente einen Verlauf, damit "Rueckgaengig" der gemeinsamen
     /// Palette immer den zuletzt geschriebenen Strich zuruecknimmt, egal auf welcher Seite.
     private let documentUndo: UndoManager
@@ -487,6 +517,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             if toolPicker.stateAutosaveName == nil { toolPicker.stateAutosaveName = "uniflow.toolpicker" }
             toolPicker.setVisible(pickerAllowed, forFirstResponder: anchor)
             pickerWanted = pickerAllowed
+            updatePaletteAccessory()
         }
 
         objects.markupColor = { [weak self] kind in self?.paletteSync.markupColor(kind) ?? PageObjectEdit.markerColors[0] }
@@ -955,11 +986,37 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
+        if overlay.loaded, overlay.undoPending, canvasView.tool is PKInkingTool { snapShape(on: overlay, endedAt: Date()) }
         if overlay.loaded { commitPendingUndo(overlay) }
         if overlay.deferredReload {
             overlay.deferredReload = false
             loadContent(into: overlay, remote: true)
         }
+    }
+
+    /// Formerkennung "zeichnen und halten" (`ShapeRecognizer`): Der eben beendete Strich (genau einer seit dem letzten
+    /// Rueckgaengig-Stand) wird durch die ideale Form ersetzt, wenn der Stift am Ende still stand. Der Tausch landet im
+    /// selben Rueckgaengig-Schritt wie der Strich (`commitPendingUndo` folgt), das Speicherformat bleibt ein Strich.
+    /// - Returns: die erkannte Form (fuer Tests), sonst nil
+    @discardableResult
+    func snapShape(on overlay: PageInkView, endedAt: Date) -> ShapeRecognizer.Shape? {
+        guard canEdit, shapeSnapEnabled else { return nil }
+        var drawing = overlay.canvas.drawing
+        guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil,
+              ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt) else { return nil }
+        let points = stroke.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(stroke.transform) }
+        guard let shape = ShapeRecognizer.recognize(points) else { return nil }
+        drawing.strokes[drawing.strokes.count - 1] = ShapeRecognizer.idealStroke(shape, like: stroke)
+        overlay.isApplyingDrawing = true
+        overlay.canvas.drawing = drawing
+        overlay.isApplyingDrawing = false
+        store.canvasChanged(pageKey: overlay.pageKey, drawing: drawing)
+        return shape
+    }
+
+    /// Formerkennung an (Standard); `uniflow.shapeSnap = false` schaltet sie ab (noch ohne Schalter in der Leiste)
+    var shapeSnapEnabled: Bool {
+        UserDefaults.standard.object(forKey: "uniflow.shapeSnap") == nil || UserDefaults.standard.bool(forKey: "uniflow.shapeSnap")
     }
 
     // MARK: Seiten (gleiches Modell wie der Web-Editor, siehe PageOrder)
@@ -1008,8 +1065,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     /// Seite (Standard: aktuelle) in den Papierkorb legen (`deletedPages`, wiederherstellbar). Die letzte Seite bleibt.
+    /// - `undoable`: "Seite in den Papierkorb" als Schritt im gemeinsamen Verlauf (Rueckgaengig holt sie zurueck,
+    ///   Wiederholen legt sie wieder hinein); die Verlaufsschritte "Seite einfuegen" rufen ohne.
     @discardableResult
-    func trashPage(key: String? = nil) async -> Bool {
+    func trashPage(key: String? = nil, undoable: Bool = false) async -> Bool {
         guard writable else { return false }
         guard let editor = pageEditor, let key = key ?? currentPageKey, let layout = shownLayout,
               let i = layout.index(ofKey: key), layout.entries.count > 1 else { return false }
@@ -1019,7 +1078,33 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Verlauf der Seite verwerfen: er wuerde unsichtbar auf die geloeschte Seite wirken
         if change != nil { dropUndo(forKey: key) }
         finishPageChange(change)
+        if undoable, change != nil { registerPageTrashUndo(key) }
         return change != nil
+    }
+
+    /// "Seite in den Papierkorb" merken (Seitenleiste): Rueckgaengig holt die Seite zurueck, Wiederholen legt sie
+    /// wieder hinein; derselbe Verlauf wie Striche, Objekte und eingefuegte Seiten
+    private func registerPageTrashUndo(_ key: String) {
+        guard writable else { return }
+        documentUndo.registerUndo(withTarget: pageUndoTarget) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.writable else { return }
+                self.registerPageTrashRedo(key)
+                Task { await self.restorePage(key: key) }
+            }
+        }
+        documentUndo.setActionName("Seite in den Papierkorb")
+    }
+
+    private func registerPageTrashRedo(_ key: String) {
+        documentUndo.registerUndo(withTarget: pageUndoTarget) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.writable else { return }
+                self.registerPageTrashUndo(key)
+                Task { await self.trashPage(key: key) }
+            }
+        }
+        documentUndo.setActionName("Seite in den Papierkorb")
     }
 
     /// Juengsten Papierkorb-Eintrag einer Seite an ihren frueheren Platz zurueckholen und hinspringen.
@@ -1364,12 +1449,15 @@ extension PDFEditorController {
     /// Startargument `-UFPaletteProbe 1` (Xcode: Schema → Run → Arguments): eine Sekunde nach dem Erscheinen den Stand
     /// der Palette ins Protokoll (Konsole, jede Zeile mit "[Probe]"), damit sich am Geraet pruefen laesst, welche
     /// Eintraege die sichtbare Palette traegt. Dasselbe liefert `EditorDeviceProbeTests` als Test.
+    /// Nur Debug-Builds (wie alle -UF-Startargumente); im Release gibt es keine Probe-Zeilen im Protokoll.
     func logPaletteProbeIfRequested() {
+        #if DEBUG
         guard UserDefaults.standard.bool(forKey: "UFPaletteProbe") else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             guard let self else { return }
             for line in EditorPalette.describe(self.toolPicker, editor: self) { NSLog("[Probe] %@", line) }
         }
+        #endif
     }
 
     /// Werkzeug fuer eine neue Canvas. Steht die Palette auf einem eigenen Eintrag, liefert PencilKit dafuer ein
@@ -1510,6 +1598,60 @@ extension PDFEditorController {
     /// "Fertig" in der Objektleiste: zurueck zum Schreiben
     func finishObjectTools() {
         if toolsInPalette, paletteObjectToolActive { selectLastInkInPalette() } else { setObjectMode(false) }
+    }
+}
+
+// MARK: - "KI fragen" an der Palette (Schritt F) und "Als Karteikarte" im Bearbeitungsmenue (Schritt K)
+
+extension PDFEditorController {
+    /// Zusatzknopf der Palette (`PKToolPicker.accessoryItem`, ab iPadOS 18): "KI fragen" nur mit verbundener KI und nur
+    /// in der Haelfte, der die Palette gehoert. Unter iPadOS 17 aendert sich nichts.
+    func updatePaletteAccessory() {
+        guard #available(iOS 18.0, *), ownsToolPicker else { return }       // die Palette gehoert einer Haelfte
+        guard EditorPalette.wantsAccessory(aiAvailable: aiAvailable, ownsPicker: ownsToolPicker) else {
+            toolPicker.accessoryItem = nil
+            return
+        }
+        if toolPicker.accessoryItem == nil {
+            toolPicker.accessoryItem = EditorPalette.accessoryItem { [weak self] in self?.askAIFromPalette() }
+        }
+    }
+
+    /// "KI fragen" angetippt: die KI-Hilfe oeffnen (ueber die Bruecke in SwiftUI)
+    func askAIFromPalette() { onAskAI?() }
+
+    /// Bearbeitungsmenue der PDF-Textauswahl (langes Druecken auf Text): hinter Kopieren und Nachschlagen steht
+    /// "Als Karteikarte" (nur mit Auswahl; nicht in alten Fassungen, dort gibt es keine Notizen)
+    override func buildMenu(with builder: UIMenuBuilder) {
+        super.buildMenu(with: builder)
+        guard builder.system == .context, let action = flashcardAction() else { return }
+        let menu = UIMenu(options: .displayInline, children: [action])
+        if builder.menu(for: .standardEdit) != nil { builder.insertSibling(menu, afterMenu: .standardEdit) }
+        else if builder.menu(for: .lookup) != nil { builder.insertSibling(menu, afterMenu: .lookup) }
+        else { builder.insertChild(menu, atEndOfMenu: .root) }
+    }
+
+    /// Menuepunkt "Als Karteikarte" zum markierten Text; nil ohne Auswahl, ohne Empfaenger oder in alten Fassungen
+    func flashcardAction() -> UIAction? {
+        guard Self.flashcardText(pdfView.currentSelection?.string) != nil, onFlashcardFromSelection != nil, !store.isOldVersion else { return nil }
+        return UIAction(title: Self.flashcardTitle, image: UIImage(systemName: "rectangle.on.rectangle")) { [weak self] _ in
+            self?.flashcardFromSelection()
+        }
+    }
+
+    /// "Als Karteikarte" angetippt: den markierten Text weitergeben (Blatt "Karte anlegen")
+    func flashcardFromSelection() {
+        guard let text = Self.flashcardText(pdfView.currentSelection?.string) else { return }
+        onFlashcardFromSelection?(text)
+    }
+
+    static let flashcardTitle = "Als Karteikarte"
+
+    /// Vorderseite aus der Auswahl: ohne Leerraum aussen, Zeilenumbrueche der PDF zu Leerzeichen; nil, wenn leer
+    nonisolated static func flashcardText(_ selection: String?) -> String? {
+        let t = (selection ?? "").replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "  ", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 }
 

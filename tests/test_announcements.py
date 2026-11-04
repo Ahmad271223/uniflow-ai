@@ -231,6 +231,13 @@ def test_overdue_deadlines_listed_first(app, monkeypatch):
     from app import db, hildesheim, study
     db.init_db()
     monkeypatch.setattr(study, "today", lambda: date(2026, 10, 26))
+    from datetime import datetime
+
+    class _Now(datetime):                # Uhrzeit zum eingefrorenen Tag (sonst ist "Blatt 4" ab dem 05.11.2026 ueberfaellig)
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 26, 12, 0)
+    monkeypatch.setattr(study, "datetime", _Now)
     items = [{"id": "lw-ev-o1", "course_id": None, "title": "Essay 1", "full_title": "Essay 1", "kind": "abgabe", "module": "assign",
               "due_at": "2026-10-01T23:59", "url": None, "overdue": True},
              {"id": "lw-ev-o2", "course_id": None, "title": "Test 2", "full_title": "Test 2", "kind": "test_beginn", "module": "quiz",

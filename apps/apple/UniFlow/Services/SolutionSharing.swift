@@ -148,7 +148,13 @@ enum SolutionSharing {
     }
     /// Online-Community des aktiven Containers (CloudKit, docs/LOESUNGEN-TEILEN.md Abschnitt 7); ohne Container
     /// der Kern-Stand "nicht verbunden" (wirft, sendet nichts)
-    static var community: CommunityService { CommunityRoute.shared.service ?? ActiveContainer.current?.community ?? NotConnectedCommunityService() }
+    static var community: CommunityService { community(account: CommunityRoute.shared.service, container: ActiveContainer.current) }
+
+    /// Reihenfolge: StudiNow-Konto (G4, `CommunityRoute`), sonst CloudKit des angemeldeten Containers, sonst "nicht
+    /// verbunden" (niemand angemeldet). Verbunden ist CloudKit nur mit iCloud-Container im Build (`CommunityCloudFactory`).
+    static func community(account: CommunityService?, container: ActiveContainer?) -> CommunityService {
+        account ?? container?.community ?? NotConnectedCommunityService()
+    }
 
     /// Meldung "Die Datei passt nicht zu dieser PDF oder wurde verändert" (Import mit passendem Fingerabdruck, der
     /// sich nicht oeffnen laesst).

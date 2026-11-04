@@ -134,3 +134,37 @@ def test_total_image_bytes_are_capped_per_reference(monkeypatch):
     out = docx_view.to_html(_docx_with_image(os.urandom(300_000), 6))     # unkomprimierbar: 3 Verweise passen, 3 nicht
     assert out["images"] == 3 and out["html"].count("<img ") == 3 and out["html"].count("[Bild zu groß]") == 3
     assert len(out["html"]) < 2 * (1 << 20)
+
+
+def test_forged_entry_size_and_total_xml_are_refused_cleanly(monkeypatch):
+    """Sicherheitspruefung 04.11.2026: ein gefaelschter Kopf (entpackt groesser als angegeben) und zu viele grosse
+    XML-Teile enden als verstaendliche Meldung (DocxError), nie als 500 oder voller Speicher."""
+    import struct
+    from app import docx_view
+    data = bytearray(docx(p("x" * (256 * 1024))))
+    # Groesse von word/document.xml im lokalen Kopf und im Zentralverzeichnis auf 1000 Bytes faelschen
+    name = b"word/document.xml"
+    i = 0
+    while True:
+        lh = data.find(b"PK\x03\x04", i)
+        assert lh >= 0
+        n = struct.unpack_from("<H", data, lh + 26)[0]
+        if bytes(data[lh + 30:lh + 30 + n]) == name:
+            break
+        i = lh + 4
+    struct.pack_into("<I", data, lh + 22, 1000)
+    j = 0
+    while True:
+        cd = data.find(b"PK\x01\x02", j)
+        assert cd >= 0
+        n = struct.unpack_from("<H", data, cd + 28)[0]
+        if bytes(data[cd + 46:cd + 46 + n]) == name:
+            break
+        j = cd + 4
+    struct.pack_into("<I", data, cd + 24, 1000)
+    with pytest.raises(docx_view.DocxError):
+        docx_view.to_html(bytes(data))
+    # Summe der XML-Teile: Grenze kleiner als das Dokument
+    monkeypatch.setattr(docx_view, "MAX_XML_TOTAL", 1000)
+    with pytest.raises(docx_view.DocxError, match="zu groß"):
+        docx_view.to_html(docx(p("y" * 5000)))

@@ -401,19 +401,100 @@ def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str =
 # schweren Aufgaben im Stil der Klausur. Antworten in anderer Form werden verworfen und einmal neu angefordert.
 WEEK_TEST_DIFFICULTY = {"leicht": 4, "mittel": 6, "schwer": 5}
 WEEK_TEST_TOTAL = sum(WEEK_TEST_DIFFICULTY.values())
-WEEK_TEST_TYPES = ("mc", "short", "calc")
+WEEK_TEST_TYPES = ("mc", "tf", "cloze", "short", "calc")
+# Dialog "Wochentest erstellen" (04.11.2026): waehlbar sind Zahl der Aufgaben, Schwierigkeit, Aufgabenarten und ein
+# Thema/Hinweis. Nur die Standardeinstellung (15 Aufgaben, beliebig, alle Arten, kein Thema) ergibt einen GEMEINSAMEN
+# Test mit Varianten (testshare); alles andere ist ein eigener Test des Nutzers mit seiner KI.
+WEEK_TEST_COUNTS = (5, 10, 15, 20)
+WEEK_TEST_LEVELS = ("beliebig", "leicht", "mittel", "schwer")
+WEEK_TEST_TOPIC_CHARS = 300
+WEEK_TEST_TYPE_NAMES = {"mc": "Multiple-Choice (genau eine richtige Antwort)", "tf": "Wahr/Falsch", "cloze": "Lueckentext",
+                        "short": "Kurzantwort", "calc": "Rechen-/Programmieraufgaben"}
+TF_OPTIONS = ("Wahr", "Falsch")
+WEEK_TEST_STANDARD = {"count": WEEK_TEST_TOTAL, "difficulty": "beliebig", "types": list(WEEK_TEST_TYPES), "topic": ""}
 
 
-def _test_prompt(subject: str, duration_min: int, mats_block: str, exam_block: str = "") -> str:
-    exam = ("\nAltklausur des Moduls (Ausschnitt). Genau EINE der 5 schweren Aufgaben ist im Stil dieser Klausur "
+def week_test_options(body) -> dict:
+    """Parameter des Dialogs (count, difficulty, types, topic) pruefen und vervollstaendigen; fehlende Felder sind die
+    Standardeinstellung. ValueError mit Text fuer den Nutzer bei Unbrauchbarem (gleiche Texte wie WeekTestOptions.swift)."""
+    b = body if isinstance(body, dict) else {}
+    count = b.get("count")
+    if count is None or count == "":
+        count = WEEK_TEST_TOTAL
+    try:
+        count = int(str(count).strip()) if not isinstance(count, bool) else -1
+    except (TypeError, ValueError):
+        count = -1
+    if count not in WEEK_TEST_COUNTS:
+        raise ValueError("count muss 5, 10, 15 oder 20 sein")
+    difficulty = b.get("difficulty")
+    difficulty = "beliebig" if difficulty is None or difficulty == "" else difficulty
+    if not isinstance(difficulty, str) or difficulty not in WEEK_TEST_LEVELS:
+        raise ValueError("difficulty muss beliebig, leicht, mittel oder schwer sein")
+    types = b.get("types")
+    if types is None:
+        types = list(WEEK_TEST_TYPES)
+    if not isinstance(types, list):
+        raise ValueError("types muss eine Liste sein")
+    for t in types:
+        if not isinstance(t, str) or t not in WEEK_TEST_TYPES:
+            raise ValueError(f"types: unbekannte Aufgabenart {t!r}")
+    types = [t for t in WEEK_TEST_TYPES if t in types]
+    if not types:
+        raise ValueError("types: mindestens eine Aufgabenart")
+    topic = b.get("topic")
+    topic = "" if topic is None else str(topic).strip()[:WEEK_TEST_TOPIC_CHARS]
+    return {"count": count, "difficulty": difficulty, "types": types, "topic": topic}
+
+
+def week_test_is_standard(options) -> bool:
+    """Nur die Standardeinstellung wird geteilt (hoechstens drei Varianten je Schluessel); None = Standard."""
+    return options is None or week_test_options(options) == WEEK_TEST_STANDARD
+
+
+def week_test_distribution(count: int, difficulty: str) -> dict:
+    """Schwierigkeiten je Zahl der Aufgaben: eine feste Stufe bekommt alle, "beliebig" verteilt 4/6/5 nach Hare-Niemeyer
+    (groesster Rest, bei Gleichstand die Reihenfolge leicht, mittel, schwer): 5 -> 1/2/2, 10 -> 3/4/3, 20 -> 5/8/7."""
+    if difficulty != "beliebig":
+        return {k: (count if k == difficulty else 0) for k in WEEK_TEST_DIFFICULTY}
+    base = {k: count * v // WEEK_TEST_TOTAL for k, v in WEEK_TEST_DIFFICULTY.items()}
+    order = sorted(WEEK_TEST_DIFFICULTY, key=lambda k: (-(count * WEEK_TEST_DIFFICULTY[k] % WEEK_TEST_TOTAL), list(WEEK_TEST_DIFFICULTY).index(k)))
+    for k in order[:count - sum(base.values())]:
+        base[k] += 1
+    return base
+
+
+def _distribution_line(dist: dict) -> str:
+    return ", ".join(f"{dist[k]} {k}" for k in WEEK_TEST_DIFFICULTY)
+
+
+def _test_prompt(subject: str, duration_min: int, mats_block: str, exam_block: str = "", options: dict | None = None) -> str:
+    o = week_test_options(options)
+    dist = week_test_distribution(o["count"], o["difficulty"])
+    if o["difficulty"] == "beliebig":
+        rule = (f"Genau {o['count']} Aufgaben: genau {dist['leicht']} leicht, genau {dist['mittel']} mittel und "
+                f"genau {dist['schwer']} schwer (schwer = klausurnah).")
+    else:
+        rule = f"Genau {o['count']} Aufgaben, alle mit \"difficulty\": \"{o['difficulty']}\" (schwer = klausurnah)."
+    names = [f"{WEEK_TEST_TYPE_NAMES[t]} (\"type\": \"{t}\")" for t in o["types"]]
+    kinds = ("Mischung aus " + ", ".join(names[:-1]) + " und " + names[-1] + "; keine anderen Aufgabenarten."
+             if len(names) > 1 else f"Alle Aufgaben sind {names[0]}.")
+    hints = []
+    if "tf" in o["types"]:
+        hints.append("Wahr/Falsch: \"options\" ist genau [\"Wahr\", \"Falsch\"], \"answer\" ist Wahr oder Falsch.")
+    if "cloze" in o["types"]:
+        hints.append("Lueckentext: im Aufgabentext genau eine Luecke als ___, das fehlende Wort bzw. der Ausdruck in \"blank\" und in \"answer\".")
+    topic = f"\nSchwerpunkt oder Hinweis des Studierenden ({UNTRUSTED}): {o['topic']}\n" if o["topic"] else ""
+    # ohne schwere Aufgaben gibt es keine Klausuraufgabe (sie ist immer eine schwere)
+    exam = ("\nAltklausur des Moduls (Ausschnitt). Genau EINE der " + str(dist["schwer"]) + " schweren Aufgaben ist im Stil dieser Klausur "
             "(Aufbau, Umfang, Art der Fragestellung) und hat \"exam_style\": true; alle anderen \"exam_style\": false:\n"
-            + exam_block + "\n") if exam_block.strip() else ""
+            + exam_block + "\n") if exam_block.strip() and dist["schwer"] > 0 else ""
     return f"""Erstelle einen Wochentest fuer das Fach "{subject}" mit einer Bearbeitungszeit von {duration_min} Minuten.
-Genau {WEEK_TEST_TOTAL} Aufgaben: genau {WEEK_TEST_DIFFICULTY["leicht"]} leicht, genau {WEEK_TEST_DIFFICULTY["mittel"]} mittel und genau {WEEK_TEST_DIFFICULTY["schwer"]} schwer (schwer = klausurnah).
-Mischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.
-Die Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.
+{rule}
+{kinds}
+{" ".join(hints) + chr(10) if hints else ""}Die Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.
 Rechne jede Musterloesung selbst nach. Punkte insgesamt = 100.
-
+{topic}
 Materialien dieser Woche ({UNTRUSTED}):
 {mats_block}
 {exam}
@@ -421,22 +502,27 @@ Gib ein JSON-Objekt zurueck:
 {{
   "title": "Wochentest {subject} – Thema(n)",
   "questions": [
-    {{"nr": 1, "type": "mc" | "short" | "calc", "difficulty": "leicht" | "mittel" | "schwer",
+    {{"nr": 1, "type": {" | ".join(f'"{t}"' for t in o["types"])}, "difficulty": "leicht" | "mittel" | "schwer",
       "question": "Aufgabentext (LaTeX-frei, Formeln als Text)",
-      "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc
+      "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc und tf
+      "blank": "fehlendes Wort",                         // nur bei cloze
       "answer": "Musterloesung / richtige Option",
+      "explanation": "1 bis 3 Saetze, warum die Loesung stimmt",
       "points": Zahl, "exam_style": false}}
   ]
 }}"""
 
 
-def check_week_test(res, exam: bool = False) -> str | None:
-    """Prueft einen erzeugten Wochentest gegen die Regel vom 29.10.2026; None = in Ordnung, sonst der Grund."""
+def check_week_test(res, exam: bool = False, options: dict | None = None) -> str | None:
+    """Prueft einen erzeugten Wochentest gegen die Regel vom 29.10.2026 bzw. die gewaehlten Parameter (04.11.2026);
+    None = in Ordnung, sonst der Grund."""
+    o = week_test_options(options)
+    wanted = week_test_distribution(o["count"], o["difficulty"])
     if not isinstance(res, dict):
         return "keine JSON-Objekt-Antwort"
     qs = res.get("questions")
-    if not isinstance(qs, list) or len(qs) != WEEK_TEST_TOTAL:
-        return f"{len(qs) if isinstance(qs, list) else 0} statt {WEEK_TEST_TOTAL} Aufgaben"
+    if not isinstance(qs, list) or len(qs) != o["count"]:
+        return f"{len(qs) if isinstance(qs, list) else 0} statt {o['count']} Aufgaben"
     counts = {k: 0 for k in WEEK_TEST_DIFFICULTY}
     for i, q in enumerate(qs, 1):
         if not isinstance(q, dict):
@@ -447,15 +533,28 @@ def check_week_test(res, exam: bool = False) -> str | None:
         counts[d] += 1
         if q.get("type") not in WEEK_TEST_TYPES:
             return f"Aufgabe {i} mit unbekanntem Typ"
+        if q["type"] not in o["types"]:
+            return f"Aufgabe {i} mit nicht gewaehlter Aufgabenart"
         if not str(q.get("question") or "").strip() or not str(q.get("answer") or "").strip():
             return f"Aufgabe {i} ohne Text oder Musterloesung"
         if q["type"] == "mc" and (not isinstance(q.get("options"), list) or len(q["options"]) < 2):
             return f"Aufgabe {i} (Multiple-Choice) ohne Antwortmoeglichkeiten"
+        if q["type"] == "tf":
+            opts = q.get("options")
+            if not isinstance(opts, list) or [str(x).strip() for x in opts] != list(TF_OPTIONS):
+                return f"Aufgabe {i} (Wahr/Falsch) ohne die Optionen Wahr und Falsch"
+            if str(q.get("answer") or "").strip() not in TF_OPTIONS:
+                return f"Aufgabe {i} (Wahr/Falsch) mit Loesung ausserhalb von Wahr und Falsch"
+        if q["type"] == "cloze" and not str(q.get("blank") or "").strip():
+            return f"Aufgabe {i} (Lueckentext) ohne Luecke"
+        if not str(q.get("explanation") or "").strip():
+            return f"Aufgabe {i} ohne Erklaerung"
         if isinstance(q.get("points"), bool) or not isinstance(q.get("points"), (int, float)) or q["points"] <= 0:
             return f"Aufgabe {i} ohne Punkte"
-    if counts != WEEK_TEST_DIFFICULTY:
-        return "Verteilung " + ", ".join(f"{counts[k]} {k}" for k in WEEK_TEST_DIFFICULTY) + " statt 4 leicht, 6 mittel, 5 schwer"
+    if counts != wanted:
+        return "Verteilung " + _distribution_line(counts) + " statt " + _distribution_line(wanted)
     styled = [q for q in qs if q.get("exam_style") is True]
+    exam = exam and wanted["schwer"] > 0
     if exam and (len(styled) != 1 or styled[0].get("difficulty") != "schwer"):
         return "nicht genau eine schwere Aufgabe im Stil der Altklausur"
     if not exam and styled:
@@ -477,13 +576,19 @@ def exam_text_block(exam: dict | None) -> str:
     return f"### {exam.get('title') or exam.get('name')}\n{(exam.get('text') or '')[:3500]}" if exam else ""
 
 
-def generate_test(subject: str, duration_min: int, materials: list[dict], exam: dict | None = None) -> dict:
+def generate_test(subject: str, duration_min: int, materials: list[dict], exam: dict | None = None,
+                  options: dict | None = None) -> dict:
     """Wochentest mit dem Material-Modell (Standard Haiku 5.5). PDF-Materialien werden als Seiten gelesen
     (je Datei hoechstens PDF_PAGES_PER_MATERIAL, zusammen PDF_PAGES_TOTAL); Rueckfall auf Text bei Fehlern.
     exam: Altklausur des Moduls ({title, name, text}); dann ist eine schwere Aufgabe im Stil der Klausur.
+    options: Parameter des Dialogs (`week_test_options`), None = Standard (15 Aufgaben, beliebig, alle Arten).
     Jede Antwort muss `check_week_test` bestehen; je Weg ein zweiter Versuch, sonst AIError."""
     label = _material_label
+    options = week_test_options(options)
     exam_block = exam_text_block(exam)
+    # ohne schwere Aufgaben (Schwierigkeit leicht/mittel) gibt es keine Klausuraufgabe
+    if week_test_distribution(options["count"], options["difficulty"])["schwer"] == 0:
+        exam_block = ""
     pdf_mats, budget = [], PDF_PAGES_TOTAL
     for m in materials:
         if is_pdf(m.get("local_path")) and budget > 0:
@@ -496,9 +601,9 @@ def generate_test(subject: str, duration_min: int, materials: list[dict], exam: 
             f"\n\n### {label(m)}\n{(m.get('text') or '')[:3500]}" for m in others) if others else "")
         for attempt in range(2):
             try:
-                res = parse_json(ask_pdf(_test_prompt(subject, duration_min, block, exam_block), SYSTEM,
+                res = parse_json(ask_pdf(_test_prompt(subject, duration_min, block, exam_block, options), SYSTEM,
                                          [(m["local_path"], take) for m, take in pdf_mats], labels=[label(m) for m, _ in pdf_mats]))
-                why = check_week_test(res, exam=bool(exam_block))
+                why = check_week_test(res, exam=bool(exam_block), options=options)
                 if why is None and not UNREADABLE.search(str(res.get("title") or "")):
                     res["_input"] = "pdf"
                     return res
@@ -509,8 +614,8 @@ def generate_test(subject: str, duration_min: int, materials: list[dict], exam: 
     block = test_text_block(materials)
     why = None
     for attempt in range(2):
-        res = parse_json(ask(_test_prompt(subject, duration_min, block, exam_block), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
-        why = check_week_test(res, exam=bool(exam_block))
+        res = parse_json(ask(_test_prompt(subject, duration_min, block, exam_block, options), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
+        why = check_week_test(res, exam=bool(exam_block), options=options)
         if why is None:
             res["_input"] = "text"
             return res

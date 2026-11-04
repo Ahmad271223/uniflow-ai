@@ -332,7 +332,12 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(info["BGTaskSchedulerPermittedIdentifiers"] as? [String], BackgroundTaskID.all)
         XCTAssertEqual(BackgroundTaskID.all, ["de.uniflow.ai.sync.refresh", "de.uniflow.ai.sync.files"])
         let modes = try XCTUnwrap(info["UIBackgroundModes"] as? [String])
-        XCTAssertEqual(Set(modes), ["fetch", "processing"], "nur Hintergrundaktualisierung und Verarbeitung, kein Audio, kein Push")
+        // "audio" seit 04.11.2026 fuer "Vorlesung aufnehmen" (docs/VORLESUNG-AUFNEHMEN.md): die Aufnahme laeuft bei
+        // gesperrtem Bildschirm weiter; kein Push, keine Ortung
+        XCTAssertEqual(Set(modes), ["fetch", "processing", "audio"], "Hintergrundaktualisierung, Verarbeitung und Aufnahme, kein Push")
+        XCTAssertNotNil(info["NSMicrophoneUsageDescription"] as? String, "Mikrofon-Text fuer die Aufnahme")
+        XCTAssertNotNil(info["NSPhotoLibraryAddUsageDescription"] as? String, "Bild sichern im Teilen-Menue braucht den Text, sonst beendet iOS die App")
+        XCTAssertNotNil(info["NSSpeechRecognitionUsageDescription"] as? String, "Spracherkennungs-Text fuer die Mitschrift")
         XCTAssertNotNil(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"), "Datenschutz-Manifest im Bundle")
         XCTAssertNil((info["NSAppTransportSecurity"] as? [String: Any])?["NSAllowsArbitraryLoads"], "keine ATS-Ausnahme")
     }

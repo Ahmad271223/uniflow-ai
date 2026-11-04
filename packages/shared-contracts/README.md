@@ -8,6 +8,7 @@ dieselben Beispieldaten.
 | --- | --- | --- |
 | `annotations.schema.json` | Notizmodell Version 2 (JSON Schema) | `tests/test_contracts.py` |
 | `API.md` | Endpunkte, Zugang, Fehlercodes | – |
+| `page-explain.md` | Erklärungsspeicher: Datensatzformat `PageExplain` (iPad V1 nur CloudKit; der Dienst spiegelt es später) | Swift (`PageExplainTests`) |
 | `fixtures/documents/*.json` | Beispieldokumente (Web-Editor, iPad) | Python, Swift |
 | `fixtures/merge/cases.json` | Zusammenführungs-Fälle mit erwartetem Ergebnis | Swift (`SharedFixtureTests`), Node (`tests/js`) |
 | `fixtures/demo/demo.json` | Demo-Inhalte für die App-Prüfung (`app/demo.py`, erzeugt mit `python tools/gen-demo-fixture.py [--check]`): PDF-Bytes, Konstanten, Anfragen an `GET/POST /api/demo` mit Tabellen und Dateien, Datumslogik „diese Woche“ | Swift (`DemoContentTests`) |

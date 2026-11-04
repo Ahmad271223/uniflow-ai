@@ -1,89 +1,105 @@
-# StudiNow – Preisliste und wer was darf (Stand 04.11.2026)
+# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026)
 
-Entscheidungen des Inhabers vom 04.11.2026. Die eine Quelle im Code ist `app/plans.py` (daraus
-`packages/shared-contracts/fixtures/plans/plans.json`; die iPad-App prüft ihre Tabelle `Purchases/Plans.swift` dagegen).
-Jeder Tarif enthält alles aus dem Tarif darunter.
+Drei Tarife, Monatspreise inkl. USt. **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
+`TRIAL`); `tools/gen-plans-fixture.py` schreibt daraus `packages/shared-contracts/fixtures/plans/plans.json`, gegen die
+Swift (`PlanContractTests`) und der Dienst (`tests/test_subscriptions.py`, `tests/test_tarif_matrix.py`) prüfen.
+Jeder Tarif enthält alles aus dem Tarif darunter. Ausführlich: `docs/ABO-SYSTEM.md`; Stand des Codes je Funktion:
+`docs/TARIF-MATRIX-2026-11-04.md`; Entscheidungen im Wortlaut: `docs/ENTSCHEIDUNGEN-INHABER-2026-11-04.md`.
 
-## Preise
+| | StudiNow Free | StudiNow Plus | StudiNow Pro AI |
+|---|:---:|:---:|:---:|
+| Preis | 0,00 € | 1,99 € | 3,99 € |
+| Apple-Produkt | – | `de.uniflow.plus.monthly` | `de.uniflow.proai.monthly` (erst mit dem StudiNow-Dienst im Store) |
+| PDFs lesen, Kurse, Abgleich mit Stud.IP/Learnweb, Stundenplan, Lernkalender, Community lesen | ✓ | ✓ | ✓ |
+| PDF bearbeiten, Stift, Textmarker, Apple Pencil (je Gerät) | – | ✓ | ✓ |
+| **Notizen auf allen Geräten** (Abgleich zwischen iPad, PC und Web, `can_sync_annotations`) | – | – (Plus gilt je Gerät) | ✓ |
+| Eigene Karteikarten mit Wiederholung, Stapel (`can_use_flashcards`; Free: vorhandene Karten lesen) | – | ✓ | ✓ |
+| Karteikarten-Stapel teilen und die anderer übernehmen (je Lernwoche oder „Allgemein“, 0 Credits) | – | ✓ | ✓ |
+| Wochenstapel „Karten für Woche n holen“ übernehmen (fertiger Satz aus dem Pool, 0 Credits) | – | ✓ | ✓ |
+| Wochentest erstellen (iPad ohne Dienst: über das eigene ChatGPT) | – | ✓ | ✓ |
+| Lösungen teilen, Community schreiben | – | ✓ | ✓ |
+| Lernstand je Modul | ✓ | ✓ | ✓ |
+| Neue KI-Tests von StudiNow im Dienst (`ai_tests_new`) | 0 | 4 / Monat | 20 / Monat |
+| Tests aus der Testbibliothek im Dienst (`library_tests`) | 0 | 4 / Monat | unbegrenzt (Fair Use 300) |
+| **KI erstellt Karteikarten** auf Auftrag („Analysis I, Lernwoche 5, 30 Karten“) und „Karteikarten aus Dokument“ im Dienst | – | – | ✓ ¹ |
+| **Fertige Fragen zu jeder Vorlesungswoche** (2–3 Sätze à 15 Fragen, Lösungen und Erklärungen schon da, `can_use_prepared_week_sets`) | – | – | ✓ |
+| KI-Erklärungen, Lernfragen, Zusammenfassungen im Dienst (`ai_assist`) | 0 | 0 | 150 / Monat |
+| Credits für die StudiNow-KI (1 Credit = 1 Cent Kosten beim Anbieter) | 0 | 0 | 100 / Monat |
+| Testliste im Dienst (`GET /api/tests`) | letzte 10 | letzte 10 | alle |
 
-| Tarif | Preis | Für wen | Wo kaufbar |
-| --- | --- | --- | --- |
-| **StudiNow Free** | 0 € | Studium organisieren und Unterlagen lesen | überall |
-| **StudiNow Plus** | **1,99 € / Monat**, 1 Woche gratis | Schreiben, teilen, Karteikarten, Tests mit dem eigenen ChatGPT – **je Gerät, ohne Notizen-Abgleich** | iPad (App Store), später Web/Windows (Stripe) |
-| **StudiNow Pro AI** | **3,99 € / Monat** | Die StudiNow-KI macht die Arbeit: Karteikarten, fertige Fragen, Erklärungen | **erst mit dem Online-Dienst** (Version 2) |
-
-Alle Preise sind Endkundenpreise inklusive Mehrwertsteuer. **Pro Connect (2,99 €) entfällt** (Entscheidung vom 04.11.2026);
-seine Funktionen (Lernstatistiken, Wiederholung falscher Antworten, Empfehlungen) sind in Pro AI. Es gibt nur noch
-Free, Plus und Pro AI.
-
-## Was jeder Tarif kann
+¹ Zählt auf `ai_assist` (150 / Monat) und kostet Credits; bestätigte E-Mail nötig. Über das **eigene** ChatGPT laufen
+„Karteikarten aus Dokument“ und Wochentests auf dem iPad in jedem Tarif, in dem das Speichern erlaubt ist (Plus); die
+Nutzung des eigenen ChatGPT-Abos stellen wir nie hinter eine Bezahlschranke (`docs/ABO-SYSTEM.md` 4).
 
 **Plus gilt je Gerät** (Entscheidung vom 04.11.2026): Das Abo schaltet auf jedem Gerät mit derselben Apple-ID frei
-(Apple verlangt „Käufe wiederherstellen“), aber Notizen wandern erst mit Pro AI zwischen iPad, PC und Web. Wer nur
-im Browser arbeitet, hat seine Notizen im Dienst und sieht sie in jedem Browser, in dem er angemeldet ist.
+(„Käufe wiederherstellen“), aber Notizen wandern erst mit Pro AI zwischen iPad, PC und Web (`POST /api/sync/push`
+meldet für Plus `plan_required` mit `required_plan: pro_ai` für genau die Einträge `annotations`; Pläne, Module,
+Karteikarten und alles andere gleichen weiter ab). Wer nur im Browser arbeitet, hat seine Notizen im Dienst und sieht
+sie in jedem Browser, in dem er angemeldet ist.
 
+**Probe:** jedes neue Konto bzw. jede Apple-ID einmal 7 Tage, alles wie Pro AI, mit 25 Credits (nur mit
+StudiNow-Konto; auf dem iPad ohne Dienst heißt „wie Pro AI“ heute der Umfang von Plus). Danach Free, Daten bleiben;
+nie automatisch kostenpflichtig. Texte: Web `app/static/views-abo.js` („Probe: alles wie StudiNow Pro AI, mit 25
+Credits …“), iPad `UFTrialTexts.offerProAI` bzw. `runningTextService` (nur mit Dienst; ohne Dienst nennt das iPad Pro AI
+nicht, weil es die Karte nicht gibt).
 
-| Funktion | Free | Plus | Pro AI |
-| --- | :-: | :-: | :-: |
-| PDFs öffnen und lesen, Suche im Skript | ✅ | ✅ | ✅ |
-| Kurse, Module, Abgleich mit Stud.IP/Learnweb, frühere Semester | ✅ | ✅ | ✅ |
-| Stundenplan, Lernkalender, Neuigkeiten, Schwarzes Brett | ✅ | ✅ | ✅ |
-| Community lesen (nach Beitritt zum eigenen Kurs) | ✅ | ✅ | ✅ |
-| Eigenes ChatGPT verbinden und die KI-Hilfe damit nutzen ¹ | ✅ | ✅ | ✅ |
-| Stift, Textmarker, Notizen, Apple Pencil | – | ✅ | ✅ |
-| **Notizen auf allen Geräten** (Abgleich zwischen iPad, PC und Web) | – | – (Plus gilt je Gerät) | ✅ |
-| Kommentieren, Fragen stellen, Lösungen teilen, Korrekturen vorschlagen | – | ✅ | ✅ |
-| **Karteikarten selbst anlegen und lernen** | – | ✅ | ✅ |
-| **Karteikarten teilen und die anderer nutzen** (je Lernwoche oder fürs ganze Modul) | – | ✅ | ✅ |
-| Tests aus der StudiNow-Bibliothek | – | 4 / Monat | unbegrenzt ² |
-| **Neue KI-Tests** | – | **4 / Monat** (mit eigenem ChatGPT) | **20 / Monat** (StudiNow-KI) |
-| **KI erstellt Karteikarten** („Fach, Lernwoche 5, 30 Karten“) | – | – | ✅ ³ |
-| **Fertige Fragen zu jeder Vorlesungswoche** (2–3 Sätze à 15 Fragen, Lösungen und Erklärungen schon da) | – | – | ✅ |
-| KI-Erklärungen, Lernfragen, Zusammenfassungen ohne eigenes ChatGPT | – | – | 150 / Monat ³ |
-| Lernstatistiken, Wiederholung falscher Antworten, Lernempfehlungen | – | – | ✅ |
+**Testliste:** Free und Plus sehen im Dienst die letzten 10 Tests (`app/server.py`, `HISTORY_BASIC`); ältere Tests
+bleiben gespeichert und zählen weiter für den Lernstand. Entschieden am 04.11.2026: die Grenze bleibt und steht in den
+Nutzungsbedingungen (Abschnitt 5a) und als Zeile „Vollständige Testliste (Free und Plus: die letzten 10)“ auf der
+Pro-AI-Karte. Auf dem iPad ohne Dienst gibt es keine Grenze.
 
-¹ Die Nutzung des **eigenen** ChatGPT-Abos stellen wir nicht hinter eine Bezahlschranke (laut den Regeln von OpenAI für
-„Sign in with ChatGPT“, siehe `docs/KI-CHATGPT-PLAN.md`; vor dem Start vom Inhaber selbst nachlesen). Für andere Nutzer
-braucht es außerdem noch die Freigabe von OpenAI. Plus verkauft die Tests, Karteikarten und das Teilen, nicht den
-ChatGPT-Zugang.
-² Fair-Use-Grenze 300 im Monat (Schutz vor Skripten).
-³ Zählt auf das Kontingent „KI-Erklärungen, Lernfragen und Zusammenfassungen“ (150 / Monat); zusätzlich gilt das
-KI-Budget je Konto (`LERNAPP_AI_USER_BUDGET_EUR`, Standard 2 €).
+**Begriffe:** „Lernstand“ ist die Zahl je Modul aus den eigenen Wochentests, Karteikarten und Aufgaben
+(`app/mastery.py`, `Mastery.swift`) und in jedem Tarif frei. „Lernstatistik“ ist die modulübergreifende Auswertung
+des Dienstes (`/api/learning/stats`, `…/review`, `…/recommendations`) ab Pro AI; die Endpunkte gibt es, eine
+Oberfläche noch nicht, darum steht sie auf der Karte als „kommt bald“ und wird nirgends als enthalten beworben.
+Dasselbe gilt für „KI-gestützte Lernempfehlungen“ (noch kein Endpunkt).
 
-## So funktioniert die KI in Pro AI („sehr schlau“)
+**Pro Connect** (2,99 €, Auftrag vom 27.10.2026) gibt es nicht mehr. Der Schlüssel `pro_connect` bleibt nur lesbar
+für alte Zeilen und gilt wie Pro AI (`plans.LEGACY_PLANS`, `billing.normalize_plan`, Swift `UFPlan(rawValue:)` und
+`UFPlan(productID:)`); er ist nicht kaufbar (`plans.is_sellable`, Stripe-Preise, `POST /api/billing/plan-choice`) und
+erscheint auf keiner Karte. Alles, was an Pro Connect hing (Lernstatistik, Wiederholung, Empfehlungen, Testliste,
+Anzeige der ChatGPT-Verbindung), hängt jetzt an Pro AI; die Meldung ohne Recht heißt „Diese Funktion gibt es ab
+StudiNow Pro AI.“
 
-1. **Die Bibliothek arbeitet vor.** Sobald ein Modul im Dienst bekannt ist, kennt die StudiNow-KI je Vorlesungswoche
-   die Themen, Hinweise aus Ankündigungen und die Aufgaben der Übungsblätter und hat die Lösungen samt Erklärung schon
-   erarbeitet. Das passiert **einmal je Inhalt** (gleiche PDF = gleiche Arbeit) und gilt für alle Pro-AI-Nutzer.
-2. **Fertige Fragen je Woche:** Zu jeder Vorlesungswoche entstehen 2–3 Sätze à 15 Fragen. Pro AI öffnet sie sofort,
-   ohne ein Test-Kontingent zu verbrauchen. Nur wer eine Woche als Erster öffnet, wartet einmal ein bis zwei Minuten,
-   danach ist sie für alle sofort da.
-3. **Karteikarten auf Auftrag:** „Analysis I, Lernwoche 5, 30 Karten“ – die KI nimmt dafür das Material genau dieser
-   Woche. Die Karten kann man bearbeiten, lernen und teilen.
-4. **Teilen:** Karteikarten-Stapel gibt es je Vorlesungswoche oder fürs ganze Modul in der Community des Kurses
-   (nur für Leute, die den Kurs haben oder hatten). Wer Plus hat, kann sie übernehmen.
+## So funktioniert die KI in Pro AI
 
-Damit es bezahlbar bleibt, entstehen Wochenfragen und Lösungen **erst, wenn der erste Pro-AI-Nutzer das Modul öffnet**,
+1. **Die Bibliothek arbeitet vor** (`docs/BIBLIOTHEK-WOCHENFRAGEN.md`). Je Vorlesungswoche kennt die StudiNow-KI die
+   Themen, Hinweise aus Ankündigungen und die Aufgaben der Übungsblätter und erarbeitet die Lösungen samt Erklärung –
+   **einmal je Inhalt** (gleiche PDF = gleiche Arbeit) für alle Pro-AI-Nutzer, aus einem eigenen Budget
+   (`LERNAPP_AI_LIBRARY_BUDGET_EUR`), das weder das Budget der Konten noch deren Kontingente belastet.
+2. **Fertige Fragen je Woche:** 2–3 Sätze à 15 Fragen. Pro AI öffnet sie ohne ein Test-Kontingent für neue KI-Tests.
+   Nur wer eine Woche als Erster öffnet, wartet einmal ein bis zwei Minuten, danach ist sie für alle sofort da.
+3. **Karteikarten auf Auftrag:** „Analysis I, Lernwoche 5, 30 Karten“ (5–50, optional Schwerpunkt) – die KI nimmt das
+   Material genau dieser Woche, Karten, die man im Modul schon hat, kommen nicht doppelt. Vorschau mit Haken, dann in
+   einen Stapel des Moduls („KI · Woche 5“), danach bearbeiten, üben, teilen (`app/flashcard_order.py`).
+4. **Wochenstapel für alle:** „Karten für Woche n holen“ erzeugt je Modul, Woche und Art (Vorlesung/Übung) höchstens
+   drei Sätze für alle mit denselben Dateien (`app/cardshare.py`); Plus übernimmt fertige Sätze für 0 Credits, nur das
+   Erzeugen eines neuen Satzes ist StudiNow-KI (Pro AI).
+5. **Teilen:** Karteikarten-Stapel gibt es je Vorlesungswoche oder „Allgemein“ in der Community des Moduls (nur für
+   Mitglieder), mit Pseudonym; Plus kann sie übernehmen, der Autor kann die geteilte Kopie aktualisieren oder
+   zurückziehen (`app/community_cards.py`, `docs/KARTEIKARTEN-STAPEL-2026-11-04.md`).
+
+Damit es bezahlbar bleibt, entstehen Wochenfragen und Lösungen **erst, wenn der erste Pro-AI-Nutzer die Woche öffnet**,
 und werden dann für alle gespeichert. Kosten grob: 1–4 Cent je Fragensatz einmalig (je nach Modell); bei 1.000 aktiven
 Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, verteilt auf alle Pro-AI-Kunden (Schätzung, siehe
 `docs/SKALIERUNG-GROSS.md`).
 
-## Was bei dir ankommt (je Kunde und Monat, geschätzt)
+## Was ankommt (je Kunde und Monat, geschätzt)
 
 | | Plus 1,99 € | Pro AI 3,99 € |
 | --- | --- | --- |
 | nach 19 % MwSt | 1,67 € | 3,35 € |
 | nach Apple (15 %) | **1,42 €** | **2,85 €** |
 | nach Stripe (Web, ca. 1,5 % + 0,25 €) | **1,39 €** | **3,04 €** |
-| deine KI-Kosten | 0 € (eigenes ChatGPT) | ca. 0,20–2,00 € (gedeckelt durch das Budget je Konto) |
+| KI-Kosten | 0 € (eigenes ChatGPT) | höchstens 1 € (100 Credits), dazu der Anteil an der Bibliothek |
 
 ## Wo was heute steht
 
 | Teil | Stand |
 | --- | --- |
-| Tarife, Kontingente (Plus 4, Pro AI 20), Notizen-Abgleich erst mit Pro AI | **umgestellt** in `app/plans.py`, Prüfdaten neu; iPad (`Plans.swift`) muss die Mac-Sitzung nachziehen |
-| Karteikarten selbst anlegen | gebaut (iPad, Web, Windows); jetzt mit Stapeln je Modul und Lernwoche; im Dienst nur mit Plus (`can_create_flashcards`, auch beim Geräte-Abgleich) |
-| Karteikarten teilen / nutzen | **gebaut** im Dienst, Web und Windows (Stapel je Lernwoche oder Modul, Community-Reiter „Karteikarten“; `docs/LOESUNGEN-TEILEN.md` 6c), Status `available`; iPad zieht die Mac-Sitzung nach (`docs/UEBERGABE-MAC-KARTEIKARTEN-2026-11-04.md`) |
-| KI-Karteikarten nach Fach/Woche/Anzahl | **gebaut** im Dienst, Web und Windows (`POST /api/ai/flashcards` mit Modul, Lernwoche, 5–50 Karten; Material genau dieser Woche, keine Doppel; Vorschau, erst dann speichern), Status `available`; am PC über die eigene KI |
-| Fertige Wochenfragen mit Erklärungen | **gebaut** im Dienst und in der Web-/Windows-Oberfläche (Status `available`, `docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad zieht die Mac-Sitzung nach |
+| Tarife, Kontingente (Plus 4, Pro AI 20), Notizen-Abgleich erst mit Pro AI | umgestellt in `app/plans.py`, Prüfdaten und iPad (`Plans.swift`, `PlanContractTests`) |
+| Karteikarten mit Stapeln (Woche, Art), Bearbeiten, geschlossenes Üben | gebaut (iPad, Web, Windows, Dienst); im Dienst nur mit Plus (`can_use_flashcards`, auch neue Karten und Stapel beim Geräte-Abgleich) |
+| Stapel teilen, übernehmen, geteilte Kopie aktualisieren, Moderation | gebaut im Dienst, Web (Seite „Karteikarten“ und Reiter „Karteikarten“ im Community-Kanal) und iPad (CloudKit); Ersetzen und Moderation nur im Dienst |
+| KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ über das eigene ChatGPT) |
+| Fertige Wochenfragen mit Erklärungen | gebaut im Dienst und Web/Windows (`docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad: nur im Vertrag („in Vorbereitung“) |
 | Pro AI im App Store | erst mit dem Online-Dienst; bis dahin auf der Tarifseite „kommt mit dem StudiNow-Dienst“, ohne Kaufknopf |

@@ -73,99 +73,101 @@ class StoreKitSessionTestCase: XCTestCase {
     }
 }
 
-/// Abo-Kauf in V1 (Entscheidung des Inhabers vom 28.10.2026): nur StudiNow Plus wird angeboten. Konfiguration
-/// `UniFlow.storekit` wie in der App (Schema "Run"); die Pro-Tarife stehen darin nicht.
+/// Abo-Kauf (Entscheidung des Inhabers vom 04.11.2026): StudiNow Plus und Pro AI, kein Einfuehrungsangebot; die Probe
+/// laeuft auf dem iPad ohne Kauf (LocalTrialTests). Konfiguration `UniFlow.storekit` wie in der App (Schema "Run").
 @MainActor
 final class PurchaseTests: StoreKitSessionTestCase {
-    /// Verhalten der StoreKit-Testsitzung (mit Prueftests unter Xcode 27.1 ermittelt): Nach dem ersten Kauf liefert
-    /// `isEligibleForIntroOffer` fuer die Gruppe false, auch nach clearTransactions() und resetToDefaultState() und
-    /// auch in spaeteren Testlaeufen auf demselben Simulator. Ein neuer Kauf nach clearTransactions() bekommt die
-    /// Gratiswoche dagegen wieder (testPurchaseAfterClearedTransactionsStartsFreeWeekAgain). Darum prueft dieser Test
-    /// Angebot und Texte immer, den Anspruch selbst aber nur, solange StoreKit ihn noch meldet; sonst endet er mit
-    /// einem Hinweis statt falsch rot. Er heisst "test0…", weil XCTest die Tests einer Klasse alphabetisch ausfuehrt.
-    func test0ProductsCarryOneFreeWeekUntilFirstPurchase() async throws {
+    /// Der Laden hat Plus und Pro AI, kein Produkt traegt ein Einfuehrungsangebot, die Texte nennen nur den Preis aus
+    /// dem Produkt. Pro Connect und das fruehere Pro gibt es nicht, auch nicht auf Nachfrage.
+    func test0ProductsCarryNoIntroductoryOffer() async throws {
         let (store, ent) = await makeStore()
-        // V1 bietet nur StudiNow Plus an (Entscheidung 28.10.2026); Pro Connect, Pro AI und das fruehere Pro gibt es im
-        // Laden nicht, auch nicht auf Nachfrage
-        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly"])
-        XCTAssertNil(store.product(for: .proConnect))
-        XCTAssertNil(store.product(for: .proAI))
-        let pro = try await Product.products(for: ["de.uniflow.proconnect.monthly", "de.uniflow.proai.monthly", "de.uniflow.pro.monthly"])
-        XCTAssertEqual(pro.map(\.id), [], "keine Pro-Produkte in der V1-Konfiguration")
+        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
+        XCTAssertEqual(store.loadedProductIDs, ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
+        let other = try await Product.products(for: ["de.uniflow.proconnect.monthly", "de.uniflow.pro.monthly"])
+        XCTAssertEqual(other.map(\.id), [], "kein Pro Connect und kein frueheres Pro in der Konfiguration der App")
         XCTAssertEqual(ent.plan, .free)
-        let p = try XCTUnwrap(store.product(for: .plus))
-        XCTAssertEqual(p.displayName, UFPlan.plus.name)
-        let eligibleNow = store.introEligible[p.id] == true
-        let trial = try XCTUnwrap(p.ufFreeTrial)
-        XCTAssertEqual(trial.0, 1)
-        XCTAssertEqual(trial.1, .week)
-        XCTAssertEqual(p.ufPeriod.1, .month)
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true),
-                       "StudiNow Plus – 1 Woche gratis")
-        XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
-            .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
-        guard eligibleNow, !Self.processHadPurchase else {
-            throw XCTSkip("Die StoreKit-Testumgebung dieses Simulators hat die Probewoche schon verbraucht; Angebot und Texte sind geprüft, der Anspruch nicht (frischer Simulator nötig).")
+        for plan in [UFPlan.plus, .proAI] {
+            let p = try XCTUnwrap(store.product(for: plan), plan.rawValue)
+            XCTAssertEqual(p.displayName, plan.name)
+            XCTAssertNil(p.subscription?.introductoryOffer, "kein Apple-Einführungsangebot: \(plan.rawValue)")
+            XCTAssertEqual(p.ufPeriod.1, .month)
+            XCTAssertEqual(UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod),
+                           "\(plan.name) für \(p.displayPrice)/Monat")
+            XCTAssertEqual(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod), "\(p.displayPrice)/Monat, monatlich kündbar")
         }
-        // Kauf verbraucht den Anspruch: danach zeigt Plus den normalen Preis.
-        // Ohne erneutes loadProducts(), so wie die Seite in den Einstellungen nach dem Kauf offen bleibt.
-        let outcome = await store.purchase(p)
-        XCTAssertEqual(outcome, .success, store.lastError ?? "")
-        XCTAssertEqual(store.introEligible[p.id], false)
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                          eligible: false), "StudiNow Plus für \(p.displayPrice)/Monat")
-        XCTAssertFalse(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                           eligible: store.introEligible[p.id] == true).contains("gratis"))
+        // Tarifkarten: mit Pro-AI-Produkt drei Karten, ohne (vor dem Dienst) nur Free und Plus
+        XCTAssertEqual(UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs), [.free, .plus, .proAI])
+        XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: store.loadedProductIDs, loading: false, current: .free))
+        let plusOnly = PurchaseStore(entitlements: ent, productIDs: ["de.uniflow.plus.monthly"])
+        await plusOnly.loadProducts()
+        XCTAssertNil(plusOnly.lastError)
+        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: plusOnly.loadedProductIDs), [.free, .plus])
+        XCTAssertTrue(PlanPickerView.showsProAIMissingNote(loaded: plusOnly.loadedProductIDs, loading: false, current: .free))
     }
 
-    func testPlusPurchaseStartsFreeWeekAndUsesUpEligibility() async throws {
+    func testPlusPurchaseUnlocksPlusWithoutIntroOffer() async throws {
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         let outcome = await store.purchase(plus)
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(ent.plan, .plus)
-        XCTAssertTrue(ent.inIntroOffer, "Während der Gratiswoche gilt Plus mit Einführungsangebot")
+        XCTAssertEqual(ent.purchasedPlan, .plus)
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertTrue(ent.allows(.splitView))
         // Uni & Noten (QIS bzw. LSF auf dem Geraet) gehoert zu Free; eigene Loesungen teilen zu Plus
         XCTAssertEqual(ent.access(.uniGrades), .allowed)
         XCTAssertEqual(ent.access(.shareSolutions), .allowed)
         XCTAssertEqual(ent.transactionCount, 1)
-        XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)
+        // Transaktion ohne Einfuehrungsangebot
+        for await r in StoreKit.Transaction.currentEntitlements {
+            if case .verified(let t) = r, t.productID == plus.id { XCTAssertNotEqual(t.offerType, .introductory) }
+        }
     }
 
-    /// Beleg, dass die Kauf-Tests nicht von der Reihenfolge abhaengen: Nach clearTransactions() startet ein neuer
-    /// Kauf wieder mit der Gratiswoche
-    func testPurchaseAfterClearedTransactionsStartsFreeWeekAgain() async throws {
+    /// Pro AI kaufen gibt Pro AI (StoreKit-Berechtigung wie heute); auf dem iPad derselbe Umfang wie Plus
+    func testProAIPurchaseUnlocksProAI() async throws {
         let (store, ent) = await makeStore()
-        let plus = try XCTUnwrap(store.product(for: .plus))
-        _ = await store.purchase(plus)
-        XCTAssertTrue(ent.inIntroOffer)
-        session.clearTransactions()
-        await waitForPlan(ent, .free)
-        XCTAssertEqual(ent.plan, .free)
-        let again = await store.purchase(plus)
-        XCTAssertEqual(again, .success, store.lastError ?? "")
-        XCTAssertEqual(ent.plan, .plus)
-        XCTAssertTrue(ent.inIntroOffer, "Nach gelöschten Transaktionen beginnt Plus wieder mit der Gratiswoche")
+        let proAI = try XCTUnwrap(store.product(for: .proAI))
+        let outcome = await store.purchase(proAI)
+        XCTAssertEqual(outcome, .success, store.lastError ?? "")
+        XCTAssertEqual(ent.plan, .proAI)
+        XCTAssertEqual(ent.purchasedPlan, .proAI)
+        XCTAssertTrue(ent.allows(.pencilWriting))
+        XCTAssertEqual(ent.statusLabel, "StudiNow Pro AI")
+        await assertNoAccountToken()
     }
 
-    /// Verlaengerung nach der Gratiswoche: Tarif bleibt Plus, jetzt bezahlt (kein Einfuehrungsangebot mehr)
-    func testRenewalAfterFreeWeekKeepsPlusWithoutIntroOffer() async throws {
+    /// Verlaengerung: Tarif bleibt Plus, der Ablauf rueckt nach vorn
+    func testRenewalKeepsPlus() async throws {
         let (store, ent) = await makeStore()
         let plus = try XCTUnwrap(store.product(for: .plus))
         let outcome = await store.purchase(plus)
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
-        XCTAssertTrue(ent.inIntroOffer)
         let firstExpiry = try XCTUnwrap(ent.expiresAt)
         try session.forceRenewalOfSubscription(productIdentifier: plus.id)
-        let renewed = await eventually { await ent.refresh(); return !ent.inIntroOffer }
-        XCTAssertTrue(renewed, "Nach der Verlängerung läuft keine Gratiswoche mehr")
+        let renewed = await eventually { await ent.refresh(); return (ent.expiresAt ?? firstExpiry) > firstExpiry }
+        XCTAssertTrue(renewed, "Verlängerung kam nicht an")
         XCTAssertEqual(ent.plan, .plus)
         XCTAssertTrue(ent.allows(.pencilWriting))
-        XCTAssertGreaterThan(try XCTUnwrap(ent.expiresAt), firstExpiry)
-        await store.refreshEligibility()
-        XCTAssertEqual(store.introEligible[plus.id], false)
+    }
+
+    /// Vorrang: ein gekaufter Tarif gilt vor der Probe auf dem iPad; nach Ablauf des Abos faellt die App nur auf Free,
+    /// wenn auch die Probe vorbei ist
+    func testPurchasedPlanTakesPrecedenceOverLocalTrial() async throws {
+        let (store, ent) = await makeStore()
+        let now = Date()
+        ent.useLocalTrial(startedAt: now, now: now)
+        XCTAssertEqual(ent.plan, .proAI, "Probe: alles wie Pro AI")
+        XCTAssertEqual(ent.purchasedPlan, .free)
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        let bought = await store.purchase(plus)
+        XCTAssertEqual(bought, .success, store.lastError ?? "")
+        XCTAssertEqual(ent.plan, .plus, "gekauft ist gekauft: Plus, nicht die Probe")
+        XCTAssertEqual(ent.purchasedPlan, .plus)
+        // nach dem Ende der Probe bleibt Plus
+        ent.refreshLocalTrial(now: now.addingTimeInterval(8 * 86_400))
+        XCTAssertEqual(ent.plan, .plus)
+        ent.useLocalTrial(startedAt: nil)
     }
 
     /// Kaufanfrage (Familienfreigabe, "Ask to Buy"): erst ausstehend und weiter Free, nach Freigabe Plus

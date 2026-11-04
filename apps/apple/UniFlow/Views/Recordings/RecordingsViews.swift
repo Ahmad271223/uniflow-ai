@@ -35,6 +35,9 @@ private struct RecordingsPanelContent: View {
     var body: some View {
         ScrollViewReader { proxy in
             VStack(alignment: .leading, spacing: 0) {
+                // eigene Aufnahmen des Moduls (Mikrofon, Mitschrift auf dem Geraet; docs/VORLESUNG-AUFNEHMEN.md) stehen vor
+                // den Opencast-Aufzeichnungen, auch ohne Stud.IP
+                OwnRecordingsSection(moduleID: moduleID)
                 if let blocks {
                     if blocks.isEmpty {
                         UFCard { UFEmpty(icon: "play", text: emptyText) }
@@ -67,7 +70,7 @@ private struct RecordingsPanelContent: View {
         case .connected:
             return studip.isRunning ? "Aufzeichnungen werden beim laufenden Abgleich geprüft …" : "Keine Aufzeichnungen zu diesem Modul."
         case .otherSources: return "Aufzeichnungen (Opencast) gibt es in StudiNow nur über das Stud.IP der Leibniz Universität Hannover; das Learnweb der Universität Hildesheim bietet keine."
-        case .demo: return "Die Demo-Inhalte haben keine Aufzeichnungen. Sie kommen mit deiner Stud.IP-Anmeldung, wenn die Demo entfernt ist."
+        case .demo: return "Die Demo-Inhalte haben keine Aufzeichnungen. Sie kommen mit deiner Stud.IP-Anmeldung, wenn die Demo beendet ist."
         }
     }
 }

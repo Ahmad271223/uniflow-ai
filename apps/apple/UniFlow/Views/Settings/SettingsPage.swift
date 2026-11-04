@@ -144,8 +144,9 @@ struct SettingsNav: View {
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
                                                     ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
                                                     ("dev", "Entwicklung", "layers")]
-    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Erweitert (Demo-Inhalte fuer die
-    /// App-Pruefung, auch im Release-Build: die Pruefer von Apple muessen sie finden), Entwicklung (nur Debug)
+    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Erweitert (KI ueber ChatGPT,
+    /// "Vorab einordnen"), Entwicklung (nur Debug). Keine Demo-Inhalte mehr (Entscheidung 04.11.2026 "Nur fuer
+    /// Pruefer": einziger Weg ist der Link auf der Anmeldeseite der Hochschule, Views/DemoViews.swift)
     @MainActor static func localKeys(withPlan: Bool) -> [String] { localKeys(withPlan: withPlan, ownServer: Session.ownServerAvailable) }
 
     static func localKeys(withPlan: Bool, ownServer: Bool) -> [String] {
@@ -776,6 +777,7 @@ private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufSwitchPlan) private var switchPlan
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.openURL) private var openURL
     @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
@@ -816,6 +818,9 @@ private struct AppAccountCards: View {
                     SettingsValue(label: "Name", value: a?.name ?? "nicht freigegeben", muted: a?.name == nil)
                     SettingsValue(label: "E-Mail", value: a?.email ?? "nicht freigegeben", muted: a?.email == nil)
                 }
+                // Rufname fuer "Hallo Ahmad – lass uns gemeinsam lernen." auf der Uebersicht (je Container, nur auf dem
+                // iPad; leer: der Vorname aus der Anmeldung, `UFGreeting`)
+                RufnameField().padding(.top, 4.8)
                 Text("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -828,16 +833,37 @@ private struct AppAccountCards: View {
         }
     }
 
+    /// Rufname (Einstellungen -> Konto): ein Feld, gespeichert je Container beim Tippen (`Rufname.save`)
+    struct RufnameField: View {
+        @State private var name = Rufname.current() ?? ""
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4.8) {
+                Text("Rufname").ufFont(13.12, 600).foregroundStyle(UF.text)
+                UFTextField("Wie sollen wir dich nennen?", text: $name)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("settings.rufname")
+                Text("Für die Begrüßung auf der Übersicht. Leer: dein Vorname aus der Anmeldung. Bleibt auf diesem iPad.")
+                    .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .onChange(of: name) { _, now in Rufname.save(now) }
+        }
+    }
+
     /// Platz fuer den Tarif; Inhalt (aktueller Tarif, Verwalten, Wiederherstellen) baut das Abo-Paket
     private var planCard: some View {
         UFCard {
             UFCardHead("Tarif", icon: "star") {
-                if !ent.loading { UFBadge(ent.plan.name, tone: ent.plan == .free ? .neutral : .ok) }
+                // waehrend der Probe ohne Kauf "Probe: noch n Tage alles frei", sonst der Tarif
+                if !ent.loading { UFBadge(ent.statusLabel, tone: ent.plan == .free ? .neutral : .ok) }
             }
             Text(canSwitchPlan
                  ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
                  : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
+            // Credits der StudiNow-KI (nur mit Konto beim Dienst und Stand aus GET /api/entitlements)
+            if let studoraAccount { StudoraCreditsRow(link: studoraAccount) }
             UFFlexWrap(gap: 9.6) {
                 UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {
                     if let switchPlan { switchPlan() } else { plans = true }
@@ -866,6 +892,27 @@ private struct AppAccountCards: View {
     }
 }
 
+/// Zeile "Credits" auf der Tarif-Karte (04.11.2026, docs/ABO-SYSTEM.md Abschnitt 6a): der echte Stand des Monats vom
+/// Dienst mit einem ehrlichen Satz dazu; ohne Konto beim Dienst oder ohne Stand bleibt sie weg. Beobachtet den Anschluss,
+/// damit eine berechnete Antwort den Rest sofort nachzieht.
+struct StudoraCreditsRow: View {
+    @ObservedObject var link: StudoraAccountLink
+
+    /// "1 Credit = 1 Cent echter KI-Kosten …" – die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
+    static let explanation = "1 Credit ist 1 Cent echter KI-Kosten: Pro AI hat 100 im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang – welcher Tarif was enthält, steht unter „Tarif wechseln“."
+
+    var body: some View {
+        if let c = link.credits, let value = AICost.balanceLine(c, trial: link.planStatus?.trialActive ?? false, labelled: false) {
+            VStack(alignment: .leading, spacing: 4.8) {
+                SettingsValue(label: "Credits", value: value)
+                Text(Self.explanation).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 7.2)
+            .accessibilityIdentifier("settings.credits")
+        }
+    }
+}
+
 /// Texte der Rueckfrage "Konto loeschen": die Server-PIN gibt es nur im Debug-Build mit eigenem Server
 /// (`Session.ownServerAvailable`), im Release kein Hinweis auf PC, Server oder PIN. V1 loest keine Apple-Token ein
 /// (kein Server), darum kann die App die Verknuepfung "Mit Apple anmelden" nicht selbst widerrufen; der Nutzer loest
@@ -878,6 +925,10 @@ enum DeleteAccountText {
     }
 
     static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
+
+    /// Nur mit iCloud-Container im Build (Community ueber CloudKit, docs/release/DATENSCHUTZ.md Abschnitt 8b): was in der
+    /// oeffentlichen Datenbank liegt, entfernt "Konto loeschen" auf dem iPad nicht von selbst - ehrlich sagen, wie es geht
+    static let community = "Was du in der Community veröffentlicht hast (Lösungen, Kommentare, Korrekturen), liegt verschlüsselt in Apples iCloud und bleibt unter deinem Pseudonym, bis du es zurückziehst. Zieh es vorher unter „Meine geteilten Lösungen“ zurück oder schreib an support@studinow.app – dann löschen wir es für dich."
 }
 
 /// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
@@ -901,6 +952,7 @@ private struct DeleteAccountDialog: View {
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
                 Text(DeleteAccountText.appleID)
+                if SolutionSharing.community.isConnected { Text(DeleteAccountText.community) }
                 ContainerSyncGate { syncing in
                     if syncing { ContainerSyncNotice() }
                 }
@@ -938,7 +990,6 @@ private struct LocalAccountTab: View {
     var term: JSONValue?
     var reload: () async -> Void = {}
     @EnvironmentObject private var studip: StudIPSync
-    @Environment(\.ufDemoActive) private var demo
     @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
@@ -947,11 +998,12 @@ private struct LocalAccountTab: View {
     var body: some View {
         // vier Gruppen mit Abschnittskopf (Konto, Studium, dieses iPad, Austausch) statt einer langen Kartenfolge
         VStack(alignment: .leading, spacing: 32) {
-            // Demo-Inhalte aktiv: eine Anmeldung unten gleicht erst nach dem Entfernen ab
-            if demo { DemoActiveBar() }
             SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) {
                 AppAccountCards()
-                if StudoraAccountLink.available, let studoraAccount { StudoraAccountCard(link: studoraAccount) }
+                if StudoraAccountLink.available, let studoraAccount {
+                    StudoraAccountCard(link: studoraAccount)
+                    InviteCard(link: studoraAccount)                     // Freunde einladen (docs/EINLADUNGEN.md)
+                }
             }
             SettingsSection("Studium", sub: studip.offersStudIP ? SettingsSections.studyLUH : SettingsSections.studyHildesheim) {
                 UFGridLayout(spacing: 16, minWidth: 340) {
@@ -1134,17 +1186,45 @@ struct ConnectView: View {
 
 // MARK: - Erweitert
 
-/// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`), Demo-Inhalte fuer
-/// die App-Pruefung (Views/DemoViews.swift)
+/// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`) mit dem Schalter
+/// "Vorab einordnen" (Erklaerungsspeicher); keine Demo-Inhalte (nur fuer Pruefer, Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
     @Environment(\.ufChatGPTLink) private var chatgpt
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if ChatGPTLink.available, let chatgpt { ChatGPTCard(link: chatgpt) }
-            DemoContentCard()
+            if ChatGPTLink.available, let chatgpt {
+                ChatGPTCard(link: chatgpt)
+                DocIndexPrewarmCard()
+            }
         }
         .frame(maxWidth: 720, alignment: .leading)
+    }
+}
+
+/// KI-Bereich: "Vorab einordnen" (Entscheidung des Inhabers 04.11.2026, docs/ERKLAERUNGSSPEICHER-2026-11-04.md).
+/// Standard: nach dem Abgleich nur Zusammenfassung und Begriffe (Dokument-Index). "Alles": dazu Erklaerungen und
+/// Loesungen fuer alle mit derselben Datei - mit ehrlichem Kostenhinweis. Gilt nur im WLAN und beim Laden.
+struct DocIndexPrewarmCard: View {
+    @AppStorage(DocIndexPrewarmSetting.key) private var raw = DocIndexPrewarmSetting.defaultRaw
+
+    private var level: Binding<DocIndexPrewarmLevel> {
+        Binding(get: { DocIndexPrewarmSetting.level(raw: raw) }, set: { raw = $0.rawValue })
+    }
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Vorab einordnen", icon: "book")
+            Text("Nach dem Abgleich ordnet StudiNow bis zu drei Dateien der laufenden Woche vorab ein – nur im WLAN und beim Laden, einmal für alle mit derselben Datei.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            UFSegmented(options: DocIndexPrewarmLevel.allCases.map { (value: $0, label: DocIndexPrewarmSetting.label($0)) }, selection: level)
+                .padding(.top, 8)
+                .accessibilityIdentifier("docIndex.prewarmLevel")
+            Text(DocIndexPrewarmSetting.costNote)
+                .ufFont(12.5).foregroundStyle(level.wrappedValue == .full ? UF.bad : UF.muted).fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+                .accessibilityIdentifier("docIndex.prewarmCost")
+        }
     }
 }
 
@@ -1172,7 +1252,6 @@ private struct AdvancedTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {                                    // .stack
-            DemoContentCard()                                                        // Demo-Inhalte des eigenen Servers
             UFCard {
                 UFCardHead("Sync-Protokoll", icon: "sync") {
                     Button {

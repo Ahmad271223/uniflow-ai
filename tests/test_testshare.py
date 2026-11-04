@@ -66,7 +66,7 @@ def two_modules_same_course(app, tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_generate(subject, minutes, materials, exam=None):
+    def fake_generate(subject, minutes, materials, exam=None, options=None):
         calls.append(subject)
         return {"title": f"Wochentest {subject}", "questions": [{"q": f"Frage aus {subject}", "points": 1}]}
 
@@ -271,7 +271,7 @@ def test_shared_test_endpoints_for_devices(hosted):
     st, d = _j(asgi_call(hosted, "GET", f"/api/v2/shared-tests/{key}", headers=hb))
     assert d["action"] == ("wait" if vb == va else "generate")
     # veroeffentlichen nur in der Form vom 29.10.2026 und nur in den eigenen Platz
-    qs = [{"nr": i + 1, "type": "calc", "difficulty": d, "question": f"Aufgabe {i + 1}", "answer": "1", "points": 6}
+    qs = [{"nr": i + 1, "type": "calc", "difficulty": d, "question": f"Aufgabe {i + 1}", "answer": "1", "explanation": "Rechnung.", "points": 6}
           for i, d in enumerate(["leicht"] * 4 + ["mittel"] * 6 + ["schwer"] * 5)]
     assert ai.check_week_test({"questions": qs}) is None
     st, d = _j(asgi_call(hosted, "POST", f"/api/v2/shared-tests/{key}/{va}", headers=hb, body=json.dumps({"title": "T", "questions": qs})))

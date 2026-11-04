@@ -2,12 +2,13 @@ import StoreKit
 import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
-// Entscheidung des Inhabers vom 27.10.2026: vier StudiNow-Tarife (Plans.swift, Vertrag plans.json). Die Rechte von Plus
-// bleiben auf dem iPad, wie sie waren; Pro Connect und Pro AI enthalten alles aus Plus. Was den gehosteten Dienst
+// Entscheidung des Inhabers vom 04.11.2026: drei StudiNow-Tarife Free, Plus, Pro AI (Plans.swift, Vertrag plans.json).
+// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten und Wochentests (eigenes ChatGPT) zu Plus. Was den gehosteten Dienst
 // braucht (StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen Geraeten, ChatGPT), erscheint als
 // "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
-// und geprueft, hoechster gueltiger Tarif). Die Pruefung im Dienst ist vorbereitet und abgeschaltet
-// (BillingServiceLink.swift, V2).
+// und geprueft, hoechster gueltiger Tarif). Dazu die Probe auf dem iPad (Entscheidung 04.11.2026, LocalTrial.swift):
+// 7 Tage alles wie Pro AI ohne Zahlungsdaten, Vorrang Dienst > App Store > Probe > Free (UFPlanPrecedence). Die
+// Pruefung im Dienst ist vorbereitet und abgeschaltet (BillingServiceLink.swift, V2).
 
 // MARK: - Funktionen
 
@@ -32,6 +33,8 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
+    case weeklyTests         // Wochentest erstellen mit dem eigenen ChatGPT (QuizComposer, lokales Backend),
+                             // Entscheidung 04.11.2026: Plus wie die Karteikarten
     // ab V2
     case uniflowEditor
     case deviceSync
@@ -45,7 +48,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
              .uniGrades, .communityRead:
             return .free
-        case .pencilWriting, .shareSolutions, .splitView, .flashcards, .uniflowEditor, .deviceSync:
+        case .pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests, .uniflowEditor, .deviceSync:
             return .plus
         }
     }
@@ -72,6 +75,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
+        case .weeklyTests: return "Wochentests erstellen"
         case .uniflowEditor: return "StudiNow-Editor"
         case .deviceSync: return "Abgleich zwischen deinen Geräten"
         }
@@ -88,6 +92,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
+        case .weeklyTests: return "Aus deinen Unterlagen, mit deinem eigenen ChatGPT"
         default: return nil
         }
     }
@@ -107,6 +112,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .shareSolutions: return "users"
         case .splitView: return "columns"
         case .flashcards: return "cards"
+        case .weeklyTests: return "exam"
         case .uniflowEditor: return "pen"
         case .deviceSync: return "refresh"
         }
@@ -177,6 +183,24 @@ enum UFFeatureMatrix {
     static func notes(plan: UFPlan) -> UFNoteAccess {
         UFNoteAccess(canView: true, canExport: true, canEdit: access(.pencilWriting, plan: plan).isAllowed)
     }
+
+    /// Herabstufen bei Karteikarten (Entscheidung 04.11.2026, wie Notizen): eigene Stapel und Karten bleiben in jedem
+    /// Tarif sichtbar (auch nach der Probe); Ueben, Anlegen, Bearbeiten, Teilen und Uebernehmen ab Plus.
+    static func flashcards(plan: UFPlan) -> UFFlashcardAccess {
+        UFFlashcardAccess(canView: true, canEdit: access(.flashcards, plan: plan).isAllowed)
+    }
+}
+
+/// Was mit vorhandenen Karteikarten im aktuellen Tarif moeglich ist
+struct UFFlashcardAccess: Equatable {
+    let canView: Bool
+    /// anlegen, bearbeiten, loeschen, Stapel, teilen, uebernehmen, Wochenstapel holen
+    let canEdit: Bool
+    /// "Heute fällig", Wiederholen, Trainer (gehoert zu Plus wie das Bearbeiten)
+    var canPractise: Bool { canEdit }
+
+    /// ruhiger Hinweis ueber der Liste im Lesemodus
+    static let readOnlyHint = "Mit Plus übst und bearbeitest du deine Karten wieder."
 }
 
 /// Was mit vorhandenen Notizen im aktuellen Tarif moeglich ist
@@ -221,7 +245,7 @@ enum UFPlanCard {
     }
 
     /// Tarif, dessen Umfang dieser Tarif auf dem iPad heute hat: der hoechste bis hierhin mit eigenen Funktionen
-    /// (Pro Connect und Pro AI: Plus, solange ihre Funktionen den Dienst brauchen)
+    /// (Pro AI: Plus, solange seine Funktionen den Dienst brauchen)
     static func sameScope(as plan: UFPlan) -> UFPlan {
         UFPlan.allCases.filter { $0 <= plan && UFFeatureMatrix.hasAvailableExtras(in: $0) }.max() ?? .free
     }
@@ -255,8 +279,6 @@ struct UFEntitlementEntry: Equatable {
     var expirationDate: Date?
     var revocationDate: Date?
     var isUpgraded = false
-    /// Einfuehrungsangebot ("1 Woche gratis")
-    var isIntroOffer = false
 }
 
 extension UFEntitlementEntry {
@@ -265,7 +287,6 @@ extension UFEntitlementEntry {
         expirationDate = t.expirationDate
         revocationDate = t.revocationDate
         isUpgraded = t.isUpgraded
-        isIntroOffer = t.offerType == .introductory
     }
 }
 
@@ -289,11 +310,6 @@ enum UFEntitlementResolver {
               next != current else { return nil }
         return next
     }
-
-    /// Laeuft der gueltige Tarif gerade in der Gratiswoche?
-    static func inIntroOffer(_ entries: [UFEntitlementEntry], plan: UFPlan, now: Date = Date()) -> Bool {
-        entries.contains { isActive($0, now: now) && UFPlan(productID: $0.productID) == plan && $0.isIntroOffer }
-    }
 }
 
 // MARK: - Berechtigung zur Laufzeit
@@ -304,11 +320,20 @@ enum UFEntitlementResolver {
 final class Entitlements: ObservableObject {
     static let shared = Entitlements()
 
+    /// wirksamer Tarif: Dienst > App Store > Probe auf dem iPad > Free (`UFPlanPrecedence`)
     @Published private(set) var plan: UFPlan = .free
-    private var storePlan: UFPlan = .free
+    /// gekaufter Tarif aus Transaction.currentEntitlements (Free ohne Abo); die Tarifkarten richten sich danach, nicht
+    /// nach der Probe
+    @Published private(set) var purchasedPlan: UFPlan = .free
     private var serviceTrial: UFPlan?
-    /// gueltiger Tarif laeuft in der Gratiswoche
-    @Published private(set) var inIntroOffer = false
+    /// Probe auf dem iPad ohne Dienst (UFLocalTrial); nil vor der Anmeldung oder wenn noch nicht ermittelt
+    @Published private(set) var localTrial: UFLocalTrial.State?
+    /// "Bei Free bleiben" nach dem Ende der Probe wurde beantwortet (Hinweis auf der Uebersicht nicht mehr zeigen)
+    @Published private(set) var localTrialChoiceMade = false
+    private var localTrialScope: String?
+    private var localTrialRecords: (any UFTrialRecording)?
+    /// Startargument -UFPlan (nur Debug): fester Tarif, Proben zaehlen nicht
+    private var planIsForced = false
     /// Ablauf bzw. naechste Verlaengerung des gueltigen Abos
     @Published private(set) var expiresAt: Date?
     /// zur naechsten Verlaengerung vorgemerkter kleinerer Tarif (Downgrade), sonst nil
@@ -317,8 +342,7 @@ final class Entitlements: ObservableObject {
     @Published private(set) var willRenew: Bool?
     /// Abo noch nicht geprueft (erster Abruf von currentEntitlements laeuft)
     @Published private(set) var loading = true
-    /// zaehlt verifizierte Transaktionen (Kauf, Transaction.updates wie Verlaengerung oder freigegebene Kaufanfrage);
-    /// die Tarifwahl liest daraufhin den Anspruch auf die Probewoche neu
+    /// zaehlt verifizierte Transaktionen (Kauf, Transaction.updates wie Verlaengerung oder freigegebene Kaufanfrage)
     @Published private(set) var transactionCount = 0
 
     /// Server-Pruefung der signierten Transaktion (JWS, ab V2 ueber `UFBillingServiceLink`). In V1 nie gesetzt: das
@@ -347,13 +371,60 @@ final class Entitlements: ObservableObject {
 
     var notes: UFNoteAccess { UFFeatureMatrix.notes(plan: plan) }
 
+    var flashcards: UFFlashcardAccess { UFFeatureMatrix.flashcards(plan: plan) }
+
     /// Tarif neu aus Transaction.currentEntitlements bestimmen (nur verifizierte Transaktionen, hoechster gueltiger
     /// Tarif der Abo-Gruppe), dazu Verlaengerung und vorgemerkter Wechsel aus der RenewalInfo
     /// Laufende Probe des StudiNow-Kontos (docs/ABO-SYSTEM.md 3a): gilt zusaetzlich zum App-Store-Kauf, solange der
     /// Dienst sie meldet; nur im Speicher, ohne Antwort des Dienstes bleibt der Kauf allein massgeblich
     func useServiceTrial(_ trial: UFPlan?) {
         serviceTrial = trial
-        plan = max(storePlan, trial ?? .free)
+        recompute()
+    }
+
+    // MARK: Probe auf dem iPad (ohne Dienst)
+
+    /// Probe fuer diese Apple-ID beginnen bzw. ihren Stand laden (UFLocalTrial: Schluesselbund und iCloud, der fruehere
+    /// Beginn gilt). Aufruf bei jeder Anmeldung; einmal je Apple-ID, nie verlaengerbar.
+    func beginLocalTrial(userID: String, records: any UFTrialRecording = UFTrialRecordStore(), now: Date = Date()) {
+        let scope = UFLocalTrial.scope(userID: userID)
+        localTrialScope = scope
+        localTrialRecords = records
+        localTrial = UFLocalTrial.begin(userID: userID, records: records, now: now)
+        localTrialChoiceMade = records.load(scope).choiceMade
+        recompute()
+    }
+
+    /// Stand der Probe setzen, ohne etwas zu speichern (Abmeldung: nil; Tests und Vorschauen)
+    func useLocalTrial(startedAt: Date?, now: Date = Date()) {
+        localTrial = startedAt.map { UFLocalTrial.state(startedAt: $0, now: now) }
+        if startedAt == nil { localTrialScope = nil; localTrialRecords = nil; localTrialChoiceMade = false }
+        recompute()
+    }
+
+    /// Resttage neu rechnen (Vordergrund, Tageswechsel); am Ende der Probe faellt der Tarif von selbst auf Free
+    func refreshLocalTrial(now: Date = Date()) {
+        guard let t = localTrial else { return }
+        localTrial = UFLocalTrial.state(startedAt: t.startedAt, now: now)
+        recompute()
+    }
+
+    /// "Bei Free bleiben" nach dem Ende der Probe: der Hinweis verschwindet, Free bleibt nutzbar
+    func stayOnFreeAfterLocalTrial() {
+        localTrialChoiceMade = true
+        if let scope = localTrialScope { localTrialRecords?.markChoice(scope) }
+    }
+
+    /// Beschriftung fuer den Tarif in den Einstellungen: waehrend der Probe ohne Kauf die Probe, sonst der Tarif
+    var statusLabel: String {
+        if let t = localTrial, t.isActive, purchasedPlan == .free, serviceTrial == nil { return UFTrialTexts.running(t.daysLeft) }
+        return plan.name
+    }
+
+    /// wirksamen Tarif aus den Quellen bestimmen (UFPlanPrecedence); mit -UFPlan nur der feste Tarif
+    private func recompute() {
+        plan = planIsForced ? purchasedPlan
+            : UFPlanPrecedence.effective(service: serviceTrial, purchased: purchasedPlan, localTrial: localTrial)
     }
 
     func refresh() async {
@@ -370,13 +441,13 @@ final class Entitlements: ObservableObject {
         var renewal: (willAutoRenew: Bool, productID: String?)?
         if let id = p.productID, let t = active[id] { renewal = await Self.renewal(of: t) }
         #if DEBUG
-        // Startargument -UFPlan free|plus|pro_connect|pro_ai: fester Tarif fuer Simulator-Ablaeufe ohne
+        // Startargument -UFPlan free|plus|pro_ai (alt: pro_connect = pro_ai): fester Tarif fuer Simulator-Ablaeufe ohne
         // StoreKit-Testkonfiguration
-        if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil }
+        if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil; planIsForced = true }
         #endif
-        storePlan = p
-        plan = max(p, serviceTrial ?? .free)
-        inIntroOffer = UFEntitlementResolver.inIntroOffer(entries, plan: p, now: now)
+        purchasedPlan = p
+        if let t = localTrial { localTrial = UFLocalTrial.state(startedAt: t.startedAt, now: now) }
+        recompute()
         expiresAt = p.productID.flatMap { active[$0]?.expirationDate }
         willRenew = renewal?.willAutoRenew
         pendingPlan = renewal.flatMap {

@@ -537,6 +537,82 @@ final class DocIndexTests: XCTestCase {
         XCTAssertEqual(shelf, again)
     }
 
+    /// "Mein Regal" (04.11.2026): auch Dateien ohne Index - nicht geladen, ohne Abdruck - stehen im Regal, eingeordnet nur
+    /// aus den lokalen Daten (Modul des Kurses, Lehrwoche aus dem Namen, Art wie die Bibliothek); dazu die Fachfarbe je
+    /// Modul, die Seiten mit eigenen Notizen je Datei und die Zahl der eingeordneten und erklaerten Dateien
+    func testShelfListsUnindexedFilesWithColorNotesAndCounts() async throws {
+        let seeds = [Seed(id: "f-vl1", name: "VL01 Mengen.pdf", course: "c-ana", pages: twoPages, chdate: "2026-10-20T10:00:00", folder: "Vorlesung"),
+                     Seed(id: "f-vl2", name: "VL02 Folgen.pdf", course: "c-ana", pages: twoPages, chdate: "2026-10-27T10:00:00", folder: "Vorlesung")]
+        let (b, _, _) = try await seeded(seeds)
+        let cloud = FakeDocIndexCloud(), ai = FakeDocIndexAI()
+        _ = try await DocIndexBuilder.build(fileID: "f-vl1", ctx: b.context, cloud: cloud, ai: ai, cipher: cipher)
+        let now = clock.nowISO
+        try await b.context.database.transaction { c in
+            // Kurs ohne Modul (Begruessung) und zwei nicht geladene Dateien: kein local_path, kein content_sha256
+            try c.execute("INSERT INTO courses(id, title, kind, active, module_id, semester, created_at) VALUES ('c-x', 'Begrüßung', 'sonstiges', 1, NULL, 'WiSe 2026/27', ?)",
+                          [.text(now)])
+            for (id, course, name, folder, day) in [("f-ue2", "c-ana", "Blatt 2.pdf", "Übungsblätter", "2026-10-28T09:00:00"),
+                                                    ("f-w", "c-x", "Willkommen.pdf", "", "2026-10-26T08:00:00")] {
+                try c.execute("""
+                    INSERT INTO files(id, course_id, name, mime, chdate, kind, status, studip_folder, download_url)
+                    VALUES (?, ?, ?, 'application/pdf', ?, 'pdf', 'neu', ?, 'https://studip.example/file')
+                    """, [.text(id), .text(course), .text(name), .integer(Int64(BerlinClock.utcSeconds(localISO: day)!)), .text(folder)])
+            }
+            // eigene Notizen zu VL02: Seite 1 (Objekte) und eine eingefuegte Seite (Striche) zaehlen; Seite 2 ist leer,
+            // p9 steht nicht mehr in der Seitenliste
+            let root: JSONValue = ["version": 2, "pages": ["p1": ["objects": [["type": "ink", "id": "a"]]], "p2": ["objects": []],
+                                                           "n1": ["strokes": [["x": 1]]], "p9": ["objects": [["type": "ink", "id": "z"]]]],
+                                   "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "n1", "type": "blank"], ["key": "p2", "type": "pdf", "index": 2]]]
+            try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES ('f-vl2', ?, '2026-11-02T08:00:00', 1)", [.text(root.jsonString())])
+        }
+        let shelf = try json(await b.handle(LocalRequest(method: "GET", path: "/api/index/shelf")))
+        XCTAssertEqual(shelf["files"]?.int, 4, "jede PDF der Kurse, auch ohne Index und ohne Download")
+        XCTAssertEqual(shelf["indexed"]?.int, 1)
+        XCTAssertEqual(shelf["explained"]?.int, 1)
+        let modules = shelf["programs"]?.array?.first?["semesters"]?.array?.first?["modules"]?.array ?? []
+        XCTAssertEqual(modules.map { $0["name"]?.string }, ["Analysis I", "Begrüßung"])
+        XCTAssertEqual(modules[0]["color"]?.string, "#123456", "Fachfarbe des Moduls")
+        XCTAssertEqual(modules[1]["color"], .null, "Kurs ohne Modul: keine Farbe")
+        let weeks = modules[0]["weeks"]?.array ?? []
+        XCTAssertEqual(weeks.map { $0["week"]?.int }, [1, 2])
+        // Woche 1: VL01, ganz erklaert, geladen, ohne Notizen
+        let vl1 = try XCTUnwrap(weeks[0]["kinds"]?.array?.first?["files"]?.array?.first)
+        XCTAssertEqual(vl1["file_id"]?.string, "f-vl1")
+        XCTAssertEqual(vl1["status"]?.string, "ready")
+        XCTAssertEqual(vl1["downloaded"]?.bool, true)
+        XCTAssertEqual(vl1["note_pages"]?.int, 0)
+        // Woche 2: Vorlesung (VL02 mit Notizen, ohne Index) vor Uebung (Blatt 2: nicht geladen, aus dem Namen eingeordnet)
+        let kinds = weeks[1]["kinds"]?.array ?? []
+        XCTAssertEqual(kinds.map { $0["kind"]?.string }, ["vorlesung", "uebung"])
+        let vl2 = try XCTUnwrap(kinds[0]["files"]?.array?.first)
+        XCTAssertEqual(vl2["status"]?.string, "none")
+        XCTAssertEqual(vl2["note_pages"]?.int, 2, "Seite 1 und die eingefuegte Seite; leere und entfernte Seiten zaehlen nicht")
+        let ue2 = try XCTUnwrap(kinds[1]["files"]?.array?.first)
+        XCTAssertEqual(ue2["file_id"]?.string, "f-ue2")
+        XCTAssertEqual(ue2["status"]?.string, "none")
+        XCTAssertEqual(ue2["downloaded"]?.bool, false)
+        XCTAssertEqual(ue2["sha"], .null)
+        XCTAssertEqual(ue2["page_count"], .null)
+        XCTAssertEqual(ue2["kind_label"]?.string, "Übung")
+        XCTAssertEqual(ue2["date"]?.string, "2026-10-28")
+        XCTAssertEqual(weeks[1]["to"]?.string, "2026-10-28")
+        // Kurs ohne Modul: ebenfalls eingeordnet, ohne Index
+        let welcome = modules[1]["weeks"]?.array?.first?["kinds"]?.array?.first?["files"]?.array?.first
+        XCTAssertEqual(welcome?["file_id"]?.string, "f-w")
+        XCTAssertEqual(welcome?["status"]?.string, "none")
+        XCTAssertEqual(modules[1]["module_id"], .null)
+        // Filter nach Modul: nur dessen Dateien, Zaehler passen dazu
+        let anaID = modules[0]["module_id"]?.int ?? -1
+        let only = try json(await b.handle(LocalRequest(method: "GET", path: "/api/index/shelf", query: [.init("module", "\(anaID)")])))
+        XCTAssertEqual(only["files"]?.int, 3)
+        XCTAssertEqual(only["indexed"]?.int, 1)
+        // Hilfsfunktionen einzeln
+        let counts = try await b.context.database.withConnection { try DocIndexStore.notePageCounts($0, fileIDs: ["f-vl1", "f-vl2"]) }
+        XCTAssertEqual(counts, ["f-vl2": 2])
+        let none = try await b.context.database.withConnection { try DocIndexStore.notePageCounts($0, fileIDs: ["f-vl1"]) }
+        XCTAssertEqual(none, [:], "nur die gefragten Dateien")
+    }
+
     /// KI-Hilfe oeffnet eine Seite (?lookup=1): ohne KI aus der Bibliothek uebernommen; ohne lookup nur der Zwischenspeicher
     func testPageLookupAdoptsFromLibraryWithoutAI() async throws {
         let dir = try tempContainer(self)

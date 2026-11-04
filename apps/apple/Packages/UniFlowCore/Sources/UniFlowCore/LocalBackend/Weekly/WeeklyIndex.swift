@@ -108,7 +108,8 @@ extension Weekly {
         return max(1, min(5, d))
     }
 
-    static func isPDF(_ f: [String: JSONValue]) -> Bool { PyText.lower(f["name"]?.string ?? "").hasSuffix(".pdf") }
+    /// Quelle mit Seitentexten: PDF, Word, PowerPoint (`scriptsearch.is_text_source`, 04.11.2026; vorher nur .pdf)
+    static func isPDF(_ f: [String: JSONValue]) -> Bool { ScriptSearch.isTextSource(f["name"]?.string ?? "") }
 
     /// `_lecture_hash(conn, module_id)`
     static func lectureHash(_ c: SQLiteConnection, _ moduleID: Int) throws -> String {

@@ -50,11 +50,31 @@ def test_ai_words_catch_english_forms():
         assert not AI_WORDS.search(ok), ok
 
 
+# Nicht oeffentlich: die Hinweise fuer die App-Pruefung. Sie muessen den Build ehrlich beschreiben (Richtlinie 2.3.1,
+# keine versteckten Funktionen) - seit 03.11.2026 enthaelt die iPad-App die KI ueber das eigene ChatGPT des Nutzers
+# (ChatGPTLink.available). Werben (oeffentliche Felder) bleibt ausgeschlossen, bis der Inhaber anders entscheidet.
+NOT_PUBLIC = {"review-notes"}
+
+
 def test_store_texts_promise_no_ai():
     for name in ("APP-STORE.md", "PLAY-STORE.md"):
         for field, text in fields(name).items():
+            if field in NOT_PUBLIC:
+                continue
             hit = AI_WORDS.search(text.replace("Keine KI-Funktionen", ""))
             assert not hit, (name, field, hit.group(0))
+
+
+def test_review_notes_describe_the_ai_of_the_build_honestly():
+    """Die iPad-App bietet die KI ueber das eigene ChatGPT an: die Pruefhinweise verschweigen sie nicht, sagen, dass sie
+    freiwillig ist und nichts ueber einen Server von StudiNow laeuft, und nennen den Demo-Weg ohne Hochschulkonto: nur den
+    Link auf der Anmeldeseite und "Beenden" (Entscheidung 04.11.2026 "Nur fuer Pruefer", kein Weg ueber die Einstellungen)."""
+    notes = fields("APP-STORE.md")["review-notes"]
+    assert "Keine KI-Funktionen" not in notes and "No AI" not in notes
+    assert "ChatGPT" in notes and "optional" in notes and "consent" in notes and "OpenAI" in notes
+    assert "Ohne Hochschulkonto ansehen (Demo)" in notes and "Beenden" in notes
+    assert "Demo-Inhalte anlegen" not in notes and "Demo-Inhalte – erfunden, ohne Hochschule" in notes
+    assert "Konto löschen" in notes and "Melden" in notes and "support@studinow.app" in notes
 
 
 def test_store_texts_keep_the_universities_authoritative_and_no_tracking():

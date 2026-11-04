@@ -65,6 +65,27 @@ enum EditorPalette {
         return picker
     }
 
+    // MARK: Zusatzknopf "KI fragen" (Schritt F)
+
+    /// Zusatzknopf nur ab iPadOS 18 (`PKToolPicker.accessoryItem`), nur mit verbundener KI (sonst gaebe es nichts zu
+    /// fragen; der Knopf "KI-Hilfe" oben zeigt ohne Verbindung nur den Weg dorthin) und nur in der Haelfte, der die
+    /// Palette gehoert
+    static func wantsAccessory(aiAvailable: Bool, ownsPicker: Bool) -> Bool {
+        guard #available(iOS 18.0, *) else { return false }
+        return aiAvailable && ownsPicker
+    }
+
+    static let accessoryTitle = "KI fragen"
+
+    /// Knopf am Rand der Palette: oeffnet die KI-Hilfe zur aktuellen Seite, ohne den Weg ueber die Leiste oben
+    @available(iOS 18.0, *)
+    static func accessoryItem(action: @escaping () -> Void) -> UIBarButtonItem {
+        let item = UIBarButtonItem(title: accessoryTitle, image: UIImage(systemName: "sparkles"), primaryAction: UIAction { _ in action() })
+        item.accessibilityLabel = accessoryTitle
+        item.accessibilityIdentifier = "palette.askAI"
+        return item
+    }
+
     /// Zustand der Palette fuer Protokolle (Geraete-Probe `EditorDeviceProbeTests`, Startargument `-UFPaletteProbe 1`)
     @MainActor
     static func describe(_ picker: PKToolPicker, editor: PDFEditorController?) -> [String] {

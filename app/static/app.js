@@ -1,23 +1,24 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=41";
-import { viewDashboard as viewHome } from "./views-home.js?v=14";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=60";
-import { viewFiles } from "./views-lib.js?v=59";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=46";
-import { viewTimetable, openEvent } from "./views-tt.js?v=44";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=74";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=43";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=43";
+import { viewDashboard as viewHome } from "./views-home.js?v=19";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=63";
+import { viewFiles } from "./views-lib.js?v=62";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
+import { viewTimetable, openEvent } from "./views-tt.js?v=46";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=81";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=46";
 import { resendNote } from "./service-errors.js?v=1";
-import { askOlderSemesters } from "./older-semesters-ui.js?v=2";
+import { askOlderSemesters } from "./older-semesters-ui.js?v=4";
 import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=1";
-import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=13";
+import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
+import { navHtml, accountHtml } from "./shell-nav.js?v=1";
 
 // ---------------------------------------------------------------- Shell
-const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
+// Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
 function buildShell() {
   $("#brandLogo").innerHTML = icon("graduation", 18);
-  $("#nav").innerHTML = NAV.map(([r, t, i]) => `<a href="#/${r}" data-route="${r}">${icon(i, 18)}<span>${t}</span></a>`).join("");
+  $("#nav").innerHTML = navHtml(icon);
   $("#navSettings").innerHTML = `${icon("settings", 18)}<span>Einstellungen</span>`; $("#navSettings").dataset.route = "settings"; $("#navSettings").className = "";
   $("#collapseBtn").innerHTML = `${icon("panel-left", 18)}<span> Einklappen</span>`;
   $("#menuBtn").innerHTML = icon("menu", 20); $("#themeBtn").innerHTML = icon("sun", 18); $("#profileBtn").innerHTML = icon("clock", 18); $("#profileBtn").title = "Zeitmesser";
@@ -66,12 +67,12 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 // Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit StudiNow-Konto), alle 2 Minuten
 window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
   b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
-async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=6"); window.updateBell(await unreadCount()); } catch {} }
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=8"); window.updateBell(await unreadCount()); } catch {} }
 setTimeout(askOlderSemesters, 6000);   // einmalige Frage "Auch frühere Semester laden?" (older-semesters-ui.js)
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
 // Abzeichen mit der Zahl offener Korrekturhinweise am Menuepunkt "Community" (03.11.2026, wie auf dem iPad), sparsam geholt
-import("./community-corrections-ui.js?v=3").then(m => m.startBadgePolling()).catch(() => {});
+import("./community-corrections-ui.js?v=5").then(m => m.startBadgePolling()).catch(() => {});
 
 function accountMenu() {
   const a = state.account;
@@ -82,13 +83,22 @@ function accountMenu() {
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
-  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=6");
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=7");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
   $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(resendNote(r), 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
 }
+
+// Kontoblock unten in der Seitenleiste: Initialen, Name, Tarif (Probe mit Resttagen) und "Plus holen →" zur Tarifseite.
+// Klick auf den Namen: im Dienst das Kontomenue, am eigenen PC die Einstellungen
+function renderAccount() {
+  const box = $("#sideAcct"); if (!box) return;
+  box.innerHTML = accountHtml({ name: state.userName, email: state.account?.email, ent: state.entitlements, hosted: state.hosted, arrow: icon("arrow-right", 15), person: icon("user", 16) });
+  $("#sideAcctBtn", box).onclick = () => { if (state.hosted && state.account) accountMenu(); else location.hash = "#/settings"; };
+}
+window.renderAccount = renderAccount;
 
 // ---------------------------------------------------------------- Router
 const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
@@ -125,7 +135,7 @@ async function viewDashboard(p, q, v) {
   await viewHome(p, q, v, trialHint);
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
-    const U = await import("./community-corrections-ui.js?v=3"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
+    const U = await import("./community-corrections-ui.js?v=5"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
     (await import("./community-logic.js?v=2")).ensureCss();
     const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
     await U.renderInbox(box, { toast, onChange: () => route() });
@@ -147,7 +157,8 @@ async function start() {
   buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());
   initPWA();
   window.__app = { route, api, state };
-  api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
+  renderAccount();
+  api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); state.userName = n; renderAccount(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
   if (state.hosted && state.entitlements?.needs_plan_choice && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie

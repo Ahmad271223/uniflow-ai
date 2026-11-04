@@ -121,9 +121,14 @@ struct NewsRow: View {
                             .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                         let chips = item.list("chips")
                         if !chips.isEmpty {
-                            HStack(spacing: 5.6) {
+                            // Pruefungen zuerst und nie abgeschnitten (Kern: StudIPExtras.chips), daher umbrechend
+                            UFFlexWrap(gap: 5.6, rowGap: 4) {
                                 ForEach(Row.rows(chips, key: "label")) { c in
-                                    UFBadge(c.value.s("label") ?? "", tone: Self.tone(c.value.s("kind")))
+                                    if c.value.s("kind") == "pruefung" {
+                                        UFBadge(c.value.s("label") ?? "", icon: UFExam.icon, tint: UFExam.color)
+                                    } else {
+                                        UFBadge(c.value.s("label") ?? "", tone: Self.tone(c.value.s("kind")))
+                                    }
                                 }
                             }
                             .padding(.top, 2.4)

@@ -24,8 +24,8 @@ enum StudIPLink: Equatable {
     /// die gewaehlte Hochschule hat statt Stud.IP eigene Quellen (Universitaet Hildesheim: Learnweb und LSF):
     /// keine Karte "Stud.IP verbinden", sondern deren Karten bzw. Stand (`HildesheimSourcesBar`)
     case otherSources
-    /// Demo-Inhalte aktiv (`DemoContent`): keine Anmeldung, keine Karten "… verbinden", kein Abgleich; die Uebersicht
-    /// zeigt "Demo-Inhalte aktiv" mit "Entfernen" (`DemoActiveBar`)
+    /// Demo-Inhalte aktiv (`DemoContent`): keine Anmeldung, keine Karten "… verbinden", kein Abgleich; die App-Huelle
+    /// zeigt die Demo-Leiste mit "Beenden" (`DemoActiveBar`)
     case demo
 
     /// `hasSession`: liegt ein Sitzungs-Cookie im Schluesselbund? Nur bei `.failed` gefragt – scheitert schon das

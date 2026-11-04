@@ -1,0 +1,144 @@
+{
+ "meta": {
+  "university": "luh",
+  "program": "Technische Informatik",
+  "degree": "B.Sc.",
+  "po": "2025",
+  "code": "TIBSc25",
+  "catalog_term": "WS 2026/27",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc25-WS_2026_27.pdf",
+   "fetched_at": "2026-11-04T09:00:00Z",
+   "sha256": "6900afc241b1f270f4e96033b2db16ea755a9d256d407c918c357c54aebca021"
+  }
+ },
+ "key": "f850f6f6f581492908da83a545efee0d4258e67889e00dce35c8fc8970ea0a3f",
+ "catalog": {
+  "v": 1,
+  "university": "luh",
+  "program": "Technische Informatik",
+  "degree": "B.Sc.",
+  "po": "2025",
+  "catalog_term": "WS 2026/27",
+  "code": "TIBSc25",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc25-WS_2026_27.pdf",
+   "fetched_at": "2026-11-04T09:00:00Z",
+   "sha256": "6900afc241b1f270f4e96033b2db16ea755a9d256d407c918c357c54aebca021"
+  },
+  "areas": [
+   {
+    "id": "grundlagen-muster",
+    "name": "Grundlagen Muster",
+    "lp_required": 10,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "vertiefung-muster",
+    "name": "Vertiefung Muster",
+    "lp_required": 5,
+    "lp_max": 10,
+    "kind": "pflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "musterlabor",
+    "title": "Musterlabor",
+    "code": null,
+    "area": "vertiefung-muster",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "WS+SS",
+    "exam": "Laborübung (LÜ)",
+    "coursework": null,
+    "prerequisites": [
+     "musterlehre-1"
+    ],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 5
+   },
+   {
+    "id": "musterlehre-1",
+    "title": "Musterlehre I",
+    "code": null,
+    "area": "grundlagen-muster",
+    "kind": "pflicht",
+    "lp": 5,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur",
+    "coursework": "1 Studienleistung (WiSe)",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 6
+   },
+   {
+    "id": "musterlehre-2",
+    "title": "Musterlehre II",
+    "code": null,
+    "area": "grundlagen-muster",
+    "kind": "pflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "SS",
+    "exam": "Mündliche Prüfung (MP)",
+    "coursework": null,
+    "prerequisites": [
+     "musterlehre-1"
+    ],
+    "language": "englisch",
+    "workload_h": 150,
+    "source_page": 7
+   },
+   {
+    "id": "proseminar-musterthemen",
+    "title": "Proseminar Musterthemen",
+    "code": null,
+    "area": "vertiefung-muster",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "unbekannt",
+    "exam": "Veranstaltungsbegleitende Prüfung (VbP)",
+    "coursework": null,
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 8
+   }
+  ]
+ },
+ "module_texts": {
+  "musterlabor": {
+   "content": "Versuche im Labor",
+   "goals": "Die Studierenden messen.",
+   "literature": null
+  },
+  "musterlehre-1": {
+   "content": "Muster und Beispiele\nKleine Aufgaben",
+   "goals": "Die Studierenden kennen Muster.",
+   "literature": "E. Autorin: Erfundenes Buch."
+  },
+  "musterlehre-2": {
+   "content": "Mehr Muster",
+   "goals": "Die Studierenden vertiefen Muster.",
+   "literature": null
+  },
+  "proseminar-musterthemen": {
+   "content": "Wechselnde Themen",
+   "goals": "Vortrag halten.",
+   "literature": "Wird bekannt gegeben."
+  }
+ },
+ "dumps": "{\"v\": 1, \"university\": \"luh\", \"program\": \"Technische Informatik\", \"degree\": \"B.Sc.\", \"po\": \"2025\", \"catalog_term\": \"WS 2026/27\", \"code\": \"TIBSc25\", \"regular_semesters\": 6, \"total_lp\": 180, \"source\": {\"url\": \"https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc25-WS_2026_27.pdf\", \"fetched_at\": \"2026-11-04T09:00:00Z\", \"sha256\": \"6900afc241b1f270f4e96033b2db16ea755a9d256d407c918c357c54aebca021\"}, \"areas\": [{\"id\": \"grundlagen-muster\", \"name\": \"Grundlagen Muster\", \"lp_required\": 10, \"lp_max\": null, \"kind\": \"pflicht\"}, {\"id\": \"vertiefung-muster\", \"name\": \"Vertiefung Muster\", \"lp_required\": 5, \"lp_max\": 10, \"kind\": \"pflicht\"}], \"modules\": [{\"id\": \"musterlabor\", \"title\": \"Musterlabor\", \"code\": null, \"area\": \"vertiefung-muster\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": null, \"turnus\": \"WS+SS\", \"exam\": \"Laborübung (LÜ)\", \"coursework\": null, \"prerequisites\": [\"musterlehre-1\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 5}, {\"id\": \"musterlehre-1\", \"title\": \"Musterlehre I\", \"code\": null, \"area\": \"grundlagen-muster\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur\", \"coursework\": \"1 Studienleistung (WiSe)\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 6}, {\"id\": \"musterlehre-2\", \"title\": \"Musterlehre II\", \"code\": null, \"area\": \"grundlagen-muster\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": null, \"turnus\": \"SS\", \"exam\": \"Mündliche Prüfung (MP)\", \"coursework\": null, \"prerequisites\": [\"musterlehre-1\"], \"language\": \"englisch\", \"workload_h\": 150, \"source_page\": 7}, {\"id\": \"proseminar-musterthemen\", \"title\": \"Proseminar Musterthemen\", \"code\": null, \"area\": \"vertiefung-muster\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": null, \"turnus\": \"unbekannt\", \"exam\": \"Veranstaltungsbegleitende Prüfung (VbP)\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 8}]}",
+ "texts_dumps": "{\"musterlabor\": {\"content\": \"Versuche im Labor\", \"goals\": \"Die Studierenden messen.\", \"literature\": null}, \"musterlehre-1\": {\"content\": \"Muster und Beispiele\\nKleine Aufgaben\", \"goals\": \"Die Studierenden kennen Muster.\", \"literature\": \"E. Autorin: Erfundenes Buch.\"}, \"musterlehre-2\": {\"content\": \"Mehr Muster\", \"goals\": \"Die Studierenden vertiefen Muster.\", \"literature\": null}, \"proseminar-musterthemen\": {\"content\": \"Wechselnde Themen\", \"goals\": \"Vortrag halten.\", \"literature\": \"Wird bekannt gegeben.\"}}"
+}

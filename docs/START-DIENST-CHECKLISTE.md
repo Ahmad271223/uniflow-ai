@@ -177,8 +177,8 @@ Der Mail-Anbieter kommt in die Datenschutzerklärung (Abschnitt 11) und braucht 
 
 Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 
-1. **Produkte**: zwei Produkte mit je einem monatlichen Preis anlegen: StudiNow Plus 1,99 € und
-   StudiNow Pro AI 3,99 €. Jede Preis-ID beginnt mit `price_`.
+1. **Produkte**: zwei Produkte mit je einem monatlichen Preis anlegen: StudiNow Plus 1,99 € und StudiNow Pro AI 3,99 €
+   (Pro Connect gibt es seit dem 04.11.2026 nicht mehr, `docs/PREISLISTE.md`). Jede Preis-ID beginnt mit `price_`.
 2. **Entwickler → API-Schlüssel**: geheimer Schlüssel (`sk_test_…`, später `sk_live_…`).
 3. **Entwickler → Webhooks → Endpunkt hinzufügen**: Adresse `https://app.studinow.app/api/billing/stripe/webhook`,
    Ereignisse `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,

@@ -16,7 +16,6 @@ struct ServicesPage: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
-    @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.openURL) private var openURL
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.qis) private var qisConnection
@@ -100,7 +99,6 @@ struct ServicesPage: View {
         let lastOK = (last?.i("ok") ?? 0) == 1 || last?["ok"]?.bool == true
         let creds = svc["credentials"] ?? .null
         let qis = creds["qis"] ?? .null
-        let cols = windowWidth <= 820 ? 1 : windowWidth <= 1100 ? 2 : 3
         // Uni Hildesheim auf dem Geraet: Notenspiegel aus dem LSF, Zugaenge ueber Learnweb & LSF; LUH auf dem Geraet:
         // Notenspiegel aus dem QIS, Zugaenge ueber Stud.IP & QIS
         let lsf = session.api?.isLocal == true ? hildesheim : nil
@@ -119,7 +117,7 @@ struct ServicesPage: View {
             }
             .padding(.bottom, 19.2)
 
-            ServicesSpanLayout(columns: cols) {
+            ServicesSpanLayout() {
                 if let lsf {
                     LSFGradesCard(connection: lsf, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)
                     VStack(alignment: .leading, spacing: 8) {                              // .stack
@@ -362,14 +360,20 @@ struct ServicesPage: View {
     }
 }
 
-/// .grid.cols-3 mit .span-2: drei Spalten (Karte ueber zwei, Stapel in einer, gleiche Zeilenhoehe),
-/// bis 1100 px zwei Spalten (Karte ueber beide, Stapel darunter in der ersten), bis 820 px eine.
+/// .grid.cols-3 mit .span-2: drei Spalten (Karte ueber zwei, Stapel in einer, gleiche Zeilenhoehe), schmaler zwei
+/// Spalten (Karte ueber beide, Stapel darunter in der ersten), ganz schmal eine.
+/// Die Spaltenzahl folgt der Breite, die die Seite neben der Seitenleiste wirklich hat, nicht der Fensterbreite
+/// (Breiten-Audit 04.11.2026: im iPad (A16) quer, 1180 pt, blieben neben der Seitenleiste fuer die rechte Spalte nur
+/// rund 280 pt, "Stud.IP & QIS" ragte ueber den Bildschirm). Drei Spalten ab 890 pt (iPad Pro 11" quer: 911 pt wie
+/// bisher), zwei ab 600 pt, sonst eine.
 private struct ServicesSpanLayout: Layout {
-    var columns: Int
     var spacing: CGFloat = 16
+
+    static func columns(width w: CGFloat) -> Int { w >= 890 ? 3 : w >= 600 ? 2 : 1 }
 
     private func frames(_ w: CGFloat, _ subviews: Subviews) -> [CGRect] {
         guard subviews.count == 2 else { return [] }
+        let columns = Self.columns(width: w)
         switch columns {
         case 3:
             let col = (w - 2 * spacing) / 3, lw = 2 * col + spacing
@@ -453,6 +457,11 @@ private struct LSFGradesCard: View {
 struct GradesTable: View {
     let rows: [JSONValue]
     @State private var showAll = false
+    /// Breite der Tabelle; schmal (halbe Spalte, Split View) entfaellt die Spalte "Versuch", der Versuch steht dann
+    /// unter dem Namen (Breiten-Audit 04.11.2026)
+    @State private var width: CGFloat = 0
+    private var compact: Bool { width > 0 && width < Self.compactBelow }
+    static let compactBelow: CGFloat = 520
 
     private var bereiche: [JSONValue] { rows.filter { $0.s("level") == "bereich" } }
     private var hasModules: Bool { rows.contains { $0.s("level") == "modul" } }
@@ -494,7 +503,7 @@ struct GradesTable: View {
     private var table: some View {
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
-                ForEach([showAll || !hasModules ? "Prüfung" : "Modul", "Semester", "Note", "LP", "Status", "Versuch"], id: \.self) { h in
+                ForEach([showAll || !hasModules ? "Prüfung" : "Modul", "Semester", "Note", "LP", "Status"] + (compact ? [] : ["Versuch"]), id: \.self) { h in
                     Text(h.uppercased()).ufFont(12.16, 600, em: 0.04).foregroundStyle(UF.muted)
                         .padding(.vertical, 7.2).padding(.horizontal, 8)
                         .frame(maxWidth: h == "Prüfung" || h == "Modul" ? .infinity : nil, alignment: .leading)
@@ -505,7 +514,9 @@ struct GradesTable: View {
             ForEach(shown.indices, id: \.self) { i in
                 let r = shown[i]
                 let st = (r.s("status") ?? "").lowercased()
-                let sub = [r.s("pruefungsnr"), r.s("art")].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+                let attempt = compact ? (r.s("versuch") ?? "").trimmingCharacters(in: .whitespaces) : ""
+                let sub = [r.s("pruefungsnr"), r.s("art"), attempt.isEmpty ? nil : "Versuch \(attempt)"]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
                 let semester = (r.s("semester_norm") ?? "").isEmpty ? r.s("semester") ?? "" : r.s("semester_norm") ?? ""
                 GridRow(alignment: .center) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -519,12 +530,13 @@ struct GradesTable: View {
                     cell(r.s("credits") ?? "", small: true)
                     UFBadge(r.s("status").flatMap { $0.isEmpty ? nil : $0 } ?? "–",
                             tone: st.hasPrefix("be") ? .ok : st.hasPrefix("ni") ? .bad : .neutral).padding(8)
-                    cell(r.s("versuch") ?? "", small: true)
+                    if !compact { cell(r.s("versuch") ?? "", small: true) }
                 }
                 .opacity(r.s("level") == "pruefung" ? 0.72 : 1)          // tr.muted
                 line
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
     private var line: some View { Rectangle().fill(UF.line).frame(height: 1).gridCellUnsizedAxes(.horizontal) }

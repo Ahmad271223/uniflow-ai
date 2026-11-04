@@ -4,6 +4,12 @@ import UniFlowCore
 // Tests & Wiederholung nach viewExams(), runTest() und viewCards() in app/static/views-misc.js; seit 03.11.2026 mit
 // dem Dialog "Wochentest erstellen" (QuizComposer), KI-Start, Platzhalterkarten waehrend der Erstellung, gemeinsamen
 // Tests (`shared` im Test) und einem Testlauf mit Fortschritt, einer Karte je Aufgabe und einer Ergebnisseite.
+// Seit 04.11.2026: Wahr/Falsch und Lueckentext als Aufgabenarten, Erklaerung der KI je Aufgabe aus dem Test selbst,
+// eigene Tests sind als "Eigener Test, nicht geteilt" beschriftet, Formeln lesbar (FormulaText).
+
+// Tarif (04.11.2026): ohne Dienst sind "Fehlende Wochentests" (Woche erzeugen) und die automatischen Wochentests
+// (UFWeeklyAutoGate) Plus wie "Wochentest erstellen" (QuizComposer); Free sieht das Schloss bzw. ohne Tests die
+// Sperrkarte UFLockedCard(.weeklyTests). Vorhandene Tests lesen, durchfuehren und abgeben bleibt in jedem Tarif frei.
 
 /// Tests & Wiederholung: Wochentest erstellen, KI-Start, Statusleiste, Testkarten, Löschen-Dialog.
 struct ExamsPage: View {
@@ -14,6 +20,7 @@ struct ExamsPage: View {
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
     @ObservedObject private var generation: TestGenerationState
+    @ObservedObject private var ent: Entitlements
     @State private var tests: [JSONValue]?
     @State private var mods: [JSONValue] = []
     @State private var dueCards = 0
@@ -22,10 +29,20 @@ struct ExamsPage: View {
     /// Tests, die es vor der laufenden Erstellung schon gab (danach den neuen erkennen)
     @State private var knownIDs: Set<Int>?
 
-    /// `generation: nil` = `TestGenerationState.shared`
+    /// `generation: nil` = `TestGenerationState.shared`, `entitlements: nil` = `Entitlements.shared`
     @MainActor
-    init(generation: TestGenerationState? = nil) {
+    init(generation: TestGenerationState? = nil, entitlements: Entitlements? = nil) {
         _generation = ObservedObject(wrappedValue: generation ?? .shared)
+        _ent = ObservedObject(wrappedValue: entitlements ?? .shared)
+    }
+
+    /// Ohne Dienst (lokales Backend) gilt der Tarif der App; mit Dienst entscheidet der Dienst
+    private var needsPlus: Bool { session.api?.isLocal != false }
+    /// neue Wochentests erzeugen (von Hand oder automatisch); vorhandene lesen und durchfuehren ist immer frei
+    private var weeklyAllowed: Bool { !needsPlus || ent.allows(.weeklyTests) }
+
+    @ViewBuilder private func plusOnly<V: View>(_ v: V) -> some View {
+        if weeklyAllowed { v } else { v.ufRequires(.weeklyTests, entitlements: ent) }
     }
 
     var body: some View {
@@ -81,6 +98,10 @@ struct ExamsPage: View {
         return "Gemeinsamer Test · Variante \(v) von \(of)"
     }
 
+    /// Etikett eines Tests: gemeinsam (Variante) oder ehrlich "Eigener Test, nicht geteilt" (kein `shared`, also ohne
+    /// Variante: eigene Einstellungen, kein Dienst oder ohne Inhalts-Hashes)
+    static func shareLabel(_ t: JSONValue) -> String { sharedLabel(t) ?? "Eigener Test, nicht geteilt" }
+
     @ViewBuilder private func content(_ tests: [JSONValue]) -> some View {
         let done = tests.filter { $0["submitted_at"].map { !$0.isNull } == true }
         let avg = done.isEmpty ? 0 : Int((done.reduce(0.0) { $0 + 100 * ($1.n("score") ?? 0) / max(1, $1.n("max_score") ?? 1) } / Double(done.count)).rounded())
@@ -97,8 +118,9 @@ struct ExamsPage: View {
         UFContent {
             UFPageHead("Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.") {
                 UFButton("KI-Start", icon: "sparkles", kind: .ghost, size: .small) { router.go(.aiStart) }.accessibilityIdentifier("exams.aiStart")
-                UFButton("Fehlende Wochentests", icon: "refresh", size: .small) { Task { await generateWeek() } }
+                plusOnly(UFButton("Fehlende Wochentests", icon: "refresh", size: .small) { Task { await generateWeek() } }
                     .disabled(generation.job != nil)
+                    .accessibilityIdentifier("exams.generateWeek"))
                 UFButton("Wochentest erstellen", icon: "plus", kind: .primary, size: .small) { openComposer() }
                     .disabled(generation.job != nil)
                     .accessibilityIdentifier("exams.compose")
@@ -120,7 +142,9 @@ struct ExamsPage: View {
             if let job = generation.job {
                 TestGeneratingCard(job: job).padding(.bottom, 16)
             }
-            if tests.isEmpty && generation.job == nil {
+            if tests.isEmpty && generation.job == nil && !weeklyAllowed {
+                UFLockedCard(.weeklyTests, entitlements: ent)
+            } else if tests.isEmpty && generation.job == nil {
                 UFCard {
                     UFEmpty(icon: "exam", text: "Noch keine Wochentests. Sie entstehen automatisch pro Modul und Lehrwoche, sobald neue Inhalte da sind, oder mit „Wochentest erstellen“.") {
                         UFButton("Wochentest erstellen", icon: "plus", kind: .primary, size: .small) { openComposer() }.padding(.top, 8)
@@ -151,7 +175,7 @@ struct ExamsPage: View {
     }
 
     private func generateWeek() async {
-        guard let api = session.api else { return }
+        guard let api = session.api, weeklyAllowed else { return }
         do {
             _ = try await api.value("/api/tests/generate-week", method: "POST")
             generation.start(subject: "alle Module", weekNo: nil)
@@ -162,8 +186,9 @@ struct ExamsPage: View {
 }
 
 /// Platzhalter waehrend ein Wochentest entsteht: Phase (gemeinsamer Test wird gesucht, dann erstellt die KI die
-/// Aufgaben), Zaehler, verstrichene Zeit und 15 Karten mit Schimmer. Nichts davon ist ein Stand aus dem Backend, nur
-/// die Erwartung; fertig ist der Test, wenn `/api/bg` endet und die Seite neu laedt.
+/// Aufgaben; ein eigener Test beginnt gleich bei der KI), Zaehler, verstrichene Zeit und so viele Karten mit Schimmer
+/// wie Aufgaben gewaehlt. Die Phase kommt aus `/api/bg`, davor ist sie die Erwartung; fertig ist der Test, wenn
+/// `/api/bg` endet und die Seite neu laedt.
 struct TestGeneratingCard: View {
     let job: TestGenerationState.Job
     @Environment(\.ufWindowWidth) private var windowWidth
@@ -184,7 +209,7 @@ struct TestGeneratingCard: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Wochentest \(UFFmt.shortName(job.subject))" + (job.weekNo.map { " · Lehrwoche \($0)" } ?? "")).ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
-                    UFShimmerText(job.phase.text, size: 13.12)
+                    UFShimmerText(job.phaseText, size: 13.12)
                         .accessibilityIdentifier("exams.generating.phase")
                 }
                 Spacer(minLength: 0)
@@ -202,7 +227,7 @@ struct TestGeneratingCard: View {
             .padding(.bottom, 10)
             let grid = windowWidth <= 640 ? UFGridLayout(columns: 1, spacing: 8) : windowWidth <= 1000 ? UFGridLayout(columns: 3, spacing: 8) : UFGridLayout(columns: 5, spacing: 8)
             grid {
-                ForEach(0..<QuizComposer.total, id: \.self) { i in
+                ForEach(0..<max(1, job.count), id: \.self) { i in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("Aufgabe \(i + 1)").ufFont(12, 600).foregroundStyle(UF.muted)
@@ -217,7 +242,7 @@ struct TestGeneratingCard: View {
                     .ufAppear("exams.generating", index: i)
                 }
             }
-            Text(job.phase.note).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+            Text(job.note).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("exams.generating")
@@ -252,6 +277,8 @@ struct TestCard: View {
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 4.8)
             if let shared = ExamsPage.sharedLabel(t) {
                 UFBadge(shared, tone: .info, icon: "users").padding(.bottom, 6).accessibilityIdentifier("exams.shared")
+            } else {
+                UFBadge(ExamsPage.shareLabel(t), tone: .neutral, icon: "user").padding(.bottom, 6).accessibilityIdentifier("exams.private")
             }
             Text(ExamsPage.cleanTitle(t.s("title"))).ufFont(13.12).foregroundStyle(UF.text)
                 .frame(minHeight: 13.12 * 2.6, alignment: .topLeading)
@@ -338,11 +365,12 @@ struct TestDeleteDialog: View {
 
 // MARK: - Testlauf (runTest)
 
-/// Testlauf (03.11.2026): Fortschritt "n/15" oben, eine Karte je Aufgabe untereinander, Auswahl deutlich (gruener
-/// Rand), zwei grosse Antworten bei genau zwei Optionen (Wahr/Falsch), Textfeld bei Kurzantwort und Rechnen, unten
-/// "Abbrechen" und "Abgeben & bewerten". Nach der Abgabe die Ergebnisseite: Prozent, Balken, "n/15 richtig", je
-/// Aufgabe die eigene Antwort (falsch rot mit ✕), die Musterlösung und die Erklärung der KI. Die Aufgabentexte sind
-/// LaTeX-frei (Formeln als Text, so verlangt es der Prompt), darum keine Formelsatz-Darstellung.
+/// Testlauf (03.11.2026): Fortschritt "n / 15" oben, eine Karte je Aufgabe untereinander, Auswahl deutlich (gruener
+/// Rand), zwei grosse Antworten bei Wahr/Falsch (und bei genau zwei Optionen), ein Feld fuer die Luecke beim
+/// Lueckentext, Textfeld bei Kurzantwort und Rechnen, unten "Abbrechen" und "Abgeben & bewerten". Nach der Abgabe die
+/// Ergebnisseite: Prozent, Balken, "n/15 richtig", je Aufgabe die eigene Antwort (falsch rot mit ✕), die richtige
+/// Antwort und die Erklaerung (aus dem Test, dazu die Rueckmeldung der Bewertung). Formeln werden als lesbarer Text
+/// gezeigt (FormulaText: Hoch-/Tiefstellung, Wurzel, Brueche), ohne Web-Ansicht.
 struct ExamRunPage: View {
     let id: Int
     let task: Int?
@@ -354,6 +382,13 @@ struct ExamRunPage: View {
     @State private var error: String?
     @State private var answers: [String: String] = [:]
     @State private var submitting = false
+    /// "Frag die KI zu Aufgabe n": offene KI-Hilfe zu einer falsch beantworteten Aufgabe (quer rechts als Spalte,
+    /// schmal als Dialog)
+    @State private var ask: ExamAskContext?
+    @Environment(\.ufWindowWidth) private var windowWidth
+
+    /// KI-Hilfe als Spalte rechts neben dem Ergebnis (wie im Vorbild), sonst als Dialog
+    static func asksInColumn(windowWidth: CGFloat) -> Bool { windowWidth >= 1100 }
 
     /// Entwurf der Antworten je Server und Test (im Web nur im Speicher, s. Bestandsaufnahme E.8). Gespeichert in den
     /// Einstellungen des Containers (Apple-Nutzer, Hochschule), nie in UserDefaults.standard: ein anderes Konto auf
@@ -362,13 +397,47 @@ struct ExamRunPage: View {
     private var draftStore: UserDefaults { ActiveContainer.current?.defaults ?? .standard }
 
     var body: some View {
-        Group {
-            if let t { content(t) } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
-                UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
+        HStack(spacing: 0) {
+            Group {
+                if let t { content(t) } else if let error { UFContent { UFEmpty(icon: "alert", text: error) } } else {
+                    UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
+                }
+            }
+            if let ask, Self.asksInColumn(windowWidth: windowWidth) {
+                ExamAskPanel(context: ask, close: { self.ask = nil })
+                    .id(ask.id)
+                    .frame(width: 380)
+                    .transition(UFMotion.moves ? .move(edge: .trailing).combined(with: .opacity) : .opacity)
             }
         }
+        .background(UF.bg.ignoresSafeArea())
+        .animation(UFMotion.animation(reduce: UIAccessibility.isReduceMotionEnabled), value: ask?.id)
         .task(id: id) { await load() }
         .onDisappear { router.examFocus = false }
+    }
+
+    /// KI-Hilfe zu einer Aufgabe oeffnen: quer als Spalte rechts, schmal als Dialog. Test und Titel gehen mit, damit
+    /// das Gespraech unter "Zuletzt benutzt" steht (`TutorConversations`, "Aufgabe n – <Testtitel>")
+    private func openAsk(_ context: ExamAskContext) {
+        var c = context
+        c.testID = id
+        c.testTitle = ExamsPage.cleanTitle(t?.s("title"))
+        if Self.asksInColumn(windowWidth: windowWidth) {
+            ask = c
+        } else {
+            overlay.modal { ExamAskPanel(context: c, close: nil) }
+        }
+    }
+
+    /// "Zuletzt benutzt" -> KI-Gespraech zu einer Aufgabe dieses Tests: nach dem Laden die KI-Hilfe mit dem Gespraech
+    /// oeffnen (einmalig; `UFRouter.tutorOpenRequest` traegt "exam:<Test>:<Aufgabe>")
+    private func reopenAsk(_ v: JSONValue, submitted: Bool) {
+        guard submitted, let key = router.tutorOpenRequest, let p = TutorConversations.parseExamKey(key), p.testID == id else { return }
+        router.tutorOpenRequest = nil
+        guard let q = v.list("questions").first(where: { Self.nrOf($0) == p.nr }) else { return }
+        let fb = v["feedback"].flatMap { $0.isNull ? nil : $0 }?.list("per_question")
+            .first { $0["nr"].map { JSONValue.format($0.double ?? 0) } == p.nr }
+        openAsk(ExamAskContext.make(q, given: answers[p.nr] ?? "", feedback: fb))
     }
 
     private func load() async {
@@ -383,6 +452,7 @@ struct ExamRunPage: View {
             answers = a
             t = v
             router.examFocus = !submitted                                    // body.exam-focus: Seitenleiste und Kopfzeile aus
+            reopenAsk(v, submitted: submitted)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -413,22 +483,21 @@ struct ExamRunPage: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text((submitted ? "Ergebnis: " : "Test: ") + ExamsPage.cleanTitle(t.s("title"))).ufFont(14.5, 700).foregroundStyle(UF.text)
                     Text("\(t.s("subject") ?? "") · \(t.i("duration_min") ?? 0) min · \(qs.count) Aufgaben · KI-generiert\(t.i("week_no").map { " · Lehrwoche \($0)" } ?? "")"
-                         + (ExamsPage.sharedLabel(t).map { " · \($0)" } ?? ""))
+                         + " · " + ExamsPage.shareLabel(t))
                         .ufFont(13.12).foregroundStyle(UF.muted)
                 }
                 UFFlexSpacer()
-                if !submitted { ExamTimer(startedAt: t.s("started_at"), minutes: t.i("duration_min") ?? 0) }
             }
             .padding(.bottom, 16)
             if submitted, let fb {
                 resultCard(fb, questions: qs.count)
-            } else if !qs.isEmpty {
-                progressBar(answered: answered, total: qs.count).padding(.bottom, 16)
             }
             ForEach(Array(qs.enumerated()), id: \.offset) { i, q in
                 ExamQuestionCard(q: q, index: i, count: qs.count, submitted: submitted, feedback: perQ[Self.nrOf(q)],
-                                 answer: Binding(get: { answers[Self.nrOf(q)] ?? "" }, set: { setAnswer(Self.nrOf(q), $0) }))
-                    .padding(.bottom, 12.8)
+                                 answer: Binding(get: { answers[Self.nrOf(q)] ?? "" }, set: { setAnswer(Self.nrOf(q), $0) }),
+                                 asking: ask?.nr == Self.nrOf(q),
+                                 onAskAI: submitted ? { openAsk($0) } : nil)
+                    .padding(.bottom, 16)
                     .ufAppear("exam.\(id)", index: i)
             }
             if !submitted, !qs.isEmpty {
@@ -443,6 +512,20 @@ struct ExamRunPage: View {
                 .padding(.top, 4)
             }
         }
+        // Testlauf: Fortschritt und Zeit bleiben oben stehen, waehrend die Aufgaben darunter scrollen
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !submitted, !qs.isEmpty {
+                HStack(spacing: 18) {
+                    progressBar(answered: answered, total: qs.count)
+                    ExamTimer(startedAt: t.s("started_at"), minutes: t.i("duration_min") ?? 0)
+                }
+                .padding(.vertical, 12).padding(.horizontal, 25.6)
+                .frame(maxWidth: 900)
+                .frame(maxWidth: .infinity)
+                .background(UF.surface.opacity(0.97))
+                .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+            }
+        }
     }
 
     private func leave() {
@@ -451,16 +534,17 @@ struct ExamRunPage: View {
     }
 
     private func progressBar(answered: Int, total: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Fortschritt").ufFont(13.12, 650).foregroundStyle(UF.text2)
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Fortschritt").ufFont(14.5, 650).foregroundStyle(UF.text2)
                 Spacer()
-                Text("\(answered)/\(total)").ufFont(13.12, 650).foregroundStyle(UF.text).monospacedDigit().ufNumber(answered)
+                Text("\(answered) / \(total)").ufFont(17.6, 700).foregroundStyle(UF.text).monospacedDigit().ufNumber(answered)
             }
             UFProgress(value: total == 0 ? 0 : Double(answered) / Double(total), height: 8)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Fortschritt \(answered) von \(total) beantwortet")
+        .accessibilityValue("\(answered) / \(total)")
         .accessibilityIdentifier("exam.progress")
     }
 
@@ -468,21 +552,33 @@ struct ExamRunPage: View {
         let total = fb.n("total") ?? 0, max = fb.n("max") ?? 1
         let pct = Int((100 * total / Swift.max(1, max)).rounded())
         let right = Self.rightCount(fb)
-        return UFCard {
+        let badge = UFBadge(pct >= 60 ? "Bestanden" : "Nochmal üben", tone: pct >= 60 ? .ok : .bad, icon: pct >= 60 ? "check" : "alert")
+        let score = VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("\(pct) %").font(.uf(36, 800)).foregroundStyle(pct >= 60 ? UF.okText : UF.badText).ufNumber(pct)
                     .accessibilityIdentifier("exam.result.percent")
                 Text("\(Int(total.rounded())) / \(Int(max.rounded())) Punkte").ufFont(14.5).foregroundStyle(UF.muted)
-                Spacer(minLength: 0)
-                UFBadge(pct >= 60 ? "Bestanden" : "Nochmal üben", tone: pct >= 60 ? .ok : .bad, icon: pct >= 60 ? "check" : "alert")
             }
-            UFProgress(value: Double(pct) / 100, ok: pct >= 60, color: pct < 60 ? UF.bad : nil, height: 10).padding(.vertical, 8)
-            HStack {
-                Text("\(right)/\(questions) richtig").ufFont(13.6, 650).foregroundStyle(UF.text)
-                Text("· \(questions - right) zum Nacharbeiten").ufFont(13.6).foregroundStyle(UF.muted)
+            (Text("\(right)/\(questions) richtig").font(.uf(14.5, 650)).foregroundColor(UF.text)
+             + Text(" · \(questions - right) zum Nacharbeiten").font(.uf(14.5)).foregroundColor(UF.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("exam.result.right")
+        }
+        return UFCard {
+            // breit: Ring, Zahlen, Etikett rechts; schmal (KI-Hilfe daneben): das Etikett unter den Zahlen
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 18) {
+                    ExamScoreRing(percent: pct, passed: pct >= 60)
+                    score.fixedSize()
+                    Spacer(minLength: 12)
+                    badge
+                }
+                HStack(alignment: .center, spacing: 16) {
+                    ExamScoreRing(percent: pct, passed: pct >= 60, size: 72)
+                    VStack(alignment: .leading, spacing: 8) { score; badge }
+                    Spacer(minLength: 0)
+                }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("exam.result.right")
             if let summary = fb.s("summary"), !summary.isEmpty {
                 Text(summary).ufFont(14.5).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.top, 8)
             }
@@ -527,8 +623,8 @@ struct ExamRunPage: View {
 }
 
 /// Eine Aufgabe als Karte: Kopf (Aufgabe N · Art · Punkte), Frage, Antwortmoeglichkeiten (Radio mit gruenem Rand bei
-/// Auswahl; genau zwei Optionen als zwei grosse Flaechen) oder Textfeld; nach der Abgabe die eigene Antwort (richtig
-/// gruen mit Haken, falsch rot mit ✕), "Richtige Antwort" und "Erklärung".
+/// Auswahl; Wahr/Falsch und genau zwei Optionen als zwei grosse Flaechen), Feld fuer die Luecke oder Textfeld; nach
+/// der Abgabe die eigene Antwort (richtig gruen mit Haken, falsch rot mit ✕), "Richtige Antwort" und "Erklärung".
 struct ExamQuestionCard: View {
     let q: JSONValue
     let index: Int
@@ -536,47 +632,90 @@ struct ExamQuestionCard: View {
     let submitted: Bool
     let feedback: JSONValue?
     @Binding var answer: String
+    /// die KI-Hilfe zu dieser Aufgabe ist gerade offen (Knopf markiert)
+    var asking = false
+    /// "Frag die KI zu Aufgabe n" (nur nach der Abgabe, nur bei falschen Aufgaben)
+    var onAskAI: ((ExamAskContext) -> Void)?
 
     static func kind(_ type: String?) -> String {
-        type == "mc" ? "Multiple Choice" : type == "calc" ? "Rechnen / Programmieren" : "Kurzantwort"
+        switch type {
+        case "mc": return "Multiple Choice"
+        case "tf": return "Wahr / Falsch"
+        case "cloze": return "Lückentext"
+        case "calc": return "Rechnen / Programmieren"
+        default: return "Kurzantwort"
+        }
     }
 
     /// Zwei Optionen (Wahr/Falsch, Ja/Nein): zwei grosse Flaechen nebeneinander
     static func isTwoWay(_ options: [String]) -> Bool { options.count == 2 }
 
+    /// Antwortmoeglichkeiten: bei Wahr/Falsch immer die beiden festen, auch wenn der Test keine mitbringt
+    static func choices(type: String?, options: [String]) -> [String] {
+        type == "tf" && options.count != 2 ? WeekTestOptions.tfOptions : options
+    }
+
+    /// Richtige Antwort zum Anzeigen: beim Lueckentext das Wort fuer die Luecke (`blank`), sonst die Musterloesung
+    static func correctAnswer(_ q: JSONValue) -> String {
+        if q.s("type") == "cloze", let b = q.s("blank"), !b.trimmingCharacters(in: .whitespaces).isEmpty { return b }
+        return q.s("answer") ?? ""
+    }
+
+    /// Erklaerung zur Aufgabe: die der KI aus dem Test (`explanation`, 1-3 Saetze); die Rueckmeldung der Bewertung
+    /// kommt dazu, wenn sie etwas anderes sagt
+    static func explanations(_ q: JSONValue, feedback: JSONValue?) -> (explanation: String?, feedback: String?) {
+        let e = (q.s("explanation") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let f = (feedback?.s("feedback") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return (e.isEmpty ? nil : e, f.isEmpty || f == e ? nil : f)
+    }
+
     var body: some View {
         let nr = ExamRunPage.nrOf(q)
         let type = q.s("type")
-        let options = q.list("options").compactMap(\.string)
+        let options = Self.choices(type: type, options: q.list("options").compactMap(\.string))
         let right = ExamRunPage.isRight(feedback)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Text("Aufgabe \(nr) von \(count) · \(Self.kind(type))").ufFont(12.8).foregroundStyle(UF.muted)
+            // Kopf: "Aufgabe 3" gross, "von 15 · Art" daneben, Schwierigkeit und Punkte rechts
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if let right {
+                        UFIcon(right ? "check" : "x", size: 16).foregroundStyle(right ? UF.okText : UF.badText)
+                            .alignmentGuide(.firstTextBaseline) { d in d[.bottom] - 2 }
+                    }
+                    Text("Aufgabe \(nr)").ufFont(20.8, 700, em: -0.01).foregroundStyle(UF.text)
+                    Text("von \(count) · \(Self.kind(type))").ufFont(13.12).foregroundStyle(UF.muted)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Aufgabe \(nr) von \(count) · \(Self.kind(type))" + (right == nil ? "" : (right! ? ", richtig" : ", falsch")))
+                .accessibilityAddTraits(.isHeader)
                 if let d = q.s("difficulty") { UFBadge(d, tone: d == "schwer" ? .warn : .neutral) }
                 Spacer()
                 Text("\(JSONValue.format(q.n("points") ?? 0)) P.\(feedback.map { " → \(JSONValue.format($0.n("points") ?? 0))" } ?? "")")
-                    .ufFont(12.8, feedback == nil ? 400 : 650).foregroundStyle(right == nil ? UF.muted : (right! ? UF.okText : UF.badText))
+                    .ufFont(13.12, feedback == nil ? 500 : 700).foregroundStyle(right == nil ? UF.muted : (right! ? UF.okText : UF.badText))
             }
-            .padding(.bottom, 6.4)
-            Text(q.s("question") ?? "").ufFont(16.32).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.bottom, 11.2)
+            .padding(.bottom, 10)
+            Text(FormulaText.render(q.s("question") ?? "")).ufFont(17.6, 500).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true).padding(.bottom, 14)
                 .textSelection(.enabled)
             if submitted {
                 review(options: options)
-            } else if type == "mc" {
+            } else if type == "mc" || type == "tf" {
                 if Self.isTwoWay(options) {
                     HStack(spacing: 10) { ForEach(options, id: \.self) { o in bigOption(o) } }
                 } else {
                     ForEach(options, id: \.self) { o in option(o) }
                 }
+            } else if type == "cloze" {
+                UFTextField("Lücke ausfüllen", text: $answer)
+                    .accessibilityLabel("Lücke zu Aufgabe \(nr)")
             } else {
                 UFTextArea(placeholder: type == "calc" ? "Deine Antwort / Rechenweg" : "Deine Antwort", text: $answer, minHeight: 80)
                     .accessibilityLabel("Antwort zu Aufgabe \(nr)")
             }
         }
-        .padding(.vertical, 16 + ufB).padding(.horizontal, 17.6 + ufB)
+        .padding(.vertical, 18 + ufB).padding(.horizontal, 20 + ufB)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
-        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(right == nil ? UF.line : (right! ? UF.ok : UF.bad), lineWidth: right == nil ? 1 : 1.5))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(right == nil ? UF.line : (right! ? UF.ok : UF.bad), lineWidth: right == nil ? 1 : 1.5))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("exam.question.\(nr)")
     }
@@ -586,7 +725,7 @@ struct ExamQuestionCard: View {
         return Button { answer = o } label: {
             HStack(spacing: 10) {
                 UFRadio(on: on).foregroundStyle(on ? UF.ok : UF.muted)
-                Text(o).ufFont(14.5, on ? 600 : 400).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                Text(FormulaText.render(o)).ufFont(14.5, on ? 600 : 400).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
             .padding(.vertical, 8 + ufB).padding(.horizontal, 11.2 + ufB)
@@ -605,7 +744,7 @@ struct ExamQuestionCard: View {
         return Button { answer = o } label: {
             VStack(spacing: 6) {
                 UFIcon(on ? "check" : "circle", size: 18).foregroundStyle(on ? UF.okText : UF.muted)
-                Text(o).ufFont(15.2, 650).foregroundStyle(on ? UF.okText : UF.text).multilineTextAlignment(.center)
+                Text(FormulaText.render(o)).ufFont(15.2, 650).foregroundStyle(on ? UF.okText : UF.text).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 14).padding(.horizontal, 12)
@@ -622,7 +761,8 @@ struct ExamQuestionCard: View {
     @ViewBuilder private func review(options: [String]) -> some View {
         let right = ExamRunPage.isRight(feedback)
         let given = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-        let model = q.s("answer") ?? ""
+        let model = Self.correctAnswer(q)
+        let texts = Self.explanations(q, feedback: feedback)
         VStack(alignment: .leading, spacing: 10) {
             if !options.isEmpty {
                 ForEach(options, id: \.self) { o in
@@ -632,7 +772,7 @@ struct ExamQuestionCard: View {
                         if mine && right == false { UFIcon("x", size: 15).foregroundStyle(UF.bad) }
                         else if correct || (mine && right == true) { UFIcon("check", size: 15).foregroundStyle(UF.ok) }
                         else { UFIcon("circle", size: 15).foregroundStyle(UF.lineStrong) }
-                        Text(o).ufFont(14.5, mine || correct ? 600 : 400)
+                        Text(FormulaText.render(o)).ufFont(14.5, mine || correct ? 600 : 400)
                             .foregroundStyle(mine && right == false ? UF.badText : (correct ? UF.okText : UF.text2))
                             .underline(mine && right == false, color: UF.bad)
                             .fixedSize(horizontal: false, vertical: true)
@@ -660,12 +800,39 @@ struct ExamQuestionCard: View {
                 .accessibilityElement(children: .combine)
             }
             if !model.isEmpty {
-                box(title: "Richtige Antwort", icon: "check", text: model, fill: UF.okSoft, tint: UF.okText)
+                box(title: "Richtige Antwort", icon: "check", text: FormulaText.render(model), fill: UF.okSoft, tint: UF.okText)
                     .accessibilityIdentifier("exam.answer.\(ExamRunPage.nrOf(q))")
             }
-            if let f = feedback?.s("feedback"), !f.isEmpty {
-                box(title: "Erklärung", icon: "sparkles", text: f, fill: UF.accentSoft, tint: UF.accentText)
+            if let e = texts.explanation {
+                box(title: "Erklärung", icon: "info", text: FormulaText.render(e), fill: UF.accentSoft, tint: UF.accentText)
                     .accessibilityIdentifier("exam.explanation.\(ExamRunPage.nrOf(q))")
+            }
+            if let f = texts.feedback {
+                box(title: texts.explanation == nil ? "Erklärung" : "Rückmeldung zur Antwort", icon: "sparkles", text: FormulaText.render(f), fill: UF.accentSoft, tint: UF.accentText)
+                    .accessibilityIdentifier("exam.feedback.\(ExamRunPage.nrOf(q))")
+            }
+            if right == false, let onAskAI {
+                let nr = ExamRunPage.nrOf(q)
+                Button { onAskAI(ExamAskContext.make(q, given: given, feedback: feedback)) } label: {
+                    HStack(spacing: 8) {
+                        UFIcon("sparkles", size: 15)
+                        Text(ExamAskContext.buttonTitle(nr: nr))
+                    }
+                    .ufFont(14.08, 600)
+                    .foregroundStyle(asking ? Color.white : UF.accentText)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 40)
+                    .background(Capsule().fill(asking ? UF.accentFill : UF.accentSoft))
+                    .overlay(Capsule().strokeBorder(UF.accent.opacity(asking ? 0 : 0.35), lineWidth: 1))
+                    .contentShape(Capsule())
+                    .ufHitArea()
+                }
+                .buttonStyle(UFPressStyle())
+                .accessibilityLabel(ExamAskContext.buttonTitle(nr: nr))
+                .accessibilityHint("Öffnet die KI-Hilfe mit Aufgabe, deiner Antwort und der richtigen Antwort.")
+                .accessibilityAddTraits(asking ? .isSelected : [])
+                .accessibilityIdentifier("exam.ask.\(nr)")
+                .padding(.top, 2)
             }
         }
     }
@@ -719,3 +886,348 @@ struct ExamTimer: View {
 }
 
 // Karteikarten (viewCards): CardsPage.swift
+
+// MARK: - Ergebnis: Ring und "Frag die KI zu Aufgabe n" (Neugestaltung 04.11.2026)
+
+/// Ring neben der Prozentzahl: Anteil der Punkte, gruen ab 60 %, sonst rot; in der Mitte Haken bzw. "nochmal"
+struct ExamScoreRing: View {
+    let percent: Int
+    let passed: Bool
+    var size: CGFloat = 84
+
+    /// Anteil fuer den Ring (0...1)
+    static func fraction(_ percent: Int) -> Double { Double(min(100, max(0, percent))) / 100 }
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(UF.surface2, lineWidth: 10)
+            Circle()
+                .trim(from: 0, to: Self.fraction(percent))
+                .stroke(passed ? UF.ok : UF.bad, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            UFIcon(passed ? "check" : "refresh", size: 26).foregroundStyle(passed ? UF.okText : UF.badText)
+        }
+        .frame(width: size, height: size)
+        .padding(5)
+        .accessibilityHidden(true)
+        .accessibilityIdentifier("exam.result.ring")
+    }
+}
+
+/// Kontext einer falsch beantworteten Aufgabe fuer die KI-Hilfe: Aufgabe, eigene Antwort, richtige Antwort und die
+/// Erklaerung aus dem Test. `prompt` ist die erste Frage an die KI (`POST /api/ai/tutor`, mode "ask").
+struct ExamAskContext: Identifiable, Equatable {
+    let nr: String
+    let kind: String
+    let question: String
+    let given: String
+    let correct: String
+    let explanation: String?
+    /// Test und sein Titel (setzt `ExamRunPage.openAsk`); 0 = ohne Test, dann merkt sich die Hilfe nichts
+    var testID = 0
+    var testTitle = ""
+
+    var id: String { nr }
+
+    /// Schluessel des Gespraechs in `TutorConversations`
+    var conversationKey: String { TutorConversations.examKey(testID: testID, nr: nr) }
+    /// Titel unter "Zuletzt benutzt": "Aufgabe 3 – Lehrwoche 3: Zahlensysteme"
+    var recentTitle: String { "Aufgabe \(nr) – \(testTitle.isEmpty ? "Wochentest" : testTitle)" }
+
+    static func buttonTitle(nr: String) -> String { "Frag die KI zu Aufgabe \(nr)" }
+
+    /// aus der Aufgabe des Tests, der eigenen Antwort und der Bewertung
+    static func make(_ q: JSONValue, given: String, feedback: JSONValue?) -> ExamAskContext {
+        let texts = ExamQuestionCard.explanations(q, feedback: feedback)
+        return ExamAskContext(nr: ExamRunPage.nrOf(q), kind: ExamQuestionCard.kind(q.s("type")),
+                              question: (q.s("question") ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
+                              given: given.trimmingCharacters(in: .whitespacesAndNewlines),
+                              correct: ExamQuestionCard.correctAnswer(q).trimmingCharacters(in: .whitespacesAndNewlines),
+                              explanation: texts.explanation ?? texts.feedback)
+    }
+
+    /// Kurzform im Verlauf der KI-Hilfe (statt des ganzen Kontexts)
+    var title: String { "Warum ist meine Antwort zu Aufgabe \(nr) falsch?" }
+
+    /// Erste Frage an die KI mit dem ganzen Kontext
+    var prompt: String {
+        var lines = [
+            "Ich habe in meinem Wochentest Aufgabe \(nr) (\(kind)) falsch beantwortet.",
+            "",
+            "Aufgabe: \(question)",
+            "Meine Antwort: \(given.isEmpty ? "(keine Antwort)" : given)",
+            "Richtige Antwort: \(correct.isEmpty ? "(nicht angegeben)" : correct)",
+        ]
+        if let explanation, !explanation.isEmpty { lines.append("Erklärung aus dem Test: \(explanation)") }
+        lines += ["", "Erkläre mir kurz und verständlich, warum meine Antwort falsch ist und wie ich auf die richtige Antwort komme."]
+        return lines.joined(separator: "\n")
+    }
+
+    /// Anschlussfragen nach der ersten Antwort
+    static let followUps = ["Erklär es mir einfacher", "Gib mir eine ähnliche Übungsaufgabe", "Welcher Denkfehler steckt dahinter?"]
+}
+
+/// KI-Hilfe zum Ergebnis (Vorbild: Chat rechts neben dem Quiz): oben die Aufgabe mit deiner Antwort (rot, ✗) und der
+/// richtigen (gruen, ✓), darunter das Gespraech. Fragt dieselbe KI wie die KI-Hilfe im Editor und der KI-Start
+/// (`POST /api/ai/tutor`, mode "ask", mit Verlauf), erst nach dem Antippen. Quer als Spalte rechts, schmal als Dialog.
+/// Das Gespraech liegt wie die KI-Hilfe im Editor in `TutorConversations` (Schluessel "exam:<Test>:<Aufgabe>"), steht
+/// so unter "Zuletzt benutzt" (KI-Gespräch, "Aufgabe n – <Testtitel>") und ist beim naechsten Oeffnen wieder da.
+/// Credits und 429 wie in der KI-Hilfe: `noteAIResponse`/`noteAIError`, Kostenzeile aus `AICost`, "Tarif ansehen".
+struct ExamAskPanel: View {
+    let context: ExamAskContext
+    /// Spalte: schliessen; nil = im Dialog (schliesst ueber `ufClose`)
+    let close: (() -> Void)?
+    /// Ablage der Gespraeche (nil = `TutorConversations.shared`; Tests geben eine eigene)
+    var conversations: TutorConversations? = nil
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufClose) private var closeDialog
+    @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufStudoraAccount) private var studoraAccount
+    @Environment(\.ufChatGPTLink) private var chatgpt
+    @State private var messages: [Message] = []
+    @State private var draft = ""
+    @State private var busy = false
+    @State private var error: String?
+    @State private var creditsExhausted = false
+    @State private var restored = false
+
+    struct Message: Identifiable, Equatable {
+        let id = UUID()
+        let user: Bool
+        /// Anzeige (bei der ersten Frage die Kurzform)
+        let shown: String
+        /// an die KI gesendeter Text
+        let sent: String
+    }
+
+    /// ohne verbundene KI auf dem Geraet fragt nur ein Dienst bzw. eigener Server
+    private var canAsk: Bool { aiEnabled || session.api?.isLocal == false }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            head
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        contextCard
+                        if !canAsk { connectHint }
+                        ForEach(messages) { m in bubble(m).id(m.id) }
+                        if busy {
+                            UFShimmerText("Die KI denkt nach …", size: 13.12).padding(.horizontal, 4).id("busy")
+                        }
+                        if let error {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(error).ufFont(13.12).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                                    .accessibilityIdentifier("exam.ask.error")
+                                if creditsExhausted {
+                                    UFButton("Tarif ansehen", icon: "star", size: .small) {
+                                        if let close { close() } else { closeDialog() }
+                                        router.go(.settings(tab: "account"))
+                                    }
+                                    .accessibilityIdentifier("exam.ask.plans")
+                                }
+                            }
+                        }
+                        suggestions
+                    }
+                    .padding(16)
+                }
+                .onChange(of: messages.count) { _, _ in
+                    if let last = messages.last { withAnimation(UFMotion.animation(reduce: true)) { proxy.scrollTo(last.id, anchor: .top) } }
+                }
+            }
+            composer
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(height: close == nil ? 600 : nil)
+        .background(UF.surface.ignoresSafeArea(edges: close == nil ? [] : .vertical))
+        .overlay(alignment: .leading) { if close != nil { Rectangle().fill(UF.line).frame(width: 1).ignoresSafeArea(edges: .vertical) } }
+        .clipShape(RoundedRectangle(cornerRadius: close == nil ? UF.rLg : 0))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("exam.ask.panel")
+        .onAppear { restore() }
+    }
+
+    private var head: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(UF.accentSoft)
+                UFIcon("sparkles", size: 18).foregroundStyle(UF.accentText)
+            }
+            .frame(width: 36, height: 36)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("KI-Hilfe").ufFont(16, 700, em: -0.01).foregroundStyle(UF.text)
+                Text("Aufgabe \(context.nr) · \(context.kind)").ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            UFButton(icon: "x", kind: .ghost, size: .small) { if let close { close() } else { closeDialog() } }
+                .accessibilityLabel("KI-Hilfe schließen")
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+    }
+
+    /// Aufgabe, deine Antwort (rot), richtige Antwort (gruen)
+    private var contextCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(FormulaText.render(context.question)).ufFont(14.08, 500).foregroundStyle(UF.text)
+                .fixedSize(horizontal: false, vertical: true)
+            answerLine(icon: "x", title: "Deine Antwort", text: context.given.isEmpty ? "[keine Antwort]" : context.given, fg: UF.badText, bg: UF.badSoft)
+            if !context.correct.isEmpty {
+                answerLine(icon: "check", title: "Richtige Antwort", text: context.correct, fg: UF.okText, bg: UF.okSoft)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.surface2))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func answerLine(icon: String, title: String, text: String, fg: Color, bg: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            UFIcon(icon, size: 13).foregroundStyle(fg)
+            (Text(title + ": ").font(.uf(12.8, 650)) + Text(FormulaText.render(text)).font(.uf(13.6)))
+                .foregroundStyle(fg)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6).padding(.horizontal, 9)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(bg))
+    }
+
+    private var connectHint: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Für Fragen an die KI verbinde zuerst deine KI in den Einstellungen.").ufFont(13.6).foregroundStyle(UF.text2)
+                .fixedSize(horizontal: false, vertical: true)
+            UFButton("KI verbinden", icon: "settings", size: .small) {
+                if let close { close() } else { closeDialog() }
+                router.go(.settings(tab: "advanced"))
+            }
+        }
+    }
+
+    @ViewBuilder private var suggestions: some View {
+        if canAsk && !busy {
+            let list = messages.isEmpty ? [context.title] : ExamAskContext.followUps
+            UFFlexWrap(gap: 6, rowGap: 6) {
+                ForEach(list, id: \.self) { s in
+                    UFChip(text: s, icon: "sparkles") { Task { await send(s) } }
+                        .accessibilityIdentifier(messages.isEmpty ? "exam.ask.start" : "exam.ask.followUp")
+                }
+            }
+        }
+    }
+
+    private func bubble(_ m: Message) -> some View {
+        HStack {
+            if m.user { Spacer(minLength: 40) }
+            Group {
+                if m.user {
+                    Text(m.shown).ufFont(13.6, 500).foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    AIMarkdownText(m.shown).accessibilityIdentifier("exam.ask.answer")
+                }
+            }
+            .padding(.vertical, 9).padding(.horizontal, 12)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(m.user ? UF.accentFill : UF.surface2))
+            if !m.user { Spacer(minLength: 0) }
+        }
+    }
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Frag weiter zu dieser Aufgabe …", text: $draft, axis: .vertical)
+                    .lineLimit(1...4)
+                    .ufFont(14.5)
+                    .padding(.vertical, 9).padding(.horizontal, 12)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.surface2))
+                    .onSubmit { Task { await send(draft, typed: true) } }
+                    .disabled(!canAsk)
+                UFButton(icon: "arrow-right", kind: .primary) { Task { await send(draft, typed: true) } }
+                    .disabled(!canAsk || busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("Senden")
+            }
+            Text(Self.footer(nr: context.nr, model: chatgpt?.status?.model, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
+                             trial: studoraAccount?.planStatus?.trialActive ?? false))
+                .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 6)
+                .accessibilityIdentifier("exam.ask.footer")
+        }
+        .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 10)
+        .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
+    }
+
+    /// Kostenzeile unter dem Feld wie in der KI-Hilfe (`TutorPanel.footer`, Aufgabe statt Seite): mit Credits-Stand
+    /// vom Dienst "Dein ChatGPT – 0 Credits" bzw. "– 3 Credits (37 übrig)", sonst "über dein ChatGPT"; dazu das Modell
+    static func footer(nr: String, model: String?, credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false) -> String {
+        let m = (model ?? "").trimmingCharacters(in: .whitespaces)
+        let way = credits != nil
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil, charge: charge, trial: trial) ?? "über dein ChatGPT"
+            : "über dein ChatGPT"
+        return "Aufgabe \(nr) · \(way)" + (m.isEmpty ? "" : " · \(m)")
+    }
+
+    private var store: TutorConversations { conversations ?? .shared }
+
+    /// Gemerktes Gespraech zu dieser Aufgabe laden (einmal, solange hier noch keins laeuft)
+    private func restore() {
+        guard !restored else { return }
+        restored = true
+        guard messages.isEmpty, context.testID != 0 else { return }
+        messages = Self.restored(store.messages(for: context.conversationKey), context: context)
+    }
+
+    /// Stand nach jeder Antwort merken (ohne Test, z. B. in Vorschauen, nichts)
+    private func persist() {
+        guard context.testID != 0 else { return }
+        store.save(fileID: context.conversationKey, fileName: context.recentTitle, messages: Self.stored(messages))
+    }
+
+    /// Beitraege fuer die Ablage und zurueck (reine Umwandlung): gespeichert wird, was zu sehen war; die erste Frage
+    /// geht beim Weiterfragen wieder mit dem ganzen Kontext (`prompt`) in den Verlauf
+    static func stored(_ ms: [Message]) -> [TutorConversations.Message] {
+        ms.map { TutorConversations.Message(fromUser: $0.user, text: $0.shown) }
+    }
+
+    static func restored(_ ms: [TutorConversations.Message], context: ExamAskContext) -> [Message] {
+        ms.enumerated().map { i, m in Message(user: m.fromUser, shown: m.text, sent: i == 0 && m.fromUser ? context.prompt : m.text) }
+    }
+
+    /// Frage senden: die erste traegt den ganzen Kontext (`prompt`), weitere den Verlauf. `typed`: aus dem Feld (bei
+    /// einem Fehler kommt der Text dorthin zurueck)
+    private func send(_ text: String, typed: Bool = false) async {
+        let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let api = session.api, !busy, !q.isEmpty, canAsk else { return }
+        let first = messages.isEmpty
+        let sent = first ? context.prompt : q
+        let history: [JSONValue] = messages.map { ["role": .string($0.user ? "user" : "assistant"), "text": .string($0.sent)] }
+        messages.append(Message(user: true, shown: q, sent: sent))
+        draft = ""
+        busy = true
+        error = nil
+        creditsExhausted = false
+        defer { busy = false }
+        do {
+            let r = try await api.value("/api/ai/tutor", method: "POST",
+                                        body: ["mode": "ask", "page": 1, "question": .string(sent), "history": .array(history)])
+            studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Kostenzeile
+            let answer = r.s("answer") ?? ""
+            messages.append(Message(user: false, shown: answer, sent: answer))
+            persist()
+        } catch {
+            // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), getippten Text zurueck ins Feld
+            if messages.last?.user == true { messages.removeLast() }
+            if typed { draft = q }
+            self.error = error.localizedDescription
+            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+        }
+        // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Kostenzeile nennt es
+        await chatgpt?.refresh()
+    }
+}

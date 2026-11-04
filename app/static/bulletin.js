@@ -4,7 +4,7 @@
 // Text; nie "…"), Antippen oeffnet einen einfachen Leser mit "In Stud.IP öffnen". Daten: GET /api/studip/bulletin und
 // /api/studip/bulletin/{id} (app/studip_bulletin.py, nur lokal, keine Autoren). Im gehosteten Dienst und bei Hochschulen
 // ohne Brett meldet der Server available=false; dann bleibt die Karte weg.
-import { $, $$, esc, icon, safeUrl, fmtShort, fmtDate, modal } from "./core.js?v=41";
+import { $, $$, esc, icon, safeUrl, fmtShort, fmtDate, modal } from "./core.js?v=43";
 
 export const BULLETIN = { title: "Schwarzes Brett", readerOpen: "In Stud.IP öffnen", all: "Alle", icon: "note", shown: 8,
   note: "Kleinanzeigen aus dem Schwarzen Brett in Stud.IP, nur auf diesem Gerät gespeichert; Namen der Anbietenden holt StudiNow nicht.",

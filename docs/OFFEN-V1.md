@@ -59,7 +59,7 @@ auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/veri
 6. **S8** Abgleich im Hintergrund (frühestens 8/15/20 Uhr, Erinnerungen) – nach Messung der Sitzungsdauer.
 7. **Karteikarten** selbst anlegen: **erledigt (`wip/karteikarten`)** – vier Endpunkte lokal wie `app/server.py`,
    Seite „Karteikarten“ mit Anlegen, Liste je Modul, Wiederholen und Löschen, nur mit Plus; „bald“ entfällt.
-   Offen: „Als Karteikarte“ aus markiertem Text im Editor (der Editor hat keine Textauswahl, `isInMarkupMode`).
+   **Erledigt (04.11.2026):** „Als Karteikarte“ aus markiertem PDF-Text im Editor (Bearbeitungsmenü der Auswahl und Leiste „Text markieren“), Vorderseite, Modul und Dokument vorbelegt (`FlashcardCreateDialog.prefill`).
 8. Kleinere Abnahme-Reste: Strichbreite der fremden Ebene, Stundenplan-Hinweis, E2E-Lage nach Zoom – siehe
    Commits „Abnahme: …“ und offene Punkte in `docs/IPAD-OHNE-PC.md`.
 
@@ -67,23 +67,25 @@ auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/veri
 
 - Developer Program aktiv → Team-ID in `apps/apple/Config/Team.xcconfig`; dann „Mit Apple anmelden“ und CloudKit
   echt testbar (iCloud-Container `iCloud.de.uniflow.ai` anlegen, Schema nach Production).
-- App Store Connect für V1: App-Eintrag „StudiNow“, Datenschutz-Angaben und **nur das Plus-Produkt**: Abo-Gruppe
-  „StudiNow“, `de.uniflow.plus.monthly`, Anzeigename „StudiNow Plus“, 1,99 €/Monat, Einführungsangebot 1 Woche gratis
-  (Texte in `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration
-  `apps/apple/UniFlowTests/UniFlow.storekit` mit denselben Werten). **Pro Connect und Pro AI kommen später** mit dem
-  StudiNow-Dienst (`de.uniflow.proconnect.monthly` 2,99 €, `de.uniflow.proai.monthly` 3,99 €, in derselben Gruppe mit
-  Stufen nach Rang: Pro AI höchste, Plus niedrigste; dazu App Store Server Notifications V2 auf
-  `/api/billing/apple/notifications`, `docs/ABO-SYSTEM.md`, Abschnitt 8). Die Werte liegen in
-  `apps/apple/UniFlowTests/UniFlowAlleTarife.storekit`.
+- App Store Connect für V1 (Stand 04.11.2026): App-Eintrag „StudiNow“, Datenschutz-Angaben und die Abo-Gruppe
+  „StudiNow“ mit `de.uniflow.plus.monthly` (Anzeigename „StudiNow Plus“, 1,99 €/Monat, Stufe 2) und
+  `de.uniflow.proai.monthly` („StudiNow Pro AI“, 3,99 €/Monat, Stufe 1), **beide ohne Einführungsangebot** – die 7 Tage
+  Probe läuft in der App ohne Zahlungsdaten (`docs/ABO-SYSTEM.md`, Abschnitt 3b). Plus mit der ersten Version einreichen,
+  **Pro AI erst mit dem StudiNow-Dienst** (bis dahin zeigt die Tarifseite nur Free und Plus). Texte in
+  `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration
+  `apps/apple/UniFlowTests/UniFlow.storekit` mit denselben Werten. Pro Connect (`de.uniflow.proconnect.monthly`, 2,99 €)
+  gibt es auf dem iPad nicht (Werte für die Wechsel-Tests in `apps/apple/UniFlowTests/UniFlowAlleTarife.storekit`); dazu
+  App Store Server Notifications V2 auf `/api/billing/apple/notifications`, `docs/ABO-SYSTEM.md`, Abschnitt 8.
 - Datenschutzerklärung, Nutzungsbedingungen, Impressum veröffentlichen (Entwürfe macht die PC-Sitzung in
   `docs/release/`), Links auf der Abo-Seite eintragen.
 - Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Learnweb-Schlüssel) – Entwürfe PC-Sitzung. Passwort-Merken
   durch die App muss nicht mehr erfragt werden (seit 27.10.2026 merkt nur iOS das Passwort).
 - Apple-Prüfung, Regel 2.1 (App vollständig prüfbar): **teilweise gelöst (27.10.2026).** Entscheidung des Inhabers
   27.10. ersetzt „kein Demo-Modus“: Demo-Inhalte wie am PC (`app/demo.py`, auf dem iPad `DemoContent`, Zweig
-  `wip/demo`) – im ersten Start „Ohne Hochschulkonto ansehen (Demo)“ auf der Anmeldeseite, sonst Einstellungen →
-  Erweitert (auch im Release-Build); Demo-Modul mit drei PDFs, Stundenplan, Lernkalender, Frist und Ankündigung,
-  kein Abgleich mit der Hochschule, „Entfernen“ auf der Übersicht, rückstandslos. Prüfhinweise in
+  `wip/demo`) – seit 04.11.2026 nur für Prüfer: einziger Weg ist der kleine Textlink „Ohne Hochschulkonto ansehen
+  (Demo)“ ganz unten auf der Anmeldeseite (nicht mehr in den Einstellungen); Demo-Modul mit drei PDFs, Stundenplan,
+  Lernkalender, Frist und Ankündigung, kein Abgleich mit der Hochschule, schmale Leiste mit „Beenden“ (entfernt alles
+  rückstandslos, zurück zur Anmeldeseite). Prüfhinweise in
   `docs/release/APP-STORE.md`. Offen bleibt: Stud.IP/QIS/CAS selbst kann Apple damit nicht prüfen (Regel 5.2.2,
   Erlaubnis der Hochschulen), und es ist ungeprüft, ob Apple Demo-Inhalte statt eines Prüf-Kontos annimmt.
 - Apple Pencil, echtes iPad, echte Stud.IP-/QIS-/CAS-Anmeldung: nur der Inhaber.

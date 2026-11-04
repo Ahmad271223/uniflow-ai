@@ -1,236 +1,199 @@
-"""Karteikarten-Stapel (04.11.2026, app/flashcard_stacks.py, app/flashcards_api.py): Modul und Lehrwoche je Karte,
-Uebersicht der Stapel, Karten in einen Stapel legen (ohne Doppel), KI-Auftrag nach Modul, Lernwoche und Anzahl mit dem
-Material genau dieser Woche, Migration bestehender Datenbanken und Geraete-Abgleich. Ohne echten KI-Aufruf."""
+"""Geschlossene Stapel und nachtraegliches Bearbeiten (Entscheidungen vom 04.11.2026, docs/KARTEIKARTEN-STAPEL-2026-11-04.md):
+Stapel anlegen, umbenennen, verschieben, loeschen (Karten mit oder ohne Umzug), Ueben nur in einem Stapel
+(`?stack_id=`), Zaehler je Stapel, Karte bearbeiten ohne Lernstandverlust, Bestand ohne Stapel bekommt Stapel
+(Migration), Loeschen eines Dokuments raeumt leere Stapel weg, Stapel im Export und im Geraete-Abgleich."""
 import json
 import sqlite3
-import time
 
-import pytest
 from conftest import asgi_call
 
 
-def _j(r):
-    st, _, b = r
-    return st, (json.loads(b) if b else None)
+def _call(app, method, path, body=None, status=200):
+    st, _, raw = asgi_call(app, method, path, body=json.dumps(body) if body is not None else None)
+    assert st == status, f"{method} {path}: {st} {raw[:300]}"
+    return json.loads(raw) if raw else None
 
 
-def call(app, method, path, body=None):
-    return _j(asgi_call(app, method, path, body=json.dumps(body) if body is not None else None))
-
-
-@pytest.fixture
-def world(app):
-    """Modul mit Vorlesungen und Uebung in Lehrwoche 5 und 6 (Wochen aus dem Dateinamen, wie im Moduldetail)."""
+def _clean():
     from app import db
-    db.init_db()
-    now = int(time.time())
     with db.cursor() as conn:
         conn.execute("DELETE FROM flashcards")
-        mid = conn.execute("INSERT INTO modules(name, color) VALUES ('Analysis Stapeltest', '#175ee8')").lastrowid
-        other = conn.execute("INSERT INTO modules(name) VALUES ('Anderes Modul Stapeltest')").lastrowid
-        conn.execute("INSERT OR REPLACE INTO courses(id, title, kind, active, module_id) VALUES ('st-kurs', 'Analysis Stapeltest', 'vorlesung', 1, ?)", (mid,))
-        for fid, name in (("st-vl5", "VL05_Reihen.pdf"), ("st-ue5", "Blatt05.pdf"), ("st-vl6", "VL06_Potenzreihen.pdf")):
-            conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, status, kind, chdate) VALUES (?, 'st-kurs', ?, 'neu', 'pdf', ?)", (fid, name, now))
-    yield {"mid": mid, "other": other}
-    with db.cursor() as conn:
-        conn.execute("DELETE FROM flashcards")
-        conn.execute("DELETE FROM lecture_markers WHERE module_id=?", (mid,))
-        conn.execute("DELETE FROM files WHERE course_id='st-kurs'")
-        conn.execute("DELETE FROM courses WHERE id='st-kurs'")
-        conn.execute("DELETE FROM modules WHERE id IN (?, ?)", (mid, other))
+        conn.execute("DELETE FROM flashcard_stacks")
+        conn.execute("INSERT OR IGNORE INTO courses(id, title, subject, kind, created_at) VALUES ('st-k1', 'Testmathe', 'Testmathe', 'vorlesung', '2026-10-01')")
+        conn.execute("INSERT OR IGNORE INTO courses(id, title, subject, kind, created_at) VALUES ('st-k2', 'Testphysik', 'Testphysik', 'vorlesung', '2026-10-01')")
+        conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, title, kind, status) VALUES ('st-f1', 'st-k1', 'VL01.pdf', 'Folgen', 'pdf', 'neu')")
+        conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, kind, status) VALUES ('st-f2', 'st-k2', 'Physik.pdf', 'pdf', 'neu')")
 
 
-TEXTS = {"st-vl5": ["Reihen Definition Partialsumme", "Quotientenkriterium fuer Reihen", "Wurzelkriterium"],
-         "st-ue5": ["Aufgabe 1: Konvergenz der harmonischen Reihe"],
-         "st-vl6": ["Potenzreihen und Konvergenzradius"]}
+def test_stack_crud_and_counts_per_stack(app):
+    _clean()
+    a = _call(app, "POST", "/api/flashcard-stacks", {"name": " Klausur ", "subject": "Testmathe"})
+    assert a["name"] == "Klausur" and a["subject"] == "Testmathe" and a["cards"] == 0 and a["due"] == 0 and a["last_practised"] is None
+    b = _call(app, "POST", "/api/flashcard-stacks", {"name": "Aus Skript", "file_id": "st-f1"})
+    assert b["subject"] == "Testmathe" and b["file_id"] == "st-f1" and b["file_name"] == "VL01.pdf", "Fach aus dem Kurs des Dokuments"
+    assert _call(app, "POST", "/api/flashcard-stacks", {"name": ""}, status=422)["detail"] == "Name des Stapels fehlt"
+    assert _call(app, "POST", "/api/flashcard-stacks", {"name": "x", "file_id": "gibtsnicht"}, status=404)["detail"] == "Dokument nicht gefunden"
+    assert _call(app, "POST", "/api/flashcard-stacks", {"name": "x", "subject": 1}, status=422)["detail"].startswith("subject")
+    r = _call(app, "POST", "/api/flashcards", {"cards": [{"question": "Q1", "answer": "A1"}, {"question": "Q2", "answer": "A2"}], "stack_id": a["id"]})
+    assert r["count"] == 2 and r["stack_id"] == a["id"]
+    _call(app, "POST", "/api/flashcards", {"cards": [{"question": "Q3", "answer": "A3"}], "file_id": "st-f1", "stack_id": b["id"]})
+    assert _call(app, "POST", "/api/flashcards", {"cards": [{"question": "x", "answer": "y"}], "stack_id": 9999}, status=404)["detail"] == "Stapel nicht gefunden"
+    stacks = {s["id"]: s for s in _call(app, "GET", "/api/flashcard-stacks")}
+    assert (stacks[a["id"]]["cards"], stacks[a["id"]]["due"]) == (2, 2) and (stacks[b["id"]]["cards"], stacks[b["id"]]["due"]) == (1, 1)
+    # umbenennen, in ein anderes Modul verschieben (Karten folgen), Dokument loesen
+    p = _call(app, "PATCH", f"/api/flashcard-stacks/{a['id']}", {"name": "Klausur 2", "subject": "Testphysik"})
+    assert p["name"] == "Klausur 2" and p["subject"] == "Testphysik" and p["cards"] == 2
+    assert {c["subject"] for c in _call(app, "GET", f"/api/flashcards?stack_id={a['id']}")} == {"Testphysik"}
+    assert _call(app, "PATCH", f"/api/flashcard-stacks/{b['id']}", {"file_id": None})["file_id"] is None
+    assert _call(app, "PATCH", "/api/flashcard-stacks/9999", {"name": "x"}, status=404)["detail"] == "Stapel nicht gefunden"
+    assert _call(app, "PATCH", f"/api/flashcard-stacks/{a['id']}", {"name": "  "}, status=422)
 
 
-def test_inputs_and_duplicates():
-    from app import flashcard_stacks as fs
-    assert [fs.stack_count(x) for x in (None, "abc", 1, 5, "30", 50, 51, 999, True)] == [20, 20, 5, 5, 30, 50, 50, 50, 20]
-    assert [fs.parse_week(x) for x in (None, "", "module", 5, "7", 30)] == [None, None, None, 5, 7, 30]
-    for bad in (0, 31, "x", 2.5, True, -1):
-        with pytest.raises(fs.StackError):
-            fs.parse_week(bad)
-    assert fs.parse_origin(None) is None and fs.parse_origin("ai") == "ai" and fs.parse_origin("community:" + "a" * 32)
-    for bad in ("own", "community:xyz", 5, "community:" + "A" * 32):
-        with pytest.raises(fs.StackError):
-            fs.parse_origin(bad)
-    cards, dropped = fs.without_duplicates(
-        [{"question": "Was ist eine Reihe?", "answer": "a"}, {"question": "  was IST eine reihe ", "answer": "b"},
-         {"question": "Was besagt das Quotientenkriterium fuer Reihen genau?", "answer": "c"},
-         {"question": "Was ist der Konvergenzradius?", "answer": "d"}],
-        ["Was besagt das Quotientenkriterium fuer Reihen?"])
-    assert [c["answer"] for c in cards] == ["a", "d"] and dropped == 2, "gleiche und fast gleiche Fragen fallen weg"
-    assert fs.without_duplicates([{"question": "Ableitung?", "answer": "a"}, {"question": "Integral?", "answer": "b"}], ["ableitung"]) == \
-        ([{"question": "Integral?", "answer": "b"}], 1), "kurze Fragen: gleicher Text zaehlt"
-    with pytest.raises(fs.StackError):
-        fs.clean_cards([{"question": "q", "answer": "x" * (fs.MAX_SIDE + 1)}])
-    with pytest.raises(fs.StackError):
-        fs.clean_cards([{"question": "q", "answer": "a"}] * (fs.MAX_CARDS + 1))
-    assert fs.clean_cards([{"question": " q ", "answer": " a "}, {"question": "", "answer": "a"}, "x", {"question": 1, "answer": "a"}]) == [{"question": "q", "answer": "a"}]
-    assert len(fs.check_cards({"cards": [{"question": "q", "answer": "a"}] * 60}, 50)) == 50
+def test_practice_is_closed_per_stack_and_touches_last_practised(app):
+    _clean()
+    a = _call(app, "POST", "/api/flashcard-stacks", {"name": "A"})["id"]
+    b = _call(app, "POST", "/api/flashcard-stacks", {"name": "B"})["id"]
+    _call(app, "POST", "/api/flashcards", {"cards": [{"question": "A1", "answer": "a"}, {"question": "A2", "answer": "a"}], "stack_id": a})
+    _call(app, "POST", "/api/flashcards", {"cards": [{"question": "B1", "answer": "b"}], "stack_id": b})
+    due_a = _call(app, "GET", f"/api/flashcards?stack_id={a}&due=1")
+    assert {c["question"] for c in due_a} == {"A1", "A2"} and all(c["stack_name"] == "A" for c in due_a), "nur dieser Stapel wird abgefragt"
+    assert [c["question"] for c in _call(app, "GET", f"/api/flashcards?stack_id={b}&due=true")] == ["B1"]
+    assert len(_call(app, "GET", "/api/flashcards?due=true")) == 3, "ohne Stapel: Gesamtzaehler"
+    assert _call(app, "GET", "/api/flashcards?stack_id=abc", status=422)
+    _call(app, "POST", f"/api/flashcards/{due_a[0]['id']}/review", {"correct": True})
+    stacks = {s["id"]: s for s in _call(app, "GET", "/api/flashcard-stacks")}
+    assert stacks[a]["last_practised"] and stacks[b]["last_practised"] is None
+    assert stacks[a]["due"] == 1 and stacks[b]["due"] == 1
+    _call(app, "PATCH", f"/api/flashcards/{_call(app, 'GET', f'/api/flashcards?stack_id={b}')[0]['id']}", {"last_result": "right"})
+    assert {s["id"]: s for s in _call(app, "GET", "/api/flashcard-stacks")}[b]["last_practised"], "Trainer zaehlt als Ueben"
 
 
-def test_stack_add_list_move_and_overview(app, world):
+def test_edit_keeps_leitner_box_and_due(app):
+    _clean()
+    s = _call(app, "POST", "/api/flashcard-stacks", {"name": "S", "subject": "Testmathe"})["id"]
+    t = _call(app, "POST", "/api/flashcard-stacks", {"name": "T", "subject": "Testphysik"})["id"]
+    cid = _call(app, "GET", "/api/flashcards?stack_id=%d" % s) or None
+    _call(app, "POST", "/api/flashcards", {"cards": [{"question": "Alt", "answer": "alt"}], "stack_id": s})
+    cid = _call(app, "GET", f"/api/flashcards?stack_id={s}")[0]["id"]
+    for _ in range(2):
+        _call(app, "POST", f"/api/flashcards/{cid}/review", {"correct": True})
+    before = _call(app, "GET", f"/api/flashcards?stack_id={s}")[0]
+    assert before["box"] == 3
+    c = _call(app, "PATCH", f"/api/flashcards/{cid}", {"question": " Neu ", "answer": "neu"})
+    assert (c["question"], c["answer"], c["box"], c["due"]) == ("Neu", "neu", 3, before["due"]), "Bearbeiten setzt das Fach nicht zurueck"
+    c = _call(app, "PATCH", f"/api/flashcards/{cid}", {"stack_id": t})
+    assert c["stack_id"] == t and c["subject"] == "Testphysik" and c["box"] == 3, "Stapelwechsel: Fach des Stapels"
+    c = _call(app, "PATCH", f"/api/flashcards/{cid}", {"subject": "Eigen"})
+    assert c["subject"] == "Eigen"
+    assert _call(app, "PATCH", f"/api/flashcards/{cid}", {"question": ""}, status=422)["detail"] == "Frage und Antwort dürfen nicht leer sein"
+    assert _call(app, "PATCH", f"/api/flashcards/{cid}", {"stack_id": "x"}, status=422)["detail"] == "stack_id: ganze Zahl erwartet"
+    assert _call(app, "PATCH", f"/api/flashcards/{cid}", {"stack_id": 9999}, status=404)["detail"] == "Stapel nicht gefunden"
+    assert _call(app, "PATCH", "/api/flashcards/9999", {"question": "x"}, status=404)["detail"] == "Karteikarte nicht gefunden"
+    assert _call(app, "GET", f"/api/flashcards?stack_id={cid and t}")[0]["box"] == 3
+
+
+def test_delete_stack_with_move_or_with_cards(app):
+    _clean()
+    a = _call(app, "POST", "/api/flashcard-stacks", {"name": "A", "subject": "Testmathe"})["id"]
+    b = _call(app, "POST", "/api/flashcard-stacks", {"name": "B", "subject": "Testphysik"})["id"]
+    _call(app, "POST", "/api/flashcards", {"cards": [{"question": "A1", "answer": "a"}, {"question": "A2", "answer": "a"}], "stack_id": a})
+    cid = _call(app, "GET", f"/api/flashcards?stack_id={a}")[0]["id"]
+    _call(app, "POST", f"/api/flashcards/{cid}/review", {"correct": True})
+    assert _call(app, "DELETE", f"/api/flashcard-stacks/{a}?move_to={a}", status=422)
+    assert _call(app, "DELETE", f"/api/flashcard-stacks/{a}?move_to=9999", status=404)["detail"] == "Zielstapel nicht gefunden"
+    r = _call(app, "DELETE", f"/api/flashcard-stacks/{a}?move_to={b}")
+    assert r == {"ok": True, "moved": 2, "deleted": 0}
+    moved = _call(app, "GET", f"/api/flashcards?stack_id={b}")
+    assert {c["subject"] for c in moved} == {"Testphysik"} and {c["box"] for c in moved} == {1, 2}, "Lernstand zieht mit"
+    assert [s["id"] for s in _call(app, "GET", "/api/flashcard-stacks")] == [b]
+    assert _call(app, "DELETE", f"/api/flashcard-stacks/{b}") == {"ok": True, "moved": 0, "deleted": 2}
+    assert _call(app, "GET", "/api/flashcards") == [] and _call(app, "GET", "/api/flashcard-stacks") == []
+    assert _call(app, "DELETE", f"/api/flashcard-stacks/{b}", status=404)["detail"] == "Stapel nicht gefunden"
+
+
+def test_existing_cards_get_stacks_like_the_migration(app, tmp_path, monkeypatch):
     from app import db
-    mid = world["mid"]
-    st, d = call(app, "POST", "/api/flashcards/stack", {"module_id": mid, "lecture_week": 5, "cards": [
-        {"question": "Was ist eine Reihe?", "answer": "Folge der Partialsummen"}, {"question": "was ist eine Reihe", "answer": "doppelt"},
-        {"question": "Quotientenkriterium?", "answer": "lim |a_{n+1}/a_n| < 1"}]})
-    assert st == 200 and (d["added"], d["skipped"], d["lecture_week"]) == (2, 1, 5), d
-    st, d = call(app, "POST", "/api/flashcards/stack", {"module_id": mid, "lecture_week": 5, "cards": [{"question": "Was ist eine Reihe?", "answer": "x"}]})
-    assert (d["added"], d["skipped"]) == (0, 1), "schon im Stapel"
-    st, d = call(app, "POST", "/api/flashcards/stack", {"module_id": mid, "lecture_week": None, "origin": "ai",
-                                                        "cards": [{"question": "Was ist eine Reihe?", "answer": "im ganzen Modul"}]})
-    assert d["added"] == 1, "ein anderer Stapel (ganzes Modul) darf dieselbe Frage haben"
-    # Fehler
-    assert call(app, "POST", "/api/flashcards/stack", {"module_id": 999999, "cards": [{"question": "q", "answer": "a"}]})[0] == 404
-    st, e = call(app, "POST", "/api/flashcards/stack", {"module_id": mid, "lecture_week": 99, "cards": []})
-    assert (st, e["code"]) == (400, "week_invalid")
-    st, e = call(app, "POST", "/api/flashcards/stack", {"module_id": mid, "origin": "fremd", "cards": [{"question": "q", "answer": "a"}]})
-    assert (st, e["code"]) == (400, "origin_invalid")
-    # aeltere Karte am Dokument gehoert zum Modul des Dokuments (ganzes Modul), Karte ohne alles: "Ohne Modul"
+    _clean()
     with db.cursor() as conn:
-        old = conn.execute("INSERT INTO flashcards(file_id, question, answer, created_at, box, due) VALUES ('st-vl6', 'Alt am Dokument', 'a', '2026-10-01', 1, '2000-01-01')").lastrowid
-        conn.execute("INSERT INTO flashcards(question, answer, created_at, box, due) VALUES ('Ganz ohne Bezug', 'a', '2026-10-01', 1, '2999-01-01')")
-    st, ov = call(app, "GET", "/api/flashcards/stacks")
-    assert st == 200
-    by = {(s["module_id"], s["lecture_week"]): s for s in ov["stacks"]}
-    assert by[(mid, 5)]["count"] == 2 and by[(mid, 5)]["label"].startswith("Woche 5") and by[(mid, 5)]["origins"]["own"] == 2
-    assert by[(mid, None)]["count"] == 2 and by[(mid, None)]["origins"] == {"own": 1, "ai": 1, "community": 0}
-    assert old in by[(mid, None)]["card_ids"] and by[(mid, None)]["label"] == "Ganzes Modul"
-    assert by[(None, None)]["module_name"] == "Ohne Modul" and by[(None, None)]["due"] == 0
-    mod = next(m for m in ov["modules"] if m["id"] == mid)
-    assert [w["week"] for w in mod["weeks"]] == [5, 6] and mod["weeks"][0]["files"] == 2
-    # Karten eines Stapels, verschieben
-    st, s5 = call(app, "GET", f"/api/flashcards/stack?module_id={mid}&lecture_week=5")
-    assert st == 200 and [c["question"] for c in s5["cards"]] == ["Was ist eine Reihe?", "Quotientenkriterium?"]
-    assert all(c["module_id"] == mid and c["lecture_week"] == 5 and c["subject"] == "Analysis Stapeltest" for c in s5["cards"])
-    st, mv = call(app, "POST", "/api/flashcards/move", {"ids": [old], "module_id": mid, "lecture_week": 6})
-    assert st == 200 and mv["moved"] == 1
-    st, s6 = call(app, "GET", f"/api/flashcards/stack?module_id={mid}&lecture_week=6")
-    assert [c["question"] for c in s6["cards"]] == ["Alt am Dokument"]
-    assert call(app, "POST", "/api/flashcards/move", {"ids": ["x"], "module_id": mid})[0] == 400
-    # die bisherigen Wege bleiben: Liste, Lernen, Loeschen
-    st, all_cards = call(app, "GET", "/api/flashcards")
-    assert st == 200 and {"module_id", "lecture_week", "origin"} <= set(all_cards[0])
-
-
-def test_week_material_prefers_marked_pages_then_lectures_then_exercises(app, world, monkeypatch):
-    from app import db, flashcard_stacks as fs, scriptsearch
-    monkeypatch.setattr(scriptsearch, "page_texts", lambda conn, file_id, *a, **k: TEXTS.get(file_id, []))
-    mid = world["mid"]
-    with db.cursor() as conn:
-        m = fs.week_material(conn, mid, 5)
-        assert [s["file_id"] for s in m["sources"]] == ["st-vl5", "st-ue5"] and not m["markers"]
-        assert "Wurzelkriterium" in m["text"] and "harmonischen" in m["text"] and "Potenzreihen" not in m["text"]
-        assert m["text"].index("Reihen Definition") < m["text"].index("Aufgabe 1"), "Vorlesung vor Uebung"
-        # Marker "Vorlesung bis hier": in Woche 6 wurde VL05 bis Seite 3 behandelt (Seite 1-2 in Woche 5)
-        for page, week in ((2, 5), (3, 6)):
-            conn.execute("""INSERT INTO lecture_markers(user_id, module_id, file_id, doc_version, page, lecture_date, week_no, scope, created_at)
-                            VALUES ('local', ?, 'st-vl5', 'v1', ?, ?, ?, 'personal', '2026-11-01T10:00:00')""", (mid, page, f"2026-11-0{page}", week))
-        m6 = fs.week_material(conn, mid, 6)
-        assert m6["markers"] and m6["sources"][0] == {"file_id": "st-vl5", "name": "VL05_Reihen.pdf", "pages": [3], "marked": True}
-        assert "Wurzelkriterium" in m6["text"] and "Partialsumme" not in m6["text"] and "Potenzreihen" in m6["text"]
-        whole = fs.week_material(conn, mid, None)
-        assert [s["file_id"] for s in whole["sources"]] == ["st-vl5", "st-vl6"], "ganzes Modul: Vorlesungen aller Wochen"
-        small = fs.week_material(conn, mid, None, budget=40)
-        assert sum(len(t) for t in [small["text"]]) < 200 and len(small["sources"]) >= 1, "Budget wird eingehalten"
-    assert fs.client_material([{"title": "Folie", "text": " Inhalt "}, {"text": ""}, "x"])["text"] == "### Folie\nInhalt"
-
-
-def test_ai_stack_uses_week_material_and_avoids_existing(app, world, monkeypatch):
-    from app import ai, db, flashcard_stacks as fs, scriptsearch
-    monkeypatch.setattr(scriptsearch, "page_texts", lambda conn, file_id, *a, **k: TEXTS.get(file_id, []))
-    mid = world["mid"]
-    call(app, "POST", "/api/flashcards/stack", {"module_id": mid, "lecture_week": 5, "cards": [{"question": "Was ist eine Reihe?", "answer": "a"}]})
-    seen = {}
-
-    def fake_ask(prompt, system, schema=None):
-        seen.update(prompt=prompt, system=system, schema=schema)
-        return json.dumps({"cards": [{"question": "Was ist eine Reihe?", "answer": "doppelt"},
-                                     {"question": "Was sagt das Wurzelkriterium?", "answer": "lim sup |a_n|^(1/n) < 1"},
-                                     {"question": "", "answer": "leer"}]})
-    monkeypatch.setattr(ai, "ask", fake_ask)
-    with db.cursor() as conn:
-        before = conn.execute("SELECT COUNT(*) FROM flashcards").fetchone()[0]
-    st, d = call(app, "POST", "/api/ai/flashcards", {"module_id": mid, "lecture_week": 5, "count": 30, "topic": "Kriterien"})
-    assert st == 200, d
-    assert d["cards"] == [{"question": "Was sagt das Wurzelkriterium?", "answer": "lim sup |a_n|^(1/n) < 1"}]
-    assert (d["count"], d["lecture_week"], d["duplicates_removed"], d["existing"], d["module_name"]) == (30, 5, 1, 1, "Analysis Stapeltest")
-    assert [s["file_id"] for s in d["sources"]] == ["st-vl5", "st-ue5"]
-    p = seen["prompt"]
-    assert p.startswith("Modul: Analysis Stapeltest\nUmfang: Lernwoche 5\nQuellen: VL05_Reihen.pdf (Seiten 1–3); Blatt05.pdf (Seite 1)")
-    assert "genau 30 Karteikarten" in p and "SCHWERPUNKT: Kriterien" in p and "- Was ist eine Reihe?" in p
-    assert f"MATERIAL. {ai.UNTRUSTED}:" in p and "Potenzreihen" not in p
-    assert seen["schema"] == ai.FLASHCARDS_SCHEMA and seen["system"] == ai.SYSTEM
-    with db.cursor() as conn:
-        assert conn.execute("SELECT COUNT(*) FROM flashcards").fetchone()[0] == before, "nur ein Vorschlag"
-    # ganzes Modul, Anzahl begrenzt
-    st, d = call(app, "POST", "/api/ai/flashcards", {"module_id": mid, "lecture_week": None, "count": 500})
-    assert st == 200 and d["count"] == fs.STACK_COUNT_MAX and d["lecture_week"] is None and "Umfang: das ganze Modul" in seen["prompt"]
-    # Fehler: unbekanntes Modul, falsche Woche, Woche ohne Material, nur Doppel
-    assert call(app, "POST", "/api/ai/flashcards", {"module_id": 999999})[0] == 404
-    assert call(app, "POST", "/api/ai/flashcards", {"module_id": mid, "lecture_week": "x"})[1]["code"] == "week_invalid"
-    st, e = call(app, "POST", "/api/ai/flashcards", {"module_id": mid, "lecture_week": 9})
-    assert (st, e["code"]) == (404, "no_content") and "Lernwoche 9" in e["detail"]
-    st, d = call(app, "POST", "/api/ai/flashcards", {"module_id": mid, "lecture_week": 9, "material": [{"title": "Notiz", "text": "Taylorreihen"}]})
-    assert st == 200 and d["sources"] == [{"file_id": None, "name": "Notiz", "pages": []}], "Material vom Geraet, wenn der Dienst keins hat"
-    monkeypatch.setattr(ai, "ask", lambda prompt, system, schema=None: '{"cards": [{"question": "Was ist eine Reihe?", "answer": "x"}]}')
-    st, e = call(app, "POST", "/api/ai/flashcards", {"module_id": mid, "lecture_week": 5})
-    assert (st, e["code"]) == (502, "ai_no_cards")
-    # der alte Weg (Dokument) bleibt
-    assert call(app, "POST", "/api/ai/flashcards", {})[0] == 400
-
-
-def test_migration_adds_stack_columns_once(tmp_path, monkeypatch):
-    from app import db
+        for fid, subject, q in (("st-f1", "Testmathe", "Mit Datei"), ("st-f1", "Testmathe", "Mit Datei 2"), (None, "Testmathe", "Nur Fach"),
+                                (None, None, "Ohne alles"), ("", "", "Leer")):
+            conn.execute("INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due) VALUES (?,?,?,?,'2026-10-20T08:00:00',4,'2026-12-01')",
+                         (fid, subject, q, "a"))
+    stacks = {(s["name"], s["subject"], s["file_id"]): s for s in _call(app, "GET", "/api/flashcard-stacks")}
+    assert set(stacks) == {("Folgen", "Testmathe", "st-f1"), ("Allgemein", "Testmathe", None), ("Ohne Modul", None, None)}
+    assert stacks[("Folgen", "Testmathe", "st-f1")]["cards"] == 2 and stacks[("Ohne Modul", None, None)]["cards"] == 2
+    cards = _call(app, "GET", "/api/flashcards")
+    assert all(c["stack_id"] for c in cards) and {c["box"] for c in cards} == {4}, "Lernstand bleibt"
+    # alte Datenbank ohne die Spalte: init_db legt Stapel an, ein zweiter Start aendert nichts
     path = tmp_path / "alt.db"
-    c = sqlite3.connect(path)
-    c.execute("CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, subject TEXT, question TEXT NOT NULL, "
-              "answer TEXT NOT NULL, created_at TEXT, box INTEGER DEFAULT 1, due TEXT)")
-    c.execute("INSERT INTO flashcards(question, answer, created_at, box) VALUES ('alt', 'a', '2026-10-01', 2)")
-    c.commit()
-    c.close()
+    with sqlite3.connect(path) as c:
+        c.executescript("""CREATE TABLE courses (id TEXT PRIMARY KEY, title TEXT NOT NULL, number TEXT, semester TEXT, subject TEXT, kind TEXT,
+                                                active INTEGER DEFAULT 1, test_minutes INTEGER DEFAULT 90, created_at TEXT);
+                           CREATE TABLE files (id TEXT PRIMARY KEY, course_id TEXT, name TEXT NOT NULL, size INTEGER, mime TEXT, author TEXT,
+                                              chdate INTEGER, download_url TEXT, local_path TEXT, downloaded_at TEXT, first_seen TEXT, status TEXT, seen_by_user INTEGER DEFAULT 0);
+                           CREATE TABLE flashcards (id INTEGER PRIMARY KEY AUTOINCREMENT, file_id TEXT, subject TEXT, question TEXT NOT NULL,
+                                                    answer TEXT NOT NULL, created_at TEXT, box INTEGER DEFAULT 1, due TEXT);
+                           CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+                           INSERT INTO courses(id, title, subject) VALUES ('k', 'Kurs', 'Fach A');
+                           INSERT INTO files(id, course_id, name) VALUES ('f', 'k', 'Skript.pdf');
+                           INSERT INTO flashcards(file_id, subject, question, answer, box) VALUES ('f', 'Fach A', 'q1', 'a', 2);
+                           INSERT INTO flashcards(subject, question, answer, box) VALUES ('Fach B', 'q2', 'a', 3);
+                           INSERT INTO flashcards(question, answer, box) VALUES ('q3', 'a', 5);""")
+    saved = db.DB_PATH
     monkeypatch.setattr(db, "DB_PATH", path)
     db.init_db()
     db.init_db()
+    monkeypatch.setattr(db, "DB_PATH", saved)
     c = sqlite3.connect(path)
-    cols = [r[1] for r in c.execute("PRAGMA table_info(flashcards)")]
-    assert {"module_id", "lecture_week", "origin"} <= set(cols)
-    assert c.execute("SELECT question, module_id, lecture_week, origin, box FROM flashcards").fetchall() == [("alt", None, None, None, 2)]
-    c.close()
+    assert c.execute("SELECT name, subject, file_id FROM flashcard_stacks ORDER BY name").fetchall() == \
+        [("Allgemein", "Fach B", None), ("Ohne Modul", None, None), ("Skript.pdf", "Fach A", "f")]
+    assert c.execute("""SELECT fc.question, s.name, fc.box FROM flashcards fc JOIN flashcard_stacks s ON s.id=fc.stack_id
+                        ORDER BY fc.id""").fetchall() == [("q1", "Skript.pdf", 2), ("q2", "Allgemein", 3), ("q3", "Ohne Modul", 5)]
 
 
-def test_device_sync_carries_stack_and_maps_the_module(app):
-    """G2: module_id ist Fremdschluessel auf modules (neue Zeilen im selben Push werden aufgeloest), Woche und Herkunft
-    laufen mit."""
-    from app import db, sync
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(db.SCHEMA)
-    for col, decl in (("bookmarked", "INTEGER"), ("hidden", "INTEGER"), ("last_result", "TEXT"), ("module_id", "INTEGER"),
-                      ("lecture_week", "INTEGER"), ("origin", "TEXT")):
-        conn.execute(f"ALTER TABLE flashcards ADD COLUMN {col} {decl}")
-    sync.ensure_schema(conn)
-    r = sync.push(conn, "ipad-1", [{"entity": "modules", "local_id": -7, "data": {"name": "M"}},
-                                   {"entity": "flashcards", "local_id": -1, "data": {"question": "Q", "answer": "A", "module_id": -7,
-                                                                                     "lecture_week": 4, "origin": "ai"}}])
-    assert [x["status"] for x in r["results"]] == ["created", "created"], r
-    mod = conn.execute("SELECT id FROM modules").fetchone()[0]
-    assert dict(conn.execute("SELECT module_id, lecture_week, origin FROM flashcards").fetchone()) == {"module_id": mod, "lecture_week": 4, "origin": "ai"}
-    pulled = sync.changes(conn, None)
-    assert pulled["changes"]["flashcards"][0]["lecture_week"] == 4
-    assert sync.ENTITIES["flashcards"]["fk"] == {"module_id": "modules"}
+def test_deleting_a_document_forever_removes_its_empty_stack(app):
+    from app import db
+    _clean()
+    with db.cursor() as conn:
+        conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, kind, status) VALUES ('st-own', '__user__', 'Eigen.pdf', 'pdf', 'neu')")
+    r = _call(app, "POST", "/api/flashcards", {"cards": [{"question": "Q", "answer": "A"}], "file_id": "st-own"})
+    keep = _call(app, "POST", "/api/flashcard-stacks", {"name": "Bleibt", "file_id": "st-own"})["id"]
+    _call(app, "POST", "/api/flashcards", {"cards": [{"question": "Q2", "answer": "A"}], "stack_id": keep})
+    _call(app, "PATCH", "/api/library/files/st-own", {"delete_forever": True})
+    stacks = {s["id"]: s for s in _call(app, "GET", "/api/flashcard-stacks")}
+    assert r["stack_id"] not in stacks, "leerer Dokumentstapel ist weg"
+    assert stacks[keep]["file_id"] is None and stacks[keep]["cards"] == 1, "Stapel mit anderen Karten bleibt ohne Quelle"
 
 
-def test_stacks_fixture_is_current():
-    """Vertrag fuer die Mac-Sitzung (packages/shared-contracts/fixtures/flashcards/stacks.json) ist aktuell."""
-    import subprocess
-    import sys
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[1]
-    r = subprocess.run([sys.executable, "tools/gen-flashcard-stacks-fixture.py", "--check"], cwd=root, capture_output=True, text=True,
-                       encoding="utf-8", timeout=300)
-    assert r.returncode == 0, f"python tools/gen-flashcard-stacks-fixture.py neu ausfuehren\n{r.stdout}\n{r.stderr}"
+def test_stacks_are_synced_and_exported():
+    from app import sync, sync_client
+    assert list(sync.ENTITIES).index("flashcard_stacks") < list(sync.ENTITIES).index("flashcards"), "Eltern vor Kindern"
+    assert sync.ENTITIES["flashcards"]["fk"] == {"stack_id": "flashcard_stacks"}
+    assert sync_client.natural_key("flashcard_stacks", {"name": "A", "subject": "B", "file_id": None}) == ("a", "b", "")
+    from app import account_export
+    assert "flashcard_stacks" in account_export.README, "Export (ganze Datenbank) nennt die Stapel"
+
+
+def test_week_and_kind_of_stacks(app):
+    """Ergaenzung 04.11.2026: Lehrwoche (null = Allgemein) und Art (vorlesung | uebung | eigene) je Stapel; aus dem
+    Dokument kommt die Art aus seiner Einordnung und die Woche aus dem Dateinamen."""
+    from app import db
+    _clean()
+    with db.cursor() as conn:
+        conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, kind, status) VALUES ('st-blatt', 'st-k1', 'Uebungsblatt_03.pdf', 'pdf', 'neu')")
+        conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, kind, status) VALUES ('st-vl', 'st-k1', 'VL05_Folgen.pdf', 'pdf', 'neu')")
+    a = _call(app, "POST", "/api/flashcard-stacks", {"name": "Eigen"})
+    assert (a["kind"], a["week"]) == ("eigene", None), "Vorgabe"
+    b = _call(app, "POST", "/api/flashcard-stacks", {"name": "Blatt", "file_id": "st-blatt"})
+    assert (b["kind"], b["week"]) == ("uebung", 3), "Einordnung und Lehrwoche des Dokuments"
+    c = _call(app, "POST", "/api/flashcard-stacks", {"name": "Folien", "file_id": "st-vl", "week": 7})
+    assert (c["kind"], c["week"]) == ("vorlesung", 7), "eigene Woche geht vor"
+    r = _call(app, "POST", "/api/flashcards", {"cards": [{"question": "Q", "answer": "A"}], "file_id": "st-blatt", "stack_name": "KI-Karten"})
+    ki = {s["id"]: s for s in _call(app, "GET", "/api/flashcard-stacks")}[r["stack_id"]]
+    assert (ki["kind"], ki["week"], ki["file_id"]) == ("uebung", 3, "st-blatt"), "KI-Karten: Stapel nach dem Dokument"
+    p = _call(app, "PATCH", f"/api/flashcard-stacks/{a['id']}", {"week": 2, "kind": "vorlesung"})
+    assert (p["kind"], p["week"]) == ("vorlesung", 2)
+    assert _call(app, "PATCH", f"/api/flashcard-stacks/{a['id']}", {"week": None})["week"] is None
+    for bad in ({"week": 0}, {"week": "2"}, {"week": True}, {"kind": "klausur"}, {"kind": None}):
+        assert _call(app, "PATCH", f"/api/flashcard-stacks/{a['id']}", bad, status=422)
+    assert _call(app, "POST", "/api/flashcard-stacks", {"name": "x", "week": 1.5}, status=422)["detail"].startswith("week")

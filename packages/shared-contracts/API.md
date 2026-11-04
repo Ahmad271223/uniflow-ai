@@ -35,9 +35,22 @@ Regeln für Notizen (`packages/shared-contracts/annotations.schema.json`):
 
 Übersicht `/api/dashboard`, Module `/api/modules`, `/api/modules/{id}`, Lernkalender `/api/calendar?start=&end=`,
 Aufgaben `/api/tasks/open`, `/api/tasks/{id}/status`, Lernpakete `/api/packages/{id}`, Stundenplan `/api/timetable/week?start=`,
-`/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards`, KI-Tutor `/api/ai/tutor`,
+`/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards` (mit `?stack_id=&due=1`; PATCH auch `question`, `answer`, `subject`, `stack_id`) und ihre Stapel `/api/flashcard-stacks` (GET/POST/PATCH/DELETE `?move_to=`, docs/KARTEIKARTEN-STAPEL-2026-11-04.md), KI-Tutor `/api/ai/tutor`,
 Karteikarten aus einem Dokument `/api/ai/flashcards` (nur Vorschlaege; `{file_id, pages?, count?, topic?}` -> `{cards, pages, count}`),
 Noten `/api/grades`, Learnweb-Fristen `/api/deadlines`, Dienste `/api/services`, Netzwerk/PIN `/api/network` (nur vom PC sinnvoll).
+Kommende Klausuren `/api/exams/upcoming[?module_id=]` (04.11.2026, app/exams.py, Kern `Exams`): `{items, today, filled}`, je
+Modul und Tag ein Eintrag aus Stud.IP-Terminen (Art `categories` = Klausur), Klausurtermin am Modul, QIS-Anmeldungen,
+Fristen, Ankündigungen und Nachrichten mit `time`, `end`, `room`, `in_days`, `sources`, `source_label`, `user_set`;
+füllt leere Klausurtermine der Module (`filled`), nie einen selbst eingetragenen. Fixture `fixtures/exams/exams.json`.
+Studienverlauf (04.11.2026, app/study_plan.py, Kern `StudyPlanEngine`/`StudyPlanAPI`, docs/STUDIENVERLAUF-2026-11-04.md):
+`GET /api/study-plan` -> `{available, reason (no_catalog|no_catalog_po), message, program, degree, po, code, catalog_term,
+start_term, current_term, current_fachsemester, semesters:[{term, fachsemester, current, lp, modules:[{id, title, kind,
+lp, semester, turnus, status (bestanden|angemeldet|nicht_bestanden|offen|geplant), attempt, grade, moved_from, reason,
+last_attempt}]}], lp_done, lp_total, lp_expected, notes:[{kind, tone, module_id, text}], electives, unmatched,
+suggested_po, po_confirmed, qis_program, disclaimer}`; `GET /api/study-plan/module/{id}` (Fakten, `texts`, `own` mit
+`attempts`, `prerequisites`, `required_for`, `app_modules`, `courses`, `files`, `source {url, page}`; 404 ohne Katalog
+oder Modul); `GET/POST /api/study-plan/settings` `{po, start_term, electives}` (+ Vorschlaege und Auswahllisten; 400 bei
+falschem Typ oder unbekanntem Semester). Fixtures `fixtures/study-plan-engine/`.
 
 ## Wochentests mit Seitenmarker (ab 3.2)
 

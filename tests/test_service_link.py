@@ -19,7 +19,11 @@ def _j(r):
 @pytest.fixture
 def service(app, monkeypatch, tmp_path):
     """Lokale App (Einzelplatz) plus Dienst (gehostet) im selben Prozess."""
-    from app import accounts, community, config, db, service_link
+    from app import accounts, community, config, db, service_link, sync_client
+    # kein Hintergrund-Abgleich: /api/studora/login startet sonst den Thread studora-sync, der den Rest der Sitzung
+    # weiterlaeuft und nach jedem POST (sync_kick) sync_client.run() startet - gleichzeitig mit den Aufrufen der Tests
+    # ("Abgleich laeuft schon", test_sync_client je nach Reihenfolge) und auf der gerade umgelenkten Datenbank
+    monkeypatch.setattr(sync_client, "start_background", lambda *a, **k: None)
     accounts.db_path().unlink(missing_ok=True)
     community.db_path().unlink(missing_ok=True)
     service_link.state_path().unlink(missing_ok=True)
@@ -43,6 +47,9 @@ def service(app, monkeypatch, tmp_path):
     monkeypatch.setattr(service_link, "transport", transport)
     pdf = tmp_path / "Blatt1.pdf"
     pdf.write_bytes(b"%PDF-1.4 Testblatt")
+    # eigene Einzelplatz-Datenbank: die Anmeldung meldet alle PDFs mit Fingerabdruck; Dateien anderer Tests in der
+    # gemeinsamen Sitzungsdatenbank zaehlten sonst mit (je nach Reihenfolge 3 statt 2 gemeldete Dateien)
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "lernapp.db")
     db.init_db()
     with db.cursor() as conn:
         conn.execute("DELETE FROM files WHERE id IN ('sl-1','sl-2','sl-3')")

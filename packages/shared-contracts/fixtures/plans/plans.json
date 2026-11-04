@@ -8,7 +8,8 @@
  ],
  "trial": {
   "days": 7,
-  "plan": "pro_ai"
+  "plan": "pro_ai",
+  "credits": 25
  },
  "plans": {
   "free": {
@@ -32,27 +33,26 @@
     "can_share_solutions": false,
     "can_access_shared_tests": false,
     "can_generate_studora_ai_tests": false,
-    "can_create_flashcards": false,
-    "can_share_flashcards": false,
+    "can_use_flashcards": false,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
     "can_use_extended_test_history": false,
     "can_get_recommendations": false,
-    "chatgpt_connection_premium": true,
+    "chatgpt_connection_premium": false,
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
     "can_use_ai_recommendations": false,
     "can_sync_annotations": false,
-    "can_generate_ai_flashcards": false,
     "can_use_prepared_week_sets": false
    },
    "quotas": {
     "ai_tests_new": 0,
     "library_tests": 0,
     "ai_assist": 0
-   }
+   },
+   "credits": 0
   },
   "plus": {
    "rank": 1,
@@ -61,7 +61,7 @@
    "currency": "EUR",
    "period": "month",
    "apple_product_id": "de.uniflow.plus.monthly",
-   "tagline": "Mit Stift auf deinen Unterlagen schreiben",
+   "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests",
    "entitlements": {
     "can_view_pdf": true,
     "can_manage_courses": true,
@@ -75,27 +75,26 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
-    "can_create_flashcards": true,
-    "can_share_flashcards": true,
+    "can_use_flashcards": true,
     "can_use_advanced_analytics": false,
     "can_use_advanced_planner": false,
     "can_review_wrong_answers": false,
     "can_use_extended_test_history": false,
     "can_get_recommendations": false,
-    "chatgpt_connection_premium": true,
+    "chatgpt_connection_premium": false,
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
     "can_use_ai_recommendations": false,
     "can_sync_annotations": false,
-    "can_generate_ai_flashcards": false,
     "can_use_prepared_week_sets": false
    },
    "quotas": {
     "ai_tests_new": 4,
     "library_tests": 4,
     "ai_assist": 0
-   }
+   },
+   "credits": 0
   },
   "pro_ai": {
    "rank": 2,
@@ -118,8 +117,7 @@
     "can_share_solutions": true,
     "can_access_shared_tests": true,
     "can_generate_studora_ai_tests": true,
-    "can_create_flashcards": true,
-    "can_share_flashcards": true,
+    "can_use_flashcards": true,
     "can_use_advanced_analytics": true,
     "can_use_advanced_planner": true,
     "can_review_wrong_answers": true,
@@ -131,14 +129,14 @@
     "can_use_ai_summaries": true,
     "can_use_ai_recommendations": true,
     "can_sync_annotations": true,
-    "can_generate_ai_flashcards": true,
     "can_use_prepared_week_sets": true
    },
    "quotas": {
     "ai_tests_new": 20,
     "library_tests": null,
     "ai_assist": 150
-   }
+   },
+   "credits": 100
   }
  },
  "entitlements": {
@@ -202,43 +200,38 @@
    "label": "Neue KI-Tests von StudiNow",
    "status": "available"
   },
-  "can_create_flashcards": {
+  "can_use_flashcards": {
    "from": "plus",
-   "label": "Karteikarten selbst anlegen und lernen",
-   "status": "available"
-  },
-  "can_share_flashcards": {
-   "from": "plus",
-   "label": "Karteikarten teilen und Karteikarten anderer nutzen (je Lernwoche oder Modul)",
+   "label": "Eigene Karteikarten mit Wiederholung",
    "status": "available"
   },
   "can_use_advanced_analytics": {
    "from": "pro_ai",
-   "label": "Erweiterte Lernstatistiken",
-   "status": "available"
+   "label": "Lernstatistik über alle Module",
+   "status": "coming_soon"
   },
   "can_use_advanced_planner": {
    "from": "pro_ai",
    "label": "Intelligente Lernplanung (Empfehlungen für die Woche)",
-   "status": "available"
+   "status": "coming_soon"
   },
   "can_review_wrong_answers": {
    "from": "pro_ai",
    "label": "Automatische Wiederholung falscher Antworten",
-   "status": "available"
+   "status": "coming_soon"
   },
   "can_use_extended_test_history": {
    "from": "pro_ai",
-   "label": "Erweiterte Testhistorie",
+   "label": "Vollständige Testliste (Free und Plus: die letzten 10)",
    "status": "available"
   },
   "can_get_recommendations": {
    "from": "pro_ai",
    "label": "Personalisierte Lernempfehlungen",
-   "status": "available"
+   "status": "coming_soon"
   },
   "chatgpt_connection_premium": {
-   "from": "free",
+   "from": "pro_ai",
    "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)",
    "status": "disabled"
   },
@@ -260,16 +253,11 @@
   "can_use_ai_recommendations": {
    "from": "pro_ai",
    "label": "KI-gestützte Lernempfehlungen",
-   "status": "available"
+   "status": "coming_soon"
   },
   "can_sync_annotations": {
    "from": "pro_ai",
    "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)",
-   "status": "available"
-  },
-  "can_generate_ai_flashcards": {
-   "from": "pro_ai",
-   "label": "KI erstellt Karteikarten (Fach, Lernwoche, Anzahl)",
    "status": "available"
   },
   "can_use_prepared_week_sets": {
@@ -286,9 +274,15 @@
   },
   "fair_use": {
    "library_tests": 300,
-   "ai_tests_new": 40,
+   "ai_tests_new": 20,
    "ai_assist": 150
   }
+ },
+ "credits": {
+  "free": 0,
+  "plus": 0,
+  "pro_ai": 100,
+  "trial": 25
  },
  "integrations": {
   "chatgpt": {

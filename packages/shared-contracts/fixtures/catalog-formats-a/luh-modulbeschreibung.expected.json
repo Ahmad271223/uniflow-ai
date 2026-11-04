@@ -1,0 +1,147 @@
+{
+ "format": "luh-modulbeschreibung",
+ "meta": {
+  "university": "luh",
+  "program": "Beispielwissenschaft",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "code": "beispielwissenschaft|b.sc.|2030",
+  "catalog_term": null,
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispielwissenschaft-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  }
+ },
+ "catalog": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielwissenschaft",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "catalog_term": "WS 2026/27",
+  "code": "beispielwissenschaft|b.sc.|2030",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispielwissenschaft-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "pflichtmodule",
+    "name": "Pflichtmodule",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "vertiefung-beispiele",
+    "name": "Vertiefung Beispiele",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "wahlpflicht"
+   },
+   {
+    "id": "datenanalyse",
+    "name": "Datenanalyse",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "wahlpflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "einfuehrung-in-die-beispielkunde",
+    "title": "Einführung in die Beispielkunde",
+    "code": "100",
+    "area": "pflichtmodule",
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur K 90 (1 PL)",
+    "coursework": "Teilnahme an der Übung (1 SL)",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 180,
+    "source_page": 2
+   },
+   {
+    "id": "aufbaumodul-beispielkunde",
+    "title": "Aufbaumodul Beispielkunde",
+    "code": null,
+    "area": "vertiefung-beispiele",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": 4,
+    "turnus": "SS",
+    "exam": "Hausarbeit (15 Seiten) / benotet",
+    "coursework": null,
+    "prerequisites": [
+     "einfuehrung-in-die-beispielkunde"
+    ],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 3
+   },
+   {
+    "id": "beispielpraktikum-im-gelaende",
+    "title": "Beispielpraktikum im Gelände",
+    "code": null,
+    "area": "pflichtmodule",
+    "kind": "pflicht",
+    "lp": 4,
+    "semester": 3,
+    "turnus": "unbekannt",
+    "exam": null,
+    "coursework": "Geländeprotokoll",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 120,
+    "source_page": 3
+   },
+   {
+    "id": "example-data-analysis",
+    "title": "Example Data Analysis",
+    "code": null,
+    "area": "datenanalyse",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": 5,
+    "turnus": "WS",
+    "exam": "written exam (90 minutes)",
+    "coursework": "accepted exercises",
+    "prerequisites": [],
+    "language": "englisch",
+    "workload_h": 150,
+    "source_page": 4
+   }
+  ]
+ },
+ "module_texts": {
+  "einfuehrung-in-die-beispielkunde": {
+   "content": "Erfundene Inhalte.",
+   "goals": "Die Studierenden beschreiben erfundene Sachverhalte.",
+   "literature": "Muster, E.: Erfundenes Lehrbuch."
+  },
+  "aufbaumodul-beispielkunde": {
+   "content": "Erfundene Inhalte.",
+   "goals": "Erfundene Ziele.",
+   "literature": "Nach Ankündigung"
+  },
+  "beispielpraktikum-im-gelaende": {
+   "content": null,
+   "goals": "Erfundene Ziele.",
+   "literature": null
+  },
+  "example-data-analysis": {
+   "content": "Invented contents.",
+   "goals": "Invented goals.",
+   "literature": "Invented reference."
+  }
+ }
+}

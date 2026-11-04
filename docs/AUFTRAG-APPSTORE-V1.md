@@ -119,7 +119,7 @@ Abschnitt 2a (Tarifwahl: zwei Karten Free / Plus) und in der Startnachricht.
 | Eigene Karteikarten mit Wiederholung | – | ✓ |
 | ab V2: UniFlow-Editor (auf Apple wählbar) | – | ✓ |
 | ab V2: Abgleich zwischen eigenen Geräten (iPad, Windows, Android) | – | ✓ |
-| **Preis** | 0 €, dauerhaft | 1,99 €/Monat, 1 Woche gratis (Apple-Einführungsangebot) |
+| **Preis** | 0 €, dauerhaft | 1,99 €/Monat (kein Einführungsangebot; 7 Tage Probe mit allem für jede Person, Abschnitt 5) |
 
 Regeln:
 - **Herabstufen:** Notizen bleiben vollständig erhalten, lesbar und exportierbar; nur Bearbeiten wird gesperrt.
@@ -134,29 +134,48 @@ Regeln:
 
 ## 5. Abos technisch (V1)
 
-- **StoreKit 2**, eine Abo-Gruppe „UniFlow“ mit **einem** Produkt: `de.uniflow.plus.monthly` (in
-  `apps/apple/UniFlowTests/UniFlow.storekit` und `Purchases/PurchaseStore.swift`). `de.uniflow.pro.monthly` entfällt
-  vorerst (Entscheidung 25.10.2026) und gibt in der App keinen Tarif mehr.
-- **7 Tage kostenlos – entschieden (Inhaber, 25.10.2026): Apple-Einführungsangebot „1 Woche gratis“ auf Plus.**
-  Umsetzung:
-  - StoreKit-Testkonfiguration (`apps/apple/UniFlowTests/UniFlow.storekit`): beim Plus-Produkt
-    `introductoryOffer` mit `paymentMode: free`, `subscriptionPeriod: P1W`, `numberOfPeriods: 1` (eingetragen).
-    In App Store Connect richtet der Inhaber dasselbe Angebot später selbst ein.
-  - Anspruch prüfen mit `Product.SubscriptionInfo.isEligibleForIntroOffer` (je Abo-Gruppe, Apple merkt sich die
-    Nutzung pro Apple ID): Hat jemand die Woche schon genutzt, zeigt die Abo-Seite den normalen Preis statt
-    „1 Woche gratis“.
-  - Vor dem Kauf klar sichtbar: „1 Woche gratis, danach 1,99 €/Monat, monatlich kündbar“
-    (Richtlinie 3.1.2); Preise immer aus `Product.displayPrice`, nie fest im Code.
-  - Während der Gratiswoche gilt der volle Umfang von Plus (StoreKit liefert die Berechtigung wie bei
-    einem bezahlten Abo). Wird gekündigt, endet der Zugang mit der Woche und die App fällt auf Free zurück.
-  - Free bleibt ohne Abo dauerhaft nutzbar. Eine Probezeit ohne Zahlungsdaten (eigene 7-Tage-Freischaltung) wird
-    **nicht** gebaut.
+**Entscheidung des Inhabers vom 04.11.2026 (ersetzt die Entscheidung vom 25.10.2026 „Apple-Einführungsangebot auf
+Plus, eigene Probe wird nicht gebaut“):** drei Tarife **Free**, **Plus 1,99 €/Monat** (`de.uniflow.plus.monthly`) und
+**Pro AI 3,99 €/Monat** (`de.uniflow.proai.monthly`), **keine Apple-Einführungsangebote**. Jede Person bekommt ab dem
+ersten Start **7 Tage „Probe“ mit allem wie Pro AI**, ohne Zahlungsdaten, einmal je Apple-ID; danach automatisch Free.
+Alles, was in der Probe entsteht, bleibt; gesperrte Funktionen zeigen danach „Jetzt freischalten“ (die vorhandene
+Plus-Sperre, `UFLockedSheet`/`UFLockedCard`). Wer Plus kauft, hat Plus; wer Pro AI kauft, Pro AI (StoreKit-Berechtigung
+wie bisher). Der Dienst hat diese Probe für StudiNow-Konten schon (`app/plans.py` `TRIAL`, `app/billing.py`
+`start_trial`); das iPad macht dasselbe **ohne Dienst**.
+
+- **StoreKit 2**, eine Abo-Gruppe „StudiNow“ mit zwei Produkten: `de.uniflow.plus.monthly` (Stufe 2) und
+  `de.uniflow.proai.monthly` (Stufe 1), in `apps/apple/UniFlowTests/UniFlow.storekit` und `Purchases/Plans.swift`
+  (`UFPlanCatalog.sellable`). Kein `introductoryOffer` in beiden `.storekit`-Dateien. `de.uniflow.pro.monthly` (alt)
+  und `de.uniflow.proconnect.monthly` geben in der App keinen kaufbaren Tarif (Pro Connect bleibt nur im Vertrag).
+- **Probe auf dem iPad** (`Purchases/LocalTrial.swift`, `UFLocalTrial`): Mit der ersten Anmeldung (Sign in with Apple
+  ist Pflicht) hält die App den Beginn fest, geschlüsselt mit einem Hash der Apple-Nutzer-ID
+  (`DataContainerKey.userScope`), nie die ID selbst. Ablage im **Schlüsselbund des Geräts** (eigener Dienst
+  `de.uniflow.ai.trial`, nur dieses Gerät, überlebt eine Neuinstallation) **und** im **iCloud-Schlüssel-Wert-Speicher**
+  (`NSUbiquitousKeyValueStore`, zweites iPad derselben Apple-ID). Gelesen werden beide, der frühere Beginn gilt; ohne
+  iCloud zählt der Schlüsselbund allein. Reine Funktionen „läuft / Resttage / vorbei“ mit Uhr von außen
+  (`UFLocalTrial.state`, `resolve`), Resttage aufgerundet wie `billing.trial_info`. Während der Probe ist der wirksame
+  Tarif `pro_ai` (dieselbe Rechte-Tabelle wie der Dienst, `plans.json`); danach Free, es sei denn StoreKit meldet Plus
+  oder Pro AI. **Vorrang:** Dienst-Probe (`StudoraAccountLink.planStatus`) > App Store > Probe auf dem iPad > Free
+  (`UFPlanPrecedence`). Startargument `-UFPlan` (Debug) setzt einen festen Tarif ohne Proben.
+- **Oberfläche:** Übersicht mit `TrialBanner` („Probe: noch n Tage alles frei“, danach „Deine Probe ist vorbei“ mit
+  „Tarife ansehen“ und „Bei Free bleiben“; Free bleibt nutzbar). Tarifseite (`PlanPickerView`) mit den Karten Free,
+  Plus und Pro AI; die Pro-AI-Karte erscheint **nur, wenn StoreKit das Produkt liefert** (vor dem StudiNow-Dienst steht es
+  nicht im Store, dann nur Free und Plus plus der Satz „StudiNow Pro AI folgt mit dem StudiNow-Dienst.“) und trägt die
+  ehrliche Zeile „StudiNow Pro AI braucht den StudiNow-Dienst …“. Preise nur aus `Product.displayPrice`; Kopf der Seite
+  „7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten“, solange die Probe läuft. „Aktueller Tarif“ ist immer der
+  gekaufte Tarif (`Entitlements.purchasedPlan`), nie die Probe. Einstellungen → Tarif zeigt während der Probe
+  „Probe: noch n Tage alles frei“.
 - **Berechtigung in V1 auf dem Gerät:** `Transaction.currentEntitlements` (von StoreKit signiert und geprüft),
   `Transaction.updates` beobachten, „Käufe wiederherstellen“ (`AppStore.sync()`), „Abo verwalten“
   (`manageSubscriptionsSheet`). Ab V2 prüft zusätzlich der Server (`/api/billing/apple/verify`,
   App Store Server Notifications), weil das Abo dann auch auf Windows/Android gelten soll.
-- **Tests:** mit der StoreKit-Testkonfiguration im Simulator (kaufen, Probezeit, Ablauf, Verlängerung, Kündigung,
-  Erstattung, Wiederherstellen) und Unit-Tests für die Zuordnung Produkt → Tarif → Funktion.
+- **Tests:** mit der StoreKit-Testkonfiguration im Simulator (kaufen je Tarif, Ablauf, Verlängerung, Kündigung,
+  Erstattung, Wiederherstellen, Karten mit und ohne Pro-AI-Produkt: `PurchaseTests`, `PurchaseV2PlanSwitchTests`),
+  Unit-Tests für die Zuordnung Produkt → Tarif → Funktion (`EntitlementTests`, `PlanContractTests`) und für die Probe
+  (`LocalTrialTests`: Zustandsautomat mit festen Daten, frühester Beginn, Vorrang, Probe-Karte, Schlüsselbund).
+- **Noch einzurichten (Inhaber):** Berechtigung `com.apple.developer.ubiquity-kvstore-identifier` in
+  `UniFlow.entitlements` (sonst nur Schlüsselbund, s. `docs/RELEASE-VORBEREITUNG.md`); in App Store Connect beide
+  Produkte ohne Einführungsangebot, Pro AI erst mit dem Dienst einreichen (`docs/release/APP-STORE.md`).
 - **Keine echten Produkte, keine Preise in App Store Connect, keine Einreichung zur App-Prüfung** ohne ausdrückliche
   Freigabe des Inhabers. Alles Kostenpflichtige (Developer Program, Produkte, Dienste) richtet der Inhaber selbst ein.
 
@@ -164,11 +183,11 @@ Regeln:
 
 | Thema | Stand |
 |---|---|
-| **Tarife** | **Ersetzt am 27.10.2026:** vier Tarife StudiNow Free/Plus/Pro Connect/Pro AI (0/1,99/2,99/3,99 €), siehe `docs/ABO-SYSTEM.md`. Bisher: **Entschieden (25.10.2026):** nur Free und Plus; Pro entfällt vorerst. Free mit Lernplanung, Plus zusätzlich mit Schreiben (Apple Pencil) und Community (Abschnitt 4) |
+| **Tarife** | **Ergänzt am 04.11.2026 (iPad):** die App bietet Free, Plus (1,99 €) und Pro AI (3,99 €) an; Pro Connect gibt es auf dem iPad nicht, die Pro-AI-Karte nur mit Produkt aus dem Store (Abschnitt 5). **Ersetzt am 27.10.2026:** vier Tarife StudiNow Free/Plus/Pro Connect/Pro AI (0/1,99/2,99/3,99 €), siehe `docs/ABO-SYSTEM.md`. Bisher: **Entschieden (25.10.2026):** nur Free und Plus; Pro entfällt vorerst. Free mit Lernplanung, Plus zusätzlich mit Schreiben (Apple Pencil) und Community (Abschnitt 4) |
 | **Community** | **Entschieden (26.10.2026):** Community über CloudKit (Plus), später tauschbar (Supabase/eigener Dienst hinter `CommunityService`). Berechtigung = Kenntnis der Kurs-ID oder des Kursnamens, keine Bestätigung der Hochschule. Moderation macht der Inhaber im CloudKit Dashboard (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7). Braucht das Developer Program (iCloud-Container) |
-| **Art der 7 Tage** | **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus (Abschnitt 5) |
+| **Art der 7 Tage** | **Ersetzt am 04.11.2026:** eigene 7-Tage-Probe mit allem wie Pro AI für jede Person ab dem ersten Start, ohne Zahlungsdaten, einmal je Apple-ID, auf dem iPad ohne Dienst (Schlüsselbund und iCloud-Schlüssel-Wert-Speicher); keine Apple-Einführungsangebote; danach Free (Abschnitt 5). Bisher: **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus |
 | **KI in V1** | **Ersetzt am 27.10.2026:** StudiNow-KI über das Backend (KI-Tests ab Plus, Pro AI mit eigener OpenAI-API), Kostenkontrolle im Dienst, siehe `docs/ABO-SYSTEM.md`. Bisher: **Entschieden (25.10.2026):** KI entfällt vorerst komplett, keine KI-Zeilen und keine KI-Kontingente. KI bräuchte ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App) |
-| **Preise** | Plus 1,99 €/Monat (25.10.2026). Offen: Jahresabo ja/nein |
+| **Preise** | Plus 1,99 €/Monat, Pro AI 3,99 €/Monat, keine Einführungsangebote (04.11.2026; Plus-Preis seit 25.10.2026). Offen: Jahresabo ja/nein |
 | **Server für V2** | Offen. Google- und SMS-Anmeldung, Abgleich zwischen Geräten und Abos über Plattformen hinweg brauchen einen gehosteten Dienst (Kosten, Betrieb, Datenschutz). SMS kostet pro Nachricht |
 | **Apple Developer Program** | Offen, Anmeldung durch den Inhaber. 99 €/Jahr, Voraussetzung für „Mit Apple anmelden“, TestFlight, App Store und echte Abos |
 | **Rechtliches vor dem Start** | Offen. Datenschutzerklärung (URL in App Store Connect), Impressum, Abo-Bedingungen; rechtliche Prüfung des Stud.IP-Abrufs für andere Studierende (`docs/IPAD-STUDIP-SYNC.md`, Abschnitt 8) |

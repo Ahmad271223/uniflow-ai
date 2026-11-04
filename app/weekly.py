@@ -579,7 +579,7 @@ def _difficulty(text: str, points: float | None, source: str) -> int:
 
 
 def _lecture_hash(conn, module_id: int) -> str:
-    files = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") in LECTURE_TYPES and (f.get("name") or "").lower().endswith(".pdf")]
+    files = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") in LECTURE_TYPES and scriptsearch.is_text_source(f.get("name"))]
     return _h(sorted((f["id"], f.get("chdate") or 0) for f in files))[:8]
 
 
@@ -620,7 +620,7 @@ def index_module(conn, module_id: int, now: datetime | None = None, log=lambda *
     """Inkrementell: nur Dateien, deren Version (oder der Vorlesungsstand des Moduls) sich geaendert hat."""
     now = _now(now)
     lec = _lecture_hash(conn, module_id)
-    files = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") in TASK_TYPES and (f.get("name") or "").lower().endswith(".pdf")]
+    files = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") in TASK_TYPES and scriptsearch.is_text_source(f.get("name"))]
     done = skipped = 0
     for f in files:
         ver = f"{doc_version(conn, f['id'])}:{lec}"
@@ -1488,7 +1488,7 @@ def create_mock_exam(module_id: int, full: bool = False, user_id: str = LOCAL_US
         if not cov["segments"]:
             raise WeeklyError("Noch kein Vorlesungsstoff markiert – Probeklausur nicht möglich.")
         if full:
-            lec_files = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") in LECTURE_TYPES and (f.get("name") or "").lower().endswith(".pdf")]
+            lec_files = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") in LECTURE_TYPES and scriptsearch.is_text_source(f.get("name"))]
             open_files = [f["name"] for f in lec_files if not any(sg["file_id"] == f["id"] and sg["to"] >= len(page_texts(conn, f["id"])) for sg in cov["segments"])]
             if open_files:
                 raise WeeklyError("Abschlussprobeklausur erst, wenn der gesamte Stoff markiert ist. Noch offen: " + ", ".join(open_files[:5]))

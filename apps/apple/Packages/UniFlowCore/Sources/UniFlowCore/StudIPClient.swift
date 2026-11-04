@@ -358,7 +358,12 @@ public actor StudIPClient {
         }
     }
 
-    /// Alle Dateien eines Kurses ueber den Ordnerbaum (Wurzelordner -> Unterordner, hoechstens 6 Ebenen tief).
+    /// Tiefste gelesene Ordnerebene unter dem Wurzelordner (Wurzel = 0). Bis 03.11.2026 waren es 6: im Riesentest
+    /// (docs/RIESENTEST-2026-11-03.md) fehlten Dateien tiefer als 6 Ebenen auf dem iPad. Gleicher Wert wie
+    /// `MAX_FOLDER_DEPTH` in app/studip_sync.py; Schleifen faengt `seen` ab, die Grenze schuetzt nur vor Entartung.
+    public static let maxFolderDepth = 12
+
+    /// Alle Dateien eines Kurses ueber den Ordnerbaum (Wurzelordner -> Unterordner, hoechstens `maxFolderDepth` Ebenen tief).
     public func files(courseID: String) async throws -> [StudIPFile] {
         try await fileListing(courseID: courseID).files
     }
@@ -386,7 +391,7 @@ public actor StudIPClient {
 
     private func walk(folderID: String, path: String, depth: Int, courseID: String,
                       seen: inout Set<String>, into out: inout StudIPFileListing) async throws {
-        guard depth <= 6, !seen.contains(folderID) else { return }
+        guard depth <= Self.maxFolderDepth, !seen.contains(folderID) else { return }
         seen.insert(folderID)
         let refs: [JSONValue]
         do {

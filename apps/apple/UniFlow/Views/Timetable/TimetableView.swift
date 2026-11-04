@@ -56,7 +56,8 @@ struct TimetableView: View {
             let from = Fmt.isoDay(start), to = Fmt.isoDay(PlanData.add(start, 6))
             async let hidden = StudIPCancelled.keys(api, from: from, to: to)
             let reply = try await api.value("/api/timetable/week?start=\(from)")
-            let w = StudIPCancellations.hiding(in: reply, keys: await hidden)
+            // Klausuren als eigene Pins je Tag (`UFExam`, immer sichtbar)
+            let w = UFExam.attach(StudIPCancellations.hiding(in: reply, keys: await hidden), await UFExam.load(api))
             studipPending = (try? await api.value("/api/timetable/auto-status"))?.i("pending_groups") ?? 0
             studipQuestions = api.isLocal ? (try? await api.value("/api/timetable/studip-questions")) : nil
             week = w
@@ -155,7 +156,7 @@ struct TimetableView: View {
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * H }
         let today = UFFmt.todayISO()
         // Chips im Tageskopf (Feiertag, Fristen, Hinweise) machen den Kopf hoeher: je Chip eine Zeile
-        let chipRows = allDays.map { UFDayExtras.marks($0).count + $0.list("deadlines").count + $0.list("notices").count }.max() ?? 0
+        let chipRows = allDays.map { UFHint.all($0).count }.max() ?? 0
         let chipHeight: CGFloat = chipRows > 0 ? 2 + CGFloat(chipRows) * 23.2 : 0
         return GeometryReader { g in
             // Montag–Sonntag passen ab 92 pt je Spalte mit schmaler Zeitachse (13" hochkant: 105 pt; vorher mindestens

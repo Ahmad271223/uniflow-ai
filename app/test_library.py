@@ -103,15 +103,22 @@ def db_path():
     return config.BASE_DATA_DIR / "library.db"
 
 
+def _prepare(conn: sqlite3.Connection) -> None:
+    """Schema je Datei einmal, unter der Schema-Sperre (db.schema_once). Den WAL-Modus schaltet vorher db.wal_once
+    einmal je Datei ein: liefen zwei Verbindungen gleichzeitig `PRAGMA journal_mode=WAL` auf einer neuen Datei, brach
+    SQLite sofort mit 'database is locked' ab (tests/test_subscriptions.py: parallele Generierung)."""
+    conn.executescript(SCHEMA)
+
+
 @contextmanager
 def cursor():
     p = db_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p, timeout=15, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     from . import db
-    db.schema_once(conn, "test_library", p, lambda c: c.executescript(SCHEMA))
+    db.wal_once(conn, p)                    # gemeinsame Sperre mit cardshare.cursor (dieselbe Datei library.db)
+    db.schema_once(conn, "test_library", p, _prepare)
     try:
         yield conn
         conn.commit()
@@ -211,7 +218,7 @@ def scrub(text: str | None) -> str:
 
 def scrub_question(q: dict) -> dict:
     q = dict(q)
-    for k in ("question", "answer", "explanation"):
+    for k in ("question", "answer", "explanation", "blank"):
         if q.get(k):
             q[k] = scrub(str(q[k]))
     if isinstance(q.get("options"), list):

@@ -4,7 +4,7 @@
 // "Dateien laden" je Kurs und je Semester; unter Einstellungen → Module laesst sich die Wahl aendern.
 // Daten: GET /api/older-semesters (app/older_semesters.py). Reine Texte und HTML-Teile ohne Browserzugriff
 // (tests/js/older-semesters.test.mjs); Anbindung an Seite, Dialog und Abgleich: older-semesters-ui.js.
-import { icon } from "./icons.js?v=31";
+import { icon } from "./icons.js?v=32";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;

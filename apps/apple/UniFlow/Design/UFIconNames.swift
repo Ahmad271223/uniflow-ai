@@ -10,6 +10,7 @@ enum UFIconNames {
         "settings",
         "search",
         "bell",
+        "mail",
         "refresh",
         "sun",
         "moon",

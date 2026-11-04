@@ -393,9 +393,9 @@ def moderation_posts(user: dict) -> dict:
                 items.append({"id": r["id"], "kind": kind, "status": r["status"], "pseudonym": r["pseudonym"], "text": (r[text_col] or "")[:300],
                               "context": r[ctx_col], "created_at": r["created_at"], "report_count": r["report_count"], "reports": reps})
             out[table] = items
-        from . import community_corrections, community_decks
+        from . import community_cards, community_corrections
         out["corrections"] = community_corrections.moderation_items(conn)
-        out["decks"] = community_decks.moderation_items(conn)
+        out["card_stacks"] = community_cards.moderation_items(conn)          # geteilte Karteikarten-Stapel (04.11.2026)
     return out
 
 
@@ -406,13 +406,13 @@ def moderate_post(user: dict, kind: str, target_id: str, action: str) -> dict:
     if action != "restore":
         raise CommunityError("action_invalid", "Unbekannte Aktion.")
     t = {"comment": "comments", "question": "questions", "answer": "answers", "correction": "corrections",
-         "deck": "flashcard_decks"}.get(kind)
+         "card_stack": "card_stacks"}.get(kind)
     if not t:
         raise CommunityError("kind_invalid", "Unbekannter Beitrag.")
-    if kind in ("correction", "deck"):
-        from . import community_corrections, community_decks
+    if kind in ("correction", "card_stack"):
+        from . import community_cards, community_corrections
         with cursor() as conn:
-            r = (community_corrections if kind == "correction" else community_decks).restore(conn, target_id)
+            r = (community_corrections if kind == "correction" else community_cards).restore(conn, target_id)
         if not r:
             raise CommunityError("not_found", "Kein verborgener Beitrag mit dieser Kennung.", 404)
         return {"action": action, "kind": kind, "id": r["id"], "status": "active"}

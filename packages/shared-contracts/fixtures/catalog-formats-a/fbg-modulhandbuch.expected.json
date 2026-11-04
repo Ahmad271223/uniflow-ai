@@ -1,0 +1,98 @@
+{
+ "format": "fbg-modulhandbuch",
+ "meta": {
+  "university": "luh",
+  "program": "Beispielbauwesen",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "code": "beispielbauwesen|b.sc.|2030",
+  "catalog_term": null,
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispielbauwesen-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  }
+ },
+ "catalog": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielbauwesen",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "catalog_term": "WS 2026/27",
+  "code": "beispielbauwesen|b.sc.|2030",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispielbauwesen-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "mathematisch-naturwissenschaftliche-grundlagen",
+    "name": "Mathematisch-naturwissenschaftliche Grundlagen",
+    "lp_required": 6,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "uebergreifende-inhalte",
+    "name": "Übergreifende Inhalte",
+    "lp_required": 6,
+    "lp_max": 12,
+    "kind": "wahlpflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "beispielmechanik",
+    "title": "Beispielmechanik",
+    "code": null,
+    "area": "mathematisch-naturwissenschaftliche-grundlagen",
+    "kind": "pflicht",
+    "lp": 6,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur",
+    "coursework": "1 Studienleistung",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 180,
+    "source_page": 2
+   },
+   {
+    "id": "beispielstatik",
+    "title": "Beispielstatik",
+    "code": null,
+    "area": "uebergreifende-inhalte",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "WS+SS",
+    "exam": "möglich: K/MP/VbP",
+    "coursework": null,
+    "prerequisites": [
+     "beispielmechanik"
+    ],
+    "language": "deutsch/englisch",
+    "workload_h": 150,
+    "source_page": 3
+   }
+  ]
+ },
+ "module_texts": {
+  "beispielmechanik": {
+   "content": "Erfundene Inhalte.",
+   "goals": "Erfundene Ziele.",
+   "literature": "Muster: Erfundenes Buch."
+  },
+  "beispielstatik": {
+   "content": null,
+   "goals": "Erfundene Ziele.",
+   "literature": "keine"
+  }
+ }
+}

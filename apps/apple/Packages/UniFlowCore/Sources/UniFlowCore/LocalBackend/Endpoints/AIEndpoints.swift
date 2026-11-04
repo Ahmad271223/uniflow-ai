@@ -40,6 +40,24 @@ enum AIEndpoints: LocalEndpointModule {
                     pageText = 1 <= page && page <= pages.count ? pages[page - 1] : ""
                 }
             }
+            // Erklaerungsspeicher (04.11.2026, docs/ERKLAERUNGSSPEICHER-2026-11-04.md): ganze Seite in einem geteilten
+            // Modus ohne Markierung und ohne Frage -> erst nachsehen (eigener Zwischenspeicher, dann der Dienst, 0 Credits);
+            // `force` ("Neu erklaeren lassen") fragt live und belegt den naechsten freien Platz. Eigene Fragen bekommen die
+            // Einordnung der Seite aus der Bibliothek als Zusatz (kleiner Prompt statt Suche).
+            let force = AIPrompts.truthy(body.value("force"))
+            let shareable = fileID != nil && PageExplain.isShareable(mode: mode, selection: text("selection"), question: text("question"))
+            var explainKey: PageExplainBuilder.Key?
+            if let fileID, shareable || mode == "ask" {
+                explainKey = try? await PageExplainBuilder.key(fileID: fileID, page: page, ctx: ctx)
+            }
+            if shareable, !force, let key = explainKey,
+               let stored = await PageExplainBuilder.stored(key: key, mode: mode, ctx: ctx, cloud: ctx.docIndex.explainCloud, cipher: ctx.docIndex.cipher) {
+                return .json(["answer": .string(stored.text), "cards": .null, "sources": [], "explain": stored.json])
+            }
+            var pageIndex = ""
+            if mode == "ask", let key = explainKey {
+                pageIndex = (try? await ctx.database.withConnection { try PageExplainBuilder.indexContext($0, key: key) }) ?? ""
+            }
             // Kursbeschreibung und Sitzungsthemen der Woche aus Stud.IP (02.11.2026, `course_context.for_file`); Zusatz,
             // ein Fehler laesst ihn weg
             let today = LocalTimetable.today(ctx.clock)
@@ -49,7 +67,7 @@ enum AIEndpoints: LocalEndpointModule {
             let prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
                                          ownSolution: text("own_solution"), course: course, fileName: fileName, page: .int(String(page)),
                                          sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")),
-                                         studip: studip)
+                                         studip: studip, pageIndex: pageIndex)
             let answer: String
             do {
                 answer = try await ai.answer(system: AIPromptTexts.tutorSystem, prompt: prompt)
@@ -64,7 +82,12 @@ enum AIEndpoints: LocalEndpointModule {
                 o["cited"] = .bool(cited.contains(Int(s["n"]?.double ?? -1)))
                 return .object(o)
             }
-            return .json(["answer": .string(answer), "cards": cards, "sources": .array(withCited)])
+            var explain: JSONValue = .null
+            if shareable, let key = explainKey {
+                explain = await PageExplainBuilder.store(answer: answer, key: key, mode: mode, model: nil, ctx: ctx, cloud: ctx.docIndex.explainCloud,
+                                                         cipher: ctx.docIndex.cipher).json
+            }
+            return .json(["answer": .string(answer), "cards": cards, "sources": .array(withCited), "explain": explain])
         }
 
         router.post("/api/files/{file_id}/analyze") { req, ctx in

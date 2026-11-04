@@ -59,6 +59,12 @@ PREPARED = {
     "/api/billing/apple/verify": "UniFlow/Purchases/BillingServiceLink.swift (POST an den Dienst, in V1 aus)",
 }
 
+# Pfade, die die App direkt beim StudiNow-Dienst aufruft (eigene Basis-URL mit Konto-Token), nie ueber das lokale
+# Backend: kein lokaler Endpunkt, keine Probe. Die Antworten prueft tests/test_subscriptions.py am Dienst
+SERVICE = {
+    "/api/entitlements": "UniFlow/Services/StudoraAccountLink.swift (Credits mit dem Sitzungs-Token, GET an den Dienst)",
+}
+
 # Beispielanfrage je Pfad. "python": False -> nicht gegen app/server.py ausfuehren (Netzwerk, KI, .env),
 # dann ist "expect" Pflicht. "expect" ueberschreibt sonst den Status von Python, "reason" erklaert warum.
 # "expect.empty_lists": Listen (Pfad ab "$"), die lokal bewusst leer bleiben, obwohl Python sie fuellt.
@@ -67,6 +73,14 @@ MP = "uniflow-fixture"
 SAMPLES: dict[str, dict] = {
     "GET /api/dashboard": {"path": "/api/dashboard"},
     "GET /api/news": {"path": "/api/news"},
+    "GET /api/exams/upcoming": {"path": "/api/exams/upcoming"},
+    # Studienverlauf (app/study_plan.py): leere Datenbank ohne Katalog -> available=false, Moduldetail 404
+    "GET /api/study-plan": {"path": "/api/study-plan"},
+    "GET /api/study-plan/module/{}": {"path": "/api/study-plan/module/programmieren-1"},
+    "GET /api/study-plan/settings": {"path": "/api/study-plan/settings"},
+    "POST /api/study-plan/settings": {"path": "/api/study-plan/settings", "body": {"po": None, "start_term": "WiSe 25/26", "electives": []}},
+    # Modulkatalog (app/study_catalog.py): leere Datenbank -> state "idle"
+    "GET /api/study-catalog/status": {"path": "/api/study-catalog/status"},
     "GET /api/bg": {"path": "/api/bg"},
     "GET /api/sync/status": {"path": "/api/sync/status"},
     "POST /api/sync": {"path": "/api/sync?ai=false", "python": False,
@@ -170,6 +184,27 @@ SAMPLES: dict[str, dict] = {
     "POST /api/weekly/tick": {"path": "/api/weekly/tick", "python": False,
                               "expect": {"status": 200, "reason": "Hintergrundauftrag Wochentests (am PC _run_bg, 200)"}},
     "GET /api/flashcards": {"path": "/api/flashcards?due=true"},
+    # Vorlesung aufnehmen (eigene Aufnahmen, nur auf dem Geraet: OwnRecordingEndpoints) und Regal-Index
+    # (DocIndexEndpoints): keine Python-Gegenstuecke, erwarteter lokaler Status auf leerer Datenbank
+    "GET /api/recordings/own": {"path": "/api/recordings/own", "python": False,
+                                "expect": {"status": 200, "reason": "eigene Aufnahmen nur auf dem Geraet (Mikrofon, Spracherkennung)"}},
+    "GET /api/recordings/own/suggest": {"path": "/api/recordings/own/suggest", "python": False,
+                                        "expect": {"status": 200, "reason": "Vorschlag aus dem Stundenplan, nur auf dem Geraet"}},
+    "POST /api/recordings/own": {"path": "/api/recordings/own", "body": {"title": "Testaufnahme"}, "python": False,
+                                 "expect": {"status": 201, "reason": "eigene Aufnahmen nur auf dem Geraet (angelegt: 201)"}},
+    "GET /api/recordings/own/{}": {"path": "/api/recordings/own/gibtsnicht", "python": False,
+                                   "expect": {"status": 404, "reason": "eigene Aufnahmen nur auf dem Geraet"}},
+    "PATCH /api/recordings/own/{}": {"path": "/api/recordings/own/gibtsnicht", "body": {"title": "x"}, "python": False,
+                                     "expect": {"status": 404, "reason": "eigene Aufnahmen nur auf dem Geraet"}},
+    "DELETE /api/recordings/own/{}": {"path": "/api/recordings/own/gibtsnicht", "python": False,
+                                      "expect": {"status": 404, "reason": "eigene Aufnahmen nur auf dem Geraet"}},
+    "GET /api/index/shelf": {"path": "/api/index/shelf", "python": False,
+                             "expect": {"status": 200, "reason": "Regal des Dokument-Index auf dem Geraet (DocIndexStore)"}},
+    # Stapel (04.11.2026): Liste, anlegen, umbenennen/verschieben, loeschen (leere Datenbank: 404 nach Regel G6)
+    "GET /api/flashcard-stacks": {"path": "/api/flashcard-stacks"},
+    "POST /api/flashcard-stacks": {"path": "/api/flashcard-stacks", "body": {"name": "Teststapel", "subject": "Testfach"}},
+    "PATCH /api/flashcard-stacks/{}": {"path": "/api/flashcard-stacks/1", "body": {"name": "Teststapel"}},
+    "DELETE /api/flashcard-stacks/{}": {"path": "/api/flashcard-stacks/1"},
     "POST /api/flashcards": {"path": "/api/flashcards", "body": {"cards": [{"question": "Testfrage", "answer": "Testantwort"}]}},
     "POST /api/flashcards/{}/review": {"path": "/api/flashcards/1/review", "body": {"correct": True}},
     "DELETE /api/flashcards/{}": {"path": "/api/flashcards/1"},
@@ -243,6 +278,40 @@ SAMPLES: dict[str, dict] = {
     "GET /api/studip/bulletin/{}": {"path": "/api/studip/bulletin/x1"},
     "GET /api/studip/blubber": {"path": "/api/studip/blubber"},
     "GET /api/studip/blubber/{}": {"path": "/api/studip/blubber/x1"},
+    # Nachrichten aus Stud.IP (StudIPMessagesEndpoints, Seite "Nachrichten"): nur auf dem Geraet, der PC-Server gleicht
+    # den Posteingang nicht ab (docs/paritaet/ipad-app.md); auf leerer Datenbank leer
+    "GET /api/studip/messages": {"path": "/api/studip/messages", "python": False,
+                                 "expect": {"status": 200, "type": "object", "keys": ["fetched_at", "messages", "q", "total"],
+                                            "reason": "nur auf dem Geraet (StudIPMessagesEndpoints)"}},
+    # Zuletzt benutzt (RecentEndpoints, 04.11.2026): nur im Kern, weder Python noch Web haben die Liste
+    # (docs/paritaet/ipad-app.md); auf leerer Datenbank leer
+    "GET /api/recent": {"path": "/api/recent?limit=15", "python": False,
+                        "expect": {"status": 200, "type": "object", "keys": ["items"],
+                                   "reason": "nur auf dem Geraet (RecentEndpoints)"}},
+    # Geteilte Wochenstapel und Stapel teilen (CardStackEndpoints, app/server.py + app/community_cards_api.py). Leere
+    # Datenbank: kein Modul, kein Stapel -> 404. Teilen und Zurueckziehen gibt es am PC nur im gehosteten Dienst
+    # (Einzelplatz 501 not_hosted), auf dem Geraet ueber CloudKit (LocalContext.cardCommunity)
+    "POST /api/flashcard-stacks/week/{}/{}/{}": {"path": "/api/flashcard-stacks/week/1/1/vorlesung", "body": {}},
+    "POST /api/flashcard-stacks/{}/share": {"path": "/api/flashcard-stacks/1/share", "body": {},
+                                            "expect": {"status": 404, "reason": "Python 501 (nur im gehosteten Dienst); "
+                                                       "lokal ueber CloudKit, leere Datenbank: Stapel fehlt"}},
+    "DELETE /api/flashcard-stacks/{}/share": {"path": "/api/flashcard-stacks/1/share",
+                                              "expect": {"status": 404, "reason": "Python 501 (nur im gehosteten Dienst); "
+                                                         "lokal ueber CloudKit, leere Datenbank: Stapel fehlt"}},
+    # Geteilte Stapel des Moduls: am PC (Einzelplatz) reicht community_link /api/community/... mit dem Konto-Token an
+    # den Dienst weiter (Netz), darum nicht aufgerufen. Auf dem Geraet ohne CloudKit-Dienst (Tests) 503 not_available,
+    # die Liste prueft vorher das Modul (leere Datenbank: 404)
+    "GET /api/community/card-stacks": {"path": "/api/community/card-stacks?module_id=1", "python": False,
+                                       "expect": {"status": 404, "reason": "am PC an den Dienst weitergereicht; lokal: Modul fehlt"}},
+    "POST /api/community/card-stacks/{}/adopt": {"path": "/api/community/card-stacks/abc/adopt", "body": {}, "python": False,
+                                                 "expect": {"status": 503, "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"}},
+    "POST /api/community/card-stacks/{}/like": {"path": "/api/community/card-stacks/abc/like", "python": False,
+                                                "expect": {"status": 503, "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"}},
+    "DELETE /api/community/card-stacks/{}/like": {"path": "/api/community/card-stacks/abc/like", "python": False,
+                                                  "expect": {"status": 503, "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"}},
+    "POST /api/community/card-stacks/{}/report": {"path": "/api/community/card-stacks/abc/report",
+                                                  "body": {"reason": "spam", "note": ""}, "python": False,
+                                                  "expect": {"status": 503, "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"}},
     # Demo-Inhalte fuer die App-Pruefung (app/demo.py, DemoEndpoints); Inhalte und Tabellen vergleicht
     # tools/gen-demo-fixture.py, hier nur die Form. Ausschalten, damit die Beispielanfrage nichts anlegt
     "GET /api/demo": {"path": "/api/demo"},
@@ -308,17 +377,19 @@ def app_calls() -> dict[str, list[str]]:
                 continue
             path, end = _string_literal(text, m.start())
             shape = path.split("?", 1)[0]
-            if shape in PREPARED:
+            if shape in PREPARED or shape in SERVICE:
                 continue
             before = text[max(0, m.start() - 40):m.start()]
             args = _call_args(text, end)
-            mm = re.search(r'method:\s*"([A-Z]+)"', args)
+            # method: "POST" oder als Bedingung (method: on ? "POST" : "DELETE"): dann zaehlt jede genannte Methode
+            mm = re.search(r'method:\s*([^,]*)', args)
             if re.search(r"\.(form|upload)\(\s*$", before):
-                method = "POST"
+                methods = ["POST"]
             else:
-                method = mm.group(1) if mm else "GET"
-            # immer mit "/" (unter Windows sonst "\\": dieselbe Datei ergaebe dort eine andere Fixture)
-            calls.setdefault(f"{method} {shape}", set()).add(f.relative_to(APP.parent).as_posix())
+                methods = (re.findall(r'"([A-Z]+)"', mm.group(1)) if mm else []) or ["GET"]
+            for method in methods:
+                # immer mit "/" (unter Windows sonst "\\": dieselbe Datei ergaebe dort eine andere Fixture)
+                calls.setdefault(f"{method} {shape}", set()).add(f.relative_to(APP.parent).as_posix())
     for key, src in EXTRA.items():
         calls.setdefault(key, set()).add(src)
     return {k: sorted(v) for k, v in sorted(calls.items())}

@@ -8,7 +8,7 @@ Ohne Fremdpaket: die Stripe-API ist form-kodiertes HTTPS mit dem geheimen Schlue
 Konfiguration (Umgebung des Dienstes, nie in der App):
 - LERNAPP_STRIPE_SECRET_KEY      sk_live_… oder sk_test_…
 - LERNAPP_STRIPE_WEBHOOK_SECRET  whsec_… (Endpunkt POST /api/billing/stripe/webhook)
-- LERNAPP_STRIPE_PRICES          "plus=price_…,pro_ai=price_…" (monatliche Preise in Stripe)
+- LERNAPP_STRIPE_PRICES          "plus=price_…,pro_ai=price_…" (monatliche Preise in Stripe; nur kaufbare Tarife)
 - LERNAPP_PUBLIC_URL             Basis der Rueck-Adressen nach dem Checkout
 
 Regeln:
@@ -77,7 +77,7 @@ def prices() -> dict[str, str]:
     for part in _env("LERNAPP_STRIPE_PRICES").split(","):
         k, _, v = part.partition("=")
         k, v = k.strip(), v.strip()
-        if k in plans.PLANS and k != "free" and v:
+        if plans.is_sellable(k) and v:
             out[k] = v
     return out
 

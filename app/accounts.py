@@ -48,10 +48,13 @@ LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60),
           "report_user": (10, 1440),
           # Korrekturvorschlaege an fremde Loesungen (03.11.2026): je Konto und Tag
           "correction_user": (20, 1440),
-          # Karteikarten-Stapel teilen (04.11.2026): neue Stapel je Konto und Tag (Ersetzen zaehlt auf update_user)
+          # Karteikarten-Stapel teilen (04.11.2026, app/community_cards.py): neue geteilte Stapel je Konto und Tag
+          # (Ersetzen zaehlt auf update_user)
           "deck_user": (10, 1440),
           # Neue Kurs-/Modulschluessel je Konto und Tag (Community-Meldungen, Sicherheitspruefung 3.11.2026)
-          "course_keys_user": (30, 1440)}
+          "course_keys_user": (30, 1440),
+          # Erklaerungsspeicher (04.11.2026, app/page_explain.py): Speichern und Loeschen je Konto und Tag
+          "explain_user": (120, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -64,7 +67,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified INTEGER DEFAULT 0,
     pw_hash TEXT,                        -- scrypt$n$r$p$salz$hash (hex); NULL bei reinem Apple/Google-Konto
     university TEXT NOT NULL,            -- luh | hildesheim
-    plan TEXT DEFAULT 'free',            -- free | plus | pro_ai (Quelle "manual", app/billing.py)
+    plan TEXT DEFAULT 'free',            -- free | plus | pro_ai (Quelle "manual", app/billing.py; alte Zeilen: pro_connect)
     plan_until TEXT,
     role TEXT DEFAULT 'user',            -- user | admin
     status TEXT DEFAULT 'active',        -- active | deleted
@@ -158,9 +161,9 @@ def cursor():
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p, check_same_thread=False, timeout=15)      # wie billing.connect: bei Last nicht nach 5 s aufgeben
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
     from . import db
+    db.wal_once(conn, p)                    # WAL nur einmal je Datei (Wettlauf auf neuer Datei, db.wal_once)
+    conn.execute("PRAGMA foreign_keys=ON")
     db.schema_once(conn, "accounts", p, lambda c: (c.executescript(SCHEMA), _migrate(c)))
     try:
         yield conn
@@ -666,7 +669,8 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
 # Tabellen in accounts.db mit Spalte user_id, die beim endgueltigen Loeschen geleert werden (dazu jede Tabelle mit
 # Fremdschluessel auf users, siehe _purge_user). ai_usage_log bleibt ohne Konto-Bezug fuer die Kostenrechnung.
 ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
-                  "identities", "reset_tokens", "verify_tokens", "sessions")
+                  "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months",
+                  "invites", "invite_redemptions", "invite_rewards")
 
 
 def _has_table(conn, name: str) -> bool:
@@ -677,8 +681,9 @@ def _purge_user(conn, user_id: str) -> None:
     """Alles eines Kontos endgueltig entfernen (28.10.2026). Vorher loeschte purge_deleted nur Sitzungen und die
     Nutzerzeile; Tresor (Hochschul-Zugangsdaten) und Abgleich-Auftraege verweisen per Fremdschluessel auf users, also
     scheiterte das Loeschen, sobald ein Konto Zugangsdaten hatte, und Abo-, Nutzungs- und Community-Daten blieben."""
-    from . import community, test_library, vault
+    from . import community, community_cards, test_library, vault
     community.forget_author(user_id)
+    community_cards.forget_author(user_id)
     test_library.forget_owner(user_id)
     tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
     for t in ACCOUNT_TABLES:
@@ -690,6 +695,15 @@ def _purge_user(conn, user_id: str) -> None:
                 conn.execute(f"DELETE FROM {t} WHERE {fk[3]}=?", (user_id,))
     if "ai_usage_log" in tables:
         conn.execute("UPDATE ai_usage_log SET user_id=NULL WHERE user_id=?", (user_id,))
+    if "credit_ledger" in tables:                           # Kosten bleiben fuer die Kostenansicht, ohne Konto und ohne Antworten
+        import secrets
+        conn.execute("UPDATE credit_ledger SET user_id=?, result=NULL WHERE user_id=?", ("deleted:" + secrets.token_hex(8), user_id))
+    if "page_explain" in tables:                            # Erklaerungsspeicher: Chiffrate bleiben, Besitzer anonym (app/page_explain.py)
+        from . import page_explain
+        page_explain.forget_owner(conn, user_id)
+    if "invite_redemptions" in tables:                      # Einladungen: auch als Einladender vergessen (app/invites.py)
+        from . import invites
+        invites.forget_user(conn, user_id)
     conn.execute("DELETE FROM users WHERE id=?", (user_id,))
     vault._cache.pop(user_id, None)
 

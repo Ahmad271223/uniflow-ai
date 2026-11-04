@@ -2,9 +2,11 @@ import SwiftUI
 import UniFlowCore
 
 /// Laufende Erstellung eines Wochentests (03.11.2026): die Seite "Tests & Wiederholung" zeigt dazu Platzhalterkarten
-/// mit Zaehler und Phase, der Dialog schliesst sich nach dem Start. Erst wird ein gemeinsamer Test des Moduls gesucht
-/// (`shared` im Test), nur ohne einen erstellt die KI 15 Aufgaben. Der Hintergrundauftrag kommt von `POST
-/// /api/tests/generate` (`/api/bg`); die Phase hier ist die Erwartung des Nutzers, nicht ein Stand aus dem Backend.
+/// mit Zaehler und Phase, der Dialog schliesst sich nach dem Start. In der Standardeinstellung wird erst ein
+/// gemeinsamer Test des Moduls gesucht (`shared` im Test), nur ohne einen erstellt die KI die Aufgaben; ein eigener
+/// Test (andere Parameter, 04.11.2026) geht gleich zur KI und gibt sich nie als gemeinsam aus. Der Hintergrundauftrag
+/// kommt von `POST /api/tests/generate` (`/api/bg`); die Phase hier ist die Erwartung des Nutzers, bis das Backend
+/// seinen Stand meldet (`phase` in `/api/bg`).
 @MainActor
 final class TestGenerationState: ObservableObject {
     /// Stand wie `phase` in `/api/bg` (shared_lookup, shared_wait, generate, shared_adopted)
@@ -23,21 +25,23 @@ final class TestGenerationState: ObservableObject {
         }
 
         /// Zeile unter dem Titel der Platzhalterkarte
-        var text: String {
+        func text(count: Int) -> String {
             switch self {
             case .searching: return "Gemeinsamer Test wird gesucht …"
             case .waiting: return "Jemand erstellt den gemeinsamen Test gerade – kurz warten …"
-            case .generating: return "Aufgaben werden erstellt … 0/\(QuizComposer.total)"
+            case .generating: return "Aufgaben werden erstellt … 0/\(count)"
             case .adopted: return "Gemeinsamer Test gefunden – wird übernommen …"
             }
         }
 
-        /// Hinweis unter den Platzhalterkarten
-        var note: String {
+        /// Hinweis unter den Platzhalterkarten; ein eigener Test sagt das auch
+        func note(count: Int, shared: Bool) -> String {
             switch self {
             case .searching: return "Gibt es für dieses Modul schon einen gemeinsamen Test, bekommst du eine Variante ohne neue KI-Anfrage."
             case .waiting: return "Ein anderer Studierender erstellt diesen Test gerade; du bekommst gleich dieselbe Variante (0 Credits)."
-            case .generating: return "Die KI erstellt \(QuizComposer.total) Aufgaben aus den Unterlagen (ca. 1 Minute). Du kannst die Seite derweil verlassen."
+            case .generating:
+                return (shared ? "" : "Eigener Test, nicht geteilt. ")
+                    + "Die KI erstellt \(count) Aufgaben aus den Unterlagen (ca. 1 Minute). Du kannst die Seite derweil verlassen."
             case .adopted: return "Variante eines gemeinsamen Tests, ohne KI-Anfrage – 0 Credits."
             }
         }
@@ -47,9 +51,16 @@ final class TestGenerationState: ObservableObject {
         let subject: String
         let weekNo: Int?
         let startedAt: Date
+        /// Zahl der Aufgaben (Platzhalterkarten, Zaehler)
+        var count: Int = QuizComposer.total
+        /// Standardeinstellung: ein gemeinsamer Test ist moeglich; sonst eigener Test (keine Suche, keine Varianten)
+        var shared = true
         var phase: Phase = .searching
         /// das Backend hat seinen Stand gemeldet (dann keine Schaetzung mehr)
         var fromBackend = false
+
+        var phaseText: String { phase.text(count: count) }
+        var note: String { phase.note(count: count, shared: shared) }
     }
 
     static let shared = TestGenerationState()
@@ -63,10 +74,12 @@ final class TestGenerationState: ObservableObject {
 
     init() {}
 
-    func start(subject: String, weekNo: Int?, now: Date = Date()) {
-        job = Job(subject: subject, weekNo: weekNo, startedAt: now)
+    /// `shared: false` = eigener Test: beginnt gleich bei "Aufgaben werden erstellt", nichts gibt sich als Suche aus
+    func start(subject: String, weekNo: Int?, count: Int = QuizComposer.total, shared: Bool = true, now: Date = Date()) {
+        job = Job(subject: subject, weekNo: weekNo, startedAt: now, count: count, shared: shared, phase: shared ? .searching : .generating)
         lastMessage = nil
         phaseTask?.cancel()
+        guard shared else { return }
         phaseTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(Self.searchSeconds * 1_000_000_000))
             guard !Task.isCancelled else { return }
@@ -92,11 +105,77 @@ final class TestGenerationState: ObservableObject {
     }
 }
 
-/// Dialog "Wochentest erstellen" (03.11.2026): Modul, Lehrwoche (oder die neuesten Unterlagen), Dauer, die festen
-/// Regeln des Wochentests (15 Aufgaben, 4 leicht · 6 mittel · 5 schwer, Multiple Choice · Kurzantwort · Rechnen; nur
-/// das bietet das Backend), die Unterlagen, die einfliessen, und die Kostenzeile. "Test erstellen" schickt genau die
-/// Parameter, die `POST /api/tests/generate` kennt (module_id, duration_min, week_no); danach sucht das Backend erst
-/// einen gemeinsamen Test und laesst nur ohne einen die KI arbeiten.
+/// Einstellungen des Dialogs "Wochentest erstellen" (04.11.2026): Zahl der Aufgaben, Schwierigkeit, Aufgabenarten,
+/// Thema. Reine Werte ohne Oberflaeche: `isStandard` entscheidet, ob ein GEMEINSAMER Test (hoechstens drei Varianten
+/// je Schluessel, 0 Credits beim Uebernehmen) moeglich ist; jede Abweichung ist ein eigener Test des Nutzers mit
+/// seiner KI, und der Dialog sagt das so (Vorgabe des Inhabers: nichts gibt sich als geteilt aus, was es nicht ist).
+/// Die Regel selbst liegt im Kern (`WeekTestOptions`, wie am PC).
+struct QuizSettings: Equatable {
+    var count = WeekTestOptions.standard.count
+    var difficulty = WeekTestOptions.standard.difficulty
+    /// gewaehlte Arten in der Reihenfolge des Backends
+    var types = WeekTestOptions.standard.types
+    var topic = ""
+
+    static let counts = WeekTestOptions.counts
+    static let levels: [(key: String, label: String)] = [("beliebig", "Beliebig"), ("leicht", "Leicht"), ("mittel", "Mittel"), ("schwer", "Schwer")]
+    static let typeLabels: [(key: String, label: String)] = [("mc", "Multiple Choice"), ("tf", "Wahr / Falsch"), ("cloze", "Lückentext"),
+                                                             ("short", "Kurzantwort"), ("calc", "Rechnen / Programmieren")]
+
+    /// Werte fuer das Backend (`WeekTestOptions`): Thema ohne Leerraum aussen und begrenzt
+    var options: WeekTestOptions {
+        WeekTestOptions(count: count, difficulty: difficulty, types: WeekTestOptions.allTypes.filter { types.contains($0) },
+                        topic: String(topic.trimmingCharacters(in: .whitespacesAndNewlines).prefix(WeekTestOptions.topicChars)))
+    }
+
+    /// Nur die Standardeinstellung (15 Aufgaben, beliebig, alle Arten, kein Thema) kann ein gemeinsamer Test sein
+    var isStandard: Bool { options.isStandard }
+
+    /// Art an- oder abwaehlen; die letzte bleibt an (mindestens eine Aufgabenart)
+    mutating func toggle(_ type: String) {
+        if types.contains(type) {
+            if types.count > 1 { types.removeAll { $0 == type } }
+        } else {
+            types = WeekTestOptions.allTypes.filter { $0 == type || types.contains($0) }
+        }
+    }
+
+    /// Kurzer Aufbau fuer die Anzeige: "15 Aufgaben · 4 leicht · 6 mittel · 5 schwer" bzw. "10 Aufgaben · alle schwer"
+    var composition: String {
+        let o = options
+        if o.difficulty == "beliebig" {
+            return "\(o.count) Aufgaben · " + o.distribution.map { "\($0.count) \($0.level)" }.joined(separator: " · ")
+        }
+        return "\(o.count) Aufgaben · alle \(o.difficulty)"
+    }
+
+    /// Was der Nutzer vor dem Start liest: gemeinsam moeglich oder eigener Test
+    var shareNote: String {
+        isStandard
+            ? "Standardeinstellung: Gibt es für dieses Modul schon einen gemeinsamen Test (höchstens 3 Varianten je Lehrwoche), bekommst du eine Variante ohne neue KI-Anfrage."
+            : "Eigener Test, nicht geteilt: Mit eigenen Einstellungen erstellt deine KI den Test nur für dich; gemeinsame Varianten gibt es nur in der Standardeinstellung."
+    }
+
+    /// Kurzes Etikett im Dialog
+    var shareBadge: String { isStandard ? "Gemeinsamer Test möglich" : "Eigener Test, nicht geteilt" }
+
+    /// Rumpf fuer `POST /api/tests/generate`: Modul, Dauer, Lehrwoche (nur wenn gewaehlt) und die Parameter, die das
+    /// Backend kennt (count, difficulty, types, topic)
+    func body(module: Int, duration: Int, week: Int) -> [String: JSONValue] {
+        var body: [String: JSONValue] = ["module_id": .number(Double(module)), "duration_min": .number(Double(duration))]
+        if week != 0 { body["week_no"] = .number(Double(week)) }
+        for (k, v) in options.json { body[k] = v }
+        return body
+    }
+}
+
+/// Dialog "Wochentest erstellen" (03.11.2026, erweitert 04.11.2026): Modul, Lehrwoche (oder die neuesten Unterlagen),
+/// Dauer, Zahl der Aufgaben (5/10/15/20), Schwierigkeit, Aufgabenarten (Multiple Choice, Wahr/Falsch, Lückentext,
+/// Kurzantwort, Rechnen/Programmieren), ein Thema oder Hinweis, die Unterlagen, die einfliessen, und die Kostenzeile.
+/// "Test erstellen" schickt genau die Parameter, die `POST /api/tests/generate` kennt; in der Standardeinstellung sucht
+/// das Backend erst einen gemeinsamen Test, bei eigenen Einstellungen entsteht ein eigener Test (so beschriftet).
+/// Ohne PC (lokales Backend, eigenes ChatGPT) ist der Dialog eine Plus-Funktion wie die Karteikarten (Entscheidung
+/// 04.11.2026): Free sieht die Sperrkarte `UFLockedCard(.weeklyTests)` mit dem Weg zu Plus; mit Dienst entscheidet er.
 struct QuizComposer: View {
     let initialModuleID: Int
     @ObservedObject private var ent: Entitlements
@@ -115,14 +194,13 @@ struct QuizComposer: View {
     /// 0 = die neuesten Unterlagen des Moduls
     @State private var week = 0
     @State private var duration = 30
+    @State private var settings = QuizSettings()
     @State private var starting = false
     @State private var error: String?
 
     static let durations = [15, 30, 45, 60, 90]
-    /// Aufbau nach der Regel vom 29.10.2026 (`AIPromptTexts.weekTestDifficulty`, `weekTestTypes`)
-    static let total = 15
-    static let composition = "4 leicht · 6 mittel · 5 schwer"
-    static let types = ["Multiple Choice", "Kurzantwort", "Rechnen / Programmieren"]
+    /// Standard nach der Regel vom 29.10.2026 (`WeekTestOptions.standard`): 15 Aufgaben, 4 leicht · 6 mittel · 5 schwer
+    static let total = WeekTestOptions.standard.count
 
     /// `entitlements: nil` = `Entitlements.shared`, `generation: nil` = `TestGenerationState.shared`
     @MainActor
@@ -155,28 +233,39 @@ struct QuizComposer: View {
         }
     }
 
-    /// Der Dialog lässt sich abschicken: Modul gewaehlt, KI da, nichts laeuft
-    var canStart: Bool { module != 0 && aiEnabled && !starting && generation.job == nil }
+    /// Ohne PC (lokales Backend) nur mit Plus; am eigenen Server bzw. mit Dienst ohne Sperre in der App
+    private var needsPlus: Bool { session.api?.isLocal != false }
+    private var allowed: Bool { !needsPlus || ent.allows(.weeklyTests) }
+
+    /// Der Dialog lässt sich abschicken: Tarif passt, Modul gewaehlt, KI da, nichts laeuft
+    var canStart: Bool { allowed && module != 0 && aiEnabled && !starting && generation.job == nil }
 
     private var selectedWeek: JSONValue? { Self.weeks(detail).first { $0.i("week") == week } }
 
     var body: some View {
         UFDialog("Wochentest erstellen", icon: "exam") {
-            if !aiEnabled {
+            if !allowed {
+                UFLockedCard(.weeklyTests, entitlements: ent).padding(.vertical, 4)
+            } else if !aiEnabled {
                 connect
             } else {
                 form
             }
         } foot: {
             UFButton("Abbrechen") { close() }.accessibilityIdentifier("quiz.cancel")
-            UFButton(starting ? "Gemeinsamer Test wird gesucht …" : "Test erstellen", icon: starting ? nil : "sparkles", kind: .primary) {
-                Task { await start() }
+            if allowed {
+                UFButton(starting ? (settings.isStandard ? "Gemeinsamer Test wird gesucht …" : "Test wird erstellt …") : "Test erstellen",
+                         icon: starting ? nil : "sparkles", kind: .primary) {
+                    Task { await start() }
+                }
+                .disabled(!canStart)
+                .accessibilityIdentifier("quiz.start")
             }
-            .disabled(!canStart)
-            .accessibilityIdentifier("quiz.start")
         }
         .task { await load() }
         .onChange(of: module) { _, _ in Task { await loadDetail() } }
+        // nach einem Kauf aus der Sperrkarte heraus die Module nachladen
+        .onChange(of: allowed) { _, ok in if ok, !loaded { Task { await load() } } }
     }
 
     @ViewBuilder private var connect: some View {
@@ -217,11 +306,42 @@ struct QuizComposer: View {
                     }
                 }
             }
-            UFField("Aufbau (fest, Regel vom 29.10.)") {
+            UFField("Aufgaben") {
                 UFFlexWrap(gap: 6, rowGap: 6) {
-                    UFBadge("\(Self.total) Aufgaben", tone: .accent)
-                    UFBadge(Self.composition, tone: .neutral)
-                    ForEach(Self.types, id: \.self) { UFBadge($0, tone: .info) }
+                    ForEach(QuizSettings.counts, id: \.self) { n in
+                        AIChoiceChip(text: "\(n)", on: settings.count == n) { settings.count = n }
+                            .accessibilityLabel("\(n) Aufgaben")
+                            .accessibilityIdentifier("quiz.count.\(n)")
+                    }
+                }
+            }
+            UFField("Schwierigkeit") {
+                UFFlexWrap(gap: 6, rowGap: 6) {
+                    ForEach(QuizSettings.levels, id: \.key) { l in
+                        AIChoiceChip(text: l.label, on: settings.difficulty == l.key) { settings.difficulty = l.key }
+                            .accessibilityIdentifier("quiz.difficulty.\(l.key)")
+                    }
+                }
+            }
+            UFField("Aufgabenarten (mindestens eine)") {
+                UFFlexWrap(gap: 6, rowGap: 6) {
+                    ForEach(QuizSettings.typeLabels, id: \.key) { t in
+                        let on = settings.types.contains(t.key)
+                        AIChoiceChip(text: t.label, on: on, icon: on ? "check" : nil) { settings.toggle(t.key) }
+                            .accessibilityIdentifier("quiz.type.\(t.key)")
+                    }
+                }
+            }
+            UFField("Thema oder Hinweise (optional)") {
+                UFTextField("z. B. nur Kapitel 3, mehr Beweise, ohne Programmieren", text: $settings.topic)
+                    .accessibilityLabel("Thema oder Hinweise")
+                    .accessibilityIdentifier("quiz.topic")
+            }
+            UFField("Aufbau") {
+                UFFlexWrap(gap: 6, rowGap: 6) {
+                    UFBadge(settings.composition, tone: .accent)
+                    UFBadge(settings.shareBadge, tone: settings.isStandard ? .info : .neutral, icon: settings.isStandard ? "users" : "user")
+                        .accessibilityIdentifier("quiz.share")
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("quiz.composition")
@@ -232,8 +352,9 @@ struct QuizComposer: View {
                 UFIcon("sparkles", size: 14).foregroundStyle(UF.accent)
                 Text(costLine).ufFont(12.8).foregroundStyle(UF.muted).accessibilityIdentifier("quiz.cost")
             }
-            Text("Gibt es für dieses Modul schon einen gemeinsamen Test (höchstens 3 Varianten je Lehrwoche), bekommst du eine Variante ohne neue KI-Anfrage.")
+            Text(settings.shareNote)
                 .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 2)
+                .accessibilityIdentifier("quiz.shareNote")
             if let error {
                 Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("quiz.error")
             }
@@ -263,12 +384,13 @@ struct QuizComposer: View {
         }
     }
 
+    /// Kostenzeile, ehrlich: nur ein gemeinsamer Test kann 0 Credits kosten, ein eigener Test braucht immer die KI
     private var costLine: String {
-        AICost.line(chatgpt: aiEnabled, plan: ent.plan, credits: 10) + " · bei gemeinsamem Test 0 Credits"
+        AICost.line(chatgpt: aiEnabled, plan: ent.plan, credits: 10) + (settings.isStandard ? " · bei gemeinsamem Test 0 Credits" : " · eigener Test")
     }
 
     private func load() async {
-        guard let api = session.api else { return }
+        guard let api = session.api, allowed else { return }
         do {
             modules = try await api.value("/api/modules").items
             if module == 0, modules.count == 1, let only = modules.first?.i("id") { module = only }
@@ -290,8 +412,7 @@ struct QuizComposer: View {
         starting = true
         error = nil
         defer { starting = false }
-        var body: [String: JSONValue] = ["module_id": .number(Double(module)), "duration_min": .number(Double(duration))]
-        if week != 0 { body["week_no"] = .number(Double(week)) }
+        let body = settings.body(module: module, duration: duration, week: week)
         do {
             _ = try await api.value("/api/tests/generate", method: "POST", body: .object(body))
         } catch {
@@ -299,7 +420,7 @@ struct QuizComposer: View {
             return
         }
         let subject = modules.first { $0.i("id") == module }?.s("name") ?? "Modul"
-        generation.start(subject: subject, weekNo: week != 0 ? week : nil)
+        generation.start(subject: subject, weekNo: week != 0 ? week : nil, count: settings.count, shared: settings.isStandard)
         AIRecents.shared.count()
         close()
         router.go(.exams)

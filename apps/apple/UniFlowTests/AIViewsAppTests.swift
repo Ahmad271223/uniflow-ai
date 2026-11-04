@@ -18,20 +18,26 @@ final class AIViewsAppTests: XCTestCase {
         private let lock = NSLock()
         private var canned: [String: JSONValue] = [:]
         private var status: [String: Int] = [:]
+        /// Rohdaten statt JSON (Inhalt einer PDF fuer den Editor)
+        private var raw: [String: (data: Data, type: String)] = [:]
         private var log: [(method: String, path: String, body: JSONValue?)] = []
 
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
             let path = request.url?.path ?? ""
             let body = request.httpBody.flatMap { try? JSONValue.parse($0) }
-            let (answer, code): (JSONValue?, Int) = lock.withLock {
+            let (answer, code, bytes): (JSONValue?, Int, (data: Data, type: String)?) = lock.withLock {
                 log.append((request.httpMethod ?? "GET", path, body))
-                return (canned[path], status[path] ?? 200)
+                return (canned[path], status[path] ?? 200, raw[path])
+            }
+            if let bytes {
+                return (bytes.data, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": bytes.type])!)
             }
             let data = (answer ?? ["detail": .string("Testfehler \(code)")]).serialized()
             return (data, HTTPURLResponse(url: request.url!, statusCode: answer == nil ? 404 : code, httpVersion: nil, headerFields: nil)!)
         }
 
         func answer(_ path: String, _ v: JSONValue) { lock.withLock { canned[path] = v } }
+        func answer(_ path: String, data: Data, type: String) { lock.withLock { raw[path] = (data, type) } }
         func fail(_ path: String, _ code: Int, _ v: JSONValue) { lock.withLock { canned[path] = v; status[path] = code } }
         func count(_ method: String, _ path: String) -> Int { lock.withLock { log.filter { $0.method == method && $0.path == path }.count } }
         func bodies(_ path: String) -> [JSONValue] { lock.withLock { log.filter { $0.path == path }.compactMap(\.body) } }
@@ -344,7 +350,9 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertEqual(recents.entries.count, 1)
         XCTAssertEqual(recents.entries.first?.fileID, "f-1")
         XCTAssertTrue(env.wait { self.shows(env.view, "1 Anfrage diesen Monat") })
-        XCTAssertTrue(shows(env.view, "Zuletzt: Zusammenfassung"))
+        // Gespraech offen (Neugestaltung 04.11.2026): "Zuletzt" steht erst nach "Neues Gespräch" wieder unter dem Feld
+        XCTAssertEqual(recents.entries.first?.question, "Zusammenfassung: Folgen und Grenzwerte")
+        XCTAssertFalse(shows(env.view, "Zuletzt: Zusammenfassung"), "im Gespraech kein Zuletzt")
         // Anschlussfrage: dieselbe Datei, mit Verlauf
         XCTAssertTrue(tap("Was muss ich können?", in: env.view))
         XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 2 })
@@ -358,6 +366,75 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(tap("Im Dokument mit KI-Hilfe öffnen", in: env.view))
         XCTAssertTrue(env.wait { env.router.route == .doc("f-1") })
         XCTAssertEqual(env.router.tutorOpenRequest, "f-1")
+    }
+
+    /// KI-Start oder Editor, je nach Route (wie MainView): "Im Dokument mit KI-Hilfe öffnen" fuehrt in den Editor
+    private struct StartThenDocument: View {
+        let file: LibFile
+        let start: AIStartView
+        @EnvironmentObject private var router: UFRouter
+        @EnvironmentObject private var session: Session
+
+        var body: some View {
+            if case .doc(let id, _, _) = router.route, id == file.id, let api = session.api {
+                NavigationStack { DocumentView(file: file, api: api) }
+            } else {
+                start
+            }
+        }
+    }
+
+    /// Zweiseitige PDF fuer den Editor
+    private func makePDF() -> Data {
+        UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+            for i in 1...2 {
+                ctx.beginPage()
+                ("Folgen Seite \(i)" as NSString).draw(at: CGPoint(x: 72, y: 72), withAttributes: [.font: UIFont.systemFont(ofSize: 24)])
+            }
+        }
+    }
+
+    /// Geladene PDF `id` im Schein-Transport (Inhalt, leere Notizen) und als Datei der Bibliothek
+    private func document(_ t: Transport, id: String) throws -> LibFile {
+        t.answer("/api/files/\(id)/content", data: makePDF(), type: "application/pdf")
+        t.answer("/api/files/\(id)/annotations", ["data": AnnotationDocument.emptyRoot, "version": 0, "updated_at": .null])
+        let meta: JSONValue = ["id": .string(id), "name": "VL01.pdf", "title": "VL01.pdf", "kind": "pdf", "module_id": 1,
+                               "downloaded_at": "2026-10-20T10:00:00", "page_count": 2, "doc_type": "vorlesung"]
+        return try JSONDecoder().decode(LibFile.self, from: meta.serialized())
+    }
+
+    /// KI-Start -> "Im Dokument mit KI-Hilfe öffnen": der Editor nimmt den Wunsch nach dem Laden (`takeTutorOpenRequest`)
+    /// und zeigt die KI-Hilfe gleich offen; der Wunsch ist danach verbraucht
+    func testTutorOpensInDocumentFromStartPage() throws {
+        let t = transport()
+        let id = "f-tutor-\(UUID().uuidString.prefix(8))"
+        let file = try document(t, id: id)
+        let recents = AIRecents(defaults: try suite(), scope: "t")
+        recents.record(question: "Was ist eine Folge?", answer: "Eine Abbildung von ℕ nach ℝ.", fileID: id, fileName: "VL01.pdf")
+        let start = AIStartView(entitlements: plan(.plus), recents: recents)
+        let env = try hostWithEnvironment(StartThenDocument(file: file, start: start).environment(\.ufAIEnabled, true), api: api(t))
+        XCTAssertTrue(env.wait { self.button("Zuletzt: Was ist eine Folge?", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Zuletzt: Was ist eine Folge?", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Im Dokument mit KI-Hilfe öffnen", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Im Dokument mit KI-Hilfe öffnen", in: env.view))
+        XCTAssertTrue(env.wait { env.router.route == .doc(id) })
+        XCTAssertTrue(env.wait(timeout: 20) { self.button("KI-Start öffnen", in: env.view) != nil }, "KI-Hilfe offen\n" + texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("KI-Hilfe schließen", in: env.view), "Kopf der KI-Hilfe")
+        XCTAssertNil(env.router.tutorOpenRequest, "der Editor hat den Wunsch genommen")
+        XCTAssertEqual(t.count("GET", "/api/files/\(id)/content"), 1)
+    }
+
+    /// Ein Wunsch fuer eine andere Datei oeffnet die KI-Hilfe nicht und bleibt fuer jene Datei stehen
+    func testTutorStaysClosedForAnotherFile() throws {
+        let t = transport()
+        let id = "f-plain-\(UUID().uuidString.prefix(8))"
+        let file = try document(t, id: id)
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t)) }.environment(\.ufAIEnabled, true), api: api(t))
+        env.router.tutorOpenRequest = "f-anders"
+        XCTAssertTrue(env.wait(timeout: 20) { self.shows(env.view, "Seite 1 / 2") }, texts(env.view).joined(separator: "\n"))
+        env.pump(0.5)
+        XCTAssertNil(button("KI-Start öffnen", in: env.view), "KI-Hilfe bleibt zu")
+        XCTAssertEqual(env.router.tutorOpenRequest, "f-anders")
     }
 
     func testStartPageWithoutAIShowsTheWayAndDisablesAsking() throws {
@@ -403,14 +480,16 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(shows(env.view, "15 Aufgaben"))
         XCTAssertTrue(shows(env.view, "4 leicht · 6 mittel · 5 schwer"))
         XCTAssertTrue(shows(env.view, "Multiple Choice"))
-        XCTAssertFalse(shows(env.view, "Lückentext"), "nur, was das Backend kann")
+        XCTAssertTrue(shows(env.view, "Lückentext"), "Aufgabenarten als Schalter (04.11.2026)")
+        XCTAssertTrue(shows(env.view, "Gemeinsamer Test möglich"), "Standardeinstellung")
         XCTAssertTrue(shows(env.view, "1 Anfrage über dein ChatGPT · bei gemeinsamem Test 0 Credits"))
         XCTAssertEqual(enabled("Test erstellen", in: env.view), true)
         XCTAssertTrue(tap("45 min", in: env.view))
         XCTAssertTrue(tap("Test erstellen", in: env.view))
         XCTAssertTrue(env.wait { t.count("POST", "/api/tests/generate") == 1 })
         let body = try XCTUnwrap(t.bodies("/api/tests/generate").first)
-        XCTAssertEqual(body, ["module_id": 1, "duration_min": 45, "week_no": 3], "genau die Parameter des Backends")
+        XCTAssertEqual(body, ["module_id": 1, "duration_min": 45, "week_no": 3, "count": 15, "difficulty": "beliebig",
+                              "types": ["mc", "tf", "cloze", "short", "calc"], "topic": ""], "genau die Parameter des Backends")
         XCTAssertTrue(env.wait { env.router.route == .exams })
         // der Auftrag laeuft ("Gemeinsamer Test wird gesucht …"), bis /api/bg ihn beendet
         XCTAssertTrue(generation.job?.subject == "Testmathematik I" || env.wait(timeout: 10) { generation.job == nil })
@@ -460,6 +539,77 @@ final class AIViewsAppTests: XCTestCase {
         // "Wochentest erstellen" oeffnet den Dialog
         XCTAssertTrue(tap("Wochentest erstellen", in: env.view))
         XCTAssertTrue(env.wait { self.button("Test erstellen", in: env.view) != nil })
+    }
+
+    /// KI-Hilfe im Editor, Reiter Test: "Wochentest erstellen" waehlt das Modul des offenen Dokuments vor (04.11.2026)
+    func testTutorPanelWeeklyTestPreselectsTheDocumentsModule() throws {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
+        let t = transport()
+        t.answer("/api/modules/2", ["id": 2, "name": "Testphysik", "weeks": [
+            ["week": 1, "label": "Lehrwoche 1", "topic": "Kinematik", "count": 1,
+             "vorlesungen": [["id": "f-4", "name": "Physik.pdf", "doc_type": "vorlesung"]], "uebungen": [], "loesungen": [], "skripte": [], "klausuren": [], "sonstiges": []],
+        ]])
+        t.answer("/api/index/file/f-4/page/1", ["file_id": "f-4", "page": 1, "status": "none", "can_build": false])
+        let panel = TutorPanel(fileID: "f-4", fileName: "Physik.pdf", page: { 1 }, selection: { "" }, open: { _, _ in }, close: {}, moduleID: 2)
+            .environment(\.ufAIEnabled, true)
+        let env = try hostWithEnvironment(panel, api: api(t))
+        XCTAssertTrue(env.wait { self.button("Bereich Test", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Bereich Test", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Wochentest erstellen", in: env.view) != nil })
+        XCTAssertTrue(tap("Wochentest erstellen", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Test erstellen", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        // ohne Vorwahl (zwei Module) laedt der Dialog keine Lehrwochen; mit Vorwahl die des Dokuments-Moduls
+        XCTAssertTrue(env.wait { t.count("GET", "/api/modules/2") >= 1 }, "Lehrwochen des vorgewaehlten Moduls geladen")
+        XCTAssertEqual(t.count("GET", "/api/modules/1"), 0)
+    }
+
+    /// "Frag die KI zu Aufgabe n" im Ergebnis: das Gespraech liegt in `TutorConversations`, steht unter "Zuletzt benutzt"
+    /// (KI-Gespräch, "Aufgabe n – <Testtitel>", fuehrt zum Test) und ist beim naechsten Oeffnen wieder da; der 429 der
+    /// Credits zeigt "Tarif ansehen" wie die KI-Hilfe im Editor
+    func testExamAskStoresConversationForRecentAndReopens() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("exam-ask-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let store = TutorConversations(fileURL: dir.appendingPathComponent(TutorConversations.fileName))
+        var context = ExamAskContext(nr: "2", kind: "Kurzantwort", question: "Was ist 0xFF dezimal?", given: "240", correct: "255", explanation: "F steht für 15.")
+        context.testID = 8
+        context.testTitle = "Lehrwoche 3: Zahlensysteme"
+        let t = transport()
+        t.answer("/api/ai/tutor", ["answer": "255 = 15 · 16 + 15.", "cards": .null, "sources": []])
+        let env = try hostWithEnvironment(ExamAskPanel(context: context, close: {}, conversations: store).environment(\.ufAIEnabled, true), api: api(t),
+                                          size: CGSize(width: 380, height: 800))
+        XCTAssertTrue(env.wait { self.button(context.title, in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Aufgabe 2 · über dein ChatGPT"), "Kostenzeile wie in der KI-Hilfe")
+        XCTAssertEqual(ExamAskPanel.footer(nr: "2", model: "gpt-x"), "Aufgabe 2 · über dein ChatGPT · gpt-x")
+        XCTAssertTrue(tap(context.title, in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "255 = 15 · 16 + 15.") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertEqual(t.bodies("/api/ai/tutor").first?["question"]?.string, context.prompt, "erste Frage mit dem ganzen Kontext")
+        // gemerkt unter "exam:8:2" mit dem Titel fuer "Zuletzt benutzt"
+        XCTAssertEqual(store.recent().first?.fileID, "exam:8:2")
+        XCTAssertEqual(store.messages(for: "exam:8:2").map(\.text), [context.title, "255 = 15 · 16 + 15."])
+        let recent = RecentItem.merge(backend: nil, conversations: store.recent(), aiRecents: [], limit: 15)
+        XCTAssertEqual(recent.first?.title, "Aufgabe 2 – Lehrwoche 3: Zahlensysteme")
+        XCTAssertEqual(recent.first?.kindLabel, "KI-Gespräch")
+        XCTAssertEqual(recent.first.map(RecentCard.route(for:)), .exam(8), "fuehrt zum Ergebnis des Tests")
+        XCTAssertNil(recent.first?.fileID)
+        env.window.isHidden = true
+        // wieder oeffnen: das Gespraech ist da, ohne neue Anfrage; die Anschlussfrage traegt den Verlauf mit dem Kontext
+        let again = try hostWithEnvironment(ExamAskPanel(context: context, close: {}, conversations: store).environment(\.ufAIEnabled, true), api: api(t),
+                                            size: CGSize(width: 380, height: 800))
+        XCTAssertTrue(again.wait { self.shows(again.view, "255 = 15 · 16 + 15.") }, texts(again.view).joined(separator: "\n"))
+        XCTAssertEqual(t.count("POST", "/api/ai/tutor"), 1)
+        XCTAssertNil(button(context.title, in: again.view), "statt der Startfrage die Anschlussfragen")
+        // 429: Frage faellt aus dem Verlauf, "Tarif ansehen" erscheint, nichts Neues gemerkt
+        t.fail("/api/ai/tutor", 429, ["detail": "Credits für diesen Monat aufgebraucht – am 1. gibt es neue.", "code": "credits_exhausted"])
+        XCTAssertTrue(again.wait { self.button(ExamAskContext.followUps[0], in: again.view) != nil })
+        XCTAssertTrue(tap(ExamAskContext.followUps[0], in: again.view))
+        XCTAssertTrue(again.wait { self.button("Tarif ansehen", in: again.view) != nil }, texts(again.view).joined(separator: "\n"))
+        let sent = t.bodies("/api/ai/tutor").last
+        XCTAssertEqual(sent?["history"]?.array?.first?["text"]?.string, context.prompt, "Verlauf beginnt mit dem ganzen Kontext")
+        XCTAssertEqual(store.messages(for: "exam:8:2").count, 2, "ohne Antwort nichts gemerkt")
+        again.window.isHidden = true
     }
 
     // MARK: - Karteikarten aus Dokument
@@ -562,7 +712,7 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.shows(env.view, "Fortschritt 1 von 3 beantwortet") })
         let selected = elements(in: env.view).first { $0.accessibilityLabel == "Wahr" && $0.accessibilityTraits.contains(.button) }
         XCTAssertEqual(selected?.accessibilityTraits.contains(.selected), true)
-        XCTAssertTrue(tap("B) Summe 1/n^2", in: env.view, exact: false))
+        XCTAssertTrue(tap("B) Summe 1/n²", in: env.view, exact: false), "Formel lesbar (FormulaText), Antwort bleibt der Rohtext")
         XCTAssertTrue(env.wait { self.shows(env.view, "2 von 3 beantwortet") })
         XCTAssertEqual(draftStore.dictionary(forKey: draftKey) as? [String: String], ["1": "Wahr", "2": "B) Summe 1/n^2"], "Entwurf gespeichert")
         XCTAssertEqual(env.router.examFocus, true)
@@ -582,7 +732,7 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(shows(env.view, "Richtige Antwort"), "Richtige Antwort je Aufgabe")
         XCTAssertTrue(shows(env.view, "Erklärung"), "Erklärung je Aufgabe")
         XCTAssertTrue(shows(env.view, "Falsch"), "Musterloesung der ersten Aufgabe")
-        XCTAssertTrue(shows(env.view, "Gegenbeispiel (-1)^n"))
+        XCTAssertTrue(shows(env.view, "Gegenbeispiel (-1)ⁿ"), "Formel lesbar")
         XCTAssertTrue(shows(env.view, "[keine Antwort]"))
         XCTAssertNil(button("Abgeben & bewerten", in: env.view))
         XCTAssertEqual(env.router.examFocus, false)

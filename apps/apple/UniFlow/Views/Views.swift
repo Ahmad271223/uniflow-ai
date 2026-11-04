@@ -194,6 +194,9 @@ struct LibraryView: View {
                         // die neue Quelle (updateAPI uebernimmt nur Verbindungen derselben Quelle)
                         DocumentView(file: f, api: api, initialPDFPage: f.id == openFile ? openPage : nil,
                                      task: f.id == openFile ? openTask : nil).id("\(api.namespace.id)/\(f.id)")
+                    } else if f.opensAsText {
+                        // Word, PowerPoint, Audio: Text je Seite mit KI-Hilfe daneben statt nur der Vorschau (docs/DATEIARTEN.md)
+                        TextDocumentView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
                     } else {
                         FileOutsideEditorView(file: f, api: api)
                     }

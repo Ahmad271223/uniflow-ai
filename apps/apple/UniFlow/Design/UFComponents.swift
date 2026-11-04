@@ -476,33 +476,46 @@ struct UFDot: View {
 
 // MARK: - Segment, Reiter, Fortschritt
 
-/// .seg – Umschalter wie "Tag | 3 Tage | Woche"
+/// .seg – Umschalter wie "Tag | 3 Tage | Woche". Passen die Beschriftungen nicht nebeneinander (lange Texte wie
+/// "Zusammenfassung und Begriffe (Standard)" in der schmalen Spalte der Einstellungen, Breiten-Audit 04.11.2026: der
+/// Umschalter schob die ganze Seite ueber den rechten Bildschirmrand), stehen die Optionen untereinander und brechen um.
 struct UFSegmented<Value: Hashable>: View {
     let options: [(value: Value, label: String)]
     @Binding var selection: Value
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(options.indices, id: \.self) { i in
-                let o = options[i]
-                let active = o.value == selection
-                Button { withAnimation(UF.transition) { selection = o.value } } label: {
-                    Text(o.label)
-                        .ufFont(14.5, 500)
-                        .fixedSize()
-                        .foregroundStyle(active ? UF.text : UF.text2)
-                        .padding(.vertical, 5.6)
-                        .padding(.horizontal, 11.2)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(active ? UF.surface : .clear))
-                        .modifier(OptionalShadow(on: active))
-                        .contentShape(Rectangle())
-                        .ufHitArea(slop: EdgeInsets(top: .infinity, leading: 1, bottom: .infinity, trailing: 1))   // seitlich halbe Luecke
-                }
-                .buttonStyle(.plain)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 2) {
+                ForEach(options.indices, id: \.self) { i in option(i, stacked: false) }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(options.indices, id: \.self) { i in option(i, stacked: true) }
             }
         }
         .padding(3)
         .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
+    }
+
+    private func option(_ i: Int, stacked: Bool) -> some View {
+        let o = options[i]
+        let active = o.value == selection
+        return Button { withAnimation(UF.transition) { selection = o.value } } label: {
+            Text(o.label)
+                .ufFont(14.5, 500)
+                .fixedSize(horizontal: !stacked, vertical: true)
+                .multilineTextAlignment(.leading)
+                .foregroundStyle(active ? UF.text : UF.text2)
+                .padding(.vertical, 5.6)
+                .padding(.horizontal, 11.2)
+                .frame(maxWidth: stacked ? .infinity : nil, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 6).fill(active ? UF.surface : .clear))
+                .modifier(OptionalShadow(on: active))
+                .contentShape(Rectangle())
+                .ufHitArea(slop: stacked ? EdgeInsets(top: 1, leading: .infinity, bottom: 1, trailing: .infinity)
+                                         : EdgeInsets(top: .infinity, leading: 1, bottom: .infinity, trailing: 1))   // halbe Luecke
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? .isSelected : [])          // VoiceOver: "ausgewaehlt"
     }
 }
 

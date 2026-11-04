@@ -68,6 +68,7 @@ final class QISConnection: ObservableObject {
         lastMessage = defaults.string(forKey: Keys.message)
         lastCount = defaults.object(forKey: Keys.count) as? Int
         state = storedState()
+        StudyCatalogSync.attach(host: host)      // Modulkatalog: Ausloeser fuer die Seite Studienverlauf
     }
 
     // MARK: Einstellungen des Containers (UserDefaults-Suite, gehen mit "Daten dieser Hochschule löschen")
@@ -211,6 +212,7 @@ final class QISConnection: ObservableObject {
             lastCount = n
             defaults.set(n, forKey: Keys.count)
             set(.ok(clock.now))
+            StudyCatalogSync.trigger(host: host)     // Studiengang aus dem Notenspiegel -> Modulkatalog suchen (Hintergrund)
         } else if r.needsLogin {
             set(.needsLogin)
         } else {

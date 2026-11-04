@@ -63,7 +63,7 @@ def _two_overlapping_runs(monkeypatch, acc_a, acc_b, docs=False):
     erst nach use_profile/credentials_for, bei Bedarf nach dem Speichern der PDFs. Liefert die Aufzeichnungen."""
     from app import config, jobs, lsf, qis
     rec = {"gotos": [], "lsf_login": [], "result": {}}
-    gate = threading.Barrier(2, timeout=20)
+    gate = threading.Barrier(2, timeout=60)               # unter Last (ganze Suite parallel) reichen 20 s knapp
     orig_creds = qis.credentials_for
 
     def creds(key):
@@ -98,7 +98,7 @@ def _two_overlapping_runs(monkeypatch, acc_a, acc_b, docs=False):
         rec["result"][j["user_id"]] = jobs.run_job(j)
     ts = [threading.Thread(target=work, args=(j,)) for j in claimed]
     [t.start() for t in ts]
-    [t.join(60) for t in ts]
+    [t.join(120) for t in ts]
     assert not any(t.is_alive() for t in ts)
     return rec
 

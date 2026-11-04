@@ -244,11 +244,15 @@ def course_texts(a: dict) -> dict:
 def event_from_studip(e: dict, course_id: str) -> dict:
     """Einzeltermin aus courses/{id}/events (gleich gelesen wie StudIPCourseEvent.read im Swift-Kern).
     Abgesagte Termine (`is-cancelled`) bleiben seit 02.11.2026 mit `cancelled` = 1 (Entscheidung des Inhabers: im
-    Planer als bestaetigter Ausfall). Annahme: `description` ist das Sitzungsthema (Stud.IP 6.x, course-dates/events)."""
+    Planer als bestaetigter Ausfall). Annahme: `description` ist das Sitzungsthema (Stud.IP 6.x, course-dates/events).
+    `categories` ist die Art des Termins ("Sitzung", "Vorbesprechung", "Klausur" ...; Stud.IP TERMIN_TYP), seit
+    04.11.2026 gespeichert: daran erkennt app/exams.py die Klausurtermine (vorher wurde das Feld nicht gelesen)."""
     a = e.get("attributes") or {}
+    cat = a.get("categories")
     return {"id": e["id"], "course_id": course_id, "title": a.get("title") or "", "start": (a.get("start") or "")[:19],
             "end": (a.get("end") or "")[:19], "room": (a.get("location") or "").split(",")[0].strip(),
-            "description": studip_text(a.get("description")), "cancelled": 1 if a.get("is-cancelled") else 0}
+            "description": studip_text(a.get("description")), "cancelled": 1 if a.get("is-cancelled") else 0,
+            "category": cat.strip()[:80] if isinstance(cat, str) else ""}
 
 
 def fetch_events(page: Page, course_id: str) -> list[dict]:
@@ -338,11 +342,12 @@ def store_schedule_entries(conn, entries: list[dict]) -> None:
 
 def store_events(conn, events: list[dict]) -> None:
     for e in events:
-        conn.execute("""INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)
+        conn.execute("""INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)
                         ON CONFLICT(id) DO UPDATE SET title=excluded.title, start=excluded.start, end=excluded.end, room=excluded.room,
-                        description=excluded.description, cancelled=excluded.cancelled, fetched_at=excluded.fetched_at""",
+                        description=excluded.description, cancelled=excluded.cancelled, category=excluded.category, fetched_at=excluded.fetched_at""",
                      (e["id"], e["course_id"], e["title"], e["start"], e["end"], e["room"], e.get("description") or "",
-                      int(bool(e.get("cancelled"))), db.now_iso()))
+                      int(bool(e.get("cancelled"))), e.get("category") or "", db.now_iso()))
 
 
 def store_course_texts(conn, c: dict) -> None:
@@ -382,6 +387,12 @@ def fetch_files(page: Page, course_id: str) -> list[dict]:
     return files
 
 
+# Tiefste gelesene Ordnerebene unter dem Wurzelordner (Wurzel = 0); gleicher Wert wie `StudIPClient.maxFolderDepth`
+# im Swift-Kern. Bis 03.11.2026 waren es 6 (docs/RIESENTEST-2026-11-03.md: Dateien tiefer als 6 Ebenen fehlten auf dem
+# iPad). Schleifen faengt `seen` ab, die Grenze schuetzt nur vor Entartung.
+MAX_FOLDER_DEPTH = 12
+
+
 def fetch_folder_paths(page: Page, course_id: str) -> dict[str, str]:
     """Ordnerpfad je Datei (FileRef-ID) ueber die JSON-API: /courses/{id}/folders -> /folders/{id}/folders|file-refs,
     alle Seiten (`links.next`). Nicht lesbare Unterordner (z. B. 403/404) werden uebersprungen und gezaehlt, der Rest
@@ -395,7 +406,7 @@ def fetch_folder_paths(page: Page, course_id: str) -> dict[str, str]:
     skipped = [0]
 
     def walk(fid: str, path: str, depth: int) -> None:
-        if fid in seen or depth > 6:
+        if fid in seen or depth > MAX_FOLDER_DEPTH:
             return
         seen.add(fid)
         refs = api_list(page, f"{STUDIP_BASE}/jsonapi.php/v1/folders/{fid}/file-refs?page[limit]=500")

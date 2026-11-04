@@ -2,17 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Datenschutz-Manifest der App (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 7; docs/RELEASE-VORBEREITUNG.md).
-  V1 laeuft ohne eigenen Server: Anmeldung mit Apple, Kaeufe (StoreKit), Stud.IP-/Learnweb-Daten, Notizen und
-  Lernplan bleiben auf dem Geraet; kein Tracking. Einzige Ausnahme ist die Community (Plus, nur in einem Build mit
-  iCloud-Container, docs/LOESUNGEN-TEILEN.md Abschnitt 7): Wer eine Loesung veroeffentlicht, laedt freiwillig seine
-  eigenen Notizen (verschluesselt), ein Pseudonym und Kopfdaten in die oeffentliche CloudKit-Datenbank des Inhabers
-  (NSPrivacyCollectedDataTypeOtherUserContent, nicht mit der Identitaet verknuepft, kein Tracking). Nie Apple-ID,
-  Name, E-Mail oder Kurs-ID.
+  V1 laeuft ohne eigenen Server: Anmeldung mit Apple (die Kennung bleibt auf dem Geraet), Kaeufe (StoreKit),
+  Stud.IP-/Learnweb-Daten, Notizen und Lernplan bleiben auf dem Geraet; kein Tracking, keine Analyse, keine Diagnose.
+  Was das Geraet verlaesst (Stand 04.11.2026, docs/release/APP-STORE.md Abschnitt App-Datenschutz):
+  - Oeffentliche CloudKit-Datenbank des Inhabers (nur in einem Build mit iCloud-Container, docs/LOESUNGEN-TEILEN.md
+    Abschnitt 7): veroeffentlichte Loesungen, Kommentare, Likes, Korrekturvorschlaege und Meldungen der Community,
+    gemeinsame Wochentests (WeeklyTest) und der gemeinsame Dokument-Index (DocIndex). Inhalte verschluesselt, Kopfdaten
+    pseudonym; jeder Datensatz traegt die CloudKit-Nutzerkennung des Containers (creatorUserRecordID,
+    ownerRecordName) -> NSPrivacyCollectedDataTypeUserID und NSPrivacyCollectedDataTypeOtherUserContent, beide mit der
+    Kennung verknuepft (Apple-Definition: nicht vor der Erfassung von Kennungen getrennt), kein Tracking.
+  - KI ueber das eigene ChatGPT des Nutzers (nur nach Verbinden und Zustimmung, docs/KI-CHATGPT-PLAN.md): Seitentext
+    bzw. Markierung, Frage, Kurs- und Dateiname gehen direkt an OpenAI -> ebenfalls OtherUserContent.
+  Nie Apple-ID, Name, E-Mail, Matrikelnummer, Hochschul-Zugangsdaten oder Kurs-ID.
   Genutzte APIs mit Begruendungspflicht:
   - UserDefaults (CA92.1): Einstellungen nur dieser App (je Container eine eigene Suite)
   - Datei-Zeitstempel (C617.1): Alter der Antworten im Zwischenspeicher im App-Container (ResponseCache)
   - Freier Speicher (E174.1): vor dem Laden einer Aufzeichnung pruefen, ob sie Platz hat (RecordingLibrary), ebenso
     vor jeder Datei des Hochschul-Abgleichs (DeviceStorage)
+  Vorlesung aufnehmen (04.11.2026, docs/VORLESUNG-AUFNEHMEN.md, LectureRecorder): Mikrofon und Spracherkennung nur nach
+  Antippen und Zustimmung (NSMicrophoneUsageDescription, NSSpeechRecognitionUsageDescription in Info.plist), die
+  Erkennung laeuft nur auf dem Geraet (requiresOnDeviceRecognition); Aufnahme (m4a) und Mitschrift (txt) bleiben im
+  Container (recordings/eigene). Keine API mit Begruendungspflicht, keine erhobene Datenart (nichts verlaesst das
+  Geraet); geht auf Antippen der Text eines Teils der Mitschrift an das ChatGPT des Nutzers, ist das derselbe Fall wie
+  oben (OtherUserContent), Audio geht nie.
   Abgleich im Hintergrund (S8, BGTaskScheduler, lokale Benachrichtigungen): keine weitere API mit Begruendungspflicht,
   keine neuen Daten; er laeuft wie der Abgleich beim Oeffnen nur zwischen dem Geraet und der Hochschule, die
   Mitteilungen entstehen auf dem Geraet (ohne Push, ohne Server, ohne Dateinamen).
@@ -31,7 +43,19 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

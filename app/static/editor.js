@@ -1,6 +1,6 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=31";
+import { icon } from "./icons.js?v=32";
 import { mergeDocument } from "./merge.js?v=30";
 import { rotateObjects } from "./pagerotate.js?v=1";
 import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=30";
@@ -96,7 +96,7 @@ export class PdfEditor {
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    if (this.pdf) import("./editor-community.js?v=24").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
+    if (this.pdf) import("./editor-community.js?v=26").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }

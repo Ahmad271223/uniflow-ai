@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://studinow.app/schemas/study-catalog.schema.json",
+  "title": "StudiNow Modulkatalog (geteilte Fakten)",
+  "description": "Format des Modulkatalogs eines Studiengangs (docs/STUDIENVERLAUF-2026-11-04.md). Dieses JSON liegt lokal in study_catalogs.payload und in der Bibliothek (CloudKit StudyCatalog.payload). Lange Modultexte (Inhalt, Lernziele, Literatur) gehoeren NIE hierher, nur lokal in study_module_texts. Validatoren mit denselben Regeln: app/study_catalog.py (validate) und UniFlowCore StudyCatalog/StudyCatalogValidator.swift; gemeinsame Faelle in fixtures/study-catalog/validator-cases.json. Zusaetzliche Regeln, die JSON Schema nicht ausdrueckt: Modul- und Bereichs-ids eindeutig, module.area verweist auf einen Bereich, prerequisites verweisen auf andere Module, lp_max >= lp_required, plan_slots[].areas verweisen auf Bereiche, plan_slots[].lp_max >= lp. Optional seit 04.11.2026 (v bleibt 1, aeltere Datensaetze ohne die Felder bleiben gueltig): study_plan (Quelle des Studienverlaufsplans) und plan_slots (Plaetze fuer Wahlmodule je Fachsemester laut Plan); module.semester ist dann das Fachsemester laut Plan, Module in Wahlbereichen haben semester null.",
+  "type": "object",
+  "required": ["v", "university", "program", "degree", "po", "catalog_term", "code", "source", "areas", "modules"],
+  "not": {"required": ["module_texts"]},
+  "properties": {
+    "v": {"const": 1},
+    "university": {"type": "string", "minLength": 1, "maxLength": 500},
+    "program": {"type": "string", "minLength": 1, "maxLength": 500},
+    "degree": {"type": "string", "minLength": 1, "maxLength": 500},
+    "po": {"type": "string", "minLength": 1, "maxLength": 500},
+    "catalog_term": {"type": "string", "pattern": "^(WS [0-9]{4}/[0-9]{2}|SS [0-9]{4})$"},
+    "code": {"type": ["string", "null"], "maxLength": 500},
+    "regular_semesters": {"type": ["integer", "null"], "minimum": 1, "maximum": 20},
+    "total_lp": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "source": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://"},
+        "fetched_at": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "areas": {"type": "array", "items": {"$ref": "#/$defs/area"}},
+    "modules": {"type": "array", "items": {"$ref": "#/$defs/module"}},
+    "study_plan": {
+      "type": ["object", "null"],
+      "description": "Quelle des eingemischten Studienverlaufsplans (study-sources.json, programs[].pos[].study_plan)",
+      "required": ["url"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://"},
+        "fetched_at": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "plan_slots": {"type": "array", "items": {"$ref": "#/$defs/slot"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+    "kind": {"enum": ["pflicht", "wahlpflicht", "wahl", "abschluss"]},
+    "area": {
+      "type": "object",
+      "required": ["id", "name", "kind"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 500},
+        "lp_required": {"type": ["number", "null"], "minimum": 0},
+        "lp_max": {"type": ["number", "null"], "minimum": 0, "description": "Obergrenze bei Spannen wie '10 - 15 LP' (lp_required = 10), sonst null"},
+        "kind": {"$ref": "#/$defs/kind"}
+      }
+    },
+    "slot": {
+      "type": "object",
+      "description": "Platz fuer ein Wahl(pflicht)modul laut Studienverlaufsplan, z. B. 'Wahlpflichtmodul (Vertiefung der Informatik oder Informationstechnik)' mit 5 LP im 5. Fachsemester",
+      "required": ["semester", "title", "areas"],
+      "properties": {
+        "semester": {"type": "integer", "minimum": 1, "maximum": 20},
+        "title": {"type": "string", "minLength": 1, "maxLength": 500},
+        "areas": {"type": "array", "items": {"type": "string"}, "description": "ids der Bereiche, aus denen gewaehlt wird; leer = jeder Wahlbereich"},
+        "lp": {"type": ["number", "null"], "minimum": 0},
+        "lp_max": {"type": ["number", "null"], "minimum": 0, "description": "Obergrenze bei '3-6 ECTS', sonst null"}
+      }
+    },
+    "module": {
+      "type": "object",
+      "required": ["id", "title", "kind", "lp", "turnus", "prerequisites"],
+      "not": {"anyOf": [{"required": ["content"]}, {"required": ["goals"]}, {"required": ["literature"]}]},
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 500},
+        "code": {"type": ["string", "null"], "maxLength": 500},
+        "area": {"type": ["string", "null"], "description": "id eines Bereichs aus areas"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "lp": {"type": ["number", "null"], "minimum": 0},
+        "semester": {"type": ["integer", "null"], "minimum": 1, "maximum": 20, "description": "empfohlenes Fachsemester laut Verlaufsplan, null = frei"},
+        "turnus": {"enum": ["WS", "SS", "WS+SS", "unbekannt"]},
+        "exam": {"type": ["string", "null"], "maxLength": 500},
+        "coursework": {"type": ["string", "null"], "maxLength": 500},
+        "prerequisites": {"type": "array", "items": {"type": "string"}, "description": "ids anderer Module"},
+        "language": {"type": ["string", "null"], "maxLength": 500},
+        "workload_h": {"type": ["number", "null"], "minimum": 0},
+        "source_page": {"type": ["integer", "null"], "minimum": 1}
+      }
+    }
+  }
+}

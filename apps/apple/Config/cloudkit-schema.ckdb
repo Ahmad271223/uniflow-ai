@@ -1,3 +1,11 @@
+// StudiNow: Schema der oeffentlichen CloudKit-Datenbank (Container iCloud.de.uniflow.ai), Stand 04.11.2026.
+// Importieren (Development), dann in der CloudKit Console "Deploy Schema Changes..." nach Production:
+//   xcrun cktool save-token   (einmalig, Token aus der Console: Settings > Tokens)
+//   xcrun cktool import-schema --team-id <TEAM-ID> --container-id iCloud.de.uniflow.ai --environment development --file apps/apple/Config/cloudkit-schema.ckdb
+// Pruefen ohne Aenderung: xcrun cktool validate-schema ... (gleiche Optionen). Felder und Indexe laut
+// docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md und UniFlow/Services/*CloudKit.swift; tests/test_page_explain.py liest die Datei offline mit.
+// Falls der Import die Kommentarzeilen (//) ablehnt: die Zeilen bis DEFINE SCHEMA entfernen.
+
 DEFINE SCHEMA
 
     RECORD TYPE Solution (
@@ -37,6 +45,7 @@ DEFINE SCHEMA
         reason              STRING,
         note                STRING,
         reporterRecordName  STRING,
+        commentID           STRING,
         createdAt           STRING QUERYABLE SORTABLE,
         GRANT WRITE TO "_creator",
         GRANT READ TO "_creator",
@@ -83,5 +92,173 @@ DEFINE SCHEMA
         "___recordID"    REFERENCE QUERYABLE,
         ownerRecordName  STRING,
         GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Comment (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        solutionID       STRING QUERYABLE,
+        parentID         STRING,
+        status           STRING,
+        createdAt        STRING,
+        editedAt         STRING,
+        payload          STRING,
+        ownerRecordName  STRING,
+        removedID        STRING,
+        createdOrder     INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Like (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        solutionID       STRING QUERYABLE,
+        ownerRecordName  STRING,
+        createdAt        STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Correction (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        solutionID       STRING QUERYABLE,
+        solutionOwner    STRING QUERYABLE,
+        payload          STRING,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        createdOrder     INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE WeeklyTest (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        shareKey         STRING QUERYABLE,
+        variant          INT64,
+        status           STRING,
+        payload          STRING,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE DocIndex (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        fileKey          STRING QUERYABLE,
+        page             INT64,
+        payload          STRING,
+        version          INT64,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE PageExplain (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        fileKey          STRING QUERYABLE,
+        page             INT64,
+        mode             STRING,
+        variant          INT64,
+        payload          STRING,
+        version          INT64,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE WeekCardStack (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        shareKey         STRING QUERYABLE,
+        variant          INT64,
+        status           STRING,
+        payload          STRING,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE CardStackShare (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        communityKey     STRING QUERYABLE,
+        kind             STRING,
+        week             INT64,
+        name             STRING,
+        cardCount        INT64,
+        displayName      STRING,
+        payload          STRING,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        withdrawn        INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE StudyCatalog (
+        "___createTime"  TIMESTAMP,
+        "___createdBy"   REFERENCE,
+        "___etag"        STRING,
+        "___modTime"     TIMESTAMP,
+        "___modifiedBy"  REFERENCE,
+        "___recordID"    REFERENCE QUERYABLE,
+        catalogKey       STRING QUERYABLE,
+        variant          INT64,
+        payload          STRING,
+        version          INT64,
+        createdAt        STRING,
+        ownerRecordName  STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
     );

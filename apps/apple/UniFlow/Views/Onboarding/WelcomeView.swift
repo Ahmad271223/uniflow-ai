@@ -6,6 +6,8 @@ import SwiftUI
 struct WelcomeView: View {
     @EnvironmentObject private var account: AccountStore
     @Environment(\.colorScheme) private var scheme
+    /// Rufname fuer die Begruessung (`UFGreeting`), vorgemerkt in den gemeinsamen Einstellungen
+    @State private var rufname = Rufname.current(container: nil) ?? ""
 
     /// wofuer das Konto dient: Icon, Titel, Erklaerung. Nur was V1 wirklich tut: Das Abo haengt an der Apple-ID im App
     /// Store (StoreKit, ohne appAccountToken), nicht an dieser Anmeldung; einen Abgleich zwischen Geraeten gibt es nicht.
@@ -44,6 +46,20 @@ struct WelcomeView: View {
                     }
                 }
                 .padding(.top, 25.6)
+
+                // Rufname fuer die Begruessung auf der Uebersicht (freiwillig, nur auf dem iPad; vorgemerkt, bis der
+                // Container des Kontos da ist, `Rufname.setPending`)
+                VStack(alignment: .leading, spacing: 4.8) {
+                    Text("Wie sollen wir dich nennen?").ufFont(14.5, 600).foregroundStyle(UF.text)
+                    UFTextField("Rufname (optional)", text: $rufname)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .accessibilityIdentifier("welcome.rufname")
+                    Text("Für „Hallo … – lass uns gemeinsam lernen.“ Bleibt auf diesem iPad.")
+                        .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 19.2)
+                .onChange(of: rufname) { _, now in Rufname.setPending(now) }
 
                 SignInWithAppleButton(.signIn, onRequest: AccountStore.configure, onCompletion: { account.handle($0) })
                     .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)

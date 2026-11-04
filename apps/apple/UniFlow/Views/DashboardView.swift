@@ -15,6 +15,8 @@ struct DashboardView: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    /// Name fuer die Begruessung (Vorname aus "Mit Apple anmelden", `UFGreeting`)
+    @EnvironmentObject private var account: AccountStore
     @Environment(\.ufDemoActive) private var demo
     @Environment(\.openURL) private var openURL
     @Environment(\.ufWindowWidth) private var windowWidth
@@ -31,6 +33,8 @@ struct DashboardView: View {
     @State private var showNews = false
     /// neue Anzeigen im Schwarzen Brett (GET /api/studip/bulletin, nur lokal; eine Zeile in der Karte "Neuigkeiten")
     @State private var bulletinNew = 0
+    /// "Zuletzt benutzt" (Weitermachen wie zuvor, `RecentCard`): Dokumente, KI-Gespraeche, Wochentests
+    @State private var recent: [RecentItem] = []
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -76,7 +80,11 @@ struct DashboardView: View {
         if let shown = data.value?["today"]?.s("date"), shown != device {
             studipCancelled = await StudIPCancelled.keys(api, from: shown, to: shown)
         }
+        recent = await RecentItem.load(api: api, conversations: .shared, limit: Self.recentLimit)
     }
+
+    /// so viele Eintraege in "Zuletzt benutzt" auf der Uebersicht (KI-Start: 15)
+    static let recentLimit = 10
 
     // MARK: Inhalt
 
@@ -92,7 +100,9 @@ struct DashboardView: View {
 
         UFContent {
             VStack(alignment: .leading, spacing: 0) {
-                UFPageHeadGreet(title: "\(UFFmt.greeting())!", sub: dateLine(pk: pk, evs: evs)) {
+                // "Hallo Ahmad – lass uns gemeinsam lernen." (Wunsch des Inhabers 04.11.2026, `UFGreeting`): Rufname,
+                // sonst Vorname der Apple-Anmeldung, sonst ohne Namen; `day` haelt die Tageszeit nach Mitternacht aktuell
+                UFPageHeadGreet(title: UFGreeting.text(name: greetingName), sub: dateLine(pk: pk, evs: evs)) {
                     UFButton("Tagesansicht", icon: "calendar") { router.go(.plan(view: "day", date: todayDate)) }
                     if let n = nextOpen {
                         UFButton("Weiterlernen", icon: "play", kind: .primary) {
@@ -105,12 +115,14 @@ struct DashboardView: View {
                     }
                 }
                 // lokal: solange Stud.IP nicht verbunden ist, oben die Karte "Stud.IP verbinden" (Auftrag 2a); danach
-                // der Abgleichstand (die neuen Dateien stehen unten unter "Neu aus Stud.IP"). Mit Demo-Inhalten statt
-                // dessen der Hinweis "Demo-Inhalte aktiv" mit "Entfernen"
-                if mode.isDemo { DemoActiveBar().padding(.bottom, 19.2) }
-                if let studoraAccount { TrialBanner(link: studoraAccount).padding(.bottom, 19.2) }
+                // der Abgleichstand (die neuen Dateien stehen unten unter "Neu aus Stud.IP"). Mit Demo-Inhalten keins von
+                // beiden; den Hinweis mit "Beenden" zeigt die App-Huelle ueber jeder Seite (`DemoActiveBar`)
+                // Probe (StudiNow-Konto oder, ohne Dienst, die Probe auf dem iPad); ohne Inhalt nichts
+                TrialBanner(link: studoraAccount).padding(.bottom, 19.2)
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
+                // "Nächste Klausuren" (04.11.2026, `UpcomingExamsCard`): aus allen Quellen, nur wenn es welche gibt
+                UpcomingExamsCard(api: api, token: day)
 
                 // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
                 // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)
@@ -144,7 +156,12 @@ struct DashboardView: View {
                     todayCard(pk: pk).ufAppear("dashboard", index: 3).dashboardSlot(.main)
                     if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
                     DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
+                    if !recent.isEmpty { RecentCard(items: recent).ufAppear("dashboard", index: 4).dashboardSlot(.flow) }
                     upcomingCard(d.list("upcoming")).ufAppear("dashboard", index: 4).dashboardSlot(.flow)
+                    // "Deine Module" mit Lernstand (docs/LERNSTAND-2026-11-04.md), wie modulesCard im Web
+                    if !Self.activeModules(d).isEmpty {
+                        modulesCard(Self.activeModules(d)).ufAppear("dashboard", index: 5).dashboardSlot(.flow)
+                    }
                     if !news.isEmpty {                                                   // Neuigkeiten (+ Schwarzes Brett, eine Zeile)
                         NewsCard(items: news, today: todayDate, bulletinNew: bulletinNew, openBulletin: { router.go(.services) }) { showNews = true }
                             .ufAppear("dashboard", index: 6).dashboardSlot(.flow)
@@ -160,6 +177,9 @@ struct DashboardView: View {
     private func statusBar(_ mode: UFDataMode) -> Bool {
         UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase).showsStatusBar
     }
+
+    /// Name der Begruessung in der Reihenfolge von `UFGreeting.pick`; das StudiNow-Konto hat in V1 keinen Anzeigenamen
+    private var greetingName: String? { UFGreeting.name(for: account.account) }    // dieselbe Quelle wie die Seitenleiste
 
     /// "Sonntag, 25. Oktober · heute 2 Lernpakete · 3 Uni-Termine"
     private func dateLine(pk: [JSONValue], evs: [JSONValue]) -> String {
@@ -271,6 +291,54 @@ struct DashboardView: View {
                     .accessibilityLabel(isDeadline ? "Frist: \(u.s("title") ?? "") · \(Self.upcomingSub(u))" : "\(u.s("title") ?? "") · \(Self.upcomingSub(u))")
                     .ufBorderBottom(row.id != rows.last?.id)                     // .item:last-child { border-bottom: 0 }
                 }
+            }
+        }
+    }
+
+    /// modules[] aus /api/dashboard ohne abgeschaltete Module, hoechstens fuenf (wie modulesCard in views-home.js)
+    static func activeModules(_ d: JSONValue) -> [JSONValue] {
+        Array(d.list("modules").filter { ($0.i("active") ?? 1) != 0 }.prefix(5))
+    }
+
+    /// Unterzeile der Modulzeile wie im Web: offene Aufgaben, dazu Klausur oder der naechste Termin
+    static func moduleSub(_ m: JSONValue) -> String {
+        var s = (m.i("open_tasks") ?? 0) > 0 ? "\(m.i("open_tasks") ?? 0) offen" : "nichts offen"
+        if let exam = m.s("exam_date"), !exam.isEmpty {
+            s += " · Klausur \(UFFmt.short(exam))"
+        } else if let e = m["next_event"], !e.isNull {
+            s += " · \(e.s("kind") == "vorlesung" ? "Vorlesung" : "Termin") \(UFFmt.short(e.s("date"))) \(e.s("start") ?? "")"
+        }
+        return s
+    }
+
+    /// "Deine Module": Name, Unterzeile und rechts der Lernstand (Ring in Modulfarbe, grau "noch kein Lernstand");
+    /// jede Zeile oeffnet das Modul, "Alle" die Modulseite
+    private func modulesCard(_ mods: [JSONValue]) -> some View {
+        UFCard {
+            UFCardHead("Deine Module", icon: "book") {
+                Button("Alle") { router.go(.modules) }.font(.uf(13.12, 600)).foregroundStyle(UF.accentText).buttonStyle(.plain)
+            }
+            let rows = Row.rows(mods)
+            ForEach(rows) { row in
+                let m = row.value
+                let mc = Color(hex: m.s("color"))
+                Button { router.go(.module(m.i("id") ?? 0)) } label: {
+                    // Name und Unterzeile, darunter die Kachel "Lernstand" (Ring mit Prozent und Begruendung, `LernstandTile`)
+                    VStack(alignment: .leading, spacing: 0) {
+                        UFItemRow(UFFmt.shortName(m.s("name")), sub: Self.moduleSub(m), wraps: true, leading: {
+                            UFDot(color: mc)
+                        }, trailing: {
+                            UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                        })
+                        LernstandTile(m: m["mastery"], color: mc, style: .inline)
+                            .padding(.horizontal, 8).padding(.bottom, 12)
+                    }
+                    .foregroundStyle(UF.text)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(m.s("name") ?? "") · \(Self.moduleSub(m)) · \(LernstandText.accessibility(m["mastery"]))")
+                .ufBorderBottom(row.id != rows.last?.id)
             }
         }
     }

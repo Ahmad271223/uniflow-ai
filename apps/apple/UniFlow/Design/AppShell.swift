@@ -9,10 +9,14 @@ import UniFlowCore
 
 enum UFRoute: Hashable {
     case dashboard
+    /// Nachrichten aus Stud.IP (04.11.2026): Posteingang auf dem Geraet mit Leser (Views/Messages/MessagesPage.swift)
+    case messages
     case plan(view: String? = nil, date: String? = nil, module: String? = nil)
     case timetable(date: String? = nil)
     case modules
     case module(Int)
+    /// Studienverlauf (04.11.2026, docs/STUDIENVERLAUF-2026-11-04.md); `module` = Modul-id aus dem Katalog zum Hervorheben
+    case studyPlan(module: String? = nil)
     case files(section: String? = nil, path: String? = nil, q: String? = nil)
     case doc(String, task: Int? = nil, page: Int? = nil)
     case exams
@@ -30,9 +34,11 @@ enum UFRoute: Hashable {
     var navKey: String {
         switch self {
         case .dashboard: return "dashboard"
+        case .messages: return "messages"
         case .plan: return "plan"
         case .timetable: return "timetable"
         case .modules, .module: return "modules"
+        case .studyPlan: return "studyplan"
         case .files, .doc: return "files"
         case .exams, .exam, .cards, .aiStart: return "exams"
         case .services: return "services"
@@ -52,10 +58,12 @@ enum UFRoute: Hashable {
         }
         switch self {
         case .dashboard: return "#/dashboard"
+        case .messages: return "#/messages"
         case .plan(let v, let d, let m): return "#/plan" + q([("view", v), ("date", d), ("module", m)])
         case .timetable(let d): return "#/timetable" + q([("date", d)])
         case .modules: return "#/modules"
         case .module(let id): return "#/modules/\(id)"
+        case .studyPlan(let m): return "#/studyplan" + q([("module", m)])
         case .files(let s, let p, let qq): return "#/files" + q([("section", s), ("path", p), ("q", qq.map { $0.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0 })])
         case .doc(let id, let t, let p): return "#/doc/\(id)" + q([("task", t.map { "\($0)" }), ("page", p.map { "\($0)" })])
         case .exams: return "#/exams"
@@ -90,10 +98,12 @@ enum UFRoute: Hashable {
         case "tasks": self = .plan(view: "list", date: q["date"])
         case "timetable": self = .timetable(date: q["date"])
         case "modules": self = second.flatMap(Int.init).map { .module($0) } ?? .modules
+        case "studyplan", "studienverlauf": self = .studyPlan(module: q["module"])
         case "files": self = .files(section: q["section"], path: q["path"].flatMap { $0.isEmpty ? nil : $0 }, q: q["q"].flatMap { $0.isEmpty ? nil : $0 })
         case "doc": self = second.map { .doc($0, task: q["task"].flatMap(Int.init), page: q["page"].flatMap(Int.init)) } ?? .files()
         case "exams": self = second.flatMap(Int.init).map { .exam($0, task: q["task"].flatMap(Int.init)) } ?? .exams
         case "cards": self = .cards
+        case "messages", "nachrichten": self = .messages
         case "ki": self = .aiStart
         case "services": self = .services
         case "community": self = second.map { .communitySpace($0) } ?? .community
@@ -126,6 +136,9 @@ final class UFRouter: ObservableObject {
     /// Loesungen, `CommunityBadge`; spaeter z. B. "exams": faellige Karteikarten). 0 oder fehlend = kein Abzeichen.
     @Published private(set) var badges: [String: Int] = [:]
     private var history: [UFRoute] = []
+    /// Weitermachen wie zuvor (Services/ResumeState.swift): Stand dieses Fensters mitschreiben und beim Start einmal
+    /// wiederherstellen
+    let resume = ResumeTracker()
 
     func reload() { reloadToken += 1 }
 
@@ -146,12 +159,13 @@ final class UFRouter: ObservableObject {
         drawerOpen = false
         fullscreenDoc = false            // route() entfernt exam-focus, fullscreen-doc, doc-open
         examFocus = false
+        resume.noteRoute(r)
     }
 
     func go(hash: String) { go(UFRoute(hash: hash)) }
 
     func back() {
-        if let r = history.popLast() { route = r }
+        if let r = history.popLast() { route = r; resume.noteRoute(r) }
     }
 
     /// Es gibt eine vorige Seite (sonst fuehrt "Zurück" auf die uebergeordnete Seite)
@@ -178,11 +192,16 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "plan", title: "Lernkalender", icon: "calendar", route: .plan()),
         UFNavItem(id: "timetable", title: "Stundenplan", icon: "clock", route: .timetable()),
         UFNavItem(id: "modules", title: "Meine Module", icon: "book", route: .modules),
+        UFNavItem(id: "studyplan", title: "Studienverlauf", icon: "columns", route: .studyPlan()),
         UFNavItem(id: "files", title: "Dokumente & Notizen", icon: "folder", route: .files()),
         UFNavItem(id: "exams", title: "Tests & Wiederholung", icon: "exam", route: .exams),
         UFNavItem(id: "services", title: "Uni & Noten", icon: "graduation", route: .services),
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
+
+    /// Stud.IP-Nachrichten (04.11.2026): direkt nach "Übersicht", nur wenn `visible(messages:)` es erlaubt
+    /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten)
+    static let messages = UFNavItem(id: "messages", title: "Nachrichten", icon: "mail", route: .messages)
 
     /// Eigene Karteikarten ohne PC: Eintrag an Stelle von "Tests & Wiederholung"
     static let cards = UFNavItem(id: "cards", title: "Karteikarten", icon: "cards", route: .cards)
@@ -194,36 +213,46 @@ struct UFNavItem: Identifiable {
     /// sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt (`gradesOnDevice`: seit
     /// QIS auf dem Geraet an der LUH wie am LSF der Uni Hildesheim immer).
     /// `ai`: KI ueber das ChatGPT-Abo verbunden; dann gibt es auch ohne PC "Tests & Wiederholung" (Wochentests),
-    /// "Karteikarten" bleibt daneben
+    /// "Karteikarten" bleibt daneben.
+    /// `messages`: "Nachrichten" direkt nach "Übersicht" (Stud.IP-Posteingang nur auf dem Geraet; der Aufrufer
+    /// entscheidet mit `MessagesInbox.showsNavItem`, am eigenen Server und in Hildesheim ohne Nachrichten nie)
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
-                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false) -> [UFNavItem] {
-        guard local else { return main }
-        return main.flatMap { item -> [UFNavItem] in
+                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false) -> [UFNavItem] {
+        let base: [UFNavItem] = local ? main.flatMap { item -> [UFNavItem] in
             switch item.id {
             case "exams": return (ai ? [item] : []) + (flashcards ? [cards] : [])
             case "community": return community ? [item] : []
             case "services": return gradesOnDevice ? [item] : []
             default: return [item]
             }
-        }
+        } : main
+        guard messages else { return base }
+        return base.flatMap { $0.id == "dashboard" ? [$0, Self.messages] : [$0] }
     }
 
     /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
     /// die Karteikarten-Seite weiter unter "Tests & Wiederholung"). Steht "Tests & Wiederholung" nicht im Menue (ohne KI),
     /// markiert `#/exams` die Karteikarten, auf die die Seite dann verweist (Audit 03.11.2026: vorher nichts markiert)
-    func isActive(_ route: UFRoute, examsShown: Bool = true) -> Bool {
-        id == "cards" ? route == .cards || (!examsShown && route.navKey == "exams") : route.navKey == id
+    /// Stehen beide im Menue (iPad mit KI), markiert `#/cards` nur die Karteikarten, nie zusaetzlich "Tests &
+    /// Wiederholung" (Rueckmeldung des Inhabers 04.11.2026: beide leuchteten).
+    func isActive(_ route: UFRoute, examsShown: Bool = true, cardsShown: Bool = false) -> Bool {
+        switch id {
+        case "cards": return route == .cards || (!examsShown && route.navKey == "exams")
+        case "exams": return route.navKey == "exams" && !(cardsShown && route == .cards)
+        default: return route.navKey == id
+        }
     }
 
     /// Markierung in einer Liste sichtbarer Eintraege (Seitenleiste, Schublade, "Mehr")
     static func active(_ item: UFNavItem, in items: [UFNavItem], route: UFRoute) -> Bool {
-        item.isActive(route, examsShown: items.contains { $0.id == "exams" })
+        item.isActive(route, examsShown: items.contains { $0.id == "exams" }, cardsShown: items.contains { $0.id == "cards" })
     }
 
     /// Was die Zahl am Menuepunkt bedeutet (VoiceOver): "2 neue Hinweise" an der Community, sonst "2 neu"
     static func badgeText(key: String, count: Int) -> String {
         switch key {
         case "community": return count == 1 ? "1 neuer Hinweis" : "\(count) neue Hinweise"
+        case "messages": return count == 1 ? "1 neue Nachricht" : "\(count) neue Nachrichten"
         default: return "\(count) neu"
         }
     }
@@ -255,6 +284,109 @@ struct UFNavItem: Identifiable {
         let bar = Set(mobile.map(\.id))
         return visible.filter { !bar.contains($0.id) } + [settings]
     }
+
+    /// Farbpaar der Lern-Eintraege als Kapsel in der Seitenleiste, wie die Knoepfe im KI-Start (Wochentest blau,
+    /// Karteikarten Pfirsich/Bernstein); uebrige Eintraege ohne Farbe
+    var pill: CommunityPair? {
+        switch id {
+        case "exams": return CommunityPalette.sky
+        case "cards": return CommunityPalette.peach
+        default: return nil
+        }
+    }
+}
+
+// MARK: - Gruppen der Seitenleiste
+
+/// Abschnitt der Seitenleiste mit kleiner Ueberschrift in Grossbuchstaben (Neugestaltung 04.11.2026): "STUDIUM",
+/// "LERNEN" (Tests & Wiederholung und Karteikarten als farbige Kapseln), "GEMEINSAM". Welche Eintraege es gibt, bleibt
+/// Sache von `UFNavItem.visible`; die Gruppen ordnen sie nur. Gruppen ohne sichtbaren Eintrag entfallen.
+struct UFNavGroup: Identifiable, Equatable {
+    let id: String
+    /// Name der Gruppe ("Lernen"); angezeigt in Grossbuchstaben (`label`)
+    let title: String
+    let items: [UFNavItem]
+
+    var label: String { title.uppercased(with: Locale(identifier: "de_DE")) }
+    /// VoiceOver: "Gruppe Lernen"
+    var accessibilityLabel: String { "Gruppe \(title)" }
+
+    static func == (a: UFNavGroup, b: UFNavGroup) -> Bool { a.id == b.id && a.items.map(\.id) == b.items.map(\.id) }
+
+    /// Reihenfolge je Gruppe (Schluessel = `UFNavItem.id`); "aiStart" stuende in "Lernen", sobald der KI-Start ein
+    /// eigener Menuepunkt wird
+    static let layout: [(id: String, title: String, members: [String])] = [
+        ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "studyplan", "files", "services"]),
+        ("learn", "Lernen", ["aiStart", "exams", "cards"]),
+        ("together", "Gemeinsam", ["community"]),
+    ]
+
+    /// Sichtbare Eintraege auf die Gruppen verteilen; ein unbekannter Eintrag landet am Ende von "Studium" (nie
+    /// verloren), leere Gruppen fallen weg
+    static func groups(_ visible: [UFNavItem]) -> [UFNavGroup] {
+        let known = Set(layout.flatMap(\.members))
+        let stray = visible.filter { !known.contains($0.id) }
+        return layout.compactMap { g in
+            var items = g.members.compactMap { id in visible.first { $0.id == id } }
+            if g.id == "study" { items += stray }
+            return items.isEmpty ? nil : UFNavGroup(id: g.id, title: g.title, items: items)
+        }
+    }
+}
+
+// MARK: - Fuss der Seitenleiste: Profil und Tarif
+
+/// Profil unten in der Seitenleiste: Initialen, Name wie in der Begruessung, Tarif und ein kleiner Knopf zum
+/// naechsthoeheren Tarif. Reine Funktionen (DesignShellAppTests).
+struct UFSidebarProfile: Equatable {
+    /// "Free", "Plus", "Pro AI" oder "Probe · noch 5 Tage"
+    let planLabel: String
+    /// VoiceOver: "Tarif Free" bzw. "Probe, noch 5 Tage"
+    let planAccessibility: String
+    /// naechsthoeherer Tarif fuer den Knopf; nil auf dem hoechsten Tarif
+    let upgrade: UFPlan?
+
+    /// "Plus holen" / "Pro AI holen"
+    var upgradeTitle: String? { upgrade.map { "\(Self.short($0)) holen" } }
+
+    static func short(_ p: UFPlan) -> String {
+        switch p {
+        case .free: return "Free"
+        case .plus: return "Plus"
+        case .proAI: return "Pro AI"
+        }
+    }
+
+    /// `plan`: wirksamer Tarif, `purchased`: gekaufter Tarif, `trialDaysLeft`: laufende Probe auf dem iPad (nil = keine).
+    /// Die Probe zaehlt nur ohne Kauf (wie `Entitlements.statusLabel`); danach geht es zu Plus, weil die Probe endet.
+    static func make(plan: UFPlan, purchased: UFPlan, trialDaysLeft: Int?) -> UFSidebarProfile {
+        if let d = trialDaysLeft, d > 0, purchased == .free {
+            let days = d == 1 ? "1 Tag" : "\(d) Tage"
+            return UFSidebarProfile(planLabel: "Probe · noch \(days)", planAccessibility: "Probe, noch \(days)", upgrade: .plus)
+        }
+        let next: UFPlan? = plan == .free ? .plus : plan == .plus ? .proAI : nil
+        return UFSidebarProfile(planLabel: short(plan), planAccessibility: "Tarif \(short(plan))", upgrade: next)
+    }
+
+    @MainActor
+    static func make(_ ent: Entitlements) -> UFSidebarProfile {
+        make(plan: ent.plan, purchased: ent.purchasedPlan, trialDaysLeft: ent.localTrial.flatMap { $0.isActive ? $0.daysLeft : nil })
+    }
+
+    /// Initialen fuer den Avatar: wie die Kopfzeile (Server, sonst Apple-Name), sonst aus dem Namen der Begruessung
+    static func initials(server: String, appleName: String?, greetingName: String?) -> String {
+        if !server.isEmpty { return server }
+        let apple = ShellState.initials(of: appleName)
+        return apple.isEmpty ? ShellState.initials(of: greetingName) : apple
+    }
+}
+
+extension UFGreeting {
+    /// Name der Begruessung fuer das angemeldete Konto (Uebersicht und Seitenleiste): Reihenfolge von `pick`; das
+    /// StudiNow-Konto hat in V1 keinen Anzeigenamen
+    static func name(for a: AccountStore.Account?) -> String? {
+        pick(rufname: Rufname.current(), accountName: nil, appleGivenName: a?.givenName, appleFullName: a?.name)
+    }
 }
 
 // MARK: - Rahmen
@@ -264,6 +396,12 @@ struct AppShell<Content: View>: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @EnvironmentObject private var studip: StudIPSync
+    /// Demo-Inhalte aktiv (nur App-Pruefung): schmale Leiste mit "Beenden" ueber jeder Seite; in den Store-Bildern aus
+    @Environment(\.ufDemoActive) private var demoActive
+    @Environment(\.ufDemoBarHidden) private var demoBarHidden
+    /// Stud.IP-Nachrichten: ob der Eintrag erscheint (`MessagesInbox.showsNavItem`)
+    @ObservedObject private var inbox = MessagesInbox.shared
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
 
@@ -296,18 +434,25 @@ struct AppShell<Content: View>: View {
             let narrow = geo.size.width <= 900
             let docOpen: Bool = { if case .doc = router.route { return true }; return false }()
             let hideChrome = router.fullscreenDoc || router.examFocus
+            let showsSidebar = !narrow && !hideChrome && !docOpen
+            let sidebarWidth = sidebarMode == "min" ? UF.sidebarMin : UF.sidebar
             ZStack(alignment: .leading) {
                 HStack(spacing: 0) {
                     // im Editor keine Leiste: das Logo in seiner Werkzeugleiste fuehrt zu den Bereichen (`UFLogoMenu`)
-                    if !narrow && !hideChrome && !docOpen {
+                    if showsSidebar {
                         UFSidebar(collapsed: sidebarMode == "min", allowCollapse: true)
-                            .frame(width: sidebarMode == "min" ? UF.sidebarMin : UF.sidebar)
+                            .frame(width: sidebarWidth)
                             .transition(.move(edge: .leading))
                     }
                     VStack(spacing: 0) {
                         if !hideChrome && !docOpen { UFHeader(narrow: narrow) }          // doc-open: Kopfzeile aus
+                        if demoActive && !demoBarHidden && !session.isOwnServer && !hideChrome && !docOpen { DemoActiveBar() }
+                        // Die Seite bekommt genau die Breite neben der Leiste: eine zu breite Seite schob sonst Kopfzeile,
+                        // Demo-Leiste und alles darunter ueber den rechten Rand (Breiten-Audit 04.11.2026, Einstellungen
+                        // im iPad (A16) quer); LayoutWidthAuditTests prueft, dass keine Seite breiter wird
                         content(router.route)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .frame(width: max(0, geo.size.width - (showsSidebar ? sidebarWidth : 0)), alignment: .leading)
                         if narrow && !hideChrome && !docOpen { UFMobileNav() }
                     }
                     .modifier(UFDrawerHost(overlay: overlay))
@@ -327,7 +472,8 @@ struct AppShell<Content: View>: View {
             .environment(\.ufWindowWidth, geo.size.width)
             .environment(\.ufLogoMenu, UFLogoMenuTargets(
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                         community: SolutionSharing.community.isConnected, ai: aiEnabled).map { ($0.title, $0.route) },
+                                         community: SolutionSharing.community.isConnected, ai: aiEnabled,
+                                         messages: inbox.showsNavItem(api: session.api, studip: studip)).map { ($0.title, $0.route) },
                 go: { [router] r in router.go(r) }))
         }
     }
@@ -376,16 +522,32 @@ extension EnvironmentValues {
     }
 }
 
+/// Seitenleiste (Neugestaltung 04.11.2026): Logo, Gruppen mit kleinen Ueberschriften ("STUDIUM", "LERNEN",
+/// "GEMEINSAM", `UFNavGroup`), die Lern-Eintraege als farbige Kapseln (aktiv gefuellt, sonst umrandet), unten fest das
+/// Profil mit Initialen, Namen der Begruessung, Tarif und "Plus holen" bzw. "Pro AI holen", dann Einstellungen und
+/// Einklappen. Eingeklappt nur Symbole (unten nur der Avatar). Welche Eintraege erscheinen und welcher markiert ist,
+/// bleibt bei `UFNavItem.visible` und `UFNavItem.active`.
 struct UFSidebar: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var shell: ShellState
+    @EnvironmentObject private var account: AccountStore
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufShowPlans) private var showPlans
     @EnvironmentObject private var studip: StudIPSync
+    @ObservedObject private var ent = Entitlements.shared
+    @ObservedObject private var inbox = MessagesInbox.shared
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
 
     var body: some View {
+        // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): an beiden Hochschulen
+        // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
+        let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
+                                      community: SolutionSharing.community.isConnected, ai: aiEnabled,
+                                      messages: inbox.showsNavItem(api: session.api, studip: studip))
+        let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 9.6) {                                       // .brand
                 RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
@@ -393,28 +555,57 @@ struct UFSidebar: View {
                     .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
                 if !collapsed { Text("StudiNow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
-            .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 14.4, trailing: 8))
+            .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 16, trailing: 8))
             .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("StudiNow")
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
-                VStack(spacing: 4) {
-                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): an beiden Hochschulen
-                    // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
-                    let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                                  community: SolutionSharing.community.isConnected, ai: aiEnabled)
-                    ForEach(items) { item in
-                        navRow(item.title, icon: item.icon, active: UFNavItem.active(item, in: items, route: router.route), key: item.id,
-                               badge: router.badge(for: item.id)) { router.go(item.route) }
+                VStack(alignment: .leading, spacing: collapsed ? 8 : 14) {
+                    ForEach(groups) { g in
+                        VStack(alignment: .leading, spacing: g.id == "learn" ? 6 : 2) {
+                            if collapsed {
+                                // eingeklappt: kurze Haarlinie statt Ueberschrift zwischen den Gruppen
+                                if g.id != groups.first?.id {
+                                    Rectangle().fill(UF.line).frame(width: 24, height: 1)
+                                        .frame(maxWidth: .infinity).padding(.bottom, 6)
+                                        .accessibilityHidden(true)
+                                }
+                            } else {
+                                Text(g.label)
+                                    .ufFont(11.2, 650, lh: 1.2, em: 0.08)
+                                    .foregroundStyle(UF.muted)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 11.2)
+                                    .padding(.bottom, 4)
+                                    .accessibilityLabel(g.title)
+                                    .accessibilityAddTraits(.isHeader)
+                            }
+                            ForEach(g.items) { item in
+                                let active = UFNavItem.active(item, in: items, route: router.route)
+                                if let pair = item.pill {
+                                    pillRow(item, pair: pair, active: active, badge: router.badge(for: item.id))
+                                } else {
+                                    navRow(item.title, icon: item.icon, active: active, key: item.id,
+                                           badge: router.badge(for: item.id)) { router.go(item.route) }
+                                }
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(g.accessibilityLabel)
+                        .accessibilityIdentifier("sidebar.group.\(g.id)")
                     }
                 }
+                .padding(.bottom, 8)
             }
             VStack(spacing: 4) {                                         // .side-foot
+                profile.padding(.bottom, 4)
                 navRow("Einstellungen", icon: "settings", active: router.route.navKey == "settings") { router.go(.settings()) }
                 if allowCollapse {
                     navRow("Einklappen", icon: "panel-left", active: false) { sidebarMode = sidebarMode == "min" ? "full" : "min" }
                 }
             }
-            .padding(.top, 5.6)
+            .padding(.top, 9.6)
             .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
         }
         .padding(.vertical, 12)
@@ -422,6 +613,124 @@ struct UFSidebar: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(UF.surface)
         .overlay(alignment: .trailing) { Rectangle().fill(UF.line).frame(width: 1) }
+    }
+
+    // MARK: Profil
+
+    /// Name wie die Begruessung der Uebersicht (`UFGreeting.name`)
+    private var name: String? { UFGreeting.name(for: account.account) }
+
+    private var initials: String {
+        UFSidebarProfile.initials(server: shell.initials, appleName: account.account?.name, greetingName: name)
+    }
+
+    private var avatar: some View {
+        let ini = initials
+        return Group {
+            if ini.isEmpty { UFIcon("user", size: 16) } else { Text(ini).font(.uf(12.48, 700)) }
+        }
+        .foregroundStyle(UF.accentText)
+        .frame(width: 34, height: 34)
+        .background(Circle().fill(UF.accentSoft))
+        .overlay(Circle().strokeBorder(UF.accent.opacity(0.35), lineWidth: 1))
+    }
+
+    @ViewBuilder private var profile: some View {
+        let p = UFSidebarProfile.make(ent)
+        let shownName = name ?? "Dein Konto"
+        let openAccount = { router.go(.settings(tab: "account")) }
+        if collapsed {
+            Button(action: openAccount) { avatar.frame(maxWidth: .infinity).ufHitArea() }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(shownName), \(p.planAccessibility)")
+                .accessibilityHint("Öffnet dein Konto")
+                .accessibilityIdentifier("sidebar.profile")
+                .help("\(shownName) · \(p.planLabel)")
+        } else {
+            let info = Button(action: openAccount) {
+                HStack(spacing: 9.6) {
+                    avatar
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(shownName).ufFont(13.6, 650, lh: 1.25).foregroundStyle(UF.text).lineLimit(1)
+                        Text(p.planLabel).ufFont(11.84, 500, lh: 1.25).foregroundStyle(UF.muted).lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(shownName), \(p.planAccessibility)")
+            .accessibilityHint("Öffnet dein Konto")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("sidebar.profile")
+            VStack(alignment: .leading, spacing: 8) {
+                info
+                if let title = p.upgradeTitle { upgradeButton(title) }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
+            .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+        }
+    }
+
+    /// "Plus holen →": oeffnet die Tarife (Einstellungen -> Tarif, oder die vom Rahmen gesetzte Tarifwahl)
+    private func upgradeButton(_ title: String) -> some View {
+        Button {
+            if let showPlans { showPlans() } else { router.go(.settings(tab: "plan")) }
+        } label: {
+            HStack(spacing: 6) {
+                Text(title).ufFont(12.8, 650, lh: 1.2).lineLimit(1)
+                UFIcon("arrow-right", size: 13)
+            }
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 32)
+            .background(Capsule().fill(UF.accentFill))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(UFPressStyle())
+        .accessibilityLabel(title)
+        .accessibilityHint("Öffnet die Tarife")
+        .accessibilityIdentifier("sidebar.upgrade")
+    }
+
+    // MARK: Eintraege
+
+    /// Lern-Eintrag als Kapsel in seiner Farbe (wie die Knoepfe im KI-Start): aktiv gefuellt, sonst nur umrandet
+    private func pillRow(_ item: UFNavItem, pair: CommunityPair, active: Bool, badge: Int) -> some View {
+        Button { router.go(item.route) } label: {
+            HStack(spacing: 9.6) {
+                UFIcon(item.icon, size: 17)
+                    .foregroundStyle(pair.fg)
+                    .overlay(alignment: .topTrailing) {
+                        if collapsed, badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -7) }
+                    }
+                if !collapsed {
+                    Text(item.title).ufFont(14.08, active ? 650 : 550, lh: 1.25)
+                        .foregroundStyle(active ? pair.fg : UF.text)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    if badge > 0 {
+                        Spacer(minLength: 6)
+                        UFNavBadge(count: badge)
+                    }
+                }
+            }
+            // eingeklappt ein Kreis um das Symbol, sonst eine Kapsel ueber die ganze Breite
+            .padding(.vertical, collapsed ? 0 : 8)
+            .padding(.horizontal, collapsed ? 0 : 12)
+            .frame(maxWidth: collapsed ? 42 : .infinity, minHeight: collapsed ? 42 : 40, alignment: collapsed ? .center : .leading)
+            .background(Capsule().fill(active ? pair.bg : Color.clear))
+            .overlay(Capsule().strokeBorder(active ? pair.solid : Color.mix(pair.solid, 0.55, UF.surface), lineWidth: 1.5))
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
+        .accessibilityAddTraits(active ? .isSelected : [])
+        .accessibilityIdentifier("nav.\(item.id)")
+        .help(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
     }
 
     /// Eintrag der Leiste; `badge` > 0 zeigt die Zahl rechts (eingeklappt: klein am Symbol) und nennt sie VoiceOver
@@ -434,7 +743,8 @@ struct UFSidebar: View {
                         if collapsed, badge > 0 { UFNavBadge(count: badge, compact: true).offset(x: 9, y: -7) }
                     }
                 if !collapsed {
-                    Text(title).font(.uf(14.5, 500)).lineLimit(1)
+                    Text(title).ufFont(14.5, active ? 600 : 500, lh: 1.25)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     if badge > 0 {
                         Spacer(minLength: 6)
                         UFNavBadge(count: badge)
@@ -450,6 +760,7 @@ struct UFSidebar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
+        .accessibilityAddTraits(active ? .isSelected : [])
         .accessibilityIdentifier("nav.\(key.isEmpty ? title : key)")
         .help(UFNavItem.accessibilityLabel(title: title, key: key, badge: badge))
     }
@@ -487,12 +798,15 @@ struct UFNavBadge: View {
 struct UFMobileNav: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @ObservedObject private var inbox = MessagesInbox.shared
     @State private var showMore = false
 
     private var moreItems: [UFNavItem] {
         let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                        community: SolutionSharing.community.isConnected, ai: aiEnabled)
+                                        community: SolutionSharing.community.isConnected, ai: aiEnabled,
+                                        messages: inbox.showsNavItem(api: session.api, studip: studip))
         return UFNavItem.more(visible: visible)
     }
 
@@ -629,10 +943,9 @@ struct UFHeader: View {
     /// zur Anmeldung
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
-        // Demo-Inhalte: kein Abgleich mit der Hochschule, Hinweis und der Weg zum Entfernen
+        // Demo-Inhalte: kein Abgleich mit der Hochschule, nur der Hinweis auf "Beenden" in der Leiste darunter
         if demo {
             toast.show(DemoTexts.syncBlocked, seconds: 4)
-            router.go(.settings(tab: "advanced"))
             return
         }
         guard studip.offersStudIP else {

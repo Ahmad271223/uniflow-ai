@@ -1,0 +1,196 @@
+{
+ "meta": {
+  "university": "luh",
+  "program": "Technische Informatik",
+  "degree": "B.Sc.",
+  "po": "2022",
+  "code": "TIBSc22",
+  "catalog_term": "WS 2025/26",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+   "fetched_at": "2026-11-04T09:00:00Z",
+   "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+  }
+ },
+ "key": "7fa8e7662fc4d4c74e51f06957e1b3ca29d4f1c2b5e6ecda6b239c39177c25b0",
+ "catalog": {
+  "v": 1,
+  "university": "luh",
+  "program": "Technische Informatik",
+  "degree": "B.Sc.",
+  "po": "2022",
+  "catalog_term": "WS 2025/26",
+  "code": "TIBSc22",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+   "fetched_at": "2026-11-04T09:00:00Z",
+   "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+  },
+  "areas": [
+   {
+    "id": "grundlagen-der-beispielinformatik",
+    "name": "Grundlagen der Beispielinformatik",
+    "lp_required": 15,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "vertiefung-beispiel",
+    "name": "Vertiefung Beispiel",
+    "lp_required": 5,
+    "lp_max": 10,
+    "kind": "pflicht"
+   },
+   {
+    "id": "bachelorarbeit",
+    "name": "Bachelorarbeit",
+    "lp_required": 15,
+    "lp_max": null,
+    "kind": "abschluss"
+   }
+  ],
+  "modules": [
+   {
+    "id": "beispielprogrammierung-1",
+    "title": "Beispielprogrammierung I",
+    "code": null,
+    "area": "grundlagen-der-beispielinformatik",
+    "kind": "pflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "WS",
+    "exam": "Klausur 90 min",
+    "coursework": "1 Studienleistung (WiSe)",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 4
+   },
+   {
+    "id": "beispielprogrammierung-2",
+    "title": "Beispielprogrammierung II",
+    "code": null,
+    "area": "grundlagen-der-beispielinformatik",
+    "kind": "pflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "SS",
+    "exam": "Klausur 120 min",
+    "coursework": null,
+    "prerequisites": [
+     "beispielprogrammierung-1"
+    ],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 6
+   },
+   {
+    "id": "beispielsysteme-und-netze",
+    "title": "Beispielsysteme und Netze",
+    "code": null,
+    "area": "grundlagen-der-beispielinformatik",
+    "kind": "pflicht",
+    "lp": 5,
+    "semester": 3,
+    "turnus": "WS+SS",
+    "exam": "mündl. Prüfung (MP)",
+    "coursework": "2 Studienleistungen (WiSe/SoSe)",
+    "prerequisites": [
+     "beispielprogrammierung-1",
+     "beispielprogrammierung-2"
+    ],
+    "language": "englisch",
+    "workload_h": 150,
+    "source_page": 7
+   },
+   {
+    "id": "proseminar-beispielthemen",
+    "title": "Proseminar Beispielthemen",
+    "code": null,
+    "area": "vertiefung-beispiel",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": 4,
+    "turnus": "SS",
+    "exam": "Klausur 60 min",
+    "coursework": null,
+    "prerequisites": [
+     "beispielsysteme-und-netze"
+    ],
+    "language": "deutsch",
+    "workload_h": 150,
+    "source_page": 9
+   },
+   {
+    "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+    "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+    "code": null,
+    "area": "vertiefung-beispiel",
+    "kind": "pflicht",
+    "lp": 3,
+    "semester": null,
+    "turnus": "unbekannt",
+    "exam": "wird noch angekündigt",
+    "coursework": "1 Studienleistung",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 90,
+    "source_page": 10
+   },
+   {
+    "id": "bachelorarbeit",
+    "title": "Bachelorarbeit",
+    "code": null,
+    "area": "bachelorarbeit",
+    "kind": "abschluss",
+    "lp": 15,
+    "semester": null,
+    "turnus": "WS+SS",
+    "exam": "Bachelorarbeit",
+    "coursework": null,
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 450,
+    "source_page": 12
+   }
+  ]
+ },
+ "module_texts": {
+  "beispielprogrammierung-1": {
+   "content": "Variablen, Schleifen und Funktionen\nEinfache Datenstrukturen",
+   "goals": "Die Studierenden schreiben kleine Programme und erklären deren Ablauf.\nSie zerlegen Aufgaben in Teilschritte.",
+   "literature": "A. Autorin: Erfundenes Lehrbuch, 1. Auflage.\nB. Autor: Noch ein Skript."
+  },
+  "beispielprogrammierung-2": {
+   "content": "Objekte, Module und Tests",
+   "goals": "Die Studierenden entwerfen größere Programme.",
+   "literature": "C. Autor: Erfundene Programmierpraxis."
+  },
+  "beispielsysteme-und-netze": {
+   "content": "Schichten, Adressen, Rechner",
+   "goals": "Die Studierenden beschreiben einfache Netze.",
+   "literature": null
+  },
+  "proseminar-beispielthemen": {
+   "content": "Wechselnde Themen",
+   "goals": "Die Studierenden halten einen kurzen Vortrag.",
+   "literature": "Wird bekannt gegeben."
+  },
+  "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen": {
+   "content": "Veranstaltungen anderer Fakultäten nach Wahl.",
+   "goals": null,
+   "literature": null
+  },
+  "bachelorarbeit": {
+   "content": "Thema nach Absprache.",
+   "goals": "Die Studierenden bearbeiten eine Aufgabe selbstständig.",
+   "literature": null
+  }
+ },
+ "dumps": "{\"v\": 1, \"university\": \"luh\", \"program\": \"Technische Informatik\", \"degree\": \"B.Sc.\", \"po\": \"2022\", \"catalog_term\": \"WS 2025/26\", \"code\": \"TIBSc22\", \"regular_semesters\": 6, \"total_lp\": 180, \"source\": {\"url\": \"https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf\", \"fetched_at\": \"2026-11-04T09:00:00Z\", \"sha256\": \"490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd\"}, \"areas\": [{\"id\": \"grundlagen-der-beispielinformatik\", \"name\": \"Grundlagen der Beispielinformatik\", \"lp_required\": 15, \"lp_max\": null, \"kind\": \"pflicht\"}, {\"id\": \"vertiefung-beispiel\", \"name\": \"Vertiefung Beispiel\", \"lp_required\": 5, \"lp_max\": 10, \"kind\": \"pflicht\"}, {\"id\": \"bachelorarbeit\", \"name\": \"Bachelorarbeit\", \"lp_required\": 15, \"lp_max\": null, \"kind\": \"abschluss\"}], \"modules\": [{\"id\": \"beispielprogrammierung-1\", \"title\": \"Beispielprogrammierung I\", \"code\": null, \"area\": \"grundlagen-der-beispielinformatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": null, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"1 Studienleistung (WiSe)\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 4}, {\"id\": \"beispielprogrammierung-2\", \"title\": \"Beispielprogrammierung II\", \"code\": null, \"area\": \"grundlagen-der-beispielinformatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": null, \"turnus\": \"SS\", \"exam\": \"Klausur 120 min\", \"coursework\": null, \"prerequisites\": [\"beispielprogrammierung-1\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 6}, {\"id\": \"beispielsysteme-und-netze\", \"title\": \"Beispielsysteme und Netze\", \"code\": null, \"area\": \"grundlagen-der-beispielinformatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 3, \"turnus\": \"WS+SS\", \"exam\": \"mündl. Prüfung (MP)\", \"coursework\": \"2 Studienleistungen (WiSe/SoSe)\", \"prerequisites\": [\"beispielprogrammierung-1\", \"beispielprogrammierung-2\"], \"language\": \"englisch\", \"workload_h\": 150, \"source_page\": 7}, {\"id\": \"proseminar-beispielthemen\", \"title\": \"Proseminar Beispielthemen\", \"code\": null, \"area\": \"vertiefung-beispiel\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": 4, \"turnus\": \"SS\", \"exam\": \"Klausur 60 min\", \"coursework\": null, \"prerequisites\": [\"beispielsysteme-und-netze\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 9}, {\"id\": \"studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen\", \"title\": \"Studium Beispiel Angebote anderer Fakultäten und Einrichtungen\", \"code\": null, \"area\": \"vertiefung-beispiel\", \"kind\": \"pflicht\", \"lp\": 3, \"semester\": null, \"turnus\": \"unbekannt\", \"exam\": \"wird noch angekündigt\", \"coursework\": \"1 Studienleistung\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 90, \"source_page\": 10}, {\"id\": \"bachelorarbeit\", \"title\": \"Bachelorarbeit\", \"code\": null, \"area\": \"bachelorarbeit\", \"kind\": \"abschluss\", \"lp\": 15, \"semester\": null, \"turnus\": \"WS+SS\", \"exam\": \"Bachelorarbeit\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 450, \"source_page\": 12}]}",
+ "texts_dumps": "{\"beispielprogrammierung-1\": {\"content\": \"Variablen, Schleifen und Funktionen\\nEinfache Datenstrukturen\", \"goals\": \"Die Studierenden schreiben kleine Programme und erklären deren Ablauf.\\nSie zerlegen Aufgaben in Teilschritte.\", \"literature\": \"A. Autorin: Erfundenes Lehrbuch, 1. Auflage.\\nB. Autor: Noch ein Skript.\"}, \"beispielprogrammierung-2\": {\"content\": \"Objekte, Module und Tests\", \"goals\": \"Die Studierenden entwerfen größere Programme.\", \"literature\": \"C. Autor: Erfundene Programmierpraxis.\"}, \"beispielsysteme-und-netze\": {\"content\": \"Schichten, Adressen, Rechner\", \"goals\": \"Die Studierenden beschreiben einfache Netze.\", \"literature\": null}, \"proseminar-beispielthemen\": {\"content\": \"Wechselnde Themen\", \"goals\": \"Die Studierenden halten einen kurzen Vortrag.\", \"literature\": \"Wird bekannt gegeben.\"}, \"studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen\": {\"content\": \"Veranstaltungen anderer Fakultäten nach Wahl.\", \"goals\": null, \"literature\": null}, \"bachelorarbeit\": {\"content\": \"Thema nach Absprache.\", \"goals\": \"Die Studierenden bearbeiten eine Aufgabe selbstständig.\", \"literature\": null}}"
+}

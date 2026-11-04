@@ -70,7 +70,10 @@ def get_entitlements(request: Request):
     out = entitlements.status(request)
     out["purchase"] = purchase_channels()
     if config.is_hosted():
+        from . import ai_backend
         out["apple_account_token"] = apple_store.account_token(_user(request)["id"])
+        # Credits des Monats (app/credits.py): period, allowance, used, reserved, remaining, resets_at, plan
+        out["credits"] = ai_backend.credits_balance(_user(request)["id"])
     return out
 
 
@@ -110,7 +113,7 @@ def stripe_checkout(request: Request, body: dict = Body(...)):
     _hosted()
     u = _user(request)
     plan = str(body.get("plan") or "")
-    if plan not in plans.PLANS or plan == "free":
+    if not plans.is_sellable(plan):
         raise HTTPException(400, {"detail": "Bitte einen kostenpflichtigen Tarif angeben.", "code": "plan_invalid"})
     return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan))
 
@@ -138,7 +141,7 @@ def plan_choice(request: Request, body: dict = Body(...)):
     _hosted()
     u = _user(request)
     plan = str(body.get("plan") or "")
-    if plan not in plans.PLANS:
+    if plan not in plans.ORDER:
         raise HTTPException(400, {"detail": "Unbekannter Tarif.", "code": "plan_invalid"})
     conn = billing.connect()
     try:
@@ -183,6 +186,21 @@ def ai_usage(request: Request):
         conn.close()
 
 
+@router.get("/api/billing/ai-costs")
+def ai_costs(request: Request, days: int = 31):
+    """Kostenansicht des Betriebs (Admin): credit_ledger je Tag (Berlin) und Modell, dazu der laufende Monat und die
+    Preistabelle (app/credits.py admin_costs)."""
+    _hosted()
+    if _user(request).get("role") != "admin":
+        raise HTTPException(403, {"detail": "Nur für den Betrieb.", "code": "admin_required"})
+    from . import ai_backend, credits
+    conn = ai_backend.connect()
+    try:
+        return credits.admin_costs(conn, days)
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------- ChatGPT (offizielle Integration, derzeit aus)
 
 def chatgpt_state(user: dict | None) -> dict:
@@ -196,7 +214,7 @@ def chatgpt_state(user: dict | None) -> dict:
     enabled = integ["status"] == "enabled"
     return {
         "status": integ["status"], "available": enabled, "connected": False, "reason": None if enabled else integ["reason"],
-        # Produktregel: seit 04.11.2026 fuer alle Tarife. Die Kontingentnutzung selbst haengt nicht am Tarif,
+        # Produktregel: in der Oberflaeche ab Pro AI angeboten. Die Kontingentnutzung selbst haengt nicht am Tarif,
         # solange die Bedingungen von OpenAI das nicht erlauben (plan_gating_allowed = False).
         "premium_rule_plan": plans.ENTITLEMENTS["chatgpt_connection_premium"]["from"],
         "plan_gating_allowed": integ["plan_gating_allowed"],

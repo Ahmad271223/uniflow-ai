@@ -268,8 +268,10 @@ final class LocalBackendCoverageTests: XCTestCase {
                     problems.append("\(label): Schlüssel \(body.object?.keys.sorted() ?? [])")
                 }
             } else {
-                // Fehler wie FastAPI: {"detail": ...} mit verstaendlichem Text
-                if body["detail"]?.string?.isEmpty != false { problems.append("\(label): Fehler ohne Meldung") }
+                // Fehler wie FastAPI: {"detail": ...} mit verstaendlichem Text; HTTPException mit Objekt (detail und code,
+                // z. B. app/community_cards_api.py) liefert {"detail": {"detail": ..., "code": ...}}
+                let text = body["detail"]?.string ?? body["detail"]?["detail"]?.string
+                if text?.isEmpty != false { problems.append("\(label): Fehler ohne Meldung") }
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))

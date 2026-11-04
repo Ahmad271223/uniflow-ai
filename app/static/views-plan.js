@@ -1,7 +1,8 @@
 // Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination,
 // persoenliche Verfuegbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten; seit 03.11.2026 hier statt im Stundenplan)
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=41";
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=43";
 import { tinyNames } from "./plan-names.js?v=30";
+import { progress, ofDays, weekDays, weekLabel, emptyText } from "./task-progress.js?v=1";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
 const KIND_ICON = { vorlesung: "book", uebung: "pencil", gruppenuebung: "users", hoersaaluebung: "pencil", tutorium: "users", persoenlich: "user", sonstiges: "calendar" };
@@ -41,7 +42,9 @@ export async function viewPlan(_, params, view) {
   else if (planState.view === "month") body.innerHTML = `<div class="cal-month">${DAYS.map(x => `<div class="mh">${x}</div>`).join("")}${days.map(dd => { const dt = parseISO(dd.date); return `<div class="md ${dt.getMonth() !== d.getMonth() ? "other" : ""} ${dd.date === t ? "today" : ""} ${holClass(dd)}" data-date="${dd.date}"><div class="n"><span class="sd ${dd.status}"></span>${dt.getDate()}</div>${holChips(dd, true)}${dlChips(dd, true)}${noteChips(dd, true)}<div class="mp">${dd.packages.map(p => `<span style="--pc:${p.color || "var(--accent)"}" title="${esc(p.subject)}"></span>`).join("")}</div>${dd.minutes ? `<span class="muted tiny">${fmtMin(dd.minutes)}</span>` : ""}</div>`; }).join("")}</div>`;
   else if (planState.view === "day") { const ex = holChips(days[0]) + dlChips(days[0]) + noteChips(days[0]); body.innerHTML = (ex ? `<div class="cal-day-extras">${ex}</div>` : "") + await dayTimeline(iso(d), days[0]); bindDayExtras(body, iso(d)); }
   else { body.innerHTML = await tasksListHtml(open); bindTaskRows(body, state.route); }
-  $("#calSide").innerHTML = planState.view === "day" ? await daySide(iso(d), days[0], month || cal) : weekSide(days, backlog, month || cal, d);
+  // Seitenspalte: "Mein Fortschritt" zaehlt immer die Woche Mo–So des gezeigten Datums (task-progress.js); sie liegt im
+  // gezeigten Zeitraum oder im Monat (ganze Wochen), mit Modulfilter wie die Ansicht
+  $("#calSide").innerHTML = planState.view === "day" ? await daySide(iso(d), days[0], month || cal) : weekSide(weekDays(d, days, (month || cal).days.map(filt)), backlog, month || cal, d);
   bindSide(view, iso(d), days);
   const go = (v, date) => { location.hash = `#/plan?view=${v}&date=${date}${planState.module ? `&module=${planState.module}` : ""}`; };
   $$("[data-view]", view).forEach(b => b.onclick = () => go(b.dataset.view, planState.date));
@@ -96,10 +99,10 @@ function lanes(items) {
 }
 function posStyle(px, s, e, L, minH = 30) { const top = px(s), h = Math.max(minH, px(e) - top - 3); const n = L?.n || 1, k = L?.lane || 0; return { h, css: `top:${top}px;height:${h}px;left:calc(${k} * (100% - 6px) / ${n} + 3px);width:calc((100% - 6px) / ${n} - ${n > 1 ? 2 : 0}px);right:auto` }; }
 function dayHead(dd, compact) {
-  const dt = parseISO(dd.date); const p = dd.tasks_total ? Math.round(100 * dd.tasks_done / dd.tasks_total) : 0;
+  const dt = parseISO(dd.date); const tp = progress({ done: dd.tasks_done, total: dd.tasks_total }); const p = Math.round(100 * tp.fraction);
   const col = dd.status === "nachholen" ? "var(--bad)" : dd.status === "erledigt" ? "var(--ok)" : dd.status === "teilweise" ? "var(--warn)" : "var(--accent)";
   const txt = dd.status === "frei" ? "Frei" : dd.minutes ? fmtMin(dd.minutes) : (compact ? "–" : "Nichts geplant");
-  return `<div class="cal2-dh ${dd.date === todayISO() ? "today" : ""} ${holClass(dd)}" data-date="${dd.date}"><div class="wd">${DAYS[dd.weekday]}</div><div class="dn">${dt.getDate()}.${dt.getMonth() + 1}.</div><div class="pm">${dd.tasks_total ? ring(p, col) : ""}<span>${txt}</span></div>${holChips(dd, compact)}${dlChips(dd, compact)}${noteChips(dd, true)}</div>`;
+  return `<div class="cal2-dh ${dd.date === todayISO() ? "today" : ""} ${holClass(dd)}" data-date="${dd.date}"><div class="wd">${DAYS[dd.weekday]}</div><div class="dn">${dt.getDate()}.${dt.getMonth() + 1}.</div><div class="pm">${tp.empty ? "" : ring(p, col)}<span>${txt}</span></div>${holChips(dd, compact)}${dlChips(dd, compact)}${noteChips(dd, true)}</div>`;
 }
 function evBlock(e, px, dateStr, L, compact, tn) {
   const off = e.status !== "teilnahme"; const P = posStyle(px, hm(e.start), hm(e.end), L); const n = L?.n || 1;
@@ -138,7 +141,7 @@ export function bindCalendar(body) {
   // "Uhrzeiten vergeben": die Tage der Pakete ohne Uhrzeit, von Hand gesetzte Uhrzeiten bleiben (only_unset)
   $("#reslotWeek", body)?.addEventListener("click", async e => { await api("/timetable/reslot", { method: "POST", body: { dates: e.currentTarget.dataset.dates.split(","), only_unset: true } }); toast("Uhrzeiten vergeben"); state.route(); });
   $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => {
-    if (el.dataset.ev) return import("./views-tt.js?v=44").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
+    if (el.dataset.ev) return import("./views-tt.js?v=46").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
     // Einzeltermin aus dem Stud.IP-Kalender ohne eigene Serie: nur anzeigen
     modal(`<h3>${esc(el.title.split(" · ")[0])}</h3>${el.dataset.cx ? `<p class="small cx-box card flat">${icon("alert", 14)} ${esc(el.dataset.cx)}</p>` : ""}<p class="small muted">Termin aus deinem Stud.IP-Kalender (${fmtDate(el.dataset.date)}). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.</p><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   });
@@ -157,19 +160,23 @@ export function miniCal(d, monthCal, selected) {
   const pm = iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), nm = iso(new Date(d.getFullYear(), d.getMonth() + 1, 1));
   return `<div class="side-card mini-cal"><h2>${MONTHS[d.getMonth()]} ${d.getFullYear()}<span class="row" style="gap:.2rem"><a class="btn ghost icon sm" href="#/plan?view=${planState.view}&date=${pm}">${icon("chevron-left", 15)}</a><a class="btn ghost icon sm" href="#/plan?view=${planState.view}&date=${nm}">${icon("chevron-right", 15)}</a></span></h2><div class="mh">${DAYS.map(x => `<span>${x}</span>`).join("")}</div><div class="md">${cells.slice(0, (byDate && cells.length) ? 42 : 42).join("")}</div></div>`;
 }
-function weekSide(days, backlog, monthCal, d) {
-  const done = days.reduce((a, x) => a + x.tasks_done, 0), total = days.reduce((a, x) => a + x.tasks_total, 0);
-  const late = days.flatMap(x => x.packages.flatMap(p => p.tasks.filter(t => t.status === "nachholen"))).length;
-  const planned = Math.max(0, total - done - late); const uni = days.reduce((a, x) => a + (x.events || []).filter(e => e.status === "teilnahme").length, 0);
+/// `week`: die Tage Mo–So um `d` (weekDays). "Mein Fortschritt" wie auf der Uebersicht und dem iPad (UFTaskProgress):
+/// vorher der gezeigte Zeitraum (Liste = Tag, Monat = sechs Wochen). Ohne Aufgaben ein Satz statt "0 / 0" und kein
+/// leerer Ring; uebersprungene Aufgaben als eigenes Segment.
+function weekSide(week, backlog, monthCal, d) {
+  const p = ofDays(week); const uni = week.reduce((a, x) => a + (x.events || []).filter(e => e.status === "teilnahme").length, 0);
+  const segs = [{ label: "Erledigt", n: p.done, color: "var(--ok)" }, { label: "Geplant", n: p.open, color: "var(--info)" }, { label: "Nachholen", n: p.late, color: "var(--bad)" }];
+  if (p.skipped) segs.push({ label: "Übersprungen", n: p.skipped, color: "var(--muted)" });
+  if (uni) segs.push({ label: "Uni-Termine", n: uni, color: "var(--line-strong)" });
   const todo = backlog.slice(0, 4);
-  return `<div class="side-card"><h2>Mein Fortschritt</h2>${donut([{ label: "Erledigt", n: done, color: "var(--ok)" }, { label: "Geplant", n: planned, color: "var(--info)" }, { label: "Nachholen", n: late, color: "var(--bad)" }, { label: "Uni-Termine", n: uni, color: "var(--line-strong)" }].filter((s, i) => i < 3 || s.n), `${done} / ${total}`, "Aufgaben")}</div>
+  return `<div class="side-card"><h2>Mein Fortschritt<span class="muted small">${weekLabel(d)}</span></h2>${p.empty ? `<div class="muted small">${emptyText(uni)}</div>` : donut(segs, p.text, "Aufgaben")}</div>
     <div class="side-card"><h2>Nicht erledigt<span class="badge ${backlog.length ? "bad" : "neutral"}">${backlog.length}</span></h2>${todo.length ? todo.map(x => `<div class="todo-item" data-pkg="${x.package_id}"><span class="ic-c">${icon("alert", 16)}</span><div class="m"><b>${esc(shortName(x.subject || ""))}</b><span>${esc(x.title)}</span></div>${icon("chevron-right", 16)}</div>`).join("") : `<div class="muted small">Alles erledigt – nichts nachzuholen.</div>`}</div>
     <div class="side-card"><h2>Schnell hinzufügen</h2><div class="quick-grid"><button class="btn" data-q="pkg">${icon("book", 15)} Lernpaket</button><button class="btn" data-q="free">${icon("calendar", 15)} Freie Zeit</button><button class="btn" data-q="test">${icon("exam", 15)} Testtermin</button><button class="btn" data-q="personal">${icon("user", 15)} Persönlich</button></div></div>
     ${miniCal(d, monthCal, planState.date)}`;
 }
 function bindSide(view, dateStr, days) {
   $$("#calSide [data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
-  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=44")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
+  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=46")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
   $$("#calSide [data-taskdone]", view).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.taskdone}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt"); state.route(); });
   $("#calSide #addTaskBtn", view)?.addEventListener("click", () => addPackageDialog(dateStr));
   $$("#calSide [data-use]", view).forEach(b => b.onclick = () => useFreeWindow(dateStr, b.dataset.use));

@@ -30,6 +30,10 @@
     "count": 10,
     "minutes": 1440
    },
+   "explain_user": {
+    "count": 120,
+    "minutes": 1440
+   },
    "export_user": {
     "count": 3,
     "minutes": 1440

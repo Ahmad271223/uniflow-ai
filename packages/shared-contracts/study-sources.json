@@ -1,0 +1,98 @@
+{
+  "v": 1,
+  "note": "Register der Modulkatalog-Quellen (docs/STUDIENVERLAUF-2026-11-04.md). Nur oeffentliche Kataloge ohne Anmeldung. Die breite Erhebung aller LUH-Studiengaenge steht in study-sources-luh.json (tools/luh-programs.py); hier stehen nur Quellen, deren Format der Parser liest. study_plan je PO (null = keiner bekannt): Studienverlaufsplan der Fakultaet (format luh-fei-verlaufsplan, eine PDF-Seite, Semester als Zeilen); page_url = Seite des Studiengangs, auf der der aktuelle Plan verlinkt ist.",
+  "formats": [
+    "luh-modkat",
+    "luh-fei-verlaufsplan"
+  ],
+  "universities": [
+    {
+      "id": "luh",
+      "name": "Leibniz Universität Hannover",
+      "sources": [
+        {
+          "id": "luh-fei-modkat",
+          "format": "luh-modkat",
+          "faculty": "Fakultät für Elektrotechnik und Informatik",
+          "url_pattern": "https://modkat.fei.uni-hannover.de/material/modkat-full-{code}-{term}.pdf",
+          "mirror_patterns": [
+            "https://modkat.fei.uni-hannover.de/material/modkat-{code}-{term}.pdf"
+          ],
+          "overview_url": "https://modkat.fei.uni-hannover.de/",
+          "term_pattern": "WS_JJJJ_JJ | SS_JJJJ",
+          "probe_current_term": true
+        }
+      ],
+      "programs": [
+        {
+          "id": "technische-informatik-bsc",
+          "program": "Technische Informatik",
+          "degree": "B.Sc.",
+          "qis_names": [
+            "Technische Informatik"
+          ],
+          "regular_semesters": 6,
+          "total_lp": 180,
+          "po_document_url": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_techinf_bpo26.pdf",
+          "pos": [
+            {
+              "po": "2025",
+              "code": "TIBSc25",
+              "source": "luh-fei-modkat",
+              "catalog_terms": [
+                "WS 2026/27"
+              ],
+              "study_plan": {
+                "url": "https://www.fei.uni-hannover.de/fileadmin/fei/Dateien-Studium/Studiengaenge_Technische_Informatik/B.Sc/Studienverlaufsplan_Bachelor_Technische_Informatik_WS2026-27.pdf",
+                "format": "luh-fei-verlaufsplan",
+                "page_url": "https://www.fei.uni-hannover.de/studium/studienangebot/technische-informatik"
+              }
+            },
+            {
+              "po": "2022",
+              "code": "TIBSc22",
+              "source": "luh-fei-modkat",
+              "catalog_terms": [
+                "WS 2025/26"
+              ],
+              "study_plan": null
+            }
+          ]
+        },
+        {
+          "id": "informatik-bsc",
+          "program": "Informatik",
+          "degree": "B.Sc.",
+          "qis_names": [
+            "Informatik"
+          ],
+          "regular_semesters": 6,
+          "total_lp": 180,
+          "po_document_url": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_inform_bpo26.pdf",
+          "pos": [
+            {
+              "po": "2022",
+              "code": "INFBSc22",
+              "source": "luh-fei-modkat",
+              "catalog_terms": [
+                "WS 2024/25",
+                "WS 2026/27"
+              ],
+              "study_plan": {
+                "url": "https://www.fei.uni-hannover.de/fileadmin/fei/Dateien-Studium/Studiengaenge_Informatik/B.Sc/Studienverlaufsplan_Bachelor_Informatik_WS2026-27.pdf",
+                "format": "luh-fei-verlaufsplan",
+                "page_url": "https://www.fei.uni-hannover.de/studium/studienangebot/informatik"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "po_rules": {
+    "qis_label": "QIS-Spalte abschluss, z. B. 'Technische Informatik (PO-Version 2017)': Klammerzusatz '(PO-Version ...)' abtrennen, Name normalisieren (klein, Umlaute ausgeschrieben, nur Buchstaben und Ziffern), mit program und qis_names vergleichen.",
+    "degree": "'Bachelor', 'B.Sc.', 'B. Sc.', 'Bachelor of Science' -> B.Sc.; 'Master', 'M.Sc.', 'Master of Science' -> M.Sc. Ohne Angabe gilt der erste passende Eintrag (Bachelor zuerst).",
+    "po": "Gibt es die PO-Version aus QIS im Register, gilt sie. Sonst wird die neueste PO desselben Studiengangs vorgeschlagen (needs_confirmation=true); die Person bestaetigt oder aendert sie (settings.study_plan.po).",
+    "term": "Neuestes Katalogsemester zuerst; ist das laufende Semester neuer als das neueste bekannte, wird es einmal angefragt (404 wird 30 Tage gemerkt)."
+  }
+}
