@@ -114,6 +114,12 @@ final class LocalBackendHost: @unchecked Sendable {
         let backend = try await LocalBackend.open(path: database.path, clock: clock, files: files, university: university)
         // Texterkennung (Vision) fuer Seiten ohne Textebene, nur mit Dateiablage; erkannt wird erst bei Bedarf je Seite
         if files != nil { backend.context.ocr.set(VisionPageOCR()) }
+        // Gemeinsame Wochentests ueber CloudKit (hoechstens drei je Schluessel, WeeklyTestCloudKit.swift); ohne
+        // iCloud-Container im Build nur die eigene Variante
+        backend.context.testShare.set(WeeklyTestShareFactory.make())
+        // Gemeinsamer Dokument-Index ueber CloudKit (DocIndexCloudKit.swift); ohne iCloud-Container nur lokal
+        backend.context.docIndex.configure(cloud: DocIndexCloudFactory.make(), cipher: SolutionSharing.cipher,
+                                           makeAI: { DocIndexCloudFactory.makeAI($0) })
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
     }

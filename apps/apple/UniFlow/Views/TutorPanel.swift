@@ -37,6 +37,8 @@ struct TutorPanel: View {
         var cards: [JSONValue] = []
         var sources: [JSONValue] = []
         var saved = false
+        /// Modus der Anfrage, zu der diese Antwort gehoert (Anschlussfragen, `AIFollowUps`)
+        var mode: String = "ask"
     }
 
     @State private var messages: [Message] = []
@@ -61,6 +63,9 @@ struct TutorPanel: View {
     /// Kopf wie die anderen Spalten neben der PDF (UFPaneHeader); "Neu" als ruhiger Textknopf
     private var header: some View {
         UFPaneHeader("KI-Hilfe", icon: "sparkles", closeLabel: "KI-Hilfe schließen", closeID: "tutor.close", close: close) {
+            // KI-Start (03.11.2026): Fragen, Karteikarten, Erklären, Wochentest auf einer Seite
+            UFButton(icon: "grid", kind: .ghost, size: .small) { router.go(.aiStart) }
+                .accessibilityLabel("KI-Start öffnen").accessibilityIdentifier("tutor.aiStart")
             if !messages.isEmpty {
                 UFButton("Neu", kind: .ghost, size: .small) { messages = []; error = nil }
                     .disabled(busy).accessibilityIdentifier("tutor.reset")
@@ -81,6 +86,8 @@ struct TutorPanel: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
+                        // Dokument-Index: schon erklaerte Seite sofort, 0 Credits (DocIndexPageCard)
+                        DocIndexPageCard(fileID: fileID, page: page, open: open)
                         if messages.isEmpty {
                             // Leerzustand als Einladung: was die Leiste kann, in der Schrift des Gespraechs
                             VStack(alignment: .leading, spacing: 6) {
@@ -135,9 +142,17 @@ struct TutorPanel: View {
                     .accessibilityLabel(checking ? "Lösung prüfen" : "Senden")
                     .accessibilityIdentifier("tutor.ask")
             }
-            Text("Seite \(page()) · über dein ChatGPT").ufFont(11.5).foregroundStyle(UF.muted)
+            Text(Self.footer(page: page(), model: chatgpt?.status?.model)).ufFont(11.5).foregroundStyle(UF.muted)
+                .accessibilityIdentifier("tutor.footer")
         }
         .padding(12)
+    }
+
+    /// Fusszeile des Eingabefelds: Seite, Weg (dein ChatGPT) und das Modell, das zuletzt geantwortet hat (ChatGPT lehnt
+    /// Modelle je Konto ab; die Sitzung wechselt dann, und hier steht, womit die Antwort wirklich kam)
+    static func footer(page: Int, model: String?) -> String {
+        let m = (model ?? "").trimmingCharacters(in: .whitespaces)
+        return "Seite \(page) · über dein ChatGPT" + (m.isEmpty ? "" : " · \(m)")
     }
 
     @ViewBuilder private func bubble(_ m: Binding<Message>) -> some View {
@@ -164,11 +179,19 @@ struct TutorPanel: View {
                     }
                     .disabled(msg.saved)
                 } else {
-                    Text((try? AttributedString(markdown: msg.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-                         ?? AttributedString(msg.text))
-                        .ufFont(13.76).foregroundStyle(UF.text).textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("tutor.answer")
+                    // Markdown (Ueberschriften, Aufzaehlungen, Fett) in den Schriften des Designsystems
+                    AIMarkdownText(msg.text).accessibilityIdentifier("tutor.answer")
+                    // zwei bis drei Anschlussfragen je nach Modus (lokal; Antippen fragt im selben Gespraech nach)
+                    let followUps = AIFollowUps.suggest(after: msg.mode)
+                    if !followUps.isEmpty {
+                        UFFlexWrap(gap: 6, rowGap: 6) {
+                            ForEach(followUps) { s in
+                                UFChip(text: s.label, icon: "sparkles") { input = s.question; Task { await send(mode: s.mode) } }
+                                    .disabled(busy)
+                                    .accessibilityIdentifier("tutor.followUp.\(s.mode)")
+                            }
+                        }
+                    }
                 }
                 sourceLinks(msg.sources.filter { $0["cited"]?.bool == true })
             }
@@ -238,7 +261,9 @@ struct TutorPanel: View {
         do {
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
-                                    sources: r["sources"]?.array ?? []))
+                                    sources: r["sources"]?.array ?? [], mode: mode))
+            // fuer "Zuletzt" auf KI-Start (lokal, je Container)
+            if mode != "flashcards" { AIRecents.shared.record(question: Self.label(mode: mode, input: typed), answer: r.s("answer") ?? "", fileID: fileID) }
         } catch {
             // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), Eingabe zurueck ins Feld
             if messages.last?.fromUser == true { messages.removeLast() }
@@ -246,6 +271,8 @@ struct TutorPanel: View {
             if mode == "check" { checking = true }
             self.error = error.localizedDescription
         }
+        // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Fusszeile nennt es
+        await chatgpt?.refresh()
     }
 
     private func saveCards(_ m: Binding<Message>) async {

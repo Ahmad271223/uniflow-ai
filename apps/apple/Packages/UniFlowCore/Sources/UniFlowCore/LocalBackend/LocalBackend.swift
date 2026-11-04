@@ -31,6 +31,7 @@ public final class LocalBackend: Sendable {
         DemoEndpoints.self,
         PendingOverviewEndpoints.self,
         PendingServicesEndpoints.self,
+        DocIndexEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

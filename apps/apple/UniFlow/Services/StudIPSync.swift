@@ -819,6 +819,9 @@ final class StudIPSync: ObservableObject {
         if case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
             await MainActor.run { NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil) }
         }
+        // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden
+        guard !Task.isCancelled else { return }
+        await DocIndexPrewarm.run(backend.context)
     }
 
     private func finish(summary: String) {

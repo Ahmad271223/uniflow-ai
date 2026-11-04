@@ -19,6 +19,10 @@ public struct LocalContext: Sendable {
     public let ocr = LocalOCR()
     /// Hintergrundauftrag wie `_run_bg` (Wochentests erzeugen), Stand unter `/api/bg`
     public let jobs = LocalBackgroundJob()
+    /// Gemeinsame Wochentests beim Dienst (CloudKit, von der App gesetzt); nil = nur die eigene Variante merken
+    public let testShare = LocalTestShare()
+    /// Dokument-Index ("Bibliothek"): Dienst, Verschluesselung und Bild-KI setzt die App (`LocalDocIndex`)
+    public let docIndex = LocalDocIndex()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {

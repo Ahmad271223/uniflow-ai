@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "https://studinow.app/contracts/doc-index/v1/doc-index.schema.json",
+  "title": "StudiNow Dokument-Index (Bibliothek), Eintrag einer Seite",
+  "description": "Eine Quelle fuer Geraet (Swift-Kern, DocIndexSchema) und Dienst (app/doc_index.py): Form der KI-Antwort je Seite und des verschluesselten Datensatzes. Unter $defs.summary die Zusammenfassung je Datei (Seite 0) mit den Katalogangaben des Regals ($defs.catalog). Aenderungen nur mit neuer version; DocIndexTests (Swift) und tests/test_doc_index.py (Python) pruefen, dass beide Seiten genau diesen Text eingebettet haben.",
+  "version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "terms", "elements", "tasks"],
+  "properties": {
+    "summary": {"type": "string", "maxLength": 500},
+    "terms": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 80}},
+    "elements": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["order", "type", "title", "explanation", "position", "uncertain"],
+        "properties": {
+          "order": {"type": "integer", "minimum": 1},
+          "type": {"type": "string", "enum": ["skizze", "diagramm", "tabelle", "formel", "definition", "satz", "beispiel", "aufgabe", "text"]},
+          "title": {"type": "string", "maxLength": 120},
+          "explanation": {"type": "string", "maxLength": 600},
+          "position": {"type": "string", "enum": ["oben", "mitte", "unten", "links", "rechts", "ganz"]},
+          "task": {"type": ["string", "null"], "maxLength": 40},
+          "uncertain": {"type": "boolean"}
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "asks"],
+        "properties": {
+          "label": {"type": "string", "maxLength": 40},
+          "asks": {"type": "string", "maxLength": 400},
+          "solution": {"type": ["string", "null"], "maxLength": 4000}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["university", "studyProgram", "semester", "moduleKey", "moduleName", "week", "date", "kind", "kindLabel"],
+      "properties": {
+        "university": {"type": "string", "maxLength": 40},
+        "studyProgram": {"type": "string", "maxLength": 120},
+        "semester": {"type": "string", "maxLength": 40},
+        "moduleKey": {"type": "string", "maxLength": 64},
+        "moduleName": {"type": "string", "maxLength": 200},
+        "week": {"type": "integer", "minimum": -2},
+        "date": {"type": "string", "maxLength": 10},
+        "kind": {"type": "string", "enum": ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "klausur", "altklausur", "skript", "loesung", "sonstiges"]},
+        "kindLabel": {"type": "string", "maxLength": 40}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["v", "fileName", "pageCount", "pageHashes", "catalog", "createdAt"],
+      "properties": {
+        "v": {"type": "integer", "const": 1},
+        "fileName": {"type": "string", "maxLength": 300},
+        "title": {"type": ["string", "null"], "maxLength": 300},
+        "pageCount": {"type": "integer", "minimum": 0},
+        "pageHashes": {"type": "array", "items": {"type": "string", "maxLength": 64}},
+        "overview": {"type": ["string", "null"], "maxLength": 500},
+        "catalog": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["university", "studyProgram", "semester", "moduleKey", "moduleName", "week", "date", "kind", "kindLabel"],
+          "properties": {
+            "university": {"type": "string", "maxLength": 40},
+            "studyProgram": {"type": "string", "maxLength": 120},
+            "semester": {"type": "string", "maxLength": 40},
+            "moduleKey": {"type": "string", "maxLength": 64},
+            "moduleName": {"type": "string", "maxLength": 200},
+            "week": {"type": "integer", "minimum": -2},
+            "date": {"type": "string", "maxLength": 10},
+            "kind": {"type": "string", "enum": ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "klausur", "altklausur", "skript", "loesung", "sonstiges"]},
+            "kindLabel": {"type": "string", "maxLength": 40}
+          }
+        },
+        "createdAt": {"type": "string", "maxLength": 32}
+      }
+    },
+    "pageRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["v", "page", "pageHash", "entry", "createdAt"],
+      "properties": {
+        "v": {"type": "integer", "const": 1},
+        "page": {"type": "integer", "minimum": 1},
+        "pageHash": {"type": "string", "maxLength": 64},
+        "entry": {"type": "object"},
+        "withImage": {"type": "boolean"},
+        "model": {"type": ["string", "null"], "maxLength": 100},
+        "createdAt": {"type": "string", "maxLength": 32}
+      }
+    }
+  }
+}

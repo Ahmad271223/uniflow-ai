@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
+from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -36,6 +36,7 @@ async def _lifespan(_app):
     """Gehosteter Modus: Mailversand einhaengen, Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
     wire_hosted_services()
     jobs.start_background()
+    doc_index.start_background()                # Loeschauftrag fuer Index-Uploads (15-Minuten-Regel, app/doc_index.py)
     if not config.is_hosted():
         # Windows-App mit StudiNow-Konto: Geraete-Abgleich (G2) im Hintergrund (app/sync_client.py)
         from . import sync_client
@@ -48,6 +49,7 @@ app.include_router(account_api.router)
 app.include_router(community_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
+app.include_router(doc_index.router)
 db.init_db()
 
 
@@ -1138,6 +1140,77 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources]}
 
 
+# Karteikarten aus einem Dokument (03.11.2026): hoechstens so viele Seiten je Anfrage
+FLASHCARD_PAGES_MAX = 20
+
+
+def _page_list(raw, total: int) -> list[int]:
+    """Seiten aus der Anfrage: ganze Zahlen 1..total, aufsteigend ohne Doppelte, hoechstens FLASHCARD_PAGES_MAX;
+    leer oder unbrauchbar = die ersten Seiten."""
+    pages = []
+    for p in (raw if isinstance(raw, list) else []):
+        try:
+            v = int(p)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= v <= total and v not in pages:
+            pages.append(v)
+    pages = sorted(pages)[:FLASHCARD_PAGES_MAX] or list(range(1, min(total, FLASHCARD_PAGES_MAX) + 1))
+    return pages
+
+
+@app.post("/api/ai/flashcards")
+def ai_flashcards(request: Request, body: dict = Body(...)):
+    """Karteikarten aus den Seiten eines Dokuments: {file_id, pages?: [int], count?, topic?} -> {cards, pages, count}.
+    Die Karten werden nur vorgeschlagen; gespeichert wird mit POST /api/flashcards (source = file)."""
+    from . import ai, scriptsearch
+    hosted = config.is_hosted()
+    if hosted:
+        entitlements.require(request, "can_use_ai_generated_questions")
+        entitlements.require_verified_for_ai(request)
+    file_id = body.get("file_id")
+    if not file_id:
+        raise HTTPException(400, "file_id fehlt")
+    with db.cursor() as conn:
+        f = _found(db.row(conn, "SELECT f.name, c.title AS course_title FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?",
+                         (file_id,)), "Datei")
+        try:
+            all_pages = scriptsearch.page_texts(conn, file_id)
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(500, f"Seitentext nicht lesbar: {e}")
+    if not all_pages:
+        raise HTTPException(404, {"detail": "Kein Seitentext vorhanden.", "code": "no_content"})
+    pages = _page_list(body.get("pages"), len(all_pages))
+    text = "\n\n".join(all_pages[p - 1] for p in pages)
+    count = ai.flashcards_count(body.get("count"))
+    topic = str(body.get("topic") or "")
+    prompt = ai.flashcards_prompt(f["course_title"], f["name"], pages, text, count, topic)
+    if hosted:
+        from . import ai_backend
+        rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
+        entitlements.consume(request, "ai_assist", rid)
+        try:
+            answer = ai_backend.complete(request.state.user["id"], "flashcards", ai.SYSTEM, prompt, schema=ai.FLASHCARDS_SCHEMA, cache=True).text
+        except ai_backend.AIUnavailable as e:
+            entitlements.refund(request, "ai_assist", rid)
+            raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+        except Exception:
+            entitlements.refund(request, "ai_assist", rid)
+            raise
+    else:
+        try:
+            answer = ai.ask(prompt, ai.SYSTEM, schema=ai.FLASHCARDS_SCHEMA)
+        except ai.AIError as e:
+            raise HTTPException(500, str(e))
+    try:
+        cards = ai.check_flashcards(ai.parse_json(answer))
+    except ai.AIError:
+        cards = []
+    if not cards:
+        raise HTTPException(502, {"detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"})
+    return {"cards": cards, "pages": pages, "count": count}
+
+
 def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: dict, limit: int = 4) -> list[dict]:
     """Quellen fuer den Tutor (28.10.2026): [1] die offene Seite, dazu bis zu `limit` passende Seiten aus dem Modul der
     Datei (Volltext der Vorlesungs- und Skriptseiten, app/scriptsearch.py), gesucht mit Markierung, Frage oder dem
@@ -1330,13 +1403,18 @@ def tests(request: Request):
     limit = "" if entitlements.has(entitlements.user_of(request), "can_use_extended_test_history") else f" LIMIT {HISTORY_BASIC}"
     with db.cursor() as conn:
         rows = db.rows(conn, """SELECT id, subject, week_start, title, duration_min, created_at, started_at, submitted_at,
-                                       score, max_score, module_id, week_no, auto, def_id, questions FROM tests WHERE COALESCE(user_id,'local')='local' ORDER BY created_at DESC""" + limit)
+                                       score, max_score, module_id, week_no, auto, def_id, questions, share_variant, adopted_from
+                                FROM tests WHERE COALESCE(user_id,'local')='local' ORDER BY created_at DESC""" + limit)
+    from . import testshare
     for r in rows:
         try:
             r["question_count"] = len(json.loads(r.pop("questions") or "[]"))
         except Exception:  # noqa: BLE001
             r["question_count"] = None
             r.pop("questions", None)
+        # "Gemeinsamer Test · Variante 2 von 3" (Varianten-Regel, app/testshare.py): nur die Anzeige, Spalten bleiben
+        r["shared"] = testshare.shared_info(r)
+        r.pop("share_variant", None); r.pop("adopted_from", None)
     return rows
 
 
@@ -1344,12 +1422,14 @@ def tests(request: Request):
 def gen_test(body: dict = Body(...)):
     """Manueller Zusatztest fuer ein Modul (nicht an die Ein-Test-pro-Woche-Regel gebunden)."""
     dur = int(body["duration_min"]) if body.get("duration_min") else None
+    # Lehrwoche (03.11.2026, Dialog "Wochentest erstellen"): dann nur die Materialien dieser Woche, sonst die neuesten
+    week = int(body["week_no"]) if body.get("week_no") else None
     if body.get("module_id"):
         with db.cursor() as conn:
             m = db.row(conn, "SELECT name FROM modules WHERE id=?", (int(body["module_id"]),))
         if not m:
             raise HTTPException(404, "Modul nicht gefunden")
-        return _run_bg("Test", lambda: planner.create_test(m["name"], dur, module_id=int(body["module_id"]), auto=False))
+        return _run_bg("Test", lambda: planner.create_test(m["name"], dur, module_id=int(body["module_id"]), week_no=week, auto=False))
     subject = body.get("subject")
     if not subject:
         raise HTTPException(400, "subject fehlt")
@@ -1377,6 +1457,8 @@ def get_test(test_id: int):
                 q.pop(k, None)   # Loesung, Loesungsweg und Quellen erst nach Abgabe sichtbar
     t["answers"] = json.loads(t["answers"]) if t["answers"] else {}
     t["feedback"] = json.loads(t["feedback"]) if t["feedback"] else None
+    from . import testshare
+    t["shared"] = testshare.shared_info(t)        # {variant (1-basiert), of, adopted} oder None
     return t
 
 
