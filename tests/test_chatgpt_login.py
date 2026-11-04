@@ -224,6 +224,70 @@ def test_provider_maps_errors(cg, monkeypatch):
     assert e.value.code == "chatgpt_login_needed" and cg.status()["needs_reauth"]
 
 
+def test_provider_streams_the_responses_api_like_openai_requires(cg, monkeypatch):
+    """Mit dem Token des Abos: oeffentliche Responses API, store false, stream true, input als Liste, Antwort als
+    Ereignisstrom bis response.completed (Doku "Preview limitations", 3.11.2026); Kopfzeilen ohne Kontokennung, wenn
+    das Token keine nennt."""
+    from app import ai_backend
+    _login(cg, monkeypatch)
+    seen = {}
+
+    class Reply:
+        def __init__(self, raw):
+            self.raw = raw
+
+        def read(self):
+            return self.raw.encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def ev(t, **f):
+        return f"event: {t}\ndata: {json.dumps({'type': t, **f})}\n\n"
+    done = {"model": "gpt-6.1-sol", "output": [{"type": "message", "content": [{"type": "output_text", "text": "Hallo Welt"}]}],
+            "usage": {"input_tokens": 7, "output_tokens": 2}}
+    stream = ev("response.output_text.delta", delta="Hallo ") + ev("response.output_text.delta", delta="Welt") + ev("response.completed", response=done)
+
+    def opener(req, timeout=0):
+        seen["url"], seen["headers"], seen["body"] = req.full_url, dict(req.header_items()), json.loads(req.data)
+        return Reply(stream)
+    monkeypatch.setattr(urllib.request, "urlopen", opener)
+    c = ai_backend.ChatGPTProvider("gpt-6.1-sol").complete("SYS", "Frage")
+    assert (c.text, c.input_tokens, c.output_tokens, c.model) == ("Hallo Welt", 7, 2, "gpt-6.1-sol")
+    assert seen["url"] == "https://api.openai.com/v1/responses"
+    assert seen["body"] == {"model": "gpt-6.1-sol", "instructions": "SYS", "input": [{"role": "user", "content": "Frage"}], "store": False, "stream": True}
+    h = {k.lower(): v for k, v in seen["headers"].items()}
+    assert h["authorization"] == "Bearer at-1" and h["accept"] == "text/event-stream" and h["originator"] == "StudiNow"
+    assert "chatgpt-account-id" not in h
+    # Kontokennung nur aus einem JWT mit der Angabe (wie der Codex-Client)
+    enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip("=")  # noqa: E731
+    with_id = f"{enc({'alg': 'none'})}.{enc({'https://api.openai.com/auth': {'chatgpt_account_id': 'acct_1'}})}.sig"
+    assert ai_backend.ChatGPTProvider.request_headers(with_id)["chatgpt-account-id"] == "acct_1"
+    assert "chatgpt-account-id" not in ai_backend.ChatGPTProvider.request_headers(f"{enc({'alg': 'none'})}.{enc({'sub': 'x'})}.sig")
+    assert cg.account_id_from_token("kein.jwt") is None
+    # Fehler im Strom: Kontingent; Abbruch ohne Abschluss
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: Reply(
+        ev("response.failed", response={"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "limit"}})))
+    with pytest.raises(ai_backend.AIUnavailable) as e:
+        ai_backend.ChatGPTProvider("gpt-6.1-sol").complete("s", "p")
+    assert e.value.code == "chatgpt_limit"
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: Reply(ev("response.output_text.delta", delta="x")))
+    with pytest.raises(ai_backend.AIUnavailable, match="nicht beendet"):
+        ai_backend.ChatGPTProvider("gpt-6.1-sol").complete("s", "p")
+    # Modellliste: Katalog des Abos in Reihenfolge des Servers, nur sichtbare; oeffentliche Liste alphabetisch
+    catalog = {"models": [{"slug": "gpt-6-luna", "visibility": "list", "priority": 4}, {"slug": "hidden", "visibility": "hide"},
+                          {"slug": "gpt-6.1-sol", "visibility": "list", "priority": 1}, {"slug": "gpt-6-luna"}]}
+    assert cg.model_ids(catalog) == ["gpt-6-luna", "gpt-6.1-sol"] and cg.is_model_catalog(catalog)
+    assert cg.model_ids({"data": [{"id": "gpt-b"}, {"slug": "gpt-a"}]}) == ["gpt-a", "gpt-b"] and not cg.is_model_catalog({"data": []})
+    monkeypatch.setattr(cg, "http_get_json", lambda url, bearer: catalog)
+    cg._models_cache = None
+    assert cg.models() == ["gpt-6-luna", "gpt-6.1-sol"]
+    assert cg._error_text('{"detail":"The \'x\' model is not supported.","error":{"code":"model_not_found"}}') == "The 'x' model is not supported."
+
+
 def test_api_endpoints_local(app, cg, monkeypatch):
     j = lambda r: (r[0], json.loads(r[2]))
     st, d = j(asgi_call(app, "GET", "/api/integrations/chatgpt"))

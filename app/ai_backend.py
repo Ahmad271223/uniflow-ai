@@ -160,12 +160,37 @@ class OpenAIProvider:
 
 class ChatGPTProvider(OpenAIProvider):
     """Responses API mit dem ChatGPT-Abo des Nutzers (Sign in with ChatGPT, app/chatgpt_login.py): das Zugriffstoken
-    kommt je Anfrage aus der Ablage dieses Rechners (erneuert sich selbst), nie ein StudiNow-Schluessel. 401 heisst
-    "neu anmelden", 402/403/429 "Kontingent aufgebraucht oder Nutzung in Apps nicht freigegeben" (Nutzung verwalten
-    in ChatGPT)."""
+    kommt je Anfrage aus der Ablage dieses Rechners (erneuert sich selbst), nie ein StudiNow-Schluessel. Mit diesem
+    Token verlangt OpenAI `store: false` und `stream: true` je Anfrage, `input` als Liste und die Antwort als
+    Ereignisstrom bis `response.completed` (Doku "Preview limitations", 3.11.2026). 401 heisst "neu anmelden",
+    402/403/429 "Kontingent aufgebraucht oder Nutzung in Apps nicht freigegeben" (Nutzung verwalten in ChatGPT)."""
+
+    LIMIT_MESSAGE = ("Dein ChatGPT-Kontingent ist aufgebraucht oder die Nutzung in Apps ist nicht freigegeben. "
+                     "In ChatGPT unter Einstellungen → Nutzung verwalten.")
+    LOGIN_MESSAGE = "Die Anmeldung bei ChatGPT ist abgelaufen – bitte in den Einstellungen neu verbinden."
 
     def __init__(self, model_name: str, timeout: int = 120):
         super().__init__("", model_name, timeout)
+
+    @staticmethod
+    def request_body(model: str, system: str, prompt: str, schema: dict | None = None) -> dict:
+        """Anfrage an `POST /v1/responses` mit dem Token des Abos (wie Swift `ChatGPTProtocol.responsesBody`)."""
+        body: dict = {"model": model, "instructions": system, "input": [{"role": "user", "content": prompt}], "store": False, "stream": True}
+        if schema:
+            body["text"] = {"format": {"type": "json_schema", "name": "studora", "schema": schema, "strict": False}}
+        return body
+
+    @staticmethod
+    def request_headers(token: str) -> dict[str, str]:
+        """Kopfzeilen: Bearer, JSON, Antwort als Ereignisstrom, `originator` = Name der App, und – falls das Token die
+        Kennung des ChatGPT-Kontos nennt – `chatgpt-account-id` wie der Codex-Client."""
+        from . import chatgpt_login
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "text/event-stream",
+             "originator": chatgpt_login.AGENT_NAME}
+        acct = chatgpt_login.account_id_from_token(token)
+        if acct:
+            h["chatgpt-account-id"] = acct
+        return h
 
     def complete(self, system: str, prompt: str, schema: dict | None = None) -> Completion:
         from . import chatgpt_login
@@ -173,18 +198,15 @@ class ChatGPTProvider(OpenAIProvider):
             token = chatgpt_login.access_token()
         except chatgpt_login.ChatGPTError as e:
             raise AIUnavailable(e.code, e.message, e.status)
-        body: dict = {"model": self.model, "instructions": system, "input": prompt}
-        if schema:
-            body["text"] = {"format": {"type": "json_schema", "name": "studora", "schema": schema, "strict": False}}
-        req = urllib.request.Request(self.URL, data=json.dumps(body).encode("utf-8"), method="POST",
-                                     headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        body = self.request_body(self.model, system, prompt, schema)
+        req = urllib.request.Request(self.URL, data=json.dumps(body).encode("utf-8"), method="POST", headers=self.request_headers(token))
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 - feste https-Adresse
-                data = json.loads(r.read().decode("utf-8"))
+                raw = r.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
             detail = ""
             try:
-                detail = e.read().decode("utf-8", "replace")[:400]
+                detail = chatgpt_login._error_text(e.read().decode("utf-8", "replace")[:600])
             except Exception:  # noqa: BLE001
                 pass
             if e.code == 401:
@@ -196,10 +218,91 @@ class ChatGPTProvider(OpenAIProvider):
             raise AIUnavailable("ai_provider_error", f"ChatGPT antwortete mit Fehler {e.code}: {detail[:200]}", 502)
         except (urllib.error.URLError, TimeoutError, OSError):
             raise AIUnavailable("ai_provider_unreachable", "ChatGPT ist nicht erreichbar.", 502)
-        text = "".join(c.get("text", "") for item in data.get("output") or [] if item.get("type") == "message"
-                       for c in item.get("content") or [] if c.get("type") == "output_text")
+        text, data = stream_text(raw)
         usage = data.get("usage") or {}
         return Completion(text, int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0), data.get("model") or self.model)
+
+
+def _sse_events(raw: str) -> list[str]:
+    """`data:`-Inhalte der Ereignisse eines SSE-Stroms (mehrzeilige `data:` je Ereignis zusammengefuegt, `event:` und
+    Kommentare uebergangen, `[DONE]` ausgelassen)."""
+    out: list[str] = []
+    current: list[str] = []
+
+    def flush() -> None:
+        d = "\n".join(current)
+        current.clear()
+        if d and d != "[DONE]":
+            out.append(d)
+    for line in raw.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        if not line:
+            flush()
+            continue
+        if line.startswith("data:"):
+            current.append(line[5:].removeprefix(" "))
+    flush()
+    return out
+
+
+def _stream_error(code: str | None, message: str | None) -> AIUnavailable:
+    """Fehlercodes der Responses API fuer das ChatGPT-Abo (developers.openai.com/siwc/…/errors-and-recovery)."""
+    c, m = code or "", (message or "")[:200]
+    if c in ("subscription_sharing_usage_limit_exceeded", "subscription_sharing_user_not_eligible"):
+        return AIUnavailable("chatgpt_limit", ChatGPTProvider.LIMIT_MESSAGE, 429)
+    if c in ("subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable"):
+        return AIUnavailable("ai_provider_error", "ChatGPT kann die Nutzung deines Abos gerade nicht prüfen – bitte später noch einmal versuchen.", 502)
+    if c == "subscription_sharing_invalid_user":
+        return AIUnavailable("chatgpt_login_needed", ChatGPTProvider.LOGIN_MESSAGE, 401)
+    return AIUnavailable("ai_provider_error", "ChatGPT antwortete mit Fehler" + (f" {c}" if c else "") + (f": {m}" if m else "."), 502)
+
+
+def stream_text(raw: str) -> tuple[str, dict]:
+    """Antwort von `POST /v1/responses` mit `stream: true` (wie Swift `ChatGPTProtocol.streamedText`): Server-Sent
+    Events, je Ereignis `data:` mit JSON und `type`. Fertig erst mit `response.completed` (Text aus der fertigen
+    Antwort, sonst die gesammelten `response.output_text.delta`); `response.failed`, `error` und `response.incomplete`
+    sind Fehler, ein Strom ohne Abschluss auch. Eine gewoehnliche JSON-Antwort wird wie bisher gelesen. Liefert
+    (Text, fertige Antwort)."""
+    def output_text(d: dict) -> str:
+        return "".join(c.get("text", "") for item in d.get("output") or [] if isinstance(item, dict) and item.get("type") == "message"
+                       for c in item.get("content") or [] if isinstance(c, dict) and c.get("type") == "output_text")
+    stripped = raw.strip()
+    if stripped.startswith("{"):
+        try:
+            data = json.loads(stripped)
+        except ValueError:
+            raise AIUnavailable("ai_provider_error", "ChatGPT antwortete unlesbar.", 502)
+        err = data.get("error") if isinstance(data, dict) else None
+        if isinstance(err, dict):
+            raise _stream_error(err.get("code"), err.get("message"))
+        return output_text(data), data
+    deltas, completed, saw = [], None, False
+    for event in _sse_events(raw):
+        try:
+            j = json.loads(event)
+        except ValueError:
+            continue
+        if not isinstance(j, dict):
+            continue
+        saw = True
+        t = j.get("type") or ""
+        if t == "response.output_text.delta":
+            deltas.append(str(j.get("delta") or ""))
+        elif t == "response.completed":
+            completed = j.get("response") if isinstance(j.get("response"), dict) else {}
+        elif t == "response.failed":
+            err = (j.get("response") or {}).get("error") if isinstance(j.get("response"), dict) else None
+            err = err if isinstance(err, dict) else (j.get("error") if isinstance(j.get("error"), dict) else {})
+            raise _stream_error(err.get("code"), err.get("message"))
+        elif t == "error":
+            raise _stream_error(j.get("code"), j.get("message"))
+        elif t == "response.incomplete":
+            why = ((j.get("response") or {}).get("incomplete_details") or {}).get("reason") or "unvollständig"
+            raise AIUnavailable("ai_provider_error", f"ChatGPT hat die Antwort nicht beendet ({str(why)[:80]}).", 502)
+    if completed is None:
+        raise AIUnavailable("ai_provider_error", "ChatGPT hat die Antwort nicht beendet (kein response.completed)." if saw
+                            else "ChatGPT antwortete unlesbar.", 502)
+    final = output_text(completed)
+    return (final or "".join(deltas)), completed
 
 
 _provider_override = None

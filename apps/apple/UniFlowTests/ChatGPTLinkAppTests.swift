@@ -57,6 +57,19 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(DocumentView.tutorWidth(700), 300)
     }
 
+    /// KI-Leiste nennt das Modell, das geantwortet hat; ohne Modellliste des Kontos ein klarer Hinweis statt Stille
+    func testTutorFooterNamesTheModelAndAMissingListGetsANote() {
+        XCTAssertEqual(TutorPanel.footer(page: 3, model: "gpt-6.1-sol"), "Seite 3 · über dein ChatGPT · gpt-6.1-sol")
+        XCTAssertEqual(TutorPanel.footer(page: 1, model: nil), "Seite 1 · über dein ChatGPT")
+        XCTAssertEqual(TutorPanel.footer(page: 1, model: " "), "Seite 1 · über dein ChatGPT")
+        XCTAssertEqual(ChatGPTLink.modelListNote(models: [], error: nil), ChatGPTLink.noModelListMessage)
+        XCTAssertEqual(ChatGPTLink.modelListNote(models: [], error: AIError("chatgpt_http_error", "OpenAI antwortete mit Fehler 403: x")),
+                       ChatGPTLink.noModelListMessage)
+        XCTAssertNil(ChatGPTLink.modelListNote(models: ["gpt-6.1-sol"], error: nil))
+        XCTAssertEqual(ChatGPTLink.modelListNote(models: [], error: AIError("chatgpt_login_needed", "neu verbinden")), "neu verbinden")
+        XCTAssertEqual(ChatGPTLink.noModelListMessage, "Dein ChatGPT-Konto erlaubt keine Modellliste; StudiNow probiert die bekannten Modelle automatisch.")
+    }
+
     func testKeychainKeepsEachAppleUserApart() throws {
         let a = ChatGPTKeychainStore(userScope: "test-a-\(UUID().uuidString)"), b = ChatGPTKeychainStore(userScope: "test-b-\(UUID().uuidString)")
         defer { ChatGPTKeychainStore.remove(userScope: a.userScope); ChatGPTKeychainStore.remove(userScope: b.userScope) }

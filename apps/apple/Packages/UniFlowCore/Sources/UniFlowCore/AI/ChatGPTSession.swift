@@ -41,9 +41,16 @@ public struct ChatGPTState: Codable, Equatable, Sendable {
     /// Modelle, die ChatGPT fuer dieses Konto abgelehnt hat ("not supported when using Codex with a ChatGPT account");
     /// werden nicht erneut gewaehlt. Optional, damit aeltere gespeicherte Staende lesbar bleiben.
     public var rejectedModels: [String]?
+    /// Fassung der Anfrage, mit der `rejectedModels` entstand (`ChatGPTSession.requestVersion`): aendert sich die
+    /// Anfrage (Adresse, Kopfzeilen, Form), gelten alte Ablehnungen nicht mehr und werden verworfen
+    public var rejectedModelsVersion: Int?
 
     public init(hostID: String) { self.hostID = hostID }
-    public static func new() -> ChatGPTState { ChatGPTState(hostID: "urn:uuid:\(UUID().uuidString.lowercased())") }
+    public static func new() -> ChatGPTState {
+        var s = ChatGPTState(hostID: "urn:uuid:\(UUID().uuidString.lowercased())")
+        s.rejectedModelsVersion = ChatGPTSession.requestVersion
+        return s
+    }
 }
 
 /// Ablage des Zustands (App: Schluesselbund; Tests: Speicher)
@@ -80,6 +87,15 @@ public enum ChatGPTIDToken {
             throw AIError("chatgpt_token_invalid", "ID-Token abgelehnt: Das Token ist unlesbar.")
         }
         return Parts(header: header, payload: payload, signature: sig, signingInput: Data("\(p[0]).\(p[1])".utf8))
+    }
+
+    /// Inhalt (Claims) eines JWT ohne Pruefung der Signatur – fuer Angaben, die nur der Anzeige oder der Anfrage
+    /// dienen (Kontokennung, Ablauf, Tarif des Zugriffstokens). Nil, wenn es kein JWT ist. Bis 64 KB.
+    public static func unverifiedClaims(_ token: String) -> JSONValue? {
+        let p = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard token.utf8.count <= 65536, p.count == 3, let b = base64URLDecode(p[1]), let payload = try? JSONValue.parse(Data(b)),
+              case .object = payload else { return nil }
+        return payload
     }
 
     /// `social_login._nonce_ok`: gleich oder SHA-256-Hex der erwarteten Nonce
@@ -133,10 +149,15 @@ public actor ChatGPTSession {
     private var state: ChatGPTState
     private var pending: ChatGPTLoginAttempt?
     private var jwks: (at: Double, keys: [JSONValue])?
-    private var modelsCache: (at: Double, ids: [String])?
+    private var modelsCache: (at: Double, ids: [String], catalog: Bool)?
     /// Laufende Erneuerung: gleichzeitige Anfragen warten auf dieselbe. Zwei Erneuerungen mit demselben (rotierenden)
     /// Refresh-Token liessen die zweite scheitern und die Verbindung als abgelaufen markieren (Audit 03.11.2026).
     private var refreshing: Task<Void, Error>?
+
+    /// Fassung der Anfrage an die Responses API. 1: `input` als Text ohne `stream`/`store` (bis 3.11.2026);
+    /// 2: `store: false`, `stream: true`, `input` als Liste, Ereignisstrom, Kopfzeilen `originator`/`chatgpt-account-id`
+    /// (Doku "ChatGPT plan usage", Stand 3.11.2026). Gemerkte Ablehnungen einer aelteren Fassung werden verworfen.
+    public static let requestVersion = 2
 
     /// `signature`: nil nur in Tests ohne Plattform-Kryptografie (dann wird ein ID-Token abgelehnt)
     public init(store: ChatGPTStateStore, http: AIHTTPTransport, signature: ChatGPTSignatureChecking?,
@@ -145,7 +166,23 @@ public actor ChatGPTSession {
         self.http = http
         self.signature = signature
         self.now = now
-        state = store.load() ?? .new()
+        if let saved = store.load() {
+            state = Self.migrated(saved)
+            if state != saved { try? store.save(state) }
+        } else {
+            state = .new()
+        }
+    }
+
+    /// Gespeicherter Stand einer aelteren Fassung der Anfrage: Ablehnungen vergessen, ein zurueckgezogenes Modell
+    /// (`retiredModels`) durch das erste der heutigen Kandidaten ersetzen. Ein vom Nutzer gewaehltes anderes Modell bleibt.
+    static func migrated(_ saved: ChatGPTState) -> ChatGPTState {
+        guard saved.rejectedModelsVersion != requestVersion else { return saved }
+        var s = saved
+        s.rejectedModels = nil
+        s.rejectedModelsVersion = requestVersion
+        if retiredModels.contains(s.model) { s.model = fallbackModels[0] }
+        return s
     }
 
     // MARK: Stand
@@ -370,8 +407,9 @@ public actor ChatGPTSession {
 
     // MARK: Anfragen
 
-    /// Antworttext der Responses API (`ChatGPTProvider.complete`); 401 heisst "neu verbinden", 402/403/429
-    /// "Kontingent aufgebraucht oder nicht freigegeben"
+    /// Antworttext der Responses API (`ChatGPTProvider.complete`): Anfrage als Ereignisstrom (`stream: true`,
+    /// `store: false`), fertig mit `response.completed`. 401 heisst "neu verbinden", 402/403/429 "Kontingent
+    /// aufgebraucht oder nicht freigegeben"; eine Ablehnung des Modells wechselt zum naechsten Kandidaten.
     public func complete(system: String, prompt: String, schema: JSONValue? = nil) async throws -> String {
         guard status.enabledForAI else {
             throw AIError("chatgpt_not_enabled", status.connected && status.model.isEmpty
@@ -386,31 +424,39 @@ public actor ChatGPTSession {
             attempts += 1
             try rememberRejected(state.model)
             let listed = (try? await models(force: attempts == 1)) ?? []
-            guard let next = Self.modelCandidates(listed: listed, excluding: Set(state.rejectedModels ?? [])).first else { break }
+            guard let next = Self.modelCandidates(listed: listed, catalogOrder: modelsFromCatalog,
+                                                  excluding: Set(state.rejectedModels ?? [])).first else { break }
             try setModel(next)
             r = try await respond(token: token, system: system, prompt: prompt, schema: schema)
         }
         guard (200..<300).contains(r.status) else {
             if r.status == 401 { try markReauth("Responses API 401") }
-            throw ChatGPTProtocol.error(status: r.status, detail: String(decoding: r.body.prefix(400), as: UTF8.self))
+            throw ChatGPTProtocol.error(status: r.status, detail: Self.errorText(String(decoding: r.body.prefix(600), as: UTF8.self)))
         }
-        guard let json = try? JSONValue.parse(r.body) else { throw AIError("ai_provider_error", "ChatGPT antwortete unlesbar.") }
-        return ChatGPTProtocol.outputText(json)
+        // `status.model` ist danach das Modell, das geantwortet hat (die Anzeige "über dein ChatGPT · Modell")
+        return try ChatGPTProtocol.streamedText(r.body).text
     }
 
     private func respond(token: String, system: String, prompt: String, schema: JSONValue?) async throws -> (status: Int, body: Data) {
         let body = ChatGPTProtocol.responsesBody(model: state.model, system: system, prompt: prompt, schema: schema).serialized()
         do {
             return try await http.send(AIHTTPRequest(method: "POST", url: ChatGPTConstants.responsesURL,
-                                                     headers: ["Authorization": "Bearer \(token)", "Content-Type": "application/json"], body: body))
+                                                     headers: ChatGPTProtocol.requestHeaders(token: token), body: body))
         } catch {
             throw ChatGPTProtocol.error(status: 0)
         }
     }
 
-    /// Antwort "Modell unbekannt/nicht erlaubt" der Responses API (400/404 mit "model" im Fehlertext)
+    /// Antwort "Modell unbekannt/nicht erlaubt" der Responses API: `error.code` `model_not_found`, der Code
+    /// `subscription_sharing_unsupported_capability` mit `param` "model", oder 400/404 mit "model" im Fehlertext
+    /// (`{"detail": "The 'x' model is not supported when using Codex with a ChatGPT account."}`)
     public static func isModelRejection(status: Int, body: Data) -> Bool {
         guard status == 400 || status == 404 else { return false }
+        if let j = try? JSONValue.parse(body), let err = j["error"], case .object = err {
+            let code = err["code"]?.string ?? ""
+            if code == "model_not_found" { return true }
+            if code == "subscription_sharing_unsupported_capability" { return (err["param"]?.string ?? "").lowercased().contains("model") }
+        }
         return String(decoding: body.prefix(2000), as: UTF8.self).lowercased().contains("model")
     }
 
@@ -420,29 +466,42 @@ public actor ChatGPTSession {
         guard !list.contains(model) else { return }
         list.append(model)
         state.rejectedModels = Array(list.suffix(20))
+        state.rejectedModelsVersion = Self.requestVersion
         try persist()
     }
 
     /// Modell, wenn der Nutzer keins waehlt (Wunsch des Inhabers: einfach das ChatGPT-Konto nutzen, nichts auswaehlen)
     public static var fallbackModel: String { fallbackModels[0] }
 
-    /// Feste Kandidaten, wenn die Liste des Abos fehlt oder nichts Passendes enthaelt: neueste Chatmodelle zuerst,
-    /// dann die Codex-Fassungen, zuletzt gpt-5 (beobachtet 2.11.2026: mit dem ChatGPT-Konto abgelehnt). Welche das
+    /// Feste Kandidaten, wenn die Liste des Abos fehlt oder nichts Passendes enthaelt: der Katalog des Codex-Clients
+    /// (openai/codex, codex-rs/models-manager/models.json, Commit d5830f6 vom 3.11.2026) in dessen Rangfolge
+    /// (`priority`, nur `visibility: "list"`): gpt-6.1-sol ist dort das Beispiel der OpenAI-Doku und der "daily
+    /// driver", Astra das groesste, Luna das sparsamste Modell; die 5.6er und gpt-5.5 bleiben als Rueckfall. Welche das
     /// Konto wirklich annimmt, zeigt erst die Antwort; abgelehnte landen in `rejectedModels`.
-    public static let fallbackModels = ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5.5-codex", "gpt-5.1-codex", "gpt-5-codex",
-                                        "codex-mini-latest", "gpt-5"]
+    public static let fallbackModels = ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-6.1-terra",
+                                        "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5"]
 
-    /// Reihenfolge der Versuche: aus der Liste des Abos erst das Hauptmodell (`preferredModel`), dann die Codex-
-    /// Fassungen, dann die festen Kandidaten; ohne Doppelte und ohne schon abgelehnte
-    public static func modelCandidates(listed: [String], excluding: Set<String>) -> [String] {
+    /// Kandidaten frueherer Fassungen, die der Codex-Katalog nicht mehr fuehrt (bis 3.11.2026 abgelehnt als "not
+    /// supported when using Codex with a ChatGPT account"); ein gespeichertes solches Modell wird ersetzt
+    public static let retiredModels = ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5.5-codex", "gpt-5.1-codex", "gpt-5-codex",
+                                       "codex-mini-latest", "gpt-5"]
+
+    /// Reihenfolge der Versuche. Kam die Liste als Katalog (`catalogOrder`), gilt dessen Reihenfolge – sie ist die
+    /// Empfehlung von OpenAI. Sonst erst das Hauptmodell (`preferredModel`), dann die Codex-Fassungen. Danach die
+    /// festen Kandidaten; ohne Doppelte und ohne schon abgelehnte.
+    public static func modelCandidates(listed: [String], catalogOrder: Bool = false, excluding: Set<String>) -> [String] {
         var out: [String] = []
-        var rest = listed
-        while let p = preferredModel(rest) {
-            out.append(p)
-            rest.removeAll { $0 == p }
-            if out.count >= 3 { break }
+        if catalogOrder {
+            out = listed
+        } else {
+            var rest = listed
+            while let p = preferredModel(rest) {
+                out.append(p)
+                rest.removeAll { $0 == p }
+                if out.count >= 3 { break }
+            }
+            out += listed.filter { $0.lowercased().contains("codex") }.sorted { $0.compare($1, options: .numeric) == .orderedDescending }
         }
-        out += listed.filter { $0.lowercased().contains("codex") }.sorted { $0.compare($1, options: .numeric) == .orderedDescending }
         out += fallbackModels
         var seen = Set<String>()
         return out.filter { !excluding.contains($0) && seen.insert($0).inserted }
@@ -464,7 +523,10 @@ public actor ChatGPTSession {
         return ids.first
     }
 
-    /// Modelle des Abos (`GET /v1/models`), 10 Minuten gemerkt
+    /// Modelle des Abos (`GET /v1/models` mit dem Zugriffstoken), 10 Minuten gemerkt. Mit dem ChatGPT-Abo antwortet
+    /// OpenAI mit dem Katalog `{"models": [{slug, display_name, visibility, priority}]}` (Reihenfolge des Servers,
+    /// `modelsFromCatalog`), mit einem API-Schluessel mit `{"data": [{id}]}` (alphabetisch). Bis 3.11.2026 las
+    /// StudiNow nur `data` – darum blieb "Modelle laden" mit dem ChatGPT-Konto leer.
     public func models(force: Bool = false) async throws -> [String] {
         if !force, let c = modelsCache, now() - c.at < 600 { return c.ids }
         let token = try await accessToken()
@@ -475,17 +537,13 @@ public actor ChatGPTSession {
             try markReauth(e.message)
             throw AIError("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte neu verbinden.")
         }
-        var ids = Set<String>()
-        if case .array(let items)? = AIPrompts.get(data, "data") {
-            for m in items {
-                let id = AIPrompts.or(AIPrompts.get(m, "id"), AIPrompts.get(m, "slug"))
-                if AIPrompts.truthy(id) { ids.insert(AIPrompts.str(id)) }
-            }
-        }
-        let sorted = ids.sorted(by: PyText.less)
-        modelsCache = (now(), sorted)
-        return sorted
+        let list = ChatGPTProtocol.modelList(data.json)
+        modelsCache = (now(), list.ids, list.catalog)
+        return list.ids
     }
+
+    /// Kam die zuletzt gelesene Modellliste als Katalog des Abos (Reihenfolge = Empfehlung von OpenAI)?
+    public var modelsFromCatalog: Bool { modelsCache?.catalog ?? false }
 
     /// `set_model`: nicht leer, hoechstens 100 Zeichen, ohne Leerraum
     public func setModel(_ slug: String) throws {
@@ -548,12 +606,15 @@ public actor ChatGPTSession {
         return try decode(try await send(AIHTTPRequest(method: "GET", url: url, headers: headers)))
     }
 
-    /// `_error_text`: Meldung aus `{"error": {"message"}}` oder `error_description`, sonst der Anfang des Texts
-    static func errorText(_ body: String) -> String {
+    /// `_error_text`: Meldung aus `{"error": {"message"}}`, sonst `detail` (so antwortet die Zulassung fuer das
+    /// ChatGPT-Abo vor dem Strom, Doku "Errors and recovery"), `error.code` oder `error_description`, sonst der
+    /// Anfang des Texts
+    public static func errorText(_ body: String) -> String {
         if let j = try? JSONValue.parse(Data(body.utf8)) {
-            if let err = j["error"], case .object = err {
-                return PyText.slice(err["message"]?.string ?? err["code"]?.string ?? body, 0, 300)
-            }
+            let err: JSONValue? = { if let e = j["error"], case .object = e { return e }; return nil }()
+            if let m = err?["message"]?.string, !m.isEmpty { return PyText.slice(m, 0, 300) }
+            if let d = j["detail"]?.string, !d.isEmpty { return PyText.slice(d, 0, 300) }
+            if let c = err?["code"]?.string, !c.isEmpty { return PyText.slice(c, 0, 300) }
             if let d = j["error_description"]?.string { return PyText.slice(d, 0, 300) }
         }
         return PyText.slice(body, 0, 300)

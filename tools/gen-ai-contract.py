@@ -85,6 +85,29 @@ def _test_cases(ai) -> list[dict]:
     return cases
 
 
+def _flashcards_cases(ai) -> list[dict]:
+    """Karteikarten aus einem Dokument (ai.flashcards_prompt): Seitenangabe, Zahl, Schwerpunkt, Kuerzungen"""
+    inputs = [
+        {"course": "Testmathe I", "file_name": "vl02.pdf", "pages": [3, 4, 5], "text": "Definition: Eine Folge heisst konvergent ...", "count": 10, "topic": ""},
+        {"course": "Testkurs", "file_name": "skript.pdf", "pages": [7], "text": "  Satz von Bolzano ä€😀  ", "count": 5, "topic": "  nur Beweise  "},
+        {"course": "", "file_name": "", "pages": [], "text": "", "count": 1, "topic": "x" * 400},
+        {"course": "K \"zitiert\"", "file_name": "a b.pdf", "pages": None, "text": "Lange Seite ä€😀 " * 1000, "count": 30, "topic": " \n "},
+    ]
+    return [{"in": i, "prompt": ai.flashcards_prompt(i["course"], i["file_name"], i["pages"], i["text"], i["count"], i["topic"])} for i in inputs]
+
+
+def _flashcards_check_cases(ai) -> list[dict]:
+    """ai.check_flashcards und ai.flashcards_count: Objekt mit cards, Liste, Leerraum, Unbrauchbares, Hoechstzahl"""
+    many = {"cards": [{"question": f"F{i}", "answer": f"A{i}"} for i in range(40)]}
+    answers = [
+        {"cards": [{"question": " Was ist x? ", "answer": " 2 "}, {"question": "", "answer": "leer"}, {"question": "ohne Antwort"}, "Text", 7]},
+        [{"question": "Liste", "answer": "geht auch"}, {"question": 3, "answer": 4.5}, {"question": None, "answer": "x"}],
+        {"cards": "keine Liste"}, {"title": "ohne cards"}, [], "Text", None, many,
+    ]
+    counts = [None, "", 0, -3, 1, 7, "12", 30, 31, 999, 2.7, "abc", True]
+    return [{"in": a, "out": ai.check_flashcards(a)} for a in answers] + [{"count_in": c, "count": ai.flashcards_count(c)} for c in counts]
+
+
 def _grade_cases(ai) -> list[dict]:
     qs = [{"nr": 1, "points": 6, "type": "mc", "question": "Welche Reihe konvergiert?", "answer": "B"},
           {"nr": "2", "points": 8, "type": "calc", "question": "Summe von 1/2^n", "answer": "2"}]
@@ -182,10 +205,64 @@ def _chatgpt(cl, backend) -> dict:
         {"model": "gpt-test", "system": "", "prompt": "Plan", "schema": {"type": "object", "properties": {"notes": {"type": "string"}}}},
     ]
     for r in responses:
-        body = {"model": r["model"], "instructions": r["system"], "input": r["prompt"]}
-        if r["schema"]:
-            body["text"] = {"format": {"type": "json_schema", "name": "studora", "schema": r["schema"], "strict": False}}
-        r["body"] = body
+        r["body"] = backend.ChatGPTProvider.request_body(r["model"], r["system"], r["prompt"], r["schema"])
+    # Kopfzeilen: ein (ungueltiges, unsigniertes) JWT mit und ohne Kontokennung, ein Token ohne JWT-Form
+    def jwt(claims: dict) -> str:
+        enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip("=")  # noqa: E731
+        return f"{enc({'alg': 'none'})}.{enc(claims)}.sig"
+    headers = [{"token": t, "headers": backend.ChatGPTProvider.request_headers(t)} for t in (
+        "at-ohne-jwt",
+        jwt({"sub": "s", "https://api.openai.com/auth": {"chatgpt_account_id": "acct_test_1234", "chatgpt_plan_type": "plus"}}),
+        jwt({"sub": "s", "https://api.openai.com/auth": {"per_user_salt": "x", "encrypted_auth_metadata": "y"}}),
+        jwt({"sub": "s", "https://api.openai.com/auth": {"chatgpt_account_id": "   "}}),
+    )]
+    # Ereignisstrom der Responses API (stream: true): Text erst mit response.completed, Fehler nach Code
+    def ev(t: str, **fields) -> str:
+        return f"event: {t}\ndata: {json.dumps({'type': t, **fields})}\n\n"
+    done = {"id": "resp_1", "model": "gpt-6.1-sol", "output": [{"type": "message", "content": [{"type": "output_text", "text": "Hallo Welt"}]}],
+            "usage": {"input_tokens": 12, "output_tokens": 3}}
+    streams = [
+        {"raw": ev("response.created", response={"id": "resp_1"}) + ev("response.output_text.delta", delta="Hallo ")
+                + ev("response.output_text.delta", delta="Welt") + ev("response.completed", response=done) + "data: [DONE]\n\n"},
+        {"raw": ev("response.output_text.delta", delta="nur ") + ev("response.output_text.delta", delta="Deltas")
+                + ev("response.completed", response={"model": "gpt-x", "output": []})},
+        {"raw": "data: {\"type\": \"response.output_text.delta\",\r\ndata: \"delta\": \"CR\"}\r\n\r\n"
+                "data: {\"type\": \"response.completed\", \"response\": {\"output\": []}}\r\n\r\n"},
+        {"raw": ev("response.output_text.delta", delta="x")
+                + ev("response.failed", response={"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "limit"}})},
+        {"raw": ev("response.failed", response={"error": {"code": "subscription_sharing_user_not_eligible", "message": "nein"}})},
+        {"raw": ev("response.failed", response={"error": {"code": "subscription_sharing_usage_unavailable", "message": "spaeter"}})},
+        {"raw": ev("response.failed", response={"error": {"code": "subscription_sharing_invalid_user", "message": "wer"}})},
+        {"raw": ev("response.failed", response={"error": {"code": "server_error", "message": "kaputt"}})},
+        {"raw": ev("error", code="rate_limit_exceeded", message="zu schnell")},
+        {"raw": ev("response.incomplete", response={"incomplete_details": {"reason": "max_output_tokens"}})},
+        {"raw": ev("response.output_text.delta", delta="abgebrochen")},
+        {"raw": ""},
+        {"raw": json.dumps({"output": [{"type": "message", "content": [{"type": "output_text", "text": "ohne Strom"}]}], "model": "gpt-y"})},
+        {"raw": json.dumps({"error": {"code": "model_not_found", "message": "kein Modell"}})},
+    ]
+    for s_ in streams:
+        try:
+            text, data = backend.stream_text(s_["raw"])
+            s_["text"], s_["model"] = text, data.get("model") or ""
+        except backend.AIUnavailable as e:
+            s_["error"] = {"code": e.code, "message": e.message}
+    # Modellliste: Katalog des Abos (Reihenfolge des Servers, nur sichtbare) oder oeffentliche Liste (alphabetisch)
+    model_lists = []
+    for resp in [
+        {"models": [{"slug": "gpt-6-luna", "display_name": "GPT-6-Luna", "visibility": "list", "priority": 4},
+                    {"slug": "gpt-daybreak-red-latest", "visibility": "hide", "priority": 12},
+                    {"slug": "gpt-6.1-sol", "display_name": "GPT-6.1-Sol", "visibility": "list", "priority": 1},
+                    {"slug": "gpt-6-luna", "visibility": "list"}, {"slug": "  ", "visibility": "list"}, {"id": "ohne-slug"}, "kaputt"]},
+        {"models": []},
+        {"data": [{"id": "gpt-b"}, {"slug": "gpt-a"}, {"id": "gpt-b"}, {"x": 1}]},
+        {},
+    ]:
+        model_lists.append({"response": resp, "ids": cl.model_ids(resp), "catalog": cl.is_model_catalog(resp)})
+    error_texts = [{"body": b, "text": cl._error_text(b)} for b in (
+        '{"detail":"The \'gpt-5.5-codex\' model is not supported when using Codex with a ChatGPT account.","error":{"type":"invalid_request_error","code":"model_not_found"}}',
+        '{"error":{"message":"Nachricht","code":"c"}}', '{"error":{"code":"nur_code"}}', '{"error_description":"Beschreibung"}',
+        '{"detail":"nur detail"}', "kein json", "")]
     outputs = [
         {"response": {"model": "gpt-x", "output": [{"type": "reasoning", "summary": []},
                                                    {"type": "message", "content": [{"type": "output_text", "text": "Hallo "}, {"type": "refusal", "refusal": "nein"},
@@ -222,6 +299,7 @@ def _chatgpt(cl, backend) -> dict:
         "id_token": {"algorithms": ["RS256", "ES256"], "checks": ["kid in JWKS (bei unbekanntem kid einmal neu laden)", "iss == issuer",
                                                                   "client_id in aud", "exp + 60 s >= jetzt", "nonce"]},
         "authorize": auth, "pkce": pkce, "credentials": creds, "responses_request": responses, "responses_output": outputs,
+        "request_headers": headers, "responses_stream": streams, "model_lists": model_lists, "error_texts": error_texts,
         "errors": errors,
     }
 
@@ -239,14 +317,17 @@ def main() -> int:
                   "analysis_fields": ai.ANALYSIS_FIELDS, "week_test_difficulty": ai.WEEK_TEST_DIFFICULTY,
                   "week_test_total": ai.WEEK_TEST_TOTAL, "week_test_types": list(ai.WEEK_TEST_TYPES),
                   "tutor_history_turns": ai.TUTOR_HISTORY_TURNS, "tutor_history_chars": ai.TUTOR_HISTORY_CHARS,
-                  "untrusted": ai.UNTRUSTED},
+                  "untrusted": ai.UNTRUSTED,
+                  "flashcards_default": ai.FLASHCARDS_DEFAULT, "flashcards_max": ai.FLASHCARDS_MAX,
+                  "flashcards_text_chars": ai.FLASHCARDS_TEXT_CHARS, "flashcards_schema": ai.FLASHCARDS_SCHEMA},
         "prompts": {"tutor": _tutor_cases(ai), "studip_context": _studip_context_cases(ai),
                     "analysis": [{"in": {"course": c, "file_name": f, "text": t}, "prompt": ai.analysis_prompt(c, f, t)}
                                  for c, f, t in [("Testmathe I", "vl01.pdf", "Folgen und Reihen"), ("Testkurs", "leer.pdf", "  \n"),
                                                  ("K \"zitiert\"", "a b.pdf", "x" * 50)]],
-                    "week_test": _test_cases(ai), "grade": _grade_cases(ai)},
+                    "week_test": _test_cases(ai), "grade": _grade_cases(ai), "flashcards": _flashcards_cases(ai)},
         "parse_json": _parse_cases(ai),
         "check_week_test": _check_cases(ai),
+        "check_flashcards": _flashcards_check_cases(ai),
         "chatgpt": _chatgpt(chatgpt_login, ai_backend),
     }
     text = json.dumps(out, ensure_ascii=False, indent=1) + "\n"

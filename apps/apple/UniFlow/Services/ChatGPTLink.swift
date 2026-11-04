@@ -272,25 +272,38 @@ final class ChatGPTLink: ObservableObject {
         await refresh()
     }
 
+    /// Hinweis, wenn das Konto keine Modellliste liefert (leer oder abgelehnt): die KI laeuft trotzdem, StudiNow
+    /// probiert die bekannten Modelle (`ChatGPTSession.fallbackModels`) der Reihe nach
+    static let noModelListMessage = "Dein ChatGPT-Konto erlaubt keine Modellliste; StudiNow probiert die bekannten Modelle automatisch."
+
+    /// Hinweis zur Liste: nil, wenn Modelle da sind; bei leerer Liste oder einem Fehler der Liste (ausser "neu
+    /// verbinden", das die Karte selbst zeigt) der feste Hinweis
+    static func modelListNote(models: [String], error: AIError?) -> String? {
+        if let error, error.code == "chatgpt_login_needed" { return error.message }
+        return models.isEmpty ? noModelListMessage : nil
+    }
+
     func loadModels() async {
         guard let session, status?.connected == true else { return }
         let rejected = Set(await session.rejectedModels)
+        var listed: [String] = []
+        var failure: AIError?
         do {
-            models = try await session.models()
-            // ohne Wahl: das Hauptmodell des Abos, damit die KI gleich arbeitet (aenderbar, aber nie noetig)
-            if (status?.model ?? "").isEmpty, let first = ChatGPTSession.modelCandidates(listed: models, excluding: rejected).first {
-                try await session.setModel(first)
-            }
-            await refresh()
+            listed = try await session.models()
         } catch let e as AIError {
-            // Liste nicht lesbar (z. B. ohne Freigabe fuer /v1/models): trotzdem nutzbar mit dem Standardmodell
-            if (status?.model ?? "").isEmpty, status?.connected == true,
-               let first = ChatGPTSession.modelCandidates(listed: [], excluding: rejected).first { try? await session.setModel(first) }
-            else { message = e.message }
-            await refresh()
+            failure = e
         } catch {
-            message = error.localizedDescription
+            failure = AIError("chatgpt_http_error", error.localizedDescription)
         }
+        models = listed
+        message = Self.modelListNote(models: listed, error: failure)
+        // ohne Wahl: das erste Modell des Katalogs (Reihenfolge von OpenAI), sonst der erste feste Kandidat, damit die KI
+        // gleich arbeitet (aenderbar, aber nie noetig)
+        if (status?.model ?? "").isEmpty, failure?.code != "chatgpt_login_needed",
+           let first = ChatGPTSession.modelCandidates(listed: listed, catalogOrder: await session.modelsFromCatalog, excluding: rejected).first {
+            try? await session.setModel(first)
+        }
+        await refresh()
     }
 
     func setModel(_ slug: String) async {

@@ -204,6 +204,115 @@ final class StudIPDeviceProbeTests: XCTestCase {
         }
     }
 
+    // MARK: - KI ueber ChatGPT (03.11.2026): welche Modelle nimmt das Konto an?
+
+    /// Gespeichertes ChatGPT-Konto dieses Geraets: `container.json` jedes Containers nennt den Nutzer (`owner` =
+    /// `userScope`), dessen Schluesselbund-Eintrag haelt die Verbindung. Nur mit UF_DEVICE_PROBE=1.
+    private func chatgptSession() throws -> (session: ChatGPTSession, idToken: String?) {
+        guard ProcessInfo.processInfo.environment["UF_DEVICE_PROBE"] == "1" else {
+            throw XCTSkip("Geräte-Probe nur mit UF_DEVICE_PROBE=1 auf dem iPad mit verbundenem ChatGPT (TEST_RUNNER_UF_DEVICE_PROBE=1 bei xcodebuild)")
+        }
+        let dirs = (try? FileManager.default.contentsOfDirectory(at: ContainerPaths.base, includingPropertiesForKeys: nil)) ?? []
+        var owners: [String] = []
+        for dir in dirs {
+            guard UUID(uuidString: dir.lastPathComponent) != nil,
+                  let data = FileManager.default.contents(atPath: dir.appendingPathComponent(DataContainerLayout.manifestName).path),
+                  let m = try? JSONDecoder().decode(DataContainerManifest.self, from: data), !owners.contains(m.owner) else { continue }
+            owners.append(m.owner)
+            let store = ChatGPTKeychainStore(userScope: m.owner)
+            guard let state = store.load() else { say("Container \(dir.lastPathComponent.prefix(8)): kein ChatGPT-Eintrag"); continue }
+            say("Container \(dir.lastPathComponent.prefix(8)): ChatGPT-Eintrag (Nutzer \(m.owner.prefix(5))…, registriert \(state.clientID != nil), "
+                + "verbunden \(state.credentials != nil), Modell „\(state.model)“, abgelehnt \(state.rejectedModels ?? []), Fassung \(state.rejectedModelsVersion ?? 0))")
+            if let creds = state.credentials {
+                return (ChatGPTSession(store: store, http: URLSessionAITransport(), signature: ChatGPTAppleSignature()), creds.idToken)
+            }
+        }
+        throw XCTSkip("Kein verbundenes ChatGPT-Konto auf diesem Gerät")
+    }
+
+    /// Kennungen nur angedeutet (Anfang und Laenge), nie ganz
+    private func masked(_ s: String?) -> String {
+        guard let s, !s.isEmpty else { return "-" }
+        return s.prefix(6) + "…(\(s.count))"
+    }
+
+    /// Lesende Probe der KI (der Inhaber hat den winzigen Anfragen auf seinem Konto zugestimmt): 1. Angaben im
+    /// Zugriffstoken (nie das Token selbst: Aussteller, Zweck, Ablauf, Scope, Felder, Tarif, Kontokennung nur angedeutet),
+    /// 2. `GET /v1/models` (Status, Form der Antwort, Modelle mit Sichtbarkeit und Rang), 3. bis zu sechs Kandidaten
+    /// mit „Antworte nur: OK“ (`store: false`, `stream: true`) – je Modell Status und die ersten 120 Zeichen von Antwort
+    /// oder Fehler. Der gespeicherte Stand (Modell, Ablehnungen) bleibt unveraendert; nur eine faellige Erneuerung des
+    /// Tokens schreibt das rotierte Refresh-Token in den Schluesselbund, wie jede Nutzung der App.
+    func testChatGPTModelsOnTheDevice() async throws {
+        let (session, idToken) = try chatgptSession()
+        let status = await session.status
+        say("ChatGPT: verbunden \(status.connected), Freigabe \(status.sharing), neu verbinden \(status.needsReauth), Modell „\(status.model)“, "
+            + "Fehler \(status.lastError ?? "-")")
+        let token = try await session.accessToken()
+        // 1. Angaben im Token
+        if let claims = ChatGPTIDToken.unverifiedClaims(token) {
+            let auth = claims["https://api.openai.com/auth"]
+            let exp = claims["exp"]?.double.map { ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: $0)) } ?? "-"
+            say("Zugriffstoken: JWT mit \(token.count) Zeichen, iss \(claims["iss"]?.string ?? "-"), aud \(claims["aud"]?.string ?? "-"), "
+                + "client_id \(masked(claims["client_id"]?.string)), scope „\(claims["scope"]?.string ?? "-")“, gültig bis \(exp), "
+                + "Felder \(claims.object?.keys.sorted().joined(separator: ",") ?? "-")")
+            say("Zugriffstoken auth: Felder \(auth?.object?.keys.sorted().joined(separator: ",") ?? "-"), Konto \(masked(auth?["chatgpt_account_id"]?.string)), "
+                + "Tarif \(auth?["chatgpt_plan_type"]?.string ?? "-"), Nutzer \(masked(auth?["chatgpt_user_id"]?.string ?? auth?["user_id"]?.string))")
+        } else {
+            say("Zugriffstoken: kein JWT (\(token.count) Zeichen)")
+        }
+        if let idToken, let claims = ChatGPTIDToken.unverifiedClaims(idToken) {
+            let auth = claims["https://api.openai.com/auth"]
+            say("ID-Token: Felder \(claims.object?.keys.sorted().joined(separator: ",") ?? "-"), E-Mail \(masked(claims["email"]?.string)), "
+                + "auth-Felder \(auth?.object?.keys.sorted().joined(separator: ",") ?? "-"), Tarif \(auth?["chatgpt_plan_type"]?.string ?? "-")")
+        }
+        let headers = ChatGPTProtocol.requestHeaders(token: token)
+        say("Kopfzeilen: \(headers.keys.sorted().joined(separator: ", ")) (chatgpt-account-id \(headers["chatgpt-account-id"] == nil ? "nicht" : "") gesetzt)")
+        // 2. Modelle
+        let transport = URLSessionAITransport()
+        var listed: [String] = [], catalog = false
+        do {
+            let r = try await transport.send(AIHTTPRequest(method: "GET", url: ChatGPTConstants.modelsURL,
+                                                           headers: ["Authorization": "Bearer \(token)", "Accept": "application/json"]))
+            if let j = try? JSONValue.parse(r.body) {
+                let list = ChatGPTProtocol.modelList(j)
+                listed = list.ids
+                catalog = list.catalog
+                say("Modelle: HTTP \(r.status), \(r.body.count) Bytes, Form \(catalog ? "Katalog (models)" : "Liste (data)"), \(listed.count) sichtbar: "
+                    + listed.prefix(20).joined(separator: ", "))
+                for m in (j["models"]?.array ?? []).prefix(20) {
+                    let plans = m["available_in_plans"]?.array?.compactMap(\.string) ?? []
+                    say("  \(m["slug"]?.string ?? "?") · „\(m["display_name"]?.string ?? "")“ · \(m["visibility"]?.string ?? "-") · Rang \(m["priority"]?.int ?? -1)"
+                        + " · Tarife \(plans.count) (\(plans.filter { ["free", "go", "plus", "pro"].contains($0) }.joined(separator: ",")))"
+                        + " · Kontext \(m["context_window"]?.int ?? -1) · Standard-Aufwand \(m["default_reasoning_level"]?.string ?? "-")")
+                }
+                if r.status >= 400 { say("Modelle: Fehler „\(ChatGPTSession.errorText(String(decoding: r.body.prefix(600), as: UTF8.self)).prefix(160))“") }
+            } else {
+                say("Modelle: HTTP \(r.status), kein JSON (\(r.body.count) Bytes): \(scrub(String(decoding: r.body.prefix(200), as: UTF8.self)))")
+            }
+        } catch { say("Modelle: nicht erreichbar (\(error))") }
+        // 3. Kandidaten
+        let candidates = Array(ChatGPTSession.modelCandidates(listed: listed, catalogOrder: catalog, excluding: []).prefix(6))
+        say("Kandidaten (\(catalog ? "Reihenfolge des Katalogs" : "feste Liste")): \(candidates.joined(separator: ", "))")
+        for model in candidates {
+            let body = ChatGPTProtocol.responsesBody(model: model, system: "Du bist ein Testlauf.", prompt: "Antworte nur: OK").serialized()
+            do {
+                let r = try await transport.send(AIHTTPRequest(method: "POST", url: ChatGPTConstants.responsesURL, headers: headers, body: body))
+                if (200..<300).contains(r.status) {
+                    do {
+                        let s = try ChatGPTProtocol.streamedText(r.body)
+                        say("  \(model): HTTP \(r.status) OK · Antwort „\(s.text.prefix(120))“ · Modell laut Antwort \(s.model.isEmpty ? "-" : s.model)"
+                            + " · Tokens \(s.response?["usage"]?["input_tokens"]?.int ?? -1)/\(s.response?["usage"]?["output_tokens"]?.int ?? -1)")
+                    } catch {
+                        say("  \(model): HTTP \(r.status), Strom unvollständig: \(((error as? AIError)?.message ?? "\(error)").prefix(120))")
+                    }
+                } else {
+                    say("  \(model): HTTP \(r.status) · \(ChatGPTSession.errorText(String(decoding: r.body.prefix(600), as: UTF8.self)).prefix(120))"
+                        + (ChatGPTSession.isModelRejection(status: r.status, body: r.body) ? " (Modell abgelehnt)" : ""))
+                }
+            } catch { say("  \(model): nicht erreichbar (\(error))") }
+        }
+    }
+
     // MARK: - Aufzeichnungen (03.11.2026): wo liegen die Vorlesungsvideos der Kurse?
 
     /// Sitzungs- und Sicherheitswerte aus HTML fuers Protokoll entfernen (Cookies, CSRF-Token, Signaturen)

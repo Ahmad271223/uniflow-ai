@@ -191,13 +191,37 @@ public enum ChatGPTProtocol {
 
     // MARK: Responses API
 
-    /// Anfrage an `POST /v1/responses` (`ChatGPTProvider.complete`)
+    /// Anfrage an `POST /v1/responses` (`ChatGPTProvider.complete`). Mit dem Token des ChatGPT-Abos verlangt OpenAI
+    /// `store: false` und `stream: true` je Anfrage, `input` als Liste und die Anweisung in `instructions`
+    /// (developers.openai.com/siwc/token-sharing-open-source/preview-limitations, Stand 3.11.2026); `temperature`,
+    /// `max_output_tokens`, `metadata`, `user` u. a. sind dort nicht erlaubt und werden nicht gesendet.
     public static func responsesBody(model: String, system: String, prompt: String, schema: JSONValue? = nil) -> JSONValue {
-        var body: [String: JSONValue] = ["model": .string(model), "instructions": .string(system), "input": .string(prompt)]
+        var body: [String: JSONValue] = ["model": .string(model), "instructions": .string(system),
+                                         "input": [["role": "user", "content": .string(prompt)]], "store": false, "stream": true]
         if let schema {
             body["text"] = ["format": ["type": "json_schema", "name": "studora", "schema": schema, "strict": false]]
         }
         return .object(body)
+    }
+
+    /// Kopfzeilen der Anfrage mit dem Zugriffstoken: Bearer, JSON, Antwort als Ereignisstrom, `originator` = Name der
+    /// App (wie `clientInfo.name` beim Codex app-server) und – falls das Token die Kennung des ChatGPT-Kontos nennt –
+    /// `chatgpt-account-id` wie der Codex-Client (codex-rs/model-provider/src/bearer_auth_provider.rs). Das Token
+    /// selbst wird nur gesendet, nie protokolliert.
+    public static func requestHeaders(token: String) -> [String: String] {
+        var h = ["Authorization": "Bearer \(token)", "Content-Type": "application/json", "Accept": "text/event-stream",
+                 "originator": ChatGPTConstants.agentName]
+        if let account = accountID(fromToken: token) { h["chatgpt-account-id"] = account }
+        return h
+    }
+
+    /// `https://api.openai.com/auth` → `chatgpt_account_id` aus dem Inhalt eines JWT (ohne Signaturpruefung; das Token
+    /// kommt von OpenAI selbst). Nil, wenn das Token kein JWT ist oder die Angabe fehlt (Tokens von "Sign in with
+    /// ChatGPT" fuehren sie nicht, codex-rs/login/src/token_data.rs liest sie bei Codex-Anmeldungen).
+    public static func accountID(fromToken token: String) -> String? {
+        guard let claims = ChatGPTIDToken.unverifiedClaims(token) else { return nil }
+        let id = claims["https://api.openai.com/auth"]?["chatgpt_account_id"]?.string?.trimmingCharacters(in: .whitespaces) ?? ""
+        return id.isEmpty ? nil : id
     }
 
     /// Text der Antwort: alle `output_text` aller Nachrichten der Reihe nach
@@ -207,6 +231,110 @@ public enum ChatGPTProtocol {
             for c in item["content"]?.array ?? [] where c["type"]?.string == "output_text" { out += c["text"]?.string ?? "" }
         }
         return out
+    }
+
+    /// Ergebnis eines Ereignisstroms der Responses API
+    public struct Streamed: Equatable, Sendable {
+        /// Antworttext (aus `response.completed`, sonst die gesammelten `response.output_text.delta`)
+        public var text: String
+        /// Die fertige Antwort aus `response.completed` (Modell, `usage`); nil bei einer unstrombaren JSON-Antwort
+        public var response: JSONValue?
+        /// Modell laut Antwort (`response.model`), sonst leer
+        public var model: String { response?["model"]?.string ?? "" }
+    }
+
+    /// Zerlegt die Antwort von `POST /v1/responses` mit `stream: true`: Server-Sent Events, je Ereignis `data:` mit
+    /// JSON und `type`. Fertig erst mit `response.completed` (Text aus der fertigen Antwort, sonst die Deltas);
+    /// `response.failed`, `error` und `response.incomplete` sind Fehler; ein Strom ohne Abschluss auch. Eine
+    /// gewoehnliche JSON-Antwort (ohne Strom) wird wie bisher gelesen.
+    public static func streamedText(_ body: Data) throws -> Streamed {
+        let raw = String(decoding: body, as: UTF8.self)
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("{") {
+            guard let json = try? JSONValue.parse(Data(trimmed.utf8)) else { throw AIError("ai_provider_error", "ChatGPT antwortete unlesbar.") }
+            if let err = json["error"], case .object = err { throw streamError(code: err["code"]?.string, message: err["message"]?.string) }
+            return Streamed(text: outputText(json), response: json)
+        }
+        var deltas = "", completed: JSONValue?, sawEvent = false
+        for event in sseEvents(raw) {
+            guard let json = try? JSONValue.parse(Data(event.utf8)) else { continue }
+            sawEvent = true
+            switch json["type"]?.string ?? "" {
+            case "response.output_text.delta": deltas += json["delta"]?.string ?? ""
+            case "response.completed": completed = json["response"] ?? .null
+            case "response.failed":
+                let err = json["response"]?["error"] ?? json["error"] ?? .null
+                throw streamError(code: err["code"]?.string, message: err["message"]?.string)
+            case "error": throw streamError(code: json["code"]?.string, message: json["message"]?.string)
+            case "response.incomplete":
+                let why = json["response"]?["incomplete_details"]?["reason"]?.string ?? "unvollständig"
+                throw AIError("ai_provider_error", "ChatGPT hat die Antwort nicht beendet (\(PyText.slice(why, 0, 80))).")
+            default: break
+            }
+        }
+        guard let completed else {
+            throw AIError("ai_provider_error", sawEvent ? "ChatGPT hat die Antwort nicht beendet (kein response.completed)."
+                                                        : "ChatGPT antwortete unlesbar.")
+        }
+        let final = outputText(completed)
+        return Streamed(text: final.isEmpty ? deltas : final, response: completed)
+    }
+
+    /// `data:`-Inhalte der Ereignisse eines SSE-Stroms (mehrzeilige `data:` je Ereignis zusammengefuegt, `event:`
+    /// und Kommentare uebergangen, `[DONE]` ausgelassen)
+    static func sseEvents(_ raw: String) -> [String] {
+        var out: [String] = [], current: [String] = []
+        func flush() {
+            let d = current.joined(separator: "\n")
+            current = []
+            if !d.isEmpty, d != "[DONE]" { out.append(d) }
+        }
+        for line in raw.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" }) {
+            let l = line.hasSuffix("\r") ? String(line.dropLast()) : String(line)
+            if l.isEmpty { flush(); continue }
+            guard l.hasPrefix("data:") else { continue }
+            var v = l.dropFirst(5)
+            if v.hasPrefix(" ") { v = v.dropFirst() }
+            current.append(String(v))
+        }
+        flush()
+        return out
+    }
+
+    /// Fehlercodes der Responses API fuer das ChatGPT-Abo (developers.openai.com/siwc/…/errors-and-recovery)
+    static func streamError(code: String?, message: String?) -> AIError {
+        let c = code ?? "", m = PyText.slice(message ?? "", 0, 200)
+        switch c {
+        case "subscription_sharing_usage_limit_exceeded", "subscription_sharing_user_not_eligible":
+            return error(status: 429)
+        case "subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable":
+            return AIError("ai_provider_error", "ChatGPT kann die Nutzung deines Abos gerade nicht prüfen – bitte später noch einmal versuchen.")
+        case "subscription_sharing_invalid_user": return error(status: 401)
+        default:
+            return AIError("ai_provider_error", "ChatGPT antwortete mit Fehler" + (c.isEmpty ? "" : " \(c)") + (m.isEmpty ? "." : ": \(m)"))
+        }
+    }
+
+    /// Modelle aus `GET /v1/models`: mit dem Token des ChatGPT-Abos der Katalog `{"models": [{slug, display_name,
+    /// visibility, priority}]}` in der Reihenfolge des Servers (nur `visibility: "list"`, Doku "Models and
+    /// inference"), mit einem API-Schluessel die oeffentliche Liste `{"data": [{id}]}` alphabetisch. `catalog` sagt,
+    /// welche Form kam – die Reihenfolge des Katalogs ist die Empfehlung von OpenAI.
+    public static func modelList(_ json: JSONValue) -> (ids: [String], catalog: Bool) {
+        if let models = json["models"]?.array {
+            var seen = Set<String>(), out: [String] = []
+            for m in models {
+                let id = (m["slug"]?.string ?? m["id"]?.string ?? "").trimmingCharacters(in: .whitespaces)
+                let visible = m["visibility"]?.string.map { $0 == "list" } ?? true
+                if !id.isEmpty, visible, seen.insert(id).inserted { out.append(id) }
+            }
+            return (out, true)
+        }
+        var ids = Set<String>()
+        for m in json["data"]?.array ?? [] {
+            let id = (m["id"]?.string ?? m["slug"]?.string ?? "").trimmingCharacters(in: .whitespaces)
+            if !id.isEmpty { ids.insert(id) }
+        }
+        return (ids.sorted(by: PyText.less), false)
     }
 
     /// Fehler der Responses API nach HTTP-Status (0 = nicht erreichbar)

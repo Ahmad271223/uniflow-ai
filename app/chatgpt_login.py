@@ -12,7 +12,11 @@ Ablauf (developers.openai.com/siwc/token-sharing-open-source/sign-in):
    die wird gespeichert, BEVOR der Code getauscht wird (ein zweiter Versuch nutzt sie wieder).
 3. Tausch am Token-Endpunkt (form-encoded, ohne Secret), ID-Token gegen JWKS, Aussteller, Audience und Nonce pruefen,
    Zugangsdaten speichern. Erneuerung 60 s vor Ablauf; das Refresh-Token rotiert und wird mit ersetzt.
-4. KI-Anfragen gehen mit dem Zugriffstoken an die Responses API (app/ai_backend.ChatGPTProvider).
+4. KI-Anfragen gehen mit dem Zugriffstoken an die oeffentliche Responses API (app/ai_backend.ChatGPTProvider) –
+   laut OpenAI ausdruecklich nicht an ChatGPTs `backend-api`; je Anfrage `store: false`, `stream: true`, `input` als
+   Liste, die Antwort als Ereignisstrom bis `response.completed` (developers.openai.com/siwc/token-sharing-open-source,
+   "Models and inference" und "Preview limitations", Stand 3.11.2026). `GET /v1/models` liefert mit diesem Token den
+   Katalog `{"models": [...]}` in der Reihenfolge von OpenAI (`model_ids`).
 """
 from __future__ import annotations
 
@@ -182,11 +186,18 @@ def _send(req: urllib.request.Request) -> dict:
 
 
 def _error_text(body: str) -> str:
+    """Meldung aus `{"error": {"message"}}`, sonst `detail` (so antwortet die Zulassung fuer das ChatGPT-Abo vor dem
+    Strom, Doku "Errors and recovery"), `error.code` oder `error_description`, sonst der Anfang des Texts."""
     try:
         j = json.loads(body)
         err = j.get("error") if isinstance(j, dict) else None
-        if isinstance(err, dict):
-            return str(err.get("message") or err.get("code") or body)[:300]
+        err = err if isinstance(err, dict) else {}
+        if err.get("message"):
+            return str(err["message"])[:300]
+        if isinstance(j, dict) and isinstance(j.get("detail"), str) and j["detail"]:
+            return j["detail"][:300]
+        if err.get("code"):
+            return str(err["code"])[:300]
         if isinstance(j, dict) and j.get("error_description"):
             return str(j["error_description"])[:300]
     except ValueError:
@@ -560,9 +571,49 @@ def models(force: bool = False) -> list[str]:
             mark_reauth(why=e.message)
             raise ChatGPTError("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte neu verbinden.", 401)
         raise
-    ids = sorted({str(m.get("id") or m.get("slug")) for m in (data.get("data") or []) if isinstance(m, dict) and (m.get("id") or m.get("slug"))})
+    ids = model_ids(data)
     _models_cache = (time.monotonic(), ids)
     return ids
+
+
+def is_model_catalog(data) -> bool:
+    """Antwortet `GET /v1/models` mit dem Katalog des ChatGPT-Abos (`{"models": [...]}`)? Dessen Reihenfolge ist die
+    Empfehlung von OpenAI (Doku "Models and inference", 3.11.2026)."""
+    return isinstance(data, dict) and isinstance(data.get("models"), list)
+
+
+def model_ids(data) -> list[str]:
+    """Modelle aus `GET /v1/models`: mit dem Token des ChatGPT-Abos der Katalog `{"models": [{slug, display_name,
+    visibility, priority}]}` in der Reihenfolge des Servers (nur `visibility: "list"`), mit einem API-Schluessel die
+    oeffentliche Liste `{"data": [{id}]}` alphabetisch. Bis 3.11.2026 wurde nur `data` gelesen – darum blieb die
+    Modellliste mit dem ChatGPT-Konto leer."""
+    if is_model_catalog(data):
+        out: list[str] = []
+        for m in data["models"]:
+            if not isinstance(m, dict):
+                continue
+            slug = str(m.get("slug") or m.get("id") or "").strip()
+            visible = m.get("visibility") in (None, "list")
+            if slug and visible and slug not in out:
+                out.append(slug)
+        return out
+    items = data.get("data") if isinstance(data, dict) else None
+    return sorted({str(m.get("id") or m.get("slug")).strip() for m in (items or []) if isinstance(m, dict) and str(m.get("id") or m.get("slug") or "").strip()})
+
+
+def account_id_from_token(token: str) -> str | None:
+    """`https://api.openai.com/auth` → `chatgpt_account_id` aus dem Inhalt eines JWT, ohne Signaturpruefung (das Token
+    kommt von OpenAI selbst). None ohne JWT oder ohne die Angabe (Tokens von Sign in with ChatGPT fuehren sie nicht;
+    der Codex-Client sendet sie als Kopfzeile `chatgpt-account-id`, codex-rs/login/src/token_data.rs)."""
+    if not isinstance(token, str) or token.count(".") != 2 or len(token) > 65536:
+        return None
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(token.split(".")[1] + "=" * (-len(token.split(".")[1]) % 4)))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    auth = payload.get("https://api.openai.com/auth") if isinstance(payload, dict) else None
+    acct = str(auth.get("chatgpt_account_id") or "").strip() if isinstance(auth, dict) else ""
+    return acct or None
 
 
 def model() -> str:

@@ -39,6 +39,17 @@ actor FakeOpenAI: AIHTTPTransport {
 }
 
 private func json(_ v: JSONValue) -> Data { v.serialized() }
+/// Ereignisstrom der Responses API (`stream: true`), wie OpenAI ihn sendet: `event:` und `data:` je Ereignis
+private func sse(_ events: [JSONValue]) -> Data {
+    Data(events.map { "event: \($0["type"]?.string ?? "")\ndata: \(String(decoding: $0.serialized(), as: UTF8.self))\n\n" }.joined().utf8)
+}
+/// Vollstaendiger Strom mit einer Antwort: ein Delta und `response.completed` mit dem Text
+private func completedStream(_ text: String, model: String = "gpt-test") -> Data {
+    sse([["type": "response.created", "response": ["id": "resp_1"]],
+         ["type": "response.output_text.delta", "delta": .string(text)],
+         ["type": "response.completed", "response": ["model": .string(model), "output": [["type": "message", "content": [["type": "output_text", "text": .string(text)]]]],
+                                                     "usage": ["input_tokens": 5, "output_tokens": 1]]]])
+}
 /// Abfrage einer Adresse wie ein Formular ("+" = Leerzeichen, wie urlencode)
 private func query(_ url: String) -> [String: String] {
     form(AIHTTPRequest(method: "GET", url: url, body: Data(url.split(separator: "?", maxSplits: 1).last.map(String.init)?.utf8 ?? "".utf8)))
@@ -430,19 +441,40 @@ final class ChatGPTSessionTests: XCTestCase {
         _ = try await connect(s, fake)
         await assertError(try await s.complete(system: "S", prompt: "P"), code: "chatgpt_not_enabled")
         try await s.setModel("gpt-test")
-        await fake.on(ChatGPTConstants.responsesURL) { _ in
-            (200, json(["output": [["type": "message", "content": [["type": "output_text", "text": "Antwort"]]]]]))
-        }
+        await fake.on(ChatGPTConstants.responsesURL) { _ in (200, completedStream("Antwort")) }
         let text = try await s.complete(system: "SYS", prompt: "Frage")
         XCTAssertEqual(text, "Antwort")
         let lastRequest = await fake.last(ChatGPTConstants.responsesURL)
         let req = try XCTUnwrap(lastRequest)
+        XCTAssertEqual(req.url, "https://api.openai.com/v1/responses", "die oeffentliche Responses API, nicht ChatGPTs backend-api")
         XCTAssertEqual(req.headers["Authorization"], "Bearer at-1")
-        XCTAssertEqual(try JSONValue.parse(req.body ?? Data()), ["model": "gpt-test", "instructions": "SYS", "input": "Frage"])
+        XCTAssertEqual(req.headers["Accept"], "text/event-stream")
+        XCTAssertEqual(req.headers["originator"], "StudiNow")
+        XCTAssertNil(req.headers["chatgpt-account-id"], "kein JWT, keine Kontokennung")
+        // Pflicht mit dem Token des Abos: store false, stream true, input als Liste, Anweisung in instructions
+        XCTAssertEqual(try JSONValue.parse(req.body ?? Data()),
+                       ["model": "gpt-test", "instructions": "SYS", "input": [["role": "user", "content": "Frage"]], "store": false, "stream": true])
+        // eine Antwort ohne Strom (JSON) wird weiter gelesen
+        await fake.on(ChatGPTConstants.responsesURL) { _ in
+            (200, json(["output": [["type": "message", "content": [["type": "output_text", "text": "ohne Strom"]]]]]))
+        }
+        let plain = try await s.complete(system: "SYS", prompt: "Frage")
+        XCTAssertEqual(plain, "ohne Strom")
         for (status, code) in [(429, "chatgpt_limit"), (402, "chatgpt_limit"), (403, "chatgpt_limit"), (500, "ai_provider_error")] {
             await fake.on(ChatGPTConstants.responsesURL) { _ in (status, Data("{}".utf8)) }
             await assertError(try await s.complete(system: "", prompt: "x"), code: code)
         }
+        // 400 ohne Modellbezug: die Meldung der Zulassung (`detail`), nicht der rohe Text
+        await fake.on(ChatGPTConstants.responsesURL) { _ in (400, Data(#"{"detail":"Nur Text","error":{"code":"x"}}"#.utf8)) }
+        await assertError(try await s.complete(system: "", prompt: "x"), code: "ai_provider_error", contains: "Fehler 400: Nur Text")
+        // Fehler nach Beginn des Stroms: Kontingent, sonst Abbruch
+        await fake.on(ChatGPTConstants.responsesURL) { _ in
+            (200, sse([["type": "response.output_text.delta", "delta": "x"],
+                       ["type": "response.failed", "response": ["error": ["code": "subscription_sharing_usage_limit_exceeded", "message": "limit"]]]]))
+        }
+        await assertError(try await s.complete(system: "", prompt: "x"), code: "chatgpt_limit")
+        await fake.on(ChatGPTConstants.responsesURL) { _ in (200, sse([["type": "response.output_text.delta", "delta": "abgebrochen"]])) }
+        await assertError(try await s.complete(system: "", prompt: "x"), code: "ai_provider_error", contains: "nicht beendet")
         await fake.setOffline(true)
         await assertError(try await s.complete(system: "", prompt: "x"), code: "ai_provider_unreachable")
         await fake.setOffline(false)
@@ -452,8 +484,8 @@ final class ChatGPTSessionTests: XCTestCase {
         XCTAssertTrue(st.needsReauth && !st.enabledForAI, "401: neu verbinden")
     }
 
-    /// iPad 2.11.2026: "The 'gpt-5' model is not supported when using Codex with a ChatGPT account" (400): die Sitzung
-    /// merkt sich das Modell, probiert die naechsten Kandidaten und bleibt beim ersten, das antwortet
+    /// iPad 2./3.11.2026: "The 'gpt-5' model is not supported when using Codex with a ChatGPT account" (400): die
+    /// Sitzung merkt sich das Modell, probiert die naechsten Kandidaten und bleibt beim ersten, das antwortet
     func testRejectedModelIsRememberedAndTheNextCandidateIsTried() async throws {
         let (s, fake, store) = await make()
         _ = try await connect(s, fake)
@@ -461,22 +493,144 @@ final class ChatGPTSessionTests: XCTestCase {
         await fake.on(ChatGPTConstants.modelsURL) { _ in (403, Data("{}".utf8)) }        // Liste nicht lesbar: feste Kandidaten
         await fake.on(ChatGPTConstants.responsesURL) { req in
             let model = (try? JSONValue.parse(req.body ?? Data()))?["model"]?.string ?? ""
-            if model == "gpt-5.5" { return (200, json(["output": [["type": "message", "content": [["type": "output_text", "text": .string("OK von \(model)")]]]]])) }
-            return (400, Data(#"{"detail":"The '\#(model)' model is not supported when using Codex with a ChatGPT account.","error":{"code":"model_not_found"}}"#.utf8))
+            if model == "gpt-6.1-sol" { return (200, completedStream("OK von \(model)", model: model)) }
+            return (400, Data(#"{"detail":"The '\#(model)' model is not supported when using Codex with a ChatGPT account.","error":{"type":"invalid_request_error","code":"model_not_found"}}"#.utf8))
         }
         let answer = try await s.complete(system: "S", prompt: "P")
-        XCTAssertEqual(answer, "OK von gpt-5.5")
+        XCTAssertEqual(answer, "OK von gpt-6.1-sol")
         let st = await s.status
-        XCTAssertEqual(st.model, "gpt-5.5")
+        XCTAssertEqual(st.model, "gpt-6.1-sol", "das erste Modell des Codex-Katalogs")
         let rejected = await s.rejectedModels
         XCTAssertEqual(rejected, ["gpt-5"])
         let persisted = store.load()
         XCTAssertEqual(persisted?.rejectedModels, ["gpt-5"], "abgelehnt bleibt gemerkt")
+        XCTAssertEqual(persisted?.rejectedModelsVersion, ChatGPTSession.requestVersion)
         // naechste Anfrage geht direkt an das funktionierende Modell
         _ = try await s.complete(system: "S", prompt: "P2")
         let req = await fake.last(ChatGPTConstants.responsesURL)
         let sent = try JSONValue.parse(req?.body ?? Data())
-        XCTAssertEqual(sent["model"], "gpt-5.5")
+        XCTAssertEqual(sent["model"], "gpt-6.1-sol")
+    }
+
+    /// Liefert das Konto seinen Katalog (`{"models": [...]}`), gilt dessen Reihenfolge – nicht die feste Liste; versteckte
+    /// Modelle (`visibility: "hide"`) werden nie gewaehlt
+    func testCatalogOrderDecidesTheNextCandidate() async throws {
+        let (s, fake, _) = await make()
+        _ = try await connect(s, fake)
+        try await s.setModel("gpt-5")
+        await fake.on(ChatGPTConstants.modelsURL) { _ in
+            (200, json(["models": [["slug": "gpt-6-luna", "display_name": "GPT-6-Luna", "visibility": "list", "priority": 4],
+                                   ["slug": "gpt-daybreak-red-latest", "visibility": "hide", "priority": 12],
+                                   ["slug": "gpt-6.1-sol", "display_name": "GPT-6.1-Sol", "visibility": "list", "priority": 1]]]))
+        }
+        await fake.on(ChatGPTConstants.responsesURL) { req in
+            let model = (try? JSONValue.parse(req.body ?? Data()))?["model"]?.string ?? ""
+            if model == "gpt-6-luna" { return (200, completedStream("OK", model: model)) }
+            return (400, Data(#"{"detail":"The '\#(model)' model is not supported when using Codex with a ChatGPT account.","error":{"code":"model_not_found"}}"#.utf8))
+        }
+        let answer = try await s.complete(system: "S", prompt: "P")
+        XCTAssertEqual(answer, "OK")
+        let st = await s.status
+        XCTAssertEqual(st.model, "gpt-6-luna", "Reihenfolge des Katalogs, nicht der festen Liste")
+        let fromCatalog = await s.modelsFromCatalog
+        XCTAssertTrue(fromCatalog)
+        let listed = try await s.models()
+        XCTAssertEqual(listed, ["gpt-6-luna", "gpt-6.1-sol"], "nur sichtbare, in Reihenfolge des Servers")
+        let req = await fake.last(ChatGPTConstants.modelsURL)
+        XCTAssertEqual(req?.headers["Authorization"], "Bearer at-1")
+        XCTAssertEqual(req?.url, "https://api.openai.com/v1/models")
+    }
+
+    /// Kopfzeilen mit dem Zugriffstoken: `chatgpt-account-id` nur, wenn das JWT die Kennung des Kontos nennt
+    /// (Codex-Client), sonst nicht; das Token selbst nur als Bearer
+    func testRequestHeadersCarryTheAccountIDFromTheToken() {
+        func jwt(_ claims: JSONValue) -> String { b64(Data(#"{"alg":"none"}"#.utf8)) + "." + b64(claims.serialized()) + ".sig" }
+        let with = ChatGPTProtocol.requestHeaders(token: jwt(["sub": "s", "https://api.openai.com/auth": ["chatgpt_account_id": "acct_1", "chatgpt_plan_type": "plus"]]))
+        XCTAssertEqual(with["chatgpt-account-id"], "acct_1")
+        XCTAssertEqual(with["originator"], ChatGPTConstants.agentName)
+        XCTAssertEqual(with["Accept"], "text/event-stream")
+        XCTAssertEqual(with["Content-Type"], "application/json")
+        XCTAssertTrue(with["Authorization"]?.hasPrefix("Bearer eyJ") ?? false)
+        XCTAssertEqual(with.count, 5)
+        let without = ChatGPTProtocol.requestHeaders(token: jwt(["sub": "s", "https://api.openai.com/auth": ["per_user_salt": "x", "encrypted_auth_metadata": "y"]]))
+        XCTAssertNil(without["chatgpt-account-id"], "Sign in with ChatGPT nennt keine Kontokennung")
+        XCTAssertNil(ChatGPTProtocol.requestHeaders(token: jwt(["https://api.openai.com/auth": ["chatgpt_account_id": "  "]]))["chatgpt-account-id"])
+        let plain = ChatGPTProtocol.requestHeaders(token: "at-1")
+        XCTAssertEqual(plain["Authorization"], "Bearer at-1")
+        XCTAssertNil(plain["chatgpt-account-id"])
+        XCTAssertNil(ChatGPTProtocol.accountID(fromToken: "a.b"))
+        XCTAssertNil(ChatGPTProtocol.accountID(fromToken: String(repeating: "a", count: 70_000)))
+        XCTAssertEqual(ChatGPTIDToken.unverifiedClaims(jwt(["exp": 5]))?["exp"]?.int, 5)
+    }
+
+    /// Ereignisstrom (aufgezeichnete Form der Responses API): fertig erst mit `response.completed`; mehrzeilige
+    /// `data:`, CRLF, `[DONE]`; Fehler nach Code
+    func testStreamedTextIsCollectedUntilCompleted() throws {
+        let full = completedStream("Hallo Welt", model: "gpt-6.1-sol") + Data("data: [DONE]\n\n".utf8)
+        let got = try ChatGPTProtocol.streamedText(full)
+        XCTAssertEqual(got.text, "Hallo Welt")
+        XCTAssertEqual(got.model, "gpt-6.1-sol")
+        XCTAssertEqual(got.response?["usage"]?["output_tokens"]?.int, 1)
+        // ohne Text in der fertigen Antwort zaehlen die Deltas
+        let deltas = sse([["type": "response.output_text.delta", "delta": "nur "], ["type": "response.output_text.delta", "delta": "Deltas"],
+                          ["type": "response.completed", "response": ["output": []]]])
+        XCTAssertEqual(try ChatGPTProtocol.streamedText(deltas).text, "nur Deltas")
+        let crlf = Data("data: {\"type\": \"response.output_text.delta\",\r\ndata: \"delta\": \"CR\"}\r\n\r\n: Kommentar\r\ndata: {\"type\": \"response.completed\", \"response\": {\"output\": []}}\r\n\r\n".utf8)
+        XCTAssertEqual(try ChatGPTProtocol.streamedText(crlf).text, "CR")
+        XCTAssertEqual(ChatGPTProtocol.sseEvents("data: a\ndata: b\n\nevent: x\ndata: c\n\ndata: [DONE]\n\n"), ["a\nb", "c"])
+        func failure(_ body: Data) -> AIError? { do { _ = try ChatGPTProtocol.streamedText(body); return nil } catch { return error as? AIError } }
+        let limit = sse([["type": "response.failed", "response": ["error": ["code": "subscription_sharing_usage_limit_exceeded", "message": "limit"]]]])
+        XCTAssertEqual(failure(limit)?.code, "chatgpt_limit")
+        XCTAssertEqual(failure(sse([["type": "response.failed", "response": ["error": ["code": "subscription_sharing_invalid_user"]]]]))?.code, "chatgpt_login_needed")
+        XCTAssertEqual(failure(sse([["type": "error", "code": "server_error", "message": "kaputt"]]))?.message, "ChatGPT antwortete mit Fehler server_error: kaputt")
+        XCTAssertEqual(failure(sse([["type": "response.incomplete", "response": ["incomplete_details": ["reason": "max_output_tokens"]]]]))?.message,
+                       "ChatGPT hat die Antwort nicht beendet (max_output_tokens).")
+        XCTAssertEqual(failure(sse([["type": "response.output_text.delta", "delta": "x"]]))?.message, "ChatGPT hat die Antwort nicht beendet (kein response.completed).")
+        XCTAssertEqual(failure(Data())?.message, "ChatGPT antwortete unlesbar.")
+        XCTAssertEqual(failure(Data("<html>".utf8))?.code, "ai_provider_error")
+        XCTAssertEqual(failure(json(["error": ["code": "model_not_found", "message": "kein Modell"]]))?.message, "ChatGPT antwortete mit Fehler model_not_found: kein Modell")
+    }
+
+    /// Aendert sich die Anfrage (Fassung 2 am 3.11.2026), gelten alte Ablehnungen nicht mehr; ein zurueckgezogenes
+    /// Modell wird durch den ersten heutigen Kandidaten ersetzt, ein selbst gewaehltes bleibt
+    func testOldRejectionsAreForgottenWhenTheRequestChanges() async throws {
+        var old = ChatGPTState.new()
+        old.rejectedModelsVersion = nil                      // Stand bis 3.11.2026
+        old.rejectedModels = ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5.1"]
+        old.model = "gpt-5.5-codex"
+        let store = MemoryChatGPTStore(old)
+        let (s, _, _) = await make(store)
+        let st = await s.status
+        XCTAssertEqual(st.model, "gpt-6.1-sol")
+        let rejected = await s.rejectedModels
+        XCTAssertEqual(rejected, [])
+        XCTAssertEqual(store.load()?.rejectedModelsVersion, ChatGPTSession.requestVersion)
+        XCTAssertEqual(store.saves, 1, "einmal gespeichert")
+        // aktuelle Fassung: nichts angefasst, auch nicht gespeichert
+        var cur = ChatGPTState.new()
+        cur.rejectedModels = ["gpt-6-astra"]
+        cur.model = "gpt-5.5"
+        let store2 = MemoryChatGPTStore(cur)
+        let (s2, _, _) = await make(store2)
+        let rejected2 = await s2.rejectedModels
+        XCTAssertEqual(rejected2, ["gpt-6-astra"])
+        XCTAssertEqual(store2.saves, 0)
+        // alte Fassung mit einem Modell, das es noch gibt: Ablehnungen weg, Modell bleibt
+        var keep = ChatGPTState.new()
+        keep.rejectedModelsVersion = 1
+        keep.rejectedModels = ["gpt-5"]
+        keep.model = "gpt-5.5"
+        let store3 = MemoryChatGPTStore(keep)
+        let (s3, _, _) = await make(store3)
+        let st3 = await s3.status
+        XCTAssertEqual(st3.model, "gpt-5.5")
+        let rejected3 = await s3.rejectedModels
+        XCTAssertEqual(rejected3, [])
+        // ohne gespeicherten Stand wird nichts in den Schluesselbund geschrieben
+        let empty = MemoryChatGPTStore()
+        _ = await make(empty)
+        XCTAssertEqual(empty.saves, 0)
+        XCTAssertEqual(ChatGPTState.new().rejectedModelsVersion, ChatGPTSession.requestVersion)
     }
 
     func testWithoutUsageScopeNoRequests() async throws {
@@ -557,9 +711,24 @@ final class ChatGPTPreferredModelTests: XCTestCase {
         XCTAssertEqual(c.first, "gpt-4.1")
         XCTAssertTrue(c.contains("gpt-5-codex") && c.contains("gpt-5.5") && !c.contains("gpt-5") && !c.contains("whisper-1"))
         XCTAssertEqual(Set(c).count, c.count, "keine Doppelten")
-        XCTAssertEqual(ChatGPTSession.modelCandidates(listed: [], excluding: []).first, "gpt-5.5", "ohne Liste die festen Kandidaten")
+        XCTAssertEqual(ChatGPTSession.modelCandidates(listed: [], excluding: []).first, "gpt-6.1-sol", "ohne Liste die festen Kandidaten")
+        XCTAssertEqual(ChatGPTSession.fallbackModels, ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-6.1-terra",
+                                                        "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5"], "Codex-Katalog vom 3.11.2026 in Rangfolge")
+        XCTAssertTrue(Set(ChatGPTSession.retiredModels).isDisjoint(with: ChatGPTSession.fallbackModels))
+        XCTAssertTrue(ChatGPTSession.retiredModels.contains("gpt-5.5-codex"))
+        // Katalog des Abos: dessen Reihenfolge zuerst, dann die festen Kandidaten, abgelehnte nie
+        let k = ChatGPTSession.modelCandidates(listed: ["gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra"], catalogOrder: true, excluding: ["gpt-6-luna"])
+        XCTAssertEqual(Array(k.prefix(3)), ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol"])
+        XCTAssertFalse(k.contains("gpt-6-luna"))
+        XCTAssertEqual(Set(k).count, k.count)
         XCTAssertTrue(ChatGPTSession.isModelRejection(status: 404, body: Data(#"{"error":{"message":"The model `gpt-5` does not exist","code":"model_not_found"}}"#.utf8)))
+        XCTAssertTrue(ChatGPTSession.isModelRejection(status: 400, body: Data(#"{"detail":"The 'gpt-5.5-codex' model is not supported when using Codex with a ChatGPT account.","error":{"type":"invalid_request_error","code":"model_not_found"}}"#.utf8)))
+        XCTAssertTrue(ChatGPTSession.isModelRejection(status: 400, body: Data(#"{"error":{"code":"subscription_sharing_unsupported_capability","param":"model","message":"x"}}"#.utf8)))
+        XCTAssertFalse(ChatGPTSession.isModelRejection(status: 400, body: Data(#"{"error":{"code":"subscription_sharing_unsupported_capability","param":"tools","message":"x"}}"#.utf8)))
         XCTAssertFalse(ChatGPTSession.isModelRejection(status: 503, body: Data("model".utf8)), "Ausfall bei OpenAI ist kein Modellproblem")
         XCTAssertFalse(ChatGPTSession.isModelRejection(status: 400, body: Data(#"{"error":"input too long"}"#.utf8)))
+        XCTAssertEqual(ChatGPTSession.errorText(#"{"detail":"The 'x' model is not supported.","error":{"type":"invalid_request_error","code":"model_not_found"}}"#),
+                       "The 'x' model is not supported.")
+        XCTAssertEqual(ChatGPTSession.errorText(#"{"error":{"code":"nur_code"}}"#), "nur_code")
     }
 }

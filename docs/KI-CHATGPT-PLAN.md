@@ -244,3 +244,44 @@ Die Dateien wurden nur geparst (`swiftc -parse`), nicht gebaut. **Die Mac-Sitzun
 bauen (Debug und Release), `ChatGPTLinkAppTests` und `ChatGPTSessionTests` (nur Apple) laufen lassen, die Karte in
 Einstellungen → Erweitert einmal durchklicken (Verbinden, Freigabe nachholen, Anderes Konto verbinden mit Rückfrage,
 Trennen) und die Meldungen bei abgebrochener Anmeldung prüfen.
+
+## 10. Stand 3.11.2026: Fehler 400 „model is not supported when using Codex with a ChatGPT account“ behoben
+
+Auf dem iPad des Inhabers meldete die KI-Leiste `400 … The 'gpt-5.5-codex' model is not supported when using Codex
+with a ChatGPT account` (`model_not_found`), und „Modelle laden“ blieb leer. Abgleich mit der inzwischen
+veröffentlichten OpenAI-Doku zur Abo-Nutzung (developers.openai.com/siwc/token-sharing-open-source: „Models and
+inference“, „Preview limitations“, „Errors and recovery“, „Token reference“) und dem Codex-Client (github.com/openai/codex,
+Commit d5830f6 vom 3.11.2026):
+
+- **Endpunkt bleibt `POST https://api.openai.com/v1/responses`** mit dem Zugriffstoken als Bearer – OpenAI schreibt
+  ausdrücklich, *nicht* ChatGPTs `backend-api` zu nutzen. `https://chatgpt.com/backend-api/codex` ist der Weg des
+  Codex-Clients mit dessen eigener Anmeldung (codex-rs/model-provider-info/src/lib.rs `to_api_provider`), nicht der
+  von Sign in with ChatGPT.
+- **Pflichtform der Anfrage:** `store: false`, `stream: true`, `input` als Liste (`{"role": "user", "content": …}`),
+  Anweisung in `instructions` (System-Nachrichten als `input` werden abgelehnt); `temperature`, `max_output_tokens`,
+  `metadata`, `user`, `previous_response_id` u. a. sind nicht erlaubt. Die Antwort ist ein Ereignisstrom und gilt erst
+  mit `response.completed` als fertig; `response.failed` kann nach Beginn des Stroms z. B.
+  `subscription_sharing_usage_limit_exceeded` bringen. Swift `ChatGPTProtocol.responsesBody`/`streamedText`, Python
+  `ai_backend.ChatGPTProvider.request_body`/`stream_text`.
+- **Kopfzeilen:** `Authorization: Bearer`, `Accept: text/event-stream`, `originator: StudiNow` (so nutzt der Codex
+  app-server den App-Namen, der dem `agent_name_hint` entspricht) und – nur wenn das JWT die Kennung nennt –
+  `chatgpt-account-id` aus `https://api.openai.com/auth`.`chatgpt_account_id` wie der Codex-Client
+  (codex-rs/model-provider/src/bearer_auth_provider.rs, codex-rs/login/src/token_data.rs). Tokens von Sign in with
+  ChatGPT führen laut „Token reference“ nur `per_user_salt` und `encrypted_auth_metadata`; dann entfällt die Kopfzeile.
+- **Modellliste:** `GET https://api.openai.com/v1/models` antwortet mit dem Token des Abos nicht mit `{"data": [{id}]}`,
+  sondern mit dem Katalog `{"models": [{slug, display_name, visibility, priority, …}]}` – StudiNow las nur `data`,
+  darum war die Liste leer. Jetzt werden beide Formen gelesen, der Katalog in der Reihenfolge des Servers und nur mit
+  `visibility: "list"` (`ChatGPTProtocol.modelList`, Python `chatgpt_login.model_ids`). Kommt keine Liste, zeigt die
+  Karte „Dein ChatGPT-Konto erlaubt keine Modellliste; StudiNow probiert die bekannten Modelle automatisch.“
+- **Feste Kandidaten** (`ChatGPTSession.fallbackModels`), wenn die Liste fehlt: der Katalog des Codex-Clients
+  (codex-rs/models-manager/models.json, sichtbare Modelle in Rangfolge) `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`,
+  `gpt-6-luna`, `gpt-5.6-sol`, `gpt-6.1-terra`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`. Die bisherigen Namen
+  (`gpt-5.4`, `gpt-5.2`, `gpt-5.1`, `gpt-5.5-codex`, `gpt-5.1-codex`, `gpt-5-codex`, `codex-mini-latest`, `gpt-5`) gibt
+  es dort nicht mehr (`retiredModels`); ein gespeichertes solches Modell wird beim Start durch `gpt-6.1-sol` ersetzt.
+- **Gemerkte Ablehnungen** (`rejectedModels`) tragen jetzt die Fassung der Anfrage (`rejectedModelsVersion`,
+  `ChatGPTSession.requestVersion` = 2); Ablehnungen der alten Anfrageform werden verworfen.
+- **Anzeige:** Die KI-Leiste nennt unter dem Eingabefeld das Modell, das geantwortet hat („Seite 3 · über dein ChatGPT ·
+  gpt-6.1-sol“); wechselt die Sitzung nach einer Ablehnung, zeigt die Leiste das neue Modell.
+- **Geräte-Probe** `StudIPDeviceProbeTests.testChatGPTModelsOnTheDevice` (nur mit `UF_DEVICE_PROBE=1`, Konto aus dem
+  Schlüsselbund des iPads): Angaben des Tokens ohne Geheimnisse, Antwort von `/v1/models`, bis zu sechs Kandidaten
+  mit „Antworte nur: OK“ – je Modell Status und Anfang von Antwort oder Fehler.

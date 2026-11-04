@@ -175,6 +175,36 @@ final class AIContractTests: XCTestCase {
                            g(r, "body")?.json)
         }
         for o in list(cg, "responses_output") { XCTAssertEqual(ChatGPTProtocol.outputText(g(o, "response")?.json ?? .null), s(o, "text")) }
+        // Kopfzeilen mit dem Zugriffstoken (chatgpt-account-id nur, wenn das JWT die Kennung nennt), wie Python
+        XCTAssertFalse(list(cg, "request_headers").isEmpty)
+        for h in list(cg, "request_headers") {
+            let got = ChatGPTProtocol.requestHeaders(token: s(h, "token"))
+            let want = (g(h, "headers")?.json.object ?? [:]).compactMapValues(\.string)
+            XCTAssertEqual(got, want, s(h, "token").prefix(20).description)
+        }
+        // Ereignisstrom der Responses API: Text, Modell und Fehlercodes wie Python
+        XCTAssertFalse(list(cg, "responses_stream").isEmpty)
+        for st in list(cg, "responses_stream") {
+            let raw = Data(s(st, "raw").utf8)
+            if let err = g(st, "error") {
+                XCTAssertThrowsError(try ChatGPTProtocol.streamedText(raw), s(st, "raw")) { e in
+                    XCTAssertEqual((e as? AIError)?.code, s(err, "code"), s(st, "raw"))
+                    XCTAssertEqual((e as? AIError)?.message, s(err, "message"), s(st, "raw"))
+                }
+            } else {
+                let got = try ChatGPTProtocol.streamedText(raw)
+                XCTAssertEqual(got.text, s(st, "text"), s(st, "raw"))
+                XCTAssertEqual(got.model, s(st, "model"), s(st, "raw"))
+            }
+        }
+        // Modellliste: Katalog des Abos in Reihenfolge des Servers oder oeffentliche Liste alphabetisch
+        XCTAssertFalse(list(cg, "model_lists").isEmpty)
+        for m in list(cg, "model_lists") {
+            let got = ChatGPTProtocol.modelList(g(m, "response")?.json ?? .null)
+            XCTAssertEqual(got.ids, list(m, "ids").map { PyText.str($0) })
+            XCTAssertEqual(got.catalog, AIPrompts.truthy(g(m, "catalog")))
+        }
+        for e in list(cg, "error_texts") { XCTAssertEqual(ChatGPTSession.errorText(s(e, "body")), s(e, "text"), s(e, "body")) }
         for e in list(cg, "errors") {
             guard case .int(let st)? = g(e, "status") else { return XCTFail("status") }
             let err = ChatGPTProtocol.error(status: Int(st)!)
