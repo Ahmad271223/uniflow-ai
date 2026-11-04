@@ -357,6 +357,28 @@ private struct FlashcardFlipEffect<Front: View, Back: View>: View, Animatable {
     }
 }
 
+/// Hoehe der grossen Lernkarte (Frei ueben und "Heute fällig"): quer wie bisher 340 pt; hochkant waechst sie mit
+/// der sichtbaren Seite (die Haelfte der Hoehe, hoechstens 720 pt), damit unter den Knoepfen keine leere Flaeche
+/// bleibt. Bedienungshilfen-Schriftgroessen: Kopf, Hinweis und Knoepfe sind hoeher, darum waechst die Karte bei den
+/// ersten beiden Stufen nur auf 40 % und ab der dritten (dort endet die Schriftskalierung) gar nicht; die Knoepfe
+/// bleiben so ohne Scrollen sichtbar.
+enum FlashcardCardLayout {
+    static let baseMinHeight: CGFloat = 340
+    static let portraitCap: CGFloat = 720
+
+    /// Anteil der sichtbaren Hoehe hochkant (0 = nicht wachsen)
+    static func portraitFraction(_ typeSize: DynamicTypeSize) -> CGFloat {
+        if typeSize >= .accessibility3 { return 0 }
+        return typeSize.isAccessibilitySize ? 0.4 : 0.5
+    }
+
+    /// `viewport`: sichtbare Flaeche der Seite (Scrollbereich); `.zero` (noch nicht gemessen) = Grundhoehe
+    static func minHeight(viewport: CGSize, typeSize: DynamicTypeSize) -> CGFloat {
+        guard viewport.height > viewport.width, viewport.width > 0 else { return baseMinHeight }
+        return min(portraitCap, max(baseMinHeight, (viewport.height * portraitFraction(typeSize)).rounded()))
+    }
+}
+
 /// Eine Seite der grossen Karte: Etikett oben links, Text gross in der Mitte, optional die Frage klein darueber
 struct FlashcardFace: View {
     let label: String
@@ -443,6 +465,8 @@ struct FlashcardTrainerView: View {
     let onClose: () -> Void
     /// "Bearbeiten" im Menue der Karte: oeffnet den Dialog der Seite; der neue Text kommt ueber `trainer.merge`
     var onEdit: ((JSONValue) -> Void)?
+    /// Mindesthoehe der Karte (`FlashcardCardLayout.minHeight`, hochkant hoeher)
+    var cardMinHeight: CGFloat = FlashcardCardLayout.baseMinHeight
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -525,10 +549,10 @@ struct FlashcardTrainerView: View {
         let backText = (firstIsTerm ? c.s("answer") : c.s("question")) ?? ""
         return FlashcardFlip(flipped: trainer.flipped) {
             FlashcardFace(label: firstIsTerm ? "Begriff" : "Definition", text: frontText, front: firstIsTerm,
-                          tint: UF.accentText, stroke: swipeTint(lean))
+                          tint: UF.accentText, stroke: swipeTint(lean), minHeight: cardMinHeight)
         } back: {
             FlashcardFace(label: firstIsTerm ? "Definition" : "Begriff", text: backText, front: !firstIsTerm,
-                          tint: UF.okText, stroke: swipeTint(lean))
+                          tint: UF.okText, stroke: swipeTint(lean), minHeight: cardMinHeight)
         }
         .id(c.i("id") ?? 0)                                             // neue Karte: neue Ansicht, keine Rueckdrehung
         .overlay(alignment: .top) { swipeBadge(lean) }

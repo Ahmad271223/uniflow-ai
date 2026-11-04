@@ -238,5 +238,22 @@ final class FlashcardTrainerTests: XCTestCase {
         XCTAssertTrue(ExamRunPage.asksInColumn(windowWidth: 1180))
         XCTAssertFalse(ExamRunPage.asksInColumn(windowWidth: 820), "hochkant: Dialog")
     }
-}
 
+    /// Hoehe der Lernkarte: quer wie bisher, hochkant die Haelfte der sichtbaren Seite (gedeckelt), grosse Schrift wie quer
+    func testCardMinHeightGrowsInPortraitOnly() {
+        let base = FlashcardCardLayout.baseMinHeight
+        XCTAssertEqual(base, 340)
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 932, height: 820), typeSize: .large), base, "quer unveraendert")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 1376, height: 1032), typeSize: .large), base, "quer 13 Zoll unveraendert")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: .zero, typeSize: .large), base, "noch nicht gemessen")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 820, height: 1180), typeSize: .large), 590, "hochkant: halbe Hoehe")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 1032, height: 1376), typeSize: .xxxLarge), 688)
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 1032, height: 1600), typeSize: .large), 720, "gedeckelt")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 500, height: 600), typeSize: .large), base, "nie kleiner als die Grundhoehe")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 820, height: 1180), typeSize: .accessibility1), 472,
+                       "Bedienungshilfen 1-2: nur 40 %, Knoepfe bleiben ohne Scrollen sichtbar")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 820, height: 1180), typeSize: .accessibility3), base,
+                       "ab Bedienungshilfen 3: kein Wachstum")
+        XCTAssertEqual(FlashcardCardLayout.minHeight(viewport: CGSize(width: 820, height: 1180), typeSize: .accessibility5), base)
+    }
+}

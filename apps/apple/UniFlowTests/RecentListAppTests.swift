@@ -94,4 +94,26 @@ final class RecentListAppTests: XCTestCase {
         XCTAssertEqual(items.map(\.id).prefix(2), ["conversation:f1", "document:f1"])
         XCTAssertEqual(items.first { $0.kind == .document }?.page, 6)
     }
+
+    /// Gespraech aus "Frag die KI zu Aufgabe n": Titel "Aufgabe n – <Testtitel>", fuehrt zum Ergebnis des Tests
+    func testExamAskConversationTitleAndRoute() {
+        XCTAssertEqual(TutorConversations.examKey(testID: 8, nr: "2"), "exam:8:2")
+        XCTAssertEqual(TutorConversations.parseExamKey("exam:8:2.5")?.testID, 8)
+        XCTAssertEqual(TutorConversations.parseExamKey("exam:8:2.5")?.nr, "2.5")
+        XCTAssertNil(TutorConversations.parseExamKey("f-1"))
+        XCTAssertNil(TutorConversations.parseExamKey("exam:x:1"))
+        XCTAssertNil(TutorConversations.parseExamKey("exam:8:"))
+        let c = TutorConversations.Conversation(fileID: "exam:8:2", fileName: "Aufgabe 2 – Lehrwoche 3: Zahlensysteme",
+                                                messages: [.init(fromUser: true, text: "Warum ist meine Antwort zu Aufgabe 2 falsch?")],
+                                                updatedAt: "2026-11-04T09:00:00")
+        let items = RecentItem.merge(backend: nil, conversations: [c, conv("f1", "2026-11-03T10:00:00")], limit: 15)
+        XCTAssertEqual(items.map(\.id), ["conversation:exam:8:2", "conversation:f1"])
+        let ask = items[0]
+        XCTAssertEqual(ask.title, "Aufgabe 2 – Lehrwoche 3: Zahlensysteme")
+        XCTAssertTrue(ask.subtitle.hasPrefix("KI-Gespräch · Wochentest · "), ask.subtitle)
+        XCTAssertEqual(RecentCard.route(for: ask), .exam(8))
+        XCTAssertNil(ask.fileID)
+        XCTAssertEqual(ask.testID, 8)
+        XCTAssertEqual(RecentCard.route(for: items[1]), .doc("f1"), "Gespraeche zu Dokumenten unveraendert")
+    }
 }

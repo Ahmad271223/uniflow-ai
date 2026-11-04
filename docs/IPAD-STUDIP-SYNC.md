@@ -376,3 +376,70 @@ bleibt unverändert. Tests: Kern `StudIPBlubberTests`, App `BlubberAppTests`; Ge
 (nur Zahlen). Hinweis: Die Discovery-Probe vom 03.11.2026 fragte `courses/{id}/blubber-threads` für zwei Kurse ab –
 das kann dort einen leeren Standard-Thread angelegt haben (Stud.IP räumt leere Threads nach einer Stunde selbst auf);
 die Probe schließt Blubber-Kurs-Routen jetzt aus.
+
+## 13. Angemeldet bleiben und Hochschul-Links in der App (04.11.2026, nur iPad)
+
+Wunsch des Inhabers: „Wenn man sich mit Stud.IP usw. angemeldet hat, soll man beim nächsten Mal direkt angemeldet sein
+… und wenn man auf einen Stud.IP-Link tippt, soll man direkt in Stud.IP drin sein.“ Feste Entscheidung vom 03.11.2026
+bleibt: **die App speichert nie ein Hochschul-Passwort**, auch nicht mit Face ID. Erlaubt sind Cookies im
+Schlüsselbund, die stille Erneuerung über eine unsichtbare Webansicht und das Passwort-Autofill von iOS.
+
+**Was gemerkt wird** (Schlüsselbund, nur dieses Gerät, je Container `web-sessions.<uuid>`; `UniWebSessions`,
+Regeln in `UniCookiePolicy`): alle noch gültigen Cookies der Hochschul-Rechner (`uni-hannover.de` bzw.
+`uni-hildesheim.de`), also auch die des Identitätsanbieters – Sitzungs-Cookies ohne Ablauf (`shib_idp_session` des
+WebSSO der LUH, `TGC` des CAS, `Seminar_Session`, `JSESSIONID` des LSF, `MoodleSession`) und seit heute auch dauerhafte
+mit ihrem Ablaufdatum (WebKit schreibt diese nur verzögert auf die Platte). Nie fremde Rechner, nie Abgelaufenes, nie
+ein Cookie mit „password/passwort/pwd/kennwort“ im Namen. Gespeichert wird nach jeder Anmeldung, nach jeder stillen
+Erneuerung, beim Schließen des In-App-Browsers und beim Wechsel in den Hintergrund; beim Öffnen des Containers kommen
+fehlende zurück, Neueres im Datenspeicher wird nie überschrieben. Dazu wie bisher das Stud.IP-Cookie des Abgleichs
+(`StudIPCookieStore`).
+
+**Benutzername** (`UniLoginHelper`): Auf der Anmeldeseite des Identitätsanbieters – nur
+`sso.idm.uni-hannover.de/idp/…` bzw. `www.uni-hildesheim.de/sso/login` (mit und ohne www), nur HTTPS, nur im
+Hauptrahmen, entschieden beim Start des Dokuments – läuft ein kleines Skript in eigener Inhaltswelt: es kreuzt
+„Angemeldet bleiben“/„Remember me“ an, falls die Seite so ein Kästchen hat (Shibboleth „Anmeldung nicht speichern“
+`donotcache` bleibt aus, Einwilligungs-Kästchen unberührt), setzt den gemerkten Benutzernamen in das leere Feld
+(`loginname`, `j_username`, `username`) und meldet beim Absenden den Benutzernamen an die App. Das Passwortfeld liest,
+füllt und berührt es nie; das Passwort setzt nur iOS ein. Der Benutzername ist kein Geheimnis und liegt in den
+Einstellungen des Containers (nicht im Schlüsselbund); „Abmelden“ und „Daten dieser Hochschule löschen“ entfernen ihn.
+Stud.IP, Learnweb, LSF und QIS bekommen nie ein Skript.
+
+**Wann erneuert wird** (`UniRenewalPolicy`, nur mit offener App; im Hintergrund nie, dort fehlt das Fenster für die
+unsichtbare Webansicht):
+
+| Anlass | Stud.IP (LUH) | Learnweb/LSF (Hildesheim) |
+| --- | --- | --- |
+| App kommt nach vorn | Prüfung `users/me` höchstens alle 15 min; abgelaufen → sofort still erneuern, dann Abgleich | abgelaufen bekannt → still über das CAS erneuern |
+| vor einem Abgleich | Prüfung, wenn die letzte Bestätigung über 5 min her ist; abgelaufen → still erneuern, der Abgleich läuft mit der neuen Sitzung | der Abgleich nutzt die CAS-Cookies direkt (das CAS leitet mit gültigem `TGC` ohne Eingabe weiter) |
+| Anfrage meldet „abgelaufen“ | sofort still erneuern | still erneuern |
+| In-App-Browser geschlossen | neue Stud.IP-Sitzung von dort übernehmen (nach `users/me`) | still erneuern ohne Wartezeit |
+
+Nach einem gescheiterten stillen Versuch wartet die App 10 min, dann 20, 40 … höchstens 4 Stunden; eine neue Anmeldung
+setzt das zurück. „Kein Netz“ zählt nie als abgelaufen.
+
+**Was der Mensch noch tun muss:** nur, wenn der Identitätsanbieter die Anmeldung selbst beendet hat (Ablauf der
+WebSSO- bzw. CAS-Sitzung, Passwortwechsel, Abmelden, gelöschte Daten). Dann fragt die App höchstens alle 6 Stunden
+„Bitte neu anmelden“; die Anmeldeseite zeigt den Benutzernamen und ein angekreuztes „Angemeldet bleiben“, iOS setzt das
+Passwort ein (Schlüssel-Symbol), ein Tippen auf „Anmelden“.
+
+**Ehrliche Grenze:** Wie lange die Anmeldung hält, entscheidet die Hochschule, nicht die App. Gemessen ist bisher nur:
+Stud.IP-Sitzung nach 10 Minuten noch gültig (Abschnitt 7). Dauer der WebSSO-Sitzung der LUH, des CAS-`TGC` in
+Hildesheim und ob die Anmeldeseiten überhaupt ein „Angemeldet bleiben“ anbieten (bzw. wie lange es gilt): **unbekannt,
+am Gerät messen.**
+
+**Links** (`UniLinks.route`, global als `OpenURLAction` in `UniFlowApp`): Ist ein Container offen, gehen Links zur
+eigenen Hochschule in den In-App-Browser (`Views/Web/UniWebView.swift`: Blatt mit Titel, Zurück/Vor, Neu laden,
+Teilen, „In Safari öffnen“, Fertig) – LUH: `studip.uni-hannover.de`, `sso.idm.uni-hannover.de/idp/`,
+`qis.verwaltung.uni-hannover.de`; Hildesheim: `www.uni-hildesheim.de/learnweb…` (jede Jahresinstanz),
+`www.uni-hildesheim.de/sso/`, `lsf.uni-hildesheim.de`; http wird dort zu https. Andere http(s)-Links gehen wie bisher
+ans System (auch die Startseite der Hochschule, ILIAS, IDM), alles andere wird verworfen (`SafeLinks`). Der Browser
+nutzt den Datenspeicher der Anmeldeansichten (dieselben Cookies wie der Abgleich, vorher wird das Stud.IP-Cookie des
+Abgleichs eingesetzt); Links auf andere Rechner aus dem Browser heraus gehen an das System. Lesen in Stud.IP ist eine
+Handlung des Menschen: Stud.IP markiert dort Nachrichten als gelesen wie im Browser.
+
+**Am iPad zu prüfen:** (1) Anmeldung, App beenden, neu öffnen → Stud.IP-Link öffnet ohne Anmeldung; (2) nach Stunden bzw.
+am nächsten Tag: stille Erneuerung (Stud.IP-Sitzung abgelaufen, WebSSO noch gültig) und ab wann die Seite wieder das
+Passwort will; (3) ob das WebSSO der LUH bzw. das CAS ein „Angemeldet bleiben“ zeigt und ob es angekreuzt ist;
+(4) Benutzername steht nach einer Anmeldung beim nächsten Mal im Feld, Autofill setzt das Passwort ein; (5) Stud.IP-,
+Learnweb- und LSF-Links aus Neuigkeiten, Ankündigungen und Modulen öffnen im Blatt, andere in Safari; (6) Download einer
+ZIP-Datei im Browser („Teilen oder sichern“).

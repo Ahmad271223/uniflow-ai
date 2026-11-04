@@ -203,6 +203,7 @@ final class HildesheimConnection: ObservableObject {
 
     private func afterSignIn(_ s: Source) {
         defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
+        renewal.verified(at: clock.now)                         // neue Anmeldung: Ruecknahme der stillen Versuche zurueck
         let store = websiteDataStore
         Task { await UniWebSessions.save(store) }              // CAS-Anmeldung ueber Neustarts merken
         // eine Anmeldung fuer beide Dienste: dieselbe CAS-Sitzung verbindet den anderen gleich mit (ohne Eingabe)
@@ -237,6 +238,8 @@ final class HildesheimConnection: ObservableObject {
             _ = await task.value
         }
         for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
+        UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der CAS-Anmeldeseite
+        renewal = UniRenewalState()
         for s in Source.allCases {
             defaults.removeObject(forKey: Keys.ok(s))
             set(s, .notConnected)
@@ -309,8 +312,9 @@ final class HildesheimConnection: ObservableObject {
     /// Unsichtbare Anmeldung moeglich: nie unter XCTest, nie mit der Debug-Nachbildung, nicht angehalten
     private var silentLoginAllowed: Bool { !StudIPSync.isUnderTest() && !DebugUniStub.isActive && !stopped }
 
-    /// Letzter stiller Erneuerungsversuch; hoechstens alle 10 Minuten (wie Stud.IP)
-    private var lastSilentRenew: Date?
+    /// Stand der stillen Erneuerung (`UniRenewalPolicy`, wie Stud.IP: nach gescheiterten Versuchen 10, 20, 40 … Minuten
+    /// Pause, hoechstens 4 Stunden; eine neue Anmeldung setzt das zurueck)
+    private(set) var renewal = UniRenewalState()
 
     /// Abgelaufene Learnweb-/LSF-Anmeldung ohne Passwort erneuern: Die CAS-Anmeldung liegt im Datenspeicher des
     /// Containers (ueber Neustarts: `UniWebSessions`) und gilt meist laenger als die Sitzung von LSF bzw. Learnweb.
@@ -319,12 +323,12 @@ final class HildesheimConnection: ObservableObject {
     /// bleibt es bei "Anmeldung nötig" (dort setzt iOS das gespeicherte Passwort ein). Nur mit offener App.
     /// Rueckgabe: Quellen, die weiter eine Anmeldung brauchen.
     @discardableResult
-    func renewSilently() async -> [Source] {
+    func renewSilently(trigger: UniRenewalTrigger = .foreground) async -> [Source] {
         if let renewing { return await renewing.value }
         let expired = expiredSources
-        guard !expired.isEmpty, silentLoginAllowed, UIApplication.shared.applicationState == .active else { return expired }
-        if let t = lastSilentRenew, Date().timeIntervalSince(t) < 600 { return expired }
-        lastSilentRenew = Date()
+        guard !expired.isEmpty, silentLoginAllowed else { return expired }
+        guard UniRenewalPolicy.decide(trigger, appActive: UIApplication.shared.applicationState == .active, connected: true,
+                                      knownExpired: true, state: renewal, now: clock.now) == .renew else { return expired }
         let task = Task { @MainActor () -> [Source] in
             var left: [Source] = []
             for s in expired where !(await self.silentLogin(s)) { left.append(s) }
@@ -333,6 +337,7 @@ final class HildesheimConnection: ObservableObject {
         renewing = task
         let left = await task.value
         renewing = nil
+        renewal.attempted(at: clock.now, ok: left.isEmpty)
         return left
     }
 
@@ -396,8 +401,8 @@ final class HildesheimConnection: ObservableObject {
             connectedDuringRun = []
             if syncsAfterSignIn, !stopped { Task { await run() } }
         } else if !background, !expiredSources.isEmpty, silentLoginAllowed {
-            // Sitzung im Lauf abgelaufen: still ueber die CAS-Anmeldung erneuern (hoechstens alle 10 Minuten)
-            Task { await self.renewSilently() }
+            // Sitzung im Lauf abgelaufen: still ueber die CAS-Anmeldung erneuern (Ruecknahme: `UniRenewalPolicy`)
+            Task { await self.renewSilently(trigger: .requestFailed) }
         }
         return report
     }

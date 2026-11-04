@@ -2,12 +2,12 @@
 // Oben links der größte Block mit der wichtigsten Information und dem Hauptknopf, daneben "Heute für dich geplant";
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
-import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=42";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=47";
-import { openEvent } from "./views-tt.js?v=45";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=14";
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=43";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=48";
+import { openEvent } from "./views-tt.js?v=46";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=15";
 import { staggerOnce, countUp } from "./motion.js?v=2";
-import { newsCard, bindNews } from "./news.js?v=4";
+import { newsCard, bindNews } from "./news.js?v=5";
 import { ofWeek } from "./task-progress.js?v=1";
 import { masteryHtml } from "./mastery.js?v=1";
 

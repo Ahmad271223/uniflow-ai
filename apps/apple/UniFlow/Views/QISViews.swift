@@ -54,8 +54,9 @@ struct QISLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
+        // QIS hat ein eigenes Formular (kein WebSSO): kein Skript, auch nicht die Hilfe fuer den Benutzernamen
         StudIPWebView(url: DebugUniStub.loginPage("qis", real: QISClient.startURL), dataStore: connection.websiteDataStore,
-                      load: load) { webView in pageLoaded(webView) }
+                      load: load, loginHelper: false) { webView in pageLoaded(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {

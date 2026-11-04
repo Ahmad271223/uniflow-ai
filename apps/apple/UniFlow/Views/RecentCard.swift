@@ -3,7 +3,8 @@ import UniFlowCore
 
 /// Karte "Zuletzt benutzt" (Uebersicht und KI-Start, 04.11.2026): Dokumente, KI-Gespraeche und Wochentests in einer
 /// Liste nach Zeit, je Art ein Symbol. Antippen oeffnet an derselben Stelle: das Dokument auf seiner Seite, das
-/// Gespraech im Dokument mit offener KI-Hilfe (ihr Verlauf kommt aus `TutorConversations`), den Wochentest. Die
+/// Gespraech im Dokument mit offener KI-Hilfe (ihr Verlauf kommt aus `TutorConversations`), den Wochentest; ein
+/// Gespraech zu einer Aufgabe ("Frag die KI zu Aufgabe n") im Ergebnis des Tests mit offener KI-Hilfe. Die
 /// Daten laedt `RecentItem.load` (GET /api/recent + Gespraeche der App); ohne Eintraege bleibt die Karte weg.
 struct RecentCard: View {
     let items: [RecentItem]
@@ -34,6 +35,7 @@ struct RecentCard: View {
 
     /// Ziel je Art (reine Zuordnung, Tests)
     static func route(for it: RecentItem) -> UFRoute {
+        if let ask = it.examAsk { return .exam(ask.testID) }
         switch it.kind {
         case .document, .conversation: return .doc(it.key, page: (it.page ?? 1) > 1 ? it.page : nil)
         case .test: return .exam(it.testID ?? 0)
@@ -41,7 +43,8 @@ struct RecentCard: View {
     }
 
     private func open(_ it: RecentItem) {
-        if it.kind == .conversation { router.tutorOpenRequest = it.key }   // der Editor oeffnet die KI-Hilfe beim Laden
+        // der Editor (bzw. das Ergebnis des Tests) oeffnet die KI-Hilfe beim Laden
+        if it.kind == .conversation { router.tutorOpenRequest = it.key }
         router.go(Self.route(for: it))
     }
 }

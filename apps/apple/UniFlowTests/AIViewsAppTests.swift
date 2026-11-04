@@ -541,6 +541,77 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.button("Test erstellen", in: env.view) != nil })
     }
 
+    /// KI-Hilfe im Editor, Reiter Test: "Wochentest erstellen" waehlt das Modul des offenen Dokuments vor (04.11.2026)
+    func testTutorPanelWeeklyTestPreselectsTheDocumentsModule() throws {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
+        let t = transport()
+        t.answer("/api/modules/2", ["id": 2, "name": "Testphysik", "weeks": [
+            ["week": 1, "label": "Lehrwoche 1", "topic": "Kinematik", "count": 1,
+             "vorlesungen": [["id": "f-4", "name": "Physik.pdf", "doc_type": "vorlesung"]], "uebungen": [], "loesungen": [], "skripte": [], "klausuren": [], "sonstiges": []],
+        ]])
+        t.answer("/api/index/file/f-4/page/1", ["file_id": "f-4", "page": 1, "status": "none", "can_build": false])
+        let panel = TutorPanel(fileID: "f-4", fileName: "Physik.pdf", page: { 1 }, selection: { "" }, open: { _, _ in }, close: {}, moduleID: 2)
+            .environment(\.ufAIEnabled, true)
+        let env = try hostWithEnvironment(panel, api: api(t))
+        XCTAssertTrue(env.wait { self.button("Bereich Test", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Bereich Test", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Wochentest erstellen", in: env.view) != nil })
+        XCTAssertTrue(tap("Wochentest erstellen", in: env.view))
+        XCTAssertTrue(env.wait { self.button("Test erstellen", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        // ohne Vorwahl (zwei Module) laedt der Dialog keine Lehrwochen; mit Vorwahl die des Dokuments-Moduls
+        XCTAssertTrue(env.wait { t.count("GET", "/api/modules/2") >= 1 }, "Lehrwochen des vorgewaehlten Moduls geladen")
+        XCTAssertEqual(t.count("GET", "/api/modules/1"), 0)
+    }
+
+    /// "Frag die KI zu Aufgabe n" im Ergebnis: das Gespraech liegt in `TutorConversations`, steht unter "Zuletzt benutzt"
+    /// (KI-Gespräch, "Aufgabe n – <Testtitel>", fuehrt zum Test) und ist beim naechsten Oeffnen wieder da; der 429 der
+    /// Credits zeigt "Tarif ansehen" wie die KI-Hilfe im Editor
+    func testExamAskStoresConversationForRecentAndReopens() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("exam-ask-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let store = TutorConversations(fileURL: dir.appendingPathComponent(TutorConversations.fileName))
+        var context = ExamAskContext(nr: "2", kind: "Kurzantwort", question: "Was ist 0xFF dezimal?", given: "240", correct: "255", explanation: "F steht für 15.")
+        context.testID = 8
+        context.testTitle = "Lehrwoche 3: Zahlensysteme"
+        let t = transport()
+        t.answer("/api/ai/tutor", ["answer": "255 = 15 · 16 + 15.", "cards": .null, "sources": []])
+        let env = try hostWithEnvironment(ExamAskPanel(context: context, close: {}, conversations: store).environment(\.ufAIEnabled, true), api: api(t),
+                                          size: CGSize(width: 380, height: 800))
+        XCTAssertTrue(env.wait { self.button(context.title, in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Aufgabe 2 · über dein ChatGPT"), "Kostenzeile wie in der KI-Hilfe")
+        XCTAssertEqual(ExamAskPanel.footer(nr: "2", model: "gpt-x"), "Aufgabe 2 · über dein ChatGPT · gpt-x")
+        XCTAssertTrue(tap(context.title, in: env.view))
+        XCTAssertTrue(env.wait { self.shows(env.view, "255 = 15 · 16 + 15.") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertEqual(t.bodies("/api/ai/tutor").first?["question"]?.string, context.prompt, "erste Frage mit dem ganzen Kontext")
+        // gemerkt unter "exam:8:2" mit dem Titel fuer "Zuletzt benutzt"
+        XCTAssertEqual(store.recent().first?.fileID, "exam:8:2")
+        XCTAssertEqual(store.messages(for: "exam:8:2").map(\.text), [context.title, "255 = 15 · 16 + 15."])
+        let recent = RecentItem.merge(backend: nil, conversations: store.recent(), aiRecents: [], limit: 15)
+        XCTAssertEqual(recent.first?.title, "Aufgabe 2 – Lehrwoche 3: Zahlensysteme")
+        XCTAssertEqual(recent.first?.kindLabel, "KI-Gespräch")
+        XCTAssertEqual(recent.first.map(RecentCard.route(for:)), .exam(8), "fuehrt zum Ergebnis des Tests")
+        XCTAssertNil(recent.first?.fileID)
+        env.window.isHidden = true
+        // wieder oeffnen: das Gespraech ist da, ohne neue Anfrage; die Anschlussfrage traegt den Verlauf mit dem Kontext
+        let again = try hostWithEnvironment(ExamAskPanel(context: context, close: {}, conversations: store).environment(\.ufAIEnabled, true), api: api(t),
+                                            size: CGSize(width: 380, height: 800))
+        XCTAssertTrue(again.wait { self.shows(again.view, "255 = 15 · 16 + 15.") }, texts(again.view).joined(separator: "\n"))
+        XCTAssertEqual(t.count("POST", "/api/ai/tutor"), 1)
+        XCTAssertNil(button(context.title, in: again.view), "statt der Startfrage die Anschlussfragen")
+        // 429: Frage faellt aus dem Verlauf, "Tarif ansehen" erscheint, nichts Neues gemerkt
+        t.fail("/api/ai/tutor", 429, ["detail": "Credits für diesen Monat aufgebraucht – am 1. gibt es neue.", "code": "credits_exhausted"])
+        XCTAssertTrue(again.wait { self.button(ExamAskContext.followUps[0], in: again.view) != nil })
+        XCTAssertTrue(tap(ExamAskContext.followUps[0], in: again.view))
+        XCTAssertTrue(again.wait { self.button("Tarif ansehen", in: again.view) != nil }, texts(again.view).joined(separator: "\n"))
+        let sent = t.bodies("/api/ai/tutor").last
+        XCTAssertEqual(sent?["history"]?.array?.first?["text"]?.string, context.prompt, "Verlauf beginnt mit dem ganzen Kontext")
+        XCTAssertEqual(store.messages(for: "exam:8:2").count, 2, "ohne Antwort nichts gemerkt")
+        again.window.isHidden = true
+    }
+
     // MARK: - Karteikarten aus Dokument
 
     func testFlashcardComposerPreviewEditDeleteAndSave() throws {

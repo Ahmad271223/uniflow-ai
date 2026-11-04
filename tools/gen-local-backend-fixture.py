@@ -264,6 +264,11 @@ SAMPLES: dict[str, dict] = {
     "GET /api/studip/bulletin/{}": {"path": "/api/studip/bulletin/x1"},
     "GET /api/studip/blubber": {"path": "/api/studip/blubber"},
     "GET /api/studip/blubber/{}": {"path": "/api/studip/blubber/x1"},
+    # Nachrichten aus Stud.IP (StudIPMessagesEndpoints, Seite "Nachrichten"): nur auf dem Geraet, der PC-Server gleicht
+    # den Posteingang nicht ab (docs/paritaet/ipad-app.md); auf leerer Datenbank leer
+    "GET /api/studip/messages": {"path": "/api/studip/messages", "python": False,
+                                 "expect": {"status": 200, "type": "object", "keys": ["fetched_at", "messages", "q", "total"],
+                                            "reason": "nur auf dem Geraet (StudIPMessagesEndpoints)"}},
     # Demo-Inhalte fuer die App-Pruefung (app/demo.py, DemoEndpoints); Inhalte und Tabellen vergleicht
     # tools/gen-demo-fixture.py, hier nur die Form. Ausschalten, damit die Beispielanfrage nichts anlegt
     "GET /api/demo": {"path": "/api/demo"},

@@ -859,6 +859,8 @@ struct CardsPage: View {
     @State private var menuStack: JSONValue?
     /// Unterzeile des Trainers (Stapel bzw. "Woche n komplett")
     @State private var trainerTitle: String?
+    /// sichtbare Flaeche der Seite: hochkant waechst die Lernkarte mit (`FlashcardCardLayout`)
+    @State private var viewport: CGSize = .zero
 
     /// `entitlements: nil` = `Entitlements.shared`
     @MainActor
@@ -898,7 +900,10 @@ struct CardsPage: View {
             }
             cards
         }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
+
+    private var cardMinHeight: CGFloat { FlashcardCardLayout.minHeight(viewport: viewport, typeSize: typeSize) }
 
     /// Inhalt unter dem Kopf; laedt in jedem Tarif (Lesen bleibt frei), im Lesemodus ohne Ueben und Bearbeiten
     private var cards: some View {
@@ -920,7 +925,7 @@ struct CardsPage: View {
                 FlashcardTrainerView(trainer: trainer, subtitle: trainerTitle, onClose: {
                     trainer.end()
                     Task { await deck.reload(toast: toast) }
-                }, onEdit: { c in openEdit(c) })
+                }, onEdit: { c in openEdit(c) }, cardMinHeight: cardMinHeight)
             } else if isEmpty && !canEdit {
                 UFLockedCard(.flashcards, entitlements: ent)
             } else if isEmpty {
@@ -1349,9 +1354,9 @@ struct CardsPage: View {
                 .padding(.bottom, 20)
             Button { reveal() } label: {
                 FlashcardFlip(flipped: deck.revealed) {
-                    FlashcardFace(label: "Frage", text: q)
+                    FlashcardFace(label: "Frage", text: q, minHeight: cardMinHeight)
                 } back: {
-                    FlashcardFace(label: "Antwort", text: a, front: false, context: q, tint: UF.okText)
+                    FlashcardFace(label: "Antwort", text: a, front: false, context: q, tint: UF.okText, minHeight: cardMinHeight)
                 }
                 .id(c.i("id") ?? 0)
                 .contentShape(RoundedRectangle(cornerRadius: 22))

@@ -57,9 +57,10 @@ struct UniFlowApp: App {
             // und Zeitmesser gelten fuer alle Fenster
             SceneObjects(scenes: scenes) { router, shell, toast, overlay in
                 RootView()
-                    // Links aus KI-Antworten, Stud.IP-Texten usw.: nur http(s) ins System, alles andere verwerfen
-                    // (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
-                    .environment(\.openURL, OpenURLAction { SafeLinks.action(for: $0) })
+                    // Links aus KI-Antworten, Stud.IP-Texten usw.: Seiten der eigenen Hochschule (Stud.IP, WebSSO, QIS bzw.
+                    // Learnweb, LSF, CAS) im In-App-Browser mit der Anmeldung der App (`UniWebBrowser`, 04.11.2026), andere
+                    // http(s) ins System, alles andere verwerfen (uniflow:// aus fremdem Text nie; Sicherheitspruefung 3.11.2026)
+                    .environment(\.openURL, OpenURLAction { UniWebBrowser.action(for: $0, containers: containers) })
                     .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
                     .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
                     .modifier(UFToastOverlay(center: toast))
@@ -277,7 +278,8 @@ final class SceneRegistry {
     }
 }
 
-/// Ziele fuer `openURL` in der ganzen App: nur http:// und https:// mit Host gehen an das System
+/// Ziele fuer `openURL` in der ganzen App: nur http:// und https:// mit Host gehen an das System (Seiten der eigenen
+/// Hochschule vorher in den In-App-Browser, `UniLinks.route`)
 enum SafeLinks {
     static func allows(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return false }

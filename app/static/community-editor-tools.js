@@ -1,12 +1,12 @@
 // Werkzeuge der Community im PDF-Editor (editor-community.js): "Korrektur vorschlagen" (eigene Ebene mit Strichen und
 // Randnotizen ueber der projizierten Loesung, Entwurf, Schicken) und "Daneben ansehen" (fremde Loesung neben dem Dokument,
 // nur ansehen, die eigene PDF darunter). Gegenstueck zu CorrectionMode.swift und SolutionSidePane auf dem iPad.
-import { icon } from "./icons.js?v=31";
+import { icon } from "./icons.js?v=32";
 import * as S from "./solutions.js?v=6";
 import * as C from "./community-corrections.js?v=2";
-import * as U from "./community-corrections-ui.js?v=4";
-import { loadSpaces } from "./community-spaces.js?v=18";
-import { capi } from "./views-qa.js?v=6";
+import * as U from "./community-corrections-ui.js?v=5";
+import { loadSpaces } from "./community-spaces.js?v=19";
+import { capi } from "./views-qa.js?v=7";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];

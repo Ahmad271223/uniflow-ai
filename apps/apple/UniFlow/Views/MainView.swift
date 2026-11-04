@@ -18,6 +18,9 @@ struct MainView: View {
             switch route {
             case .dashboard:
                 DashboardView(api: session.api).id(session.api?.base)                         // 1:1
+            case .messages:
+                // Stud.IP-Nachrichten (nur lokal); ohne Nachrichten zeigt die Seite selbst "Keine Nachrichten"
+                MessagesPage().id(session.api?.base)
             case .plan(let v, let d, let m):
                 UFServerGate(.plan) { PlanView(params: (v, d, m)) }                           // 1:1
             case .modules:
@@ -60,6 +63,7 @@ struct MainView: View {
             await router.resume.restoreIfNeeded(api: session.api, router: router)
         }
         .modifier(CommunityBadgeHost())                                      // Zahl neuer Korrekturhinweise an "Community"
+        .modifier(MessagesInboxHost())                                       // "Nachrichten": sichtbar und Zahl neuer
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene

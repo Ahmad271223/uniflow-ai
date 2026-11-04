@@ -6,7 +6,9 @@ import XCTest
 
 /// Entscheidung des Inhabers (27.10.2026): Hochschul-Passwoerter merkt sich nur das System (iOS-Passwort-Autofill bzw.
 /// iCloud-Schluesselbund im Anmeldefenster), nie UniFlow. Die Anmeldeansichten haben keine eigenen Skripte, keinen Kanal
-/// zur Seite, fuellen kein Feld, greifen nicht in `autocomplete` ein und legen nichts im Schluesselbund ab.
+/// zur Seite, fuellen kein Feld, greifen nicht in `autocomplete` ein und legen nichts im Schluesselbund ab. Einzige
+/// Ausnahme seit 04.11.2026: `UniLoginHelper` auf der Anmeldeseite des WebSSO bzw. CAS (Benutzername, "Angemeldet
+/// bleiben"; nie das Passwort), geprueft in UniLoginKeepAppTests; die Konfiguration hier ist die ohne Container.
 ///
 /// Geprueft in echten WKWebViews mit der Konfiguration der App (`StudIPWebView.loginConfiguration`) und erfundenen,
 /// lokalen Seiten - auch manipulierten (eingebettetes Fremdformular, fremde Rechner, http, eine Seite desselben Rechners,
@@ -247,7 +249,11 @@ final class UniversityLoginPolicyTests: XCTestCase {
         }
         let studip = try code("StudIPView.swift")
         XCTAssertEqual(studip.components(separatedBy: "WKWebViewConfiguration()").count - 1, 1, "eine Konfiguration")
-        XCTAssertTrue(studip.contains("WKWebView(frame: .zero, configuration: Self.loginConfiguration(dataStore: dataStore))"))
+        XCTAssertTrue(studip.contains("let config = Self.loginConfiguration(dataStore: dataStore)"))
+        XCTAssertTrue(studip.contains("WKWebView(frame: .zero, configuration: config)"))
+        // seit 04.11.2026 die eine Ausnahme: Hilfe nur auf der Anmeldeseite des WebSSO bzw. CAS (UniLoginKeepAppTests)
+        XCTAssertTrue(studip.contains("if loginHelper, !url.isFileURL { UniLoginHelper.install(in: config, dataStore: dataStore) }"))
+        XCTAssertTrue(try code("QISViews.swift").contains("loginHelper: false"), "QIS: kein Skript")
         for name in ["StudIPView.swift", "QISViews.swift", "HildesheimViews.swift"] {
             XCTAssertTrue(try code(name).contains("UniversityLoginHint()"), "\(name): Hinweis unter dem Fenster")
         }
@@ -451,11 +457,15 @@ final class UniversityLoginPolicyTests: XCTestCase {
     func testAppSourcesHaveNoPasswordStoreAndNoFormScripts() throws {
         let sources = try Self.appSources()
         XCTAssertGreaterThan(sources.count, 50, "Quellen gefunden")
+        // einzige Stelle mit Skript und Kanal seit 04.11.2026: `UniLoginHelper` (nur Anmeldeseite des WebSSO bzw. CAS,
+        // eigene Inhaltswelt, nie das Passwortfeld; geprueft in UniLoginKeepAppTests)
+        let helperOnly: Set<String> = ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "messageHandlers"]
         for s in sources {
             let code = s.code.joined(separator: "\n")
             for forbidden in ["WKUserScript", "addUserScript", "WKScriptMessageHandler", "callAsyncJavaScript", "messageHandlers",
                               "UniversityCredential", "UniversityLoginAutofill", "UniversityRememberBar", "prefillCredential",
-                              "Auf diesem iPad merken", "füllt sie beim nächsten Mal", "setAttribute(", "autocomplete="] {
+                              "Auf diesem iPad merken", "füllt sie beim nächsten Mal", "setAttribute(", "autocomplete="]
+                where !(s.name == "UniLoginHelper.swift" && helperOnly.contains(forbidden)) {
                 XCTAssertFalse(code.contains(forbidden), "\(s.name): \(forbidden)")
             }
             // Seitenskripte nur zum Lesen des Seiteninhalts (Erkennung der angemeldeten Seite), nie zum Setzen von Werten
@@ -468,6 +478,10 @@ final class UniversityLoginPolicyTests: XCTestCase {
                 XCTAssertFalse(code.contains(".\(field)\")"), "\(s.name): .\(field)")
             }
         }
+        let helper = try XCTUnwrap(sources.first { $0.name == "UniLoginHelper.swift" }).code.joined(separator: "\n")
+        XCTAssertTrue(helper.contains("forMainFrameOnly: true, in: Self.world"), "nur Hauptrahmen, eigene Inhaltswelt")
+        XCTAssertTrue(helper.contains("contentWorld: Self.world"), "Kanal nur in der eigenen Welt")
+        XCTAssertFalse(helper.lowercased().contains("type=\"password\"") || helper.contains("'password'"), "kein Passwortfeld")
         let tokens = try XCTUnwrap(sources.first { $0.name == "UniversityTokens.swift" })
         XCTAssertFalse(tokens.code.joined().contains("password:"), "der Speicher nimmt kein Passwort an")
     }

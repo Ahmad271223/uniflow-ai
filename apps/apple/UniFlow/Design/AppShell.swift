@@ -9,6 +9,8 @@ import UniFlowCore
 
 enum UFRoute: Hashable {
     case dashboard
+    /// Nachrichten aus Stud.IP (04.11.2026): Posteingang auf dem Geraet mit Leser (Views/Messages/MessagesPage.swift)
+    case messages
     case plan(view: String? = nil, date: String? = nil, module: String? = nil)
     case timetable(date: String? = nil)
     case modules
@@ -30,6 +32,7 @@ enum UFRoute: Hashable {
     var navKey: String {
         switch self {
         case .dashboard: return "dashboard"
+        case .messages: return "messages"
         case .plan: return "plan"
         case .timetable: return "timetable"
         case .modules, .module: return "modules"
@@ -52,6 +55,7 @@ enum UFRoute: Hashable {
         }
         switch self {
         case .dashboard: return "#/dashboard"
+        case .messages: return "#/messages"
         case .plan(let v, let d, let m): return "#/plan" + q([("view", v), ("date", d), ("module", m)])
         case .timetable(let d): return "#/timetable" + q([("date", d)])
         case .modules: return "#/modules"
@@ -94,6 +98,7 @@ enum UFRoute: Hashable {
         case "doc": self = second.map { .doc($0, task: q["task"].flatMap(Int.init), page: q["page"].flatMap(Int.init)) } ?? .files()
         case "exams": self = second.flatMap(Int.init).map { .exam($0, task: q["task"].flatMap(Int.init)) } ?? .exams
         case "cards": self = .cards
+        case "messages", "nachrichten": self = .messages
         case "ki": self = .aiStart
         case "services": self = .services
         case "community": self = second.map { .communitySpace($0) } ?? .community
@@ -188,6 +193,10 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
+    /// Stud.IP-Nachrichten (04.11.2026): direkt nach "Übersicht", nur wenn `visible(messages:)` es erlaubt
+    /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten)
+    static let messages = UFNavItem(id: "messages", title: "Nachrichten", icon: "mail", route: .messages)
+
     /// Eigene Karteikarten ohne PC: Eintrag an Stelle von "Tests & Wiederholung"
     static let cards = UFNavItem(id: "cards", title: "Karteikarten", icon: "cards", route: .cards)
 
@@ -198,18 +207,21 @@ struct UFNavItem: Identifiable {
     /// sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt (`gradesOnDevice`: seit
     /// QIS auf dem Geraet an der LUH wie am LSF der Uni Hildesheim immer).
     /// `ai`: KI ueber das ChatGPT-Abo verbunden; dann gibt es auch ohne PC "Tests & Wiederholung" (Wochentests),
-    /// "Karteikarten" bleibt daneben
+    /// "Karteikarten" bleibt daneben.
+    /// `messages`: "Nachrichten" direkt nach "Übersicht" (Stud.IP-Posteingang nur auf dem Geraet; der Aufrufer
+    /// entscheidet mit `MessagesInbox.showsNavItem`, am eigenen Server und in Hildesheim ohne Nachrichten nie)
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
-                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false) -> [UFNavItem] {
-        guard local else { return main }
-        return main.flatMap { item -> [UFNavItem] in
+                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false) -> [UFNavItem] {
+        let base: [UFNavItem] = local ? main.flatMap { item -> [UFNavItem] in
             switch item.id {
             case "exams": return (ai ? [item] : []) + (flashcards ? [cards] : [])
             case "community": return community ? [item] : []
             case "services": return gradesOnDevice ? [item] : []
             default: return [item]
             }
-        }
+        } : main
+        guard messages else { return base }
+        return base.flatMap { $0.id == "dashboard" ? [$0, Self.messages] : [$0] }
     }
 
     /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
@@ -234,6 +246,7 @@ struct UFNavItem: Identifiable {
     static func badgeText(key: String, count: Int) -> String {
         switch key {
         case "community": return count == 1 ? "1 neuer Hinweis" : "\(count) neue Hinweise"
+        case "messages": return count == 1 ? "1 neue Nachricht" : "\(count) neue Nachrichten"
         default: return "\(count) neu"
         }
     }
@@ -297,7 +310,7 @@ struct UFNavGroup: Identifiable, Equatable {
     /// Reihenfolge je Gruppe (Schluessel = `UFNavItem.id`); "aiStart" stuende in "Lernen", sobald der KI-Start ein
     /// eigener Menuepunkt wird
     static let layout: [(id: String, title: String, members: [String])] = [
-        ("study", "Studium", ["dashboard", "plan", "timetable", "modules", "files", "services"]),
+        ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "files", "services"]),
         ("learn", "Lernen", ["aiStart", "exams", "cards"]),
         ("together", "Gemeinsam", ["community"]),
     ]
@@ -377,6 +390,9 @@ struct AppShell<Content: View>: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @EnvironmentObject private var studip: StudIPSync
+    /// Stud.IP-Nachrichten: ob der Eintrag erscheint (`MessagesInbox.showsNavItem`)
+    @ObservedObject private var inbox = MessagesInbox.shared
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
 
@@ -440,7 +456,8 @@ struct AppShell<Content: View>: View {
             .environment(\.ufWindowWidth, geo.size.width)
             .environment(\.ufLogoMenu, UFLogoMenuTargets(
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                         community: SolutionSharing.community.isConnected, ai: aiEnabled).map { ($0.title, $0.route) },
+                                         community: SolutionSharing.community.isConnected, ai: aiEnabled,
+                                         messages: inbox.showsNavItem(api: session.api, studip: studip)).map { ($0.title, $0.route) },
                 go: { [router] r in router.go(r) }))
         }
     }
@@ -503,6 +520,7 @@ struct UFSidebar: View {
     @Environment(\.ufShowPlans) private var showPlans
     @EnvironmentObject private var studip: StudIPSync
     @ObservedObject private var ent = Entitlements.shared
+    @ObservedObject private var inbox = MessagesInbox.shared
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
@@ -511,7 +529,8 @@ struct UFSidebar: View {
         // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): an beiden Hochschulen
         // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
         let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                      community: SolutionSharing.community.isConnected, ai: aiEnabled)
+                                      community: SolutionSharing.community.isConnected, ai: aiEnabled,
+                                      messages: inbox.showsNavItem(api: session.api, studip: studip))
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 9.6) {                                       // .brand
@@ -763,12 +782,15 @@ struct UFNavBadge: View {
 struct UFMobileNav: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @ObservedObject private var inbox = MessagesInbox.shared
     @State private var showMore = false
 
     private var moreItems: [UFNavItem] {
         let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                        community: SolutionSharing.community.isConnected, ai: aiEnabled)
+                                        community: SolutionSharing.community.isConnected, ai: aiEnabled,
+                                        messages: inbox.showsNavItem(api: session.api, studip: studip))
         return UFNavItem.more(visible: visible)
     }
 

@@ -416,13 +416,28 @@ struct ExamRunPage: View {
         .onDisappear { router.examFocus = false }
     }
 
-    /// KI-Hilfe zu einer Aufgabe oeffnen: quer als Spalte rechts, schmal als Dialog
+    /// KI-Hilfe zu einer Aufgabe oeffnen: quer als Spalte rechts, schmal als Dialog. Test und Titel gehen mit, damit
+    /// das Gespraech unter "Zuletzt benutzt" steht (`TutorConversations`, "Aufgabe n – <Testtitel>")
     private func openAsk(_ context: ExamAskContext) {
+        var c = context
+        c.testID = id
+        c.testTitle = ExamsPage.cleanTitle(t?.s("title"))
         if Self.asksInColumn(windowWidth: windowWidth) {
-            ask = context
+            ask = c
         } else {
-            overlay.modal { ExamAskPanel(context: context, close: nil) }
+            overlay.modal { ExamAskPanel(context: c, close: nil) }
         }
+    }
+
+    /// "Zuletzt benutzt" -> KI-Gespraech zu einer Aufgabe dieses Tests: nach dem Laden die KI-Hilfe mit dem Gespraech
+    /// oeffnen (einmalig; `UFRouter.tutorOpenRequest` traegt "exam:<Test>:<Aufgabe>")
+    private func reopenAsk(_ v: JSONValue, submitted: Bool) {
+        guard submitted, let key = router.tutorOpenRequest, let p = TutorConversations.parseExamKey(key), p.testID == id else { return }
+        router.tutorOpenRequest = nil
+        guard let q = v.list("questions").first(where: { Self.nrOf($0) == p.nr }) else { return }
+        let fb = v["feedback"].flatMap { $0.isNull ? nil : $0 }?.list("per_question")
+            .first { $0["nr"].map { JSONValue.format($0.double ?? 0) } == p.nr }
+        openAsk(ExamAskContext.make(q, given: answers[p.nr] ?? "", feedback: fb))
     }
 
     private func load() async {
@@ -437,6 +452,7 @@ struct ExamRunPage: View {
             answers = a
             t = v
             router.examFocus = !submitted                                    // body.exam-focus: Seitenleiste und Kopfzeile aus
+            reopenAsk(v, submitted: submitted)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -907,8 +923,16 @@ struct ExamAskContext: Identifiable, Equatable {
     let given: String
     let correct: String
     let explanation: String?
+    /// Test und sein Titel (setzt `ExamRunPage.openAsk`); 0 = ohne Test, dann merkt sich die Hilfe nichts
+    var testID = 0
+    var testTitle = ""
 
     var id: String { nr }
+
+    /// Schluessel des Gespraechs in `TutorConversations`
+    var conversationKey: String { TutorConversations.examKey(testID: testID, nr: nr) }
+    /// Titel unter "Zuletzt benutzt": "Aufgabe 3 – Lehrwoche 3: Zahlensysteme"
+    var recentTitle: String { "Aufgabe \(nr) – \(testTitle.isEmpty ? "Wochentest" : testTitle)" }
 
     static func buttonTitle(nr: String) -> String { "Frag die KI zu Aufgabe \(nr)" }
 
@@ -946,19 +970,27 @@ struct ExamAskContext: Identifiable, Equatable {
 /// KI-Hilfe zum Ergebnis (Vorbild: Chat rechts neben dem Quiz): oben die Aufgabe mit deiner Antwort (rot, ✗) und der
 /// richtigen (gruen, ✓), darunter das Gespraech. Fragt dieselbe KI wie die KI-Hilfe im Editor und der KI-Start
 /// (`POST /api/ai/tutor`, mode "ask", mit Verlauf), erst nach dem Antippen. Quer als Spalte rechts, schmal als Dialog.
+/// Das Gespraech liegt wie die KI-Hilfe im Editor in `TutorConversations` (Schluessel "exam:<Test>:<Aufgabe>"), steht
+/// so unter "Zuletzt benutzt" (KI-Gespräch, "Aufgabe n – <Testtitel>") und ist beim naechsten Oeffnen wieder da.
+/// Credits und 429 wie in der KI-Hilfe: `noteAIResponse`/`noteAIError`, Kostenzeile aus `AICost`, "Tarif ansehen".
 struct ExamAskPanel: View {
     let context: ExamAskContext
     /// Spalte: schliessen; nil = im Dialog (schliesst ueber `ufClose`)
     let close: (() -> Void)?
+    /// Ablage der Gespraeche (nil = `TutorConversations.shared`; Tests geben eine eigene)
+    var conversations: TutorConversations? = nil
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var closeDialog
     @Environment(\.ufAIEnabled) private var aiEnabled
     @Environment(\.ufStudoraAccount) private var studoraAccount
+    @Environment(\.ufChatGPTLink) private var chatgpt
     @State private var messages: [Message] = []
     @State private var draft = ""
     @State private var busy = false
     @State private var error: String?
+    @State private var creditsExhausted = false
+    @State private var restored = false
 
     struct Message: Identifiable, Equatable {
         let id = UUID()
@@ -985,7 +1017,17 @@ struct ExamAskPanel: View {
                             UFShimmerText("Die KI denkt nach …", size: 13.12).padding(.horizontal, 4).id("busy")
                         }
                         if let error {
-                            Text(error).ufFont(13.12).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(error).ufFont(13.12).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                                    .accessibilityIdentifier("exam.ask.error")
+                                if creditsExhausted {
+                                    UFButton("Tarif ansehen", icon: "star", size: .small) {
+                                        if let close { close() } else { closeDialog() }
+                                        router.go(.settings(tab: "account"))
+                                    }
+                                    .accessibilityIdentifier("exam.ask.plans")
+                                }
+                            }
                         }
                         suggestions
                     }
@@ -1004,6 +1046,7 @@ struct ExamAskPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: close == nil ? UF.rLg : 0))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("exam.ask.panel")
+        .onAppear { restore() }
     }
 
     private var head: some View {
@@ -1096,24 +1139,69 @@ struct ExamAskPanel: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Frag weiter zu dieser Aufgabe …", text: $draft, axis: .vertical)
-                .lineLimit(1...4)
-                .ufFont(14.5)
-                .padding(.vertical, 9).padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.surface2))
-                .onSubmit { Task { await send(draft) } }
-                .disabled(!canAsk)
-            UFButton(icon: "arrow-right", kind: .primary) { Task { await send(draft) } }
-                .disabled(!canAsk || busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityLabel("Senden")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Frag weiter zu dieser Aufgabe …", text: $draft, axis: .vertical)
+                    .lineLimit(1...4)
+                    .ufFont(14.5)
+                    .padding(.vertical, 9).padding(.horizontal, 12)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(UF.surface2))
+                    .onSubmit { Task { await send(draft, typed: true) } }
+                    .disabled(!canAsk)
+                UFButton(icon: "arrow-right", kind: .primary) { Task { await send(draft, typed: true) } }
+                    .disabled(!canAsk || busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("Senden")
+            }
+            Text(Self.footer(nr: context.nr, model: chatgpt?.status?.model, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
+                             trial: studoraAccount?.planStatus?.trialActive ?? false))
+                .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 6)
+                .accessibilityIdentifier("exam.ask.footer")
         }
-        .padding(12)
+        .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 10)
         .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
     }
 
-    /// Frage senden: die erste traegt den ganzen Kontext (`prompt`), weitere den Verlauf
-    private func send(_ text: String) async {
+    /// Kostenzeile unter dem Feld wie in der KI-Hilfe (`TutorPanel.footer`, Aufgabe statt Seite): mit Credits-Stand
+    /// vom Dienst "Dein ChatGPT – 0 Credits" bzw. "– 3 Credits (37 übrig)", sonst "über dein ChatGPT"; dazu das Modell
+    static func footer(nr: String, model: String?, credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil, trial: Bool = false) -> String {
+        let m = (model ?? "").trimmingCharacters(in: .whitespaces)
+        let way = credits != nil
+            ? AICost.creditsLine(credits: credits, chatgpt: charge == nil, charge: charge, trial: trial) ?? "über dein ChatGPT"
+            : "über dein ChatGPT"
+        return "Aufgabe \(nr) · \(way)" + (m.isEmpty ? "" : " · \(m)")
+    }
+
+    private var store: TutorConversations { conversations ?? .shared }
+
+    /// Gemerktes Gespraech zu dieser Aufgabe laden (einmal, solange hier noch keins laeuft)
+    private func restore() {
+        guard !restored else { return }
+        restored = true
+        guard messages.isEmpty, context.testID != 0 else { return }
+        messages = Self.restored(store.messages(for: context.conversationKey), context: context)
+    }
+
+    /// Stand nach jeder Antwort merken (ohne Test, z. B. in Vorschauen, nichts)
+    private func persist() {
+        guard context.testID != 0 else { return }
+        store.save(fileID: context.conversationKey, fileName: context.recentTitle, messages: Self.stored(messages))
+    }
+
+    /// Beitraege fuer die Ablage und zurueck (reine Umwandlung): gespeichert wird, was zu sehen war; die erste Frage
+    /// geht beim Weiterfragen wieder mit dem ganzen Kontext (`prompt`) in den Verlauf
+    static func stored(_ ms: [Message]) -> [TutorConversations.Message] {
+        ms.map { TutorConversations.Message(fromUser: $0.user, text: $0.shown) }
+    }
+
+    static func restored(_ ms: [TutorConversations.Message], context: ExamAskContext) -> [Message] {
+        ms.enumerated().map { i, m in Message(user: m.fromUser, shown: m.text, sent: i == 0 && m.fromUser ? context.prompt : m.text) }
+    }
+
+    /// Frage senden: die erste traegt den ganzen Kontext (`prompt`), weitere den Verlauf. `typed`: aus dem Feld (bei
+    /// einem Fehler kommt der Text dorthin zurueck)
+    private func send(_ text: String, typed: Bool = false) async {
         let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let api = session.api, !busy, !q.isEmpty, canAsk else { return }
         let first = messages.isEmpty
@@ -1123,16 +1211,23 @@ struct ExamAskPanel: View {
         draft = ""
         busy = true
         error = nil
+        creditsExhausted = false
         defer { busy = false }
         do {
             let r = try await api.value("/api/ai/tutor", method: "POST",
                                         body: ["mode": "ask", "page": 1, "question": .string(sent), "history": .array(history)])
-            studoraAccount?.noteAIResponse(r)
+            studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Kostenzeile
             let answer = r.s("answer") ?? ""
             messages.append(Message(user: false, shown: answer, sent: answer))
+            persist()
         } catch {
-            _ = studoraAccount?.noteAIError(error)
+            // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), getippten Text zurueck ins Feld
+            if messages.last?.user == true { messages.removeLast() }
+            if typed { draft = q }
             self.error = error.localizedDescription
+            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
         }
+        // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Kostenzeile nennt es
+        await chatgpt?.refresh()
     }
 }

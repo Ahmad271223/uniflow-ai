@@ -1,13 +1,13 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
-import { renderWeeklyBox } from "./views-weekly.js?v=13";
-import { installCard, bindInstallBanner } from "./pwa.js?v=14";
+import { renderWeeklyBox } from "./views-weekly.js?v=14";
+import { installCard, bindInstallBanner } from "./pwa.js?v=15";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, esc, icon, toast, modal, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=42";
+import { $, $$, api, esc, icon, toast, modal, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=43";
 import * as FC from "./flashcards.js?v=6";
-import { mountBulletin } from "./bulletin.js?v=4";
-import { mountStudipTexts } from "./studip-texts.js?v=4";
-import { settingHtml } from "./older-semesters.js?v=1";
-import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=3";
+import { mountBulletin } from "./bulletin.js?v=5";
+import { mountStudipTexts } from "./studip-texts.js?v=5";
+import { settingHtml } from "./older-semesters.js?v=2";
+import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=4";
 // Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
 import { masteryHtml } from "./mastery.js?v=1";
 
@@ -88,7 +88,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=64"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=65"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -488,14 +488,14 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=6");
+    const { renderLinkCard } = await import("./studora-link.js?v=7");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=6")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=7")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -503,7 +503,7 @@ export async function viewCommunity(_, params, view) {
   if (tab !== "overview") {
     view.innerHTML = `<div class="content" style="max-width:960px">${head}${tabs}<div class="card" id="qaPanel"></div></div>`;
     bindTabs();
-    const q = await import("./views-qa.js?v=7"); const el = $("#qaPanel", view);
+    const q = await import("./views-qa.js?v=8"); const el = $("#qaPanel", view);
     if (tab === "questions") q.renderQuestions(el); else if (tab === "bookmarks") q.renderBookmarks(el); else q.renderNotifications(el, n => window.updateBell?.(n));
     return;
   }
@@ -527,9 +527,9 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=18").then(m => m.renderSpaces($("#spacesCard", view)));
-  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=4")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=6").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  import("./community-spaces.js?v=19").then(m => m.renderSpaces($("#spacesCard", view)));
+  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=5")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=7").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });
@@ -694,8 +694,8 @@ export async function viewSettings(_, params, view) {
       demoBtn.onclick = async () => { demoBtn.disabled = true; try { const d = await api("/demo", { method: "POST", body: { enabled: demoBtn.dataset.on !== "1" } }); showDemo(d); toast(d.enabled ? `Demo angelegt: ${d.files} PDFs, ${d.events} Termine, ${d.packages} Lernpakete` : "Demo-Inhalte entfernt"); } catch (e) { toast(e.message, 4000); } demoBtn.disabled = false; };
     }
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok-text)">${icon("check", 15)} ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`Fehler: ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
-    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=47")).configDialog(() => state.route()));
-    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=47")).availabilityDialog());
+    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=48")).configDialog(() => state.route()));
+    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=48")).availabilityDialog());
   };
   render();
 }

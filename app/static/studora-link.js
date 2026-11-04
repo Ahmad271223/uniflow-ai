@@ -1,7 +1,7 @@
 // StudiNow-Konto in der Windows-App verbinden (app/service_link.py): Anmelden am Dienst, Status, Abmelden, PDFs melden.
 // Wird in der Community-Seite und in der Community-Leiste des Editors gezeigt. Das Passwort geht nur einmal ueber das
 // lokale Backend an den Dienst; gespeichert wird allein das Sitzungs-Token auf diesem PC.
-import { icon } from "./icons.js?v=31";
+import { icon } from "./icons.js?v=32";
 import { serviceError, resendNote } from "./service-errors.js?v=1";
 
 const $ = (s, el = document) => el.querySelector(s);

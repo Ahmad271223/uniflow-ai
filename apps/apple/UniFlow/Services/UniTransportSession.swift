@@ -175,12 +175,16 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
 /// (`shib_idp_session`, `TGC` des CAS, `JSESSIONID` des LSF, `MoodleSession`) leben nur, solange der Prozess lebt.
 /// Beendete iOS die App, war die Uni-Anmeldung weg, die stille Erneuerung scheiterte, und es hiess "Anmeldung nötig".
 ///
-/// Darum legt die App genau diese Sitzungs-Cookies der Hochschul-Rechner zusaetzlich in den Schluesselbund (wie das
+/// Darum legt die App die Cookies der Hochschul-Rechner zusaetzlich in den Schluesselbund (wie das
 /// Stud.IP-Sitzungs-Cookie: nur dieses Geraet, nicht in Backups/iCloud, je Container ein Eintrag
-/// `web-sessions.<container-uuid>`) und setzt sie beim Oeffnen des Containers wieder in den Datenspeicher. Wie lange
-/// die Anmeldung gilt, entscheidet weiterhin die Hochschule (ihr Server verwirft alte Sitzungen). Nie ein Passwort,
-/// nie Formularinhalte, nur Cookies der Hochschul-Rechner (`domains`). Abmelden und "Daten dieser Hochschule löschen"
-/// leeren den Eintrag (`forget`), bevor die Webdaten gehen: eine alte Sitzung kommt nie zurueck.
+/// `web-sessions.<container-uuid>`) und setzt fehlende beim Oeffnen des Containers wieder in den Datenspeicher. Seit
+/// 04.11.2026 (`UniCookiePolicy.keep`) alle noch gueltigen Cookies dieser Rechner, auch des Identitaetsanbieters
+/// (WebSSO der LUH, CAS der Uni Hildesheim): Sitzungs-Cookies ohne Ablauf und dauerhafte mit ihrem Ablaufdatum (WebKit
+/// schreibt auch diese nur verzoegert auf die Platte). Gespeichert wird nach jeder Anmeldung und stillen Erneuerung,
+/// beim Schliessen des In-App-Browsers und beim Wechsel in den Hintergrund. Wie lange die Anmeldung gilt, entscheidet
+/// weiterhin die Hochschule (ihr Server verwirft alte Sitzungen). Nie ein Passwort, nie Formularinhalte, nur Cookies
+/// der Hochschul-Rechner (`domains`). Abmelden und "Daten dieser Hochschule löschen" leeren den Eintrag (`forget`),
+/// bevor die Webdaten gehen: eine alte Sitzung kommt nie zurueck.
 @MainActor
 enum UniWebSessions {
     static let accountPrefix = "web-sessions."
@@ -199,21 +203,23 @@ enum UniWebSessions {
         return Array(Set(hosts.map { $0.split(separator: ".").suffix(2).joined(separator: ".") })).filter { $0.contains(".") }.sorted()
     }
 
-    static func matches(_ c: HTTPCookie, _ domains: [String]) -> Bool {
-        let d = (c.domain.hasPrefix(".") ? String(c.domain.dropFirst()) : c.domain).lowercased()
-        return domains.contains { d == $0 || d.hasSuffix("." + $0) }
-    }
+    static func matches(_ c: HTTPCookie, _ domains: [String]) -> Bool { UniCookiePolicy.matches(c, domains) }
 
     private final class Entry {
         /// schwach: eine spaetere Instanz an derselben Adresse gilt nie als dieser Datenspeicher
         weak var store: WKWebsiteDataStore?
         let vault: StudIPCookieStore
         let domains: [String]
+        /// Einstellungen und Hochschule des Containers (Benutzername fuer die Anmeldeseite, `UniLoginHelper`)
+        let defaults: UserDefaults?
+        let university: UniversityKey?
         var restore: Task<Void, Never>?
-        init(store: WKWebsiteDataStore, vault: StudIPCookieStore, domains: [String]) {
+        init(store: WKWebsiteDataStore, vault: StudIPCookieStore, domains: [String], defaults: UserDefaults?, university: UniversityKey?) {
             self.store = store
             self.vault = vault
             self.domains = domains
+            self.defaults = defaults
+            self.university = university
         }
     }
 
@@ -225,10 +231,11 @@ enum UniWebSessions {
     }
 
     /// Datenspeicher eines Containers anmelden und die gemerkte Anmeldung sofort zuruecksetzen (`ready` wartet darauf)
-    static func attach(_ store: WKWebsiteDataStore, vault: StudIPCookieStore, domains: [String]) {
+    static func attach(_ store: WKWebsiteDataStore, vault: StudIPCookieStore, domains: [String], defaults: UserDefaults? = nil,
+                       university: UniversityKey? = nil) {
         guard entry(store) == nil else { return }
         entries = entries.filter { $0.value.store != nil }           // freigegebene Datenspeicher vergessen
-        let e = Entry(store: store, vault: vault, domains: domains)
+        let e = Entry(store: store, vault: vault, domains: domains, defaults: defaults, university: university)
         entries[ObjectIdentifier(store)] = e
         e.restore = Task { _ = await restore(into: store, from: vault, domains: domains) }
     }
@@ -240,6 +247,12 @@ enum UniWebSessions {
 
     /// Wartet, bis die gemerkte Anmeldung wieder im Datenspeicher steht (sofort, wenn keiner angemeldet ist)
     static func ready(_ store: WKWebsiteDataStore) async { await entry(store)?.restore?.value }
+
+    /// Hochschule und Einstellungen des Containers dieses Datenspeichers (nil fuer fremde Datenspeicher, z. B. in Tests)
+    static func loginContext(_ store: WKWebsiteDataStore) -> (university: UniversityKey, defaults: UserDefaults)? {
+        guard let e = entry(store), let u = e.university, let d = e.defaults else { return nil }
+        return (u, d)
+    }
 
     /// Aktuelle Sitzungs-Cookies der Hochschule merken (nach einer Anmeldung, beim Wechsel in den Hintergrund)
     static func save(_ store: WKWebsiteDataStore) async {
@@ -255,26 +268,31 @@ enum UniWebSessions {
         e.vault.clear()
     }
 
-    /// Gemerkte Sitzungs-Cookies in den Datenspeicher; vorhandene (neuere) bleiben. Rueckgabe: Zahl der gesetzten.
+    /// Gemerkte, noch gueltige Cookies der Hochschule in den Datenspeicher, soweit sie dort fehlen; vorhandene (neuere)
+    /// bleiben, Abgelaufenes kommt nie zurueck (`UniCookiePolicy`). Rueckgabe: Zahl der gesetzten.
     @discardableResult
-    static func restore(into store: WKWebsiteDataStore, from vault: StudIPCookieStore, domains: [String]) async -> Int {
-        let saved = vault.load().filter { $0.isSessionOnly && matches($0, domains) }
+    static func restore(into store: WKWebsiteDataStore, from vault: StudIPCookieStore, domains: [String], now: Date = Date()) async -> Int {
+        let saved = UniCookiePolicy.kept(vault.load(), domains: domains, now: now)
         guard !saved.isEmpty else { return 0 }
-        let present = await store.httpCookieStore.allCookies()
-        var n = 0
-        for c in saved where !present.contains(where: { $0.name == c.name && $0.domain == c.domain && $0.path == c.path }) {
-            await store.httpCookieStore.setCookie(c)
-            n += 1
-        }
-        return n
+        return await insertMissing(saved, into: store, now: now)
     }
 
-    /// Sitzungs-Cookies der Hochschule aus dem Datenspeicher in den Schluesselbund (keine: Eintrag weg). Cookies mit
-    /// Ablaufdatum behaelt WebKit selbst. Rueckgabe: Zahl der gemerkten.
+    /// Cookies in den Datenspeicher, soweit an ihrer Stelle keines steht (z. B. das Stud.IP-Cookie des Abgleichs fuer den
+    /// In-App-Browser). Rueckgabe: Zahl der gesetzten.
     @discardableResult
-    static func save(_ store: WKWebsiteDataStore, to vault: StudIPCookieStore, domains: [String]) async -> Int {
-        let session = await store.httpCookieStore.allCookies().filter { $0.isSessionOnly && matches($0, domains) }
-        if session.isEmpty { vault.clear() } else { try? vault.save(session) }
-        return session.count
+    static func insertMissing(_ cookies: [HTTPCookie], into store: WKWebsiteDataStore, now: Date = Date()) async -> Int {
+        let present = await store.httpCookieStore.allCookies()
+        let missing = UniCookiePolicy.missing(cookies, in: present, now: now)
+        for c in missing { await store.httpCookieStore.setCookie(c) }
+        return missing.count
+    }
+
+    /// Noch gueltige Cookies der Hochschule (Sitzungs-Cookies und dauerhafte mit Ablauf, auch des WebSSO bzw. CAS) aus
+    /// dem Datenspeicher in den Schluesselbund (keine: Eintrag weg). Rueckgabe: Zahl der gemerkten.
+    @discardableResult
+    static func save(_ store: WKWebsiteDataStore, to vault: StudIPCookieStore, domains: [String], now: Date = Date()) async -> Int {
+        let kept = UniCookiePolicy.kept(await store.httpCookieStore.allCookies(), domains: domains, now: now)
+        if kept.isEmpty { vault.clear() } else { try? vault.save(kept) }
+        return kept.count
     }
 }

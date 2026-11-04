@@ -21,9 +21,11 @@ mit dem Stift bearbeiten und lernen können. Da nach dem Start möglicherweise v
 möchte ich Ihnen vorher genau sagen, was die App an Ihren Systemen tut, und um Ihre Einschätzung bitten.
 
 **Anmeldung.** Die App öffnet die echte Stud.IP-Anmeldeseite (WebSSO) in einer Webansicht. Die Studierenden geben
-ihre Zugangsdaten nur dort ein; die App speichert weder Benutzername noch Passwort und füllt nichts aus (höchstens
-iOS-Passwort-Autofill). Gemerkt wird allein das Sitzungs-Cookie, im Schlüsselbund nur dieses Geräts (nicht in
-Backups/iCloud). Wie lange die Sitzung gilt, bestimmt weiterhin Ihr Server. Auf Windows meldet sich die Person ebenso
+ihre Zugangsdaten nur dort ein; die App speichert nie ein Passwort (höchstens iOS-Passwort-Autofill). Gemerkt
+werden die Sitzungs-Cookies von Stud.IP und der Anmeldeseite, im Schlüsselbund nur dieses Geräts (nicht in
+Backups/iCloud), und auf dem Gerät der Benutzername, damit er bei einer erneuten Anmeldung schon eingetragen ist. Ist
+die Sitzung abgelaufen, erneuert die App sie über die Anmeldeseite wie ein Browser; wie lange sie gilt, bestimmt
+weiterhin Ihr Server. Auf Windows meldet sich die Person ebenso
 selbst in einem sichtbaren Browserfenster an; die App behält nur die Sitzung.
 
 **Was gelesen wird – nur mit dem eigenen Konto, nur GET, nie ein Schreibzugriff:**
@@ -100,8 +102,9 @@ dem Konto von …]]. Bevor möglicherweise viele Ihrer Studierenden die App nutz
 Ihren Systemen tut, und um Ihre Einschätzung bitten.
 
 **Anmeldung.** Die App öffnet die CAS-Anmeldeseite (`www.uni-hildesheim.de/sso`) in einer Webansicht; die Studierenden
-melden sich dort selbst an. Die App speichert weder Benutzername noch Passwort (höchstens iOS-Passwort-Autofill),
-sondern nur die Sitzungs-Cookies im Schlüsselbund dieses Geräts. Für das Learnweb nutzt die App bevorzugt den
+melden sich dort selbst an. Die App speichert nie ein Passwort (höchstens iOS-Passwort-Autofill), sondern die
+Sitzungs-Cookies im Schlüsselbund dieses Geräts und auf dem Gerät den Benutzernamen, damit er bei einer erneuten
+Anmeldung schon eingetragen ist. Für das Learnweb nutzt die App bevorzugt den
 Moodle-Mobile-Dienst (`admin/tool/mobile/launch.php`, Schlüssel „Moodle mobile web service“ im Schlüsselbund), sonst
 die CAS-Sitzung.
 
@@ -170,7 +173,9 @@ wessen, steht nicht da).
 - Anmeldung, Cookies, kein Passwort: `apps/apple/UniFlow/Services/UniTransportSession.swift` (`UniWebSessions`,
   Sitzungs-Cookies im Schlüsselbund je Container), `Services/StudIPSync.swift` (`StudIPCookieStore`),
   `Services/KeychainStore.swift` (`AfterFirstUnlockThisDeviceOnly`), `Views/UniversityLoginViews.swift`
-  (Hinweistext „speichert weder Benutzername noch Passwort“). Windows: `apps/windows/README.md`
+  (Hinweistext zu Passwörtern), seit 04.11.2026 `Services/UniSessionKeeper.swift` und `Services/UniLoginHelper.swift`
+  (alle Cookies der Hochschul-Domains inkl. Anmeldeseite, Benutzername auf dem Gerät, stille Erneuerung,
+  docs/IPAD-STUDIP-SYNC.md Abschnitt 13). Windows: `apps/windows/README.md`
   („Hochschul-Anmeldung ohne Passwort in der App“; Chromium merkt das Passwort DPAPI-verschlüsselt, nicht die App).
 - Stud.IP-Routen und Nur-Lesen: `UniFlowCore/StudIPClient.swift`, `StudIPScheduleStore.swift`, `StudIPSchedule.swift`,
   `StudIPCalendar.swift`, `StudIPTerms.swift`, `StudIPExtras.swift` (Inbox nur Liste, nie Einzelansicht; Teilnehmende

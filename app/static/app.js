@@ -1,17 +1,17 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=42";
-import { viewDashboard as viewHome } from "./views-home.js?v=16";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=62";
-import { viewFiles } from "./views-lib.js?v=61";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=47";
-import { viewTimetable, openEvent } from "./views-tt.js?v=45";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=78";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=44";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=43";
+import { viewDashboard as viewHome } from "./views-home.js?v=17";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=63";
+import { viewFiles } from "./views-lib.js?v=62";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
+import { viewTimetable, openEvent } from "./views-tt.js?v=46";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=79";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=45";
 import { resendNote } from "./service-errors.js?v=1";
-import { askOlderSemesters } from "./older-semesters-ui.js?v=3";
+import { askOlderSemesters } from "./older-semesters-ui.js?v=4";
 import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=1";
-import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=14";
+import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -66,12 +66,12 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 // Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit StudiNow-Konto), alle 2 Minuten
 window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
   b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
-async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=7"); window.updateBell(await unreadCount()); } catch {} }
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=8"); window.updateBell(await unreadCount()); } catch {} }
 setTimeout(askOlderSemesters, 6000);   // einmalige Frage "Auch frühere Semester laden?" (older-semesters-ui.js)
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
 // Abzeichen mit der Zahl offener Korrekturhinweise am Menuepunkt "Community" (03.11.2026, wie auf dem iPad), sparsam geholt
-import("./community-corrections-ui.js?v=4").then(m => m.startBadgePolling()).catch(() => {});
+import("./community-corrections-ui.js?v=5").then(m => m.startBadgePolling()).catch(() => {});
 
 function accountMenu() {
   const a = state.account;
@@ -82,7 +82,7 @@ function accountMenu() {
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
-  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=6");
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=7");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
@@ -125,7 +125,7 @@ async function viewDashboard(p, q, v) {
   await viewHome(p, q, v, trialHint);
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
-    const U = await import("./community-corrections-ui.js?v=4"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
+    const U = await import("./community-corrections-ui.js?v=5"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
     (await import("./community-logic.js?v=2")).ensureCss();
     const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
     await U.renderInbox(box, { toast, onChange: () => route() });

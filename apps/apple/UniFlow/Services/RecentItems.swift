@@ -19,8 +19,10 @@ struct RecentItem: Identifiable, Equatable {
     let page: Int?
 
     var id: String { kind.rawValue + ":" + key }
-    var fileID: String? { kind == .test ? nil : key }
-    var testID: Int? { kind == .test ? Int(key) : nil }
+    var fileID: String? { kind == .test || examAsk != nil ? nil : key }
+    var testID: Int? { kind == .test ? Int(key) : examAsk?.testID }
+    /// KI-Gespraech zu einer Aufgabe eines Wochentests ("Frag die KI zu Aufgabe n"): Test und Aufgabe
+    var examAsk: (testID: Int, nr: String)? { kind == .conversation ? TutorConversations.parseExamKey(key) : nil }
 
     var icon: String {
         switch kind {
@@ -54,6 +56,11 @@ struct RecentItem: Identifiable, Equatable {
             out.append(RecentItem(kind: kind, key: key, title: it.s("title") ?? "", sub: it.s("sub"), at: at, page: it.i("page")))
         }
         for c in conversations {
+            // Gespraech zu einer Aufgabe eines Wochentests: Titel "Aufgabe n – <Testtitel>"
+            if TutorConversations.parseExamKey(c.fileID) != nil {
+                out.append(RecentItem(kind: .conversation, key: c.fileID, title: c.fileName ?? "KI-Gespräch", sub: "Wochentest", at: c.updatedAt, page: nil))
+                continue
+            }
             let q = c.lastQuestion.map { String($0.prefix(80)).replacingOccurrences(of: "\n", with: " ") }
             out.append(RecentItem(kind: .conversation, key: c.fileID, title: q.flatMap { $0.isEmpty ? nil : $0 } ?? "KI-Gespräch",
                                   sub: c.fileName, at: c.updatedAt, page: nil))

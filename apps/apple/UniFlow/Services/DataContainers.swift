@@ -452,8 +452,10 @@ final class ContainerManager: ObservableObject {
         let s = WKWebsiteDataStore(forIdentifier: c.websiteDataStoreID)
         stores[c.websiteDataStoreID] = s
         // Uni-Anmeldung (WebSSO bzw. CAS) von vor dem Neustart zuruecksetzen (`UniWebSessions`)
+        // mit Einstellungen und Hochschule des Containers: Benutzername und "Angemeldet bleiben" auf der Anmeldeseite
+        // des WebSSO bzw. CAS (`UniLoginHelper`)
         UniWebSessions.attach(s, vault: UniWebSessions.vault(service: cookieService, container: c.layout.identifier),
-                              domains: UniWebSessions.domains(c.key.university))
+                              domains: UniWebSessions.domains(c.key.university), defaults: c.defaults, university: c.key.university)
         return s
     }
 

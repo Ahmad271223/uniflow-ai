@@ -63,14 +63,15 @@ final class UniWebSessionsAppTests: XCTestCase {
         await before.httpCookieStore.setCookie(HTTPCookie(properties: [.name: "dauerhaft", .value: "d", .domain: "sso.idm.uni-hannover.de",
                                                                        .path: "/", .expires: Date().addingTimeInterval(3600)])!)
         let saved = await UniWebSessions.save(before, to: vault, domains: domains)
-        XCTAssertEqual(saved, 2, "nur Sitzungs-Cookies der Hochschule; dauerhafte behaelt WebKit selbst")
+        XCTAssertEqual(saved, 3, "alle gueltigen Cookies der Hochschule, seit 04.11.2026 auch dauerhafte mit Ablauf (WebKit schreibt sie verzoegert)")
 
-        // Neustart: WebKit hat die Sitzungs-Cookies verloren
+        // Neustart: WebKit hat die Sitzungs-Cookies (und hier auch das dauerhafte) verloren
         let after = WKWebsiteDataStore.nonPersistent()
         let restored = await UniWebSessions.restore(into: after, from: vault, domains: domains)
-        XCTAssertEqual(restored, 2)
+        XCTAssertEqual(restored, 3)
         let cookies = await after.httpCookieStore.allCookies()
-        XCTAssertEqual(Set(cookies.map(\.name)), ["shib_idp_session", "Seminar_Session"])
+        XCTAssertEqual(Set(cookies.map(\.name)), ["shib_idp_session", "Seminar_Session", "dauerhaft"])
+        XCTAssertNotNil(cookies.first { $0.name == "dauerhaft" }?.expiresDate, "mit Ablaufdatum")
         let idp = try XCTUnwrap(cookies.first { $0.name == "shib_idp_session" })
         XCTAssertEqual(idp.value, "idp")
         XCTAssertEqual(idp.domain, "sso.idm.uni-hannover.de")

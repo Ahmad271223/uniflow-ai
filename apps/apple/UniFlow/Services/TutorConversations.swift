@@ -30,6 +30,21 @@ final class TutorConversations: ObservableObject {
     }
 
     static let keep = 15
+
+    /// Gespraeche aus "Frag die KI zu Aufgabe n" (Ergebnis eines Wochentests, 04.11.2026) liegen in derselben Liste
+    /// unter "exam:<Test-ID>:<Aufgabe>" statt einer Datei-ID; `fileName` ist dann der Titel "Aufgabe n – <Testtitel>"
+    nonisolated static let examPrefix = "exam:"
+
+    nonisolated static func examKey(testID: Int, nr: String) -> String { "\(examPrefix)\(testID):\(nr)" }
+
+    /// (Test, Aufgabe) aus einem Schluessel; nil fuer Gespraeche zu Dokumenten
+    nonisolated static func parseExamKey(_ key: String) -> (testID: Int, nr: String)? {
+        guard key.hasPrefix(examPrefix) else { return nil }
+        let rest = key.dropFirst(examPrefix.count)
+        guard let colon = rest.firstIndex(of: ":"), let id = Int(rest[..<colon]) else { return nil }
+        let nr = String(rest[rest.index(after: colon)...])
+        return nr.isEmpty ? nil : (id, nr)
+    }
     static let fileName = "tutor-conversations.json"
     /// folgt dem aktiven Container (die App); Tests und Vorschauen bekommen eine eigene Datei
     static let shared = TutorConversations()

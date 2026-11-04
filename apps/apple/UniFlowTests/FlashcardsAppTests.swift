@@ -1281,6 +1281,21 @@ final class FlashcardsAppTests: XCTestCase {
             both(page, dir, "frei-ueben-\(name)")
             page.window.isHidden = true
         }
+        // hochkant mit grosser Schrift (Bedienungshilfen 1 und 3): Karte waechst wenig bzw. nicht, Knoepfe ohne Scrollen sichtbar
+        for (type, suffix) in [(DynamicTypeSize.accessibility1, "gross"), (.accessibility3, "sehr-gross")] {
+            let large = try hostWithEnvironment(CardsPage(entitlements: Entitlements(observe: false, plan: .plus))
+                .environment(\.ufWindowWidth, 820).environment(\.dynamicTypeSize, type), api: api, size: CGSize(width: 820, height: 1180))
+            XCTAssertTrue(large.wait { self.button("Üben: Eigenwerte und Eigenvektoren", in: large.view) != nil }, dump(large.view))
+            XCTAssertTrue(tap("Üben: Eigenwerte und Eigenvektoren", in: large.view))
+            XCTAssertTrue(large.wait { self.shows(large.view, "Karte 1 von") }, dump(large.view))
+            both(large, dir, "wiederholung-frage-hochkant-\(suffix)")
+            XCTAssertTrue(tap("Beenden", in: large.view))
+            XCTAssertTrue(large.wait { self.button("Üben", in: large.view) != nil }, dump(large.view))
+            XCTAssertTrue(tap("Üben", in: large.view))
+            XCTAssertTrue(large.wait { self.shows(large.view, "Frei üben") && self.shows(large.view, "Karte 1 von") }, dump(large.view))
+            both(large, dir, "frei-ueben-hochkant-\(suffix)")
+            large.window.isHidden = true
+        }
         // leerer Zustand
         let (emptyAPI, _, _) = try awaiting { try await self.seededAPI() }
         let empty = try hostWithEnvironment(CardsPage(entitlements: Entitlements(observe: false, plan: .plus)), api: emptyAPI, size: CGSize(width: 932, height: 820))

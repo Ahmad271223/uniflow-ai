@@ -3,14 +3,14 @@
 // "Dokumente (N)" (Kanal nach Lehrwoche als Karten je Vorlesung, Uebung, ... oder als Liste). Tippen auf eine Karte zeigt, wer
 // dazu Notizen geteilt hat; Tippen auf eine Person zeigt ihre Notizen, mit Pfeilen geht es zur naechsten bzw. vorherigen.
 // Dort "Korrektur vorschlagen", Likes und Kommentare. Aufruf: #/community?space=<schluessel>&tab=discussion|docs&layout=weeks|list
-import { icon } from "./icons.js?v=31";
-import { $, $$, api, toast, modal } from "./core.js?v=42";
+import { icon } from "./icons.js?v=32";
+import { $, $$, api, toast, modal } from "./core.js?v=43";
 import * as S from "./solutions.js?v=6";
 import * as L from "./community-logic.js?v=2";
 import * as C from "./community-corrections.js?v=2";
-import * as U from "./community-corrections-ui.js?v=4";
-import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=18";
-import { capi, openQuestion } from "./views-qa.js?v=6";
+import * as U from "./community-corrections-ui.js?v=5";
+import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=19";
+import { capi, openQuestion } from "./views-qa.js?v=7";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
@@ -110,7 +110,7 @@ export async function renderSpacePage(view, params, info) {
         if (!en.isIntersecting) continue; observer.unobserve(en.target);
         const id = en.target.dataset.fid; if (!id || en.target.querySelector("img")) continue;
         try {
-          const ed = await import("./editor.js?v=64");
+          const ed = await import("./editor.js?v=65");
           const data = await ed.renderThumbnail(id, `/api/files/${id}/content`, en.target.dataset.ver, 220);
           if (data) { const img = new Image(); img.alt = ""; img.src = data; en.target.prepend(img); $(".cc-sheet", en.target)?.remove(); }
         } catch { /* Platzhalter bleibt */ }

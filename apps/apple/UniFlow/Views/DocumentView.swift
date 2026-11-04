@@ -345,7 +345,8 @@ struct DocumentView: View {
                    page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
-                   close: { showTutor = false }, request: $bridge.tutorRequest)
+                   close: { showTutor = false }, request: $bridge.tutorRequest,
+                   moduleID: store.file.module_id)                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
     }
 
     private var isExercise: Bool {
