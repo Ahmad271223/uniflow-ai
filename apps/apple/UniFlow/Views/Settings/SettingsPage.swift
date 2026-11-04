@@ -144,8 +144,9 @@ struct SettingsNav: View {
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
                                                     ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
                                                     ("dev", "Entwicklung", "layers")]
-    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Erweitert (Demo-Inhalte fuer die
-    /// App-Pruefung, auch im Release-Build: die Pruefer von Apple muessen sie finden), Entwicklung (nur Debug)
+    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Erweitert (KI ueber ChatGPT,
+    /// "Vorab einordnen"), Entwicklung (nur Debug). Keine Demo-Inhalte mehr (Entscheidung 04.11.2026 "Nur fuer
+    /// Pruefer": einziger Weg ist der Link auf der Anmeldeseite der Hochschule, Views/DemoViews.swift)
     @MainActor static func localKeys(withPlan: Bool) -> [String] { localKeys(withPlan: withPlan, ownServer: Session.ownServerAvailable) }
 
     static func localKeys(withPlan: Bool, ownServer: Bool) -> [String] {
@@ -989,7 +990,6 @@ private struct LocalAccountTab: View {
     var term: JSONValue?
     var reload: () async -> Void = {}
     @EnvironmentObject private var studip: StudIPSync
-    @Environment(\.ufDemoActive) private var demo
     @AppStorage("theme") private var theme = UFThemeMode.standardRaw
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
@@ -998,8 +998,6 @@ private struct LocalAccountTab: View {
     var body: some View {
         // vier Gruppen mit Abschnittskopf (Konto, Studium, dieses iPad, Austausch) statt einer langen Kartenfolge
         VStack(alignment: .leading, spacing: 32) {
-            // Demo-Inhalte aktiv: eine Anmeldung unten gleicht erst nach dem Entfernen ab
-            if demo { DemoActiveBar() }
             SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) {
                 AppAccountCards()
                 if StudoraAccountLink.available, let studoraAccount {
@@ -1189,7 +1187,7 @@ struct ConnectView: View {
 // MARK: - Erweitert
 
 /// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`) mit dem Schalter
-/// "Vorab einordnen" (Erklaerungsspeicher), Demo-Inhalte fuer die App-Pruefung (Views/DemoViews.swift)
+/// "Vorab einordnen" (Erklaerungsspeicher); keine Demo-Inhalte (nur fuer Pruefer, Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
     @Environment(\.ufChatGPTLink) private var chatgpt
 
@@ -1199,7 +1197,6 @@ private struct LocalAdvancedTab: View {
                 ChatGPTCard(link: chatgpt)
                 DocIndexPrewarmCard()
             }
-            DemoContentCard()
         }
         .frame(maxWidth: 720, alignment: .leading)
     }
@@ -1255,7 +1252,6 @@ private struct AdvancedTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {                                    // .stack
-            DemoContentCard()                                                        // Demo-Inhalte des eigenen Servers
             UFCard {
                 UFCardHead("Sync-Protokoll", icon: "sync") {
                     Button {

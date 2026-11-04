@@ -294,7 +294,7 @@ final class AccountStore: ObservableObject {
         loginDone = true
     }
 
-    /// nur Debug (-UFOnboarding login): die Anmeldeseiten erneut zeigen
+    /// Die Anmeldeseiten erneut zeigen: Debug (-UFOnboarding login) und "Beenden" der Demo (`DemoActions.end`)
     func resetLoginStep() {
         guard let a = account, let u = university else { return }
         defaults.removeObject(forKey: Keys.loginDone(a.userID, u))

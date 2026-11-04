@@ -150,8 +150,9 @@ Das Windows-Paket nimmt `docs/release` mit (`apps/windows/backend/uniflow-backen
    Erweitert → „Demo-Inhalte anlegen“ bzw. `POST /api/demo {enabled: true}` legt ein Demo-Modul mit drei selbst
    erzeugten PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung an; „entfernen“ nimmt alles
    rückstandslos weg. Gilt für Web, Windows und Android (über den Dienst). Das iPad hat denselben Schalter lokal
-   ohne Dienst (27.10.2026, `DemoContent` im Swift-Kern, gleiche Inhalte, Vergleich `fixtures/demo/demo.json`):
-   Einstellungen → Erweitert und im ersten Start auf der Anmeldeseite „Ohne Hochschulkonto ansehen (Demo)“.
+   ohne Dienst (27.10.2026, `DemoContent` im Swift-Kern, gleiche Inhalte, Vergleich `fixtures/demo/demo.json`), seit
+   04.11.2026 nur für Prüfer: einziger Weg ist der kleine Textlink „Ohne Hochschulkonto ansehen (Demo)“ ganz unten auf
+   der Anmeldeseite der Hochschule (nicht mehr in den Einstellungen); im Demo-Betrieb die Leiste mit „Beenden“.
 7. **Händlerstatus (DSA)** in App Store Connect angeben; Name, Anschrift, E-Mail und Telefon werden dann im Store
    angezeigt. Dieselben Angaben wie im Impressum; die Telefonnummer fehlt noch (`[[Telefon]]`).
 8. **Datenexport** als Gesamtpaket (ZIP mit Notizen, Kalender, Karteikarten) ist in `docs/KONTEN-ABOS-PLAN.md`

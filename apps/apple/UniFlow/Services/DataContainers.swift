@@ -185,8 +185,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var problem: String?
     /// zaehlt jeden Wechsel; die Oberflaeche baut sich damit neu auf
     @Published private(set) var generation = 0
-    /// Demo-Inhalte im offenen Container an (`DemoContent`, Einstellungen -> Erweitert oder "Ohne Hochschulkonto
-    /// ansehen" im ersten Start): die Uebersicht zeigt "Demo-Inhalte aktiv", die Karten "… verbinden" entfallen, kein
+    /// Demo-Inhalte im offenen Container an (`DemoContent`, nur ueber "Ohne Hochschulkonto ansehen (Demo)" auf der
+    /// Anmeldeseite im ersten Start): die App-Huelle zeigt die Demo-Leiste, die Karten "… verbinden" entfallen, kein
     /// Abgleich mit der Hochschule (die Abgleiche fragen selbst die Datenbank, `LocalBackendHost.demoActive`)
     @Published private(set) var demoActive = false
     /// wird nach jedem Wechsel aufgerufen (App: Session auf das Backend des Containers umstellen)

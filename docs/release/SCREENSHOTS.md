@@ -64,9 +64,9 @@ Varianten und Reserve (nicht ohne Entscheidung hochladen):
 
 Hinweise zu den Bildern des Grundsatzes:
 
-- Auf Übersicht (1) steht die Leiste „Demo-Inhalte aktiv … Entfernen“ – das ist der echte Demo-Betrieb, den auch die
-  Prüfer sehen. Wer sie nicht im Store will, muss die Übersicht mit einem Hochschulkonto und erfundenen Kursen neu
-  aufnehmen (nicht Teil dieses Tests).
+- Keine Demo-Leiste: die schmale Leiste „Demo-Inhalte – erfunden, ohne Hochschule“ mit „Beenden“, die Prüfer im
+  Demo-Betrieb über jeder Seite sehen (Demo nur für Prüfer, Entscheidung 04.11.2026), blendet der Test aus
+  (`\.ufDemoBarHidden`, nur im Test; `test01Uebersicht` prüft, dass sie fehlt). Sonst sind es dieselben Ansichten.
 - Lernkalender (3) zeigt das rote Band „2 Aufgaben müssen nachgeholt werden“, weil das Montags-Lernpaket der Demo
   bereits vorbei ist (Aufnahme an einem Mittwoch). An einem Montag erzeugt, fehlt das Band.
 - Tarifseite (8): die Plus-Karte listet unter „in Vorbereitung“ auch „Neue KI-Tests von StudiNow“ – Text der App

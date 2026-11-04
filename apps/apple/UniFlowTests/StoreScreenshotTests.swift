@@ -162,10 +162,13 @@ final class StoreScreenshotTests: XCTestCase {
 
     // MARK: - Hosten und Fotografieren
 
-    /// Die ganze App-Huelle (Seitenleiste, Kopfzeile, Seite) mit Demo-Inhalten; `ai`: KI verbunden (nur KI-Bilder)
+    /// Die ganze App-Huelle (Seitenleiste, Kopfzeile, Seite) mit Demo-Inhalten; `ai`: KI verbunden (nur KI-Bilder).
+    /// Die Demo-Leiste ("Demo-Inhalte – erfunden, ohne Hochschule", nur fuer Pruefer) ist in den Store-Bildern aus
+    /// (`\.ufDemoBarHidden`, nur im Test).
     private func host<V: View>(_ view: V, api: APIClient? = nil, ai: Bool = false) throws -> HostedEnvironment {
         let root = view
             .environment(\.ufDemoActive, true)
+            .environment(\.ufDemoBarHidden, true)
             .environment(\.ufAIEnabled, ai)
             .environmentObject(manager!)
             .environmentObject(account!)
@@ -364,9 +367,10 @@ final class StoreScreenshotTests: XCTestCase {
 
     func test01Uebersicht() throws {
         let env = try host(MainView())
-        expect(env, DemoTexts.barTitle)
         expect(env, "Grundlagen der Informatik")
         XCTAssertFalse(shows(env, "Stud.IP verbinden"), "Demo: keine Karte zum Verbinden")
+        XCTAssertFalse(shows(env, DemoTexts.barTitle), "Store-Bild ohne Demo-Leiste")
+        XCTAssertFalse(shows(env, DemoTexts.barEnd), "Store-Bild ohne „Beenden“")
         shoot(env, "01-uebersicht")
     }
 

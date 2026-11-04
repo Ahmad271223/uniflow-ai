@@ -6,10 +6,13 @@ import WebKit
 import XCTest
 @testable import UniFlow
 
-/// Demo-Inhalte fuer die App-Pruefung in der App: Karte unter Einstellungen -> Erweitert (auch im Release-Build), Weg
-/// "Ohne Hochschulkonto ansehen (Demo)" aus dem ersten Start, Hinweis "Demo-Inhalte aktiv" mit "Entfernen" auf der
-/// Uebersicht, keine Karten "… verbinden", kein Abgleich und keine Anfrage an die Hochschule im Demo-Betrieb, Entfernen
-/// samt Kopien auf dem Geraet, Demo je Container. Erfundene Nutzer, Temp-Ordner, kein Netz (UniStubProtocol zaehlt mit).
+/// Demo-Inhalte nur fuer die App-Pruefung (Entscheidung 04.11.2026 "Nur für Prüfer"): einziger Weg ist der kleine
+/// Textlink "Ohne Hochschulkonto ansehen (Demo)" ganz unten auf der Anmeldeseite (`FirstLoginBottomBar`, dahinter
+/// `FirstLoginFlow.startDemo`), keiner in den Einstellungen; solange die Demo aktiv ist, die schmale Leiste
+/// "Demo-Inhalte – erfunden, ohne Hochschule" mit "Beenden" in der App-Huelle ("Beenden" entfernt alles und fuehrt zur
+/// Anmeldeseite), keine Karten "… verbinden", kein Abgleich und keine Anfrage an die Hochschule im Demo-Betrieb,
+/// Entfernen samt Kopien auf dem Geraet, Demo je Container. Erfundene Nutzer, Temp-Ordner, kein Netz (UniStubProtocol
+/// zaehlt mit).
 @MainActor
 final class DemoAppTests: XCTestCase {
     private var bed: ContainerTestBed!
@@ -42,24 +45,15 @@ final class DemoAppTests: XCTestCase {
         StudIPClient(base: StudIPSync.base, transport: t, pauseMillis: 0, retry: UniRetry(attempts: 1, delayNanos: { _ in 0 }))
     }
 
-    // MARK: Einstellungen -> Erweitert, Texte
+    // MARK: Texte
 
-    func testErweitertWithDemoCardIsThereInReleaseBuilds() {
-        let release = SettingsNav.localKeys(withPlan: true, ownServer: false)
-        XCTAssertTrue(release.contains("advanced"), "Prüfer von Apple finden die Demo auch ohne Entwicklungsmodus")
-        XCTAssertFalse(release.contains("dev"), "Entwicklung bleibt im Release-Build verborgen")
-        XCTAssertTrue(SettingsNav.localKeys(withPlan: false, ownServer: false).contains("advanced"), "auch bevor die Einstellungen geladen sind")
-        XCTAssertEqual(SettingsNav.items.first { $0.0 == "advanced" }?.1, "Erweitert")
-        // kurzer, ehrlicher Text
-        XCTAssertTrue(DemoTexts.cardText.hasPrefix("Nur zum Ausprobieren ohne Hochschulkonto"))
-        XCTAssertTrue(DemoTexts.cardText.contains("rückstandslos"))
-        XCTAssertTrue(DemoTexts.cardText.contains("keine Inhalte einer Hochschule"))
-        XCTAssertTrue(DemoTexts.offlineNote.contains("braucht keine Anmeldung"))
-        XCTAssertEqual(DemoTexts.cardTitle, "Demo-Inhalte für die App-Prüfung")
-        XCTAssertEqual(DemoTexts.firstStart, "Ohne Hochschulkonto ansehen (Demo)")
-        XCTAssertEqual(DemoTexts.summary(["files": 3, "events": 3, "packages": 3]), "3 PDFs · 3 Termine · 3 Lernpakete")
-        XCTAssertEqual(DemoTexts.summary(["files": 1, "events": 1, "packages": 1]), "1 PDF · 1 Termin · 1 Lernpaket")
-        XCTAssertTrue(DemoTexts.syncBlocked.contains("Einstellungen → Erweitert"), "Sync im Demo-Betrieb: Weg zum Entfernen")
+    func testTextsNameOnlyTheLoginLinkAndBeenden() {
+        XCTAssertEqual(DemoTexts.firstStart, "Ohne Hochschulkonto ansehen (Demo)", "die Pruefhinweise nennen ihn wortgleich")
+        XCTAssertEqual(DemoTexts.barTitle, "Demo-Inhalte – erfunden, ohne Hochschule")
+        XCTAssertEqual(DemoTexts.barEnd, "Beenden")
+        XCTAssertTrue(DemoTexts.syncBlocked.contains("„Beenden“"), "Sync im Demo-Betrieb: Weg hinaus")
+        XCTAssertFalse(DemoTexts.syncBlocked.contains("Einstellungen"), "kein Weg ueber die Einstellungen mehr")
+        XCTAssertTrue(DemoTexts.confirmEnd.contains("Anmeldeseite"))
     }
 
     /// Weiche der Seiten: mit Demo keine Karte zum Verbinden, keine Statusleiste, die Seiten selbst
@@ -288,55 +282,135 @@ final class DemoAppTests: XCTestCase {
         XCTAssertEqual(after["files"], 0)
     }
 
-    // MARK: Oberflaeche (Bedienungshilfen wie StudyPlanLocalAppTests)
+    // MARK: Oberflaeche (Bedienungshilfen wie StoreScreenshotTests)
 
-    func testDashboardShowsTheDemoHintAndRemoves() async throws {
+    /// Einstellungen: nirgends ein Weg zur Demo (Erweitert und Zugang & Darstellung), auch nicht bei aktiver Demo
+    func testSettingsHaveNoDemoEntry() async throws {
         let m = bed.manager()
         let a = bed.account(.luh)
         let c = try bed.open(m, a)
         a.markLoginDone()
-        try await m.setDemo(true)
-        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
-        defer { Self.accessibilityAutomation(false) }
-        let page = try show(DashboardView(api: c.api), m: m, a: a)
-        await eventually({ self.shows(page.view, DemoTexts.barTitle) && self.shows(page.view, "Übungsblatt 1") }, texts(page.view).joined(separator: "\n"))
-        XCTAssertFalse(shows(page.view, "Stud.IP verbinden"), "keine Karte zum Verbinden im Demo-Betrieb")
-        XCTAssertTrue(tap(DemoTexts.barRemove, in: page.view), texts(page.view).joined(separator: "\n"))
-        await eventually({ page.overlay.ask != nil }, "Rueckfrage vor dem Entfernen")
-        answer(page.overlay, true)
-        await eventually({ !m.demoActive && page.toast.message == DemoTexts.removed }, page.toast.message ?? "keine Meldung")
-        await eventually({ !self.shows(page.view, DemoTexts.barTitle) && self.shows(page.view, "Stud.IP verbinden") }, texts(page.view).joined(separator: "\n"))
-        let s = try await c.api.value("/api/demo")
-        XCTAssertEqual(s["files"], 0)
+        XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { HostedEnvironment.accessibilityAutomation(false) }
+        for (tab, marker) in [("advanced", "Erweitert"), ("account", "Konto & Tarif")] {
+            for demo in [false, true] {
+                if demo != m.demoActive { try await m.setDemo(demo) }
+                let env = try hostApp(SettingsPage(initialTab: tab), m: m, a: a, api: c.api)
+                await eventually({ self.shows(env.view, marker) }, "\(tab): " + texts(env.view).joined(separator: "\n"))
+                await pump(timeout: 1.0)                                       // Karten laden nach
+                let demoTexts = texts(env.view).filter { $0.localizedCaseInsensitiveContains("demo") }
+                XCTAssertEqual(demoTexts, [], "\(tab), Demo \(demo ? "an" : "aus"): kein Demo-Eintrag")
+                XCTAssertFalse(shows(env.view, "Demo-Inhalte anlegen"))
+                env.window.isHidden = true
+            }
+        }
+        XCTAssertEqual(SettingsNav.localKeys(withPlan: true, ownServer: false), ["account", "modules", "plan", "advanced"])
         XCTAssertEqual(UniStubProtocol.requests.count, 0)
     }
 
-    func testSettingsCardInstallsAndRemoves() async throws {
+    /// Anmeldeseite: ganz unten der kleine Textlink (kein Knopf mit Symbol), unter "Später anmelden"; antippen startet
+    /// die Demo; ohne Angebot (schon angemeldet) fehlt er
+    func testLoginPageHasTheDemoLinkAtTheBottom() async throws {
+        XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { HostedEnvironment.accessibilityAutomation(false) }
+        var taps = 0
+        let env = try hostWithEnvironment(VStack { Spacer(); FirstLoginBottomBar(demo: .offered, onLater: {}, onDemo: { taps += 1 }) })
+        await eventually({ self.shows(env.view, DemoTexts.firstStart) }, texts(env.view).joined(separator: "\n"))
+        let link = try XCTUnwrap(element(DemoTexts.firstStart, in: env.view))
+        let later = try XCTUnwrap(element("Später anmelden", in: env.view))
+        XCTAssertTrue(link.accessibilityTraits.contains(.button))
+        XCTAssertGreaterThanOrEqual(link.accessibilityFrame.midY, later.accessibilityFrame.maxY - 1, "Link ganz unten, unter „Später anmelden“")
+        XCTAssertTrue(tap(DemoTexts.firstStart, in: env.view))
+        XCTAssertEqual(taps, 1)
+        env.window.isHidden = true
+
+        let starting = try hostWithEnvironment(FirstLoginBottomBar(demo: .starting, onLater: {}))
+        await eventually({ self.shows(starting.view, DemoTexts.firstStartRunning) }, texts(starting.view).joined(separator: "\n"))
+        starting.window.isHidden = true
+
+        let hidden = try hostWithEnvironment(FirstLoginBottomBar(demo: .hidden, onLater: {}))
+        await eventually({ self.shows(hidden.view, "Später anmelden") })
+        XCTAssertFalse(shows(hidden.view, DemoTexts.firstStart))
+    }
+
+    /// Leiste nur bei aktiver Demo (ueber jeder Seite der App-Huelle); in den Store-Bildern mit `\.ufDemoBarHidden` aus
+    func testDemoBarShowsOnlyWhileDemoIsActive() async throws {
         let m = bed.manager()
         let a = bed.account(.luh)
         let c = try bed.open(m, a)
         a.markLoginDone()
-        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
-        defer { Self.accessibilityAutomation(false) }
-        let page = try show(SettingsPage(initialTab: "advanced"), m: m, a: a)
-        await eventually({ self.shows(page.view, DemoTexts.cardTitle) && self.shows(page.view, DemoTexts.install) }, texts(page.view).joined(separator: "\n"))
-        XCTAssertTrue(shows(page.view, "Erweitert"))
-        XCTAssertTrue(tap(DemoTexts.install, in: page.view), texts(page.view).joined(separator: "\n"))
-        await eventually({ m.demoActive && self.shows(page.view, DemoTexts.remove) }, texts(page.view).joined(separator: "\n"))
-        XCTAssertEqual(page.toast.message, "Demo angelegt: 3 PDFs, 3 Termine, 3 Lernpakete", "wie im Web")
-        await eventually({ self.shows(page.view, "3 PDFs · 3 Termine · 3 Lernpakete") }, texts(page.view).joined(separator: "\n"))
-        XCTAssertTrue(tap(DemoTexts.remove, in: page.view))
-        await eventually({ page.overlay.ask != nil })
-        answer(page.overlay, false)                                          // abgebrochen: bleibt
+        XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { HostedEnvironment.accessibilityAutomation(false) }
+        // ohne Demo: Karte zum Verbinden, keine Leiste
+        let off = try hostApp(MainView(), m: m, a: a, api: c.api)
+        await eventually({ self.shows(off.view, "Stud.IP verbinden") }, texts(off.view).joined(separator: "\n"))
+        XCTAssertFalse(shows(off.view, DemoTexts.barTitle))
+        off.window.isHidden = true
+        // mit Demo: die Leiste auf der Uebersicht und auf anderen Seiten (Einstellungen)
+        try await m.setDemo(true)
+        let on = try hostApp(MainView(), m: m, a: a, api: c.api)
+        await eventually({ self.shows(on.view, DemoTexts.barTitle) && self.shows(on.view, "Übungsblatt 1") }, texts(on.view).joined(separator: "\n"))
+        XCTAssertNotNil(element(DemoTexts.barEnd, in: on.view))
+        XCTAssertFalse(shows(on.view, "Stud.IP verbinden"), "keine Karte zum Verbinden im Demo-Betrieb")
+        on.router.go(.settings(tab: "account"))
+        await eventually({ self.shows(on.view, "Konto & Tarif") && self.shows(on.view, DemoTexts.barTitle) }, texts(on.view).joined(separator: "\n"))
+        on.window.isHidden = true
+        // Store-Bilder: Schalter nur fuer Tests
+        let shot = try hostApp(MainView().environment(\.ufDemoBarHidden, true), m: m, a: a, api: c.api)
+        await eventually({ self.shows(shot.view, "Übungsblatt 1") }, texts(shot.view).joined(separator: "\n"))
+        XCTAssertFalse(shows(shot.view, DemoTexts.barTitle))
+        XCTAssertFalse(shows(shot.view, DemoTexts.barEnd))
+        shot.window.isHidden = true
+        XCTAssertEqual(UniStubProtocol.requests.count, 0)
+    }
+
+    /// "Beenden": Rueckfrage (Abbrechen laesst alles), dann ist alles weg, was die Demo angelegt hat (Datenbank, Ordner,
+    /// Kopien auf dem Geraet), eigene Daten bleiben, und es geht zur Anmeldeseite der Hochschule zurueck
+    func testBeendenClearsTheDemoAndReturnsToTheLoginPage() async throws {
+        let m = bed.manager()
+        let a = bed.account(.luh)
+        let c = try bed.open(m, a)
+        // wie der Link auf der Anmeldeseite
+        XCTAssertEqual(a.stage, .universityLogin)
+        _ = try await c.api.value("/api/packages", method: "POST", body: ["date": "2026-10-29", "title": "Eigenes Paket"])
+        try await FirstLoginFlow.startDemo(containers: m, account: a)
+        XCTAssertEqual(a.stage, .ready)
+        let pdf = AppPaths.pdf("demo-skript", namespace: .local, root: c.layout.root)
+        try FileManager.default.createDirectory(at: pdf.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data([1]).write(to: pdf)
+        XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { HostedEnvironment.accessibilityAutomation(false) }
+        let env = try hostApp(MainView(), m: m, a: a, api: c.api)
+        await eventually({ self.shows(env.view, DemoTexts.barTitle) }, texts(env.view).joined(separator: "\n"))
+        env.router.go(.settings(tab: "account"))
+        await eventually({ self.shows(env.view, "Konto & Tarif") })
+        XCTAssertTrue(tap(DemoTexts.barEnd, in: env.view), texts(env.view).joined(separator: "\n"))
+        await eventually({ env.overlay.ask != nil }, "Rueckfrage vor dem Beenden")
+        answer(env.overlay, false)                                             // abgebrochen: bleibt
         await pump(timeout: 0.5)
         XCTAssertTrue(m.demoActive)
-        XCTAssertTrue(shows(page.view, DemoTexts.remove))
-        XCTAssertTrue(tap(DemoTexts.remove, in: page.view))
-        await eventually({ page.overlay.ask != nil })
-        answer(page.overlay, true)
-        await eventually({ !m.demoActive && self.shows(page.view, DemoTexts.install) }, texts(page.view).joined(separator: "\n"))
+        XCTAssertEqual(a.stage, .ready)
+        XCTAssertTrue(tap(DemoTexts.barEnd, in: env.view))
+        await eventually({ env.overlay.ask != nil })
+        answer(env.overlay, true)
+        await eventually({ !m.demoActive && env.toast.message == DemoTexts.ended }, env.toast.message ?? "keine Meldung")
+        XCTAssertEqual(a.stage, .universityLogin, "zurueck zur Anmeldeseite (dort wieder der Link)")
+        XCTAssertTrue(FirstLoginFlow.offersDemo(studip: m.studip, qis: m.qis, hildesheim: nil))
+        XCTAssertEqual(env.router.route, .dashboard, "nach erneutem Anmelden nicht auf einer Demo-Seite")
+        await eventually({ !self.shows(env.view, DemoTexts.barTitle) }, texts(env.view).joined(separator: "\n"))
+        // alles weg, was die Demo angelegt hat
         let s = try await c.api.value("/api/demo")
-        XCTAssertEqual(s["enabled"], false)
+        XCTAssertEqual([s["enabled"], s["files"], s["events"], s["packages"]], [false, 0, 0, 0])
+        let lib = try await c.api.value("/api/library")
+        XCTAssertEqual(lib["files"]?.array?.count ?? 0, 0, lib.jsonString())
+        let week = try await c.api.value("/api/timetable/week?start=2026-10-26").jsonString()
+        XCTAssertFalse(week.contains("Grundlagen der Informatik"), week)
+        let cal = try await c.api.value("/api/calendar?start=2026-10-26&end=2026-11-01").jsonString()
+        XCTAssertFalse(cal.contains("Übungsblatt 1"))
+        XCTAssertTrue(cal.contains("Eigenes Paket"), "eigene Daten bleiben")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: pdf.path), "Kopie auf dem Geraet weg")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: c.layout.root.appendingPathComponent("files/Demo").path))
+        XCTAssertEqual(UFDataMode.current(api: c.api, studip: m.studip, demo: m.demoActive), .local(.notConnected))
         XCTAssertEqual(UniStubProtocol.requests.count, 0)
     }
 
@@ -368,20 +442,6 @@ final class DemoAppTests: XCTestCase {
         func runInBackground(_ kind: BackgroundSyncKind) async -> BackgroundSyncReport { await sync.runInBackground(kind, client: client) }
     }
 
-    @discardableResult
-    private static func accessibilityAutomation(_ on: Bool) -> Bool {
-        guard let h = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW), let f = dlsym(h, "_AXSSetAutomationEnabled") else { return false }
-        typealias SetEnabled = @convention(c) (Int32) -> Void
-        unsafeBitCast(f, to: SetEnabled.self)(on ? 1 : 0)
-        return true
-    }
-
-    private struct Hosted {
-        let view: UIView
-        let toast: UFToastCenter
-        let overlay: UFOverlay
-    }
-
     /// Wie die App: Demo-Stand aus dem Container in die Umgebung (`\.ufDemoActive`), Abgleich des Containers
     private struct DemoRoot<Content: View>: View {
         @ObservedObject var containers: ContainerManager
@@ -393,27 +453,13 @@ final class DemoAppTests: XCTestCase {
         }
     }
 
-    private func show<V: View>(_ view: V, m: ContainerManager, a: AccountStore) throws -> Hosted {
-        let overlay = UFOverlay(), router = UFRouter(), toast = UFToastCenter()
-        let root = DemoRoot(containers: m, content: view
-            .modifier(UFDrawerHost(overlay: overlay))
-            .modifier(UFModalHost(overlay: overlay)))
-            .environmentObject(Session(local: try XCTUnwrap(m.active).api, defaults: bed.defaults))
-            .environmentObject(router)
-            .environmentObject(ShellState())
-            .environmentObject(overlay)
-            .environmentObject(toast)
-            .environmentObject(m)
-            .environmentObject(a)
-        let frame = CGRect(x: 0, y: 0, width: 1180, height: 1400)
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
-        window.frame = frame
-        let hosting = UIHostingController(rootView: root)
-        window.rootViewController = hosting
-        window.makeKeyAndVisible()
-        addTeardownBlock { @MainActor in window.isHidden = true }
-        return Hosted(view: hosting.view, toast: toast, overlay: overlay)
+    /// Wie die App (alle Umgebungsobjekte, `HostedEnvironment`), mit Container, Konto und Abgleich des Tests und dem
+    /// Demo-Stand des Containers in der Umgebung
+    private func hostApp<V: View>(_ view: V, m: ContainerManager, a: AccountStore, api: APIClient) throws -> HostedEnvironment {
+        let env = try hostWithEnvironment(DemoRoot(containers: m, content: view.environmentObject(m).environmentObject(a)),
+                                          api: api, size: CGSize(width: 1180, height: 1400), studip: m.studip)
+        addTeardownBlock { @MainActor in env.window.isHidden = true }
+        return env
     }
 
     /// Rueckfrage beantworten wie "OK" bzw. "Abbrechen" im Hinweis
@@ -440,9 +486,11 @@ final class DemoAppTests: XCTestCase {
     private func elements(in view: UIView) -> [NSObject] {
         view.layoutIfNeeded()
         var out: [NSObject] = []
+        var seen = Set<ObjectIdentifier>()
         func visit(_ element: Any, depth: Int) {
-            guard depth < 40 else { return }
+            guard depth < 60 else { return }
             if let o = element as? NSObject {
+                guard seen.insert(ObjectIdentifier(o)).inserted else { return }
                 if o.accessibilityLabel?.isEmpty == false || o.accessibilityValue?.isEmpty == false { out.append(o) }
                 for e in o.accessibilityElements ?? [] { visit(e, depth: depth + 1) }
                 let n = o.accessibilityElementCount()
@@ -461,6 +509,10 @@ final class DemoAppTests: XCTestCase {
     }
 
     private func shows(_ view: UIView, _ text: String) -> Bool { texts(view).contains { $0.contains(text) } }
+
+    private func element(_ label: String, in view: UIView) -> NSObject? {
+        elements(in: view).first { $0.accessibilityLabel == label }
+    }
 
     private func tap(_ label: String, in view: UIView) -> Bool {
         for e in elements(in: view) where e.accessibilityTraits.contains(.button) {

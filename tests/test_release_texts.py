@@ -67,11 +67,13 @@ def test_store_texts_promise_no_ai():
 
 def test_review_notes_describe_the_ai_of_the_build_honestly():
     """Die iPad-App bietet die KI ueber das eigene ChatGPT an: die Pruefhinweise verschweigen sie nicht, sagen, dass sie
-    freiwillig ist und nichts ueber einen Server von StudiNow laeuft, und nennen den Demo-Weg ohne Hochschulkonto."""
+    freiwillig ist und nichts ueber einen Server von StudiNow laeuft, und nennen den Demo-Weg ohne Hochschulkonto: nur den
+    Link auf der Anmeldeseite und "Beenden" (Entscheidung 04.11.2026 "Nur fuer Pruefer", kein Weg ueber die Einstellungen)."""
     notes = fields("APP-STORE.md")["review-notes"]
     assert "Keine KI-Funktionen" not in notes and "No AI" not in notes
     assert "ChatGPT" in notes and "optional" in notes and "consent" in notes and "OpenAI" in notes
-    assert "Ohne Hochschulkonto ansehen (Demo)" in notes and "Demo-Inhalte anlegen" in notes
+    assert "Ohne Hochschulkonto ansehen (Demo)" in notes and "Beenden" in notes
+    assert "Demo-Inhalte anlegen" not in notes and "Demo-Inhalte – erfunden, ohne Hochschule" in notes
     assert "Konto löschen" in notes and "Melden" in notes and "support@studinow.app" in notes
 
 

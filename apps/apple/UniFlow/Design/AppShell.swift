@@ -391,6 +391,9 @@ struct AppShell<Content: View>: View {
     @EnvironmentObject private var session: Session
     @Environment(\.ufAIEnabled) private var aiEnabled
     @EnvironmentObject private var studip: StudIPSync
+    /// Demo-Inhalte aktiv (nur App-Pruefung): schmale Leiste mit "Beenden" ueber jeder Seite; in den Store-Bildern aus
+    @Environment(\.ufDemoActive) private var demoActive
+    @Environment(\.ufDemoBarHidden) private var demoBarHidden
     /// Stud.IP-Nachrichten: ob der Eintrag erscheint (`MessagesInbox.showsNavItem`)
     @ObservedObject private var inbox = MessagesInbox.shared
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
@@ -435,6 +438,7 @@ struct AppShell<Content: View>: View {
                     }
                     VStack(spacing: 0) {
                         if !hideChrome && !docOpen { UFHeader(narrow: narrow) }          // doc-open: Kopfzeile aus
+                        if demoActive && !demoBarHidden && !session.isOwnServer && !hideChrome && !docOpen { DemoActiveBar() }
                         content(router.route)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         if narrow && !hideChrome && !docOpen { UFMobileNav() }
@@ -927,10 +931,9 @@ struct UFHeader: View {
     /// zur Anmeldung
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
-        // Demo-Inhalte: kein Abgleich mit der Hochschule, Hinweis und der Weg zum Entfernen
+        // Demo-Inhalte: kein Abgleich mit der Hochschule, nur der Hinweis auf "Beenden" in der Leiste darunter
         if demo {
             toast.show(DemoTexts.syncBlocked, seconds: 4)
-            router.go(.settings(tab: "advanced"))
             return
         }
         guard studip.offersStudIP else {

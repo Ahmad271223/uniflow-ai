@@ -213,13 +213,20 @@ leer lassen – die Demo braucht kein Konto, „Mit Apple anmelden“ nimmt die 
 support@studinow.app, Telefon vom Inhaber. Die Notizen beschreiben den Build ehrlich, also auch die KI über das eigene
 ChatGPT (Richtlinie 2.3.1: keine versteckten Funktionen) – sie sind kein Werbetext.
 
+Demo nur für Prüfer (Entscheidung des Inhabers 04.11.2026): normale Nutzer sehen die Demo nirgends – kein Eintrag in
+den Einstellungen, kein Hinweis in leeren Ansichten oder im ersten Start. Einziger Weg ist der kleine Textlink
+„Ohne Hochschulkonto ansehen (Demo)“ ganz unten auf der Anmeldeseite der Hochschule (Wortlaut in der App und hier
+gleich, `tests/test_release_texts.py`). Solange die Demo aktiv ist, steht oben eine schmale Leiste „Demo-Inhalte –
+erfunden, ohne Hochschule“ mit „Beenden“; „Beenden“ entfernt alles, was die Demo angelegt hat, und führt zurück zur
+Anmeldeseite. Die Store-Bildschirmfotos zeigen die Leiste nicht (nur im Test ausgeblendet, `docs/release/SCREENSHOTS.md`).
+
 ```text review-notes
 StudiNow is a study app for students of Leibniz Universität Hannover (Germany). Its university features (course files, timetable) use the student's personal university account, which we cannot share. Please use the built-in demo content, which needs no university account:
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It is required because the app keeps the data of each Apple account and each university strictly separate on the device. Nothing is sent to a server of ours; the Apple user ID stays on the iPad.
 2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover". A 7-day trial with everything unlocked starts automatically with the first sign-in, no purchase and no payment details needed (once per Apple ID, stored on the device, not on a server). After the trial the app falls back to "StudiNow Free" and locked features show an unlock prompt; nothing created during the trial is lost.
-3. On the following university login page tap "Ohne Hochschulkonto ansehen (Demo)" at the bottom. This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us, no university content). In demo mode the app does not contact the university and asks for no login.
-The demo can also be created at any time under "Einstellungen" → "Erweitert" → "Demo-Inhalte anlegen"; "Entfernen" (overview or the same place) removes it again.
+3. On the following university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us, no university content). In demo mode the app does not contact the university and asks for no login.
+While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top of every screen. To leave the demo, tap "Beenden" in that bar and confirm: all demo content is removed and the app returns to the university login page. The demo is for review only and offered nowhere else.
 
 Subscriptions: "StudiNow Plus" (monthly, no introductory offer) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, creating weekly tests (with the user's own ChatGPT, see AI below) and sharing own solutions. The plan page lists "StudiNow Pro AI" only when the App Store returns that product; it is submitted later together with our online service, and its card states that it needs that service. The free trial is not an App Store offer: it is the app's own 7-day trial described above. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 

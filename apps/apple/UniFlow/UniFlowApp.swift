@@ -144,7 +144,7 @@ struct UniFlowApp: App {
                         // Startparameter (nur Debug) gelten fuer das erste Fenster, nicht fuer jedes weitere
                         guard scenes.claimLaunchSetup() else { return }
                         #if DEBUG
-                        // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie Einstellungen -> Erweitert)
+                        // -UFDemo YES: Demo-Inhalte vor dem ersten Bildvergleich anlegen (wie der Link auf der Anmeldeseite)
                         if UserDefaults.standard.bool(forKey: "UFDemo"), !session.isOwnServer {
                             for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
                             // nur anlegen, wenn sie fehlt (erneutes Anlegen entfernte die PDFs der vorhandenen Demo)
