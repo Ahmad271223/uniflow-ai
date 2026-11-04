@@ -595,6 +595,8 @@ def _init_db(conn) -> None:
     add_col("courses", "miscellaneous", "TEXT")
     add_col("studip_events", "description", "TEXT")
     add_col("studip_events", "cancelled", "INTEGER DEFAULT 0")
+    # Art des Stud.IP-Termins (Attribut `categories`: Sitzung, Klausur ...), 04.11.2026 fuer die Klausurtermine (app/exams.py)
+    add_col("studip_events", "category", "TEXT")
     # Karteikarten-Trainer (03.11.2026): Lesezeichen, versteckte Karten und das letzte eigene Urteil (right | wrong |
     # NULL = noch nicht gelernt). Fach und Faelligkeit (Leitner) bleiben davon unberuehrt. Einmalig beim Anlegen der
     # Spalte: Karten ab Fach 2 kamen nur durch "richtig" dorthin und gelten als gewusst, alle anderen als ungelernt.

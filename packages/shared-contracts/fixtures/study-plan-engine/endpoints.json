@@ -1,0 +1,2557 @@
+{
+ "generator": "tools/gen-study-plan-fixture.py",
+ "now": "2026-11-04T10:00:00",
+ "seed": [
+  {
+   "params": [],
+   "sql": "CREATE TABLE IF NOT EXISTS study_catalogs (\n    catalog_key TEXT PRIMARY KEY,          -- sha256(\"luh|TIBSc22|WS 2025/26\")\n    university TEXT NOT NULL,\n    code TEXT NOT NULL,\n    catalog_term TEXT NOT NULL,\n    program TEXT,\n    po TEXT,\n    payload TEXT NOT NULL,                 -- geteilte Fakten (study-catalog.schema.json)\n    origin TEXT NOT NULL,                  -- download | library | fixture\n    source_url TEXT,\n    sha256 TEXT,\n    fetched_at TEXT,\n    stored_at TEXT\n)"
+  },
+  {
+   "params": [],
+   "sql": "CREATE TABLE IF NOT EXISTS study_module_texts (\n    catalog_key TEXT NOT NULL,\n    module_id TEXT NOT NULL,\n    content TEXT,\n    goals TEXT,\n    literature TEXT,\n    PRIMARY KEY (catalog_key, module_id)\n)"
+  },
+  {
+   "params": [],
+   "sql": "CREATE TABLE IF NOT EXISTS study_catalog_state (key TEXT PRIMARY KEY, value TEXT)"
+  },
+  {
+   "params": [
+    1,
+    "Programmieren II",
+    "#4f5bd5",
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, sort, created_at) VALUES (?,?,?,?,?)"
+  },
+  {
+   "params": [
+    2,
+    "Mathematik III",
+    "#4f5bd5",
+    2,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, sort, created_at) VALUES (?,?,?,?,?)"
+  },
+  {
+   "params": [
+    3,
+    "Signale und Systeme",
+    "#4f5bd5",
+    3,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, sort, created_at) VALUES (?,?,?,?,?)"
+  },
+  {
+   "params": [
+    4,
+    "Chemie",
+    "#4f5bd5",
+    4,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, sort, created_at) VALUES (?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c1",
+    "Programmieren II",
+    "WiSe 26/27",
+    "Programmieren II",
+    "vorlesung",
+    1,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c2",
+    "Übung zu Programmieren II",
+    "WiSe 26/27",
+    "Programmieren II",
+    "uebung",
+    1,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c3",
+    "Mathematik III für Ingenieure",
+    "WiSe 26/27",
+    "Mathematik III für Ingenieure",
+    "vorlesung",
+    null,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c4",
+    "Mathematik III (Tranche B)",
+    "WiSe 26/27",
+    "Mathematik III",
+    "vorlesung",
+    null,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c5",
+    "Programmieren II (alt)",
+    "WiSe 26/27",
+    "Programmieren II",
+    "vorlesung",
+    1,
+    0,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c6",
+    "Chemie",
+    "WiSe 26/27",
+    "Chemie",
+    "vorlesung",
+    4,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "f1",
+    "c1",
+    "Vorlesung 01.pdf",
+    100,
+    "application/pdf",
+    1760000000,
+    "2026-10-02T08:00:00"
+   ],
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "f2",
+    "c2",
+    "Blatt 1.pdf",
+    100,
+    "application/pdf",
+    1760000000,
+    "2026-10-02T08:00:00"
+   ],
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "f3",
+    "c1",
+    "Altklausur.pdf",
+    100,
+    "application/pdf",
+    1760000000,
+    "2026-10-02T08:00:00"
+   ],
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "f4",
+    "c4",
+    "Skript.pdf",
+    100,
+    "application/pdf",
+    1760000000,
+    "2026-10-02T08:00:00"
+   ],
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "f5",
+    "c6",
+    "Chemie.pdf",
+    100,
+    "application/pdf",
+    1760000000,
+    "2026-10-02T08:00:00"
+   ],
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "f6",
+    "c5",
+    "Alt.pdf",
+    100,
+    "application/pdf",
+    1760000000,
+    "2026-10-02T08:00:00"
+   ],
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, first_seen) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Programmieren I",
+    "WiSe 25/26",
+    "bestanden",
+    "2,3",
+    "",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Mathematik I",
+    "WiSe 25/26",
+    "bestanden",
+    "2,3",
+    "",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Grundlagen digitaler Systeme",
+    "WiSe 25/26",
+    "bestanden",
+    "2,3",
+    "",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Elektrotechnische Grundlagen I",
+    "WiSe 25/26",
+    "bestanden",
+    "2,3",
+    "",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Grundlagen der theoretischen Informatik",
+    "WiSe 25/26",
+    "bestanden",
+    "2,3",
+    "",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Programmieren II",
+    "SoSe 26",
+    "nicht bestanden",
+    "5,0",
+    "1",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "Mathematik II",
+    "SoSe 26",
+    "bestanden",
+    "2,0",
+    "",
+    "",
+    "",
+    "",
+    "Technische Informatik (PO-Version 2017)",
+    null,
+    "2026-11-01T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(text, semester, status, note, versuch, pruefungsnr, credits, datum, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  }
+ ],
+ "steps": [
+  {
+   "method": "GET",
+   "path": "/api/study-plan",
+   "response": {
+    "available": false,
+    "catalog_term": null,
+    "code": null,
+    "current_fachsemester": null,
+    "current_term": null,
+    "degree": null,
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "electives": [],
+    "lp_done": 0,
+    "lp_expected": 0,
+    "lp_total": 0,
+    "message": "Für deinen Studiengang gibt es noch keinen Katalog.",
+    "notes": [],
+    "po": null,
+    "po_confirmed": false,
+    "program": null,
+    "qis_program": "Technische Informatik (PO-Version 2017)",
+    "reason": "no_catalog",
+    "semesters": [],
+    "start_term": null,
+    "suggested_po": null,
+    "university": null,
+    "unmatched": []
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [],
+    "elective_lp_required": null,
+    "elective_options": [],
+    "electives": [],
+    "po": null,
+    "po_options": [],
+    "start_term": null,
+    "suggested_po": null,
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/module/programmieren-2",
+   "response": {
+    "detail": "Kein Katalog"
+   },
+   "status": 404
+  },
+  {
+   "sql": [
+    {
+     "params": [
+      "cac797aff4340434bc2c1462706f1e4fb1eb70dcd5b2efd27c8eda337bc1f289",
+      "luh",
+      "INFBSc22",
+      "WS 2025/26",
+      "Informatik",
+      "2022",
+      "{\"v\": 1, \"university\": \"luh\", \"program\": \"Informatik\", \"degree\": \"B.Sc.\", \"po\": \"2022\", \"catalog_term\": \"WS 2025/26\", \"code\": \"INFBSc22\", \"regular_semesters\": 6, \"total_lp\": 180, \"source\": {\"url\": \"https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf\", \"fetched_at\": \"2026-11-04T09:00:00Z\", \"sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\"}, \"areas\": [{\"id\": \"informatik\", \"name\": \"Grundlagen der Informatik\", \"lp_required\": 50, \"kind\": \"pflicht\"}, {\"id\": \"mathematik\", \"name\": \"Mathematik\", \"lp_required\": 29, \"kind\": \"pflicht\"}, {\"id\": \"elektrotechnik\", \"name\": \"Elektrotechnik\", \"lp_required\": 28, \"kind\": \"pflicht\"}, {\"id\": \"technische-informatik\", \"name\": \"Technische Informatik\", \"lp_required\": 33, \"kind\": \"pflicht\"}, {\"id\": \"wahlpflicht\", \"name\": \"Wahlpflicht\", \"lp_required\": 20, \"kind\": \"wahlpflicht\"}, {\"id\": \"schluessel\", \"name\": \"Schlüsselkompetenzen\", \"lp_required\": 5, \"kind\": \"wahl\"}, {\"id\": \"abschluss\", \"name\": \"Abschluss\", \"lp_required\": 15, \"kind\": \"abschluss\"}], \"modules\": [{\"id\": \"programmieren-1\", \"title\": \"Programmieren I\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 10}]}",
+      "fixture",
+      "https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf",
+      "2026-11-04T09:00:00",
+      "2026-11-04T09:00:00"
+     ],
+     "sql": "INSERT INTO study_catalogs(catalog_key, university, code, catalog_term, program, po, payload, origin, source_url, fetched_at, stored_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+    },
+    {
+     "params": [
+      "7fa8e7662fc4d4c74e51f06957e1b3ca29d4f1c2b5e6ecda6b239c39177c25b0",
+      "luh",
+      "TIBSc22",
+      "WS 2025/26",
+      "Technische Informatik",
+      "2022",
+      "{\"v\": 1, \"university\": \"luh\", \"program\": \"Technische Informatik\", \"degree\": \"B.Sc.\", \"po\": \"2022\", \"catalog_term\": \"WS 2025/26\", \"code\": \"TIBSc22\", \"regular_semesters\": 6, \"total_lp\": 180, \"source\": {\"url\": \"https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf\", \"fetched_at\": \"2026-11-04T09:00:00Z\", \"sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\"}, \"areas\": [{\"id\": \"informatik\", \"name\": \"Grundlagen der Informatik\", \"lp_required\": 50, \"kind\": \"pflicht\"}, {\"id\": \"mathematik\", \"name\": \"Mathematik\", \"lp_required\": 29, \"kind\": \"pflicht\"}, {\"id\": \"elektrotechnik\", \"name\": \"Elektrotechnik\", \"lp_required\": 28, \"kind\": \"pflicht\"}, {\"id\": \"technische-informatik\", \"name\": \"Technische Informatik\", \"lp_required\": 33, \"kind\": \"pflicht\"}, {\"id\": \"wahlpflicht\", \"name\": \"Wahlpflicht\", \"lp_required\": 20, \"kind\": \"wahlpflicht\"}, {\"id\": \"schluessel\", \"name\": \"Schlüsselkompetenzen\", \"lp_required\": 5, \"kind\": \"wahl\"}, {\"id\": \"abschluss\", \"name\": \"Abschluss\", \"lp_required\": 15, \"kind\": \"abschluss\"}], \"modules\": [{\"id\": \"programmieren-1\", \"title\": \"Programmieren I\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 12}, {\"id\": \"mathematik-1\", \"title\": \"Mathematik I\", \"code\": null, \"area\": \"mathematik\", \"kind\": \"pflicht\", \"lp\": 8, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 240, \"source_page\": 14}, {\"id\": \"digitale-systeme\", \"title\": \"Grundlagen digitaler Systeme\", \"code\": null, \"area\": \"technische-informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 16}, {\"id\": \"et-1\", \"title\": \"Elektrotechnische Grundlagen I\", \"code\": null, \"area\": \"elektrotechnik\", \"kind\": \"pflicht\", \"lp\": 6, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 180, \"source_page\": 18}, {\"id\": \"theoretische-informatik\", \"title\": \"Grundlagen der theoretischen Informatik\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 1, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 20}, {\"id\": \"programmieren-2\", \"title\": \"Programmieren II\", \"code\": \"1234\", \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 2, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"programmieren-1\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 22}, {\"id\": \"mathematik-2\", \"title\": \"Mathematik II\", \"code\": null, \"area\": \"mathematik\", \"kind\": \"pflicht\", \"lp\": 8, \"semester\": 2, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"mathematik-1\"], \"language\": \"deutsch\", \"workload_h\": 240, \"source_page\": 24}, {\"id\": \"rechnerstrukturen\", \"title\": \"Rechnerstrukturen\", \"code\": null, \"area\": \"technische-informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 2, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"digitale-systeme\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 26}, {\"id\": \"et-2\", \"title\": \"Elektrotechnische Grundlagen II\", \"code\": null, \"area\": \"elektrotechnik\", \"kind\": \"pflicht\", \"lp\": 6, \"semester\": 2, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"et-1\"], \"language\": \"deutsch\", \"workload_h\": 180, \"source_page\": 28}, {\"id\": \"datenstrukturen\", \"title\": \"Datenstrukturen und Algorithmen\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 6, \"semester\": 2, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"programmieren-1\"], \"language\": \"deutsch\", \"workload_h\": 180, \"source_page\": 30}, {\"id\": \"mathematik-3\", \"title\": \"Mathematik III\", \"code\": null, \"area\": \"mathematik\", \"kind\": \"pflicht\", \"lp\": 8, \"semester\": 3, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"mathematik-2\"], \"language\": \"deutsch\", \"workload_h\": 240, \"source_page\": 32}, {\"id\": \"betriebssysteme\", \"title\": \"Grundlagen der Betriebssysteme\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 3, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"programmieren-2\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 34}, {\"id\": \"signale-systeme\", \"title\": \"Signale und Systeme\", \"code\": null, \"area\": \"elektrotechnik\", \"kind\": \"pflicht\", \"lp\": 6, \"semester\": 3, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"mathematik-2\"], \"language\": \"deutsch\", \"workload_h\": 180, \"source_page\": 36}, {\"id\": \"software-engineering\", \"title\": \"Software-Engineering\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 3, \"turnus\": \"WS+SS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"programmieren-2\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 38}, {\"id\": \"digitalschaltungen\", \"title\": \"Digitalschaltungen der Elektronik\", \"code\": null, \"area\": \"elektrotechnik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 3, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": \"Übungsaufgaben\", \"prerequisites\": [\"et-2\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 40}, {\"id\": \"rechnernetze\", \"title\": \"Grundlagen der Rechnernetze\", \"code\": null, \"area\": \"informatik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 4, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [\"betriebssysteme\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 42}, {\"id\": \"stochastik\", \"title\": \"Stochastik für Ingenieure\", \"code\": null, \"area\": \"mathematik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 4, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [\"mathematik-2\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 44}, {\"id\": \"regelungstechnik\", \"title\": \"Grundlagen der Regelungstechnik\", \"code\": null, \"area\": \"elektrotechnik\", \"kind\": \"pflicht\", \"lp\": 5, \"semester\": 4, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [\"signale-systeme\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 46}, {\"id\": \"softwareprojekt\", \"title\": \"Softwareprojekt\", \"code\": null, \"area\": \"technische-informatik\", \"kind\": \"pflicht\", \"lp\": 8, \"semester\": 4, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [\"software-engineering\"], \"language\": \"deutsch\", \"workload_h\": 240, \"source_page\": 48}, {\"id\": \"eingebettete-systeme\", \"title\": \"Eingebettete Systeme\", \"code\": null, \"area\": \"wahlpflicht\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": 4, \"turnus\": \"SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 50}, {\"id\": \"datenbanken\", \"title\": \"Datenbanksysteme I\", \"code\": null, \"area\": \"wahlpflicht\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": 5, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 52}, {\"id\": \"bildverarbeitung\", \"title\": \"Digitale Bildverarbeitung\", \"code\": null, \"area\": \"wahlpflicht\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": 5, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 54}, {\"id\": \"ki\", \"title\": \"Grundlagen der künstlichen Intelligenz\", \"code\": null, \"area\": \"wahlpflicht\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": null, \"turnus\": \"WS+SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 56}, {\"id\": \"robotik\", \"title\": \"Robotik I\", \"code\": null, \"area\": \"wahlpflicht\", \"kind\": \"wahlpflicht\", \"lp\": 5, \"semester\": 5, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [\"regelungstechnik\"], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 58}, {\"id\": \"seminar\", \"title\": \"Seminar Technische Informatik\", \"code\": null, \"area\": \"technische-informatik\", \"kind\": \"pflicht\", \"lp\": 3, \"semester\": 5, \"turnus\": \"WS+SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 90, \"source_page\": 60}, {\"id\": \"labor\", \"title\": \"Labor Technische Informatik\", \"code\": null, \"area\": \"technische-informatik\", \"kind\": \"pflicht\", \"lp\": 7, \"semester\": 5, \"turnus\": \"WS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [\"et-2\"], \"language\": \"deutsch\", \"workload_h\": 210, \"source_page\": 62}, {\"id\": \"schluesselkompetenzen\", \"title\": \"Schlüsselkompetenzen\", \"code\": null, \"area\": \"schluessel\", \"kind\": \"wahl\", \"lp\": 5, \"semester\": null, \"turnus\": \"unbekannt\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 150, \"source_page\": 64}, {\"id\": \"fachpraktikum\", \"title\": \"Fachpraktikum\", \"code\": null, \"area\": \"technische-informatik\", \"kind\": \"pflicht\", \"lp\": 10, \"semester\": 6, \"turnus\": \"WS+SS\", \"exam\": \"Klausur 90 min\", \"coursework\": null, \"prerequisites\": [], \"language\": \"deutsch\", \"workload_h\": 300, \"source_page\": 66}, {\"id\": \"bachelorarbeit\", \"title\": \"Bachelorarbeit\", \"code\": null, \"area\": \"abschluss\", \"kind\": \"abschluss\", \"lp\": 15, \"semester\": 6, \"turnus\": \"WS+SS\", \"exam\": \"Bachelorarbeit mit Kolloquium\", \"coursework\": null, \"prerequisites\": [\"softwareprojekt\"], \"language\": \"deutsch\", \"workload_h\": 450, \"source_page\": 68}]}",
+      "fixture",
+      "https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf",
+      "2026-11-04T09:00:00",
+      "2026-11-04T09:00:00"
+     ],
+     "sql": "INSERT INTO study_catalogs(catalog_key, university, code, catalog_term, program, po, payload, origin, source_url, fetched_at, stored_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+    },
+    {
+     "params": [
+      "7fa8e7662fc4d4c74e51f06957e1b3ca29d4f1c2b5e6ecda6b239c39177c25b0",
+      "programmieren-2",
+      "Objektorientierung, Generics, Nebenläufigkeit.",
+      "Die Studierenden können größere Programme entwerfen.",
+      "Ullenboom: Java ist auch eine Insel"
+     ],
+     "sql": "INSERT INTO study_module_texts(catalog_key, module_id, content, goals, literature) VALUES (?,?,?,?,?)"
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan",
+   "response": {
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": "TIBSc22",
+    "current_fachsemester": 3,
+    "current_term": "WiSe 26/27",
+    "degree": "B.Sc.",
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "electives": [
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "eingebettete-systeme",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "status": null,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "datenbanken",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "bildverarbeitung",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "ki",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "status": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "robotik",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "chosen": false,
+      "id": "schluesselkompetenzen",
+      "included": false,
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "status": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "lp_done": 37,
+    "lp_expected": 59,
+    "lp_total": 180,
+    "message": null,
+    "notes": [
+     {
+      "kind": "rueckstand",
+      "module_id": null,
+      "text": "Du liegst 22 LP hinter dem Studienverlaufsplan: 37 von 59 LP bis zum Ende des 2. Fachsemesters.",
+      "tone": "warn"
+     }
+    ],
+    "po": "2022",
+    "po_confirmed": false,
+    "program": "Technische Informatik",
+    "qis_program": "Technische Informatik (PO-Version 2017)",
+    "reason": null,
+    "semesters": [
+     {
+      "current": false,
+      "fachsemester": 1,
+      "lp": 29,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "programmieren-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Programmieren I",
+        "turnus": "WS"
+       },
+       {
+        "area": "mathematik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "mathematik-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Mathematik I",
+        "turnus": "WS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "digitale-systeme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Grundlagen digitaler Systeme",
+        "turnus": "WS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "et-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Elektrotechnische Grundlagen I",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "theoretische-informatik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Grundlagen der theoretischen Informatik",
+        "turnus": "WS"
+       }
+      ],
+      "term": "WiSe 25/26"
+     },
+     {
+      "current": false,
+      "fachsemester": 2,
+      "lp": 8,
+      "modules": [
+       {
+        "area": "mathematik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,0",
+        "id": "mathematik-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "reason": null,
+        "semester": 2,
+        "status": "bestanden",
+        "title": "Mathematik II",
+        "turnus": "SS"
+       }
+      ],
+      "term": "SoSe 26"
+     },
+     {
+      "current": true,
+      "fachsemester": 3,
+      "lp": 14,
+      "modules": [
+       {
+        "area": "mathematik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "mathematik-3",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "reason": null,
+        "semester": 3,
+        "status": "offen",
+        "title": "Mathematik III",
+        "turnus": "WS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "signale-systeme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": null,
+        "reason": null,
+        "semester": 3,
+        "status": "offen",
+        "title": "Signale und Systeme",
+        "turnus": "WS"
+       }
+      ],
+      "term": "WiSe 26/27"
+     },
+     {
+      "current": false,
+      "fachsemester": 4,
+      "lp": 32,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": "1234",
+        "grade": null,
+        "id": "programmieren-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 26",
+        "reason": "Nicht bestanden – nächster Versuch",
+        "semester": 2,
+        "status": "nicht_bestanden",
+        "title": "Programmieren II",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "rechnerstrukturen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 26",
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Rechnerstrukturen",
+        "turnus": "SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "et-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": "SoSe 26",
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Elektrotechnische Grundlagen II",
+        "turnus": "SS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "datenstrukturen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": "SoSe 26",
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Datenstrukturen und Algorithmen",
+        "turnus": "SS"
+       },
+       {
+        "area": "mathematik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "stochastik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 4,
+        "status": "geplant",
+        "title": "Stochastik für Ingenieure",
+        "turnus": "SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "regelungstechnik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 4,
+        "status": "geplant",
+        "title": "Grundlagen der Regelungstechnik",
+        "turnus": "SS"
+       }
+      ],
+      "term": "SoSe 27"
+     },
+     {
+      "current": false,
+      "fachsemester": 5,
+      "lp": 25,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "betriebssysteme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "reason": "Voraussetzung Programmieren II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Grundlagen der Betriebssysteme",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "software-engineering",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "reason": "Voraussetzung Programmieren II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Software-Engineering",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "digitalschaltungen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "reason": "Voraussetzung Elektrotechnische Grundlagen II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Digitalschaltungen der Elektronik",
+        "turnus": "WS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "seminar",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 3,
+        "moved_from": null,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Seminar Technische Informatik",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "labor",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 7,
+        "moved_from": null,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Labor Technische Informatik",
+        "turnus": "WS"
+       }
+      ],
+      "term": "WiSe 27/28"
+     },
+     {
+      "current": false,
+      "fachsemester": 6,
+      "lp": 23,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "rechnernetze",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 27",
+        "reason": "Voraussetzung Grundlagen der Betriebssysteme zuerst",
+        "semester": 4,
+        "status": "geplant",
+        "title": "Grundlagen der Rechnernetze",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "softwareprojekt",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": "SoSe 27",
+        "reason": "Voraussetzung Software-Engineering zuerst",
+        "semester": 4,
+        "status": "geplant",
+        "title": "Softwareprojekt",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "fachpraktikum",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 10,
+        "moved_from": null,
+        "reason": null,
+        "semester": 6,
+        "status": "geplant",
+        "title": "Fachpraktikum",
+        "turnus": "WS+SS"
+       }
+      ],
+      "term": "SoSe 28"
+     },
+     {
+      "current": false,
+      "fachsemester": 7,
+      "lp": 15,
+      "modules": [
+       {
+        "area": "abschluss",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "bachelorarbeit",
+        "kind": "abschluss",
+        "last_attempt": false,
+        "lp": 15,
+        "moved_from": "SoSe 28",
+        "reason": "Voraussetzung Softwareprojekt zuerst",
+        "semester": 6,
+        "status": "geplant",
+        "title": "Bachelorarbeit",
+        "turnus": "WS+SS"
+       }
+      ],
+      "term": "WiSe 28/29"
+     }
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "university": "luh",
+    "unmatched": []
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [],
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": null,
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/module/programmieren-2",
+   "response": {
+    "app_modules": [
+     {
+      "id": 1,
+      "name": "Programmieren II"
+     }
+    ],
+    "area": "informatik",
+    "area_name": "Grundlagen der Informatik",
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": "1234",
+    "courses": [
+     {
+      "id": "c1",
+      "kind": "vorlesung",
+      "module_id": 1,
+      "semester": "WiSe 26/27",
+      "title": "Programmieren II"
+     },
+     {
+      "id": "c2",
+      "kind": "uebung",
+      "module_id": 1,
+      "semester": "WiSe 26/27",
+      "title": "Übung zu Programmieren II"
+     }
+    ],
+    "coursework": "Übungsaufgaben",
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "exam": "Klausur 90 min",
+    "files": [
+     {
+      "course_id": "c1",
+      "id": "f3",
+      "mime": "application/pdf",
+      "name": "Altklausur.pdf"
+     },
+     {
+      "course_id": "c2",
+      "id": "f2",
+      "mime": "application/pdf",
+      "name": "Blatt 1.pdf"
+     },
+     {
+      "course_id": "c1",
+      "id": "f1",
+      "mime": "application/pdf",
+      "name": "Vorlesung 01.pdf"
+     }
+    ],
+    "id": "programmieren-2",
+    "kind": "pflicht",
+    "language": "deutsch",
+    "lp": 5,
+    "own": {
+     "attempt": 1,
+     "attempts": [
+      {
+       "attempt": 1,
+       "date": "",
+       "grade": "5,0",
+       "semester": "SoSe 26",
+       "status": "nicht bestanden",
+       "text": "Programmieren II"
+      }
+     ],
+     "grade": null,
+     "last_attempt": false,
+     "moved_from": "SoSe 26",
+     "reason": "Nicht bestanden – nächster Versuch",
+     "status": "nicht_bestanden",
+     "term": "SoSe 27"
+    },
+    "po": "2022",
+    "prerequisites": [
+     {
+      "id": "programmieren-1",
+      "status": "bestanden",
+      "title": "Programmieren I"
+     }
+    ],
+    "program": "Technische Informatik",
+    "required_for": [
+     {
+      "id": "betriebssysteme",
+      "status": "geplant",
+      "title": "Grundlagen der Betriebssysteme"
+     },
+     {
+      "id": "software-engineering",
+      "status": "geplant",
+      "title": "Software-Engineering"
+     }
+    ],
+    "semester": 2,
+    "source": {
+     "page": 22,
+     "url": "https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf"
+    },
+    "texts": {
+     "content": "Objektorientierung, Generics, Nebenläufigkeit.",
+     "goals": "Die Studierenden können größere Programme entwerfen.",
+     "literature": "Ullenboom: Java ist auch eine Insel"
+    },
+    "title": "Programmieren II",
+    "turnus": "SS",
+    "workload_h": 150
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/module/mathematik-3",
+   "response": {
+    "app_modules": [
+     {
+      "id": 2,
+      "name": "Mathematik III"
+     }
+    ],
+    "area": "mathematik",
+    "area_name": "Mathematik",
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": null,
+    "courses": [
+     {
+      "id": "c4",
+      "kind": "vorlesung",
+      "module_id": null,
+      "semester": "WiSe 26/27",
+      "title": "Mathematik III (Tranche B)"
+     }
+    ],
+    "coursework": "Übungsaufgaben",
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "exam": "Klausur 90 min",
+    "files": [
+     {
+      "course_id": "c4",
+      "id": "f4",
+      "mime": "application/pdf",
+      "name": "Skript.pdf"
+     }
+    ],
+    "id": "mathematik-3",
+    "kind": "pflicht",
+    "language": "deutsch",
+    "lp": 8,
+    "own": {
+     "attempt": null,
+     "attempts": [],
+     "grade": null,
+     "last_attempt": false,
+     "moved_from": null,
+     "reason": null,
+     "status": "offen",
+     "term": "WiSe 26/27"
+    },
+    "po": "2022",
+    "prerequisites": [
+     {
+      "id": "mathematik-2",
+      "status": "bestanden",
+      "title": "Mathematik II"
+     }
+    ],
+    "program": "Technische Informatik",
+    "required_for": [],
+    "semester": 3,
+    "source": {
+     "page": 32,
+     "url": "https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf"
+    },
+    "texts": null,
+    "title": "Mathematik III",
+    "turnus": "WS",
+    "workload_h": 240
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/module/robotik",
+   "response": {
+    "app_modules": [],
+    "area": "wahlpflicht",
+    "area_name": "Wahlpflicht",
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": null,
+    "courses": [],
+    "coursework": null,
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "exam": "Klausur 90 min",
+    "files": [],
+    "id": "robotik",
+    "kind": "wahlpflicht",
+    "language": "deutsch",
+    "lp": 5,
+    "own": {
+     "attempt": null,
+     "attempts": [],
+     "grade": null,
+     "last_attempt": false,
+     "moved_from": null,
+     "reason": null,
+     "status": "nicht_gewaehlt",
+     "term": null
+    },
+    "po": "2022",
+    "prerequisites": [
+     {
+      "id": "regelungstechnik",
+      "status": "geplant",
+      "title": "Grundlagen der Regelungstechnik"
+     }
+    ],
+    "program": "Technische Informatik",
+    "required_for": [],
+    "semester": 5,
+    "source": {
+     "page": 58,
+     "url": "https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf"
+    },
+    "texts": null,
+    "title": "Robotik I",
+    "turnus": "WS",
+    "workload_h": 150
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/module/gibt-es-nicht",
+   "response": {
+    "detail": "Modul nicht im Katalog"
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "electives": [
+     "robotik",
+     "ki",
+     "robotik",
+     ""
+    ],
+    "start_term": "Wintersemester 2025/2026"
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [
+     "ki",
+     "robotik"
+    ],
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan",
+   "response": {
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": "TIBSc22",
+    "current_fachsemester": 3,
+    "current_term": "WiSe 26/27",
+    "degree": "B.Sc.",
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "electives": [
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "eingebettete-systeme",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "status": null,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "datenbanken",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": false,
+      "id": "bildverarbeitung",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": true,
+      "id": "ki",
+      "included": true,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "status": "geplant",
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "chosen": true,
+      "id": "robotik",
+      "included": true,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": "geplant",
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "chosen": false,
+      "id": "schluesselkompetenzen",
+      "included": false,
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "status": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "lp_done": 37,
+    "lp_expected": 59,
+    "lp_total": 180,
+    "message": null,
+    "notes": [
+     {
+      "kind": "rueckstand",
+      "module_id": null,
+      "text": "Du liegst 22 LP hinter dem Studienverlaufsplan: 37 von 59 LP bis zum Ende des 2. Fachsemesters.",
+      "tone": "warn"
+     }
+    ],
+    "po": "2022",
+    "po_confirmed": false,
+    "program": "Technische Informatik",
+    "qis_program": "Technische Informatik (PO-Version 2017)",
+    "reason": null,
+    "semesters": [
+     {
+      "current": false,
+      "fachsemester": 1,
+      "lp": 29,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "programmieren-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Programmieren I",
+        "turnus": "WS"
+       },
+       {
+        "area": "mathematik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "mathematik-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Mathematik I",
+        "turnus": "WS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "digitale-systeme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Grundlagen digitaler Systeme",
+        "turnus": "WS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "et-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Elektrotechnische Grundlagen I",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "theoretische-informatik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Grundlagen der theoretischen Informatik",
+        "turnus": "WS"
+       }
+      ],
+      "term": "WiSe 25/26"
+     },
+     {
+      "current": false,
+      "fachsemester": 2,
+      "lp": 8,
+      "modules": [
+       {
+        "area": "mathematik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,0",
+        "id": "mathematik-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "reason": null,
+        "semester": 2,
+        "status": "bestanden",
+        "title": "Mathematik II",
+        "turnus": "SS"
+       }
+      ],
+      "term": "SoSe 26"
+     },
+     {
+      "current": true,
+      "fachsemester": 3,
+      "lp": 14,
+      "modules": [
+       {
+        "area": "mathematik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "mathematik-3",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "reason": null,
+        "semester": 3,
+        "status": "offen",
+        "title": "Mathematik III",
+        "turnus": "WS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "signale-systeme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": null,
+        "reason": null,
+        "semester": 3,
+        "status": "offen",
+        "title": "Signale und Systeme",
+        "turnus": "WS"
+       }
+      ],
+      "term": "WiSe 26/27"
+     },
+     {
+      "current": false,
+      "fachsemester": 4,
+      "lp": 32,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": "1234",
+        "grade": null,
+        "id": "programmieren-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 26",
+        "reason": "Nicht bestanden – nächster Versuch",
+        "semester": 2,
+        "status": "nicht_bestanden",
+        "title": "Programmieren II",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "rechnerstrukturen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 26",
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Rechnerstrukturen",
+        "turnus": "SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "et-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": "SoSe 26",
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Elektrotechnische Grundlagen II",
+        "turnus": "SS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "datenstrukturen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": "SoSe 26",
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Datenstrukturen und Algorithmen",
+        "turnus": "SS"
+       },
+       {
+        "area": "mathematik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "stochastik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 4,
+        "status": "geplant",
+        "title": "Stochastik für Ingenieure",
+        "turnus": "SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "regelungstechnik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 4,
+        "status": "geplant",
+        "title": "Grundlagen der Regelungstechnik",
+        "turnus": "SS"
+       }
+      ],
+      "term": "SoSe 27"
+     },
+     {
+      "current": false,
+      "fachsemester": 5,
+      "lp": 35,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "betriebssysteme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "reason": "Voraussetzung Programmieren II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Grundlagen der Betriebssysteme",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "software-engineering",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "reason": "Voraussetzung Programmieren II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Software-Engineering",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "digitalschaltungen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "reason": "Voraussetzung Elektrotechnische Grundlagen II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Digitalschaltungen der Elektronik",
+        "turnus": "WS"
+       },
+       {
+        "area": "wahlpflicht",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "robotik",
+        "kind": "wahlpflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Robotik I",
+        "turnus": "WS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "seminar",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 3,
+        "moved_from": null,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Seminar Technische Informatik",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "labor",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 7,
+        "moved_from": null,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Labor Technische Informatik",
+        "turnus": "WS"
+       },
+       {
+        "area": "wahlpflicht",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "ki",
+        "kind": "wahlpflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": null,
+        "status": "geplant",
+        "title": "Grundlagen der künstlichen Intelligenz",
+        "turnus": "WS+SS"
+       }
+      ],
+      "term": "WiSe 27/28"
+     },
+     {
+      "current": false,
+      "fachsemester": 6,
+      "lp": 23,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "rechnernetze",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 27",
+        "reason": "Voraussetzung Grundlagen der Betriebssysteme zuerst",
+        "semester": 4,
+        "status": "geplant",
+        "title": "Grundlagen der Rechnernetze",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "softwareprojekt",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": "SoSe 27",
+        "reason": "Voraussetzung Software-Engineering zuerst",
+        "semester": 4,
+        "status": "geplant",
+        "title": "Softwareprojekt",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "fachpraktikum",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 10,
+        "moved_from": null,
+        "reason": null,
+        "semester": 6,
+        "status": "geplant",
+        "title": "Fachpraktikum",
+        "turnus": "WS+SS"
+       }
+      ],
+      "term": "SoSe 28"
+     },
+     {
+      "current": false,
+      "fachsemester": 7,
+      "lp": 15,
+      "modules": [
+       {
+        "area": "abschluss",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "id": "bachelorarbeit",
+        "kind": "abschluss",
+        "last_attempt": false,
+        "lp": 15,
+        "moved_from": "SoSe 28",
+        "reason": "Voraussetzung Softwareprojekt zuerst",
+        "semester": 6,
+        "status": "geplant",
+        "title": "Bachelorarbeit",
+        "turnus": "WS+SS"
+       }
+      ],
+      "term": "WiSe 28/29"
+     }
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "university": "luh",
+    "unmatched": []
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "po": "INFBSc22"
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [],
+    "electives": [
+     "ki",
+     "robotik"
+    ],
+    "po": "INFBSc22",
+    "po_options": [
+     "2022"
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan",
+   "response": {
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": "INFBSc22",
+    "current_fachsemester": 3,
+    "current_term": "WiSe 26/27",
+    "degree": "B.Sc.",
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "electives": [],
+    "lp_done": 5,
+    "lp_expected": 5,
+    "lp_total": 180,
+    "message": null,
+    "notes": [],
+    "po": "2022",
+    "po_confirmed": true,
+    "program": "Informatik",
+    "qis_program": "Technische Informatik (PO-Version 2017)",
+    "reason": null,
+    "semesters": [
+     {
+      "current": false,
+      "fachsemester": 1,
+      "lp": 5,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "id": "programmieren-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Programmieren I",
+        "turnus": "WS"
+       }
+      ],
+      "term": "WiSe 25/26"
+     },
+     {
+      "current": false,
+      "fachsemester": 2,
+      "lp": 0,
+      "modules": [],
+      "term": "SoSe 26"
+     },
+     {
+      "current": true,
+      "fachsemester": 3,
+      "lp": 0,
+      "modules": [],
+      "term": "WiSe 26/27"
+     },
+     {
+      "current": false,
+      "fachsemester": 4,
+      "lp": 0,
+      "modules": [],
+      "term": "SoSe 27"
+     },
+     {
+      "current": false,
+      "fachsemester": 5,
+      "lp": 0,
+      "modules": [],
+      "term": "WiSe 27/28"
+     },
+     {
+      "current": false,
+      "fachsemester": 6,
+      "lp": 0,
+      "modules": [],
+      "term": "SoSe 28"
+     }
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "university": "luh",
+    "unmatched": [
+     "Elektrotechnische Grundlagen I",
+     "Grundlagen der theoretischen Informatik",
+     "Grundlagen digitaler Systeme",
+     "Mathematik I",
+     "Mathematik II",
+     "Programmieren II"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "po": "1999"
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "elective_lp_required": null,
+    "elective_options": [],
+    "electives": [
+     "ki",
+     "robotik"
+    ],
+    "po": "1999",
+    "po_options": [
+     "2022"
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan",
+   "response": {
+    "available": false,
+    "catalog_term": null,
+    "code": null,
+    "current_fachsemester": null,
+    "current_term": null,
+    "degree": null,
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "electives": [],
+    "lp_done": 0,
+    "lp_expected": 0,
+    "lp_total": 0,
+    "message": "Für die Prüfungsordnung 1999 gibt es noch keinen Katalog.",
+    "notes": [],
+    "po": null,
+    "po_confirmed": true,
+    "program": null,
+    "qis_program": "Technische Informatik (PO-Version 2017)",
+    "reason": "no_catalog_po",
+    "semesters": [],
+    "start_term": null,
+    "suggested_po": "2022",
+    "university": null,
+    "unmatched": []
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "po": "  "
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [
+     "ki",
+     "robotik"
+    ],
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "start_term": "Herbst 25"
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "Unbekanntes Semester: Herbst 25"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "po": 2022
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "po muss Text sein"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "electives": "ki"
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "electives muss eine Liste von Modul-ids sein"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "start_term": null
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [
+     "ki",
+     "robotik"
+    ],
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": null,
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ]
+   },
+   "status": 200
+  },
+  {
+   "body": [
+    1
+   ],
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": [
+     {
+      "input": [
+       1
+      ],
+      "loc": [
+       "body"
+      ],
+      "msg": "Input should be a valid dictionary",
+      "type": "dict_type"
+     }
+    ]
+   },
+   "status": 422
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan/module/robotik",
+   "response": {
+    "app_modules": [],
+    "area": "wahlpflicht",
+    "area_name": "Wahlpflicht",
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": null,
+    "courses": [],
+    "coursework": null,
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "exam": "Klausur 90 min",
+    "files": [],
+    "id": "robotik",
+    "kind": "wahlpflicht",
+    "language": "deutsch",
+    "lp": 5,
+    "own": {
+     "attempt": null,
+     "attempts": [],
+     "grade": null,
+     "last_attempt": false,
+     "moved_from": null,
+     "reason": null,
+     "status": "geplant",
+     "term": "WiSe 27/28"
+    },
+    "po": "2022",
+    "prerequisites": [
+     {
+      "id": "regelungstechnik",
+      "status": "geplant",
+      "title": "Grundlagen der Regelungstechnik"
+     }
+    ],
+    "program": "Technische Informatik",
+    "required_for": [],
+    "semester": 5,
+    "source": {
+     "page": 58,
+     "url": "https://modkat.example.invalid/modkat-TIBSc22-WS_2025_26.pdf"
+    },
+    "texts": null,
+    "title": "Robotik I",
+    "turnus": "WS",
+    "workload_h": 150
+   },
+   "status": 200
+  }
+ ],
+ "tables_after": {
+  "settings": [
+   {
+    "key": "study_plan",
+    "value": "{\"po\": null, \"start_term\": null, \"electives\": [\"ki\", \"robotik\"]}"
+   }
+  ]
+ },
+ "today": "2026-11-04"
+}

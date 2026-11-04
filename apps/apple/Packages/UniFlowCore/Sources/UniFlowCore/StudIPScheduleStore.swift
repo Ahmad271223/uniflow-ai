@@ -26,9 +26,12 @@ public struct StudIPCourseEvent: Sendable, Equatable {
     public let description: String
     /// in Stud.IP abgesagt (`is-cancelled`): seit 02.11.2026 gespeichert, im Planer ein bestaetigter Ausfall
     public let cancelled: Bool
+    /// Art des Termins (`categories`: "Sitzung", "Klausur" ...), gekuerzt; "" ohne Text. Seit 04.11.2026 gelesen, daran
+    /// erkennt `Exams` die Klausurtermine
+    public let category: String
 
     public init(id: String, courseID: String, title: String, start: String, end: String, room: String, description: String = "",
-                cancelled: Bool = false) {
+                cancelled: Bool = false, category: String = "") {
         self.id = id
         self.courseID = courseID
         self.title = title
@@ -37,6 +40,7 @@ public struct StudIPCourseEvent: Sendable, Equatable {
         self.room = room
         self.description = description
         self.cancelled = cancelled
+        self.category = category
     }
 
     /// `data` von courses/{id}/events, abgesagte Termine mit `cancelled`
@@ -74,7 +78,8 @@ public struct StudIPCourseEvent: Sendable, Equatable {
             let room = text("location").split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
             out.events.append(StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: start, end: end, room: PyText.strip(room),
                                                 description: StudIPText.clean(a?["description"]),
-                                                cancelled: LocalModules.truthy(a?["is-cancelled"])))
+                                                cancelled: LocalModules.truthy(a?["is-cancelled"]),
+                                                category: PyText.slice(PyText.strip(text("categories")), 0, 80)))
         }
         return out
     }
@@ -318,11 +323,12 @@ public enum StudIPScheduleStore {
             }
             for e in list {
                 try c.execute("""
-                    INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)
+                    INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET title=excluded.title, start=excluded.start, end=excluded.end, room=excluded.room,
-                    description=excluded.description, cancelled=excluded.cancelled, fetched_at=excluded.fetched_at
+                    description=excluded.description, cancelled=excluded.cancelled, category=excluded.category, fetched_at=excluded.fetched_at
                     """, [.text(e.id), .text(e.courseID), .text(e.title), .text(e.start), .text(e.end), .text(e.room), .text(e.description),
-                          .integer(e.cancelled ? 1 : 0), now])
+                          .integer(e.cancelled ? 1 : 0), .text(e.category), now])
                 events += 1
             }
         }

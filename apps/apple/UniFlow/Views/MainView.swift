@@ -27,6 +27,9 @@ struct MainView: View {
                 UFServerGate(.modules) { ModulesPage() }                                      // 1:1
             case .module(let id):
                 UFServerGate(.modules) { ModulePage(id: id) }                                 // 1:1
+            case .studyPlan(let m):
+                // Studienverlauf (04.11.2026): Katalog der Hochschule + eigener Stand aus QIS (Views/StudyPlan)
+                StudyPlanPage(focus: m).id(session.api?.base)
             case .files(let s, let p, let q):
                 UFServerGate(.library) { LibraryPage(section: s, path: p, q: q) }             // 1:1
             case .doc(let id, let task, let page):

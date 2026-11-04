@@ -44,6 +44,10 @@ Console „Deploy Schema Changes…“ nach Production. `tests/test_page_explain
 | | `kind`, `name`, `displayName`, `payload`, `createdAt`, `ownerRecordName` | String | – |
 | | `week`, `cardCount`, `withdrawn` | Int(64) | – |
 
+| `StudyCatalog` (04.11.2026) | `catalogKey` | String | Queryable |
+| | `payload`, `createdAt`, `ownerRecordName` | String | – |
+| | `variant`, `version` | Int(64) | – |
+
 Bei allen neuen Typen zusätzlich: Index `recordName` → Queryable.
 
 Hinweise:
@@ -78,5 +82,5 @@ Hinweise:
 
 ## Rechte (Security Roles)
 
-Standard für `Comment`, `Like`, `Correction`, `WeeklyTest`, `DocIndex`, `PageExplain`, `WeekCardStack`, `CardStackShare`: Lesen für alle, Erstellen für angemeldete iCloud-Nutzer,
+Standard für `Comment`, `Like`, `Correction`, `WeeklyTest`, `DocIndex`, `PageExplain`, `WeekCardStack`, `CardStackShare`, `StudyCatalog`: Lesen für alle, Erstellen für angemeldete iCloud-Nutzer,
 Ändern/Löschen nur für den Ersteller. Moderation (z. B. `status = hidden`) über das CloudKit Dashboard.

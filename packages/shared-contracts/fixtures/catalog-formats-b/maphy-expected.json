@@ -1,0 +1,106 @@
+{
+ "bachelor": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielmathematik",
+  "degree": "B.Sc.",
+  "po": "2020",
+  "catalog_term": "WS 2026/27",
+  "code": "beispielmathematik|b.sc.|2020",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.invalid/katalog_fach_beispiel.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "pflichtmodule-bachelor",
+    "name": "Pflichtmodule Bachelor",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "pflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "rechnen-1",
+    "title": "Rechnen I",
+    "code": null,
+    "area": "pflichtmodule-bachelor",
+    "kind": "pflicht",
+    "lp": 10,
+    "semester": null,
+    "turnus": "WS",
+    "exam": "Klausur",
+    "coursework": "Übung",
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 300,
+    "source_page": 3
+   },
+   {
+    "id": "rechnen-2",
+    "title": "Rechnen II",
+    "code": null,
+    "area": "pflichtmodule-bachelor",
+    "kind": "pflicht",
+    "lp": 10,
+    "semester": null,
+    "turnus": "SS",
+    "exam": "Klausur oder mündliche Prüfung",
+    "coursework": "Übung",
+    "prerequisites": [
+     "rechnen-1"
+    ],
+    "language": "deutsch",
+    "workload_h": 300,
+    "source_page": 4
+   }
+  ]
+ },
+ "master": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispielmathematik",
+  "degree": "M.Sc.",
+  "po": "2020",
+  "catalog_term": "WS 2026/27",
+  "code": "beispielmathematik-1|m.sc.|2020",
+  "regular_semesters": 4,
+  "total_lp": 120,
+  "source": {
+   "url": "https://example.invalid/katalog_fach_beispiel.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "module-master",
+    "name": "Module Master",
+    "lp_required": null,
+    "lp_max": null,
+    "kind": "pflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "seminar-master",
+    "title": "Seminar Master",
+    "code": null,
+    "area": "module-master",
+    "kind": "pflicht",
+    "lp": 5,
+    "semester": null,
+    "turnus": "WS+SS",
+    "exam": "Präsentation mit Ausarbeitung (VbP)",
+    "coursework": null,
+    "prerequisites": [],
+    "language": null,
+    "workload_h": 150,
+    "source_page": 5
+   }
+  ]
+ }
+}

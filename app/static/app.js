@@ -1,23 +1,24 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=43";
-import { viewDashboard as viewHome } from "./views-home.js?v=17";
+import { viewDashboard as viewHome } from "./views-home.js?v=19";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=63";
 import { viewFiles } from "./views-lib.js?v=62";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
 import { viewTimetable, openEvent } from "./views-tt.js?v=46";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=79";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=80";
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=45";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=4";
 import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=1";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
+import { navHtml, accountHtml } from "./shell-nav.js?v=1";
 
 // ---------------------------------------------------------------- Shell
-const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
+// Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
 function buildShell() {
   $("#brandLogo").innerHTML = icon("graduation", 18);
-  $("#nav").innerHTML = NAV.map(([r, t, i]) => `<a href="#/${r}" data-route="${r}">${icon(i, 18)}<span>${t}</span></a>`).join("");
+  $("#nav").innerHTML = navHtml(icon);
   $("#navSettings").innerHTML = `${icon("settings", 18)}<span>Einstellungen</span>`; $("#navSettings").dataset.route = "settings"; $("#navSettings").className = "";
   $("#collapseBtn").innerHTML = `${icon("panel-left", 18)}<span> Einklappen</span>`;
   $("#menuBtn").innerHTML = icon("menu", 20); $("#themeBtn").innerHTML = icon("sun", 18); $("#profileBtn").innerHTML = icon("clock", 18); $("#profileBtn").title = "Zeitmesser";
@@ -90,6 +91,15 @@ function accountMenu() {
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
 }
 
+// Kontoblock unten in der Seitenleiste: Initialen, Name, Tarif (Probe mit Resttagen) und "Plus holen →" zur Tarifseite.
+// Klick auf den Namen: im Dienst das Kontomenue, am eigenen PC die Einstellungen
+function renderAccount() {
+  const box = $("#sideAcct"); if (!box) return;
+  box.innerHTML = accountHtml({ name: state.userName, email: state.account?.email, ent: state.entitlements, hosted: state.hosted, arrow: icon("arrow-right", 15), person: icon("user", 16) });
+  $("#sideAcctBtn", box).onclick = () => { if (state.hosted && state.account) accountMenu(); else location.hash = "#/settings"; };
+}
+window.renderAccount = renderAccount;
+
 // ---------------------------------------------------------------- Router
 const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
 async function route() {
@@ -147,7 +157,8 @@ async function start() {
   buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());
   initPWA();
   window.__app = { route, api, state };
-  api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
+  renderAccount();
+  api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); state.userName = n; renderAccount(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
   if (state.hosted && state.entitlements?.needs_plan_choice && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie

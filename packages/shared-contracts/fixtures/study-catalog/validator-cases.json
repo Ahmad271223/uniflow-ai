@@ -1,0 +1,2073 @@
+[
+ {
+  "name": "gueltig",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": []
+ },
+ {
+  "name": "pflichtfelder_fehlen",
+  "catalog": {
+   "university": "luh",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ]
+  },
+  "errors": [
+   "v: required",
+   "program: required",
+   "catalog_term: required",
+   "code: required",
+   "source: required",
+   "modules: required"
+  ]
+ },
+ {
+  "name": "falsche_typen",
+  "catalog": {
+   "v": 2,
+   "university": 7,
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6.5,
+   "total_lp": 0,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": {},
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "v: enum",
+   "university: type",
+   "regular_semesters: type",
+   "total_lp: range",
+   "areas: type",
+   "modules[0].area: ref",
+   "modules[1].area: ref",
+   "modules[2].area: ref",
+   "modules[3].area: ref",
+   "modules[4].area: ref",
+   "modules[5].area: ref"
+  ]
+ },
+ {
+  "name": "semester_format",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WiSe 25/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "catalog_term: format"
+  ]
+ },
+ {
+  "name": "quelle",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "http://example.org/x.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "ABC"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "source.url: format",
+   "source.sha256: format"
+  ]
+ },
+ {
+  "name": "modultexte_verboten",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4,
+     "content": "Langer Text"
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ],
+   "module_texts": {}
+  },
+  "errors": [
+   "module_texts: forbidden",
+   "modules[0].content: forbidden"
+  ]
+ },
+ {
+  "name": "bereich",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "Grundlagen Beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 1,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "frei"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "areas[1].id: format",
+   "areas[1].lp_max: range",
+   "areas[2].kind: enum",
+   "modules[3].area: ref",
+   "modules[4].area: ref"
+  ]
+ },
+ {
+  "name": "doppelte_ids",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "areas[2].id: unique",
+   "modules[1].id: unique",
+   "modules[1].prerequisites[0]: ref",
+   "modules[2].prerequisites[1]: ref",
+   "modules[5].area: ref"
+  ]
+ },
+ {
+  "name": "modulfelder",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "gibt-es-nicht",
+     "kind": "pflichtig",
+     "lp": -1,
+     "semester": 0,
+     "turnus": "Winter",
+     "exam": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": "150",
+     "source_page": 0
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "modules[0].area: ref",
+   "modules[0].kind: enum",
+   "modules[0].lp: range",
+   "modules[0].semester: range",
+   "modules[0].turnus: enum",
+   "modules[0].exam: too_long",
+   "modules[0].workload_h: type",
+   "modules[0].source_page: range"
+  ]
+ },
+ {
+  "name": "voraussetzungen",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-2",
+      "fehlt",
+      3
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": null,
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "modules[1].prerequisites[0]: ref",
+   "modules[1].prerequisites[1]: ref",
+   "modules[1].prerequisites[2]: type",
+   "modules[2].prerequisites: required"
+  ]
+ },
+ {
+  "name": "lp_fehlt",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ]
+  },
+  "errors": [
+   "modules[3].lp: required"
+  ]
+ },
+ {
+  "name": "kein_objekt",
+  "catalog": {
+   "modules": [
+    1
+   ],
+   "areas": [
+    "x"
+   ]
+  },
+  "errors": [
+   "v: required",
+   "university: required",
+   "program: required",
+   "degree: required",
+   "po: required",
+   "catalog_term: required",
+   "code: required",
+   "source: required",
+   "areas[0]: type",
+   "modules[0]: type"
+  ]
+ },
+ {
+  "name": "verlaufsplan_gueltig",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ],
+   "study_plan": {
+    "url": "https://example.org/plan.pdf",
+    "fetched_at": null,
+    "sha256": null
+   },
+   "plan_slots": [
+    {
+     "semester": 5,
+     "title": "Wahlmodul",
+     "areas": [],
+     "lp": 5,
+     "lp_max": null
+    }
+   ]
+  },
+  "errors": []
+ },
+ {
+  "name": "verlaufsplan_fehler",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ],
+   "study_plan": {
+    "url": "http://example.org/plan.pdf",
+    "fetched_at": 1,
+    "sha256": "x"
+   },
+   "plan_slots": [
+    {
+     "semester": 0,
+     "title": "",
+     "areas": [
+      "grundlagen-der-beispielinformatik",
+      "fehlt",
+      3
+     ],
+     "lp": 6,
+     "lp_max": 5
+    },
+    {
+     "semester": 2.5,
+     "areas": null,
+     "lp": "5"
+    },
+    7
+   ]
+  },
+  "errors": [
+   "study_plan.url: format",
+   "study_plan.fetched_at: type",
+   "study_plan.sha256: format",
+   "plan_slots[0].semester: range",
+   "plan_slots[0].title: range",
+   "plan_slots[0].areas[1]: ref",
+   "plan_slots[0].areas[2]: type",
+   "plan_slots[0].lp_max: range",
+   "plan_slots[1].semester: type",
+   "plan_slots[1].title: required",
+   "plan_slots[1].areas: required",
+   "plan_slots[1].lp: type",
+   "plan_slots[2]: type"
+  ]
+ },
+ {
+  "name": "verlaufsplan_typen",
+  "catalog": {
+   "v": 1,
+   "university": "luh",
+   "program": "Technische Informatik",
+   "degree": "B.Sc.",
+   "po": "2022",
+   "catalog_term": "WS 2025/26",
+   "code": "TIBSc22",
+   "regular_semesters": 6,
+   "total_lp": 180,
+   "source": {
+    "url": "https://modkat.fei.uni-hannover.de/material/modkat-full-TIBSc22-WS_2025_26.pdf",
+    "fetched_at": "2026-11-04T09:00:00Z",
+    "sha256": "490ffd3cb3b74c2aaf3ab10172476088e1723aabc76a1676d9cf9de19de5e8fd"
+   },
+   "areas": [
+    {
+     "id": "grundlagen-der-beispielinformatik",
+     "name": "Grundlagen der Beispielinformatik",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "pflicht"
+    },
+    {
+     "id": "vertiefung-beispiel",
+     "name": "Vertiefung Beispiel",
+     "lp_required": 5,
+     "lp_max": 10,
+     "kind": "pflicht"
+    },
+    {
+     "id": "bachelorarbeit",
+     "name": "Bachelorarbeit",
+     "lp_required": 15,
+     "lp_max": null,
+     "kind": "abschluss"
+    }
+   ],
+   "modules": [
+    {
+     "id": "beispielprogrammierung-1",
+     "title": "Beispielprogrammierung I",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "WS",
+     "exam": "Klausur 90 min",
+     "coursework": "1 Studienleistung (WiSe)",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 4
+    },
+    {
+     "id": "beispielprogrammierung-2",
+     "title": "Beispielprogrammierung II",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": null,
+     "turnus": "SS",
+     "exam": "Klausur 120 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielprogrammierung-1"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 6
+    },
+    {
+     "id": "beispielsysteme-und-netze",
+     "title": "Beispielsysteme und Netze",
+     "code": null,
+     "area": "grundlagen-der-beispielinformatik",
+     "kind": "pflicht",
+     "lp": 5,
+     "semester": 3,
+     "turnus": "WS+SS",
+     "exam": "mündl. Prüfung (MP)",
+     "coursework": "2 Studienleistungen (WiSe/SoSe)",
+     "prerequisites": [
+      "beispielprogrammierung-1",
+      "beispielprogrammierung-2"
+     ],
+     "language": "englisch",
+     "workload_h": 150,
+     "source_page": 7
+    },
+    {
+     "id": "proseminar-beispielthemen",
+     "title": "Proseminar Beispielthemen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "wahlpflicht",
+     "lp": 5,
+     "semester": 4,
+     "turnus": "SS",
+     "exam": "Klausur 60 min",
+     "coursework": null,
+     "prerequisites": [
+      "beispielsysteme-und-netze"
+     ],
+     "language": "deutsch",
+     "workload_h": 150,
+     "source_page": 9
+    },
+    {
+     "id": "studium-beispiel-angebote-anderer-fakultaeten-und-einrichtungen",
+     "title": "Studium Beispiel Angebote anderer Fakultäten und Einrichtungen",
+     "code": null,
+     "area": "vertiefung-beispiel",
+     "kind": "pflicht",
+     "lp": 3,
+     "semester": null,
+     "turnus": "unbekannt",
+     "exam": "wird noch angekündigt",
+     "coursework": "1 Studienleistung",
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 90,
+     "source_page": 10
+    },
+    {
+     "id": "bachelorarbeit",
+     "title": "Bachelorarbeit",
+     "code": null,
+     "area": "bachelorarbeit",
+     "kind": "abschluss",
+     "lp": 15,
+     "semester": null,
+     "turnus": "WS+SS",
+     "exam": "Bachelorarbeit",
+     "coursework": null,
+     "prerequisites": [],
+     "language": "deutsch",
+     "workload_h": 450,
+     "source_page": 12
+    }
+   ],
+   "study_plan": "plan.pdf",
+   "plan_slots": {}
+  },
+  "errors": [
+   "study_plan: type",
+   "plan_slots: type"
+  ]
+ }
+]

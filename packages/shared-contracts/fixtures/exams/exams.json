@@ -1,0 +1,2379 @@
+{
+ "chips": [
+  {
+   "chips": [
+    {
+     "date": "2027-02-12",
+     "kind": "pruefung",
+     "label": "Prüfung 12.02."
+    },
+    {
+     "date": "2027-03-01",
+     "kind": "pruefung",
+     "label": "Prüfung 01.03."
+    },
+    {
+     "date": "2026-11-10",
+     "kind": "frist",
+     "label": "Frist 10.11."
+    },
+    {
+     "date": "2026-11-11",
+     "kind": "ausfall",
+     "label": "Ausfall? 11.11."
+    }
+   ],
+   "dates": [
+    {
+     "date": "2026-11-10",
+     "kind": "frist"
+    },
+    {
+     "date": "2026-11-11",
+     "kind": "ausfall"
+    },
+    {
+     "date": "2026-11-12",
+     "kind": "verlegt"
+    },
+    {
+     "date": "2027-02-12",
+     "kind": "pruefung"
+    },
+    {
+     "date": "2027-03-01",
+     "kind": "pruefung"
+    }
+   ],
+   "today": "2026-11-04"
+  },
+  {
+   "chips": [
+    {
+     "date": "2026-11-10",
+     "kind": "pruefung",
+     "label": "Prüfung 10.11."
+    }
+   ],
+   "dates": [
+    {
+     "date": "2026-11-01",
+     "kind": "pruefung"
+    },
+    {
+     "date": "2026-11-10",
+     "kind": "pruefung"
+    },
+    {
+     "date": "2026-11-10",
+     "kind": "pruefung",
+     "time": "10:00"
+    },
+    {
+     "date": "2026-11-12",
+     "kind": "raum"
+    }
+   ],
+   "today": "2026-11-04"
+  },
+  {
+   "chips": [
+    {
+     "date": "2026-11-10",
+     "kind": "frist",
+     "label": "Frist 10.11."
+    },
+    {
+     "date": "2026-11-12",
+     "kind": "frist",
+     "label": "Frist 12.11."
+    }
+   ],
+   "dates": [
+    {
+     "date": "2026-11-10",
+     "kind": "frist"
+    },
+    {
+     "date": "2026-11-12",
+     "kind": "frist"
+    },
+    {
+     "date": "2026-11-13",
+     "kind": "frist"
+    }
+   ],
+   "today": "2026-11-04"
+  },
+  {
+   "chips": [],
+   "dates": [],
+   "today": "2026-11-04"
+  },
+  {
+   "chips": [],
+   "dates": "kaputt",
+   "today": "2026-11-04"
+  },
+  {
+   "chips": [
+    {
+     "date": "2026-12-01",
+     "kind": "pruefung",
+     "label": "Prüfung 01.12."
+    }
+   ],
+   "dates": [
+    {
+     "date": 5,
+     "kind": "pruefung"
+    },
+    {
+     "kind": "frist"
+    },
+    "x",
+    {
+     "date": "2026-12-01",
+     "kind": "pruefung"
+    }
+   ],
+   "today": "2026-11-04"
+  }
+ ],
+ "events": [
+  {
+   "event": {
+    "attributes": {
+     "categories": "Klausur",
+     "end": "2027-02-12T11:00:00+01:00",
+     "is-cancelled": false,
+     "location": "Hörsaal F 303, Gebäude 1",
+     "start": "2027-02-12T09:00:00+01:00",
+     "title": "Klausur"
+    },
+    "id": "x1"
+   },
+   "parsed": {
+    "cancelled": 0,
+    "category": "Klausur",
+    "course_id": "c1",
+    "description": "",
+    "end": "2027-02-12T11:00:00",
+    "id": "x1",
+    "room": "Hörsaal F 303",
+    "start": "2027-02-12T09:00:00",
+    "title": "Klausur"
+   }
+  },
+  {
+   "event": {
+    "attributes": {
+     "categories": "  Sitzung  ",
+     "end": "2026-10-12T11:30:00+02:00",
+     "start": "2026-10-12T10:00:00+02:00",
+     "title": "Sitzung 1",
+     "type": "1"
+    },
+    "id": "x2"
+   },
+   "parsed": {
+    "cancelled": 0,
+    "category": "Sitzung",
+    "course_id": "c1",
+    "description": "",
+    "end": "2026-10-12T11:30:00",
+    "id": "x2",
+    "room": "",
+    "start": "2026-10-12T10:00:00",
+    "title": "Sitzung 1"
+   }
+  },
+  {
+   "event": {
+    "attributes": {
+     "categories": 3,
+     "end": "2026-10-13T11:30:00+02:00",
+     "start": "2026-10-13T10:00:00+02:00",
+     "title": "Ohne Art"
+    },
+    "id": "x3"
+   },
+   "parsed": {
+    "cancelled": 0,
+    "category": "",
+    "course_id": "c1",
+    "description": "",
+    "end": "2026-10-13T11:30:00",
+    "id": "x3",
+    "room": "",
+    "start": "2026-10-13T10:00:00",
+    "title": "Ohne Art"
+   }
+  },
+  {
+   "event": {
+    "attributes": {
+     "categories": null,
+     "end": "2026-10-14T11:30:00+02:00",
+     "start": "2026-10-14T10:00:00+02:00",
+     "title": "Null"
+    },
+    "id": "x4"
+   },
+   "parsed": {
+    "cancelled": 0,
+    "category": "",
+    "course_id": "c1",
+    "description": "",
+    "end": "2026-10-14T11:30:00",
+    "id": "x4",
+    "room": "",
+    "start": "2026-10-14T10:00:00",
+    "title": "Null"
+   }
+  }
+ ],
+ "exam_dates": [
+  {
+   "dates": [
+    {
+     "date": "2027-02-12",
+     "room": "Hörsaal F 303",
+     "snippet": "Die Klausur findet am 12.02.2027 um 9 Uhr im Hörsaal F 303 statt, die Anmeldung ist bis 01.02.",
+     "time": "09:00",
+     "word": "Klausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Die Klausur findet am 12.02.2027 um 9 Uhr im Hörsaal F 303 statt, die Anmeldung ist bis 01.02. möglich.",
+   "title": "Klausurtermin"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-11",
+     "room": "Raum E214",
+     "snippet": "Klausur: Do., 11.02.2027, 10 Uhr, Raum E214.",
+     "time": "10:00",
+     "word": "Klausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Klausur: Do., 11.02.2027, 10 Uhr, Raum E214. Einsicht am 20.02.",
+   "title": "Info"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-15",
+     "room": null,
+     "snippet": "Die Klausur wird vom 10.02. auf den 15.02.2027 verschoben.",
+     "time": null,
+     "word": "Klausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Die Klausur wird vom 10.02. auf den 15.02.2027 verschoben.",
+   "title": "Verlegung"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-12",
+     "room": "HS 1",
+     "snippet": "Termin: 12.02.2027, 10:00, HS 1",
+     "time": null,
+     "word": "Klausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Termin: 12.02.2027, 10:00, HS 1",
+   "title": "Klausur"
+  },
+  {
+   "dates": [],
+   "posted": "2026-11-02",
+   "text": "Termine: 12.02.2027 und 19.02.2027.",
+   "title": "Klausur"
+  },
+  {
+   "dates": [],
+   "posted": "2026-11-02",
+   "text": "Die Probeklausur schreiben wir am 20.11.",
+   "title": "Probeklausur"
+  },
+  {
+   "dates": [],
+   "posted": "2026-11-02",
+   "text": "Die Klausur am 12.02. entfällt.",
+   "title": "Ausfall"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-04-01",
+     "room": null,
+     "snippet": "Nachklausur am 1. April 2027 um 14 Uhr",
+     "time": "14:00",
+     "word": "Nachklausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Nachklausur am 1. April 2027 um 14 Uhr",
+   "title": "Nachklausur Mathe"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-03-03",
+     "room": null,
+     "snippet": "Die mündlichen Prüfungen finden am 3. März 2027 statt.",
+     "time": null,
+     "word": "Prüfung"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Die mündlichen Prüfungen finden am 3. März 2027 statt.",
+   "title": "Prüfung"
+  },
+  {
+   "dates": [],
+   "posted": "2026-11-02",
+   "text": "Bitte meldet euch bis zum 15.01. zur Klausur an.",
+   "title": "Anmeldung"
+  },
+  {
+   "dates": [],
+   "posted": "2026-11-02",
+   "text": "Die Klausurergebnisse und die Klausureinsicht am 01.03.2027.",
+   "title": "Ergebnisse"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-12",
+     "room": null,
+     "snippet": "The final exam takes place on 12.02.2027 at 10 Uhr.",
+     "time": "10:00",
+     "word": "Prüfung"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "The final exam takes place on 12.02.2027 at 10 Uhr.",
+   "title": "Final exam"
+  },
+  {
+   "dates": [],
+   "posted": "2026-11-02",
+   "text": "Fragestunde zur Klausur am 05.02.2027.",
+   "title": "Klausurvorbereitung"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-22",
+     "room": null,
+     "snippet": "Prüfungstermin ist der 22.02.2027, Prüfungsdatum bestätigt.",
+     "time": null,
+     "word": "Prüfung"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Prüfungstermin ist der 22.02.2027, Prüfungsdatum bestätigt.",
+   "title": ""
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-12",
+     "room": null,
+     "snippet": "Die Klausuren sind am 12.02.2027 und am 26.03.2027 (Nachklausur).",
+     "time": null,
+     "word": "Klausur"
+    },
+    {
+     "date": "2027-03-26",
+     "room": null,
+     "snippet": "Die Klausuren sind am 12.02.2027 und am 26.03.2027 (Nachklausur).",
+     "time": null,
+     "word": "Klausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Die Klausuren sind am 12.02.2027 und am 26.03.2027 (Nachklausur).",
+   "title": "Klausuren"
+  },
+  {
+   "dates": [
+    {
+     "date": "2027-02-12",
+     "room": "Seminarraum 3",
+     "snippet": "Die Klausur ist am 12.02.2027 im Seminarraum 3.",
+     "time": null,
+     "word": "Klausur"
+    }
+   ],
+   "posted": "2026-11-02",
+   "text": "Die Klausur ist am 12.02.2027 im Seminarraum 3.",
+   "title": "Raum"
+  }
+ ],
+ "generator": "tools/gen-exams-fixture.py",
+ "now": "2026-11-04T10:00:00",
+ "seed": [
+  {
+   "params": [],
+   "sql": "CREATE TABLE IF NOT EXISTS studip_messages (\n    id TEXT PRIMARY KEY,\n    sender TEXT,                       -- Rolle (Lehrende, Verwaltung ...) oder hoechstens der Name\n    subject TEXT,\n    preview TEXT,                      -- ganzer Text der Nachricht (Name der Spalte von frueher)\n    sent_at TEXT,\n    url TEXT,                          -- Posteingang (nicht die Einzelansicht)\n    dates TEXT,                        -- erkannte Tage [{date, time, kind}]\n    fetched_at TEXT\n)"
+  },
+  {
+   "params": [
+    1,
+    "Analysis I",
+    "#4f5bd5",
+    null,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, exam_date, sort, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    2,
+    "Lineare Algebra",
+    "#e8590c",
+    "2027-02-20",
+    2,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, exam_date, sort, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    3,
+    "Programmieren",
+    "#2b8a3e",
+    null,
+    3,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, exam_date, sort, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    4,
+    "Statistik",
+    "#c2255c",
+    "",
+    4,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, exam_date, sort, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    5,
+    "Physik",
+    "#1971c2",
+    null,
+    5,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO modules(id, name, color, exam_date, sort, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "exam_dates_auto",
+    "{\"5\": \"2027-02-10\"}"
+   ],
+   "sql": "INSERT INTO settings(key, value) VALUES (?, ?)"
+  },
+  {
+   "params": [
+    "c-ana",
+    "Analysis I",
+    "vorlesung",
+    1,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c-la",
+    "Lineare Algebra",
+    "vorlesung",
+    2,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c-prog",
+    "Programmieren",
+    "vorlesung",
+    3,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c-stat",
+    "Statistik",
+    "vorlesung",
+    4,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c-phy",
+    "Physik",
+    "vorlesung",
+    5,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "c-chem",
+    "Chemie für Ingenieure",
+    "sonstiges",
+    null,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "lw-77",
+    "Programmieren (Learnweb)",
+    "vorlesung",
+    3,
+    1,
+    "2026-10-01T08:00:00"
+   ],
+   "sql": "INSERT INTO courses(id, title, kind, module_id, active, created_at) VALUES (?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e1",
+    "c-ana",
+    "Klausur",
+    "2027-02-12T09:00:00",
+    "2027-02-12T11:00:00",
+    "Hörsaal F 303",
+    "",
+    0,
+    "Klausur",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e2",
+    "c-ana",
+    "Klausur",
+    "2027-02-12T09:00:00",
+    "2027-02-12T11:00:00",
+    "Hörsaal F 102",
+    "",
+    0,
+    "Klausur",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e3",
+    "c-ana",
+    "Sitzung 5",
+    "2026-11-10T10:00:00",
+    "2026-11-10T11:30:00",
+    "Hörsaal F 303",
+    "Folgen",
+    0,
+    "Sitzung",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e4",
+    "c-prog",
+    "Sitzung 14",
+    "2027-02-18T14:00:00",
+    "2027-02-18T16:00:00",
+    "Raum 101",
+    "Klausur",
+    0,
+    "Sitzung",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e5",
+    "c-prog",
+    "Sitzung 13",
+    "2027-01-20T14:00:00",
+    "2027-01-20T16:00:00",
+    "Raum 101",
+    "Klausurvorbereitung",
+    0,
+    "Sitzung",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e6",
+    "c-stat",
+    "Klausur",
+    "2027-02-01T08:00:00",
+    "2027-02-01T10:00:00",
+    "",
+    "",
+    1,
+    "Klausur",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e7",
+    "c-ana",
+    "Klausur",
+    "2026-10-01T09:00:00",
+    "2026-10-01T11:00:00",
+    "",
+    "",
+    0,
+    "Klausur",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e8",
+    "c-chem",
+    "Termin",
+    "2027-03-01T08:00:00",
+    "2027-03-01T10:00:00",
+    "Chemiehörsaal 2",
+    "",
+    0,
+    "Prüfung",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e9",
+    "c-phy",
+    "Klausur",
+    "2027-02-10T12:00:00",
+    "2027-02-10T14:00:00",
+    "",
+    "",
+    0,
+    "Klausur",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "e10",
+    "c-la",
+    "Sitzung",
+    "2026-11-11T08:00:00",
+    "2026-11-11T09:30:00",
+    "",
+    "",
+    0,
+    null,
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, description, cancelled, category, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-news-a1",
+    "studip",
+    "c-stat",
+    "Klausurtermin",
+    "Die Klausur findet am 15.02.2027 um 10 Uhr im Hörsaal E 214 statt. Die Anmeldung ist bis zum 01.02.2027 möglich.",
+    "",
+    "2026-11-02T09:00:00+01:00",
+    "https://studip.test/dispatch.php/course/overview?cid=c-stat",
+    null,
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "lw-post-a2",
+    "learnweb",
+    "c-ana",
+    "Infos zur Klausur",
+    "Die Klausur ist am 12.02.2027 um 9:15 Uhr. Einsicht am 20.02.2027.",
+    "",
+    "2026-11-01T12:00:00",
+    "https://learnweb.test/mod/forum/discuss.php?d=2",
+    null,
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-news-a3",
+    "studip",
+    "c-la",
+    "Probeklausur",
+    "Die Probeklausur schreiben wir am 20.11. in der Übung.",
+    "",
+    "2026-11-03T09:00:00+01:00",
+    null,
+    null,
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-news-a4",
+    "studip",
+    null,
+    "Prüfungszeitraum",
+    "Die Klausur Mathematik findet am 10.02.2027 statt.",
+    "",
+    "2026-11-03T09:00:00+01:00",
+    null,
+    null,
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-news-a5",
+    "studip",
+    "c-prog",
+    "Verlegung",
+    "Die Klausur wird vom 18.02.2027 auf den 25.02.2027 verschoben.",
+    "",
+    "2026-11-03T10:00:00+01:00",
+    null,
+    null,
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-news-a6",
+    "studip",
+    "c-la",
+    "Klausur",
+    "Termin: 20.02.2027, Raum 1101-E214.",
+    "",
+    "2026-10-20T10:00:00+02:00",
+    null,
+    null,
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-msg-m1",
+    "Lehrende",
+    "Statistik: Nachklausur",
+    "Liebe Studierende,\ndie Nachklausur findet am 30.03.2027 um 14 Uhr statt.",
+    "2026-11-03T08:00:00+01:00",
+    "https://studip.test/dispatch.php/messages/overview",
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_messages(id, sender, subject, preview, sent_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-msg-m2",
+    "Lehrende",
+    "Termine",
+    "Am 12.12. ist die Weihnachtsfeier.",
+    "2026-11-02T08:00:00+01:00",
+    "https://studip.test/dispatch.php/messages/overview",
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_messages(id, sender, subject, preview, sent_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "sp-msg-m3",
+    "Lehrende",
+    "Wichtig",
+    "Die Klausur am 01.04.2027 um 8 Uhr ist Pflicht.",
+    "2026-11-02T07:00:00+01:00",
+    "https://studip.test/dispatch.php/messages/overview",
+    "[]",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO studip_messages(id, sender, subject, preview, sent_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "1001",
+    "Lineare Algebra",
+    "WiSe 26/27",
+    null,
+    "AN",
+    "20.02.2027",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(pruefungsnr, text, semester, note, status, datum, fetched_at) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "1002",
+    "Analysis I",
+    "SoSe 26",
+    "1,7",
+    "BE",
+    "01.10.2026",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(pruefungsnr, text, semester, note, status, datum, fetched_at) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "1003",
+    "Experimentalphysik",
+    "WiSe 26/27",
+    null,
+    "angemeldet",
+    "2027-03-05",
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO grades(pruefungsnr, text, semester, note, status, datum, fetched_at) VALUES (?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "lw-ev-1",
+    "learnweb",
+    "lw-77",
+    "E-Klausur Programmieren",
+    null,
+    "test_beginn",
+    "quiz",
+    "2027-02-05T10:00",
+    "https://learnweb.test/mod/quiz/view.php?id=1",
+    0,
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  },
+  {
+   "params": [
+    "lw-ev-2",
+    "learnweb",
+    "lw-77",
+    "Abgabe Blatt 5",
+    null,
+    "abgabe",
+    "assign",
+    "2026-11-20T23:59",
+    null,
+    0,
+    "2026-11-03T08:00:00"
+   ],
+   "sql": "INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+  }
+ ],
+ "steps": [
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming",
+   "response": {
+    "filled": 3,
+    "items": [
+     {
+      "color": "#2b8a3e",
+      "course_id": "lw-77",
+      "course_title": "Programmieren (Learnweb)",
+      "date": "2027-02-05",
+      "days_left": 93,
+      "end": null,
+      "id": "exam-m3-2027-02-05",
+      "in_days": "in 93 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus dem Learnweb-Kalender",
+      "sources": [
+       {
+        "kind": "frist",
+        "label": "aus dem Learnweb-Kalender",
+        "url": "https://learnweb.test/mod/quiz/view.php?id=1"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": "c-phy",
+      "course_title": "Physik",
+      "date": "2027-02-10",
+      "days_left": 98,
+      "end": "14:00",
+      "id": "exam-m5-2027-02-10",
+      "in_days": "in 98 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "12:00",
+      "title": "Klausur Physik",
+      "user_set": false
+     },
+     {
+      "color": "#4f5bd5",
+      "course_id": "c-ana",
+      "course_title": "Analysis I",
+      "date": "2027-02-12",
+      "days_left": 100,
+      "end": "11:00",
+      "id": "exam-m1-2027-02-12",
+      "in_days": "in 100 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 1,
+      "module_name": "Analysis I",
+      "room": "Hörsaal F 303 · Hörsaal F 102",
+      "source_label": "aus Stud.IP-Terminen · aus Ankündigung vom 01.11.2026",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 01.11.2026",
+        "url": "https://learnweb.test/mod/forum/discuss.php?d=2"
+       }
+      ],
+      "time": "09:00",
+      "title": "Klausur Analysis I",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": "c-stat",
+      "course_title": "Statistik",
+      "date": "2027-02-15",
+      "days_left": 103,
+      "end": null,
+      "id": "exam-m4-2027-02-15",
+      "in_days": "in 103 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": "Hörsaal E 214",
+      "source_label": "aus Ankündigung vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/course/overview?cid=c-stat"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-18",
+      "days_left": 106,
+      "end": "16:00",
+      "id": "exam-m3-2027-02-18",
+      "in_days": "in 106 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": "Raum 101",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "14:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#e8590c",
+      "course_id": "c-la",
+      "course_title": "Lineare Algebra",
+      "date": "2027-02-20",
+      "days_left": 108,
+      "end": null,
+      "id": "exam-m2-2027-02-20",
+      "in_days": "in 108 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 2,
+      "module_name": "Lineare Algebra",
+      "room": "Raum 1101-E214",
+      "source_label": "selbst eingetragen · aus QIS (angemeldet) · aus Ankündigung vom 20.10.2026",
+      "sources": [
+       {
+        "kind": "modul",
+        "label": "selbst eingetragen",
+        "url": null
+       },
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 20.10.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Lineare Algebra",
+      "user_set": true
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-25",
+      "days_left": 113,
+      "end": null,
+      "id": "exam-m3-2027-02-25",
+      "in_days": "in 113 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus Ankündigung vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 03.11.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": "c-chem",
+      "course_title": "Chemie für Ingenieure",
+      "date": "2027-03-01",
+      "days_left": 117,
+      "end": "10:00",
+      "id": "exam-cc-chem-2027-03-01",
+      "in_days": "in 117 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": null,
+      "module_name": null,
+      "room": "Chemiehörsaal 2",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "08:00",
+      "title": "Prüfung Chemie für Ingenieure",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-05",
+      "days_left": 121,
+      "end": null,
+      "id": "exam-m5-2027-03-05",
+      "in_days": "in 121 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus QIS (angemeldet)",
+      "sources": [
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Prüfung Physik",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-30",
+      "days_left": 146,
+      "end": null,
+      "id": "exam-m4-2027-03-30",
+      "in_days": "in 146 Tagen",
+      "kind_label": "Nachklausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": null,
+      "source_label": "aus Nachricht vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 03.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "14:00",
+      "title": "Nachklausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-04-01",
+      "days_left": 148,
+      "end": null,
+      "id": "exam-t51dcbe8495-2027-04-01",
+      "in_days": "in 148 Tagen",
+      "kind_label": "Klausur",
+      "module_id": null,
+      "module_name": null,
+      "room": null,
+      "source_label": "aus Nachricht vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "08:00",
+      "title": "Klausur",
+      "user_set": false
+     }
+    ],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming",
+   "response": {
+    "filled": 0,
+    "items": [
+     {
+      "color": "#2b8a3e",
+      "course_id": "lw-77",
+      "course_title": "Programmieren (Learnweb)",
+      "date": "2027-02-05",
+      "days_left": 93,
+      "end": null,
+      "id": "exam-m3-2027-02-05",
+      "in_days": "in 93 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus dem Learnweb-Kalender",
+      "sources": [
+       {
+        "kind": "frist",
+        "label": "aus dem Learnweb-Kalender",
+        "url": "https://learnweb.test/mod/quiz/view.php?id=1"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": "c-phy",
+      "course_title": "Physik",
+      "date": "2027-02-10",
+      "days_left": 98,
+      "end": "14:00",
+      "id": "exam-m5-2027-02-10",
+      "in_days": "in 98 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "12:00",
+      "title": "Klausur Physik",
+      "user_set": false
+     },
+     {
+      "color": "#4f5bd5",
+      "course_id": "c-ana",
+      "course_title": "Analysis I",
+      "date": "2027-02-12",
+      "days_left": 100,
+      "end": "11:00",
+      "id": "exam-m1-2027-02-12",
+      "in_days": "in 100 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 1,
+      "module_name": "Analysis I",
+      "room": "Hörsaal F 303 · Hörsaal F 102",
+      "source_label": "aus Stud.IP-Terminen · aus Ankündigung vom 01.11.2026",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 01.11.2026",
+        "url": "https://learnweb.test/mod/forum/discuss.php?d=2"
+       }
+      ],
+      "time": "09:00",
+      "title": "Klausur Analysis I",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": "c-stat",
+      "course_title": "Statistik",
+      "date": "2027-02-15",
+      "days_left": 103,
+      "end": null,
+      "id": "exam-m4-2027-02-15",
+      "in_days": "in 103 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": "Hörsaal E 214",
+      "source_label": "aus Ankündigung vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/course/overview?cid=c-stat"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-18",
+      "days_left": 106,
+      "end": "16:00",
+      "id": "exam-m3-2027-02-18",
+      "in_days": "in 106 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": "Raum 101",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "14:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#e8590c",
+      "course_id": "c-la",
+      "course_title": "Lineare Algebra",
+      "date": "2027-02-20",
+      "days_left": 108,
+      "end": null,
+      "id": "exam-m2-2027-02-20",
+      "in_days": "in 108 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 2,
+      "module_name": "Lineare Algebra",
+      "room": "Raum 1101-E214",
+      "source_label": "selbst eingetragen · aus QIS (angemeldet) · aus Ankündigung vom 20.10.2026",
+      "sources": [
+       {
+        "kind": "modul",
+        "label": "selbst eingetragen",
+        "url": null
+       },
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 20.10.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Lineare Algebra",
+      "user_set": true
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-25",
+      "days_left": 113,
+      "end": null,
+      "id": "exam-m3-2027-02-25",
+      "in_days": "in 113 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus Ankündigung vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 03.11.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": "c-chem",
+      "course_title": "Chemie für Ingenieure",
+      "date": "2027-03-01",
+      "days_left": 117,
+      "end": "10:00",
+      "id": "exam-cc-chem-2027-03-01",
+      "in_days": "in 117 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": null,
+      "module_name": null,
+      "room": "Chemiehörsaal 2",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "08:00",
+      "title": "Prüfung Chemie für Ingenieure",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-05",
+      "days_left": 121,
+      "end": null,
+      "id": "exam-m5-2027-03-05",
+      "in_days": "in 121 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus QIS (angemeldet)",
+      "sources": [
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Prüfung Physik",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-30",
+      "days_left": 146,
+      "end": null,
+      "id": "exam-m4-2027-03-30",
+      "in_days": "in 146 Tagen",
+      "kind_label": "Nachklausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": null,
+      "source_label": "aus Nachricht vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 03.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "14:00",
+      "title": "Nachklausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-04-01",
+      "days_left": 148,
+      "end": null,
+      "id": "exam-t51dcbe8495-2027-04-01",
+      "in_days": "in 148 Tagen",
+      "kind_label": "Klausur",
+      "module_id": null,
+      "module_name": null,
+      "room": null,
+      "source_label": "aus Nachricht vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "08:00",
+      "title": "Klausur",
+      "user_set": false
+     }
+    ],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming?module_id=1",
+   "response": {
+    "filled": 0,
+    "items": [
+     {
+      "color": "#4f5bd5",
+      "course_id": "c-ana",
+      "course_title": "Analysis I",
+      "date": "2027-02-12",
+      "days_left": 100,
+      "end": "11:00",
+      "id": "exam-m1-2027-02-12",
+      "in_days": "in 100 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 1,
+      "module_name": "Analysis I",
+      "room": "Hörsaal F 303 · Hörsaal F 102",
+      "source_label": "aus Stud.IP-Terminen · aus Ankündigung vom 01.11.2026",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 01.11.2026",
+        "url": "https://learnweb.test/mod/forum/discuss.php?d=2"
+       }
+      ],
+      "time": "09:00",
+      "title": "Klausur Analysis I",
+      "user_set": false
+     }
+    ],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming?module_id=99",
+   "response": {
+    "filled": 0,
+    "items": [],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  },
+  {
+   "sql": [
+    {
+     "params": [],
+     "sql": "UPDATE studip_events SET start='2027-02-13T09:00:00', end='2027-02-13T11:00:00' WHERE id IN ('e1', 'e2')"
+    },
+    {
+     "params": [],
+     "sql": "DELETE FROM announcements WHERE id='lw-post-a2'"
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming",
+   "response": {
+    "filled": 1,
+    "items": [
+     {
+      "color": "#2b8a3e",
+      "course_id": "lw-77",
+      "course_title": "Programmieren (Learnweb)",
+      "date": "2027-02-05",
+      "days_left": 93,
+      "end": null,
+      "id": "exam-m3-2027-02-05",
+      "in_days": "in 93 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus dem Learnweb-Kalender",
+      "sources": [
+       {
+        "kind": "frist",
+        "label": "aus dem Learnweb-Kalender",
+        "url": "https://learnweb.test/mod/quiz/view.php?id=1"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": "c-phy",
+      "course_title": "Physik",
+      "date": "2027-02-10",
+      "days_left": 98,
+      "end": "14:00",
+      "id": "exam-m5-2027-02-10",
+      "in_days": "in 98 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "12:00",
+      "title": "Klausur Physik",
+      "user_set": false
+     },
+     {
+      "color": "#4f5bd5",
+      "course_id": "c-ana",
+      "course_title": "Analysis I",
+      "date": "2027-02-13",
+      "days_left": 101,
+      "end": "11:00",
+      "id": "exam-m1-2027-02-13",
+      "in_days": "in 101 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 1,
+      "module_name": "Analysis I",
+      "room": "Hörsaal F 303 · Hörsaal F 102",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "09:00",
+      "title": "Klausur Analysis I",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": "c-stat",
+      "course_title": "Statistik",
+      "date": "2027-02-15",
+      "days_left": 103,
+      "end": null,
+      "id": "exam-m4-2027-02-15",
+      "in_days": "in 103 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": "Hörsaal E 214",
+      "source_label": "aus Ankündigung vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/course/overview?cid=c-stat"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-18",
+      "days_left": 106,
+      "end": "16:00",
+      "id": "exam-m3-2027-02-18",
+      "in_days": "in 106 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": "Raum 101",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "14:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#e8590c",
+      "course_id": "c-la",
+      "course_title": "Lineare Algebra",
+      "date": "2027-02-20",
+      "days_left": 108,
+      "end": null,
+      "id": "exam-m2-2027-02-20",
+      "in_days": "in 108 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 2,
+      "module_name": "Lineare Algebra",
+      "room": "Raum 1101-E214",
+      "source_label": "selbst eingetragen · aus QIS (angemeldet) · aus Ankündigung vom 20.10.2026",
+      "sources": [
+       {
+        "kind": "modul",
+        "label": "selbst eingetragen",
+        "url": null
+       },
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 20.10.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Lineare Algebra",
+      "user_set": true
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-25",
+      "days_left": 113,
+      "end": null,
+      "id": "exam-m3-2027-02-25",
+      "in_days": "in 113 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus Ankündigung vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 03.11.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": "c-chem",
+      "course_title": "Chemie für Ingenieure",
+      "date": "2027-03-01",
+      "days_left": 117,
+      "end": "10:00",
+      "id": "exam-cc-chem-2027-03-01",
+      "in_days": "in 117 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": null,
+      "module_name": null,
+      "room": "Chemiehörsaal 2",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "08:00",
+      "title": "Prüfung Chemie für Ingenieure",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-05",
+      "days_left": 121,
+      "end": null,
+      "id": "exam-m5-2027-03-05",
+      "in_days": "in 121 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus QIS (angemeldet)",
+      "sources": [
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Prüfung Physik",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-30",
+      "days_left": 146,
+      "end": null,
+      "id": "exam-m4-2027-03-30",
+      "in_days": "in 146 Tagen",
+      "kind_label": "Nachklausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": null,
+      "source_label": "aus Nachricht vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 03.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "14:00",
+      "title": "Nachklausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-04-01",
+      "days_left": 148,
+      "end": null,
+      "id": "exam-t51dcbe8495-2027-04-01",
+      "in_days": "in 148 Tagen",
+      "kind_label": "Klausur",
+      "module_id": null,
+      "module_name": null,
+      "room": null,
+      "source_label": "aus Nachricht vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "08:00",
+      "title": "Klausur",
+      "user_set": false
+     }
+    ],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "exam_date": "2027-02-16"
+   },
+   "method": "PATCH",
+   "path": "/api/modules/4",
+   "response": {
+    "active": 1,
+    "active_custom": 0,
+    "color": "#c2255c",
+    "color_custom": 0,
+    "created_at": "2026-10-01T08:00:00",
+    "exam_date": "2027-02-16",
+    "exam_reuse": "paraphrase",
+    "expected_materials": null,
+    "icon": null,
+    "id": 4,
+    "name": "Statistik",
+    "priority": 2,
+    "semester": null,
+    "sort": 4,
+    "test_minutes": null,
+    "weekly_test": 1
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming",
+   "response": {
+    "filled": 0,
+    "items": [
+     {
+      "color": "#2b8a3e",
+      "course_id": "lw-77",
+      "course_title": "Programmieren (Learnweb)",
+      "date": "2027-02-05",
+      "days_left": 93,
+      "end": null,
+      "id": "exam-m3-2027-02-05",
+      "in_days": "in 93 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus dem Learnweb-Kalender",
+      "sources": [
+       {
+        "kind": "frist",
+        "label": "aus dem Learnweb-Kalender",
+        "url": "https://learnweb.test/mod/quiz/view.php?id=1"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": "c-phy",
+      "course_title": "Physik",
+      "date": "2027-02-10",
+      "days_left": 98,
+      "end": "14:00",
+      "id": "exam-m5-2027-02-10",
+      "in_days": "in 98 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "12:00",
+      "title": "Klausur Physik",
+      "user_set": false
+     },
+     {
+      "color": "#4f5bd5",
+      "course_id": "c-ana",
+      "course_title": "Analysis I",
+      "date": "2027-02-13",
+      "days_left": 101,
+      "end": "11:00",
+      "id": "exam-m1-2027-02-13",
+      "in_days": "in 101 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 1,
+      "module_name": "Analysis I",
+      "room": "Hörsaal F 303 · Hörsaal F 102",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "09:00",
+      "title": "Klausur Analysis I",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": "c-stat",
+      "course_title": "Statistik",
+      "date": "2027-02-15",
+      "days_left": 103,
+      "end": null,
+      "id": "exam-m4-2027-02-15",
+      "in_days": "in 103 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": "Hörsaal E 214",
+      "source_label": "aus Ankündigung vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/course/overview?cid=c-stat"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-02-16",
+      "days_left": 104,
+      "end": null,
+      "id": "exam-m4-2027-02-16",
+      "in_days": "in 104 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": null,
+      "source_label": "selbst eingetragen",
+      "sources": [
+       {
+        "kind": "modul",
+        "label": "selbst eingetragen",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Statistik",
+      "user_set": true
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-18",
+      "days_left": 106,
+      "end": "16:00",
+      "id": "exam-m3-2027-02-18",
+      "in_days": "in 106 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": "Raum 101",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "14:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#e8590c",
+      "course_id": "c-la",
+      "course_title": "Lineare Algebra",
+      "date": "2027-02-20",
+      "days_left": 108,
+      "end": null,
+      "id": "exam-m2-2027-02-20",
+      "in_days": "in 108 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 2,
+      "module_name": "Lineare Algebra",
+      "room": "Raum 1101-E214",
+      "source_label": "selbst eingetragen · aus QIS (angemeldet) · aus Ankündigung vom 20.10.2026",
+      "sources": [
+       {
+        "kind": "modul",
+        "label": "selbst eingetragen",
+        "url": null
+       },
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       },
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 20.10.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Lineare Algebra",
+      "user_set": true
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-25",
+      "days_left": 113,
+      "end": null,
+      "id": "exam-m3-2027-02-25",
+      "in_days": "in 113 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus Ankündigung vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 03.11.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": "c-chem",
+      "course_title": "Chemie für Ingenieure",
+      "date": "2027-03-01",
+      "days_left": 117,
+      "end": "10:00",
+      "id": "exam-cc-chem-2027-03-01",
+      "in_days": "in 117 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": null,
+      "module_name": null,
+      "room": "Chemiehörsaal 2",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "08:00",
+      "title": "Prüfung Chemie für Ingenieure",
+      "user_set": false
+     },
+     {
+      "color": "#1971c2",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-05",
+      "days_left": 121,
+      "end": null,
+      "id": "exam-m5-2027-03-05",
+      "in_days": "in 121 Tagen",
+      "kind_label": "Prüfung",
+      "module_id": 5,
+      "module_name": "Physik",
+      "room": null,
+      "source_label": "aus QIS (angemeldet)",
+      "sources": [
+       {
+        "kind": "qis",
+        "label": "aus QIS (angemeldet)",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Prüfung Physik",
+      "user_set": false
+     },
+     {
+      "color": "#c2255c",
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-03-30",
+      "days_left": 146,
+      "end": null,
+      "id": "exam-m4-2027-03-30",
+      "in_days": "in 146 Tagen",
+      "kind_label": "Nachklausur",
+      "module_id": 4,
+      "module_name": "Statistik",
+      "room": null,
+      "source_label": "aus Nachricht vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 03.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "14:00",
+      "title": "Nachklausur Statistik",
+      "user_set": false
+     },
+     {
+      "color": null,
+      "course_id": null,
+      "course_title": null,
+      "date": "2027-04-01",
+      "days_left": 148,
+      "end": null,
+      "id": "exam-t51dcbe8495-2027-04-01",
+      "in_days": "in 148 Tagen",
+      "kind_label": "Klausur",
+      "module_id": null,
+      "module_name": null,
+      "room": null,
+      "source_label": "aus Nachricht vom 02.11.2026",
+      "sources": [
+       {
+        "kind": "nachricht",
+        "label": "aus Nachricht vom 02.11.2026",
+        "url": "https://studip.test/dispatch.php/messages/overview"
+       }
+      ],
+      "time": "08:00",
+      "title": "Klausur",
+      "user_set": false
+     }
+    ],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "exam_date": null
+   },
+   "method": "PATCH",
+   "path": "/api/modules/3",
+   "response": {
+    "active": 1,
+    "active_custom": 0,
+    "color": "#2b8a3e",
+    "color_custom": 0,
+    "created_at": "2026-10-01T08:00:00",
+    "exam_date": null,
+    "exam_reuse": "paraphrase",
+    "expected_materials": null,
+    "icon": null,
+    "id": 3,
+    "name": "Programmieren",
+    "priority": 2,
+    "semester": null,
+    "sort": 3,
+    "test_minutes": null,
+    "weekly_test": 1
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/exams/upcoming?module_id=3",
+   "response": {
+    "filled": 0,
+    "items": [
+     {
+      "color": "#2b8a3e",
+      "course_id": "lw-77",
+      "course_title": "Programmieren (Learnweb)",
+      "date": "2027-02-05",
+      "days_left": 93,
+      "end": null,
+      "id": "exam-m3-2027-02-05",
+      "in_days": "in 93 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus dem Learnweb-Kalender",
+      "sources": [
+       {
+        "kind": "frist",
+        "label": "aus dem Learnweb-Kalender",
+        "url": "https://learnweb.test/mod/quiz/view.php?id=1"
+       }
+      ],
+      "time": "10:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-18",
+      "days_left": 106,
+      "end": "16:00",
+      "id": "exam-m3-2027-02-18",
+      "in_days": "in 106 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": "Raum 101",
+      "source_label": "aus Stud.IP-Terminen",
+      "sources": [
+       {
+        "kind": "studip",
+        "label": "aus Stud.IP-Terminen",
+        "url": null
+       }
+      ],
+      "time": "14:00",
+      "title": "Klausur Programmieren",
+      "user_set": false
+     },
+     {
+      "color": "#2b8a3e",
+      "course_id": "c-prog",
+      "course_title": "Programmieren",
+      "date": "2027-02-25",
+      "days_left": 113,
+      "end": null,
+      "id": "exam-m3-2027-02-25",
+      "in_days": "in 113 Tagen",
+      "kind_label": "Klausur",
+      "module_id": 3,
+      "module_name": "Programmieren",
+      "room": null,
+      "source_label": "aus Ankündigung vom 03.11.2026",
+      "sources": [
+       {
+        "kind": "ankuendigung",
+        "label": "aus Ankündigung vom 03.11.2026",
+        "url": null
+       }
+      ],
+      "time": null,
+      "title": "Klausur Programmieren",
+      "user_set": false
+     }
+    ],
+    "today": "2026-11-04"
+   },
+   "status": 200
+  }
+ ],
+ "tables_after": {
+  "modules": [
+   {
+    "exam_date": "2027-02-13",
+    "id": 1,
+    "name": "Analysis I"
+   },
+   {
+    "exam_date": "2027-02-20",
+    "id": 2,
+    "name": "Lineare Algebra"
+   },
+   {
+    "exam_date": null,
+    "id": 3,
+    "name": "Programmieren"
+   },
+   {
+    "exam_date": "2027-02-16",
+    "id": 4,
+    "name": "Statistik"
+   },
+   {
+    "exam_date": null,
+    "id": 5,
+    "name": "Physik"
+   }
+  ],
+  "settings": [
+   {
+    "key": "exam_dates_auto",
+    "value": "{\"1\": \"2027-02-13\", \"3\": \"2027-02-05\", \"4\": \"2027-02-15\", \"5\": \"2027-02-10\"}"
+   }
+  ]
+ },
+ "today": "2026-11-04"
+}

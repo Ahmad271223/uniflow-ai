@@ -105,7 +105,7 @@ def test_events_keep_cancelled_with_topic_and_course_texts():
         "title": "Sitzung", "start": "2026-11-03T10:00:00+01:00", "end": "2026-11-03T11:30:00+01:00", "location": "Hörsaal, Gebäude 1",
         "description": "<p>Kapitel&nbsp;3:<br>Grenzwerte</p>", "is-cancelled": True}}, "c1")
     assert e == {"id": "e1", "course_id": "c1", "title": "Sitzung", "start": "2026-11-03T10:00:00", "end": "2026-11-03T11:30:00",
-                 "room": "Hörsaal", "description": "Kapitel 3:\nGrenzwerte", "cancelled": 1}
+                 "room": "Hörsaal", "description": "Kapitel 3:\nGrenzwerte", "cancelled": 1, "category": ""}
     assert studip_sync.event_from_studip({"id": "e2", "attributes": {"start": "", "end": ""}}, "c1")["description"] == ""
     assert studip_sync.course_texts({"title": "T"}) == {"description": None, "miscellaneous": None}
     assert studip_sync.course_texts({"description": None, "miscellaneous": "x" * 2100}) == {"description": "", "miscellaneous": "x" * 2000}

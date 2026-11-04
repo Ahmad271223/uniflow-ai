@@ -57,6 +57,10 @@ from . import invites_api  # noqa: E402 - Einladungen mit Angebotscodes (Routen 
 app.include_router(invites_api.router)
 from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/explain, app/page_explain.py)
 app.include_router(page_explain_api.router)
+from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan, docs/STUDIENVERLAUF-2026-11-04.md)
+app.include_router(study_plan.router)
+from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
+app.include_router(study_catalog.router)
 db.init_db()
 
 
@@ -2340,6 +2344,15 @@ def api_deadlines():
     """Kommende Fristen aus dem Learnweb (Abgaben, Tests), nach Zeit sortiert."""
     with db.cursor() as conn:
         return {"deadlines": study.upcoming_deadlines(conn, study.today())}
+
+
+@app.get("/api/exams/upcoming")
+def api_exams_upcoming(module_id: int | None = None):
+    """Kommende Klausuren je Modul aus allen Quellen (Stud.IP-Termine, Klausurtermin am Modul, QIS, Fristen,
+    Ankuendigungen, Nachrichten) mit Quelle; fuellt leere Klausurtermine der Module (app/exams.py)."""
+    from . import exams
+    with db.cursor() as conn:
+        return exams.response(conn, study.today(), module_id)
 
 
 @app.get("/api/announcements")

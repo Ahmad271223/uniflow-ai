@@ -76,7 +76,7 @@ final class StoreScreenshotTests: XCTestCase {
     // MARK: - Schein-Dienste
 
     /// Leere Wolke im Speicher: die Community gilt als verbunden (Communities aus den Demo-Kursen), ohne iCloud
-    private final class EmptyCloud: CommunityCloud, @unchecked Sendable {
+    final class EmptyCloud: CommunityCloud, @unchecked Sendable {
         func accountStatus() async throws -> CommunityAccountStatus { .available }
         func userRecordName() async throws -> String { "_demo" }
         func save(_ record: CommunityRecord, in scope: CommunityScope) async throws -> CommunityRecord { record }
@@ -86,7 +86,7 @@ final class StoreScreenshotTests: XCTestCase {
     }
 
     /// Feste Antworten fuer einzelne Pfade (KI, Wochentest), alles andere beantwortet das lokale Backend des Containers
-    private final class Intercept: APITransport, @unchecked Sendable {
+    final class Intercept: APITransport, @unchecked Sendable {
         private let inner: LocalTransport
         private let lock = NSLock()
         private var canned: [String: JSONValue] = [:]
@@ -111,7 +111,7 @@ final class StoreScreenshotTests: XCTestCase {
     }
 
     /// Antwort der KI-Hilfe zur Demo-Seite (erfunden, Markdown wie vom Dienst)
-    private static let tutorAnswer: JSONValue = [
+    static let tutorAnswer: JSONValue = [
         "answer": """
         **Zahlensysteme in Kürze**
 
@@ -127,7 +127,7 @@ final class StoreScreenshotTests: XCTestCase {
     ]
 
     /// Abgegebener Wochentest zum Demo-Modul mit Auswertung und Erklaerungen (erfunden)
-    private static var demoTest: JSONValue {
+    static var demoTest: JSONValue {
         let day = UFFmt.todayISO()
         return ["id": 18, "subject": .string(DemoContent.subject), "title": "Wochentest Grundlagen der Informatik – Zahlensysteme",
                 "duration_min": 15, "started_at": .string(day + "T09:48:00"), "submitted_at": .string(day + "T10:02:00"),

@@ -1,0 +1,98 @@
+{
+ "format": "mb-modulkatalog",
+ "meta": {
+  "university": "luh",
+  "program": "Beispieltechnik",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "code": "beispieltechnik|b.sc.|2030",
+  "catalog_term": null,
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispieltechnik-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  }
+ },
+ "catalog": {
+  "v": 1,
+  "university": "luh",
+  "program": "Beispieltechnik",
+  "degree": "B.Sc.",
+  "po": "2030",
+  "catalog_term": "WS 2026/27",
+  "code": "beispieltechnik|b.sc.|2030",
+  "regular_semesters": 6,
+  "total_lp": 180,
+  "source": {
+   "url": "https://example.org/fixture/beispieltechnik-b.sc.-2030.pdf",
+   "fetched_at": null,
+   "sha256": null
+  },
+  "areas": [
+   {
+    "id": "grundlagen-der-beispieltechnik",
+    "name": "Grundlagen der Beispieltechnik",
+    "lp_required": 12,
+    "lp_max": null,
+    "kind": "pflicht"
+   },
+   {
+    "id": "vertiefung-beispieltechnik",
+    "name": "Vertiefung Beispieltechnik",
+    "lp_required": 5,
+    "lp_max": 10,
+    "kind": "wahlpflicht"
+   }
+  ],
+  "modules": [
+   {
+    "id": "grundlagen-der-beispieltechnik",
+    "title": "Grundlagen der Beispieltechnik",
+    "code": null,
+    "area": "grundlagen-der-beispieltechnik",
+    "kind": "pflicht",
+    "lp": 7,
+    "semester": 1,
+    "turnus": "WS",
+    "exam": "Klausur 120 min",
+    "coursework": "Laborversuche",
+    "prerequisites": [],
+    "language": "deutsch",
+    "workload_h": 210,
+    "source_page": 3
+   },
+   {
+    "id": "angewandte-beispielsysteme",
+    "title": "Angewandte Beispielsysteme",
+    "code": null,
+    "area": "vertiefung-beispieltechnik",
+    "kind": "wahlpflicht",
+    "lp": 5,
+    "semester": 3,
+    "turnus": "WS+SS",
+    "exam": "Projektorientierte Prüfung Bericht (~10 Seiten) und Präsentation (~15 Minuten)",
+    "coursework": null,
+    "prerequisites": [
+     "grundlagen-der-beispieltechnik"
+    ],
+    "language": "englisch",
+    "workload_h": 150,
+    "source_page": 5
+   }
+  ]
+ },
+ "module_texts": {
+  "grundlagen-der-beispieltechnik": {
+   "content": "Erfundene Inhalte über zwei Seiten.",
+   "goals": "Die Studierenden kennen erfundene Grundlagen.",
+   "literature": "Muster, E.: Beispielbuch. Verlag 2030."
+  },
+  "angewandte-beispielsysteme": {
+   "content": "Invented contents.",
+   "goals": "Invented goals.",
+   "literature": null
+  }
+ }
+}

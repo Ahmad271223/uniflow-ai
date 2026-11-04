@@ -33,7 +33,7 @@ final class DesignShellAppTests: XCTestCase {
         let groups = UFNavGroup.groups(UFNavItem.visible(local: false, gradesOnDevice: false, community: false))
         XCTAssertEqual(groups.map(\.id), ["study", "learn", "together"])
         XCTAssertEqual(groups.map(\.label), ["STUDIUM", "LERNEN", "GEMEINSAM"])
-        XCTAssertEqual(ids(groups)["study"], ["dashboard", "plan", "timetable", "modules", "files", "services"],
+        XCTAssertEqual(ids(groups)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services"],
                        "Uni & Noten gehoert zum Studium")
         XCTAssertEqual(ids(groups)["learn"], ["exams"])
         XCTAssertEqual(ids(groups)["together"], ["community"])
@@ -56,7 +56,7 @@ final class DesignShellAppTests: XCTestCase {
         // ohne Notenspiegel auf dem Geraet: kein Uni & Noten
         g = UFNavGroup.groups(UFNavItem.visible(local: true, gradesOnDevice: false, community: false, flashcards: false, ai: false))
         XCTAssertEqual(g.map(\.id), ["study"])
-        XCTAssertEqual(ids(g)["study"], ["dashboard", "plan", "timetable", "modules", "files"])
+        XCTAssertEqual(ids(g)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files"])
     }
 
     /// Jeder sichtbare Eintrag steht genau einmal in einer Gruppe, in allen Kombinationen

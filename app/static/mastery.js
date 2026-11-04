@@ -30,3 +30,21 @@ export function masteryHtml(m, size = "md") {
   const label = masteryLabel(m), sub = masterySub(m);
   return `<span class="mastery ${size}${has ? "" : " none"}" role="img" aria-label="${esc(masteryAria(m))}" title="${esc(sub)}"><i class="ring" style="--p:${p}"></i><span class="t"><b>${esc(label)}</b>${size === "md" ? `<small>${esc(sub)}</small>` : ""}</span></span>`;
 }
+
+const STAR = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>`;
+
+/// Zahl im Ring der Kachel: "64 %" bzw. "–" ohne Lernstand
+export function masteryRingText(m) {
+  return m && Number.isFinite(m.score) ? `${Math.max(0, Math.min(100, Math.round(m.score)))} %` : "–";
+}
+
+/// Lernstand-Kachel wie auf dem iPad (UFComponents LernstandTile, 04.11.2026): Stern in Modulfarbe, "Lernstand" bzw.
+/// "noch kein Lernstand", darunter die Begruendung, rechts der Ring mit der Zahl. Farbe ueber --mc des Elternelements.
+/// `size`: "md" (Modulkarte, Uebersicht) oder "lg" (Modulseite)
+export function masteryTile(m, size = "md") {
+  const has = !!(m && Number.isFinite(m.score)), p = has ? Math.max(0, Math.min(100, Math.round(m.score))) : 0;
+  return `<div class="ls-tile ${size}${has ? "" : " none"}" role="img" aria-label="${esc(masteryAria(m))}">`
+    + `<span class="ls-star" aria-hidden="true">${STAR}</span>`
+    + `<span class="ls-t" aria-hidden="true"><b>${has ? "Lernstand" : "noch kein Lernstand"}</b><small>${esc(masterySub(m))}</small></span>`
+    + `<span class="ls-ring" style="--p:${p}" aria-hidden="true"><i></i><b>${esc(masteryRingText(m))}</b></span></div>`;
+}

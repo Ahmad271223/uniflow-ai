@@ -453,6 +453,8 @@ struct ModulePage: View {
                 UFWordWrapText(m.s("name") ?? "", size: 30.4, weight: 700, em: -0.02).foregroundStyle(UF.text)
                 Text("\(d.list("courses").count) Veranstaltungen: \(kinds)\(m.s("exam_date").map { " · Klausur " + UFFmt.date($0) } ?? "")")
                     .ufFont(14.5).foregroundStyle(UF.muted)
+                // naechste Klausur aus allen Quellen mit Countdown, Uhrzeit, Raum und Quelle (04.11.2026, `ModuleNextExam`)
+                ModuleNextExam(api: session.api, moduleID: id).padding(.top, 4)
             }
         }
     }
@@ -461,6 +463,11 @@ struct ModulePage: View {
         HStack(spacing: 8) {
             UFButton("Modul", icon: "settings", size: .small) {
                 if let m = d?["module"] { overlay.modal { ModuleEditDialog(m: m) } }
+            }
+            // Studienverlauf (04.11.2026): das Modul im persoenlichen Plan zeigen (Zuordnung ueber den Modulnamen)
+            if let name = d?["module"]?["name"]?.string, !name.isEmpty {
+                UFButton("Im Studienverlauf", icon: "columns", size: .small) { router.go(.studyPlan(module: name)) }
+                    .accessibilityIdentifier("module.studyPlan")
             }
             UFIconSegmented(options: [("list", "list"), ("cards", "grid")], selection: $mode)
         }

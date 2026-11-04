@@ -244,18 +244,21 @@ def parse_bookings(data, included) -> list[dict]:
 
 
 def chips(dates: list, today: str) -> list[dict]:
-    """Hinweis-Chips einer Zeile: kommende Fristen, Pruefungen, Ausfaelle, Verlegungen ("Frist 12.11."), hoechstens zwei."""
-    out: list[dict] = []
+    """Hinweis-Chips einer Zeile ("Frist 12.11."): zuerst alle kommenden Pruefungen (Klausurtermine fallen nie weg,
+    Auftrag des Inhabers 04.11.2026), danach hoechstens zwei der uebrigen Arten (Fristen, Ausfaelle, Verlegungen)."""
+    exams: list[dict] = []
+    other: list[dict] = []
     for d in dates if isinstance(dates, list) else []:
         if not isinstance(d, dict) or not isinstance(d.get("date"), str) or d["date"] < today or d.get("kind") not in CHIP_KINDS:
             continue
         label = f"{CHIP_KINDS[d['kind']]} {d['date'][8:10]}.{d['date'][5:7]}."
-        if any(c["label"] == label for c in out):
+        if any(c["label"] == label for c in exams + other):
             continue
-        out.append({"label": label, "kind": d["kind"], "date": d["date"]})
-        if len(out) == 2:
-            break
-    return out
+        if d["kind"] == "pruefung":
+            exams.append({"label": label, "kind": d["kind"], "date": d["date"]})
+        elif len(other) < 2:
+            other.append({"label": label, "kind": d["kind"], "date": d["date"]})
+    return exams + other
 
 
 def activity_title(types: list[str]) -> str:

@@ -1116,17 +1116,20 @@ struct PlanMiniCal: View {
                         // miniCal: Frist rot, Hinweis aus Ankuendigung blau; Feiertag/vorlesungsfrei gruene Zelle
                         let _ = { if !(byDate[k]?.list("deadlines") ?? []).isEmpty { colors.append("bad") } }()
                         let _ = { if !(byDate[k]?.list("notices") ?? []).isEmpty { colors.append("info") } }()
+                        // Klausur (`UFExam`): eigener Punkt zuerst, nie verdraengt
+                        let _ = { if !(byDate[k]?.list("exams") ?? []).isEmpty { colors.insert("exam", at: 0) } }()
                         let hol = byDate[k].map(UFDayExtras.tint) ?? .none
                         let tip = ((byDate[k].map(UFDayExtras.marks) ?? []).compactMap { $0.s("label") }
                                    + (byDate[k]?.list("deadlines") ?? []).map { "\($0.s("kind_label") ?? "") \($0.s("time") ?? ""): \($0.s("title") ?? "")" }
-                                   + (byDate[k]?.list("notices") ?? []).map { "\($0.s("kind_label") ?? ""): \($0.s("title") ?? "")" }).joined(separator: " · ")
+                                   + (byDate[k]?.list("notices") ?? []).map { "\($0.s("kind_label") ?? ""): \($0.s("title") ?? "")" }
+                                   + (byDate[k]?.list("exams") ?? []).map { $0.s("title") ?? "Klausur" }).joined(separator: " · ")
                         Button { router.go(.plan(view: "day", date: k)) } label: {
                             VStack(spacing: 2) {
                                 Text("\(c.component(.day, from: dt))").font(.uf(12.48, isToday ? 700 : 400))
                                     .foregroundStyle(isToday ? .white : sel ? UF.accentText : other ? UF.lineStrong : UF.text)
                                 HStack(spacing: 2) {
                                     ForEach(colors, id: \.self) { col in
-                                        Circle().fill(isToday ? .white : (col == "accent" ? UF.accent : col == "bad" ? UF.bad : col == "info" ? UF.info : Color(hex: col)))
+                                        Circle().fill(isToday ? .white : (col == "exam" ? UFExam.color : col == "accent" ? UF.accent : col == "bad" ? UF.bad : col == "info" ? UF.info : Color(hex: col)))
                                             .frame(width: 4, height: 4)
                                     }
                                 }

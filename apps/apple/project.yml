@@ -139,6 +139,9 @@ targets:
         # Aufnahme und Mitschrift verlassen das iPad nie (an die KI geht nur Text nach Antippen).
         NSMicrophoneUsageDescription: StudiNow nimmt mit dem Mikrofon Vorlesungen auf, wenn du „Aufnehmen“ antippst. Die Aufnahme bleibt auf diesem iPad.
         NSSpeechRecognitionUsageDescription: StudiNow schreibt deine Vorlesungsaufnahme auf dem Gerät mit (Spracherkennung ohne Server). Der Text bleibt auf diesem iPad.
+        # Teilen-Menues bieten "Bild sichern" an (QR-Code der Einladung, Downloads im In-App-Browser); ohne diesen Text
+        # beendet iOS die App beim Antippen (Generalprobe 04.11.2026). Nur Hinzufuegen, nie Lesen der Fotos.
+        NSPhotoLibraryAddUsageDescription: StudiNow sichert ein Bild, das du im Teilen-Menü mit „Bild sichern“ auswählst, in deinen Fotos.
         # Exportkontrolle (docs/release/APP-STORE.md "Weitere Angaben"): nur Verschluesselung des Betriebssystems (HTTPS
         # ueber URLSession, AES-GCM/HKDF aus CryptoKit), keine eigene Krypto-Bibliothek -> keine Dokumente noetig
         ITSAppUsesNonExemptEncryption: false

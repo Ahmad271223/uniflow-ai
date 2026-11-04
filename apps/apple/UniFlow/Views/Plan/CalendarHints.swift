@@ -10,7 +10,7 @@ import UniFlowCore
 
 /// Ein Hinweis eines Kalendertags in lesbarer Form (rein, ohne Ansicht; `CalendarHintAppTests`)
 struct UFHint: Identifiable {
-    enum Category: Equatable { case mark, deadline, detected, notice }
+    enum Category: Equatable { case exam, mark, deadline, detected, notice }
 
     let id: String
     let category: Category
@@ -38,12 +38,30 @@ struct UFHint: Identifiable {
 
     // MARK: Aufbau aus den Feldern eines Kalendertags
 
-    /// Alle Hinweise eines Tages in der Reihenfolge der Chips (Markierungen, Fristen, Hinweise)
+    /// Alle Hinweise eines Tages in der Reihenfolge der Chips: Klausuren zuerst (Feld `exams`, `UFExam.attach`; immer
+    /// sichtbar, 04.11.2026), dann Markierungen, Fristen, Hinweise. Erkannte Klausuren und Hinweise "Prüfung" desselben
+    /// Moduls bzw. Kurses stehen mit Klausur-Pin nicht noch einmal da (der Pin nennt die Quelle).
     static func all(_ dd: JSONValue) -> [UFHint] {
         let date = dd.s("date") ?? ""
-        return UFDayExtras.marks(dd).map { mark($0, date: date) }
-            + dd.list("deadlines").map { deadline($0, date: date) }
-            + dd.list("notices").map { notice($0, date: date) }
+        let exams = dd.list("exams")
+        let modules = Set(exams.compactMap { $0.i("module_id") }), courses = Set(exams.compactMap { $0.s("course_id") })
+        func covered(_ x: JSONValue) -> Bool {
+            (x.i("module_id").map(modules.contains) ?? false) || (x.s("course_id").map(courses.contains) ?? false)
+        }
+        return exams.map { exam($0, date: date) }
+            + UFDayExtras.marks(dd).map { mark($0, date: date) }
+            + dd.list("deadlines").filter { !($0["detected"]?.bool == true && $0.s("kind") == "klausur" && covered($0)) }.map { deadline($0, date: date) }
+            + dd.list("notices").filter { !($0.s("kind") == "pruefung" && covered($0)) }.map { notice($0, date: date) }
+    }
+
+    /// Klausur aus GET /api/exams/upcoming: Titel mit Modul, Uhrzeit, Raum, Quelle(n)
+    static func exam(_ x: JSONValue, date: String) -> UFHint {
+        let room = x.s("room").flatMap { $0.isEmpty ? nil : "Raum: \($0)" }
+        return UFHint(id: "exam|\(x.s("id") ?? date)", category: .exam, kind: "klausur", kindText: x.s("kind_label") ?? "Klausur",
+                      icon: UFExam.icon, tone: .bad, title: x.s("title") ?? "Klausur", date: date,
+                      time: x.s("time").flatMap { $0.isEmpty ? nil : $0 }, course: x.s("course_title") ?? x.s("module_name"),
+                      snippet: room, source: x.s("source_label") ?? "Klausurtermin", url: UFExam.sourceURL(x),
+                      announcementID: nil, courseID: x.s("course_id"), moduleID: x.i("module_id"), raw: x)
     }
 
     static func mark(_ m: JSONValue, date: String) -> UFHint {
@@ -177,7 +195,7 @@ struct UFHintDialog: View {
                     if let e = event { row("clock", Self.eventLine(e), id: "hint.event") }
                 }
                 if let sn = hint.snippet {
-                    Text(hint.category == .mark || hint.category == .deadline ? sn : "„\(sn)“")
+                    Text(hint.category == .mark || hint.category == .deadline || hint.category == .exam ? sn : "„\(sn)“")
                         .ufFont(14.5).foregroundStyle(UF.text)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.vertical, 10).padding(.horizontal, 12)

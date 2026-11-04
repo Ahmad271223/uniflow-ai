@@ -15,6 +15,8 @@ enum UFRoute: Hashable {
     case timetable(date: String? = nil)
     case modules
     case module(Int)
+    /// Studienverlauf (04.11.2026, docs/STUDIENVERLAUF-2026-11-04.md); `module` = Modul-id aus dem Katalog zum Hervorheben
+    case studyPlan(module: String? = nil)
     case files(section: String? = nil, path: String? = nil, q: String? = nil)
     case doc(String, task: Int? = nil, page: Int? = nil)
     case exams
@@ -36,6 +38,7 @@ enum UFRoute: Hashable {
         case .plan: return "plan"
         case .timetable: return "timetable"
         case .modules, .module: return "modules"
+        case .studyPlan: return "studyplan"
         case .files, .doc: return "files"
         case .exams, .exam, .cards, .aiStart: return "exams"
         case .services: return "services"
@@ -60,6 +63,7 @@ enum UFRoute: Hashable {
         case .timetable(let d): return "#/timetable" + q([("date", d)])
         case .modules: return "#/modules"
         case .module(let id): return "#/modules/\(id)"
+        case .studyPlan(let m): return "#/studyplan" + q([("module", m)])
         case .files(let s, let p, let qq): return "#/files" + q([("section", s), ("path", p), ("q", qq.map { $0.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0 })])
         case .doc(let id, let t, let p): return "#/doc/\(id)" + q([("task", t.map { "\($0)" }), ("page", p.map { "\($0)" })])
         case .exams: return "#/exams"
@@ -94,6 +98,7 @@ enum UFRoute: Hashable {
         case "tasks": self = .plan(view: "list", date: q["date"])
         case "timetable": self = .timetable(date: q["date"])
         case "modules": self = second.flatMap(Int.init).map { .module($0) } ?? .modules
+        case "studyplan", "studienverlauf": self = .studyPlan(module: q["module"])
         case "files": self = .files(section: q["section"], path: q["path"].flatMap { $0.isEmpty ? nil : $0 }, q: q["q"].flatMap { $0.isEmpty ? nil : $0 })
         case "doc": self = second.map { .doc($0, task: q["task"].flatMap(Int.init), page: q["page"].flatMap(Int.init)) } ?? .files()
         case "exams": self = second.flatMap(Int.init).map { .exam($0, task: q["task"].flatMap(Int.init)) } ?? .exams
@@ -187,6 +192,7 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "plan", title: "Lernkalender", icon: "calendar", route: .plan()),
         UFNavItem(id: "timetable", title: "Stundenplan", icon: "clock", route: .timetable()),
         UFNavItem(id: "modules", title: "Meine Module", icon: "book", route: .modules),
+        UFNavItem(id: "studyplan", title: "Studienverlauf", icon: "columns", route: .studyPlan()),
         UFNavItem(id: "files", title: "Dokumente & Notizen", icon: "folder", route: .files()),
         UFNavItem(id: "exams", title: "Tests & Wiederholung", icon: "exam", route: .exams),
         UFNavItem(id: "services", title: "Uni & Noten", icon: "graduation", route: .services),
@@ -310,7 +316,7 @@ struct UFNavGroup: Identifiable, Equatable {
     /// Reihenfolge je Gruppe (Schluessel = `UFNavItem.id`); "aiStart" stuende in "Lernen", sobald der KI-Start ein
     /// eigener Menuepunkt wird
     static let layout: [(id: String, title: String, members: [String])] = [
-        ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "files", "services"]),
+        ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "studyplan", "files", "services"]),
         ("learn", "Lernen", ["aiStart", "exams", "cards"]),
         ("together", "Gemeinsam", ["community"]),
     ]
@@ -428,19 +434,25 @@ struct AppShell<Content: View>: View {
             let narrow = geo.size.width <= 900
             let docOpen: Bool = { if case .doc = router.route { return true }; return false }()
             let hideChrome = router.fullscreenDoc || router.examFocus
+            let showsSidebar = !narrow && !hideChrome && !docOpen
+            let sidebarWidth = sidebarMode == "min" ? UF.sidebarMin : UF.sidebar
             ZStack(alignment: .leading) {
                 HStack(spacing: 0) {
                     // im Editor keine Leiste: das Logo in seiner Werkzeugleiste fuehrt zu den Bereichen (`UFLogoMenu`)
-                    if !narrow && !hideChrome && !docOpen {
+                    if showsSidebar {
                         UFSidebar(collapsed: sidebarMode == "min", allowCollapse: true)
-                            .frame(width: sidebarMode == "min" ? UF.sidebarMin : UF.sidebar)
+                            .frame(width: sidebarWidth)
                             .transition(.move(edge: .leading))
                     }
                     VStack(spacing: 0) {
                         if !hideChrome && !docOpen { UFHeader(narrow: narrow) }          // doc-open: Kopfzeile aus
                         if demoActive && !demoBarHidden && !session.isOwnServer && !hideChrome && !docOpen { DemoActiveBar() }
+                        // Die Seite bekommt genau die Breite neben der Leiste: eine zu breite Seite schob sonst Kopfzeile,
+                        // Demo-Leiste und alles darunter ueber den rechten Rand (Breiten-Audit 04.11.2026, Einstellungen
+                        // im iPad (A16) quer); LayoutWidthAuditTests prueft, dass keine Seite breiter wird
                         content(router.route)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .frame(width: max(0, geo.size.width - (showsSidebar ? sidebarWidth : 0)), alignment: .leading)
                         if narrow && !hideChrome && !docOpen { UFMobileNav() }
                     }
                     .modifier(UFDrawerHost(overlay: overlay))

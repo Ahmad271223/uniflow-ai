@@ -492,7 +492,8 @@
           {"name": "room", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "description", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "cancelled", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+          {"name": "cancelled", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "category", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [

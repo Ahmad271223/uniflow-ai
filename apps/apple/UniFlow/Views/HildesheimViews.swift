@@ -243,10 +243,10 @@ struct HildesheimSourcesCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(HildesheimConnection.Source.allCases) { s in
                         let st = connection.state(s)
-                        HStack(spacing: 9.6) {
-                            LUHSourcesCard.label(s == .learnweb ? "Learnweb" : "LSF", s == .learnweb ? "Dateien" : "Stundenplan, Noten")
-                            Spacer(minLength: 0)
+                        // Knopf rutscht in schmalen Spalten unter den Namen (`UFSourceRow`, Breiten-Audit 04.11.2026)
+                        UFSourceRow(s == .learnweb ? "Learnweb" : "LSF", s == .learnweb ? "Dateien" : "Stundenplan, Noten") {
                             UFBadge(HildesheimConnection.statusText(s, st), tone: HildesheimStatusLine.tone(st)).fixedSize()
+                        } actions: {
                             if connection.needsAttention(s) {
                                 UFButton(st == .needsLogin ? "Erneut anmelden" : "Verbinden", icon: "arrow-right", kind: .primary, size: .small) {
                                     login = s
@@ -255,8 +255,6 @@ struct HildesheimSourcesCard: View {
                                 .accessibilityIdentifier("hildesheim.settings.connect.\(s.rawValue.lowercased())")
                             }
                         }
-                        .padding(.vertical, 5.6)
-                        .ufBorderBottom()
                     }
                 }
                 .padding(.top, 8)

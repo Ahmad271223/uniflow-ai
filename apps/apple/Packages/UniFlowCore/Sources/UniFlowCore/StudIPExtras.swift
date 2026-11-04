@@ -227,17 +227,19 @@ public enum StudIPExtras {
         return LocalTimetable.stableSorted(out) { x, y in x.start != y.start ? PyText.less(x.start, y.start) : PyText.less(x.id, y.id) }
     }
 
-    /// `chips(dates, today)`: kommende Fristen, Pruefungen, Ausfaelle, Verlegungen, hoechstens zwei
+    /// `chips(dates, today)`: alle kommenden Pruefungen, danach hoechstens zwei Fristen, Ausfaelle oder Verlegungen
     static func chips(_ dates: JSONValue?, today: String) -> [JSONValue] {
-        var out: [JSONValue] = []
+        // zuerst alle kommenden Pruefungen (Klausurtermine fallen nie weg, 04.11.2026), danach hoechstens zwei der
+        // uebrigen Arten (Fristen, Ausfaelle, Verlegungen)
+        var exams: [JSONValue] = [], other: [JSONValue] = []
         for d in dates?.array ?? [] {
             guard let day = d["date"]?.string, !PyText.less(day, today), let kind = d["kind"]?.string, let label = chipKinds[kind] else { continue }
             let text = "\(label) \(PyText.slice(day, 8, 10)).\(PyText.slice(day, 5, 7))."
-            if out.contains(where: { $0["label"]?.string == text }) { continue }
-            out.append(["label": .string(text), "kind": .string(kind), "date": .string(day)])
-            if out.count == 2 { break }
+            if (exams + other).contains(where: { $0["label"]?.string == text }) { continue }
+            let chip: JSONValue = ["label": .string(text), "kind": .string(kind), "date": .string(day)]
+            if kind == "pruefung" { exams.append(chip) } else if other.count < 2 { other.append(chip) }
         }
-        return out
+        return exams + other
     }
 
     /// `activity_title(types)`: "Neu: 2 Dateien, 1 Forumsbeitrag"

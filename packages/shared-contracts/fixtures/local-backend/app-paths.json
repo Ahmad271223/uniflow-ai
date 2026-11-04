@@ -1,7 +1,21 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 129,
+ "count": 145,
  "paths": [
+  {
+   "method": "DELETE",
+   "shape": "/api/community/card-stacks/{}/like",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/community/card-stacks/abc/like"
+   },
+   "expect": {
+    "status": 503,
+    "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"
+   }
+  },
   {
    "method": "DELETE",
    "shape": "/api/flashcard-stacks/{}",
@@ -24,6 +38,34 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/flashcard-stacks/{}/share",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks/1/share"
+   },
+   "python": {
+    "status": 501,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "code": {
+       "type": "string"
+      },
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Python 501 (nur im gehosteten Dienst); lokal ueber CloudKit, leere Datenbank: Stapel fehlt"
    }
   },
   {
@@ -491,6 +533,20 @@
   },
   {
    "method": "GET",
+   "shape": "/api/community/card-stacks",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/community/card-stacks?module_id=1"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "am PC an den Dienst weitergereicht; lokal: Modul fehlt"
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/courses",
    "sources": [
     "UniFlow/Views/Library/LibraryPage.swift",
@@ -866,8 +922,7 @@
    "method": "GET",
    "shape": "/api/demo",
    "sources": [
-    "UniFlow/UniFlowApp.swift",
-    "UniFlow/Views/DemoViews.swift"
+    "UniFlow/UniFlowApp.swift"
    ],
    "request": {
     "path": "/api/demo"
@@ -923,9 +978,41 @@
   },
   {
    "method": "GET",
+   "shape": "/api/exams/upcoming",
+   "sources": [
+    "UniFlow/Views/Exams/ExamDates.swift"
+   ],
+   "request": {
+    "path": "/api/exams/upcoming"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "filled": {
+       "type": "number"
+      },
+      "items": {
+       "type": "array",
+       "item": null
+      },
+      "today": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/files/{}",
    "sources": [
     "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Services/ResumeState.swift",
     "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Views.swift"
    ],
@@ -1459,6 +1546,24 @@
   },
   {
    "method": "GET",
+   "shape": "/api/recent",
+   "sources": [
+    "UniFlow/Views/RecentCard.swift"
+   ],
+   "request": {
+    "path": "/api/recent?limit=15"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "items"
+    ],
+    "reason": "nur auf dem Geraet (RecentEndpoints)"
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/recordings/own",
    "sources": [
     "UniFlow/Views/Recordings/LectureRecorderViews.swift"
@@ -1941,6 +2046,235 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/studip/messages",
+   "sources": [
+    "UniFlow/Services/MessagesInbox.swift",
+    "UniFlow/Views/Messages/MessagesPage.swift"
+   ],
+   "request": {
+    "path": "/api/studip/messages"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "fetched_at",
+     "messages",
+     "q",
+     "total"
+    ],
+    "reason": "nur auf dem Geraet (StudIPMessagesEndpoints)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/study-catalog/status",
+   "sources": [
+    "UniFlow/Views/StudyPlan/StudyPlanPage.swift"
+   ],
+   "request": {
+    "path": "/api/study-catalog/status"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "message": {
+       "type": "string"
+      },
+      "state": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/study-plan",
+   "sources": [
+    "UniFlow/Views/StudyPlan/StudyPlanPage.swift"
+   ],
+   "request": {
+    "path": "/api/study-plan"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "available": {
+       "type": "bool"
+      },
+      "catalog_term": {
+       "type": "null"
+      },
+      "code": {
+       "type": "null"
+      },
+      "current_fachsemester": {
+       "type": "null"
+      },
+      "current_term": {
+       "type": "null"
+      },
+      "degree": {
+       "type": "null"
+      },
+      "disclaimer": {
+       "type": "string"
+      },
+      "electives": {
+       "type": "array",
+       "item": null
+      },
+      "lp_done": {
+       "type": "number"
+      },
+      "lp_expected": {
+       "type": "number"
+      },
+      "lp_total": {
+       "type": "number"
+      },
+      "message": {
+       "type": "string"
+      },
+      "notes": {
+       "type": "array",
+       "item": null
+      },
+      "po": {
+       "type": "null"
+      },
+      "po_confirmed": {
+       "type": "bool"
+      },
+      "program": {
+       "type": "null"
+      },
+      "qis_program": {
+       "type": "null"
+      },
+      "reason": {
+       "type": "string"
+      },
+      "semesters": {
+       "type": "array",
+       "item": null
+      },
+      "start_term": {
+       "type": "null"
+      },
+      "suggested_po": {
+       "type": "null"
+      },
+      "university": {
+       "type": "null"
+      },
+      "unmatched": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/study-plan/module/{}",
+   "sources": [
+    "UniFlow/Views/StudyPlan/StudyPlanSheets.swift"
+   ],
+   "request": {
+    "path": "/api/study-plan/module/programmieren-1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/study-plan/settings",
+   "sources": [
+    "UniFlow/Views/StudyPlan/StudyPlanPage.swift",
+    "UniFlow/Views/StudyPlan/StudyPlanSheets.swift"
+   ],
+   "request": {
+    "path": "/api/study-plan/settings"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "abschluss": {
+       "type": "null"
+      },
+      "catalogs": {
+       "type": "array",
+       "item": null
+      },
+      "elective_lp_required": {
+       "type": "null"
+      },
+      "elective_options": {
+       "type": "array",
+       "item": null
+      },
+      "electives": {
+       "type": "array",
+       "item": null
+      },
+      "po": {
+       "type": "null"
+      },
+      "po_options": {
+       "type": "array",
+       "item": null
+      },
+      "start_term": {
+       "type": "null"
+      },
+      "suggested_po": {
+       "type": "null"
+      },
+      "suggested_start_term": {
+       "type": "null"
+      },
+      "term_options": {
+       "type": "array",
+       "item": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {
@@ -2837,6 +3171,7 @@
    "shape": "/api/ai/tutor",
    "sources": [
     "UniFlow/Views/AI/AIStartView.swift",
+    "UniFlow/Views/Exams/ExamsPage.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Recordings/LectureRecorderViews.swift",
     "UniFlow/Views/TutorPanel.swift"
@@ -2942,6 +3277,53 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/community/card-stacks/{}/adopt",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/community/card-stacks/abc/adopt",
+    "body": {}
+   },
+   "expect": {
+    "status": 503,
+    "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/community/card-stacks/{}/like",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/community/card-stacks/abc/like"
+   },
+   "expect": {
+    "status": 503,
+    "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/community/card-stacks/{}/report",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/community/card-stacks/abc/report",
+    "body": {
+     "reason": "spam",
+     "note": ""
+    }
+   },
+   "expect": {
+    "status": 503,
+    "reason": "am PC an den Dienst weitergereicht; lokal ohne CloudKit not_available"
    }
   },
   {
@@ -3239,6 +3621,60 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/flashcard-stacks/week/{}/{}/{}",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks/week/1/1/vorlesung",
+    "body": {}
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/flashcard-stacks/{}/share",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcard-stacks/1/share",
+    "body": {}
+   },
+   "python": {
+    "status": 501,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "code": {
+       "type": "string"
+      },
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Python 501 (nur im gehosteten Dienst); lokal ueber CloudKit, leere Datenbank: Stapel fehlt"
    }
   },
   {
@@ -3822,6 +4258,73 @@
       "terms": {
        "type": "array",
        "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/study-plan/settings",
+   "sources": [
+    "UniFlow/Views/StudyPlan/StudyPlanPage.swift",
+    "UniFlow/Views/StudyPlan/StudyPlanSheets.swift"
+   ],
+   "request": {
+    "path": "/api/study-plan/settings",
+    "body": {
+     "po": null,
+     "start_term": "WiSe 25/26",
+     "electives": []
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "abschluss": {
+       "type": "null"
+      },
+      "catalogs": {
+       "type": "array",
+       "item": null
+      },
+      "elective_lp_required": {
+       "type": "null"
+      },
+      "elective_options": {
+       "type": "array",
+       "item": null
+      },
+      "electives": {
+       "type": "array",
+       "item": null
+      },
+      "po": {
+       "type": "null"
+      },
+      "po_options": {
+       "type": "array",
+       "item": null
+      },
+      "start_term": {
+       "type": "string"
+      },
+      "suggested_po": {
+       "type": "null"
+      },
+      "suggested_start_term": {
+       "type": "null"
+      },
+      "term_options": {
+       "type": "array",
+       "item": {
+        "type": "string"
+       }
       }
      }
     }

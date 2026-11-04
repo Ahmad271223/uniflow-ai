@@ -1,0 +1,101 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Rotate 90 /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 3765 >>
+stream
+BT /F1 1 Tf 0 8 -8 0 21 760 Tm (Stand: 01/10/26) Tj ET
+BT /F1 1 Tf 0 10 -10 0 42 36 Tm (STUDIENVERLAUFSPLAN) Tj ET
+BT /F1 1 Tf 0 14 -14 0 59 36 Tm (BACHELOR BEISPIELINFORMATIK) Tj ET
+BT /F1 1 Tf 0 16 -16 0 117 44 Tm (1.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 134 44 Tm (SEMESTER) Tj ET
+BT /F1 1 Tf 0 12 -12 0 135 788 Tm (8) Tj ET
+BT /F1 1 Tf 0 8 -8 0 147 786 Tm (ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 106 99 Tm (Beispielprogrammierung I) Tj ET
+BT /F1 1 Tf 0 6 -6 0 142 99 Tm (Muster) Tj ET
+BT /F1 1 Tf 0 6 -6 0 150 139 Tm (2V+2Ü ) Tj ET
+BT /F1 1 Tf 0 6 -6 0 150 157 Tm (| 5 ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 106 192 Tm (Einführung in) Tj ET
+BT /F1 1 Tf 0 8 -8 0 115.5 192 Tm (Beispielwerkzeuge) Tj ET
+BT /F1 1 Tf 0 6 -6 0 142 192 Tm (Probe) Tj ET
+BT /F1 1 Tf 0 6 -6 0 150 232 Tm (1V+1Ü | 3 ECTS) Tj ET
+BT /F1 1 Tf 0 16 -16 0 185.5 44 Tm (2.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 202.5 44 Tm (SEMESTER) Tj ET
+BT /F1 1 Tf 0 12 -12 0 203.5 788 Tm (15) Tj ET
+BT /F1 1 Tf 0 8 -8 0 215.5 786 Tm (ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 174.5 99 Tm (Beispielprogrammie-) Tj ET
+BT /F1 1 Tf 0 8 -8 0 184 99 Tm (rung II) Tj ET
+BT /F1 1 Tf 0 6 -6 0 210.5 99 Tm (Muster) Tj ET
+BT /F1 1 Tf 0 6 -6 0 218.5 139 Tm (2V+2Ü ) Tj ET
+BT /F1 1 Tf 0 6 -6 0 218.5 157 Tm (| 5 ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 174.5 192 Tm (Beispielsysteme und) Tj ET
+BT /F1 1 Tf 0 8 -8 0 184 192 Tm (Netze) Tj ET
+BT /F1 1 Tf 0 6 -6 0 210.5 192 Tm (Probe, Muster) Tj ET
+BT /F1 1 Tf 0 6 -6 0 218.5 232 Tm (2V+1Ü+1L ) Tj ET
+BT /F1 1 Tf 0 6 -6 0 218.5 250 Tm (| 5 ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 174.5 285 Tm (Wahlmodul*) Tj ET
+BT /F1 1 Tf 0 6 -6 0 192 285 Tm (\(A / B\)) Tj ET
+BT /F1 1 Tf 0 6 -6 0 218.5 343 Tm (5 ECTS) Tj ET
+BT /F1 1 Tf 0 16 -16 0 254 44 Tm (3.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 271 44 Tm (SEMESTER) Tj ET
+BT /F1 1 Tf 0 12 -12 0 272 788 Tm (8) Tj ET
+BT /F1 1 Tf 0 8 -8 0 284 786 Tm (ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 243 99 Tm (Proseminar) Tj ET
+BT /F1 1 Tf 0 6 -6 0 287 157 Tm (5 ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 243 192 Tm (Vertiefung Beispiel) Tj ET
+BT /F1 1 Tf 0 6 -6 0 287 250 Tm (3-6 ECTS) Tj ET
+BT /F1 1 Tf 0 16 -16 0 322.5 44 Tm (4.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 339.5 44 Tm (SEMESTER) Tj ET
+BT /F1 1 Tf 0 12 -12 0 340.5 788 Tm (8) Tj ET
+BT /F1 1 Tf 0 8 -8 0 352.5 786 Tm (ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 311.5 99 Tm (Wahlpflichtmodul) Tj ET
+BT /F1 1 Tf 0 8 -8 0 321 99 Tm (\(Vertiefung Beispiel\)*) Tj ET
+BT /F1 1 Tf 0 6 -6 0 355.5 157 Tm (5 ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 311.5 192 Tm (Studium Beispiel Angebote 3 LP) Tj ET
+BT /F1 1 Tf 0 16 -16 0 391 44 Tm (5.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 408 44 Tm (SEMESTER) Tj ET
+BT /F1 1 Tf 0 12 -12 0 409 788 Tm (10) Tj ET
+BT /F1 1 Tf 0 8 -8 0 421 786 Tm (ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 380 99 Tm (Wahlmodul*) Tj ET
+BT /F1 1 Tf 0 6 -6 0 397.5 99 Tm (\(A / B\)) Tj ET
+BT /F1 1 Tf 0 6 -6 0 424 157 Tm (5 ECTS) Tj ET
+BT /F1 1 Tf 0 16 -16 0 459.5 44 Tm (6.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 476.5 44 Tm (SEMESTER) Tj ET
+BT /F1 1 Tf 0 12 -12 0 477.5 788 Tm (15) Tj ET
+BT /F1 1 Tf 0 8 -8 0 489.5 786 Tm (ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 448.5 99 Tm (Bachelorarbiet inkl. Kolloquium) Tj ET
+BT /F1 1 Tf 0 6 -6 0 492.5 329 Tm (15 ECTS) Tj ET
+BT /F1 1 Tf 0 7 -7 0 522 57 Tm (Grundlagen der Beispielinformatik Wahlbereich*) Tj ET
+BT /F1 1 Tf 0 12 -12 0 530 747 Tm (GESAMT) Tj ET
+BT /F1 1 Tf 0 14 -14 0 546 740 Tm (61 ECTS) Tj ET
+BT /F1 1 Tf 0 8 -8 0 568 36 Tm (* Wahlbereich: Wahl zwischen Vertiefung Beispiel und/oder Grundlagen der Beispielinformatik gemäß der) Tj ET
+BT /F1 1 Tf 0 8 -8 0 578 36 Tm (gültigen Prüfungsordnung.) Tj ET
+BT /F1 1 Tf 0 8 -8 0 581 538 Tm (ECTS = Leistungspunkte | V = Vorlesung | Ü = Übung) Tj ET
+BT /F1 1 Tf 0 8 -8 0 380 192 Tm (Wahlpflichtmodul) Tj ET
+BT /F1 1 Tf 0 8 -8 0 389.5 192 Tm (\(Vertiefung Beispiel\)*) Tj ET
+BT /F1 1 Tf 0 6 -6 0 424 250 Tm (5 ECTS) Tj ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000212 00000 n 
+0000000349 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+4166
+%%EOF

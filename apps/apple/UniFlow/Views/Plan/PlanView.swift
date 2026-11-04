@@ -57,11 +57,13 @@ struct PlanView: View {
             // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), im gezeigten Zeitraum und im Monat;
             // gleichzeitig mit den anderen Anfragen, damit das Neuladen nicht laenger dauert
             async let hiddenKeys = StudIPCancelled.keys(api, from: Fmt.isoDay(min(start, mStart)), to: Fmt.isoDay(max(end, mEnd)))
+            // Klausuren als eigene Pins je Tag (`UFExam`, immer sichtbar)
+            async let examList = UFExam.load(api)
             let month: JSONValue? = st.view == "month" ? nil : try await api.value("/api/calendar?start=\(Fmt.isoDay(mStart))&end=\(Fmt.isoDay(mEnd))")
-            let hidden = await hiddenKeys
+            let hidden = await hiddenKeys, exams = await examList
             var pd = PlanData(view: st.view, date: d, start: start, end: end, module: st.module,
-                              cal: StudIPCancellations.hiding(in: try await cal, keys: hidden), open: try await open,
-                              modules: try await mods, month: month.map { StudIPCancellations.hiding(in: $0, keys: hidden) })
+                              cal: UFExam.attach(StudIPCancellations.hiding(in: try await cal, keys: hidden), exams), open: try await open,
+                              modules: try await mods, month: month.map { UFExam.attach(StudIPCancellations.hiding(in: $0, keys: hidden), exams) })
             if st.view == "week" || st.view == "3days" {
                 for w in Set([PlanData.monday(start), PlanData.monday(end)]) {
                     if let tw = try? await api.value("/api/timetable/week?start=\(Fmt.isoDay(w))") {

@@ -25,6 +25,7 @@ public final class LocalBackend: Sendable {
         FlashcardEndpoints.self,
         CardStackEndpoints.self,
         DueEndpoints.self,
+        ExamsEndpoints.self,
         StudIPTextEndpoints.self,
         StudIPBulletinEndpoints.self,
         StudIPBlubberEndpoints.self,
@@ -36,6 +37,8 @@ public final class LocalBackend: Sendable {
         DocIndexEndpoints.self,
         OwnRecordingEndpoints.self,
         RecentEndpoints.self,
+        StudyPlanEndpoints.self,
+        StudyCatalogEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

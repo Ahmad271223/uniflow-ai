@@ -275,3 +275,59 @@ export const filterShared = (list, week) => filterStacks((list || []).filter(s =
 export const LOCK_TITLE = "Karteikarten gibt es ab StudiNow Plus.";
 export const LOCK_TEXT = "Mit Plus übst und bearbeitest du deine Karten wieder.";
 export const readOnly = (hosted, entitlements) => !!hosted && !entitlements?.entitlements?.can_use_flashcards;
+
+// ---------------------------------------------------------------- Stapel-Kacheln (Neugestaltung 04.11.2026)
+// Wie die Kacheln in CardsPage.swift: farbige Kante je Art, Name, Modul, Woche, grosse Zahl "heute fällig", Lernstand als
+// Balken je Leitner-Fach 1 bis 5, grosser Knopf "Üben" und darunter, was "Üben" tut.
+
+/** Symbol je Art (core.js icon) */
+export const KIND_ICON = { eigene: "cards", uebung: "pen", vorlesung: "book" };
+export const kindOf = s => (s && KINDS[s.kind] ? s.kind : "eigene");
+
+/** Wochen-Etikett einer Kachel: "Woche 3" bzw. "Allgemein" */
+export const weekChip = s => (s && s.week ? `Woche ${s.week}` : "Allgemein");
+
+/** Herkunft als kurze Etiketten: gemeinsam, übernommen, geteilt */
+export function stackTags(s) {
+  const out = [];
+  if (s?.source === "week") out.push("gemeinsam"); else if (s?.source === "community") out.push("übernommen");
+  if (s?.shared_id) out.push("geteilt");
+  return out;
+}
+
+/** Karten je Leitner-Fach 1..5 (fehlendes oder unbrauchbares Fach zaehlt als 1, mehr als 5 als 5) */
+export function boxCounts(cards) {
+  const out = [0, 0, 0, 0, 0];
+  for (const c of cards || []) { const b = Math.min(5, Math.max(1, Math.round(Number(c.box) || 1))); out[b - 1]++; }
+  return out;
+}
+
+/** Balkenhoehe je Fach als Anteil am groessten Fach (0..1); ohne Karten alles 0 */
+export function boxLevels(counts) {
+  const max = Math.max(0, ...counts);
+  return counts.map(n => (max ? n / max : 0));
+}
+
+/** Vorlesetext der Balken: "Lernstand: Fach 1: 4 Karten, Fach 2: 0 Karten, …" */
+export const boxAria = counts => `Lernstand: ${counts.map((n, k) => `Fach ${k + 1}: ${n} ${n === 1 ? "Karte" : "Karten"}`).join(", ")}`;
+
+/** Zeile unter "Üben": faellige Karten zuerst, sonst freies Ueben ohne Planaenderung */
+export function practiceLine(due) {
+  const n = Number(due) || 0;
+  return n === 1 ? "Zuerst die fällige Karte" : n > 1 ? `Zuerst die ${n} fälligen Karten` : "Frei üben, der Plan bleibt";
+}
+
+/** Was "Üben" auf einer Kachel startet: "review" (heute faellige Karten, Leitner) oder "free" (Trainer, Plan bleibt) */
+export const practiceMode = s => ((Number(s?.due) || 0) > 0 ? "review" : "free");
+
+/** Summen fuer die Kopfzeile: Stapel, Karten, heute faellig */
+export function stackTotals(stacks) {
+  return (stacks || []).reduce((t, s) => ({ stacks: t.stacks + 1, cards: t.cards + (Number(s.cards) || 0), due: t.due + (Number(s.due) || 0) }), { stacks: 0, cards: 0, due: 0 });
+}
+
+/** Segmente des Wochenfilters: Alle, Allgemein, W1 … Wn; `current` null = Alle */
+export const weekSegments = (weeks, current) => [[null, "Alle"], [GENERAL_WEEK, "Allgemein"], ...weeks.map(w => [w, `W${w}`])]
+  .map(([value, label]) => ({ value, label, on: current === value }));
+
+/** "Karte 2 von 7" (Position 0-basiert, am Ende die letzte) */
+export const cardOf = (position, total) => `Karte ${Math.min(position + 1, total)} von ${total}`;

@@ -2,14 +2,16 @@
 import { renderWeeklyBox } from "./views-weekly.js?v=14";
 import { installCard, bindInstallBanner } from "./pwa.js?v=15";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, esc, icon, toast, modal, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=43";
-import * as FC from "./flashcards.js?v=6";
+import { $, $$, api, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=43";
+import * as FC from "./flashcards.js?v=7";
 import { mountBulletin } from "./bulletin.js?v=5";
 import { mountStudipTexts } from "./studip-texts.js?v=5";
 import { settingHtml } from "./older-semesters.js?v=2";
 import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=4";
 // Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
-import { masteryHtml } from "./mastery.js?v=1";
+import { masteryHtml, masteryTile } from "./mastery.js?v=2";
+// Testergebnis wie auf dem iPad: Ring, Einordnung und "Frag die KI zu Aufgabe n" (test-result.js)
+import * as TR from "./test-result.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -23,7 +25,7 @@ export function modCard(m) {
     <div class="hd"><div class="ini">${initial(m.name)}</div><div class="nm">${esc(m.name)}</div></div>
     <div class="desc">${esc(desc)}</div>
     <div class="pr"><span><strong>${m.progress}%</strong> bearbeitet</span>${m.new_count ? `<b>${m.new_count} neue Inhalte</b>` : `<span class="muted">${m.exam_date ? "Klausur " + fmtDate(m.exam_date) : "aktuell"}</span>`}</div><div class="progress"><i style="width:${m.progress}%"></i></div>
-    <div class="mod2-mastery">${masteryHtml(m.mastery)}</div>
+    <div class="mod2-mastery">${masteryTile(m.mastery)}</div>
     ${nxt}
     <div class="stats"><div>${icon("file-text", 18)}<span><b>${m.file_count}</b>Dateien</span></div><div>${icon("tasks", 18)}<span><b>${m.task_count ?? m.open_tasks}</b>Aufgaben</span></div><div>${icon("exam", 18)}<span><b>${m.test_count ?? 0}</b>Wochentest${m.test_count === 1 ? "" : "s"}</span></div></div></a>`;
 }
@@ -50,7 +52,8 @@ async function viewModule(id, view) {
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
       <div class="page-head"><div class="mod-head"><div class="color" style="background:${m.color}">${initial(m.name)}</div><div><h1>${esc(m.name)}</h1><div class="sub">${d.courses.length} Veranstaltungen: ${d.courses.map(c => KIND_TXT[c.kind] || c.kind).join(", ")}${m.exam_date ? ` · Klausur ${fmtDate(m.exam_date)}` : ""}</div></div></div>
         <div class="actions"><button class="btn sm" id="modEdit">${icon("settings", 14)} Modul</button><div class="seg"><button class="${mode === "list" ? "active" : ""}" data-mode="list">${icon("list", 15)}</button><button class="${mode === "cards" ? "active" : ""}" data-mode="cards">${icon("grid", 15)}</button></div></div></div>
-      <div class="grid cols-3" style="margin-bottom:1rem"><div class="card kpi"><b>${d.progress}%</b><span>Lernfortschritt</span><div class="progress" style="margin-top:.4rem"><i style="width:${d.progress}%"></i></div><div class="mod2-mastery">${masteryHtml(d.mastery)}</div></div><div class="card kpi"><b>${curWeek ? curWeek.label.split("·")[0].trim() : "–"}</b><span>Aktuelle Lehrwoche${curWeek?.topic ? ` · ${esc(curWeek.topic)}` : ""}</span></div><div class="card kpi"><b>${d.next_package ? fmtShort(d.next_package.date) : "–"}</b><span>${d.next_package ? esc(d.next_package.title) : "Kein Lernblock geplant"}${d.next_package ? ` · <a href="#/plan?view=day&date=${d.next_package.date}">öffnen</a>` : ""}</span></div></div>
+      <div class="mod-ls" style="--mc:${m.color || "var(--accent)"}">${masteryTile(d.mastery, "lg")}</div>
+      <div class="grid cols-3" style="margin-bottom:1rem"><div class="card kpi"><b>${d.progress}%</b><span>Lernfortschritt</span><div class="progress" style="margin-top:.4rem"><i style="width:${d.progress}%"></i></div></div><div class="card kpi"><b>${curWeek ? curWeek.label.split("·")[0].trim() : "–"}</b><span>Aktuelle Lehrwoche${curWeek?.topic ? ` · ${esc(curWeek.topic)}` : ""}</span></div><div class="card kpi"><b>${d.next_package ? fmtShort(d.next_package.date) : "–"}</b><span>${d.next_package ? esc(d.next_package.title) : "Kein Lernblock geplant"}${d.next_package ? ` · <a href="#/plan?view=day&date=${d.next_package.date}">öffnen</a>` : ""}</span></div></div>
       <div class="tabs">${[["overview", "Übersicht"], ["lectures", "Vorlesungen"], ["exercises", "Übungen"], ["solutions", "Lösungen"], ["scripts", "Skripte"], ["exams", "Klausuren"], ["notes", "Notizen"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
       <div class="tab-panel${switched ? " uf-panel-in" : ""}">${body}</div></div>`;
     $$("[data-tab]", view).forEach(b => b.onclick = () => { if (tab === b.dataset.tab) return; tab = b.dataset.tab; render(true); });
@@ -122,18 +125,43 @@ async function runTest(id, params, view) {
   const render = () => {
     const q = t.questions[cur]; const f = fb[String(q.nr)]; const ans = answers[String(q.nr)] || "";
     view.innerHTML = `<div class="content" style="max-width:900px"><div class="row wrap" style="margin-bottom:1rem"><a class="btn sm" href="${params.task ? "#/plan" : "#/exams"}" id="exBack">${icon("arrow-left", 14)} ${t.submitted_at ? "Zurück" : "Abbrechen"}</a><div><b>${esc(t.title)}</b><div class="muted small">${esc(t.subject)} · ${t.duration_min} min · ${t.questions.length} Aufgaben · KI-generiert${t.week_no ? ` · Lehrwoche ${t.week_no}` : ""}</div></div><span class="spacer"></span><span class="timer" id="timer"></span></div>
-      ${t.submitted_at ? `<div class="card" style="margin-bottom:1rem"><div class="score">${Math.round(t.feedback.total)} / ${Math.round(t.feedback.max)} Punkte <span class="muted" style="font-size:1rem">(${Math.round(100 * t.feedback.total / t.feedback.max)} %)</span></div><p>${esc(t.feedback.summary || "")}</p>${t.feedback.weak_topics?.length ? `<p class="small"><b>Nochmal anschauen:</b> ${t.feedback.weak_topics.map(esc).join(", ")}</p>` : ""}</div>` : ""}
+      ${t.submitted_at ? (() => { const r = TR.resultSummary(t); return `<section class="card tr-head ${r.tone}" aria-label="Ergebnis"><div class="tr-top"><span class="tr-ring" style="--p:${r.pct}" role="img" aria-label="${r.pct} Prozent">${icon(r.tone === "ok" ? "check" : "refresh", 26)}</span>
+        <div class="tr-num"><div><b class="tr-pct">${r.pct} %</b> <span class="muted">${r.total} / ${r.max} Punkte</span></div><div><b>${r.right}/${r.n} richtig</b>${r.redo ? `<span class="muted"> · ${r.redo} zum Nacharbeiten</span>` : ""}</div><span class="tr-status">${icon(r.tone === "ok" ? "check" : "alert", 14)} ${esc(r.status)}</span></div></div>
+        ${t.feedback.summary ? `<p class="tr-sum">${esc(t.feedback.summary)}</p>` : ""}${t.feedback.weak_topics?.length ? `<div class="tr-weak"><b class="small">Nochmal anschauen:</b>${t.feedback.weak_topics.map(w => `<span class="tr-topic">${esc(w)}</span>`).join("")}</div>` : ""}</section>`; })() : ""}
       <div class="row wrap" style="gap:.3rem;margin-bottom:.8rem">${t.questions.map((qq, i) => `<button class="chip ${i === cur ? "on" : ""}" data-q="${i}" style="${fb[String(qq.nr)] ? `border-color:${fb[String(qq.nr)].points >= fb[String(qq.nr)].max * .6 ? "var(--ok)" : "var(--bad)"}` : answers[String(qq.nr)] ? "border-color:var(--accent)" : ""}">${qq.nr}</button>`).join("")}</div>
       <div class="q ${f ? (f.points >= f.max * .6 ? "good" : "bad") : ""}"><div class="qh"><span>Aufgabe ${q.nr} von ${t.questions.length} · ${q.type === "mc" ? "Multiple Choice" : q.type === "calc" ? "Rechnen / Programmieren" : "Kurzantwort"}</span><span>${q.points} P.${f ? ` → ${f.points}` : ""}</span></div>
         <div style="font-size:1.02rem;margin-bottom:.7rem">${esc(q.question).replace(/\n/g, "<br>")}</div>
         ${q.type === "mc" ? (q.options || []).map(o => `<label class="opt"><input type="radio" name="q" value="${esc(o)}" ${ans === o ? "checked" : ""} ${t.submitted_at ? "disabled" : ""}> ${esc(o)}</label>`).join("") : `<textarea class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="Deine Antwort / Rechenweg">${esc(ans)}</textarea>`}
-        ${f ? `<div class="fb"><b>Feedback:</b> ${esc(f.feedback)}<br><b>Musterlösung:</b> ${esc(q.answer)}</div>` : ""}</div>
+        ${f ? `<div class="fb"><b>Feedback:</b> ${esc(f.feedback)}<br><b>Musterlösung:</b> ${esc(q.answer)}</div><button class="btn primary tr-ask" id="qAsk">${icon("sparkles", 16)} ${esc(TR.askLabel(q.nr))}</button>` : ""}</div>
       <div class="row between"><button class="btn" id="qPrev" ${cur === 0 ? "disabled" : ""}>${icon("chevron-left", 14)} Zurück</button>${cur < t.questions.length - 1 ? `<button class="btn primary" id="qNext">Weiter ${icon("chevron-right", 14)}</button>` : (t.submitted_at ? "" : `<button class="btn ok" id="qSubmit">${icon("check", 14)} Abgeben & bewerten</button>`)}</div></div>`;
     const save = () => { const q = t.questions[cur]; const el = q.type === "mc" ? $("input[name=q]:checked", view) : $("#qa", view); answers[String(q.nr)] = el ? el.value : ""; };
     $$("[data-q]", view).forEach(b => b.onclick = () => { save(); cur = +b.dataset.q; render(); });
     $("#qPrev").onclick = () => { save(); cur--; render(); }; $("#qNext")?.addEventListener("click", () => { save(); cur++; render(); });
     $("#qSubmit")?.addEventListener("click", async () => { save(); const open = t.questions.filter(q => !answers[String(q.nr)]).length; if (!confirm(`Test abgeben?${open ? ` ${open} Aufgaben sind unbeantwortet.` : ""} Die KI bewertet deine Antworten.`)) return; $("#qSubmit").disabled = true; $("#qSubmit").textContent = "Wird bewertet…"; clearInterval(timerInt); try { await api(`/tests/${id}/submit`, { method: "POST", body: { answers } }); if (params.task) await api(`/tasks/${params.task}/status`, { method: "POST", body: { status: "erledigt" } }); runTest(id, params, view); } catch (e) { toast("Bewertung fehlgeschlagen: " + e.message, 5000); $("#qSubmit").disabled = false; } });
     $("#exBack").onclick = () => { document.body.classList.remove("exam-focus"); clearInterval(timerInt); };
+    $("#qAsk", view)?.addEventListener("click", () => askAi(q, ans, f));
+  };
+  // KI-Hilfe zu einer Aufgabe (Seitenleiste): Aufgabe mit eigener und richtiger Antwort, Gespraech, Vorschlaege, Eingabe unten
+  const askAi = (q, ans, f) => {
+    const right = TR.isRight(f), history = [];
+    const d = drawer(`<div class="tr-ai" role="dialog" aria-modal="true" aria-labelledby="trAiT"><div class="tr-ai-hd"><span class="tr-ai-ic" aria-hidden="true">${icon("sparkles", 20)}</span><div><h2 id="trAiT">KI-Hilfe</h2><div class="muted small">${esc(TR.askSub(q))}</div></div><span class="spacer"></span><button class="btn ghost icon" data-close aria-label="KI-Hilfe schließen">${icon("x", 18)}</button></div>
+      <div class="tr-ai-body" id="trAiLog" aria-live="polite"><div class="tr-ai-ctx"><div>${esc(q.question).replace(/\n/g, "<br>")}</div><div class="tr-ai-mine ${right ? "ok" : "bad"}">${icon(right ? "check" : "x", 15)} <span><b>Deine Antwort:</b> ${esc(ans || "(keine)")}</span></div><div class="tr-ai-mine ok">${icon("check", 15)} <span><b>Richtige Antwort:</b> ${esc(q.answer ?? "")}</span></div></div></div>
+      <div class="tr-ai-sugg">${TR.SUGGESTIONS.map(x => `<button type="button" class="chip" data-sugg="${esc(x)}">${icon("sparkles", 13)} ${esc(x)}</button>`).join("")}</div>
+      <form class="tr-ai-in" id="trAiForm"><input class="input" id="trAiQ" placeholder="Frag weiter zu dieser Aufgabe …" aria-label="Frage an die KI" autocomplete="off"><button class="btn primary icon" type="submit" aria-label="Senden">${icon("arrow-right", 18)}</button></form></div>`);
+    d.classList.add("tr-drawer");
+    const log = $("#trAiLog", d), form = $("#trAiForm", d), inp = $("#trAiQ", d);
+    let busy = false;
+    const ask = async question => { question = String(question || "").trim(); if (!question || busy) return; busy = true; form.querySelector("button").disabled = true;
+      log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
+      const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
+      try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
+        const { md } = await import("./editor.js?v=65"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
+      catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
+      busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
+    form.onsubmit = e => { e.preventDefault(); const v = inp.value; inp.value = ""; ask(v); };
+    $$("[data-sugg]", d).forEach(b => b.onclick = () => ask(b.dataset.sugg));
+    inp.focus(); ask(TR.firstQuestion(q.nr, right));
   };
   render();
   if (!t.submitted_at) { const end = new Date(t.started_at).getTime() + t.duration_min * 60000; clearInterval(timerInt); const tick = () => { const left = Math.max(0, end - Date.now()); const el = $("#timer"); if (!el) { clearInterval(timerInt); return; } el.textContent = `⏱ ${Math.floor(left / 60000)}:${String(Math.floor(left % 60000 / 1000)).padStart(2, "0")}`; el.classList.toggle("low", left < 5 * 60000); if (left <= 0) { clearInterval(timerInt); toast("Zeit abgelaufen – bitte abgeben."); } }; tick(); timerInt = setInterval(tick, 1000); }
@@ -184,9 +212,6 @@ export async function viewCards(_, __, view) {
   const weekActions = g => { const m = moduleOf(g.title); if (ro || !m || !(cardsWeek > 0)) return "";
     return FC.hasCompleteWeek(stacks, m.name, cardsWeek) ? `<button class="btn sm" data-weekplay="${m.id}" aria-label="Woche ${cardsWeek} komplett üben: ${esc(m.name)}">${icon("play", 13)} Woche ${cardsWeek} komplett</button>`
       : `<button class="btn sm" data-weekfetch="${m.id}" aria-label="Karten für Woche ${cardsWeek} holen: ${esc(m.name)}">${icon("download", 13)} Karten für Woche ${cardsWeek} holen</button>`; };
-  const shareBtn = s => ro || !shareAvail || !(s.shared_id || FC.canShare(s)) ? "" : s.shared_id
-    ? `<button class="btn ghost icon sm fc-on" data-unshare="${s.id}" aria-pressed="true" title="Teilen zurückziehen" aria-label="Teilen zurückziehen: ${esc(s.name)}">${icon("users", 14)}</button>`
-    : `<button class="btn ghost icon sm" data-share="${s.id}" aria-pressed="false" title="Stapel teilen" aria-label="Stapel teilen: ${esc(s.name)}">${icon("users", 14)}</button>`;
   // geteilte Stapel anderer je Modul (Wochenfilter wie die eigene Liste): Uebernehmen, Like, Melden
   const sharedList = () => { if (!shareAvail) return "";
     const groups = modules.map(m => ({ m, list: FC.filterShared(shared[m.id], cardsWeek) })).filter(x => x.list.length);
@@ -197,12 +222,31 @@ export async function viewCards(_, __, view) {
         <button class="btn ghost icon sm" data-shreport="${esc(x.id)}" ${x.reported_by_me ? "disabled" : ""} title="${x.reported_by_me ? "Schon gemeldet" : "Melden"}" aria-label="Melden: ${esc(x.name)}">${icon("flag", 14)}</button>
         ${ro ? "" : `<button class="btn sm${x.adopted ? "" : " primary"}" data-shadopt="${esc(x.id)}" ${x.adopted ? "disabled" : ""} aria-label="${x.adopted ? "Schon übernommen" : "Übernehmen"}: ${esc(x.name)}">${icon("download", 13)} ${x.adopted ? "Übernommen" : "Übernehmen"}</button>`}</div>`).join("")}</div>`).join("")
         : `<div class="empty small">${cardsWeek == null ? "In deinen Modulen hat noch niemand einen Stapel geteilt." : "Kein geteilter Stapel in dieser Woche."}</div>`}</div>`; };
-  const stackList = () => `${lockHint()}<div class="card"><div class="card-head"><h2>${icon("layers", 18)} Stapel</h2><span class="muted small">${dueAll.length} heute fällig</span>${ro ? "" : `${modules.length ? `<button class="btn sm" id="wkFetch">${icon("download", 14)} Karten für eine Woche holen …</button>` : ""}<button class="btn sm" id="stNew">${icon("plus", 14)} Neuer Stapel</button>`}</div>
-    <p class="small" style="margin:0 0 .4rem">Geübt wird immer in einem Stapel: Wähle einen, um seine fälligen Karten zu wiederholen oder frei zu üben.</p>
-    ${weeksAll().length ? `<div class="row wrap fc-weeks" role="radiogroup" aria-label="Lehrwoche">${[[null, "Alle"], [FC.GENERAL_WEEK, "Allgemein"], ...weeksAll().map(w => [w, `W${w}`])].map(([w, t]) => `<button type="button" class="chip${cardsWeek === w ? " on" : ""}" role="radio" aria-checked="${cardsWeek === w}" data-week="${w === null ? "" : w}">${t}</button>`).join("")}</div>` : ""}
-    ${stacks.length ? (FC.groupStacks(FC.filterStacks(stacks, cardsWeek), modules).map(g => `<div class="fc-group"><span class="dot" style="background:${g.color || "var(--line-strong)"}"></span><b>${esc(g.title)}</b><span class="muted small">${g.stacks.length}</span><span class="spacer"></span>${weekActions(g)}</div><div class="list">${g.stacks.map(s => `<div class="item"><a class="main" href="#" data-open="${s.id}" aria-label="Stapel öffnen: ${esc(s.name)}"><div class="title">${esc(s.name)} <span class="chip fc-badge-kind">${esc(FC.stackBadgeFull(s))}</span></div><div class="sub">${esc(FC.stackLine(s, fmtDate))}</div></a>
-      ${shareBtn(s)}${ro ? "" : `<button class="btn ghost icon sm" data-stedit="${s.id}" title="Stapel bearbeiten" aria-label="Stapel bearbeiten: ${esc(s.name)}">${icon("pen", 14)}</button><button class="btn ghost icon sm" data-stdel="${s.id}" title="Stapel löschen" aria-label="Stapel löschen: ${esc(s.name)}">${icon("trash", 14)}</button>`}</div>`).join("")}</div>`).join("") || `<div class="empty small">Kein Stapel in dieser Woche.</div>`)
-      : `<div class="empty small">${ro ? "Noch keine Karten." : "Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste, hole die gemeinsamen Karten einer Woche oder lege einen Stapel an."}</div>`}</div>${sharedList()}`;
+  // Stapel als Kacheln wie auf dem iPad (CardsPage.swift, 04.11.2026): Kante in der Farbe der Art, Name, Modul, Woche,
+  // grosse Zahl "heute fällig", Lernstand je Leitner-Fach 1-5, grosser Knopf "Üben" (faellige zuerst, sonst frei)
+  // und "…" mit Bearbeiten, Teilen und Löschen. Free (nur lesen): "Ansehen" statt "Üben", kein Menue.
+  const MORE = `<svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>`;
+  const shareBtn = s => ro || !shareAvail || !(s.shared_id || FC.canShare(s)) ? "" : s.shared_id
+    ? `<button type="button" role="menuitem" data-unshare="${s.id}">${icon("users", 15)} Teilen zurückziehen</button>`
+    : `<button type="button" role="menuitem" data-share="${s.id}">${icon("users", 15)} Stapel teilen</button>`;
+  const menuItems = s => ro ? "" : `<button type="button" role="menuitem" data-stedit="${s.id}">${icon("pen", 15)} Bearbeiten</button>${shareBtn(s)}<button type="button" role="menuitem" class="danger" data-stdel="${s.id}">${icon("trash", 15)} Löschen</button>`;
+  const stackMenu = s => ro ? "" : `<div class="fc-menu"><button type="button" class="btn fc-more" data-menu="${s.id}" aria-haspopup="menu" aria-expanded="false" aria-controls="fcm${s.id}" title="Weitere Aktionen" aria-label="Weitere Aktionen: ${esc(s.name)}">${MORE}</button>
+    <div class="fc-menu-pop" role="menu" id="fcm${s.id}" aria-label="Stapel ${esc(s.name)}" hidden>${menuItems(s)}</div></div>`;
+  const stackTile = s => { const kind = FC.kindOf(s), counts = FC.boxCounts(FC.cardsOfStack(all, s.id)), lv = FC.boxLevels(counts), due = Number(s.due) || 0, n = Number(s.cards) || 0;
+    return `<article class="fc-tile k-${kind}" aria-labelledby="fcs${s.id}">
+      <div class="fc-tile-hd"><span class="fc-tile-ic" aria-hidden="true">${icon(FC.KIND_ICON[kind], 22)}</span><div class="fc-tile-t"><a href="#" class="fc-tile-name" id="fcs${s.id}" data-open="${s.id}" aria-label="Stapel öffnen: ${esc(s.name)}">${esc(s.name)}</a><div class="muted small">${esc(s.subject || "Ohne Modul")}</div></div></div>
+      <div class="fc-tile-tags"><span class="fc-tag kind">${esc(FC.kindLabel(kind))}</span><span class="fc-tag">${esc(FC.weekChip(s))}</span>${FC.stackTags(s).map(t => `<span class="fc-tag soft">${esc(t)}</span>`).join("")}</div>
+      <div class="fc-tile-due${due ? "" : " zero"}"><b>${due}</b><span>heute fällig</span><span class="spacer"></span><span class="muted">${n} ${n === 1 ? "Karte" : "Karten"}</span></div>
+      <div class="fc-boxes" role="img" aria-label="${esc(FC.boxAria(counts))}"><div class="fc-boxes-hd" aria-hidden="true"><b>Lernstand</b><span>Fach 1 → 5</span></div>
+        <div class="fc-boxes-bars" aria-hidden="true">${lv.map((h, k) => `<span class="fc-box"><i style="height:${counts[k] ? Math.max(14, Math.round(h * 100)) : 0}%;opacity:${(.45 + .55 * k / 4).toFixed(2)}"></i></span>`).join("")}</div>
+        <div class="fc-boxes-n" aria-hidden="true">${counts.map(c => `<span>${c}</span>`).join("")}</div></div>
+      <div class="fc-tile-go">${ro ? `<a href="#" class="btn fc-go" data-open="${s.id}" aria-label="Ansehen: ${esc(s.name)}">${icon("eye", 18)} Ansehen</a>` : `<button type="button" class="btn primary fc-go" data-play="${s.id}" ${n ? "" : "disabled"} aria-label="Üben: ${esc(s.name)}, ${esc(FC.practiceLine(due))}">${icon("play", 18)} Üben</button>`}${stackMenu(s)}</div>
+      <div class="muted small fc-tile-foot">${ro ? esc(FC.stackLine(s, fmtDate).split(" · ").slice(-1)[0]) : esc(n ? FC.practiceLine(due) : "Noch keine Karte im Stapel")}</div></article>`; };
+  const stackList = () => { const tot = FC.stackTotals(stacks), segs = FC.weekSegments(weeksAll(), cardsWeek);
+    return `${lockHint()}<div class="card fc-sum"><div class="fc-sum-due"><b>${dueAll.length}</b><span>heute fällig</span></div><span class="fc-sum-sep" aria-hidden="true"></span><span class="muted">${tot.stacks} ${tot.stacks === 1 ? "Stapel" : "Stapel"} · ${tot.cards} ${tot.cards === 1 ? "Karte" : "Karten"}</span><span class="spacer"></span>${ro ? "" : modules.length ? `<button class="btn" id="wkFetch">${icon("download", 15)} Karten für eine Woche holen …</button>` : ""}</div>
+    ${weeksAll().length ? `<div class="seg fc-weekseg" role="radiogroup" aria-label="Lehrwoche">${segs.map(x => `<button type="button" class="${x.on ? "active" : ""}" role="radio" aria-checked="${x.on}" data-week="${x.value === null ? "" : x.value}">${x.label}</button>`).join("")}</div>` : ""}
+    ${stacks.length ? (FC.groupStacks(FC.filterStacks(stacks, cardsWeek), modules).map(g => `<section class="fc-sec" aria-label="${esc(g.title)}"><div class="fc-group"><span class="dot" style="background:${g.color || "var(--line-strong)"}"></span><h2>${esc(g.title)}</h2><span class="fc-count-b">${g.stacks.length}</span><span class="spacer"></span>${weekActions(g)}</div><div class="fc-tiles">${g.stacks.map(stackTile).join("")}</div></section>`).join("") || `<div class="card empty small">Kein Stapel in dieser Woche.</div>`)
+      : `<div class="card empty">${icon("cards", 32)}<div>${ro ? "Noch keine Karten." : "Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste, hole die gemeinsamen Karten einer Woche oder lege einen Stapel an."}</div></div>`}${sharedList()}`; };
   // "Karten fuer Woche n holen": Vorlesung und Uebung nacheinander (POST /flashcard-stacks/week/{modul}/{woche}/{art});
   // vorhandener oder gemeinsamer Stapel = 0 Credits, sonst erzeugt die KI ihn einmal fuer alle
   const fetchWeek = async (moduleId, week) => {
@@ -253,7 +297,8 @@ export async function viewCards(_, __, view) {
     return `<div class="card" style="margin-top:1rem"><div class="card-head"><h2>${icon("layers", 18)} Frei üben</h2></div><p class="small" style="margin:0">Die Karten dieses Stapels im eigenen Tempo: umdrehen, nach rechts wischen (→) für gewusst, nach links (←) für nicht gewusst. Ändert den Wiederholungsplan nicht.</p>
       <p class="muted small" style="margin:.3rem 0 0">${n.right} richtig · ${n.wrong} falsch · ${n.unlearned} noch nicht gelernt${marks ? ` · ${marks} mit Lesezeichen` : ""}${n.hidden ? ` · ${n.hidden} versteckt` : ""}</p>
       <div class="row wrap" style="margin-top:.8rem"><button class="btn primary sm" id="fcPlay" ${cs.length ? "" : "disabled"}>${icon("play", 14)} Üben</button><button class="btn ghost sm" id="fcOpts" ${cs.length ? "" : "disabled"}>${icon("filter", 14)} Optionen</button></div></div>`; };
-  const counters = () => `<div class="fc-count"><span class="fc-pill bad">Nicht gewusst <b>${trainer.unknown}</b></span><b class="fc-pos" aria-label="Karte ${Math.min(trainer.position + 1, trainer.cards.length)} von ${trainer.cards.length}">${trainer.progressText}</b><span class="fc-pill ok">Gewusst <b>${trainer.known}</b></span></div>`;
+  const counters = () => `<div class="fc-count"><b class="fc-pos">${FC.cardOf(trainer.position, trainer.cards.length)}</b><span class="spacer"></span><span class="fc-pill bad">Nicht gewusst <b>${trainer.unknown}</b></span><span class="fc-pill ok">Gewusst <b>${trainer.known}</b></span></div>
+    <div class="progress fc-prog" role="progressbar" aria-label="Fortschritt" aria-valuemin="0" aria-valuemax="${trainer.cards.length}" aria-valuenow="${Math.min(trainer.position, trainer.cards.length)}"><i style="width:${trainer.cards.length ? Math.round(100 * Math.min(trainer.position, trainer.cards.length) / trainer.cards.length) : 0}%"></i></div>`;
   const trainerHtml = () => {
     const c = trainer.current, head = `<div class="row" style="gap:.4rem"><button class="btn ghost icon" id="trEnd" title="Üben beenden" aria-label="Üben beenden">${icon("arrow-left", 18)}</button><b style="font-size:.95rem">Frei üben · ${esc(trainerTitle || stack()?.name || "")}</b><span class="spacer"></span><button class="btn ghost icon" id="trRestart" title="Neu starten" aria-label="Neu starten" ${trainer.busy || !trainer.source.length ? "disabled" : ""}>${icon("refresh", 18)}</button><button class="btn ghost icon" id="trOpts" title="Optionen" aria-label="Optionen">${icon("filter", 18)}</button></div>`;
     if (trainer.empty) return `<div class="card" id="fcTr">${head}<div class="empty">${icon("filter", 32)}<div>${trainer.options.scope === "bookmarked" ? "Keine Karte mit Lesezeichen passt zu diesen Optionen." : "Keine Karte passt zu diesen Optionen."}</div><button class="btn sm" id="trOpts2">${icon("filter", 14)} Optionen</button></div></div>`;
@@ -266,7 +311,8 @@ export async function viewCards(_, __, view) {
         <div class="fc-tools"><button class="btn ghost icon sm" id="trEdit" title="Bearbeiten" aria-label="Bearbeiten" ${trainer.busy ? "disabled" : ""}>${icon("pen", 16)}</button><button class="btn ghost icon sm${marked ? " fc-on" : ""}" id="trMark" aria-pressed="${marked}" title="${marked ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" aria-label="${marked ? "Lesezeichen entfernen" : "Lesezeichen setzen"}" ${trainer.busy ? "disabled" : ""}>${icon("bookmark", 16)}</button><button class="btn ghost sm" id="trHide" ${trainer.busy ? "disabled" : ""}>${hid ? "Wieder zeigen" : "Verstecken"}</button></div>
         <div class="fc-text">${esc(text).replace(/\n/g, "<br>")}</div></div></div>
       <p class="muted small" style="text-align:center;margin:.6rem 0 0" aria-hidden="true">Klicken oder Leertaste zum Umdrehen · → bzw. nach rechts wischen: gewusst · ← bzw. nach links: nicht gewusst</p>
-      <div class="row fc-bar"><button class="btn" id="trPrev" ${trainer.canGoBack ? "" : "disabled"}>${icon("undo", 15)} Vorherige</button><button class="btn" id="trAgain" ${trainer.canAskAgain ? "" : "disabled"} title="Kommt ein paar Karten später noch einmal">${icon("refresh", 15)} Erneut fragen</button><span class="spacer"></span><button class="btn danger" id="trNo" ${trainer.busy ? "disabled" : ""}>${icon("x", 15)} Nicht gewusst</button><button class="btn ok" id="trYes" ${trainer.busy ? "disabled" : ""}>${icon("check", 15)} Gewusst</button></div></div>`;
+      <div class="fc-judge"><button class="btn fc-no" id="trNo" ${trainer.busy ? "disabled" : ""}>${icon("x", 18)} Nicht gewusst</button><button class="btn fc-yes" id="trYes" ${trainer.busy ? "disabled" : ""}>${icon("check", 18)} Gewusst</button></div>
+      <div class="row fc-bar"><button class="btn" id="trPrev" ${trainer.canGoBack ? "" : "disabled"}>${icon("undo", 15)} Vorherige</button><button class="btn" id="trAgain" ${trainer.canAskAgain ? "" : "disabled"} title="Kommt ein paar Karten später noch einmal">${icon("refresh", 15)} Erneut fragen</button></div></div>`;
   };
   const answer = known => { if (trainer.busy || !trainer.current) return; const p = trainer.answer(known); render(); attempt("Antwort speichern", () => p); };
   const previous = () => { if (!trainer.canGoBack) return; const p = trainer.previous(); render(); attempt("Zurücknehmen", () => p); };
@@ -351,11 +397,34 @@ export async function viewCards(_, __, view) {
       if (Math.abs(d) >= SWIPE && !trainer.busy) { answer(d > 0); return; } set(0); if (Math.abs(d) < 8 && e.type === "pointerup") flip(); };
     card.addEventListener("pointerup", up); card.addEventListener("pointercancel", up);
   };
+  // Wiederholung: jede Antwort zaehlt einmal (waehrend des Speicherns keine zweite)
+  let reviewing = false;
+  const judge = async (c, correct) => { if (reviewing || !c || !shown) return; reviewing = true;
+    try { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct } }); i++; shown = false; } catch (e) { toast(`Antwort speichern: ${e.message}`, 4000); }
+    finally { reviewing = false; } render(); $("#fc", view)?.focus(); };
+  // "…"-Menue der Kacheln: oeffnet unter dem Knopf, Escape oder Klick daneben schliesst, Pfeiltasten wandern
+  const closeMenus = (except = null) => $$(".fc-menu-pop", view).forEach(m => { if (m === except) return; m.hidden = true; $(`[aria-controls="${m.id}"]`, view)?.setAttribute("aria-expanded", "false"); });
+  const bindMenus = () => $$("[data-menu]", view).forEach(b => { const pop = $(`#${b.getAttribute("aria-controls")}`, view);
+    b.onclick = e => { e.stopPropagation(); const open = pop.hidden; closeMenus(pop); pop.hidden = !open; b.setAttribute("aria-expanded", String(open)); if (open) $("[role=menuitem]", pop)?.focus(); };
+    pop.onkeydown = e => { const items = $$("[role=menuitem]", pop), k = items.indexOf(document.activeElement);
+      if (e.key === "Escape") { e.preventDefault(); closeMenus(); b.focus(); }
+      else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(k + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus(); } };
+    $$("[role=menuitem]", pop).forEach(it => it.addEventListener("click", () => closeMenus())); });
+  if (!view._fcMenuClose) { view._fcMenuClose = true; document.addEventListener("click", e => { if (view.isConnected && !e.target.closest?.(".fc-menu")) closeMenus(); }); }
   const render = () => {
     const s = stack(), d = due(), c = d[i];
-    const review = s ? (c ? `<p class="muted small">Karte ${i + 1} von ${d.length} · Fach ${c.box} · ${esc(s.name)} · Nur dieser Stapel wird abgefragt <button class="btn ghost sm" id="fcEdit">${icon("pen", 13)} Bearbeiten</button></p><div class="fc-card" id="fc"><div>${esc(c.question)}</div>${shown ? `<div class="ans">${esc(c.answer)}</div>` : `<div class="muted small" style="margin-top:.6rem">Klicken zum Aufdecken</div>`}</div><div class="row" style="justify-content:center;margin-top:.7rem" ${shown ? "" : "hidden"}><button class="btn danger" id="fcW">Falsch</button><button class="btn ok" id="fcR">Richtig</button></div>` : `<div class="card empty">${icon("check", 36)}<div>In diesem Stapel ist heute nichts fällig.</div></div>`) : "";
-    const head = s ? `<a class="btn sm" href="#" id="fcBack">${icon("arrow-left", 14)} Alle Stapel</a>` : `<a class="btn sm" href="#/exams">${icon("arrow-left", 14)} Tests</a>`;
-    view.innerHTML = `<div class="content" style="max-width:820px"><div class="page-head"><div><h1>Karteikarten${s ? ` · ${esc(s.name)}` : ""}</h1><div class="sub">${s ? `${esc(FC.stackLine(s, fmtDate))}` : `${dueAll.length} fällig · Leitner-System: richtig = seltener, falsch = morgen wieder.`}</div></div>${head}</div>
+    const review = s ? (c ? `<section class="card fc-rev" id="fcRev" aria-label="Wiederholung: heute fällig">
+      <div class="fc-rev-head"><div><h2>Heute fällig (${d.length})</h2><div class="muted small">${esc(s.name)}</div></div><button class="btn sm" id="fcEdit">${icon("pen", 14)} Bearbeiten</button></div>
+      <div class="fc-rev-pos"><b>${FC.cardOf(i, d.length)}</b><span class="muted small">Fach ${c.box} · Nur dieser Stapel wird abgefragt</span></div>
+      <div class="progress fc-prog" role="progressbar" aria-label="Fortschritt" aria-valuemin="0" aria-valuemax="${d.length}" aria-valuenow="${i}"><i style="width:${Math.round(100 * i / d.length)}%"></i></div>
+      <div class="fc-card fc-big2${shown ? " shown" : ""}" id="fc" role="button" tabindex="0" aria-label="${shown ? `Frage: ${esc(c.question)}. Antwort: ${esc(c.answer)}` : `Frage: ${esc(c.question)}. Leertaste deckt die Antwort auf.`}">
+        <span class="fc-lab"><i aria-hidden="true"></i>Frage</span><div class="fc-q">${esc(c.question).replace(/\n/g, "<br>")}</div>
+        ${shown ? `<span class="fc-lab ans"><i aria-hidden="true"></i>Antwort</span><div class="fc-a">${esc(c.answer).replace(/\n/g, "<br>")}</div>` : ""}</div>
+      ${shown ? `<p class="muted small fc-hint" aria-hidden="true">← nicht gewusst · → gewusst</p><div class="fc-judge"><button class="btn fc-no" id="fcW">${icon("x", 18)} Nicht gewusst</button><button class="btn fc-yes" id="fcR">${icon("check", 18)} Gewusst</button></div>`
+        : `<p class="muted small fc-hint" aria-hidden="true">Klicken oder Leertaste deckt die Antwort auf</p><button class="btn primary fc-show" id="fcShow">${icon("rotate", 18)} Antwort zeigen</button>`}</section>`
+      : `<div class="card empty">${icon("check", 36)}<div>In diesem Stapel ist heute nichts fällig.</div></div>`) : "";
+    const head = s ? `<a class="btn" href="#" id="fcBack">${icon("layers", 15)} Alle Stapel</a>` : (ro ? "" : `<button class="btn" id="stNew">${icon("layers", 15)} Neuer Stapel</button>`);
+    view.innerHTML = `<div class="content fc-page${s || trainer.active ? " fc-narrow" : ""}"><div class="page-head"><div><h1>Karteikarten${s ? ` · ${esc(s.name)}` : ""}</h1><div class="sub">${s ? `${esc(FC.stackLine(s, fmtDate))}` : "Deine Stapel je Modul · Leitner-System: richtig = seltener, falsch = morgen wieder."}</div></div><div class="actions">${head}</div></div>
       ${trainer.active && !ro ? trainerHtml() : s ? (ro ? `${lockHint()}${list()}` : `${review}${practice()}${list()}`) : stackList()}</div>`;
     $("#fcBack", view)?.addEventListener("click", e => { e.preventDefault(); cardsStack = null; i = 0; shown = false; editing = null; render(); });
     if (trainer.active) {
@@ -376,6 +445,12 @@ export async function viewCards(_, __, view) {
       $("#stNew", view)?.addEventListener("click", () => stackDialog(null));
       $$("[data-week]", view).forEach(b => b.onclick = () => { cardsWeek = b.dataset.week === "" ? null : Number(b.dataset.week); render(); });
       $$("[data-open]", view).forEach(a => a.onclick = e => { e.preventDefault(); cardsStack = +a.dataset.open; i = 0; shown = false; editing = null; render(); });
+      // "Üben": heute faellige Karten (Leitner) zuerst, sonst frei im Trainer (Plan bleibt)
+      $$("[data-play]", view).forEach(b => b.onclick = () => { const st = stacks.find(x => x.id === +b.dataset.play); if (!st) return;
+        cardsStack = st.id; i = 0; shown = false; editing = null;
+        if (FC.practiceMode(st) === "free") { trainerTitle = null; trainer.start(cards()); }
+        render(); ($("#fc", view) || $("#trCard", view))?.focus(); });
+      bindMenus();
       $$("[data-stedit]", view).forEach(b => b.onclick = () => stackDialog(stacks.find(x => x.id === +b.dataset.stedit)));
       $$("[data-stdel]", view).forEach(b => b.onclick = () => stackDeleteDialog(stacks.find(x => x.id === +b.dataset.stdel)));
       $("#wkFetch", view)?.addEventListener("click", () => weekFetchDialog(modules[0]?.id, cardsWeek > 0 ? cardsWeek : null));
@@ -390,10 +465,12 @@ export async function viewCards(_, __, view) {
       $$("[data-shreport]", view).forEach(b => b.onclick = () => { const x = sharedById(b.dataset.shreport); if (x) reportDialog(x); });
       return;
     }
-    $("#fc")?.addEventListener("click", () => { shown = true; render(); });
+    const reveal = () => { if (shown) return; shown = true; render(); $("#fc", view)?.focus(); };
+    $("#fc")?.addEventListener("click", reveal); $("#fcShow", view)?.addEventListener("click", reveal);
+    $("#fc")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); reveal(); } });
     $("#fcEdit", view)?.addEventListener("click", () => editDialog(c, () => render()));
-    $("#fcW")?.addEventListener("click", async () => { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct: false } }); i++; shown = false; render(); });
-    $("#fcR")?.addEventListener("click", async () => { await api(`/flashcards/${c.id}/review`, { method: "POST", body: { correct: true } }); i++; shown = false; render(); });
+    $("#fcW")?.addEventListener("click", () => judge(c, false));
+    $("#fcR")?.addEventListener("click", () => judge(c, true));
     $("#fcPlay", view)?.addEventListener("click", () => { trainerTitle = null; trainer.start(cards()); render(); });
     $("#fcOpts", view)?.addEventListener("click", () => { trainer.start(cards()); render(); options(); });
     const flag = (cid, key) => { const card = all.find(x => x.id === +cid); if (!card) return; attempt(key === "hidden" ? "Verstecken" : "Lesezeichen", async () => { const saved = await api(`/flashcards/${cid}`, { method: "PATCH", body: { [key]: key === "hidden" ? !FC.isHidden(card) : !FC.isBookmarked(card) } }); Object.assign(card, { bookmarked: saved.bookmarked, hidden: saved.hidden }); if (key === "hidden") { dueAll = await api("/flashcards?due=true"); i = 0; shown = false; } }); };
@@ -407,8 +484,16 @@ export async function viewCards(_, __, view) {
   // Tastatur im Trainer: ← nicht gewusst, → gewusst, Leertaste dreht, Strg/Cmd+Z = Vorherige (nicht in Eingabefeldern, nicht bei offenem Dialog)
   if (cardKeys) document.removeEventListener("keydown", cardKeys);
   cardKeys = e => {
-    if (!view.isConnected || !$("#fcTr", view)) return;
+    if (!view.isConnected) return;
     if (e.target.closest?.("input, textarea, select, [contenteditable]") || document.querySelector("#overlay .modal")) return;
+    // Wiederholung (heute faellig): Leertaste deckt auf, danach → gewusst, ← nicht gewusst
+    if ($("#fcRev", view) && !$("#fcTr", view)) {
+      const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
+      if (e.key === " " && plain && !e.target.closest?.("button:not(#fc)")) { e.preventDefault(); if (!shown) { $("#fcShow", view)?.click(); } }
+      else if (shown && plain && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); $(e.key === "ArrowRight" ? "#fcR" : "#fcW", view)?.click(); }
+      return;
+    }
+    if (!$("#fcTr", view)) return;
     if (e.key === "ArrowRight" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); answer(true); }
     else if (e.key === "ArrowLeft" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); answer(false); }
     else if (e.key === " " && !e.target.closest?.("button")) { e.preventDefault(); flip(); }

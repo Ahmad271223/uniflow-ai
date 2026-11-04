@@ -644,7 +644,7 @@ enum UFDayExtras {
     }
 
     static func hasAny(_ dd: JSONValue) -> Bool {
-        !dd.list("marks").isEmpty || !dd.list("deadlines").isEmpty || !dd.list("notices").isEmpty
+        !dd.list("marks").isEmpty || !dd.list("deadlines").isEmpty || !dd.list("notices").isEmpty || !dd.list("exams").isEmpty
     }
 }
 
@@ -701,6 +701,7 @@ struct UFDayExtraChips: View {
     static func text(_ h: UFHint, compact: Bool) -> String {
         let what: String
         switch h.category {
+        case .exam: what = compact ? h.kindText : h.title
         case .mark: what = compact ? UFDayExtras.shortLabel(h.title) : h.title
         case .detected: what = compact ? (h.raw.s("kind_label") ?? h.kindText) : h.title
         case .deadline: what = compact ? h.kindText : "\(h.kindText): \(h.title)"
@@ -710,7 +711,29 @@ struct UFDayExtraChips: View {
     }
 
     private func chip(_ h: UFHint) -> some View {
+        if h.category == .exam { return AnyView(examChip(h)) }
+        return AnyView(plainChip(h))
+    }
+
+    /// Klausur-Pin: gefuellt in der Klausurfarbe mit Symbol, fett (von allen anderen Hinweisen klar zu unterscheiden)
+    private func examChip(_ h: UFHint) -> some View {
+        HStack(spacing: 3) {
+            UFIcon(UFExam.icon, size: 10)
+            Text(Self.text(h, compact: compact)).font(.uf(10.4, 700))
+        }
+        .foregroundStyle(Color.white)
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+        .padding(.vertical, 1.6 + ufB).padding(.horizontal, 5.6)
+        .background(Capsule().fill(UFExam.color))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Capsule())
+        .accessibilityIdentifier("exam-pin")
+    }
+
+    private func plainChip(_ h: UFHint) -> some View {
         let color: Color = switch h.category {
+        case .exam: UFExam.color
         case .mark: UF.ok
         case .deadline, .detected: h.raw.s("color").map { Color(hex: $0) } ?? UF.bad
         case .notice: h.tone == .warn ? UF.warn : h.tone == .bad ? UF.bad : UF.info

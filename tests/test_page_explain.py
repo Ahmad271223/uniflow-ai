@@ -294,6 +294,9 @@ EXPECTED = {
                        "name": ("STRING", set()), "cardCount": ("INT64", set()), "displayName": ("STRING", set()),
                        "payload": ("STRING", set()), "createdAt": ("STRING", set()), "ownerRecordName": ("STRING", set()),
                        "withdrawn": ("INT64", set())},
+    # Studienverlauf (docs/STUDIENVERLAUF-2026-11-04.md): Fakten eines Modulkatalogs, einmal je Studiengang geteilt
+    "StudyCatalog": {"catalogKey": ("STRING", {"QUERYABLE"}), "variant": ("INT64", set()), "payload": ("STRING", set()),
+                     "version": ("INT64", set()), "createdAt": ("STRING", set()), "ownerRecordName": ("STRING", set())},
 }
 SYSTEM_FIELDS = {"___createTime": "TIMESTAMP", "___createdBy": "REFERENCE", "___etag": "STRING", "___modTime": "TIMESTAMP",
                  "___modifiedBy": "REFERENCE", "___recordID": "REFERENCE"}
