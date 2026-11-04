@@ -28,11 +28,38 @@ New-Item -ItemType Directory -Force -Path $Work | Out-Null
 $setup = Join-Path $Work "tesseract-setup.exe"
 Get-Checked $setupUrl $setup $setupSha
 
-# NSIS still in einen eigenen Ordner installieren (/D muss das letzte Argument sein, ohne Anfuehrungszeichen)
+# Weg 1: NSIS still in einen eigenen Ordner installieren (/D muss das letzte Argument sein, ohne Anfuehrungszeichen).
+# Der Installer kann sich selbst neu starten; darum danach kurz warten und die Datei ueberall suchen.
 $inst = Join-Path $Work "installiert"
 $p = Start-Process -FilePath $setup -ArgumentList "/S", "/D=$inst" -Wait -PassThru
-if ($p.ExitCode -ne 0) { throw "Tesseract-Installer endete mit $($p.ExitCode)" }
-if (-not (Test-Path (Join-Path $inst "tesseract.exe"))) { throw "tesseract.exe fehlt nach der Installation unter $inst" }
+Write-Host "Installer-Exitcode: $($p.ExitCode)"
+Start-Sleep -Seconds 10
+function Find-Tesseract {
+    $roots = @($Work, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:LOCALAPPDATA) | Where-Object { $_ -and (Test-Path $_) }
+    foreach ($r in $roots) {
+        $hit = Get-ChildItem -Path $r -Recurse -Filter "tesseract.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\tesseract-build\\tesseract-setup' } | Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+    return $null
+}
+$found = Find-Tesseract
+# Weg 2: der NSIS-Installer laesst sich mit 7-Zip entpacken, ganz ohne Installation
+if (-not $found) {
+    Write-Host "tesseract.exe nach der Installation nicht gefunden - versuche 7-Zip"
+    $seven = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($seven) {
+        $x = Join-Path $Work "entpackt"
+        & $seven x $setup "-o$x" -y | Out-Null
+        $found = Get-ChildItem -Path $x -Recurse -Filter "tesseract.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    } else { Write-Host "7-Zip nicht gefunden" }
+}
+if (-not $found) {
+    Write-Host "--- Inhalt von ${Work}:"
+    Get-ChildItem -Path $Work -Recurse -ErrorAction SilentlyContinue | Select-Object -First 80 FullName, Length | Format-Table -AutoSize | Out-String | Write-Host
+    throw "tesseract.exe nicht gefunden (Installation und 7-Zip-Entpacken gescheitert, siehe Liste oben)"
+}
+$inst = $found.Directory.FullName
+Write-Host "Tesseract gefunden unter $inst"
 
 # nur, was die Erkennung braucht: Programm, DLLs, Konfiguration, Lizenz-/Hinweistexte (keine Trainingsprogramme)
 Remove-Item -Recurse -Force $Target -ErrorAction SilentlyContinue
