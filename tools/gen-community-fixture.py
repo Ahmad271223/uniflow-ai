@@ -142,6 +142,11 @@ def build() -> dict:
     import hashlib
     key = hashlib.sha256(("uniflow.community.course.v1\0luh\0" + "kurs-beispiel").encode()).hexdigest()
     ids[key] = "<course-key>"
+    # Fragen nur fuer Mitglieder der Kurs-Community (Entscheidung des Inhabers vom 04.11.2026)
+    call("Fragen ohne Beitritt", "GET", f"/api/community/courses/{key}/questions", token=tl)
+    for tok in (tl, ta):
+        call("Geraet meldet den Kurs", "POST", "/api/community/claims", {"fingerprints": [], "course_keys": [key]}, token=tok)
+        call("Kurs-Community beitreten", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tok)
     st, q = call("Frage im Kurs stellen", "POST", f"/api/community/courses/{key}/questions",
                  {"title": "Wie zeige ich Konvergenz?", "body": "Aufgabe 2b", "fingerprint": FP, "page": 3}, token=tl)
     ids[q["id"]] = "<question-id>"
@@ -204,6 +209,38 @@ def build() -> dict:
     call("Laden nach dem Zurueckziehen", "GET", f"/api/community/solutions/{sid}", token=tl)
     call("Ohne Sitzung", "GET", "/api/community/info")
 
+    # Korrekturvorschlaege (03.11.2026, app/community_corrections.py) und Likes auf Fragen: Form wie der CloudKit-Typ `Correction`
+    # (payload = Chiffrat wie CommunityCorrections.seal), ohne Konto-IDs; Zustand "gesehen" und Zahl am Menuepunkt beim Dienst
+    from app import community_corrections as cc
+    sid3 = pkg2["header"]["solutionId"]
+    corr_id = "00000000-0000-4000-8000-0000000000c1"
+    ids[corr_id] = "<correction-id>"
+    chi = cc.seal({"id": corr_id, "solution_id": sid3, "pseudonym": "Ben", "created_at": "2026-11-03T10:00:00Z", "note": "Aufgabe 2b: Vorzeichen",
+                   "pages": [{"pdfIndex": 3, "width": 595, "height": 842, "rotation": 0, "strokes": [],
+                              "notes": [{"id": "n1", "x": 0.25, "y": 0.75, "text": "hier fehlt ein Minus"}]}]},
+                  b"s" * 32, b"\x01" * 32, b"\x02" * 12)
+    call("Korrektur: Leser meldet den Kurs", "POST", "/api/community/claims", {"fingerprints": [], "course_keys": [key]}, token=tl)
+    call("Korrektur: Leser tritt der Community bei", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tl)
+    call("Korrektur vorschlagen", "POST", f"/api/community/solutions/{sid3}/corrections", {"id": corr_id, "payload": chi}, token=tl)
+    call("Korrektur vorschlagen: gleiche Kennung", "POST", f"/api/community/solutions/{sid3}/corrections", {"id": corr_id, "payload": chi}, token=tl)
+    call("Korrektur vorschlagen ohne Plus", "POST", f"/api/community/solutions/{sid3}/corrections", {"id": corr_id, "payload": chi}, token=tf)
+    call("Korrektur zur eigenen Loesung", "POST", f"/api/community/solutions/{sid3}/corrections",
+         {"id": "00000000-0000-4000-8000-0000000000c2", "payload": chi}, token=ta)
+    call("Korrektur: Chiffrat beschaedigt", "POST", f"/api/community/solutions/{sid3}/corrections",
+         {"id": "00000000-0000-4000-8000-0000000000c3", "payload": "AAAA"}, token=tl)
+    call("Korrekturen zur Loesung", "GET", f"/api/community/solutions/{sid3}/corrections", token=ta)
+    call("Posteingang des Erstellers", "GET", "/api/community/corrections/inbox", token=ta)
+    call("Posteingang: nur die Zahlen", "GET", "/api/community/corrections/inbox?count_only=true", token=ta)
+    call("Korrektur ansehen (mit Chiffrat)", "GET", f"/api/community/corrections/{corr_id}", token=ta)
+    call("Korrektur als gesehen markieren", "POST", f"/api/community/corrections/{corr_id}/status", {"status": "seen"}, token=ta)
+    call("Gesehen: nicht der Verfasser", "POST", f"/api/community/corrections/{corr_id}/status", {"status": "seen"}, token=tl)
+    call("Korrektur melden", "POST", f"/api/community/corrections/{corr_id}/report", {"reason": "spam"}, token=ta)
+    call("Korrektur zuruecknehmen: nicht der Verfasser", "DELETE", f"/api/community/corrections/{corr_id}", token=ta)
+    call("Korrektur zuruecknehmen", "DELETE", f"/api/community/corrections/{corr_id}", token=tl)
+    call("Frage liken", "POST", f"/api/community/questions/{q['id']}/like", token=ta)
+    call("Frage liken: die eigene", "POST", f"/api/community/questions/{q['id']}/like", token=tl)
+    call("Fragen ohne Antwort", "GET", f"/api/community/courses/{key}/questions?unanswered=true", token=ta)
+
     checks = []
     for name, mut, code in (("gueltig", lambda p: None, None), ("formatVersion 3", lambda p: p.update(formatVersion=3), "unsupported_version"),
                             ("Zusatzfeld oben", lambda p: p.update(extra=1), "package_invalid"), ("pages 0", lambda p: p["header"]["contents"].update(pages=0), "package_invalid"),
@@ -242,10 +279,14 @@ def build() -> dict:
                                     "GET|PATCH|DELETE /api/community/questions/{id}", "POST /api/community/questions/{id}/answers",
                                     "POST /api/community/questions/{id}/accept", "PATCH|DELETE /api/community/answers/{id}",
                                     "POST|DELETE /api/community/answers/{id}/vote", "POST /api/community/{questions|answers}/{id}/report-post",
+                                    "POST|DELETE /api/community/questions/{id}/like", "GET /api/community/courses/{course_key}/questions?unanswered=true",
+                                    "POST /api/community/solutions/{id}/corrections {id, payload}", "GET /api/community/solutions/{id}/corrections",
+                                    "GET /api/community/corrections/inbox?limit=&count_only=", "GET|DELETE /api/community/corrections/{id}",
+                                    "POST /api/community/corrections/{id}/status {open|seen|ignored}", "POST /api/community/corrections/{id}/report",
                                     "GET /api/community/bookmarks", "POST|DELETE /api/community/bookmarks/{solution|question}/{id}",
                                     "GET /api/community/notifications?unread=", "POST /api/community/notifications/read"],
                       "course_key": "SHA-256 hex von 'uniflow.community.course.v1\\0<hochschule>\\0<kurs-id>' (wie CommunityKeys.courseKey)",
-                      "notification_kinds": ["comment", "reply", "like", "answer", "accepted"],
+                      "notification_kinds": ["comment", "reply", "like", "answer", "accepted", "correction"],
                       "one_solution_per_pdf": "je Konto, Fingerabdruck und Community eine Loesung: POST antwortet sonst 409 already_published "
                                               "mit solution_id; PUT ersetzt das Paket der eigenen Loesung (ID, Likes, Kommentare bleiben, updated_at neu)"},
             "package-checks": checks, "errors": dict(sorted(errors.items())), "flows": flows}

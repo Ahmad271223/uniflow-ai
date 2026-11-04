@@ -46,7 +46,18 @@ def _user(app, email, plus=True, admin=False, verified=True):
 
 
 def _claim(app, h):
-    assert call(app, "POST", "/claims", h, {"fingerprints": [FP]})[0] == 200
+    assert call(app, "POST", "/claims", h, {"fingerprints": [FP], "course_keys": [KEY]})[0] == 200
+    _member(app, h)
+
+
+def _member(app, h):
+    """Fragen nur fuer Mitglieder (04.11.2026): direkt eintragen, damit auch unbestaetigte Konten die Pruefungen
+    dahinter erreichen (Beitreten verlangt sonst schon selbst eine bestaetigte Adresse)."""
+    from app import community
+    uid = _j(asgi_call(app, "GET", "/api/account/me", headers=h))[1]["user"]["id"]
+    with community.cursor() as conn:
+        conn.execute("INSERT OR IGNORE INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,?,'course',?)",
+                     (uid, KEY, "luh", "2026-11-04T00:00:00Z"))
 
 
 @pytest.fixture

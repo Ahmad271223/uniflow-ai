@@ -1,0 +1,352 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-ocr-fixture.py aus app/pageocr.py; nicht von Hand aendern.",
+ "minimum_letters": 20,
+ "batch_size": 4,
+ "table": "CREATE TABLE IF NOT EXISTS page_ocr (\n    file_id TEXT NOT NULL,\n    page INTEGER NOT NULL,\n    chdate INTEGER,\n    embedded TEXT,                     -- Textebene der Seite vor der Erkennung\n    text TEXT,                         -- erkannter Text (\"\" = nichts erkannt)\n    PRIMARY KEY (file_id, page))",
+ "sparse": [
+  {
+   "text": "",
+   "letters": 0,
+   "sparse": true
+  },
+  {
+   "text": "  \n ",
+   "letters": 0,
+   "sparse": true
+  },
+  {
+   "text": "3",
+   "letters": 0,
+   "sparse": true
+  },
+  {
+   "text": "  3 ",
+   "letters": 0,
+   "sparse": true
+  },
+  {
+   "text": "12 / 40",
+   "letters": 0,
+   "sparse": true
+  },
+  {
+   "text": "Seite 12 von 40",
+   "letters": 8,
+   "sparse": true
+  },
+  {
+   "text": "Eigenwerte",
+   "letters": 10,
+   "sparse": true
+  },
+  {
+   "text": "Aufgabe 3: Eigenwerte",
+   "letters": 17,
+   "sparse": true
+  },
+  {
+   "text": "abcdefghijklmnopqrs",
+   "letters": 19,
+   "sparse": true
+  },
+  {
+   "text": "abcdefghijklmnopqrst",
+   "letters": 20,
+   "sparse": false
+  },
+  {
+   "text": "abcdefghij klmnopqrs 1234567890",
+   "letters": 19,
+   "sparse": true
+  },
+  {
+   "text": "ÄÖÜäöüß ÄÖÜäöüß ÄÖÜäö",
+   "letters": 19,
+   "sparse": true
+  },
+  {
+   "text": "ÄÖÜäöüß ÄÖÜäöüß ÄÖÜäöü",
+   "letters": 20,
+   "sparse": false
+  },
+  {
+   "text": "äbcdefghijklmnopqrs",
+   "letters": 20,
+   "sparse": false
+  },
+  {
+   "text": "∫ f(x) dx = F(b) − F(a) 1 2 3 4 5 6 7 8",
+   "letters": 8,
+   "sparse": true
+  },
+  {
+   "text": "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte.",
+   "letters": 68,
+   "sparse": false
+  }
+ ],
+ "scopes": [
+  {
+   "kind": "none",
+   "arg": null,
+   "contains": []
+  },
+  {
+   "kind": "pages",
+   "arg": [
+    2,
+    5
+   ],
+   "contains": [
+    2,
+    5
+   ]
+  },
+  {
+   "kind": "pages",
+   "arg": [],
+   "contains": []
+  },
+  {
+   "kind": "leading",
+   "arg": 3,
+   "contains": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "kind": "leading",
+   "arg": 0,
+   "contains": []
+  },
+  {
+   "kind": "all",
+   "arg": null,
+   "contains": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  }
+ ],
+ "batches": [
+  {
+   "todo": [],
+   "batches": []
+  },
+  {
+   "todo": [
+    3
+   ],
+   "batches": [
+    [
+     3
+    ]
+   ]
+  },
+  {
+   "todo": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "batches": [
+    [
+     1,
+     2,
+     3,
+     4
+    ]
+   ]
+  },
+  {
+   "todo": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "batches": [
+    [
+     1,
+     2,
+     3,
+     4
+    ],
+    [
+     5
+    ]
+   ]
+  },
+  {
+   "todo": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "batches": [
+    [
+     1,
+     2,
+     3,
+     4
+    ],
+    [
+     5,
+     6,
+     7,
+     8
+    ],
+    [
+     9
+    ]
+   ]
+  }
+ ],
+ "decisions": [
+  {
+   "embedded": "",
+   "recognized": "",
+   "accepts": false
+  },
+  {
+   "embedded": "",
+   "recognized": "Knotenregel",
+   "accepts": true
+  },
+  {
+   "embedded": "",
+   "recognized": "Kirchhoffsche Maschenregel: Summe der Spannungen ist null",
+   "accepts": true
+  },
+  {
+   "embedded": "",
+   "recognized": "abcdefghijklmnopqrstuvwxyz",
+   "accepts": true
+  },
+  {
+   "embedded": "  3 ",
+   "recognized": "",
+   "accepts": false
+  },
+  {
+   "embedded": "  3 ",
+   "recognized": "Knotenregel",
+   "accepts": true
+  },
+  {
+   "embedded": "  3 ",
+   "recognized": "Kirchhoffsche Maschenregel: Summe der Spannungen ist null",
+   "accepts": true
+  },
+  {
+   "embedded": "  3 ",
+   "recognized": "abcdefghijklmnopqrstuvwxyz",
+   "accepts": true
+  },
+  {
+   "embedded": "Seitenzahl 3 und Kopf Aufgabe",
+   "recognized": "",
+   "accepts": false
+  },
+  {
+   "embedded": "Seitenzahl 3 und Kopf Aufgabe",
+   "recognized": "Knotenregel",
+   "accepts": false
+  },
+  {
+   "embedded": "Seitenzahl 3 und Kopf Aufgabe",
+   "recognized": "Kirchhoffsche Maschenregel: Summe der Spannungen ist null",
+   "accepts": true
+  },
+  {
+   "embedded": "Seitenzahl 3 und Kopf Aufgabe",
+   "recognized": "abcdefghijklmnopqrstuvwxyz",
+   "accepts": true
+  },
+  {
+   "embedded": "Eigenwerte einer Matrix und mehr Text",
+   "recognized": "",
+   "accepts": false
+  },
+  {
+   "embedded": "Eigenwerte einer Matrix und mehr Text",
+   "recognized": "Knotenregel",
+   "accepts": false
+  },
+  {
+   "embedded": "Eigenwerte einer Matrix und mehr Text",
+   "recognized": "Kirchhoffsche Maschenregel: Summe der Spannungen ist null",
+   "accepts": true
+  },
+  {
+   "embedded": "Eigenwerte einer Matrix und mehr Text",
+   "recognized": "abcdefghijklmnopqrstuvwxyz",
+   "accepts": false
+  }
+ ],
+ "embedded": {
+  "pages": [
+   "Seite mit Text auf der Textebene",
+   "  3 ",
+   "Kirchhoffsche Maschenregel",
+   "",
+   "Knotenregel",
+   "von Hand geaendert"
+  ],
+  "rows": [
+   {
+    "page": 2,
+    "embedded": "  3 ",
+    "text": "Kirchhoffsche Maschenregel"
+   },
+   {
+    "page": 3,
+    "embedded": "  3 ",
+    "text": "Kirchhoffsche Maschenregel"
+   },
+   {
+    "page": 4,
+    "embedded": "",
+    "text": ""
+   },
+   {
+    "page": 5,
+    "embedded": null,
+    "text": "Knotenregel"
+   },
+   {
+    "page": 6,
+    "embedded": "alt",
+    "text": "nicht mehr der Text der Seite"
+   },
+   {
+    "page": 9,
+    "embedded": "x",
+    "text": "gibt es nicht"
+   }
+  ],
+  "expect": [
+   "Seite mit Text auf der Textebene",
+   "  3 ",
+   "  3 ",
+   "",
+   "",
+   "von Hand geaendert"
+  ]
+ }
+}

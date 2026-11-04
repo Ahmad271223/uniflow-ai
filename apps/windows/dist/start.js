@@ -9,14 +9,14 @@
   var retry = document.getElementById("retry");
 
   function devConnect() {
-    msg.textContent = "Verbinde mit dem UniFlow-Server auf diesem PC …";
+    msg.textContent = "Verbinde mit dem StudiNow-Server auf diesem PC …";
     fetch(DEV_SERVER + "api/account/info", { cache: "no-store" })
       .then(function (r) {
         if (r.status !== 200) { throw new Error("Status " + r.status); }
         return r.json();
       })
       .then(function (info) {
-        if (!info || typeof info.mode !== "string") { throw new Error("keine UniFlow-Antwort"); }
+        if (!info || typeof info.mode !== "string") { throw new Error("keine StudiNow-Antwort"); }
         location.replace(DEV_SERVER);
       })
       .catch(function (e) {

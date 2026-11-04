@@ -178,6 +178,10 @@ SAMPLES: dict[str, dict] = {
                            "expect": {"status": 404, "reason": "KI entfaellt in V1"}},
     "POST /api/ai/flashcards": {"path": "/api/ai/flashcards", "body": {"file_id": "f1", "count": 5}, "python": False,
                                 "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
+    "GET /api/index/file/{}/page/{}": {"path": "/api/index/file/f1/page/1", "python": False,
+                                        "expect": {"status": 404, "reason": "Dokument-Index nur auf dem Geraet (V1); leere Datenbank: Datei f1 fehlt"}},
+    "POST /api/index/file/{}/page/{}": {"path": "/api/index/file/f1/page/1", "body": {"force": False}, "python": False,
+                                         "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
     "POST /api/files/{}/analyze": {"path": "/api/files/f1/analyze", "python": False,
                                    "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
     "GET /api/settings": {"path": "/api/settings"},
@@ -217,8 +221,9 @@ SAMPLES: dict[str, dict] = {
                                          "reason": "nur auf dem Geraet (DueEndpoints)"}},
     "PATCH /api/due/{}": {"path": "/api/due/due-0000000000000000", "body": {"hidden": True}, "python": False,
                           "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne erkannten Termin 404"}},
-    # Fruehere Semester in der Bibliothek gibt es nur auf dem Geraet (OlderSemesterEndpoints, a0d6277); die PC-Fassung
-    # kennt sie nicht (am PC 404, die App fragt nur lokal). Auf leerer Datenbank: kein frueheres Semester, kein Kurs
+    # Fruehere Semester in der Bibliothek (OlderSemesterEndpoints, a0d6277). Die PC-/Web-Fassung hat dieselben Routen
+    # (app/older_semesters_api.py, tests/test_older_semesters.py), laeuft hier aber nicht mit: der Abgleich der Hochschule
+    # startet im Hintergrund. Auf leerer Datenbank: kein frueheres Semester, kein Kurs
     "GET /api/older-semesters": {"path": "/api/older-semesters", "python": False,
                                  "expect": {"status": 200, "type": "object", "keys": ["choice", "current", "semesters"],
                                             "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
@@ -231,17 +236,13 @@ SAMPLES: dict[str, dict] = {
     "GET /api/older-semesters/courses/{}/files": {"path": "/api/older-semesters/courses/k1/files", "python": False,
                                                   "expect": {"status": 404,
                                                              "reason": "nur auf dem Geraet; ohne Kurs 404"}},
-    # Schwarzes Brett und Blubber aus Stud.IP: nur auf dem Geraet (StudIPBulletinEndpoints, StudIPBlubberEndpoints)
-    "GET /api/studip/bulletin": {"path": "/api/studip/bulletin", "python": False,
-                                 "expect": {"status": 200, "type": "object", "keys": ["available", "entries", "fetched_at", "new_count", "topics", "url"],
-                                            "reason": "nur auf dem Geraet (StudIPBulletinEndpoints)"}},
-    "GET /api/studip/bulletin/{}": {"path": "/api/studip/bulletin/x1", "python": False,
-                                    "expect": {"status": 404, "reason": "nur auf dem Geraet; unbekannte Anzeige 404"}},
-    "GET /api/studip/blubber": {"path": "/api/studip/blubber", "python": False,
-                                "expect": {"status": 200, "type": "object", "keys": ["count", "fetched_at", "threads"],
-                                           "reason": "nur auf dem Geraet (StudIPBlubberEndpoints, Abgleich vorerst aus)"}},
-    "GET /api/studip/blubber/{}": {"path": "/api/studip/blubber/x1", "python": False,
-                                   "expect": {"status": 404, "reason": "nur auf dem Geraet; unbekannter Thread 404"}},
+    # Schwarzes Brett aus Stud.IP: Geraet (StudIPBulletinEndpoints) und PC-Server (app/studip_bulletin.py) antworten gleich;
+    # die Inhalte vergleicht tools/gen-studip-bulletin-fixture.py. Blubber ebenso (app/studip_blubber.py), dort ist der Abgleich
+    # vorerst aus (SYNC_ENABLED), die Antworten sind ohne Daten leer
+    "GET /api/studip/bulletin": {"path": "/api/studip/bulletin"},
+    "GET /api/studip/bulletin/{}": {"path": "/api/studip/bulletin/x1"},
+    "GET /api/studip/blubber": {"path": "/api/studip/blubber"},
+    "GET /api/studip/blubber/{}": {"path": "/api/studip/blubber/x1"},
     # Demo-Inhalte fuer die App-Pruefung (app/demo.py, DemoEndpoints); Inhalte und Tabellen vergleicht
     # tools/gen-demo-fixture.py, hier nur die Form. Ausschalten, damit die Beispielanfrage nichts anlegt
     "GET /api/demo": {"path": "/api/demo"},

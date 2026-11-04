@@ -1,13 +1,17 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=40";
-import { viewDashboard as viewHome } from "./views-home.js?v=12";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=56";
-import { viewFiles } from "./views-lib.js?v=55";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=43";
-import { viewTimetable, openEvent } from "./views-tt.js?v=41";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=66";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=41";
-import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=11";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=41";
+import { viewDashboard as viewHome } from "./views-home.js?v=14";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=59";
+import { viewFiles } from "./views-lib.js?v=58";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=46";
+import { viewTimetable, openEvent } from "./views-tt.js?v=44";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=71";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=42";
+import { resendNote } from "./service-errors.js?v=1";
+import { askOlderSemesters } from "./older-semesters-ui.js?v=2";
+import { chipState } from "./sync-chip.js?v=1";
+import { trialHintHtml } from "./trial-hint.js?v=1";
+import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=13";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -47,11 +51,12 @@ let bgTimer; async function pollBg() {
   try {
     const bg = await api("/bg"); const chip = $("#syncChip");
     if (bg.running) { chip.innerHTML = `${icon("refresh", 14)} ${esc(bg.message || `${bg.task} läuft…`)}`; $("#syncBtn").disabled = true; clearTimeout(bgTimer); bgTimer = setTimeout(pollBg, 3000); pollBg._was = true; }
-    else { $("#syncBtn").disabled = false; if (pollBg._was) { pollBg._was = false; toast(bg.message || "Fertig"); route(); } updateSyncChip(); }
+    else { $("#syncBtn").disabled = false; if (pollBg._was) { pollBg._was = false; toast(bg.message || "Fertig"); route(); askOlderSemesters(); } updateSyncChip(); }
   } catch {}
 }
 window.pollBg = pollBg;
-async function updateSyncChip() { try { const s = await api("/sync/status"); const l = s.log[0]; $("#syncChip").innerHTML = l ? `${icon(l.ok ? "check" : "alert", 14, l.ok ? "ok" : "")} Zuletzt synchronisiert: ${new Date(l.finished_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : `${icon("info", 14)} Noch kein Sync`; $("#syncChip").title = l ? l.message : ""; } catch {} }
+// Anzeige oben nur bei Neuem, Fehlern oder laufendem Abgleich (sync-chip.js); sonst bleibt der Knopf "Sync" allein
+async function updateSyncChip() { try { const s = await api("/sync/status"); const l = s.log[0]; const c = chipState(l, l ? new Date(l.finished_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : ""); $("#syncChip").innerHTML = c ? `${icon(c.icon, 14, c.tone)} ${esc(c.text)}` : ""; $("#syncChip").title = c ? c.title : ""; } catch {} }
 // Fehler sichtbar machen (Diagnose unter Einstellungen → Diagnose)
 state.errors = [];
 function noteError(msg, src) { const m = String(msg || "Unbekannter Fehler"); if (/ResizeObserver loop/i.test(m)) return; /* harmlose Browsermeldung */ state.errors.push({ t: new Date().toISOString(), msg: m, src: src || "" }); if (state.errors.length > 30) state.errors.shift(); if (!noteError._shown) { noteError._shown = true; toast("Fehler: " + m.slice(0, 120), 5000); setTimeout(() => noteError._shown = false, 8000); } }
@@ -61,24 +66,27 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 // Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit StudiNow-Konto), alle 2 Minuten
 window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
   b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
-async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=4"); window.updateBell(await unreadCount()); } catch {} }
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=6"); window.updateBell(await unreadCount()); } catch {} }
+setTimeout(askOlderSemesters, 6000);   // einmalige Frage "Auch frühere Semester laden?" (older-semesters-ui.js)
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
+// Abzeichen mit der Zahl offener Korrekturhinweise am Menuepunkt "Community" (03.11.2026, wie auf dem iPad), sparsam geholt
+import("./community-corrections-ui.js?v=3").then(m => m.startBadgePolling()).catch(() => {});
 
 function accountMenu() {
   const a = state.account;
   const m = modal(`<div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>
     <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${esc(state.entitlements?.plan_name || "StudiNow Free")}${a.role === "admin" ? " · Moderation" : ""}</p>
-    ${a.email_verified ? "" : `<div class="card flat" style="background:var(--warn-soft);border-color:transparent;margin:0 0 .8rem"><b class="small">E-Mail-Adresse noch nicht bestätigt</b><div class="small muted" style="margin:.2rem 0 .5rem">Den Link findest du in der Willkommensmail. Bis dahin kannst du keine Lösungen in der Community veröffentlichen.</div><button class="btn sm" id="accVerify">Link erneut senden</button></div>`}
+    ${a.email_verified ? "" : `<div class="card flat" style="background:var(--warn-soft);border-color:transparent;margin:0 0 .8rem"><b class="small">E-Mail-Adresse noch nicht bestätigt</b><div class="small muted" style="margin:.2rem 0 .5rem">Bitte den Link in der Willkommensmail öffnen. Ohne Bestätigung gehen StudiNow-KI und Schreiben in der Community nicht.</div><button class="btn sm" id="accVerify">Bestätigungslink erneut senden</button></div>`}
     <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a><a class="btn" href="/api/account/export" download title="Alle Daten dieses Kontos als ZIP (Auskunft nach DSGVO)">${icon("download", 15)} Meine Daten exportieren</a></div>
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
-  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=4");
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=5");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
-  $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(r.already ? "Schon bestätigt" : "Neuer Link verschickt", 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
+  $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(resendNote(r), 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
 }
 
@@ -104,16 +112,26 @@ async function route() {
 state.route = route; window.addEventListener("hashchange", route);
 
 // Probe auf der Uebersicht (Dienst): "noch N Tage alles frei", danach einmal die Aufforderung (planChoicePrompt)
-function trialHint() {
-  const tr = state.entitlements?.trial;
-  if (!state.hosted || !tr?.granted) return "";
-  if (tr.active) return `<div class="card pwa-hint"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("sparkles", 18)}<div style="flex:1"><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><div class="small muted">Bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} hast du alle Funktionen. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</div></div><a class="btn sm" href="#/abo">Tarife</a></div></div>`;
-  if (state.entitlements?.needs_plan_choice) return `<div class="card pwa-hint" style="border-color:var(--warn)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("alert", 18)}<div style="flex:1"><b>Deine Probe ist vorbei</b><div class="small muted">Wähle einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten.</div></div><a class="btn primary sm" href="#/abo">Tarif wählen</a></div></div>`;
-  return "";
-}
+function trialHint() { return trialHintHtml(state.entitlements, state.hosted, icon, esc); }
+// "Bei Free bleiben" auf der Hinweiskarte (trial-hint.js); die Uebersicht zeichnet danach neu
+document.addEventListener("click", async e => {
+  if (!e.target.closest?.("#trialFree")) return;
+  try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free – deine Notizen bleiben"); if (state.entitlements) state.entitlements.needs_plan_choice = false; route(); }
+  catch (x) { toast(x.message, 5000); }
+});
 
 // Übersicht (Startseite): views-home.js; die Hinweiskarte der Probe (Dienst) kommt von hier
-function viewDashboard(p, q, v) { return viewHome(p, q, v, trialHint); }
+async function viewDashboard(p, q, v) {
+  await viewHome(p, q, v, trialHint);
+  // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
+  try {
+    const U = await import("./community-corrections-ui.js?v=3"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
+    (await import("./community-logic.js?v=2")).ensureCss();
+    const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
+    await U.renderInbox(box, { toast, onChange: () => route() });
+    if (!box.innerHTML) box.remove();
+  } catch { /* Community nicht verfuegbar */ }
+}
 
 // ---------------------------------------------------------------- Start
 async function start() {

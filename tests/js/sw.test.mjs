@@ -34,7 +34,7 @@ test("Konto, Auftraege, Abgleich, Suche, Anmeldung und fremde Hosts bleiben am W
   for (const p of ["/api/account/me", "/api/account", "/api/bg", "/api/sync/status", "/api/network", "/api/integrations/chatgpt",
     "/api/billing/plans", "/api/entitlements", "/api/credentials", "/api/university/session", "/api/qis/runs", "/api/search?q=x",
     "/api/related?file_id=1", "/api/desktop", "/api/services", "/api/files/abc/recordings", "/api/recordings/1/audio",
-    "/api/community/notifications", "/login", "/sw.js", "/auth/callback?code=1"]) {
+    "/api/community/notifications", "/api/news", "/api/news?limit=8", "/login", "/sw.js", "/auth/callback?code=1"]) {
     assert.equal(c("GET", p).kind, "bypass", p);
   }
   assert.equal(P.classify("GET", "https://auth.openai.com/x", ORIGIN).kind, "bypass");

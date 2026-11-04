@@ -2,11 +2,12 @@
 // Oben links der größte Block mit der wichtigsten Information und dem Hauptknopf, daneben "Heute für dich geplant";
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); keine eigene Datenquelle.
-import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=40";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=45";
-import { openEvent } from "./views-tt.js?v=43";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=12";
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=41";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=46";
+import { openEvent } from "./views-tt.js?v=44";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=13";
 import { staggerOnce, countUp } from "./motion.js?v=2";
+import { newsCard, bindNews } from "./news.js?v=3";
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -141,7 +142,8 @@ function announcementsCard(d) {
 
 /// `hints()` liefert die Hinweiskarten des Dienstes (Probe, siehe app.js trialHint); sie stehen unter dem Tagesplan.
 export async function viewDashboard(_, __, view, hints = () => "") {
-  const d = await api("/dashboard");
+  // Neuigkeiten (Ankuendigungen, Nachrichten, Aenderungen) und neue Anzeigen im Schwarzen Brett sind Ergaenzungen: ein Fehler haelt die Uebersicht nicht an
+  const [d, news, bulletin] = await Promise.all([api("/dashboard"), api("/news").catch(() => null), api("/studip/bulletin").catch(() => null)]);
   const h = new Date().getHours(); const greet = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
   const today = d.today, pk = today.packages;
   const evs = (today.events || []).filter(e => e.status !== "verschoben");
@@ -155,7 +157,9 @@ export async function viewDashboard(_, __, view, hints = () => "") {
   const focus = pickFocus(d, ctx), lecture = nextLecture(d.modules || []);
   const planEmpty = !pk.length && !evs.length;
   const soloFocus = planEmpty && focus.kind === "none";                     // nichts da: ein Block statt zwei
-  const rest = [termineCard(d), modulesCard(d), weekCard(d), newFilesCard(d), announcementsCard(d)].filter(Boolean);
+  // "Neuigkeiten" ersetzt die Karte "Ankuendigungen" (wie auf dem iPad); nur wenn /api/news nicht antwortet, bleibt die alte
+  const newsHtml = news ? newsCard(news.items, d.today.date, bulletin?.new_count || 0) : announcementsCard(d);
+  const rest = [termineCard(d), newsHtml, modulesCard(d), weekCard(d), newFilesCard(d)].filter(Boolean);
   const nEv = evs.filter(e => e.status === "teilnahme").length;
   view.innerHTML = `<div class="content ov" style="max-width:1120px">
     <div class="page-head greet"><div><h1>${greet}!</h1><div class="date">${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })} · ${pk.length ? `heute ${pk.length} Lernpaket${pk.length > 1 ? "e" : ""}` : "heute kein Lernpaket"}${nEv ? ` · ${nEv} Uni-Termin${nEv > 1 ? "e" : ""}` : ""}</div></div>
@@ -165,6 +169,7 @@ export async function viewDashboard(_, __, view, hints = () => "") {
     ${installBanner()}${hints()}
     ${rest.length ? `<div class="ov-rest">${rest.join("")}</div>` : ""}</div>`;
   bindInstallBanner(view);
+  if (news) bindNews(view, news.items, d.today.date);
   // Abschnitte erscheinen beim ersten Oeffnen leicht gestaffelt, Kennzahlen rollen zur neuen Zahl (motion.js)
   staggerOnce($(".content.ov", view), "dashboard");
   $$(".ov-stats b", view).forEach((b, i) => countUp(b, `dashboard-stat-${i}`));

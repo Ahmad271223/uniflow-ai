@@ -2,6 +2,7 @@
 // Gleich im Browser (Dienst) und in der Windows-App (Weiterleitung ueber das StudiNow-Konto, app/service_link.py).
 // Der Schluessel entsteht im eigenen Backend aus dem Modul des Kurses (/api/courses/community-keys), wie auf dem iPad.
 import { icon } from "./icons.js?v=31";
+import { responseError } from "./service-errors.js?v=1";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -11,9 +12,8 @@ const REASONS = { offensive: "anstößig", spam: "Spam", foreignMaterial: "Fremd
 
 export async function capi(path, { method = "GET", body } = {}) {
   const r = await fetch("/api/community" + path, { method, headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
-  let d = null; try { d = await r.json(); } catch {}
-  if (!r.ok) { const e = new Error(d?.detail || `Fehler ${r.status}`); e.code = d?.code; e.status = r.status; throw e; }
-  return d;
+  if (!r.ok) throw await responseError(r, { report: /\/report(-post)?$/.test(path) });   // Texte der Fehlercodes: service-errors.js
+  return r.json().catch(() => null);
 }
 export async function courseKeys() {
   const r = await fetch("/api/courses/community-keys"); if (!r.ok) throw new Error("Kurse nicht lesbar");
@@ -46,7 +46,7 @@ export async function renderQuestions(el, opts = {}) {
         ${opts.fingerprint ? `<label class="small row" style="gap:.35rem;align-items:center"><input type="checkbox" class="qa-ref" checked> zu dieser PDF${opts.page ? `, Seite ${opts.page}` : ""}</label>` : ""}
         <div class="row" style="gap:.4rem"><button class="btn sm primary qa-send">Fragen</button><span class="qa-msg small"></span></div></div></details>
       <div class="qa-list">${st.items.length ? st.items.map(q => `<button class="qa-item" data-q="${q.id}"><b>${esc(q.title)}</b>${q.accepted_answer ? ` <span class="badge ok">gelöst</span>` : ""}${q.mine ? ` <span class="badge neutral">deine</span>` : ""}
-        <span class="tiny muted">${esc(q.pseudonym)} · ${when(q.last_activity)} · ${q.answers} Antwort${q.answers === 1 ? "" : "en"}${q.page ? ` · Seite ${q.page}` : ""}</span></button>`).join("")
+        <span class="tiny muted">${esc(q.pseudonym)} · ${when(q.last_activity)} · ${q.answers} Antwort${q.answers === 1 ? "" : "en"}${q.likes ? ` · ${q.likes} Like${q.likes === 1 ? "" : "s"}` : ""}${q.page ? ` · Seite ${q.page}` : ""}</span></button>`).join("")
         : `<p class="small muted">Noch keine Fragen${st.onlyThis ? " zu dieser PDF" : " in diesem Kurs"}. Stell die erste – Kommilitonen mit demselben Kurs sehen sie.</p>`}</div>
       ${st.next ? `<button class="btn sm ghost qa-more">Mehr laden</button>` : ""}</div>`;
     $(".qa-course", el)?.addEventListener("change", e => { key = e.target.value; try { localStorage.setItem("qa-course", key); } catch {} load(true); });
@@ -83,7 +83,7 @@ export async function openQuestion(id, onChange) {
     box.innerHTML = `<div class="card-head"><h2>${esc(q.title)}</h2><button class="btn ghost icon" data-x aria-label="Schließen">${icon("x", 16)}</button></div>
       <div class="tiny muted">${esc(q.pseudonym)} · ${when(q.created_at)}${q.edited_at ? " · bearbeitet" : ""}${q.page ? ` · Seite ${q.page}` : ""}</div>
       ${q.body ? `<div class="qa-body-text">${body(q.body)}</div>` : ""}
-      <div class="row wrap" style="gap:.3rem;margin:.4rem 0 .8rem"><button class="btn sm ghost" data-bm>${icon("bookmark", 13)} ${q.bookmarked ? "Lesezeichen entfernen" : "Merken"}</button>
+      <div class="row wrap" style="gap:.3rem;margin:.4rem 0 .8rem"><button class="btn sm ghost${q.liked_by_me ? " active" : ""}" data-qlike ${q.mine ? 'disabled title="Die eigene Frage lässt sich nicht liken"' : ""} aria-pressed="${!!q.liked_by_me}">${icon("heart", 13)} ${q.likes ?? 0}</button><button class="btn sm ghost" data-bm>${icon("bookmark", 13)} ${q.bookmarked ? "Lesezeichen entfernen" : "Merken"}</button>
         ${q.mine ? `<button class="btn sm ghost" data-del-q>${icon("trash", 13)} Frage löschen</button>` : `<button class="btn sm ghost" data-rep-q>Melden</button>`}</div>
       <h3 class="small" style="margin:.4rem 0">${q.answer_list.length} Antwort${q.answer_list.length === 1 ? "" : "en"}</h3>
       <div class="qa-answers">${q.answer_list.map(a => `<div class="qa-answer${a.id === q.accepted_answer ? " accepted" : ""}">
@@ -94,8 +94,9 @@ export async function openQuestion(id, onChange) {
           ${q.mine ? `<button class="btn sm ghost" data-accept="${a.id === q.accepted_answer ? "" : a.id}">${a.id === q.accepted_answer ? "Markierung aufheben" : "Als Lösung markieren"}</button>` : ""}
           ${a.mine || q.mine ? `<button class="btn sm ghost" data-del-a="${a.id}">Löschen</button>` : `<button class="btn sm ghost" data-rep-a="${a.id}">Melden</button>`}</div></div>`).join("") || `<p class="small muted">Noch keine Antwort.</p>`}</div>
       <div class="qa-form"><textarea class="input qa-ans" rows="3" maxlength="4000" placeholder="Deine Antwort"></textarea><div class="row" style="gap:.4rem"><button class="btn sm primary" data-answer>Antworten</button><span class="qa-msg small"></span></div></div>`;
-    const run = async (fn, b) => { if (b) b.disabled = true; try { await fn(); await draw(); } catch (e) { const m = $(".qa-msg", box); if (m) m.textContent = e.message; else alert(e.message); if (b) b.disabled = false; } };
+    const run = async (fn, b) => { if (b) b.disabled = true; try { await fn(); await draw(); } catch (e) { const m = $(".qa-msg", box); if (m) m.textContent = e.message; else alert(e.message); if (e.action) import("./core.js?v=41").then(c => c.showError(e)); if (b) b.disabled = false; } };
     $("[data-x]", box).onclick = close;
+    $("[data-qlike]", box).onclick = e => run(() => capi(`/questions/${q.id}/like`, { method: q.liked_by_me ? "DELETE" : "POST" }), e.currentTarget);
     $("[data-bm]", box).onclick = e => run(() => capi(`/bookmarks/question/${q.id}`, { method: q.bookmarked ? "DELETE" : "POST" }), e.target);
     $("[data-del-q]", box)?.addEventListener("click", async () => { if (!confirm("Frage löschen?")) return; await capi(`/questions/${q.id}`, { method: "DELETE" }); close(); });
     $("[data-rep-q]", box)?.addEventListener("click", () => { const r = reasonPick(); if (r) run(() => capi(`/questions/${q.id}/report-post`, { method: "POST", body: { reason: r } })); });
@@ -121,7 +122,7 @@ export async function renderBookmarks(el) {
     : `<p class="small muted">Noch nichts gemerkt. Lösungen merkst du in der Community-Leiste des Editors, Fragen im Fragen-Fenster.</p>`;
   $$("[data-bk]", el).forEach(b => b.onclick = () => b.dataset.bk === "question" ? openQuestion(b.dataset.id, () => renderBookmarks(el)) : openFingerprint(b.dataset.fp));
 }
-const NOTE = { comment: "hat deine Lösung kommentiert", reply: "hat auf deinen Kommentar geantwortet", like: "gefällt deine Lösung", answer: "hat deine Frage beantwortet", accepted: "hat deine Antwort als Lösung markiert" };
+const NOTE = { comment: "hat deine Lösung kommentiert", reply: "hat auf deinen Kommentar geantwortet", like: "gefällt deine Lösung", answer: "hat deine Frage beantwortet", accepted: "hat deine Antwort als Lösung markiert", correction: "hat einen Korrekturhinweis zu deiner Lösung geschickt" };
 export async function renderNotifications(el, onCount) {
   let d; try { d = await capi("/notifications?limit=100"); } catch (e) { el.innerHTML = `<p class="small">${esc(e.message)}</p>`; return; }
   onCount?.(d.unread);

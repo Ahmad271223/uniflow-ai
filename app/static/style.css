@@ -867,3 +867,44 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
   .mod2:active { transform: none; }
   .uf-shimmer { color: var(--muted); background: none; }
 }
+
+/* Neuigkeiten, Schwarzes Brett, "Aus Stud.IP" (news.js, bulletin.js, studip-texts.js) */
+.news-item summary { display: flex; align-items: flex-start; gap: .65rem; }
+.news-ic { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
+.news-ic.tone-info { background: var(--info-soft); color: var(--info-text); } .news-ic.tone-ok { background: var(--ok-soft); color: var(--ok-text); } .news-ic.tone-warn { background: var(--warn-soft); color: var(--warn-text); }
+.news-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.news-top { display: flex; align-items: center; gap: .4rem; color: var(--text-2); font-size: .8125rem; } .news-who { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; } .news-time { color: var(--muted); white-space: nowrap; }
+.news-top > svg { color: var(--muted); transition: transform .22s cubic-bezier(.2, 0, 0, 1); } .news-item[open] .news-top > svg { transform: rotate(180deg); }
+.news-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .15rem; }
+.news-more { padding-left: 2.1rem; } .news-more .body { max-width: 70ch; }
+.news-bulletin { display: flex; align-items: center; gap: .5rem; min-height: 44px; border-top: 1px solid var(--line); color: var(--accent-text); font-size: .8125rem; font-weight: 600; } .news-bulletin span { flex: 1; } .news-bulletin:hover { text-decoration: none; }
+.bb-card { margin-top: 1rem; }
+.bb-entry { padding: .55rem .2rem; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 6px; } .bb-entry:last-child { border-bottom: 0; } .bb-entry:hover { background: var(--surface-2); }
+.bb-head { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; } .bb-title { overflow-wrap: anywhere; } .bb-date { color: var(--muted); font-size: .8125rem; white-space: nowrap; }
+.bb-text, .bb-reader { white-space: pre-line; overflow-wrap: anywhere; font-size: .8125rem; line-height: 1.5; max-width: 70ch; margin-top: .25rem; } .bb-reader { font-size: .9rem; line-height: 1.65; max-height: 60vh; overflow: auto; }
+.st-card { margin-bottom: 1rem; }
+.st-head, .st-line, .st-item { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 44px; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.st-head > svg { color: var(--muted); transition: transform .2s ease; } .st-head[aria-expanded="true"] > svg { transform: rotate(90deg); } .st-head .muted { margin-left: auto; text-align: right; }
+.st-group { border-top: 1px solid var(--line); } .st-line > span { flex: 1; font-variant-numeric: tabular-nums; } .st-line[aria-expanded="true"] > svg:last-child { transform: rotate(90deg); }
+.st-items { padding: 0 0 .4rem 1.6rem; } .st-item { flex-direction: column; align-items: flex-start; gap: .1rem; padding: .35rem 0; } .st-item b { font-weight: 550; overflow-wrap: anywhere; }
+.st-comment { margin-bottom: .8rem; }
+/* Frühere Semester in der Bibliothek (app/static/older-semesters.js) */
+.older-cur { font-size: 1.02rem; margin: 0 0 .7rem; }
+.older-sem { margin-top: 1.4rem; display: grid; gap: .6rem; }
+.older-sem h2 { font-size: 1.02rem; margin: 0; }
+.older-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r, 14px); padding: .35rem .9rem; }
+.older-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.older-toggle { display: flex; align-items: center; gap: .6rem; flex: 1; min-width: 220px; min-height: 44px; border: 0; background: transparent; color: var(--text); cursor: pointer; text-align: left; font: inherit; padding: 0; }
+.older-ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); }
+.older-t { display: grid; gap: .1rem; }
+.older-courses { padding: .2rem 0 .3rem 1.6rem; }
+.older-course { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding: .25rem 0; }
+.older-course:last-child { border-bottom: 0; }
+.older-ct { display: grid; gap: .1rem; flex: 1; min-width: 200px; min-height: 44px; align-content: center; color: var(--text); text-decoration: none; }
+a.older-ct:hover { text-decoration: none; color: var(--accent-text); }
+.older-card .btn, .older-head-card .btn { min-height: 44px; }
+.older-head-card { margin-bottom: 1rem; }
+.older-missing { margin-top: .7rem; display: grid; gap: .1rem; }
+.older-file { display: flex; align-items: center; gap: .5rem; color: var(--text-2); font-size: .85rem; padding: .25rem 0; }
+
+.sync-chip .bad { color: var(--warn-text); }

@@ -1,7 +1,9 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
-import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=40";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=59";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=41";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=62";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
+import { currentHeading, courseIdOf, findCourse } from "./older-semesters.js?v=1";
+import { bindSemesters, bindCourseHeader } from "./older-semesters-ui.js?v=2";
 
 // "Neu" wie auf der Uebersicht, den Modulkarten und in der iPad-App (study.NEW_FILE_SQL): noch nicht angesehen
 // (seen_by_user 0); aeltere Antworten ohne das Feld: Lernstand "neu"
@@ -17,6 +19,7 @@ const fileType = f => f.kind === "pdf" ? (f.doc_type || "sonstiges") : f.kind;
 
 export async function viewFiles(_, params, view) {
   lib = await api("/library");
+  const older = await api("/older-semesters").catch(() => null);   // frühere Semester: Ordner "Frühere Semester" und ihre Kursordner
   // Pfad und Bereich aus der Adresse nur in fester Form (landen in href, data-open und innerHTML; 3.11.2026)
   const path = /^[A-Za-z0-9_\/-]*$/.test(params.path || "") ? (params.path || "") : "";
   const section = LIB_SECTIONS.includes(params.section) ? params.section : (params.new ? "new" : "docs");
@@ -25,6 +28,10 @@ export async function viewFiles(_, params, view) {
   const modById = Object.fromEntries(lib.modules.map(m => [m.id, m]));
   const folderById = Object.fromEntries(lib.folders.map(f => [f.id, f]));
   const activeFiles = lib.files;
+  // Kursordner eines früheren Semesters (path=c<Kurs-ID>): die Bibliothek zeigt nur aktive Kurse, darum eigene Dateiliste
+  const olderCourse = section === "docs" ? findCourse(older, courseIdOf(path.split("/")[0])) : null;
+  let olderFiles = [];
+  if (olderCourse) { olderFiles = await api(`/older-semesters/courses/${encodeURIComponent(olderCourse.id)}/files`).catch(() => []); lib = { ...lib, files: lib.files.concat(olderFiles) }; }
   const docItem = f => ({ kind: "doc", f });
   const q = (params.q || "").toLowerCase();
   const root = section === "docs" && !path && !q && filter === "all";
@@ -34,7 +41,11 @@ export async function viewFiles(_, params, view) {
   else if (section === "trash") items = lib.trash.map(f => ({ kind: "trash", f }));
   else {
     const seg = path ? path.split("/") : [];
-    if (!seg.length) {
+    if (olderCourse) {
+      crumbs.push({ label: olderCourse.title, path: seg[0] });
+      const have = olderFiles.filter(f => f.downloaded === 1);   // die nicht geladenen nennt der Kopf darüber
+      items = filter === "all" ? have.map(docItem) : have.filter(f => filter === "notes" ? f.kind !== "pdf" && f.kind !== "image" : fileType(f) === filter).map(docItem);
+    } else if (!seg.length) {
       items = [...lib.modules.map(m => ({ kind: "folder", id: "m" + m.id, label: m.name, color: m.color, count: activeFiles.filter(f => f.module_id === m.id).length, path: "m" + m.id, module: m })),
         ...lib.folders.filter(f => !f.parent_id && !f.module_id).map(f => ({ kind: "folder", id: "f" + f.id, label: f.name, color: f.color || "#8b93a8", count: activeFiles.filter(x => x.folder_id === f.id).length, path: "f" + f.id, user: f })),
         ...activeFiles.filter(f => f.course_id === "__user__" && !f.folder_id).map(docItem)];
@@ -57,7 +68,7 @@ export async function viewFiles(_, params, view) {
   if (q) items = activeFiles.filter(f => (f.title + " " + f.name + " " + (f.ai_title || "") + " " + (f.subject || "")).toLowerCase().includes(q)).map(docItem);
   items.sort((a, b) => { if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1; if (a.kind !== "doc") return 0; return sort === "name" ? a.f.title.localeCompare(b.f.title, "de") : (b.f.edited_at || "").localeCompare(a.f.edited_at || "") || b.f.chdate - a.f.chdate; });
   const current = crumbs[crumbs.length - 1]; const curMod = path.startsWith("m") ? +path.split("/")[0].slice(1) : "";
-  const newCount = lib.files.filter(isNewFile).length;
+  const newCount = activeFiles.filter(isNewFile).length;
   const recent = activeFiles.filter(f => f.last_opened || f.edited_at).sort((a, b) => (b.edited_at || b.last_opened || "").localeCompare(a.edited_at || a.last_opened || "")).slice(0, 4);
   const sectionTitle = { fav: "Favoriten", recent: "Zuletzt bearbeitet", new: "Neu aus Stud.IP", trash: "Papierkorb" }[section];
   view.innerHTML = `<div class="content" style="max-width:1480px">
@@ -70,10 +81,13 @@ export async function viewFiles(_, params, view) {
       <div class="row small" style="gap:.3rem">${[["fav", "Favoriten", "star"], ["recent", "Zuletzt", "clock"], ["new", "Neu aus Stud.IP", "sparkles"], ["trash", "Papierkorb", "trash"]].map(([k, l, i]) => `<a class="btn ghost sm ${section === k ? "active" : ""}" href="#/files?section=${k}" style="${section === k ? "background:var(--accent-soft);color:var(--accent-text)" : ""}">${icon(i, 14)} ${l}${k === "new" && newCount ? ` <span class="badge">${newCount}</span>` : ""}</a>`).join("")}</div></div>
     ${!root ? `<div class="lib-head"><div class="lib-crumbs">${section !== "docs" ? `<b>${sectionTitle}</b>` : crumbs.map((c, i) => i === crumbs.length - 1 ? `<b>${esc(c.label)}</b>` : `<a href="#/files?path=${esc(c.path)}">${esc(c.label)}</a><span class="muted">›</span>`).join("")}${q ? `<span class="muted">· Suche „${esc(params.q)}“</span>` : filter !== "all" && section === "docs" ? `<span class="muted">· ${CHIPS.find(c => c[0] === filter)?.[1]}</span>` : ""}</div></div>` : ""}
     ${section === "trash" ? `<p class="muted small">Dokumente im Papierkorb lassen sich wiederherstellen. Stud.IP-Dokumente bleiben erhalten, eigene Dokumente können endgültig gelöscht werden.</p>` : ""}
-    ${root ? `<div class="folder-grid">${items.filter(i => i.kind === "folder").map(folderCard).join("")}</div>${items.some(i => i.kind === "doc") ? `<div class="quick-card"><div class="card-head"><h2>${icon("note", 18)} Eigene Dokumente</h2></div>${mode === "grid" ? `<div class="lib-grid">${items.filter(i => i.kind === "doc").map(gridItem).join("")}</div>` : `<div class="lib-list">${items.filter(i => i.kind === "doc").map(listItem).join("")}</div>`}</div>` : ""}
+    ${olderCourse ? `<div id="olderHead"></div>` : ""}
+    ${root ? `${currentHeading(older) ? `<h2 class="older-cur">${esc(currentHeading(older))}</h2>` : ""}<div class="folder-grid">${items.filter(i => i.kind === "folder").map(folderCard).join("")}</div><div id="olderSem"></div>${items.some(i => i.kind === "doc") ? `<div class="quick-card"><div class="card-head"><h2>${icon("note", 18)} Eigene Dokumente</h2></div>${mode === "grid" ? `<div class="lib-grid">${items.filter(i => i.kind === "doc").map(gridItem).join("")}</div>` : `<div class="lib-list">${items.filter(i => i.kind === "doc").map(listItem).join("")}</div>`}</div>` : ""}
       <div class="quick-card"><div class="card-head"><h2>${icon("clock", 18)} Schnellzugriff</h2><a class="small" href="#/files?section=recent">Alle anzeigen →</a></div>${recent.length ? `<div class="quick-list">${recent.map(quickItem).join("")}</div>` : `<div class="muted small">Zuletzt geöffnete Dokumente erscheinen hier.</div>`}</div>`
-      : items.length ? (mode === "grid" ? `<div class="lib-grid">${items.map(gridItem).join("")}</div>` : `<div class="card pad-0 lib-list">${items.map(listItem).join("")}</div>`) : `<div class="card empty">${icon("folder", 36)}<div>${section === "trash" ? "Papierkorb ist leer." : q ? "Keine Treffer." : "Hier ist noch nichts. Über „Neu“ ein Notizbuch anlegen oder eine PDF importieren."}</div></div>`}
+      : items.length ? (mode === "grid" ? `<div class="lib-grid">${items.map(gridItem).join("")}</div>` : `<div class="card pad-0 lib-list">${items.map(listItem).join("")}</div>`) : olderCourse ? "" : `<div class="card empty">${icon("folder", 36)}<div>${section === "trash" ? "Papierkorb ist leer." : q ? "Keine Treffer." : "Hier ist noch nichts. Über „Neu“ ein Notizbuch anlegen oder eine PDF importieren."}</div></div>`}
     </div>`;
+  if (root && older) bindSemesters($("#olderSem", view), older, () => state.route());
+  if (olderCourse) bindCourseHeader($("#olderHead", view), olderCourse.id, olderFiles, () => state.route());
   $("#libQ").oninput = debounce(e => { const v = e.target.value; location.hash = `#/files?section=${section}&path=${path}&q=${encodeURIComponent(v)}`; }, 300);
   $("#libMod").onchange = e => { location.hash = e.target.value ? `#/files?path=m${e.target.value}` : "#/files"; }; $("#libSort").onchange = e => { sort = e.target.value; state.route(); };
   $$("[data-chip]", view).forEach(c => c.onclick = () => { filter = c.dataset.chip; if (section !== "docs") location.hash = "#/files"; else state.route(); });

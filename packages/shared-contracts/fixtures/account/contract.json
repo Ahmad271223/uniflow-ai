@@ -18,6 +18,10 @@
     "count": 30,
     "minutes": 60
    },
+   "correction_user": {
+    "count": 20,
+    "minutes": 1440
+   },
    "course_keys_user": {
     "count": 30,
     "minutes": 1440
@@ -794,6 +798,7 @@
    "content_type": "application/zip",
    "zip_entries_ohne_daten": [
     "LIESMICH.txt",
+    "community/meine-korrekturen.json",
     "community/meine-loesungen.json",
     "community/meine-meldungen.json",
     "community/meine-sperrliste.json",

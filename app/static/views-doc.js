@@ -1,7 +1,8 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=40";
-import { PdfEditor } from "./editor.js?v=59";
-import { setupLectureMarker } from "./views-weekly.js?v=9";
+import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=41";
+import { PdfEditor } from "./editor.js?v=62";
+import { setupLectureMarker } from "./views-weekly.js?v=12";
+import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -12,7 +13,9 @@ export function closeTab(id) { docTabs.list = docTabs.list.filter(t => t.id !== 
 
 export async function viewDoc(parts, params, view) {
   const id = parts[0]; let f;
-  try { f = await api(`/files/${id}`); } catch { closeTab(id); view.innerHTML = `<div class="content"><div class="card empty">Dokument nicht gefunden.</div></div>`; return; }
+  // ohne Dokument (#/doc) oder wenn das gemerkte nicht mehr da ist: leere Seite "Dokument wählen" mit Weg zur Bibliothek
+  if (!id) { view.innerHTML = emptyDocHtml(icon, esc); return; }
+  try { f = await api(`/files/${id}`); } catch { closeTab(id); view.innerHTML = emptyDocHtml(icon, esc, true); return; }
   const title = f.title || f.ai_title || f.name;
   rememberTab(id, title);
   api(`/files/${id}/opened`, { method: "POST", body: {} }).catch(() => {});
@@ -109,7 +112,7 @@ function renderTabs(activeId) {
   el.innerHTML = docTabs.list.map(t => `<div class="doc-tab ${t.id === activeId ? "active" : ""}" data-tab="${t.id}" title="${esc(t.title)}">${icon("file-text", 14)}<span>${esc(t.title)}</span><i class="x" data-x="${t.id}">${icon("x", 12)}</i></div>`).join("");
   const act = el.querySelector(".doc-tab.active"); if (act) el.scrollLeft = Math.max(0, act.offsetLeft - 60);
   $$("[data-tab]", el).forEach(d => d.onclick = e => { if (e.target.closest("[data-x]")) return; location.hash = `#/doc/${d.dataset.tab}`; });
-  $$("[data-x]", el).forEach(x => x.onclick = e => { e.stopPropagation(); const id = x.dataset.x; closeTab(id); if (id === activeId) { const next = docTabs.list[docTabs.list.length - 1]; location.hash = next ? `#/doc/${next.id}` : "#/files"; } else renderTabs(activeId); });
+  $$("[data-x]", el).forEach(x => x.onclick = e => { e.stopPropagation(); const id = x.dataset.x; closeTab(id); const to = afterCloseTab(docTabs.list, activeId, id); if (to) location.hash = to; else renderTabs(activeId); });
 }
 function docFallback(host, f, msg, keep = false) {
   const box = document.createElement("div"); box.className = "card flat"; box.style.cssText = "margin:.4rem;background:var(--warn-soft);border-color:transparent";

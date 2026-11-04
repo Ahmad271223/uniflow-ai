@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 116,
+ "count": 118,
  "paths": [
   {
    "method": "DELETE",
@@ -1088,6 +1088,20 @@
   },
   {
    "method": "GET",
+   "shape": "/api/index/file/{}/page/{}",
+   "sources": [
+    "UniFlow/Views/AI/DocIndexPageCard.swift"
+   ],
+   "request": {
+    "path": "/api/index/file/f1/page/1"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Dokument-Index nur auf dem Geraet (V1); leere Datenbank: Datei f1 fehlt"
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/library",
    "sources": [
     "UniFlow/Views/AI/AIStartView.swift",
@@ -1701,15 +1715,26 @@
    "request": {
     "path": "/api/studip/blubber"
    },
-   "expect": {
+   "python": {
     "status": 200,
-    "type": "object",
-    "keys": [
-     "count",
-     "fetched_at",
-     "threads"
-    ],
-    "reason": "nur auf dem Geraet (StudIPBlubberEndpoints, Abgleich vorerst aus)"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "count": {
+       "type": "number"
+      },
+      "fetched_at": {
+       "type": "null"
+      },
+      "threads": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {
@@ -1721,9 +1746,19 @@
    "request": {
     "path": "/api/studip/blubber/x1"
    },
-   "expect": {
+   "python": {
     "status": 404,
-    "reason": "nur auf dem Geraet; unbekannter Thread 404"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -1736,18 +1771,36 @@
    "request": {
     "path": "/api/studip/bulletin"
    },
-   "expect": {
+   "python": {
     "status": 200,
-    "type": "object",
-    "keys": [
-     "available",
-     "entries",
-     "fetched_at",
-     "new_count",
-     "topics",
-     "url"
-    ],
-    "reason": "nur auf dem Geraet (StudIPBulletinEndpoints)"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "available": {
+       "type": "bool"
+      },
+      "entries": {
+       "type": "array",
+       "item": null
+      },
+      "fetched_at": {
+       "type": "null"
+      },
+      "new_count": {
+       "type": "number"
+      },
+      "topics": {
+       "type": "array",
+       "item": null
+      },
+      "url": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {
@@ -1759,9 +1812,19 @@
    "request": {
     "path": "/api/studip/bulletin/x1"
    },
-   "expect": {
+   "python": {
     "status": 404,
-    "reason": "nur auf dem Geraet; unbekannte Anzeige 404"
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
    }
   },
   {
@@ -3068,6 +3131,23 @@
    "expect": {
     "status": 404,
     "reason": "QIS auf dem iPad folgt (F4)"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/index/file/{}/page/{}",
+   "sources": [
+    "UniFlow/Views/AI/DocIndexPageCard.swift"
+   ],
+   "request": {
+    "path": "/api/index/file/f1/page/1",
+    "body": {
+     "force": false
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"
    }
   },
   {

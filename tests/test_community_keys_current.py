@@ -33,3 +33,21 @@ def test_current_flag_and_older_courses(app):
     finally:
         with db.cursor() as conn:
             conn.execute(f"DELETE FROM courses WHERE id IN ({','.join('?' * len(COURSES))})", [c[0] for c in COURSES])
+
+
+def test_only_modules_from_the_university_sync_and_the_module_id_for_the_channel(app):
+    """Nur Module aus dem eigenen Uni-Abgleich (3.11.2026): eigene Dokumente (`__user__`) und selbst angelegte Modulnamen
+    geben keinen Schluessel; je Kurs steht `module_id`, damit die Seite einer Community die Lehrwochen des Moduls laedt."""
+    from app import db
+    with db.cursor() as conn:
+        mid = conn.execute("INSERT INTO modules(name, semester, color) VALUES ('Lineare Algebra Eigenname', '', '#175ee8')").lastrowid
+        conn.execute("INSERT INTO courses(id, title, kind, active, module_id, created_at) VALUES ('ck-la', 'Lineare Algebra', 'vorlesung', 1, ?, 't')", (mid,))
+        conn.execute("INSERT OR IGNORE INTO courses(id, title, kind, active, created_at) VALUES ('__user__', 'Eigene Dokumente', 'sonstiges', 1, 't')")
+    try:
+        every = _keys(app, "?all=true")
+        assert every["ck-la"]["module_id"] == mid and every["ck-la"]["module"] == "Lineare Algebra", "der Schluessel kommt aus dem Kurstitel, nicht aus dem Namen im Modul"
+        assert "__user__" not in every and "Eigenname" not in json.dumps(every)
+    finally:
+        with db.cursor() as conn:
+            conn.execute("DELETE FROM courses WHERE id IN ('ck-la', '__user__')")
+            conn.execute("DELETE FROM modules WHERE id=?", (mid,))

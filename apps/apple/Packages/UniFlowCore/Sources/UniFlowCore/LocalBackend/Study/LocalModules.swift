@@ -67,7 +67,7 @@ public enum LocalModules {
     // MARK: Dateien eines Moduls
 
     static let fileRowsSQL = """
-        SELECT f.id, f.name, f.chdate, f.status, f.favorite, f.last_opened, f.size, f.course_id, f.studip_folder,
+        SELECT f.id, f.name, f.chdate, f.status, f.favorite, f.last_opened, f.size, f.course_id, f.studip_folder, f.content_sha256,
                         c.title AS course_title, c.kind AS course_kind, c.subject, c.module_id,
                         a.doc_type, a.title AS ai_title, a.difficulty, a.est_minutes, a.topics, a.summary,
                         (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes

@@ -10,7 +10,7 @@ und loescht sie danach. Inhalt:
 - `daten/`: der Nutzerordner je Hochschule: Datenbanken (`lernapp.db`, konsistent ueber die SQLite-Sicherung kopiert)
   mit Kursen, Notizen, Kalender, Lernpaketen, Karteikarten, Tests, dazu eigene Dateien und Protokolle. Ohne
   Browser-Profile (Sitzungs-Cookies der Hochschule) und ohne Arbeitsordner der KI.
-- `community/`: eigene Loesungen (Liste und Pakete), eigene Meldungen und Sperrliste
+- `community/`: eigene Loesungen (Liste und Pakete), eigene Korrekturvorschlaege, eigene Meldungen und Sperrliste
 - `testbibliothek.json`: eigene Fragen in der gemeinsamen Testbibliothek
 """
 from __future__ import annotations
@@ -100,6 +100,8 @@ def _community(z: zipfile.ZipFile, user: dict) -> int:
     z.writestr("community/meine-loesungen.json", json.dumps(sols, ensure_ascii=False, indent=1))
     z.writestr("community/meine-meldungen.json", json.dumps(reports, ensure_ascii=False, indent=1))
     z.writestr("community/meine-sperrliste.json", json.dumps(blocks, ensure_ascii=False, indent=1))
+    from . import community_corrections
+    z.writestr("community/meine-korrekturen.json", json.dumps(community_corrections.exported(user), ensure_ascii=False, indent=1))
     for s in sols:
         p = community.package_dir() / f"{s['solution_id']}.uniflowsolution"
         if p.exists():
@@ -127,7 +129,7 @@ daten/                Deine Daten je Hochschule. lernapp.db ist eine SQLite-Date
                       for SQLite“): Kurse, Module, Notizen (Tabelle annotations), Stundenplan, Lernpakete, Aufgaben,
                       Karteikarten, Tests und Noten. Dazu eigene Dateien und Protokolle. Dateien deiner Hochschule
                       speichert der Dienst nicht; sie bleiben in Stud.IP bzw. im Learnweb.
-community/            Deine veröffentlichten Lösungen (Liste und Pakete), deine Meldungen und deine Sperrliste.
+community/            Deine veröffentlichten Lösungen (Liste und Pakete), deine Korrekturvorschläge, deine Meldungen und deine Sperrliste.
 testbibliothek.json   Deine Fragen in der gemeinsamen Testbibliothek.
 
 Fragen zum Export oder zur Löschung: siehe /datenschutz.

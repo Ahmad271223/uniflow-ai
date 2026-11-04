@@ -31,7 +31,7 @@ import uuid
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
-from . import ai, config, db, entitlements, scriptsearch, study
+from . import ai, config, db, entitlements, pageocr, scriptsearch, study
 
 LOCAL_USER = "local"
 LECTURE_TYPES = ("vorlesung", "skript")
@@ -216,8 +216,9 @@ def _norm(t: str) -> str:
 
 
 # ============================================================================ Dokumentversion, Seiten
-def page_texts(conn, file_id: str) -> list[str]:
-    return scriptsearch.page_texts(conn, file_id)
+def page_texts(conn, file_id: str, ocr=None) -> list[str]:
+    """Seitentexte; `ocr`: pageocr.Scope, welche fast leeren Seiten die Texterkennung ergaenzt (Standard keine)."""
+    return scriptsearch.page_texts(conn, file_id, ocr)
 
 
 def page_fp(text: str) -> str:
@@ -227,7 +228,8 @@ def page_fp(text: str) -> str:
 
 def doc_version(conn, file_id: str) -> str:
     f = db.row(conn, "SELECT chdate FROM files WHERE id=?", (file_id,))
-    pages = page_texts(conn, file_id)
+    # Textebene: erkannter Text (Scan-Seiten, app/pageocr.py) kommt erst spaeter dazu und ist keine neue Fassung
+    pages = scriptsearch.text_layer(conn, file_id, page_texts(conn, file_id))
     return f"{(f or {}).get('chdate') or 0}-{len(pages)}-{_h([_norm(p) for p in pages])[:10]}"
 
 
@@ -338,7 +340,7 @@ def marker_preview(conn, file_id: str, page: int, user_id: str = LOCAL_USER, now
     f = _file(conn, file_id)
     if not f or not f.get("module_id"):
         raise WeeklyError("Das Dokument gehört zu keinem Modul. Bitte zuerst einem Modul zuordnen.")
-    pages = page_texts(conn, file_id)
+    pages = page_texts(conn, file_id, pageocr.Scope.only(page))        # Vorschau der markierten Seite: nur sie erkennen
     if not pages:
         raise WeeklyError("Für dieses Dokument liegt kein Seitentext vor (nur PDFs mit Textebene).")
     if not 1 <= page <= len(pages):
@@ -370,7 +372,7 @@ def create_marker(conn, file_id: str, page: int, user_id: str = LOCAL_USER, lect
                   topic: str | None = None, page_key: str | None = None, now: datetime | None = None) -> dict:
     now = _now(now)
     pv = marker_preview(conn, file_id, page, user_id, now, lecture_date)
-    pages = page_texts(conn, file_id)
+    pages = page_texts(conn, file_id, pageocr.Scope.only(page))
     d = date.fromisoformat(pv["lecture_date"])
     m = {"user_id": user_id, "module_id": pv["module_id"], "file_id": file_id, "doc_version": doc_version(conn, file_id), "page": page,
          "page_key": page_key, "page_fingerprint": page_fp(pages[page - 1]), "page_count": len(pages), "lecture_date": d.isoformat(),
@@ -892,6 +894,8 @@ def tick(now: datetime | None = None, user_id: str = LOCAL_USER, log=print) -> d
         for mid in mods:
             for fid in {r["file_id"] for r in db.rows(conn, "SELECT DISTINCT file_id FROM lecture_markers WHERE module_id=? AND deleted_at IS NULL", (mid,))}:
                 revalidate_markers(conn, fid)
+                page_texts(conn, fid, pageocr.Scope.all())     # markierte Vorlesungen: Grundlage der Wochentests, auch als Bild
+            scriptsearch._index(conn, mid, pageocr.Scope.all())     # Vorlesungen und Skripte als Bild: der Index erkennt ihre Seiten
             index_module(conn, mid, now, log)
             refresh_plans(conn, mid, user_id, now)
         due = db.rows(conn, """SELECT id FROM wt_plans WHERE status IN ('geplant','wartet','fehlgeschlagen') AND publish_at <= ? AND attempts < 3
@@ -967,7 +971,7 @@ def process_plan(plan_id: int, now: datetime | None = None, log=print) -> dict |
 
 # ============================================================================ Material fuer die KI
 def _page_text(conn, file_id: str, page: int) -> str:
-    p = page_texts(conn, file_id)
+    p = page_texts(conn, file_id, pageocr.Scope.only(page))
     return scriptsearch.normalize(p[page - 1]) if 0 < page <= len(p) else ""
 
 

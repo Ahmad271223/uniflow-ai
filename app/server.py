@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
+from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -50,6 +50,8 @@ app.include_router(community_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
 app.include_router(doc_index.router)
+from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
+app.include_router(older_semesters_api.router)
 db.init_db()
 
 
@@ -726,12 +728,12 @@ def courses_community_keys(all: bool = False):
     from .studip_sync import classify
     uni = config.university()
     with db.cursor() as conn:
-        rows = db.rows(conn, f"""SELECT id, title, semester, subject, COALESCE(active, 1) AS active FROM courses
+        rows = db.rows(conn, f"""SELECT id, title, semester, subject, module_id, COALESCE(active, 1) AS active FROM courses
                                  WHERE id NOT IN ('__user__'){"" if all else " AND COALESCE(active, 1)=1"} ORDER BY subject, title""")
     out = []
     for r in rows:
         module = classify(r["title"])[0]
-        out.append({"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
+        out.append({"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"], "module_id": r["module_id"],
                     "module": module, "key": community_module_key(uni, module), "active": 1 if r["active"] else 0,
                     "secret": community_secret("module", uni, normalized_course_name(module)).hex()})
     current = {c["key"] for c in out if c["active"]}
@@ -1081,7 +1083,8 @@ def page_text(file_id: str, page: int = 1):
     with db.cursor() as conn:
         _found(db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)), "Datei")
         try:
-            pages = scriptsearch.page_texts(conn, file_id)
+            # nur die gefragte Seite erkennen, wenn ihre Textebene fast leer ist (beim Oeffnen fragt die App Seite 1, nicht alle)
+            pages = scriptsearch.page_texts(conn, file_id, pageocr.Scope.only(page))
         except Exception as e:  # noqa: BLE001
             return {"text": "", "error": str(e)}
     if not pages:
@@ -1952,6 +1955,46 @@ def api_news(limit: int = 50):
         return {"items": studip_extras.feed_for(conn, study.today(), limit=max(1, min(limit, 100)))}
 
 
+@app.get("/api/studip/bulletin")
+def api_studip_bulletin(topic: str | None = None):
+    """Schwarzes Brett aus Stud.IP (nur lokal, nur Hochschulen mit dem Plugin): Themen mit Anzahl, Anzeigen neueste
+    zuerst, `new_count` der letzten sieben Tage (app/studip_bulletin.py, gleiche Form wie auf dem iPad)."""
+    from . import studip_bulletin
+    with db.cursor() as conn:
+        return studip_bulletin.overview(conn, topic, study.today())
+
+
+@app.get("/api/studip/bulletin/{entry_id}")
+def api_studip_bulletin_entry(entry_id: str):
+    """Eine Anzeige des Schwarzen Bretts zum Lesen"""
+    from . import studip_bulletin
+    with db.cursor() as conn:
+        d = studip_bulletin.item(conn, entry_id)
+    if not d:
+        raise HTTPException(404, "Anzeige nicht gefunden")
+    return d
+
+
+@app.get("/api/studip/blubber")
+def api_studip_blubber(course: str | None = None, module: int | None = None):
+    """Blubber (Kurs-Chats) aus Stud.IP, VORBEREITET: der Abgleich ist aus (app/studip_blubber.py SYNC_ENABLED), darum
+    ohne gespeicherte Beitraege leer. Threads mit Anzahl, neuen Beitraegen und Vorschau, neuester zuerst."""
+    from . import studip_blubber
+    with db.cursor() as conn:
+        return studip_blubber.overview(conn, course, module, study.today())
+
+
+@app.get("/api/studip/blubber/{thread_id}")
+def api_studip_blubber_thread(thread_id: str):
+    """Ein Blubber-Thread zum Lesen: Beitraege mit Rolle statt Name, aelteste zuerst"""
+    from . import studip_blubber
+    with db.cursor() as conn:
+        d = studip_blubber.thread(conn, thread_id)
+    if not d:
+        raise HTTPException(404, "Blubber nicht gefunden")
+    return d
+
+
 @app.get("/api/modules")
 def api_modules():
     with db.cursor() as conn:
@@ -2710,7 +2753,7 @@ def api_related(body: dict = Body(...)):
         if not f or not f["module_id"]:
             return {"terms": [], "results": [], "note": "Dokument gehoert zu keinem Modul"}
         if not text and page:
-            pages = scriptsearch.page_texts(conn, fid)
+            pages = scriptsearch.page_texts(conn, fid, pageocr.Scope.only(page))
             text = pages[page - 1] if 0 < page <= len(pages) else ""
         res = scriptsearch.search(conn, f["module_id"], text[:6000], exclude=fid)
         # passende Lerntexte aus Stud.IP (Courseware, Wiki, Forum) nur, wenn es welche gibt

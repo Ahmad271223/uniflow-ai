@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS answers (
     body TEXT NOT NULL, created_at TEXT NOT NULL, edited_at TEXT, status TEXT NOT NULL DEFAULT 'active', report_count INTEGER DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id, created_at);
 CREATE TABLE IF NOT EXISTS answer_votes (answer_id TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (answer_id, user_id));
+CREATE TABLE IF NOT EXISTS question_likes (question_id TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (question_id, user_id));
 CREATE TABLE IF NOT EXISTS qa_reports (kind TEXT NOT NULL, target_id TEXT NOT NULL, reporter_id TEXT NOT NULL, reason TEXT NOT NULL,
     created_at TEXT NOT NULL, PRIMARY KEY (kind, target_id, reporter_id));
 CREATE TABLE IF NOT EXISTS bookmarks (user_id TEXT NOT NULL, kind TEXT NOT NULL, target_id TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -85,6 +86,15 @@ def _key(course_key: str) -> str:
     if not HEX64.match(k):
         raise CommunityError("course_invalid", "Ungültiger Kurs-Schlüssel.")
     return k
+
+
+def _require_member(conn, user: dict, course_key: str) -> None:
+    """Fragen eines Kurses nur fuer Mitglieder der Community (Entscheidung des Inhabers vom 04.11.2026: wie auf dem
+    iPad nur Leute, die den Kurs haben oder hatten; Beitritt prueft den eigenen Hochschul-Abgleich, auch fruehere
+    Semester). Vorher reichte das Format des Schluessels, und seit der Community je Modul ist er eher zu erraten."""
+    if user.get("role") == "admin" or community._member(conn, user, course_key):
+        return
+    raise CommunityError("not_a_member", "Tritt zuerst der Community dieses Kurses bei.", 403)
 
 
 # ---------------------------------------------------------------- Benachrichtigungen
@@ -151,6 +161,8 @@ def _q_out(conn, r, me: str, blocked: set[str] | None = None) -> dict:
             "pseudonym": r["pseudonym"], "fingerprint": r["fingerprint"], "page": r["page"], "created_at": r["created_at"],
             "edited_at": r["edited_at"], "last_activity": r["last_activity"], "answers": answers, "accepted_answer": r["accepted_answer"],
             "mine": r["author_id"] == me, "status": r["status"],
+            "likes": conn.execute("SELECT COUNT(*) FROM question_likes WHERE question_id=?", (r["id"],)).fetchone()[0],
+            "liked_by_me": bool(conn.execute("SELECT 1 FROM question_likes WHERE question_id=? AND user_id=?", (r["id"], me)).fetchone()),
             "bookmarked": bool(conn.execute("SELECT 1 FROM bookmarks WHERE user_id=? AND kind='question' AND target_id=?", (me, r["id"])).fetchone())}
 
 
@@ -163,11 +175,13 @@ def _a_out(conn, r, me: str, question_author: str) -> dict:
 
 
 def list_questions(user: dict, university: str, course_key: str, limit: int = PAGE, before: str | None = None,
-                   fingerprint: str | None = None) -> dict:
-    """Fragen eines Kurses, neueste Aktivitaet zuerst, seitenweise (`before` = `last_activity` der letzten Zeile)."""
+                   fingerprint: str | None = None, unanswered: bool = False) -> dict:
+    """Fragen eines Kurses, neueste Aktivitaet zuerst, seitenweise (`before` = `last_activity` der letzten Zeile).
+    `unanswered`: nur Fragen ohne aktive Antwort (Filter "Unbeantwortet" der Community-Seite)."""
     key = _key(course_key)
     limit = max(1, min(int(limit or PAGE), 100))
     with cursor() as conn:
+        _require_member(conn, user, key)
         blocked = _blocked(conn, user)
         banned = {r[0] for r in conn.execute("SELECT author_id FROM bans")}
         sql = "SELECT * FROM questions WHERE course_key=? AND university=? AND status='active'"
@@ -175,6 +189,8 @@ def list_questions(user: dict, university: str, course_key: str, limit: int = PA
         if fingerprint:
             sql += " AND fingerprint=?"
             args.append(fingerprint.lower())
+        if unanswered:
+            sql += " AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.question_id=questions.id AND a.status='active')"
         if before:
             sql += " AND last_activity < ?"
             args.append(before)
@@ -194,6 +210,7 @@ def ask(user: dict, university: str, course_key: str, title, body, fingerprint=N
         raise CommunityError("fingerprint_invalid", "Ungültiger Fingerabdruck.")
     pg = int(page) if isinstance(page, int) and 0 < page < 100000 else None
     with cursor() as conn:
+        _require_member(conn, user, key)
         if _banned(conn, user["id"]):
             raise CommunityError("author_banned", "Dein Konto darf in der Community nichts mehr schreiben.", 403)
         _limit("question_user", user["id"])
@@ -208,6 +225,8 @@ def _visible_question(conn, user: dict, qid: str):
     if not r or (r["status"] != "active" and r["author_id"] != user["id"] and user.get("role") != "admin"):
         raise CommunityError("not_found", "Frage nicht gefunden.", 404)
     if r["author_id"] != user["id"] and (_banned(conn, r["author_id"]) or r["pseudonym"] in _blocked(conn, user)):
+        raise CommunityError("not_found", "Frage nicht gefunden.", 404)
+    if r["author_id"] != user["id"] and user.get("role") != "admin" and not community._member(conn, user, r["course_key"]):
         raise CommunityError("not_found", "Frage nicht gefunden.", 404)
     return r
 
@@ -259,6 +278,26 @@ def vote(user: dict, answer_id: str, on: bool = True) -> dict:
             conn.execute("DELETE FROM answer_votes WHERE answer_id=? AND user_id=?", (a["id"], user["id"]))
         n = conn.execute("SELECT COUNT(*) FROM answer_votes WHERE answer_id=?", (a["id"],)).fetchone()[0]
     return {"answer_id": a["id"], "voted": on, "votes": n}
+
+
+def like_question(user: dict, qid: str, on: bool = True) -> dict:
+    """Gefaellt mir fuer eine Frage (wie die Likes auf Fragen in CloudKit, `post:<id>`): nicht fuer die eigene Frage,
+    bestaetigte E-Mail, Grenze `like_user`, idempotent."""
+    _require_verified(user, "Fragen zu liken")
+    with cursor() as conn:
+        q = _visible_question(conn, user, qid)
+        if q["status"] != "active":
+            raise CommunityError("not_found", "Frage nicht gefunden.", 404)
+        if q["author_id"] == user["id"]:
+            raise CommunityError("own_post", "Die eigene Frage lässt sich nicht liken.")
+        if on:
+            if not conn.execute("SELECT 1 FROM question_likes WHERE question_id=? AND user_id=?", (q["id"], user["id"])).fetchone():
+                _limit("like_user", user["id"])
+                conn.execute("INSERT OR IGNORE INTO question_likes(question_id, user_id, created_at) VALUES (?,?,?)", (q["id"], user["id"], _now()))
+        else:
+            conn.execute("DELETE FROM question_likes WHERE question_id=? AND user_id=?", (q["id"], user["id"]))
+        n = conn.execute("SELECT COUNT(*) FROM question_likes WHERE question_id=?", (q["id"],)).fetchone()[0]
+    return {"question_id": q["id"], "liked": on, "likes": n}
 
 
 def accept(user: dict, qid: str, answer_id: str | None) -> dict:
@@ -354,6 +393,8 @@ def moderation_posts(user: dict) -> dict:
                 items.append({"id": r["id"], "kind": kind, "status": r["status"], "pseudonym": r["pseudonym"], "text": (r[text_col] or "")[:300],
                               "context": r[ctx_col], "created_at": r["created_at"], "report_count": r["report_count"], "reports": reps})
             out[table] = items
+        from . import community_corrections
+        out["corrections"] = community_corrections.moderation_items(conn)
     return out
 
 
@@ -363,9 +404,16 @@ def moderate_post(user: dict, kind: str, target_id: str, action: str) -> dict:
     community.require_admin(user)
     if action != "restore":
         raise CommunityError("action_invalid", "Unbekannte Aktion.")
-    t = {"comment": "comments", "question": "questions", "answer": "answers"}.get(kind)
+    t = {"comment": "comments", "question": "questions", "answer": "answers", "correction": "corrections"}.get(kind)
     if not t:
         raise CommunityError("kind_invalid", "Unbekannter Beitrag.")
+    if kind == "correction":
+        from . import community_corrections
+        with cursor() as conn:
+            r = community_corrections.restore(conn, target_id)
+        if not r:
+            raise CommunityError("not_found", "Kein verborgener Beitrag mit dieser Kennung.", 404)
+        return {"action": action, "kind": kind, "id": r["id"], "status": "active"}
     with cursor() as conn:
         r = conn.execute(f"SELECT id FROM {t} WHERE id=? AND status='hidden'", (str(target_id),)).fetchone()
         if not r:
@@ -387,7 +435,7 @@ def bookmarks(user: dict) -> dict:
         for b in rows:
             if b["kind"] == "question":
                 q = conn.execute("SELECT * FROM questions WHERE id=? AND status='active'", (b["target_id"],)).fetchone()
-                if q:
+                if q and (q["author_id"] == user["id"] or user.get("role") == "admin" or community._member(conn, user, q["course_key"])):
                     out.append({"kind": "question", "id": q["id"], "title": q["title"], "course_key": q["course_key"], "created_at": b["created_at"]})
             else:
                 s = conn.execute("SELECT * FROM solutions WHERE id=? AND status='active'", (b["target_id"],)).fetchone()
@@ -405,6 +453,8 @@ def bookmark(user: dict, kind: str, target_id: str, on: bool = True) -> dict:
             t = "questions" if kind == "question" else "solutions"
             if not conn.execute(f"SELECT 1 FROM {t} WHERE id=?", (str(target_id).lower() if kind == "solution" else str(target_id),)).fetchone():
                 raise CommunityError("not_found", "Nicht gefunden.", 404)
+            if kind == "question":
+                _visible_question(conn, user, str(target_id))
             conn.execute("INSERT OR IGNORE INTO bookmarks(user_id, kind, target_id, created_at) VALUES (?,?,?,?)",
                          (user["id"], kind, str(target_id).lower() if kind == "solution" else str(target_id), _now()))
         else:
@@ -420,6 +470,7 @@ def forget(user_id: str) -> None:
             conn.execute("DELETE FROM answer_votes WHERE answer_id IN (SELECT id FROM answers WHERE question_id=?)", (q,))
             conn.execute("DELETE FROM qa_reports WHERE kind='answer' AND target_id IN (SELECT id FROM answers WHERE question_id=?)", (q,))
             conn.execute("DELETE FROM answers WHERE question_id=?", (q,))
+            conn.execute("DELETE FROM question_likes WHERE question_id=?", (q,))
             conn.execute("DELETE FROM qa_reports WHERE kind='question' AND target_id=?", (q,))
             conn.execute("DELETE FROM bookmarks WHERE kind='question' AND target_id=?", (q,))
             conn.execute("DELETE FROM questions WHERE id=?", (q,))
@@ -428,4 +479,5 @@ def forget(user_id: str) -> None:
         conn.execute("UPDATE questions SET accepted_answer=NULL WHERE accepted_answer IN (SELECT id FROM answers WHERE author_id=?)", (user_id,))
         conn.execute("DELETE FROM answers WHERE author_id=?", (user_id,))
         conn.execute("DELETE FROM bookmarks WHERE user_id=?", (user_id,))
+        conn.execute("DELETE FROM question_likes WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM notifications WHERE user_id=?", (user_id,))

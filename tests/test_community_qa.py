@@ -34,7 +34,7 @@ def _j(r):
     return st, (json.loads(b) if b else None)
 
 
-def _user(app, email, plus=True, verified=True, uni="luh"):
+def _user(app, email, plus=True, verified=True, uni="luh", member=True):
     from app import accounts
     st, d = _j(asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni})))
     assert st == 201, d
@@ -43,7 +43,18 @@ def _user(app, email, plus=True, verified=True, uni="luh"):
         accounts.mark_email_verified(d["user"]["id"])
     if plus:
         accounts.set_plan(d["user"]["id"], "plus")
+    if member:
+        _member(d["user"]["id"], uni)
     return d["user"], {"Authorization": f"Bearer {d['token']}"}
+
+
+def _member(user_id, uni="luh", key=None):
+    """Mitglied der Kurs-Community (im Betrieb: Geraet meldet den Kurs, Konto tritt bei; hier direkt, damit auch
+    unbestaetigte Konten die Regeln dahinter erreichen). Fragen gibt es nur fuer Mitglieder (04.11.2026)."""
+    from app import community
+    with community.cursor() as conn:
+        conn.execute("INSERT OR IGNORE INTO community_members(user_id, community_key, university, kind, joined_at) VALUES (?,?,?,?,?)",
+                     (user_id, key or KEY, uni, "course", "2026-11-04T00:00:00Z"))
 
 
 def call(app, method, path, h, body=None):
@@ -64,7 +75,7 @@ def test_questions_answers_votes_accept_and_notifications(hosted):
     assert st == 201 and q["mine"] and q["page"] == 3, q
     st, lst = call(app, "GET", f"/courses/{KEY}/questions", helper)
     assert st == 200 and [x["title"] for x in lst["questions"]] == ["Wie zeige ich Konvergenz?"] and not lst["questions"][0]["mine"]
-    assert call(app, "GET", f"/courses/{course_key('luh', 'anderer')}/questions", helper)[1]["questions"] == [], "anderer Kurs"
+    assert call(app, "GET", f"/courses/{course_key('luh', 'anderer')}/questions", helper)[0] == 403, "anderer Kurs: nur fuer dessen Mitglieder"
     st, a = call(app, "POST", f"/questions/{q['id']}/answers", helper, {"body": "Sandwich-Lemma benutzen."})
     assert st == 201 and a["mine"] and not a["by_asker"], a
     st, a2 = call(app, "POST", f"/questions/{q['id']}/answers", other, {"body": "Monotonie und Beschränktheit."})
@@ -153,3 +164,34 @@ def test_delete_account_removes_questions_answers_and_notifications(hosted):
             col = "user_id" if t in ("bookmarks", "notifications") else "author_id"
             assert conn.execute(f"SELECT COUNT(*) FROM {t} WHERE {col}=?", (u["id"],)).fetchone()[0] == 0, t
         assert conn.execute("SELECT COUNT(*) FROM questions").fetchone()[0] == 1
+
+
+def test_questions_only_for_members_of_the_course(hosted):
+    """Wie auf dem iPad: Fragen eines Kurses lesen und schreiben nur Leute, die den Kurs haben oder hatten (Beitritt
+    nur fuer Kurse aus dem eigenen Abgleich, Entscheidung des Inhabers vom 04.11.2026). Wer nicht Mitglied ist, sieht
+    fremde Fragen nicht einmal einzeln, kann sie nicht beantworten, liken, melden oder merken."""
+    app = hosted
+    _, asker = _user(app, "mitglied@example.org")
+    qid = call(app, "POST", f"/courses/{KEY}/questions", asker, {"title": "Frage im Kurs"})[1]["id"]
+    _, out = _user(app, "fremd@example.org", member=False)
+    st, d = call(app, "GET", f"/courses/{KEY}/questions", out)
+    assert (st, d["code"]) == (403, "not_a_member")
+    st, d = call(app, "POST", f"/courses/{KEY}/questions", out, {"title": "Ich rate den Schluessel"})
+    assert (st, d["code"]) == (403, "not_a_member")
+    for method, path, body in (("GET", f"/questions/{qid}", None), ("POST", f"/questions/{qid}/answers", {"body": "x"}),
+                               ("POST", f"/questions/{qid}/like", None), ("POST", f"/questions/{qid}/report-post", {"reason": "spam"}),
+                               ("POST", f"/bookmarks/question/{qid}", None)):
+        st, d = call(app, method, path, out, body)
+        assert st == 404, (path, st, d)
+    # Beitritt nur mit dem Kurs aus dem eigenen Abgleich: ohne Meldung abgelehnt, mit Meldung erlaubt
+    st, d = call(app, "POST", f"/communities/{KEY}/join", out, {"kind": "course"})
+    assert (st, d["code"]) == (403, "course_not_owned")
+    assert call(app, "POST", "/claims", out, {"fingerprints": [], "course_keys": [KEY]})[0] == 200
+    assert call(app, "POST", f"/communities/{KEY}/join", out, {"kind": "course"})[0] == 200
+    st, d = call(app, "GET", f"/courses/{KEY}/questions", out)
+    assert st == 200 and [q["id"] for q in d["questions"]] == [qid]
+    assert call(app, "GET", f"/questions/{qid}", out)[0] == 200
+    # wer austritt, sieht die Fragen nicht mehr; die eigene Frage bleibt fuer den Autor sichtbar
+    assert call(app, "DELETE", f"/communities/{KEY}/join", asker)[0] == 200
+    assert call(app, "GET", f"/courses/{KEY}/questions", asker)[0] == 403
+    assert call(app, "GET", f"/questions/{qid}", asker)[0] == 200

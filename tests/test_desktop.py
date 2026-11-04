@@ -53,7 +53,7 @@ def test_data_folder_matches_tauri_identifier_and_differs_from_install_folder():
     from app import desktop
     conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
     assert desktop.DATA_FOLDER == conf["identifier"] and desktop.DATA_FOLDER != conf["productName"]
-    assert desktop.LEGACY_FOLDER == conf["productName"]
+    assert desktop.LEGACY_FOLDER == "UniFlow" and conf["productName"] == "StudiNow", "alter Programmordner bleibt Quelle der Uebernahme"
     rs = (WIN / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
     assert f'const DATA_FOLDER: &str = "{conf["identifier"]}";' in rs and ".join(DATA_FOLDER)" in rs
     assert 'join("UniFlow")' not in rs and "de.uniflow.desktop\\\\logs\\\\backend.log" in rs
@@ -421,7 +421,7 @@ def test_start_page_redirects_only_on_uniflow_answer(tmp_path):
     out = subprocess.run([node, str(harness), str(WIN / "dist" / "start.js"), json.dumps(cases)],
                          capture_output=True, encoding="utf-8", timeout=60, check=True)
     results = json.loads(out.stdout)
-    assert results[0] == {"replaced": ["http://127.0.0.1:8765/"], "msg": "Verbinde mit dem UniFlow-Server auf diesem PC …", "retry": False}
+    assert results[0] == {"replaced": ["http://127.0.0.1:8765/"], "msg": "Verbinde mit dem StudiNow-Server auf diesem PC …", "retry": False}
     for r in results[1:]:
         assert r["replaced"] == [] and r["retry"] and r["msg"].startswith("Keine Verbindung zu http://127.0.0.1:8765/"), r
 
@@ -456,7 +456,7 @@ def test_tauri_window_checks_backend_pid_url_and_exit():
 
 def test_windows_app_versions_match():
     """package.json, package-lock.json, tauri.conf.json und Cargo.toml nennen dieselbe Version (der Installer
-    heisst UniFlow_<version>_x64-setup.exe)."""
+    heisst StudiNow_<version>_x64-setup.exe)."""
     pkg = json.loads((WIN / "package.json").read_text(encoding="utf-8"))
     lock = json.loads((WIN / "package-lock.json").read_text(encoding="utf-8"))
     conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
@@ -494,3 +494,54 @@ def test_pyinstaller_spec_and_workflow():
     for needle in ('"/S"', "uninstall.exe", "backend\\uniflow-backend.exe", "check-backend.ps1", "chromium-*", "Remove-Item"):
         assert needle in inst, needle
     assert inst.index('"/S"') < inst.index('$PSScriptRoot "check-backend.ps1"') < inst.index('"uninstall.exe") -ArgumentList')
+
+
+def test_visible_name_is_studinow_and_internal_names_stay():
+    """Sichtbarer Name StudiNow (Fenstertitel, Startseite, Meldungen des Fensters, Store-Anzeigename), interne Kennungen
+    bleiben (identifier, Dateinamen); productName = Programmordner, Installer und Startmenue heisst seit 04.11.2026
+    StudiNow (Entscheidung des Inhabers), siehe apps/windows/README.md."""
+    conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+    assert conf["app"]["windows"][0]["title"] == "StudiNow"
+    assert conf["identifier"] == "de.uniflow.desktop" and conf["productName"] == "StudiNow", "Kennung bleibt, Programmname StudiNow"
+    html = (WIN / "dist" / "index.html").read_text(encoding="utf-8")
+    assert "<title>StudiNow</title>" in html and "<h1>StudiNow</h1>" in html and "StudiNow startet" in html
+    assert "UniFlow" not in re.sub(r"<code>.*?</code>", "", html, flags=re.S), "keine sichtbare Restbenennung auf der Startseite"
+    start = (WIN / "dist" / "start.js").read_text(encoding="utf-8")
+    assert "StudiNow-Server" in start and "Verbinde mit dem UniFlow" not in start
+    rs = (WIN / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
+    assert 'set_message(&win, "StudiNow startet …")' in rs and 'unwrap_or("StudiNow")' in rs
+    assert "uniflow-backend.exe" in rs and "de.uniflow.desktop" in rs, "Dateiname und Datenordner bleiben"
+    store = json.loads((WIN / "msix" / "store.json").read_text(encoding="utf-8"))
+    assert store["display_name"] == "StudiNow" and store["publisher_display_name"].startswith("StudiNow")
+    assert store["identity_name"].startswith("UniFlow") and store["publisher"].startswith("CN="), "Identität aus Partner Center bleibt"
+    assert (WIN / "README.md").read_text(encoding="utf-8").startswith("# StudiNow für Windows")
+
+
+def test_windows_workflow_bundles_tesseract_with_pinned_checksums():
+    """Texterkennung auf Windows (04.11.2026): der Workflow legt Tesseract samt deu/eng neben das gepackte Backend,
+    bevor das Backend geprueft und der Installer gebaut wird; jeder Download hat eine feste SHA-256, die Probe liest ein
+    erzeugtes PGM wie app/pageocr.py, und der installierte Ordner wird geprueft (app/pageocr.py sucht `tesseract`
+    neben der exe)."""
+    wf = (ROOT / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
+    step = wf.index("add-tesseract.ps1 -Target apps/windows/backend/dist/uniflow-backend/tesseract")
+    assert wf.index("Chromium ins Paket") < step < wf.index("check-backend.ps1 -Exe apps/windows/backend/dist") < wf.index("npx tauri build")
+    ps = (WIN / "scripts" / "add-tesseract.ps1").read_text(encoding="utf-8")
+    assert re.search(r'\$setupSha = "[0-9a-f]{64}"', ps) and len(re.findall(r'"(deu|eng)" = "[0-9a-f]{64}"', ps)) == 2
+    assert "Get-FileHash" in ps and "throw \"Pruefsumme stimmt nicht" in ps, "abweichender Download bricht ab"
+    assert "tessdata_fast/4.1.0/" in ps and "/S\", \"/D=$inst\"" in ps
+    assert 'P5`n' in ps and "Klausur" in ps, "Probe-Erkennung eines PGM wie in pageocr.py"
+    assert "LIZENZEN.txt" in ps and "Apache License 2.0" in ps
+    inst = (WIN / "scripts" / "check-installer.ps1").read_text(encoding="utf-8")
+    assert "backend\\tesseract\\tesseract.exe" in inst and "backend\\tesseract\\tessdata\\deu.traineddata" in inst
+    from app import pageocr
+    import sys as _sys
+    old = (getattr(_sys, "frozen", None), _sys.executable)
+    try:
+        _sys.frozen, _sys.executable = True, str(WIN / "backend" / "dist" / "uniflow-backend" / "uniflow-backend.exe")
+        assert WIN / "backend" / "dist" / "uniflow-backend" / "tesseract" in pageocr._bundled_dirs(), "dort sucht die App"
+    finally:
+        if old[0] is None:
+            del _sys.frozen
+        else:
+            _sys.frozen = old[0]
+        _sys.executable = old[1]

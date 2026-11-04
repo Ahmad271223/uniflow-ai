@@ -1,9 +1,13 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
-import { renderWeeklyBox } from "./views-weekly.js?v=11";
-import { installCard, bindInstallBanner } from "./pwa.js?v=12";
+import { renderWeeklyBox } from "./views-weekly.js?v=12";
+import { installCard, bindInstallBanner } from "./pwa.js?v=13";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=40";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=41";
 import * as FC from "./flashcards.js?v=3";
+import { mountBulletin } from "./bulletin.js?v=3";
+import { mountStudipTexts } from "./studip-texts.js?v=3";
+import { settingHtml } from "./older-semesters.js?v=1";
+import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=2";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -36,7 +40,7 @@ async function viewModule(id, view) {
   const render = (switched = false) => {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
-    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
+    const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
         <div class="wb">${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
@@ -55,6 +59,7 @@ async function viewModule(id, view) {
     $$(".ai-week", view).forEach(b => b.onclick = () => summarizeWeek(d.weeks.find(w => w.week === +b.dataset.w), m));
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
+    if ($("#stHost", view)) mountStudipTexts($("#stHost", view), id, api);   // Courseware, Wiki, Forum (Blubber) aus Stud.IP
   };
   render();
 }
@@ -80,7 +85,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=59"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=62"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -286,9 +291,11 @@ export async function viewServices(parts, params, view) {
         <div class="card"><div class="card-head"><h2>${icon("clock", 18)} Stundenplan</h2></div><p class="small">${tt ? `Vorlesungen und eindeutige Termine werden bei jedem Sync automatisch übernommen${tt.personal?.length ? `, dazu ${tt.personal.length} persönliche Einträge aus deinem Stud.IP-Stundenplan` : ""}.` : ""}</p>${tt?.pending_groups ? `<div class="card flat" style="background:var(--warn-soft);border-color:transparent"><b>${tt.courses.length} ${tt.courses.length === 1 ? "Fach" : "Fächer"} mit parallelen Übungsgruppen</b><div class="small muted">${tt.courses.map(esc).join(", ")}</div><div class="small" style="margin-top:.3rem">Trage deine Gruppe im Stud.IP-Stundenplan ein oder wähle sie hier unter Stundenplan → Importieren.</div></div>` : `<div class="small muted">Keine offenen Gruppenentscheidungen.</div>`}<a class="btn sm" style="margin-top:.5rem" href="#/timetable">${icon("calendar", 14)} Stundenplan öffnen</a></div>
         <div class="card"><div class="card-head"><h2>${icon("log-out", 18)} Zugänge</h2></div><div class="small">${credListFor(svc.university?.key).map(([k, n]) => { const c = svc.credentials?.[k] || {}; const st = k === "studip" || k === "hildesheim" ? (c.configured ? ["ok", k === "hildesheim" ? `gespeichert${c.user ? " · " + esc(c.user) : ""}` : "LUH-ID gespeichert"] : ["warn", "fehlt"]) : c.own ? ["ok", `eigener Zugang${c.user ? " · " + esc(c.user) : ""}`] : c.same_as ? ["info", `wie ${CRED_NAME[c.same_as] || c.same_as}`] : ["neutral", "nicht gesetzt"]; return `<div class="row between" style="padding:.35rem 0;border-bottom:1px solid var(--line)"><span>${n}</span><span class="row" style="gap:.35rem"><span class="badge ${st[0]}">${st[1]}</span>${k === "studip" || k === "hildesheim" ? `<a class="btn ghost icon sm" href="#/settings?tab=account" title="Bearbeiten">${icon("pencil", 13)}</a>` : `<button class="btn ghost icon sm" data-cred="${k}" title="Bearbeiten">${icon("pencil", 13)}</button>`}</span></div>`; }).join("")}</div><p class="muted tiny" style="margin-top:.6rem">${svc.university?.key === "hildesheim" ? "" : "Jeder Dienst kann ein eigenes Passwort haben oder auf einen anderen verweisen (z. B. IDM „wie QIS“). "}Alles liegt nur in der lokalen .env auf deinem PC. ${svc.university?.key === "hildesheim" ? "Genutzt werden Learnweb (Dateien) und LSF (Stundenplan, Noten), beide über den UNI-Account." : "Genutzt werden Stud.IP (Sync) und QIS (Noten); die übrigen merkst du dir hier als Übersicht."}</p></div>
       </div></div>
+    <div id="bulletinHost"></div>
     <div class="card-head" style="margin-top:1.4rem"><h2>${icon("layers", 18)} Uni-Dienste</h2></div>
     <div class="grid auto">${svc.services.map(s => `<a class="card mod-card" style="--mc:var(--accent)" href="${s.url}" target="_blank" rel="noopener"><div class="row"><div class="color" style="width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent-text);display:grid;place-items:center">${icon(s.icon || "file", 18)}</div><div class="name">${esc(s.name)}</div></div><div class="small muted">${esc(s.desc)}</div><div class="row between small"><span class="badge neutral">${esc(s.login)}</span>${s.connected ? `<span class="badge ok">synchronisiert</span>` : s.connector ? `<span class="badge info">Noten-Abruf</span>` : `<span class="muted">öffnen ↗</span>`}</div></a>`).join("")}</div></div>`;
   $$("[data-gview]", view).forEach(b => b.onclick = () => { state.gradesAll = b.dataset.gview === "all"; state.route(); });
+  mountBulletin($("#bulletinHost", view), api);                      // Schwarzes Brett (nur lokal, nur mit Brett und Anzeigen)
   const sync = async show => { try { await api(`/grades/sync${show ? "?show=true" : ""}`, { method: "POST" }); toast("Notenspiegel wird abgerufen…"); window.pollBg?.(); } catch (e) { toast(e.message, 4000); } };
   $("#qisSync").onclick = () => sync(false);
   $("#qInlineOk")?.addEventListener("click", async () => { const u = $("#qInlineU").value.trim(), p = $("#qInlineP").value; if (!u || !p) return toast("Benutzername und Passwort eingeben"); try { await api("/credentials/qis", { method: "PUT", body: { user: u, password: p } }); toast("QIS-Zugang gespeichert"); await sync(false); state.route(); } catch (e) { toast(e.message, 4000); } }); $("#qisShow")?.addEventListener("click", () => sync(true));
@@ -309,12 +316,14 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=4");
+    const { renderLinkCard } = await import("./studora-link.js?v=5");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
+  // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
+  if (params?.space) return (await import("./community-channel.js?v=4")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -322,7 +331,7 @@ export async function viewCommunity(_, params, view) {
   if (tab !== "overview") {
     view.innerHTML = `<div class="content" style="max-width:960px">${head}${tabs}<div class="card" id="qaPanel"></div></div>`;
     bindTabs();
-    const q = await import("./views-qa.js?v=4"); const el = $("#qaPanel", view);
+    const q = await import("./views-qa.js?v=6"); const el = $("#qaPanel", view);
     if (tab === "questions") q.renderQuestions(el); else if (tab === "bookmarks") q.renderBookmarks(el); else q.renderNotifications(el, n => window.updateBell?.(n));
     return;
   }
@@ -330,8 +339,10 @@ export async function viewCommunity(_, params, view) {
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); state.route(); } catch (e) { toast(e.message, 4000); } };
   view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt auf Windows und dem iPad.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">StudiNow Plus</span>` : `<span class="badge warn">StudiNow Plus nötig</span>`}</div></div>
     ${tabs}
+    <div id="ccInboxAll"></div>
     <div class="card"><div class="card-head"><h2>${icon("info", 18)} So funktioniert es</h2></div><ul class="small muted" style="margin:0">
-      <li>Jeder Kurs ist eine Community. Tritt bei, dann siehst und teilst du dort Lösungen, nur innerhalb deiner Hochschule.</li>
+      <li>Jeder Kurs ist eine Community. Tritt bei und öffne sie: Dort findest du die Notizen nach Lehrwoche und die Diskussion.</li>
+      <li>Fehlt dir etwas in einer fremden Lösung? Mit „Korrektur vorschlagen“ markierst du es in deiner PDF; der Ersteller bekommt einen Hinweis.</li>
       <li>Hast du dieselbe PDF, liegt eine Lösung über deiner PDF. Sonst liest du sie auf leeren Seiten.</li>
       <li>Du erscheinst nur als <b>${esc(info.pseudonym)}</b>. Ab ${info.reports_to_hide} Meldungen ist eine Lösung verborgen, bis die Moderation entscheidet.</li>
       <li>Veröffentlichen, projizieren, liken und kommentieren passiert im PDF-Editor: in der Windows-App über den Knopf ${icon("users", 13)}, auf dem iPad über „Lösung teilen“ / „Lösungen vergleichen“.</li></ul></div>
@@ -344,8 +355,9 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=15").then(m => m.renderSpaces($("#spacesCard", view)));
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=4").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  import("./community-spaces.js?v=17").then(m => m.renderSpaces($("#spacesCard", view)));
+  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=3")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=5").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });
@@ -387,7 +399,7 @@ function chatgptCard(gpt, models) {
 export async function viewSettings(_, params, view) {
   const gpt = await api("/integrations/chatgpt").catch(() => null);
   const gptModels = gpt?.connected && !gpt.needs_reauth ? await api("/integrations/chatgpt/models").then(r => r.models).catch(() => null) : null;
-  const [s, courses, mods, log, cred, term, svc, sess] = await Promise.all([api("/settings"), api("/courses"), api("/modules"), api("/sync/status"), api("/credentials"), api("/terms"), api("/services"), state.hosted ? null : api("/university/session").catch(() => null)]);
+  const [s, courses, mods, log, cred, term, svc, sess, older] = await Promise.all([api("/settings"), api("/courses"), api("/modules"), api("/sync/status"), api("/credentials"), api("/terms"), api("/services"), state.hosted ? null : api("/university/session").catch(() => null), api("/older-semesters").catch(() => null)]);
   const uniKey = svc.university?.key || "luh";
   let tab = params.tab === "diag" ? "advanced" : (params.tab || "modules"); let openMod = null;
   const render = () => {
@@ -395,6 +407,7 @@ export async function viewSettings(_, params, view) {
     const activeMods = mods.filter(m => m.active !== 0);
     const modulesCard = `<div class="card set-mods"><div class="card-head"><h2>${icon("book", 18)} Module & Wochentests</h2><span class="badge ok">${activeMods.length} aktiv</span></div>
       <div class="row wrap" style="margin:.6rem 0"><label class="field" style="margin:0"><input type="checkbox" id="sAutoTests" ${s.auto_tests ? "checked" : ""}> Gemeinsamen Wochentest pro Modul automatisch erstellen</label><span class="spacer"></span><label class="field" style="margin:0;display:flex;align-items:center;gap:.5rem">Standard-Testdauer <div class="seg">${[15, 30, 60].map(n => `<button class="${s.test_minutes == n ? "active" : ""}" data-tmin="${n}">${n} Min.</button>`).join("")}<button class="${![15, 30, 60].includes(+s.test_minutes) ? "active" : ""}" data-tmin="custom">Eigene</button></div></label></div>
+      ${settingHtml(older)}
       <div class="stack">${mods.map(m => { const cs = courses.filter(c => c.module_id === m.id); const open = openMod === m.id; return `<div class="card flat ${m.active === 0 ? "muted" : ""}" style="padding:.7rem .9rem"><div class="row wrap" data-open="${m.id}" style="cursor:pointer"><span class="dot" style="background:${m.color};width:12px;height:12px"></span><b style="flex:1">${esc(m.name)}</b><span class="muted small">${cs.length} Kurse</span><span class="badge ${m.weekly_test === 0 ? "neutral" : "ok"}">${m.weekly_test === 0 ? "kein Wochentest" : `1 gemeinsamer Test pro Woche${m.test_minutes ? ` · ${m.test_minutes} min` : ""}`}</span><label class="small" style="margin:0" title="Modul einplanen"><input type="checkbox" data-active="${m.id}" ${m.active !== 0 ? "checked" : ""}> aktiv</label><button class="btn ghost icon sm" data-edit="${m.id}" title="Bearbeiten" aria-label="Bearbeiten">${icon("settings", 14)}</button>${icon(open ? "chevron-down" : "chevron-right", 16)}</div>
         ${open ? `<div style="margin-top:.6rem;border-top:1px solid var(--line);padding-top:.5rem"><table class="tbl"><tr><th>Stud.IP-Kurs</th><th>Semester</th><th>Art</th><th>Modul</th></tr>${cs.map(c => `<tr class="${c.active === 0 ? "muted" : ""}"><td><label class="small" style="margin:0;display:flex;gap:.4rem;align-items:center" title="${c.active === 0 ? "Früheres Semester – nicht eingeplant. Einschalten, wenn du den Kurs doch brauchst." : "Eingeplant"}"><input type="checkbox" data-cactive="${c.id}" ${c.active !== 0 ? "checked" : ""}> ${esc(c.title)}</label></td><td class="small muted">${esc(c.semester || "")}</td><td><select class="input" data-kind="${c.id}" style="width:auto">${Object.entries(KIND_TXT).filter(([k]) => ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar", "sonstiges"].includes(k)).map(([k, l]) => `<option value="${k}" ${c.kind === k ? "selected" : ""}>${l}</option>`).join("")}</select></td><td><select class="input" data-mod="${c.id}" aria-label="Modul zuordnen" style="width:auto">${mods.map(x => `<option value="${x.id}" ${c.module_id === x.id ? "selected" : ""}>${esc(shortName(x.name))}</option>`).join("")}<option value="">– kein Modul –</option></select></td></tr>`).join("") || `<tr><td colspan="4" class="muted">Keine Kurse zugeordnet.</td></tr>`}</table></div>` : ""}</div>`; }).join("")}
       ${courses.filter(c => !c.module_id && c.id !== "__user__").length ? `<div class="card flat" style="padding:.7rem .9rem"><b class="muted">Ohne Modul (nicht eingeplant)</b>${courses.filter(c => !c.module_id && c.id !== "__user__").map(c => `<div class="row small" style="margin-top:.4rem"><span style="flex:1">${esc(c.title)}</span><select class="input" data-mod="${c.id}" aria-label="Modul zuordnen" style="width:auto"><option value="">– kein Modul –</option>${mods.map(x => `<option value="${x.id}">${esc(shortName(x.name))}</option>`).join("")}</select></div>`).join("")}</div>` : ""}</div>
@@ -459,6 +472,7 @@ export async function viewSettings(_, params, view) {
     $$("[data-edit]", view).forEach(b => b.onclick = () => editModule(mods.find(m => m.id === +b.dataset.edit), () => state.route()));
     $$("[data-active]", view).forEach(c => c.onchange = async () => { await api(`/modules/${c.dataset.active}`, { method: "PATCH", body: { active: c.checked ? 1 : 0 } }); toast("Gespeichert"); state.route(); });
     $$("[data-tmin]", view).forEach(b => b.onclick = async () => { let v = b.dataset.tmin; if (v === "custom") { v = prompt("Testdauer in Minuten:", s.test_minutes); if (!v) return; } await api("/settings", { method: "PUT", body: { test_minutes: +v } }); toast("Testdauer gespeichert"); state.route(); });
+    bindOlderSetting(view);
     $("#sAutoTests")?.addEventListener("change", async e => { await api("/settings", { method: "PUT", body: { auto_tests: e.target.checked } }); toast("Gespeichert"); });
     $("#sAutoPlan")?.addEventListener("change", async e => { await api("/settings", { method: "PUT", body: { auto_plan: e.target.checked } }); toast("Gespeichert"); });
     $$("[data-mod]", view).forEach(el => el.onchange = async () => { await api(`/courses/${el.dataset.mod}/module`, { method: "POST", body: { module_id: el.value ? +el.value : null } }); toast("Zuordnung gespeichert"); state.route(); });
@@ -508,8 +522,8 @@ export async function viewSettings(_, params, view) {
       demoBtn.onclick = async () => { demoBtn.disabled = true; try { const d = await api("/demo", { method: "POST", body: { enabled: demoBtn.dataset.on !== "1" } }); showDemo(d); toast(d.enabled ? `Demo angelegt: ${d.files} PDFs, ${d.events} Termine, ${d.packages} Lernpakete` : "Demo-Inhalte entfernt"); } catch (e) { toast(e.message, 4000); } demoBtn.disabled = false; };
     }
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok-text)">${icon("check", 15)} ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`Fehler: ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
-    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=43")).configDialog(() => state.route()));
-    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=43")).availabilityDialog());
+    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=46")).configDialog(() => state.route()));
+    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=46")).availabilityDialog());
   };
   render();
 }

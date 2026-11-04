@@ -53,6 +53,9 @@ jobs:
           Move-Item -Path $browsers -Destination $target
           if (-not (Get-ChildItem -Path $target -Directory -Filter "chromium-*")) { throw "Chromium fehlt nach dem Verschieben unter $target" }
           Get-ChildItem "apps/windows/backend/dist/uniflow-backend" | Select-Object Name, Length
+      - name: Tesseract fuer die Texterkennung ins Paket (Pruefsummen fest, Probe-Erkennung)
+        shell: pwsh
+        run: ./apps/windows/scripts/add-tesseract.ps1 -Target apps/windows/backend/dist/uniflow-backend/tesseract
       - name: Gepacktes Backend starten und abfragen
         shell: pwsh
         run: ./apps/windows/scripts/check-backend.ps1 -Exe apps/windows/backend/dist/uniflow-backend/uniflow-backend.exe

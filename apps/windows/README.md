@@ -1,4 +1,17 @@
-# UniFlow für Windows (Tauri + mitgeliefertes Backend)
+# StudiNow für Windows (Tauri + mitgeliefertes Backend)
+
+Sichtbarer Name ist StudiNow (Fenstertitel, Startseite, Store-Anzeigename). Seit 04.11.2026 (Entscheidung des Inhabers)
+heißt auch `productName` `StudiNow`: Programmordner `%LOCALAPPDATA%\StudiNow`, Installer `StudiNow_<version>_x64-setup.exe`,
+Startmenü-Eintrag „StudiNow“. Interne Kennungen bleiben: `identifier` `de.uniflow.desktop` (Datenordner) und die
+Dateinamen `uniflow-backend.exe` und `uniflow-desktop.exe`. Die Übernahme ganz alter Daten liest weiter aus
+`%LOCALAPPDATA%\UniFlow` (`app/desktop.py` `LEGACY_FOLDER`).
+
+**Umstieg von UniFlow 0.4.x auf StudiNow:** Der neue Installer legt eine eigene App „StudiNow“ an; die alte „UniFlow“
+bleibt in „Apps & Features“ stehen. Beide nutzen **denselben Datenordner** `%LOCALAPPDATA%\de.uniflow.desktop`
+(Notizen, Kurse, Anmeldung bleiben erhalten). Die alte App danach deinstallieren, **ohne** den Haken „App-Daten
+entfernen“ – der Haken würde den gemeinsamen Datenordner und damit auch die Daten von StudiNow löschen (Sicherungen
+lägen dann nur noch in `%LOCALAPPDATA%\UniFlow-Sicherungen`). Ein automatisches Entfernen der alten App im Installer
+ist bewusst nicht gebaut (nicht unter Windows prüfbar, Risiko für die Daten).
 
 **Stand 26.10.2026:** Die App bringt ihr Backend mit. Kein `Start-iPad.cmd`, kein Python auf dem PC nötig.
 
@@ -6,6 +19,9 @@
 
 - `backend/` – PyInstaller-Paket des Python-Servers (`uniflow-backend.spec`, Einstieg `entry.py` → `app/desktop.py`).
   Ordner-Paket (`dist/uniflow-backend/`), Chromium für Playwright als `ms-playwright` daneben (legt der Workflow hinein).
+  Texterkennung für Scan-Seiten (`app/pageocr.py`, [docs/OCR-WINDOWS.md](../../docs/OCR-WINDOWS.md)): das Paket enthält `pypdfium2`
+  (Seiten rendern); `tesseract.exe` mit `tessdata` (deu, eng) soll als Ordner `tesseract` neben die exe (wie `ms-playwright`) –
+  **Workflow-Schritt noch offen, nicht gebaut und nicht unter Windows geprüft**. Ohne den Ordner bleibt die Erkennung aus.
 - `src-tauri/` – das Fenster (Rust, Tauri 2). Beim Start wird `backend/uniflow-backend.exe` aus den Ressourcen
   gestartet, mit der eigenen Prozess-ID als Elternprozess. Das Backend bindet einen freien Port auf `127.0.0.1`
   (der Port ist offen, bevor die Datei existiert), schreibt `%LOCALAPPDATA%\de.uniflow.desktop\backend.json` und übergibt den
@@ -24,7 +40,7 @@
 - Version: `package.json`, `src-tauri/tauri.conf.json` und `src-tauri/Cargo.toml` müssen dieselbe Version nennen
   (Test `test_windows_app_versions_match`); der Installer heißt danach.
 - Daten, Protokolle und `.env` liegen unter `%LOCALAPPDATA%\de.uniflow.desktop` (`data`, `logs`, `.env`), getrennt vom
-  Programmordner `%LOCALAPPDATA%\UniFlow`, in den der Installer schreibt. Der Datenordner heißt wie der `identifier` in
+  Programmordner `%LOCALAPPDATA%\StudiNow` (bis 0.4.x `UniFlow`), in den der Installer schreibt. Der Datenordner heißt wie der `identifier` in
   `tauri.conf.json`; „App-Daten entfernen“ beim Deinstallieren meint genau ihn, sonst bleiben die Daten liegen. Bis
   0.3.0 lagen beide im selben Ordner; dabei kam es beim Start zu „WinError 183“ beim Anlegen von `logs` (27.10.2026).
   Alte Daten (`data`, `.env`) zieht das Backend beim ersten Start einmal in den neuen Ordner um (`desktop.migrate_legacy`);
@@ -56,8 +72,8 @@ Workflow `.github/workflows/windows.yml` (Windows-Runner; läuft bei `push` auf 
 `apps/windows/**`, `app/**`, `requirements.txt` oder am Workflow, sonst von Hand): Python 3.12 → Tests
 `tests/test_desktop.py` → `playwright install chromium` → PyInstaller → Chromium ins Paket (bricht ab, wenn kein
 `chromium-*` da ist) → `scripts/check-backend.ps1` → Icons aus `app-icon.png` → `npx tauri build` (NSIS, aktueller
-Benutzer) → `scripts/check-installer.ps1` (still installieren nach `%LOCALAPPDATA%\UniFlow`, prüfen, deinstallieren).
-Artefakt `uniflow-windows`: `UniFlow_<version>_x64-setup.exe`.
+Benutzer) → `scripts/check-installer.ps1` (still installieren nach `%LOCALAPPDATA%\StudiNow`, prüfen, deinstallieren).
+Artefakt `uniflow-windows`: `StudiNow_<version>_x64-setup.exe`.
 
 Lokal (Backend allein, ohne Rust):
 
@@ -113,6 +129,11 @@ Semestertitel), ob ein Kurs noch läuft (`app/semesters.py`): nur aktuelle Kurse
 und KI-Analysen und landen im Plan; Module ohne aktiven Kurs sind aus, ihre Unterlagen bleiben in der Bibliothek.
 Einstellungen → Module: jeder Kurs hat einen Schalter, eigene Entscheidungen überschreibt der Abgleich nicht.
 
+Die Dateien früherer Semester lädt der Abgleich nur auf Wunsch (`app/older_semesters.py`, wie auf dem iPad): Nach dem ersten
+Abgleich, der frühere Kurse findet, fragt die App einmal „Auch frühere Semester laden?“. In der Bibliothek stehen sie unter
+„Frühere Semester“ je Semester, mit „Dateien laden“ je Kurs oder Semester (`POST /api/older-semesters/request`, Abgleich nur für
+diese Kurse); Einstellungen → Module: „Dateien früherer Semester mitladen“. Kurse früherer Semester bleiben als Kurs gespeichert.
+
 ## Konto entfernen (Laptop weitergeben, anderer Account)
 
 Einstellungen → Konto → Stud.IP-/Learnweb-Anmeldung → „Konto entfernen“ (`POST /api/university/reset`, `app/reset.py`):
@@ -133,5 +154,7 @@ liest weiter nur Claude. „Trennen“ löscht das Token. Details: `docs/KI-CHAT
 ## Offen
 
 
+- Texterkennung: Ordner `tesseract` (Programm, DLLs, `tessdata`, Lizenztexte) in den Windows-Workflow aufnehmen und auf echtem
+  Windows mit einem Scan prüfen (siehe docs/OCR-WINDOWS.md).
 - Automatische Updates (Tauri-Updater braucht einen signierten Endpunkt) und Code-Signing.
 - Größe: Chromium macht den Großteil des Installers aus (etwa 150 MB gepackt).
