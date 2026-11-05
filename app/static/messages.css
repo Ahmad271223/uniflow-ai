@@ -1,0 +1,44 @@
+/* Seite "Nachrichten" (messages.js, 05.11.2026): Liste links, Lesebereich rechts; schmal eins von beiden. Farben nur aus den
+   Tokens von style.css (hell und dunkel). */
+.nav a { position: relative; }
+.nav a .msg-count { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--accent); color: var(--on-fill, #fff); font-size: .72rem; font-weight: 700; }
+.shell.collapsed .nav a .msg-count { position: absolute; top: 4px; right: 8px; margin: 0; min-width: 16px; height: 16px; font-size: .64rem; }
+
+.msg-page .page-head { margin-bottom: .8rem; }
+.msg-search { position: relative; max-width: 520px; margin-bottom: .8rem; }
+.msg-search > svg { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.msg-search .input { padding-left: 2.2rem; border-radius: 999px; }
+.msg-pane { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; min-height: 460px; height: calc(100vh - 15rem); overflow: hidden; padding: 0; }
+.msg-list { overflow-y: auto; border-right: 1px solid var(--line); }
+.msg-reader { overflow-y: auto; padding: 1.2rem 1.5rem 1.6rem; }
+.msg-reader > * { max-width: 760px; }
+.msg-row { display: flex; align-items: flex-start; gap: .6rem; width: 100%; text-align: left; padding: .7rem .8rem; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; cursor: pointer; min-height: 44px; }
+.msg-row:hover { background: var(--surface-2); }
+.msg-row.on { background: var(--accent-soft); }
+.msg-row:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.msg-dot { flex: none; width: 8px; height: 8px; margin-top: .45rem; border-radius: 50%; background: transparent; }
+.msg-row.fresh .msg-dot { background: var(--accent); }
+.msg-main { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1; }
+.msg-top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.msg-who { font-size: .82rem; font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-time { font-size: .8rem; color: var(--muted); flex: none; }
+.msg-subj { font-size: .95rem; line-height: 1.3; overflow-wrap: anywhere; }
+.msg-row.fresh .msg-subj { font-weight: 650; }
+.msg-chip-line { font-size: .78rem; color: var(--muted); }
+.msg-none { padding: 1.5rem 1rem; text-align: center; }
+.msg-pick { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; height: 100%; text-align: center; }
+.msg-back { display: none; margin: 0 0 .4rem -.4rem; }
+.msg-title { font-size: 1.35rem; line-height: 1.25; letter-spacing: -.01em; margin: 0 0 .6rem; overflow-wrap: anywhere; }
+.msg-meta { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
+.msg-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+.msg-rule { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
+.msg-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: .95rem; margin-bottom: 1.2rem; }
+
+@media (max-width: 900px) {
+  .msg-pane { grid-template-columns: 1fr; height: auto; min-height: 0; }
+  .msg-list { border-right: 0; max-height: none; }
+  .msg-pane.has-sel .msg-list { display: none; }
+  .msg-pane:not(.has-sel) .msg-reader { display: none; }
+  .msg-back { display: inline-flex; }
+  .msg-reader { padding: 1rem; }
+}

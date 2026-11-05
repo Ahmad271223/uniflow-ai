@@ -38,7 +38,7 @@ from .sync import ENTITIES, SYNC_COLS
 APPLIED_DEVICE = "~dienst"
 PAGE = 2000
 PUSH_BATCH = 400
-LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input"}
+LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input", "messages_seen_up_to"}
 # Spalten, die nur auf diesem Geraet etwas bedeuten (IDs von Tabellen ausserhalb des Abgleichs)
 LOCAL_COLS = {"study_tasks": {"test_id"}}
 _SECRET_RE = re.compile(r"token|secret|passw|pin$|_path$|_dir$|service", re.I)

@@ -102,7 +102,7 @@ function renderAccount() {
 window.renderAccount = renderAccount;
 
 // ---------------------------------------------------------------- Router
-const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=1").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
 async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
@@ -134,6 +134,8 @@ document.addEventListener("click", async e => {
 // Übersicht (Startseite): views-home.js; die Hinweiskarte der Probe (Dienst) kommt von hier
 async function viewDashboard(p, q, v) {
   await viewHome(p, q, v, trialHint);
+  // Erste Seite ohne Hochschulverbindung (nur Einzelplatz): Hinweis und der kleine Demo-Link fuer die Store-Pruefung (demo-bar.js)
+  import("./demo-bar.js?v=1").then(m => m.firstStart(v)).catch(() => {});
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
     const U = await import("./community-corrections-ui.js?v=5"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
@@ -161,6 +163,8 @@ async function start() {
   renderAccount();
   api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); state.userName = n; renderAccount(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
+  // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
+  if (!state.hosted) { import("./demo-bar.js?v=1").then(m => m.init()).catch(() => {}); import("./messages.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
   if (state.hosted && state.entitlements?.needs_plan_choice && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie
   // der lokale Dienst im Standardbrowser (/api/desktop/open, nur http/https)
