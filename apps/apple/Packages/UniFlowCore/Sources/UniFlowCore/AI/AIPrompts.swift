@@ -107,12 +107,18 @@ public enum AIPrompts {
         return head(lines.joined(separator: "\n"), studipContextChars)
     }
 
+    /// Ueberschrift der eigenen Notizen zur Seite im Tutor-Prompt (gleich in app/ai.py `OWN_NOTES_HEADING`)
+    public static let ownNotesHeading = "MEINE NOTIZEN ZU DIESER SEITE (Seitennotizen und Blatt daneben; Handschrift automatisch erkannt, kann Lesefehler enthalten):"
+
     /// `studip` (2.11.2026): Kursbeschreibung und Sitzungsthemen der Woche (`studipContext`), nur wenn vorhanden.
     /// `pageIndex` (4.11.2026, nur Geraet): Einordnung der Seite aus der Bibliothek (`PageExplain.indexContext`) bei
     /// eigenen Fragen; leer laesst den Prompt byte-gleich mit app/ai.py
+    /// `ownNotes` (5.11.2026, docs/NOTIZEN-MITSCHICKEN-2026-11-05.md): Seitennotizen und Blatt daneben dieser Seite
+    /// (Textfelder und erkannte Handschrift), wie `own_notes` in app/ai.py; leer = kein Block
     public static func tutor(mode: String, pageText: String, selection: String = "", question: String = "", ownSolution: String = "",
                              course: String = "", fileName: String = "", page: PyJSON? = nil, sources: [PyJSON]? = nil,
-                             history: [(role: String, text: String)] = [], studip: String = "", pageIndex: String = "") -> String {
+                             history: [(role: String, text: String)] = [], studip: String = "", pageIndex: String = "",
+                             ownNotes: String = "") -> String {
         var parts = ["Kurs: \(course)", "Datei: \(fileName)" + (truthy(page) ? ", Seite \(str(page))" : ""), "",
                      "AUFGABE: \(tutorInstruction(mode))"]
         if !PyText.strip(selection).isEmpty {
@@ -120,6 +126,9 @@ public enum AIPrompts {
         }
         if !PyText.strip(ownSolution).isEmpty {
             parts += ["", "MEINE LOESUNG:", "<<<", head(PyText.strip(ownSolution), 4000), ">>>"]
+        }
+        if !PyText.strip(ownNotes).isEmpty {
+            parts += ["", ownNotesHeading, "<<<", head(PyText.strip(ownNotes), SideNotes.aiNotesChars), ">>>"]
         }
         if !history.isEmpty {
             parts += ["", "BISHERIGES GESPRAECH (aeltestes zuerst; schliesst meine Frage daran an, beziehe dich darauf):"]

@@ -529,6 +529,7 @@ def test_windows_workflow_bundles_tesseract_with_pinned_checksums():
     assert re.search(r'\$setupSha = "[0-9a-f]{64}"', ps) and len(re.findall(r'"(deu|eng)" = "[0-9a-f]{64}"', ps)) == 2
     assert "Get-FileHash" in ps and "throw \"Pruefsumme stimmt nicht" in ps, "abweichender Download bricht ab"
     assert "tessdata_fast/4.1.0/" in ps and "/S\", \"/D=$inst\"" in ps
+    assert "7z.exe" in ps and "tesseract.exe nicht gefunden" in ps, "Rueckfall auf 7-Zip und klare Fehlermeldung"
     assert 'P5`n' in ps and "Klausur" in ps, "Probe-Erkennung eines PGM wie in pageocr.py"
     assert "LIZENZEN.txt" in ps and "Apache License 2.0" in ps
     inst = (WIN / "scripts" / "check-installer.ps1").read_text(encoding="utf-8")

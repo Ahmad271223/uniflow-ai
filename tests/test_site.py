@@ -18,7 +18,7 @@ PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.
 FILES = PAGES + ("style.css", "icon.svg")
 # ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE> und Universal Links der iPad-App
 NESTED = ("i/index.html", ".well-known/apple-app-site-association")
-TEAM_ID = re.compile(r"\b(?:[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
+TEAM_ID = re.compile(r"(?:\b[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
 COMPANY = ("IT solutions by Ahmad Fakih", "Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
 OPEN_ALLOWED = {"Hoster", "Serverstandort", "Mail-Anbieter"}      # Hosting des Dienstes ist nicht entschieden
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")

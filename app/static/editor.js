@@ -18,6 +18,8 @@ function loadScript(src) { return new Promise((res, rej) => { if ($(`script[src=
 // Die Entwuerfe liegen in der Warteschlange aus notes-queue.js (dirty = noch nicht beim Server); pwa.js sendet sie,
 // wenn kein Editor die Datei haelt. IDB bleibt fuer Vorschaubilder (Fehler sind dort egal).
 import { IDB, notesQueue, isOfflineResponse } from "./notes-queue.js?v=1";
+// KI fuer das ganze Dokument (05.11.2026, docs/KI-GANZES-DOKUMENT-2026-11-05.md)
+import { SCOPES, CHIPS, scopeBody, docModeFor, progressText, storedNote, needsConfirm, blockHtml, stepBody } from "./doc-explain-logic.js?v=1";
 export { IDB };
 const Thumbs = { get: k => IDB.get("thumbs", k).catch(() => null), put: v => IDB.put("thumbs", v).catch(() => {}), del: k => IDB.del("thumbs", k).catch(() => {}) };
 
@@ -96,7 +98,7 @@ export class PdfEditor {
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    if (this.pdf) import("./editor-community.js?v=26").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
+    if (this.pdf) import("./editor-community.js?v=27").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
@@ -230,6 +232,9 @@ export class PdfEditor {
         <aside class="ed-ai" hidden>
           <div class="ed-ai-head"><strong>${icon("sparkles", 16)} KI-Tutor</strong><span class="ed-ai-page"></span><button class="ed-ai-close">${icon("x", 16)}</button></div>
           <label>Modus<select class="ed-ai-mode"><option value="explain">Markiertes erklären</option><option value="explain_simple">Einfach erklären</option><option value="summary">Seite zusammenfassen</option><option value="terms">Fachbegriffe definieren</option><option value="steps">Aufgabe schrittweise lösen</option><option value="hints">Nur Hinweise geben</option><option value="check">Meine Lösung prüfen</option><option value="similar">Ähnliche Aufgabe erstellen</option><option value="flashcards">Karteikarten erstellen</option><option value="quiz">Quizfragen erstellen</option></select></label>
+          <label>Umfang<select class="ed-ai-scope">${SCOPES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label>
+          <div class="ed-ai-range small" hidden>Seiten <input class="ed-ai-from" type="number" min="1" value="1"> bis <input class="ed-ai-to" type="number" min="1" value="1"></div>
+          <div class="ed-ai-chips">${CHIPS.map(([m, t]) => `<button class="btn sm ed-ai-doc" data-doc="${m}">${icon("sparkles", 14)} ${t}</button>`).join("")}</div>
           <label>Markierter Text <small>(Werkzeug ¶ oder einfügen)</small><textarea class="ed-ai-sel" rows="3"></textarea></label>
           <label class="ed-ai-own-wrap" hidden>Meine Lösung<textarea class="ed-ai-own" rows="4"></textarea></label>
           <label>Frage (optional)<input class="ed-ai-q"></label>
@@ -250,6 +255,8 @@ export class PdfEditor {
     $(".ed-ai-close", this.c).onclick = () => $(".ed-ai", this.c).hidden = true;
     $(".ed-ai-go", this.c).onclick = () => this.askAI();
     $(".ed-ai-mode", this.c).onchange = e => { $(".ed-ai-own-wrap", this.c).hidden = e.target.value !== "check"; };
+    $(".ed-ai-scope", this.c).onchange = e => { $(".ed-ai-range", this.c).hidden = e.target.value !== "range"; };
+    $$(".ed-ai-doc", this.c).forEach(b => b.onclick = () => this.docRun(b.dataset.doc));
     $$("[data-zw]", this.c).forEach(b => b.onclick = () => this.zoomWinAction(b.dataset.zw));
     this.scroll.addEventListener("scroll", () => {
       if (this.destroyed) return;                    // Browser liefert ein vorgemerktes Scroll-Ereignis evtl. erst nach dem Schliessen
@@ -1073,6 +1080,12 @@ export class PdfEditor {
   // ---------------------------------------------------------------- KI
   async askAI() {
     const out = $(".ed-ai-out", this.c); const mode = $(".ed-ai-mode", this.c).value; const pg = this.pages[this.currentPage];
+    // Umfang "Ganzes Dokument"/"Seiten": Erklaeren, Zusammenfassen, Fachbegriffe -> Vorlesung, Aufgabe/Hinweise -> alle Aufgaben
+    const dm = docModeFor(mode, $(".ed-ai-scope", this.c).value);
+    if (dm) return this.docRun(dm);
+    // Wunsch fuers ganze Dokument in der Frage ("Erkläre die ganze Vorlesung", "Löse alle Aufgaben", "Seiten 5 bis 12")
+    const q = ($(".ed-ai-q", this.c).value || "").trim();
+    if (q && mode !== "check" && mode !== "quiz" && !$(".ed-ai-sel", this.c).value.trim() && await this.docRun(null, q)) return;
     const body = { file_id: this.fileId, page: pg?.type === "pdf" ? pg.index : null, mode: mode === "quiz" ? "similar" : mode, selection: $(".ed-ai-sel", this.c).value, question: ($(".ed-ai-q", this.c).value || "") + (mode === "quiz" ? " Erstelle 5 Quizfragen mit Lösungen zur Seite." : ""), own_solution: $(".ed-ai-own", this.c).value, page_text: "" };
     if ($(".ed-ai-ctx", this.c).checked && pg?.type === "pdf") body.page_text = await this.pageText(pg.index);
     if (pg?.type === "blank" && $(".ed-ai-ctx", this.c).checked) body.page_text = (this.model.pages[pg.key].objects.filter(o => o.type === "text").map(o => o.text).join("\n")) + "\n[Handschrift auf Notizseiten kann nicht gelesen werden]";
@@ -1096,6 +1109,43 @@ export class PdfEditor {
       $(".ed-ai-insert", out)?.addEventListener("click", () => { if (!pg?.mounted) return; const before = this.snapshot(pg); const o = { id: uid(), type: "text", x: 20, y: 20, text: j.answer.replace(/[*#`]/g, ""), ...this.textStyle, bg: "#e8eeff", width: Math.min(320, pg.w - 40), fontSize: 11, rotation: 0, scaleX: 1, scaleY: 1 }; this.model.pages[pg.key].objects.push(o); this.addNode(pg, o); pg.layer.batchDraw(); this.commit(pg, before); });
     } catch (e) { out.innerHTML = `<div class="ed-err">Fehler: ${esc(e.message)}</div>`; }
     finally { $(".ed-ai-go", this.c).disabled = false; }
+  }
+
+  // ---------------------------------------------------------------- KI fuer das ganze Dokument
+  // Plan ohne KI (app/doc_explain_api.py), bei mehr als ein paar Credits erst fragen ("Kostet etwa 6 Credits, du hast
+  // 74"), dann Teil fuer Teil; die Bloecke erscheinen nach und nach, ihre Seiten springen zur Seite. Rueckgabe false:
+  // in der Frage steckt kein Wunsch fuers ganze Dokument (dann normale Frage zur Seite).
+  async docPageTexts() { if (!this.pdf) return undefined; const out = []; for (let i = 1; i <= this.pdf.numPages; i++) out.push(await this.pageText(i)); return out; }
+  async docRun(mode, question = null) {
+    const out = $(".ed-ai-out", this.c), go = $(".ed-ai-go", this.c), pg = this.pages[this.currentPage];
+    const scope = scopeBody($(".ed-ai-scope", this.c).value, $(".ed-ai-from", this.c).value, $(".ed-ai-to", this.c).value);
+    const base = { file_id: this.fileId, page: pg?.type === "pdf" ? pg.index : 1 };
+    const post = async (path, body) => { const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail || r.statusText); return j; };
+    out.onclick = e => { const a = e.target.closest(".ed-doc-page"); if (!a) return; e.preventDefault(); const i = this.pages.findIndex(p => p.type === "pdf" && p.index === +a.dataset.page); if (i >= 0) this.goToPage(i); };
+    go.disabled = true; $$(".ed-ai-doc", this.c).forEach(b => b.disabled = true);
+    out.innerHTML = "<div class='muted'><span class='uf-shimmer'>Die KI plant …</span></div>";
+    try {
+      const texts = await this.docPageTexts();   // zaehlt nur, wenn der Dienst selbst keinen Seitentext hat
+      const plan = await post("/api/ai/document/plan", { ...base, ...(question ? { question } : { mode, scope }), page_texts: texts });
+      if (!plan.intent) { out.innerHTML = ""; return false; }
+      const req = { ...base, mode: plan.mode, scope: plan.scope, page_texts: texts };
+      if (needsConfirm(plan)) {
+        out.innerHTML = `<div class="ed-doc-confirm"><b>${esc(plan.title)}</b><p>${esc(plan.message)}</p><button class="btn primary sm ed-doc-start"${plan.enough === false ? " disabled" : ""}>Starten</button> <button class="btn sm ed-doc-cancel">Abbrechen</button></div>`;
+        const ok = await new Promise(res => { $(".ed-doc-start", out).onclick = () => res(true); $(".ed-doc-cancel", out).onclick = () => res(false); });
+        if (!ok) { out.innerHTML = ""; return true; }
+      }
+      out.innerHTML = `<div class="ed-doc-title"><b>${esc(plan.title)}</b><div class="muted small">${esc(plan.message)}</div></div><div class="ed-doc-blocks"></div><div class="muted small ed-doc-progress"></div>`;
+      const list = $(".ed-doc-blocks", out), prog = $(".ed-doc-progress", out); let cached = 0;
+      for (const [i, s] of plan.steps.entries()) {
+        prog.innerHTML = `<span class="uf-shimmer">${esc(progressText(i, plan.steps.length, s.title))}</span>`;
+        const r = await post("/api/ai/document/step", stepBody(req, s, globalThis.crypto?.randomUUID?.() || uid()));
+        if (r.stored?.stored) cached++;
+        list.insertAdjacentHTML("beforeend", (r.blocks || []).map(b => blockHtml(b, esc, md)).join(""));
+      }
+      prog.textContent = storedNote(cached, plan.steps.length) || "";
+    } catch (e) { out.insertAdjacentHTML("beforeend", `<div class="ed-err">Fehler: ${esc(e.message)}</div>`); }
+    finally { go.disabled = false; $$(".ed-ai-doc", this.c).forEach(b => b.disabled = false); }
+    return true;
   }
 
   // ---------------------------------------------------------------- Export

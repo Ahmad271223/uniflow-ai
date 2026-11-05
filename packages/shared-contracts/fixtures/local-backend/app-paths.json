@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 145,
+ "count": 147,
  "paths": [
   {
    "method": "DELETE",
@@ -549,6 +549,7 @@
    "method": "GET",
    "shape": "/api/courses",
    "sources": [
+    "UniFlow/Services/StudIPSubmitter.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Settings/SettingsLoader.swift"
@@ -1012,6 +1013,7 @@
    "shape": "/api/files/{}",
    "sources": [
     "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Services/NotesExport.swift",
     "UniFlow/Services/ResumeState.swift",
     "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Views.swift"
@@ -3146,6 +3148,53 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/ai/document/plan",
+   "sources": [
+    "UniFlow/Views/TutorDocumentRun.swift"
+   ],
+   "request": {
+    "path": "/api/ai/document/plan",
+    "body": {
+     "file_id": "f1",
+     "question": "Was ist ein Eigenwert?"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "intent": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/ai/document/step",
+   "sources": [
+    "UniFlow/Views/TutorDocumentRun.swift"
+   ],
+   "request": {
+    "path": "/api/ai/document/step",
+    "body": {
+     "file_id": "f1",
+     "mode": "lecture",
+     "step": "1:full:1-1"
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "leere Datenbank: Datei f1 fehlt"
    }
   },
   {

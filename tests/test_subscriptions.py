@@ -223,13 +223,19 @@ def test_01_free_cannot_save_annotations(hosted):
     assert st == 200 and d["version"] == 0, "nichts gespeichert"
 
 
-def test_02_plus_can_annotate_and_sync(hosted):
+def test_02_plus_can_annotate_but_syncs_notes_only_with_pro_ai(hosted):
+    """Plus schreibt Notizen (je Geraet); der Abgleich der Notizen zwischen Geraeten erst mit Pro AI (04.11.2026)."""
     u, h = user(hosted, "plus@beispiel.de", plan="plus")
     add_file(hosted, h)
     st, d = put_note(hosted, h)
     assert st == 200 and d["version"] == 1
-    st, d = _j(asgi_call(hosted, "POST", "/api/sync/push", headers=h, body=json.dumps({"device_id": "ipad", "items": [
-        {"entity": "annotations", "id": "f1", "base_version": 1, "data": {"pages": {"1": {"objects": [{"id": "s2"}]}}}}]})))
+    push = {"device_id": "ipad", "items": [
+        {"entity": "annotations", "id": "f1", "base_version": 1, "data": {"pages": {"1": {"objects": [{"id": "s2"}]}}}}]}
+    st, d = _j(asgi_call(hosted, "POST", "/api/sync/push", headers=h, body=json.dumps(push)))
+    assert (d["results"][0]["status"], d["results"][0]["required_plan"]) == ("plan_required", "pro_ai")
+    from app import accounts
+    accounts.set_plan(u["id"], "pro_ai")
+    st, d = _j(asgi_call(hosted, "POST", "/api/sync/push", headers=h, body=json.dumps(push)))
     assert d["results"][0]["status"] == "applied"
 
 
@@ -255,7 +261,7 @@ def test_04_learning_stats_are_pro_ai_and_old_pro_connect_rows_count_as_pro_ai(h
     """Pro Connect gibt es seit dem 04.11.2026 nicht mehr: seine Rechte (Lernstatistik, Wiederholung, Empfehlungen,
     Testliste) gehoeren zu Pro AI; eine alte Zeile mit pro_connect gilt wie Pro AI (plans.LEGACY_PLANS)."""
     _, h_plus = user(hosted, "p@beispiel.de", plan="plus")
-    _, h = user(hosted, "pc@beispiel.de", plan="pro_connect")
+    u, h = user(hosted, "pc@beispiel.de", plan="pro_ai")
     e = ent(hosted, h)
     assert e["plan"] == "pro_ai" and e["plan_name"] == "StudiNow Pro AI"
     for name in ("can_annotate_pdf", "can_use_advanced_analytics", "can_use_advanced_planner", "can_review_wrong_answers",

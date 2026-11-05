@@ -3,6 +3,7 @@
 // nur ansehen, die eigene PDF darunter). Gegenstueck zu CorrectionMode.swift und SolutionSidePane auf dem iPad.
 import { icon } from "./icons.js?v=32";
 import * as S from "./solutions.js?v=6";
+import { pageTitle } from "./solution-labels.js?v=1";
 import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=5";
 import { loadSpaces } from "./community-spaces.js?v=19";
@@ -191,9 +192,9 @@ export class SolutionSide {
     if (o.error) { body.innerHTML = `<div class="com-err small">${icon("alert", 13)} ${esc(o.error)}</div>`; return; }
     body.className = "ss-body"; body.innerHTML = "";
     const width = Math.max(240, body.clientWidth - 24 || 360);
-    for (const page of o.content.pages) {
+    for (const [pi, page] of o.content.pages.entries()) {
       const fig = document.createElement("figure"), cv = document.createElement("canvas"), cap = document.createElement("figcaption");
-      cap.className = "tiny muted"; cap.textContent = page.pdfIndex ? `PDF-Seite ${page.pdfIndex}` : "Eigene Seite der Lösung";
+      cap.className = "tiny muted"; cap.textContent = pageTitle(o.content.pages, pi);
       fig.append(cv, cap); body.append(fig);
       await this.draw(cv, page, o, width, tok);
       if (tok !== this.token) return;

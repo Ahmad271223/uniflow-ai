@@ -20,6 +20,9 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
                                nie das Budget der zahlenden Konten
     LERNAPP_AI_RATE_PER_MINUTE Anfragen je Konto und Minute (Standard 6)
     LERNAPP_AI_RATE_PER_HOUR   Anfragen je Konto und Stunde (Standard 60)
+    LERNAPP_AI_LIBRARY_BUDGET_EUR eigenes Budget je Monat fuer die Vorarbeit der Bibliothek (fertige Wochenfragen,
+                               app/week_library.py; Standard 20). Eigenes Becken (`library=1`, ohne Konto): die
+                               Bibliothek frisst nie das Budget der Konten, die Konten nie das der Bibliothek.
 
 Credits (app/credits.py, 04.11.2026): Fragen, Erklaerungen, Karteikarten, Dokument-Index und Wochentests ueber den
 Dienst kosten das Konto Credits (1 Credit = 1 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
@@ -27,7 +30,7 @@ rechnet danach mit `usage` der Antwort ab. Erzeugen fuer den gemeinsamen Fragenp
 die automatischen Wochentests (weekly_test) zaehlen weiter ueber die Kontingente des Tarifs (app/plans.py QUOTAS).
 
 Kostenkontrolle (Tabellen in accounts.db):
-- `ai_usage_log`: jede Anfrage mit Konto, Zweck, Modell, Tokens, Kosten. Vor dem Aufruf wird in einer
+- `ai_usage_log`: jede Anfrage mit Konto, Zweck, Modell, Tokens, Kosten (Bibliothek: ohne Konto, `library=1`). Vor dem Aufruf wird in einer
   Schreibtransaktion geprueft (Budget gesamt und je Konto, Rate-Limit) und eine Reservierung mit geschaetzten Kosten
   eingetragen; Probekonten (nur die Probe aktiv) zaehlen in einem eigenen kleineren Becken (`trial=1`); danach werden die echten Tokens und Kosten nachgetragen. Gleichzeitige Anfragen koennen das Budget
   dadurch nicht gemeinsam ueberschreiten.
@@ -64,6 +67,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_log (
     output_tokens INTEGER DEFAULT 0,
     cost_microeur INTEGER NOT NULL DEFAULT 0,  -- Millionstel EUR
     trial INTEGER NOT NULL DEFAULT 0,          -- 1 = Probekonto (eigenes Budget-Becken)
+    library INTEGER NOT NULL DEFAULT 0,        -- 1 = Vorarbeit der Bibliothek fuer alle Konten (eigenes Becken, ohne Konto)
     state TEXT NOT NULL DEFAULT 'reserved',    -- reserved | done | failed
     created_at TEXT NOT NULL
 );
@@ -198,6 +202,10 @@ def user_budget_microeur() -> int:
 
 def trial_budget_microeur() -> int:
     return int(_env_float("LERNAPP_AI_TRIAL_BUDGET_EUR", 5.0) * 1_000_000)
+
+
+def library_budget_microeur() -> int:
+    return int(_env_float("LERNAPP_AI_LIBRARY_BUDGET_EUR", 20.0) * 1_000_000)
 
 
 def rate_per_minute() -> int:
@@ -549,8 +557,11 @@ def available() -> bool:
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
-    if not any(r[1] == "trial" for r in conn.execute("PRAGMA table_info(ai_usage_log)")):       # Tabelle aus aelterem Stand
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(ai_usage_log)")}
+    if "trial" not in cols:                                       # Tabelle aus aelterem Stand
         conn.execute("ALTER TABLE ai_usage_log ADD COLUMN trial INTEGER NOT NULL DEFAULT 0")
+    if "library" not in cols:
+        conn.execute("ALTER TABLE ai_usage_log ADD COLUMN library INTEGER NOT NULL DEFAULT 0")
 
 
 def connect() -> sqlite3.Connection:
@@ -590,20 +601,58 @@ def rate_per_hour() -> int:
     return int(_env_float("LERNAPP_AI_RATE_PER_HOUR", 60))
 
 
+def _library_pool(conn: sqlite3.Connection, period: str) -> int:
+    return conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed' AND library=1",
+                        (period,)).fetchone()[0]
+
+
+def library_exhausted() -> AIUnavailable:
+    return AIUnavailable("ai_library_budget_exhausted", "Die Bibliothek hat ihr KI-Budget für diesen Monat aufgebraucht. "
+                         "Fertige Fragen, die schon da sind, gehen weiter; neue Wochen kommen im nächsten Monat dazu.", 429)
+
+
+def check_library(calls: int = 1, now: datetime | None = None) -> None:
+    """Vorpruefung vor einer Vorarbeit der Bibliothek (mehrere Aufrufe): Anbieter eingerichtet, Preise gesetzt (Dienst),
+    Budget der Bibliothek reicht fuer `calls` Reservierungen. Wirft AIUnavailable (503 bzw. 429), sonst nichts."""
+    provider()
+    if config.is_hosted() and not prices_set():
+        raise AIUnavailable("ai_not_configured_prices", "Die StudiNow-KI ist noch nicht freigeschaltet: Die Token-Preise "
+                            "(LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR) fehlen auf dem Server.", 503)
+    conn = connect()
+    try:
+        if _library_pool(conn, _now(now).strftime("%Y-%m")) + RESERVE_MICROEUR * max(1, calls) > library_budget_microeur():
+            raise library_exhausted()
+    finally:
+        conn.close()
+
+
 def reserve(conn: sqlite3.Connection, user_id: str | None, purpose: str, now: datetime | None = None, *,
-            rate_limit: bool = True, amount_microeur: int | None = None) -> int:
+            rate_limit: bool = True, amount_microeur: int | None = None, library: bool = False) -> int:
     """Budget und Rate-Limit pruefen und eine Reservierung eintragen (atomar). Liefert die Protokoll-ID.
     `rate_limit=False` fuer Auftraege des Dienstes selbst (Seiten eines Index-Uploads nacheinander, Wiederholungen nach
-    einer unbrauchbaren Antwort); `amount_microeur` = Reservierung statt der festen 2 Cent (Schaetzung der Anfrage)."""
+    einer unbrauchbaren Antwort); `amount_microeur` = Reservierung statt der festen 2 Cent (Schaetzung der Anfrage).
+    `library=True`: Vorarbeit der Bibliothek fuer alle Konten; nur das eigene Becken (LERNAPP_AI_LIBRARY_BUDGET_EUR)
+    zaehlt, ohne Konto, ohne Budget und Rate-Limit je Konto (die Sperre je Inhalt verhindert Doppeltes)."""
     t = _now(now)
     period = t.strftime("%Y-%m")
     amount = max(RESERVE_MICROEUR, int(amount_microeur or 0))
     conn.execute("BEGIN IMMEDIATE")
+    if library:
+        try:
+            if _library_pool(conn, period) + RESERVE_MICROEUR > library_budget_microeur():
+                raise library_exhausted()
+            cur = conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, trial, library, state, created_at) "
+                               "VALUES (NULL,?,?,?,0,1,'reserved',?)", (period, purpose, RESERVE_MICROEUR, t.isoformat()))
+            conn.execute("COMMIT")
+            return cur.lastrowid
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
     try:
         trial = 1 if user_id and is_trial_account(conn, user_id, t) else 0
         # zwei Becken: Probekonten verbrauchen nur ihr eigenes kleines Budget, nie das der zahlenden Konten
-        pool = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed' AND trial=?",
-                            (period, trial)).fetchone()[0]
+        pool = conn.execute("SELECT COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state<>'failed' AND trial=? "
+                            "AND library=0", (period, trial)).fetchone()[0]
         if trial:
             if pool + amount > trial_budget_microeur():
                 raise AIUnavailable("ai_trial_budget_exhausted", "Das Probe-Kontingent der StudiNow-KI ist für diesen Monat ausgeschöpft.", 429)
@@ -653,8 +702,12 @@ def month_report(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
     period = _now(now).strftime("%Y-%m")
     r = conn.execute("""SELECT COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(cost_microeur),0)
                         FROM ai_usage_log WHERE period=? AND state='done'""", (period,)).fetchone()
+    lib = conn.execute("SELECT COUNT(*), COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state='done' AND library=1",
+                       (period,)).fetchone()
     return {"period": period, "requests": r[0], "input_tokens": r[1], "output_tokens": r[2],
-            "cost_eur": round(r[3] / 1_000_000, 6), "budget_eur": budget_microeur() / 1_000_000}
+            "cost_eur": round(r[3] / 1_000_000, 6), "budget_eur": budget_microeur() / 1_000_000,
+            "library_requests": lib[0], "library_cost_eur": round(lib[1] / 1_000_000, 6),
+            "library_budget_eur": library_budget_microeur() / 1_000_000}
 
 
 def user_tag(user_id: str | None) -> str | None:
@@ -702,14 +755,19 @@ def replay(user_id: str | None, request_id: str | None, now: datetime | None = N
 def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
              cache: bool = False, now: datetime | None = None, *, image: bytes | None = None, model_name: str | None = None,
              max_output_tokens: int | None = None, request_id: str | None = None, credits: bool | None = None,
-             rate_limit: bool = True, on_delta=None, keep_result: bool = False, budget_reserve: int | None = None) -> Completion:
+             rate_limit: bool = True, on_delta=None, keep_result: bool = False, budget_reserve: int | None = None,
+             library: bool = False) -> Completion:
     """Eine StudiNow-KI-Anfrage mit Budget, Rate-Limit, Credits (app/credits.py), Protokoll und optionalem Cache.
 
     credits: None = automatisch (im Dienst fuer Konten bei den Zwecken aus charges_credits). Vor dem Aufruf wird die
     Schaetzung (app/ai_prices.py) reserviert, danach mit `usage` abgerechnet; ein Fehler ohne Nutzung gibt sie zurueck,
     eine abgebrochene Antwort mit Nutzung wird abgerechnet. Dieselbe request_id wird nie zweimal berechnet
-    (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG (input_image)."""
+    (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG (input_image).
+    `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits; `user_id` wird dann
+    nicht gespeichert)."""
     from . import credits as ledger
+    if library:
+        user_id = None
     p = provider(model_name)                         # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
     requested = model_name or getattr(p, "model", None) or model()
     hosted = config.is_hosted()
@@ -742,7 +800,7 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
                     return Completion(held.result, 0, 0, requested, credits_charged=0, replay=True)
                 raise AIUnavailable("duplicate_request", "Diese Anfrage wurde schon verarbeitet.", 409)
         try:
-            log_id = reserve(conn, user_id, purpose, now, rate_limit=rate_limit, amount_microeur=budget_reserve)
+            log_id = reserve(conn, user_id, purpose, now, rate_limit=rate_limit, amount_microeur=budget_reserve, library=library)
         except Exception:
             if held:
                 ledger.refund(conn, user_id, rid)

@@ -234,7 +234,7 @@ final class PlanContractTests: XCTestCase {
                                         .canUseAIRecommendations, .canGenerateStudoraAITests, .canAccessSharedTests,
                                         .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canGetRecommendations,
                                         .canReviewWrongAnswers, .canUseExtendedTestHistory, .canSyncAnnotations,
-                                        .chatgptConnectionPremium]
+                                        .chatgptConnectionPremium, .canUsePreparedWeekSets]
         for e in service { XCTAssertEqual(e.onDevice, .needsService, e.rawValue) }
         // Kommentare sind im Vertrag seit PC d0d1c74 available, laufen aber ueber den Dienst (G4); das iPad V1 mit
         // CloudKit-Community gibt sie nicht als vorhanden aus (Umstellung D15)
@@ -268,15 +268,17 @@ final class PlanContractTests: XCTestCase {
 
         XCTAssertEqual(UFPlanCard.preparing(.free), [])
         XCTAssertEqual(UFPlanCard.preparing(.plus).map(\.title),
-                       ["Notizen auf allen Geräten", "Community-Kommentare schreiben", "Tests aus der StudiNow-Bibliothek",
-                        "Neue KI-Tests von StudiNow"])
+                       ["Community-Kommentare schreiben", "Tests aus der StudiNow-Bibliothek", "Neue KI-Tests von StudiNow"])
         // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect) und die StudiNow-KI
         XCTAssertEqual(UFPlanCard.preparing(.proAI).map(\.title),
                        ["Lernstatistik über alle Module", "Intelligente Lernplanung (Empfehlungen für die Woche)",
                         "Automatische Wiederholung falscher Antworten", "Vollständige Testliste (Free und Plus: die letzten 10)",
                         "Personalisierte Lernempfehlungen", "Eigenes ChatGPT-Konto verbinden",
                         "KI-Erklärungen zu Aufgaben", "Automatische Lernfragen und Wiederholungsaufgaben",
-                        "KI-Zusammenfassungen", "KI-gestützte Lernempfehlungen"])
+                        "KI-Zusammenfassungen", "KI-gestützte Lernempfehlungen",
+                        // 04.11.2026: Notizen-Abgleich zwischen den Geraeten ab Pro AI, fertige Wochenfragen der Bibliothek
+                        "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)",
+                        "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen"])
 
         for plan in UFPlan.allCases {
             for r in UFPlanCard.included(plan) {

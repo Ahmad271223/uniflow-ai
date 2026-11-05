@@ -42,6 +42,11 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
 
 ## 2. Dialog „Lösung teilen“
 
+> **Stand 5.11.2026 (Wunsch des Inhabers):** Seitennotizen und Seiten des Blatts daneben gehen standardmäßig mit, direkt
+> hinter der Folie, neben der sie geschrieben wurden (Schalter „Notizen und Blätter mitschicken“, Schlüssel `sn-…`
+> statt `nb-…` hinten), und bringen ihre Folie mit; beim Empfänger heißen sie „Notiz zu Folie N“. Details:
+> docs/NOTIZEN-MITSCHICKEN-2026-11-05.md. Wo unten „Seiten des Notizblatts nicht vorausgewählt“ steht, gilt das.
+
 - Vorschau **ohne Original**: je Seite eine Miniatur auf weißem Grund (Leerseiten mit ihrer Vorlage), gezeichnet von
   `SolutionPreview` mit derselben Routine wie PDF-Export und Miniaturen, aber ohne PDF-Seite.
 - Auswahl der Seiten, Standard: Seiten mit eigenen Anmerkungen. Knöpfe „Alle“ und „Nur mit Notizen“.
@@ -463,6 +468,46 @@ und `content_sha256` je Datei im Moduldetail (die Seite ordnet geteilte Lösunge
   Übersicht, in der Community und im Editor, Gruppe „Gesehen (N)“, Abzeichen mit der Zahl am Menüpunkt „Community“.
 - „Daneben ansehen“ im Editor: fremde Lösung neben dem Dokument, nur ansehen, die eigene PDF-Seite darunter, scharf in
   Spaltenbreite.
+
+## 6c. Karteikarten-Stapel teilen und übernehmen im Dienst (Web und Windows, 4.11.2026)
+
+Wunsch des Inhabers (`docs/PREISLISTE.md`): eigene Karteikarten-Stapel je **Lernwoche** oder „**Allgemein**“ in der
+Community des Moduls teilen und die Stapel anderer übernehmen, ab StudiNow Plus (`can_use_flashcards`; Lesen, Liken,
+Melden wie in der Community). Referenz `app/community_cards.py`, Endpunkte in `app/community_cards_api.py`, Regeln und
+CloudKit-Gegenstück (iPad) in `docs/KARTEIKARTEN-STAPEL-2026-11-04.md` („Einmal erzeugen, alle profitieren“), Prüfdaten
+`packages/shared-contracts/fixtures/flashcards/stacks.json` (`tools/gen-flashcard-stacks-fixture.py`, Teil `community`).
+
+**Entscheidung Speicherung und Verschlüsselung:** im Dienst wie **Kommentare und Fragen**, nicht wie Lösungspakete. Frage
+und Antwort liegen als Text in `community.db` (Tabelle `card_stacks`, Spalte `cards` als JSON); geschützt wird über die
+**Mitgliedschaft** in der Community des Moduls, Autoren erscheinen nur mit Pseudonym. Gründe: Karteikarten sind eigener
+Text der Studierenden und kein Material aus der PDF, die Moderation muss gemeldete Stapel lesen können, und das
+Übernehmen soll ohne Schlüsselverwaltung im Browser gehen. Ende-zu-Ende verschlüsselt bleiben Lösungen und Korrekturen
+(Abschnitte 3, 6b). Auf dem iPad ohne Dienst liegt derselbe Stapel als CloudKit-Datensatz `CardStackShare`, `payload`
+verschlüsselt mit dem Modul-Geheimnis (die öffentliche Datenbank ist für jeden lesbar).
+
+**Endpunkte** (nur mit Sitzung, Fehler `{detail, code}`; am PC über die Weiterleitung `/api/community/...` an den Dienst):
+- `POST /api/flashcard-stacks/{id}/share` → Kopie des eigenen Stapels (Frage, Antwort) in die Community seines Moduls;
+  Plus, bestätigte E-Mail (403 `email_unverified`), Mitglied (403 `not_a_member`), nicht gesperrt (403 `author_banned`),
+  nur Stapel eines Moduls mit Karten (422 `no_module`/`stack_empty`), höchstens 500 Karten (413), Tagesgrenze `deck_user`
+  10 je Konto (429 `rate_limited`), schon geteilt 409 `already_shared`. Der eigene Stapel trägt danach `shared_id`.
+- `PUT /api/flashcard-stacks/{id}/share` → geteilte Kopie durch den aktuellen Stand ersetzen (Karten, Name); Kennung,
+  Likes und Übernahmen bleiben, `updated_at` neu, `update_user`; nicht geteilt 404 `not_shared`, verborgen 403 `stack_hidden`.
+- `DELETE /api/flashcard-stacks/{id}/share` → Zurückziehen (nur der Autor, in jedem Tarif); die Karten werden geleert.
+- `GET /api/community/card-stacks?module=<Schlüssel>|module_id=<lokal>&week=` → `{community_key, stacks, weeks}`; nur
+  Mitglieder, auch Free darf lesen; `week` 0 = Allgemein; `weeks` zählt die sichtbaren Stapel je Woche (`"5": 2, "0": 1`).
+  Meistgelikte zuerst; gesperrte Autoren und die eigene Sperrliste ausgeblendet.
+- `GET /api/community/card-stacks/{id}` → mit `cards_list`; `GET /api/community/card-stacks/mine` → eigene geteilte.
+- `POST /api/community/card-stacks/{id}/adopt` → eigener Stapel im passenden lokalen Modul (`source = community`,
+  zweimal = derselbe Stapel, 404 `module_not_here` ohne das Modul), 0 Credits, ab Plus.
+- `POST|DELETE …/like`, `POST …/report {reason, note}` → wie Lösungen: bestätigte E-Mail, `report_user`, eine Meldung je
+  Konto, ab 3 verborgen. Moderation: `GET /api/community/moderation` nennt `card_stacks` (Name und die ersten Karten als
+  Text, Meldende nur als Pseudonym/Kontoalter), `POST /api/community/card-stacks/{id}/moderate {action: restore}` gibt frei.
+- Bann bzw. Konto löschen: geteilte Stapel sofort zurückgezogen (`community.withdraw_all`), beim endgültigen Löschen
+  Likes und Meldungen entfernt (`community_cards.forget_author`); der Datenexport enthält `community/meine-karteikarten.json`.
+
+**Oberfläche (Web/Windows):** Seite „Karteikarten“ (Stapel-Kacheln, „…“ → Stapel teilen / Geteilte Kopie aktualisieren /
+Teilen zurückziehen, geteilte Stapel anderer je Modul und Woche, „KI-Karteikarten“ für Pro AI) und im Community-Kanal der
+Reiter „Karteikarten“ (`app/static/community-decks-ui.js`, `flashcard-stacks.js`, `flashcard-stacks-ui.js`).
 
 ## 7. Online-Community über CloudKit (S9b)
 

@@ -43,7 +43,10 @@ Serverseitig (`app/entitlements.py`): Der Tarif kommt immer aus der Datenbank, n
 | Endpunkt | Recht |
 |---|---|
 | `PUT /api/files/{id}/annotations`, `POST …/annotations/restore/{v}`, `POST /api/files/{id}/assets` | `can_annotate_pdf` |
-| `POST /api/sync/push` (nur Einträge `annotations`, Ergebnis `plan_required`) | `can_sync_annotations` |
+| `POST /api/sync/push` (nur Einträge `annotations`, Ergebnis `plan_required`; Plus gilt je Gerät, der Notizen-Abgleich zwischen iPad, PC und Web ist Pro AI, Entscheidung vom 04.11.2026) | `can_sync_annotations` (Pro AI) |
+| `POST /api/sync/push` (neue Einträge `flashcards`/`flashcard_stacks` ohne `id`, Ergebnis `plan_required`) | `can_use_flashcards` (Plus) |
+| `GET /api/library/week-sets…`, `POST …/prepare`, `POST …/start` (fertige Fragen je Vorlesungswoche, `docs/BIBLIOTHEK-WOCHENFRAGEN.md`) | `can_use_prepared_week_sets` (Pro AI) |
+| `POST /api/ai/flashcards` (aus Dokument oder auf Auftrag mit `module_id`, Woche, Anzahl) | `can_use_ai_generated_questions` (Pro AI) |
 | `POST /api/community/solutions` (Lesen und Laden für alle) | `can_share_solutions` |
 | `POST /api/library/tests` | `can_access_shared_tests` bzw. `can_generate_studora_ai_tests` |
 | `GET /api/learning/stats` · `…/review` · `…/recommendations` (Pro AI) | `can_use_advanced_analytics` · `can_review_wrong_answers` · `can_get_recommendations` |

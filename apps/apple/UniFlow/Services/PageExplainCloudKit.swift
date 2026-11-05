@@ -39,7 +39,7 @@ final class CloudKitPageExplain: PageExplainCloud, @unchecked Sendable {
         guard r.type == PageExplainCloudRecord.type,
               let key = r[PageExplainCloudRecord.Field.fileKey]?.string, !key.isEmpty,
               let page = r[PageExplainCloudRecord.Field.page]?.int, page >= 1,
-              let mode = r[PageExplainCloudRecord.Field.mode]?.string, PageExplain.sharedModes.contains(mode),
+              let mode = r[PageExplainCloudRecord.Field.mode]?.string, PageExplain.isStoredMode(mode),
               let variant = r[PageExplainCloudRecord.Field.variant]?.int, (1...PageExplain.maxVariants).contains(variant),
               let payload = r[PageExplainCloudRecord.Field.payload]?.string, !payload.isEmpty,
               payload.count <= DocIndexCrypto.maxPayloadChars else { return nil }

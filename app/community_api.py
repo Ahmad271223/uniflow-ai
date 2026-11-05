@@ -297,8 +297,9 @@ def qa_report(request: Request, kind: str, target_id: str, body: dict = Body(...
 @router.post("/{kind}/{target_id}/moderate")
 def qa_moderate(request: Request, kind: str, target_id: str, body: dict = Body(...)):
     """Nur Admin: verborgenen Kommentar, verborgene Frage oder Antwort wiederherstellen ({action: restore});
-    kind = comments | questions | answers."""
-    k = {"comments": "comment", "questions": "question", "answers": "answer", "corrections": "correction"}.get(kind)
+    kind = comments | questions | answers | corrections | card-stacks (geteilte Karteikarten-Stapel)."""
+    k = {"comments": "comment", "questions": "question", "answers": "answer", "corrections": "correction",
+         "card-stacks": "card_stack"}.get(kind)
     if not k:
         raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
     return _run(community_qa.moderate_post, _user(request), k, target_id, body.get("action") or "")

@@ -263,6 +263,9 @@ final class DocumentStore: ObservableObject {
     /// Seiten (Schluessel), deren Inhalt sich durch den Server, eine Zusammenfuehrung oder eine Aktion geaendert hat.
     /// Schluessel statt Anzeige-Indizes: nach Einfuegen/Drehen von Seiten verschieben sich die Indizes.
     var onPagesChanged: (([String]) -> Void)?
+    /// Eigene Aenderung auf einer Seite (Stift, Objekte, Text), Schluessel der Seite. Das Hauptdokument verknuepft damit
+    /// ein Blatt daneben mit der gerade angezeigten Folie (docs/NOTIZEN-MITSCHICKEN-2026-11-05.md).
+    var onLocalEdit: ((String) -> Void)?
     private var loadStarted = false
     /// Datei, aus der die Original-PDF geladen wird (unveraenderte Bytes, Grundlage des Loesungs-Fingerabdrucks).
     let originalPDFURL: URL
@@ -318,6 +321,7 @@ final class DocumentStore: ObservableObject {
         self.file = file
         self.api = api
         self.namespace = api.namespace
+        self.dataRoot = root
         self.lease = lease
         self.originalPDFURL = AppPaths.pdf(file.id, namespace: api.namespace, root: root)
         let transport = SwitchableAnnotationTransport(api: api)
@@ -333,6 +337,8 @@ final class DocumentStore: ObservableObject {
 
     /// Schluessel im Verzeichnis offener Dokumente: Container (Ordner), Datenquelle, Datei
     let openKey: String
+    /// Ordner fuer Journal und PDF-Zwischenspeicher (Blatt daneben wird aus demselben Ordner gelesen)
+    let dataRoot: URL
     /// Ist das Dokument gerade in einem Fenster zu sehen? (DocumentView: beim Erscheinen und Verschwinden.) Ein Store,
     /// der nicht zu sehen ist, gibt das Schreiben an ein anderes Fenster ab, das dasselbe Dokument oeffnet.
     private(set) var isShown = true
@@ -581,6 +587,7 @@ final class DocumentStore: ObservableObject {
         guard !key.isEmpty, canEdit, !outdatedByNewVersion, !journalUnreadable, !viewOnlyHere else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         canvasEdits[key, default: 0] += 1
+        onLocalEdit?(key)
         processTask?.cancel()
         let pause = saveTiming.pause
         processTask = Task { [weak self] in
@@ -873,6 +880,7 @@ final class DocumentStore: ObservableObject {
         page["objects"] = .array(after)
         await engine.updatePage(key, page)
         onPagesChanged?([key])
+        onLocalEdit?(key)
         return before
     }
 
@@ -893,6 +901,44 @@ final class DocumentStore: ObservableObject {
         page["objects"] = .array(objects)
         await engine.updatePage(key, page)
         onPagesChanged?([key])
+        onLocalEdit?(key)
+    }
+
+    // MARK: Blatt daneben (Notizen mitschicken, 05.11.2026)
+
+    /// Blattseite `sheetPage` des Notizbuchs `sheetFile` mit der Seite `mainKey` dieses Dokuments verknuepfen (erste
+    /// Folie gilt, `SideNotes.link`). Nur bei beschreibbarem Dokument; schon verknuepft: nichts (kein Schreibvorgang).
+    func linkSideSheet(file sheetFile: String, sheetPage: String, to mainKey: String) async {
+        guard isWritable, sheetFile != file.id, SideNotes.needsLink(document, sheetFile: sheetFile, sheetPage: sheetPage),
+              layout?.index(ofKey: mainKey) != nil else { return }
+        await updateMeta { meta in
+            var doc = AnnotationDocument(rootMeta: .object(meta), pages: [:])
+            if SideNotes.link(&doc, sheetFile: sheetFile, sheetPage: sheetPage, to: mainKey) {
+                meta[SideNotes.field] = doc.root[SideNotes.field]
+            }
+        }
+    }
+
+    /// Notizbuecher, deren Seiten neben Seiten dieses Dokuments beschrieben wurden
+    var sideSheetFileIDs: [String] { SideNotes.sheetFileIDs(document) }
+
+    /// Anzeige fuer ein abgeleitetes Notizmodell (Export mit eingeflochtenen Blattseiten), mit den schon geladenen
+    /// eingefuegten PDF-Seiten
+    func displayLayout(for doc: AnnotationDocument) -> DisplayLayout? {
+        original.map { DisplayLayout.build(original: $0, document: doc, assets: assetPDFs) }
+    }
+
+    /// Nur zum Lesen geoeffnet (Blatt beim Mitschicken): ohne Abgleich beim Schliessen und ohne Eintrag im
+    /// Versionsverlauf wieder freigeben
+    func closeAfterReading() async {
+        await engine.shutdown()
+        deadlineTask?.cancel()
+        deadlineTask = nil
+        released = true
+        OpenDocuments.shared.release(openKey, by: self)
+        monitor?.cancel()
+        lifecycle.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycle = []
     }
 
     // MARK: Suche, Export, Information

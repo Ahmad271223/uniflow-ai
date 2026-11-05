@@ -471,7 +471,7 @@ def test_weekly_quota_follows_the_plan(hosted):
         conn.close()
     assert "aufgebraucht" in q.check() and "4 von 4" in q.check()
     accounts.set_plan(u["id"], "pro_ai")
-    assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None, "Pro AI: 40 im Monat"
+    assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None, "Pro AI: 20 im Monat"
 
 
 def test_weekly_job_runs_in_account_context_with_quota_and_after_sync(hosted, monkeypatch):

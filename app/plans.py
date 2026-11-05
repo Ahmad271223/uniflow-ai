@@ -57,7 +57,6 @@ ENTITLEMENTS: dict[str, dict] = {
     # Plus
     "can_annotate_pdf": {"from": "plus", "label": "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder", "status": "available"},
     "can_use_pencilkit": {"from": "plus", "label": "Apple Pencil (PencilKit) und handschriftliche Notizen", "status": "available"},
-    "can_sync_annotations": {"from": "plus", "label": "Notizen auf allen Geräten", "status": "available"},
     "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "available"},
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
     "can_access_shared_tests": {"from": "plus", "label": "Tests aus der StudiNow-Bibliothek", "status": "available"},
@@ -80,6 +79,13 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_use_ai_summaries": {"from": "pro_ai", "label": "KI-Zusammenfassungen", "status": "available"},
     # KI-Lernempfehlungen: noch kein Endpunkt und keine Oberflaeche (04.11.2026), darum nicht als enthalten beworben
     "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "coming_soon"},
+    # Entscheidung des Inhabers vom 04.11.2026: Plus gilt je Geraet, der Abgleich der Notizen zwischen iPad, PC und Web
+    # (Geraete-Abgleich G2, /api/sync/push) erst mit Pro AI
+    "can_sync_annotations": {"from": "pro_ai", "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)", "status": "available"},
+    # Fertige KI-Fragen je Vorlesungswoche aus der Bibliothek (04.11.2026, app/week_library.py, app/week_library_api.py,
+    # docs/BIBLIOTHEK-WOCHENFRAGEN.md): 2-3 Saetze zu je 15 Fragen mit Loesungen und Erklaerungen, nur im Dienst.
+    # KI-Karteikarten auf Auftrag (Modul, Lernwoche, Anzahl) haengen an can_use_ai_generated_questions.
+    "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "available"},
 }
 
 # Kontingente je Abrechnungsmonat (Tabelle des Inhabers vom 04.11.2026). None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).

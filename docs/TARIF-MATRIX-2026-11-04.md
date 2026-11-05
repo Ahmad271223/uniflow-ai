@@ -13,6 +13,10 @@ Abschnitt 4 als „Teil 2“.
 AI). Web und iPad zeigen Free die eigenen Karten im Lesemodus. Auf dem iPad ohne Dienst sind „Fehlende Wochentests“ und
 die automatischen Wochentests Plus. Das lokale Backend (Kern) bleibt bewusst ohne Tarif: jede Sperre liegt in der
 App-Oberfläche (`CardsPage`, `DocumentView`, `FlashcardComposer`, `QuizComposer`, `ExamsPage`, `UFWeeklyAutoGate`).
+**Nachtrag 04.11.2026 (Zusammenführung mit der Cloud-Sitzung):** Notizen-Abgleich zwischen iPad, PC und Web
+(`can_sync_annotations`) erst ab Pro AI („Plus gilt je Gerät“); neues Recht `can_use_prepared_week_sets` (Pro AI, fertige
+Fragen je Vorlesungswoche, nur Dienst); KI-Karteikarten auf Auftrag (`POST /api/ai/flashcards` mit `module_id`) hängen an
+`can_use_ai_generated_questions`; neue Karten und Stapel im Geräte-Abgleich nur mit `can_use_flashcards`.
 
 Quellen der Gates:
 
@@ -85,6 +89,10 @@ E-Mail-Adresse bestätigen.“, 501 „KI-Funktionen kommen mit dem KI-Update.�
 | Stapel teilen, zurückziehen, geteilten Stapel übernehmen (`/api/flashcard-stacks/{id}/share`, `/api/community/card-stacks/{id}/adopt`) | 🔒 403 Plus (Lesen, Liken, Melden wie Community) | ✓ (Teilen mit bestätigter E-Mail wie Lösungen) | ✓ | ✓ᴾ | `community_cards_api._flashcards` |
 | Karten aus KI-Antwort (`POST /api/ai/tutor` `mode=flashcards`) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ 150/Monat | ✓ᴾ 150/Monat, 25 Credits | `TUTOR_ENTITLEMENT["flashcards"] = can_use_ai_generated_questions` (from `pro_ai`), `consume("ai_assist")` |
 | „Karteikarten aus Dokument“ (`POST /api/ai/flashcards`) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ 150/Monat | ✓ᴾ | `server.py:1178` `require(can_use_ai_generated_questions)` + E-Mail bestätigt + `ai_assist` |
+| KI-Karteikarten auf Auftrag (`POST /api/ai/flashcards` mit `module_id`, Woche, 5–50 Karten) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ 150/Monat + Credits | ✓ᴾ | `server.py::_ai_flashcards_order` wie oben; nur Doppel/keine Karten: 502, `ai_assist` zurück |
+| Fertige Fragen je Vorlesungswoche (`/api/library/week-sets…`) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ (Satz starten: `library_tests`, Fair Use) | ✓ᴾ | `week_library_api.RIGHT = can_use_prepared_week_sets`; Vorarbeit aus dem Bibliotheksbudget |
+| Notizen-Abgleich zwischen Geräten (`POST /api/sync/push`, Einträge `annotations`) | 🔒 `plan_required` | 🔒 `plan_required` (Plus gilt je Gerät) | ✓ | ✓ᴾ | `can_sync_annotations` (from `pro_ai`); Pläne und alles andere gleichen in jedem Tarif ab |
+| Neue Karten/Stapel im Geräte-Abgleich (`flashcards`, `flashcard_stacks` ohne `id`) | 🔒 `plan_required` | ✓ | ✓ | ✓ᴾ | `can_use_flashcards` in `api_sync_push` |
 | Wochentest, Standard geteilt (`/api/weekly/tick` → Job) | 🔒 „Wochentests mit KI gibt es ab StudiNow Plus (dein Tarif: StudiNow Free).“ | 4/Monat (`ai_tests_new`), Übernahme aus dem Pool 0 | 20/Monat | ✓ᴾ 20/Monat | `jobs.HostedQuota.check/consume`, `weekly.py:946–957` (`reuse` kostet nichts) |
 | Wochentest, eigener (Dialog, `POST /api/tests/generate`) | 501 für alle | 501 | 501 | 501 | `HOSTED_UNAVAILABLE` |
 | Test aus der Bibliothek (`POST /api/library/tests`) | 🔒 403 Plus | 4/Monat (`library_tests`) | unbegrenzt (Fair Use 300) | ✓ᴾ 300 | `library_api.py:115–137` `can_access_shared_tests` |

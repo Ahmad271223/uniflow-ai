@@ -59,4 +59,9 @@ final class OpenDocuments {
 
     /// Store, der das Dokument gerade zum Schreiben haelt (Tests)
     func holder(_ key: String) -> DocumentStore? { holders[key]?.store }
+
+    /// Offener Store einer Datei dieser Datenquelle (Blatt daneben beim Mitschicken lesen, ohne es zu uebernehmen)
+    func openStore(fileID: String, namespace: DataSourceNamespace) -> DocumentStore? {
+        holders.values.compactMap(\.store).first { $0.file.id == fileID && $0.namespace == namespace && !$0.released }
+    }
 }

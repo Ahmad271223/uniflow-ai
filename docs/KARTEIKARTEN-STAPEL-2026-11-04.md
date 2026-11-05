@@ -202,3 +202,38 @@ Ausgabe höchstens 3.000 Tokens. Erwartet je Satz mit dem empfohlenen Modell `gp
 Tokens): **rund 0,2–0,3 ct, also 1 Credit**; mit `gpt-5.4-mini` höchstens rund 2,3 ct. Je Modul und Woche entstehen
 höchstens 2 Arten × 3 Varianten = 6 Sätze, egal wie viele Studierende das Modul haben (mit `gpt-6-luna` unter 2 ct je
 Modul und Woche, rund 0,25 € je Modul und Semester mit 14 Wochen); alle weiteren übernehmen für 0 Credits.
+
+## KI-Karteikarten auf Auftrag (Pro AI, nur Dienst und PC; Cloud-Sitzung 04.11.2026, ans Stapel-Modell angepasst)
+
+„Analysis I, Lernwoche 5, 30 Karten“: `POST /api/ai/flashcards` mit `module_id` statt `file_id` (`app/server.py`
+`_ai_flashcards_order`, Hilfen in `app/flashcard_order.py`). Rumpf `{module_id, week (auch lecture_week; null = ganzes
+Modul), count (5–50, Vorgabe 20), topic?, request_id?, material?: [{title, text}], again?}`, Antwort `{cards, count,
+module_id, module_name, week, sources, duplicates_removed, existing, credits}`. Material genau dieser Woche: zuerst die
+mit „Vorlesung bis hier“ markierten Seiten der Woche, dann Vorlesungen/Skripte, dann Übungen der Woche (höchstens 24.000
+Zeichen); ganzes Modul: Vorlesungen aller Wochen gleichmäßig. Vorhandene Fragen der Stapel des Moduls (Fach = Modulname,
+Stapel der Woche zuerst) stehen im Prompt („nicht wiederholen“) und werden danach noch einmal ausgefiltert (gleiche
+oder fast gleiche Frage, Wortüberschneidung ≥ 0,85). Nur ein Vorschlag: die Oberfläche legt den Stapel „KI · Woche n“
+(Art `eigene`, Woche des Auftrags) an bzw. nimmt einen gleichnamigen des Moduls und speichert mit `POST /api/flashcards`
+(`stack_id`). Wochenauswahl: `GET /api/ai/flashcards/weeks?module_id=` (Wochen mit Unterlagen, aktuelle Woche).
+Im Dienst: `can_use_ai_generated_questions` (Pro AI), bestätigte E-Mail, Kontingent `ai_assist`, Credits und dieselbe
+`request_id`-Wiederholung wie „Karteikarten aus Dokument“ (`_flashcards_complete`); ohne brauchbare oder nur doppelte
+Karten 502 `ai_no_cards` und `ai_assist` zurückgebucht; ohne Material 404 `no_content`. Unterschied zu den Wochenstapeln
+oben: persönlich (Anzahl, Schwerpunkt, ohne Doppel zu den eigenen Karten), nicht geteilt.
+Tests: `tests/test_flashcard_order.py`, `tests/test_flashcards_hosted.py`, `tests/js/flashcard-stacks.test.mjs`,
+Browser `tests/test_web_flashcard_stacks.py`; Prüfdaten `fixtures/flashcards/stacks.json` (Teil `ai_stack`).
+
+## Ergänzungen im Dienst (Cloud-Sitzung 04.11.2026)
+
+- **Geteilte Kopie aktualisieren:** `PUT /api/flashcard-stacks/{id}/share` ersetzt Karten und Namen der geteilten Kopie
+  durch den aktuellen Stand (Kennung, Likes, Übernahmen bleiben; `update_user`; verborgen 403 `stack_hidden`).
+- **Liste:** `GET /api/community/card-stacks` liefert zusätzlich `weeks` (Zahl der Stapel je Woche, `"0"` = Allgemein).
+- **Grenzen:** neue geteilte Stapel `deck_user` 10 je Konto und Tag; gebannte Autoren teilen nicht (403 `author_banned`).
+- **Moderation:** `GET /api/community/moderation` → `card_stacks`; `POST /api/community/card-stacks/{id}/moderate
+  {action: restore}`. Bann und Konto löschen ziehen geteilte Stapel sofort zurück; Datenexport
+  `community/meine-karteikarten.json`.
+- **Geräte-Abgleich:** neue `flashcards` und `flashcard_stacks` (ohne `id`) nur mit `can_use_flashcards`, sonst
+  `plan_required` (`required_plan: plus`); bestehende gleichen weiter ab.
+- **Web:** Reiter „Karteikarten“ im Community-Kanal (`community-decks-ui.js`), „KI-Karteikarten“ und „Geteilte Kopie
+  aktualisieren“ auf der Seite „Karteikarten“. Tests: `tests/test_community_decks.py`.
+- **Offen fürs iPad:** KI-Karteikarten auf Auftrag und fertige Wochenfragen gibt es nur über den Dienst (iPad: „in
+  Vorbereitung“); Ersetzen und Moderation geteilter Stapel nur im Dienst (CloudKit: Zurückziehen und neu teilen).

@@ -29,7 +29,6 @@
     "can_read_community": true,
     "can_annotate_pdf": false,
     "can_use_pencilkit": false,
-    "can_sync_annotations": false,
     "can_write_community_comments": false,
     "can_share_solutions": false,
     "can_access_shared_tests": false,
@@ -44,7 +43,9 @@
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false
+    "can_use_ai_recommendations": false,
+    "can_sync_annotations": false,
+    "can_use_prepared_week_sets": false
    },
    "quotas": {
     "ai_tests_new": 0,
@@ -70,7 +71,6 @@
     "can_read_community": true,
     "can_annotate_pdf": true,
     "can_use_pencilkit": true,
-    "can_sync_annotations": true,
     "can_write_community_comments": true,
     "can_share_solutions": true,
     "can_access_shared_tests": true,
@@ -85,7 +85,9 @@
     "can_use_ai_explanations": false,
     "can_use_ai_generated_questions": false,
     "can_use_ai_summaries": false,
-    "can_use_ai_recommendations": false
+    "can_use_ai_recommendations": false,
+    "can_sync_annotations": false,
+    "can_use_prepared_week_sets": false
    },
    "quotas": {
     "ai_tests_new": 4,
@@ -111,7 +113,6 @@
     "can_read_community": true,
     "can_annotate_pdf": true,
     "can_use_pencilkit": true,
-    "can_sync_annotations": true,
     "can_write_community_comments": true,
     "can_share_solutions": true,
     "can_access_shared_tests": true,
@@ -126,7 +127,9 @@
     "can_use_ai_explanations": true,
     "can_use_ai_generated_questions": true,
     "can_use_ai_summaries": true,
-    "can_use_ai_recommendations": true
+    "can_use_ai_recommendations": true,
+    "can_sync_annotations": true,
+    "can_use_prepared_week_sets": true
    },
    "quotas": {
     "ai_tests_new": 20,
@@ -175,11 +178,6 @@
   "can_use_pencilkit": {
    "from": "plus",
    "label": "Apple Pencil (PencilKit) und handschriftliche Notizen",
-   "status": "available"
-  },
-  "can_sync_annotations": {
-   "from": "plus",
-   "label": "Notizen auf allen Geräten",
    "status": "available"
   },
   "can_write_community_comments": {
@@ -256,6 +254,16 @@
    "from": "pro_ai",
    "label": "KI-gestützte Lernempfehlungen",
    "status": "coming_soon"
+  },
+  "can_sync_annotations": {
+   "from": "pro_ai",
+   "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)",
+   "status": "available"
+  },
+  "can_use_prepared_week_sets": {
+   "from": "pro_ai",
+   "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen",
+   "status": "available"
   }
  },
  "quotas": {

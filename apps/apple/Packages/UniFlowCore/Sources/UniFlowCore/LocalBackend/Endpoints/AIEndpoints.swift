@@ -45,7 +45,10 @@ enum AIEndpoints: LocalEndpointModule {
             // `force` ("Neu erklaeren lassen") fragt live und belegt den naechsten freien Platz. Eigene Fragen bekommen die
             // Einordnung der Seite aus der Bibliothek als Zusatz (kleiner Prompt statt Suche).
             let force = AIPrompts.truthy(body.value("force"))
-            let shareable = fileID != nil && PageExplain.isShareable(mode: mode, selection: text("selection"), question: text("question"))
+            // eigene Notizen zur Seite (5.11.2026) sind persoenlich: dann nie aus dem geteilten Speicher und nie hinein
+            let ownNotes = text("own_notes")
+            let shareable = fileID != nil && PyText.strip(ownNotes).isEmpty
+                && PageExplain.isShareable(mode: mode, selection: text("selection"), question: text("question"))
             var explainKey: PageExplainBuilder.Key?
             if let fileID, shareable || mode == "ask" {
                 explainKey = try? await PageExplainBuilder.key(fileID: fileID, page: page, ctx: ctx)
@@ -67,7 +70,7 @@ enum AIEndpoints: LocalEndpointModule {
             let prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
                                          ownSolution: text("own_solution"), course: course, fileName: fileName, page: .int(String(page)),
                                          sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")),
-                                         studip: studip, pageIndex: pageIndex)
+                                         studip: studip, pageIndex: pageIndex, ownNotes: ownNotes)
             let answer: String
             do {
                 answer = try await ai.answer(system: AIPromptTexts.tutorSystem, prompt: prompt)

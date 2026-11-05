@@ -322,12 +322,12 @@ struct CommunityReaderSheet: View {
                         Text("Du hast diese PDF nicht, darum stehen die Notizen auf leeren Seiten.").ufFont(13.12).foregroundStyle(UF.muted)
                     }
                     if let content {
-                        ForEach(content.pages, id: \.key) { page in
+                        ForEach(Array(content.pages.enumerated()), id: \.element.key) { i, page in
                             CommunityReaderPage(page: page, images: images, marks: marks(page), tapped: service.supportsDiscussion ? { anchor in
                                 spot = (page.key, anchor)
                                 replyTo = nil
                                 editing = nil
-                            } : nil)
+                            } : nil, title: SolutionBuilder.pageTitle(content.pages, at: i))
                         }
                     } else if error == nil { CommunityLoading(text: "Lösung wird geladen …") }
                     if service.supportsDiscussion { commentsCard }
@@ -494,9 +494,18 @@ struct CommunityReaderPage: View {
     let images: [String: UIImage]
     var marks: [Mark] = []
     var tapped: ((CommunityComment.Anchor) -> Void)?
+    /// Beschriftung ueber der Seite: "PDF-Seite 4", "Notiz zu Folie 4" (`SolutionBuilder.pageTitle`, 05.11.2026)
+    var title: String?
     @State private var image: UIImage?
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let title { Text(title).ufFont(11.84, 600, lh: 1.3).foregroundStyle(UF.muted) }
+            pageImage
+        }
+    }
+
+    private var pageImage: some View {
         Group {
             if let image {
                 Image(uiImage: image).resizable().scaledToFit().overlay(Rectangle().stroke(UF.line))

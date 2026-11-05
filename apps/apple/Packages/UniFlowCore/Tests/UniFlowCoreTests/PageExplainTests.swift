@@ -287,6 +287,26 @@ final class PageExplainTests: XCTestCase {
         XCTAssertThrowsError(try PageExplainCrypto.open(records[0].payload, fileSHA: otherSHA, pageHash: hash, fileKey: key, page: 1, mode: "explain", variant: 1, cipher: cipher))
     }
 
+    /// Eigene Notizen zur Seite (`own_notes`, 05.11.2026, docs/NOTIZEN-MITSCHICKEN-2026-11-05.md) stehen im Prompt und
+    /// machen die Anfrage persoenlich: kein Nachsehen im geteilten Speicher, nichts hinein
+    func testOwnNotesGoIntoThePromptAndNeverIntoTheSharedStore() async throws {
+        let (b, _) = try await seeded([Seed(id: "f-vl1", name: "VL01 Eigenwerte.pdf", pages: twoPages)])
+        let cloud = FakeExplainCloud()
+        let ai = FakeAI("Deine Notiz stimmt.")
+        b.context.ai.set(ai)
+        b.context.docIndex.configure(cloud: nil, cipher: cipher, explainCloud: cloud)
+        let r = try await tutor(b, ["file_id": "f-vl1", "page": 1, "mode": "explain", "own_notes": "[Blatt daneben 1]\nλ = 2"])
+        XCTAssertEqual(r["answer"]?.string, "Deine Notiz stimmt.")
+        XCTAssertTrue(r["explain"]?.isNull ?? true)
+        XCTAssertTrue(ai.prompts[0].prompt.contains(AIPrompts.ownNotesHeading + "\n<<<\n[Blatt daneben 1]\nλ = 2\n>>>"))
+        XCTAssertEqual(cloud.all.count, 0, "nichts geteilt")
+        // dieselbe Seite ohne Notizen danach: live und geteilt wie immer (die Notiz-Antwort lag nicht im Speicher)
+        let plain = try await tutor(b, ["file_id": "f-vl1", "page": 1, "mode": "explain"])
+        XCTAssertEqual(plain["explain"]?["stored"]?.bool, false)
+        XCTAssertEqual(ai.prompts.count, 2)
+        XCTAssertFalse(ai.prompts[1].prompt.contains("MEINE NOTIZEN"))
+    }
+
     func testOwnQuestionGetsIndexContextWhenPagePresentInLibrary() async throws {
         let (b, _) = try await seeded([Seed(id: "f-vl1", name: "VL01 Eigenwerte.pdf", pages: twoPages)])
         let ai = FakeAI("Antwort")

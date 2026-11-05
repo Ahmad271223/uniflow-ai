@@ -213,6 +213,11 @@ SAMPLES: dict[str, dict] = {
                            "expect": {"status": 404, "reason": "KI entfaellt in V1"}},
     "POST /api/ai/flashcards": {"path": "/api/ai/flashcards", "body": {"file_id": "f1", "count": 5}, "python": False,
                                 "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
+    # KI fuer das ganze Dokument (05.11.2026): ohne Wunsch in der Frage {intent: false} ohne KI; ein Schritt einer Datei,
+    # die es nicht gibt, 404
+    "POST /api/ai/document/plan": {"path": "/api/ai/document/plan", "body": {"file_id": "f1", "question": "Was ist ein Eigenwert?"}},
+    "POST /api/ai/document/step": {"path": "/api/ai/document/step", "body": {"file_id": "f1", "mode": "lecture", "step": "1:full:1-1"},
+                                   "python": False, "expect": {"status": 404, "reason": "leere Datenbank: Datei f1 fehlt"}},
     "GET /api/index/file/{}/page/{}": {"path": "/api/index/file/f1/page/1", "python": False,
                                         "expect": {"status": 404, "reason": "Dokument-Index nur auf dem Geraet (V1); leere Datenbank: Datei f1 fehlt"}},
     "POST /api/index/file/{}/page/{}": {"path": "/api/index/file/f1/page/1", "body": {"force": False}, "python": False,

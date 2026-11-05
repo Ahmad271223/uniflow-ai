@@ -25,6 +25,9 @@ enum SolutionTexts {
     static func missingImages(_ n: Int) -> String {
         n == 1 ? "1 Bild ist nicht verfügbar und fehlt in der Lösung." : "\(n) Bilder sind nicht verfügbar und fehlen in der Lösung."
     }
+    /// Schalter im Dialog "Lösung teilen" (05.11.2026, Standard an)
+    static let includeNotes = "Notizen und Blätter mitschicken"
+    static let includeNotesDetail = "Seitennotizen und das Blatt neben der Folie gehen direkt hinter der Folie mit, neben der du sie geschrieben hast."
     static let pdfExportPrivate = "Die exportierte PDF enthält das Originalmaterial deiner Hochschule (z. B. Folien und Aufgabenstellungen) zusammen mit deinen Notizen. Verwende sie nur privat, z. B. in der Dateien-App, und gib sie nicht weiter. Zum Teilen deiner Notizen gibt es „Lösung teilen …“."
 }
 
@@ -33,7 +36,8 @@ enum SolutionTexts {
 struct SolutionShareSheet: View {
     @ObservedObject var store: DocumentStore
     let api: APIClient
-    /// Notizblatt neben der Folie (geteilte Ansicht): seine Seiten gehen als eigene Seiten mit
+    /// Notizblatt neben der Folie (geteilte Ansicht): seine Seiten gehen direkt hinter der Folie mit, neben der sie
+    /// beschrieben wurden (docs/NOTIZEN-MITSCHICKEN-2026-11-05.md)
     var notebook: DocumentStore?
     let close: () -> Void
 
@@ -42,6 +46,8 @@ struct SolutionShareSheet: View {
     @State private var draft: SolutionShareDraft?
     @State private var previewImages: [String: UIImage] = [:]
     @State private var selected: Set<String> = []
+    /// "Notizen und Blätter mitschicken": Seitennotizen und Blattseiten mit Notizen (Standard an)
+    @State private var includeNotes = true
     @State private var displayName = ""
     @State private var loadError: String?
     @State private var shareError: String?
@@ -126,17 +132,32 @@ struct SolutionShareSheet: View {
             UFCardHead("Vorschau ohne Original", icon: "layers", wrap: true) {
                 UFButton("Alle", size: .small) { selected = Set(preview.pages.map(\.key)) }
                 UFButton("Nur mit Notizen", size: .small) {
-                    selected = Set(preview.pages.filter { !$0.objects.isEmpty }.map(\.key))
+                    selected = Self.applyNotes(includeNotes, to: Set(preview.pages.filter { !$0.objects.isEmpty }.map(\.key)), preview: preview)
                 }
             }
             Text("Wähle die Seiten, deren Notizen du teilen willst. So sieht der Empfänger deine Lösung – die Folien und Aufgaben hat er in seiner eigenen PDF.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 12)
+            if !Self.notePages(preview).isEmpty {
+                Toggle(isOn: Binding(get: { includeNotes }, set: { on in
+                    includeNotes = on
+                    selected = Self.applyNotes(on, to: selected, preview: preview)
+                })) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(SolutionTexts.includeNotes).ufFont(14.5, 600).foregroundStyle(UF.text)
+                        Text(SolutionTexts.includeNotesDetail).ufFont(12.8).foregroundStyle(UF.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(UF.accent)
+                .accessibilityIdentifier("share.includeNotes")
+                .padding(.bottom, 12)
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 132, maximum: 170), spacing: 14)], alignment: .leading, spacing: 14) {
                 ForEach(Array(preview.pages.enumerated()), id: \.element.key) { i, page in
                     SolutionPageTile(page: page, images: previewImages, title: tileTitle(page, position: i),
                                      selected: selected.contains(page.key)) {
-                        if selected.contains(page.key) { selected.remove(page.key) } else { selected.insert(page.key) }
+                        selected = Self.toggled(page.key, in: selected, preview: preview)
                     }
                 }
             }
@@ -281,10 +302,40 @@ struct SolutionShareSheet: View {
         }
     }
 
+    /// Titel wie beim Empfaenger: "PDF-Seite 4", "Notiz zu Folie 4", "Eigene Seite"
     private func tileTitle(_ page: SolutionPage, position: Int) -> String {
-        if let i = page.pdfIndex { return "PDF-Seite \(i)" }
-        let t = page.template.flatMap { PaperTemplate.names[$0] } ?? "Leer"
-        return "Eigene Seite (\(t))"
+        guard let preview = draft?.content else { return page.pdfIndex.map { "PDF-Seite \($0)" } ?? "Eigene Seite" }
+        return SolutionBuilder.pageTitle(preview.pages, at: position)
+    }
+
+    /// Seitennotizen und Blattseiten der Vorschau
+    static func notePages(_ preview: SolutionContent) -> Set<String> { Set(SolutionBuilder.notePageKeys(preview.pages)) }
+
+    /// "Notizen und Blätter mitschicken": an = alle Notizseiten mit Notizen dazu (mit ihrer Folie, damit sie beim
+    /// Empfaenger neben ihr stehen), aus = keine davon
+    static func applyNotes(_ on: Bool, to selection: Set<String>, preview: SolutionContent) -> Set<String> {
+        let notes = notePages(preview)
+        let withContent = Set(preview.pages.filter { notes.contains($0.key) && !$0.objects.isEmpty }.map(\.key))
+        guard on else { return selection.subtracting(notes) }
+        let slides = withContent.compactMap { SolutionBuilder.slideKey(of: $0, in: preview.pages) }
+        return selection.union(withContent).union(slides)
+    }
+
+    /// Kachel antippen: eine Notizseite bringt ihre Folie mit; eine Folie abwaehlen nimmt ihre Notizseiten mit heraus
+    /// (sichtbar, was geteilt wird; `SolutionSharing.content` ergaenzt dieselben Folien)
+    static func toggled(_ key: String, in selection: Set<String>, preview: SolutionContent) -> Set<String> {
+        var out = selection
+        if out.contains(key) {
+            out.remove(key)
+            if preview.pages.first(where: { $0.key == key })?.pdfIndex != nil {
+                let notes = notePages(preview).filter { SolutionBuilder.slideKey(of: $0, in: preview.pages) == key }
+                out.subtract(notes)
+            }
+        } else {
+            out.insert(key)
+            if notePages(preview).contains(key), let slide = SolutionBuilder.slideKey(of: key, in: preview.pages) { out.insert(slide) }
+        }
+        return out
     }
 
     private func chosen(_ preview: SolutionContent) -> [SolutionPage] { preview.pages.filter { selected.contains($0.key) } }
@@ -315,11 +366,10 @@ struct SolutionShareSheet: View {
         spaceKey = spaces.first { $0.key == courseKey }?.key ?? spaces.first?.key ?? ""
         do {
             var s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
-            // nur ein Notizblatt desselben Moduls (z. B. "Leeres Blatt" daneben), nie ein fremdes Notizbuch
-            if let notebook, notebook.file.isNotebook, notebook.file.module_id == store.file.module_id {
-                let part = await notebook.notebookPart(loadImage: ShareExport.serverImageLoader(api))
-                s = s.appendingNotebook(part.document, images: part.images)
-            }
+            // Blaetter daneben: verknuepfte und das offene desselben Moduls, nie ein fremdes Notizbuch; ihre Seiten
+            // stehen hinter der Folie, neben der sie beschrieben wurden (05.11.2026)
+            let sheets = await SideSheetLoader.sheets(for: store, api: api, open: notebook, loadImage: ShareExport.serverImageLoader(api))
+            s = await s.withSideNotes(sheets)
             let prepared = try await Task.detached(priority: .userInitiated) { try SolutionSharing.draft(s) }.value
             guard let all = prepared.content else {
                 loadError = prepared.unavailable
@@ -328,8 +378,8 @@ struct SolutionShareSheet: View {
             source = s
             previewImages = try ForeignSolutionLayer.uiImages(all.images)
             draft = prepared
-            // Seiten des Notizblatts nicht vorauswaehlen: mitteilen nur, wenn man sie selbst ankreuzt
-            selected = prepared.selection.filter { !SolutionBuilder.isNotebookKey($0) }
+            // Seitennotizen und Blattseiten mit Notizen sind vorausgewaehlt ("Notizen und Blätter mitschicken" an)
+            selected = Self.applyNotes(includeNotes, to: prepared.selection, preview: all)
         } catch {
             loadError = (error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht vorbereiten: \(error.localizedDescription)"
         }
@@ -620,9 +670,8 @@ struct SolutionPreviewSheet: View {
                     }
                     UFCard {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 132, maximum: 170), spacing: 14)], alignment: .leading, spacing: 14) {
-                            ForEach(layer.pages, id: \.key) { page in
-                                SolutionPageTile(page: page, images: layer.images,
-                                                 title: page.pdfIndex.map { "PDF-Seite \($0)" } ?? "Eigene Seite")
+                            ForEach(Array(layer.pages.enumerated()), id: \.element.key) { i, page in
+                                SolutionPageTile(page: page, images: layer.images, title: SolutionBuilder.pageTitle(layer.pages, at: i))
                             }
                         }
                     }
@@ -699,8 +748,8 @@ struct SolutionSidePane: View {
             GeometryReader { geo in
                 ScrollView {
                     LazyVStack(spacing: 14) {
-                        ForEach(layer.pages, id: \.key) { page in
-                            SolutionSidePage(page: page, images: layer.images,
+                        ForEach(Array(layer.pages.enumerated()), id: \.element.key) { i, page in
+                            SolutionSidePage(page: page, title: SolutionBuilder.pageTitle(layer.pages, at: i), images: layer.images,
                                              pdfPage: page.pdfIndex.flatMap { pdf?.page(at: $0 - 1) },
                                              width: max(200, geo.size.width - 24))
                         }
@@ -715,6 +764,8 @@ struct SolutionSidePane: View {
 
 private struct SolutionSidePage: View {
     let page: SolutionPage
+    /// "PDF-Seite 4", "Notiz zu Folie 4" (SolutionBuilder.pageTitle)
+    let title: String
     let images: [String: UIImage]
     let pdfPage: PDFPage?
     let width: CGFloat
@@ -730,7 +781,7 @@ private struct SolutionSidePage: View {
                     ProgressView().frame(height: width * 1.3)
                 }
             }
-            Text(page.pdfIndex.map { "PDF-Seite \($0)" } ?? "Eigene Seite der Lösung").ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted)
+            Text(title).ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted)
         }
         .task(id: "\(page.key)-\(Int(width))") {
             let p = page, imgs = images, pp = pdfPage, w = width

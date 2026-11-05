@@ -24,6 +24,8 @@ struct TutorPanel: View {
     var request: Binding<EditorBridge.TutorRequest?> = .constant(nil)
     /// Modul des Dokuments fuer "Wochentest erstellen" im Reiter Test (nil: der Dialog fragt nach dem Modul)
     var moduleID: Int? = nil
+    /// Seitennotizen und Blatt daneben der offenen Folie als Text (`AttachedNotes`, 05.11.2026); leer = keine
+    var ownNotes: (@MainActor () async -> String)? = nil
     /// Kompakt (iPhone): die Leiste liegt als Blatt von unten ueber dem Dokument. Wege aus der Leiste (KI-Start,
     /// Einstellungen, Tarif) und der Dialog "Wochentest erstellen" schliessen das Blatt zuerst; sonst laege der Dialog
     /// unter dem Blatt bzw. ein zweites Blatt kaeme nicht
@@ -126,6 +128,12 @@ struct TutorPanel: View {
     /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
     @State private var creditsExhausted = false
     @State private var tab: Tab = .explain
+    /// Umfang und Lauf fuer das ganze Dokument (05.11.2026, TutorDocumentRun.swift): "Diese Seite | Ganzes Dokument |
+    /// Seiten …", "Ganze Vorlesung erklären", "Alle Aufgaben erklären"
+    @State private var docScope: TutorDocScope = .page
+    @State private var docFrom = 1
+    @State private var docTo = 1
+    @StateObject private var docRunner = TutorDocRunner()
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -211,6 +219,8 @@ struct TutorPanel: View {
     @ViewBuilder private var tabActions: some View {
         switch tab {
         case .explain:
+            VStack(alignment: .leading, spacing: 10) {
+            TutorDocControls(scope: $docScope, from: $docFrom, to: $docTo, busy: busy) { mode in Task { await startDoc(mode: mode) } }
             if typeSize.isAccessibilitySize {
                 // sehr grosse Schrift: eine Reihe zum seitlichen Schieben, damit das Gespraech Platz behaelt
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -223,6 +233,7 @@ struct TutorPanel: View {
                 UFFlexWrap(gap: 6, rowGap: 6) {
                     ForEach(Tab.explain.modes, id: \.self) { key in modeChip(key, icon: key == "explain" ? "sparkles" : nil) }
                 }
+            }
             }
         case .cards:
             VStack(alignment: .leading, spacing: 8) {
@@ -251,6 +262,8 @@ struct TutorPanel: View {
             if key == "check" {
                 checking.toggle()
                 if checking { inputFocused = true }
+            } else if let doc = TutorDocRun.docMode(forTutorMode: key, scope: docScope) {
+                Task { await startDoc(mode: doc) }       // Umfang "Ganzes Dokument"/"Seiten": Lauf statt Seite
             } else {
                 Task { await send(mode: key) }
             }
@@ -286,7 +299,9 @@ struct TutorPanel: View {
                         ForEach($messages) { $m in
                             bubble($m, index: messages.firstIndex { $0.id == m.id } ?? 0).id(m.id)
                         }
-                        if busy {
+                        // ganzes Dokument: Rueckfrage zu den Kosten bzw. Fortschritt "Teil 2 von 4"
+                        TutorDocRunCard(runner: docRunner) { Task { await runDoc() } }
+                        if busy && docRunner.phase != .running {
                             HStack(spacing: 8) { ProgressView(); UFShimmerText("Die KI liest die Seite …") }   // dezenter Schimmer (text-shimmer)
                                 .id("busy")
                         }
@@ -395,7 +410,12 @@ struct TutorPanel: View {
                     .disabled(msg.saved)
                 } else {
                     // Markdown (grosse Abschnittstitel, Aufzaehlungen, Fett) in den Schriften des Designsystems
-                    AIMarkdownText(msg.text, size: 14.5).accessibilityIdentifier("tutor.answer")
+                    if msg.mode.hasPrefix("doc_") {
+                        // Lauf fuer das ganze Dokument: Bloecke mit Seiten als Knopf
+                        TutorDocBlocks(text: msg.text, mode: msg.mode, explain: msg.explain) { open(fileID, $0) }
+                    } else {
+                        AIMarkdownText(msg.text, size: 14.5).accessibilityIdentifier("tutor.answer")
+                    }
                     // gespeicherte Antwort (Erklaerungsspeicher): Herkunft und der Weg zu einer frischen Antwort
                     if let stored = Self.storedLabel(msg.explain) {
                         UFFlexWrap(gap: 8, rowGap: 6) {
@@ -476,9 +496,14 @@ struct TutorPanel: View {
 
     /// `force` ("Neu erklaeren lassen"): am Erklaerungsspeicher vorbei live fragen; die Antwort belegt den naechsten
     /// freien Platz oder bleibt lokal
-    private func send(mode: String, selection given: String? = nil, force: Bool = false) async {
+    private func send(mode: String, selection given: String? = nil, force: Bool = false, docIntent: Bool = true) async {
         guard let api = session.api, !busy else { return }
         let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Wunsch fuers ganze Dokument im Eingabefeld ("Erkläre die ganze Vorlesung", "Löse alle Aufgaben", "Seiten 5 bis 12")
+        if mode == "ask", docIntent, given == nil, DocExplain.parseIntent(typed) != nil {
+            await startDoc(question: typed)
+            return
+        }
         let page = page(), selection = given ?? selection()
         var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode),
                                          "history": Self.history(messages)]
@@ -495,6 +520,12 @@ struct TutorPanel: View {
         creditsExhausted = false
         defer { busy = false }
         do {
+            // eigene Notizen zur Folie (Seitennotizen, Blatt daneben) als Kontext; der Dienst nutzt dann keinen
+            // geteilten Erklaerungsspeicher
+            if let ownNotes {
+                let notes = await ownNotes()
+                if !notes.isEmpty { body["own_notes"] = .string(notes) }
+            }
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
             studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Fusszeile
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
@@ -512,6 +543,65 @@ struct TutorPanel: View {
         }
         // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Fusszeile nennt es
         await chatgpt?.refresh()
+    }
+
+    // MARK: Ganzes Dokument
+
+    /// Lauf vorbereiten: Plan holen (ohne KI); kostet er mehr als ein paar Credits bzw. Anfragen, fragt die Karte
+    /// darunter vorher ("Kostet etwa 6 Credits, du hast 74"), sonst geht es gleich los
+    private func startDoc(mode: String? = nil, question: String? = nil) async {
+        guard let api = session.api, !busy, docRunner.phase != .running else { return }
+        let scope = question == nil ? TutorDocRun.scopeJSON(docScope, from: docFrom, to: docTo) : nil
+        if docRunner.phase == .confirm { docRunner.dismiss() }
+        messages.append(Message(fromUser: true, text: question ?? TutorDocRun.userLabel(mode: mode ?? "lecture", scope: docScope, from: docFrom, to: docTo)))
+        input = ""
+        busy = true
+        error = nil
+        creditsExhausted = false
+        do {
+            let plan = try await docRunner.prepare(api: api, fileID: fileID, page: page(), mode: mode, scope: scope, question: question)
+            busy = false
+            guard plan != nil else {
+                // keine Absicht erkannt: normale Frage zur Seite
+                messages.removeLast()
+                input = question ?? ""
+                await send(mode: "ask", docIntent: false)
+                return
+            }
+            if docRunner.phase == .confirm { return }
+            await runDoc()
+        } catch {
+            busy = false
+            if messages.last?.fromUser == true { messages.removeLast() }
+            input = question ?? ""
+            self.error = error.localizedDescription
+            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+        }
+    }
+
+    /// Die Teile nacheinander holen; die Bloecke erscheinen nach und nach in einer Antwort des Gespraechs
+    private func runDoc() async {
+        guard let api = session.api, docRunner.plan != nil else { return }
+        let mode = "doc_" + docRunner.mode
+        let total = docRunner.steps.count
+        messages.append(Message(fromUser: false, text: "", mode: mode, explain: TutorDocRun.marker(cached: 0, total: total)))
+        var answerID = messages[messages.count - 1].id
+        busy = true
+        error = nil
+        do {
+            try await docRunner.run(api: api, note: { studoraAccount?.noteAIResponse($0) }) { blocks, cached, total in
+                guard let i = messages.firstIndex(where: { $0.id == answerID }) else { return }
+                messages[i] = Message(fromUser: false, text: TutorDocRun.markdown(blocks), mode: mode, explain: TutorDocRun.marker(cached: cached, total: total))
+                answerID = messages[i].id
+            }
+        } catch {
+            self.error = error.localizedDescription
+            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+        }
+        // nichts angekommen (Fehler im ersten Teil): keine leere Antwort stehen lassen
+        if let i = messages.firstIndex(where: { $0.id == answerID }), messages[i].text.isEmpty { messages.remove(at: i) }
+        busy = false
+        persistConversation()
     }
 
     /// Gemerktes Gespraech laden, solange hier noch keins laeuft

@@ -443,3 +443,11 @@ Passwort will; (3) ob das WebSSO der LUH bzw. das CAS ein „Angemeldet bleiben�
 (4) Benutzername steht nach einer Anmeldung beim nächsten Mal im Feld, Autofill setzt das Passwort ein; (5) Stud.IP-,
 Learnweb- und LSF-Links aus Neuigkeiten, Ankündigungen und Modulen öffnen im Blatt, andere in Safari; (6) Download einer
 ZIP-Datei im Browser („Teilen oder sichern“).
+
+## 14. Abgeben: einzige schreibende Anfrage (05.11.2026)
+
+Seit der Entscheidung des Inhabers vom 05.11.2026 lädt das iPad auf Knopfdruck die eigene Lösung in einen Stud.IP-Ordner
+hoch (`POST folders/{id}/file-refs`, danach die Lizenz per `PATCH`). Es nutzt dieselbe Sitzung und dieselbe stille
+Erneuerung wie oben. Der Abgleich bleibt nur lesend: Er bekommt den schreibenden Transport nie
+(`StudIPWritingTransport`, `URLSessionStudIPWriter`). Ablauf, Fehler und die offenen Punkte für eine echte Prüfung
+stehen in `docs/ABGEBEN-STUDIP-2026-11-05.md`.

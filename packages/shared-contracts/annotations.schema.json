@@ -12,6 +12,10 @@
     "note": { "type": "string", "description": "freie Textnotiz zum Dokument" },
     "bookmarks": { "type": "array" },
     "outline": { "type": "array" },
+    "sideSheets": {
+      "type": "array",
+      "description": "Blatt daneben (Notizbuch der geteilten Ansicht, 05.11.2026): je Notizbuch {file, pages: {Blattseite: Seite dieses Dokuments}}, neben welcher Seite eine Blattseite zuerst beschrieben wurde; Export, Abgabe und Loesung stellen sie direkt hinter diese Seite (docs/NOTIZEN-MITSCHICKEN-2026-11-05.md)"
+    },
     "deletedPages": { "type": "array", "description": "im Web-Editor geloeschte Seiten (wiederherstellbar)" },
     "pageOrder": {
       "type": "array",

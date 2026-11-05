@@ -198,8 +198,13 @@ enum SolutionSharing {
     /// nur fuer die Vorschau (`draft`), geteilt wird nie ein Inhalt ohne eigene Notizen.
     static func content(_ source: SolutionSource, keys: [String], displayName: String, solutionID: UUID = UUID(),
                         createdAt: Date = Date(), requireOwnNotes: Bool = true) throws -> SolutionContent {
-        let srcs = Set(SolutionBuilder.imageSources(source.document, keys: keys))
         let infos = source.pageInfos
+        // gewaehlte Notizseiten bringen ihre Folie mit (05.11.2026): sonst stuende die Notiz beim Empfaenger ohne Folie
+        // ganz vorn; nur Folien, die sich teilen lassen
+        let keys = SolutionBuilder.withSlides(source.document, keys: keys) { slide in
+            SolutionBuilder.pageProblems(source.document, keys: [slide], pdfPageCount: source.pdfPageCount, pdfPage: { infos[$0] }).isEmpty
+        }
+        let srcs = Set(SolutionBuilder.imageSources(source.document, keys: keys))
         return try SolutionBuilder.build(document: source.document, selectedKeys: keys, pdfPageCount: source.pdfPageCount,
                                          pdfPage: { infos[$0] }, images: source.images.filter { srcs.contains($0.key) },
                                          fingerprint: source.fingerprint, title: source.title, displayName: displayName,

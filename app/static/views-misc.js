@@ -2,8 +2,10 @@
 import { renderWeeklyBox } from "./views-weekly.js?v=14";
 import { installCard, bindInstallBanner } from "./pwa.js?v=15";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=43";
+import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=43";
 import * as FC from "./flashcards.js?v=7";
+// KI-Karteikarten auf Auftrag (Pro AI, 04.11.2026): Dialog in flashcard-stacks-ui.js
+import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=3";
 import { mountBulletin } from "./bulletin.js?v=5";
 import { mountStudipTexts } from "./studip-texts.js?v=5";
 import { settingHtml } from "./older-semesters.js?v=2";
@@ -46,7 +48,7 @@ async function viewModule(id, view) {
     const byType = k => d.files.filter(f => (f.doc_type || "sonstiges") === k).sort((a, b) => b.chdate - a.chdate);
     const docList = fs => fs.length ? (mode === "list" ? fs.map(docRow).join("") : `<div class="doc-grid">${fs.map(docCard).join("")}</div>`) : `<div class="empty small">Nichts vorhanden.</div>`;
     const body = tab === "overview" ? `<div class="card wt-box" id="wtBox"><div class="muted small"><span class="uf-shimmer">Lade Wochentests…</span></div></div><div id="stHost"></div>` + d.weeks.map(w => `<div class="card week-block" data-w="${w.week}"><div class="wh">${icon("chevron-down", 16)}<h3>${esc(w.label)}${w.topic ? ` – ${esc(w.topic)}` : ""}</h3><span class="muted">${w.count} Dokumente</span>${w.vorlesungen.length ? `<button class="btn ghost sm ai-week" data-w="${w.week}">${icon("sparkles", 14)} Zusammenfassen</button>` : ""}</div>
-        <div class="wb">${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
+        <div class="wb">${w.week >= 1 ? `<div class="ws-host" data-w="${w.week}"></div>` : ""}${["vorlesungen", "uebungen", "loesungen", "skripte", "klausuren", "sonstiges"].filter(k => w[k].length).map(k => { const groups = {}; w[k].forEach(f => (groups[f.sub_label || { vorlesungen: "Vorlesung", uebungen: "Übung", loesungen: "Lösung", skripte: "Skript", klausuren: "Klausur", sonstiges: "Sonstiges" }[k]] ||= []).push(f)); return Object.entries(groups).map(([lab, fs]) => `<h4 style="margin:.5rem 0 .2rem">${esc(lab)}${fs.length > 1 ? ` <span class="muted" style="font-weight:400">· ${fs.length}</span>` : ""}</h4>${fs.map(docRow).join("")}`).join(""); }).join("")}</div></div>`).join("") || `<div class="card empty">Keine Dokumente.</div>`
       : tab === "notes" ? `<div class="card">${docList(d.notes)}</div>`
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
@@ -66,6 +68,8 @@ async function viewModule(id, view) {
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
     if ($("#stHost", view)) mountStudipTexts($("#stHost", view), id, api);   // Courseware, Wiki, Forum (Blubber) aus Stud.IP
+    // Fertige Fragen je Lehrwoche (Pro AI, Bibliothek des Dienstes): week-sets.js
+    if ($(".ws-host", view)) import("./week-sets.js?v=3").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
   };
   render();
 }
@@ -91,7 +95,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=65"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=66"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -155,7 +159,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=65"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=66"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -227,7 +231,7 @@ export async function viewCards(_, __, view) {
   // und "…" mit Bearbeiten, Teilen und Löschen. Free (nur lesen): "Ansehen" statt "Üben", kein Menue.
   const MORE = `<svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>`;
   const shareBtn = s => ro || !shareAvail || !(s.shared_id || FC.canShare(s)) ? "" : s.shared_id
-    ? `<button type="button" role="menuitem" data-unshare="${s.id}">${icon("users", 15)} Teilen zurückziehen</button>`
+    ? `<button type="button" role="menuitem" data-reshare="${s.id}">${icon("refresh", 15)} Geteilte Kopie aktualisieren</button><button type="button" role="menuitem" data-unshare="${s.id}">${icon("users", 15)} Teilen zurückziehen</button>`
     : `<button type="button" role="menuitem" data-share="${s.id}">${icon("users", 15)} Stapel teilen</button>`;
   const menuItems = s => ro ? "" : `<button type="button" role="menuitem" data-stedit="${s.id}">${icon("pen", 15)} Bearbeiten</button>${shareBtn(s)}<button type="button" role="menuitem" class="danger" data-stdel="${s.id}">${icon("trash", 15)} Löschen</button>`;
   const stackMenu = s => ro ? "" : `<div class="fc-menu"><button type="button" class="btn fc-more" data-menu="${s.id}" aria-haspopup="menu" aria-expanded="false" aria-controls="fcm${s.id}" title="Weitere Aktionen" aria-label="Weitere Aktionen: ${esc(s.name)}">${MORE}</button>
@@ -243,7 +247,7 @@ export async function viewCards(_, __, view) {
       <div class="fc-tile-go">${ro ? `<a href="#" class="btn fc-go" data-open="${s.id}" aria-label="Ansehen: ${esc(s.name)}">${icon("eye", 18)} Ansehen</a>` : `<button type="button" class="btn primary fc-go" data-play="${s.id}" ${n ? "" : "disabled"} aria-label="Üben: ${esc(s.name)}, ${esc(FC.practiceLine(due))}">${icon("play", 18)} Üben</button>`}${stackMenu(s)}</div>
       <div class="muted small fc-tile-foot">${ro ? esc(FC.stackLine(s, fmtDate).split(" · ").slice(-1)[0]) : esc(n ? FC.practiceLine(due) : "Noch keine Karte im Stapel")}</div></article>`; };
   const stackList = () => { const tot = FC.stackTotals(stacks), segs = FC.weekSegments(weeksAll(), cardsWeek);
-    return `${lockHint()}<div class="card fc-sum"><div class="fc-sum-due"><b>${dueAll.length}</b><span>heute fällig</span></div><span class="fc-sum-sep" aria-hidden="true"></span><span class="muted">${tot.stacks} ${tot.stacks === 1 ? "Stapel" : "Stapel"} · ${tot.cards} ${tot.cards === 1 ? "Karte" : "Karten"}</span><span class="spacer"></span>${ro ? "" : modules.length ? `<button class="btn" id="wkFetch">${icon("download", 15)} Karten für eine Woche holen …</button>` : ""}</div>
+    return `${lockHint()}<div class="card fc-sum"><div class="fc-sum-due"><b>${dueAll.length}</b><span>heute fällig</span></div><span class="fc-sum-sep" aria-hidden="true"></span><span class="muted">${tot.stacks} ${tot.stacks === 1 ? "Stapel" : "Stapel"} · ${tot.cards} ${tot.cards === 1 ? "Karte" : "Karten"}</span><span class="spacer"></span>${ro ? "" : modules.length ? `<button class="btn" id="aiOrder">${can("can_use_ai_generated_questions") ? icon("sparkles", 15) : lockIcon(15)} KI-Karteikarten</button><button class="btn" id="wkFetch">${icon("download", 15)} Karten für eine Woche holen …</button>` : ""}</div>
     ${weeksAll().length ? `<div class="seg fc-weekseg" role="radiogroup" aria-label="Lehrwoche">${segs.map(x => `<button type="button" class="${x.on ? "active" : ""}" role="radio" aria-checked="${x.on}" data-week="${x.value === null ? "" : x.value}">${x.label}</button>`).join("")}</div>` : ""}
     ${stacks.length ? (FC.groupStacks(FC.filterStacks(stacks, cardsWeek), modules).map(g => `<section class="fc-sec" aria-label="${esc(g.title)}"><div class="fc-group"><span class="dot" style="background:${g.color || "var(--line-strong)"}"></span><h2>${esc(g.title)}</h2><span class="fc-count-b">${g.stacks.length}</span><span class="spacer"></span>${weekActions(g)}</div><div class="fc-tiles">${g.stacks.map(stackTile).join("")}</div></section>`).join("") || `<div class="card empty small">Kein Stapel in dieser Woche.</div>`)
       : `<div class="card empty">${icon("cards", 32)}<div>${ro ? "Noch keine Karten." : "Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste, hole die gemeinsamen Karten einer Woche oder lege einen Stapel an."}</div></div>`}${sharedList()}`; };
@@ -454,6 +458,8 @@ export async function viewCards(_, __, view) {
       $$("[data-stedit]", view).forEach(b => b.onclick = () => stackDialog(stacks.find(x => x.id === +b.dataset.stedit)));
       $$("[data-stdel]", view).forEach(b => b.onclick = () => stackDeleteDialog(stacks.find(x => x.id === +b.dataset.stdel)));
       $("#wkFetch", view)?.addEventListener("click", () => weekFetchDialog(modules[0]?.id, cardsWeek > 0 ? cardsWeek : null));
+      $("#aiOrder", view)?.addEventListener("click", () => openAiDialog({ modules, stacks, preset: { week: cardsWeek > 0 ? cardsWeek : undefined } }, () => reload().catch(e => toast(e.message, 4000))));
+      $$("[data-reshare]", view).forEach(b => b.onclick = () => { const s = stacks.find(x => x.id === +b.dataset.reshare); if (s) attempt("Geteilte Kopie aktualisieren", async () => { const r = await api(`/flashcard-stacks/${s.id}/share`, { method: "PUT" }); toast(`Geteilte Kopie aktualisiert: ${r.cards} ${r.cards === 1 ? "Karte" : "Karten"}`); await reload(); }); });
       $$("[data-weekfetch]", view).forEach(b => b.onclick = () => weekFetchDialog(+b.dataset.weekfetch, cardsWeek));
       $$("[data-weekplay]", view).forEach(b => b.onclick = () => { const m = modules.find(x => x.id === +b.dataset.weekplay); if (!m) return;
         trainerTitle = `${m.name} · Woche ${cardsWeek} komplett`; trainer.start(FC.weekCompleteCards(all, stacks, m.name, cardsWeek)); render(); });
@@ -580,7 +586,7 @@ export async function viewCommunity(_, params, view) {
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=7")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=10")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
