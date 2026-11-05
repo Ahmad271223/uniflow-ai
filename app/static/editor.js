@@ -20,6 +20,11 @@ function loadScript(src) { return new Promise((res, rej) => { if ($(`script[src=
 import { IDB, notesQueue, isOfflineResponse } from "./notes-queue.js?v=1";
 // KI fuer das ganze Dokument (05.11.2026, docs/KI-GANZES-DOKUMENT-2026-11-05.md)
 import { SCOPES, CHIPS, scopeBody, docModeFor, progressText, storedNote, needsConfirm, blockHtml, stepBody } from "./doc-explain-logic.js?v=1";
+// Formerkennung nach Halten (05.11.2026, wie ShapeRecognizer.swift): Linie, Rechteck, Ellipse, Dreieck, Pfeil
+import { holdNote, heldStill, snapStroke, snapEnabled, setSnapEnabled } from "./editor-shapes.js?v=1";
+// KI-Hilfe als Gespraech mit drei farbigen Reitern (05.11.2026, wie TutorPanel.swift) und "Als Karteikarte" aus markiertem Text
+import { createAiPanel } from "./ai-panel.js?v=1";
+import { openCardDialog } from "./editor-card.js?v=1";
 export { IDB };
 const Thumbs = { get: k => IDB.get("thumbs", k).catch(() => null), put: v => IDB.put("thumbs", v).catch(() => {}), del: k => IDB.del("thumbs", k).catch(() => {}) };
 
@@ -229,18 +234,7 @@ export class PdfEditor {
       <div class="ed-body">
         <aside class="ed-side"><div class="ed-side-head"><div class="seg"><button data-side="pages" class="active" title="Seiten">${icon("file")}</button><button data-side="outline" title="Gliederung">${icon("list")}</button><button data-side="rec" title="Aufnahmen">${icon("sync")}</button></div><button class="ed-side-close" title="Schließen">${icon("x", 16)}</button></div><div class="ed-side-body"></div></aside>
         <div class="ed-scroll" tabindex="0"><div class="ed-pages"></div></div>
-        <aside class="ed-ai" hidden>
-          <div class="ed-ai-head"><strong>${icon("sparkles", 16)} KI-Tutor</strong><span class="ed-ai-page"></span><button class="ed-ai-close">${icon("x", 16)}</button></div>
-          <label>Modus<select class="ed-ai-mode"><option value="explain">Markiertes erklären</option><option value="explain_simple">Einfach erklären</option><option value="summary">Seite zusammenfassen</option><option value="terms">Fachbegriffe definieren</option><option value="steps">Aufgabe schrittweise lösen</option><option value="hints">Nur Hinweise geben</option><option value="check">Meine Lösung prüfen</option><option value="similar">Ähnliche Aufgabe erstellen</option><option value="flashcards">Karteikarten erstellen</option><option value="quiz">Quizfragen erstellen</option></select></label>
-          <label>Umfang<select class="ed-ai-scope">${SCOPES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label>
-          <div class="ed-ai-range small" hidden>Seiten <input class="ed-ai-from" type="number" min="1" value="1"> bis <input class="ed-ai-to" type="number" min="1" value="1"></div>
-          <div class="ed-ai-chips">${CHIPS.map(([m, t]) => `<button class="btn sm ed-ai-doc" data-doc="${m}">${icon("sparkles", 14)} ${t}</button>`).join("")}</div>
-          <label>Markierter Text <small>(Werkzeug ¶ oder einfügen)</small><textarea class="ed-ai-sel" rows="3"></textarea></label>
-          <label class="ed-ai-own-wrap" hidden>Meine Lösung<textarea class="ed-ai-own" rows="4"></textarea></label>
-          <label>Frage (optional)<input class="ed-ai-q"></label>
-          <label class="small"><input type="checkbox" class="ed-ai-ctx" checked> Aktuelle Seite als Kontext mitgeben</label>
-          <button class="btn primary ed-ai-go">Fragen</button><div class="ed-ai-out"></div>
-        </aside>
+        <aside class="ed-ai" hidden aria-label="KI-Hilfe"></aside>
         <aside class="ed-com" hidden></aside>
       </div>
       <div class="ed-zoomwin" hidden><div class="ed-zw-head"><b>Zoom-Ansicht</b><span class="muted small">Schreibe hier, der Text erscheint an der markierten Stelle der Seite.</span><span class="spacer"></span><button data-zw="left" title="Nach links">${icon("chevron-left", 14)}</button><button data-zw="right" title="Nach rechts">${icon("chevron-right", 14)}</button><button data-zw="down" title="Nächste Zeile">${icon("chevron-down", 14)}</button><button data-zw="close">${icon("x", 14)}</button></div><div class="ed-zw-body"><canvas class="ed-zw-canvas"></canvas></div></div>
@@ -252,11 +246,7 @@ export class PdfEditor {
     $$("[data-side]", this.c).forEach(b => b.onclick = () => { this.sideTab = b.dataset.side; $$("[data-side]", this.c).forEach(x => x.classList.toggle("active", x === b)); this.renderSide(); });
     $(".ed-side-close", this.c).onclick = () => this.toggleSide(false);
     $(".ed-pageno", this.c).onchange = e => this.goToPage(+e.target.value - 1);
-    $(".ed-ai-close", this.c).onclick = () => $(".ed-ai", this.c).hidden = true;
-    $(".ed-ai-go", this.c).onclick = () => this.askAI();
-    $(".ed-ai-mode", this.c).onchange = e => { $(".ed-ai-own-wrap", this.c).hidden = e.target.value !== "check"; };
-    $(".ed-ai-scope", this.c).onchange = e => { $(".ed-ai-range", this.c).hidden = e.target.value !== "range"; };
-    $$(".ed-ai-doc", this.c).forEach(b => b.onclick = () => this.docRun(b.dataset.doc));
+    this.ai = createAiPanel(this, { $, $$, icon, esc, md, uid });
     $$("[data-zw]", this.c).forEach(b => b.onclick = () => this.zoomWinAction(b.dataset.zw));
     this.scroll.addEventListener("scroll", () => {
       if (this.destroyed) return;                    // Browser liefert ein vorgemerktes Scroll-Ereignis evtl. erst nach dem Schliessen
@@ -361,7 +351,7 @@ export class PdfEditor {
   renderCtx() {
     const t = this.tool; let html = "";
     const sw = (cur, attr) => `<span class="ed-swatches">${SWATCHES.map(c => `<button class="ed-sw ${cur === c ? "on" : ""}" data-${attr}="${c}" style="background:${c}" title="${c}"></button>`).join("")}<label class="ed-sw custom" title="Eigene Farbe"><input type="color" data-${attr}-custom value="${cur}"></label></span>`;
-    if (t === "pen") html = `<span class="ed-group">${[["pen", "pen", "Kugelschreiber"], ["fountain", "fountain", "Füller"], ["pencil", "pencil", "Bleistift"], ["marker", "highlighter", "Textmarker"]].map(([k, i, n]) => `<button class="${this.penType === k ? "active" : ""}" data-pen="${k}" title="${n}">${icon(i)}</button>`).join("")}</span><span class="ed-group ed-widths">${WIDTHS.map(w => `<button class="ed-w ${Math.abs(this.width - w) < 0.01 ? "on" : ""}" data-w="${w}" title="${w} px"><i style="height:${Math.min(12, 2 + w * 1.6)}px"></i></button>`).join("")}<label title="Strichstärke"><input type="range" class="ed-width" min="0.5" max="40" step="0.5" value="${this.width}"></label>${this.penType === "marker" ? `<label title="Deckkraft">${icon("circle", 12)}<input type="range" class="ed-opacity" min="0.1" max="1" step="0.05" value="${this.opacity}"></label>` : ""}</span>${sw(this.color, "color")}`;
+    if (t === "pen") html = `<span class="ed-group">${[["pen", "pen", "Kugelschreiber"], ["fountain", "fountain", "Füller"], ["pencil", "pencil", "Bleistift"], ["marker", "highlighter", "Textmarker"]].map(([k, i, n]) => `<button class="${this.penType === k ? "active" : ""}" data-pen="${k}" title="${n}">${icon(i)}</button>`).join("")}</span><span class="ed-group ed-widths">${WIDTHS.map(w => `<button class="ed-w ${Math.abs(this.width - w) < 0.01 ? "on" : ""}" data-w="${w}" title="${w} px"><i style="height:${Math.min(12, 2 + w * 1.6)}px"></i></button>`).join("")}<label title="Strichstärke"><input type="range" class="ed-width" min="0.5" max="40" step="0.5" value="${this.width}"></label>${this.penType === "marker" ? `<label title="Deckkraft">${icon("circle", 12)}<input type="range" class="ed-opacity" min="0.1" max="1" step="0.05" value="${this.opacity}"></label>` : ""}</span><span class="ed-group"><button class="${snapEnabled() ? "active" : ""}" data-snap aria-pressed="${snapEnabled()}" title="Formen einrasten: Linie, Rechteck, Kreis, Dreieck oder Pfeil zeichnen und den Stift kurz still halten">${icon("triangle")}<span class="ed-snap-t"> Formen</span></button></span>${sw(this.color, "color")}`;
     else if (t === "eraser") html = `<span class="ed-group">${[[10, "Klein"], [18, "Mittel"], [34, "Groß"]].map(([s, n]) => `<button class="${this.eraserSize === s ? "active" : ""}" data-esize="${s}" title="${n}"><i class="ed-edot" style="width:${s / 2 + 6}px;height:${s / 2 + 6}px"></i></button>`).join("")}</span><span class="ed-group"><div class="seg"><button class="${this.eraserMode === "partial" ? "active" : ""}" data-emode="partial">Teilweise</button><button class="${this.eraserMode === "whole" ? "active" : ""}" data-emode="whole">Ganzer Strich</button><button class="${this.eraserMode === "object" ? "active" : ""}" data-emode="object">Objekte</button></div></span><span class="muted small">Radiert nur deine Notizen, nie das Original-PDF.</span>`;
     else if (t === "text" || (this.selection.length && this.selection.some(s => s.node.getAttr("obj").type === "text"))) {
       const st = this.selText() || this.textStyle;
@@ -370,9 +360,10 @@ export class PdfEditor {
     else if (t === "lasso") { const s = this.selection[0]?.node.getAttr("obj"); html = this.selection.length ? `<span class="ed-group"><span class="small muted">${this.selection.length} ausgewählt</span><button data-act="duplicate" title="Duplizieren">${icon("copy")}</button><button data-act="copy" title="Kopieren">${icon("copy")}</button><button data-act="cut" title="Ausschneiden">${icon("eraser")}</button><button data-act="delete" title="Löschen">${icon("trash")}</button></span>${s && (s.type === "stroke" || s.type === "shape") ? `<span class="ed-group"><label>${icon("pen", 12)}<input type="range" class="ed-width" min="0.5" max="40" step="0.5" value="${s.width || s.strokeWidth || 2}"></label><label>${icon("circle", 12)}<input type="range" class="ed-opacity" min="0.1" max="1" step="0.05" value="${s.opacity ?? 1}"></label></span>${sw(s.color || s.stroke, "color")}` : ""}` : `<span class="muted small">Umkreise Notizen mit dem Lasso oder ziehe ein Rechteck. Dann verschieben, skalieren, drehen, kopieren.</span>`; }
     else if (t === "image") html = `<span class="muted small">Klicke auf die Seite, um ein Bild einzufügen, oder füge einen Screenshot mit Strg+V ein.</span><button data-act="image">${icon("image")} Bild wählen</button>`;
     else if (t === "sticky") html = `<span class="muted small">Klicke auf die Seite, um eine Haftnotiz zu platzieren.</span>${sw(this.stickyColor || "#fff7a8", "sticky")}`;
-    else if (t === "textselect") html = `<span class="muted small">Ziehe ein Rechteck über PDF-Text: markieren, unterstreichen, durchstreichen, kopieren oder an den KI-Tutor.</span>`;
+    else if (t === "textselect") html = `<span class="muted small">Ziehe ein Rechteck über PDF-Text: markieren, unterstreichen, durchstreichen, kopieren, als Karteikarte speichern oder an die KI-Hilfe schicken.</span>`;
     else if (t === "hand") html = `<span class="muted small">Ziehen zum Verschieben, Strg+Mausrad oder zwei Finger zum Zoomen.</span>`;
     this.ctx.innerHTML = html;
+    $("[data-snap]", this.ctx)?.addEventListener("click", () => { setSnapEnabled(!snapEnabled()); this.onStatus?.(snapEnabled() ? "Formen einrasten: an – Form zeichnen und den Stift kurz still halten" : "Formen einrasten: aus"); this.renderCtx(); });
     $$("[data-pen]", this.ctx).forEach(b => b.onclick = () => { this.penType = b.dataset.pen; const d = PEN_DEFAULTS[this.penType]; this.width = d.width; this.opacity = d.opacity; this.renderCtx(); });
     $$("[data-w]", this.ctx).forEach(b => b.onclick = () => { this.width = +b.dataset.w; this.applyToSelection({ width: this.width, strokeWidth: this.width }); this.renderCtx(); });
     $$("[data-color]", this.ctx).forEach(b => b.onclick = () => { this.color = b.dataset.color; this.applyToSelection({ color: this.color, stroke: this.color }); this.renderCtx(); });
@@ -660,10 +651,14 @@ export class PdfEditor {
   liveClear(d) { const { cv, ctx } = d; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.restore(); }
   widthAt(d, pr) { return d.widths?.length ? d.widths[d.widths.length - 1] : (d.tool === "fountain" ? this.width * (0.5 + pr) : this.width); }
   strokeBegin(pg, p, pressure = 0.5) { if (this.ruler && this.ruler.pg === pg) { const pr = this.rulerProject(p); if (pr) { p = pr; this._rulerStroke = true; } else this._rulerStroke = false; } const t = this.penType; if (this._livePg && this._livePg !== pg) this.releaseLiveCanvases(this._livePg); this._livePg = pg; const { cv, ctx, dpr } = this.liveCtx(pg); const d = { dpr, tool: t, pts: [p.x, p.y], pressures: [pressure], widths: [], cv, ctx, pg, t0: performance.now(), tl: performance.now(), pred: null }; d.widths.push(this.penWidth(d, pressure, 0, null)); this.liveClear(d); const pc = this.liveCtx(pg, ".ed-predict"); d.pcv = pc.cv; d.pctx = pc.ctx; pc.ctx.save(); pc.ctx.setTransform(1, 0, 0, 1, 0, 0); pc.ctx.clearRect(0, 0, pc.cv.width, pc.cv.height); pc.ctx.restore(); ctx.strokeStyle = this.color; ctx.fillStyle = this.color; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalAlpha = this.opacity; ctx.globalCompositeOperation = t === "marker" ? "multiply" : "source-over"; ctx.setLineDash(t === "pencil" ? [1.5, 1.2] : []); ctx.beginPath(); ctx.arc(p.x, p.y, this.widthAt(d, pressure) / 2, 0, Math.PI * 2); ctx.fill(); return d; }
-  strokeMove(pg, d, p, pressure = 0.5, ev = null) { if (this._rulerStroke) { const pr = this.rulerProject(p, true); if (pr) p = pr; } const pts = d.pts; const lx = pts[pts.length - 2], ly = pts[pts.length - 1]; d.raw = p; if (!this._rulerStroke && d.tool !== "marker") p = { x: lx + (p.x - lx) * 0.6, y: ly + (p.y - ly) * 0.6 };   // Zittern glaetten
+  strokeMove(pg, d, p, pressure = 0.5, ev = null) { if (this._rulerStroke) { const pr = this.rulerProject(p, true); if (pr) p = pr; } const pts = d.pts; const lx = pts[pts.length - 2], ly = pts[pts.length - 1]; d.raw = p; d.hold = holdNote(d.hold, p.x, p.y, ev?.timeStamp || performance.now()); if (!this._rulerStroke && d.tool !== "marker") p = { x: lx + (p.x - lx) * 0.6, y: ly + (p.y - ly) * 0.6 };   // Zittern glaetten
     const dist = Math.hypot(p.x - lx, p.y - ly); if (dist < 0.35 / this.zoom) return; const now = ev?.timeStamp || performance.now(); const dt = Math.max(1, now - d.tl); d.tl = now; const w = this.penWidth(d, pressure, dist / dt, ev); pts.push(p.x, p.y); d.pressures.push(pressure); d.widths.push(w); const ctx = d.ctx; const n = pts.length; if (this.opacity < 1) { this.liveClear(d); ctx.lineWidth = Math.max(0.3, d.widths.reduce((a, b) => a + b, 0) / d.widths.length); ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < n - 2; i += 2) ctx.quadraticCurveTo(pts[i], pts[i + 1], (pts[i] + pts[i + 2]) / 2, (pts[i + 1] + pts[i + 3]) / 2); ctx.lineTo(pts[n - 2], pts[n - 1]); ctx.stroke(); return; } ctx.lineWidth = Math.max(0.3, (d.widths[d.widths.length - 2] + w) / 2); ctx.beginPath(); if (n >= 6) { const [x0, y0, x1, y1, x2, y2] = pts.slice(-6); ctx.moveTo((x0 + x1) / 2, (y0 + y1) / 2); ctx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2); } else { ctx.moveTo(pts[0], pts[1]); ctx.lineTo((pts[0] + pts[2]) / 2, (pts[1] + pts[3]) / 2); } ctx.stroke(); }
   strokePredict(d, preds) { const c = d.pctx; if (!c) return; const k = this.zoom * (d.dpr || DPR()); if (d.pred) { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(d.pred.x * k - 8, d.pred.y * k - 8, d.pred.w * k + 16, d.pred.h * k + 16); c.restore(); d.pred = null; } const pts = d.pts, n = pts.length; if (n < 4 || this.opacity < 1) return; const lx = pts[n - 2], ly = pts[n - 1]; const mx = (pts[n - 4] + lx) / 2, my = (pts[n - 3] + ly) / 2; let minX = Math.min(mx, lx), minY = Math.min(my, ly), maxX = Math.max(mx, lx), maxY = Math.max(my, ly); c.strokeStyle = this.color; c.globalAlpha = this.opacity; c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([]); c.lineWidth = Math.max(0.3, d.widths[d.widths.length - 1] || this.width); c.beginPath(); c.moveTo(mx, my); c.lineTo(lx, ly); for (const q of preds) { c.lineTo(q.x, q.y); minX = Math.min(minX, q.x); minY = Math.min(minY, q.y); maxX = Math.max(maxX, q.x); maxY = Math.max(maxY, q.y); } c.stroke(); const pad = c.lineWidth; d.pred = { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad }; }
-  strokeEnd(pg, d) { if (d.raw && d.pts.length >= 2 && d.tool !== "marker" && !this._rulerStroke) { const n = d.pts.length; if (Math.hypot(d.raw.x - d.pts[n - 2], d.raw.y - d.pts[n - 1]) > 0.3 / this.zoom) { d.pts.push(d.raw.x, d.raw.y); d.widths.push(d.widths[d.widths.length - 1]); d.pressures.push(d.pressures[d.pressures.length - 1]); } } let pts = d.pts; let widths = d.widths.slice(); if (pts.length < 2) { this.clearLive(d); return; } if (pts.length === 2) { pts = [pts[0], pts[1], pts[0] + 0.05, pts[1] + 0.05]; widths = [widths[0], widths[0]]; } const avg = d.pressures.reduce((a, b) => a + b, 0) / d.pressures.length; const w = widths.length ? widths.reduce((a, b) => a + b, 0) / widths.length : (d.tool === "fountain" ? this.width * (0.5 + avg) : this.width); const o = { id: uid(), type: "stroke", tool: d.tool, color: this.color, width: Math.round(w * 100) / 100, opacity: this.opacity, points: pts.map(v => Math.round(v * 100) / 100), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }; if (d.tool !== "marker" && widths.length * 2 === pts.length && Math.max(...widths) - Math.min(...widths) > 0.05) o.widths = widths.map(v => Math.round(v * 100) / 100); this.model.pages[pg.key].objects.push(o); const node = this.addNode(pg, o); try { node.draw(); } catch { pg.layer.batchDraw(); } this.clearLive(d); this.history.push({ key: pg.key, id: o.id, addJson: JSON.stringify(o) }); if (this.history.length > 150) this.history.shift(); this.future = []; this.markDirty(); this._lastInkAt = Date.now(); this._lastInkPage = pg.key; this.onInk?.(); this.zoomWinRefresh(); }
+  strokeEnd(pg, d) { if (d.raw && d.pts.length >= 2 && d.tool !== "marker" && !this._rulerStroke) { const n = d.pts.length; if (Math.hypot(d.raw.x - d.pts[n - 2], d.raw.y - d.pts[n - 1]) > 0.3 / this.zoom) { d.pts.push(d.raw.x, d.raw.y); d.widths.push(d.widths[d.widths.length - 1]); d.pressures.push(d.pressures[d.pressures.length - 1]); } } let pts = d.pts; let widths = d.widths.slice(); if (pts.length < 2) { this.clearLive(d); return; } if (pts.length === 2) { pts = [pts[0], pts[1], pts[0] + 0.05, pts[1] + 0.05]; widths = [widths[0], widths[0]]; } const avg = d.pressures.reduce((a, b) => a + b, 0) / d.pressures.length; const w = widths.length ? widths.reduce((a, b) => a + b, 0) / widths.length : (d.tool === "fountain" ? this.width * (0.5 + avg) : this.width); const o = { id: uid(), type: "stroke", tool: d.tool, color: this.color, width: Math.round(w * 100) / 100, opacity: this.opacity, points: pts.map(v => Math.round(v * 100) / 100), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }; if (d.tool !== "marker" && widths.length * 2 === pts.length && Math.max(...widths) - Math.min(...widths) > 0.05) o.widths = widths.map(v => Math.round(v * 100) / 100);
+    // Formerkennung: Stift am Ende still -> der Strich wird zur idealen Form (bleibt ein Strich, ein Schritt im Verlauf)
+    const snapped = !this._rulerStroke && snapEnabled() && heldStill(d.hold, performance.now()) ? snapStroke(pts, true) : null;
+    if (snapped) { o.points = snapped.points; delete o.widths; this.onStatus?.(`Form erkannt: ${snapped.label}`); }
+    this.model.pages[pg.key].objects.push(o); const node = this.addNode(pg, o); try { node.draw(); } catch { pg.layer.batchDraw(); } this.clearLive(d); this.history.push({ key: pg.key, id: o.id, addJson: JSON.stringify(o) }); if (this.history.length > 150) this.history.shift(); this.future = []; this.markDirty(); this._lastInkAt = Date.now(); this._lastInkPage = pg.key; this.onInk?.(); this.zoomWinRefresh(); }
 
   bindStage(pg) {
     const st = pg.stage; let drawing = null, lasso = null, shape = null, marquee = null, tsel = null;
@@ -899,7 +894,7 @@ export class PdfEditor {
       peninput: () => { this._penManual = true; this.penInput = this.penInput === "pen_only" ? "all" : "pen_only"; this.updatePenInputBtn(); this.onStatus(this.penInput === "pen_only" ? "Nur Stift schreibt – Finger scrollt und zoomt" : "Finger darf schreiben"); fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pen_input: this.penInput }) }).catch(() => {}); },
       side: () => this.toggleSide(), undo: () => (this.delegate?.() || this).undo(), redo: () => (this.delegate?.() || this).redo(), delete: () => this.deleteSelection(), duplicate: () => this.duplicateSelection(), copy: () => { this.copySelection(); this.onStatus("Kopiert"); }, cut: () => { this.copySelection(); this.deleteSelection(); },
       zoomin: () => this.zoomTo(this.zoom * 1.2), zoomout: () => this.zoomTo(this.zoom / 1.2), fit: () => this.fitWidth(), fullscreen: () => this.toggleFullscreen(), prev: () => this.goToPage(this.currentPage - 1), next: () => this.goToPage(this.currentPage + 1),
-      ai: () => { const p = $(".ed-ai", this.c); p.hidden = !p.hidden; if (!p.hidden) this.community?.toggle(false); },
+      ai: () => { const p = $(".ed-ai", this.c); p.hidden = !p.hidden; if (!p.hidden) { this.community?.toggle(false); this.ai.updateFooter(); } },
       community: () => { if (this.community) this.community.toggle(); else this.onStatus("Community lädt …"); }, nobg: () => this.setTextStyle({ bg: "" }), nofill: () => { this.shapeFill = ""; this.applyToSelection({ fill: "" }); this.renderCtx(); },
       image: () => { const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.onchange = () => this.insertImageFile(inp.files[0]); inp.click(); },
       search: () => this.searchPop(btn), addpage: () => this.addPagePop(btn), export: () => this.exportPop(btn), more: () => this.morePop(btn), accessories: () => this.accessoriesPop(btn),
@@ -947,7 +942,7 @@ export class PdfEditor {
   accessoriesPop(btn) { this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Zubehör</div><button data-ac="record">${icon("circle", 16)} ${this.recorder ? "Aufnahme stoppen" : "Aufnehmen"}</button><button data-ac="recs">${icon("sync", 16)} Aufnahmen anzeigen</button><button data-ac="zoomwin">${icon("zoom-in", 16)} Zoom-Ansicht ${this.zoomWin ? "(aus)" : ""}</button><button data-ac="ruler">${icon("line", 16)} Lineal ${this.ruler ? "(aus)" : ""}</button><button data-ac="timer">${icon("clock", 16)} Zeitmesser</button><div class="ed-menu-sub"></div><button data-ac="toolbar">${icon("settings", 16)} Werkzeugleiste anpassen</button></div>`); $$("[data-ac]", this.pop).forEach(b => b.onclick = () => { const k = b.dataset.ac; if (k !== "toolbar") this.pop.hidden = true; if (k === "record") this.toggleRecording(); if (k === "recs") { this.sideTab = "rec"; $$("[data-side]", this.c).forEach(x => x.classList.toggle("active", x.dataset.side === "rec")); this.toggleSide(true); } if (k === "zoomwin") this.toggleZoomWin(); if (k === "ruler") this.toggleRuler(); if (k === "timer") this.onAccessory("timer"); if (k === "toolbar") this.toolbarPop(btn); }); }
 
   // ---------------------------------------------------------------- Navigation, Zoom, Vollbild
-  setCurrent(pg) { if (this.destroyed) return; const i = this.pages.indexOf(pg); if (i >= 0 && i !== this.currentPage) { this.currentPage = i; $(".ed-pageno", this.c).value = i + 1; $$(".ed-thumb", this.c).forEach(t => t.classList.toggle("active", +t.dataset.i === i)); $(".ed-ai-page", this.c).textContent = `Seite ${i + 1}`; this.onPage(i + 1); if (this.ruler) this.showRuler(pg); if (this.zoomWin) this.zoomWinSetPage(pg); } }
+  setCurrent(pg) { if (this.destroyed) return; const i = this.pages.indexOf(pg); if (i >= 0 && i !== this.currentPage) { this.currentPage = i; $(".ed-pageno", this.c).value = i + 1; $$(".ed-thumb", this.c).forEach(t => t.classList.toggle("active", +t.dataset.i === i)); $(".ed-ai-page", this.c).textContent = `Seite ${i + 1}`; this.ai?.pageChanged(); this.onPage(i + 1); if (this.ruler) this.showRuler(pg); if (this.zoomWin) this.zoomWinSetPage(pg); } }
   onScroll() { if (this.prefs.single) return; const horiz = this.prefs.scroll === "horizontal"; const mid = horiz ? this.scroll.scrollLeft + this.scroll.clientWidth / 2 : this.scroll.scrollTop + this.scroll.clientHeight / 3; let best = 0; for (let i = 0; i < this.pages.length; i++) { const el = this.pages[i].el; if ((horiz ? el.offsetLeft : el.offsetTop) <= mid) best = i; else break; } this.setCurrent(this.pages[best]); }
   goToPage(i) { if (this.destroyed || !this.pages.length) return; i = clamp(i, 0, this.pages.length - 1); if (this.prefs.single) { this.currentPage = i; this.showSingle(); this.setCurrent(this.pages[i]); $(".ed-pageno", this.c).value = i + 1; return; } const el = this.pages[i].el; this.prefs.scroll === "horizontal" ? this.scroll.scrollTo({ left: el.offsetLeft - 12, behavior: "smooth" }) : this.scroll.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" }); this.setCurrent(this.pages[i]); }
   zoomTo(z, anchor) { z = clamp(z, 0.3, 6); const old = this.zoom; if (Math.abs(z - old) < 0.001) return; const sr = this.scroll.getBoundingClientRect(); const a = anchor || { x: this.scroll.clientWidth / 2, y: this.scroll.clientHeight / 2 }; const ax = sr.left + a.x, ay = sr.top + a.y; let ref = null; for (const pg of this.pages) { const r = pg.el.getBoundingClientRect(); if (r.width && ay >= r.top - 30 && ay <= r.bottom + 30) { ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; break; } } if (!ref) { const pg = this.pages[this.currentPage] || this.pages[0]; const r = pg.el.getBoundingClientRect(); ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; } this.zoom = z; this.model.zoom = z; this.applyZoomSizes(); this.updateZoomLabel(); const r2 = ref.pg.el.getBoundingClientRect(); this.scroll.scrollLeft += (r2.left + ref.px * z) - ax; this.scroll.scrollTop += (r2.top + ref.py * z) - ay; this.dirty = true; clearTimeout(this._zs); this._zs = setTimeout(() => this.flush(), 2500); if (this.ruler) this.showRuler(this.pages[this.currentPage]); if (!this.pinch && !this._pinchCommit) this.clampView(); }
@@ -1011,12 +1006,13 @@ export class PdfEditor {
     const c0 = this._markColor || colors[0];
     this.showPop(anchor, `<div class="ed-mk"><div class="row" style="gap:.25rem">${colors.map(c => `<button class="ed-mk-c${c === c0 ? " active" : ""}" data-mkc="${c}" style="background:${c}" title="Farbe"></button>`).join("")}</div>
       <button data-mk="highlight">${icon("highlighter", 15)} Markieren</button><button data-mk="underline"><u>U</u> Unterstreichen</button><button data-mk="strike"><s>S</s> Durchstreichen</button>
-      <button data-mk="copy">${icon("copy", 15)} Kopieren</button><button data-mk="ai">${icon("sparkles", 15)} An den KI-Tutor</button></div>`);
+      <button data-mk="copy">${icon("copy", 15)} Kopieren</button><button data-mk="card">${icon("cards", 15)} Als Karteikarte</button><button data-mk="ai">${icon("sparkles", 15)} An die KI-Hilfe</button></div>`);
     $$("[data-mkc]", this.pop).forEach(b => b.onclick = () => { this._markColor = b.dataset.mkc; $$("[data-mkc]", this.pop).forEach(x => x.classList.toggle("active", x === b)); });
     $$("[data-mk]", this.pop).forEach(b => b.onclick = async () => {
       const k = b.dataset.mk; this.pop.hidden = true;
       if (k === "copy") { try { await navigator.clipboard.writeText(text); this.onStatus("Text kopiert"); } catch { this.onStatus("Kopieren nicht erlaubt"); } return; }
-      if (k === "ai") { $(".ed-ai", this.c).hidden = false; this.community?.toggle(false); $(".ed-ai-sel", this.c).value = text; this.onStatus("Text übernommen – Modus wählen und Fragen"); return; }
+      if (k === "ai") { this.community?.toggle(false); this.ai.sendSelection(text); this.onStatus("Text an die KI-Hilfe übergeben"); return; }
+      if (k === "card") { openCardDialog({ text, fileId: this.fileId, fileName: this.name, onStatus: m => this.onStatus(m) }); return; }
       this.addMarkup(pg, lines, k, this._markColor || colors[0]);
     });
   }
@@ -1078,38 +1074,7 @@ export class PdfEditor {
   }
 
   // ---------------------------------------------------------------- KI
-  async askAI() {
-    const out = $(".ed-ai-out", this.c); const mode = $(".ed-ai-mode", this.c).value; const pg = this.pages[this.currentPage];
-    // Umfang "Ganzes Dokument"/"Seiten": Erklaeren, Zusammenfassen, Fachbegriffe -> Vorlesung, Aufgabe/Hinweise -> alle Aufgaben
-    const dm = docModeFor(mode, $(".ed-ai-scope", this.c).value);
-    if (dm) return this.docRun(dm);
-    // Wunsch fuers ganze Dokument in der Frage ("Erkläre die ganze Vorlesung", "Löse alle Aufgaben", "Seiten 5 bis 12")
-    const q = ($(".ed-ai-q", this.c).value || "").trim();
-    if (q && mode !== "check" && mode !== "quiz" && !$(".ed-ai-sel", this.c).value.trim() && await this.docRun(null, q)) return;
-    const body = { file_id: this.fileId, page: pg?.type === "pdf" ? pg.index : null, mode: mode === "quiz" ? "similar" : mode, selection: $(".ed-ai-sel", this.c).value, question: ($(".ed-ai-q", this.c).value || "") + (mode === "quiz" ? " Erstelle 5 Quizfragen mit Lösungen zur Seite." : ""), own_solution: $(".ed-ai-own", this.c).value, page_text: "" };
-    if ($(".ed-ai-ctx", this.c).checked && pg?.type === "pdf") body.page_text = await this.pageText(pg.index);
-    if (pg?.type === "blank" && $(".ed-ai-ctx", this.c).checked) body.page_text = (this.model.pages[pg.key].objects.filter(o => o.type === "text").map(o => o.text).join("\n")) + "\n[Handschrift auf Notizseiten kann nicht gelesen werden]";
-    out.innerHTML = "<div class='muted'><span class='uf-shimmer'>Die KI denkt nach…</span></div>"; $(".ed-ai-go", this.c).disabled = true;
-    try {
-      const r = await fetch("/api/ai/tutor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-      const j = await r.json();
-      if (mode === "flashcards" && Array.isArray(j.cards)) { out.innerHTML = `<div class="ed-cards">${j.cards.map(c => `<div class="ed-card"><b>${esc(c.question)}</b><div>${esc(c.answer)}</div></div>`).join("")}</div><button class="btn primary ed-cards-save">Karteikarten speichern (${j.cards.length})</button>`; $(".ed-cards-save", out).onclick = async () => { await fetch("/api/flashcards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_id: this.fileId, cards: j.cards }) }); $(".ed-cards-save", out).textContent = "Gespeichert ✓"; $(".ed-cards-save", out).disabled = true; }; }
-      else {
-        // Quellen mit Seite (28.10.2026): [n] in der Antwort springt zur Seite, darunter die Liste
-        const src = Array.isArray(j.sources) ? j.sources : []; const known = new Set(src.map(x => String(x.n)));
-        const html = md(j.answer).replace(/\[(\d{1,2})\]/g, (m, n) => known.has(n) ? `<a href="#" class="ed-src" data-src="${n}">[${n}]</a>` : m);
-        const list = src.filter(x => x.cited || x.current).map(x => `<li><a href="#" class="ed-src" data-src="${x.n}">[${x.n}] ${esc(x.title || x.name || "Datei")}${x.studip_id ? " (Stud.IP)" : `, Seite ${x.page}`}</a>${x.current ? ` <span class="muted">(diese Seite)</span>` : ""}</li>`).join("");
-        out.innerHTML = html + (list ? `<div class="ed-ai-src"><b>Quellen</b><ul>${list}</ul></div>` : "") + `<div class="ed-ai-actions"><button class="btn sm ed-ai-insert">Als Textfeld einfügen</button></div>`;
-        $$(".ed-src", out).forEach(a => a.onclick = e => { e.preventDefault(); const x = src.find(s => String(s.n) === a.dataset.src); if (!x) return;
-          if (x.studip_id) { if (/^https?:\/\//.test(x.url || "")) window.open(x.url, "_blank", "noopener"); return; }
-          if (x.file_id === this.fileId) { const i = this.pages.findIndex(p => p.type === "pdf" && p.index === +x.page); if (i >= 0) this.goToPage(i); }
-          else location.hash = `#/doc/${encodeURIComponent(x.file_id)}?page=${x.page}`; });
-      }
-      $(".ed-ai-insert", out)?.addEventListener("click", () => { if (!pg?.mounted) return; const before = this.snapshot(pg); const o = { id: uid(), type: "text", x: 20, y: 20, text: j.answer.replace(/[*#`]/g, ""), ...this.textStyle, bg: "#e8eeff", width: Math.min(320, pg.w - 40), fontSize: 11, rotation: 0, scaleX: 1, scaleY: 1 }; this.model.pages[pg.key].objects.push(o); this.addNode(pg, o); pg.layer.batchDraw(); this.commit(pg, before); });
-    } catch (e) { out.innerHTML = `<div class="ed-err">Fehler: ${esc(e.message)}</div>`; }
-    finally { $(".ed-ai-go", this.c).disabled = false; }
-  }
+  askAI(mode = "ask", opts = {}) { return this.ai.ask(mode, opts); }
 
   // ---------------------------------------------------------------- KI fuer das ganze Dokument
   // Plan ohne KI (app/doc_explain_api.py), bei mehr als ein paar Credits erst fragen ("Kostet etwa 6 Credits, du hast
@@ -1117,22 +1082,26 @@ export class PdfEditor {
   // in der Frage steckt kein Wunsch fuers ganze Dokument (dann normale Frage zur Seite).
   async docPageTexts() { if (!this.pdf) return undefined; const out = []; for (let i = 1; i <= this.pdf.numPages; i++) out.push(await this.pageText(i)); return out; }
   async docRun(mode, question = null) {
-    const out = $(".ed-ai-out", this.c), go = $(".ed-ai-go", this.c), pg = this.pages[this.currentPage];
+    const go = $(".ed-ai-go", this.c), pg = this.pages[this.currentPage];
     const scope = scopeBody($(".ed-ai-scope", this.c).value, $(".ed-ai-from", this.c).value, $(".ed-ai-to", this.c).value);
     const base = { file_id: this.fileId, page: pg?.type === "pdf" ? pg.index : 1 };
     const post = async (path, body) => { const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail || r.statusText); return j; };
-    out.onclick = e => { const a = e.target.closest(".ed-doc-page"); if (!a) return; e.preventDefault(); const i = this.pages.findIndex(p => p.type === "pdf" && p.index === +a.dataset.page); if (i >= 0) this.goToPage(i); };
-    go.disabled = true; $$(".ed-ai-doc", this.c).forEach(b => b.disabled = true);
-    out.innerHTML = "<div class='muted'><span class='uf-shimmer'>Die KI plant …</span></div>";
+    let out = null;                                          // Beitrag im Gespraech: erst da, wenn der Plan etwas Sinnvolles ergibt
+    go.disabled = true; $$(".ed-ai-doc", this.c).forEach(b => b.disabled = true); this.ai.setBusy(true, "Die KI plant …");
     try {
       const texts = await this.docPageTexts();   // zaehlt nur, wenn der Dienst selbst keinen Seitentext hat
       const plan = await post("/api/ai/document/plan", { ...base, ...(question ? { question } : { mode, scope }), page_texts: texts });
-      if (!plan.intent) { out.innerHTML = ""; return false; }
+      if (!plan.intent) return false;
+      out = this.ai.turn(question || plan.title);
+      out.onclick = e => { const a = e.target.closest(".ed-doc-page"); if (!a) return; e.preventDefault(); const i = this.pages.findIndex(p => p.type === "pdf" && p.index === +a.dataset.page); if (i >= 0) this.goToPage(i); };
+      if (question) $(".ed-ai-q", this.c).value = "";
       const req = { ...base, mode: plan.mode, scope: plan.scope, page_texts: texts };
       if (needsConfirm(plan)) {
         out.innerHTML = `<div class="ed-doc-confirm"><b>${esc(plan.title)}</b><p>${esc(plan.message)}</p><button class="btn primary sm ed-doc-start"${plan.enough === false ? " disabled" : ""}>Starten</button> <button class="btn sm ed-doc-cancel">Abbrechen</button></div>`;
+        this.ai.setBusy(false);                              // waehrend der Rueckfrage nichts sperren
         const ok = await new Promise(res => { $(".ed-doc-start", out).onclick = () => res(true); $(".ed-doc-cancel", out).onclick = () => res(false); });
-        if (!ok) { out.innerHTML = ""; return true; }
+        if (!ok) { out.remove(); return true; }
+        this.ai.setBusy(true, "Die KI erklärt …");
       }
       out.innerHTML = `<div class="ed-doc-title"><b>${esc(plan.title)}</b><div class="muted small">${esc(plan.message)}</div></div><div class="ed-doc-blocks"></div><div class="muted small ed-doc-progress"></div>`;
       const list = $(".ed-doc-blocks", out), prog = $(".ed-doc-progress", out); let cached = 0;
@@ -1143,8 +1112,8 @@ export class PdfEditor {
         list.insertAdjacentHTML("beforeend", (r.blocks || []).map(b => blockHtml(b, esc, md)).join(""));
       }
       prog.textContent = storedNote(cached, plan.steps.length) || "";
-    } catch (e) { out.insertAdjacentHTML("beforeend", `<div class="ed-err">Fehler: ${esc(e.message)}</div>`); }
-    finally { go.disabled = false; $$(".ed-ai-doc", this.c).forEach(b => b.disabled = false); }
+    } catch (e) { if (out) out.insertAdjacentHTML("beforeend", `<div class="ed-err">Fehler: ${esc(e.message)}</div>`); else this.ai.error(e.message); }
+    finally { go.disabled = false; $$(".ed-ai-doc", this.c).forEach(b => b.disabled = false); this.ai.setBusy(false); }
     return true;
   }
 

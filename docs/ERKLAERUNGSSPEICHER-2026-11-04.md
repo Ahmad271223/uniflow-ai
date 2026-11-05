@@ -103,3 +103,29 @@ bleibt in V1 bei CloudKit; der Dienst bietet dieselben Regeln fuer spaeter, dami
   bleibt das Chiffrat fuer die anderen, der Besitzer wird anonymisiert wie in `credit_ledger` (`deleted:<zufall>`).
 - Offen: Web und Windows rufen die Endpunkte noch nicht; iPad und Dienst teilen sich noch keinen Speicher (CloudKit
   und `page_explain` sind getrennte Welten, bis der Dienst die CloudKit-Datensaetze spiegelt oder umgekehrt).
+
+## Web und Windows (05.11.2026, Paket B)
+
+Die KI-Hilfe im Editor der Web-Oberfläche (und damit der Windows-App) hat denselben Erklärungsspeicher wie das iPad, aber
+**ohne CloudKit und ohne die Routen `/api/explain`**: `POST /api/ai/tutor` merkt sich die Antwort selbst
+(`app/explain_local.py`, Tabelle `page_explain_local` in der Datenbank des Kontos bzw. des PCs, bei Bedarf angelegt wie
+`page_texts`, kein Schema-Fixture).
+
+- **Gleiche Regeln:** geteilt/gemerkt wird nur Erklären, Einfach erklären, Zusammenfassen, Fachbegriffe, Aufgabe lösen und Nur
+  Hinweise **ohne** Markierung, Frage, eigene Lösung und eigene Notizen (`is_shareable`); höchstens drei Varianten je Seite
+  und Modus, nie überschreiben, Leser nehmen die niedrigste; Quellenmarken `[n]` werden vor dem Speichern entfernt.
+- **Schlüssel:** Abdruck des Seitentextes (Leerraum zusammengefasst), Seite, Modus, Variante. Ändert sich die Seite, gibt es
+  nichts Altes.
+- **Antwort:** wie auf dem iPad das Feld `explain`: `{"stored": true, "source": "local"|"cloud", "variant", "created_at"}` für
+  eine gespeicherte, `{"stored": false, "variant", "shared": false}` für eine frische Antwort, `null` bei allem Ungeteilten.
+  `force: true` = „Neu erklären lassen“ (fragt live, belegt den nächsten freien Platz; alle drei belegt: Variante 0, bleibt
+  nur auf dem Bildschirm).
+- **Im Dienst (gehostet):** Eine gespeicherte Antwort kostet 0 Credits und zählt nicht gegen das Kontingent. Die „gemeinsame“
+  Antwort (`source: "cloud"`, „Schon erklärt · sofort da · 0 Credits“) ist ein Treffer im Zwischenspeicher der StudiNow-KI
+  (`ai_backend`, gleiche Anfrage = gleiche Antwort, `complete(..., fresh=True)` überspringt ihn). Der Speicher des Kontos
+  ist nie geteilt; geteilt wird nur, was ohnehin dieselbe Anfrage wäre. Eine fertige `request_id` wiederholt weiter die
+  Rechnung der ersten Anfrage (Vorrang vor dem Speicher).
+- **Oberfläche:** `app/static/ai-panel.js` (Reiter Erklären/Karteikarten/Test, Gespräch, „Schon erklärt …“, „Neu erklären
+  lassen“, Kostenzeile), Tests `tests/test_explain_local.py`, `tests/js/ai-panel.test.mjs`, `tests/test_web_editor_ai.py`.
+- **Weiter offen:** CloudKit und Dienst teilen sich weiter nichts (iPad ohne Konto sieht die Antworten der Web-Nutzer nicht und
+  umgekehrt); Dokument-Index als Grundlage für freie Fragen und „Vorab einordnen“ gibt es im Web nicht.

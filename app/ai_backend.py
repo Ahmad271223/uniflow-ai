@@ -756,7 +756,7 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
              cache: bool = False, now: datetime | None = None, *, image: bytes | None = None, model_name: str | None = None,
              max_output_tokens: int | None = None, request_id: str | None = None, credits: bool | None = None,
              rate_limit: bool = True, on_delta=None, keep_result: bool = False, budget_reserve: int | None = None,
-             library: bool = False) -> Completion:
+             library: bool = False, fresh: bool = False) -> Completion:
     """Eine StudiNow-KI-Anfrage mit Budget, Rate-Limit, Credits (app/credits.py), Protokoll und optionalem Cache.
 
     credits: None = automatisch (im Dienst fuer Konten bei den Zwecken aus charges_credits). Vor dem Aufruf wird die
@@ -764,7 +764,8 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
     eine abgebrochene Antwort mit Nutzung wird abgerechnet. Dieselbe request_id wird nie zweimal berechnet
     (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG (input_image).
     `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits; `user_id` wird dann
-    nicht gespeichert)."""
+    nicht gespeichert). `fresh=True` ("Neu erklaeren lassen"): den Zwischenspeicher nicht lesen, die neue Antwort ersetzt
+    die gespeicherte."""
     from . import credits as ledger
     if library:
         user_id = None
@@ -784,7 +785,7 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
         key = None
         if cache and not image:
             key = "c:" + hashlib.sha256(json.dumps([purpose, requested, system, prompt, schema], sort_keys=True).encode()).hexdigest()
-            hit = conn.execute("SELECT result, created_at FROM ai_cache WHERE key=?", (key,)).fetchone()
+            hit = None if fresh else conn.execute("SELECT result, created_at FROM ai_cache WHERE key=?", (key,)).fetchone()
             if hit and hit[1] >= (_now(now) - timedelta(days=CACHE_DAYS)).isoformat():
                 return Completion(hit[0], 0, 0, "cache")
         rid = request_id or ("auto:" + uuid.uuid4().hex)

@@ -14,6 +14,7 @@ import { trialHintHtml } from "./trial-hint.js?v=1";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
 import { navHtml, accountHtml } from "./shell-nav.js?v=1";
 import { viewStudyPlan } from "./study-plan.js?v=1";   // Studienverlauf (05.11.2026)
+import { viewAiStart } from "./views-ai.js?v=1";                       // KI-Start (#/ki), Paket B 05.11.2026
 
 // ---------------------------------------------------------------- Shell
 // Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
@@ -103,6 +104,7 @@ window.renderAccount = renderAccount;
 
 // ---------------------------------------------------------------- Router
 const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=1").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+routes.ki = viewAiStart;
 async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
