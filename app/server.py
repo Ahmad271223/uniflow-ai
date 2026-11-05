@@ -59,6 +59,8 @@ from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/
 app.include_router(page_explain_api.router)
 from . import doc_explain_api  # noqa: E402 - KI-Hilfe fuer das ganze Dokument (/api/ai/document, docs/KI-GANZES-DOKUMENT-2026-11-05.md)
 app.include_router(doc_explain_api.router)
+from . import studip_messages  # noqa: E402 - Seite "Nachrichten" (Routen /api/studip/messages, nur lokal, app/studip_messages.py)
+app.include_router(studip_messages.router)
 from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan, docs/STUDIENVERLAUF-2026-11-04.md)
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
@@ -2163,11 +2165,12 @@ def demo_status():
 @app.post("/api/demo")
 def demo_toggle(body: dict = Body(default={})):
     """{enabled: true} legt den Demo-Kurs mit PDFs, Stundenplan, Lernkalender, Frist und Ankuendigung an (frisch),
-    {enabled: false} entfernt alles rueckstandslos."""
+    {enabled: false} entfernt alles rueckstandslos; mit "thorough": true ("Beenden" in der Demo-Leiste der Weboberflaeche)
+    auch die Spuren, die das Ausprobieren hinterlassen hat."""
     with db.cursor() as conn:
         if body.get("enabled"):
             return demo.install(conn)
-        removed = demo.remove(conn)                  # erst entfernen, dann den Stand melden
+        removed = demo.remove(conn, thorough=body.get("thorough") is True)         # erst entfernen, dann den Stand melden
         return {**demo.status(conn), "removed": removed}
 
 

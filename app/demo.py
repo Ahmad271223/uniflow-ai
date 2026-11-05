@@ -99,13 +99,45 @@ def demo_dir() -> Path:
     return config.files_dir() / "Demo"
 
 
-def remove(conn) -> dict:
-    """Alle Demo-Daten entfernen (Dateien, Notizen, Kurse, Modul, Termine, Pakete, Fristen, Ankuendigungen)."""
+def _table(conn, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def _remove_traces(conn, module_ids: list[int]) -> None:
+    """Spuren, die man beim Ausprobieren der Demo hinterlaesst (Version der Notizen, Lernwochen-Plan, Aufgabenindex,
+    Aufnahmen, Verlauf der Aufgaben, Wochentests, Markierungen) mit entfernen: "Beenden" in der Demo-Leiste raeumt
+    alles weg, was die Demo angelegt oder verursacht hat. Nur Zeilen der Demo (Kennung demo-, Fach, Demo-Modul); Tabellen,
+    die es noch nicht gibt, werden uebersprungen. Eigene Daten bleiben."""
+    def run(table: str, sql: str, args: tuple = ()) -> None:
+        if _table(conn, table):
+            conn.execute(sql, args)
+    marks = ",".join("?" * len(module_ids)) or "NULL"
+    run("annotation_versions", "DELETE FROM annotation_versions WHERE file_id LIKE 'demo-%'")
+    run("recordings", "DELETE FROM recordings WHERE file_id LIKE 'demo-%'")
+    run("plan_items", "DELETE FROM plan_items WHERE file_id LIKE 'demo-%' OR course_id LIKE 'demo-%'")
+    run("task_history", "DELETE FROM task_history WHERE task_id IN (SELECT t.id FROM study_tasks t JOIN study_packages p ON p.id=t.package_id "
+                        f"WHERE p.module_id IN ({marks}))", tuple(module_ids))
+    run("doc_index", "DELETE FROM doc_index WHERE file_id LIKE 'demo-%'")
+    run("task_index", "DELETE FROM task_index WHERE file_id LIKE 'demo-%'")
+    run("lecture_markers", "DELETE FROM lecture_markers WHERE file_id LIKE 'demo-%'")
+    run("tests", "DELETE FROM tests WHERE subject=?", (SUBJECT,))
+    run("wt_defs", f"DELETE FROM wt_defs WHERE module_id IN ({marks})", tuple(module_ids))
+    run("wt_plans", f"DELETE FROM wt_plans WHERE module_id IN ({marks})", tuple(module_ids))
+    run("dismissed_tests", f"DELETE FROM dismissed_tests WHERE module_id IN ({marks})", tuple(module_ids))
+
+
+def remove(conn, thorough: bool = False) -> dict:
+    """Alle Demo-Daten entfernen (Dateien, Notizen, Kurse, Modul, Termine, Pakete, Fristen, Ankuendigungen).
+    `thorough` ("Beenden" in der Demo-Leiste der Weboberflaeche): auch die Spuren des Ausprobierens (`_remove_traces`).
+    Ohne bleibt das Verhalten wie im Swift-Kern (DemoContent.remove, Fixture tools/gen-demo-fixture.py)."""
     n = {"files": 0, "events": 0, "packages": 0}
     for f in db.rows(conn, "SELECT id, local_path FROM files WHERE id LIKE 'demo-%'"):
         if f["local_path"]:
             Path(f["local_path"]).unlink(missing_ok=True)
         n["files"] += 1
+    module_ids = [r[0] for r in conn.execute("SELECT id FROM modules WHERE name=?", (MODULE_NAME,)).fetchall()]
+    if thorough:
+        _remove_traces(conn, module_ids)
     conn.execute("DELETE FROM annotations WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM analysis WHERE file_id LIKE 'demo-%'")
     conn.execute("DELETE FROM flashcards WHERE file_id LIKE 'demo-%'")
