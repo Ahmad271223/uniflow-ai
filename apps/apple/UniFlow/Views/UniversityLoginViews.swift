@@ -10,7 +10,7 @@ import SwiftUI
 /// Text uebereinander, darunter noch "Später anmelden"); "Mehr" zeigt den ganzen Hinweis, "Weniger" klappt ihn zu.
 struct UniversityLoginHint: View {
     static let text = "Passwörter merkt sich iOS (Schlüsselbund). Tippe auf das Schlüssel-Symbol über der Tastatur, um ein gespeichertes Passwort einzusetzen."
-    static let detail = "StudiNow speichert nie dein Passwort. Nur deinen Benutzernamen merkt sich StudiNow auf diesem iPad, damit er beim nächsten Anmelden schon dasteht, und „Angemeldet bleiben“ ist angekreuzt. Bietet iOS das Sichern des Passworts nicht von selbst an, kannst du es unter „Passwörter“ selbst hinzufügen."
+    static let detail = "StudiNow speichert nie dein Passwort. Nur deinen Benutzernamen merkt sich StudiNow auf diesem \(UFDevice.name), damit er beim nächsten Anmelden schon dasteht, und „Angemeldet bleiben“ ist angekreuzt. Bietet iOS das Sichern des Passworts nicht von selbst an, kannst du es unter „Passwörter“ selbst hinzufügen."
     static let more = "Mehr"
     static let less = "Weniger"
 

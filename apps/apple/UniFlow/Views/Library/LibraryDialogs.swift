@@ -32,6 +32,8 @@ struct LibraryNewDialog: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
+    /// schmal: Folgedialoge als Blatt von unten (nil = breit, mittig)
+    @Environment(\.ufLearnSheets) private var sheets
     @State private var importKind: String?
     @State private var imageSource = false
     @State private var photos: [PhotosPickerItem] = []
@@ -45,9 +47,9 @@ struct LibraryNewDialog: View {
         UFDialog("Neu" + (current.path.isEmpty ? "" : " in „\(current.label)“")) {
             VStack(spacing: 8) {
                 // Notizbuch und Whiteboard gibt es nur zum Schreiben: Plus (Schloss mit Weg zur Abo-Seite)
-                UFMenuButton(text: "Notizbuch", icon: "note") { close(); overlay.modal { NotebookDialog(kind: "notebook", lib: lib, moduleID: moduleID, folderID: folderID) } }
+                UFMenuButton(text: "Notizbuch", icon: "note") { close(); overlay.learnModal(sheets) { NotebookDialog(kind: "notebook", lib: lib, moduleID: moduleID, folderID: folderID) } }
                     .ufRequires(NotebookDialog.feature)
-                UFMenuButton(text: "Whiteboard", icon: "square") { close(); overlay.modal { NotebookDialog(kind: "whiteboard", lib: lib, moduleID: moduleID, folderID: folderID) } }
+                UFMenuButton(text: "Whiteboard", icon: "square") { close(); overlay.learnModal(sheets) { NotebookDialog(kind: "whiteboard", lib: lib, moduleID: moduleID, folderID: folderID) } }
                     .ufRequires(NotebookDialog.feature)
                 UFMenuButton(text: "Ordner", icon: "folder") { close(); Task { await newFolder() } }
                 UFMenuButton(text: "PDF importieren", icon: "file-text") { importKind = "pdf" }
@@ -175,12 +177,16 @@ struct NotebookDialog: View {
 
     private var formats: [PageFormats.Format] { kind == "whiteboard" ? PageFormats.whiteboards : PageFormats.paper }
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.ufCompact) private var shellCompact
+
     var body: some View {
         UFDialog(kind == "whiteboard" ? "Neues Whiteboard" : "Neues Notizbuch") {
             UFField("Titel") { UFTextInput(text: $title) }
             if kind == "notebook" {
                 UFField("Vorlage") {
-                    UFGridLayout(columns: 6, spacing: 6.4) {
+                    // schmal (Blatt auf dem iPhone): drei Vorlagen je Reihe statt sechs
+                    UFGridLayout(columns: UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? 3 : 6, spacing: 6.4) {
                         ForEach(PaperTemplate.choices, id: \.id) { k, n in
                             Button { tpl = k } label: {
                                 VStack(spacing: 4.8) {
@@ -350,6 +356,8 @@ struct LibraryModuleMenu: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
+    /// schmal: Folgedialoge als Blatt von unten (nil = breit, mittig)
+    @Environment(\.ufLearnSheets) private var sheets
 
     var body: some View {
         UFDialog(module.s("name") ?? "Modul") {
@@ -361,7 +369,7 @@ struct LibraryModuleMenu: View {
                         guard let id = module.i("id"), let api = session.api else { return }
                         await toast.attempt("Modul laden") {
                             let d = try await api.value("/api/modules/\(id)")
-                            if let m = d["module"] { overlay.modal { ModuleEditDialog(m: m) } }
+                            if let m = d["module"] { overlay.learnModal(sheets) { ModuleEditDialog(m: m) } }
                         }
                     }
                 }
@@ -415,6 +423,8 @@ struct LibraryDocMenu: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
+    /// schmal: Folgedialoge als Blatt von unten (nil = breit, mittig)
+    @Environment(\.ufLearnSheets) private var sheets
 
     var body: some View {
         let id = f.s("id") ?? ""
@@ -435,7 +445,7 @@ struct LibraryDocMenu: View {
                         }
                     }
                 }
-                UFMenuButton(text: "In Ordner verschieben", icon: "move") { close(); overlay.modal { LibraryMoveDialog(id: id, lib: lib) } }
+                UFMenuButton(text: "In Ordner verschieben", icon: "move") { close(); overlay.learnModal(sheets) { LibraryMoveDialog(id: id, lib: lib) } }
                 UFMenuButton(text: "Duplizieren", icon: "copy") {
                     close()
                     Task { await patch("Duplizieren") { try await $0.value("/api/library/files/\(id)", method: "PATCH", body: ["duplicate": true]) } }

@@ -470,14 +470,21 @@ struct FlashcardTrainerView: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// schmal (iPhone): Karte so hoch wie Platz ist, "Nicht gewusst"/"Gewusst" ganz unten in Daumennaehe
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnSheets) private var sheets
     @State private var drag: CGSize = .zero
+
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact) }
 
     /// ab dieser Strecke zaehlt ein Wischen als Antwort
     private let swipeThreshold: CGFloat = 110
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            topBar.padding(.bottom, 16)
+            topBar.padding(.bottom, compact ? 8 : 16)
             if trainer.empty {
                 UFCard {
                     UFEmpty(icon: "filter", text: trainer.options.scope == .bookmarked
@@ -488,6 +495,13 @@ struct FlashcardTrainerView: View {
                 }
             } else if trainer.finished {
                 summary
+            } else if let c = trainer.current, compact {
+                // schmal: Fortschritt, Karte (fuellt die Hoehe), kleine Zeile, ganz unten die beiden Antworten
+                FlashcardProgressHeader(current: trainer.position + 1, total: trainer.cards.count, done: trainer.position) { counters }
+                    .padding(.bottom, 12)
+                card(c)
+                secondaryBar.padding(.top, 10)
+                answerButtons.padding(.top, 10)
             } else if let c = trainer.current {
                 FlashcardProgressHeader(current: trainer.position + 1, total: trainer.cards.count, done: trainer.position) { counters }
                     .padding(.bottom, 20)
@@ -641,16 +655,32 @@ struct FlashcardTrainerView: View {
 
     // MARK: Knoepfe unten: Nicht gewusst | Gewusst, darunter Vorherige | Umdrehen | Erneut fragen
 
+    private var answerButtons: some View {
+        HStack(spacing: compact ? 10 : 12) {
+            FlashcardAnswerButton(title: "Nicht gewusst", icon: "x", tone: .bad) { answer(false) }
+                .disabled(trainer.busy)
+                .keyboardShortcut(.leftArrow, modifiers: [])
+            FlashcardAnswerButton(title: "Gewusst", icon: "check", tone: .ok) { answer(true) }
+                .disabled(trainer.busy)
+                .keyboardShortcut(.rightArrow, modifiers: [])
+        }
+    }
+
+    /// schmal: Vorherige, Umdrehen, Erneut fragen als drei gleich breite, flache Knoepfe ueber den Antworten
+    private var secondaryBar: some View {
+        HStack(spacing: 8) {
+            TrainerWideButton(title: "Vorherige", icon: "undo", tone: .neutral, compact: true) { previous() }
+                .disabled(!trainer.canGoBack)
+            TrainerWideButton(title: "Umdrehen", icon: "rotate", tone: .neutral, compact: true) { flip() }
+            TrainerWideButton(title: "Erneut fragen", icon: "refresh", tone: .neutral, compact: true) { askAgain() }
+                .disabled(!trainer.canAskAgain)
+                .accessibilityIdentifier("trainer.askAgain")
+        }
+    }
+
     private var answerBar: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                FlashcardAnswerButton(title: "Nicht gewusst", icon: "x", tone: .bad) { answer(false) }
-                    .disabled(trainer.busy)
-                    .keyboardShortcut(.leftArrow, modifiers: [])
-                FlashcardAnswerButton(title: "Gewusst", icon: "check", tone: .ok) { answer(true) }
-                    .disabled(trainer.busy)
-                    .keyboardShortcut(.rightArrow, modifiers: [])
-            }
+            answerButtons
             HStack(spacing: 10) {
                 TrainerWideButton(title: "Vorherige", icon: "undo", tone: .neutral) { previous() }
                     .disabled(!trainer.canGoBack)
@@ -759,7 +789,7 @@ struct FlashcardTrainerView: View {
     }
 
     private func openOptions() {
-        overlay.modal { FlashcardTrainerOptionsDialog(trainer: trainer) }
+        overlay.learnModal(sheets) { FlashcardTrainerOptionsDialog(trainer: trainer) }
     }
 }
 
@@ -877,6 +907,8 @@ private struct TrainerWideButton: View {
     let title: String
     let icon: String
     let tone: UFTone
+    /// schmal: gleich breit in einer Reihe, 44 pt hoch, kleinere Schrift
+    var compact = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
 
@@ -887,14 +919,14 @@ private struct TrainerWideButton: View {
         default: (UF.text, UF.surface, UF.lineStrong)
         }
         Button(action: action) {
-            HStack(spacing: 7.2) {
-                UFIcon(icon, size: 16)
-                Text(title).lineLimit(1).minimumScaleFactor(0.8)
+            HStack(spacing: compact ? 5 : 7.2) {
+                UFIcon(icon, size: compact ? 14 : 16)
+                Text(title).lineLimit(1).minimumScaleFactor(compact ? 0.7 : 0.8)
             }
-            .ufFont(14.5, 600)
+            .ufFont(compact ? 13.12 : 14.5, 600)
             .foregroundStyle(fg)
-            .padding(.horizontal, 16)
-            .frame(minHeight: 48)
+            .padding(.horizontal, compact ? 6 : 16)
+            .frame(maxWidth: compact ? .infinity : nil, minHeight: compact ? 44 : 48)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(bg))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(border, lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: UF.r))

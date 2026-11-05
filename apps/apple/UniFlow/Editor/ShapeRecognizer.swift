@@ -15,6 +15,8 @@ enum ShapeRecognizer {
     static let holdDuration: TimeInterval = 0.5
     /// Bis zu diesem Abstand (Seitenpunkte) gilt der Stift als still
     static let holdRadius: CGFloat = 6
+    /// Finger am iPhone (Bildschirmpunkte): zittert beim Halten staerker als der Stift
+    static let fingerHoldRadius: CGFloat = 8
     /// Kuerzere Striche sind kein Kandidat (Punkte, Haekchen)
     static let minimumLength: CGFloat = 30
 
@@ -44,11 +46,11 @@ enum ShapeRecognizer {
     /// Stand der Stift am Ende still? Zwei Wege, weil PencilKit beim stillen Stift nicht unbedingt weitere Punkte
     /// anlegt: die Dauer der Punkte im Umkreis `holdRadius` um den letzten Punkt, und die Zeit zwischen der letzten
     /// Bewegung (`creationDate` + letzter `timeOffset`) und dem Absetzen (`endedAt`).
-    static func heldStill(_ path: PKStrokePath, endedAt: Date? = nil, minimum: TimeInterval = holdDuration) -> Bool {
+    static func heldStill(_ path: PKStrokePath, endedAt: Date? = nil, minimum: TimeInterval = holdDuration, radius: CGFloat = holdRadius) -> Bool {
         guard path.count > 0 else { return false }
         let last = path[path.count - 1]
         var firstStill = path.count - 1
-        while firstStill > 0, hypot(path[firstStill - 1].location.x - last.location.x, path[firstStill - 1].location.y - last.location.y) <= holdRadius {
+        while firstStill > 0, hypot(path[firstStill - 1].location.x - last.location.x, path[firstStill - 1].location.y - last.location.y) <= radius {
             firstStill -= 1
         }
         let tail = last.timeOffset - path[firstStill].timeOffset
@@ -61,8 +63,8 @@ enum ShapeRecognizer {
     // MARK: Erkennen
 
     /// Form zu einer Punktfolge (Seitenpunkte, in Zeichenreihenfolge); nil, wenn es keine der fuenf Formen ist
-    static func recognize(_ raw: [CGPoint]) -> Shape? {
-        let pts = resample(trimHold(raw), step: 3)
+    static func recognize(_ raw: [CGPoint], holdRadius radius: CGFloat = holdRadius) -> Shape? {
+        let pts = resample(trimHold(raw, radius: radius), step: 3)
         guard pts.count >= 8 else { return nil }
         let length = pathLength(pts)
         let box = bounds(pts)
@@ -263,10 +265,10 @@ enum ShapeRecognizer {
     // MARK: Geometrie
 
     /// Punkte, die beim Halten am Ende entstanden sind, weglassen
-    static func trimHold(_ pts: [CGPoint]) -> [CGPoint] {
+    static func trimHold(_ pts: [CGPoint], radius: CGFloat = holdRadius) -> [CGPoint] {
         guard let last = pts.last else { return pts }
         var end = pts.count - 1
-        while end > 0, hypot(pts[end - 1].x - last.x, pts[end - 1].y - last.y) <= holdRadius { end -= 1 }
+        while end > 0, hypot(pts[end - 1].x - last.x, pts[end - 1].y - last.y) <= radius { end -= 1 }
         return Array(pts[0...end])
     }
 

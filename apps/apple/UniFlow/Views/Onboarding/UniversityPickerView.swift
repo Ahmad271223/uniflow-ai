@@ -37,7 +37,7 @@ struct UniversityPickerView: View {
         }
     }
 
-    static let note = "Die Daten jeder Hochschule bleiben auf diesem iPad getrennt: eigene Datenbank, eigene Dateien und Notizen, eigene Anmeldungen. Wechseln kannst du später in den Einstellungen."
+    static let note = "Die Daten jeder Hochschule bleiben auf diesem \(UFDevice.name) getrennt: eigene Datenbank, eigene Dateien und Notizen, eigene Anmeldungen. Wechseln kannst du später in den Einstellungen."
 }
 
 /// Auswahlkarte einer Hochschule mit dem, was die App fuer sie heute kann (ehrlich, "folgt" fuer Fehlendes)
@@ -83,9 +83,9 @@ struct UniversityOption: View {
     static func services(_ u: UniversityKey) -> String {
         switch u {
         case .luh:
-            return "Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan und Aufzeichnungen direkt auf dieses iPad. QIS: Notenspiegel. Anmeldung mit deiner LUH-ID auf den Seiten der Universität."
+            return "Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan und Aufzeichnungen direkt auf dieses \(UFDevice.name). QIS: Notenspiegel. Anmeldung mit deiner LUH-ID auf den Seiten der Universität."
         case .hildesheim:
-            return "Learnweb: Kurse und Dateien direkt auf dieses iPad. LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität."
+            return "Learnweb: Kurse und Dateien direkt auf dieses \(UFDevice.name). LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität."
         }
     }
 }

@@ -347,8 +347,8 @@ extension PageInkView {
 }
 
 extension PDFEditorController {
-    /// Palette zu sehen: eigene Notizen schreibbar oder Korrektur-Modus
-    var pickerAllowed: Bool { writable || correction != nil }
+    /// Palette zu sehen: eigene Notizen schreibbar oder Korrektur-Modus; am iPhone nur im Modus "Zeichnen"
+    var pickerAllowed: Bool { (writable || correction != nil) && !paletteSuppressed }
 
     /// Seite einer PDF-Seite fuer die Korrektur (nur Originalseiten, keine eingefuegten Seiten)
     func correctionInfo(_ overlay: PageInkView) -> CorrectionPageInfo? {

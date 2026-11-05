@@ -9,6 +9,7 @@ struct CommunityPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
+    @Environment(\.ufCompact) private var compact
     @State private var showingShared = false
 
     /// Geplantes bzw. in diesem Build nicht Verfuegbares; auf dem iPad gibt es das Teilen als Datei schon (Plus,
@@ -55,8 +56,9 @@ struct CommunityPage: View {
     @ViewBuilder private var connectedContent: some View {
         UFGate(.communityRead) {
             UFCard {
+                // iPhone: Knopf unter dem Text, neben dem Titel war er auf "Meine geteilte…" gekuerzt (Pruefung 05.11.2026)
                 UFCardHead("So funktioniert die Community", icon: "info") {
-                    UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }
+                    if !compact { sharedButton }
                 }
                 VStack(alignment: .leading, spacing: 9.6) {
                     ForEach(Array(Self.howItWorks.enumerated()), id: \.offset) { row in
@@ -66,12 +68,17 @@ struct CommunityPage: View {
                         }
                     }
                     Text(SolutionTexts.examRules).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 4)
+                    if compact { sharedButton.padding(.top, 4) }
                 }
             }
             .padding(.bottom, 16)
         }
         CommunitySpacesCard()
         CommunitySettingsCard()                                              // Pseudonym, Lerngruppen, Sperrliste
+    }
+
+    private var sharedButton: some View {
+        UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }
     }
 
     private func unavailableCard(onDevice: Bool) -> some View {

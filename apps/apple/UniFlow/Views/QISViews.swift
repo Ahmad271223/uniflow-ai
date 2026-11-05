@@ -132,7 +132,7 @@ struct QISGradesCard: View {
             } else {
                 GradesTable(rows: rows)
             }
-            Text("Die Noten liest StudiNow mit deiner QIS-Anmeldung aus dem Notenspiegel (Prüfungsverwaltung → Notenspiegel; nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen und Bescheinigungen bleiben im QIS selbst.")
+            Text("Die Noten liest StudiNow mit deiner QIS-Anmeldung aus dem Notenspiegel (Prüfungsverwaltung → Notenspiegel; nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem \(UFDevice.name). Prüfungsanmeldungen und Bescheinigungen bleiben im QIS selbst.")
                 .ufFont(11.84).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8).padding(.bottom, 5.6)
@@ -185,7 +185,7 @@ struct LUHSourcesCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    static let text = "Stud.IP (Kurse, Dateien, Stundenplan, Aufzeichnungen) und QIS (Notenspiegel) der Leibniz Universität Hannover. Du meldest dich auf den Seiten der Universität mit deiner LUH-ID an und tippst selbst auf „Anmelden“; dein Passwort speichert StudiNow nicht (das kann iOS im Schlüsselbund übernehmen). Dateien und Noten bleiben nur auf diesem iPad."
+    static let text = "Stud.IP (Kurse, Dateien, Stundenplan, Aufzeichnungen) und QIS (Notenspiegel) der Leibniz Universität Hannover. Du meldest dich auf den Seiten der Universität mit deiner LUH-ID an und tippst selbst auf „Anmelden“; dein Passwort speichert StudiNow nicht (das kann iOS im Schlüsselbund übernehmen). Dateien und Noten bleiben nur auf diesem \(UFDevice.name)."
 
     static func studipText(_ p: StudIPSync.Phase) -> String {
         switch p {

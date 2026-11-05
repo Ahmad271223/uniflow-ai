@@ -440,7 +440,7 @@ private struct LSFGradesCard: View {
             } else {
                 GradesTable(rows: rows)
             }
-            Text("Die Noten liest StudiNow mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen bleiben im LSF selbst.")
+            Text("Die Noten liest StudiNow mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem \(UFDevice.name). Prüfungsanmeldungen bleiben im LSF selbst.")
                 .ufFont(11.84).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8).padding(.bottom, 5.6)
@@ -462,6 +462,8 @@ struct GradesTable: View {
     @State private var width: CGFloat = 0
     private var compact: Bool { width > 0 && width < Self.compactBelow }
     static let compactBelow: CGFloat = 520
+    /// iPhone (docs/IPHONE-2026-11-04.md): Liste statt Tabelle, je Leistung eine Zeile mit Note, LP und Status
+    @Environment(\.ufCompact) private var phone
 
     private var bereiche: [JSONValue] { rows.filter { $0.s("level") == "bereich" } }
     private var hasModules: Bool { rows.contains { $0.s("level") == "modul" } }
@@ -483,7 +485,58 @@ struct GradesTable: View {
                     .padding(.bottom, 9.6)
                     .accessibilityIdentifier("grades.view")
             }
-            table
+            if phone { list } else { table }
+        }
+    }
+
+    /// Semester einer Zeile (normiert, sonst wie im Notenspiegel)
+    private static func semester(_ r: JSONValue) -> String {
+        (r.s("semester_norm") ?? "").isEmpty ? r.s("semester") ?? "" : r.s("semester_norm") ?? ""
+    }
+
+    private static func tone(_ r: JSONValue) -> UFTone {
+        let st = (r.s("status") ?? "").lowercased()
+        return st.hasPrefix("be") ? .ok : st.hasPrefix("ni") ? .bad : .neutral
+    }
+
+    /// Kompakt: Name mit Semester, Pruefungsnummer und Versuch links, rechts Note gross, LP und Status darunter
+    private var list: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            line
+            let shown = visible
+            ForEach(shown.indices, id: \.self) { i in
+                let r = shown[i]
+                let attempt = (r.s("versuch") ?? "").trimmingCharacters(in: .whitespaces)
+                let sub = [Self.semester(r), r.s("pruefungsnr"), r.s("art"), attempt.isEmpty ? nil : "Versuch \(attempt)"]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+                let note = r.s("note").flatMap { $0.isEmpty ? nil : $0 } ?? "–"
+                let lp = (r.s("credits") ?? "").isEmpty ? nil : "\(r.s("credits") ?? "") LP"
+                let status = r.s("status").flatMap { $0.isEmpty ? nil : $0 } ?? "–"
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.s("text") ?? "").ufFont(14.5, 650, lh: 1.3).foregroundStyle(UF.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !sub.isEmpty {
+                            Text(sub).ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        }
+                        UFBadge(status, tone: Self.tone(r)).padding(.top, 4)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(note).ufFont(19.2, 700).foregroundStyle(UF.text).monospacedDigit()
+                        if let lp { Text(lp).ufFont(12.48, 500).foregroundStyle(UF.muted) }
+                    }
+                    .fixedSize()
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 2)
+                .opacity(r.s("level") == "pruefung" ? 0.72 : 1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel([r.s("text"), "Note \(note)", lp, status, sub.isEmpty ? nil : sub]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
+                .accessibilityIdentifier("grades.row")
+                line
+            }
         }
     }
 
@@ -627,8 +680,8 @@ struct CredentialDialog: View {
                     Text("Eigene Zugangsdaten" + (cur["own"]?.bool == true ? " (\(cur.s("user") ?? ""))" : ""))
                 }
                 Text(cur["own"]?.bool == true
-                     ? "Bleibt gespeichert. Ändern nur in der Web-App am PC – auf dem iPad wird kein Passwort eingegeben."
-                     : "Benutzername und Passwort trägst du selbst in der Web-App am PC ein – auf dem iPad wird kein Passwort eingegeben.")
+                     ? "Bleibt gespeichert. Ändern nur in der Web-App am PC – auf dem \(UFDevice.name) wird kein Passwort eingegeben."
+                     : "Benutzername und Passwort trägst du selbst in der Web-App am PC ein – auf dem \(UFDevice.name) wird kein Passwort eingegeben.")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.leading, 22.4)
                 option("same") {
                     HStack(spacing: 6.4) {

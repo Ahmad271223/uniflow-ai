@@ -32,7 +32,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai
-        TARGETED_DEVICE_FAMILY: "2"           # nur iPad (V1, Auftrag Abschnitt 2 Punkt 5)
+        # iPhone und iPad (feature/iphone, docs/IPHONE-2026-11-04.md): eine Universal-App mit gleicher Bundle-ID und
+        # gleichen Abos; die Fassung richtet sich nach dem Platz (horizontalSizeClass), nicht nach dem Geraet.
+        # Version 1.0 (main) bleibt "2" (nur iPad).
+        TARGETED_DEVICE_FAMILY: "1,2"
         # Mac ueber die iPad-App ("Designed for iPad", Entscheidung 28.10.): kein eigener Mac-Build; freigeschaltet wird
         # es in App Store Connect (Preise und Verfuegbarkeit -> iPhone- und iPad-Apps auf Apple-Silicon-Macs)
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
@@ -90,6 +93,12 @@ targets:
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # iPhone: hoch ist Pflicht, quer erlaubt (die Seiten pruefen quer nur, dass nichts bricht); kopfueber wie
+        # bei Apple-Apps nicht
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UISupportedInterfaceOrientations:

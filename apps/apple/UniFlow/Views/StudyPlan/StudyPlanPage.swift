@@ -20,6 +20,7 @@ struct StudyPlanPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.ufCompact) private var compact
 
     /// Modul (id oder Titel), das beim Oeffnen gezeigt wird ("Im Studienverlauf zeigen" auf der Modulseite)
     var focus: String?
@@ -56,7 +57,8 @@ struct StudyPlanPage: View {
 
     var body: some View {
         GeometryReader { g in
-            let layout = layoutOverride ?? (g.size.width > g.size.height && typeSize < .accessibility1 ? .board : .list)
+            // kompakt (iPhone, auch quer): immer die Semesterliste, nie Spalten
+            let layout = layoutOverride ?? (!compact && g.size.width > g.size.height && typeSize < .accessibility1 ? .board : .list)
             let pad: CGFloat = g.size.width < 700 ? 16 : 25.6
             ScrollViewReader { proxy in
                 ScrollView {

@@ -26,6 +26,9 @@ struct CorrectionBar: View {
     let editMessage: () -> Void
     let pause: () -> Void
     let discard: () -> Void
+    /// Kompakt (iPhone): zwei Reihen statt einer (eine Reihe ragte ueber den Rand)
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
 
     private var targetName: String {
         let n = session.target.displayName.trimmingCharacters(in: .whitespaces)
@@ -33,37 +36,40 @@ struct CorrectionBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "pencil.and.outline").foregroundStyle(UF.info)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Korrektur: Lösung von \(targetName)").font(.caption).bold()
-                Text(session.summary + (session.draft.note.isEmpty ? "" : " · mit Nachricht")).font(.caption).foregroundStyle(.secondary)
-            }
-            Picker("Werkzeug", selection: $session.placingNote) {
-                Label("Markieren", systemImage: "highlighter").tag(false)
-                Label("Randnotiz", systemImage: "text.bubble").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 240)
-            .accessibilityIdentifier("correction.tool")
-            Button(action: editMessage) { Text("Nachricht").ufHitArea(slop: CorrectionBarHit.slop) }
-                .buttonStyle(.bordered).controlSize(.small)
-            Button(role: .destructive, action: discard) { Text("Verwerfen").ufHitArea(slop: CorrectionBarHit.slop) }
-                .buttonStyle(.bordered).controlSize(.small)
-                .accessibilityIdentifier("correction.discard")
-            Button { pause() } label: {
-                Image(systemName: "pause.circle").frame(width: 44, height: 44).contentShape(Rectangle())   // nur Symbol: volle 44 pt
-            }
-            .buttonStyle(.plain).foregroundStyle(UF.accentText)
-            .help("Später weitermachen (Entwurf bleibt gespeichert)")
-            .accessibilityLabel("Später weitermachen")
-            if session.sending {
-                ProgressView().controlSize(.small)
+        Group {
+            if UFCompact.isCompact(horizontal: hSize, vertical: vSize) {
+                // kompakt: oben Titel, Stand und Pause; darunter Werkzeug, Menue (Nachricht, Verwerfen) und Senden
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        title
+                        Spacer(minLength: 4)
+                        pauseButton
+                    }
+                    HStack(spacing: 8) {
+                        toolPicker
+                        Menu {
+                            Button("Nachricht", action: editMessage)
+                            Button("Verwerfen", role: .destructive, action: discard)
+                        } label: {
+                            Image(systemName: "ellipsis.circle").frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .accessibilityLabel("Weitere Aktionen")
+                        .accessibilityIdentifier("correction.more")
+                        sendButton
+                    }
+                }
             } else {
-                Button { Task { await send() } } label: { Text("Korrektur senden").ufHitArea(slop: CorrectionBarHit.slop) }
-                    .buttonStyle(.borderedProminent).controlSize(.small)
-                    .disabled(!session.canSend)
-                    .accessibilityIdentifier("correction.send")
+                HStack(spacing: 10) {
+                    title
+                    toolPicker.frame(maxWidth: 240)
+                    Button(action: editMessage) { Text("Nachricht").ufHitArea(slop: CorrectionBarHit.slop) }
+                        .buttonStyle(.bordered).controlSize(.small)
+                    Button(role: .destructive, action: discard) { Text("Verwerfen").ufHitArea(slop: CorrectionBarHit.slop) }
+                        .buttonStyle(.bordered).controlSize(.small)
+                        .accessibilityIdentifier("correction.discard")
+                    pauseButton
+                    sendButton
+                }
             }
         }
         .padding(10)
@@ -72,6 +78,45 @@ struct CorrectionBar: View {
         .padding(.top, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("correctionBar")
+    }
+
+    private var title: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "pencil.and.outline").foregroundStyle(UF.info)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Korrektur: Lösung von \(targetName)").font(.caption).bold()
+                Text(session.summary + (session.draft.note.isEmpty ? "" : " · mit Nachricht")).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var toolPicker: some View {
+        Picker("Werkzeug", selection: $session.placingNote) {
+            Label("Markieren", systemImage: "highlighter").tag(false)
+            Label("Randnotiz", systemImage: "text.bubble").tag(true)
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("correction.tool")
+    }
+
+    private var pauseButton: some View {
+        Button { pause() } label: {
+            Image(systemName: "pause.circle").frame(width: 44, height: 44).contentShape(Rectangle())   // nur Symbol: volle 44 pt
+        }
+        .buttonStyle(.plain).foregroundStyle(UF.accentText)
+        .help("Später weitermachen (Entwurf bleibt gespeichert)")
+        .accessibilityLabel("Später weitermachen")
+    }
+
+    @ViewBuilder private var sendButton: some View {
+        if session.sending {
+            ProgressView().controlSize(.small)
+        } else {
+            Button { Task { await send() } } label: { Text("Korrektur senden").ufHitArea(slop: CorrectionBarHit.slop) }
+                .buttonStyle(.borderedProminent).controlSize(.small)
+                .disabled(!session.canSend)
+                .accessibilityIdentifier("correction.send")
+        }
     }
 }
 

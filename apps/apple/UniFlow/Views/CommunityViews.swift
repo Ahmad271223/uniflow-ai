@@ -296,10 +296,17 @@ struct CommunityReaderSheet: View {
     @State private var editing: CommunityComment?
     @State private var spot: (page: String, anchor: CommunityComment.Anchor)?
     @State private var busy = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnCompact) private var learnCompact
+
+    /// schmal: Kommentarfeld unten fest ueber der Tastatur, Rand 16 pt
+    private var compact: Bool { UFCompactLearn.inSheet(shell: shellCompact, inherited: learnCompact) }
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     if let error { CommunityNotice(text: error) }
                     if let localFile {
@@ -324,6 +331,11 @@ struct CommunityReaderSheet: View {
                         }
                     } else if error == nil { CommunityLoading(text: "Lösung wird geladen …") }
                     if service.supportsDiscussion { commentsCard }
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if service.supportsDiscussion && compact {
+                    UFCompactBottomBar { commentComposer }.accessibilityIdentifier("community.reader.bottom")
                 }
             }
             .navigationTitle(solution.title.isEmpty ? "Lösung" : solution.title)
@@ -354,16 +366,24 @@ struct CommunityReaderSheet: View {
             ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in
                 commentRow(c, number: i + 1).ufBorderBottom(c.id != comments.last?.id)
             }
-            if let target = composerTitle { Text(target).ufFont(12.8, 600).foregroundStyle(UF.text2).padding(.top, 8) }
-            UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70).padding(.top, 8)
-            HStack(spacing: 8) {
-                UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
-                    .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                if composerTitle != nil {
-                    UFButton("Abbrechen", size: .small) { resetComposer() }
-                }
+            if !compact { commentComposer.padding(.top, 8) }
+        }
+    }
+
+    /// Kommentarfeld: breit in der Karte, schmal unten fest (Ziel, Feld, Senden)
+    @ViewBuilder private var commentComposer: some View {
+        if let target = composerTitle { Text(target).ufFont(12.8, 600).foregroundStyle(UF.text2) }
+        if compact {
+            UFCompactComposerField(placeholder: "Kommentar schreiben …", text: $draft)
+        } else {
+            UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70)
+        }
+        HStack(spacing: 8) {
+            UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
+                .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            if composerTitle != nil {
+                UFButton("Abbrechen", size: .small) { resetComposer() }
             }
-            .padding(.top, 8)
         }
     }
 
@@ -534,10 +554,15 @@ struct CommunitySolutionsSheet: View {
     @State private var withdrawing: CommunitySolutionSummary?
     @State private var discussing: CommunitySolutionSummary?
     @State private var notice: String?
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnCompact) private var learnCompact
+
+    /// schmal (iPhone): Knoepfe einer Loesung unter ihrem Namen, Rand 16 pt
+    private var compact: Bool { UFCompactLearn.inSheet(shell: shellCompact, inherited: learnCompact) }
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 UFGate(.communityRead) { content }
             }
             .navigationTitle("Lösungen aus der Community")
@@ -617,12 +642,27 @@ struct CommunitySolutionsSheet: View {
         }
     }
 
-    private func row(_ s: CommunitySolutionSummary) -> some View {
+    @ViewBuilder private func row(_ s: CommunitySolutionSummary) -> some View {
+        if compact {
+            // schmal: Name und Zeile in voller Breite, darunter die Knoepfe (nebeneinander passten sie nicht)
+            VStack(alignment: .leading, spacing: 6) {
+                UFItemRow(rowTitle(s), sub: rowSub(s), leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) }, trailing: { EmptyView() })
+                rowActions(s).padding(.leading, 30).padding(.bottom, 8)
+            }
+        } else {
+            UFItemRow(rowTitle(s), sub: rowSub(s), leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) }, trailing: { rowActions(s) })
+        }
+    }
+
+    private func rowTitle(_ s: CommunitySolutionSummary) -> String { ForeignSolutionLayer.label(displayName: s.displayName, createdAt: s.createdAt) }
+
+    private func rowSub(_ s: CommunitySolutionSummary) -> String {
         let pages = s.pageCount == 1 ? "1 Seite" : "\(s.pageCount) Seiten"
         let who = s.isOwn ? "deine Veröffentlichung" : s.visibility.title
-        return UFItemRow(ForeignSolutionLayer.label(displayName: s.displayName, createdAt: s.createdAt), sub: "\(pages) · \(who)\(service.supportsDiscussion ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")",
-                         leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) },
-                         trailing: {
+        return "\(pages) · \(who)\(service.supportsDiscussion ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")"
+    }
+
+    private func rowActions(_ s: CommunitySolutionSummary) -> some View {
                              HStack(spacing: 8) {
                                  UFButton(busyID == s.solutionID ? "Wird geladen …" : "Laden und anzeigen", icon: "download", kind: .primary, size: .small) {
                                      load(s)
@@ -643,7 +683,6 @@ struct CommunitySolutionsSheet: View {
                                  }
                                  .accessibilityLabel("Mehr")
                              }
-                         })
     }
 
     private func load(force: Bool = false) async {

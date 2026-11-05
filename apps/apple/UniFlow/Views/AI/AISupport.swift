@@ -464,6 +464,8 @@ struct AIComposer<Accessory: View>: View {
     var large = false
     var canSend: Bool
     var sendLabel = "Senden"
+    /// schmal (iPhone): Platzhalter in einer Zeile wie das Feld (sonst ragte die zweite unter die Knoepfe)
+    var placeholderOneLine = false
     var inputID: String
     var sendID: String
     let send: () -> Void
@@ -481,7 +483,8 @@ struct AIComposer<Accessory: View>: View {
                 .background(alignment: .topLeading) {
                     if text.isEmpty {
                         Text(placeholder).ufFont(large ? 16 : 14.5, lh: 1.45).foregroundStyle(UF.muted)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(placeholderOneLine ? 1 : nil)
+                            .fixedSize(horizontal: false, vertical: !placeholderOneLine)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
@@ -523,12 +526,16 @@ struct AIComposerPill: View {
     var text: String?
     var tint: Color = UF.text2
     var fill: Color = UF.surface2
+    /// schmal: Text in einer Zeile (gekuerzt mit "…"), damit Modul und Dokument neben Senden passen
+    var oneLine = false
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 14
 
     var body: some View {
         HStack(spacing: 6) {
             UFIcon(icon, size: min(iconSize, 26))
-            if let text { Text(text).ufFont(12.8, 550, lh: 1.3).fixedSize(horizontal: false, vertical: true) }
+            if let text {
+                Text(text).ufFont(12.8, 550, lh: 1.3).lineLimit(oneLine ? 1 : nil).fixedSize(horizontal: false, vertical: !oneLine)
+            }
         }
         .foregroundStyle(tint)
         .padding(.vertical, 6).padding(.leading, 10).padding(.trailing, text == nil ? 10 : 12)

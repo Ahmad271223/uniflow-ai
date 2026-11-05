@@ -114,6 +114,9 @@ struct LibraryView: View {
     @State private var openTabs: [String] = []
     @State private var query = ""
     @State private var columns: NavigationSplitViewVisibility = .all
+    /// Kompakt (iPhone): gleich das Dokument zeigen. Sonst stand erst die Dokumentliste da und das Dokument schob sich
+    /// darueber; Zurueck fuehrt ueber das eigene "Zurück" des Dokuments zur vorigen Seite der App
+    @State private var compactColumn: NavigationSplitViewColumn = .detail
     @State private var importing = false
     @State private var importMessage: String?
     /// Dokument, das beim Oeffnen gleich angezeigt wird (Route #/doc/<id> aus Uebersicht/Suche)
@@ -148,7 +151,7 @@ struct LibraryView: View {
     private func file(_ id: String) -> LibFile? { library?.files.first { $0.id == id } ?? extra[id] }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
+        NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
             List(selection: $moduleSelection) {
                 Label("Alle Dokumente", systemImage: "tray.full").tag("all" as String?)
                 Section("Module") {

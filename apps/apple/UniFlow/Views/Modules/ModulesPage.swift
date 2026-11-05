@@ -267,6 +267,8 @@ struct ModuleCard: View {
 struct ModuleListRow: View {
     let m: JSONValue
     let open: () -> Void
+    /// iPhone: Zahlen unter dem Namen statt in drei Spalten
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         let nx = m["next_event"].flatMap { $0.isNull ? nil : $0 }
@@ -282,6 +284,14 @@ struct ModuleListRow: View {
                     Text(topics.isEmpty ? "\(m.i("courses") ?? 0) Veranstaltungen" : topics).ufFont(12.48).foregroundStyle(UF.muted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                if compact {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        LernstandBadge(m: m["mastery"], color: Color(hex: m.s("color")), size: .small)
+                        Text("\(m.i("progress") ?? 0)%").ufFont(12.48).monospacedDigit().foregroundStyle(UF.muted)
+                    }
+                    .fixedSize()
+                    UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted)
+                } else {
                 VStack(alignment: .leading, spacing: 1.6) {
                     Text("\(m.i("progress") ?? 0)% bearbeitet").ufFont(13.12).monospacedDigit().foregroundStyle(UF.text)
                     LernstandBadge(m: m["mastery"], color: Color(hex: m.s("color")), size: .small)   // docs/LERNSTAND-2026-11-04.md
@@ -290,6 +300,7 @@ struct ModuleListRow: View {
                 Text("\(m.i("file_count") ?? 0) \(m.i("file_count") == 1 ? "Datei" : "Dateien") · \(m.i("new_count") ?? 0) neu").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 Text(nx.map { "\(UFFmt.short($0.s("date"))) \($0.s("start") ?? "")" } ?? "–").ufFont(13.12).monospacedDigit().foregroundStyle(UF.muted).frame(width: 120, alignment: .leading)
                 UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 36)
+                }
             }
             .padding(.vertical, 9.6).padding(.horizontal, 8)
             .contentShape(Rectangle())

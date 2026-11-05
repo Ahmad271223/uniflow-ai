@@ -38,9 +38,9 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
     /// Was die Anmeldung bringt (ein Satz unter dem Titel)
     var intro: String {
         switch self {
-        case .studip: return "StudiNow holt danach deine Kurse, Dateien, den Stundenplan und die Aufzeichnungen auf dieses iPad."
+        case .studip: return "StudiNow holt danach deine Kurse, Dateien, den Stundenplan und die Aufzeichnungen auf dieses \(UFDevice.name)."
         case .qis: return "Danach steht dein Notenspiegel in StudiNow. Meist dieselbe LUH-ID wie bei Stud.IP."
-        case .learnweb: return "StudiNow holt danach deine Learnweb-Kurse und -Dateien auf dieses iPad (UNI-Account)."
+        case .learnweb: return "StudiNow holt danach deine Learnweb-Kurse und -Dateien auf dieses \(UFDevice.name) (UNI-Account)."
         case .lsf: return "Danach kommen Stundenplan und Notenspiegel aus dem LSF. Mit der Learnweb-Anmeldung geht das meist ohne neues Passwort."
         }
     }
@@ -430,8 +430,8 @@ struct FirstSyncPage: View {
                     .ufFont(28.8, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 19.2)
                     .accessibilityIdentifier("firststart.sync.title")
                 Text(finished
-                     ? "Deine Daten liegen nur auf diesem iPad. Alles Weitere holt StudiNow beim Öffnen der App von selbst."
-                     : "StudiNow holt deine Daten auf dieses iPad. Das kann beim ersten Mal ein paar Minuten dauern.")
+                     ? "Deine Daten liegen nur auf diesem \(UFDevice.name). Alles Weitere holt StudiNow beim Öffnen der App von selbst."
+                     : "StudiNow holt deine Daten auf dieses \(UFDevice.name). Das kann beim ersten Mal ein paar Minuten dauern.")
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
                 UFCard {

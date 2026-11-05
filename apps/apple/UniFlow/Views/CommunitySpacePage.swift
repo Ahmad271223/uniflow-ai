@@ -205,6 +205,10 @@ struct CommunitySpacePage: View {
     @State private var reading: CommunityReading?
     /// Fachfarbe des Moduls ("#rrggbb"), sobald bekannt
     @State private var tintHex: String?
+    /// schmal (iPhone): Fassung an Blaetter weitergeben (Frage, Lösung lesen)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
     /// Korrekturhinweise an eigene Loesungen dieser Community
     @StateObject private var inbox: CorrectionInboxModel
     /// eigene Datei zu einem Fingerabdruck (Korrektur vorschlagen bzw. ansehen); Tests setzen sie
@@ -230,6 +234,7 @@ struct CommunitySpacePage: View {
                 if let reading { readerPage(reading) } else { overview }
             }
         }
+        .environment(\.ufLearnCompact, UFCompactLearn.isCompact(sizeClass, shell: shellCompact))
         .task { await load() }
         // Notizen einer Person wie ein Dokument: ohne Leiste und Kopfzeile (das Logo fuehrt zurueck)
         .onChange(of: reading?.id) { _, id in router.fullscreenDoc = id != nil }
@@ -318,9 +323,9 @@ struct CommunitySpacePage: View {
                 if !sub.isEmpty { Text(sub).ufFont(13.6).foregroundStyle(UF.text2) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.trailing, 56)
+            .padding(.trailing, UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? 24 : 56)
         }
-        .padding(20)
+        .padding(UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? 16 : 20)
         .background(LinearGradient(stops: [.init(color: CommunityTint.wash(tint, 0.16), location: 0), .init(color: UF.surface, location: 0.78)],
                                    startPoint: UnitPoint(x: 0.2, y: 0), endPoint: UnitPoint(x: 0.8, y: 1)))
         .overlay(alignment: .topTrailing) {
@@ -342,7 +347,7 @@ struct CommunitySpacePage: View {
             .ufFont(15.2, 650)
             .foregroundStyle(.white)
             .padding(.horizontal, 28)
-            .frame(minWidth: 240, minHeight: 50)
+            .frame(minWidth: 240, maxWidth: UFCompactLearn.isCompact(sizeClass, shell: shellCompact) ? .infinity : nil, minHeight: 50)
             .background(Capsule().fill(UF.accentFill))
             .contentShape(Capsule())
         }
@@ -514,32 +519,47 @@ struct CommunitySpaceDiscussion: View {
     @State private var busy = false
     @State private var error: String?
     @State private var thread: CommunityPost?
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnCompact) private var learnCompact
+
+    /// schmal: Filter unter dem Titel, Feld ohne Kreis in voller Breite, Knopf darunter
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact, inherited: learnCompact) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 8) {
-                Text("Fragen und Antworten").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
-                ForEach(CommunityPostFilter.allCases, id: \.self) { f in
-                    CommunityChip(title: f.title, on: filter == f, id: "community.discussion.filter.\(f.rawValue)") { filter = f }
+            if compact {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Fragen und Antworten").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                    UFCompactScrollRow(spacing: 8, inset: 0) { filterChips }
+                }
+            } else {
+                HStack(alignment: .center, spacing: 8) {
+                    Text("Fragen und Antworten").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    filterChips
                 }
             }
             UFCard {
                 HStack(alignment: .top, spacing: 12) {
-                    CommunityAvatar(name: SolutionDisplayName.load().isEmpty ? "Du" : SolutionDisplayName.load(), size: 36, own: true)
-                        .padding(.top, 2)
+                    if !compact {
+                        CommunityAvatar(name: SolutionDisplayName.load().isEmpty ? "Du" : SolutionDisplayName.load(), size: 36, own: true)
+                            .padding(.top, 2)
+                    }
                     UFTextArea(placeholder: "Frage stellen …", text: $draft, minHeight: 44)
                         .accessibilityIdentifier("community.discussion.field")
                 }
-                HStack(alignment: .center, spacing: 12) {
+                let foot = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+                foot {
                     Text(CommunitySpaceTexts.discussionNotice).ufFont(12.48).foregroundStyle(UF.muted)
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
+                    if !compact { Spacer(minLength: 8) }
                     UFButton(busy ? "Wird gesendet …" : "Frage stellen", icon: "check", kind: .primary, size: .small) { ask() }
                         .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .accessibilityIdentifier("community.discussion.ask")
                 }
-                .padding(.top, 10).padding(.leading, 48)
+                .padding(.top, 10).padding(.leading, compact ? 0 : 48)
             }
             if let error { CommunityNotice(text: error) }
             if let posts {
@@ -568,6 +588,12 @@ struct CommunitySpaceDiscussion: View {
         .task(id: space.key) { await load() }
         .sheet(item: $thread, onDismiss: { Task { await load() } }) { p in
             CommunityThreadSheet(space: space, service: service, post: p) { thread = nil }
+        }
+    }
+
+    @ViewBuilder private var filterChips: some View {
+        ForEach(CommunityPostFilter.allCases, id: \.self) { f in
+            CommunityChip(title: f.title, on: filter == f, id: "community.discussion.filter.\(f.rawValue)") { filter = f }
         }
     }
 
@@ -715,10 +741,17 @@ struct CommunityThreadSheet: View {
     @State private var busy = false
     @State private var error: String?
     @State private var notice: String?
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnCompact) private var learnCompact
+
+    /// schmal: Antwortfeld unten fest ueber der Tastatur, Rand 16 pt
+    private var compact: Bool { UFCompactLearn.inSheet(shell: shellCompact, inherited: learnCompact) }
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     if let notice { CommunityNotice(text: notice, tone: .ok) }
                     if let error { CommunityNotice(text: error) }
@@ -755,13 +788,12 @@ struct CommunityThreadSheet: View {
                             .padding(.horizontal, 14)
                         }
                     }
-                    if !post.question.deleted {
-                        UFTextArea(placeholder: "Antworten …", text: $draft, minHeight: 60)
-                            .accessibilityIdentifier("community.thread.field")
-                        UFButton(busy ? "Wird gesendet …" : "Antworten", icon: "check", kind: .primary, size: .small) { reply() }
-                            .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            .accessibilityIdentifier("community.thread.send")
-                    }
+                    if !post.question.deleted && !compact { replyComposer }
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !post.question.deleted && compact {
+                    UFCompactBottomBar { replyComposer }.accessibilityIdentifier("community.thread.bottom")
                 }
             }
             .navigationTitle("Frage")
@@ -769,6 +801,24 @@ struct CommunityThreadSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .accessibilityIdentifier("community.thread")
+    }
+
+    /// Antwortfeld: breit unter den Antworten, schmal unten fest (Feld und Senden in einer Reihe)
+    @ViewBuilder private var replyComposer: some View {
+        let send = UFButton(busy ? "Wird gesendet …" : "Antworten", icon: "check", kind: .primary, size: .small) { reply() }
+            .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityIdentifier("community.thread.send")
+        if compact {
+            HStack(alignment: .bottom, spacing: 8) {
+                UFCompactComposerField(placeholder: "Antworten …", text: $draft)
+                    .accessibilityIdentifier("community.thread.field")
+                send.frame(minHeight: 44)
+            }
+        } else {
+            UFTextArea(placeholder: "Antworten …", text: $draft, minHeight: 60)
+                .accessibilityIdentifier("community.thread.field")
+            send
+        }
     }
 
     private func entryHead(_ c: CommunityComment) -> some View {

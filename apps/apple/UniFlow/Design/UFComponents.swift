@@ -669,6 +669,8 @@ struct UFEmpty<Actions: View>: View {
 
 /// .page-head – h1 + Unterzeile links, Aktionen rechts (umbrechend)
 struct UFPageHead<Actions: View>: View {
+    /// iPhone: Titel etwas kleiner (26 statt 30,4 pt), damit lange Begruessungen nicht drei Zeilen fuellen
+    @Environment(\.ufCompact) private var compact
     let title: String
     var sub: String?
     @ViewBuilder var actions: Actions
@@ -694,7 +696,7 @@ struct UFPageHead<Actions: View>: View {
 
     private var titles: some View {
         VStack(alignment: .leading, spacing: 2.4) {
-            Text(title).ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
+            Text(title).ufFont(compact ? 26 : 30.4, 700, em: -0.02).foregroundStyle(UF.text)
             if let sub { Text(sub).ufFont(14.5).foregroundStyle(UF.muted) }
         }
     }
@@ -748,8 +750,21 @@ struct UFContent<Content: View>: View {
         self.content = content()
     }
 
+    /// iPhone: Seitenrand hoechstens 16 pt (`UFLayout.pagePadding`), auch bei eigenen Abstaenden der Seite
+    @Environment(\.ufCompact) private var compact
+
+    private var pad: EdgeInsets {
+        var pad = insets ?? (wide ? EdgeInsets(top: 12.8, leading: 16, bottom: 16, trailing: 16) : EdgeInsets(top: 22.4, leading: 25.6, bottom: 48, trailing: 25.6))
+        if compact {
+            let side = UFLayout.pagePadding(compact: true)
+            pad.leading = min(pad.leading, side)
+            pad.trailing = min(pad.trailing, side)
+            pad.top = min(pad.top, 18)
+        }
+        return pad
+    }
+
     var body: some View {
-        let pad = insets ?? (wide ? EdgeInsets(top: 12.8, leading: 16, bottom: 16, trailing: 16) : EdgeInsets(top: 22.4, leading: 25.6, bottom: 48, trailing: 25.6))
         ScrollView {
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(pad)
@@ -776,6 +791,8 @@ enum UFDebugScroll {
 
 /// Inhalt eines Dialogs wie modal() in core.js: Titel (h3), Inhalt, Fusszeile rechtsbuendig.
 struct UFDialog<Content: View, Foot: View>: View {
+    /// kompakt im Blatt von unten: keine eigene Karte, kein Schatten (das Blatt ist die Karte)
+    @Environment(\.ufInSheet) private var inSheet
     let title: String
     var icon: String?
     @ViewBuilder var content: Content
@@ -799,10 +816,17 @@ struct UFDialog<Content: View, Foot: View>: View {
             if !(foot is EmptyView) { HStack(spacing: 8) { Spacer(); foot }.padding(.top, 16) }  // .modal-foot
         }
         .padding(.vertical, 20.8)
-        .padding(.horizontal, 22.4)
+        .padding(.horizontal, inSheet ? 18 : 22.4)
         .frame(maxWidth: .infinity, alignment: .leading)           // .modal-box: width min(620px, 100%)
-        .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
-        .ufShadow(.lg)
+        .background(RoundedRectangle(cornerRadius: UF.rLg).fill(inSheet ? Color.clear : UF.surface))
+        .modifier(UFDialogShadow(on: !inSheet))
+    }
+}
+
+private struct UFDialogShadow: ViewModifier {
+    let on: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if on { content.ufShadow(.lg) } else { content }
     }
 }
 
@@ -862,21 +886,105 @@ struct UFToastOverlay: ViewModifier {
 // MARK: - Dialog-Ueberlagerung wie modal() in core.js (abgedunkelter Hintergrund, Karte mittig, Tipp daneben schliesst)
 
 extension View {
+    /// Dialog dieser Ansicht: auf breitem Platz mittig ueber abgedunkeltem Hintergrund, kompakt (iPhone, schmaler Split
+    /// View) als Blatt von unten mit halber und voller Hoehe (docs/IPHONE-2026-11-04.md)
     func ufModal<M: View>(isPresented: Binding<Bool>, @ViewBuilder content: @escaping () -> M) -> some View {
-        overlay {
-            if isPresented.wrappedValue {
-                ZStack {
-                    Color(red: 10 / 255, green: 12 / 255, blue: 24 / 255).opacity(0.45).ignoresSafeArea()
-                        .onTapGesture { isPresented.wrappedValue = false }
-                    ScrollView { content().padding(16) }
-                        .scrollBounceBehavior(.basedOnSize)
-                        .frame(maxWidth: 652)
+        modifier(UFInlineModal(isPresented: isPresented, body: content))
+    }
+}
+
+private struct UFInlineModal<M: View>: ViewModifier {
+    @Binding var isPresented: Bool
+    let body: () -> M
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+
+    func body(content: Content) -> some View {
+        let sheet = UFLayout.presentsAsSheet(horizontal: hSize, vertical: vSize)
+        content
+            .overlay {
+                if isPresented && !sheet {
+                    ZStack {
+                        Color(red: 10 / 255, green: 12 / 255, blue: 24 / 255).opacity(0.45).ignoresSafeArea()
+                            .onTapGesture { isPresented = false }
+                        ScrollView { body().padding(16) }
+                            .scrollBounceBehavior(.basedOnSize)
+                            .frame(maxWidth: 652)
+                    }
+                    .transition(.opacity)
+                    .zIndex(50)
                 }
-                .transition(.opacity)
-                .zIndex(50)
             }
-        }
-        .animation(UF.motion(.easeOut(duration: 0.12)), value: isPresented.wrappedValue)
+            .animation(UF.motion(.easeOut(duration: 0.12)), value: isPresented)
+            .sheet(isPresented: Binding(get: { isPresented && sheet }, set: { if !$0 { isPresented = false } })) {
+                ScrollView { body() }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .ufSheetPresentation()
+            }
+    }
+}
+
+// MARK: - iPhone-Fassung: kompakter Platz (docs/IPHONE-2026-11-04.md)
+
+/// Entschieden wird nach Platz, nicht nach Geraet: kompakt ist, wo die Breite kompakt ist (iPhone hoch, iPad im
+/// schmalen Split View) oder die Hoehe (iPhone quer, auch das grosse mit regulaerer Breite). Ein iPad ist nie in der
+/// Hoehe kompakt, darum aendert die zweite Bedingung dort nichts. Reine Funktionen (IPhoneNavigationTests).
+enum UFLayout {
+    static func isCompact(horizontal: UserInterfaceSizeClass?, vertical: UserInterfaceSizeClass?) -> Bool {
+        UFCompact.isCompact(horizontal: horizontal, vertical: vertical)          // eine Regel fuer alle Teile
+    }
+
+    /// Dialoge (`UFOverlay.modal`, `ufModal`) und Drawer kompakt als Blatt von unten, sonst mittig bzw. rechts
+    static func presentsAsSheet(horizontal: UserInterfaceSizeClass?, vertical: UserInterfaceSizeClass?) -> Bool {
+        isCompact(horizontal: horizontal, vertical: vertical)
+    }
+
+    /// Hoehen des Blatts: Dialoge halb und ganz, breite Dialoge und Drawer (Formulare, Listen) gleich ganz
+    static func detents(wide: Bool) -> Set<PresentationDetent> { wide ? [.large] : [.medium, .large] }
+
+    /// Seitenrand kompakt (16 pt wie die Systemlisten), sonst wie die Web-App (1.6rem)
+    static func pagePadding(compact: Bool) -> CGFloat { compact ? 16 : 25.6 }
+}
+
+private struct UFCompactKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// Kompakte Fassung (`UFLayout.isCompact`); setzt `AppShell` fuer alle Seiten, sonst `.ufCompactLayout()`
+    var ufCompact: Bool {
+        get { self[UFCompactKey.self] }
+        set { self[UFCompactKey.self] = newValue }
+    }
+
+    // `\.ufInSheet` (Inhalt in einem Blatt von unten) steht in UFCompactLearn.swift; `UFDialog` liest ihn
+}
+
+private struct UFCompactLayout: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    func body(content: Content) -> some View {
+        content.environment(\.ufCompact, UFLayout.isCompact(horizontal: hSize, vertical: vSize))
+    }
+}
+
+extension View {
+    /// `\.ufCompact` aus den Groessenklassen setzen (Wurzeln ausserhalb von `AppShell`, z. B. Anmeldung)
+    func ufCompactLayout() -> some View { modifier(UFCompactLayout()) }
+
+    /// Darstellung eines Blatts von unten: Hoehen nach `UFLayout.detents`, Griff oben, Flaeche --surface,
+    /// `\.ufInSheet` fuer den Inhalt
+    func ufSheetPresentation(wide: Bool = false) -> some View {
+        self
+            .environment(\.ufInSheet, true)
+            .environment(\.ufCompact, true)
+            .presentationDetents(UFLayout.detents(wide: wide))
+            .presentationDragIndicator(.visible)
+            .presentationBackground(UF.surface)
+    }
+
+    /// Breite nur auf breitem Platz begrenzen: `.frame(width:)`/`.frame(maxWidth:)` fester Spalten kompakt aufheben
+    /// (dann volle Breite), damit nichts ueber den Rand ragt
+    @ViewBuilder func ufWidth(_ width: CGFloat, compact: Bool) -> some View {
+        if compact { self.frame(maxWidth: .infinity, alignment: .leading) } else { self.frame(width: width) }
     }
 }
 
@@ -1087,4 +1195,23 @@ struct UFLongText: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
+
+// MARK: - Geraetename in Texten
+
+/// "iPhone" oder "iPad" fuer Texte wie "bleibt auf diesem iPad" (eine Geraetefrage, keine Layoutfrage). Aus der
+/// Modellkennung, ohne UIKit (darf in jedem Kontext gelesen werden); Mac ("Designed for iPad") bleibt "iPad".
+enum UFDevice {
+    static let name: String = {
+        var id = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? ""
+        if id.isEmpty {
+            var u = utsname()
+            uname(&u)
+            id = withUnsafeBytes(of: &u.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        }
+        return id.hasPrefix("iPhone") ? "iPhone" : "iPad"
+    }()
+
+    /// iPhone: kein Apple Pencil, dort schreibt der Finger (Texte ueber das Schreiben)
+    static var isPhone: Bool { name == "iPhone" }
 }

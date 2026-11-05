@@ -7,10 +7,18 @@ import UniFlowCore
 
 // MARK: - Groesse der Blaetter
 
-/// iPadOS 18: Blatt in Seitenbreite (Fakten nebeneinander); iPadOS 17: das uebliche Formblatt
+/// iPadOS 18: Blatt in Seitenbreite (Fakten nebeneinander); iPadOS 17: das uebliche Formblatt. Kompakt (iPhone): Blatt
+/// von unten mit halber und voller Hoehe und Griff (docs/IPHONE-2026-11-04.md)
 struct StudyPlanSheetSizing: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+
     func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
+        if UFLayout.isCompact(horizontal: hSize, vertical: vSize) {
+            content
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        } else if #available(iOS 18.0, *) {
             content.presentationSizing(.page)
         } else {
             content

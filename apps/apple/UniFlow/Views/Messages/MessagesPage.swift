@@ -77,6 +77,8 @@ struct MessagesPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// iPhone: Seitenrand 16 pt
+    @Environment(\.ufCompact) private var compact
     @Environment(\.openURL) private var openURL
     @ObservedObject private var inbox = MessagesInbox.shared
 
@@ -102,7 +104,8 @@ struct MessagesPage: View {
         _query = State(initialValue: initialQuery)
     }
 
-    private var split: Bool { splitOverride ?? (windowWidth > 900) }
+    private var split: Bool { splitOverride ?? (windowWidth > 900 && !compact) }
+    private var side: CGFloat { UFLayout.pagePadding(compact: compact) }
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var selected: JSONValue? { messages.first { $0.s("id") == selectedID } }
 
@@ -110,10 +113,10 @@ struct MessagesPage: View {
         VStack(alignment: .leading, spacing: 0) {
             if split || selected == nil {
                 head
-                    .padding(EdgeInsets(top: 22.4, leading: 25.6, bottom: 0, trailing: 25.6))
+                    .padding(EdgeInsets(top: compact ? 18 : 22.4, leading: side, bottom: 0, trailing: side))
             }
             content
-                .padding(EdgeInsets(top: split || selected == nil ? 0 : 12, leading: 25.6, bottom: 20, trailing: 25.6))
+                .padding(EdgeInsets(top: split || selected == nil ? 0 : 12, leading: side, bottom: 20, trailing: side))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(UF.bg)

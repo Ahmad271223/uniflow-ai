@@ -112,6 +112,17 @@ struct LibraryPage: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.ufDemoActive) private var demo
+    /// schmal (iPhone): Liste statt Kacheln, kurze Brotkrumen, Suche mit Knopf "Filter" (Blatt), Dialoge als Blatt
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @StateObject private var learnSheets = UFLearnSheets()
+
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact) }
+    /// Dialoge schmal als Blatt von unten, breit mittig
+    private var sheets: UFLearnSheets? { compact ? learnSheets : nil }
+    /// Rand schmal: 16 pt seitlich
+    static let compactInsets = EdgeInsets(top: 12, leading: UFCompactLearn.gutter, bottom: 32, trailing: UFCompactLearn.gutter)
 
     private var newTitle: String { UFSourceText.newFiles(studip.university, demo: demo) }
     /// Hochschule verbunden (Stud.IP bzw. Learnweb/LSF): sonst bietet die leere Bibliothek das Verbinden an
@@ -140,6 +151,7 @@ struct LibraryPage: View {
                 UFContent { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
         }
+        .ufLearnSheetHost(learnSheets)
         .task(id: "\(section ?? "")|\(path ?? "")|\(q ?? "")") { query = q ?? ""; await load() }
         .ufReload { await load() }
     }
@@ -302,15 +314,18 @@ struct LibraryPage: View {
         let inCourse = LibraryCourses.courseID(path) != nil
         let newCount = UFNewFiles.count(lib.list("files"))
         let sectionTitle = ["fav": "Favoriten", "recent": "Zuletzt bearbeitet", "new": newTitle, "trash": "Papierkorb"][section]
-        UFContent(maxWidth: 1480) {
+        UFContent(maxWidth: 1480, insets: compact ? Self.compactInsets : nil) {
             // Kopf: Titel und die eine Hauptaktion "Neu"; Suche, Filter, Sortierung und Ansicht als eigene Werkzeugzeile
             // darunter (vorher fuenf Steuerelemente rechts vom Titel, "Neu" brach hochkant allein in eine Zeile)
-            UFPageHead("Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort.") {
+            UFPageHead("Dokumente & Notizen", sub: compact ? nil : "Alle Materialien deiner Module an einem Ort.") {
                 viewSwitch
                 UFButton("Neu", icon: "plus", kind: .primary) {
-                    overlay.modal { LibraryNewDialog(lib: lib, path: inCourse ? "" : path, current: inCourse ? b.crumbs[0] : (b.crumbs.last ?? ("", ""))) }
+                    overlay.learnModal(sheets) { LibraryNewDialog(lib: lib, path: inCourse ? "" : path, current: inCourse ? b.crumbs[0] : (b.crumbs.last ?? ("", ""))) }
                 }
             }
+            if compact {
+                compactToolbar(lib, section: section, path: path, curMod: curMod, newCount: newCount).padding(.bottom, 14)
+            } else {
             UFFlexWrap(gap: 8) {
                 searchField(section: section, path: path)
                 UFSelect(options: [(0, "Alle Module")] + lib.list("modules").compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } },
@@ -337,7 +352,11 @@ struct LibraryPage: View {
                 }
             }
             .padding(.bottom, 19.2)
-            if !b.root { crumbs(b, section: section, title: sectionTitle).padding(.bottom, 16) }
+            }
+            if !b.root {
+                if compact { compactCrumbs(b, section: section, title: sectionTitle).padding(.bottom, 12) }
+                else { crumbs(b, section: section, title: sectionTitle).padding(.bottom, 16) }
+            }
             if section == "trash" {
                 Text("Dokumente im Papierkorb lassen sich wiederherstellen. \(studip.university.profile.filesSource)-Dokumente bleiben erhalten, eigene Dokumente können endgültig gelöscht werden.")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
@@ -351,17 +370,23 @@ struct LibraryPage: View {
                     Text("Aktuelles Semester" + (older.s("current").map { " · \($0)" } ?? ""))
                         .ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader).padding(.bottom, 10)
                 }
+                if compact {
+                    // schmal: Modul- und Kursordner als Liste (die grossen Mappen-Karten fuellten je einen Bildschirm)
+                    let folders = b.items.filter { $0.kind == .folder }
+                    if !folders.isEmpty { itemsView(folders, lib: lib, inCard: true) }
+                } else {
                 UFGridLayout(spacing: 19.2, minWidth: 290) {
                     ForEach(b.items.filter { $0.kind == .folder }) { it in LibraryFolderCard(it: it, open: { open(it) }, menu: { menu(it, lib: lib) }) }
                 }
                 .environment(\.ufFillsCell, true)
+                }
                 if let older { LibrarySemestersSection(overview: older, reload: load) }
                 // ganz leer (keine Kursordner, keine Dokumente): Leerkarte mit den Wegen zu Inhalten statt nur des
                 // leeren Schnellzugriffs (Audit 03.11.2026)
                 if b.items.isEmpty && lib.list("files").isEmpty && (older?["semesters"]?.array ?? []).isEmpty {
                     LibraryEmptyCard(connected: universityConnected, source: studip.university.profile.filesSource,
                                      connect: { router.go(.settings(tab: "account")) },
-                                     new: { overlay.modal { LibraryNewDialog(lib: lib, path: "", current: b.crumbs.last ?? ("", "")) } })
+                                     new: { overlay.learnModal(sheets) { LibraryNewDialog(lib: lib, path: "", current: b.crumbs.last ?? ("", "")) } })
                 }
                 let own = b.items.filter { $0.kind == .doc }
                 if !own.isEmpty {
@@ -429,11 +454,11 @@ struct LibraryPage: View {
 
     /// Kopf wie bei den Ordnern (mit Umschalter und "Neu"), darunter "Mein Regal"
     private func shelfContent(_ lib: JSONValue) -> some View {
-        UFContent(maxWidth: 1480) {
-            UFPageHead("Dokumente & Notizen", sub: LibraryShelf.subtitle) {
+        UFContent(maxWidth: 1480, insets: compact ? Self.compactInsets : nil) {
+            UFPageHead("Dokumente & Notizen", sub: compact ? nil : LibraryShelf.subtitle) {
                 viewSwitch
                 UFButton("Neu", icon: "plus", kind: .primary) {
-                    overlay.modal { LibraryNewDialog(lib: lib, path: "", current: ("Dokumente & Notizen", "")) }
+                    overlay.learnModal(sheets) { LibraryNewDialog(lib: lib, path: "", current: ("Dokumente & Notizen", "")) }
                 }
             }
             LibraryShelfView()
@@ -445,7 +470,7 @@ struct LibraryPage: View {
     /// nur die sichtbaren und gleich folgenden; weggescrollte brechen ab (`.task`, `UFThumbnails`). Raster wie
     /// `UFGridLayout(spacing: 16, minWidth: 150)`: gleich breite Spalten ab 150 pt, 16 pt Abstand, Zellen oben buendig.
     @ViewBuilder private func itemsView(_ items: [Item], lib: JSONValue, inCard: Bool) -> some View {
-        if mode == "grid" {
+        if mode == "grid" && !compact {
             LazyVGrid(columns: Self.gridColumns, alignment: .leading, spacing: 16) {   // .lib-grid: gap 1.2rem 1rem
                 ForEach(items) { it in LibraryGridItem(it: it, api: session.api, open: { open(it) }, menu: { menu(it, lib: lib) }, fav: { Task { await toggleFav(it.f) } }) }
             }
@@ -467,7 +492,8 @@ struct LibraryPage: View {
     /// Spalten der Kacheln: so viele wie bei 150 pt Mindestbreite und 16 pt Abstand passen, gleich breit
     static let gridColumns = [GridItem(.adaptive(minimum: 150), spacing: 16, alignment: .top)]
 
-    private func searchField(section: String, path: String) -> some View {
+    /// `fill`: schmal in voller Breite statt 230 pt
+    private func searchField(section: String, path: String, fill: Bool = false) -> some View {
         HStack(spacing: 0) {
             UFIcon("search", size: 15).foregroundStyle(UF.muted).padding(.leading, 10.4).padding(.trailing, 7.2)
             TextField("In Dokumenten suchen…", text: $query)
@@ -483,7 +509,8 @@ struct LibraryPage: View {
                 }
         }
         .padding(.vertical, 8 + ufB).padding(.trailing, 11.2 + ufB)
-        .frame(width: 230)
+        .frame(width: fill ? nil : 230)
+        .frame(maxWidth: fill ? .infinity : nil)
         .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
         .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.lineStrong, lineWidth: 1))
     }
@@ -545,11 +572,133 @@ struct LibraryPage: View {
     private func menu(_ it: Item, lib: JSONValue) {
         switch it.kind {
         case .folder:
-            if let f = it.user { overlay.modal { LibraryFolderMenu(folder: f) } }
-            else if let m = it.module { overlay.modal { LibraryModuleMenu(module: m) } }
-        case .trash: overlay.modal { LibraryTrashMenu(id: it.f.s("id") ?? "") }
-        case .doc: overlay.modal { LibraryDocMenu(f: it.f, lib: lib) }
+            if let f = it.user { overlay.learnModal(sheets) { LibraryFolderMenu(folder: f) } }
+            else if let m = it.module { overlay.learnModal(sheets) { LibraryModuleMenu(module: m) } }
+        case .trash: overlay.learnModal(sheets) { LibraryTrashMenu(id: it.f.s("id") ?? "") }
+        case .doc: overlay.learnModal(sheets) { LibraryDocMenu(f: it.f, lib: lib) }
         }
+    }
+
+    // MARK: Schmal (iPhone)
+
+    /// Werkzeugzeile schmal: Suche in voller Breite, daneben "Filter" (Blatt mit Modul, Sortierung, Art und Bereichen);
+    /// ein aktiver Filter oder Bereich steht als Zahl am Knopf
+    private func compactToolbar(_ lib: JSONValue, section: String, path: String, curMod: Int, newCount: Int) -> some View {
+        // der Modulordner selbst ist kein Filter (er steht in den Brotkrumen)
+        let active = (Self.filter != "all" ? 1 : 0) + (section != "docs" ? 1 : 0) + (Self.sort != "date" ? 1 : 0)
+        return HStack(spacing: 8) {
+            searchField(section: section, path: path, fill: true)
+            Button { openFilters(lib, section: section, curMod: curMod, newCount: newCount) } label: {
+                HStack(spacing: 6) {
+                    UFIcon("filter", size: 15)
+                    Text("Filter")
+                    if active > 0 { UFBadge("\(active)") }
+                }
+            }
+            .buttonStyle(UFButtonStyle(kind: active > 0 ? .primary : .normal, size: .small))
+            .frame(minHeight: 44)
+            .accessibilityLabel(active > 0 ? "Filter, \(active) aktiv" : "Filter")
+            .accessibilityIdentifier("library.filters")
+        }
+    }
+
+    private func openFilters(_ lib: JSONValue, section: String, curMod: Int, newCount: Int) {
+        let modules = [(0, "Alle Module")] + lib.list("modules").compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } }
+        learnSheets.present {
+            LibraryFilterSheet(modules: modules, module: curMod, sort: Self.sort, filter: section == "docs" ? Self.filter : "all", section: section,
+                               newTitle: newTitle, newCount: newCount,
+                               setModule: { v in router.go(.files(path: v == 0 ? nil : "m\(v)")) },
+                               setSort: { Self.sort = $0; tick += 1 },
+                               setFilter: { k in
+                                   Self.filter = k
+                                   if section != "docs" { router.go(.files()) } else { tick += 1 }
+                               },
+                               setSection: { k in router.go(k == "docs" ? .files() : .files(section: k)) })
+        }
+    }
+
+    /// Brotkrumen schmal: "‹ Eltern" und der Titel der Ebene; Suche bzw. Filter klein darunter
+    private func compactCrumbs(_ b: Built, section: String, title: String?) -> some View {
+        let detail: String? = {
+            if let qq = q, !qq.isEmpty { return "Suche „\(qq)“" }
+            if Self.filter != "all" && section == "docs" { return LibraryStyle.chips.first { $0.0 == Self.filter }?.1 }
+            return nil
+        }()
+        if section != "docs" {
+            return UFCompactCrumb(parent: "Dokumente & Notizen", title: title ?? "", detail: detail) { router.go(.files()) }
+        }
+        let parent = UFCompactLearn.parent(b.crumbs)
+        return UFCompactCrumb(parent: parent?.label, title: b.crumbs.last?.label ?? "", detail: detail) {
+            if let parent { router.go(.files(path: parent.path.isEmpty ? nil : parent.path)) }
+        }
+    }
+}
+
+/// Filter der Bibliothek schmal (Blatt von unten): Modul, Sortierung, Art der Dokumente und die Bereiche (Favoriten,
+/// Zuletzt, Neu, Papierkorb). Jede Wahl gilt sofort; "Fertig" schliesst.
+struct LibraryFilterSheet: View {
+    let modules: [(Int, String)]
+    @State var module: Int
+    @State var sort: String
+    @State var filter: String
+    @State var section: String
+    let newTitle: String
+    let newCount: Int
+    let setModule: (Int) -> Void
+    let setSort: (String) -> Void
+    let setFilter: (String) -> Void
+    let setSection: (String) -> Void
+    @Environment(\.ufClose) private var close
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("Filter").ufFont(19.2, 700, em: -0.01).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                Spacer()
+                UFButton("Fertig", kind: .primary, size: .small) { close() }.accessibilityIdentifier("library.filters.done")
+            }
+            group("Bereich") {
+                UFFlexWrap(gap: 8, rowGap: 8) {
+                    chip("docs", "Alle Ordner", icon: "folder", on: section == "docs") { section = "docs"; setSection("docs") }
+                    chip("fav", "Favoriten", icon: "star", on: section == "fav") { section = "fav"; setSection("fav") }
+                    chip("recent", "Zuletzt", icon: "clock", on: section == "recent") { section = "recent"; setSection("recent") }
+                    chip("new", newCount > 0 ? "\(newTitle) (\(newCount))" : newTitle, icon: "sparkles", on: section == "new") { section = "new"; setSection("new") }
+                    chip("trash", "Papierkorb", icon: "trash", on: section == "trash") { section = "trash"; setSection("trash") }
+                }
+            }
+            group("Art") {
+                UFFlexWrap(gap: 8, rowGap: 8) {
+                    ForEach(LibraryStyle.chips, id: \.0) { k, l in
+                        chip("type.\(k)", l, on: filter == k) { filter = k; section = "docs"; setFilter(k) }
+                    }
+                }
+            }
+            group("Modul") {
+                UFSelect(options: modules, selection: Binding(get: { module }, set: { module = $0; setModule($0) }), fill: true)
+                    .accessibilityIdentifier("library.filters.module")
+            }
+            group("Sortierung") {
+                UFSegmented(options: [("date", "Zuletzt bearbeitet"), ("name", "Name")],
+                            selection: Binding(get: { sort }, set: { sort = $0; setSort($0) }))
+                    .accessibilityIdentifier("library.filters.sort")
+            }
+        }
+        .padding(.horizontal, UFCompactLearn.gutter).padding(.top, 14).padding(.bottom, 24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("library.filterSheet")
+    }
+
+    private func group<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased()).ufFont(11.52, 650, em: 0.06).foregroundStyle(UF.muted)
+                .accessibilityLabel(title).accessibilityAddTraits(.isHeader)
+            content()
+        }
+    }
+
+    private func chip(_ id: String, _ text: String, icon: String? = nil, on: Bool, action: @escaping () -> Void) -> some View {
+        AIChoiceChip(text: text, on: on, icon: icon, action: action)
+            .accessibilityIdentifier("library.filters.\(id)")
     }
 }
 
@@ -794,8 +943,89 @@ struct LibraryListRow: View {
     let open: () -> Void
     let menu: () -> Void
     @State private var image: UIImage?
+    /// schmal: Symbol, Titel (zwei Zeilen) und "Art · Fach · Datum" darunter, Menue rechts (keine festen Spalten)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
 
     var body: some View {
+        if UFCompactLearn.isCompact(sizeClass, shell: shellCompact) { compactRow } else { wideRow }
+    }
+
+    /// Zweite Zeile schmal: Ordner "n Dokumente", Dokument "Art · Fach · Datum"
+    static func compactSubtitle(_ it: LibraryPage.Item) -> String {
+        if it.kind == .folder { return "\(it.count) \(it.count == 1 ? "Dokument" : "Dokumente")" }
+        let f = it.f
+        let t = f.s("kind") == "pdf" ? (f.s("doc_type") ?? "pdf") : LibraryStyle.displayKind(f)
+        let date = it.kind == .trash ? "gelöscht " + UFFmt.date(f.s("deleted_at"))
+            : (f.s("edited_at").map { UFFmt.date($0) } ?? UFFmt.date(UFFmt.isoFromUnix(f.n("chdate"))))
+        return [ShellState.typeText[t], f.s("subject") ?? "Eigene", date].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    private var compactRow: some View {
+        let f = it.f
+        let isPdf = f.s("kind") == "pdf" && f.s("downloaded_at") != nil
+        let t = f.s("kind") == "pdf" ? (f.s("doc_type") ?? "pdf") : LibraryStyle.displayKind(f)
+        let title = it.kind == .folder ? it.label : (f.s("title") ?? "")
+        let hasMenu = it.kind != .folder || it.user != nil || it.module != nil
+        return HStack(spacing: 12) {
+            Group {
+                if it.kind == .folder {
+                    RoundedRectangle(cornerRadius: 8).fill(Color(hex: it.color ?? "#4f8ef7"))
+                        .overlay {
+                            if it.module != nil { Text(UFFmt.initial(it.label)).font(.uf(14.4, 700)).foregroundStyle(.white) }
+                            else { UFIcon("folder", size: 17).foregroundStyle(.white) }
+                        }
+                } else {
+                    RoundedRectangle(cornerRadius: 8).fill(UF.surface2)
+                        .overlay {
+                            if let image { Image(uiImage: image).resizable().scaledToFill().frame(width: 40, height: 40, alignment: .top).clipped() }
+                            else { UFIcon(ShellState.typeIcon[t] ?? "file", size: 17).foregroundStyle(UF.text) }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .task(id: f.s("id")) {
+                            if isPdf, let api, let id = f.s("id") {
+                                image = await UFThumbnails.shared.image(fileID: id, version: f.s("edited_at") ?? "\(f.n("chdate") ?? 0)", image: false, api: api)
+                            }
+                        }
+                }
+            }
+            .frame(width: 40, height: 40)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(title).ufFont(15.2, it.kind == .folder ? 650 : 600, lh: 1.25).foregroundStyle(UF.text)
+                        .lineLimit(2).multilineTextAlignment(.leading)
+                    if it.kind != .folder, f.i("favorite") == 1 {
+                        UFIcon("star", size: 12).foregroundStyle(UF.warn).accessibilityLabel("Favorit")
+                    }
+                }
+                Text(Self.compactSubtitle(it)).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // VoiceOver: Titel und Zeile als ein Knopf "oeffnen", das Menue daneben eigen
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { open() }
+            .accessibilityIdentifier("library.row")
+            if hasMenu {
+                Button(action: menu) {
+                    UFIcon("more", size: 18).foregroundStyle(UF.text2).frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Mehr zu \(title)")
+            } else {
+                UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted).frame(width: 24).accessibilityHidden(true)
+            }
+        }
+        .padding(.vertical, 8).padding(.leading, 12).padding(.trailing, hasMenu ? 2 : 10)
+        .frame(minHeight: 60)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: open)
+        .ufBorderBottom()
+    }
+
+    private var wideRow: some View {
         HStack(spacing: 9.6) {
             if it.kind == .folder {
                 RoundedRectangle(cornerRadius: 6).fill(Color(hex: it.color ?? "#4f8ef7")).frame(width: 36, height: 36)

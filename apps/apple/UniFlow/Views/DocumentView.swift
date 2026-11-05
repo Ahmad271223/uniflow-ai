@@ -32,6 +32,8 @@ final class EditorBridge: ObservableObject {
 
     /// "KI fragen" am Rand der Palette (Schritt F): jede Erhoehung oeffnet die KI-Hilfe
     @Published var askAIRequested = 0
+    /// iPhone: Hoehe der unten angedockten Palette ueber dem Sicherheitsabstand (die kompakte Leiste rueckt darueber)
+    @Published var paletteInset: CGFloat = 0
     /// "Als Karteikarte" aus markiertem PDF-Text (Schritt K): Vorderseite fuer das Blatt "Karte anlegen"
     @Published var flashcardRequest: FlashcardRequest?
 
@@ -144,6 +146,14 @@ struct DocumentView: View {
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
     @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
+    /// Kompakte Fassung (iPhone, schmaler Split View; docs/IPHONE-2026-11-04.md): PDF bildschirmfuellend, Seiten und
+    /// KI-Hilfe als Blatt von unten, Werkzeuge in einer Leiste unten, "Daneben öffnen" aus
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    /// Ziele des Logos (AppShell): kompakt im langen Druck auf "Zurück"
+    @Environment(\.ufLogoMenu) private var logoMenu
+    /// iPhone (kein Pencil): der Finger schreibt nur im Modus "Zeichnen"; jedes Dokument beginnt mit "Blättern"
+    @State private var phoneDraws = false
     @State private var fullScreen = false
     @State private var showSidebar = false
     @State private var showSearch = false
@@ -313,18 +323,77 @@ struct DocumentView: View {
     private func openFlashcard(_ question: String) {
         bridge.flashcardRequest = nil
         if api.isLocal, !entitlements.allows(.flashcards) {
-            lockedFeature = .flashcards
+            present { lockedFeature = .flashcards }
             return
         }
         flashcards.attach(api)
         Task {
             if !flashcards.loaded { try? await flashcards.load() }
-            flashcardQuestion = question
+            present { flashcardQuestion = question }
         }
     }
 
     /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
     private var scriptLeft: Bool { hand != "left" }
+
+    // MARK: Kompakte Fassung (iPhone)
+
+    /// Kompakte Darstellung nach Platz (`UFCompact.isCompact`); das iPad (regulaer) bleibt wie es ist
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
+
+    /// Finger schreibt: iPhone ueber "Zeichnen" (nur fuer dieses Dokument), iPad ueber den gemerkten Schalter
+    /// "Nur Stift / Finger zeichnet" (kompakt heisst er "Blättern / Zeichnen")
+    private var fingerDraws: Bool { UFCompact.isPhone ? phoneDraws : !pencilOnly }
+
+    /// Eingabeart des Editors: iPad wie bisher `pencilOnly`; iPhone "Blättern" = `.pencilOnly` (ein Finger blaettert und
+    /// markiert Text), "Zeichnen" = `.anyInput` (ein Finger schreibt, zwei Finger blaettern und zoomen)
+    private var editorPencilOnly: Bool { !fingerDraws }
+
+    /// iPhone im Modus "Blättern": keine Palette (sie diente nur dem Schreiben)
+    private var paletteSuppressed: Bool { UFCompact.isPhone && !phoneDraws }
+
+    /// "Zeichnen" geht: eigene Notizen schreibbar oder Korrektur-Modus
+    private var drawAvailable: Bool { (canWrite && ownNotesVisible) || correction != nil }
+
+    /// "Blättern / Zeichnen" umschalten. Ohne Plus: Sperrkarte statt eines Fingers, der still nichts schreibt.
+    /// Zurueck zu "Blättern" beendet ein Objektwerkzeug (sonst legte ein Antippen Text an, statt zu blaettern).
+    private func setFingerDraws(_ on: Bool) {
+        if on, !drawAvailable {
+            if !planAllowsWriting && !readOnly { present { lockedFeature = .pencilWriting } }
+            return
+        }
+        if UFCompact.isPhone { phoneDraws = on } else { pencilOnly = !on }
+        if !on, bridge.objectMode { bridge.finishObjectTools() }
+    }
+
+    /// Kompakt: hoechstens ein Blatt zur Zeit. Ist "Seiten" oder die KI-Hilfe offen, schliessen sie zuerst und `open`
+    /// folgt nach dem Wegschieben (sonst kaeme das zweite Blatt nicht). Breit (iPad) sofort.
+    private func present(_ open: @escaping () -> Void) {
+        guard compact, showTutor || showSidebar else { open(); return }
+        showTutor = false
+        showSidebar = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + TutorPanel.sheetDismissDelay, execute: open)
+    }
+
+    /// KI-Hilfe oeffnen (kompakt: das Blatt "Seiten" macht vorher Platz)
+    private func openTutor() {
+        if compact, showSidebar {
+            showSidebar = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + TutorPanel.sheetDismissDelay) { showTutor = true }
+        } else {
+            showTutor = true
+        }
+    }
+
+    /// Seitenuebersicht oeffnen bzw. schliessen (kompakt: die KI-Hilfe macht vorher Platz)
+    private func toggleSidebar() {
+        if compact, showTutor, !showSidebar {
+            showTutor = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + TutorPanel.sheetDismissDelay) { showSidebar = true }
+        } else {
+            withAnimation(UF.motion(.default)) { showSidebar.toggle() }
+        }
+    }
 
     /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
     /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
@@ -340,13 +409,16 @@ struct DocumentView: View {
 
     /// KI-Hilfe neben der PDF; Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem
     /// Schluessel, beides beim Senden
-    private var tutorPanel: some View {
+    private var tutorPanel: some View { tutorPanel(inSheet: false) }
+
+    private func tutorPanel(inSheet: Bool) -> some View {
         TutorPanel(fileID: store.file.id, fileName: store.file.displayTitle,
                    page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
                    close: { showTutor = false }, request: $bridge.tutorRequest,
-                   moduleID: store.file.module_id)                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
+                   moduleID: store.file.module_id,                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
+                   inSheet: inSheet)
     }
 
     private var isExercise: Bool {
@@ -365,28 +437,29 @@ struct DocumentView: View {
                     HStack(spacing: 0) {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
                         // nicht verdeckt oder beruehrt
-                        if showSidebar, scriptLeft {
+                        // kompakt: Seiten und KI-Hilfe als Blatt von unten, keine geteilte Ansicht (siehe unten)
+                        if showSidebar, scriptLeft, !compact {
                             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                             Divider()
                         }
-                        if showTutor, scriptLeft {
+                        if showTutor, scriptLeft, !compact {
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                             Divider()
                         }
-                        if hasSidePane, scriptLeft {
+                        if hasSidePane, scriptLeft, !compact {
                             sidePane.frame(width: geo.size.width * splitFraction)
                             splitHandle(width: geo.size.width)
                         }
                         primaryPane
-                        if hasSidePane, !scriptLeft {
+                        if hasSidePane, !scriptLeft, !compact {
                             splitHandle(width: geo.size.width)
                             sidePane.frame(width: geo.size.width * splitFraction)
                         }
-                        if showTutor, !scriptLeft {
+                        if showTutor, !scriptLeft, !compact {
                             Divider()
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                         }
-                        if showSidebar, !scriptLeft {
+                        if showSidebar, !scriptLeft, !compact {
                             Divider()
                             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                         }
@@ -400,10 +473,27 @@ struct DocumentView: View {
         .navigationTitle(store.file.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(fullScreen ? .hidden : .visible, for: .navigationBar)
-        .toolbar { toolbar }
+        .toolbar {
+            if compact { compactToolbar } else { toolbar }
+        }
         .toolbar(removing: .sidebarToggle)                  // eigener Knopf "Seiten"; zwei gleiche Symbole verwirrten
+        // kompakt: eigenes Zurueck (Route davor bzw. Bibliothek) statt des Zurueck der zusammengeklappten Spaltenansicht
+        .navigationBarBackButtonHidden(compact && !readOnly)
         .overlay(alignment: .bottom) {
-            if bridge.objectMode { ObjectToolbar(bridge: bridge).padding(.bottom, 12) }
+            if compact {
+                if store.pdf != nil, store.errorMessage == nil { compactBottom }
+            } else if bridge.objectMode {
+                ObjectToolbar(bridge: bridge).padding(.bottom, 12)
+            }
+        }
+        // kompakt: Seitenuebersicht und KI-Hilfe als Blatt von unten (halb: die Seite bleibt sichtbar und bedienbar)
+        .sheet(isPresented: Binding(get: { compact && showSidebar }, set: { if !$0 { showSidebar = false } })) {
+            PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite, sheet: true) { showSidebar = false }
+                .ufHalfSheet()
+        }
+        .sheet(isPresented: Binding(get: { compact && showTutor }, set: { if !$0 { showTutor = false } })) {
+            tutorPanel(inSheet: true)
+                .ufHalfSheet()
         }
         .overlay(alignment: .topTrailing) {
             if fullScreen {
@@ -412,9 +502,9 @@ struct DocumentView: View {
             }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
-        .onChange(of: bridge.tutorRequest) { _, r in if r != nil { showTutor = true } }
+        .onChange(of: bridge.tutorRequest) { _, r in if r != nil, !showTutor { openTutor() } }
         // "KI fragen" am Rand der Palette (Schritt F): dieselbe KI-Hilfe wie der Knopf oben
-        .onChange(of: bridge.askAIRequested) { _, _ in showTutor = true }
+        .onChange(of: bridge.askAIRequested) { _, _ in openTutor() }
         // "Als Karteikarte" (Schritt K): Blatt "Karte anlegen" mit dem markierten Text als Vorderseite
         .onChange(of: bridge.flashcardRequest) { _, r in if let r { openFlashcard(r.question) } }
         .ufModal(isPresented: Binding(get: { flashcardQuestion != nil }, set: { if !$0 { flashcardQuestion = nil } })) {
@@ -536,9 +626,10 @@ struct DocumentView: View {
             if router.takeTutorOpenRequest(for: store.file.id) { showTutor = true }
             await restorePanels()
             #if DEBUG
-            // -UFDocPanel tutor|companion: Seitenspalte bzw. "Daneben öffnen" gleich offen (nur Bildvergleiche)
+            // -UFDocPanel tutor|pages|companion: KI-Hilfe, Seiten bzw. "Daneben öffnen" gleich offen (Bildvergleiche, Tests)
             switch UserDefaults.standard.string(forKey: "UFDocPanel") {
             case "tutor": showTutor = true
+            case "pages": showSidebar = true
             case "companion": choosingCompanion = true
             default: break
             }
@@ -569,14 +660,15 @@ struct DocumentView: View {
     }
 
     private var primaryPane: some View {
-        PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
+        PDFEditorView(store: store, bridge: bridge, pencilOnly: editorPencilOnly, layoutVersion: store.layoutVersion,
                       toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
                       foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
-                      onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled)
+                      onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled,
+                      paletteSuppressed: paletteSuppressed)
             .ignoresSafeArea(edges: .bottom)
-            .overlay(alignment: .bottom) { pageInfo }
+            .overlay(alignment: .bottom) { if !compact { pageInfo } }
             .overlay(alignment: .top) {
                 VStack(spacing: 6) {
                     if let correction {
@@ -603,6 +695,7 @@ struct DocumentView: View {
                         RecordingMatchBanner(fileID: store.file.id) { String((pdf.page(at: 0)?.string ?? "").prefix(1500)) }
                     }
                 }
+                .padding(.horizontal, compact ? 12 : 0)
             }
     }
 
@@ -646,7 +739,7 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
-                      pencilOnly: pencilOnly, canEdit: canWrite, onStore: { s, shown in
+                      pencilOnly: editorPencilOnly, canEdit: canWrite, onStore: { s, shown in
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
                       }) {
@@ -688,6 +781,12 @@ struct DocumentView: View {
                     Text("Passende Skriptstelle").font(.caption).bold()
                     Text("\(s.title) · Seite \(s.page)").font(.caption).lineLimit(1)
                 }
+                if compact {
+                    // kompakt keine geteilte Ansicht: die Skriptstelle als eigenes Dokument oeffnen
+                    Button("Öffnen") { router.go(.doc(s.fileID, page: s.page)) }
+                        .buttonStyle(.borderedProminent).controlSize(.small)
+                        .accessibilityIdentifier("doc.suggestion.open")
+                } else {
                 Button("Daneben öffnen") {
                     if entitlements.allows(.splitView) {
                         solutionSide = nil
@@ -697,6 +796,7 @@ struct DocumentView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent).controlSize(.small)
+                }
                 Button { dismissedSuggestions.insert(s.forPage) } label: { Image(systemName: "xmark") }
                     .accessibilityLabel("Für diese Seite ausblenden")
             }
@@ -829,99 +929,166 @@ struct DocumentView: View {
         }
         UFToolbarGap()
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Menu {
-                // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
-                Section("PDF exportieren (nur privat)") {
-                    Button { pendingExport = .document } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
-                    Button { pendingExport = .page(bridge.pageIndex) } label: { Label("Diese Seite", systemImage: "doc") }
-                }
-                // B) nur eigene Notizen, ohne Original (Teilen ab Plus; "Meine geteilten Lösungen" mit Zurueckziehen fuer alle)
-                Section("Nur eigene Notizen") {
-                    Button { openSolutionSheet(.share) } label: {
-                        Label(Self.lockedLabel("Lösung teilen …", entitlements.access(.shareSolutions)),
-                              systemImage: entitlements.allows(.shareSolutions) ? "person.2" : "lock")
-                    }
-                    Button { openSolutionSheet(.shared) } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
-                }
-            } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
-            .disabled(exporting || store.pdf == nil)
-            Menu {
-                if !planAllowsWriting && !readOnly {
-                    // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
-                    Button { lockedFeature = .pencilWriting } label: {
-                        Label("Schreiben, Seiten und Lesezeichen ab \(UFPlan.plus.name)", systemImage: "lock")
-                    }
-                    Divider()
-                } else if !ownNotesVisible {
-                    // nur ansehen: schreibende Eintraege sind gesperrt
-                    Button { ownNotesVisible = true } label: {
-                        Label("Meine Notizen einblenden, um zu bearbeiten", systemImage: "eye")
-                    }
-                    Divider()
-                }
-                // schreiben ins eigene Dokument: gesperrt, solange "Meine Notizen" ausgeblendet ist
-                Group {
-                    Button {
-                        if let key = bridge.pageKey {
-                            let title = "Seite \(bridge.pageIndex + 1)"
-                            Task { await store.toggleBookmark(pageKey: key, title: title) }
-                        }
-                    } label: {
-                        Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
-                    }
-                    Menu {
-                        Section("Wie aktuelle Seite") {
-                            ForEach(PaperTemplate.choices, id: \.id) { t in
-                                // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
-                                Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
-                            }
-                        }
-                        // Formate wie formats.js (Seite hinzufuegen im Web): A6 ... A2 hoch und quer, Whiteboards
-                        Menu("Anderes Format") {
-                            ForEach(PageFormats.paper, id: \.key) { f in
-                                ForEach(PageFormats.Orientation.allCases, id: \.self) { o in
-                                    blankPageMenu(o == .portrait ? "\(f.name) hoch" : "\(f.name) quer", format: f.key, orientation: o)
-                                }
-                            }
-                            Section("Whiteboard (immer quer)") {
-                                ForEach(PageFormats.whiteboards, id: \.key) { f in blankPageMenu(f.name, format: f.key, orientation: .landscape) }
-                            }
-                        }
-                    } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
-                    Button(role: .destructive) {
-                        Task {
-                            if await bridge.controller?.trashPage(key: bridge.pageKey) != true {
-                                actionError = "Diese Seite lässt sich nicht in den Papierkorb legen (letzte Seite oder noch nicht geladen)."
-                            }
-                        }
-                    } label: { Label("Seite in den Papierkorb", systemImage: "trash") }
-                    Button { showTrash = true } label: { Label("Papierkorb …", systemImage: "trash.slash") }
-                    Button {
-                        if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
-                    } label: { Label("Seite drehen", systemImage: "rotate.right") }
-                    Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
-                    pageToolsMenu
-                }
-                .disabled(!ownNotesVisible || !canWrite)
-                Button { goToText = ""; goingToPage = true } label: { Label("Gehe zu Seite …", systemImage: "arrow.right.to.line") }
-                Button { showOutline = true } label: { Label("Gliederung …", systemImage: "list.bullet.indent") }
-                Divider()
-                Button {
-                    if entitlements.allows(.communityRead) { importingSolution = true } else { solutionSheet = .locked(.communityRead) }
-                } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
-                if !store.versions.isEmpty {
-                    // S7: aufbewahrte alte Fassungen mit ihren Notizen (nur zum Ansehen)
-                    Section("Alte Fassungen") {
-                        ForEach(store.versions) { v in
-                            Button { openedVersion = v } label: { Label(v.label, systemImage: "doc.badge.clock") }
-                                .disabled(!v.available)
-                        }
-                    }
-                }
-                Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
-                Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
-            } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+            Menu { shareMenuItems } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
+                .disabled(exporting || store.pdf == nil)
+            Menu { moreMenuItems } label: { Label("Mehr", systemImage: "ellipsis.circle") }
         }
+    }
+
+    /// Menue "Teilen": privat exportieren, nur eigene Notizen teilen (iPad in der Leiste, kompakt im Menue "…")
+    @ViewBuilder private var shareMenuItems: some View {
+        // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
+        Section("PDF exportieren (nur privat)") {
+            Button { present { pendingExport = .document } } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
+            Button { present { pendingExport = .page(bridge.pageIndex) } } label: { Label("Diese Seite", systemImage: "doc") }
+        }
+        // B) nur eigene Notizen, ohne Original (Teilen ab Plus; "Meine geteilten Lösungen" mit Zurueckziehen fuer alle)
+        Section("Nur eigene Notizen") {
+            Button { present { openSolutionSheet(.share) } } label: {
+                Label(Self.lockedLabel("Lösung teilen …", entitlements.access(.shareSolutions)),
+                      systemImage: entitlements.allows(.shareSolutions) ? "person.2" : "lock")
+            }
+            Button { present { openSolutionSheet(.shared) } } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
+        }
+    }
+
+    /// Menue "Mehr": Schreiben, Seiten, Navigation, Loesungen, Fassungen, Information, Vollbild
+    @ViewBuilder private var moreMenuItems: some View {
+        if !planAllowsWriting && !readOnly {
+            // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
+            Button { present { lockedFeature = .pencilWriting } } label: {
+                Label("Schreiben, Seiten und Lesezeichen ab \(UFPlan.plus.name)", systemImage: "lock")
+            }
+            Divider()
+        } else if !ownNotesVisible {
+            // nur ansehen: schreibende Eintraege sind gesperrt
+            Button { ownNotesVisible = true } label: {
+                Label("Meine Notizen einblenden, um zu bearbeiten", systemImage: "eye")
+            }
+            Divider()
+        }
+        // schreiben ins eigene Dokument: gesperrt, solange "Meine Notizen" ausgeblendet ist
+        Group {
+            Button {
+                if let key = bridge.pageKey {
+                    let title = "Seite \(bridge.pageIndex + 1)"
+                    Task { await store.toggleBookmark(pageKey: key, title: title) }
+                }
+            } label: {
+                Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
+            }
+            Menu {
+                Section("Wie aktuelle Seite") {
+                    ForEach(PaperTemplate.choices, id: \.id) { t in
+                        // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
+                        Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
+                    }
+                }
+                // Formate wie formats.js (Seite hinzufuegen im Web): A6 ... A2 hoch und quer, Whiteboards
+                Menu("Anderes Format") {
+                    ForEach(PageFormats.paper, id: \.key) { f in
+                        ForEach(PageFormats.Orientation.allCases, id: \.self) { o in
+                            blankPageMenu(o == .portrait ? "\(f.name) hoch" : "\(f.name) quer", format: f.key, orientation: o)
+                        }
+                    }
+                    Section("Whiteboard (immer quer)") {
+                        ForEach(PageFormats.whiteboards, id: \.key) { f in blankPageMenu(f.name, format: f.key, orientation: .landscape) }
+                    }
+                }
+            } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
+            Button(role: .destructive) {
+                Task {
+                    if await bridge.controller?.trashPage(key: bridge.pageKey) != true {
+                        present { actionError = "Diese Seite lässt sich nicht in den Papierkorb legen (letzte Seite oder noch nicht geladen)." }
+                    }
+                }
+            } label: { Label("Seite in den Papierkorb", systemImage: "trash") }
+            Button { present { showTrash = true } } label: { Label("Papierkorb …", systemImage: "trash.slash") }
+            Button {
+                if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
+            } label: { Label("Seite drehen", systemImage: "rotate.right") }
+            Button { present { addingText = true } } label: { Label("Text hinzufügen", systemImage: "textformat") }
+            pageToolsMenu
+        }
+        .disabled(!ownNotesVisible || !canWrite)
+        Button { present { goToText = ""; goingToPage = true } } label: { Label("Gehe zu Seite …", systemImage: "arrow.right.to.line") }
+        Button { present { showOutline = true } } label: { Label("Gliederung …", systemImage: "list.bullet.indent") }
+        Divider()
+        Button {
+            present { if entitlements.allows(.communityRead) { importingSolution = true } else { solutionSheet = .locked(.communityRead) } }
+        } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
+        if !store.versions.isEmpty {
+            // S7: aufbewahrte alte Fassungen mit ihren Notizen (nur zum Ansehen)
+            Section("Alte Fassungen") {
+                ForEach(store.versions) { v in
+                    Button { present { openedVersion = v } } label: { Label(v.label, systemImage: "doc.badge.clock") }
+                        .disabled(!v.available)
+                }
+            }
+        }
+        Button { present { showInfo = true } } label: { Label("Dokumentinformation", systemImage: "info.circle") }
+        Button { present { fullScreen = true } } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
+    }
+
+    // MARK: Leiste oben, kompakt
+
+    /// Kompakt (iPhone): Zurueck, Titel (vom System gekuerzt), Sicherungsstand und ein Menue "…" mit allem, was am iPad
+    /// in der Leiste steht (Suchen, Lesezeichen, Vorlesung bis hier, Teilen, Ebenen, Seiten, Schloss, Information).
+    /// "Geteilt" ("Daneben öffnen") gibt es kompakt nicht.
+    @ToolbarContentBuilder
+    private var compactToolbar: some ToolbarContent {
+        if !readOnly {
+            ToolbarItem(placement: .topBarLeading) { compactBackButton }
+        }
+        UFPlainToolbarItem {
+            StatusLabel(status: store.status)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu { compactMenuItems } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+                .accessibilityIdentifier("doc.more")
+        }
+    }
+
+    /// Zurueck zur vorigen Seite der App (sonst zur Bibliothek); gedrueckt halten: alle Bereiche wie das Logo am iPad
+    private var compactBackButton: some View {
+        Button {
+            if router.canGoBack { router.back() } else { router.go(.files()) }
+        } label: {
+            Label("Zurück", systemImage: "chevron.backward")
+        }
+        .contextMenu {
+            if let logoMenu {
+                ForEach(logoMenu.items, id: \.title) { item in Button(item.title) { logoMenu.go(item.route) } }
+                Divider()
+                Button("Einstellungen") { logoMenu.go(.settings()) }
+            }
+        }
+        .accessibilityIdentifier("doc.back")
+    }
+
+    /// Inhalt des Menues "…" (kompakt)
+    @ViewBuilder private var compactMenuItems: some View {
+        Section {
+            if task != nil, !readOnly {
+                Button { Task { await markTaskDone() } } label: {
+                    Label(taskDone ? "Erledigt ✓" : "Erledigt", systemImage: taskDone ? "checkmark.circle.fill" : "checkmark.circle")
+                }
+                .disabled(taskDone)
+            }
+            Button { present { showSearch = true } } label: { Label("Suchen", systemImage: "magnifyingglass") }
+            if offersLectureMarker {
+                Button { present { openLectureMarker() } } label: {
+                    Label(markers.needsReview ? "Vorlesung bis hier (prüfen)" : "Vorlesung bis hier",
+                          systemImage: markers.needsReview ? "bookmark.trianglebadge.exclamationmark" : "bookmark")
+                }
+            }
+            Button { bridge.fitWidth() } label: { Label("Seite einpassen (\(bridge.zoomPercent) %)", systemImage: "arrow.left.and.right") }
+        }
+        Menu { shareMenuItems } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
+            .disabled(exporting || store.pdf == nil)
+        Menu { layersMenuItems } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
+            .disabled(store.pdf == nil)
+        moreMenuItems
     }
 
     /// Untermenue "Seite" wie das Seitenmenue im Web-Editor: kopieren, verschieben, Leerseite davor/am Ende, Vorlage und
@@ -975,10 +1142,10 @@ struct DocumentView: View {
                     }
                 } label: { Label("Seitenformat ändern", systemImage: "rectangle.portrait.and.arrow.right") }
             }
-            Button { outlineTitle = "Seite \(bridge.pageIndex + 1)"; addingOutline = true } label: {
+            Button { present { outlineTitle = "Seite \(bridge.pageIndex + 1)"; addingOutline = true } } label: {
                 Label("Zur Gliederung hinzufügen", systemImage: "list.bullet.indent")
             }
-            Button(role: .destructive) { confirmClear = true } label: { Label("Seite leeren", systemImage: "eraser") }
+            Button(role: .destructive) { present { confirmClear = true } } label: { Label("Seite leeren", systemImage: "eraser") }
         } label: { Label("Seite", systemImage: "doc.on.doc") }
     }
 
@@ -1021,60 +1188,65 @@ struct DocumentView: View {
 
     /// Ebenen: eigene Notizen und passende empfangene Loesungen ein-/ausblenden.
     private var layersMenu: some View {
-        Menu {
-            Button { ownNotesVisible.toggle() } label: {
-                Label("Meine Notizen", systemImage: ownNotesVisible ? "checkmark.circle.fill" : "circle")
-            }
-            if entitlements.allows(.communityRead) {
-                Section("Lösungen anderer") {
-                    if foreignLayers.isEmpty && foreignProblems.isEmpty {
-                        Text("Keine Lösungen zu dieser PDF")
+        Menu { layersMenuItems } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
+            .disabled(store.pdf == nil)
+    }
+
+    /// Inhalt des Menues "Ebenen" (kompakt ohne "Daneben ansehen", dort "Vorschau ohne Original")
+    @ViewBuilder private var layersMenuItems: some View {
+        Button { ownNotesVisible.toggle() } label: {
+            Label("Meine Notizen", systemImage: ownNotesVisible ? "checkmark.circle.fill" : "circle")
+        }
+        if entitlements.allows(.communityRead) {
+            Section("Lösungen anderer") {
+                if foreignLayers.isEmpty && foreignProblems.isEmpty {
+                    Text("Keine Lösungen zu dieser PDF")
+                }
+                ForEach(foreignProblems) { problem in
+                    Menu {
+                        Text(problem.message)
+                        Button(role: .destructive) { removeProblem(problem) } label: { Label("Entfernen", systemImage: "trash") }
+                    } label: {
+                        Label("Nicht lesbar: \(problem.label)", systemImage: "exclamationmark.triangle")
                     }
-                    ForEach(foreignProblems) { problem in
-                        Menu {
-                            Text(problem.message)
-                            Button(role: .destructive) { removeProblem(problem) } label: { Label("Entfernen", systemImage: "trash") }
-                        } label: {
-                            Label("Nicht lesbar: \(problem.label)", systemImage: "exclamationmark.triangle")
+                }
+                ForEach(foreignLayers) { layer in
+                    Menu {
+                        Button { setVisible(layer, !layer.visible) } label: {
+                            Label(layer.visible ? "Ausblenden" : "Einblenden", systemImage: layer.visible ? "eye.slash" : "eye")
                         }
-                    }
-                    ForEach(foreignLayers) { layer in
-                        Menu {
-                            Button { setVisible(layer, !layer.visible) } label: {
-                                Label(layer.visible ? "Ausblenden" : "Einblenden", systemImage: layer.visible ? "eye.slash" : "eye")
-                            }
+                        if !compact {
                             Button { companion = nil; solutionSide = layer } label: {
                                 Label("Daneben ansehen", systemImage: "rectangle.split.2x1")
                             }
-                            Button { solutionSheet = .preview(layer.id) } label: {
-                                Label("Vorschau ohne Original", systemImage: "rectangle.on.rectangle")
-                            }
-                            Button(role: .destructive) { removeLayer(layer) } label: { Label("Entfernen", systemImage: "trash") }
-                        } label: {
-                            Label(layer.label, systemImage: layer.visible ? "checkmark.circle.fill" : "circle")
                         }
-                    }
-                    Button { importingSolution = true } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
-                }
-                // nur mit CloudKit-Dienst im Build (sonst kein Platzhalter; die Einstellungen sagen, warum)
-                if SolutionSharing.community.isConnected {
-                    Section("Community") {
-                        Button {
-                            if let fp = communityFingerprint { solutionSheet = .community(fp) }
-                        } label: {
-                            Label(communityMatches.isEmpty ? "Community durchsuchen …" : CommunityTexts.matches(communityMatches.count) + " …",
-                                  systemImage: "person.2")
+                        Button { present { solutionSheet = .preview(layer.id) } } label: {
+                            Label("Vorschau ohne Original", systemImage: "rectangle.on.rectangle")
                         }
-                        .disabled(communityFingerprint == nil)
+                        Button(role: .destructive) { removeLayer(layer) } label: { Label("Entfernen", systemImage: "trash") }
+                    } label: {
+                        Label(layer.label, systemImage: layer.visible ? "checkmark.circle.fill" : "circle")
                     }
                 }
-            } else {
-                Button { solutionSheet = .locked(.communityRead) } label: {
-                    Label(Self.lockedLabel("Lösungen anderer ansehen", entitlements.access(.communityRead)), systemImage: "lock")
+                Button { present { importingSolution = true } } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
+            }
+            // nur mit CloudKit-Dienst im Build (sonst kein Platzhalter; die Einstellungen sagen, warum)
+            if SolutionSharing.community.isConnected {
+                Section("Community") {
+                    Button {
+                        if let fp = communityFingerprint { present { solutionSheet = .community(fp) } }
+                    } label: {
+                        Label(communityMatches.isEmpty ? "Community durchsuchen …" : CommunityTexts.matches(communityMatches.count) + " …",
+                              systemImage: "person.2")
+                    }
+                    .disabled(communityFingerprint == nil)
                 }
             }
-        } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
-        .disabled(store.pdf == nil)
+        } else {
+            Button { present { solutionSheet = .locked(.communityRead) } } label: {
+                Label(Self.lockedLabel("Lösungen anderer ansehen", entitlements.access(.communityRead)), systemImage: "lock")
+            }
+        }
     }
 
     /// Teilen braucht Plus; die Liste "Meine geteilten Lösungen" (Zurueckziehen, Entfernen) steht allen offen
@@ -1286,6 +1458,163 @@ struct DocumentView: View {
                 actionError = "Teilen fehlgeschlagen: \(error.localizedDescription)"
             }
         }
+    }
+
+    // MARK: Leiste unten, kompakt
+
+    /// Kompakt (iPhone): Objektleiste (wenn ein Objektwerkzeug aktiv ist), Hinweise in einer Zeile und die Leiste mit
+    /// Seiten, "Blättern / Zeichnen", Werkzeugen und KI-Hilfe. Mit angedockter Palette (Zeichnen) rueckt alles darueber.
+    private var compactBottom: some View {
+        VStack(spacing: 8) {
+            if bridge.objectMode { ObjectToolbar(bridge: bridge, compact: true) }
+            compactNotice
+            compactBar
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, bridge.paletteInset + 6)
+        .animation(UF.motion(.easeOut(duration: 0.18)), value: bridge.paletteInset)
+    }
+
+    /// Hinweis ueber der Leiste (nur ansehen, Sperre, Loesungen, Speicherproblem); eine Zeile, antippbar wo es weitergeht
+    @ViewBuilder private var compactNotice: some View {
+        let solutions = foreignLayers.filter(\.visible)
+        if readOnly || store.outdatedByNewVersion || store.journalUnreadable || store.viewOnlyLabel != nil || !planAllowsWriting
+            || !ownNotesVisible || !solutions.isEmpty || store.syncIssue != nil || (store.notice ?? store.pageNotice ?? store.inkNotice) != nil {
+            HStack(spacing: 8) {
+                if readOnly {
+                    Label("Alte Fassung – nur ansehen", systemImage: "doc.badge.clock")
+                } else if store.outdatedByNewVersion {
+                    Label("Neue Fassung – neu öffnen", systemImage: "arrow.triangle.2.circlepath")
+                } else if store.journalUnreadable {
+                    Label("Notizen nicht lesbar – nur ansehen", systemImage: "exclamationmark.triangle")
+                } else if let label = store.viewOnlyLabel {
+                    Label(label, systemImage: "eye")
+                } else if !planAllowsWriting {
+                    Button { present { lockedFeature = .pencilWriting } } label: {
+                        Label("Nur ansehen – Schreiben ab \(UFPlan.plus.name)", systemImage: "lock")
+                    }
+                    .accessibilityHint("Öffnet die Tarifwahl")
+                    .accessibilityIdentifier("doc.compact.lock")
+                } else if !ownNotesVisible {
+                    Label("Meine Notizen ausgeblendet", systemImage: "eye.slash")
+                }
+                if let layer = solutions.first {
+                    // kompakt keine geteilte Ansicht: Vorschau der Loesung ohne Original
+                    Button { present { solutionSheet = .preview(layer.id) } } label: {
+                        Label("\(solutions.count) Lösung(en) · ansehen", systemImage: "square.3.layers.3d")
+                    }
+                    .accessibilityIdentifier("doc.solutionPreview")
+                }
+                SyncIssueBadge(store: store)
+                if let notice = store.notice ?? store.pageNotice ?? store.inkNotice { Text(notice) }
+            }
+            .lineLimit(1)
+            .font(.caption)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(.regularMaterial, in: Capsule())
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// Leiste unten: Seiten (mit Seitenzahl), "Blättern / Zeichnen", Werkzeuge (nur beim Zeichnen), KI-Hilfe
+    private var compactBar: some View {
+        HStack(spacing: 6) {
+            Button { toggleSidebar() } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "rectangle.stack")
+                    Text("\(bridge.pageIndex + 1)/\(store.pdf?.pageCount ?? 0)").monospacedDigit().lineLimit(1)
+                }
+                .font(.subheadline.weight(.medium))
+                .frame(minWidth: 44, minHeight: 44)
+                .padding(.horizontal, 6)
+                .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Seiten")
+            .accessibilityValue("Seite \(bridge.pageIndex + 1) von \(store.pdf?.pageCount ?? 0)")
+            .accessibilityIdentifier("doc.pages")
+            Spacer(minLength: 0)
+            drawToggle
+            Spacer(minLength: 0)
+            if fingerDraws, drawAvailable, correction == nil, ownNotesVisible { objectToolsMenu }
+            Button { if showTutor { showTutor = false } else { openTutor() } } label: {
+                Image(systemName: "sparkles").font(.body.weight(.medium))
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .accessibilityLabel(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe")
+            .accessibilityIdentifier("doc.tutor")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(UF.text)
+        .padding(.horizontal, 6)
+        .frame(height: 52)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(UF.line, lineWidth: 1))
+        .ufShadow(.md)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("doc.bottomBar")
+    }
+
+    /// "Blättern / Zeichnen": zwei Felder, das aktive gefuellt. Ohne Schreiben im Tarif traegt "Zeichnen" ein Schloss.
+    private var drawToggle: some View {
+        let locked = !drawAvailable && !planAllowsWriting && !readOnly
+        return HStack(spacing: 2) {
+            drawSegment("Blättern", icon: "hand.point.up.left", on: !fingerDraws, id: "doc.mode.scroll") { setFingerDraws(false) }
+            drawSegment("Zeichnen", icon: locked ? "lock" : "pencil.tip", on: fingerDraws && drawAvailable, id: "doc.mode.draw") { setFingerDraws(true) }
+                .disabled(!drawAvailable && !locked)
+        }
+        .padding(3)
+        .background(UF.surface2, in: Capsule())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Blättern oder Zeichnen")
+    }
+
+    private func drawSegment(_ title: String, icon: String, on: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ViewThatFits(in: .horizontal) {
+                Label(title, systemImage: icon).labelStyle(.titleAndIcon)
+                Image(systemName: icon)
+            }
+            .font(.subheadline.weight(on ? .semibold : .regular))
+            .foregroundStyle(on ? UF.accentText : UF.text2)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 38)
+            .background(on ? UF.accentSoft : Color.clear, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(on ? [.isSelected] : [])
+        .accessibilityIdentifier(id)
+    }
+
+    /// Objektwerkzeuge (Text, Haftnotiz, Formen, Auswahl, Text markieren) auch ohne Wischen durch die Palette; dieselben
+    /// Werkzeuge wie die eigenen Eintraege der Palette (die angedockte iPhone-Palette zeigt nur wenige auf einmal)
+    private var objectToolsMenu: some View {
+        Menu {
+            Button { if bridge.objectMode { bridge.finishObjectTools() } } label: { Label("Stift", systemImage: "pencil.tip") }
+            Section {
+                ForEach([ObjectEditing.Tool.text, .sticky, .select, .lasso, .markup], id: \.self) { t in
+                    Button { chooseObjectTool(t) } label: { Label(t.label, systemImage: t.systemImage) }
+                }
+            }
+            Section("Formen") {
+                ForEach([ObjectEditing.Tool.rect, .ellipse, .line, .arrow], id: \.self) { t in
+                    Button { chooseObjectTool(t) } label: { Label(t.label, systemImage: t.systemImage) }
+                }
+            }
+        } label: {
+            Image(systemName: bridge.objectMode ? bridge.objectTool.systemImage : "square.on.circle")
+                .font(.body.weight(.medium))
+                .frame(width: 44, height: 44).contentShape(Rectangle())
+        }
+        .accessibilityLabel("Werkzeuge")
+        .accessibilityIdentifier("doc.objectTools")
+    }
+
+    private func chooseObjectTool(_ t: ObjectEditing.Tool) {
+        if !bridge.objectMode { bridge.setObjectMode(true) }
+        bridge.setObjectTool(t)
     }
 
     private var pageInfo: some View {
@@ -1820,6 +2149,8 @@ struct PageTrashSheet: View {
 /// Auswahl. Die Stiftpalette von PencilKit ist in diesem Modus ohne Wirkung.
 struct ObjectToolbar: View {
     @ObservedObject var bridge: EditorBridge
+    /// Kompakt (iPhone): jede Reihe seitlich verschiebbar, damit nichts ueber den Rand ragt
+    var compact = false
     private let colors: [(String, String)] = [("#e5322d", "Rot"), ("#1d2130", "Schwarz"), ("#2f7fd1", "Blau"), ("#2e9e5b", "Grün"),
                                               ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
 
@@ -1830,35 +2161,57 @@ struct ObjectToolbar: View {
     var body: some View {
         VStack(spacing: 8) {
             if bridge.objectTool == .markup {
-                HStack(spacing: 8) {
-                    if bridge.textSelected {
-                        Button("Markieren") { bridge.controller?.objects.applyMarkup(.highlight) }
-                            .accessibilityIdentifier("objects.markup.highlight")
-                        Button("Unterstreichen") { bridge.controller?.objects.applyMarkup(.underline) }
-                        Button("Durchstreichen") { bridge.controller?.objects.applyMarkup(.strike) }
-                        Divider().frame(height: 24)
-                        Button { bridge.askTutor("explain") } label: { Label("KI erklärt", systemImage: "sparkles") }
-                            .accessibilityIdentifier("objects.markup.tutorExplain")
-                        Button { bridge.askTutor("steps") } label: { Label("KI löst", systemImage: "sparkles") }
-                            .accessibilityIdentifier("objects.markup.tutorSolve")
-                        Button { bridge.makeFlashcard() } label: { Label(PDFEditorController.flashcardTitle, systemImage: "rectangle.on.rectangle") }
-                            .accessibilityIdentifier("objects.markup.flashcard")
-                    } else {
-                        Text("Text in der PDF auswählen (gedrückt halten und ziehen)").font(.callout).foregroundStyle(.secondary)
-                    }
-                    if toolsInPalette {
-                        // beim Markieren hat die PDF-Ansicht den Fokus und die Palette ist weg: hier zurueck zum Stift
-                        Button("Fertig") { bridge.finishObjectTools() }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("objects.markup.done")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(8)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                scrolling(markupRow)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            if !toolsInPalette || bridge.objectSelection > 0 { tools }
+            if !toolsInPalette || bridge.objectSelection > 0 {
+                scrolling(tools)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+                    .shadow(radius: 4)
+            }
         }
+    }
+
+    /// Kompakt seitlich verschiebbar (zentriert, solange es passt), sonst wie bisher
+    @ViewBuilder private func scrolling<C: View>(_ row: C) -> some View {
+        if compact {
+            ViewThatFits(in: .horizontal) {
+                row
+                ScrollView(.horizontal, showsIndicators: false) { row }
+            }
+        } else {
+            row
+        }
+    }
+
+    /// Reihe "Text markieren": Markieren, Unterstreichen, Durchstreichen, KI, Karteikarte, Fertig
+    private var markupRow: some View {
+        HStack(spacing: 8) {
+            if bridge.textSelected {
+                Button("Markieren") { bridge.controller?.objects.applyMarkup(.highlight) }
+                    .accessibilityIdentifier("objects.markup.highlight")
+                Button("Unterstreichen") { bridge.controller?.objects.applyMarkup(.underline) }
+                Button("Durchstreichen") { bridge.controller?.objects.applyMarkup(.strike) }
+                Divider().frame(height: 24)
+                Button { bridge.askTutor("explain") } label: { Label("KI erklärt", systemImage: "sparkles") }
+                    .accessibilityIdentifier("objects.markup.tutorExplain")
+                Button { bridge.askTutor("steps") } label: { Label("KI löst", systemImage: "sparkles") }
+                    .accessibilityIdentifier("objects.markup.tutorSolve")
+                Button { bridge.makeFlashcard() } label: { Label(PDFEditorController.flashcardTitle, systemImage: "rectangle.on.rectangle") }
+                    .accessibilityIdentifier("objects.markup.flashcard")
+            } else {
+                Text(compact ? "Text gedrückt halten und ziehen" : "Text in der PDF auswählen (gedrückt halten und ziehen)")
+                .font(.callout).foregroundStyle(.secondary)
+            }
+            if toolsInPalette {
+                // beim Markieren hat die PDF-Ansicht den Fokus und die Palette ist weg: hier zurueck zum Stift
+                Button("Fertig") { bridge.finishObjectTools() }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("objects.markup.done")
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .padding(8)
     }
 
     private var tools: some View {
@@ -1901,8 +2254,6 @@ struct ObjectToolbar: View {
             }
         }
         .padding(8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .shadow(radius: 4)
     }
 }
 
@@ -2086,12 +2437,15 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var onCorrectionNote: ((CorrectionNoteEvent) -> Void)?
     /// KI verbunden: "KI fragen" am Rand der Palette (Schritt F)
     var aiAvailable = false
+    /// iPhone im Modus "Blättern": keine Palette (`PDFEditorController.paletteSuppressed`)
+    var paletteSuppressed = false
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
                                      undoManager: undoManager, initialPDFPage: initialPDFPage)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
+        vc.paletteSuppressed = paletteSuppressed
         vc.foreignLayers = foreignLayers
         vc.ownNotesVisible = ownNotesVisible
         vc.canEdit = canEdit
@@ -2115,6 +2469,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.aiAvailable = aiAvailable
         vc.onAskAI = { [weak bridge] in bridge?.askAIRequested += 1 }
         vc.onFlashcardFromSelection = { [weak bridge] text in bridge?.makeFlashcard(text) }
+        vc.onPaletteInset = { [weak bridge] h in if bridge?.paletteInset != h { bridge?.paletteInset = h } }
         bridge.controller = vc
         return vc
     }
@@ -2123,6 +2478,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
     /// Anzeige nur neu auf, wenn sich die Seitenstruktur geaendert hat.
     func updateUIViewController(_ vc: PDFEditorController, context: Context) {
         if vc.pencilOnly != pencilOnly { vc.pencilOnly = pencilOnly }
+        if vc.paletteSuppressed != paletteSuppressed { vc.paletteSuppressed = paletteSuppressed }
         if vc.shownLayoutVersion != layoutVersion { vc.showLayout() }
         if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
         if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }

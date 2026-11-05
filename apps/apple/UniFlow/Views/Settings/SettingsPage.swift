@@ -103,7 +103,7 @@ struct SettingsPage: View {
     private func unreachableBanner(_ error: String) -> some View {
         // Hinweis in Warnfarbe statt einer weissen Karte mit farbiger Ueberschrift: Zustand auf einen Blick
         SettingsNotice("Eigener StudiNow-Server nicht erreichbar",
-                       text: "\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.") {
+                       text: "\(error)\nDie Einstellungen dieses \(UFDevice.name)s kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.") {
             UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
             UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
         }
@@ -698,7 +698,7 @@ private struct AccountTab: View {
                         }
                     }
                 }
-                UFButton("Stud.IP direkt auf dem iPad", icon: "book", size: .small) { studipSheet = true }
+                UFButton("Stud.IP direkt auf dem \(UFDevice.name)", icon: "book", size: .small) { studipSheet = true }
             }
         }
     }
@@ -732,7 +732,7 @@ private struct AccountTab: View {
             }
             SettingsDivider()
             SettingsRow("Darstellung", icon: "sun") {
-                UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                UFSegmented(options: [("auto", "Wie \(UFDevice.name)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
             }
             SettingsDivider()
             SettingsRow("Stift & Touch", icon: "pen") {
@@ -821,7 +821,7 @@ private struct AppAccountCards: View {
                 // Rufname fuer "Hallo Ahmad – lass uns gemeinsam lernen." auf der Uebersicht (je Container, nur auf dem
                 // iPad; leer: der Vorname aus der Anmeldung, `UFGreeting`)
                 RufnameField().padding(.top, 4.8)
-                Text("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
+                Text("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem \(UFDevice.name).")
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 2.4)
@@ -844,7 +844,7 @@ private struct AppAccountCards: View {
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("settings.rufname")
-                Text("Für die Begrüßung auf der Übersicht. Leer: dein Vorname aus der Anmeldung. Bleibt auf diesem iPad.")
+                Text("Für die Begrüßung auf der Übersicht. Leer: dein Vorname aus der Anmeldung. Bleibt auf diesem \(UFDevice.name).")
                     .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
             .onChange(of: name) { _, now in Rufname.save(now) }
@@ -920,11 +920,11 @@ struct StudoraCreditsRow: View {
 enum DeleteAccountText {
     static func removed(ownServer: Bool) -> String {
         "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von StudiNow (Stud.IP-Sitzung, "
-            + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung. "
+            + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel) werden von diesem \(UFDevice.name) entfernt. Danach siehst du wieder die Begrüßung. "
             + "Hochschul-Passwörter speichert StudiNow nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
     }
 
-    static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
+    static let appleID = "StudiNow speichert dein Apple-Konto nirgends außerhalb dieses \(UFDevice.name)s. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des \(UFDevice.name)s: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → StudiNow."
 
     /// Nur mit iCloud-Container im Build (Community ueber CloudKit, docs/release/DATENSCHUTZ.md Abschnitt 8b): was in der
     /// oeffentlichen Datenbank liegt, entfernt "Konto loeschen" auf dem iPad nicht von selbst - ehrlich sagen, wie es geht
@@ -946,7 +946,7 @@ private struct DeleteAccountDialog: View {
         UFDialog("Konto löschen?", icon: "trash") {
             VStack(alignment: .leading, spacing: 9.6) {
                 Text(DeleteAccountText.removed(ownServer: Session.ownServerAvailable))
-                Text("Ebenso werden alle Daten deines Kontos auf diesem iPad gelöscht, für jede Hochschule: heruntergeladene Dateien, eigene Dokumente, Notizen, Lernplan, Einstellungen und die Anmeldungen in den Webansichten. Das lässt sich nicht rückgängig machen.")
+                Text("Ebenso werden alle Daten deines Kontos auf diesem \(UFDevice.name) gelöscht, für jede Hochschule: heruntergeladene Dateien, eigene Dokumente, Notizen, Lernplan, Einstellungen und die Anmeldungen in den Webansichten. Das lässt sich nicht rückgängig machen.")
                     .font(.uf(13.12, 600)).foregroundStyle(UF.bad)
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
@@ -1017,11 +1017,11 @@ private struct LocalAccountTab: View {
                 }
                 .environment(\.ufFillsCell, true)
             }
-            SettingsSection("Auf diesem iPad", sub: "Darstellung, Schreiben mit dem Stift und der Abgleich im Hintergrund.") {
+            SettingsSection("Auf diesem \(UFDevice.name)", sub: "Darstellung, Schreiben mit dem Stift und der Abgleich im Hintergrund.") {
                 UFGridLayout(spacing: 16, minWidth: 340) {
                     UFCard {
                         SettingsRow("Darstellung", icon: "sun") {
-                            UFSegmented(options: [("auto", "Wie iPad"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                            UFSegmented(options: [("auto", "Wie \(UFDevice.name)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
                         }
                         .padding(.top, -12)
                         SettingsDivider()
@@ -1128,7 +1128,7 @@ private struct DevelopmentTab: View {
                     }
                     VStack(alignment: .leading, spacing: 7.2) {
                         (Text("Server: ").font(.uf(13.12, 700)) + Text(api.base.absoluteString))
-                        Text("Die Daten kommen von deinem StudiNow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ kommen die Daten wieder vom iPad selbst; Notizen beider Quellen bleiben getrennt erhalten.")
+                        Text("Die Daten kommen von deinem StudiNow-Server. Die PIN liegt im Schlüsselbund dieses \(UFDevice.name)s. Nach „Verbindung trennen“ kommen die Daten wieder vom \(UFDevice.name) selbst; Notizen beider Quellen bleiben getrennt erhalten.")
                             .foregroundStyle(UF.muted)
                     }
                     .ufFont(13.12).foregroundStyle(UF.text)
@@ -1156,7 +1156,7 @@ struct ConnectView: View {
     var body: some View {
         UFCard {
             UFCardHead("Mit eigenem StudiNow-Server verbinden", icon: "layers") { UFBadge("Entwicklung", tone: .neutral) }
-            Text("Nur für die Entwicklung: verbindet dieses iPad mit deinem StudiNow-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
+            Text("Nur für die Entwicklung: verbindet dieses \(UFDevice.name) mit deinem StudiNow-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
             UFField("Adresse") {
                 UFTextField("http://192.168.0.10:8765", text: $url)
@@ -1305,7 +1305,7 @@ private struct AdvancedTab: View {
                     UFButton("Test starten", kind: .primary, size: .small) { Task { await runPDFTest() } }.disabled(testing)
                 }
                 .padding(.top, 16 - 13.12)
-                Text("Lädt eine PDF aus deiner Bibliothek, liest sie mit PDFKit und zeichnet Seite 1 – genau wie der Editor. Wenn hier ein Bild erscheint, funktioniert die Anzeige auf diesem iPad.")
+                Text("Lädt eine PDF aus deiner Bibliothek, liest sie mit PDFKit und zeichnet Seite 1 – genau wie der Editor. Wenn hier ein Bild erscheint, funktioniert die Anzeige auf diesem \(UFDevice.name).")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
                 if testing { Text("Prüfe…").ufFont(13.12).foregroundStyle(UF.text) }
                 if let test {
@@ -1329,7 +1329,7 @@ private struct AdvancedTab: View {
     private var diagText: String {
         let scale = UIScreen.main.scale
         var lines = [
-            "Gerät: \(UIDevice.current.model), iPadOS \(UIDevice.current.systemVersion)",
+            "Gerät: \(UIDevice.current.model), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
             "Fenster: \(Int(windowWidth))×\(Int(UIScreen.main.bounds.height)), Pixelverhältnis \(Self.js(scale))",
             "Design: \(theme)",
             "Adresse: \(Diagnostics.address(session.api?.base))",

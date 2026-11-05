@@ -440,6 +440,43 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schreibt der Finger gerade nicht (ein Finger blaettert)?
     var effectivePencilOnly: Bool { !Self.isMac && pencilOnly }
 
+    /// iPhone (kein Apple Pencil, docs/IPHONE-2026-11-04.md): Im Modus "Blättern" bleibt die Palette weg, sie erscheint
+    /// erst mit "Zeichnen". Am iPad immer aus (die Palette bleibt wie bisher).
+    var paletteSuppressed = false {
+        didSet {
+            guard paletteSuppressed != oldValue, ownsToolPicker else { return }
+            if paletteSuppressed {
+                allOverlays.forEach { toolPicker.setVisible(false, forFirstResponder: $0.canvas) }
+            } else if writable {
+                allOverlays.forEach { toolPicker.setVisible(true, forFirstResponder: $0.canvas) }
+            }
+            showToolPicker(pickerAllowed)
+            reportPaletteInset()
+        }
+    }
+
+    /// Hoehe, die die Palette unten verdeckt (iPhone: angedockt am unteren Rand), ueber dem unteren Sicherheitsabstand;
+    /// die kompakte Leiste unten rueckt um so viel nach oben
+    var onPaletteInset: ((CGFloat) -> Void)?
+    private var lastPaletteInset: CGFloat = -1
+
+    /// Verdeckte Hoehe der Palette am unteren Rand dieser Ansicht (0: Palette weg oder schwebend)
+    func paletteObscuredHeight() -> CGFloat {
+        guard ownsToolPicker, toolPicker.isVisible, view.window != nil else { return 0 }
+        let f = toolPicker.frameObscured(in: view)
+        guard !f.isNull, !f.isEmpty, f.maxY >= view.bounds.maxY - 1 else { return 0 }
+        return max(0, view.bounds.maxY - f.minY - view.safeAreaInsets.bottom)
+    }
+
+    func reportPaletteInset() {
+        let h = paletteObscuredHeight().rounded()
+        guard h != lastPaletteInset else { return }
+        lastPaletteInset = h
+        onPaletteInset?(h)
+    }
+
+    func toolPickerFramesObscuredDidChange(_ toolPicker: PKToolPicker) { reportPaletteInset() }
+
     /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
     /// Wischen mit drei Fingern, Leiste der Palette) nichts zuruecknimmt und nichts schreibt.
     private let viewOnlyUndo: UndoManager = {
@@ -826,8 +863,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         c.delegate = self
         c.tool = canvasTool
         toolPicker.addObserver(c)
-        // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht)
-        if writable { toolPicker.setVisible(true, forFirstResponder: c) }
+        // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht);
+        // nicht im Modus "Blättern" am iPhone
+        if writable, !paletteSuppressed { toolPicker.setVisible(true, forFirstResponder: c) }
     }
 
     /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).
@@ -1003,15 +1041,23 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard canEdit, shapeSnapEnabled else { return nil }
         var drawing = overlay.canvas.drawing
         guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil,
-              ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt) else { return nil }
+              ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt, radius: holdRadius) else { return nil }
         let points = stroke.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(stroke.transform) }
-        guard let shape = ShapeRecognizer.recognize(points) else { return nil }
+        guard let shape = ShapeRecognizer.recognize(points, holdRadius: holdRadius) else { return nil }
         drawing.strokes[drawing.strokes.count - 1] = ShapeRecognizer.idealStroke(shape, like: stroke)
         overlay.isApplyingDrawing = true
         overlay.canvas.drawing = drawing
         overlay.isApplyingDrawing = false
         store.canvasChanged(pageKey: overlay.pageKey, drawing: drawing)
         return shape
+    }
+
+    /// Umkreis (Seitenpunkte), in dem der Strich am Ende als still gilt. Der Finger am iPhone zittert mehr als der Stift
+    /// und die Seite ist dort kleiner gezoomt: dann `ShapeRecognizer.fingerHoldRadius` Bildschirmpunkte, umgerechnet in
+    /// Seitenpunkte (mindestens der Wert des Stifts). Am iPad unveraendert.
+    var holdRadius: CGFloat {
+        guard UFCompact.isPhone, drawingPolicy == .anyInput else { return ShapeRecognizer.holdRadius }
+        return max(ShapeRecognizer.holdRadius, ShapeRecognizer.fingerHoldRadius / max(0.1, pdfView.scaleFactor))
     }
 
     /// Formerkennung an (Standard); `uniflow.shapeSnap = false` schaltet sie ab (noch ohne Schalter in der Leiste)
@@ -1337,6 +1383,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// verborgen, Fenster wieder vorn. Beim Markieren von PDF-Text bleibt der Fokus bei der PDF-Ansicht.
     func toolPickerVisibilityDidChange(_ toolPicker: PKToolPicker) {
         if toolPicker.isVisible { restoreFallbacks = 0 } else { restorePickerSoon() }
+        reportPaletteInset()
     }
 
     /// Im naechsten Durchlauf zurueckholen (UIKit hat den Fokuswechsel dann abgeschlossen)

@@ -569,13 +569,18 @@ struct CommunityContributorsSheet: View {
     var onRead: ((Int) -> Void)?
     @EnvironmentObject private var router: UFRouter
     @State private var reading: Int?
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnCompact) private var learnCompact
+
+    /// schmal (iPhone): kleinere Vorschau, Rand 16 pt
+    private var compact: Bool { UFCompactLearn.inSheet(shell: shellCompact, inherited: learnCompact) }
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .top, spacing: 16) {
-                        CommunityChannelThumb(file: item.file, kind: item.kind, width: 156, height: 106)
+                    HStack(alignment: .top, spacing: compact ? 12 : 16) {
+                        CommunityChannelThumb(file: item.file, kind: item.kind, width: compact ? 112 : 156, height: compact ? 76 : 106)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(item.title).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                             Text("\(item.kind.title) · \(weekLabel)").ufFont(13.12).foregroundStyle(UF.muted)
@@ -934,9 +939,17 @@ struct CommunityPersonPane: View {
     @State private var editing: CommunityComment?
     @State private var spot: (page: String, anchor: CommunityComment.Anchor)?
     @State private var busy = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// kompakt laut Huelle (auch iPhone quer, `UFLayout.isCompact`)
+    @Environment(\.ufCompact) private var shellCompact
+    @Environment(\.ufLearnCompact) private var learnCompact
 
     private var discussion: Bool { service.supportsDiscussion }
     private var showsNotes: Bool { !discussion || tab == .notes }
+    /// schmal (iPhone): Leiste nur mit Symbolen, in der Diskussion statt der Leiste das Kommentarfeld unten fest
+    private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact, inherited: learnCompact) }
+    /// schmal in der Diskussion: Feld unten statt schwebender Leiste
+    private var composerPinned: Bool { compact && discussion && !showsNotes }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -968,11 +981,17 @@ struct CommunityPersonPane: View {
                         commentsCard
                     }
                 }
-                .padding(EdgeInsets(top: 16, leading: 20, bottom: 96, trailing: 20))      // Platz fuer die schwebende Leiste
+                .padding(EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: composerPinned ? 16 : 96, trailing: compact ? 16 : 20))      // Platz fuer die schwebende Leiste
                 .frame(maxWidth: wide ? 1100 : 860, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
-            .overlay(alignment: .bottom) { floatingBar }
+            .scrollDismissesKeyboard(.interactively)
+            .overlay(alignment: .bottom) { if !composerPinned { floatingBar } }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if composerPinned {
+                    UFCompactBottomBar { commentComposer }.accessibilityIdentifier("community.reader.bottom")
+                }
+            }
         }
         .task { await load() }
     }
@@ -1012,10 +1031,11 @@ struct CommunityPersonPane: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 UFIcon(icon, size: 16)
-                Text(title).lineLimit(1)
+                // schmal nur das Symbol (die Beschriftung bleibt fuer VoiceOver): die Leiste passt so auf 390 pt
+                if !compact { Text(title).lineLimit(1) }
             }
             .ufFont(13.6, 550).foregroundStyle(UF.text)
-            .padding(.horizontal, 12).frame(minHeight: 44)
+            .padding(.horizontal, compact ? 10 : 12).frame(minWidth: 44, minHeight: 44)
             .contentShape(Capsule())
         }
         .buttonStyle(UFPressStyle())
@@ -1031,7 +1051,7 @@ struct CommunityPersonPane: View {
             Button { toggleLike() } label: {
                 HStack(spacing: 6) {
                     CommunityLikeStar(liked: liked, size: 16)
-                    Text("\(liked ? "Gefällt dir" : "Gefällt mir") · \(likes)").lineLimit(1)
+                    Text(compact ? "\(likes)" : "\(liked ? "Gefällt dir" : "Gefällt mir") · \(likes)").lineLimit(1)
                 }
                 .ufFont(13.6, liked ? 650 : 550).foregroundStyle(liked ? CommunityPalette.butter.fg : UF.text)
                 .padding(.horizontal, 14).frame(minHeight: 36)
@@ -1119,16 +1139,26 @@ struct CommunityPersonPane: View {
             ForEach(Array(comments.enumerated()), id: \.element.id) { i, c in
                 commentRow(c, number: i + 1).ufBorderBottom(c.id != comments.last?.id)
             }
-            if let target = composerTitle { Text(target).ufFont(12.8, 600).foregroundStyle(UF.text2).padding(.top, 8) }
-            UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70).padding(.top, 8)
-                .accessibilityIdentifier("community.reader.commentField")
-            HStack(spacing: 8) {
-                UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
-                    .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityIdentifier("community.reader.send")
-                if composerTitle != nil { UFButton("Abbrechen", size: .small) { resetComposer() } }
+            if !composerPinned { commentComposer.padding(.top, 8) }
+        }
+    }
+
+    /// Kommentarfeld: breit in der Karte, schmal in der Diskussion unten fest ueber der Tastatur
+    @ViewBuilder private var commentComposer: some View {
+        if let target = composerTitle { Text(target).ufFont(12.8, 600).foregroundStyle(UF.text2) }
+        Group {
+            if composerPinned {
+                UFCompactComposerField(placeholder: "Kommentar schreiben …", text: $draft)
+            } else {
+                UFTextArea(placeholder: "Kommentar schreiben …", text: $draft, minHeight: 70)
             }
-            .padding(.top, 8)
+        }
+        .accessibilityIdentifier("community.reader.commentField")
+        HStack(spacing: 8) {
+            UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
+                .disabled(busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("community.reader.send")
+            if composerTitle != nil { UFButton("Abbrechen", size: .small) { resetComposer() } }
         }
     }
 

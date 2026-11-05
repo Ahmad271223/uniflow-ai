@@ -13,7 +13,7 @@ struct WelcomeView: View {
     /// Store (StoreKit, ohne appAccountToken), nicht an dieser Anmeldung; einen Abgleich zwischen Geraeten gibt es nicht.
     static let reasons: [(String, String, String)] = [
         ("graduation", "Hochschul-Zuordnung", "Deine Hochschule, ihre Verbindungen (z. B. Stud.IP) und deine Kurse werden deinem Konto zugeordnet – getrennt je Hochschule."),
-        ("user", "Getrennte Daten", "Dateien, Notizen und Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Nichts davon wird an StudiNow gesendet."),
+        ("user", "Getrennte Daten", "Dateien, Notizen und Anmeldungen liegen je Konto und Hochschule getrennt auf diesem \(UFDevice.name). Nichts davon wird an StudiNow gesendet."),
         ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store, unabhängig von der Anmeldung in StudiNow."),
     ]
 
@@ -22,7 +22,7 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 0) {
                 UFLogoMark()
                 Text("Willkommen bei StudiNow").ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 22.4)
-                Text("Stud.IP-Dateien, Lernplan und Notizen mit dem Apple Pencil – dein Studium an einem Ort.")
+                Text("Stud.IP-Dateien, Lernplan und Notizen \(UFDevice.isPhone ? "von Hand" : "mit dem Apple Pencil") – dein Studium an einem Ort.")
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -55,7 +55,7 @@ struct WelcomeView: View {
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .accessibilityIdentifier("welcome.rufname")
-                    Text("Für „Hallo … – lass uns gemeinsam lernen.“ Bleibt auf diesem iPad.")
+                    Text("Für „Hallo … – lass uns gemeinsam lernen.“ Bleibt auf diesem \(UFDevice.name).")
                         .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 19.2)
@@ -84,7 +84,7 @@ struct WelcomeView: View {
                 .padding(.top, 12.8)
                 #endif
 
-                Text("Dateien aus Stud.IP bleiben nur auf diesem iPad. Mit der Anmeldung erhält StudiNow von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse.")
+                Text("Dateien aus Stud.IP bleiben nur auf diesem \(UFDevice.name). Mit der Anmeldung erhält StudiNow von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse.")
                     .ufFont(12.8).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 19.2)
@@ -99,7 +99,7 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 4.8) {
                 switch n {
                 case .deleted:
-                    Text("Dein Konto wurde von diesem iPad gelöscht.").ufFont(13.12, 600).foregroundStyle(UF.text)
+                    Text("Dein Konto wurde von diesem \(UFDevice.name) gelöscht.").ufFont(13.12, 600).foregroundStyle(UF.text)
                     if let problem = account.deletionProblem {
                         Text(problem).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                     }
@@ -107,7 +107,7 @@ struct WelcomeView: View {
                         .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL).ufFont(13.12, 600).foregroundStyle(UF.accentText)
                 case .signedOut:
-                    Text("Deine Anmeldung mit Apple ist nicht mehr gültig. Bitte melde dich erneut an – deine Daten auf diesem iPad bleiben erhalten.")
+                    Text("Deine Anmeldung mit Apple ist nicht mehr gültig. Bitte melde dich erneut an – deine Daten auf diesem \(UFDevice.name) bleiben erhalten.")
                         .ufFont(13.12).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                 }
             }

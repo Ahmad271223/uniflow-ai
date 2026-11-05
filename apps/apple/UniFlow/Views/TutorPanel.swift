@@ -24,6 +24,10 @@ struct TutorPanel: View {
     var request: Binding<EditorBridge.TutorRequest?> = .constant(nil)
     /// Modul des Dokuments fuer "Wochentest erstellen" im Reiter Test (nil: der Dialog fragt nach dem Modul)
     var moduleID: Int? = nil
+    /// Kompakt (iPhone): die Leiste liegt als Blatt von unten ueber dem Dokument. Wege aus der Leiste (KI-Start,
+    /// Einstellungen, Tarif) und der Dialog "Wochentest erstellen" schliessen das Blatt zuerst; sonst laege der Dialog
+    /// unter dem Blatt bzw. ein zweites Blatt kaeme nicht
+    var inSheet = false
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var overlay: UFOverlay
@@ -146,11 +150,26 @@ struct TutorPanel: View {
         }
     }
 
+    /// Im Blatt: erst das Blatt schliessen, dann (nach dessen Animation) weiter; als Spalte sofort
+    private func afterSheet(_ action: @escaping () -> Void) {
+        guard inSheet else { action(); return }
+        close()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.sheetDismissDelay, execute: action)
+    }
+
+    /// Zu einer anderen Seite der App (im Blatt: das Blatt zuerst schliessen)
+    private func leave(_ route: UFRoute) {
+        afterSheet { [router] in router.go(route) }
+    }
+
+    /// Zeit fuer das Wegschieben eines Blatts, bevor ein Dialog oder ein anderes Blatt erscheinen darf
+    static let sheetDismissDelay: TimeInterval = 0.45
+
     /// Kopf wie die anderen Spalten neben der PDF (UFPaneHeader); "Neu" als ruhiger Textknopf
     private var header: some View {
         UFPaneHeader("KI-Hilfe", icon: "sparkles", closeLabel: "KI-Hilfe schließen", closeID: "tutor.close", close: close) {
             // KI-Start (03.11.2026): Fragen, Karteikarten, Erklären, Wochentest auf einer Seite
-            UFButton(icon: "grid", kind: .ghost, size: .small) { router.go(.aiStart) }
+            UFButton(icon: "grid", kind: .ghost, size: .small) { leave(.aiStart) }
                 .accessibilityLabel("KI-Start öffnen").accessibilityIdentifier("tutor.aiStart")
             if !messages.isEmpty {
                 UFButton("Neu", kind: .ghost, size: .small) { messages = []; error = nil; persistConversation() }
@@ -218,7 +237,7 @@ struct TutorPanel: View {
                 modeChip("similar", icon: "refresh")
                 modeChip("check", icon: "check")
                 AIModeChip(text: "Wochentest erstellen", icon: "exam", pair: Tab.test.pair) {
-                    overlay.modal { QuizComposer(moduleID: moduleID ?? 0) }
+                    afterSheet { overlay.modal { QuizComposer(moduleID: moduleID ?? 0) } }
                 }
                 .accessibilityIdentifier("tutor.weeklyTest")
             }
@@ -247,9 +266,9 @@ struct TutorPanel: View {
             VStack(alignment: .leading, spacing: 12) { DocIndexPageCard(fileID: fileID, page: page, open: open) }
                 .padding(.horizontal, 14).padding(.top, 14)
             if let chatgpt {
-                TutorConnectState(link: chatgpt) { router.go(.settings(tab: "advanced")) }
+                TutorConnectState(link: chatgpt) { leave(.settings(tab: "advanced")) }
             } else {
-                TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { router.go(.settings(tab: "advanced")) }
+                TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { leave(.settings(tab: "advanced")) }
             }
         }
     }
@@ -276,7 +295,7 @@ struct TutorPanel: View {
                                 Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                                     .accessibilityIdentifier("tutor.error")
                                 if creditsExhausted {
-                                    UFButton("Tarif ansehen", icon: "star", size: .small) { router.go(.settings(tab: "account")) }
+                                    UFButton("Tarif ansehen", icon: "star", size: .small) { leave(.settings(tab: "account")) }
                                         .accessibilityIdentifier("tutor.plans")
                                 }
                             }

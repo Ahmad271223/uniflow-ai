@@ -536,13 +536,15 @@ struct TimetablePreviewDialog: View {
 
     @State private var entries: [Entry] = []
     @State private var remove: Set<Int> = []
+    /// iPhone: die Tabelle (gut 800 pt) scrollt auch waagerecht, statt ueber den Rand zu ragen
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         let diff = r["diff"] ?? .null
         let removed = diff.list("removed")
         UFDialog("Importvorschau · \(r.list("entries").count) Veranstaltungen") {
             Text(summary(diff, removed: removed.count)).ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
-            ScrollView {
+            ScrollView(compact ? [.vertical, .horizontal] : .vertical) {
                 VStack(spacing: 0) {
                     header
                     ForEach($entries) { $e in row($e) }

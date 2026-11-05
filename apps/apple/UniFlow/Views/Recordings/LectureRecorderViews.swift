@@ -25,11 +25,11 @@ struct OwnRecordingsSection: View {
                     overlay.modal(wide: true) { LectureRecordDialog(moduleID: moduleID) { revision += 1 } }
                 }
                 .accessibilityIdentifier("ownrec.record")
-                .accessibilityHint("Nimmt die Vorlesung mit dem Mikrofon auf; Aufnahme und Mitschrift bleiben auf dem iPad")
+                .accessibilityHint("Nimmt die Vorlesung mit dem Mikrofon auf; Aufnahme und Mitschrift bleiben auf dem \(UFDevice.name)")
             }
             if let items {
                 if items.isEmpty {
-                    Text("Noch keine eigene Aufnahme. „Aufnehmen“ nimmt die Vorlesung mit dem Mikrofon des iPads auf und schreibt sie auf dem Gerät mit – mit Zeitmarken, später durchsuchbar und auf Wunsch von der KI zusammengefasst.")
+                    Text("Noch keine eigene Aufnahme. „Aufnehmen“ nimmt die Vorlesung mit dem Mikrofon des \(UFDevice.name)s auf und schreibt sie auf dem Gerät mit – mit Zeitmarken, später durchsuchbar und auf Wunsch von der KI zusammengefasst.")
                         .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 8)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
@@ -45,7 +45,7 @@ struct OwnRecordingsSection: View {
             } else {
                 UFSkeleton().frame(height: 48).padding(.top, 8)
             }
-            Text("Aufnahme und Mitschrift bleiben auf diesem iPad. An die KI geht nur Text – und nur, wenn du es antippst.")
+            Text("Aufnahme und Mitschrift bleiben auf diesem \(UFDevice.name). An die KI geht nur Text – und nur, wenn du es antippst.")
                 .ufFont(12.16).foregroundStyle(UF.muted).padding(.top, 8)
         }
         .padding(.bottom, 14.4)
@@ -59,7 +59,7 @@ struct OwnRecordingsSection: View {
 
     private func remove(_ r: JSONValue) async {
         guard let api = session.api, let id = r.s("id") else { return }
-        guard await overlay.confirm("„\(r.s("title") ?? "Aufnahme")“ samt Mitschrift von diesem iPad löschen?") else { return }
+        guard await overlay.confirm("„\(r.s("title") ?? "Aufnahme")“ samt Mitschrift von diesem \(UFDevice.name) löschen?") else { return }
         do {
             _ = try await api.value("/api/recordings/own/\(id)", method: "DELETE")
             toast.show("Aufnahme gelöscht.")
@@ -175,7 +175,7 @@ struct LectureRecordDialog: View {
                     Text(error).ufFont(12.8).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("ownrec.error")
                 }
-                Text("Die Aufnahme läuft auch mit gesperrtem Bildschirm weiter. Aufnahme und Mitschrift bleiben auf diesem iPad; die Spracherkennung läuft nur auf dem Gerät. Frag die Lehrenden vorher, ob du aufnehmen darfst.")
+                Text("Die Aufnahme läuft auch mit gesperrtem Bildschirm weiter. Aufnahme und Mitschrift bleiben auf diesem \(UFDevice.name); die Spracherkennung läuft nur auf dem Gerät. Frag die Lehrenden vorher, ob du aufnehmen darfst.")
                     .ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
             .frame(minWidth: 320)
@@ -341,7 +341,7 @@ struct LectureRecordDialog: View {
             _ = try await api.value("/api/recordings/own", method: "POST", body: .object(body))
             return nil
         } catch {
-            return "Die Aufnahme ließ sich nicht eintragen: \(error.localizedDescription) Die Datei liegt noch auf dem iPad."
+            return "Die Aufnahme ließ sich nicht eintragen: \(error.localizedDescription) Die Datei liegt noch auf dem \(UFDevice.name)."
         }
     }
 }
@@ -504,7 +504,7 @@ struct OwnRecordingDetail: View {
                 Text("\(TranscriptSections.timestamp(player.position)) / \(TranscriptSections.timestamp(player.duration))")
                     .ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
             } else {
-                Text("Die Audiodatei liegt nicht mehr auf diesem iPad.").ufFont(12.8).foregroundStyle(UF.muted)
+                Text("Die Audiodatei liegt nicht mehr auf diesem \(UFDevice.name).").ufFont(12.8).foregroundStyle(UF.muted)
             }
         }
     }
@@ -668,7 +668,7 @@ struct OwnRecordingDetail: View {
     }
 
     private func remove() async {
-        guard let api = session.api, await overlay.confirm("Aufnahme samt Mitschrift von diesem iPad löschen?") else { return }
+        guard let api = session.api, await overlay.confirm("Aufnahme samt Mitschrift von diesem \(UFDevice.name) löschen?") else { return }
         do {
             player.stop()
             _ = try await api.value("/api/recordings/own/\(id)", method: "DELETE")
