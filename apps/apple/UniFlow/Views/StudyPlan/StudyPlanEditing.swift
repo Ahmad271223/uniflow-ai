@@ -506,19 +506,54 @@ struct StudyPlanOverview: View {
     var actions: ((StudyPlanModule, StudyPlanModuleAction) -> Void)?
     var openSlot: ((StudyPlanSlot) -> Void)?
     var dropHub: StudyPlanDropHub?
+    /// Kompakt (iPhone): Reihen so gewaehlt, dass Breite und Hoehe der Chips am besten passen (alles auf einmal sehen,
+    /// Inhaber 05.11.2026 "auch auf dem Handy")
+    var compact = false
     let open: (StudyPlanModule) -> Void
 
-    /// Reihen: quer 1, hochkant 2 (bei mehr als 4 Semestern)
-    var rows: Int { size.width >= size.height || semesters.count <= 4 ? 1 : 2 }
+    static let gap: CGFloat = 6
 
-    var body: some View {
+    /// Reihen: quer 1, hochkant 2 (bei mehr als 4 Semestern); kompakt hochkant nach `compactRows`
+    var rows: Int {
+        if compact && size.height > size.width { return Self.compactRows(semesters, size: size) }
+        return size.width >= size.height || semesters.count <= 4 ? 1 : 2
+    }
+
+    /// meiste Eintraege (Module und Plaetze) eines Semesters
+    static func most(_ semesters: [StudyPlanSemester]) -> Int { semesters.map { $0.modules.count + $0.slots.count }.max() ?? 1 }
+
+    /// Spaltenbreite, Reihenhoehe und Chiphoehe bei `rows` Reihen
+    static func metrics(_ semesters: [StudyPlanSemester], size: CGSize, rows: Int) -> (column: CGFloat, row: CGFloat, chip: CGFloat) {
         let perRow = max(1, Int((Double(semesters.count) / Double(rows)).rounded(.up)))
-        let gap: CGFloat = 6
         let colWidth = max(60, (size.width - gap * CGFloat(perRow - 1)) / CGFloat(perRow))
         let rowHeight = max(120, (size.height - gap * CGFloat(rows - 1)) / CGFloat(rows))
-        let most = semesters.map { $0.modules.count + $0.slots.count }.max() ?? 1
+        let most = Self.most(semesters)
         // Kopf ~30 pt, Rest teilen sich die Chips (hoechstens 30 pt, mindestens 14 pt)
         let chip = min(30, max(14, (rowHeight - 34 - CGFloat(most) * 3) / CGFloat(max(1, most))))
+        return (colWidth, rowHeight, chip)
+    }
+
+    /// iPhone hochkant: 1 bis 4 Reihen; gewaehlt wird die Zahl, bei der der knappere von Breite (Ziel 100 pt je Spalte,
+    /// lesbarer Kurzname) und Chiphoehe (Ziel 22 pt) am besten passt; bei Gleichstand weniger Reihen
+    static func compactRows(_ semesters: [StudyPlanSemester], size: CGSize) -> Int {
+        let most = CGFloat(max(1, Self.most(semesters)))
+        var best = (rows: 1, score: -CGFloat.infinity)
+        for r in 1...max(1, min(4, semesters.count)) {
+            let perRow = max(1, Int((Double(semesters.count) / Double(r)).rounded(.up)))
+            let col = (size.width - gap * CGFloat(perRow - 1)) / CGFloat(perRow)
+            let row = (size.height - gap * CGFloat(r - 1)) / CGFloat(r)
+            let chip = (row - 34 - most * 3) / most
+            let score = min(col / 100, chip / 22)
+            if score > best.score + 0.001 { best = (r, score) }
+        }
+        return best.rows
+    }
+
+    var body: some View {
+        let rows = self.rows
+        let perRow = max(1, Int((Double(semesters.count) / Double(rows)).rounded(.up)))
+        let gap = Self.gap
+        let (colWidth, rowHeight, chip) = Self.metrics(semesters, size: size, rows: rows)
         VStack(alignment: .leading, spacing: gap) {
             ForEach(0..<rows, id: \.self) { r in
                 HStack(alignment: .top, spacing: gap) {
@@ -534,14 +569,30 @@ struct StudyPlanOverview: View {
 
     private func column(_ s: StudyPlanSemester, width: CGFloat, height: CGFloat, chip: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 4) {
-                Text(s.fachsemester.map { "\($0)." } ?? "").ufFont(11.52, 700).foregroundStyle(UF.text2)
-                Text(s.term).ufFont(11.52, 650).foregroundStyle(UF.text).lineLimit(1).minimumScaleFactor(0.7)
-                Spacer(minLength: 2)
-                Text(StudyPlanText.number(s.lp)).ufFont(11.52, 700).monospacedDigit()
-                    .foregroundStyle(s.overloaded ? UF.warnText : UF.muted).lineLimit(1).fixedSize()
+            Group {
+                if compact && width < 110 {
+                    // schmale Spalte (iPhone hochkant): Semester und LP oben klein, darunter der Name ungekuerzt
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 2) {
+                            Text(s.fachsemester.map { "\($0). Sem." } ?? "").ufFont(10, 700).foregroundStyle(UF.text2).lineLimit(1)
+                            Spacer(minLength: 2)
+                            Text(StudyPlanText.number(s.lp)).ufFont(10.5, 700).monospacedDigit()
+                                .foregroundStyle(s.overloaded ? UF.warnText : UF.muted).lineLimit(1).fixedSize()
+                        }
+                        Text(s.term).ufFont(11.52, 650).foregroundStyle(UF.text).lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    .frame(height: 30)
+                } else {
+                    HStack(spacing: 4) {
+                        Text(s.fachsemester.map { "\($0)." } ?? "").ufFont(11.52, 700).foregroundStyle(UF.text2)
+                        Text(s.term).ufFont(11.52, 650).foregroundStyle(UF.text).lineLimit(1).minimumScaleFactor(0.7)
+                        Spacer(minLength: 2)
+                        Text(StudyPlanText.number(s.lp)).ufFont(11.52, 700).monospacedDigit()
+                            .foregroundStyle(s.overloaded ? UF.warnText : UF.muted).lineLimit(1).fixedSize()
+                    }
+                    .frame(height: 26)
+                }
             }
-            .frame(height: 26)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(StudyPlanText.accessibility(s))
             .accessibilityAddTraits(.isHeader)

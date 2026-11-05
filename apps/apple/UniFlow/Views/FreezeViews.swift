@@ -20,6 +20,13 @@ enum FreezeTexts {
     static let traceExplain = "Die Seite füllt den Bildschirm im aktuellen Zoom, alle Leisten verschwinden und keine Berührung "
         + "wirkt mehr – auch nicht der Stift oder Papier, das darauf liegt. Der Bildschirm bleibt an. "
         + "Entsperren: das Schloss in der Ecke etwa zwei Sekunden halten oder Esc drücken."
+    /// iPhone: kein Stift, keine Tastatur; der Finger schreibt im Modus "Zeichnen" weiter, das Schloss sitzt oben im
+    /// sicheren Bereich (nicht unter der Kamera)
+    static let viewExplainPhone = "Zoom, Scrollen und Seitenwechsel sind gesperrt; im Modus „Zeichnen“ schreibt der Finger "
+        + "weiter. Gut für genaue technische Zeichnungen. Lösen über das Abzeichen oben."
+    static let traceExplainPhone = "Die Seite füllt den Bildschirm im aktuellen Zoom, alle Leisten verschwinden und keine "
+        + "Berührung wirkt mehr – auch nicht Papier, das darauf liegt. Der Bildschirm bleibt an. "
+        + "Entsperren: das Schloss oben in der Ecke etwa zwei Sekunden halten."
     static let lockLabel = "Abpausen-Sperre"
     static let lockHint = "Zum Entsperren etwa zwei Sekunden gedrückt halten."
 }
@@ -52,6 +59,11 @@ struct TraceLockOverlay: View {
     @ObservedObject var freeze: EditorFreezeSession
     /// Ecke des Schlosses (gegenueber der Schreibhand: Rechtshaender oben links)
     var leading = false
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    /// Kompakt (iPhone): die Sperre deckt den ganzen Bildschirm, das Schloss bleibt im sicheren Bereich (sonst laege es
+    /// unter der Kamera bzw. in der abgerundeten Ecke und liesse sich kaum halten)
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
 
     var body: some View {
         ZStack(alignment: leading ? .topLeading : .topTrailing) {
@@ -60,9 +72,10 @@ struct TraceLockOverlay: View {
                 .onTapGesture {}
                 .gesture(DragGesture(minimumDistance: 0))
                 .accessibilityHidden(true)
-            lockButton.padding(18)
+                .ignoresSafeArea()
+            lockButton.padding(compact ? 10 : 18)
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: compact ? [] : .all)
         .background {
             // Tastatur: Esc entsperrt
             Button("") { freeze.unlock() }
@@ -109,8 +122,39 @@ struct FreezeIntroDialog: View {
     @Binding var contrast: Bool
     let start: (EditorFreeze.Mode) -> Void
     let cancel: () -> Void
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    /// Kompakt (iPhone, Blatt von unten): Texte ohne Stift und Tastatur, Knoepfe untereinander in voller Breite (drei
+    /// nebeneinander kuerzten "Zum Abpausen einfrieren")
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
 
     var body: some View {
+        if compact { compactBody } else { regularBody }
+    }
+
+    private var compactBody: some View {
+        UFDialog(FreezeTexts.introTitle) {
+            VStack(alignment: .leading, spacing: 14) {
+                explain(FreezeTexts.fixView, icon: "lock", FreezeTexts.viewExplainPhone)
+                explain(FreezeTexts.trace, icon: "lock.rectangle", FreezeTexts.traceExplainPhone)
+                Toggle(FreezeTexts.brightness, isOn: $maxBrightness)
+                    .accessibilityHint("Beim Abpausen; danach wieder wie vorher.")
+                Toggle(FreezeTexts.contrast, isOn: $contrast)
+                    .accessibilityHint("Weißer Hintergrund ohne Seitenschatten.")
+                VStack(spacing: 8) {
+                    fullButton(FreezeTexts.trace, kind: .primary) { start(.trace) }
+                    fullButton(FreezeTexts.fixView) { start(.view) }
+                    fullButton("Abbrechen", kind: .ghost, action: cancel)
+                }
+                .padding(.top, 4)
+            }
+            .ufFont(13.12).foregroundStyle(UF.text2)
+            .fixedSize(horizontal: false, vertical: true)
+        } foot: { EmptyView() }
+        .accessibilityIdentifier("doc.freeze.intro")
+    }
+
+    private var regularBody: some View {
         UFDialog(FreezeTexts.introTitle) {
             VStack(alignment: .leading, spacing: 14) {
                 explain(FreezeTexts.fixView, icon: "lock", FreezeTexts.viewExplain)
@@ -130,6 +174,11 @@ struct FreezeIntroDialog: View {
             UFButton(FreezeTexts.trace, kind: .primary) { start(.trace) }
         }
         .accessibilityIdentifier("doc.freeze.intro")
+    }
+
+    private func fullButton(_ title: String, kind: UFButtonKind = .normal, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title).frame(maxWidth: .infinity) }
+            .buttonStyle(UFButtonStyle(kind: kind))
     }
 
     private func explain(_ title: String, icon: String, _ text: String) -> some View {

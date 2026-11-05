@@ -853,4 +853,137 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
         let (pad, _) = try host(compact: false)
         shot(pad, "doc-ipad-regular", dir: dir)
     }
+
+    // MARK: - Fixieren (iPhone, docs/FIXIEREN-ABPAUSEN-2026-11-05.md)
+
+    /// Eintrag im Abschnitt "Bildschirm fixieren" des Menues "…"
+    private func freezeAction(_ env: HostedEnvironment, _ title: String) -> UIAction? {
+        guard let m = LayoutWidthAuditTests.menu(in: env.window, titled: FreezeTexts.introTitle) else { return nil }
+        return LayoutWidthAuditTests.actions(in: m).first { $0.title == title }
+    }
+
+    private func introSeen(_ seen: Bool) {
+        let before = UserDefaults.standard.object(forKey: EditorFreeze.introSeenKey)
+        UserDefaults.standard.set(seen, forKey: EditorFreeze.introSeenKey)
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: EditorFreeze.introSeenKey) }
+    }
+
+    /// VoiceOver-Aktion eines Elements, dessen Name `label` enthaelt
+    private func customAction(_ env: HostedEnvironment, label: String, action: String) -> UIAccessibilityCustomAction? {
+        all(env).first { ($0.accessibilityLabel ?? "").contains(label) }?.accessibilityCustomActions?.first { $0.name == action }
+    }
+
+    /// "Ansicht fixieren" aus dem Menue "…": Zoom und Scrollen gesperrt, im Modus "Zeichnen" schreibt der Finger weiter
+    /// (Eingabeart `.anyInput`, die Beruehrung trifft die Zeichenflaeche), die untere Leiste bleibt; "Lösen" gibt frei
+    func testFreezeViewFromMenuKeepsFingerDrawing() throws {
+        introSeen(true)
+        let (env, _) = try host(compact: true)
+        let vc = try XCTUnwrap(editor(env))
+        XCTAssertTrue(env.wait(timeout: 10) { self.freezeAction(env, FreezeTexts.fixView) != nil }, LayoutWidthAuditTests.barDiagnose(env.window))
+        XCTAssertNotNil(freezeAction(env, FreezeTexts.trace), "beide Stufen im Menü")
+        XCTAssertTrue(tap(env, id: "doc.mode.draw"), dump(env))
+        XCTAssertTrue(env.wait { vc.drawingPolicy == .anyInput })
+        XCTAssertTrue(env.wait { vc.overlayForTesting(at: vc.currentPageIndex) != nil })
+        let overlay = try XCTUnwrap(vc.overlayForTesting(at: vc.currentPageIndex))
+        let scale = vc.pdfView.scaleFactor
+
+        try XCTUnwrap(freezeAction(env, FreezeTexts.fixView)).ufRun()
+        XCTAssertTrue(env.wait { vc.freezeMode == .view }, "fixiert")
+        XCTAssertTrue(env.wait { self.labels(env).contains { $0.contains(FreezeTexts.badge) } }, dump(env))
+        let scroll = try XCTUnwrap(vc.firstScrollView(in: vc.pdfView))
+        XCTAssertFalse(scroll.isScrollEnabled, "kein Scrollen, auch nicht mit zwei Fingern")
+        XCTAssertEqual(scroll.pinchGestureRecognizer?.isEnabled, false, "kein Zoom")
+        // Finger zeichnet weiter
+        XCTAssertEqual(vc.drawingPolicy, .anyInput)
+        XCTAssertEqual(overlay.canvas.drawingPolicy, .anyInput)
+        XCTAssertTrue(overlay.canvas.isUserInteractionEnabled)
+        XCTAssertTrue(overlay.canvas.drawingGestureRecognizer.isEnabled)
+        XCTAssertTrue(vc.pdfView.isUserInteractionEnabled)
+        XCTAssertTrue(vc.pickerAllowed, "Palette beim Zeichnen")
+        let mid = overlay.canvas.convert(CGPoint(x: overlay.canvas.bounds.midX, y: overlay.canvas.bounds.midY), to: env.window)
+        let visible = vc.pdfView.convert(vc.pdfView.bounds, to: env.window)
+        let p = visible.contains(mid) ? mid : CGPoint(x: visible.midX, y: visible.midY)
+        XCTAssertTrue(env.window.hitTest(p, with: nil)?.isDescendant(of: overlay.canvas) == true, "Finger trifft die Zeichenflaeche")
+        XCTAssertNotNil(element(env, id: "doc.bottomBar"), "untere Leiste bleibt beim Fixieren")
+        vc.pdfView.scaleFactor = scale * 1.6
+        env.pump(0.3)
+        XCTAssertEqual(vc.pdfView.scaleFactor, scale, accuracy: 0.001, "Zoom bleibt")
+        let found = LayoutWidthAuditTests.overflows(in: env.window).map(\.text)
+        XCTAssertTrue(found.isEmpty, found.prefix(10).joined(separator: "\n"))
+
+        let release = try XCTUnwrap(customAction(env, label: FreezeTexts.badge, action: FreezeTexts.release), dump(env))
+        _ = release.actionHandler?(release)
+        XCTAssertTrue(env.wait { vc.freezeMode == .off })
+        XCTAssertTrue(scroll.isScrollEnabled)
+        XCTAssertEqual(vc.drawingPolicy, .anyInput, "Zeichnen bleibt gewählt")
+    }
+
+    /// "Zum Abpausen einfrieren": Kopfzeile und untere Leiste weg, keine Eingabe in der PDF, das Schloss liegt im
+    /// Fenster (nicht in der Ecke unter der Kamera) und ist gross genug zum Halten; Entsperren bringt die Leisten zurueck
+    func testTraceHidesBottomBarAndLockStaysReachable() throws {
+        introSeen(true)
+        let (env, _) = try host(compact: true)
+        let vc = try XCTUnwrap(editor(env))
+        XCTAssertTrue(env.wait(timeout: 10) { self.freezeAction(env, FreezeTexts.trace) != nil }, LayoutWidthAuditTests.barDiagnose(env.window))
+        try XCTUnwrap(freezeAction(env, FreezeTexts.trace)).ufRun()
+        XCTAssertTrue(env.wait { vc.freezeMode == .trace })
+        XCTAssertTrue(env.wait { self.element(env, id: "doc.bottomBar") == nil }, "untere Leiste weg\n" + dump(env))
+        XCTAssertFalse(labels(env).contains("Mehr"), "keine Kopfzeile")
+        XCTAssertFalse(labels(env).contains("KI-Hilfe"))
+        XCTAssertFalse(vc.pdfView.isUserInteractionEnabled, "keine Eingabe")
+        XCTAssertFalse(vc.pickerAllowed, "keine Palette")
+        let lock = try XCTUnwrap(element(env, label: FreezeTexts.lockLabel), dump(env))
+        let f = env.window.convert(lock.accessibilityFrame, from: nil)
+        let safe = env.window.bounds.inset(by: env.window.safeAreaInsets)
+        XCTAssertTrue(safe.insetBy(dx: 4, dy: 4).contains(f), "Schloss im sicheren Bereich: \(f) in \(safe)")
+        XCTAssertGreaterThanOrEqual(f.width, 44, "gross genug zum Halten")
+        XCTAssertGreaterThanOrEqual(f.height, 44)
+        XCTAssertTrue(UIApplication.shared.isIdleTimerDisabled, "Bildschirm bleibt an")
+
+        let unlock = try XCTUnwrap(customAction(env, label: FreezeTexts.lockLabel, action: FreezeTexts.unlockAction))
+        _ = unlock.actionHandler?(unlock)
+        XCTAssertTrue(env.wait { vc.freezeMode == .off })
+        XCTAssertTrue(env.wait { self.element(env, id: "doc.bottomBar") != nil }, "Leiste zurueck\n" + dump(env))
+        XCTAssertTrue(vc.pdfView.isUserInteractionEnabled)
+        XCTAssertFalse(UIApplication.shared.isIdleTimerDisabled)
+    }
+
+    /// Erklaerung beim ersten Mal als Blatt von unten: Texte ohne Stift und Tastatur, Knoepfe untereinander in voller
+    /// Breite, nichts zu breit; "Zum Abpausen einfrieren" startet
+    func testFreezeIntroOnPhone() throws {
+        introSeen(false)
+        let (env, _) = try host(compact: true)
+        let vc = try XCTUnwrap(editor(env))
+        XCTAssertTrue(env.wait(timeout: 10) { self.freezeAction(env, FreezeTexts.fixView) != nil })
+        try XCTUnwrap(freezeAction(env, FreezeTexts.fixView)).ufRun()
+        // Knoepfe im Blatt (die Kennung des Dialogs ueberdeckt die der Knoepfe)
+        func introButton(_ title: String) -> NSObject? {
+            guard let p = self.presented(env) else { return nil }
+            return self.elements(in: p.view).first { $0.accessibilityLabel == title && $0.accessibilityTraits.contains(.button) }
+        }
+        XCTAssertTrue(env.wait(timeout: 10) { introButton(FreezeTexts.trace) != nil }, dump(env))
+        env.pump(0.6)
+        XCTAssertTrue(labels(env).contains { $0.contains("schreibt der Finger") }, dump(env))
+        XCTAssertFalse(labels(env).contains { $0.contains("⌘L") || $0.contains("Apple Pencil") })
+        let trace = try XCTUnwrap(introButton(FreezeTexts.trace))
+        let view = try XCTUnwrap(introButton(FreezeTexts.fixView))
+        XCTAssertGreaterThan(trace.accessibilityFrame.width, 280, "volle Breite")
+        XCTAssertGreaterThan(view.accessibilityFrame.minY, trace.accessibilityFrame.maxY - 1, "untereinander")
+        let found = LayoutWidthAuditTests.overflows(in: env.window).map(\.text).filter { !$0.contains("UIDimmingView") }
+        XCTAssertTrue(found.isEmpty, found.prefix(10).joined(separator: "\n"))
+        XCTAssertEqual(vc.freezeMode, .off, "erst nach der Wahl")
+        XCTAssertTrue(trace.accessibilityActivate())
+        XCTAssertTrue(env.wait { vc.freezeMode == .trace })
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: EditorFreeze.introSeenKey))
+        let unlock = try XCTUnwrap(customAction(env, label: FreezeTexts.lockLabel, action: FreezeTexts.unlockAction))
+        _ = unlock.actionHandler?(unlock)
+        XCTAssertTrue(env.wait { vc.freezeMode == .off })
+    }
+}
+
+private extension UIAction {
+    /// Menueeintrag ausloesen wie ein Tippen (UIMenuLeaf performWithSender:target:)
+    func ufRun() {
+        _ = (self as NSObject).perform(NSSelectorFromString("performWithSender:target:"), with: nil, with: nil)
+    }
 }
