@@ -51,6 +51,13 @@ suggested_po, po_confirmed, qis_program, disclaimer}`; `GET /api/study-plan/modu
 `attempts`, `prerequisites`, `required_for`, `app_modules`, `courses`, `files`, `source {url, page}`; 404 ohne Katalog
 oder Modul); `GET/POST /api/study-plan/settings` `{po, start_term, electives}` (+ Vorschlaege und Auswahllisten; 400 bei
 falschem Typ oder unbekanntem Semester). Fixtures `fixtures/study-plan-engine/`.
+Katalogsuche am PC und im Dienst (05.11.2026, nur Python; die Seite `#/studyplan` im Web/Windows nutzt sie): `GET /api/study-catalog/status`
+stoesst die Suche im Hintergrund an, wenn noch nie gesucht wurde, die Wiederholung nach einem Fehler faellig ist oder sich `inputs`
+(QIS-Studiengang, PO, eigener Link) geaendert haben (Stand dann sofort `searching`; Zwischenstand aelter als 10 Minuten gilt als
+abgebrochen); `POST /api/study-catalog/sync` `{force}`; `GET /api/study-catalog/programs?q=` das Register zum Waehlen
+(`{programs:[{id, program, degree, faculty, pos:[{po, code, catalog_terms, loadable}]}], count}`; ein Kuerzel als `settings.po` waehlt den
+Studiengang auch ohne QIS); `GET /api/study-plan/module/{id}` meldet `texts_loading: true`, solange die Modultexte nachgeladen werden
+(nur am eigenen PC, nie im Dienst).
 
 ## Wochentests mit Seitenmarker (ab 3.2)
 

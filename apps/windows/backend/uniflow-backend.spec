@@ -15,6 +15,12 @@ sys.path.insert(0, str(ROOT))
 
 datas = [(str(ROOT / "app" / "static"), "app/static"), (str(ROOT / ".env.example"), "."),
          (str(ROOT / "docs" / "release"), "docs/release")]            # Rechtsseiten (app/legal.py)
+# Studienverlauf (app/study_catalog.py liest ROOT/packages/... und ROOT/apps/apple/...): Register der Quellen und
+# Grundstock der Modulkataloge (nur Fakten, 0,3 MB) im selben Unterpfad wie im Repo, sonst bleibt die Katalogsuche leer
+datas += [(str(ROOT / "packages" / "shared-contracts" / "study-sources.json"), "packages/shared-contracts"),
+          (str(ROOT / "packages" / "shared-contracts" / "study-sources-all.json"), "packages/shared-contracts"),
+          (str(ROOT / "apps" / "apple" / "UniFlow" / "Resources" / "StudyCatalogSeed" / "luh.json.gz"),
+           "apps/apple/UniFlow/Resources/StudyCatalogSeed")]
 datas += collect_data_files("tzdata")                 # Zeitzonen (Windows hat keine eigene Datenbank)
 datas += collect_data_files("playwright")             # Node-Treiber von Playwright (ohne Browser)
 # Texterkennung fuer Scan-Seiten (app/pageocr.py, docs/OCR-WINDOWS.md): pypdfium2 rendert die Seiten (pdfium.dll). Ohne das

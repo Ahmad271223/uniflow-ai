@@ -9,7 +9,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 /** Gruppen der Seitenleiste: [Route, Titel, Symbol, Pille] */
 export const NAV_GROUPS = [
   { id: "studium", title: "Studium", items: [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"],
-    ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["services", "Uni & Noten", "graduation"]] },
+    ["modules", "Meine Module", "book"], ["studyplan", "Studienverlauf", "columns"], ["files", "Dokumente & Notizen", "folder"], ["services", "Uni & Noten", "graduation"]] },
   { id: "lernen", title: "Lernen", items: [["exams", "Tests & Wiederholung", "exam", "blue"], ["cards", "Karteikarten", "cards", "peach"]] },
   { id: "gemeinsam", title: "Gemeinsam", items: [["community", "Community", "users"]] },
 ];
