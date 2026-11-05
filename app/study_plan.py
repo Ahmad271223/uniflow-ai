@@ -20,6 +20,15 @@ Regeln (alle Reihenfolgen fest, damit Python und Swift dasselbe JSON liefern):
   Wahl(pflicht)module ohne Fachsemester belegen die Plaetze laut Studienverlaufsplan (`plan_slots`, erster freier
   Platz ihres Bereichs, Module mit QIS-Zeilen zuerst); die uebrigen Module ohne Fachsemester fuellen das erste
   passende Semester ab jetzt mit Platz bis 30 LP.
+- Offene Plaetze (05.11.2026): ein Wahl(pflicht)modul ohne Fachsemester belegt immer einen Platz seines Bereichs, auch
+  auf eigener Lage (im selben Semester, sonst im naechstgelegenen). Ein freier Platz bleibt nur fuer einen Bereich mit
+  offenem Bedarf (LP oder Zahl der Module, beides muss erfuellt sein), sonst fuer einen Bereich, in dessen Spanne bis
+  zur Obergrenze ("0 - 15 LP", "15 - 40 LP") der ganze Platz noch passt (so bleibt der Verlaufsplan ohne Wahl ganz
+  stehen, auch wo er mehr als den Mindestbedarf vorsieht). Ist der Bedarf eines Bereichs schon durch
+  bestandene, geplante oder gewaehlte Module (und eigene Eintraege) gedeckt, faellt jeder weitere Platz dieses Bereichs
+  weg, auch wenn die Obergrenze mehr erlauben wuerde. Ein Modul, das in mehreren Bereichen waehlbar ist, zaehlt genau
+  einmal: im eigenen Bereich, solange dessen Bedarf offen ist, sonst im ersten aktiven Bereich mit offenem Bedarf
+  (PO: eine Leistung wird nur einem Bereich angerechnet).
 - Voraussetzungen: ein Modul liegt immer nach seinen nicht bestandenen Voraussetzungen; wandert eine, wandern die
   abhaengigen mit, wenn noetig.
 - Ausgleich: ab dem aktuellen Semester wandert bei mehr als 36 LP das am wenigsten dringende Wahl(pflicht)modul
@@ -607,11 +616,13 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         areas = s.get("areas") if isinstance(s.get("areas"), list) else []
         return not areas or any(a in areas for a in mem_of[mid])
 
+    own_slot: set[str] = set()
     for mid in included:                                        # eigener Platz: belegt einen Platz in dem Semester
         if mid in placed:
             for k, s in enumerate(slots):
                 if k not in taken and start + int(num(s["semester"])) - 1 == placed[mid] and fits_slot(mid, s):
                     taken.add(k)
+                    own_slot.add(mid)
                     break
     elect = [i for i in included if text_of(by_id[i].get("kind")) in ELECTIVE_KINDS and sem_of(by_id[i]) is None
              and i not in placed]
@@ -621,6 +632,15 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
                 taken.add(k)
                 slot_sem[mid] = int(num(s["semester"]))
                 break
+    # Wahl(pflicht)modul ohne Fachsemester auf eigener Lage ohne Platz in dem Semester: belegt trotzdem einen Platz seines
+    # Bereichs (den naechstgelegenen), sonst bliebe der Platz offen, obwohl das Modul ihn fuellt (05.11.2026)
+    for mid in included:
+        if mid not in placed or mid in own_slot or text_of(by_id[mid].get("kind")) not in ELECTIVE_KINDS \
+                or sem_of(by_id[mid]) is not None:
+            continue
+        free = [k for k, s in enumerate(slots) if k not in taken and fits_slot(mid, s)]
+        if free:
+            taken.add(min(free, key=lambda k: (abs(start + int(num(slots[k]["semester"])) - 1 - placed[mid]), k)))
 
     state: dict[str, dict] = {}
     for mid in included:
@@ -803,6 +823,9 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     open_lp = {aid: target[aid] - used[aid] if target[aid] is not None else None for aid in area_by}
     open_n = {aid: mreq[aid] - len(counted[aid]) if mreq[aid] is not None else None for aid in area_by}
     room = {aid: num(area_by[aid].get("lp_max")) - used[aid] if num(area_by[aid].get("lp_max")) else None for aid in area_by}
+    # Bedarf schon durch Module (bestanden, geplant, gewaehlt, eigene Eintraege) gedeckt: keine weiteren Plaetze
+    met = {aid: (target[aid] is not None or mreq[aid] is not None) and not (open_lp[aid] is not None and open_lp[aid] > 0)
+           and not (open_n[aid] is not None and open_n[aid] > 0) for aid in area_by}
     nslots = {aid: 0 for aid in area_by}
     custom_lp: dict[int, float] = {}
     for t, e in custom:
@@ -810,10 +833,11 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     slot_lp: dict[int, float] = {}
     places: list[tuple[int, dict]] = []
 
-    def is_open(aid: str) -> bool:
-        if open_lp[aid] is not None:
-            return open_lp[aid] > 0
-        return open_n[aid] is not None and open_n[aid] > 0
+    def is_open(aid: str) -> bool:                              # LP oder Zahl der Module noch offen
+        return (open_lp[aid] is not None and open_lp[aid] > 0) or (open_n[aid] is not None and open_n[aid] > 0)
+
+    def has_room(aid: str, lp) -> bool:     # Spanne bis zur Obergrenze, der ganze Platz passt, Bedarf nicht durch Module gedeckt
+        return not met[aid] and room[aid] is not None and room[aid] > 0 and room[aid] >= (lp or 0)
 
     def is_unknown(aid: str) -> bool:
         return open_lp[aid] is None and open_n[aid] is None and room[aid] is None
@@ -859,16 +883,18 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
             continue
         ar = [a for a in s.get("areas") if isinstance(a, str)] if isinstance(s.get("areas"), list) else []
         cands = [a for a in ar if a in choice] if ar else list(choice)
-        # zuerst Bereiche mit offenen LP/Modulen, dann Spannen bis zur Obergrenze ("0 - 15 LP"), dann ohne Angabe
+        slot_lp_of = num(s.get("lp")) if num(s.get("lp")) is not None and num(s.get("lp")) > 0 else None
+        # zuerst Bereiche mit offenen LP/Modulen, dann Spannen bis zur Obergrenze ("0 - 15 LP", auch ueber den Bedarf
+        # hinaus, solange ihn erst die Plaetze decken), dann ohne Angabe; ist der Bedarf eines Bereichs durch Module
+        # gedeckt, bekommt er keinen Platz mehr
         pick = next((a for a in cands if is_open(a)), None)
         if pick is None:
-            pick = next((a for a in cands if room[a] is not None and room[a] > 0), None)
+            pick = next((a for a in cands if has_room(a, slot_lp_of or unit[a])), None)
         if pick is None:
             pick = next((a for a in cands if is_unknown(a)), None)
         if pick is None:
             continue
-        lp = num(s.get("lp"))
-        lp = lp if lp is not None and lp > 0 else unit[pick]
+        lp = slot_lp_of if slot_lp_of is not None else unit[pick]
         if room[pick] is not None:
             room[pick] -= lp
         if open_lp[pick] is not None:
@@ -883,21 +909,21 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         if aid in referenced:
             continue
         o = open_lp[aid]
-        if o is not None:
-            n = math.ceil(o / unit[aid]) if o > 0 else 0
-        elif open_n[aid] is not None:
-            n = max(0, open_n[aid])
+        step = unit[aid]
+        if o is not None or open_n[aid] is not None:
+            # so viele Plaetze, dass LP und Zahl der Module reichen (beides muss erfuellt sein)
+            n = math.ceil(o / step) if o is not None and o > 0 else 0
+            if n > 1 and step < 3:                                # kleine Module (1-2 LP): ein Platz fuer alles
+                n, step = 1, o
+            n = max(n, open_n[aid] or 0)
         elif not counted[aid] and unknown_left[0] > 0:            # ohne LP-Angabe: ein Platz, solange nichts gewaehlt
             n = 1
             unknown_left[0] -= 1
         else:
             n = 0
         h = hint_of([aid])
-        step = unit[aid]
-        if o is not None and step < 3 and n > 1:                  # kleine Module (1-2 LP): ein Platz fuer alles
-            n, step = 1, o
         for j in range(min(n, MAX_AREA_SLOTS)):
-            lp = min(step, o - j * step) if o is not None else step
+            lp = min(step, o - j * step) if o is not None and o - j * step > 0 else unit[aid]
             place(pick_term(h), "area", text_of(area_by[aid].get("name")), aid, [aid], group_of.get(aid), lp, None, h)
     for g, ids in groups.items():
         if g in track:

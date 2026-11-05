@@ -166,6 +166,7 @@ struct StudyPlanArea: Identifiable, Equatable {
     let lpPlanned: Double
     let lpOpen: Double?
     let count: Int
+    let countDone: Int
     let options: Int
     let rule: String?
 
@@ -185,6 +186,7 @@ struct StudyPlanArea: Identifiable, Equatable {
         lpPlanned = v.n("lp_planned") ?? 0
         lpOpen = v.n("lp_open")
         count = v.i("count") ?? 0
+        countDone = v.i("count_done") ?? 0
         options = v.i("options") ?? 0
         rule = v.s("rule").flatMap { $0.isEmpty ? nil : $0 }
     }
@@ -714,6 +716,16 @@ enum StudyPlanText {
     static let title = "Studienverlauf"
     static let disclaimer = "Verbindlich ist die Prüfungsordnung deiner Hochschule."
     static let noQIS = "Verbinde QIS, damit StudiNow deinen Studiengang kennt"
+    /// Quelle des Notenspiegels: "LSF" an der Uni Hildesheim, "Campusmanagement" (HISinOne) an der HsH, sonst "QIS" (LUH)
+    static func gradeSource(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "Campusmanagement" : hildesheim ? "LSF" : "QIS" }
+    /// "in QIS", "im LSF", "im Campusmanagement"
+    static func gradeSourceIn(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "im Campusmanagement" : hildesheim ? "im LSF" : "in QIS" }
+    /// "aus QIS", "aus dem LSF", "aus dem Campusmanagement"
+    static func gradeSourceFrom(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "aus dem Campusmanagement" : hildesheim ? "aus dem LSF" : "aus QIS" }
+    static func noQIS(hildesheim: Bool, hsh: Bool = false) -> String {
+        hsh ? "Melde dich im Campusmanagement an, damit StudiNow deinen Studiengang kennt"
+            : hildesheim ? "Verbinde das LSF, damit StudiNow deinen Studiengang kennt" : noQIS
+    }
     static let noQISSub = "Aus deinem Notenspiegel liest StudiNow Studiengang und Prüfungsordnung. Deine Noten bleiben auf diesem Gerät."
     static let noCatalog = "Noch kein Katalog für deinen Studiengang"
     static let noCatalogSub = "Für deinen Studiengang kennt StudiNow noch keinen Modulkatalog. Hast du einen Link zum Modulhandbuch (PDF)? Dann lädt StudiNow ihn wie ein Browser."
@@ -904,9 +916,20 @@ enum StudyPlanText {
             return n > 0 ? "Eine von \(n) Richtungen wählen" : "Eine Richtung wählen"
         }
         guard let a = plan.area(slot.area) else { return "Modul wählen" }
-        if let n = a.modulesRequired { return "\(min(a.count, n)) von \(n) Modulen gewählt" }
+        // was noch fehlt zuerst: Zahl der Module, sonst LP (05.11.2026, wie slotLine in app/static/study-plan-logic.js)
+        if let n = a.modulesRequired, a.count < n { return "\(a.count) von \(n) Modulen gewählt" }
         if let t = a.target, let o = a.lpOpen { return "noch \(number(o)) von \(number(t)) LP offen" }
+        if let n = a.modulesRequired { return "\(min(a.count, n)) von \(n) Modulen gewählt" }
         return "\(a.options) Module zur Wahl"
+    }
+
+    /// Fortschritt im Kasten "Bereiche und Wahl" (0...1 oder nil) und ob der Bedarf bestanden ist: LP und Zahl der Module
+    /// muessen beide reichen; nur Zahl der Module (ohne LP-Ziel) misst die Zahl (05.11.2026, wie areaProgress im Web)
+    static func areaProgress(_ a: StudyPlanArea) -> (value: Double?, done: Bool) {
+        let countOK = (a.modulesRequired ?? 0) <= 0 || a.countDone >= a.modulesRequired!
+        if let t = a.target, t > 0 { return (min(1, (a.lpDone + a.lpPlanned) / t), a.lpDone >= t && countOK) }
+        if let n = a.modulesRequired, n > 0 { return (min(1, Double(a.count) / Double(n)), countOK) }
+        return (nil, false)
     }
 
     /// Titel des Platzes mit LP: "Seminar (5 LP)"

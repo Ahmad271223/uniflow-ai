@@ -10,10 +10,17 @@
 
 Anlegen, Einloesen und Belohnung abholen zaehlen je Konto gegen invites.LIMITS (429 rate_limited mit Retry-After),
 zusaetzlich zur Grenze aller /api-Aufrufe in app/server.py.
+
+Windows-App (Einzelplatz, 05.11.2026): mit angemeldetem StudiNow-Konto reicht der lokale Server die vier Endpunkte
+des Kontos (Uebersicht, neuer Link, Einloesen, Belohnung) mit dessen Token an den Dienst weiter (`_forward`, wie
+/api/community); ohne Konto bleibt es bei 501 not_hosted. Die Vorrats-Endpunkte (Admin) gibt es nur im Dienst.
 """
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import Response
 
 from . import config, invites
 
@@ -30,6 +37,21 @@ def _user(request: Request) -> dict:
 def _hosted() -> None:
     if not config.is_hosted():
         raise HTTPException(501, {"detail": "Einladungen gibt es nur mit StudiNow-Konto im Dienst.", "code": "not_hosted"})
+
+
+def _forward(method: str, path: str, body: dict | None = None):
+    """Einzelplatz mit StudiNow-Konto: Anfrage mit dem Token des Kontos an den Dienst; sonst None (dann 501)."""
+    if config.is_hosted():
+        return None
+    from . import service_link
+    if not service_link.linked():
+        return None
+    try:
+        status, hdrs, data = service_link.call(method, path, json.dumps(body).encode() if body is not None else None)
+    except service_link.LinkError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    return Response(content=data, status_code=status, media_type=hdrs.get("content-type") or "application/json",
+                    headers={"Cache-Control": "no-store"})
 
 
 def _admin(request: Request) -> dict:
@@ -52,6 +74,8 @@ def _call(fn):
 
 @router.get("/api/invites")
 def my_invites(request: Request):
+    if (fw := _forward("GET", "/api/invites")) is not None:
+        return fw
     _hosted()
     u = _user(request)
     return _call(lambda conn: invites.overview(conn, u))
@@ -59,6 +83,8 @@ def my_invites(request: Request):
 
 @router.post("/api/invites", status_code=201)
 def create_invite(request: Request):
+    if (fw := _forward("POST", "/api/invites", {})) is not None:
+        return fw
     _hosted()
     u = _user(request)
 
@@ -70,6 +96,8 @@ def create_invite(request: Request):
 
 @router.post("/api/invites/redeem")
 def redeem_invite(request: Request, body: dict = Body(...)):
+    if (fw := _forward("POST", "/api/invites/redeem", body)) is not None:
+        return fw
     _hosted()
     u = _user(request)
     code = body.get("code")
@@ -80,6 +108,8 @@ def redeem_invite(request: Request, body: dict = Body(...)):
 
 @router.post("/api/invites/claim")
 def claim_reward(request: Request, body: dict = Body(...)):
+    if (fw := _forward("POST", "/api/invites/claim", body)) is not None:
+        return fw
     _hosted()
     u = _user(request)
     return _call(lambda conn: invites.claim(conn, u, body.get("tier"), body.get("choice") or "plus"))

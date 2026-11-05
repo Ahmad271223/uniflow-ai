@@ -330,7 +330,7 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
         let selection = try XCTUnwrap(page.selection(for: page.bounds(for: .cropBox)))
         vc.pdfView.setCurrentSelection(selection, animate: false)
         let askAI = try XCTUnwrap(vc.onAskAI, "KI fragen der Palette")
-        askAI()
+        askAI(vc.selectionAttachment())
         XCTAssertTrue(env.wait { self.element(env, id: "tutor.tabs") != nil }, "KI fragen oeffnet das Blatt\n" + dump(env))
         XCTAssertNotNil(vc.view.window, "PDF bleibt da")
     }

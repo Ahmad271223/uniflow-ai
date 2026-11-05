@@ -36,6 +36,13 @@ def build() -> dict:
                        "logged_in_check_url": f"{lw_base}/my/", "session_cookie": "MoodleSession",
                        "hosts": ["www.uni-hildesheim.de", "lsf.uni-hildesheim.de"], "file_host": "www.uni-hildesheim.de",
                        "learnweb_base": lw_base, "cas_base": universities.HILDESHEIM_CAS},
+        # Hochschule Hannover: Moodle mit eigenem Formular, Campusmanagement (HISinOne) per SAML (docs/HSH-2026-11-05.md)
+        "hsh": {"name": "Hochschule Hannover", "login_url": f"{universities.HSH_MOODLE_BASE}/login/index.php",
+                "logged_in_check_url": f"{universities.HSH_MOODLE_BASE}/my/", "session_cookie": "MoodleSession",
+                "hosts": ["moodle.hs-hannover.de", "campusmanagement.hs-hannover.de", "idp.hs-hannover.de", "icms.hs-hannover.de"],
+                "file_host": "moodle.hs-hannover.de", "learnweb_base": universities.HSH_MOODLE_BASE, "cas_base": None,
+                "campus_login_url": f"{universities.HSH_CM_BASE}/qisserver/api/identityprovider/redirect/4/login",
+                "campus_start_url": universities.HSH_CM_START},
     }
     base, passport = lw_base, "a1b2c3d4-passport"
     launch = {"base": base, "passport": passport, "scheme": "uniflow", "url": learnweb.launch_url(base, passport, "uniflow"),

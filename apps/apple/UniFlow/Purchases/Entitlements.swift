@@ -3,7 +3,8 @@ import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
 // Entscheidung des Inhabers vom 04.11.2026: drei StudiNow-Tarife Free, Plus, Pro AI (Plans.swift, Vertrag plans.json).
-// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten und Wochentests (eigenes ChatGPT) zu Plus. Was den gehosteten Dienst
+// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten und Wochentests (eigenes ChatGPT) zu Plus,
+// seit 05.11.2026 auch die Community (Lesen; Free ohne Community, "Community ab Plus"). Was den gehosteten Dienst
 // braucht (StudiNow-KI, Testbibliothek, Lernstatistik, Abgleich zwischen Geraeten, ChatGPT), erscheint als
 // "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
 // und geprueft, hoechster gueltiger Tarif). Dazu die Probe auf dem iPad (Entscheidung 04.11.2026, LocalTrial.swift):
@@ -24,11 +25,12 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case timer               // Stoppuhr, Countdown, Pomodoro
     case viewNotes           // vorhandene Notizen ansehen und als PDF exportieren
     case uniGrades           // Uni & Noten (QIS bzw. LSF auf dem Geraet, F4), Free
-    case communityRead       // Community lesen (can_read_community): Loesungen anderer finden, laden, im Editor
-                             // ansehen, empfangene Dateien oeffnen, melden, blockieren, Lerngruppen beitreten,
-                             // eigene Veroeffentlichungen zurueckziehen
     // Plus
     case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen/Papierkorb, Lesezeichen
+    case communityRead       // Community lesen (can_read_community, ab Plus seit 05.11.2026, vorher Free): Loesungen
+                             // anderer finden, laden, im Editor ansehen, empfangene Dateien oeffnen, melden,
+                             // blockieren, Lerngruppen beitreten. Eigene Veroeffentlichungen zurueckziehen geht in
+                             // jedem Tarif (Herabstufen: nichts wird geloescht)
     case shareSolutions      // Eigene Loesungen teilen (can_share_solutions): als Datei, in der Community
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
@@ -46,9 +48,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
     var minimumPlan: UFPlan {
         switch self {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
-             .uniGrades, .communityRead:
+             .uniGrades:
             return .free
-        case .pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests, .uniflowEditor, .deviceSync:
+        case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests, .uniflowEditor, .deviceSync:
             return .plus
         }
     }
@@ -70,7 +72,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .timer: return "Zeitmesser (Stoppuhr, Countdown, Pomodoro)"
         case .viewNotes: return "Notizen ansehen und als PDF exportieren"
         case .uniGrades: return "Uni & Noten"
-        case .communityRead: return "Community lesen"
+        case .communityRead: return "Community lesen, beitreten und mitmachen"
         case .pencilWriting: return "Schreiben mit Apple Pencil"
         case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
@@ -145,7 +147,7 @@ enum UFFeatureMatrix {
     /// `QISConnection` das QIS (F4) - in beiden Faellen vorhanden, Teil von Free (Abschnitt 4, "bald" entfaellt).
     static let uniGradesOnDevice = true
 
-    /// Community-Funktionen (Lesen in Free, Teilen ab Plus): eigene Loesung als Datei teilen (nur eigene Notizen,
+    /// Community-Funktionen (Lesen und Teilen ab Plus, Entscheidung 05.11.2026): eigene Loesung als Datei teilen (nur eigene Notizen,
     /// verschluesselt), empfangene Loesungen im Editor ansehen und die Online-Community ueber CloudKit
     /// (docs/LOESUNGEN-TEILEN.md, Abschnitt 7). Ohne iCloud-Container im Build meldet der Dienst selbst
     /// "nicht verfuegbar"; der Dateiweg bleibt.
@@ -188,6 +190,62 @@ enum UFFeatureMatrix {
     /// Tarif sichtbar (auch nach der Probe); Ueben, Anlegen, Bearbeiten, Teilen und Uebernehmen ab Plus.
     static func flashcards(plan: UFPlan) -> UFFlashcardAccess {
         UFFlashcardAccess(canView: true, canEdit: access(.flashcards, plan: plan).isAllowed)
+    }
+}
+
+/// Karteikarten-Stapel von StudiNow uebernehmen (Entscheidung 05.11.2026, Kontingent `card_stacks_adopted` in
+/// plans.json): fertige Wochenstapel aus dem Pool und geteilte Stapel der Modul-Community, Plus 4 je Kalendermonat, Pro AI
+/// (und die Probe) unbegrenzt. Mit StudiNow-Dienst zaehlt der Dienst (429 quota_exhausted); auf dem iPad ohne Dienst
+/// (lokales Backend ohne Tarif) zaehlt dieses Geraet in UserDefaults, je Monat ein Schluessel. Derselbe Stapel zaehlt im
+/// Monat nur einmal; selbst erzeugte Stapel (eigenes ChatGPT) zaehlen nicht.
+struct UFAdoptQuota {
+    static let feature = "card_stacks_adopted"
+    static let label = "Karteikarten-Stapel von StudiNow"
+
+    var defaults: UserDefaults = .standard
+    var now: () -> Date = Date.init
+
+    /// Grenze je Monat; nil = unbegrenzt (Pro AI, Fair Use nur im Dienst)
+    static func limit(_ plan: UFPlan) -> Int? {
+        switch plan {
+        case .free: return 0
+        case .plus: return 4
+        case .proAI: return nil
+        }
+    }
+
+    static func exhaustedMessage(limit: Int) -> String {
+        "\(label): Kontingent für diesen Monat aufgebraucht (\(limit) von \(limit))."
+    }
+
+    private var key: String {
+        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: now())
+        return String(format: "uf.quota.%@.%04d-%02d", Self.feature, c.year ?? 0, c.month ?? 0)
+    }
+
+    /// in diesem Monat schon gezaehlte Stapel
+    var used: [String] { defaults.stringArray(forKey: key) ?? [] }
+
+    /// Darf dieser Stapel im Tarif noch uebernommen werden? (schon gezaehlt = ja)
+    func allows(_ id: String, plan: UFPlan) -> Bool {
+        guard let limit = Self.limit(plan) else { return true }
+        let ids = used
+        return ids.contains(id) || ids.count < limit
+    }
+
+    /// Fehler fuer die Meldung, wenn `allows` nein sagt
+    func error(plan: UFPlan) -> APIError {
+        var e = APIError(status: 429, message: "", text: Self.exhaustedMessage(limit: Self.limit(plan) ?? 0))
+        e.code = "quota_exhausted"
+        return e
+    }
+
+    /// Uebernahme zaehlen (einmal je Stapel und Monat)
+    func record(_ id: String) {
+        var ids = used
+        guard !ids.contains(id) else { return }
+        ids.append(id)
+        defaults.set(ids, forKey: key)
     }
 }
 
@@ -261,10 +319,15 @@ enum UFPlanCard {
         return included(plan).isEmpty ? "Alles aus \(lower.name)." : "Alles aus \(lower.name), dazu:"
     }
 
+    static let chatgptNote = "Die Verbindung zu deinem eigenen ChatGPT folgt, sobald OpenAI sie für StudiNow freigibt."
+
     /// Hinweis unter den Zeilen: woran "in Vorbereitung" haengt und, wenn der Tarif heute nichts Eigenes bietet, dass
     /// er denselben Umfang hat wie ein kleinerer (Auftrag Abschnitt 2 Punkt 4: nichts vortaeuschen)
     static func note(_ plan: UFPlan) -> String? {
-        guard !preparing(plan).isEmpty else { return nil }
+        let rows = preparing(plan)
+        guard !rows.isEmpty else { return nil }
+        // Free (05.11.2026): nur das eigene ChatGPT steht aus, und das haengt an OpenAI, nicht am Dienst
+        if rows.allSatisfy({ $0.title == UFEntitlement.chatgptConnectionPremium.cardLabel }) { return chatgptNote }
         let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von StudiNow und folgt mit einem Update."
         let same = sameScope(as: plan)
         return same == plan ? base : base + " Bis dahin bietet \(plan.name) denselben Umfang wie \(same.name)."
@@ -620,9 +683,17 @@ struct UFLockedCard: View {
             if f.isCommunity { return base + "Bald verfügbar – die Community folgt mit einem Update." }
             return base + "Bald verfügbar – kommt mit einem Update direkt auf dein iPad."
         case .locked(let p):
+            if f == .communityRead { return communityTeaser(p) }
             let base = f.detail.map { "\($0). " } ?? ""
             return base + "Enthalten ab \(p.name). Deine Notizen und Daten bleiben in jedem Tarif erhalten."
         }
+    }
+
+    /// Hinweis "Community ab Plus" (Entscheidung 05.11.2026): Free sieht keine Community, eigene Beitraege lassen sich
+    /// trotzdem zurueckziehen (nichts wird geloescht)
+    static func communityTeaser(_ p: UFPlan) -> String {
+        "Community ab \(p.name): Lösungen anderer finden und im Editor ansehen, Fragen stellen, Lerngruppen beitreten. "
+            + "Deine eigenen Beiträge bleiben erhalten und lassen sich jederzeit zurückziehen."
     }
 
     private func open() {

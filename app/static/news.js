@@ -6,8 +6,8 @@
 // "Alle anzeigen" oeffnet eine Liste mit Filter-Chips. Darunter eine Zeile "Schwarzes Brett: N neue Anzeigen", wenn es
 // welche gibt. Daten: GET /api/news (app/studip_extras.py feed_for). Nachrichten werden in Stud.IP nie als gelesen
 // markiert und gehen von hier nie an die KI oder einen Dienst.
-import { $, $$, esc, icon, safeUrl, fmtShort, shortName, modal } from "./core.js?v=44";
-import { newLine } from "./bulletin.js?v=5";
+import { $, $$, esc, icon, safeUrl, fmtShort, shortName, modal } from "./core.js?v=45";
+import { newLine } from "./bulletin.js?v=6";
 
 /// Art -> [Symbol, Ton, Bezeichnung]
 export const KIND_STYLE = { nachricht: ["note", "info", "Nachricht"], aenderung: ["refresh", "ok", "Änderung"], blubber: ["users", "warn", "Blubber"] };

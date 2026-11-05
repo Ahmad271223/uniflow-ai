@@ -231,6 +231,8 @@ final class LearnwebFileGapTests: XCTestCase {
             }
             try c.execute("UPDATE courses SET active=1, active_custom=1 WHERE id='lw-303'")
             try c.execute("UPDATE courses SET active=0, active_custom=1 WHERE id='lw-304'")
+            // "Ältere Semester laden: Aus" (`SyncOrder`): der Kurs 301 bleibt ohne Dateien, bis er vorgemerkt ist
+            try OlderSemesters.setMode(c, .off, now: "2026-07-01T10:00:00")
             try c.execute("UPDATE courses SET active=NULL WHERE id='lw-305'")
             _ = try UniStore.storeFiles(c, courseID: "lw-301", [UniStore.FileRow(id: "lw-301-alt", name: "alt.pdf", size: 1, mime: nil, chdate: 1,
                                                                                 downloadURL: "\(base)/webservice/pluginfile.php/301/x/alt.pdf", folder: "")],
@@ -285,6 +287,7 @@ final class LearnwebFileGapTests: XCTestCase {
         }
         let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(token), transport: net, retry: noWait),
                                   lsf: nil, transport: net, clock: clock, retry: noWait)
+        try await db.transaction { try OlderSemesters.setMode($0, .off, now: "2026-07-01T10:00:00") }   // nur Vorgemerktes
         _ = await sync.run()                                    // erster Abgleich: nur aktuelle Kurse
         XCTAssertFalse(contentsRequests().contains("301"))
         try await db.transaction { c in
@@ -318,6 +321,7 @@ final class LearnwebFileGapTests: XCTestCase {
             default: return okJSON(.object(["events": .array([])]))
             }
         }
+        try await db.transaction { try OlderSemesters.setMode($0, .off, now: "2026-07-01T10:00:00") }
         let r = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(token), transport: net, retry: noWait),
                                      lsf: nil, transport: net, clock: clock, retry: noWait).run()
         XCTAssertEqual(r.failedCourses, [])

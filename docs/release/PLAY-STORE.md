@@ -20,7 +20,7 @@ Stud.IP und Learnweb auf dem Tablet: Dateien, Stundenplan, Lernkalender, Stift.
 StudiNow bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender und deine handschriftlichen Notizen – auf dem Tablet, mit dem Stift.
 
 FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER UND DER UNIVERSITÄT HILDESHEIM
-Melde dich mit deinem StudiNow-Konto an und verbinde deine Hochschule. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und übernimmt Vorlesungs- und Übungstermine, Abgabefristen und Ankündigungen der Lehrenden. Die App liest nur und schreibt nichts in die Hochschulsysteme.
+Melde dich mit deinem StudiNow-Konto an und verbinde deine Hochschule. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und übernimmt Vorlesungs- und Übungstermine, Abgabefristen und Ankündigungen der Lehrenden. In die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst – etwa eine Antwort auf eine Nachricht oder eine Abgabe.
 
 DOKUMENTE LESEN UND BESCHREIBEN
 • Bibliothek mit Modulordnern und Dokumenten

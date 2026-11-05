@@ -298,8 +298,10 @@ def test_06_all_plans_keep_basic_functions(hosted):
                      "/api/community/info", "/api/entitlements", "/api/billing/plans"):
             assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, (plan, path)
         e = ent(hosted, h)
-        for name in ("can_view_pdf", "can_view_timetable", "can_read_community", "can_manage_courses"):
+        for name in ("can_view_pdf", "can_view_timetable", "can_manage_courses"):
             assert e["entitlements"][name], (plan, name)
+        # Community ab Plus, auch das Lesen (Entscheidung 05.11.2026); /api/community/info bleibt fuer alle erreichbar
+        assert e["entitlements"]["can_read_community"] is (plan != "free"), plan
 
 
 # ---------------------------------------------------------------- 7, 8, 9, 10: Upgrade, Downgrade, Ablauf, Daten bleiben

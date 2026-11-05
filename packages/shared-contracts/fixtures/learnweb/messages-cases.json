@@ -1,0 +1,312 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-learnweb-messages-fixture.py aus app/learnweb_messages.py; Eingaben erfunden (Moodle 4.4), nicht von Hand aendern.",
+ "base": "https://www.uni-hildesheim.de/learnweb2026",
+ "me": 4711,
+ "today": "2026-11-05",
+ "conversations": {
+  "input": {
+   "conversations": [
+    {
+     "id": 12,
+     "name": "",
+     "type": 1,
+     "membercount": 2,
+     "unreadcount": 1,
+     "members": [
+      {
+       "id": 815,
+       "fullname": "Erika Beispiel (erfunden)"
+      }
+     ],
+     "messages": [
+      {
+       "id": 345,
+       "useridfrom": 815,
+       "text": "<p>Hallo, die Sprechstunde am 12.11. um 14 Uhr f&auml;llt aus.</p>",
+       "timecreated": 1793869200
+      }
+     ]
+    },
+    {
+     "id": 13,
+     "name": "Lerngruppe <b>Statistik</b> A",
+     "type": 2,
+     "membercount": 5,
+     "unreadcount": 0,
+     "messages": [
+      {
+       "id": 400,
+       "useridfrom": 4711,
+       "text": "eigene",
+       "timecreated": 1793876000
+      },
+      {
+       "id": 399,
+       "useridfrom": 900,
+       "text": "Treffen Donnerstag?\nRaum C 012",
+       "timecreated": 1793872800
+      }
+     ]
+    },
+    {
+     "id": 14,
+     "name": "",
+     "type": 3,
+     "membercount": 1,
+     "messages": [
+      {
+       "id": 500,
+       "useridfrom": 4711,
+       "text": "Notiz an mich",
+       "timecreated": 1793868400
+      }
+     ]
+    },
+    {
+     "id": 15,
+     "name": "",
+     "type": 1,
+     "membercount": 2,
+     "messages": [
+      {
+       "id": 501,
+       "useridfrom": 4711,
+       "text": "nur eigene",
+       "timecreated": 1793868400
+      }
+     ]
+    },
+    {
+     "id": 16,
+     "type": 1,
+     "messages": []
+    }
+   ]
+  },
+  "expected": [
+   {
+    "id": "lw-msg-13-399",
+    "sender": "Learnweb-Gruppe",
+    "subject": "Lerngruppe Statistik A",
+    "preview": "Treffen Donnerstag?\nRaum C 012",
+    "sent_at": "2026-11-05T11:00:00+01:00",
+    "url": "https://www.uni-hildesheim.de/learnweb2026/message/index.php?convid=13",
+    "dates": [],
+    "members": 5,
+    "unread": false
+   },
+   {
+    "id": "lw-msg-12-345",
+    "sender": "Learnweb-Kontakt",
+    "subject": "Nachricht im Learnweb",
+    "preview": "Hallo, die Sprechstunde am 12.11. um 14 Uhr fällt aus.",
+    "sent_at": "2026-11-05T10:00:00+01:00",
+    "url": "https://www.uni-hildesheim.de/learnweb2026/message/index.php?convid=12",
+    "dates": [
+     {
+      "date": "2026-11-12",
+      "time": "14:00",
+      "kind": "ausfall"
+     }
+    ],
+    "members": 2,
+    "unread": true
+   }
+  ]
+ },
+ "contexts": [
+  {
+   "name": "einzeln",
+   "input": {
+    "id": 12,
+    "type": 1,
+    "membercount": 2,
+    "name": "",
+    "members": [
+     {
+      "id": 4711,
+      "fullname": "Ich"
+     },
+     {
+      "id": 815,
+      "fullname": "Erika Beispiel (erfunden)"
+     }
+    ]
+   },
+   "expected": {
+    "conversation_id": 12,
+    "group": false,
+    "name": "Erika Beispiel (erfunden)",
+    "member_count": 2,
+    "recipients": [
+     {
+      "id": 815,
+      "name": "Erika Beispiel (erfunden)"
+     }
+    ],
+    "replyable": true,
+    "reason": null
+   }
+  },
+  {
+   "name": "gruppe",
+   "input": {
+    "id": 13,
+    "type": 2,
+    "membercount": 3,
+    "name": "Lerngruppe Statistik A",
+    "members": [
+     {
+      "id": 900,
+      "fullname": "Max Muster (erfunden)"
+     },
+     {
+      "id": 901,
+      "fullname": "Lea Probe (erfunden)"
+     }
+    ]
+   },
+   "expected": {
+    "conversation_id": 13,
+    "group": true,
+    "name": "Lerngruppe Statistik A",
+    "member_count": 3,
+    "recipients": [
+     {
+      "id": 900,
+      "name": "Max Muster (erfunden)"
+     },
+     {
+      "id": 901,
+      "name": "Lea Probe (erfunden)"
+     }
+    ],
+    "replyable": true,
+    "reason": null
+   }
+  },
+  {
+   "name": "gesperrt",
+   "input": {
+    "id": 20,
+    "type": 1,
+    "members": [
+     {
+      "id": 815,
+      "fullname": "Erika Beispiel (erfunden)",
+      "canmessage": false
+     }
+    ]
+   },
+   "expected": {
+    "conversation_id": 20,
+    "group": false,
+    "name": "Erika Beispiel (erfunden)",
+    "member_count": 2,
+    "recipients": [
+     {
+      "id": 815,
+      "name": "Erika Beispiel (erfunden)"
+     }
+    ],
+    "replyable": false,
+    "reason": "not_allowed"
+   }
+  },
+  {
+   "name": "selbst",
+   "input": {
+    "id": 14,
+    "type": 3,
+    "members": [
+     {
+      "id": 4711,
+      "fullname": "Ich"
+     }
+    ]
+   },
+   "expected": {
+    "conversation_id": 14,
+    "group": false,
+    "name": "",
+    "recipients": [],
+    "replyable": false,
+    "reason": "self"
+   }
+  }
+ ],
+ "pages": [
+  {
+   "name": "mcfg",
+   "html": "<script>M.cfg = {\"wwwroot\":\"https://www.uni-hildesheim.de/learnweb2026\",\"sesskey\":\"AbC123xyz\",\"userId\":4711,\"theme\":\"classic\"};</script>",
+   "user": 4711,
+   "sesskey": "AbC123xyz"
+  },
+  {
+   "name": "popover",
+   "html": "<div id=\"nav-message-popover-container\" data-userid=\"4711\"></div>\"sesskey\":\"k1\"",
+   "user": 4711,
+   "sesskey": "k1"
+  },
+  {
+   "name": "gast",
+   "html": "<div data-userid=\"1\"></div>",
+   "user": null,
+   "sesskey": null
+  }
+ ],
+ "local_ids": [
+  {
+   "id": "lw-msg-12-345",
+   "conversation": 12
+  },
+  {
+   "id": "sp-msg-abc",
+   "conversation": null
+  },
+  {
+   "id": "lw-msg-x-1",
+   "conversation": null
+  }
+ ],
+ "send_args": {
+  "conversation": 12,
+  "text": "Danke!\nBis dann",
+  "expected": {
+   "conversationid": 12,
+   "messages": [
+    {
+     "text": "Danke!\nBis dann",
+     "textformat": 2
+    }
+   ]
+  },
+  "flat": {
+   "conversationid": "12",
+   "messages[0][text]": "Danke!\nBis dann",
+   "messages[0][textformat]": "2"
+  }
+ },
+ "errors": [
+  {
+   "code": "invalidsesskey",
+   "expected": "login"
+  },
+  {
+   "code": "usercantbemessaged",
+   "expected": "not_allowed"
+  },
+  {
+   "code": "invalidrecord",
+   "expected": "not_found"
+  },
+  {
+   "code": "irgendwas",
+   "expected": "http"
+  },
+  {
+   "code": "",
+   "expected": "http"
+  }
+ ]
+}

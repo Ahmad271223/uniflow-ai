@@ -123,9 +123,8 @@ Einlösen ein Blatt mit dem Code, „Code kopieren“ und „Bei Apple einlösen
 
 ## 8. Offene Punkte
 
-- Web und Windows haben noch keine Einladungsseite (die Endpunkte gelten für alle Clients; Belohnungen sind Apple-Codes,
-  für Stripe gäbe es Gutscheine – nicht entschieden). Warum bewusst nicht gebaut und was eine Dienstfassung braucht:
-  Abschnitt 9.
+- **Seit 05.11.2026 gibt es die Seite in Web und Windows** (`#/einladungen`, Abschnitt 10), aber **ohne Belohnungen**: für
+  Stripe-Gutscheine fehlt weiter die Entscheidung des Inhabers (Abschnitt 9).
 - Angebotscodes mit abgelaufener Apple-Laufzeit erkennt der Dienst nicht (Abschnitt 5).
 
 ## 9. Web und Windows: warum keine Oberfläche, und der Vorschlag für eine Dienstfassung (05.11.2026, nicht gebaut)
@@ -175,3 +174,22 @@ Auf **Web und Windows ist sie bewusst nicht gebaut**:
 Entscheidung des Inhabers nötig: Soll es Einladungen für Web-Konten überhaupt geben, und darf Pro AI zum Plus-Preis über
 Stripe vergeben werden (Kosten wie in Punkt 4)?
 
+
+## 10. Web und Windows: Seite ohne Belohnung (05.11.2026, Auftrag „Ja, alle schließen“)
+
+Der Inhaber hat am 05.11.2026 entschieden, die Lücken von Windows gegenüber dem iPad zu schließen. Gebaut ist die Seite
+**„Freunde einladen“** (`#/einladungen`, Einstellungen → Zugang & Darstellung → Karte „Freunde einladen“, nur mit
+StudiNow-Konto): Zähler der angekommenen Personen, Links mit „Teilen“ (Teilen-Menü des Systems, sonst Kopieren),
+„Kopieren“ und „QR-Code“ (Link oder App-Code `uniflow://invite/<CODE>`, als SVG im Browser erzeugt, kein fremder Dienst:
+`app/static/qr.js`, gegen Apples QR-Leser geprüft), „Neuer Einladungslink“ nur im Fenster der Probewoche. Die Windows-App
+reicht die vier Endpunkte des Kontos mit dessen Token an den Dienst weiter (`invites_api._forward`); der Vorrat (Admin)
+bleibt nur im Dienst.
+
+**Keine Belohnungen auf dieser Seite**, solange der Inhaber Abschnitt 9 nicht entschieden hat: keine Stufen, kein
+„Belohnung einlösen“, nur der Satz, dass es Belohnungen bisher nur als App-Store-Code in der iPad-App gibt
+(`invites-logic.js`: `WEB_REWARDS = false`). Wer Einladungen auch am PC zählt, löst eine erreichte Stufe weiter auf dem
+iPad ein (gleiches Konto). Entscheidet der Inhaber für Stripe-Gutscheine, kommen Datenmodell und Missbrauchsschutz aus
+Abschnitt 9 dazu, danach `WEB_REWARDS = true` mit Stufenanzeige.
+
+Tests: `tests/test_invites_pc.py` (Weiterleitung, Fehler des Dienstes unverändert, kein Vorrat am PC),
+`tests/js/invites.test.mjs`, `tests/js/qr.test.mjs`.

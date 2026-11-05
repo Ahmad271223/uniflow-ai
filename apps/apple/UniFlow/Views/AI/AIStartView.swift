@@ -19,6 +19,8 @@ struct AIStartView: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufAIAccess) private var aiAccess
+    @Environment(\.ufStudiNowAI) private var studinowAI
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.ufWindowWidth) private var windowWidth
@@ -40,7 +42,7 @@ struct AIStartView: View {
     @State private var busyLabel = ""
     @State private var error: String?
     /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
-    @State private var creditsExhausted = false
+    @State private var errorAction: StudiNowAIAction?
     /// Das Gespraech auf dieser Seite (frisch oder aus "Zuletzt" geoeffnet), aelteste zuerst
     @State private var turns: [Answer] = []
     /// Frage, deren Antwort gerade laeuft (steht schon als Blase im Verlauf)
@@ -120,6 +122,8 @@ struct AIStartView: View {
         .background(UF.bg)
         .ufLearnSheetHost(learnSheets)
         .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
+        // StudiNow-KI: Credits-Stand frisch vom Dienst (GET /api/entitlements), danach nach jeder Antwort
+        .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
         .ufReload { await load() }
         // anderes Modul: ein Dokument des anderen Moduls passt nicht mehr, das zuletzt geoeffnete des neuen ist dran
         .onChange(of: module) { _, _ in
@@ -239,11 +243,11 @@ struct AIStartView: View {
 
     @ViewBuilder private var connectCard: some View {
         UFCard {
-            UFCardHead("KI verbinden", icon: "sparkles")
+            UFCardHead(ChatGPTLink.isEnabled ? "KI verbinden" : "KI-Hilfe", icon: "sparkles")
             if let chatgpt {
-                TutorConnectState(link: chatgpt) { router.go(.settings(tab: "advanced")) }.padding(-16).padding(.top, 8)
+                TutorConnectState(link: chatgpt) { router.go(.settings(tab: ChatGPTLink.settingsTab)) }.padding(-16).padding(.top, 8)
             } else {
-                TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { router.go(.settings(tab: "advanced")) }
+                TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { router.go(.settings(tab: ChatGPTLink.settingsTab)) }
                     .padding(-16).padding(.top, 8)
             }
         }
@@ -315,7 +319,7 @@ struct AIStartView: View {
         turns = []
         help = false
         error = nil
-        creditsExhausted = false
+        errorAction = nil
     }
 
     // MARK: Frage-Feld
@@ -407,8 +411,11 @@ struct AIStartView: View {
             if let error {
                 Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("ai.start.error")
-                if creditsExhausted {
-                    UFButton("Tarif ansehen", icon: "star", size: .small) { router.go(.settings(tab: "account")) }
+                if let errorAction {
+                    // Tarif (Recht, Kontingent, Credits) bzw. Anmeldung beim StudiNow-Konto
+                    UFButton(StudoraAccountLink.errorButton(errorAction), icon: errorAction == .signIn ? "user" : "star", size: .small) {
+                        router.go(.settings(tab: "account"))
+                    }
                         .accessibilityIdentifier("ai.start.plans")
                 }
             }
@@ -418,7 +425,9 @@ struct AIStartView: View {
 
     /// Mit Konto beim Dienst der echte Credits-Stand (`credits`), sonst der Weg der KI
     private var statusLine: String {
-        AICost.status(chatgpt: aiEnabled, model: chatgpt?.status?.model, plan: ent.plan, requestsThisMonth: recents.requestsThisMonth,
+        // ueber die StudiNow-KI nie "über dein ChatGPT": dann der Credits-Stand bzw. "StudiNow-KI (Pro AI)"
+        AICost.status(chatgpt: aiEnabled && !studinowAI, model: chatgpt?.status?.model, plan: studinowAI ? .proAI : ent.plan,
+                      requestsThisMonth: recents.requestsThisMonth,
                       credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge, trial: studoraAccount?.planStatus?.trialActive ?? false)
     }
 
@@ -590,7 +599,7 @@ struct AIStartView: View {
 
     private func explain() async {
         guard let f = currentFile else { toast.show("Wähle zuerst ein Dokument."); return }
-        guard aiEnabled else { router.go(.settings(tab: "advanced")); return }
+        guard aiEnabled else { router.go(.settings(tab: ChatGPTLink.settingsTab)); return }
         fileID = f.s("id") ?? fileID
         await send(mode: "summary", question: "", label: "Zusammenfassung: \(Self.title(f))", busyLabel: "Die KI liest \(Self.title(f)) …")
     }
@@ -614,7 +623,7 @@ struct AIStartView: View {
         self.busyLabel = busyLabel
         pending = label
         error = nil
-        creditsExhausted = false
+        errorAction = nil
         help = false
         if mode == "ask" { question = "" }
         defer { busy = false; pending = nil }
@@ -632,7 +641,7 @@ struct AIStartView: View {
             // Frage zurueck ins Feld (sie steht nicht im Verlauf), Meldung unter dem Feld
             if mode == "ask", question.isEmpty { question = q }
             self.error = error.localizedDescription
-            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+            errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
         }
     }
 }

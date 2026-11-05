@@ -1,17 +1,22 @@
-// Fruehere Semester in der Bibliothek (03.11.2026, wie OlderSemestersViews.swift auf dem iPad): Der Abgleich laedt nur die
-// Dateien des aktuellen Semesters. Nach dem ersten Abgleich, der Kurse frueherer Semester findet, fragt die App einmal
-// "Auch frühere Semester laden?"; in der Bibliothek stehen die frueheren Semester als eigene, zugeklappte Ordner mit
-// "Dateien laden" je Kurs und je Semester; unter Einstellungen → Module laesst sich die Wahl aendern.
+// Fruehere Semester in der Bibliothek (03.11.2026, wie OlderSemestersViews.swift auf dem iPad): Der Abgleich laedt zuerst
+// das aktuelle Semester (05.11.2026, app/sync_order.py), fruehere Semester danach im Hintergrund, neuestes zuerst.
+// Nach dem ersten Abgleich, der Kurse frueherer Semester findet, fragt die App einmal "Auch frühere Semester laden?";
+// in der Bibliothek stehen die frueheren Semester als eigene, zugeklappte Ordner mit "Dateien laden" je Kurs und je
+// Semester; unter Einstellungen → Module steht "Ältere Semester laden: Automatisch / Nur WLAN / Aus".
 // Daten: GET /api/older-semesters (app/older_semesters.py). Reine Texte und HTML-Teile ohne Browserzugriff
 // (tests/js/older-semesters.test.mjs); Anbindung an Seite, Dialog und Abgleich: older-semesters-ui.js.
-import { icon } from "./icons.js?v=32";
+import { icon } from "./icons.js?v=33";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 export const NOTE_QUEUED = "Vorgemerkt: Die Dateien kommen mit dem nächsten Abgleich.";
-/** Hinweis unter "Dateien früherer Semester mitladen" (Einstellungen → Module) */
-export const OLDER_FILES_HINT = "Aus: StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs.";
+/** Hinweis unter "Ältere Semester laden" (Einstellungen → Module) */
+export const OLDER_FILES_HINT = "StudiNow lädt immer zuerst das aktuelle Semester samt Stundenplan, frühere Semester danach im Hintergrund, neuestes zuerst. Aus: StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs.";
+/** Wahl "Ältere Semester laden" (gleiche Werte wie OlderSemesters.Mode auf dem iPad) */
+export const OLDER_MODES = [["auto", "Automatisch"], ["wifi", "Nur WLAN"], ["off", "Aus"]];
+/** Wahl aus der Uebersicht (fruehere Antworten ohne `mode`: all = Automatisch, current = Aus, nie gefragt = Nur WLAN) */
+export const modeOf = overview => overview?.mode || (overview?.choice === "all" ? "auto" : overview?.choice === "current" ? "off" : "wifi");
 
 /** Frage zeigen? Nur ohne gespeicherte Wahl und mit mindestens einem Kurs eines frueheren Semesters */
 export const shouldAsk = overview => !!overview && (overview.choice == null) && (overview.semesters || []).length > 0;
@@ -23,6 +28,7 @@ export const courseCount = overview => (overview?.semesters || []).reduce((n, s)
 export function questionText(current, courses) {
   return `StudiNow hat die Dateien deines aktuellen Semesters${current ? ` (${current})` : ""} geladen. `
     + `Dazu gibt es ${plural(courses, "Kurs", "Kurse")} aus früheren Semestern. `
+    + "StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. "
     + "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.";
 }
 
@@ -57,7 +63,7 @@ export const currentHeading = overview => (overview && (overview.semesters || []
 export function semestersHtml(overview, open = new Set(), busy = new Set()) {
   const semesters = overview?.semesters || [];
   if (!semesters.length) return "";
-  const lead = overview.choice === "all"
+  const lead = modeOf(overview) !== "off"
     ? "StudiNow lädt die Dateien früherer Semester mit. Einzelne Kurse kannst du hier erneut laden."
     : "StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester kannst du hier je Semester oder je Kurs laden.";
   const anyBusy = busy.size > 0;
@@ -97,9 +103,11 @@ export function courseHeaderHtml(files, { loading = false, showAll = false } = {
       ${missing.length > 8 ? `<button type="button" class="btn ghost sm" data-older-more>${showAll ? "Weniger anzeigen" : `Alle ${missing.length} anzeigen`}</button>` : ""}</div>` : ""}</div>`;
 }
 
-/** Kontrollkaestchen "Dateien früherer Semester mitladen" (Einstellungen → Module); leer, wenn es nichts zu waehlen gibt */
+/** Auswahl "Ältere Semester laden: Automatisch / Nur WLAN / Aus" (Einstellungen → Module); leer, wenn es nichts zu
+ *  waehlen gibt. Am PC laedt "Nur WLAN" wie "Automatisch", solange die App offen ist. */
 export function settingHtml(overview) {
   if (!overview || (overview.choice == null && !(overview.semesters || []).length)) return "";
-  return `<div style="margin:.4rem 0 .8rem"><label class="field" style="margin:0"><input type="checkbox" id="sOlderAll" ${overview.choice === "all" ? "checked" : ""}> Dateien früherer Semester mitladen</label>
+  const mode = modeOf(overview);
+  return `<div style="margin:.4rem 0 .8rem"><label class="field" style="margin:0">Ältere Semester laden <select class="input" id="sOlderMode" style="width:auto">${OLDER_MODES.map(([v, t]) => `<option value="${v}" ${v === mode ? "selected" : ""}>${t}</option>`).join("")}</select></label>
     <div class="muted small" style="margin-top:.2rem">${esc(OLDER_FILES_HINT)}</div></div>`;
 }

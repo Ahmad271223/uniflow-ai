@@ -12,7 +12,7 @@ import Foundation
 /// Vertrag: packages/shared-contracts/fixtures/studip-schedule/woche.json (`StudIPWeekTests`).
 public enum Semesters {
     /// Halbjahr eines Semesters: 1 = Sommer, 2 = Winter (Reihenfolge wie das Tupel in Python)
-    public struct Key: Comparable, Equatable, Sendable {
+    public struct Key: Comparable, Hashable, Sendable {
         public let year: Int
         public let half: Int
         public static func < (a: Key, b: Key) -> Bool { (a.year, a.half) < (b.year, b.half) }

@@ -269,7 +269,8 @@ test("Einbau: Uebersicht zeigt die Karte statt 'Ankuendigungen', Uni & Noten das
   assert.match(home, /import \{ newsCard, bindNews \} from "\.\/news\.js\?v=\d+"/);
   assert.match(home, /api\("\/news"\)\.catch\(\(\) => null\)/);
   assert.match(home, /api\("\/studip\/bulletin"\)\.catch\(\(\) => null\)/);
-  assert.match(home, /const rest = \[termineCard\(d\), newsHtml, modulesCard\(d\), weekCard\(d\), newFilesCard\(d\)\]/);
+  // seit 05.11.2026 steht "Zuletzt benutzt" (recent.js, Weitermachen wie auf dem iPad) vor den Terminen
+  assert.match(home, /const rest = \[recentCard\(recent\?\.items, \{ icon, esc \}\), termineCard\(d\), newsHtml, modulesCard\(d\), weekCard\(d\), newFilesCard\(d\)\]/);
   assert.match(home, /news \? newsCard\(news\.items, d\.today\.date, bulletin\?\.new_count \|\| 0\) : announcementsCard\(d\)/);
   const misc = src("views-misc.js");
   assert.match(misc, /<div id="bulletinHost"><\/div>\s*<div class="card-head" style="margin-top:1\.4rem"><h2>\$\{icon\("layers", 18\)\} Uni-Dienste/);

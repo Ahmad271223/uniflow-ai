@@ -61,7 +61,7 @@ def test_library_shows_older_semesters_and_the_course_folder(served, older):
             assert "Aktuelles Semester · WiSe 2026/27" in page.inner_text(".older-cur")
             sem = page.inner_text(".older-sem")
             assert "Frühere Semester" in sem and "SoSe 2026" in sem and "WiSe 2024/25" in sem
-            assert "StudiNow lädt nur Dateien des aktuellen Semesters" in sem
+            assert "StudiNow lädt die Dateien früherer Semester mit" in sem, "Vorgabe seit 05.11.2026: Nur WLAN (app/sync_order.py)"
             assert page.query_selector(".older-course") is None, "zugeklappt"
             page.click("[data-older-toggle='0']")
             assert "Alter <b>Kurs</b>" in page.inner_text(".older-courses"), "Titel als Text, nicht als HTML"
@@ -93,10 +93,11 @@ def test_question_after_open_stores_the_choice_and_keeps_current_semester(served
             txt = page.inner_text(".modal")
             assert "Auch frühere Semester laden?" in txt and "Dazu gibt es 2 Kurse aus früheren Semestern." in txt
             assert "(WiSe 2026/27)" in txt
-            page.click(".modal .btn.primary")                        # Nur aktuelles Semester
+            page.click("#olderOff")                                  # Nur aktuelles Semester
             page.wait_for_selector(".modal", state="detached")
+            page.wait_for_timeout(400)
             overview = json.loads(page.evaluate("fetch('/api/older-semesters').then(r => r.text())"))
-            assert overview["choice"] == "current", "schon beim Zeigen gilt 'nur aktuelles Semester'"
+            assert overview["choice"] == "current" and overview["mode"] == "off", "Nur aktuelles Semester = Aus"
             page.reload()
             page.wait_for_timeout(8000)
             assert page.query_selector(".modal") is None, "die Frage kommt nie wieder"
@@ -117,12 +118,13 @@ def test_settings_switch_and_empty_document_page(served, older, monkeypatch):
     with sync_playwright() as p:
         browser, page, errors = _page(p, served, "#/settings")
         try:
-            page.wait_for_selector("#sOlderAll", timeout=20000)
-            assert not page.is_checked("#sOlderAll")
+            page.wait_for_selector("#sOlderMode", timeout=20000)
+            assert page.input_value("#sOlderMode") == "off", "fruehere Wahl 'nur aktuelles Semester' = Aus"
             assert "Aus: StudiNow lädt nur Dateien des aktuellen Semesters." in page.inner_text(".set-mods")
-            page.check("#sOlderAll")
+            page.select_option("#sOlderMode", "auto")
             page.wait_for_timeout(600)
-            assert json.loads(page.evaluate("fetch('/api/older-semesters').then(r => r.text())"))["choice"] == "all"
+            o = json.loads(page.evaluate("fetch('/api/older-semesters').then(r => r.text())"))
+            assert o["choice"] == "all" and o["mode"] == "auto"
             # leere Dokumentseite
             page.goto(served + "/#/doc")
             page.wait_for_selector(".card.empty", timeout=10000)

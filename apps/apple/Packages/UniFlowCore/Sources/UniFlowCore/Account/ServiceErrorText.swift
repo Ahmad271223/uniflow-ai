@@ -13,8 +13,9 @@ public enum ServiceErrorAction: String, Sendable, Equatable {
 ///
 /// Herkunft der Codes: `email_unverified`, `email_taken` und die Grenze `report_user` stehen in
 /// packages/shared-contracts/fixtures/account/contract.json; `duplicate_request` (app/entitlements.py),
-/// `ai_trial_budget_exhausted`, `ai_not_configured_prices` (app/ai_backend.py), `last_login_method` (app/accounts.py)
-/// und `cross_site` (app/account_api.py) nur im Dienst.
+/// `ai_trial_budget_exhausted`, `ai_not_configured_prices` (app/ai_backend.py), `last_login_method` (app/accounts.py),
+/// `provider_not_configured` (app/account_api.py), `subscription_owned_by_other_account`, `apple_not_configured`
+/// (app/apple_store.py) und `cross_site` (app/account_api.py) nur im Dienst.
 public enum ServiceErrorText {
     /// `rules.limits.report_user` im Kontovertrag: 10 Meldungen je Konto und Tag
     public static let reportsPerDay = 10
@@ -34,6 +35,12 @@ public enum ServiceErrorText {
             return "Für diese E-Mail-Adresse gibt es schon ein StudiNow-Konto. Melde dich dort mit E-Mail und Passwort an und bestätige die Adresse; danach lässt sich die Anmeldung verknüpfen."
         case "last_login_method":
             return "Das ist der einzige Anmeldeweg deines Kontos. Lege zuerst ein Passwort fest oder verknüpfe einen anderen Weg, dann kannst du diesen entfernen."
+        case "subscription_owned_by_other_account":
+            return "Dieses App-Store-Abo ist schon mit einem anderen StudiNow-Konto verbunden. Melde dich mit jenem Konto an, dann gilt es auch für die StudiNow-KI."
+        case "apple_not_configured":
+            return "Der StudiNow-Dienst kann App-Store-Käufe gerade noch nicht prüfen. Dein Abo gilt auf dem iPad trotzdem; bitte versuche es später erneut."
+        case "provider_not_configured":
+            return "„Mit Apple anmelden“ ist beim StudiNow-Dienst noch nicht eingerichtet. Melde dich vorerst mit E-Mail und Passwort an."
         case "cross_site":
             return "Die Anfrage wurde aus Sicherheitsgründen abgelehnt, weil sie nicht direkt aus StudiNow kam. Starte sie bitte in der App oder auf der StudiNow-Webseite selbst."
         default:

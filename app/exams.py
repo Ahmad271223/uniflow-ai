@@ -7,11 +7,13 @@ Quellen (Reihenfolge = Vorrang fuer Uhrzeit, Raum und Bezeichnung):
    erschien als gewoehnlicher Termin mit dem Kurstitel oder fehlte, wenn der eigene Kalender ihn nicht zeigte.
  - Klausurtermin am Modul, selbst eingetragen (`modules.exam_date`).
  - QIS: angemeldete Pruefungen mit Datum (`grades`, Status "AN"/"angemeldet"), Modul ueber den Namen.
+ - Gelesene Anmeldungen mit Termin (`exam_registrations`: "Info über angemeldete Prüfungen" im QIS der LUH bzw.
+   "Meine POS-Anmeldungen" im LSF der Uni Hildesheim, app/qis_registrations.py), mit Uhrzeit und Raum; nur angemeldete.
  - Fristen (`deadlines`, Learnweb-Kalender und Stud.IP Courseware), deren Name eine Klausur nennt ("E-Klausur").
  - Ankuendigungen eines Kurses und Stud.IP-Nachrichten (nur lokal): Tage, deren Satzteil bzw. Satz eine Klausur nennt,
    mit den Regeln von jetzt neu gelesen (`exam_dates`; strenger als die Art "pruefung" der Chips: Anmeldung,
    Einsicht, Probeklausur, Ausfall und alte Termine einer Verlegung zaehlen nicht).
- - Auf dem iPad zusaetzlich erkannte Klausuren aus Dokumenten (DueStore, Tabelle nur auf dem Geraet).
+ - In Dokumenten und Ankuendigungen erkannte Klausuren (DueStore auf dem iPad, app/due_store.py am PC/im Web).
 
 Je Modul (sonst Kurs, sonst Name) und Tag ein Eintrag mit allen Quellen. Der Klausurtermin am Modul wird aus der
 Liste gefuellt, wenn er leer ist (`fill_exam_dates`); ein selbst eingetragener Termin wird nie ueberschrieben. Welche
@@ -45,7 +47,8 @@ ROOM_RE = re.compile(r"(?<!\w)((?:H(?:ö|oe)rsaal|Seminarraum|Raum|HS)\s+[A-Za-z
 QIS_REGISTERED_RE = re.compile(r"^\s*an\s*$|angemeldet", re.I)
 QIS_DATE_RE = re.compile(r"^\s*(\d{1,2})\.(\d{1,2})\.(\d{4})|^\s*(\d{4})-(\d{2})-(\d{2})")
 # Vorrang der Quellen; ein automatisch uebernommener Modultermin kommt nur dazu, wenn keine andere Quelle den Tag nennt
-ORDER = {"studip": 0, "modul": 1, "qis": 2, "frist": 3, "ankuendigung": 4, "nachricht": 5, "erkannt": 6, "modul_auto": 9}
+ORDER = {"studip": 0, "modul": 1, "qis": 2, "anmeldung": 2, "frist": 3, "ankuendigung": 4, "nachricht": 5, "erkannt": 6, "modul_auto": 9}
+REGISTRATION_LABEL = "aus deinen angemeldeten Prüfungen"
 DEADLINE_SOURCES = {"learnweb": "aus dem Learnweb-Kalender", "studip": "aus Stud.IP Courseware", "demo": "aus den Demo-Inhalten"}
 
 
@@ -179,6 +182,15 @@ def candidates(conn, today: date) -> list[dict]:
             continue
         out.append(_cand("qis", "aus QIS (angemeldet)", d.isoformat(), module_id=timetable.guess_module(conn, r["text"]),
                          name=r["text"], title_name=r["text"], word="Prüfung"))
+    # gelesene Anmeldungen mit Termin (Info-Seite des QIS bzw. "Meine POS-Anmeldungen" im LSF), Vorrang wie QIS
+    if _has(conn, "exam_registrations"):
+        from . import qis_registrations
+        for r in qis_registrations.rows(conn):
+            d = r["iso_date"]
+            if not r["registered"] or not d or not (lo <= d <= hi):
+                continue
+            out.append(_cand("anmeldung", REGISTRATION_LABEL, d, time=r["clock"], room=r.get("room") or None,
+                             module_id=timetable.guess_module(conn, r["text"]), name=r["text"], title_name=r["text"], word="Prüfung"))
     # Fristen mit Klausur im Namen (Learnweb-Test "E-Klausur", Courseware)
     for r in db.rows(conn, """SELECT d.id, d.source, d.title, d.due_at, d.url, d.course_id, c.title AS course_title, c.module_id
                               FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id
@@ -214,6 +226,18 @@ def candidates(conn, today: date) -> list[dict]:
             for x in found:
                 out.append(_cand("nachricht", f"aus Nachricht vom {_dmy(posted.isoformat())}", x["date"], time=x["time"],
                                  room=x["room"], module_id=mid, name=r["subject"], word=x["word"], url=r["url"]))
+    # in Dokumenten erkannte Klausuren (app/due_store.py, seit 05.11.2026 auch am PC; ohne Kurz- und Probeklausuren,
+    # ohne ausgeblendete), wie Exams.swift
+    from . import due_store
+    for g in due_store.groups(conn, lo, hi):
+        if g["kind"] != "klausur" or g["hidden"]:
+            continue
+        x = due_store.as_json(g)
+        t = x["title"] or ""
+        if "kurz" in t.lower() or "probe" in t.lower():
+            continue
+        out.append(_cand("erkannt", x["origin"] or "erkannt", g["date"], time=x["time"], module_id=x["module_id"],
+                         course_id=x["course_id"], course_title=x["course_title"], name=x["course_title"] or t, word=word(t)))
     return out
 
 

@@ -313,8 +313,12 @@ enum WeekTests {
         let examBlock = (options.distributionByLevel["schwer"] ?? 0) > 0 ? AIPrompts.examTextBlock(exam.map { PyJSON(.object($0)) }) : ""
         let prompt = AIPrompts.weekTest(subject: subject, durationMin: duration, materialsBlock: block, examBlock: examBlock, options: options)
         var why: String?
+        // StudiNow-KI: Aufgabe `week_test` mit den Optionen; der Dienst prueft die Form selbst (hoechstens zwei Versuche)
+        let task = AIRelayTask("week_test", options: .object(options.json), exam: !examBlock.isEmpty)
         for _ in 0..<2 {
-            let res = try AIAnswers.parseJSON(try await ai.answer(system: AIPromptTexts.system, prompt: prompt))
+            let res = try AIAnswers.parseJSON(try await AIRelayTask.run(task) {
+                try await ai.answer(system: AIPromptTexts.system, prompt: prompt)
+            }.value)
             why = AIAnswers.checkWeekTest(res, exam: !examBlock.isEmpty, options: options)
             if why == nil { return res }
         }
@@ -473,8 +477,10 @@ enum WeekTests {
             throw LocalHTTPError(status: 500, message: "Dieser gemeinsame Test wurde bereits abgegeben und wird nicht neu bewertet.")
         }
         let answersValue = PyJSON.object(answers.map { .init(PyText.str(.string($0.key)), $0.value) })
-        var res = try AIAnswers.parseJSON(try await ai.answer(system: AIPromptTexts.system,
-                                                              prompt: AIPrompts.grade(subject: t["subject"]?.string ?? "", questions: questions, answers: answersValue)))
+        let gradePrompt = AIPrompts.grade(subject: t["subject"]?.string ?? "", questions: questions, answers: answersValue)
+        var res = try AIAnswers.parseJSON(try await AIRelayTask.run(AIRelayTask("grade")) {
+            try await ai.answer(system: AIPromptTexts.system, prompt: gradePrompt)
+        }.value)
         // gemeinsamer Wochentest: Multiple Choice ohne KI, Punkte begrenzt -> gleiche Kriterien fuer alle
         if shared { res = Weekly.gradeConsistent(questions, answers, res) }
         var duration: SQLiteValue = .null

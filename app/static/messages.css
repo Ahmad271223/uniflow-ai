@@ -42,3 +42,13 @@
   .msg-back { display: inline-flex; }
   .msg-reader { padding: 1rem; }
 }
+
+/* Antworten (05.11.2026, message-reply.js) */
+.msg-reply-btns { margin: 1rem 0 .4rem; gap: .5rem; }
+.msg-replied { color: var(--ok-text, var(--accent)); font-weight: 700; }
+.msg-replied-line { margin-top: .8rem; }
+.msg-own { margin: .4rem 0; }
+.msg-own summary { cursor: pointer; color: var(--text-2); font-size: .86rem; }
+.msg-quote { white-space: pre-wrap; border-left: 3px solid var(--line-strong); padding: .3rem .6rem; margin: .4rem 0; max-height: 160px; overflow: auto; font-family: inherit; }
+.msg-reply-err { border: 1px solid var(--line-strong); border-radius: var(--r-sm, 8px); padding: .6rem .8rem; margin: .6rem 0; }
+.msg-reply-err p { margin: 0 0 .5rem; }

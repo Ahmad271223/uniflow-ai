@@ -53,6 +53,8 @@ app.include_router(library_api.router)
 app.include_router(doc_index.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
+from . import sync_order_api  # noqa: E402 - Stufen des Abgleichs und Module je Semester (05.11.2026)
+app.include_router(sync_order_api.router)
 from . import invites_api  # noqa: E402 - Einladungen mit Angebotscodes (Routen /api/invites, /api/billing/offer-codes)
 app.include_router(invites_api.router)
 from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/explain, app/page_explain.py)
@@ -61,15 +63,31 @@ from . import doc_explain_api  # noqa: E402 - KI-Hilfe fuer das ganze Dokument (
 app.include_router(doc_explain_api.router)
 from . import studip_messages  # noqa: E402 - Seite "Nachrichten" (Routen /api/studip/messages, nur lokal, app/studip_messages.py)
 app.include_router(studip_messages.router)
+from . import studip_reply, studip_submit, exam_registration_api  # noqa: E402 - Antworten, Abgeben (nur lokal), Pruefungsanmeldung
+app.include_router(studip_reply.router)
+app.include_router(studip_submit.router)
+app.include_router(exam_registration_api.router)
 from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan, docs/STUDIENVERLAUF-2026-11-04.md)
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
 app.include_router(study_catalog.router)
+from . import timetable_questions  # noqa: E402 - Rueckfragen zum Stud.IP-Kalender, Ausfaelle laut Stud.IP (/api/timetable/studip-*)
+app.include_router(timetable_questions.router)
+from . import due_api  # noqa: E402 - Fristen aus Dateien erkennen (/api/due, app/due_store.py, 05.11.2026)
+app.include_router(due_api.router)
 from . import week_library_api  # noqa: E402 - Fertige Fragen je Vorlesungswoche (Pro AI, /api/library/week-sets)
 app.include_router(week_library_api.router)
+from . import recent as recent_api  # noqa: E402 - Weitermachen, "Zuletzt benutzt", KI-Gespraeche je Dokument (/api/recent, /api/tutor-conversations)
+app.include_router(recent_api.router)
 from . import access, account_mode, account_mode_api, app_login_api  # noqa: E402 - Konto- und Abo-Pflicht (05.11.2026)
 app.include_router(account_mode_api.router)     # Windows-App: Anmelden, Abo, Export (/api/app-account, /konto/rueckkehr)
 app.include_router(app_login_api.router)        # Dienst: Anmeldung der Windows-App ueber den Browser (/api/app-login)
+from . import ai_relay  # noqa: E402 - StudiNow-KI am PC ueber das Konto (/api/ai/relay im Dienst, /api/ai/source)
+app.include_router(ai_relay.router)
+from . import mensa_api  # noqa: E402 - Mensa: Speiseplaene LUH/HsH/Hildesheim, frei in jedem Tarif (/api/mensa, docs/MENSA-2026-11-05.md)
+app.include_router(mensa_api.router)
+from . import moodle_api  # noqa: E402 - Abgeben in Moodle am PC (HsH, Learnweb Hildesheim; app/moodle.py)
+app.include_router(moodle_api.router)
 db.init_db()
 
 
@@ -81,6 +99,11 @@ async def _http_error(request, exc: HTTPException):
     body = ({"detail": d.get("detail"), "code": d.get("code"), **{k: v for k, v in d.items() if k not in ("detail", "code")}}
             if isinstance(d, dict) and "detail" in d else {"detail": d})
     return JSONResponse(body, status_code=exc.status_code, headers=getattr(exc, "headers", None))
+
+@app.exception_handler(ai_relay.RelayError)
+async def _relay_error(request, exc: ai_relay.RelayError):
+    """StudiNow-KI vom PC (app/ai_relay.py): Status, Code und Zusatzfelder des Dienstes unveraendert (402/403/429 ...)."""
+    return JSONResponse(exc.body(), status_code=exc.status)
 
 # Gehosteter Modus (LERNAPP_MODE=hosted): diese Pfade gibt es dort noch nicht. Sie antworten 501 mit Grund (Regel G6),
 # statt im Dienst mit den Zugangsdaten der .env oder der KI-Kommandozeile des PCs zu arbeiten.
@@ -129,12 +152,16 @@ async def sync_kick(request, call_next):
     return response
 
 
+# Uebernehmen eines geteilten Stapels legt ihn in der PC-Datenbank an (community_cards_api.adopt_card_stack), nicht im Dienst
+_COMMUNITY_LOCAL = re.compile(r"^/api/community/card-stacks/[^/]+/adopt$")
+
+
 @app.middleware("http")
 async def community_link(request, call_next):
     """Einzelplatz (Windows-App): /api/community/... geht mit dem Token des verbundenen StudiNow-Kontos an den Dienst
     (app/service_link.py). Im Dienst selbst beantwortet community_api diese Pfade."""
     path = request.url.path
-    if config.is_hosted() or not path.startswith("/api/community/"):
+    if config.is_hosted() or not path.startswith("/api/community/") or _COMMUNITY_LOCAL.match(path):
         return await call_next(request)
     from starlette.concurrency import run_in_threadpool
     from . import service_link
@@ -675,6 +702,7 @@ def _full_sync():
         # Der eigentliche Fehler (z. B. "Anmeldung bei Stud.IP noetig") soll in der Oberflaeche stehen, nicht ein
         # Folgefehler des Planers wie "Keine Kurse vorhanden" (Befund 27.10.2026)
         raise RuntimeError(res.get("message") or "Abgleich fehlgeschlagen")
+    _after_current()
     n = planner.analyze_pending()
     with db.cursor() as conn:
         s = db.get_settings(conn)
@@ -688,6 +716,21 @@ def _full_sync():
         except Exception as e:  # noqa: BLE001
             print(f"Wochentest-Takt: {e}")
     return f"{len(res['new_files'])} neue Dateien, {n} analysiert"
+
+
+def _after_current() -> None:
+    """Nach dem aktuellen Semester (Stufe a und c im Abgleich der Hochschule, app/sync_order.py): (b) Noten, wenn
+    faellig, dann (d) fruehere Semester in einem eigenen Hintergrundfaden, solange die App offen ist."""
+    from . import sync_order
+    sync_order.run_grades_if_due(log=print)
+    sync_order.start_older_background(log=print)
+
+
+def _sync_without_ai():
+    res = run_sync()
+    if res.get("ok"):
+        _after_current()
+    return res["message"]
 
 
 # ----------------------------------------------------------------------------
@@ -728,7 +771,7 @@ def sync_now(ai: bool = True):
             raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
         j = jobs.enqueue(uid, "sync", "manual")
         return {"started": "Sync", "job_id": j["id"], "status": j["status"], "already": j["already"]}
-    return _run_bg("Sync", _full_sync if ai else lambda: run_sync()["message"])
+    return _run_bg("Sync", _full_sync if ai else _sync_without_ai)
 
 
 @app.get("/api/sync/changes")
@@ -1185,6 +1228,11 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     if hosted:
         entitlements.require(request, TUTOR_ENTITLEMENT.get(mode, "can_use_ai_explanations"))
         entitlements.require_verified_for_ai(request)
+    # "Bereich an KI" (05.11.2026): Ausschnitt der Seite als Bild; persoenlich, nie aus einem Speicher und nie hinein
+    try:
+        image = ai.tutor_image(body.get("image"))
+    except ai.TutorImageError as e:
+        raise HTTPException(413 if "groß" in str(e) else 400, {"detail": str(e), "code": "image_invalid"})
     file_id = body.get("file_id")
     page = int(body.get("page") or 1)
     text = body.get("page_text") or ""
@@ -1199,11 +1247,16 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
+    elif body.get("module_id"):
+        # KI-Start mit gewaehltem Modul ohne Dokument: das Modul als Kurs im Prompt
+        with db.cursor() as conn:
+            m = db.row(conn, "SELECT name FROM modules WHERE id=?", (body.get("module_id"),))
+        course = (m or {}).get("name") or ""
     # Erklaerungsspeicher (05.11.2026, app/explain_local.py): ganze Seite ohne Markierung, Frage und eigene Notizen wird gemerkt;
     # beim naechsten Mal sofort da, 0 Credits. `force` ("Neu erklaeren lassen") fragt live nach und belegt den naechsten Platz.
     from . import explain_local
     force = body.get("force") is True
-    shareable = bool(text.strip()) and not body.get("second_opinion") and explain_local.is_shareable(mode, body.get("selection") or "", body.get("question") or "",
+    shareable = bool(text.strip()) and not image and not body.get("second_opinion") and explain_local.is_shareable(mode, body.get("selection") or "", body.get("question") or "",
                                                                   body.get("own_solution") or "", _own_notes(body))
     # eine fertige request_id wiederholt die gespeicherte Antwort mit Credits-Stand (replay), das geht vor dem Speicher
     replayed = hosted and bool(body.get("request_id")) and _ai_replay(request, str(body["request_id"])[:80]) is not None
@@ -1215,19 +1268,34 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             return {"answer": hit["answer"], "cards": None, "sources": [],
                     "explain": explain_local.descriptor(stored=True, source=hit["source"], variant=hit["variant"], created_at=hit["created_at"]),
                     "credits": {**state, "charged": 0, "replay": False} if state else None}
+        # Windows-App mit Konto: Erklaerungsspeicher des Dienstes (verschluesselt, app/explain_service.py), 0 Credits
+        from . import explain_service
+        if not hosted and (got := explain_service.lookup(file_id, page, mode, text)):
+            with db.cursor() as conn:
+                variant = explain_local.store(conn, text, page, mode, got["answer"], "cloud")
+            return {"answer": got["answer"], "cards": None, "sources": [], "credits": None,
+                    "explain": explain_local.descriptor(stored=True, source="cloud", variant=got["variant"], created_at=got["created_at"])}
     sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
     credits_state = None
     c = None
     if hosted:
-        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip, fresh=force)
+        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip, fresh=force, image=image)
         answer, credits_state = c.text, _credits_state(request, c)
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
                               body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip,
-                              own_notes=_own_notes(body))
+                              own_notes=_own_notes(body),
+                              relay={"request_id": body.get("request_id"), "cache": shareable, "fresh": force,
+                                     "second_opinion": bool(body.get("second_opinion"))}, image=image)
         except ai.AIError as e:
             raise HTTPException(500, str(e))
+        # StudiNow-KI ueber das Konto (app/ai_relay.py): Credits-Stand und "gemeinsame" Antwort wie im Dienst
+        relayed = ai_relay.take()
+        if relayed:
+            credits_state = relayed.get("credits")
+            if relayed.get("shared"):
+                c = type("Relayed", (), {"model": "cache"})()
     cards = None
     if (body.get("mode") == "flashcards"):
         try:
@@ -1242,6 +1310,9 @@ def ai_tutor(request: Request, body: dict = Body(...)):
         with db.cursor() as conn:
             variant = explain_local.store(conn, text, page, mode, answer, "cloud" if cloud else "ai")
         explain = explain_local.descriptor(stored=cloud, source="cloud", variant=variant)
+        if not hosted and not cloud:
+            from . import explain_service
+            explain_service.publish_later(file_id, page, mode, text, answer)     # einmal erklaeren, alle profitieren
     return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state,
             "explain": explain}
 
@@ -1381,9 +1452,11 @@ def _flashcards_complete(request: Request, hosted: bool, prompt: str, body: dict
         answer, credits_state = c.text, _credits_state(request, c)
     else:
         try:
-            answer = ai.ask(prompt, ai.SYSTEM, schema=ai.FLASHCARDS_SCHEMA)
+            with ai.for_task("flashcards", request_id=body.get("request_id"), cache=cache):
+                answer = ai.ask(prompt, ai.SYSTEM, schema=ai.FLASHCARDS_SCHEMA)
         except ai.AIError as e:
             raise HTTPException(500, str(e))
+        credits_state = ai_relay.take_credits()
     try:
         cards = parse(answer) if parse else ai.check_flashcards(ai.parse_json(answer))
     except ai.AIError:
@@ -1458,7 +1531,7 @@ def _own_notes(body: dict) -> str:
 
 
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
-                  sources: list[dict] | None = None, studip: str = "", fresh: bool = False):
+                  sources: list[dict] | None = None, studip: str = "", fresh: bool = False, image: bytes | None = None):
     """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
     zurueckgebucht. Liefert die Completion (Text und berechnete Credits); mit request_id des Clients wird dieselbe
     Anfrage nie zweimal berechnet (Wiederholung aus dem Speicher, app/credits.py)."""
@@ -1472,12 +1545,15 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip,
                              own_notes=notes)
+    if image:
+        prompt += "\n\n" + ai.TUTOR_IMAGE_NOTE         # Bild-Tokens zaehlen in Schaetzung und Abrechnung (ai_prices)
     # Modellmischung (app/ai_router.py): "Antwort war falsch" -> Zweitmeinung von Sonnet, nie aus dem Zwischenspeicher;
     # Rechnen und Herleiten erkennt der Router an Frage und Markierung
     second = bool(body.get("second_opinion"))
     try:
         # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
-        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=not notes and not second,
+        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, image=image,
+                                   cache=not notes and not second and not image,
                                    request_id=rid, keep_result=True, fresh=fresh, route_hint="second_opinion" if second else None,
                                    route_text=" ".join(str(body.get(k) or "") for k in ("selection", "question")))
     except ai_backend.AIUnavailable as e:
@@ -1768,6 +1844,10 @@ def week_stack_get_or_generate(request: Request, module_id: int, week: int, kind
             uid = testshare.user_id(conn)
         got = cardshare.obtain(key, uid, generate, log=print, can_generate=can_generate)
         status = "adopted" if got["adopted_from"] else ("generated" if hosted else "unshared")
+        if hosted and status == "adopted":
+            # fertiger Stapel von StudiNow aus dem Pool: Kontingent card_stacks_adopted (05.11.2026, Plus 4 je Monat,
+            # Pro AI Fair Use); derselbe Satz zaehlt im Monat einmal
+            entitlements.consume(request, "card_stacks_adopted", f"week:{key}:{got['variant']}", once=True)
         from . import ai
         cards, variant = got["cards"][:ai.FLASHCARDS_MAX], got["variant"]       # Deckel je Satz wie checkFlashcards im Kern
     else:
@@ -3188,7 +3268,7 @@ SERVICES = [
     {"key": "luhki", "name": "LUHKI", "url": "https://www.luis.uni-hannover.de/de/services/anwendungen/luhki-2", "desc": "KI-Plattform der LUH", "login": "LUH-ID", "icon": "sparkles"},
     {"key": "gitlab", "name": "GitLab (LUIS)", "url": "https://www.luis.uni-hannover.de/de/services/anwendungen/versionsverwaltung-von-software-projekten-gitlab", "desc": "Versionsverwaltung für Programmieren-Projekte", "login": "LUH-ID", "icon": "file-text"},
     {"key": "tib", "name": "TIB Bibliothek", "url": "https://www.tib.eu/", "desc": "Literatur, Lernplätze, Ausleihe", "login": "Bibliotheksausweis", "icon": "book"},
-    {"key": "mensa", "name": "Mensa (Studentenwerk)", "url": "https://www.studentenwerk-hannover.de/essen/speiseplaene", "desc": "Speisepläne der Mensen", "login": "–", "icon": "sun"},
+    {"key": "mensa", "name": "Mensa (Studentenwerk)", "url": "https://www.studentenwerk-hannover.de/essen/mensen-und-cafes", "desc": "Speisepläne der Mensen", "login": "–", "icon": "sun"},
     {"key": "servicecenter", "name": "ServiceCenter", "url": "https://www.uni-hannover.de/de/studium/beratung-hilfe/servicecenter", "desc": "Immatrikulation, Rückmeldung, Beratung", "login": "–", "icon": "info"},
     {"key": "luis", "name": "LUIS IT-Support", "url": "https://www.luis.uni-hannover.de/de/services/kurse-beratung-und-support/it-support", "desc": "WLAN, VPN, Software, Zugänge", "login": "–", "icon": "settings"},
 ]
@@ -3222,12 +3302,12 @@ def api_services():
     creds["hildesheim"] = _hildesheim_creds()
     q = creds["qis"]
     hi = uni["key"] == "hildesheim"
-    return {"services": universities.HILDESHEIM_SERVICES if hi else SERVICES, "credentials": creds,
+    return {"services": universities.services(uni["key"]) or SERVICES, "credentials": creds,
             "university": {k: uni[k] for k in ("key", "name", "short", "files_source", "grades_source", "login", "user_label")},
             "universities": [{"key": k, "name": v["name"]} for k, v in universities.PROFILES.items()],
             "university_next": config.configured_university(),
             "learnweb": {"token_set": bool(config.secret("LEARNWEB_TOKEN"))},
-            "qis": {"configured": creds["hildesheim"]["configured"] if hi else q["configured"],
+            "qis": {"configured": qis.configured("hsh") if uni["key"] == "hsh" else (creds["hildesheim"]["configured"] if hi else q["configured"]),
                     "same_as_studip": False if hi else (q.get("same_as") == "studip" or (not q["configured"])), "last_run": s["last_run"]},
             "studip": {"configured": creds["studip"]["configured"]}}
 
@@ -3247,6 +3327,9 @@ def put_learnweb_token(body: dict = Body(...)):
 
 # Weitere Hosts der LUH-Anmeldung (WebSSO/Shibboleth), die das Geraet in seiner Anmeldeansicht zulassen muss
 _LUH_SSO_HOSTS = ("sso.idm.uni-hannover.de", "login.uni-hannover.de")
+# HsH: SAML-Anmeldung von HISinOne (/qisserver/api/identityprovider/redirect/4/login) beim IdP der Hochschule
+# (SimpleSAMLphp, /simplesaml/module.php/saml/idp/singleSignOnService) und das alte QIS icms.hs-hannover.de (Iframe)
+_HSH_SSO_HOSTS = ("idp.hs-hannover.de", "icms.hs-hannover.de")   # IdP (SimpleSAMLphp) und altes QIS
 
 
 def university_profile(key: str) -> dict:
@@ -3264,6 +3347,12 @@ def university_profile(key: str) -> dict:
         out.update({"login_url": f"{lw}/login/index.php?authCAS=CAS", "logged_in_check_url": f"{lw}/my/", "session_cookie": "MoodleSession",
                     "hosts": [host, urlsplit(universities.LSF_BASE).hostname or ""], "file_host": host,
                     "learnweb_base": lw, "cas_base": universities.HILDESHEIM_CAS})
+    elif key == "hsh":
+        from . import hisinone, hsh
+        host = urlsplit(hsh.moodle_base()).hostname or ""
+        out.update({"login_url": hsh.login_url(), "logged_in_check_url": f"{hsh.moodle_base()}/my/", "session_cookie": "MoodleSession",
+                    "hosts": [host, hisinone.HOST, *_HSH_SSO_HOSTS], "file_host": host, "learnweb_base": hsh.moodle_base(), "cas_base": None,
+                    "campus_login_url": hisinone.SSO_LOGIN_URL, "campus_start_url": hisinone.START_URL})
     else:
         host = urlsplit(studip_sync.STUDIP_BASE).hostname or ""
         out.update({"login_url": studip_sync.LOGIN_URL, "logged_in_check_url": f"{studip_sync.STUDIP_BASE}/jsonapi.php/v1/users/me",

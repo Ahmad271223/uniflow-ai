@@ -150,10 +150,28 @@ final class ChatGPTLink: ObservableObject {
         (Bundle.main.object(forInfoDictionaryKey: "StudoraChatGPTClientID") as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
 
-    /// Sichtbar in jedem Build: die Erstregistrierung bei OpenAI laeuft mit `dynamic_agent_client`
-    /// (docs/KI-CHATGPT-PLAN.md, Abschnitt 9) und braucht keine vorab vergebene Client-ID mehr. Eine konfigurierte ID
-    /// (`configuredClientID`) wird weiter benutzt, wenn eine da ist.
+    /// Unterbau in jedem Build (Schluesselbund je Apple-Nutzer, Stand, Loeschen mit dem Konto): die Erstregistrierung
+    /// bei OpenAI laeuft mit `dynamic_agent_client` (docs/KI-CHATGPT-PLAN.md, Abschnitt 9) und braucht keine vorab
+    /// vergebene Client-ID mehr. Eine konfigurierte ID (`configuredClientID`) wird weiter benutzt, wenn eine da ist.
+    /// Ob die Verbindung angeboten wird, entscheidet `isEnabled`.
     nonisolated static var available: Bool { true }
+
+    /// Schalter "Eigenes ChatGPT verbinden" (05.11.2026, wie `StudyTimer.isEnabled`): Sign in with ChatGPT ist fuer
+    /// StudiNow von OpenAI noch nicht freigegeben (app/plans.py `INTEGRATIONS["chatgpt"].status = "disabled"`); am
+    /// Geraet des Inhabers blieb die Anmeldung nach Kontowahl bzw. E-Mail haengen. Aus: keine Anmeldung, kein Knopf
+    /// "ChatGPT verbinden" (Einstellungen, KI-Hilfe, KI-Start, Tests), die Karte zeigt nur `soonText`; die KI-Wege
+    /// zeigen den Tarif-Hinweis (`planHint`) bzw. nutzen einen Server (eigener PC, StudiNow-Dienst). Eine frueher
+    /// gespeicherte Verbindung bleibt im Schluesselbund, wird aber nicht benutzt. docs/KI-CHATGPT-PLAN.md Abschnitt 11.
+    nonisolated static let isEnabled = false
+
+    /// Zeile der Karte in den Einstellungen, solange `isEnabled` aus ist
+    nonisolated static let soonText = "Eigenes ChatGPT verbinden – bald verfügbar"
+
+    /// Hinweis an den KI-Stellen ohne KI, solange `isEnabled` aus ist: wie es weitergeht, ohne Anmeldung anzubieten
+    nonisolated static let planHint = "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI. Eigenes ChatGPT verbinden ist bald verfügbar."
+
+    /// Ziel der Knoepfe an den KI-Stellen ohne KI: mit Schalter die ChatGPT-Karte (Erweitert), sonst die Tarife (Konto)
+    nonisolated static var settingsTab: String { isEnabled ? "advanced" : "account" }
 
     @Published private(set) var status: ChatGPTSession.Status?
     @Published private(set) var connecting = false
@@ -167,8 +185,8 @@ final class ChatGPTLink: ObservableObject {
     private var loopback: ChatGPTLoopback?
     private let presenter = AuthPresenter()
 
-    /// KI-Anfragen gerade moeglich
-    var enabled: Bool { status?.enabledForAI == true }
+    /// KI-Anfragen gerade moeglich (nie, solange `isEnabled` aus ist)
+    var enabled: Bool { Self.isEnabled && status?.enabledForAI == true }
 
     /// Container geoeffnet oder geschlossen: Verbindung des Apple-Nutzers laden und ins Backend haengen
     func use(userScope: String?, host: LocalBackendHost?) {
@@ -192,7 +210,7 @@ final class ChatGPTLink: ObservableObject {
         try? await session.useConfiguredClientID(Self.configuredClientID)
         let s = await session.status
         status = s
-        await attach(s.enabledForAI ? session : nil)
+        await attach(Self.isEnabled && s.enabledForAI ? session : nil)
     }
 
     private func attach(_ provider: AIProvider?) async {
@@ -214,6 +232,8 @@ final class ChatGPTLink: ObservableObject {
     }
 
     func connect(newAccount: Bool = false, reconsent: Bool = false) async {
+        // ausgeschaltet: keine Anmeldeseite (sie hinge nach der Kontowahl), nur der Hinweis
+        guard Self.isEnabled else { message = Self.soonText + "."; return }
         guard let session, !connecting else { return }
         connecting = true
         message = nil

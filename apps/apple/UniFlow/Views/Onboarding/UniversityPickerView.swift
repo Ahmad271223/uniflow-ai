@@ -86,6 +86,8 @@ struct UniversityOption: View {
             return "Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan und Aufzeichnungen direkt auf dieses \(UFDevice.name). QIS: Notenspiegel. Anmeldung mit deiner LUH-ID auf den Seiten der Universität."
         case .hildesheim:
             return "Learnweb: Kurse und Dateien direkt auf dieses \(UFDevice.name). LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität."
+        case .hsh:
+            return "Moodle: Kurse, Dateien und Fristen direkt auf dieses \(UFDevice.name). Campusmanagement: Stundenplan, Leistungen und angemeldete Prüfungen. Anmeldung mit deinem SSO-Account auf den Seiten der Hochschule."
         }
     }
 }

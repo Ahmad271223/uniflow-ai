@@ -1,0 +1,73 @@
+/* Mensa (mensa.js): Auswahl, Filter, Gerichte als Karten, Oeffnungszeiten; Karte "Heute in der Mensa". Nur Farben aus style.css
+   (hell/dunkel), Ziele mindestens 44 px, ab 390 px Breite einspaltig ohne waagrechtes Rollen. */
+.mn-controls { display: flex; flex-wrap: wrap; gap: .6rem .8rem; align-items: flex-end; margin-bottom: .7rem; }
+.mn-field { display: flex; flex-direction: column; gap: .2rem; min-width: 0; font-size: .8125rem; color: var(--text-2); }
+.mn-field select { min-height: 44px; max-width: 100%; padding: .4rem .6rem; border-radius: var(--r-sm); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); font-size: .9375rem; }
+.mn-controls .seg button { min-height: 38px; }
+.mn-fav { min-width: 44px; min-height: 44px; }
+.mn-fav.on { color: var(--warn); }
+.mn-fav.on svg { fill: currentColor; }
+.mn-filters { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-bottom: 1rem; }
+.mn-filters .chip { min-height: 36px; }
+.mn-allergens { position: relative; }
+.mn-allergens > summary { list-style: none; }
+.mn-allergens > summary::-webkit-details-marker { display: none; }
+.mn-allergen-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(300px, 86vw); max-height: 60vh; overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: .4rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); }
+.mn-allergen-list label { display: flex; gap: .5rem; align-items: center; min-height: 40px; padding: 0 .4rem; border-radius: 6px; cursor: pointer; }
+.mn-allergen-list label:hover { background: var(--surface-2); }
+.mn-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1rem; align-items: start; }
+.mn-main { min-width: 0; }
+.mn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .7rem; margin-bottom: .8rem; }
+.mn-grid.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.mn-meal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r, 12px); padding: .8rem .9rem; display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
+.mn-meal.side { background: var(--surface-2); }
+.mn-meal-top { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+.mn-cat { font-size: .75rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .03em; overflow-wrap: anywhere; }
+.mn-price { font-weight: 700; white-space: nowrap; color: var(--text); }
+.mn-name { font-size: 1rem; font-weight: 600; margin: 0; line-height: 1.3; overflow-wrap: anywhere; }
+.mn-meal.side .mn-name { font-size: .9375rem; font-weight: 500; }
+.mn-tags { display: flex; flex-wrap: wrap; gap: .25rem; }
+.mn-tag { font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
+.mn-tag.mn-vegan, .mn-tag.mn-vegetarisch { background: var(--ok-soft); color: var(--ok-text); border-color: transparent; }
+.mn-tag.mn-fisch { background: var(--info-soft); color: var(--info-text); border-color: transparent; }
+.mn-tag.mn-schwein, .mn-tag.mn-rind, .mn-tag.mn-gefluegel, .mn-tag.mn-fleisch { background: var(--warn-soft); color: var(--warn-text); border-color: transparent; }
+.mn-tag.mn-alkohol { background: var(--bad-soft); color: var(--bad-text); border-color: transparent; }
+.mn-more { font-size: .8125rem; color: var(--text-2); }
+.mn-more summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.mn-more p { margin: .25rem 0; }
+.mn-day { font-size: 1.05rem; margin: 1rem 0 .5rem; }
+.mn-sub { font-size: .875rem; color: var(--text-2); margin: .4rem 0 .4rem; font-weight: 600; }
+.mn-empty { display: flex; gap: .5rem; align-items: center; color: var(--text-2); }
+.mn-note { display: flex; gap: .5rem; align-items: center; background: var(--warn-soft); color: var(--warn-text); margin-bottom: .8rem; }
+.mn-info h2 { font-size: 1rem; display: flex; gap: .4rem; align-items: center; margin: 0 0 .5rem; }
+.mn-hours { margin-bottom: .5rem; }
+.mn-dash-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.mn-dash-list li { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; padding: .35rem 0; border-top: 1px solid var(--line); }
+.mn-dash-list li:first-child { border-top: 0; }
+.mn-dash-name { min-width: 0; overflow-wrap: anywhere; }
+.mn-dash-meta { display: flex; gap: .4rem; align-items: center; white-space: nowrap; }
+@media (max-width: 900px) { .mn-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) {
+  .mn-controls { flex-direction: column; align-items: stretch; }
+  .mn-controls .seg { display: flex; }
+  .mn-controls .seg button { flex: 1; }
+  .mn-grid, .mn-grid.compact { grid-template-columns: minmax(0, 1fr); }
+  .mn-fav { align-self: flex-start; }
+}
+/* Karte als Knopf (oeffnet alle Angaben) und Detailansicht */
+button.mn-meal { font: inherit; text-align: left; color: inherit; cursor: pointer; width: 100%; }
+button.mn-meal:hover { border-color: var(--line-strong); }
+button.mn-meal:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.mn-meal > span { display: block; }
+.mn-meal > .mn-meal-top, .mn-meal > .mn-tags { display: flex; }
+.mn-nutri { font-size: .8125rem; color: var(--text-2); }
+.mn-open { font-size: .8125rem; color: var(--accent-text); display: inline-flex !important; align-items: center; gap: .2rem; margin-top: auto; }
+.mn-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .4rem 1.2rem; margin-bottom: .6rem; }
+.mn-sec h3 { font-size: .9375rem; margin: .6rem 0 .35rem; }
+.mn-sec p { margin: .2rem 0; }
+.mn-row { display: flex; justify-content: space-between; gap: .8rem; padding: .3rem 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.mn-row:first-of-type { border-top: 0; }
+.mn-row.sub span { padding-left: .9rem; color: var(--text-2); }
+.mn-row b { white-space: nowrap; }
+.mn-list { margin: 0; padding-left: 1.1rem; font-size: .9rem; }
+.mn-list li { margin: .15rem 0; }

@@ -95,7 +95,8 @@ def _state(s):
 
 def test_unverified_accounts_are_refused_on_all_report_routes_and_cannot_hide(scene):
     app = scene["app"]
-    throwaway = [_user(app, f"wegwerf{i}@beispiel.de", plus=False, verified=False)[1] for i in range(3)]
+    # Wegwerfkonten mit Plus-Rechten (z. B. in der Probe): ohne Plus gaebe es schon 403 plan_required (Community ab Plus)
+    throwaway = [_user(app, f"wegwerf{i}@beispiel.de", plus=True, verified=False)[1] for i in range(3)]
     for h in throwaway:
         _claim(app, h)                      # selbst behauptete Besitzmeldung reicht fuer die Sichtbarkeit, nicht fuer Meldungen
         for path in _routes(scene):

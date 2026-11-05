@@ -1,0 +1,33 @@
+{
+ "_hinweis": "NACHGEBAUT (keine echte Antwort, erfundene Daten): Standard-Moodle, docs/HSH-2026-11-05.md",
+ "conversations": [
+  {
+   "id": 12,
+   "name": "",
+   "type": 1,
+   "members": [
+    {
+     "id": 77,
+     "fullname": "Erfunden Lehrperson"
+    }
+   ],
+   "unreadcount": 1,
+   "messages": [
+    {
+     "id": 345,
+     "useridfrom": 77,
+     "text": "<p>Bitte bis 12.11. abgeben.</p>",
+     "timecreated": 1793000000
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "name": "Programmieren 1 – Gruppe A",
+   "type": 2,
+   "members": [],
+   "unreadcount": 0,
+   "messages": []
+  }
+ ]
+}

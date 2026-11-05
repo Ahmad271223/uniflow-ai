@@ -598,6 +598,9 @@ def studip_entries(conn) -> list[dict]:
     # nur eine Gruppe wird besucht -> Auswahl noetig (gezaehlt werden die unentschiedenen Serien des Kurses)
     per_course = defaultdict(int)
     hidden = {c for c, d in decisions.items() if d and all(v == 0 for v in d)}
+    # Rueckfrage beantwortet: trotzdem uebernommene Kurse folgen der bisherigen Regel (app/timetable_questions.py)
+    from . import timetable_questions
+    hidden = timetable_questions.still_hidden(conn, merged, hidden)
     for e in merged:
         # Einzeltermine (Ersatztermin, Blockseminar) sind keine parallelen Gruppen: nur woechentliche Serien zaehlen.
         # Vorher zaehlte ein Nachholtermin mit, und eine Vorlesung mit zwei Serien galt ohne Kalender als "3 parallele
@@ -643,6 +646,8 @@ def auto_import(conn) -> dict:
     entries = enrich(conn, [e for e in all_entries if e.get("selected")])
     diff = diff_against_existing(conn, entries)
     res = apply_import(conn, diff["new"], "studip")
+    from . import timetable_questions
+    timetable_questions.mark_skipped(conn, res["ids"])   # abgewaehlte Serien gleich als "nicht besucht"
     removed = remove_foreign_series(conn, [e for e in all_entries if e.get("calendar") in ("fremd", "kurs_fehlt")])
     # Bestehende Stud.IP-Serien bekommen fehlende Ausfaelle nachgetragen (Luecken wie die Weihnachtspause); nur Serien
     # aus Stud.IP, nie manuell angelegte; Tage mit eigener Ausnahme des Nutzers bleiben unveraendert.

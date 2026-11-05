@@ -23,7 +23,9 @@ Wunsch des Inhabers vom 04.11.2026 für die iPad-App StudiNow. Alles bleibt auf 
   Abweichung von der Reihenfolge im Auftrag (Konto, Apple, Rufname): der selbst eingegebene Rufname steht vorn, weil
   ein Feld, das neben einem Apple-Namen nichts bewirkt, verwirrt. Soll es anders sein, genügt die Reihenfolge in
   `UFGreeting.pick` (Test `GreetingAppTests.testSourceOrder`).
-- Web: unverändert (Tageszeit ohne Namen, `app/static/views-home.js`); das Web kennt keinen Namen.
+- Web/Windows (05.11.2026): dieselben Sätze (`app/static/greeting.js`); Namen aus der Einstellung `rufname` (Erststart
+  „Wie sollen wir dich nennen?“ oder Einstellungen → Zugang & Darstellung), sonst Anzeigename des Kontos, sonst das erste
+  Wort des Anzeigenamens für die Community (`user_name`).
 
 ## 2. Weitermachen wie zuvor
 
@@ -64,7 +66,8 @@ Seite, ein Gespräch im Dokument mit offener KI-Hilfe und seinem Verlauf, einen 
 - App: `RecentItem.merge` fügt die Gespräche aus `TutorConversations` und KI-Start-Fragen mit Dokument
   (`AIRecents`) hinzu; je Art und Datei nur der neueste Eintrag. Ein Server ohne den Endpunkt liefert nur die
   Gespräche.
-- Python/Web: kein Gegenstück (docs/paritaet/ipad-app.md).
+- Python/Web (05.11.2026): `app/recent.py` liefert dieselbe Liste und fügt die KI-Gespräche selbst hinzu
+  (`kind: "conversation"`, Gespräche zu Wochentest-Aufgaben mit `test_id`/`nr`).
 
 ## Tests
 
@@ -76,3 +79,17 @@ Seite, ein Gespräch im Dokument mit offener KI-Hilfe und seinem Verlauf, einen 
 - Die Seite des zweiten Dokuments („Daneben öffnen“) wird nur beim Öffnen gemerkt, nicht beim Blättern darin.
 - Zoom und Scrollposition innerhalb einer Seite werden nicht wiederhergestellt.
 - Text-Dokumente (`TextDocumentView`) speichern ihr Gespräch, merken aber KI-Hilfe-offen nicht für den Neustart.
+
+## Web und Windows (05.11.2026)
+
+| Was | Wo |
+| --- | --- |
+| Liste „Zuletzt benutzt“ (Übersicht, 10 Einträge) | `GET /api/recent` (`app/recent.py`), Karte `app/static/recent.js` |
+| KI-Gespräche je Dokument, höchstens 15 | Tabelle `tutor_conversations` in der Datenbank des PCs bzw. des Kontos im Dienst; `GET/PUT/DELETE /api/tutor-conversations/<Datei>`; die KI-Hilfe (`ai-panel.js`) lädt beim Öffnen und speichert nach jeder Antwort, „Neu“ löscht |
+| Stand für Weitermachen (Datei, Seite, KI-Hilfe offen) | je Konto im Speicher des Browsers bzw. des Windows-Fensters (`uniflow.resume.<Konto>`), geschrieben bei jedem Seitenwechsel, Klick im Dokument, Verlassen des Fensters und alle 15 s |
+
+Ablauf wie auf dem iPad: Wer das Dokument in der App verlässt, schließt es ausdrücklich. Startet die App auf der Übersicht
+und war zuletzt ein Dokument offen, prüft `recent.js` mit `GET /api/files/{id}`, ob es noch da ist, und öffnet
+`#/doc/<id>?page=N` (mit `&ki=1`, wenn die KI-Hilfe offen war; `views-doc.js` öffnet sie dann). Nicht beim Erststart, nicht
+mit einer anderen Startadresse (z. B. Abo-Seite ohne Abo). Tests: `tests/test_recent.py`, `tests/js/recent.test.mjs`,
+`tests/js/greeting.test.mjs`. Offen: zweites Dokument („Geteilt“) wird nicht wiederhergestellt.

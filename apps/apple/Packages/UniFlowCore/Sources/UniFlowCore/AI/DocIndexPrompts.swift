@@ -43,7 +43,7 @@ public struct TextDocIndexAI: DocIndexAI {
     public init(_ provider: AIProvider) { self.provider = provider }
 
     public func index(system: String, prompt: String, imageJPEG: Data?, schema: JSONValue, small: Bool) async throws -> String {
-        try await provider.answer(system: system, prompt: prompt, schema: schema)
+        try await provider.answer(system: system, prompt: prompt, schema: schema.isNull ? nil : schema)
     }
 
     public var modelName: String { get async { "" } }
@@ -80,7 +80,8 @@ public final class ChatGPTVisionAI: DocIndexAI, @unchecked Sendable {
 
     /// Anfrage an die Responses API mit Text und Bild: `input` als Liste mit `input_text` und `input_image`
     public static func body(model: String, system: String, prompt: String, imageJPEG: Data?, schema: JSONValue) -> JSONValue {
-        var body = ChatGPTProtocol.responsesBody(model: model, system: system, prompt: prompt, schema: schema)
+        // `.null` = freie Antwort ohne Schema (KI-Hilfe mit Bild)
+        var body = ChatGPTProtocol.responsesBody(model: model, system: system, prompt: prompt, schema: schema.isNull ? nil : schema)
         guard let image = imageJPEG else { return body }
         let content: [JSONValue] = [["type": "input_text", "text": .string(prompt)],
                                     ["type": "input_image", "detail": "high", "image_url": .string("data:image/jpeg;base64," + image.base64EncodedString())]]
@@ -92,7 +93,7 @@ public final class ChatGPTVisionAI: DocIndexAI, @unchecked Sendable {
         let status = await session.status
         guard status.enabledForAI else { throw AIError("chatgpt_not_enabled", "KI über ChatGPT ist nicht verbunden.") }
         if imageJPEG == nil, !small {
-            let text = try await session.complete(system: system, prompt: prompt, schema: schema)
+            let text = try await session.complete(system: system, prompt: prompt, schema: schema.isNull ? nil : schema)
             lock.withLock { lastModel = "" }
             return text
         }

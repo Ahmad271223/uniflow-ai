@@ -212,7 +212,7 @@ def test_bundled_resource_valid_and_matches_registry():
     """Die mitgelieferte Ressource: gueltig, nur Fakten, Verzeichnis passt, Register kennt jedes Kuerzel, INF-Nebenfach
     nicht Pflicht, TI und INF mit Studienverlaufsplan"""
     index = json.loads((seed.OUT_DIR / "luh-index.json").read_text())
-    cats = sc.load_seed()
+    cats = {k: c for k, c in sc.load_seed().items() if c["university"] == "luh"}   # daneben Hildesheim (eigener Test)
     assert len(cats) == index["catalogs"] >= 21 and sum(len(c["modules"]) for c in cats.values()) == index["modules"]
     reg = sc.load_registry()
     for k, c in cats.items():

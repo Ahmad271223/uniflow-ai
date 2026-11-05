@@ -2,6 +2,10 @@
 
 Entscheidung des Inhabers vom 04.11.2026 (docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free 0 EUR, Plus
 1,99 EUR, Pro AI 3,99 EUR (Monatspreise, Endkundenpreise). Jeder Tarif enthaelt alle Rechte des naechstniedrigeren.
+Angleichung vom 05.11.2026 (docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md): Free ohne Community (auch kein Lesen) und ohne
+StudiNow-KI, das eigene ChatGPT darf in jedem Tarif verbunden werden (Fragen zu Folien; Schreiben erst ab Plus); Plus
+mit Community, Schreiben, eigenen Karteikarten und begrenzt Karteikarten-Stapeln von StudiNow (4/Monat); Pro AI mit
+StudiNow-KI, 20 neuen KI-Tests und unbegrenzt Tests und Stapeln (Fair Use).
 Pro Connect (2,99 EUR, Auftrag vom 27.10.2026) gibt es nicht mehr: der Schluessel bleibt nur fuer alte Zeilen in
 accounts.db/entitlements lesbar (`LEGACY_PLANS`), wird nirgends angeboten oder gezeigt; seine frueheren Rechte
 (Lernstatistik, Wiederholung, Empfehlungen, Testhistorie) gehoeren jetzt zu Pro AI.
@@ -17,8 +21,9 @@ Regeln:
   gebaut wird (`coming_soon`) oder bewusst aus ist (`disabled`). Nur `available` darf als enthalten beworben werden.
 - Begriffe: "Lernstand" ist die Zahl je Modul aus eigenen Daten (app/mastery.py, Mastery.swift) und in jedem Tarif
   frei; "Lernstatistik" ist die moduluebergreifende Auswertung des Dienstes (/api/learning/*) ab Pro AI.
-- `chatgpt_connection_premium` ist eine reine Produktregel (Anzeige ab Pro AI). Die offizielle Verbindung zu
-  ChatGPT haengt davon NICHT ab: siehe `INTEGRATIONS["chatgpt"]` und docs/ABO-SYSTEM.md, Abschnitt 4.
+- `chatgpt_connection_premium` (Name historisch) ist eine reine Produktregel: seit 05.11.2026 in jedem Tarif (Free
+  darf sein eigenes ChatGPT verbinden und zu Folien fragen). Die offizielle Verbindung zu ChatGPT haengt nie am Tarif:
+  siehe `INTEGRATIONS["chatgpt"]` und docs/ABO-SYSTEM.md, Abschnitt 4.
 """
 from __future__ import annotations
 
@@ -53,8 +58,13 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_import_documents": {"from": "free", "label": "Automatischer Dokumentimport aus Stud.IP bzw. Learnweb", "status": "available"},
     "can_view_timetable": {"from": "free", "label": "Stundenplan ansehen", "status": "available"},
     "can_use_basic_planner": {"from": "free", "label": "Lernkalender und Lernplanung", "status": "available"},
-    "can_read_community": {"from": "free", "label": "Community-Beiträge lesen", "status": "available"},
+    # Eigenes ChatGPT (Entscheidung 05.11.2026): in jedem Tarif, auch Free (Fragen zu Folien). Die OpenAI-Bedingungen
+    # verbieten ohnehin, die Nutzung an einen bezahlten Tarif zu koppeln (INTEGRATIONS, plan_gating_allowed False).
+    "chatgpt_connection_premium": {"from": "free", "label": "Eigenes ChatGPT verbinden und zu Folien fragen (in Vorbereitung)", "status": "disabled"},
     # Plus
+    # Community (Entscheidung 05.11.2026): ab Plus auch das Lesen, Free sieht nur den Hinweis "Community ab Plus".
+    # Eigene Beitraege lassen sich nach dem Herabstufen trotzdem zurueckziehen (nichts wird geloescht).
+    "can_read_community": {"from": "plus", "label": "Community lesen, beitreten und mitmachen", "status": "available"},
     "can_annotate_pdf": {"from": "plus", "label": "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder", "status": "available"},
     "can_use_pencilkit": {"from": "plus", "label": "Apple Pencil (PencilKit) und handschriftliche Notizen", "status": "available"},
     "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "available"},
@@ -72,7 +82,6 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_review_wrong_answers": {"from": "pro_ai", "label": "Automatische Wiederholung falscher Antworten", "status": "coming_soon"},
     "can_use_extended_test_history": {"from": "pro_ai", "label": "Vollständige Testliste (Free und Plus: die letzten 10)", "status": "available"},
     "can_get_recommendations": {"from": "pro_ai", "label": "Personalisierte Lernempfehlungen", "status": "coming_soon"},
-    "chatgpt_connection_premium": {"from": "pro_ai", "label": "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)", "status": "disabled"},
     # Pro AI (StudiNow-KI ueber das Backend)
     "can_use_ai_explanations": {"from": "pro_ai", "label": "KI-Erklärungen zu Aufgaben", "status": "available"},
     "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
@@ -90,18 +99,21 @@ ENTITLEMENTS: dict[str, dict] = {
 
 # Kontingente je Abrechnungsmonat (Tabelle des Inhabers vom 04.11.2026). None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).
 # Plus: 4 neue KI-Tests und 4 Bibliothekstests; Pro AI: 20 neue KI-Tests, Bibliothek unbegrenzt (Fair Use).
+# Karteikarten-Stapel von StudiNow (05.11.2026): fertige Wochenstapel aus dem Pool und geteilte Stapel der Community
+# uebernehmen, Plus 4 je Monat, Pro AI unbegrenzt (Fair Use); derselbe Stapel zaehlt im Monat nur einmal.
 QUOTAS: dict[str, dict[str, int | None]] = {
-    "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0},
-    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0},
-    "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150},
+    "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0},
+    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4},
+    "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150, "card_stacks_adopted": None},
 }
 QUOTAS["pro_connect"] = QUOTAS["pro_ai"]        # alte Zeilen gelten wie Pro AI
 
 # Grenze fuer "unbegrenzt" (Schutz vor automatisierten Abrufen), je Monat
-FAIR_USE: dict[str, int] = {"library_tests": 300, "ai_tests_new": 20, "ai_assist": 150}
+FAIR_USE: dict[str, int] = {"library_tests": 300, "ai_tests_new": 20, "ai_assist": 150, "card_stacks_adopted": 300}
 
 QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Tests aus der Bibliothek",
-                "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen"}
+                "ai_assist": "KI-Erklärungen, Lernfragen und Zusammenfassungen",
+                "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)"}
 
 # Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 1 Cent OpenAI-Kosten): Pro AI 100,
 # sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.

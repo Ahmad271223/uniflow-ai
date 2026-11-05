@@ -6,7 +6,8 @@ import Foundation
 /// fuer Seiten ohne Textebene im Umfang (auf dem Geraet, kostenlos); Seiten ohne Text aus dem Dokument-Index. Jeder
 /// Schritt liegt im Erklaerungsspeicher (`page_explain`, CloudKit `PageExplain`, Modus `doc1_<art>_<n>_<bis>`, Abdruck =
 /// Schluessel des Schritts): wer dieselbe Datei hat, bekommt ihn sofort und mit 0 Credits. Die KI ist das ChatGPT des
-/// Nutzers (`LocalContext.ai`); ohne KI gehen Plan und schon erklaerte Schritte, ein neuer Schritt nicht.
+/// Nutzers (`LocalContext.ai`); ohne KI gehen Plan und schon erklaerte Schritte, ein neuer Schritt nicht. Mit der
+/// StudiNow-KI (StudiNowAI.swift) rechnen Plan und neue Schritte im Dienst wie unter Windows (`forward`).
 enum DocExplainEndpoints: LocalEndpointModule {
     static let name = "KI fuer das ganze Dokument"
 
@@ -19,6 +20,8 @@ enum DocExplainEndpoints: LocalEndpointModule {
                 body["scope"] = intent.scope.json
             }
             let run = try await build(body, ctx: ctx)
+            // StudiNow-KI: Plan im Dienst mit den Seitentexten des iPads (Kostenzeile mit Credits, gemeinsamer Speicher)
+            if let relay = relay(ctx) { return .json(try await forward(relay, "plan", body: body, run: run)) }
             var have = Set<String>()
             for s in run.plan.steps where await stored(run, s, ctx: ctx) != nil { have.insert(s.id) }
             let todo = run.plan.steps.filter { !have.contains($0.id) }.count
@@ -39,6 +42,14 @@ enum DocExplainEndpoints: LocalEndpointModule {
             let body = try req.objectBody()
             let run = try await build(body, ctx: ctx)
             let sid = body["step"]?.string ?? ""
+            if let relay = relay(ctx) {
+                // erst der eigene bzw. geteilte Speicher (0 Credits), dann der Dienst
+                if body["force"]?.bool != true, let step = run.plan.steps.first(where: { $0.id == sid }), let hit = await stored(run, step, ctx: ctx) {
+                    return .json(["step": .string(sid), "blocks": .array(DocExplain.parseBlocks(hit.text, step: step).map(\.json)),
+                                  "stored": hit.json, "credits": .null])
+                }
+                return .json(try await forward(relay, "step", body: body, run: run))
+            }
             guard let step = run.plan.steps.first(where: { $0.id == sid }) else {
                 throw LocalHTTPError(status: 404, detail: ["detail": "Diesen Teil gibt es im Dokument nicht mehr. Bitte neu starten.", "code": "step_not_found"])
             }
@@ -72,6 +83,20 @@ enum DocExplainEndpoints: LocalEndpointModule {
                           "credits": .null])
         }
     }
+
+    /// StudiNow-KI des Kontos, wenn sie die KI des Backends ist (kein eigenes ChatGPT verbunden)
+    static func relay(_ ctx: LocalContext) -> StudiNowAI? { ctx.ai.provider as? StudiNowAI }
+
+    /// Wie die Windows-App (app/doc_explain_api.py `_forward`): Plan bzw. Schritt rechnet der Dienst mit den Seitentexten
+    /// dieses Geraets (`page_texts`, nach der Texterkennung im Umfang); der Client schickt nie einen Prompt
+    static func forward(_ relay: StudiNowAI, _ step: String, body: [String: JSONValue], run: Run) async throws -> JSONValue {
+        var b = body
+        b["page_texts"] = .array(run.texts.prefix(clientPagesMax).map { .string($0) })
+        return try await relay.json("POST", "/api/ai/document/\(step)", body: .object(b))
+    }
+
+    /// `CLIENT_PAGES_MAX` in app/doc_explain_api.py
+    static let clientPagesMax = 1000
 
     /// Ein aufgeloester Lauf: Modus, Umfang, Seitentexte, Plan und (wenn die Datei auf dem Geraet liegt) Datei-SHA und -Schluessel
     struct Run {

@@ -64,8 +64,9 @@ final class StudyCatalogSync {
     typealias LibraryFactory = @Sendable () -> StudyCatalogLibrary?
     typealias SeedFactory = @Sendable () -> StudyCatalogSeedSource?
 
-    /// Grundstock dieses Builds (einmal gelesen; die Kataloge entpackt er erst beim ersten Treffer)
-    nonisolated static let bundledSeed: StudyCatalogSeed? = StudyCatalogSeed.bundled(.main)
+    /// Grundstock dieses Builds, alle Hochschulen (luh-index.json, hildesheim-index.json; einmal gelesen, die Kataloge
+    /// entpackt er erst beim ersten Treffer). Der Ablauf fragt mit der Hochschule des Containers (`settings.university`).
+    nonisolated static let bundledSeed: StudyCatalogSeeds? = StudyCatalogSeed.bundledAll(.main)
 
     private static var instances: [String: StudyCatalogSync] = [:]
 

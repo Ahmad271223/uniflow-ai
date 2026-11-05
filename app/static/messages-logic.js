@@ -17,6 +17,24 @@ export const TEXTS = {
   sync: "Mit Stud.IP abgleichen",
 };
 
+/** Uni Hildesheim: Learnweb-Nachrichten (Kennung "lw-msg-…", app/learnweb_messages.py, 05.11.2026) */
+export const isLearnweb = m => !!m && (m.source === "learnweb" || String(m.id || "").startsWith("lw-msg-"));
+
+/** Hochschule Hannover: Moodle-Nachrichten (Kennung "moodle-…", app/moodle.py, 05.11.2026) */
+export const isMoodle = m => !!m && (m.source === "moodle" || String(m.id || "").startsWith("moodle-"));
+
+/** Texte je Quelle (Stud.IP, Learnweb bzw. Moodle) */
+export const sourceTexts = m => isLearnweb(m)
+  ? { open: "Im Learnweb öffnen", openHint: "öffnet die Unterhaltung im Learnweb",
+      privacy: "Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie im Learnweb nicht als gelesen." }
+  : isMoodle(m)
+    ? { open: "In Moodle öffnen", openHint: "öffnet die Unterhaltung in Moodle",
+        privacy: "Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie in Moodle nicht als gelesen." }
+    : { open: TEXTS.open, openHint: "öffnet den Posteingang in Stud.IP", privacy: TEXTS.privacy };
+
+/** Name der Quelle fuer "… verbunden ist": "das Learnweb", "Moodle", "Stud.IP" */
+export const sourceName = source => source === "learnweb" ? "das Learnweb" : source === "moodle" ? "Moodle" : "Stud.IP";
+
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export { esc };
 
@@ -105,6 +123,7 @@ export function rowLabel(m, fresh, today) {
   if (m.sender) parts.push(`von ${m.sender}`);
   const t = listTime(m.sent_at, today);
   if (t) parts.push(t);
+  if (m.replies?.length) parts.push("Beantwortet");
   return (fresh ? ["Neu", ...parts] : parts).join(", ");
 }
 
@@ -115,20 +134,20 @@ export function listHtml(messages, { selected, mark, today }) {
     const first = chips(m, today)[0];
     return `<button type="button" class="msg-row${on ? " on" : ""}${fresh ? " fresh" : ""}" data-id="${esc(m.id)}" aria-label="${esc(rowLabel(m, fresh, today))}"${on ? ` aria-current="true"` : ""}>
       <span class="msg-dot" aria-hidden="true"></span>
-      <span class="msg-main"><span class="msg-top"><b class="msg-who">${esc(m.sender || "Stud.IP")}</b><span class="msg-time">${esc(listTime(m.sent_at, today))}</span></span>
+      <span class="msg-main"><span class="msg-top"><b class="msg-who">${esc(m.sender || "Stud.IP")}</b><span class="msg-time">${m.replies?.length ? `<span class="msg-replied" aria-hidden="true">✓</span> ` : ""}${esc(listTime(m.sent_at, today))}</span></span>
       <span class="msg-subj">${esc(m.subject || TEXTS.noSubject)}</span>${first ? `<span class="msg-chip-line">${esc(first.label)}</span>` : ""}</span></button>`;
   }).join("");
 }
 
 /** Lesebereich: Betreff, Absender (Rolle), Datum, erkannte Tage, ganzer Text, "In Stud.IP öffnen" (nur http/https) */
 export function readerHtml(m, { today, back = false, icon = () => "" }) {
-  const cs = chips(m, today), url = httpUrl(m.url);
+  const cs = chips(m, today), url = httpUrl(m.url), st = sourceTexts(m);
   return `${back ? `<button type="button" class="btn ghost sm msg-back" aria-label="Zurück zu den Nachrichten">${icon("chevron-left", 16)} ${esc(TEXTS.back)}</button>` : ""}
     <h2 class="msg-title" tabindex="-1">${esc(m.subject || TEXTS.noSubject)}</h2>
     <div class="msg-meta"><span class="badge info">${esc(m.sender || "Stud.IP")}</span><span class="muted small">${esc(fullDate(m.sent_at))}</span></div>
     ${cs.length ? `<div class="msg-chips" aria-label="Erkannte Termine: ${esc(cs.map(c => c.label).join(", "))}">${cs.map(c => `<span class="badge ${c.tone}">${esc(c.label)}</span>`).join("")}</div>` : ""}
     <hr class="msg-rule">
     ${m.text ? `<div class="msg-text">${esc(m.text)}</div>` : `<p class="muted">${esc(TEXTS.noText)}</p>`}
-    ${url ? `<p><a class="btn" href="${esc(url)}" target="_blank" rel="noopener" aria-label="${esc(TEXTS.open)}: öffnet den Posteingang in Stud.IP">${esc(TEXTS.open)} ${icon("arrow-right", 15)}</a></p>` : ""}
-    <p class="muted tiny">${esc(TEXTS.privacy)}</p>`;
+    ${url ? `<p><a class="btn" href="${esc(url)}" target="_blank" rel="noopener" aria-label="${esc(st.open)}: ${esc(st.openHint)}">${esc(st.open)} ${icon("arrow-right", 15)}</a></p>` : ""}
+    <p class="muted tiny">${esc(st.privacy)}</p>`;
 }

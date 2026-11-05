@@ -29,7 +29,9 @@ enum CommunityTexts {
     static let reportNotice = "Die Meldung geht an die Moderation von StudiNow. Gemeldet wird nur die Lösung, nicht deine Apple-ID. Schreib keine persönlichen Daten in den Hinweis."
     /// Free: wo man schreiben wuerde, steht der Weg zu Plus (Lesen, Melden, Blockieren und Beitreten gehen ohne)
     static let pseudonymPlusHint = "Ein Pseudonym brauchst du erst zum Veröffentlichen eigener Lösungen – ab \(UFPlan.plus.name)."
-    static let createGroupPlusHint = "Eigene Lerngruppen anlegen und Lösungen veröffentlichen kannst du ab \(UFPlan.plus.name). Beitreten geht in jedem Tarif."
+    static let createGroupPlusHint = "Eigene Lerngruppen anlegen und Lösungen veröffentlichen kannst du ab \(UFPlan.plus.name)."
+    /// Community ab Plus (Entscheidung 05.11.2026): Free liest, beitritt und fragt nicht
+    static let communityPlusHint = "Die Community gibt es ab \(UFPlan.plus.name)."
 
     static func matches(_ n: Int) -> String {
         n == 1 ? "1 Lösung aus der Community zu diesem Blatt" : "\(n) Lösungen aus der Community zu diesem Blatt"
@@ -176,7 +178,7 @@ struct CommunitySpacesCard: View {
         }
         .padding(.bottom, 24)
         .task { await reload() }
-        .task { await inbox.load() }
+        .task { if Entitlements.shared.allows(.communityRead) { await inbox.load() } }
         .task {
             guard let api = session.api, let uni = account.university?.rawValue else { return }
             await CommunityTint.load(api: api, university: uni)
@@ -192,6 +194,7 @@ struct CommunitySpacesCard: View {
     }
 
     private func reload() async {
+        guard Entitlements.shared.allows(.communityRead) else { return }          // Community ab Plus (05.11.2026)
         do { spaces = try await service.communities(); error = nil } catch { self.error = CommunityTexts.message(error) }
     }
 
@@ -695,6 +698,8 @@ struct CommunitySolutionsSheet: View {
     }
 
     private func load(force: Bool = false) async {
+        // Community ab Plus (05.11.2026): ohne das Recht keine Abfrage, die Sperrkarte steht schon da
+        guard Entitlements.shared.allows(.communityRead) else { return }
         error = nil
         do {
             items = try await CommunityMatches.shared.load(fingerprint: fingerprint, service: service, force: force)
@@ -861,7 +866,8 @@ struct CommunityModulePanel: View {
 
 struct CommunitySettingsCard: View {
     @EnvironmentObject private var toast: UFToastCenter
-    /// Lesen, Beitreten und Sperrliste in jedem Tarif; Pseudonym und Lerngruppen anlegen ab Plus (`.shareSolutions`)
+    /// Lesen, Beitreten und Sperrliste ab Plus (`.communityRead`, 05.11.2026); Pseudonym und Lerngruppen anlegen ab Plus
+    /// (`.shareSolutions`)
     @ObservedObject var entitlements: Entitlements = .shared
     @Environment(\.ufShowPlans) private var showPlans
     @State private var plansSheet = false

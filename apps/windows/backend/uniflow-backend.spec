@@ -16,10 +16,23 @@ sys.path.insert(0, str(ROOT))
 datas = [(str(ROOT / "app" / "static"), "app/static"), (str(ROOT / ".env.example"), "."),
          (str(ROOT / "docs" / "release"), "docs/release")]            # Rechtsseiten (app/legal.py)
 # Studienverlauf (app/study_catalog.py liest ROOT/packages/... und ROOT/apps/apple/...): Register der Quellen und
-# Grundstock der Modulkataloge (nur Fakten, 0,3 MB) im selben Unterpfad wie im Repo, sonst bleibt die Katalogsuche leer
+# Grundstock der Modulkataloge (nur Fakten, 0,3 MB) im selben Unterpfad wie im Repo, sonst bleibt die Katalogsuche leer.
+# Nicht noetig: study-area-rules-luh.json (steckt schon im Grundstock, tools/build-luh-seed.py) und luh-index.json (nur
+# der Swift-Kern). tests/test_windows_package.py prueft, dass jede Datei, die app/*.py so liest, hier steht.
 datas += [(str(ROOT / "packages" / "shared-contracts" / "study-sources.json"), "packages/shared-contracts"),
           (str(ROOT / "packages" / "shared-contracts" / "study-sources-all.json"), "packages/shared-contracts"),
+          # Pruefungsanmeldung der LUH und der Uni Hildesheim (app/exam_registration.py liest sie zur Laufzeit; 30 + 30 KB)
+          (str(ROOT / "packages" / "shared-contracts" / "exam-registration-luh.json"), "packages/shared-contracts"),
+          (str(ROOT / "packages" / "shared-contracts" / "exam-registration-hildesheim.json"), "packages/shared-contracts"),
+          (str(ROOT / "packages" / "shared-contracts" / "exam-registration-hsh.json"), "packages/shared-contracts"),
+          (str(ROOT / "packages" / "shared-contracts" / "mensa.json"), "packages/shared-contracts"),
           (str(ROOT / "apps" / "apple" / "UniFlow" / "Resources" / "StudyCatalogSeed" / "luh.json.gz"),
+           "apps/apple/UniFlow/Resources/StudyCatalogSeed"),
+          # Grundstock der Universitaet Hildesheim (tools/build-hildesheim-seed.py, 0,1 MB)
+          (str(ROOT / "apps" / "apple" / "UniFlow" / "Resources" / "StudyCatalogSeed" / "hildesheim.json.gz"),
+           "apps/apple/UniFlow/Resources/StudyCatalogSeed"),
+          # Grundstock der Hochschule Hannover (tools/build-hsh-seed.py, 0,1 MB)
+          (str(ROOT / "apps" / "apple" / "UniFlow" / "Resources" / "StudyCatalogSeed" / "hsh.json.gz"),
            "apps/apple/UniFlow/Resources/StudyCatalogSeed")]
 datas += collect_data_files("tzdata")                 # Zeitzonen (Windows hat keine eigene Datenbank)
 datas += collect_data_files("playwright")             # Node-Treiber von Playwright (ohne Browser)

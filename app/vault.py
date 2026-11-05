@@ -168,6 +168,8 @@ def has_university_credentials(user_id: str, university: str) -> bool:
     if university == "hildesheim":
         return bool((env.get("HILDESHEIM_USER") and env.get("HILDESHEIM_PASSWORD")) or env.get("LEARNWEB_TOKEN")
                     or _has_cookies(env.get("LEARNWEB_COOKIES")))
+    if university == "hsh":
+        return bool(env.get("HSH_MOODLE_TOKEN") or _has_cookies(env.get("HSH_COOKIES")))
     return bool((env.get("STUDIP_USER") and env.get("STUDIP_PASSWORD")) or _has_cookies(env.get("STUDIP_COOKIES")))
 
 

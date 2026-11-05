@@ -1,4 +1,8 @@
+import AuthenticationServices
+import Combine
+import CryptoKit
 import Foundation
+import StoreKit
 import SwiftUI
 import UIKit
 import UniFlowCore
@@ -17,16 +21,20 @@ struct StudoraAccountKeychain: AccountTokenStore {
     static func remove(userScope: String) -> Bool { KeychainStore(service: service).remove(userScope) }
 }
 
-/// Anfragen an den StudiNow-Dienst (nur https)
+/// Anfragen an den StudiNow-Dienst (nur https). `session` austauschbar (Tests: URLProtocol-Attrappe), `timeout` fuer
+/// KI-Anfragen laenger (ein Schritt "Ganzes Dokument" dauert)
 struct URLSessionServiceTransport: ServiceHTTPTransport {
+    var session: URLSession = .shared
+    var timeout: TimeInterval = 60
+
     func send(_ request: AIHTTPRequest) async throws -> ServiceHTTPResponse {
         guard let url = URL(string: request.url), url.scheme == "https" else { throw URLError(.badURL) }
-        var r = URLRequest(url: url, timeoutInterval: 60)
+        var r = URLRequest(url: url, timeoutInterval: timeout)
         r.httpMethod = request.method
         r.httpBody = request.body
         for (k, v) in request.headers { r.setValue(v, forHTTPHeaderField: k) }
         r.setValue("StudiNow-iPad/1.0", forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await URLSession.shared.data(for: r)
+        let (data, response) = try await session.data(for: r)
         let http = response as? HTTPURLResponse
         var headers: [String: String] = [:]
         for (k, v) in http?.allHeaderFields ?? [:] { headers[String(describing: k)] = String(describing: v) }
@@ -40,15 +48,38 @@ extension Notification.Name {
 }
 
 /// StudiNow-Konto auf dem iPad (V1, Entscheidung des Inhabers vom 29.10.2026; Plan ENTSCHEIDUNGEN-INHABER-2026-10-29 §3):
-/// anmelden mit E-Mail (wer sich auf Windows registriert hat) und spaeter mit Apple, angemeldete Geraete, Datenexport,
-/// Konto loeschen. Noch ohne Abgleich der Notizen (Stufe 2). Sichtbar erst mit Dienst-Adresse (`StudoraServiceURL`).
+/// anmelden mit E-Mail (wer sich auf Windows registriert hat) oder mit Apple (nativ, Token-Tausch beim Dienst),
+/// angemeldete Geraete, Datenexport, Konto loeschen. Seit 05.11.2026 der Weg zur StudiNow-KI (Pro AI, Probe): mit
+/// Anmeldung und passendem Tarif haengt `use` die StudiNow-KI ins lokale Backend (`LocalAI.setService`), meldet
+/// App-Store-Kaeufe an `POST /api/billing/apple/verify` und zeigt den Credits-Stand (docs/ABO-SYSTEM.md Abschnitt 6b).
 @MainActor
 final class StudoraAccountLink: ObservableObject {
-    /// Adresse des Dienstes aus der Info.plist; leer = es gibt noch keinen Server (Konto unsichtbar)
+    /// Hinweis an den KI-Stellen bei Pro AI bzw. Probe ohne Anmeldung (`StudiNowAIAccess.signInRequired`)
+    nonisolated static let aiSignInHint = "Mit StudiNow Pro AI antwortet hier die StudiNow-KI. Melde dich dafür einmal mit deinem StudiNow-Konto an – am einfachsten mit Apple."
+
+    /// Feste Adresse des Dienstes, wie `service_link.DEFAULT_SERVICE_URL` der Windows-App
+    nonisolated static let defaultServiceURL = "https://app.studinow.app"
+    /// Schluessel fuer eine andere Adresse (Info.plist oder Startargument `-StudoraServiceURL https://…`, z. B. Testdienst)
+    nonisolated static let serviceURLKey = "StudoraServiceURL"
+
+    /// Adresse des Dienstes: Startargument bzw. Einstellung > Info.plist > `defaultServiceURL`; nur https. Ein leerer
+    /// Eintrag in der Info.plist schaltet den Dienst ab (Konto unsichtbar, keine StudiNow-KI).
     nonisolated static var serviceURL: String? {
-        (Bundle.main.object(forInfoDictionaryKey: "StudoraServiceURL") as? String).flatMap { $0.hasPrefix("https://") ? $0 : nil }
+        resolveServiceURL(info: Bundle.main.object(forInfoDictionaryKey: serviceURLKey) as? String,
+                          override: UserDefaults.standard.string(forKey: serviceURLKey))
     }
     nonisolated static var available: Bool { serviceURL != nil }
+
+    /// Reine Regel fuer `serviceURL` (testbar)
+    nonisolated static func resolveServiceURL(info: String?, override: String?) -> String? {
+        func https(_ s: String?) -> String? {
+            guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), t.hasPrefix("https://"), URL(string: t)?.host != nil else { return nil }
+            return t.hasSuffix("/") ? String(t.dropLast()) : t
+        }
+        if let o = https(override) { return o }
+        if let info { return info.trimmingCharacters(in: .whitespaces).isEmpty ? nil : https(info) }
+        return defaultServiceURL
+    }
 
     /// Feste Kennung dieses Geraets fuer die Geraeteliste (nicht die Werbe-ID, nur fuer StudiNow)
     static var deviceID: String {
@@ -60,13 +91,27 @@ final class StudoraAccountLink: ObservableObject {
     }
 
     @Published private(set) var user: StudoraAccount.User? {
-        didSet { updateCommunityRoute() }
+        didSet { updateCommunityRoute(); updateAI() }
     }
     @Published private(set) var sessions: [StudoraAccount.Session] = []
     /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
     @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
-        didSet { Entitlements.shared.useServiceTrial(planStatus?.trialPlan.flatMap(UFPlan.init(rawValue:))) }
+        didSet {
+            Entitlements.shared.useServiceTrial(planStatus?.trialPlan.flatMap(UFPlan.init(rawValue:)))
+            UFBillingServiceLink.accountToken = planStatus?.appleAccountToken
+            updateAI()
+        }
     }
+    /// Weg zur StudiNow-KI (`StudiNowAIAccess`): bereit, Anmeldung fehlt, Tarif fehlt; die KI-Stellen richten sich danach
+    @Published private(set) var aiAccess: StudiNowAIAccess = .planRequired
+    /// StudiNow-KI dieses Apple-Nutzers (nil ohne Dienst-Adresse); haengt nur mit `aiAccess == .ready` im Backend
+    private(set) var studinowAI: StudiNowAI?
+    private var tokenStore: AccountTokenStore?
+    private let entitlements: Entitlements
+    private var planWatch: AnyCancellable?
+    private var attachTask: Task<Void, Never>?
+    /// Kaeufe dieses Kontos wurden in diesem Prozess schon an den Dienst gemeldet
+    private var reportedPurchasesFor: String?
     /// Credits der StudiNow-KI in diesem Monat (`credits` aus `GET /api/entitlements`); nil ohne Konto oder ohne Stand
     @Published private(set) var credits: StudoraCredits?
     /// Was die letzte KI-Antwort gekostet hat (`charged`), fuer die Kostenzeile; nil bis zur ersten Antwort mit Stand
@@ -91,6 +136,14 @@ final class StudoraAccountLink: ObservableObject {
 
     private(set) var account: StudoraAccount?
     private var scope: String?
+
+    /// `entitlements`: Tarif auf dem iPad (App Store, Probe); Tests geben einen eigenen
+    init(entitlements: Entitlements? = nil) {
+        let ent = entitlements ?? .shared
+        self.entitlements = ent
+        // Tarif auf dem iPad geaendert (Kauf, Ablauf, Probe): Weg zur KI neu bestimmen (nach dem Setzen, daher im naechsten Takt)
+        planWatch = ent.$plan.dropFirst().sink { [weak self] _ in Task { @MainActor in self?.updateAI() } }
+    }
 
     /// `true`, wenn der Abgleich gerade laufen darf: angemeldet, gleiche Hochschule wie das Konto, keine Demo-Inhalte
     static func canSync(user: StudoraAccount.User?, university: String?, blocked: Bool) -> Bool {
@@ -140,7 +193,7 @@ final class StudoraAccountLink: ObservableObject {
     func use(userScope: String?, host: LocalBackendHost? = nil, university: String? = nil) {
         self.host = host
         self.university = university
-        defer { updateCommunityRoute() }
+        defer { updateCommunityRoute(); updateAI() }
         guard userScope != scope else { return }
         scope = userScope
         lastSync = nil
@@ -151,12 +204,56 @@ final class StudoraAccountLink: ObservableObject {
         clearCredits()
         account = nil
         creditsClient = nil
+        studinowAI = nil
+        tokenStore = nil
+        reportedPurchasesFor = nil
+        entitlements.verifyOnServer = nil
         guard let userScope, let base = Self.serviceURL else { return }
         let tokens = StudoraAccountKeychain(userScope: userScope)
         account = StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: tokens,
                                  deviceID: Self.deviceID, deviceName: UIDevice.current.name)
         creditsClient = StudoraCredits.Client(base: base, http: URLSessionServiceTransport(), tokens: tokens)
+        attachAI(base: base, http: URLSessionServiceTransport(timeout: 180), tokens: tokens)
         Task { await refresh() }
+    }
+
+    // MARK: StudiNow-KI
+
+    /// StudiNow-KI mit diesem Transport und Token bauen (App: URLSession; Tests: Attrappe). Haengt sie nur bei
+    /// `aiAccess == .ready` ins Backend.
+    func attachAI(base: String, http: ServiceHTTPTransport, tokens: AccountTokenStore) {
+        tokenStore = tokens
+        studinowAI = StudiNowAI(base: base, http: http, tokens: tokens, onCredits: { [weak self] c in
+            Task { @MainActor in self?.noteAIResponse(["credits": c]) }
+        }, onSignedOut: { [weak self] in
+            Task { @MainActor in self?.signedOutByService() }
+        })
+        updateAI()
+    }
+
+    /// Weg zur KI neu bestimmen und die StudiNow-KI ins Backend haengen bzw. herausnehmen. Ohne passenden Tarif oder
+    /// ohne Anmeldung haengt nichts: dann geht keine Anfrage an den Dienst.
+    func updateAI() {
+        let signedIn = user != nil || tokenStore?.load() != nil
+        let access = StudiNowAIAccess.decide(serviceConfigured: studinowAI != nil, signedIn: signedIn, localPlan: entitlements.plan.rawValue,
+                                             servicePlan: planStatus?.plan, serviceTrialActive: planStatus?.trialActive ?? false)
+        if access != aiAccess { aiAccess = access }
+        guard let host else { return }
+        attachTask?.cancel()
+        attachTask = Task { @MainActor [weak self] in
+            guard let backend = try? await host.backend(), let self, !Task.isCancelled else { return }
+            backend.context.ai.setService(self.aiAccess == .ready ? self.studinowAI : nil)
+        }
+    }
+
+    /// Der Dienst hat die Sitzung beendet (401 bei einer KI-Anfrage): abgemeldet, KI-Stellen zeigen die Anmeldung
+    private func signedOutByService() {
+        user = nil
+        sessions = []
+        planStatus = nil
+        clearCredits()
+        entitlements.verifyOnServer = nil
+        updateAI()
     }
 
     // MARK: Credits
@@ -195,6 +292,21 @@ final class StudoraAccountLink: ObservableObject {
         return true
     }
 
+    /// Knopf zu einem Fehler der KI: Tarif bei fehlendem Recht, Kontingent oder Credits (beim 429 `credits_exhausted`
+    /// wird der Stand uebernommen), Anmeldung ohne gueltige Sitzung; nil = nur die Meldung
+    static func errorAction(_ error: Error, account: StudoraAccountLink?) -> StudiNowAIAction? {
+        if account?.noteAIError(error) ?? StudoraCredits.isExhausted(error) { return .plans }
+        let code = (error as? APIError)?.code ?? (error as? AccountError)?.code
+        let action = StudiNowAIText.action(code: code)
+        if action == .signIn, let account { Task { await account.refresh() } }      // Sitzung beendet: Karte und KI-Stellen zeigen es
+        return action
+    }
+
+    /// Beschriftung des Knopfs zu `errorAction`
+    nonisolated static func errorButton(_ action: StudiNowAIAction) -> String {
+        action == .signIn ? "Mit StudiNow-Konto anmelden" : "Tarif ansehen"
+    }
+
     private func run(_ op: @escaping (StudoraAccount) async throws -> Void) async {
         guard let account else { return }
         busy = true
@@ -205,14 +317,16 @@ final class StudoraAccountLink: ObservableObject {
             // Texte der Fehlercodes: ServiceErrorText (UniFlowCore), mit Retry-After
             message = e.userMessage
             messageAction = e.action
-            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearCredits() }
+            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil }
         } catch {
             message = error.localizedDescription
         }
     }
 
     func refresh() async {
-        guard let account, await account.isSignedIn else { user = nil; sessions = []; planStatus = nil; clearCredits(); return }
+        guard let account, await account.isSignedIn else {
+            user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI(); return
+        }
         await run { a in
             let me = try await a.me()
             self.user = me.user
@@ -221,7 +335,102 @@ final class StudoraAccountLink: ObservableObject {
             // Credits-Stand aus derselben Antwort (`credits`); ohne Stand bleibt die Zeile weg
             await self.refreshCredits()
         }
-        if user != nil, PendingInvite.current() != nil { _ = await redeemPendingInvite() }
+        updateAI()
+        guard user != nil else { return }
+        hookPurchases()
+        if reportedPurchasesFor != user?.id { await reportPurchases() }
+        if PendingInvite.current() != nil { _ = await redeemPendingInvite() }
+    }
+
+    // MARK: Abo aus dem App Store beim Dienst (docs/ABO-SYSTEM.md Abschnitt 3)
+
+    /// Neue Transaktionen (Kauf, Verlaengerung, Wiederherstellen) gehen an den Dienst, solange ein Konto angemeldet ist.
+    /// Der Kauf auf dem iPad gilt immer (StoreKit); ein Fehler des Dienstes sperrt ihn nicht.
+    private func hookPurchases() {
+        entitlements.verifyOnServer = { [weak self] jws in
+            await self?.reportTransaction(jws)
+            return true
+        }
+    }
+
+    /// Alle gueltigen Abos dieser Apple-ID einmal je Anmeldung melden (Wiederherstellen beim Dienst), danach den Stand
+    /// neu laden; ohne Abo keine Anfrage
+    func reportPurchases() async {
+        guard let id = user?.id else { return }
+        reportedPurchasesFor = id
+        var sent = false
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified = result else { continue }
+            await reportTransaction(result.jwsRepresentation, reload: false)
+            sent = true
+        }
+        if sent, let account { planStatus = (try? await account.planStatus()) ?? planStatus; await refreshCredits() }
+    }
+
+    /// Eine signierte Transaktion an `POST /api/billing/apple/verify`; 409 (Abo gehoert zu einem anderen Konto) zeigt die
+    /// Karte, 503 `apple_not_configured` und Netzfehler bleiben still (das Abo gilt auf dem iPad trotzdem)
+    func reportTransaction(_ jws: String, reload: Bool = true) async {
+        guard let account, user != nil, !jws.isEmpty else { return }
+        do {
+            try await account.verifyApple(signedTransaction: jws)
+            if reload { planStatus = (try? await account.planStatus()) ?? planStatus; await refreshCredits() }
+        } catch let e as AccountError where e.code == "subscription_owned_by_other_account" {
+            message = e.userMessage
+        } catch {
+            // nicht erreichbar oder Pruefung im Dienst nicht eingerichtet: beim naechsten Start erneut
+            reportedPurchasesFor = nil
+        }
+    }
+
+    // MARK: Mit Apple anmelden
+
+    /// Nonce der laufenden Apple-Anmeldung (Rohwert; an Apple geht nur sein SHA-256)
+    private var appleNonce: String?
+
+    /// "Mit Apple anmelden" (`SignInWithAppleButton`, onRequest): E-Mail-Wunsch und Nonce in die Anfrage an Apple
+    func prepareAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
+        let nonce = Self.randomNonce()
+        appleNonce = nonce
+        request.requestedScopes = [.email]
+        request.nonce = Self.sha256(nonce)
+    }
+
+    /// Ergebnis von Apple: das `identity_token` geht an `POST /api/account/login/apple`; ein neues Konto bekommt die
+    /// Hochschule dieses Containers und beim Dienst die 7-Tage-Probe mit 25 Credits. Gespeichert wird nur das
+    /// Sitzungs-Token (Schluesselbund). Abbruch im Apple-Fenster bleibt ohne Meldung.
+    func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) async {
+        let nonce = appleNonce
+        appleNonce = nil
+        switch result {
+        case .failure(let error):
+            if let e = error as? ASAuthorizationError, e.code == .canceled { return }
+            message = "Die Anmeldung mit Apple hat nicht geklappt: \(error.localizedDescription)"
+        case .success(let auth):
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential,
+                  let data = credential.identityToken, let token = String(data: data, encoding: .utf8) else {
+                message = "Apple hat keine Anmeldung geliefert. Bitte erneut versuchen."
+                return
+            }
+            await loginWithApple(identityToken: token, nonce: nonce, email: credential.email)
+        }
+    }
+
+    /// Tausch des Apple-Tokens gegen eine Sitzung beim Dienst (auch fuer Tests ohne Apple-Fenster)
+    func loginWithApple(identityToken: String, nonce: String?, email: String?) async {
+        let uni = university
+        await run { a in _ = try await a.loginWithApple(identityToken: identityToken, nonce: nonce, university: uni, email: email) }
+        await refresh()
+    }
+
+    /// Zufaelliger Nonce (32 Zeichen); an Apple geht nur sein SHA-256, an den Dienst der Rohwert
+    nonisolated static func randomNonce(length: Int = 32) -> String {
+        let chars = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var g = SystemRandomNumberGenerator()
+        return String((0..<length).map { _ in chars[Int(g.next() % UInt64(chars.count))] })
+    }
+
+    nonisolated static func sha256(_ s: String) -> String {
+        SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Gemerkte Einladung (`https://studinow.app/i/<CODE>`, Views/Settings/InviteView.swift) einmal beim Dienst einloesen,
@@ -270,6 +479,9 @@ final class StudoraAccountLink: ObservableObject {
         sessions = []
         planStatus = nil
         clearCredits()
+        entitlements.verifyOnServer = nil
+        reportedPurchasesFor = nil
+        updateAI()
     }
 
     /// ZIP in eine temporaere Datei (zum Teilen); nil bei Fehler
@@ -294,7 +506,7 @@ final class StudoraAccountLink: ObservableObject {
     func delete(password: String?) async -> Bool {
         var ok = false
         await run { a in _ = try await a.delete(password: password); ok = true }
-        if ok { user = nil; sessions = []; planStatus = nil; clearCredits() }
+        if ok { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI() }
         return ok
     }
 }
@@ -378,5 +590,41 @@ extension EnvironmentValues {
     var ufStudoraAccount: StudoraAccountLink? {
         get { self[UFStudoraAccountKey.self] }
         set { self[UFStudoraAccountKey.self] = newValue }
+    }
+}
+
+// MARK: - Weg zur KI fuer die Ansichten
+
+/// Weg zur StudiNow-KI (`StudoraAccountLink.aiAccess`); Standard `.planRequired`, damit Ansichten ohne Anschluss
+/// (Tests, Vorschauen) den Tarif-Hinweis zeigen
+private struct UFAIAccessKey: EnvironmentKey { static let defaultValue: StudiNowAIAccess = .planRequired }
+/// Die KI-Stellen antworten gerade ueber die StudiNow-KI (mit Credits), nicht ueber das eigene ChatGPT
+private struct UFStudiNowAIKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    var ufAIAccess: StudiNowAIAccess {
+        get { self[UFAIAccessKey.self] }
+        set { self[UFAIAccessKey.self] = newValue }
+    }
+
+    var ufStudiNowAI: Bool {
+        get { self[UFStudiNowAIKey.self] }
+        set { self[UFStudiNowAIKey.self] = newValue }
+    }
+}
+
+/// Reicht den Weg der KI an alle Ansichten weiter (beobachtet ChatGPT und das Konto): `ufAIEnabled` (es kann gefragt
+/// werden), `ufStudiNowAI` (ueber die StudiNow-KI, mit Credits) und `ufAIAccess` (Anmeldung oder Tarif fehlt).
+/// Reihenfolge wie im Backend (`LocalAI.provider`): eigenes ChatGPT vor der StudiNow-KI.
+struct UFAIAccessProvider: ViewModifier {
+    @ObservedObject var chatgpt: ChatGPTLink
+    @ObservedObject var account: StudoraAccountLink
+
+    func body(content: Content) -> some View {
+        let studinow = !chatgpt.enabled && account.aiAccess == .ready
+        content
+            .environment(\.ufAIEnabled, chatgpt.enabled || studinow)
+            .environment(\.ufStudiNowAI, studinow)
+            .environment(\.ufAIAccess, account.aiAccess)
     }
 }

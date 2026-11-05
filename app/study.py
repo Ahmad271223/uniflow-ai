@@ -1088,10 +1088,13 @@ def upcoming_deadlines(conn, t, limit: int = 50) -> list[dict]:
                             FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
                             WHERE d.due_at >= ? OR (d.overdue=1 AND d.kind IN ('abgabe','test_ende','frist') AND d.due_at >= ?)
                             ORDER BY (d.due_at >= ?), d.due_at LIMIT ?""", (now, since, now, limit))
-    return [{"date": r["due_at"][:10], "time": r["due_at"][11:16], "kind": r["kind"],
-             "kind_label": ("überfällig: " if r["due_at"] < now else "") + DEADLINE_LABELS.get(r["kind"], "Frist"), "overdue": r["due_at"] < now,
-             "title": r["title"], "full_title": r["full_title"] or r["title"], "course_title": r["course_title"], "module_id": r["module_id"], "color": r["color"],
-             "url": r["url"], "deadline_id": r["id"]} for r in rows]
+    out = [{"date": r["due_at"][:10], "time": r["due_at"][11:16], "kind": r["kind"],
+            "kind_label": ("überfällig: " if r["due_at"] < now else "") + DEADLINE_LABELS.get(r["kind"], "Frist"), "overdue": r["due_at"] < now,
+            "title": r["title"], "full_title": r["full_title"] or r["title"], "course_title": r["course_title"], "module_id": r["module_id"], "color": r["color"],
+            "url": r["url"], "deadline_id": r["id"]} for r in rows]
+    # aus Dokumenten und Ankuendigungen erkannte Abgaben, Tests und Pruefungen (app/due_store.py, wie StudyCalendar.swift)
+    from . import due_store
+    return due_store.merge_upcoming(out, conn, t, now, limit)
 
 
 def dashboard(conn) -> dict:

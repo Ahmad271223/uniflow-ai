@@ -147,6 +147,10 @@ def obtain(key: str, uid: str, generate, log=print, wait_s: float | None = None)
     from . import config
     assigned = variant(uid, key)
     if not config.is_hosted():
+        # Windows-App mit StudiNow-Konto (05.11.2026): derselbe Pool wie im Dienst ueber /api/v2/shared-tests
+        got = obtain_via_service(key, generate, log=log, wait_s=wait_s)
+        if got is not None:
+            return got
         res = generate()
         return {"title": res.get("title"), "questions": res.get("questions") or [], "share_variant": assigned, "adopted_from": None}
     from . import test_library
@@ -182,6 +186,75 @@ def obtain(key: str, uid: str, generate, log=print, wait_s: float | None = None)
         return {"title": title, "questions": questions, "share_variant": v, "adopted_from": None}
     res = generate()
     return {"title": res.get("title"), "questions": res.get("questions") or [], "share_variant": assigned, "adopted_from": None}
+
+
+SERVICE_WAIT_S = 90.0
+SERVICE_POLL_S = 5.0
+
+
+def obtain_via_service(key: str, generate, log=print, wait_s: float | None = None, sleep=None) -> dict | None:
+    """Gemeinsamer Pool des Dienstes fuer die Windows-App (V2, app/library_api.py): eigene Variante (der Dienst rechnet
+    sie aus dem Konto) fertig -> uebernehmen (keine KI, 0 Credits); in Arbeit -> bis `wait_s` warten (Abfrage alle 5 s);
+    frei -> Platz belegen, mit der KI des PCs erzeugen (eigenes ChatGPT oder StudiNow-KI), veroeffentlichen; scheitert
+    das Erzeugen, wird der Platz frei. None = ohne Konto oder ohne Netz: dann wie bisher nur eigener Test."""
+    import time
+    from . import ai_relay
+    if not ai_relay.linked():
+        return None
+    sleep = sleep or time.sleep
+    wait_s = SERVICE_WAIT_S if wait_s is None else wait_s
+    try:
+        d = ai_relay.service_json("GET", f"/api/v2/shared-tests/{key}", timeout=20)
+    except ai_relay.RelayError as e:
+        log(f"Gemeinsamer Wochentest: Dienst nicht erreichbar ({e.message}), eigener Test")
+        return None
+    waited = 0.0
+    for _ in range(int(wait_s // SERVICE_POLL_S) + MAX_VARIANTS + 2):
+        action = d.get("action")
+        if action == "adopt" and isinstance(d.get("test"), dict):
+            v = int(d.get("adopt_variant", d.get("variant", 0)))
+            t = d["test"]
+            log(f"Gemeinsamer Wochentest uebernommen ({key[:16]}…, Variante {v + 1} von {MAX_VARIANTS}, Dienst)")
+            return {"title": t.get("title"), "questions": t.get("questions") or [], "share_variant": v, "adopted_from": ADOPTED_SERVICE}
+        if action == "wait":
+            if waited >= wait_s:
+                break                                   # verwaist oder sehr langsam: eigener Test ohne Veroeffentlichung
+            sleep(SERVICE_POLL_S)
+            waited += SERVICE_POLL_S
+        elif action == "generate":
+            v = int(d.get("generate_as", d.get("variant", 0)))
+            try:
+                claim = ai_relay.service_json("POST", f"/api/v2/shared-tests/{key}/claim", {"variant": v}, timeout=20)
+            except ai_relay.RelayError:
+                return None
+            if claim.get("claimed"):
+                try:
+                    res = generate()
+                except Exception:
+                    try:
+                        ai_relay.service_json("DELETE", f"/api/v2/shared-tests/{key}/{v}", timeout=20)
+                    except ai_relay.RelayError:
+                        pass
+                    raise
+                title, questions = res.get("title"), res.get("questions") or []
+                try:
+                    ai_relay.service_json("POST", f"/api/v2/shared-tests/{key}/{v}", {"title": title, "questions": questions}, timeout=20)
+                    log(f"Gemeinsamer Wochentest erzeugt und geteilt ({key[:16]}…, Variante {v + 1} von {MAX_VARIANTS}, Dienst)")
+                    return {"title": title, "questions": questions, "share_variant": v, "adopted_from": None}
+                except ai_relay.RelayError as e:
+                    log(f"Gemeinsamer Wochentest nicht geteilt ({e.message})")
+                    try:
+                        ai_relay.service_json("DELETE", f"/api/v2/shared-tests/{key}/{v}", timeout=20)
+                    except ai_relay.RelayError:
+                        pass
+                    return {"title": title, "questions": questions, "share_variant": None, "adopted_from": None}
+        else:
+            break
+        try:
+            d = ai_relay.service_json("GET", f"/api/v2/shared-tests/{key}", timeout=20)
+        except ai_relay.RelayError:
+            return None
+    return None
 
 
 def _adopt(slot: dict, v: int, log, key: str) -> dict:

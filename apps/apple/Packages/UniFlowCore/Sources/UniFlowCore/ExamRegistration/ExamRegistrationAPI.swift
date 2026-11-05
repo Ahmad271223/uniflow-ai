@@ -4,11 +4,19 @@ import Foundation
 /// "Diese Prüfungen solltest du anmelden" aus dem persoenlichen Studienverlauf (`StudyPlanEngine`), Klausurtermine aus
 /// allen Quellen (`Exams`), QIS-Noten (bestanden -> nicht gelistet, Vermerk AN -> angemeldet) und die gelesenen Zeilen
 /// von "Info über angemeldete Prüfungen" (`QISRegistrationsSync`). Rechnet nur; angemeldet wird nie von der App.
+/// Hochschule aus `settings.university` (`ExamRegistrationPeriods.for(university:)`): LUH (QIS, Meldezeitraeume je
+/// Studiengang) und Uni Hildesheim (LSF, Start der POS-Anmeldung ohne einheitliche Frist: `open_end`, keine Warnung
+/// "endet in", Karte nur kurz vor und in den ersten `openEndCardDays` Tagen; Gelesenes aus "Meine POS-Anmeldungen").
 public enum ExamRegistrationAPI {
     public static let hint = "Tippe im QIS auf „Prüfungsanmeldung/-abmeldung“, wähle die Prüfung und bestätige selbst. StudiNow füllt nichts aus und schickt nichts ab."
     public static let disclaimer = "Verbindlich sind die Fristen im QIS und auf den Seiten des Prüfungsamts. Module aus anderen Studiengängen können andere Zeiträume haben."
     /// Warnung, wenn der Meldezeitraum in hoechstens so vielen Tagen endet und noch Pruefungen fehlen
     public static let warnDays = 3
+    /// Fenster ohne Ende (Uni Hildesheim): Karte auf der Uebersicht nur so viele Tage ab dem Start
+    public static let openEndCardDays = 14
+
+    /// Texte je Pruefungssystem ("QIS" der LUH, "LSF" der Uni Hildesheim)
+    public static func openLabel(_ system: String) -> String { "Im \(system) anmelden" }
     static let suggestStatuses: Set<String> = ["offen", "geplant", "nicht_bestanden", "angemeldet"]
 
     static func vbp(_ exam: String?) -> Bool {
@@ -50,12 +58,12 @@ public enum ExamRegistrationAPI {
 
     public static func response(_ c: SQLiteConnection, today: String) throws -> JSONValue {
         let university = try c.scalar("SELECT value FROM settings WHERE key='university'")?.string ?? Migrations.defaultUniversity
-        let data = ExamRegistrationPeriods.luh
-        let qisURL: JSONValue = .string(data.qisMenu)
-        guard university == data.university else {
+        guard let data = ExamRegistrationPeriods.for(university: university), data.university == university else {
             return ["supported": false, "university": .string(university), "show_card": false, "suggestions": [], "registered": [],
                     "warnings": [], "periods": [], "qis_url": .null, "hint": .string(hint), "disclaimer": .string(disclaimer)]
         }
+        let qisURL: JSONValue = .string(data.qisMenu)
+        let system = data.system
         guard let day = BerlinClock.parseISODate(today) else { throw LocalHTTPError(status: 400, message: "Tag unlesbar") }
 
         // Studienverlauf
@@ -66,7 +74,7 @@ public enum ExamRegistrationAPI {
         // Studiengang -> Terminseite
         let name = picked.catalog?["program"]?.string ?? StudyPlanEngine.programOf(grades)
         let degree = picked.catalog?["degree"]?.string
-        let program = data.program(name: name, degree: degree)
+        let program = data.resolve(name: name, degree: degree)
         let window = data.window(program, today: today, kind: "meldung")
         let termName = window?.term ?? StudyPlanEngine.termName(StudyPlanEngine.currentTerm(today))
         // VbP nur, wenn ihr Fenster zum selben Semester gehoert (sonst passt es nicht zu den Vorschlaegen)
@@ -97,7 +105,7 @@ public enum ExamRegistrationAPI {
             o["exam_date"] = StudyPlanEngine.opt(date)
             o["exam_time"] = StudyPlanEngine.opt(time.flatMap { $0.isEmpty ? nil : $0 })
             o["exam_room"] = e?["room"] ?? StudyPlanEngine.opt(reg?.room)
-            o["exam_source"] = e?["source_label"] ?? (date != nil && reg != nil ? "aus QIS (angemeldet)" : .null)
+            o["exam_source"] = e?["source_label"] ?? (date != nil && reg != nil ? .string("aus \(system == "LSF" ? "dem " : "")\(system) (angemeldet)") : .null)
             var until: String? = reg?.isoWithdraw
             var rule: String?
             if let (n, text) = withdrawDays(exam, rules: data.rules) {
@@ -160,14 +168,16 @@ public enum ExamRegistrationAPI {
                 guard !key.isEmpty, seen.insert(key).inserted else { continue }
                 let reg = registration(code: nil, key: key)
                 let viaQIS = (e["sources"]?.array ?? []).contains { $0["kind"]?.string == "qis" }
+                // gelesene Anmeldung mit Termin (Exams-Quelle "anmeldung")
+                let viaInfo = (e["sources"]?.array ?? []).contains { $0["kind"]?.string == "anmeldung" }
                 let id = e["id"]?.string ?? "exam-\(i)"
                 var o: [String: JSONValue] = [
                     "id": .string(id), "title": .string(title), "lp": .null, "exam": .null, "kind": .null, "code": .null,
                     "status": .null, "fachsemester": .null, "period": "meldung", "last_attempt": false,
                     "app_module_ids": .array(e["module_id"]?.int.map { [JSONValue.number(Double($0))] } ?? []),
                     "reason_kind": "klausur", "reason": .string("Klausurtermin bekannt"),
-                    "registered": .bool(viaQIS || reg != nil),
-                    "registered_via": viaQIS ? JSONValue.string("notenspiegel") : (reg != nil ? JSONValue.string("qis_info") : JSONValue.null),
+                    "registered": .bool(viaQIS || viaInfo || reg != nil),
+                    "registered_via": viaQIS ? JSONValue.string("notenspiegel") : (reg != nil || viaInfo ? JSONValue.string("qis_info") : JSONValue.null),
                 ]
                 examFields(key, exam: nil, reg: reg, into: &o)
                 order[id] = i
@@ -195,18 +205,23 @@ public enum ExamRegistrationAPI {
             }
         }
         func plural(_ n: Int) -> String { n == 1 ? "1 geplante Prüfung ist" : "\(n) geplante Prüfungen sind" }
-        if let w = window, w.phase == .open, w.daysLeft <= warnDays, !openMain.isEmpty {
+        // ohne bekanntes Ende (Uni Hildesheim) gibt es kein "endet in": die Frist steht je Pruefung im LSF
+        if let w = window, w.phase == .open, !w.period.openEnd, w.daysLeft <= warnDays, !openMain.isEmpty {
             warnings.append(["kind": "ende", "tone": "bad",
                              "text": .string("Die Anmeldung endet \(endText(w)). \(plural(openMain.count)) noch nicht angemeldet.")])
         }
-        if let w = vbpWindow, w.phase == .open, w.daysLeft <= warnDays, !openVbp.isEmpty {
+        if let w = vbpWindow, w.phase == .open, !w.period.openEnd, w.daysLeft <= warnDays, !openVbp.isEmpty {
             warnings.append(["kind": "vbp_ende", "tone": "bad",
                              "text": .string("Die Anmeldung für VbP endet \(endText(w)). \(plural(openVbp.count)) noch nicht angemeldet.")])
         }
 
         let run = try QISRegistrationsSync.lastRun(c)
-        let showCard = (window.map { $0.phase == .open || $0.phase == .soon } ?? false)
-            || (vbpWindow?.phase == .open && !openVbp.isEmpty)
+        let showCard = (window.map { w in
+            if w.phase == .soon { return true }
+            guard w.phase == .open else { return false }
+            // ohne Ende: nur die ersten Tage ab dem Start (sonst stuende die Karte das ganze Semester da)
+            return !w.period.openEnd || (BerlinClock.parseISODate(w.period.start).map { day - $0 <= openEndCardDays } ?? false)
+        } ?? false) || (vbpWindow?.phase == .open && !openVbp.isEmpty)
         let registeredJSON: [JSONValue] = regs.map { r in
             ["pruefungsnr": StudyPlanEngine.opt(r.pruefungsnr), "text": .string(r.text), "semester": StudyPlanEngine.opt(r.semester),
              "date": StudyPlanEngine.opt(r.isoDate), "date_text": StudyPlanEngine.opt(r.datum), "time": StudyPlanEngine.opt(r.clock),
@@ -217,7 +232,8 @@ public enum ExamRegistrationAPI {
             "supported": true, "university": .string(university),
             "program": program.map { p in
                 ["name": StudyPlanEngine.opt(name.map(ExamRegistrationPeriods.programName)), "degree": StudyPlanEngine.opt(degree),
-                 "slug": .string(p.slug), "url": .string(p.url), "verified": .bool(p.table != nil), "variant": StudyPlanEngine.opt(p.variant)]
+                 "slug": .string(p.slug), "url": .string(p.url), "verified": .bool(p.table != nil), "variant": StudyPlanEngine.opt(p.variant),
+                 "all_programs": .bool(p.isDefault)]
             } ?? .null,
             "program_name": StudyPlanEngine.opt(name.map(ExamRegistrationPeriods.programName)),
             "source": ["url": .string(program?.url ?? data.generalURL), "general_url": .string(data.generalURL),
@@ -231,8 +247,9 @@ public enum ExamRegistrationAPI {
             "registered": .array(registeredJSON),
             "registrations_checked_at": run?["at"] ?? .null, "registrations_ok": run?["ok"] ?? .null,
             "registrations_message": run?["message"] ?? .null,
-            "warnings": .array(warnings), "qis_url": qisURL, "hint": .string(hint),
-            "rules": .array(data.rules.map { .string($0.text) }), "disclaimer": .string(disclaimer),
+            "warnings": .array(warnings), "qis_url": qisURL, "hint": .string(data.hint ?? hint),
+            "rules": .array(data.rules.map { .string($0.text) }), "disclaimer": .string(data.disclaimer ?? disclaimer),
+            "system": .string(system), "open_label": .string(openLabel(system)), "period_note": StudyPlanEngine.opt(data.periodNote),
         ]
     }
 }

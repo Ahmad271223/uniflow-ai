@@ -78,7 +78,9 @@ def test_new_course_keys_per_day_are_limited(hosted, monkeypatch):  # noqa: F811
 def test_group_preview_before_joining(hosted):  # noqa: F811
     _, g = _user(hosted, "gruender@beispiel.de")
     assert call(hosted, "POST", "/groups", g, {"group_key": GRUPPE, "name": "Lernrunde Mathe"})[0] == 201
-    _, neu = _user(hosted, "neu@beispiel.de", plus=False)
+    _, free = _user(hosted, "free@beispiel.de", plus=False)
+    assert call(hosted, "GET", f"/groups/{GRUPPE}", free)[1]["code"] == "plan_required", "Community ab Plus (05.11.2026)"
+    _, neu = _user(hosted, "neu@beispiel.de")
     st, d = call(hosted, "GET", f"/groups/{GRUPPE}", neu)
     assert st == 200 and d["name"] == "Lernrunde Mathe" and d["members"] == 1
     assert call(hosted, "GET", "/communities", neu)[1]["communities"] == [], "Vorschau tritt nicht bei"

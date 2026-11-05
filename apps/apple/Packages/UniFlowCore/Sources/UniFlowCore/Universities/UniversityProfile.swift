@@ -9,11 +9,14 @@ import Foundation
 //
 // luh        -> Stud.IP (WebSSO/Shibboleth) + QIS der Leibniz Universitaet Hannover
 // hildesheim -> Learnweb (Moodle) + LSF der Universitaet Hildesheim, Anmeldung ueber das zentrale CAS
+// hsh        -> Moodle + Campusmanagement (HISinOne, SAML-IdP) der Hochschule Hannover, je eigene Anmeldung mit dem
+//               SSO-Account (docs/HSH-2026-11-05.md)
 
 /// Schluessel einer Hochschule (Werte wie `universities.PROFILES` in Python).
 public enum UniversityKey: String, Sendable, CaseIterable, Codable, Hashable {
     case luh
     case hildesheim
+    case hsh
 
     /// Wie `universities.DEFAULT`
     public static let `default`: UniversityKey = .luh
@@ -158,12 +161,13 @@ public struct UniversityProfile: Sendable, Hashable {
          "grades_source": .string(gradesSource), "login": .string(login), "user_label": .string(userLabel)]
     }
 
-    public static let all: [UniversityProfile] = [luh, hildesheim]
+    public static let all: [UniversityProfile] = [luh, hildesheim, hsh]
 
     public static func profile(for key: UniversityKey) -> UniversityProfile {
         switch key {
         case .luh: return luh
         case .hildesheim: return hildesheim
+        case .hsh: return hsh
         }
     }
 
@@ -235,7 +239,7 @@ extension UniversityProfile {
                                   connected: false, connector: false),
             UniversityServiceLink(key: "tib", name: "TIB Bibliothek", url: "https://www.tib.eu/", desc: "Literatur, Lernplätze, Ausleihe",
                                   login: "Bibliotheksausweis", icon: "book", connected: false, connector: false),
-            UniversityServiceLink(key: "mensa", name: "Mensa (Studentenwerk)", url: "https://www.studentenwerk-hannover.de/essen/speiseplaene",
+            UniversityServiceLink(key: "mensa", name: "Mensa (Studentenwerk)", url: "https://www.studentenwerk-hannover.de/essen/mensen-und-cafes",
                                   desc: "Speisepläne der Mensen", login: "–", icon: "sun", connected: false, connector: false),
             UniversityServiceLink(key: "servicecenter", name: "ServiceCenter",
                                   url: "https://www.uni-hannover.de/de/studium/beratung-hilfe/servicecenter",
@@ -281,4 +285,62 @@ extension UniversityProfile {
         hasBulletinBoard: false,
         studipBase: nil,
         casBase: hildesheimCAS, learnwebBase: hildesheimLearnweb, lsfBase: hildesheimLSF)
+
+    // Hochschule Hannover (app/universities.py HSH_*, app/hisinone.py): Moodle mit eigenem Formular, Campusmanagement
+    // (HISinOne) mit SAML beim IdP der HsH (SimpleSAMLphp), altes QIS icms.hs-hannover.de im Iframe
+    public static let hshMoodle = URL(string: "https://moodle.hs-hannover.de")!
+    public static let hshCampus = URL(string: "https://campusmanagement.hs-hannover.de")!
+    public static let hshCampusStart = URL(string: hshCampus.absoluteString + "/qisserver/pages/cs/sys/portal/hisinoneStartPage.faces")!
+    /// "Anmelden mit SSO Hochschule Hannover" (leitet zum IdP)
+    public static let hshCampusLogin = URL(string: hshCampus.absoluteString + "/qisserver/api/identityprovider/redirect/4/login")!
+    static let hshIdPHost = "idp.hs-hannover.de"
+    static let hshICMSHost = "icms.hs-hannover.de"
+
+    public static let hsh = UniversityProfile(
+        key: .hsh, name: "Hochschule Hannover", short: "HsH", filesSource: "Moodle", gradesSource: "Campusmanagement",
+        login: "SSO-Account (Moodle, Campusmanagement)", userLabel: "SSO-Account (abc-123-sso)", keychainPrefix: "hsh",
+        gradeLayout: .hisinone,
+        loginServices: [
+            // Moodle: nur das eigene Formular (kein SSO-Knopf), gleiche Zugangsdaten
+            UniversityLoginService(
+                key: "moodle", name: "Moodle", userLabel: "SSO-Account",
+                entryURLs: [hshMoodle.appendingPathComponent("login/index.php")],
+                targets: [UniversityLoginTarget(host: hshMoodle.host ?? "", pathPrefix: "/login/")]),
+            // Campusmanagement: SAML beim IdP der HsH; das versteckte Dialogfeld "Sitzung abgelaufen" auf jeder
+            // HISinOne-Seite ist kein Anmeldeort
+            UniversityLoginService(
+                key: "campus", name: "Campusmanagement", userLabel: "SSO-Account",
+                entryURLs: [hshCampusLogin],
+                targets: [UniversityLoginTarget(host: hshIdPHost, pathPrefix: "/simplesaml/")]),
+        ],
+        // Abo-Adresse des Stundenplans (persoenlich, user+hash) wie ein Schluessel: "hsh.ical.token"
+        tokenServices: ["ical"],
+        // HSH_SERVICES (app/universities.py)
+        services: [
+            UniversityServiceLink(key: "moodle", name: "Moodle", url: hshMoodle.absoluteString + "/my/",
+                                  desc: "Kurse, Materialien, Abgaben, Kalender", login: "SSO-Account", icon: "book",
+                                  connected: true, connector: false),
+            UniversityServiceLink(key: "campusmanagement", name: "Campusmanagement (HISinOne)", url: hshCampus.absoluteString + "/",
+                                  desc: "Stundenplan, Prüfungsanmeldung, Leistungen, Bescheinigungen", login: "SSO-Account",
+                                  icon: "exam", connected: false, connector: true),
+            UniversityServiceLink(key: "accounts", name: "Accountmanager", url: "https://accounts.hs-hannover.de/",
+                                  desc: "Masteraccount: SSO-, WLAN- und E-Mail-Konto einrichten, Passwörter", login: "Masteraccount",
+                                  icon: "user", connected: false, connector: false),
+            UniversityServiceLink(key: "mail", name: "E-Mail (Outlook)", url: "https://outlook.cloud.microsoft/",
+                                  desc: "Postfach vorname.nachname@stud.hs-hannover.de", login: "Microsoft-Konto der HsH",
+                                  icon: "bell", connected: false, connector: false),
+            UniversityServiceLink(key: "it", name: "Hochschul-IT (service.it)", url: "https://service.it.hs-hannover.de/de/willkommen/",
+                                  desc: "Anleitungen: Accounts, WLAN, VPN, Academic Cloud", login: "–", icon: "settings",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "termine", name: "Termine & Fristen",
+                                  url: "https://www.hs-hannover.de/ueber-uns/organisation/akademische-angelegenheiten/studierende/wichtige-termine-fristen",
+                                  desc: "Vorlesungszeiten, Rückmeldung, Beurlaubung", login: "–", icon: "calendar",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "mensa", name: "Mensa (Studentenwerk)", url: "https://www.studentenwerk-hannover.de/essen/mensen-und-cafes",
+                                  desc: "Speisepläne der Mensen", login: "–", icon: "sun", connected: false, connector: false),
+            UniversityServiceLink(key: "uni", name: "Hochschule Hannover", url: "https://www.hs-hannover.de/",
+                                  desc: "Webseite der Hochschule", login: "–", icon: "info", connected: false, connector: false),
+        ],
+        hasBulletinBoard: false,
+        studipBase: nil, casBase: nil, learnwebBase: hshMoodle, lsfBase: nil)
 }

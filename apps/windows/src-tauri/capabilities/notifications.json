@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "notifications",
+  "description": "Erinnerungen an erkannte Fristen (app/static/due-reminders.js): nur Mitteilungen, nur fuer die Seite des lokalen Backends auf 127.0.0.1.",
+  "windows": ["main"],
+  "remote": { "urls": ["http://127.0.0.1:*/*"] },
+  "permissions": ["notification:default"]
+}

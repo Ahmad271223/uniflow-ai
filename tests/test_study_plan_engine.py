@@ -55,6 +55,72 @@ def test_chosen_electives_fill_plan_slots():
     assert where["robotik"] == 7, "Platz im 6. (SoSe), Robotik nur im WS"
 
 
+def _full_case(name):
+    """Fall auf dem Katalog mit vollen Bereichen (TIBSc26): Plan und {Bereich: [Fachsemester der Plaetze]}"""
+    from app import study_plan
+    fx = _engine()
+    c = next(c for c in fx["cases"] if c["name"] == name)
+    plan = study_plan.build_plan(fx["catalogs"]["TIBSc26"], c["grades"], c["settings"], c["today"])
+    slots: dict[str, list[int]] = {}
+    for s in plan["semesters"]:
+        for sl in s["slots"]:
+            slots.setdefault(sl["area"], []).append(s["fachsemester"])
+    return plan, slots, {a["id"]: a for a in plan["areas"]}
+
+
+def test_full_area_has_no_open_slot():
+    """Fund 05.11.2026 (INFBSc22, Web und iPad): "Proseminar" blieb stehen, obwohl Akademisches Arbeiten mit
+    "noch 0 von 5 LP offen" voll war. Kein Platz eines Bereichs, dessen Bedarf durch Module gedeckt ist"""
+    plan, slots, areas = _full_case("bereiche_offen_verlaufsplan")
+    assert slots == {"akademisches-arbeiten": [4], "vertiefung": [4, 5, 6, 6], "seminare": [5], "labore": [5, 5]}
+    for name in ("proseminar_bereich_voll_fachsemester", "proseminar_bereich_voll_eigene_lage"):
+        plan, slots, areas = _full_case(name)
+        assert areas["akademisches-arbeiten"]["lp_open"] == 0 and areas["akademisches-arbeiten"]["slots"] == 0, name
+        assert "akademisches-arbeiten" not in slots, name
+        assert slots["vertiefung"] == [4, 5, 6, 6], name
+    # Bestand und Plaetze passen in jedem Fall zusammen: ein Bereich mit Bedarf und Platz hat noch etwas offen
+    fx = _engine()
+    for c in fx["cases"]:
+        if c.get("catalog_code") != "TIBSc26":
+            continue
+        plan, slots, areas = _full_case(c["name"])
+        for aid in slots:
+            a = areas[aid]
+            if a["target"] is not None and a["lp_open"] == 0:
+                assert a["modules_required"] is not None and a["count"] < a["modules_required"], (c["name"], aid)
+
+
+def test_lp_only_area_full_and_partial():
+    """Nur LP (Vertiefung 10 bis 20 LP): gedeckt -> keine Plaetze mehr, die Wahlmodule gehen an die Spanne der Praxis;
+    teilweise -> das Modul belegt einen Platz, der zweite bleibt mit den restlichen 5 LP"""
+    plan, slots, areas = _full_case("lp_bereich_voll")
+    assert "vertiefung" not in slots and slots["praxis"] == [6, 6]
+    assert areas["vertiefung"]["lp_open"] == 0
+    plan, slots, areas = _full_case("lp_bereich_teilweise")
+    assert slots["vertiefung"] == [5, 6, 6] and "praxis" not in slots
+    assert areas["vertiefung"]["lp_open"] == 5 and areas["vertiefung"]["chosen"] == ["vertiefung-c"]
+    assert areas["praxis"]["chosen"] == [], "Modul in zwei Bereichen zaehlt genau einmal"
+
+
+def test_count_only_area_full_and_lp_with_count():
+    """Nur Zahl der Module (Seminare, 1): eigener Eintrag deckt -> kein Platz; Labore (6 LP und 2 Module): 6 LP gedeckt,
+    aber erst 1 Modul -> ein Platz bleibt"""
+    plan, slots, areas = _full_case("zahl_bereich_voll")
+    assert "seminare" not in slots and areas["seminare"]["count"] == 1
+    assert slots["labore"] == [5] and areas["labore"]["lp_open"] == 0 and areas["labore"]["count"] == 1
+
+
+def test_area_slots_cover_lp_and_count():
+    """Bereich ohne Verlaufsplan mit LP und Zahl der Module: so viele Plaetze, dass beides reicht"""
+    from app import study_plan
+    fx = _engine()
+    cat = json.loads(json.dumps(fx["catalogs"]["TIBSc26"]))
+    cat.pop("plan_slots")
+    plan = study_plan.build_plan(cat, [], {"start_term": "WiSe 26/27", "electives": ["labor-a"]}, "2026-11-04")
+    labor = [sl for s in plan["semesters"] for sl in s["slots"] if sl["area"] == "labore"]
+    assert len(labor) == 1 and labor[0]["lp"] == 3, "6 LP gedeckt, 1 von 2 Modulen: ein Platz in Modulgroesse (Median 3 LP)"
+
+
 def test_terms_and_name_keys():
     from app import study_plan as sp
     assert sp.term_name(sp.parse_term("Wintersemester 2025/2026")) == "WiSe 25/26"

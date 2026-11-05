@@ -55,6 +55,9 @@ struct MainView: View {
                 CommunityPage()
             case .communitySpace(let key):
                 CommunitySpacePage(key: key).id(key)
+            case .mensa:
+                // Mensa (05.11.2026): oeffentliche Speiseplaene, ohne Stud.IP und ohne Tarif
+                MensaPage().id(session.api?.base)
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }
@@ -69,6 +72,7 @@ struct MainView: View {
         .modifier(MessagesInboxHost())                                       // "Nachrichten": sichtbar und Zahl neuer
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
+        .modifier(OlderSemesterLoaderHost())                                 // fruehere Semester im Hintergrund (SyncOrder, Stufe d)
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
         // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle
         .onChange(of: session.api?.base) { _, _ in shell.attach(session.api); UFSessionState.reset(); overlay.closeAll() }

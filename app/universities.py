@@ -2,6 +2,8 @@
 
 luh        -> Stud.IP (WebSSO/Shibboleth) + QIS der Leibniz Universitaet Hannover (bisheriger Ablauf)
 hildesheim -> Learnweb (Moodle) + LSF der Universitaet Hildesheim, Anmeldung ueber das zentrale CAS
+hsh        -> Moodle + Campusmanagement (HISinOne) der Hochschule Hannover, je eigene Anmeldeseite mit dem
+              SSO-Account (docs/HSH-2026-11-05.md)
 """
 from __future__ import annotations
 
@@ -13,6 +15,12 @@ LEARNWEB_BASE = "https://www.uni-hildesheim.de/learnweb2026"
 LSF_BASE = "https://lsf.uni-hildesheim.de"
 LSF_CURRENT_LECTURES = (f"{LSF_BASE}/qisserver/rds?state=currentLectures&type=0&next=CurrentLectures.vm&nextdir=ressourcenManager"
                         "&navigationPosition=lectures%2CcurrentLectures&breadcrumb=currentLectures&topitem=lectures&subitem=currentLectures")
+
+# Hochschule Hannover (oeffentliche Angaben, docs/HSH-2026-11-05.md): Moodle mit eigener Anmeldeseite, HISinOne
+# unter campusmanagement.hs-hannover.de (Startseite leitet auf /qisserver/rds?state=user&type=0)
+HSH_MOODLE_BASE = "https://moodle.hs-hannover.de"
+HSH_CM_BASE = "https://campusmanagement.hs-hannover.de"
+HSH_CM_START = f"{HSH_CM_BASE}/qisserver/pages/cs/sys/portal/hisinoneStartPage.faces"
 
 PROFILES: dict[str, dict] = {
     "luh": {
@@ -38,6 +46,18 @@ PROFILES: dict[str, dict] = {
         "learnweb_base": LEARNWEB_BASE,
         "lsf_base": LSF_BASE,
     },
+    "hsh": {
+        "key": "hsh",
+        "name": "Hochschule Hannover",
+        "short": "HsH",
+        "files_source": "Moodle",
+        "grades_source": "Campusmanagement",
+        "login": "SSO-Account (Moodle, Campusmanagement)",
+        "cred_prefix": "HSH",
+        "user_label": "SSO-Account (abc-123-sso)",
+        "moodle_base": HSH_MOODLE_BASE,
+        "cm_base": HSH_CM_BASE,
+    },
 }
 
 HILDESHEIM_SERVICES = [
@@ -47,6 +67,22 @@ HILDESHEIM_SERVICES = [
     {"key": "lsf-ausfall", "name": "Heute im LSF (Räume)", "url": LSF_CURRENT_LECTURES, "desc": "Alle heutigen Veranstaltungen mit aktuellem Raum; Ausfälle stehen in der Veranstaltung unter „fällt aus am“", "login": "–", "icon": "alert"},
     {"key": "uni", "name": "Uni Hildesheim", "url": "https://www.uni-hildesheim.de/", "desc": "Webseite der Universität", "login": "–", "icon": "info"},
 ]
+
+HSH_SERVICES = [
+    {"key": "moodle", "name": "Moodle", "url": f"{HSH_MOODLE_BASE}/my/", "desc": "Kurse, Materialien, Abgaben, Kalender", "login": "SSO-Account", "icon": "book", "connected": True},
+    {"key": "campusmanagement", "name": "Campusmanagement (HISinOne)", "url": f"{HSH_CM_BASE}/", "desc": "Stundenplan, Prüfungsanmeldung, Leistungen, Bescheinigungen", "login": "SSO-Account", "icon": "exam", "connector": True},
+    {"key": "accounts", "name": "Accountmanager", "url": "https://accounts.hs-hannover.de/", "desc": "Masteraccount: SSO-, WLAN- und E-Mail-Konto einrichten, Passwörter", "login": "Masteraccount", "icon": "user"},
+    {"key": "mail", "name": "E-Mail (Outlook)", "url": "https://outlook.cloud.microsoft/", "desc": "Postfach vorname.nachname@stud.hs-hannover.de", "login": "Microsoft-Konto der HsH", "icon": "bell"},
+    {"key": "it", "name": "Hochschul-IT (service.it)", "url": "https://service.it.hs-hannover.de/de/willkommen/", "desc": "Anleitungen: Accounts, WLAN, VPN, Academic Cloud", "login": "–", "icon": "settings"},
+    {"key": "termine", "name": "Termine & Fristen", "url": "https://www.hs-hannover.de/ueber-uns/organisation/akademische-angelegenheiten/studierende/wichtige-termine-fristen", "desc": "Vorlesungszeiten, Rückmeldung, Beurlaubung", "login": "–", "icon": "calendar"},
+    {"key": "mensa", "name": "Mensa (Studentenwerk)", "url": "https://www.studentenwerk-hannover.de/essen/mensen-und-cafes", "desc": "Speisepläne der Mensen", "login": "–", "icon": "sun"},
+    {"key": "uni", "name": "Hochschule Hannover", "url": "https://www.hs-hannover.de/", "desc": "Webseite der Hochschule", "login": "–", "icon": "info"},
+]
+
+
+def services(key: str) -> list[dict] | None:
+    """Dienste-Liste einer Hochschule ohne Stud.IP (Hildesheim, HsH); None fuer die LUH (SERVICES in app/server.py)"""
+    return {"hildesheim": HILDESHEIM_SERVICES, "hsh": HSH_SERVICES}.get(key)
 
 
 def valid(key: str | None) -> bool:

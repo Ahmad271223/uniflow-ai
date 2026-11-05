@@ -3,15 +3,17 @@
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); dazu Ergaenzungen, deren Fehler die Seite nicht anhalten: Neuigkeiten, Schwarzes
 // Brett und die Karte "Nächste Klausuren" (GET /api/exams/upcoming, exams.js; nur wenn es welche gibt).
-import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=44";
-import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=48";
-import { openEvent } from "./views-tt.js?v=46";
-import { installBanner, bindInstallBanner } from "./pwa.js?v=15";
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=45";
+import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=49";
+import { openEvent } from "./views-tt.js?v=47";
+import { installBanner, bindInstallBanner } from "./pwa.js?v=16";
 import { staggerOnce, countUp } from "./motion.js?v=2";
-import { newsCard, bindNews } from "./news.js?v=5";
+import { newsCard, bindNews } from "./news.js?v=6";
 import { ofWeek } from "./task-progress.js?v=1";
 import { masteryTile } from "./mastery.js?v=2";
 import { examsCard } from "./exams.js?v=1";
+import * as Greeting from "./greeting.js?v=1";                 // "Hallo Ahmad – lass uns gemeinsam lernen." (05.11.2026)
+import { recentCard } from "./recent.js?v=1";                  // "Zuletzt benutzt" (GET /api/recent, app/recent.py)
 
 const OPEN = t => !["erledigt", "uebersprungen"].includes(t.status);
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -152,9 +154,9 @@ function announcementsCard(d) {
 /// `hints()` liefert die Hinweiskarten des Dienstes (Probe, siehe app.js trialHint); sie stehen unter dem Tagesplan.
 export async function viewDashboard(_, __, view, hints = () => "") {
   // Neuigkeiten (Ankuendigungen, Nachrichten, Aenderungen) und neue Anzeigen im Schwarzen Brett sind Ergaenzungen: ein Fehler haelt die Uebersicht nicht an
-  const [d, news, bulletin, exams] = await Promise.all([api("/dashboard"), api("/news").catch(() => null), api("/studip/bulletin").catch(() => null),
-    api("/exams/upcoming").catch(() => null)]);
-  const h = new Date().getHours(); const greet = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
+  const [d, news, bulletin, exams, recent, settings] = await Promise.all([api("/dashboard"), api("/news").catch(() => null), api("/studip/bulletin").catch(() => null),
+    api("/exams/upcoming").catch(() => null), api("/recent?limit=10").catch(() => null), api("/settings").catch(() => null)]);
+  const greet = Greeting.text(Greeting.pick({ rufname: settings?.rufname, accountName: state.account?.name ?? state.appAccount?.user?.name, userName: settings?.user_name }), new Date().getHours());
   const today = d.today, pk = today.packages;
   const evs = (today.events || []).filter(e => e.status !== "verschoben");
   const openTasks = pk.flatMap(p => p.tasks.filter(OPEN).map(t => ({ ...t, p })));
@@ -169,18 +171,22 @@ export async function viewDashboard(_, __, view, hints = () => "") {
   const soloFocus = planEmpty && focus.kind === "none";                     // nichts da: ein Block statt zwei
   // "Neuigkeiten" ersetzt die Karte "Ankuendigungen" (wie auf dem iPad); nur wenn /api/news nicht antwortet, bleibt die alte
   const newsHtml = news ? newsCard(news.items, d.today.date, bulletin?.new_count || 0) : announcementsCard(d);
-  const rest = [termineCard(d), newsHtml, modulesCard(d), weekCard(d), newFilesCard(d)].filter(Boolean);
+  const rest = [recentCard(recent?.items, { icon, esc }), termineCard(d), newsHtml, modulesCard(d), weekCard(d), newFilesCard(d)].filter(Boolean);
   const nEv = evs.filter(e => e.status === "teilnahme").length;
   view.innerHTML = `<div class="content ov" style="max-width:1120px">
-    <div class="page-head greet"><div><h1>${greet}!</h1><div class="date">${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })} · ${pk.length ? `heute ${pk.length} Lernpaket${pk.length > 1 ? "e" : ""}` : "heute kein Lernpaket"}${nEv ? ` · ${nEv} Uni-Termin${nEv > 1 ? "e" : ""}` : ""}</div></div>
+    <div class="page-head greet"><div><h1>${esc(greet)}</h1><div class="date">${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })} · ${pk.length ? `heute ${pk.length} Lernpaket${pk.length > 1 ? "e" : ""}` : "heute kein Lernpaket"}${nEv ? ` · ${nEv} Uni-Termin${nEv > 1 ? "e" : ""}` : ""}</div></div>
       <div class="actions"><a class="btn" href="#/plan?view=day&date=${today.date}">${icon("calendar", 16)} Tagesansicht</a></div></div>
     ${statLine(d)}
-    ${examsCard(exams?.items, icon("flag", 18))}
+    ${examsCard(exams?.items, icon("flag", 18))}<div id="xrHost"></div><div id="mensaHost"></div>
     <div class="ov-top${planEmpty ? " solo" : ""}">${focusBlock(d, ctx, focus, lecture, planEmpty && !soloFocus ? emptyAside() : "")}${planEmpty ? "" : planCard(d, ctx)}</div>
     ${installBanner()}${hints()}
     ${rest.length ? `<div class="ov-rest">${rest.join("")}</div>` : ""}</div>`;
   bindInstallBanner(view);
   if (news) bindNews(view, news.items, d.today.date);
+  // Pruefungsanmeldung (exam-registration.js): Hinweis, Karte im Meldezeitraum, Abzeichen an "Nächste Klausuren"
+  import("./exam-registration.js?v=2").then(X => X.renderDashboard($("#xrHost", view), $(".ov-exams", view))).catch(() => {});
+  // Heute in der Mensa (mensa.js): drei Hauptgerichte der gewaehlten Mensa, am Wochenende und an geschlossenen Tagen nichts
+  import("./mensa.js?v=3").then(M => M.renderDashboard($("#mensaHost", view))).catch(() => { const h = $("#mensaHost", view); if (h) h.innerHTML = ""; });
   // Abschnitte erscheinen beim ersten Oeffnen leicht gestaffelt, Kennzahlen rollen zur neuen Zahl (motion.js)
   staggerOnce($(".content.ov", view), "dashboard");
   $$(".ov-stats b", view).forEach((b, i) => countUp(b, `dashboard-stat-${i}`));

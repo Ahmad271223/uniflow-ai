@@ -30,6 +30,8 @@ enum UFRoute: Hashable {
     /// Seite einer Community (Modul oder Lerngruppe) ueber ihren Schluessel, 03.11.2026: ganze Seite statt Vollbild-Blatt
     case communitySpace(String)
     case settings(tab: String? = nil)
+    /// Mensa (05.11.2026, Views/Mensa/MensaViews.swift): Speiseplaene der Studentenwerke, frei in jedem Tarif
+    case mensa
 
     /// Menuepunkt, der markiert wird (Dokument -> "Dokumente & Notizen", wie route() in app.js)
     var navKey: String {
@@ -45,6 +47,7 @@ enum UFRoute: Hashable {
         case .services: return "services"
         case .community, .communitySpace: return "community"
         case .settings: return "settings"
+        case .mensa: return "mensa"
         }
     }
 
@@ -75,6 +78,7 @@ enum UFRoute: Hashable {
         case .community: return "#/community"
         case .communitySpace(let key): return "#/community/\(key)"
         case .settings(let t): return "#/settings" + q([("tab", t)])
+        case .mensa: return "#/mensa"
         }
     }
 
@@ -109,6 +113,7 @@ enum UFRoute: Hashable {
         case "services": self = .services
         case "community": self = second.map { .communitySpace($0) } ?? .community
         case "settings": self = .settings(tab: q["tab"])
+        case "mensa": self = .mensa
         default: self = .dashboard
         }
     }
@@ -197,6 +202,7 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "files", title: "Dokumente & Notizen", icon: "folder", route: .files()),
         UFNavItem(id: "exams", title: "Tests & Wiederholung", icon: "exam", route: .exams),
         UFNavItem(id: "services", title: "Uni & Noten", icon: "graduation", route: .services),
+        UFNavItem(id: "mensa", title: "Mensa", icon: "utensils", route: .mensa),
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
@@ -319,6 +325,8 @@ struct UFNavGroup: Identifiable, Equatable {
     static let layout: [(id: String, title: String, members: [String])] = [
         ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "studyplan", "files", "services"]),
         ("learn", "Lernen", ["aiStart", "exams", "cards"]),
+        // Mensa (05.11.2026): Alltag neben dem Studium, auf jedem Geraet und in jedem Tarif
+        ("everyday", "Alltag", ["mensa"]),
         ("together", "Gemeinsam", ["community"]),
     ]
 

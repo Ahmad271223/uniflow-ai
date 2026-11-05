@@ -246,6 +246,49 @@ final class StudyCatalogSyncTests: XCTestCase {
         XCTAssertEqual(StudyCatalogValidator.validate(try JSONValue.parse(p)), [])
     }
 
+    /// Hochschule Hannover (docs/STUDIENGAENGE-HSH-2026-11-05.md): der Grundstock im App-Bundle enthaelt hsh-index.json +
+    /// hsh.json.gz; eine HsH-Person (settings.university = hsh) bekommt ihren Katalog ohne Download und einen Plan
+    func testAppBundleHshSeedGivesHshStudentAPlan() async throws {
+        let seeds = try XCTUnwrap(StudyCatalogSync.bundledSeed, "Ressource StudyCatalogSeed fehlt im App-Bundle (xcodegen generate)")
+        let hsh = try XCTUnwrap(seeds.seed(university: "hsh"), "hsh-index.json fehlt im App-Bundle")
+        XCTAssertGreaterThan(hsh.entries.count, 80)
+        let h = try await host(label: "Angewandte Informatik", po: nil)
+        try await h.backend().context.database.transaction { c in
+            _ = try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('university', 'hsh')")
+        }
+        let loader = StubLoader()
+        let sRaw = await sync(h, loader, nil, seed: seeds).run()
+        let s = try XCTUnwrap(sRaw)
+        XCTAssertEqual(s["state"]?.string, "seed", "\(s)")
+        XCTAssertEqual(s["program"]?.string, "Angewandte Informatik")
+        XCTAssertTrue(loader.calls.isEmpty, "kein Download: \(loader.calls)")
+        let plan = await h.handle(LocalRequest(method: "GET", url: URL(string: "uniflow-local://device/api/study-plan")!, headers: [:], body: nil)).json
+        XCTAssertEqual(plan?["available"], .bool(true), "\(String(describing: plan))")
+        XCTAssertFalse(plan?["semesters"]?.array?.isEmpty ?? true)
+    }
+
+    /// Uni Hildesheim (docs/STUDIENGAENGE-HILDESHEIM-2026-11-05.md): hildesheim-index.json + hildesheim.json.gz im
+    /// App-Bundle; die Zeile "Abschluss: …" des LSF-Notenspiegels (erfunden im Format der echten Seite) fuehrt ohne
+    /// Download zum Katalog und zu einem Plan
+    func testAppBundleHildesheimSeedGivesHildesheimStudentAPlan() async throws {
+        let seeds = try XCTUnwrap(StudyCatalogSync.bundledSeed, "Ressource StudyCatalogSeed fehlt im App-Bundle (xcodegen generate)")
+        let hi = try XCTUnwrap(seeds.seed(university: "hildesheim"), "hildesheim-index.json fehlt im App-Bundle")
+        XCTAssertGreaterThan(hi.entries.count, 50)
+        let h = try await host(label: "Abschluss: [82] Bachelor Studiengang: [079] B.Sc. Angewandte Informatik PO-Version: 2024", po: nil)
+        try await h.backend().context.database.transaction { c in
+            _ = try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES ('university', 'hildesheim')")
+        }
+        let loader = StubLoader()
+        let sRaw = await sync(h, loader, nil, seed: seeds).run()
+        let s = try XCTUnwrap(sRaw)
+        XCTAssertEqual(s["state"]?.string, "seed", "\(s)")
+        XCTAssertEqual(s["program"]?.string, "Angewandte Informatik")
+        XCTAssertTrue(loader.calls.isEmpty, "kein Download: \(loader.calls)")
+        let plan = await h.handle(LocalRequest(method: "GET", url: URL(string: "uniflow-local://device/api/study-plan")!, headers: [:], body: nil)).json
+        XCTAssertEqual(plan?["available"], .bool(true), "\(String(describing: plan))")
+        XCTAssertFalse(plan?["semesters"]?.array?.isEmpty ?? true)
+    }
+
     /// Entscheidung des Abgleichs: Grundstock vor Bibliothek und Download (0 Anfragen fuer den Katalog, nichts geteilt),
     /// Stand "seed"; Modultexte erst beim Oeffnen eines Moduls, einmal je Katalog
     func testSyncTakesSeedBeforeLibraryAndLoadsTextsLazily() async throws {

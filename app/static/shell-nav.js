@@ -1,4 +1,4 @@
-// Seitenleiste wie auf dem iPad (Neugestaltung 04.11.2026, AppShell.swift): Gruppen STUDIUM / LERNEN / GEMEINSAM mit
+// Seitenleiste wie auf dem iPad (Neugestaltung 04.11.2026, AppShell.swift): Gruppen STUDIUM / LERNEN / ALLTAG / GEMEINSAM mit
 // kleinen Ueberschriften, "Tests & Wiederholung" und "Karteikarten" als farbige Pillen (blau bzw. pfirsich), unten das
 // Konto mit Initialen, Name, Tarif ("Free", "Plus", "Pro AI", "Probe · noch 5 Tage") und "Plus holen →" bzw.
 // "Pro AI holen →" zur Tarifseite (#/abo). Tarif und Probe kommen aus GET /api/entitlements (state.entitlements); am
@@ -11,6 +11,8 @@ export const NAV_GROUPS = [
   { id: "studium", title: "Studium", items: [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"],
     ["modules", "Meine Module", "book"], ["studyplan", "Studienverlauf", "columns"], ["files", "Dokumente & Notizen", "folder"], ["services", "Uni & Noten", "graduation"]] },
   { id: "lernen", title: "Lernen", items: [["exams", "Tests & Wiederholung", "exam", "blue"], ["cards", "Karteikarten", "cards", "peach"]] },
+  // Mensa (05.11.2026, mensa.js): Speiseplaene der Studentenwerke, frei in jedem Tarif
+  { id: "alltag", title: "Alltag", items: [["mensa", "Mensa", "utensils"]] },
   { id: "gemeinsam", title: "Gemeinsam", items: [["community", "Community", "users"]] },
 ];
 

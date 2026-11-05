@@ -61,15 +61,15 @@ final class AbnahmeV1AppTests: XCTestCase {
     @MainActor
     func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() throws {
         let without = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
-        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards"])
+        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "mensa"], "Mensa immer, ohne Tarif")
         let both = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
-        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
+        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "mensa"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
         // Community nur mit CloudKit-Dienst im Build (iCloud-Container)
         let withCloud = UFNavItem.visible(local: true, gradesOnDevice: true, community: true).map(\.id)
-        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "community"])
+        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "mensa", "community"])
         // eigene Karteikarten an Stelle der Wochentests (KI), ohne Funktion auf dem Geraet kein Eintrag
         XCTAssertEqual(UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: false).map(\.id),
-                       ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services"])
+                       ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services", "mensa"])
         XCTAssertFalse(UFNavItem.visible(local: true, gradesOnDevice: true, community: true).contains { $0.id == "exams" })
         XCTAssertEqual(UFNavItem.cards.title, "Karteikarten")
         XCTAssertTrue(UFNavItem.cards.isActive(.cards))
@@ -112,19 +112,21 @@ final class AbnahmeV1AppTests: XCTestCase {
         XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.contains("„Ebenen“") })
     }
 
-    /// Empfangene Loesungen ansehen gehoert zum Lesen der Community (jeder Tarif, Entscheidung 28.10.2026); nur ohne
-    /// Community im Build verspricht die Meldung nichts
+    /// Empfangene Loesungen ansehen gehoert zum Lesen der Community (seit 05.11.2026 ab Plus, vorher jeder Tarif); nur
+    /// ohne Community im Build verspricht die Meldung nichts
     @MainActor
     func testReceivedSolutionMessageFollowsCommunityReading() {
-        XCTAssertTrue(Entitlements(observe: false, plan: .free).allows(.communityRead))
+        XCTAssertFalse(Entitlements(observe: false, plan: .free).allows(.communityRead))
+        XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.communityRead))
         XCTAssertTrue(SolutionSharing.receivedMessage(label: "Lösung", canView: true).contains("„Ebenen“"))
         let off = SolutionSharing.receivedMessage(label: "Lösung", canView: false)
-        XCTAssertFalse(off.contains("Plus"), "Lesen braucht keinen Tarif")
+        XCTAssertTrue(off.contains("ab \(UFPlan.plus.name)"), "Lesen ab Plus (05.11.2026): \(off)")
         XCTAssertFalse(off.contains("erscheint"))
         XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.hasPrefix("Ab \(UFPlan.plus.name)") && $0.text.contains("veröffentlichen") })
-        // Free: wo man schreiben wuerde, steht der Weg zu Plus; Beitreten, Melden und Blockieren gehen ohne
+        // Community ab Plus (05.11.2026): Free sieht den Hinweis, Plus schreibt
         XCTAssertTrue(CommunityTexts.pseudonymPlusHint.hasSuffix("ab \(UFPlan.plus.name)."))
-        XCTAssertTrue(CommunityTexts.createGroupPlusHint.contains("Beitreten geht in jedem Tarif"))
+        XCTAssertFalse(CommunityTexts.createGroupPlusHint.contains("jedem Tarif"))
+        XCTAssertEqual(CommunityTexts.communityPlusHint, "Die Community gibt es ab StudiNow Plus.")
         XCTAssertTrue(CommunityTexts.reportNotice.contains("Moderation von StudiNow"))
     }
 

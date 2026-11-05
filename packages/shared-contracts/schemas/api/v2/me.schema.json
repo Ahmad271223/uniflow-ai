@@ -22,7 +22,7 @@
     },
     "quotas": {
       "type": "object",
-      "required": ["ai_tests_new", "library_tests", "ai_assist"],
+      "required": ["ai_tests_new", "library_tests", "ai_assist", "card_stacks_adopted"],
       "additionalProperties": {
         "type": "object", "required": ["used", "limit", "period"],
         "properties": { "used": { "type": "integer", "minimum": 0 }, "limit": { "type": ["integer", "null"], "minimum": 0 },

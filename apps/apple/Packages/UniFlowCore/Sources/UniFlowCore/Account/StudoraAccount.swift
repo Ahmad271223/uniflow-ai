@@ -69,13 +69,18 @@ public actor StudoraAccount {
         /// Plan der Probe (`plans.TRIAL`), solange sie laeuft
         public var trialPlan: String?
         public var needsPlanChoice: Bool
+        /// UniFlow-ID als UUID fuer `appAccountToken` beim Kauf im App Store (`apple_account_token`); nil, wenn der Dienst
+        /// sie nicht liefert
+        public var appleAccountToken: String?
 
-        public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, needsPlanChoice: Bool = false) {
+        public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, needsPlanChoice: Bool = false,
+                    appleAccountToken: String? = nil) {
             self.plan = plan
             self.trialActive = trialActive
             self.trialDaysLeft = trialDaysLeft
             self.trialPlan = trialPlan
             self.needsPlanChoice = needsPlanChoice
+            self.appleAccountToken = appleAccountToken
         }
     }
 
@@ -150,10 +155,16 @@ public actor StudoraAccount {
             "email": .string(email), "password": .string(password), "device_id": .string(deviceID), "device_name": .string(deviceName)], auth: false))
     }
 
-    /// Mit Apple: das `identity_token` von "Mit Apple anmelden" (Konto ueber die Apple-Kennung, nie ueber die E-Mail)
-    public func loginWithApple(identityToken: String, nonce: String? = nil) async throws -> (user: User, created: Bool) {
+    /// Mit Apple: das `identity_token` von "Mit Apple anmelden" (Konto ueber die Apple-Kennung, nie ueber die E-Mail).
+    /// `nonce`: der Rohwert, dessen SHA-256 in der Anfrage an Apple stand (der Dienst prueft beides). Ein neues Konto
+    /// braucht die Hochschule (`university`); `email` nur, wenn Apple keine Adresse ins Token schreibt. Neue Konten
+    /// bekommen beim Dienst die 7-Tage-Probe mit 25 Credits (`accounts.grant_trial`).
+    public func loginWithApple(identityToken: String, nonce: String? = nil, university: String? = nil,
+                               email: String? = nil) async throws -> (user: User, created: Bool) {
         var body: [String: JSONValue] = ["identity_token": .string(identityToken), "device_id": .string(deviceID), "device_name": .string(deviceName)]
         if let nonce { body["nonce"] = .string(nonce) }
+        if let university, !university.isEmpty { body["university"] = .string(university) }
+        if let email, !email.isEmpty { body["email"] = .string(email) }
         let r = try await request("POST", "/api/account/login/apple", body: .object(body), auth: false)
         let u = try signedIn(r)
         return (u, json(r)["created"]?.bool ?? false)
@@ -194,7 +205,18 @@ public actor StudoraAccount {
         let t = j["trial"]
         let active = t?["active"]?.bool ?? false
         return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
-                          trialPlan: active ? t?["plan"]?.string : nil, needsPlanChoice: j["needs_plan_choice"]?.bool ?? false)
+                          trialPlan: active ? t?["plan"]?.string : nil, needsPlanChoice: j["needs_plan_choice"]?.bool ?? false,
+                          appleAccountToken: j["apple_account_token"]?.string)
+    }
+
+    /// Kauf, Verlaengerung oder Wiederherstellen aus dem App Store melden (`POST /api/billing/apple/verify`,
+    /// app/apple_store.py): JWS der Transaktion und der RenewalInfo. Rueckgabe: Tarif des Abos laut Dienst. Fehler wie
+    /// 409 `subscription_owned_by_other_account` und 503 `apple_not_configured` als `AccountError`.
+    @discardableResult
+    public func verifyApple(signedTransaction: String, signedRenewal: String? = nil) async throws -> String? {
+        var body: [String: JSONValue] = ["signed_transaction": .string(signedTransaction)]
+        if let signedRenewal, !signedRenewal.isEmpty { body["signed_renewal"] = .string(signedRenewal) }
+        return json(try await request("POST", "/api/billing/apple/verify", body: .object(body)))["plan"]?.string
     }
 
     /// "Bei Free bleiben" nach der Probe. Bezahlte Tarife waehlt das iPad nur im App Store (Antwort des Dienstes dazu

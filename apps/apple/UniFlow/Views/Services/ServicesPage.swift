@@ -123,6 +123,7 @@ struct ServicesPage: View {
                     VStack(alignment: .leading, spacing: 8) {                              // .stack
                         lsfTimetableCard
                         HildesheimSourcesCard()
+                        HsHSourcesCard()
                     }
                 } else if let qisLocal {
                     QISGradesCard(connection: qisLocal, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)

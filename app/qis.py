@@ -41,6 +41,8 @@ def credentials_for(key: str) -> tuple[str, str]:
     """LUH: QIS-Zugang (mit Rueckfall auf die LUH-ID). Andere Unis: nur der eigene Uni-Account."""
     if key == "luh":
         return config.service_credentials("QIS")
+    if key not in PROFILES:
+        return "", ""                    # HsH: nur Sitzung aus dem Anmeldefenster (app/hsh.py), kein Passwort
     return config.own_credentials(PROFILES[key]["cred_prefix"])
 
 
@@ -48,6 +50,9 @@ def configured(key: str | None = None) -> bool:
     key = key or universities.current_key()
     if key == "luh":
         return config.service_status("QIS")["own"]
+    if key == "hsh":
+        from . import hsh, unilogin
+        return unilogin.has_session(hsh.SESSION)
     u, p = credentials_for(key)
     return bool(u and p)
 DOC_DIR = DATA_DIR / "qis"
@@ -546,6 +551,9 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
     db.init_db()
     remove_old_screenshots()
     key = university or universities.current_key()
+    if key == "hsh":                     # Leistungen aus dem Campusmanagement (HISinOne bzw. QIS-Iframe), app/hsh.py
+        from . import hsh
+        return hsh.run_grades(show_browser=show_browser)
     prof = use_profile(key)
     with_documents = with_documents and prof["documents"]
     started = db.now_iso()
@@ -562,6 +570,15 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
                 try:
                     login(page, user, pw, prof)
                     grades = fetch_grades(page, prof, store)
+                    # "Info über angemeldete Prüfungen" (LUH) bzw. "Meine POS-Anmeldungen" (LSF Hildesheim), nur lesend,
+                    # nur am PC (app/qis_registrations.py)
+                    if prof.get("key") in ("luh", "hildesheim") and not config.is_hosted():
+                        try:
+                            from . import qis_registrations
+                            log("QIS: " + qis_registrations.run(qis_registrations.page_getter(page), prof["start"],
+                                                                profile=prof["key"])["message"])
+                        except Exception as e:  # noqa: BLE001 - die Noten bleiben
+                            log(f"QIS: angemeldete Pruefungen nicht gelesen: {type(e).__name__}")
                     if with_documents:
                         docs = fetch_documents(page, prof, store)
                     ok = True

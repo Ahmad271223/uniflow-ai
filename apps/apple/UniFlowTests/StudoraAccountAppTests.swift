@@ -6,12 +6,19 @@ import UniFlowCore
 /// in der App entfernt die Anmeldung. Nie ins Netz.
 @MainActor
 final class StudoraAccountAppTests: XCTestCase {
-    func testHiddenWithoutServiceAddress() {
-        XCTAssertNil(StudoraAccountLink.serviceURL, "der Build hat noch keinen Server")
-        XCTAssertFalse(StudoraAccountLink.available)
+    /// Seit 05.11.2026 (StudiNow-KI in 1.0) hat jeder Build die Adresse des Dienstes (`defaultServiceURL`); ohne
+    /// gespeichertes Token geht trotzdem keine Anfrage hinaus
+    func testServiceAddressIsSetButNothingIsSentWithoutToken() async {
+        XCTAssertEqual(StudoraAccountLink.serviceURL, StudoraAccountLink.defaultServiceURL)
+        XCTAssertTrue(StudoraAccountLink.available)
         let link = StudoraAccountLink()
         link.use(userScope: "test-\(UUID().uuidString)")
-        XCTAssertNil(link.account, "ohne Dienst kein Konto")
+        XCTAssertNotNil(link.account)
+        let signedIn = await link.account?.isSignedIn
+        XCTAssertEqual(signedIn, false)
+        await link.refresh()
+        XCTAssertNil(link.user)
+        XCTAssertNil(link.message, "ohne Token keine Anfrage, kein Fehler")
     }
 
     func testTokenPerAppleUserAndRemovedWithTheAccount() async throws {
@@ -36,7 +43,8 @@ final class StudoraAccountAppTests: XCTestCase {
     /// Antworten des Dienstes ueber APIClient (PC-Modus) zeigen dieselben Texte wie das Konto (ServiceErrorText)
     func testAPIErrorUsesTheServiceErrorTexts() {
         let codes = ["email_unverified", "duplicate_request", "ai_trial_budget_exhausted", "ai_not_configured_prices",
-                     "email_taken", "last_login_method", "cross_site"]
+                     "email_taken", "last_login_method", "cross_site", "subscription_owned_by_other_account", "apple_not_configured",
+                     "provider_not_configured"]
         for code in codes {
             let flat = APIError(status: 403, body: Data(#"{"detail": "Dienst-Text", "code": "\#(code)"}"#.utf8))
             XCTAssertEqual(flat.code, code)

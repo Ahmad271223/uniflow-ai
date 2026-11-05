@@ -174,6 +174,37 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         XCTAssertFalse(l.contains("Plan zurücksetzen"), "nichts selbst verschoben")
     }
 
+    /// Volle Bereiche (Fund 05.11.2026, INFBSc22: "Proseminar" blieb bei "noch 0 von 5 LP offen" stehen): kein Platz
+    /// fuer einen gedeckten Bereich; bei LP und Zahl zeigt der Platz den offenen Teil; Bereich nur mit Zahl im Kasten
+    func testFullAreaHasNoOpenSlotOnBoard() throws {
+        let full = StudyPlan(try enginePlan("proseminar_bereich_voll_fachsemester"))
+        XCTAssertFalse(full.semesters.flatMap(\.slots).contains { $0.area == "akademisches-arbeiten" })
+        for sl in full.semesters.flatMap(\.slots) {
+            XCTAssertFalse(StudyPlanText.slotLine(sl, plan: full).hasPrefix("noch 0 von"), sl.title)
+        }
+        let count = StudyPlan(try enginePlan("zahl_bereich_voll"))
+        let labor = try XCTUnwrap(count.semesters.flatMap(\.slots).first { $0.area == "labore" })
+        XCTAssertEqual(StudyPlanText.slotLine(labor, plan: count), "1 von 2 Modulen gewählt", "6 LP gedeckt, Zahl offen")
+        let seminare = try XCTUnwrap(count.area("seminare"))
+        XCTAssertEqual(StudyPlanText.areaProgress(seminare).value, 1)
+        XCTAssertFalse(StudyPlanText.areaProgress(seminare).done, "geplant, noch nicht bestanden")
+        XCTAssertFalse(StudyPlanText.areaProgress(try XCTUnwrap(count.area("labore"))).done)
+
+        let env = try host(transport(try enginePlan("proseminar_bereich_voll_fachsemester")))
+        XCTAssertTrue(env.wait { self.find(env.view, label: "Akademisches Arbeiten, Wahlpflicht, 5 von 5 LP", exact: true) != nil },
+                      dump(env.view))
+        let l = labels(env.view)
+        XCTAssertFalse(l.contains { $0.hasPrefix("Offener Platz, Proseminar") }, l.joined(separator: "\n"))
+        XCTAssertTrue(l.contains("Offener Platz, Vertiefung (5 Leistungspunkte), Wahlpflicht, noch 10 von 10 LP offen"),
+                      l.joined(separator: "\n"))
+        let env2 = try host(transport(try enginePlan("zahl_bereich_voll")))
+        XCTAssertTrue(env2.wait { self.find(env2.view, label: "Offener Platz, Labor (3 Leistungspunkte), Wahlpflicht, 1 von 2 Modulen gewählt",
+                                            exact: true) != nil }, dump(env2.view))
+        let l2 = labels(env2.view)
+        XCTAssertTrue(l2.contains("Seminare, Wahlpflicht, 3 LP · 1 von 1 Modulen"), "Bereich nur mit Zahl im Kasten")
+        XCTAssertFalse(l2.contains { $0.hasPrefix("Offener Platz, Seminar ") || $0.hasPrefix("Offener Platz, Seminar (") })
+    }
+
     func testSlotChooserChoosesModuleIntoSlotSemester() throws {
         let t = transport(try enginePlan("wahlbereiche_offen"))
         let env = try host(t)

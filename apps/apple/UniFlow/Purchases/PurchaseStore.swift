@@ -63,8 +63,8 @@ final class PurchaseStore: ObservableObject {
         defer { busy = false }
         lastError = nil
         do {
-            // V1 ohne Konto beim Dienst: keine Kaufoptionen (kein appAccountToken, BillingServiceLink.swift)
-            let result = try await product.purchase(options: UFBillingServiceLink.purchaseOptions(accountToken: nil))
+            // mit StudiNow-Konto: appAccountToken = UniFlow-ID (BillingServiceLink.swift), ohne Konto keine Kaufoptionen
+            let result = try await product.purchase(options: UFBillingServiceLink.purchaseOptions(accountToken: UFBillingServiceLink.accountToken))
             guard case .success(let verification) = result else { return Self.outcome(of: result) }
             guard await entitlements.handle(verification) else {
                 lastError = "Der Kauf konnte nicht bestätigt werden."

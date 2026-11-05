@@ -43,6 +43,17 @@ public enum Holidays {
             Semester(name: "WiSe 2029/30", start: "2029-10-08", end: "2030-02-01", breaks: [("2029-12-21", "2030-01-04", "Weihnachtspause")]),
             Semester(name: "SoSe 2030", start: "2030-04-15", end: "2030-07-26", breaks: [("2030-06-11", "2030-06-14", "Exkursions- und Projektwoche")]),
         ],
+        // Hochschule Hannover: "Termine & Fristen" (abgerufen 05.11.2026, ohne die abweichenden Termine der Fakultaet V)
+        "hsh": [
+            Semester(name: "WiSe 2026/27", start: "2026-09-21", end: "2027-01-31", breaks: [("2026-12-23", "2027-01-02", "Weihnachten")]),
+            Semester(name: "SoSe 2027", start: "2027-03-01", end: "2027-07-10", breaks: [("2027-03-25", "2027-03-30", "Ostern"), ("2027-05-15", "2027-05-18", "Pfingsten")]),
+            Semester(name: "WiSe 2027/28", start: "2027-09-20", end: "2028-01-29", breaks: [("2027-12-23", "2028-01-02", "Weihnachten")]),
+            Semester(name: "SoSe 2028", start: "2028-03-01", end: "2028-07-08", breaks: [("2028-04-18", "2028-04-23", "Ostern"), ("2028-06-03", "2028-06-06", "Pfingsten")]),
+            Semester(name: "WiSe 2028/29", start: "2028-09-20", end: "2029-01-31", breaks: [("2028-12-23", "2029-01-02", "Weihnachten")]),
+            Semester(name: "SoSe 2029", start: "2029-03-01", end: "2029-07-10", breaks: [("2029-03-29", "2029-04-03", "Ostern"), ("2029-05-19", "2029-05-22", "Pfingsten")]),
+            Semester(name: "WiSe 2029/30", start: "2029-09-20", end: "2030-01-31", breaks: [("2029-12-23", "2030-01-02", "Weihnachten")]),
+            Semester(name: "SoSe 2030", start: "2030-03-04", end: "2030-07-10", breaks: [("2030-04-18", "2030-04-23", "Ostern"), ("2030-06-08", "2030-06-11", "Pfingsten")]),
+        ],
     ]
 
     /// `DEADLINE_LABELS`

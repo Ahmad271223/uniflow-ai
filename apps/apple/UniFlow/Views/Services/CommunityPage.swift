@@ -10,7 +10,12 @@ struct CommunityPage: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
     @Environment(\.ufCompact) private var compact
+    /// Community ab Plus (Entscheidung 05.11.2026): beobachtet den Tarif, damit nach Kauf oder Ablauf neu gezeichnet wird
+    @ObservedObject var entitlements: Entitlements = .shared
     @State private var showingShared = false
+
+    /// Free: eigene Veroeffentlichungen bleiben erhalten und lassen sich zurueckziehen (Herabstufen, nichts wird geloescht)
+    static let ownPostsHint = "Was du früher veröffentlicht hast, bleibt erhalten. Du kannst es hier jederzeit zurückziehen."
 
     /// Geplantes bzw. in diesem Build nicht Verfuegbares; auf dem iPad gibt es das Teilen als Datei schon (Plus,
     /// im Editor unter „Ebenen“)
@@ -54,7 +59,22 @@ struct CommunityPage: View {
     }
 
     @ViewBuilder private var connectedContent: some View {
-        UFGate(.communityRead) {
+        if entitlements.allows(.communityRead) {
+            readableContent
+        } else {
+            // Free: Hinweis "Community ab Plus", keine Abfrage der Community; nur die eigenen Beitraege
+            UFLockedCard(.communityRead, entitlements: entitlements).padding(.bottom, 16)
+            UFCard {
+                UFCardHead("Deine Beiträge", icon: "users") {
+                    UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }
+                }
+                Text(Self.ownPostsHint).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder private var readableContent: some View {
+        UFGate(.communityRead, entitlements: entitlements) {
             UFCard {
                 // iPhone: Knopf unter dem Text, neben dem Titel war er auf "Meine geteilte…" gekuerzt (Pruefung 05.11.2026)
                 UFCardHead("So funktioniert die Community", icon: "info") {

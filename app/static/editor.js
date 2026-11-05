@@ -1,6 +1,6 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=32";
+import { icon } from "./icons.js?v=33";
 import { mergeDocument } from "./merge.js?v=30";
 import { rotateObjects } from "./pagerotate.js?v=1";
 import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=30";
@@ -23,8 +23,9 @@ import { SCOPES, CHIPS, scopeBody, docModeFor, progressText, storedNote, needsCo
 // Formerkennung nach Halten (05.11.2026, wie ShapeRecognizer.swift): Linie, Rechteck, Ellipse, Dreieck, Pfeil
 import { holdNote, heldStill, snapStroke, snapEnabled, setSnapEnabled } from "./editor-shapes.js?v=1";
 // KI-Hilfe als Gespraech mit drei farbigen Reitern (05.11.2026, wie TutorPanel.swift) und "Als Karteikarte" aus markiertem Text
-import { createAiPanel } from "./ai-panel.js?v=1";
+import { createAiPanel } from "./ai-panel.js?v=2";
 import { openCardDialog } from "./editor-card.js?v=1";
+import { attachFreeze } from "./editor-freeze.js?v=1";   // Ansicht fixieren / Zum Abpausen einfrieren
 export { IDB };
 const Thumbs = { get: k => IDB.get("thumbs", k).catch(() => null), put: v => IDB.put("thumbs", v).catch(() => {}), del: k => IDB.del("thumbs", k).catch(() => {}) };
 
@@ -83,7 +84,7 @@ export class PdfEditor {
   async load() {
     await Promise.all([getPdfjs(), loadScript("./vendor/konva.min.js")]); patchKonva();
     if (this.destroyed) return;                       // waehrend des Ladens geschlossen
-    this.buildUI();
+    this.buildUI(); this.freeze = attachFreeze(this);
     this.onStatus("Lade Dokument…");
     this.pdf = null; this.pageSizes = [];
     if (this.url) {
@@ -103,7 +104,7 @@ export class PdfEditor {
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    if (this.pdf) import("./editor-community.js?v=28").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
+    if (this.pdf) import("./editor-community.js?v=30").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
@@ -920,14 +921,16 @@ export class PdfEditor {
   exportPop(btn) {
     this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Teilen und Exportieren</div><div class="ed-menu-sub">Zusammenarbeit</div><button disabled title="Noch nicht verbunden">${icon("users", 16)} Teilen… <span class="muted tiny">vorbereitet</span></button>
       <div class="ed-menu-sub">Exportieren</div><label class="small" style="display:flex;gap:.4rem;align-items:center;padding:.2rem .6rem"><input type="checkbox" class="ed-exp-noann"> Ohne Notizen exportieren</label>
-      <button data-exp="page">${icon("file", 16)} Diese Seite exportieren</button><button data-exp="range">${icon("list", 16)} Ausgewählte Seiten… </button><button data-exp="all">${icon("download", 16)} Alle exportieren</button><button data-exp="print">${icon("file-text", 16)} Drucken</button></div>`);
-    $$("[data-exp]", this.pop).forEach(b => b.onclick = () => { const noann = $(".ed-exp-noann", this.pop).checked; this.pop.hidden = true; const k = b.dataset.exp; if (k === "page") this.exportPdf([this.currentPage], noann); else if (k === "range") { const r = safePrompt("Seiten (z. B. 1-3,5):", `${this.currentPage + 1}`); if (r) this.exportPdf(parseRange(r, this.pages.length), noann); } else if (k === "print") this.exportPdf(null, noann, true); else this.exportPdf(null, noann); });
+      <label class="small" style="display:flex;gap:.4rem;align-items:center;padding:.2rem .6rem" title="Seitennotizen und Blätter, die neben einer Folie beschrieben wurden, stehen direkt hinter ihrer Folie"><input type="checkbox" class="ed-exp-notes" ${this._expNotes !== false ? "checked" : ""}> Notizen und Blätter mitschicken</label>
+      <button data-exp="page">${icon("file", 16)} Diese Seite exportieren</button><button data-exp="range">${icon("list", 16)} Ausgewählte Seiten… </button><button data-exp="all">${icon("download", 16)} Alle exportieren</button><button data-exp="print">${icon("file-text", 16)} Drucken</button>${window.__app?.state?.hosted ? "" : `<div class="ed-menu-sub">Abgeben</div>${["hsh", "hildesheim"].includes(window.__app?.state?.university) ? `<button data-exp="moodle">${icon("upload", 16)} In ${window.__app.state.university === "hsh" ? "Moodle" : "Learnweb"} abgeben …</button>` : `<button data-exp="studip">${icon("upload", 16)} In Stud.IP abgeben …</button>`}`}</div>`);
+    $$("[data-exp]", this.pop).forEach(b => b.onclick = () => { const noann = $(".ed-exp-noann", this.pop).checked; this._expNotes = $(".ed-exp-notes", this.pop).checked; this.pop.hidden = true; const k = b.dataset.exp; if (k === "studip") return void import("./studip-submit.js?v=2").then(m => m.openSubmit(this)).catch(e => this.onStatus(`Abgeben nicht möglich: ${e.message}`)); if (k === "moodle") return void import("./moodle-submit.js?v=1").then(m => m.openMoodleSubmit(this)).catch(e => this.onStatus(`Abgeben nicht möglich: ${e.message}`)); if (k === "page") this.exportPdf([this.currentPage], noann); else if (k === "range") { const r = safePrompt("Seiten (z. B. 1-3,5):", `${this.currentPage + 1}`); if (r) this.exportPdf(parseRange(r, this.pages.length), noann); } else if (k === "print") this.exportPdf(null, noann, true); else this.exportPdf(null, noann); });
   }
   morePop(btn) {
     const i = this.currentPage; const p = this.model.pageOrder[i]; const isBm = this.model.bookmarks.some(b => b.key === p.key);
     this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Mehr</div><div class="ed-menu-sub">Seite „${i + 1}“</div>
       <button data-m="bm">${icon("bookmark", 16)} ${isBm ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}</button><button data-m="copy">${icon("copy", 16)} Seite kopieren</button><button data-m="rotate">${icon("rotate", 16)} Seite drehen</button><button data-m="outline">${icon("list", 16)} Seite zur Gliederung hinzufügen</button><button data-m="template">${icon("grid", 16)} Vorlage wechseln</button><button data-m="format">${icon("columns", 16)} Seitenformat ändern</button><button data-m="goto">${icon("arrow-right", 16)} Gehe zu Seite <span class="muted tiny">(1 – ${this.pages.length})</span></button><button data-m="clear" class="danger">${icon("eraser", 16)} Seite leeren</button><button data-m="delete" class="danger">${icon("trash", 16)} Seite in den Papierkorb legen</button>
       ${this.model.deletedPages.length ? `<button data-m="trash">${icon("rotate", 16)} Papierkorb (${this.model.deletedPages.length}) – wiederherstellen</button>` : ""}
+      ${this.freeze?.menuHtml() || ""}
       <div class="ed-menu-sub">Einstellungen</div>
       <div class="ed-menu-row">${icon("move", 16)} Scrollrichtung <select data-pref="scroll"><option value="vertical" ${this.prefs.scroll === "vertical" ? "selected" : ""}>Vertikal</option><option value="horizontal" ${this.prefs.scroll === "horizontal" ? "selected" : ""}>Horizontal</option></select></div>
       <div class="ed-menu-row">${icon("panel-left", 16)} Seitenleiste <select data-pref="sidebar"><option value="left" ${this.prefs.sidebar === "left" ? "selected" : ""}>Links</option><option value="right" ${this.prefs.sidebar === "right" ? "selected" : ""}>Rechts</option></select></div>
@@ -935,6 +938,7 @@ export class PdfEditor {
       <div class="ed-menu-row">${icon("file", 16)} Dokumentbearbeitung <select data-pref="single"><option value="0" ${!this.prefs.single ? "selected" : ""}>Fortlaufend</option><option value="1" ${this.prefs.single ? "selected" : ""}>Einzelne Seite</option></select></div>
       <button data-m="toolbar">${icon("settings", 16)} Werkzeugleiste anpassen</button></div>`);
     $$("[data-m]", this.pop).forEach(b => b.onclick = () => { const m = b.dataset.m; if (m !== "template" && m !== "toolbar" && m !== "trash" && m !== "format") this.pop.hidden = true; if (m === "bm") this.toggleBookmark(i); if (m === "copy") this.duplicatePage(i); if (m === "rotate") this.rotatePage(i); if (m === "outline") this.addOutline(i); if (m === "template") this.templatePicker(btn, t => this.setTemplate(i, t)); if (m === "format") this.formatPicker(btn, i); if (m === "goto") { const n = +(safePrompt("Seite:", String(i + 1)) || 0); if (n) this.goToPage(n - 1); } if (m === "clear") { if (confirm("Alle Notizen auf dieser Seite löschen? (Rückgängig möglich)")) this.clearPage(i); } if (m === "delete") this.deletePage(i); if (m === "trash") this.trashPop(btn); if (m === "toolbar") this.toolbarPop(btn); });
+    this.freeze?.bindMenu(this.pop);
     $$("[data-pref]", this.pop).forEach(s => s.onchange = () => { const k = s.dataset.pref; if (k === "pen") { this._penManual = true; this.penInput = s.value; this.updatePenInputBtn(); fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pen_input: s.value }) }).catch(() => {}); } else if (k === "single") { this.prefs.single = s.value === "1"; this.savePrefs(); this.showSingle(); } else { this.prefs[k] = s.value; this.savePrefs(); } });
   }
   trashPop(btn) { this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Papierkorb</div>${this.model.deletedPages.map((d, i) => `<button data-rs="${i}">${icon("rotate", 16)} ${d.entry.type === "blank" ? "Notizseite" : "PDF-Seite " + (d.entry.index || "")} wiederherstellen <span class="muted tiny">${new Date(d.at).toLocaleTimeString("de-DE")}</span></button>`).join("")}<button data-rs="clear" class="danger">${icon("trash", 16)} Papierkorb leeren</button></div>`); $$("[data-rs]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; if (b.dataset.rs === "clear") { this.model.deletedPages = []; this.markDirty(); } else this.restorePage(+b.dataset.rs); }); }
@@ -1118,21 +1122,23 @@ export class PdfEditor {
   }
 
   // ---------------------------------------------------------------- Export
-  async exportPdf(pageIdx = null, withoutAnnotations = false, print = false) {
+  async exportPdf(pageIdx = null, withoutAnnotations = false, print = false, opts = {}) {   // opts.bytes: PDF zurueckgeben (In Stud.IP abgeben)
     this.onStatus("Exportiere PDF…"); await loadScript("./vendor/pdf-lib.min.js");
     const { PDFDocument, rgb } = window.PDFLib;
     const src = this.pdfBytes ? await PDFDocument.load(this.pdfBytes) : null; const out = await PDFDocument.create(); const assetDocs = new Map();
     const hidden = document.createElement("div"); hidden.style.cssText = "position:fixed;left:-99999px;top:0"; document.body.append(hidden);
-    const idxs = pageIdx || this.model.pageOrder.map((_, i) => i);
+    // Notizen und Blaetter mitschicken (side-notes.js): Seitennotizen und Blaetter daneben direkt hinter ihrer Folie
+    let doc = this.model, idxs = pageIdx || this.model.pageOrder.map((_, i) => i), notePages = 0;
+    if (!withoutAnnotations) { try { const sn = await import("./side-notes.js?v=1"); const pl = await sn.exportPlan(this.model, { pageIdx, includeSideNotes: this._expNotes !== false, fetchJson: async u => { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.json(); } }); doc = pl.doc; idxs = pl.idxs; notePages = pl.notes; } catch (e) { console.warn("Notizseiten", e); } }
     for (const i of idxs) {
-      const p = this.model.pageOrder[i]; if (!p) continue;
+      const p = doc.pageOrder[i]; if (!p) continue;
       const size = p.type === "pdf" ? this.pageSizes[p.index - 1] : { w: p.w || 595, h: p.h || 842 };
       let page;
       if (p.type === "pdf" && src) { const [cp] = await out.copyPages(src, [p.index - 1]); page = out.addPage(cp); }
       else if (p.type === "asset") { if (!assetDocs.has(p.assetUrl)) assetDocs.set(p.assetUrl, await PDFDocument.load(await (await fetch(p.assetUrl)).arrayBuffer())); const [cp] = await out.copyPages(assetDocs.get(p.assetUrl), [p.index - 1]); page = out.addPage(cp); }
       else { page = out.addPage([size.w, size.h]); this.drawTemplatePdf(page, p, rgb); }
       if (p.rotation) page.setRotation(window.PDFLib.degrees(((page.getRotation().angle || 0) + p.rotation) % 360));
-      const objs = this.model.pages[p.key]?.objects || []; if (!objs.length || withoutAnnotations) continue;
+      const objs = doc.pages[p.key]?.objects || []; if (!objs.length || withoutAnnotations) continue;
       const scale = 2; const stW = p.rotation % 180 ? size.h : size.w, stH = p.rotation % 180 ? size.w : size.h; const st = new Konva.Stage({ container: hidden, width: stW * scale, height: stH * scale }); st.scale({ x: scale, y: scale });
       const fake = { key: p.key, layer: new Konva.Layer(), tr: new Konva.Transformer(), w: stW, h: stH }; st.add(fake.layer); fake.layer.add(fake.tr);
       const imgs = []; objs.forEach(o => { const n = this.addNode(fake, o); if (o.type === "image") imgs.push(new Promise(res => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => { n.image(im); res(); }; im.onerror = res; im.src = o.src; })); });
@@ -1142,10 +1148,10 @@ export class PdfEditor {
       if (rot === 0) page.drawImage(png, { x: 0, y: 0, width, height }); else page.drawImage(png, { x: 0, y: 0, width, height, rotate: window.PDFLib.degrees(0) });
     }
     hidden.remove();
-    const bytes = await out.save(); const blob = new Blob([bytes], { type: "application/pdf" }); const url = URL.createObjectURL(blob);
+    const bytes = await out.save(); if (opts.bytes) { this.onStatus("PDF für die Abgabe erstellt"); return { bytes, pages: idxs.length, notes: notePages }; } const blob = new Blob([bytes], { type: "application/pdf" }); const url = URL.createObjectURL(blob);
     if (print) { const w = window.open(url, "_blank"); if (w) w.addEventListener("load", () => { try { w.print(); } catch {} }); }
     else { const a = document.createElement("a"); a.href = url; a.download = this.name.replace(/\.pdf$/i, "") + (pageIdx ? ` (Seite ${pageIdx.map(i => i + 1).join(",")})` : " (annotiert)") + ".pdf"; a.click(); }
-    setTimeout(() => URL.revokeObjectURL(url), 20000); this.onStatus("PDF exportiert");
+    setTimeout(() => URL.revokeObjectURL(url), 20000); this.onStatus(notePages ? `PDF exportiert – mit ${notePages} Notizseite${notePages === 1 ? "" : "n"}` : "PDF exportiert");
   }
   drawTemplatePdf(page, p, rgb) { const { width: W, height: H } = page.getSize(); const t = p.template || "blank"; const col = rgb(0.85, 0.87, 0.91); const step = t === "mm" ? 2.835 : (t === "grid" || t === "dotted") ? 14.17 : 24; if (t === "lined" || t === "cornell") for (let y = H - 60; y > 0; y -= step) page.drawLine({ start: { x: 0, y }, end: { x: W, y }, thickness: 0.5, color: col }); if (t === "grid" || t === "mm") { for (let x = 0; x < W; x += step) page.drawLine({ start: { x, y: 0 }, end: { x, y: H }, thickness: 0.4, color: col }); for (let y = 0; y < H; y += step) page.drawLine({ start: { x: 0, y }, end: { x: W, y }, thickness: 0.4, color: col }); } if (t === "dotted") for (let x = step; x < W; x += step) for (let y = step; y < H; y += step) page.drawCircle({ x, y, size: 0.8, color: col }); if (t === "cornell") { page.drawLine({ start: { x: 150, y: 150 }, end: { x: 150, y: H }, thickness: 1, color: col }); page.drawLine({ start: { x: 0, y: 150 }, end: { x: W, y: 150 }, thickness: 1, color: col }); } }
 

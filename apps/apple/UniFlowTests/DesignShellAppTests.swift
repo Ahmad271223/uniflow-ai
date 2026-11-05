@@ -4,7 +4,7 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-/// Neugestaltung der Seitenleiste und des Lernstands (04.11.2026): Gruppen "STUDIUM", "LERNEN", "GEMEINSAM" je
+/// Neugestaltung der Seitenleiste und des Lernstands (04.11.2026): Gruppen "STUDIUM", "LERNEN", "ALLTAG" (Mensa, 05.11.2026), "GEMEINSAM" je
 /// Plattform und Tarif (leere Gruppen entfallen, `UFNavItem.visible` bleibt massgeblich), Kapselfarben der
 /// Lern-Eintraege, Profil unten mit Tarif und Knopf zum naechsthoeheren Tarif (auch waehrend der Probe), die Kachel
 /// "Lernstand" und VoiceOver. Mit UF_SCREENSHOT_DIR (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) schreibt
@@ -31,8 +31,9 @@ final class DesignShellAppTests: XCTestCase {
 
     func testGroupsOwnServerShowAllThree() {
         let groups = UFNavGroup.groups(UFNavItem.visible(local: false, gradesOnDevice: false, community: false))
-        XCTAssertEqual(groups.map(\.id), ["study", "learn", "together"])
-        XCTAssertEqual(groups.map(\.label), ["STUDIUM", "LERNEN", "GEMEINSAM"])
+        XCTAssertEqual(groups.map(\.id), ["study", "learn", "everyday", "together"])
+        XCTAssertEqual(groups.map(\.label), ["STUDIUM", "LERNEN", "ALLTAG", "GEMEINSAM"])
+        XCTAssertEqual(ids(groups)["everyday"], ["mensa"], "Mensa unter Alltag")
         XCTAssertEqual(ids(groups)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services"],
                        "Uni & Noten gehoert zum Studium")
         XCTAssertEqual(ids(groups)["learn"], ["exams"])
@@ -49,13 +50,13 @@ final class DesignShellAppTests: XCTestCase {
         XCTAssertEqual(ids(g)["learn"], ["exams", "cards"])
         // ohne iCloud-Container: keine Gruppe "Gemeinsam"
         g = UFNavGroup.groups(UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: true))
-        XCTAssertEqual(g.map(\.id), ["study", "learn"])
+        XCTAssertEqual(g.map(\.id), ["study", "learn", "everyday"])
         // ohne Karteikarten und ohne KI: keine Gruppe "Lernen"
         g = UFNavGroup.groups(UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: false, ai: false))
-        XCTAssertEqual(g.map(\.id), ["study", "together"])
+        XCTAssertEqual(g.map(\.id), ["study", "everyday", "together"])
         // ohne Notenspiegel auf dem Geraet: kein Uni & Noten
         g = UFNavGroup.groups(UFNavItem.visible(local: true, gradesOnDevice: false, community: false, flashcards: false, ai: false))
-        XCTAssertEqual(g.map(\.id), ["study"])
+        XCTAssertEqual(g.map(\.id), ["study", "everyday"])
         XCTAssertEqual(ids(g)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files"])
     }
 
@@ -83,7 +84,7 @@ final class DesignShellAppTests: XCTestCase {
 
     func testGroupVoiceOverAndPills() {
         let g = UFNavGroup.groups(UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true))
-        XCTAssertEqual(g.map(\.accessibilityLabel), ["Gruppe Studium", "Gruppe Lernen", "Gruppe Gemeinsam"])
+        XCTAssertEqual(g.map(\.accessibilityLabel), ["Gruppe Studium", "Gruppe Lernen", "Gruppe Alltag", "Gruppe Gemeinsam"])
         let exams = UFNavItem.main.first { $0.id == "exams" }
         XCTAssertEqual(exams?.pill, CommunityPalette.sky, "Tests blau wie der Wochentest im KI-Start")
         XCTAssertEqual(UFNavItem.cards.pill, CommunityPalette.peach, "Karteikarten wie im KI-Start")

@@ -92,6 +92,11 @@ final class FlashcardDeck: ObservableObject {
     private var rated: Set<Int> = []
     /// zaehlt Wechsel der Datenquelle; Antworten einer frueheren Quelle aendern nichts mehr
     private var generation = 0
+    /// Kontingent "Karteikarten-Stapel von StudiNow" ohne Dienst (Plus 4 je Monat, 05.11.2026); Tests geben eigene
+    /// UserDefaults
+    var adoptQuota = UFAdoptQuota()
+    /// Tarif fuer Community und Kontingent ohne Dienst; die Seite setzt ihre eigenen Berechtigungen
+    var entitlements: Entitlements = .shared
 
     init(api: APIClient? = nil) { self.api = api }
 
@@ -260,10 +265,21 @@ final class FlashcardDeck: ObservableObject {
         fetchingWeek.insert(moduleID)
         defer { if mine == generation { fetchingWeek.remove(moduleID) } }
         var out: [WeekFetch] = []
+        // Kontingent `card_stacks_adopted` (Plus 4 je Monat) ohne Dienst: aufgebraucht = diese Art wird nicht geholt;
+        // gezaehlt wird nur ein aus dem Pool uebernommener Stapel (nicht der mit dem eigenen ChatGPT erzeugte)
+        let quota = api.isLocal ? adoptQuota : nil, plan = entitlements.plan
         for kind in Self.weekKinds {
+            let qid = "week:\(moduleID):\(week):\(kind)"
+            if let quota, !quota.allows(qid, plan: plan) {
+                let name = kind == "vorlesung" ? "Vorlesung" : "Übung"
+                out.append(WeekFetch(kind: kind, status: "quota_exhausted", cards: 0,
+                                     message: "\(name): " + UFAdoptQuota.exhaustedMessage(limit: UFAdoptQuota.limit(plan) ?? 0)))
+                continue
+            }
             do {
                 let r = try await api.value("/api/flashcard-stacks/week/\(moduleID)/\(week)/\(kind)", method: "POST", body: .object([:]))
                 let status = r.s("status") ?? "", cards = r["stack"]?.i("cards") ?? 0
+                if status == "adopted" { quota?.record(qid) }
                 out.append(WeekFetch(kind: kind, status: status, cards: cards, message: Self.fetchLabel(kind: kind, status: status, cards: cards, variant: r.i("variant"))))
             } catch let e as APIError where e.code == "no_materials" {
                 out.append(WeekFetch(kind: kind, status: "no_materials", cards: 0, message: Self.fetchLabel(kind: kind, status: "no_materials", cards: 0, variant: nil)))
@@ -278,6 +294,12 @@ final class FlashcardDeck: ObservableObject {
     /// blendet das Teilen aus)
     func loadShared() async {
         guard let api else { return }
+        // Community ab Plus (05.11.2026): ohne Dienst liest Free keine geteilten Stapel aus CloudKit; mit Dienst sperrt
+        // der Dienst selbst (403, die Liste bleibt leer)
+        if api.isLocal && !entitlements.allows(.communityRead) {
+            shared = [:]
+            return
+        }
         let mine = generation
         var out: [Int: [JSONValue]] = [:]
         var available = true
@@ -330,8 +352,12 @@ final class FlashcardDeck: ObservableObject {
     @discardableResult
     func adopt(_ sharedStack: JSONValue) async throws -> (stack: JSONValue, already: Bool) {
         guard let api, let id = sharedStack.s("id") else { throw APIError(status: -1, message: "", text: "Keine Datenquelle.") }
+        // Kontingent `card_stacks_adopted` (Plus 4 je Monat): ohne Dienst zaehlt das Geraet, mit Dienst der Dienst
+        let quota = api.isLocal ? adoptQuota : nil, plan = entitlements.plan, qid = "community:\(id)"
+        if let quota, !quota.allows(qid, plan: plan) { throw quota.error(plan: plan) }
         let mine = generation
         let r = try await api.value("/api/community/card-stacks/\(id)/adopt", method: "POST", body: .object([:]))
+        if r["already"]?.bool != true { quota?.record(qid) }
         guard mine == generation else { return (r["stack"] ?? .null, r["already"]?.bool ?? false) }
         try await load()
         await loadShared()
@@ -973,6 +999,7 @@ struct CardsPage: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: session.api.map(ObjectIdentifier.init)) {
+            deck.entitlements = ent
             deck.attach(session.api)
             trainer.attach(session.api)
             if await deck.reload(toast: toast) { await deck.loadShared() }
@@ -1726,6 +1753,8 @@ struct FlashcardWeekFetchDialog: View {
             results = got
             if got.allSatisfy({ $0.status == "no_materials" }) {
                 toast.show("Für Woche \(week) gibt es in diesem Modul keine Unterlagen.")
+            } else if got.allSatisfy({ $0.status == "no_materials" || $0.status == "quota_exhausted" }) {
+                toast.show(UFAdoptQuota.exhaustedMessage(limit: UFAdoptQuota.limit(deck.entitlements.plan) ?? 0))
             } else if got.contains(where: { $0.status == "adopted" }) {
                 toast.show("Karten für Woche \(week) übernommen – 0 Credits")
             } else {

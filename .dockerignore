@@ -40,3 +40,4 @@ deploy/.env
 !packages/shared-contracts/study-sources.json
 !packages/shared-contracts/study-sources-all.json
 !apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz
+!apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz

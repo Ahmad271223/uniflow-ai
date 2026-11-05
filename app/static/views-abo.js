@@ -10,7 +10,7 @@
 // Eigener PC ohne Konto-Pflicht (Einzelplatz, me.mode "local", z. B. serve.py in der Entwicklung): keine Kaufwege;
 // StudiNow Pro AI braucht den StudiNow-Dienst und steht dort ohne Preis als "kommt mit dem StudiNow-Dienst".
 // planChoicePrompt (Tarif wählen oder bei Free bleiben) gilt nur noch ohne Abo-Pflicht.
-import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=44";
+import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=45";
 import { GATE_TEXTS, exportHref } from "./account-gate.js?v=1";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
@@ -20,10 +20,12 @@ const QUOTA_TXT = (q, key, labels) => {
   if (!v) return null;
   return `${labels[key]}: ${v} pro Monat`;
 };
+// Entscheidung 05.11.2026: Free ohne Community und ohne StudiNow-KI (eigenes ChatGPT zu Folien fragen, sobald freigegeben),
+// Community ab Plus, Karteikarten-Stapel von StudiNow: Plus 4 je Monat, Pro AI unbegrenzt (Fair Use)
 const POSITION = {
-  free: "Organisieren, lesen, Stundenplan – kostenlos.",
+  free: "Organisieren, lesen, Stundenplan – kostenlos. Ohne Community und ohne StudiNow-KI.",
   // Plus gilt je Geraet (Entscheidung 04.11.2026): Notizen-Abgleich zwischen iPad, PC und Web erst mit Pro AI
-  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), eigene Karteikarten und Wochentests.",
+  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), Community, eigene Karteikarten und Wochentests.",
   pro_ai: "Komfortabel: StudiNow-KI inklusive, kein eigenes ChatGPT-Konto nötig, Notizen auf allen Geräten.",
 };
 
@@ -39,7 +41,7 @@ function featureRows(contract, key) {
     if (e.status === "available" && AI_FEATURES.has(name) && !contract.studora_ai_configured) rows.push(`<li class="off">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">in Vorbereitung</span></li>`);
     else if (e.status === "available") rows.push(`<li>${icon("check", 13)} ${esc(e.label)}</li>`);
     else if (e.status === "coming_soon") rows.push(`<li class="off">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">kommt bald</span></li>`);
-    else if (name === "chatgpt_connection_premium") rows.push(`<li class="off">${icon("clock", 13)} Eigenes ChatGPT-Konto verbinden <span class="badge neutral">in Vorbereitung</span></li>`);
+    else if (name === "chatgpt_connection_premium") rows.push(`<li class="off">${icon("clock", 13)} Eigenes ChatGPT verbinden und zu Folien fragen <span class="badge neutral">in Vorbereitung</span></li>`);
   }
   return rows.join("");
 }
@@ -83,7 +85,7 @@ export async function viewAbo(_, params, view) {
     ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Zugang (Claude oder ChatGPT). Tarife gelten für StudiNow-Konten im Dienst und in der Apple-App.</p>`
     : locked ? ""
     : `<p class="abo-term">${me.expires_at ? `${me.will_renew ? "Verlängert sich am" : "Läuft aus am"} <b>${new Date(me.expires_at).toLocaleDateString("de-DE")}</b>` : current === "free" ? "Kostenlos, ohne Laufzeit." : "Ohne Ablaufdatum."}${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>`;
-  const quotas = local || locked || !me.quotas ? "" : [quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new), quotaBar(labels.library_tests, me.quotas.library_tests), quotaBar(labels.ai_assist, me.quotas.ai_assist)].join("");
+  const quotas = local || locked || !me.quotas ? "" : [quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new), quotaBar(labels.library_tests, me.quotas.library_tests), quotaBar(labels.ai_assist, me.quotas.ai_assist), quotaBar(labels.card_stacks_adopted, me.quotas.card_stacks_adopted)].join("");
   const cards = contract.order.map(key => {
     const p = contract.plans[key], isCur = key === current && !onTrial && !(gated && key === "free");
     const q = p.quotas;
@@ -92,6 +94,7 @@ export async function viewAbo(_, params, view) {
       p.credits ? `${icon("sparkles", 13)} ${p.credits} Credits für die StudiNow-KI pro Monat` : null,
       ...[QUOTA_TXT(q, "ai_tests_new", labels), QUOTA_TXT(q, "library_tests", labels), QUOTA_TXT(q, "ai_assist", labels)]
         .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die StudiNow-KI eingerichtet ist)` : t),
+      labels.card_stacks_adopted ? QUOTA_TXT(q, "card_stacks_adopted", labels) : null,
     ].filter(Boolean).map(t => `<div>${t}</div>`).join("");
     const soon = local && key === "pro_ai";      // Einzelplatz: Pro AI gibt es erst mit dem Dienst, ohne Preis und ohne Knopf
     const action = soon ? `<span class="plan-hint">Braucht den StudiNow-Dienst.</span>` : local ? ""

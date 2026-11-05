@@ -31,6 +31,34 @@ final class CardStackShareAppTests: XCTestCase {
     private let secret = CommunityKeys.secret(university: "luh", moduleName: "Analysis I")
     private var key: String { CommunityKeys.courseKey(university: "luh", courseName: "Analysis I")! }
 
+    /// Community und Uebernehmen ab Plus (05.11.2026): die Seite liest den Tarif aus `Entitlements.shared`; jeder Test
+    /// zaehlt das Kontingent in eigenen UserDefaults
+    private var planBefore: UFPlan = .free
+
+    override func setUp() async throws {
+        try await super.setUp()
+        planBefore = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+    }
+
+    override func tearDown() async throws {
+        Entitlements.shared.setPlanForTesting(planBefore)
+        try await super.tearDown()
+    }
+
+    private func quota() throws -> UFAdoptQuota {
+        let name = "uf-adopt-\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: name))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: name) }
+        return UFAdoptQuota(defaults: d, now: { self.clock.now })
+    }
+
+    private func deck(_ api: APIClient) throws -> FlashcardDeck {
+        let d = FlashcardDeck(api: api)
+        d.adoptQuota = try quota()
+        return d
+    }
+
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-stapel-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -216,7 +244,7 @@ final class CardStackShareAppTests: XCTestCase {
         let ai = CardsAI()
         let adaShare = CloudKitWeeklyTestShare(cloud: FakeCloud(store: store, user: "_user-ada"), recordType: CardStackShareRecord.weekType, now: { self.clock.now })
         let (_, adaAPI) = try await host(share: adaShare, ai: ai)
-        let ada = FlashcardDeck(api: adaAPI)
+        let ada = try deck(adaAPI)
         try await ada.load()
         XCTAssertNil(ada.weekStack(subject: "Analysis I", week: 5, kind: "vorlesung"))
         XCTAssertFalse(ada.hasCompleteWeek(subject: "Analysis I", week: 5))
@@ -252,7 +280,7 @@ final class CardStackShareAppTests: XCTestCase {
         let benShare = CloudKitWeeklyTestShare(cloud: FakeCloud(store: store, user: benName), recordType: CardStackShareRecord.weekType, now: { self.clock.now })
         let benAI = CardsAI()
         let (_, benAPI) = try await host(module: "Analysis für alle", share: benShare, ai: benAI)
-        let ben = FlashcardDeck(api: benAPI)
+        let ben = try deck(benAPI)
         try await ben.load()
         let adopted = try await ben.fetchWeek(moduleID: 7, week: 5)
         XCTAssertEqual(adopted[0].status, "adopted")
@@ -272,7 +300,7 @@ final class CardStackShareAppTests: XCTestCase {
         let store = Store()
         let adaCommunity = CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ada"), pseudonym: { "Ada" })
         let (_, adaAPI) = try await host(community: adaCommunity)
-        let ada = FlashcardDeck(api: adaAPI)
+        let ada = try deck(adaAPI)
         try await ada.load()
         let sid = try await ada.createStack(name: "Klausur", subject: "Analysis I", week: .some(5), kind: "vorlesung")
         try await ada.create(question: "Q1", answer: "A1", fileID: nil, stackID: sid)
@@ -294,7 +322,7 @@ final class CardStackShareAppTests: XCTestCase {
         // Ben: dasselbe Modul ueber den Kurstitel, sieht den Stapel, uebernimmt (eigener Stapel, Lernstand getrennt), liked
         let benCommunity = CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ben"))
         let (_, benAPI) = try await host(files: false, community: benCommunity)
-        let ben = FlashcardDeck(api: benAPI)
+        let ben = try deck(benAPI)
         try await ben.load()
         await ben.loadShared()
         let seen = try XCTUnwrap(ben.shared(module: 7, week: nil).first)
@@ -330,10 +358,88 @@ final class CardStackShareAppTests: XCTestCase {
         XCTAssertEqual(ben.all.count, 2)
         // ohne Dienst: nicht verfuegbar, Teilen bleibt weg
         let (_, noAPI) = try await host(files: false)
-        let none = FlashcardDeck(api: noAPI)
+        let none = try deck(noAPI)
         try await none.load()
         await none.loadShared()
         XCTAssertFalse(none.sharingAvailable)
         XCTAssertEqual(none.shared, [:])
+    }
+
+    // MARK: Tarif (05.11.2026)
+
+    /// Free ohne Dienst liest keine geteilten Stapel aus CloudKit (Community ab Plus)
+    func testFreeReadsNoSharedStacksWithoutService() async throws {
+        let store = Store()
+        let adaCommunity = CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ada"), pseudonym: { "Ada" })
+        let (_, adaAPI) = try await host(community: adaCommunity)
+        let ada = try deck(adaAPI)
+        try await ada.load()
+        let sid = try await ada.createStack(name: "Klausur", subject: "Analysis I", week: .some(5), kind: "vorlesung")
+        try await ada.create(question: "Q1", answer: "A1", fileID: nil, stackID: sid)
+        _ = try await ada.share(try XCTUnwrap(ada.stacks.first { $0.i("id") == sid }))
+        let ben = try deck(try await host(files: false, community: CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ben"))).1)
+        try await ben.load()
+        Entitlements.shared.setPlanForTesting(.free)
+        await ben.loadShared()
+        XCTAssertEqual(ben.shared, [:], "Free: keine Abfrage der Community")
+        Entitlements.shared.setPlanForTesting(.plus)
+        await ben.loadShared()
+        XCTAssertEqual(ben.shared(module: 7, week: nil).count, 1)
+    }
+
+    /// Kontingent "Karteikarten-Stapel von StudiNow" auf dem Geraet: Plus 4 je Monat, derselbe Stapel einmal, Pro AI
+    /// unbegrenzt, neuer Monat neu
+    func testAdoptQuotaCountsPlusFourPerMonth() throws {
+        let q = try quota()
+        XCTAssertEqual(UFAdoptQuota.limit(.free), 0)
+        XCTAssertEqual(UFAdoptQuota.limit(.plus), 4)
+        XCTAssertNil(UFAdoptQuota.limit(.proAI))
+        XCTAssertFalse(q.allows("a", plan: .free))
+        for id in ["a", "b", "c", "d"] {
+            XCTAssertTrue(q.allows(id, plan: .plus), id)
+            q.record(id)
+        }
+        q.record("a")
+        XCTAssertEqual(q.used.count, 4, "derselbe Stapel zaehlt einmal")
+        XCTAssertTrue(q.allows("a", plan: .plus), "schon gezaehlt")
+        XCTAssertFalse(q.allows("e", plan: .plus))
+        XCTAssertTrue(q.allows("e", plan: .proAI))
+        XCTAssertEqual(q.error(plan: .plus).errorDescription,
+                       "Karteikarten-Stapel von StudiNow: Kontingent für diesen Monat aufgebraucht (4 von 4).")
+        let december = UFAdoptQuota(defaults: q.defaults, now: { UniFlowClock.fixed(berlin: "2026-12-01T10:00:00")!.now })
+        XCTAssertTrue(december.allows("e", plan: .plus), "neuer Monat, neues Kontingent")
+    }
+
+    /// Uebernehmen eines geteilten Stapels: der fuenfte im Monat wird mit Plus abgewiesen, mit Pro AI nicht
+    func testAdoptStopsAfterFourForPlus() async throws {
+        let store = Store()
+        let adaCommunity = CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ada"), pseudonym: { "Ada" })
+        let (_, adaAPI) = try await host(community: adaCommunity)
+        let ada = try deck(adaAPI)
+        try await ada.load()
+        for n in 1...5 {
+            let sid = try await ada.createStack(name: "Stapel \(n)", subject: "Analysis I", week: .some(n), kind: "vorlesung")
+            try await ada.create(question: "Q\(n)", answer: "A\(n)", fileID: nil, stackID: sid)
+            _ = try await ada.share(try XCTUnwrap(ada.stacks.first { $0.i("id") == sid }))
+        }
+        let ben = try deck(try await host(files: false, community: CloudKitCardStackCommunity(cloud: FakeCloud(store: store, user: "_user-ben"))).1)
+        try await ben.load()
+        await ben.loadShared()
+        let seen = ben.shared(module: 7, week: nil)
+        XCTAssertEqual(seen.count, 5)
+        for sh in seen.prefix(4) { _ = try await ben.adopt(sh) }
+        do {
+            _ = try await ben.adopt(seen[4])
+            XCTFail("fuenfter Stapel im Monat mit Plus")
+        } catch let e as APIError {
+            XCTAssertEqual(e.code, "quota_exhausted")
+            XCTAssertEqual(e.errorDescription, "Karteikarten-Stapel von StudiNow: Kontingent für diesen Monat aufgebraucht (4 von 4).")
+        }
+        XCTAssertEqual(ben.stacks.count, 4)
+        let again = try await ben.adopt(seen[0]).already
+        XCTAssertTrue(again, "schon uebernommen geht weiter")
+        Entitlements.shared.setPlanForTesting(.proAI)
+        _ = try await ben.adopt(seen[4])
+        XCTAssertEqual(ben.stacks.count, 5, "Pro AI unbegrenzt")
     }
 }

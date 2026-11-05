@@ -121,8 +121,9 @@ final class EditorPaletteTests: XCTestCase {
                        "unsere Eintraege direkt dahinter (Form und Text zuerst): in den sieben sichtbaren Plaetzen hochkant")
         XCTAssertEqual(Array(ids.suffix(apple.count - first.count)), apple.filter { !EditorPalette.appleFirstIDs.contains($0) },
                        "Lineal und Apples weitere Stifte am Ende")
-        XCTAssertEqual(ids[5], EditorPalette.shapeID)
-        XCTAssertEqual(ids[6], EditorPalette.textID)
+        XCTAssertEqual(ids[5], EditorPalette.areaID, "Bereich an KI direkt hinter Apples Lasso (05.11.2026)")
+        XCTAssertEqual(ids[6], EditorPalette.shapeID)
+        XCTAssertEqual(ids[7], EditorPalette.textID)
         // Palette unter dem Speichernamen der App: die Eintraege bleiben (PencilKit stellt Auswahl und Farben wieder her)
         picker.stateAutosaveName = "uniflow.toolpicker"
         XCTAssertTrue(EditorPalette.hasCustomItems(picker))
@@ -187,6 +188,14 @@ final class EditorPaletteTests: XCTestCase {
         XCTAssertFalse(editor.objects.isActive, "Stift: Objektmodus aus")
         XCTAssertTrue(overlay.canvas.isUserInteractionEnabled)
         XCTAssertEqual(reported.last?.0, false)
+
+        // "Bereich an KI" aus der Palette: Objektmodus mit dem Bereichswerkzeug, Stift beendet ihn
+        picker.selectedToolItemIdentifier = EditorPalette.areaID
+        XCTAssertTrue(editor.objects.isActive)
+        XCTAssertEqual(editor.objects.tool, .area)
+        XCTAssertFalse(overlay.canvas.isUserInteractionEnabled, "Einkreisen schreibt nicht")
+        picker.selectedToolItemIdentifier = Self.pen
+        XCTAssertFalse(editor.objects.isActive)
 
         // "Fertig" in der Objektleiste geht ueber die Palette zum letzten Stift
         picker.selectedToolItemIdentifier = EditorPalette.stickyID

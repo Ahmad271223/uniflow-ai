@@ -207,6 +207,11 @@ final class PlanContractTests: XCTestCase {
     /// nennt, ist nie "enthalten".
     func testEveryContractRightIsOnDeviceOrPreparing() {
         XCTAssertEqual(UFEntitlement.canReadCommunity.onDevice, .onDevice([.communityRead]))
+        // Entscheidung 05.11.2026: Community ab Plus, eigenes ChatGPT in jedem Tarif (Verbindung noch aus)
+        XCTAssertEqual(UFEntitlement.canReadCommunity.from, .plus)
+        XCTAssertEqual(UFFeature.communityRead.minimumPlan, .plus)
+        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.from, .free)
+        XCTAssertFalse(UFEntitlement.chatgptConnectionPremium.availableOnDevice)
         XCTAssertEqual(UFEntitlement.canShareSolutions.onDevice, .onDevice([.shareSolutions]))
         // eigene Karteikarten (04.11.2026): Recht des Vertrags ab Plus, auf dem iPad die Funktion `flashcards`
         XCTAssertEqual(UFEntitlement.canUseFlashcards.onDevice, .onDevice([.flashcards]))
@@ -248,7 +253,7 @@ final class PlanContractTests: XCTestCase {
         for f in UFFeature.allCases {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), UFFeatureMatrix.access(f, plan: .plus), f.rawValue)
         }
-        for f: UFFeature in [.pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests] {
+        for f: UFFeature in [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .weeklyTests] {
             XCTAssertEqual(f.minimumPlan, .plus, f.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
@@ -261,19 +266,21 @@ final class PlanContractTests: XCTestCase {
     func testPlanCardsListOnlyWhatWorksAndMarkTheRest() {
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
-                        .viewNotes, .uniGrades, .communityRead].map(\.title))
+                        .viewNotes, .uniGrades].map(\.title))
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
-                       [UFFeature.pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests].map(\.title))
+                       [UFFeature.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .weeklyTests].map(\.title))
         XCTAssertEqual(UFPlanCard.included(.proAI), [], "Pro AI bietet auf dem iPad heute nichts Eigenes")
 
-        XCTAssertEqual(UFPlanCard.preparing(.free), [])
+        // Free (05.11.2026): eigenes ChatGPT verbinden, bis OpenAI freigibt "in Vorbereitung"
+        XCTAssertEqual(UFPlanCard.preparing(.free).map(\.title), ["Eigenes ChatGPT verbinden und zu Folien fragen"])
+        XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title.contains("Community") }, "Free ohne Community")
         XCTAssertEqual(UFPlanCard.preparing(.plus).map(\.title),
                        ["Community-Kommentare schreiben", "Tests aus der StudiNow-Bibliothek", "Neue KI-Tests von StudiNow"])
         // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect) und die StudiNow-KI
         XCTAssertEqual(UFPlanCard.preparing(.proAI).map(\.title),
                        ["Lernstatistik über alle Module", "Intelligente Lernplanung (Empfehlungen für die Woche)",
                         "Automatische Wiederholung falscher Antworten", "Vollständige Testliste (Free und Plus: die letzten 10)",
-                        "Personalisierte Lernempfehlungen", "Eigenes ChatGPT-Konto verbinden",
+                        "Personalisierte Lernempfehlungen",
                         "KI-Erklärungen zu Aufgaben", "Automatische Lernfragen und Wiederholungsaufgaben",
                         "KI-Zusammenfassungen", "KI-gestützte Lernempfehlungen",
                         // 04.11.2026: Notizen-Abgleich zwischen den Geraeten ab Pro AI, fertige Wochenfragen der Bibliothek
@@ -306,7 +313,8 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.sameScope(as: .free), .free)
         XCTAssertEqual(UFPlanCard.sameScope(as: .plus), .plus)
         XCTAssertEqual(UFPlanCard.sameScope(as: .proAI), .plus)
-        XCTAssertNil(UFPlanCard.note(.free))
+        XCTAssertEqual(UFPlanCard.note(.free), UFPlanCard.chatgptNote)
+        XCTAssertTrue(UFPlanCard.chatgptNote.contains("OpenAI"))
         let base = "Was „in Vorbereitung“ steht, braucht den Online-Dienst von StudiNow und folgt mit einem Update."
         XCTAssertEqual(UFPlanCard.note(.plus), base)
         XCTAssertEqual(UFPlanCard.note(.proAI), base + " Bis dahin bietet StudiNow Pro AI denselben Umfang wie StudiNow Plus.")
@@ -339,19 +347,21 @@ final class PlanContractTests: XCTestCase {
 
     }
 
-    // MARK: Verknuepfung mit dem Dienst (V2, abgeschaltet)
+    // MARK: Verknuepfung mit dem Dienst
 
-    /// V1 ruft den Dienst nicht auf: keine Kaufoption (kein appAccountToken), keine Anfrage an
-    /// /api/billing/apple/verify, kein Pruef-Haken am gemeinsamen Tarif. Die Form fuer V2 steht fest.
+    /// Ohne angemeldetes StudiNow-Konto ruft die App den Dienst nicht auf: keine Kaufoption (kein appAccountToken), kein
+    /// Pruef-Haken am gemeinsamen Tarif. Die Form der Anfrage an /api/billing/apple/verify steht fest.
     @MainActor
-    func testServiceLinkIsPreparedButSwitchedOff() throws {
-        XCTAssertFalse(UFBillingServiceLink.isEnabled)
-        XCTAssertNil(Entitlements.shared.verifyOnServer)
+    func testServiceLinkIsOnButOnlyWithAnAccount() throws {
+        // seit 05.11.2026 eingeschaltet (StudiNow-KI ueber Pro AI): Kaufoption nur mit Konto-Token, Meldung nur mit Anmeldung
+        XCTAssertTrue(UFBillingServiceLink.isEnabled)
+        XCTAssertNil(Entitlements.shared.verifyOnServer, "ohne angemeldetes Konto kein Pruef-Haken")
         let token = "3F2504E0-4F89-11D3-9A0C-0305E82C3301"
-        XCTAssertTrue(UFBillingServiceLink.purchaseOptions(accountToken: token).isEmpty)
-        XCTAssertNil(UFBillingServiceLink.verifyRequest(base: URL(string: "https://dienst.example")!, signedTransaction: "a.b.c"))
+        XCTAssertTrue(UFBillingServiceLink.purchaseOptions(accountToken: nil).isEmpty, "ohne Konto keine Kaufoption")
+        XCTAssertTrue(UFBillingServiceLink.purchaseOptions(accountToken: token, enabled: false).isEmpty)
+        XCTAssertNil(UFBillingServiceLink.verifyRequest(base: URL(string: "https://dienst.example")!, signedTransaction: "a.b.c", enabled: false))
 
-        // Form fuer V2 (nur mit enabled: true, wie app/billing_api.py sie erwartet)
+        // Form (wie app/billing_api.py sie erwartet)
         XCTAssertEqual(UFBillingServiceLink.purchaseOptions(accountToken: token, enabled: true),
                        [.appAccountToken(try XCTUnwrap(UUID(uuidString: token)))])
         XCTAssertTrue(UFBillingServiceLink.purchaseOptions(accountToken: "keine-uuid", enabled: true).isEmpty)

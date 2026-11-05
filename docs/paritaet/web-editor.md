@@ -292,6 +292,14 @@ Textobjekt mit `bg=stickyColor` (Default `#fff7a8`), Breite 170, Größe 13 und 
   - Bei `flashcards` werden Karten angezeigt, dazu der Button „Karteikarten speichern (n)" → `POST /api/flashcards {file_id, cards}` (server.py:504).
   - Sonst Markdown-Render `md()` (editor.js:1038-1046) und der Button „Als Textfeld einfügen": Textobjekt bei (20,20), bg `#e8eeff`, Breite `min(320, w-40)`, Größe 11, Zeichen `*#/`` entfernt (editor.js:959).
 
+- **Stand 05.11.2026 (ai-panel.js, KI am PC über das Konto):** Fragt man zu einer PDF-Seite, gehen ihre Seitennotizen
+  und die Blätter daneben (`side-notes.js` `notePages`, Text aus Textfeldern/Haftnotizen, Handschrift nur mit erkanntem
+  Text vom iPad, höchstens 4 000 Zeichen) als `own_notes` mit; der Server nutzt dann keinen Erklärungsspeicher. Fußzeile
+  vor der ersten Antwort aus `GET /api/ai/source` („über dein ChatGPT · 0 Credits“ bzw. „Credits: N von M übrig“).
+  Bei `credits_exhausted`, `quota_exhausted`, `plan_required`, `subscription_required` steht „Tarif ansehen“ unter der
+  Meldung. Am PC mit StudiNow-Konto laufen Antworten, Karteikarten und „Ganzes Dokument“ über den Dienst
+  (`app/ai_relay.py`, `doc_explain_api._forward`), gemeinsame Seiten aus `/api/explain` (`app/explain_service.py`).
+
 ### B18 Audioaufnahme (editor.js:936-944, 817-821)
 - `getUserMedia({audio:true})` mit `MediaRecorder`; Status „● Aufnahme läuft…".
 - Beim Stoppen: `POST /api/files/{id}/recordings` mit FormData `upload` (aufnahme.webm), `page`, `duration` (server.py:1505; Titel serverseitig „Aufnahme TT.MM. HH:MM").
@@ -431,6 +439,12 @@ Der Listener hängt an `.ed-scroll` (tabindex 0, editor.js:255). Ignoriert wird 
 - Aufbau 300 px vor dem Sichtbereich, Abbau außerhalb von 100 % Abstand (editor.js:403-404). Beim schnellen Wischen wird verzögert (editor.js:420-428).
 - JPEG-Vorschau 360 px breit, Qualität 0.7, als Seitenhintergrund (editor.js:477-484).
 - Pixellimit iOS 4.5 MP, sonst 12 MP; DPR maximal 2 (editor.js:26-30). Ungenutzte Layer mit Pixelratio 0.2 (editor.js:412).
+
+### B29 iPad-Gleichstand vom 05.11.2026 (Windows-Lücken Dokumente/Editor)
+- **Ansicht fixieren / Zum Abpausen einfrieren** (`editor-freeze.js`, `editor-freeze.css`, wie `EditorFreeze.swift`/`FreezeViews.swift`, `docs/FIXIEREN-ABPAUSEN-2026-11-05.md`): Menü „Mehr“ → Abschnitt „Bildschirm fixieren“ (Ansicht fixieren/lösen, Zum Abpausen einfrieren, Schalter „Kontrast für Abpausen“), Strg+L (Mac Cmd+L), Erklärung beim ersten Mal (`uniflow.freeze.introSeen`). Fixiert: Mausrad, Strg+Mausrad, Bildlaufleiste (`overflow: hidden`), mittlere Maustaste, Finger-Wischen bei „Nur Stift“, zweiter Finger (Pinch), Hand/Leertaste, Bild auf/ab, Strg +/−/0, Gehe zu Seite, Seitenleiste, Suche und KI-Sprung gesperrt; Seitenschlüssel, Punkt links oben und Zoom werden gehalten (auch nach Fenstergröße und Neuaufbau); Stift, Maus und Werkzeuge schreiben weiter; Abzeichen „Ansicht fixiert · Lösen“. Abpausen: Fullscreen API auf dem Editor (sonst fest über der Oberfläche), alle Leisten weg, Sperrfläche schluckt jede Eingabe (auch Stift), Screen Wake Lock wo vorhanden; Schloss oben links mit 30 % Deckkraft, 2 s halten mit Fortschrittsring, Esc, Enter/Leertaste bzw. Screenreader auf dem Schloss; danach die Stufe davor. Helligkeit gibt es im Browser nicht (wie Mac). Umgesetzt durch Hüllen um `goToPage`, `zoomTo`, `fling`, `pinchStart`, `clampView`, `buildPages`, `rebuildPages`, `destroy` der Editor-Instanz. Tests `tests/js/editor-freeze.test.mjs`.
+- **Formerkennung nach Halten** (`editor-shapes.js`, Paket B): Linie, Rechteck, Ellipse/Kreis, Dreieck, Pfeil nach 0,5 s Stillhalten, Schalter in der Stiftleiste, ein Rückgängig-Schritt. Tests `tests/js/editor-shapes.test.mjs`.
+- **„Als Karteikarte“** (`editor-card.js`, Paket B): PDF-Text markieren → Karte mit dem Text als Vorderseite in den Stapel des Dokuments (bzw. gewählten Stapel), `POST /api/flashcards` ab Plus (`_require_flashcards`, 403 mit Text). Tests `tests/js/editor-card.test.mjs`.
+- **Notizen und Blätter mitschicken** (`side-notes.js`, wie `SideNotes.swift`, `docs/NOTIZEN-MITSCHICKEN-2026-11-05.md`): Export-Menü mit Schalter „Notizen und Blätter mitschicken“ (Standard an): „Alle exportieren“ flicht Blätter vom iPad (`sideSheets`) hinter ihre Folie und lässt leere Seitennotizen hinter Folien weg, „Diese Seite“/„Ausgewählte Seiten“ bringen die Notizseiten der Folie mit. Community „Lösung teilen“: gleicher Schalter, Notizseiten bringen ihre Folie mit, abgewählte Folie nimmt ihre Notizseiten heraus, Bezeichnungen „Notiz zu Folie 4“/„Blatt zu Folie 4“. Der Browser legt selbst keine Blätter daneben an (kein `sideSheets`-Schreiben), behält das Feld aber. Tests `tests/js/side-notes.test.mjs`.
 
 ---
 

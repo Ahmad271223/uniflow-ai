@@ -134,8 +134,15 @@ Bitte notieren: Status (201?), Darstellung des Texts (HTML oder Text), CSRF ja/n
 
 ## 5. Web und Windows
 
-Lücke, nicht umgesetzt (wie beim Abgeben): Der Dienst ruft Stud.IP nie selbst auf, am PC liest der Abgleich nur. Dort
-bleibt „In Stud.IP öffnen“.
+**Windows-App/Einzelplatz seit 05.11.2026 umgesetzt** (im Dienst weiterhin nicht: keine Cookies auf eigenen Servern).
+Gleiche Regeln und Texte: `app/studip_reply.py` (Regeln, Kontext live aus dem Posteingang, Senden, Entwurf
+`studip_reply_drafts`, Verlauf `studip_replies`, Empfängerzahl `studip_message_meta` aus dem PC-Abgleich),
+`app/studip_live.py` (gemerkte Stud.IP-Sitzung aus `university-session.json`, bei 401/Anmeldeseite einmal still über
+das Browser-Profil des Abgleichs erneuern und genau einmal neu senden, keine Weiterleitungen, nur der Stud.IP-Rechner),
+Fenster `app/static/message-reply.js`. Routen: `GET /api/studip/messages/{id}/reply?all=`, `POST …/reply`,
+`PUT/DELETE …/draft`. Die Empfänger-Kennungen holt der Server beim Senden selbst aus Stud.IP. Schreibend gesperrt ohne
+Abo (`app/access.py`). Tests: `tests/test_studip_reply.py`, `tests/js/studip-windows-tools.test.mjs`.
+Echt prüfen am PC: wie Abschnitt 4, in der Windows-App (Stud.IP über Einstellungen → Zugang angemeldet).
 
 ## Echter Test (05.11.2026)
 

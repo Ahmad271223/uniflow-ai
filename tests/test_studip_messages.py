@@ -50,7 +50,7 @@ def test_list_is_newest_first_by_instant_not_by_text(app, inbox):
     # Nr. 4 (09:30 UTC = 10:30 MEZ) liegt nach Nr. 2 (10:00 MEZ), obwohl der Text "09:30" kleiner ist
     assert [m["id"] for m in d["messages"]] == ["sp-msg-4", "sp-msg-2", "sp-msg-1", "sp-msg-3"]
     m = d["messages"][2]
-    assert set(m) == {"id", "sender", "subject", "text", "sent_at", "url", "dates"}
+    assert set(m) == {"id", "sender", "subject", "text", "sent_at", "url", "dates", "recipients", "replyable", "replies", "reply_url"}
     assert m["text"].startswith("Das Tutorium am 12.11.") and "\nBitte Blatt 3" in m["text"], "ganzer Text, Zeilenumbrueche bleiben"
     assert m["dates"] == [{"date": "2026-11-12", "time": None, "kind": "ausfall"}]
     assert m["url"].endswith("/dispatch.php/messages/overview"), "Link auf den Posteingang, nie auf eine Einzelansicht"

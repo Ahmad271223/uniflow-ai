@@ -24,8 +24,11 @@ enum EditorPalette {
     static let stickyID = "de.studinow.palette.sticky"
     static let shapeID = "de.studinow.palette.shape"
     static let markupID = "de.studinow.palette.markup"
-    /// Reihenfolge in der Palette: Form und Text zuerst (am haeufigsten), dann Haftnotiz, Auswaehlen, Text markieren
-    static let customIDs = [shapeID, textID, stickyID, selectID, markupID]
+    /// "Bereich an KI" (05.11.2026): Ausschnitt einkreisen, er geht als Bild in die KI-Hilfe
+    static let areaID = "de.studinow.palette.area"
+    /// Reihenfolge in der Palette: "Bereich an KI" vorn (Wunsch des Inhabers), dann Form und Text (am haeufigsten),
+    /// Haftnotiz, Auswaehlen, Text markieren
+    static let customIDs = [areaID, shapeID, textID, stickyID, selectID, markupID]
 
     /// Eigene Eintraege in der Palette moeglich (iPadOS 18)
     static var supportsCustomItems: Bool {
@@ -136,6 +139,7 @@ enum EditorPalette {
         case stickyID: return .sticky
         case shapeID: return shape
         case markupID: return .markup
+        case areaID: return .area
         default: return nil
         }
     }
@@ -148,6 +152,7 @@ enum EditorPalette {
         case .sticky: return stickyID
         case .rect, .ellipse, .line, .arrow: return shapeID
         case .markup: return markupID
+        case .area: return areaID
         }
     }
 
@@ -159,7 +164,10 @@ enum EditorPalette {
         func item(_ id: String, _ name: String, color: UIColor? = nil, widths: [CGFloat] = [],
                   options: (() -> UIViewController)? = nil) -> PKToolPickerCustomItem {
             var c = PKToolPickerCustomItem.Configuration(identifier: id, name: name)
-            c.imageProvider = { it in toolImage(symbol: symbol(for: it.identifier), color: color == nil ? nil : it.color, name: name) }
+            c.imageProvider = { it in
+                toolImage(symbol: symbol(for: it.identifier), color: color == nil ? nil : it.color, name: name,
+                          badge: it.identifier == areaID ? "sparkles" : nil)
+            }
             if let color {
                 c.allowsColorSelection = true
                 c.defaultColor = color
@@ -179,8 +187,10 @@ enum EditorPalette {
                           options: { PaletteOptionsController(title: "Form", key: shapeKey, choices: shapeChoices) }),
             textID: item(textID, "Text", color: UIColor(hex: "#1d2130")),
             stickyID: item(stickyID, "Haftnotiz"),
-            selectID: item(selectID, "Objekte auswählen", options: { PaletteOptionsController(title: "Auswählen", key: selectKey, choices: selectChoices) }),
+            // "Auswählen" (Textfelder, Haftnotizen, Formen; Antippen oder Lasso), vorher "Objekte auswählen" mit Mauszeiger
+            selectID: item(selectID, "Auswählen", options: { PaletteOptionsController(title: "Auswählen", key: selectKey, choices: selectChoices) }),
             markupID: item(markupID, "Text markieren"),
+            areaID: item(areaID, Self.areaTitle),
         ]
         return customIDs.compactMap { all[$0] }
     }
@@ -191,6 +201,7 @@ enum EditorPalette {
         case textID: return "textformat"
         case stickyID: return "note.text"
         case shapeID: return shapeTool.systemImage
+        case areaID: return ObjectEditing.Tool.area.systemImage
         default: return "highlighter"
         }
     }
@@ -198,7 +209,10 @@ enum EditorPalette {
     /// Bild eines Eintrags: Werkzeug wie ein Stift in der Palette (mindestens 150 pt hoch, PencilKit zeigt den oberen
     /// Teil), heller Koerper mit Kontur wie Apples Stifte, Symbol oben, bei Werkzeugen mit Farbe in dieser Farbe
     /// (im Simulator geprueft: so gezeichnet erscheint der Eintrag wie Apples Werkzeuge)
-    static func toolImage(symbol: String, color: UIColor?, name: String) -> UIImage {
+    static let areaTitle = "Bereich an KI"
+
+    /// - Parameter badge: kleines zweites Symbol rechts unter dem Hauptsymbol ("Bereich an KI": Funkeln der KI)
+    static func toolImage(symbol: String, color: UIColor?, name: String, badge: String? = nil) -> UIImage {
         let size = CGSize(width: 44, height: 150)
         let img = UIGraphicsImageRenderer(size: size).image { _ in
             let body = UIBezierPath(roundedRect: CGRect(x: 8, y: 6, width: 28, height: 160), cornerRadius: 9)
@@ -211,6 +225,10 @@ enum EditorPalette {
             if let s = UIImage(systemName: symbol, withConfiguration: cfg)?
                 .withTintColor(color ?? UIColor(white: 0.2, alpha: 1), renderingMode: .alwaysOriginal) {
                 s.draw(in: CGRect(x: (size.width - s.size.width) / 2, y: 18, width: s.size.width, height: s.size.height))
+            }
+            if let badge, let b = UIImage(systemName: badge, withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold))?
+                .withTintColor(.systemPurple, renderingMode: .alwaysOriginal) {
+                b.draw(in: CGRect(x: size.width - 12 - b.size.width / 2, y: 38, width: b.size.width, height: b.size.height))
             }
         }
         img.accessibilityLabel = name

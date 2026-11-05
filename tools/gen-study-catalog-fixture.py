@@ -535,6 +535,19 @@ REGISTRY_LABELS = [
     ("", None),
 ]
 
+# LSF Hildesheim (Notenspiegel-Zeile "Abschluss: ..."; Nummern erfunden) und Namen aus study-sources-hildesheim.json
+HILDESHEIM_LABELS = [
+    ("Abschluss: [82] Bachelor Studiengang: [079] B.Sc. Angewandte Informatik PO-Version: 2024", None),
+    ("Abschluss: [88] Master Studiengang: [079] M.Sc. Angewandte Informatik PO-Version: 2024", None),
+    ("Abschluss: [82] Bachelor Studiengang: [277] B.Sc. Wirtschaftsinformatik PO-Version: 2019", None),
+    ("Abschluss: [82] Bachelor Studiengang: [026] B.A. Biologie PO-Version: 2025", None),
+    ("Abschluss: [Ed] Master of Education Studiengang: [026] M.Ed. Biologie PO-Version: 2026", None),
+    ("Abschluss: [82] Bachelor Studiengang: [132] B.Sc. Psychologie PO-Version: 2021", None),
+    ("Psychologie (PO-Version 2021)", None),
+    ("Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022", None),
+    ("Abschluss: [82] Bachelor", None),
+]
+
 TEXTS = [
     "Pﬂicht und Qualiﬁkationsziele",
     "A B\tC  D \r\nE\rF G H\x0cI\x0bJ\x85K",
@@ -573,7 +586,10 @@ def build() -> dict[str, bytes]:
     files["expected.json"] = _json(expected)
     files["validator-cases.json"] = _json(validator_cases(catalog))
     registry = {
-        "matches": [{"label": lab, "po": po, "result": sc.match_program(lab, "luh", reg, po)} for lab, po in REGISTRY_LABELS],
+        "matches": [{"label": lab, "po": po, "university": "luh", "result": sc.match_program(lab, "luh", reg, po)}
+                    for lab, po in REGISTRY_LABELS]
+                   + [{"label": lab, "po": po, "university": "hildesheim", "result": sc.match_program(lab, "hildesheim", reg, po)}
+                      for lab, po in HILDESHEIM_LABELS],
         "keys": [{"university": u, "code": c, "term": t, "key": sc.library_key(u, c, t)}
                  for u, c, t in [("luh", "TIBSc22", "WS 2025/26"), ("luh", "INFBSc22", "WS 2024/25"), ("luh", "TIBSc22", "SS 2026"),
                                  ("luh", "TIBSc25", "WS 2026/27")]],
@@ -631,15 +647,17 @@ SWIFT_DATA = ROOT / "apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/StudyCa
 
 
 def full_registry() -> bytes:
-    """Gemischtes Register (study-sources.json + alle LUH-Studiengaenge aus study-sources-luh.json,
-    `merge_luh_registry`): packages/shared-contracts/study-sources-all.json, das Python und der Kern fuer die
-    QIS-Zuordnung nutzen"""
+    """Gemischtes Register (study-sources.json + alle LUH-Studiengaenge aus study-sources-luh.json + alle Studiengaenge
+    der Universitaet Hildesheim aus study-sources-hildesheim.json und der Hochschule Hannover aus study-sources-hsh.json,
+    `merge_wide_registries`):
+    packages/shared-contracts/study-sources-all.json, das Python und der Kern fuer die QIS-Zuordnung nutzen"""
     curated = json.loads(sc.REGISTRY_PATH.read_text(encoding="utf-8"))
-    luh = json.loads(sc.LUH_REGISTRY_PATH.read_text(encoding="utf-8"))
-    merged = sc.merge_luh_registry(curated, luh)
-    merged["note"] = ("ERZEUGT von tools/gen-study-catalog-fixture.py aus study-sources.json (gepflegt, vorn) und "
+    merged = sc.merge_wide_registries(curated, sc.load_wide_registries())
+    merged["note"] = ("ERZEUGT von tools/gen-study-catalog-fixture.py aus study-sources.json (gepflegt, vorn), "
                       "study-sources-luh.json (alle LUH-Studiengaenge; Quelle luh-grundstock = nur aus dem Grundstock der "
-                      "App) - nicht von Hand aendern. " + str(curated.get("note") or ""))
+                      "App), study-sources-hildesheim.json (Universitaet Hildesheim; Quelle hildesheim-grundstock) und "
+                      "study-sources-hsh.json (Hochschule Hannover; Quelle hsh-grundstock) - nicht "
+                      "von Hand aendern. " + str(curated.get("note") or ""))
     return (json.dumps(merged, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
 
 

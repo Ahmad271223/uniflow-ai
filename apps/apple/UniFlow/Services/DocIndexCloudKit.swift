@@ -124,7 +124,8 @@ enum DocIndexPrewarm {
     /// Stufe aus der Einstellung "Vorab einordnen" (`DocIndexPrewarmSetting`): `full` erzeugt und teilt dazu je Seite
     /// eine Erklaerung und fuer Seiten mit Aufgaben eine Loesung (Erklaerungsspeicher), mit denselben Grenzen
     static func run(_ ctx: LocalContext, level: DocIndexPrewarmLevel = DocIndexPrewarmSetting.level()) async {
-        guard let provider = ctx.ai.provider, await charging(), await onWiFi() else { return }
+        // nur eine KI ohne Credits (eigenes ChatGPT): die StudiNow-KI arbeitet nie unbemerkt im Hintergrund
+        guard let provider = ctx.ai.backgroundProvider, await charging(), await onWiFi() else { return }
         let ai = ctx.docIndex.ai(from: provider)
         _ = await DocIndexBuilder.prewarm(ctx: ctx, cloud: ctx.docIndex.cloud, ai: ai, cipher: ctx.docIndex.cipher,
                                           level: level, tutorAI: level == .full ? provider : nil, shouldStop: { Task.isCancelled })

@@ -28,7 +28,7 @@ test("jeder neue Code hat seinen eigenen deutschen Text", () => {
 
 test("die Texte sind dieselben wie in ServiceErrorText.swift", () => {
   const pairs = [...swift.matchAll(/case "(\w+)":\s*\n\s*return "((?:[^"\\]|\\.)*)"/g)];
-  assert.equal(pairs.length, 7, "sieben bekannte Codes in Swift");
+  assert.equal(pairs.length, 10, "zehn bekannte Codes in Swift");
   for (const [, code, txt] of pairs) assert.equal(E.known(code), txt.replace(/\\"/g, '"'), code);
   const limit = swift.match(/let base = "Du hast heute schon \\\(reportsPerDay\) Meldungen abgegeben, mehr sind pro Tag nicht möglich\."/);
   assert.ok(limit, "Text der Meldegrenze in Swift gefunden");

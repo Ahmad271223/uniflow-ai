@@ -729,4 +729,20 @@ final class StudyPlanBoardAppTests: XCTestCase {
         }
         env.window.overrideUserInterfaceStyle = .unspecified
     }
+
+    /// Quelle des Notenspiegels in den Texten (05.11.2026): QIS an der LUH, LSF an der Uni Hildesheim,
+    /// Campusmanagement (HISinOne) an der HsH; an der HsH nie "QIS"
+    func testGradeSourceTextsPerUniversity() {
+        XCTAssertEqual(StudyPlanText.gradeSource(hildesheim: false), "QIS")
+        XCTAssertEqual(StudyPlanText.gradeSource(hildesheim: true), "LSF")
+        XCTAssertEqual(StudyPlanText.gradeSource(hildesheim: false, hsh: true), "Campusmanagement")
+        XCTAssertEqual(StudyPlanText.gradeSourceFrom(hildesheim: true), "aus dem LSF")
+        XCTAssertEqual(StudyPlanText.gradeSourceIn(hildesheim: false), "in QIS")
+        XCTAssertEqual(StudyPlanText.noQIS(hildesheim: false), StudyPlanText.noQIS)
+        XCTAssertEqual(StudyPlanText.noQIS(hildesheim: true), "Verbinde das LSF, damit StudiNow deinen Studiengang kennt")
+        let hsh = [StudyPlanText.noQIS(hildesheim: false, hsh: true), StudyPlanText.gradeSourceFrom(hildesheim: false, hsh: true),
+                   StudyPlanText.gradeSourceIn(hildesheim: false, hsh: true)]
+        XCTAssertEqual(hsh, ["Melde dich im Campusmanagement an, damit StudiNow deinen Studiengang kennt", "aus dem Campusmanagement", "im Campusmanagement"])
+        XCTAssertFalse(hsh.contains { $0.contains("QIS") })
+    }
 }

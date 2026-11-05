@@ -457,6 +457,8 @@ struct StudyPlanSection<Content: View>: View {
 // MARK: - Einstellungen
 
 struct StudyPlanSettingsSheet: View {
+    @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     let api: APIClient?
     /// gelesener Plan: Schwerpunkt-Gruppen und eigene Eintraege (05.11.2026); nil: ohne diese Abschnitte
     var plan: StudyPlan? = nil
@@ -543,7 +545,7 @@ struct StudyPlanSettingsSheet: View {
                         .accessibilityLabel("Studienbeginn")
                         .accessibilityValue(start)
                         .accessibilityIdentifier("studyplan.settings.start")
-                    Text("Ab hier zählen die Fachsemester. StudiNow schlägt das früheste Semester aus QIS vor.")
+                    Text("Ab hier zählen die Fachsemester. StudiNow schlägt das früheste Semester \(StudyPlanText.gradeSourceFrom(hildesheim: hildesheim != nil, hsh: hsh != nil)) vor.")
                         .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
             }

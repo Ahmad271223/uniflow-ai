@@ -1,0 +1,4361 @@
+{
+ "today": "2026-11-05",
+ "parse": {
+  "studifutter-garbsen.json": {
+   "kind": "studifutter",
+   "result": {
+    "days": {
+     "2026-11-05": [
+      {
+       "id": "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+       "name": "Tortellini Tricolore, Geflügelschinken-Sahne-Sauce",
+       "category": "Pasta & Friends",
+       "time": null,
+       "prices": {
+        "student": 2.0,
+        "employee": 4.5,
+        "guest": 6.4
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "22",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "8",
+         "name": "mit Phosphat"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 764.0,
+        "fat": 18.0,
+        "saturated_fat": 10.5,
+        "carbohydrates": 107.9,
+        "sugar": 12.8,
+        "fiber": null,
+        "protein": 37.4,
+        "salt": 5.0
+       },
+       "components": [
+        "Tortellini Tricolore",
+        "Geflügelschinken-Sahne-Sauce"
+       ],
+       "climate": {
+        "co2_g": 834.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "14f1c3f1-832b-42c9-b399-688a0969d75b",
+       "name": "Chili con Carne, Fladenbrot, wahlweise mit Schmand",
+       "category": "Fleisch & Meer",
+       "time": null,
+       "prices": {
+        "student": 3.8,
+        "employee": 6.5,
+        "guest": 8.1
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "30",
+         "key": "sesam",
+         "name": "Sesam"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "mit Gelatine",
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 811.0,
+        "fat": 35.2,
+        "saturated_fat": 15.9,
+        "carbohydrates": 62.2,
+        "sugar": 12.5,
+        "fiber": null,
+        "protein": 53.6,
+        "salt": 5.3
+       },
+       "components": [
+        "Chili con Carne",
+        "Fladenbrot",
+        "wahlweise mit Schmand"
+       ],
+       "climate": {
+        "co2_g": 2174.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "rind"
+       ],
+       "main": true
+      },
+      {
+       "id": "0394b037-50cd-40e7-90b5-bebccc756f09",
+       "name": "Gemüse-Kichererbsen-Curry, Salzkartoffeln",
+       "category": "Veggie & Vegan",
+       "time": null,
+       "prices": {
+        "student": 2.5,
+        "employee": 6.3,
+        "guest": 7.9
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [
+        "Niedersachsen-Menü",
+        "mit Knoblauch",
+        "Gesund&Munter"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 467.0,
+        "fat": 16.6,
+        "saturated_fat": 11.1,
+        "carbohydrates": 58.3,
+        "sugar": 8.3,
+        "fiber": null,
+        "protein": 13.5,
+        "salt": 4.4
+       },
+       "components": [
+        "Gemüse-Kichererbsen-Curry",
+        "Salzkartoffeln"
+       ],
+       "climate": {
+        "co2_g": 360.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+       "name": "Frisches Putenschnitzel, Chili-Hollandaise, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.8,
+        "employee": 6.0,
+        "guest": 7.8
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "22",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "28",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1322.0,
+        "fat": 102.8,
+        "saturated_fat": 26.0,
+        "carbohydrates": 72.1,
+        "sugar": 2.6,
+        "fiber": null,
+        "protein": 32.4,
+        "salt": 4.6
+       },
+       "components": [
+        "Frisches Putenschnitzel",
+        "Chili-Hollandaise",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 1635.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+       "name": "Veganes Schnitzel, cremige Pilzsauce, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.0,
+        "employee": 5.6,
+        "guest": 6.9
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "20D",
+         "key": "gluten",
+         "name": "Hafer"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1193.0,
+        "fat": 82.6,
+        "saturated_fat": 13.2,
+        "carbohydrates": 84.7,
+        "sugar": 1.8,
+        "fiber": null,
+        "protein": 24.5,
+        "salt": 3.8
+       },
+       "components": [
+        "Veganes Schnitzel",
+        "cremige Pilzsauce",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 639.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+       "name": "Veganes Schnitzel, vegane Chili-Hollandaise, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.0,
+        "employee": 5.6,
+        "guest": 6.9
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1513.0,
+        "fat": 121.4,
+        "saturated_fat": 16.7,
+        "carbohydrates": 83.1,
+        "sugar": 2.4,
+        "fiber": null,
+        "protein": 21.0,
+        "salt": 3.8
+       },
+       "components": [
+        "Veganes Schnitzel",
+        "vegane Chili-Hollandaise",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 588.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+       "name": "Frisches Schweineschnitzel, Chili-Hollandaise, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.8,
+        "employee": 6.0,
+        "guest": 7.8
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "22",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "28",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1353.0,
+        "fat": 105.4,
+        "saturated_fat": 26.9,
+        "carbohydrates": 58.3,
+        "sugar": 1.8,
+        "fiber": null,
+        "protein": 42.8,
+        "salt": 3.5
+       },
+       "components": [
+        "Frisches Schweineschnitzel",
+        "Chili-Hollandaise",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 2464.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+       "name": "Schlemmerjoghurt, Himbeersauce",
+       "category": "Süße Ecke",
+       "time": null,
+       "prices": {
+        "student": 0.9,
+        "employee": 1.3,
+        "guest": 1.7
+       },
+       "allergens": [
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 213.0,
+        "fat": 6.2,
+        "saturated_fat": 4.0,
+        "carbohydrates": 29.5,
+        "sugar": 27.0,
+        "fiber": null,
+        "protein": 9.5,
+        "salt": 0.2
+       },
+       "components": [
+        "Schlemmerjoghurt",
+        "Himbeersauce"
+       ],
+       "climate": {
+        "co2_g": 341.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+       "name": "Brechbohnensalat",
+       "category": "Querbeet",
+       "time": null,
+       "prices": {
+        "student": 0.75,
+        "employee": 1.0,
+        "guest": 1.2
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 72.0,
+        "fat": 2.8,
+        "saturated_fat": 0.3,
+        "carbohydrates": 8.1,
+        "sugar": 3.4,
+        "fiber": null,
+        "protein": 3.2,
+        "salt": 1.2
+       },
+       "components": [],
+       "climate": {
+        "co2_g": 93.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      }
+     ],
+     "2026-11-06": [
+      {
+       "id": "5b8df227-ed0d-428b-aebb-b0429354757a",
+       "name": "Hausgemachte Pasta, Kürbisragout",
+       "category": "Pasta & Friends",
+       "time": null,
+       "prices": {
+        "student": 2.0,
+        "employee": 4.5,
+        "guest": 6.4
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "20D",
+         "key": "gluten",
+         "name": "Hafer"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 740.0,
+        "fat": 9.3,
+        "saturated_fat": 1.6,
+        "carbohydrates": 136.3,
+        "sugar": 12.9,
+        "fiber": null,
+        "protein": 25.3,
+        "salt": 1.2
+       },
+       "components": [
+        "Hausgemachte Pasta",
+        "Kürbisragout"
+       ],
+       "climate": {
+        "co2_g": 289.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "81649371-869b-4998-84fb-784800e40ed0",
+       "name": "Seelachs im Kartoffelmantel, Rahmlauch, Kartoffel-Senfpüree",
+       "category": "Fleisch & Meer",
+       "time": null,
+       "prices": {
+        "student": 3.8,
+        "employee": 6.5,
+        "guest": 8.1
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "23",
+         "key": "fisch",
+         "name": "Fisch"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "28",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 737.0,
+        "fat": 35.4,
+        "saturated_fat": 12.3,
+        "carbohydrates": 78.1,
+        "sugar": 10.5,
+        "fiber": null,
+        "protein": 26.6,
+        "salt": 8.3
+       },
+       "components": [
+        "Seelachs im Kartoffelmantel",
+        "Rahmlauch",
+        "Kartoffel-Senfpüree"
+       ],
+       "climate": {
+        "co2_g": 992.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "fff0be3e-1f81-4f0c-b207-b35af6481104",
+       "name": "Salatteller, Mini-Camembert und Preiselbeeren, hausgemachtes Walnussdressing, Weizenbaguette",
+       "category": "Veggie & Vegan",
+       "time": null,
+       "prices": {
+        "student": 2.5,
+        "employee": 6.3,
+        "guest": 7.9
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "20B",
+         "key": "gluten",
+         "name": "Roggen"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "27L",
+         "key": "schalenfruechte",
+         "name": "Walnüsse"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "31",
+         "key": "sulfite",
+         "name": "Schwefeldioxid/Sulfite"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Niedersachsen-Menü"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 934.0,
+        "fat": 58.7,
+        "saturated_fat": 14.2,
+        "carbohydrates": 75.4,
+        "sugar": 31.4,
+        "fiber": null,
+        "protein": 23.8,
+        "salt": 4.0
+       },
+       "components": [
+        "Salatteller",
+        "Mini-Camembert und Preiselbeeren",
+        "hausgemachtes Walnussdressing",
+        "Weizenbaguette"
+       ],
+       "climate": {
+        "co2_g": 798.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "ad2f2fd9-ea0e-4b0e-bf25-7dc3e5d0d4d7",
+       "name": "Barbecue Pulled Pork Burger, Barbecuesauce, Amerikanischer Krautsalat, Kartoffeltwister",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.6,
+        "employee": 7.0,
+        "guest": 8.6
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "22",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "25",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "31",
+         "key": "sulfite",
+         "name": "Schwefeldioxid/Sulfite"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Farbstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1180.0,
+        "fat": 60.5,
+        "saturated_fat": 10.3,
+        "carbohydrates": 112.9,
+        "sugar": 34.0,
+        "fiber": null,
+        "protein": 38.2,
+        "salt": 6.1
+       },
+       "components": [
+        "Barbecue Pulled Pork Burger",
+        "Barbecuesauce",
+        "Amerikanischer Krautsalat",
+        "Kartoffeltwister"
+       ],
+       "climate": {
+        "co2_g": 2675.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "b603292d-a058-4c22-994e-320435a63cc4",
+       "name": "Apfelpudding mit Dessertsauce Vanillegeschmack und Schokoraspel",
+       "category": "Süße Ecke",
+       "time": null,
+       "prices": {
+        "student": 0.9,
+        "employee": 1.3,
+        "guest": 1.7
+       },
+       "allergens": [
+        {
+         "code": "20D",
+         "key": "gluten",
+         "name": "Hafer"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 275.0,
+        "fat": 7.0,
+        "saturated_fat": 3.2,
+        "carbohydrates": 50.8,
+        "sugar": 37.9,
+        "fiber": null,
+        "protein": 1.1,
+        "salt": 0.1
+       },
+       "components": [],
+       "climate": {
+        "co2_g": 252.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "e60c86e4-3c35-4599-9f57-4cc06a32f6cd",
+       "name": "Gemischte Blattsalate, hausgemachtes Mangodressing",
+       "category": "Querbeet",
+       "time": null,
+       "prices": {
+        "student": 0.75,
+        "employee": 1.0,
+        "guest": 1.2
+       },
+       "allergens": [
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "31",
+         "key": "sulfite",
+         "name": "Schwefeldioxid/Sulfite"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 131.0,
+        "fat": 11.7,
+        "saturated_fat": 1.5,
+        "carbohydrates": 5.7,
+        "sugar": 5.3,
+        "fiber": null,
+        "protein": 0.8,
+        "salt": 0.4
+       },
+       "components": [
+        "Gemischte Blattsalate",
+        "hausgemachtes Mangodressing"
+       ],
+       "climate": {
+        "co2_g": 77.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      }
+     ],
+     "2026-11-09": [
+      {
+       "id": "aa6f6b0c-6a7f-4f4c-bc13-435ed1c3fe47",
+       "name": "Hausgemachte Pasta, cremige Erdnusssauce mit Hähnchen",
+       "category": "Pasta & Friends",
+       "time": null,
+       "prices": {
+        "student": 2.0,
+        "employee": 4.5,
+        "guest": 6.4
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "24",
+         "key": "erdnuss",
+         "name": "Erdnüsse"
+        },
+        {
+         "code": "30",
+         "key": "sesam",
+         "name": "Sesam"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1023.0,
+        "fat": 31.3,
+        "saturated_fat": 11.2,
+        "carbohydrates": 130.3,
+        "sugar": 9.6,
+        "fiber": null,
+        "protein": 51.9,
+        "salt": 1.5
+       },
+       "components": [
+        "Hausgemachte Pasta",
+        "cremige Erdnusssauce mit Hähnchen"
+       ],
+       "climate": {
+        "co2_g": 733.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "c5bf0ff2-e8ed-490d-9bac-30c3b12d2ef4",
+       "name": "Kalbsragout Marengo mit Champignons, Rosenkohl, Semmelknödel",
+       "category": "Fleisch & Meer",
+       "time": null,
+       "prices": {
+        "student": 3.8,
+        "employee": 6.5,
+        "guest": 8.1
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "22",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "31",
+         "key": "sulfite",
+         "name": "Schwefeldioxid/Sulfite"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 648.0,
+        "fat": 18.0,
+        "saturated_fat": 4.9,
+        "carbohydrates": 68.3,
+        "sugar": 13.0,
+        "fiber": null,
+        "protein": 47.5,
+        "salt": 5.9
+       },
+       "components": [
+        "Kalbsragout Marengo mit Champignons",
+        "Rosenkohl",
+        "Semmelknödel"
+       ],
+       "climate": {
+        "co2_g": 3471.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "rind",
+        "alkohol"
+       ],
+       "main": true
+      },
+      {
+       "id": "38673fed-0b3c-442c-9ea8-65d4c59a827d",
+       "name": "Rotes Auberginen Linsen Curry, pflanzlicher-Minz-Dip, Naanbrot",
+       "category": "Veggie & Vegan",
+       "time": null,
+       "prices": {
+        "student": 2.5,
+        "employee": 6.3,
+        "guest": 7.9
+       },
+       "allergens": [
+        {
+         "code": "20A",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "20D",
+         "key": "gluten",
+         "name": "Hafer"
+        },
+        {
+         "code": "27J",
+         "key": "schalenfruechte",
+         "name": "Mandeln"
+        },
+        {
+         "code": "30",
+         "key": "sesam",
+         "name": "Sesam"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Niedersachsen-Menü",
+        "mit Knoblauch",
+        "Gesund&Munter"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 726.0,
+        "fat": 23.1,
+        "saturated_fat": 13.0,
+        "carbohydrates": 90.5,
+        "sugar": 20.7,
+        "fiber": null,
+        "protein": 31.7,
+        "salt": 3.8
+       },
+       "components": [
+        "Rotes Auberginen Linsen Curry",
+        "pflanzlicher-Minz-Dip",
+        "Naanbrot"
+       ],
+       "climate": {
+        "co2_g": 434.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "28f90f5d-0a5c-4cda-acb1-b798558d6597",
+       "name": "Vegane Currywurst, Curryketchup, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.6,
+        "employee": 6.2,
+        "guest": 6.9
+       },
+       "allergens": [
+        {
+         "code": "28",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 941.0,
+        "fat": 63.2,
+        "saturated_fat": 10.2,
+        "carbohydrates": 76.3,
+        "sugar": 21.3,
+        "fiber": null,
+        "protein": 13.2,
+        "salt": 4.4
+       },
+       "components": [
+        "Vegane Currywurst",
+        "Curryketchup",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 455.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "27bba039-4e0e-46a0-b29f-dd5cf50f1fbc",
+       "name": "Geflügelcurrywurst, Curryketchup, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.0,
+        "employee": 4.8,
+        "guest": 5.5
+       },
+       "allergens": [
+        {
+         "code": "28",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "8",
+         "name": "mit Phosphat"
+        },
+        {
+         "code": "12",
+         "name": "mit Nitritpökelsalz und Nitrat"
+        }
+       ],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1118.0,
+        "fat": 79.7,
+        "saturated_fat": 11.4,
+        "carbohydrates": 75.1,
+        "sugar": 21.3,
+        "fiber": null,
+        "protein": 23.3,
+        "salt": 6.0
+       },
+       "components": [
+        "Geflügelcurrywurst",
+        "Curryketchup",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 1116.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "d01e3ff0-e643-45e9-8f64-24dcd8f87dfc",
+       "name": "Strohschwein-Currywurst, Curryketchup, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.0,
+        "employee": 4.8,
+        "guest": 5.5
+       },
+       "allergens": [
+        {
+         "code": "28",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "8",
+         "name": "mit Phosphat"
+        }
+       ],
+       "notes": [
+        "mit Knoblauch"
+       ],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 1053.0,
+        "fat": 69.2,
+        "saturated_fat": 20.1,
+        "carbohydrates": 75.1,
+        "sugar": 21.3,
+        "fiber": null,
+        "protein": 29.3,
+        "salt": 6.0
+       },
+       "components": [
+        "Strohschwein-Currywurst",
+        "Curryketchup",
+        "Pommes frites"
+       ],
+       "climate": {
+        "co2_g": 1285.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "a412fe02-b41e-4e4f-8dcc-dc9a5da6f9c8",
+       "name": "Zitronenquarkspeise mit Schokosplitter",
+       "category": "Süße Ecke",
+       "time": null,
+       "prices": {
+        "student": 0.9,
+        "employee": 1.3,
+        "guest": 1.7
+       },
+       "allergens": [
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 305.0,
+        "fat": 10.3,
+        "saturated_fat": 6.7,
+        "carbohydrates": 31.6,
+        "sugar": 31.7,
+        "fiber": null,
+        "protein": 20.2,
+        "salt": 0.3
+       },
+       "components": [],
+       "climate": {
+        "co2_g": 612.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "5c2e7366-da46-4005-bc0c-be60fae91a46",
+       "name": "Gemischte Blattsalate, hausgemachtes Joghurt-Dressing",
+       "category": "Querbeet",
+       "time": null,
+       "prices": {
+        "student": 0.75,
+        "employee": 1.0,
+        "guest": 1.2
+       },
+       "allergens": [
+        {
+         "code": "26",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "29",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "31",
+         "key": "sulfite",
+         "name": "Schwefeldioxid/Sulfite"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "portion",
+        "energy_kj": null,
+        "energy_kcal": 102.0,
+        "fat": 8.8,
+        "saturated_fat": 1.3,
+        "carbohydrates": 4.0,
+        "sugar": 3.6,
+        "fiber": null,
+        "protein": 1.7,
+        "salt": 0.6
+       },
+       "components": [
+        "Gemischte Blattsalate",
+        "hausgemachtes Joghurt-Dressing"
+       ],
+       "climate": {
+        "co2_g": 97.0,
+        "rating": null,
+        "klimateller": false
+       },
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      }
+     ]
+    },
+    "closed": []
+   }
+  },
+  "stwon-hi-uni.json": {
+   "kind": "stwon",
+   "result": {
+    "days": {
+     "2026-11-05": [
+      {
+       "id": "167516",
+       "name": "Winterliches Dinkel Risotto | Obst",
+       "category": "Essen 1",
+       "time": "mittag",
+       "prices": {
+        "student": 2.5,
+        "employee": 6.85,
+        "guest": 7.85
+       },
+       "allergens": [
+        {
+         "code": "GL5",
+         "key": "gluten",
+         "name": "enthält Dinkel (eine Weizenart)"
+        }
+       ],
+       "additives": [
+        {
+         "code": "7",
+         "name": "gewachst"
+        }
+       ],
+       "notes": [
+        "Niedersachsen Menü",
+        "konserviert mit Thiabendazol und Imazalil"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 388.0,
+        "energy_kcal": 93.0,
+        "fat": 2.7,
+        "saturated_fat": 0.2,
+        "carbohydrates": 12.6,
+        "sugar": 2.0,
+        "fiber": 0.0,
+        "protein": 3.3,
+        "salt": 0.6
+       },
+       "components": [
+        "Winterliches Dinkel Risotto",
+        "Obst"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166002",
+       "name": "Überbackene Serviettenknödel | Champignonrahmsauce",
+       "category": "Essen 2",
+       "time": "mittag",
+       "prices": {
+        "student": 3.0,
+        "employee": 4.95,
+        "guest": 5.95
+       },
+       "allergens": [
+        {
+         "code": "EI",
+         "key": "ei",
+         "name": "enthält Eier und Eierzeugnisse"
+        },
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Farbstoff"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 615.0,
+        "energy_kcal": 147.0,
+        "fat": 6.8,
+        "saturated_fat": 3.7,
+        "carbohydrates": 14.5,
+        "sugar": 2.4,
+        "fiber": 1.1,
+        "protein": 6.4,
+        "salt": 1.1
+       },
+       "components": [
+        "Überbackene Serviettenknödel",
+        "Champignonrahmsauce"
+       ],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166006",
+       "name": "Schweinegulasch \"Puzsta Art\"",
+       "category": "Essen 2",
+       "time": "mittag",
+       "prices": {
+        "student": 4.2,
+        "employee": 5.75,
+        "guest": 6.75
+       },
+       "allergens": [
+        {
+         "code": "SL",
+         "key": "sellerie",
+         "name": "enthält Sellerie und Sellerieerzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "9",
+         "name": "mit Süßungsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 220.0,
+        "energy_kcal": 52.0,
+        "fat": 1.7,
+        "saturated_fat": 0.7,
+        "carbohydrates": 2.7,
+        "sugar": 1.7,
+        "fiber": 0.3,
+        "protein": 6.2,
+        "salt": 0.4
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "166014",
+       "name": "Mexico Bowl: Reis | Tortilla-Chips | Avocado",
+       "category": "Essen 3",
+       "time": "mittag",
+       "prices": {
+        "student": 3.6,
+        "employee": 5.55,
+        "guest": 6.55
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Farbstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 416.0,
+        "energy_kcal": 99.0,
+        "fat": 3.8,
+        "saturated_fat": 1.8,
+        "carbohydrates": 13.2,
+        "sugar": 2.8,
+        "fiber": 1.1,
+        "protein": 2.2,
+        "salt": 0.3
+       },
+       "components": [
+        "Mexico Bowl: Reis",
+        "Tortilla-Chips",
+        "Avocado"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166865",
+       "name": "Hausgemachte Pizza \"Spinaci\": Spinat | Mozzarella | Balkankäse",
+       "category": "Essen 4",
+       "time": "mittag",
+       "prices": {
+        "student": 4.95,
+        "employee": 6.9,
+        "guest": 7.9
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 848.0,
+        "energy_kcal": 203.0,
+        "fat": 7.4,
+        "saturated_fat": 3.6,
+        "carbohydrates": 24.1,
+        "sugar": 2.3,
+        "fiber": 1.2,
+        "protein": 8.8,
+        "salt": 1.1
+       },
+       "components": [
+        "Hausgemachte Pizza \"Spinaci\": Spinat",
+        "Mozzarella",
+        "Balkankäse"
+       ],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166012",
+       "name": "Rosenkohl",
+       "category": "Gemüse",
+       "time": "mittag",
+       "prices": {
+        "student": 0.9,
+        "employee": 1.3,
+        "guest": 1.3
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 322.0,
+        "energy_kcal": 77.0,
+        "fat": 4.6,
+        "saturated_fat": 0.4,
+        "carbohydrates": 4.4,
+        "sugar": 2.9,
+        "fiber": 0.0,
+        "protein": 1.0,
+        "salt": 0.4
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "166010",
+       "name": "Kartoffelkroketten",
+       "category": "Beilage",
+       "time": "mittag",
+       "prices": {
+        "student": 1.0,
+        "employee": 1.4,
+        "guest": 1.4
+       },
+       "allergens": [
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 796.0,
+        "energy_kcal": 190.0,
+        "fat": 9.3,
+        "saturated_fat": 0.7,
+        "carbohydrates": 23.6,
+        "sugar": 0.2,
+        "fiber": 2.5,
+        "protein": 2.3,
+        "salt": 0.7
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "166011",
+       "name": "Schwenkkartoffeln",
+       "category": "Beilage",
+       "time": "mittag",
+       "prices": {
+        "student": 0.65,
+        "employee": 1.05,
+        "guest": 1.05
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 517.0,
+        "energy_kcal": 124.0,
+        "fat": 6.5,
+        "saturated_fat": 0.6,
+        "carbohydrates": 13.9,
+        "sugar": 1.8,
+        "fiber": 1.4,
+        "protein": 1.9,
+        "salt": 0.2
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "168293",
+       "name": "Pflaumenkuchen im Glas",
+       "category": "Dessert",
+       "time": "mittag",
+       "prices": {
+        "student": 1.9,
+        "employee": 1.9,
+        "guest": 1.9
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "GL5",
+         "key": "gluten",
+         "name": "enthält Dinkel (eine Weizenart)"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Farbstoff"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 70.0,
+        "energy_kcal": 17.0,
+        "fat": 0.7,
+        "saturated_fat": 0.4,
+        "carbohydrates": 2.0,
+        "sugar": 1.0,
+        "fiber": 0.0,
+        "protein": 0.5,
+        "salt": 0.0
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "166005",
+       "name": "Weiße Schokoladen-Mousse",
+       "category": "Dessert",
+       "time": "mittag",
+       "prices": {
+        "student": 1.9,
+        "employee": 1.9,
+        "guest": 1.9
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "enthält Erzeugnisse tierischen Ursprungs"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 704.0,
+        "energy_kcal": 168.0,
+        "fat": 7.5,
+        "saturated_fat": 5.5,
+        "carbohydrates": 20.3,
+        "sugar": 17.2,
+        "fiber": null,
+        "protein": 4.5,
+        "salt": 0.2
+       },
+       "components": [],
+       "climate": null,
+       "labels": [],
+       "main": false
+      },
+      {
+       "id": "166013",
+       "name": "Kirschquarkspeise",
+       "category": "Dessert",
+       "time": "mittag",
+       "prices": {
+        "student": 0.95,
+        "employee": 1.35,
+        "guest": 1.35
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 427.0,
+        "energy_kcal": 102.0,
+        "fat": 3.1,
+        "saturated_fat": 2.1,
+        "carbohydrates": 8.9,
+        "sugar": 8.9,
+        "fiber": 0.0,
+        "protein": 9.1,
+        "salt": 0.1
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "166004",
+       "name": "Afrikanischer Pfeffertopf mit Couscous",
+       "category": "Essen 1",
+       "time": "abend",
+       "prices": {
+        "student": 2.95,
+        "employee": 4.9,
+        "guest": 5.9
+       },
+       "allergens": [
+        {
+         "code": "EN",
+         "key": "erdnuss",
+         "name": "enthält Erdnüsse und Erdnusserzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 135.0,
+        "energy_kcal": 32.0,
+        "fat": 0.8,
+        "saturated_fat": 0.1,
+        "carbohydrates": 4.5,
+        "sugar": 1.3,
+        "fiber": 0.4,
+        "protein": 1.4,
+        "salt": 0.5
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "166008",
+       "name": "Gemüsepfanne mit Erdnusssauce | Vollkornreis | Tagessalat",
+       "category": "Essen 2",
+       "time": "abend",
+       "prices": {
+        "student": 2.5,
+        "employee": 6.85,
+        "guest": 7.85
+       },
+       "allergens": [
+        {
+         "code": "EN",
+         "key": "erdnuss",
+         "name": "enthält Erdnüsse und Erdnusserzeugnisse"
+        },
+        {
+         "code": "SO",
+         "key": "soja",
+         "name": "enthält Soja(bohnen)u daraus gewonnene Erzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Niedersachsen Menü"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 472.0,
+        "energy_kcal": 113.0,
+        "fat": 3.1,
+        "saturated_fat": 1.4,
+        "carbohydrates": 16.6,
+        "sugar": 2.0,
+        "fiber": 0.9,
+        "protein": 3.7,
+        "salt": 0.2
+       },
+       "components": [
+        "Gemüsepfanne mit Erdnusssauce",
+        "Vollkornreis",
+        "Tagessalat"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166015",
+       "name": "Burger mit Mac-&-Cheese-Patty | BBQ-Sauce",
+       "category": "Essen 3",
+       "time": "abend",
+       "prices": {
+        "student": 5.5,
+        "employee": 7.45,
+        "guest": 8.45
+       },
+       "allergens": [
+        {
+         "code": "EI",
+         "key": "ei",
+         "name": "enthält Eier und Eierzeugnisse"
+        },
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Farbstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "10",
+         "name": "enthält eine Phenylalaninquelle"
+        }
+       ],
+       "notes": [
+        "mit einer Zuckerart und Süßungsmitteln"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 1193.0,
+        "energy_kcal": 285.0,
+        "fat": 14.1,
+        "saturated_fat": 4.3,
+        "carbohydrates": 32.3,
+        "sugar": 9.4,
+        "fiber": 0.0,
+        "protein": 6.2,
+        "salt": 1.7
+       },
+       "components": [
+        "Burger mit Mac-&-Cheese-Patty",
+        "BBQ-Sauce"
+       ],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166001",
+       "name": "Mexico Bowl: Reis | Tortilla-Chips | Avocado",
+       "category": "Essen 4",
+       "time": "abend",
+       "prices": {
+        "student": 3.6,
+        "employee": 5.55,
+        "guest": 6.55
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Farbstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 414.0,
+        "energy_kcal": 99.0,
+        "fat": 3.7,
+        "saturated_fat": 1.8,
+        "carbohydrates": 13.1,
+        "sugar": 2.8,
+        "fiber": 1.1,
+        "protein": 2.2,
+        "salt": 0.3
+       },
+       "components": [
+        "Mexico Bowl: Reis",
+        "Tortilla-Chips",
+        "Avocado"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166003",
+       "name": "Currywurst aus Erbsenprotein | Pikante Currysauce",
+       "category": "Essen 5",
+       "time": "abend",
+       "prices": {
+        "student": 3.9,
+        "employee": 5.45,
+        "guest": 6.45
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [
+        "mit einer Zuckerart und Süßungsmitteln"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 783.0,
+        "energy_kcal": 187.0,
+        "fat": 11.3,
+        "saturated_fat": 0.7,
+        "carbohydrates": 12.9,
+        "sugar": 8.5,
+        "fiber": 0.0,
+        "protein": 9.8,
+        "salt": 2.0
+       },
+       "components": [
+        "Currywurst aus Erbsenprotein",
+        "Pikante Currysauce"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "168376",
+       "name": "Currywurst | Pikante Currysauce",
+       "category": "Essen 5",
+       "time": "abend",
+       "prices": {
+        "student": 3.9,
+        "employee": 5.45,
+        "guest": 6.45
+       },
+       "allergens": [
+        {
+         "code": "SL",
+         "key": "sellerie",
+         "name": "enthält Sellerie und Sellerieerzeugnisse"
+        },
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "9",
+         "name": "mit Süßungsmittel"
+        }
+       ],
+       "notes": [
+        "mit einer Zuckerart und Süßungsmitteln"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 786.0,
+        "energy_kcal": 188.0,
+        "fat": 14.2,
+        "saturated_fat": 4.3,
+        "carbohydrates": 8.7,
+        "sugar": 6.5,
+        "fiber": 0.4,
+        "protein": 6.0,
+        "salt": 2.3
+       },
+       "components": [
+        "Currywurst",
+        "Pikante Currysauce"
+       ],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "schwein",
+        "rind"
+       ],
+       "main": true
+      },
+      {
+       "id": "166009",
+       "name": "Pommes frites",
+       "category": "Essen 6",
+       "time": "abend",
+       "prices": {
+        "student": 1.0,
+        "employee": 1.4,
+        "guest": 1.4
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 865.0,
+        "energy_kcal": 207.0,
+        "fat": 13.2,
+        "saturated_fat": 2.6,
+        "carbohydrates": 19.1,
+        "sugar": 0.5,
+        "fiber": null,
+        "protein": 2.3,
+        "salt": 0.1
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      }
+     ],
+     "2026-11-06": [
+      {
+       "id": "166016",
+       "name": "Rote Bete Farfalle | Rucola | Walnuss",
+       "category": "Essen 1",
+       "time": "mittag",
+       "prices": {
+        "student": 2.5,
+        "employee": 6.85,
+        "guest": 7.85
+       },
+       "allergens": [
+        {
+         "code": "SL",
+         "key": "sellerie",
+         "name": "enthält Sellerie und Sellerieerzeugnisse"
+        },
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        },
+        {
+         "code": "GL4",
+         "key": "gluten",
+         "name": "enthält Hafer"
+        },
+        {
+         "code": "NU3",
+         "key": "schalenfruechte",
+         "name": "enthält Walnüsse"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Niedersachsen Menü"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 652.0,
+        "energy_kcal": 156.0,
+        "fat": 4.6,
+        "saturated_fat": 0.5,
+        "carbohydrates": 23.3,
+        "sugar": 2.5,
+        "fiber": 0.9,
+        "protein": 4.4,
+        "salt": 0.3
+       },
+       "components": [
+        "Rote Bete Farfalle",
+        "Rucola",
+        "Walnuss"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166017",
+       "name": "Paniertes Rotbarschfilet | Grüne Sauce",
+       "category": "Essen 2",
+       "time": "mittag",
+       "prices": {
+        "student": 3.9,
+        "employee": 5.45,
+        "guest": 6.45
+       },
+       "allergens": [
+        {
+         "code": "EI",
+         "key": "ei",
+         "name": "enthält Eier und Eierzeugnisse"
+        },
+        {
+         "code": "FI",
+         "key": "fisch",
+         "name": "enthält Fisch und Fischerzeugnisse"
+        },
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 956.0,
+        "energy_kcal": 228.0,
+        "fat": 18.0,
+        "saturated_fat": 3.6,
+        "carbohydrates": 10.3,
+        "sugar": 1.7,
+        "fiber": 0.1,
+        "protein": 6.4,
+        "salt": 0.9
+       },
+       "components": [
+        "Paniertes Rotbarschfilet",
+        "Grüne Sauce"
+       ],
+       "climate": null,
+       "labels": [
+        "fisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "166021",
+       "name": "2 Weißwürste | Laugenbrezel | süßer Senf",
+       "category": "Essen 2",
+       "time": "mittag",
+       "prices": {
+        "student": 4.1,
+        "employee": 6.05,
+        "guest": 7.05
+       },
+       "allergens": [
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        },
+        {
+         "code": "GL3",
+         "key": "gluten",
+         "name": "enthält Gerste"
+        }
+       ],
+       "additives": [
+        {
+         "code": "8",
+         "name": "mit Phosphat"
+        }
+       ],
+       "notes": [
+        "Aktion"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 1152.0,
+        "energy_kcal": 275.0,
+        "fat": 14.9,
+        "saturated_fat": 4.9,
+        "carbohydrates": 24.3,
+        "sugar": 5.7,
+        "fiber": 0.1,
+        "protein": 10.0,
+        "salt": 4.5
+       },
+       "components": [
+        "2 Weißwürste",
+        "Laugenbrezel",
+        "süßer Senf"
+       ],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "schwein",
+        "rind"
+       ],
+       "main": true
+      },
+      {
+       "id": "166018",
+       "name": "Blattspinat",
+       "category": "Gemüse",
+       "time": "mittag",
+       "prices": {
+        "student": 1.1,
+        "employee": 1.5,
+        "guest": 1.5
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 91.0,
+        "energy_kcal": 22.0,
+        "fat": 0.4,
+        "saturated_fat": 0.1,
+        "carbohydrates": 0.6,
+        "sugar": 0.2,
+        "fiber": null,
+        "protein": 2.8,
+        "salt": 0.2
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "166019",
+       "name": "Kartoffeln",
+       "category": "Beilage",
+       "time": "mittag",
+       "prices": {
+        "student": 0.65,
+        "employee": 1.05,
+        "guest": 1.05
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 294.0,
+        "energy_kcal": 70.0,
+        "fat": 0.1,
+        "saturated_fat": 0.1,
+        "carbohydrates": 14.8,
+        "sugar": 1.7,
+        "fiber": 1.5,
+        "protein": 2.0,
+        "salt": 0.7
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "166020",
+       "name": "Bratkartoffeln",
+       "category": "Beilage",
+       "time": "mittag",
+       "prices": {
+        "student": 1.0,
+        "employee": 1.4,
+        "guest": 1.4
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 286.0,
+        "energy_kcal": 68.0,
+        "fat": 0.3,
+        "saturated_fat": 0.1,
+        "carbohydrates": 14.0,
+        "sugar": 1.9,
+        "fiber": 1.4,
+        "protein": 2.0,
+        "salt": 0.2
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      }
+     ],
+     "2026-11-09": [
+      {
+       "id": "167406",
+       "name": "Gebratene Vollkornpasta | Buntes Gemüse | Tomatenpesto Tagessalat",
+       "category": "Essen 1",
+       "time": "mittag",
+       "prices": {
+        "student": 2.5,
+        "employee": 6.85,
+        "guest": 7.85
+       },
+       "allergens": [
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Niedersachsen Menü"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 515.0,
+        "energy_kcal": 123.0,
+        "fat": 4.8,
+        "saturated_fat": 0.8,
+        "carbohydrates": 15.7,
+        "sugar": 2.3,
+        "fiber": 1.2,
+        "protein": 3.7,
+        "salt": 0.8
+       },
+       "components": [
+        "Gebratene Vollkornpasta",
+        "Buntes Gemüse",
+        "Tomatenpesto Tagessalat"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "167401",
+       "name": "Zwiebelsahnehähnchen im Ofen gebacken | Weiße Sauce",
+       "category": "Essen 2",
+       "time": "mittag",
+       "prices": {
+        "student": 3.9,
+        "employee": 5.45,
+        "guest": 6.45
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        },
+        {
+         "code": "GL3",
+         "key": "gluten",
+         "name": "enthält Gerste"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "mit Flüssigwürze"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 598.0,
+        "energy_kcal": 143.0,
+        "fat": 10.7,
+        "saturated_fat": 6.8,
+        "carbohydrates": 2.7,
+        "sugar": 1.5,
+        "fiber": 0.0,
+        "protein": 9.0,
+        "salt": 1.1
+       },
+       "components": [
+        "Zwiebelsahnehähnchen im Ofen gebacken",
+        "Weiße Sauce"
+       ],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "167541",
+       "name": "Mezze Bowl: Reis | gegrilltes Gemüse | Hummus",
+       "category": "Essen 4",
+       "time": "mittag",
+       "prices": {
+        "student": 3.6,
+        "employee": 5.55,
+        "guest": 6.55
+       },
+       "allergens": [
+        {
+         "code": "SE",
+         "key": "sesam",
+         "name": "enthält Sesamsamen und Sesamsamenerzeugnisse"
+        },
+        {
+         "code": "SW",
+         "key": "sulfite",
+         "name": "enthält Schwefeldioxid u Sulfite(>10mg/kg o.mg/l )"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 451.0,
+        "energy_kcal": 108.0,
+        "fat": 5.6,
+        "saturated_fat": 0.6,
+        "carbohydrates": 11.0,
+        "sugar": 2.2,
+        "fiber": 0.0,
+        "protein": 2.7,
+        "salt": 0.4
+       },
+       "components": [
+        "Mezze Bowl: Reis",
+        "gegrilltes Gemüse",
+        "Hummus"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "167414",
+       "name": "Hausgemachte Pizza \"Texas BBQ\": Pulled Pork | Chili | Mais | rote Zwiebeln",
+       "category": "Essen 4",
+       "time": "mittag",
+       "prices": {
+        "student": 5.5,
+        "employee": 7.45,
+        "guest": 8.45
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 764.0,
+        "energy_kcal": 182.0,
+        "fat": 5.8,
+        "saturated_fat": 2.5,
+        "carbohydrates": 23.5,
+        "sugar": 3.5,
+        "fiber": 1.1,
+        "protein": 8.2,
+        "salt": 1.1
+       },
+       "components": [
+        "Hausgemachte Pizza \"Texas BBQ\": Pulled Pork",
+        "Chili",
+        "Mais",
+        "rote Zwiebeln"
+       ],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "167402",
+       "name": "Steckrüben- Karottengemüse",
+       "category": "Gemüse",
+       "time": "mittag",
+       "prices": {
+        "student": 0.9,
+        "employee": 1.3,
+        "guest": 1.3
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 235.0,
+        "energy_kcal": 56.0,
+        "fat": 2.8,
+        "saturated_fat": 1.6,
+        "carbohydrates": 5.6,
+        "sugar": 5.0,
+        "fiber": 1.2,
+        "protein": 1.0,
+        "salt": 0.3
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "167404",
+       "name": "Gitterkartoffeln",
+       "category": "Beilage",
+       "time": "mittag",
+       "prices": {
+        "student": 1.0,
+        "employee": 1.4,
+        "guest": 1.4
+       },
+       "allergens": [
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 782.0,
+        "energy_kcal": 187.0,
+        "fat": 10.0,
+        "saturated_fat": 1.2,
+        "carbohydrates": 20.9,
+        "sugar": 0.6,
+        "fiber": 2.3,
+        "protein": 2.4,
+        "salt": 0.9
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "167405",
+       "name": "Kartoffeln",
+       "category": "Beilage",
+       "time": "mittag",
+       "prices": {
+        "student": 0.65,
+        "employee": 1.05,
+        "guest": 1.05
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 294.0,
+        "energy_kcal": 70.0,
+        "fat": 0.1,
+        "saturated_fat": 0.1,
+        "carbohydrates": 14.8,
+        "sugar": 1.7,
+        "fiber": 1.5,
+        "protein": 2.0,
+        "salt": 0.7
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "167403",
+       "name": "Solero - Quarktraum",
+       "category": "Dessert",
+       "time": "mittag",
+       "prices": {
+        "student": 1.9,
+        "employee": 1.9,
+        "guest": 1.9
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 424.0,
+        "energy_kcal": 101.0,
+        "fat": 1.2,
+        "saturated_fat": 0.7,
+        "carbohydrates": 17.7,
+        "sugar": 15.4,
+        "fiber": null,
+        "protein": 4.8,
+        "salt": 0.1
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "167413",
+       "name": "Mousse mit Walnussgeschmack",
+       "category": "Dessert",
+       "time": "mittag",
+       "prices": {
+        "student": 0.95,
+        "employee": 1.35,
+        "guest": 1.35
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "NU3",
+         "key": "schalenfruechte",
+         "name": "enthält Walnüsse"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "enthält Erzeugnisse tierischen Ursprungs"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 652.0,
+        "energy_kcal": 156.0,
+        "fat": 5.8,
+        "saturated_fat": 4.2,
+        "carbohydrates": 21.3,
+        "sugar": 15.8,
+        "fiber": null,
+        "protein": 4.4,
+        "salt": 0.2
+       },
+       "components": [],
+       "climate": null,
+       "labels": [],
+       "main": false
+      },
+      {
+       "id": "167408",
+       "name": "Rote Linsensuppe",
+       "category": "Essen 1",
+       "time": "abend",
+       "prices": {
+        "student": 2.5,
+        "employee": 4.45,
+        "guest": 5.55
+       },
+       "allergens": [],
+       "additives": [],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 382.0,
+        "energy_kcal": 91.0,
+        "fat": 2.1,
+        "saturated_fat": 0.2,
+        "carbohydrates": 11.2,
+        "sugar": 1.8,
+        "fiber": 0.1,
+        "protein": 5.4,
+        "salt": 1.5
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "167409",
+       "name": "Kartoffel-Gemüse-Curry indischer Art | Reis | Tagessalat",
+       "category": "Essen 2",
+       "time": "abend",
+       "prices": {
+        "student": 2.5,
+        "employee": 6.85,
+        "guest": 7.85
+       },
+       "allergens": [
+        {
+         "code": "SO",
+         "key": "soja",
+         "name": "enthält Soja(bohnen)u daraus gewonnene Erzeugnisse"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [
+        "Niedersachsen Menü"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 387.0,
+        "energy_kcal": 92.0,
+        "fat": 1.5,
+        "saturated_fat": 0.2,
+        "carbohydrates": 16.5,
+        "sugar": 2.0,
+        "fiber": 0.3,
+        "protein": 2.3,
+        "salt": 0.5
+       },
+       "components": [
+        "Kartoffel-Gemüse-Curry indischer Art",
+        "Reis",
+        "Tagessalat"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "167555",
+       "name": "Hausgemachte Pizza \"Texas BBQ\": Pulled Pork | Chili | Mais | rote Zwiebeln",
+       "category": "Essen 3",
+       "time": "abend",
+       "prices": {
+        "student": 5.5,
+        "employee": 7.45,
+        "guest": 8.45
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "SF",
+         "key": "senf",
+         "name": "enthält Senf und Senferzeugnisse"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Konservierungsstoff"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 764.0,
+        "energy_kcal": 182.0,
+        "fat": 5.8,
+        "saturated_fat": 2.5,
+        "carbohydrates": 23.5,
+        "sugar": 3.5,
+        "fiber": 1.1,
+        "protein": 8.2,
+        "salt": 1.1
+       },
+       "components": [
+        "Hausgemachte Pizza \"Texas BBQ\": Pulled Pork",
+        "Chili",
+        "Mais",
+        "rote Zwiebeln"
+       ],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "167407",
+       "name": "Mezze Bowl: Reis | gegrilltes Gemüse | Hummus",
+       "category": "Essen 4",
+       "time": "abend",
+       "prices": {
+        "student": 3.6,
+        "employee": 5.55,
+        "guest": 6.55
+       },
+       "allergens": [
+        {
+         "code": "SE",
+         "key": "sesam",
+         "name": "enthält Sesamsamen und Sesamsamenerzeugnisse"
+        },
+        {
+         "code": "SW",
+         "key": "sulfite",
+         "name": "enthält Schwefeldioxid u Sulfite(>10mg/kg o.mg/l )"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 451.0,
+        "energy_kcal": 108.0,
+        "fat": 5.6,
+        "saturated_fat": 0.6,
+        "carbohydrates": 11.0,
+        "sugar": 2.2,
+        "fiber": 0.0,
+        "protein": 2.7,
+        "salt": 0.4
+       },
+       "components": [
+        "Mezze Bowl: Reis",
+        "gegrilltes Gemüse",
+        "Hummus"
+       ],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "167412",
+       "name": "Hähnchenschnitzel | Paprikarahmsauce",
+       "category": "Essen 5",
+       "time": "abend",
+       "prices": {
+        "student": 3.75,
+        "employee": 5.3,
+        "guest": 6.3
+       },
+       "allergens": [
+        {
+         "code": "ML",
+         "key": "milch",
+         "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)"
+        },
+        {
+         "code": "GL1",
+         "key": "gluten",
+         "name": "enthält Weizen"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [
+        "mit Flüssigwürze",
+        "mit einer Zuckerart und Süßungsmitteln"
+       ],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 595.0,
+        "energy_kcal": 142.0,
+        "fat": 6.3,
+        "saturated_fat": 1.1,
+        "carbohydrates": 12.3,
+        "sugar": 5.1,
+        "fiber": 0.0,
+        "protein": 8.5,
+        "salt": 1.2
+       },
+       "components": [
+        "Hähnchenschnitzel",
+        "Paprikarahmsauce"
+       ],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "167411",
+       "name": "Pommes frites",
+       "category": "Essen 6",
+       "time": "abend",
+       "prices": {
+        "student": 1.0,
+        "employee": 1.4,
+        "guest": 1.4
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": {
+        "basis": "100g",
+        "energy_kj": 865.0,
+        "energy_kcal": 207.0,
+        "fat": 13.2,
+        "saturated_fat": 2.6,
+        "carbohydrates": 19.1,
+        "sugar": 0.5,
+        "fiber": null,
+        "protein": 2.3,
+        "salt": 0.1
+       },
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      }
+     ]
+    },
+    "closed": []
+   }
+  },
+  "openmensa-hauptmensa.json": {
+   "kind": "openmensa",
+   "result": {
+    "days": {
+     "2026-11-05": [
+      {
+       "id": "29249999",
+       "name": "Tortellini Tricolore, Geflügelschinken-Sahne-Sauce",
+       "category": "Friends",
+       "time": null,
+       "prices": {
+        "student": 2.0,
+        "employee": 4.5,
+        "guest": 6.4
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        }
+       ],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "",
+         "name": "mit Phosphat"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250000",
+       "name": "Chili con Carne, Fladenbrot, wahlweise mit Schmand",
+       "category": "Meer",
+       "time": null,
+       "prices": {
+        "student": 3.8,
+        "employee": 6.5,
+        "guest": 8.1
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        },
+        {
+         "code": "",
+         "key": "sesam",
+         "name": "Sesam"
+        }
+       ],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Knoblauch"
+        },
+        {
+         "code": "",
+         "name": "mit Gelatine"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "rind"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250001",
+       "name": "Gemüse-Kichererbsen-Curry, Salzkartoffeln",
+       "category": "Vegan",
+       "time": null,
+       "prices": {
+        "student": 3.6,
+        "employee": 6.3,
+        "guest": 7.9
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Knoblauch"
+        }
+       ],
+       "notes": [
+        "Gesund",
+        "Niedersachsen"
+       ],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250002",
+       "name": "Frisches Putenschnitzel, Chili-Hollandaise, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.8,
+        "employee": 6.0,
+        "guest": 7.8
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        },
+        {
+         "code": "",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250003",
+       "name": "Frisches Schweineschnitzel, Chili-Hollandaise, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.8,
+        "employee": 6.0,
+        "guest": 7.8
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        },
+        {
+         "code": "",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250004",
+       "name": "Veganes Schnitzel, cremige Pilzsauce, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.0,
+        "employee": 5.6,
+        "guest": 6.9
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250005",
+       "name": "Veganes Schnitzel, vegane Chili-Hollandaise, Pommes frites",
+       "category": "Evergreens",
+       "time": null,
+       "prices": {
+        "student": 4.0,
+        "employee": 5.6,
+        "guest": 6.9
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250006",
+       "name": "Schlemmerjoghurt, Himbeersauce",
+       "category": "Süße Ecke",
+       "time": null,
+       "prices": {
+        "student": 0.9,
+        "employee": 1.3,
+        "guest": 1.7
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      }
+     ],
+     "2026-11-06": [
+      {
+       "id": "29249999",
+       "name": "Tortellini Tricolore, Geflügelschinken-Sahne-Sauce",
+       "category": "Friends",
+       "time": null,
+       "prices": {
+        "student": 2.0,
+        "employee": 4.5,
+        "guest": 6.4
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "ei",
+         "name": "Ei"
+        },
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        }
+       ],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "",
+         "name": "mit Phosphat"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "gefluegel"
+       ],
+       "main": true
+      },
+      {
+       "id": "29250000",
+       "name": "Chili con Carne, Fladenbrot, wahlweise mit Schmand",
+       "category": "Meer",
+       "time": null,
+       "prices": {
+        "student": 3.8,
+        "employee": 6.5,
+        "guest": 8.1
+       },
+       "allergens": [
+        {
+         "code": "",
+         "key": "milch",
+         "name": "Milch/Laktose"
+        },
+        {
+         "code": "",
+         "key": "sesam",
+         "name": "Sesam"
+        }
+       ],
+       "additives": [
+        {
+         "code": "",
+         "name": "mit Knoblauch"
+        },
+        {
+         "code": "",
+         "name": "mit Gelatine"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "labels": [
+        "fleisch",
+        "rind"
+       ],
+       "main": true
+      }
+     ]
+    },
+    "closed": [
+     "2026-11-07"
+    ]
+   }
+  }
+ },
+ "days": [
+  {
+   "fixture": "studifutter-garbsen.json",
+   "start": "2026-11-05",
+   "count": 7,
+   "status": [
+    "open",
+    "open",
+    "closed",
+    "closed",
+    "open",
+    "none",
+    "none"
+   ]
+  },
+  {
+   "fixture": "stwon-hi-uni.json",
+   "start": "2026-11-04",
+   "count": 7,
+   "since": "2026-11-05",
+   "status": [
+    "none",
+    "open",
+    "open",
+    "closed",
+    "closed",
+    "open",
+    "none"
+   ]
+  },
+  {
+   "fixture": "openmensa-hauptmensa.json",
+   "start": "2026-11-05",
+   "count": 4,
+   "status": [
+    "open",
+    "open",
+    "closed",
+    "none"
+   ]
+  }
+ ],
+ "filters": [
+  {
+   "filter": {},
+   "ids": [
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "167516",
+    "166002",
+    "166006",
+    "166014",
+    "166865",
+    "166012",
+    "166010",
+    "166011",
+    "168293",
+    "166005",
+    "166013",
+    "166004",
+    "166008",
+    "166015",
+    "166001",
+    "166003",
+    "168376",
+    "166009"
+   ],
+   "top": [
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "0394b037-50cd-40e7-90b5-bebccc756f09"
+   ]
+  },
+  {
+   "filter": {
+    "vegan": true
+   },
+   "ids": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "167516",
+    "166014",
+    "166012",
+    "166010",
+    "166011",
+    "166008",
+    "166001",
+    "166003",
+    "166009"
+   ],
+   "top": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d"
+   ]
+  },
+  {
+   "filter": {
+    "vegetarisch": true
+   },
+   "ids": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "167516",
+    "166002",
+    "166014",
+    "166865",
+    "166012",
+    "166010",
+    "166011",
+    "168293",
+    "166013",
+    "166008",
+    "166015",
+    "166001",
+    "166003",
+    "166009"
+   ],
+   "top": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d"
+   ]
+  },
+  {
+   "filter": {
+    "ohne_schwein": true
+   },
+   "ids": [
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "167516",
+    "166002",
+    "166014",
+    "166865",
+    "166012",
+    "166010",
+    "166011",
+    "168293",
+    "166005",
+    "166013",
+    "166004",
+    "166008",
+    "166015",
+    "166001",
+    "166003",
+    "166009"
+   ],
+   "top": [
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "0394b037-50cd-40e7-90b5-bebccc756f09"
+   ]
+  },
+  {
+   "filter": {
+    "allergens": [
+     "gluten"
+    ]
+   },
+   "ids": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "166014",
+    "166012",
+    "166011",
+    "166005",
+    "166013",
+    "166001",
+    "166003",
+    "168376",
+    "166009"
+   ],
+   "top": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "166014",
+    "166001"
+   ]
+  },
+  {
+   "filter": {
+    "allergens": [
+     "milch",
+     "ei"
+    ]
+   },
+   "ids": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "167516",
+    "166006",
+    "166014",
+    "166012",
+    "166010",
+    "166011",
+    "166004",
+    "166008",
+    "166001",
+    "166003",
+    "168376",
+    "166009"
+   ],
+   "top": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d"
+   ]
+  },
+  {
+   "filter": {
+    "vegetarisch": true,
+    "allergens": [
+     "gluten"
+    ]
+   },
+   "ids": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "166014",
+    "166012",
+    "166011",
+    "166013",
+    "166001",
+    "166003",
+    "166009"
+   ],
+   "top": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "166014",
+    "166001"
+   ]
+  },
+  {
+   "filter": {
+    "vegan": true,
+    "ohne_schwein": true,
+    "allergens": [
+     "soja",
+     "sellerie"
+    ]
+   },
+   "ids": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "167516",
+    "166014",
+    "166012",
+    "166010",
+    "166011",
+    "166001",
+    "166003",
+    "166009"
+   ],
+   "top": [
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d"
+   ]
+  }
+ ],
+ "top_stwon": [
+  "167516",
+  "166002",
+  "166006"
+ ],
+ "sorts": [
+  {
+   "fixture": "studifutter-garbsen.json",
+   "by": "line",
+   "role": "student",
+   "ids": [
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597"
+   ]
+  },
+  {
+   "fixture": "studifutter-garbsen.json",
+   "by": "price",
+   "role": "student",
+   "ids": [
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d0e51bce-d07f-4763-8ca1-41a6f21a9171"
+   ]
+  },
+  {
+   "fixture": "studifutter-garbsen.json",
+   "by": "price",
+   "role": "guest",
+   "ids": [
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b"
+   ]
+  },
+  {
+   "fixture": "studifutter-garbsen.json",
+   "by": "kcal",
+   "role": "student",
+   "ids": [
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d"
+   ]
+  },
+  {
+   "fixture": "studifutter-garbsen.json",
+   "by": "protein",
+   "role": "student",
+   "ids": [
+    "14f1c3f1-832b-42c9-b399-688a0969d75b",
+    "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+    "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+    "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+    "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+    "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+    "0394b037-50cd-40e7-90b5-bebccc756f09",
+    "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+    "6e29f2ed-e0a2-4c84-ba6a-59832be8a597"
+   ]
+  },
+  {
+   "fixture": "stwon-hi-uni.json",
+   "by": "line",
+   "role": "student",
+   "ids": [
+    "167516",
+    "166002",
+    "166006",
+    "166014",
+    "166865",
+    "166012",
+    "166010",
+    "166011",
+    "168293",
+    "166005",
+    "166013",
+    "166004",
+    "166008",
+    "166015",
+    "166001",
+    "166003",
+    "168376",
+    "166009"
+   ]
+  },
+  {
+   "fixture": "stwon-hi-uni.json",
+   "by": "price",
+   "role": "student",
+   "ids": [
+    "166011",
+    "166012",
+    "166013",
+    "166010",
+    "166009",
+    "168293",
+    "166005",
+    "167516",
+    "166008",
+    "166004",
+    "166002",
+    "166014",
+    "166001",
+    "166003",
+    "168376",
+    "166006",
+    "166865",
+    "166015"
+   ]
+  },
+  {
+   "fixture": "stwon-hi-uni.json",
+   "by": "price",
+   "role": "guest",
+   "ids": [
+    "166011",
+    "166012",
+    "166013",
+    "166010",
+    "166009",
+    "168293",
+    "166005",
+    "166004",
+    "166002",
+    "166003",
+    "168376",
+    "166014",
+    "166001",
+    "166006",
+    "167516",
+    "166008",
+    "166865",
+    "166015"
+   ]
+  },
+  {
+   "fixture": "stwon-hi-uni.json",
+   "by": "kcal",
+   "role": "student",
+   "ids": [
+    "168293",
+    "166004",
+    "166006",
+    "166012",
+    "167516",
+    "166014",
+    "166001",
+    "166013",
+    "166008",
+    "166011",
+    "166002",
+    "166005",
+    "166003",
+    "168376",
+    "166010",
+    "166865",
+    "166009",
+    "166015"
+   ]
+  },
+  {
+   "fixture": "stwon-hi-uni.json",
+   "by": "protein",
+   "role": "student",
+   "ids": [
+    "166003",
+    "166013",
+    "166865",
+    "166002",
+    "166006",
+    "166015",
+    "168376",
+    "166005",
+    "166008",
+    "167516",
+    "166010",
+    "166009",
+    "166014",
+    "166001",
+    "166011",
+    "166004",
+    "166012",
+    "168293"
+   ]
+  },
+  {
+   "fixture": "openmensa-hauptmensa.json",
+   "by": "line",
+   "role": "student",
+   "ids": [
+    "29249999",
+    "29250000",
+    "29250001",
+    "29250002",
+    "29250003",
+    "29250004",
+    "29250005",
+    "29250006"
+   ]
+  },
+  {
+   "fixture": "openmensa-hauptmensa.json",
+   "by": "price",
+   "role": "student",
+   "ids": [
+    "29250006",
+    "29249999",
+    "29250001",
+    "29250000",
+    "29250004",
+    "29250005",
+    "29250002",
+    "29250003"
+   ]
+  },
+  {
+   "fixture": "openmensa-hauptmensa.json",
+   "by": "price",
+   "role": "guest",
+   "ids": [
+    "29250006",
+    "29249999",
+    "29250004",
+    "29250005",
+    "29250002",
+    "29250003",
+    "29250001",
+    "29250000"
+   ]
+  },
+  {
+   "fixture": "openmensa-hauptmensa.json",
+   "by": "kcal",
+   "role": "student",
+   "ids": [
+    "29249999",
+    "29250000",
+    "29250001",
+    "29250002",
+    "29250003",
+    "29250004",
+    "29250005",
+    "29250006"
+   ]
+  },
+  {
+   "fixture": "openmensa-hauptmensa.json",
+   "by": "protein",
+   "role": "student",
+   "ids": [
+    "29249999",
+    "29250000",
+    "29250001",
+    "29250002",
+    "29250003",
+    "29250004",
+    "29250005",
+    "29250006"
+   ]
+  }
+ ],
+ "numbers": {
+  "2,7 g": 2.7,
+  "0,0 g": 0.0,
+  "13": 13.0,
+  "": null,
+  "kein Wert": null,
+  "865 kJ (207 kcal)": 865.0
+ },
+ "prices": [
+  {
+   "id": "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+   "role": "student",
+   "price": 2.0
+  },
+  {
+   "id": "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+   "role": "employee",
+   "price": 4.5
+  },
+  {
+   "id": "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+   "role": "guest",
+   "price": 6.4
+  },
+  {
+   "id": "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+   "role": "x",
+   "price": 2.0
+  },
+  {
+   "id": "14f1c3f1-832b-42c9-b399-688a0969d75b",
+   "role": "student",
+   "price": 3.8
+  },
+  {
+   "id": "14f1c3f1-832b-42c9-b399-688a0969d75b",
+   "role": "employee",
+   "price": 6.5
+  },
+  {
+   "id": "14f1c3f1-832b-42c9-b399-688a0969d75b",
+   "role": "guest",
+   "price": 8.1
+  },
+  {
+   "id": "14f1c3f1-832b-42c9-b399-688a0969d75b",
+   "role": "x",
+   "price": 3.8
+  },
+  {
+   "id": "0394b037-50cd-40e7-90b5-bebccc756f09",
+   "role": "student",
+   "price": 2.5
+  },
+  {
+   "id": "0394b037-50cd-40e7-90b5-bebccc756f09",
+   "role": "employee",
+   "price": 6.3
+  },
+  {
+   "id": "0394b037-50cd-40e7-90b5-bebccc756f09",
+   "role": "guest",
+   "price": 7.9
+  },
+  {
+   "id": "0394b037-50cd-40e7-90b5-bebccc756f09",
+   "role": "x",
+   "price": 2.5
+  }
+ ],
+ "pretty": {
+  "VEGGIE & VEGAN": "Veggie & Vegan",
+  "SÜSSE ECKE": "Süße Ecke",
+  "PASTA & FRIENDS": "Pasta & Friends",
+  "Essen 1": "Essen 1",
+  "": "",
+  "  QUER  BEET ": "Quer Beet",
+  "Beilage": "Beilage"
+ },
+ "urls": {
+  "garbsen": "https://studi-futter.rocket-meals.de/rocket-meals/api/items/foodoffers?fields=id%2Cdate%2Calias%2Cprice_student%2Cprice_employee%2Cprice_guest%2Cfoodoffer_category.alias%2Cfoodoffer_category.sort%2Cmarkings.markings_id.external_identifier%2Cattribute_values.number_value%2Cattribute_values.string_value%2Cattribute_values.food_attribute.external_identifier%2Cfoodoffer_components.component_foodoffers_id.alias&limit=-1&filter=%7B%22_and%22%3A%5B%7B%22canteen%22%3A%7B%22_eq%22%3A%2293b60b44-7040-40a9-910a-96dcce287c3e%22%7D%7D%2C%7B%22date%22%3A%7B%22_between%22%3A%5B%222026-11-05%22%2C%222026-11-18%22%5D%7D%7D%5D%7D",
+  "hi-uni": "https://sls.api.stw-on.de/v1/locations/150/menu/2026-11-05/2026-11-18",
+  "hauptmensa": "https://openmensa.org/api/v2/canteens/6/meals"
+ },
+ "canteens": {
+  "luh": {
+   "university": "luh",
+   "region": "hannover",
+   "default": "hauptmensa",
+   "ids": [
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen",
+    "linden",
+    "grosse-pause",
+    "blumhardt",
+    "tiho-tower",
+    "caballus",
+    "hmtmh",
+    "hi-uni",
+    "hi-buehler",
+    "hi-hohnsen"
+   ],
+   "own": [
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen"
+   ]
+  },
+  "hsh": {
+   "university": "hsh",
+   "region": "hannover",
+   "default": "linden",
+   "ids": [
+    "linden",
+    "grosse-pause",
+    "blumhardt",
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen",
+    "tiho-tower",
+    "caballus",
+    "hmtmh",
+    "hi-uni",
+    "hi-buehler",
+    "hi-hohnsen"
+   ],
+   "own": [
+    "linden",
+    "grosse-pause",
+    "blumhardt"
+   ]
+  },
+  "hildesheim": {
+   "university": "hildesheim",
+   "region": "hildesheim",
+   "default": "hi-uni",
+   "ids": [
+    "hi-uni",
+    "hi-buehler",
+    "hi-hohnsen",
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen",
+    "linden",
+    "grosse-pause",
+    "blumhardt",
+    "tiho-tower",
+    "caballus",
+    "hmtmh"
+   ],
+   "own": [
+    "hi-uni",
+    "hi-buehler"
+   ]
+  },
+  "unbekannt": {
+   "university": "luh",
+   "region": "hannover",
+   "default": "hauptmensa",
+   "ids": [
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen",
+    "linden",
+    "grosse-pause",
+    "blumhardt",
+    "tiho-tower",
+    "caballus",
+    "hmtmh",
+    "hi-uni",
+    "hi-buehler",
+    "hi-hohnsen"
+   ],
+   "own": [
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen"
+   ]
+  }
+ }
+}

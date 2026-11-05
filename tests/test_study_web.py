@@ -323,6 +323,8 @@ LITERATURE = re.compile(r"\bISBN\b|Verlag\b|Springer|Wiley|Oxford|Qualifikations
 
 def _seed_texts():
     for c in __import__("app.study_catalog", fromlist=["x"]).load_seed().values():
+        if c["university"] != "luh":
+            continue                        # Fund und Zaehlung betreffen den LUH-Grundstock (Hildesheim: test_hildesheim_catalog.py)
         for m in c["modules"]:
             for f in ("exam", "coursework", "title"):
                 if isinstance(m.get(f), str):
@@ -335,7 +337,7 @@ def _seed_texts():
 def test_seed_has_only_facts_schema_level():
     """Das Schema verbietet Beschreibungstexte und Texte ueber 500 Zeichen; der Grundstock haelt sich daran"""
     from app import study_catalog as sc
-    seed = sc.load_seed()
+    seed = {k: c for k, c in sc.load_seed().items() if c["university"] == "luh"}
     assert len(seed) == 152 and sum(len(c["modules"]) for c in seed.values()) == 7227
     forbidden = {"content", "goals", "literature", "module_texts", "description", "beschreibung"}
     for c in seed.values():

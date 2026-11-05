@@ -74,7 +74,8 @@ def test_example_json_is_a_template_with_hints():
     assert data["name"] == "Max Beispiel" and data["domain"].endswith("beispiel.de") and "Beispielstraße" in data["strasse"]
     assert data["datum"] == "" and data["ustid"] == "" and data["kleinunternehmer"] is True
     assert set(data["funktionen"]) - {"_hinweis"} == {"ipad_hildesheim", "ipad_fristen", "ipad_skriptsuche",
-                                                      "ipad_community_online", "android_karteikarten", "android_community"}
+                                                      "ipad_community_online", "android_karteikarten", "android_community",
+                                                      "ipad_hsh"}
 
 
 def test_angaben_json_holds_the_owner_values_and_leaves_hosting_open():
@@ -191,7 +192,7 @@ def test_store_texts_drop_optional_sentences_when_switches_are_false(filled):
 
 def test_switches_true_keep_the_optional_sentences(tmp_path):
     data = angaben(funktionen={k: True for k in ("ipad_hildesheim", "ipad_fristen", "ipad_skriptsuche",
-                                                 "ipad_community_online", "android_karteikarten", "android_community")})
+                                                 "ipad_community_online", "android_karteikarten", "android_community", "ipad_hsh")})
     out = tmp_path / "out"
     code, log = run(write_json(tmp_path, data), "--out", out)
     assert code == 0, log

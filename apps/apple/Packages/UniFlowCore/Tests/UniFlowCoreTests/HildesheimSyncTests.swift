@@ -229,6 +229,43 @@ final class HildesheimSyncTests: XCTestCase {
         t.on("\(lsf)/qisserver/rds?state=notenspiegelStudent", ok(gradePage))
     }
 
+    /// Pruefungsanmeldung: nach dem Notenspiegel "Meine POS-Anmeldungen" nur lesend (erfundene Seiten lsf-*.html); nie
+    /// "An-/Abmeldung zu Studien-/Prüfungsleistungen"; fehlt die Seite, bleibt der LSF-Teil ok
+    func testGradesStepAlsoReadsPOSRegistrations() async throws {
+        let (db, layout) = try await container()
+        let lsf = HildesheimCAS.lsfBase
+        let t = FakeUniTransport()
+        lsfRoutes(t, plan: try repo("packages/shared-contracts/fixtures/hildesheim/lsf-plan.ics"))
+        t.on(LSFClient.startURL, ok(try repo("packages/shared-contracts/fixtures/exam-registration/lsf-start.html")))
+        t.on("\(lsf)/qisserver/rds?state=user&type=8", ok(try repo("packages/shared-contracts/fixtures/exam-registration/lsf-pos.html")))
+        t.on("\(lsf)/qisserver/rds?state=posAnmeldungen", ok(try repo("packages/shared-contracts/fixtures/exam-registration/lsf-anmeldungen.html")))
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let r = await HildesheimSync(db: db, container: layout, learnweb: nil, lsf: LSFClient(transport: t, retry: noWait), transport: t,
+                                     clock: clock, retry: noWait).run()
+        XCTAssertTrue(r.ok, r.messages.joined(separator: "; "))
+        XCTAssertEqual(r.grades, 2)
+        XCTAssertEqual(r.registrations, 2)
+        XCTAssertTrue(r.messages.contains("2 angemeldete Prüfungen gelesen."), r.messages.joined(separator: "; "))
+        let rows = try await db.withConnection { try QISRegistrationsSync.rows($0) }
+        XCTAssertEqual(rows.map(\.text), ["Grundlagen der Informatik (Klausur)", "Seminar Medienpädagogik", "Statistik I"])
+        let urls = t.requests.map(\.url.absoluteString)
+        for forbidden in ["studyPOSAnmeldung", "prfAnm", "storno", "belegen", "type=4"] {
+            XCTAssertFalse(urls.contains { $0.contains(forbidden) }, forbidden)
+        }
+        // Seite nicht da: Meldung, LSF-Teil trotzdem ok, Zeilen bleiben
+        let t2 = FakeUniTransport()
+        lsfRoutes(t2, plan: try repo("packages/shared-contracts/fixtures/hildesheim/lsf-plan.ics"))
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: nil, lsf: LSFClient(transport: t2, retry: noWait), transport: t2,
+                                      clock: clock, retry: noWait).run()
+        XCTAssertTrue(r2.ok, r2.messages.joined(separator: "; "))
+        XCTAssertEqual(r2.completed, ["LSF-Stundenplan", "Notenspiegel"])
+        XCTAssertNil(r2.registrations)
+        XCTAssertTrue(r2.messages.contains("Angemeldete Prüfungen: Die Seite „Meine POS-Anmeldungen“ wurde im LSF nicht gefunden."),
+                      r2.messages.joined(separator: "; "))
+        let kept = try await db.withConnection { try QISRegistrationsSync.rows($0).count }
+        XCTAssertEqual(kept, 3)
+    }
+
     func testFullSyncStoresEverythingAndIsSafeToRepeat() async throws {
         let (db, layout) = try await container()
         let t = FakeUniTransport()

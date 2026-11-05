@@ -7,8 +7,8 @@ import UniFlowCore
 ///
 /// Sichtbar (`showsNavItem`): nur mit lokalem Backend (iPad ohne eigenen Server; der PC-Server gleicht den
 /// Posteingang nicht ab) und nur, wenn die Hochschule Stud.IP hat und es verbunden ist (Sitzung gespeichert, auch
-/// abgelaufen) oder schon Nachrichten auf dem Geraet liegen. Hildesheim (Learnweb/LSF) hat kein Stud.IP und keine
-/// Nachrichten, dort nie.
+/// abgelaufen) oder schon Nachrichten auf dem Geraet liegen. Uni Hildesheim und Hochschule Hannover: sobald der
+/// Abgleich Learnweb- bzw. Moodle-Nachrichten gespeichert hat (seit 05.11.2026).
 ///
 /// Neu (`isNew`): gesendet nach der neuesten Nachricht, die beim letzten Oeffnen der Seite da war. Die Marke steht in
 /// den Einstellungen des Containers (`seenKey`, je Konto und Hochschule getrennt) als `sent_at` dieser Nachricht; so
@@ -114,6 +114,8 @@ struct MessagesInboxHost: ViewModifier {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.hsh) private var hsh
+    @Environment(\.hildesheim) private var hildesheim
     @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
@@ -124,5 +126,13 @@ struct MessagesInboxHost: ViewModifier {
                 if phase == .active { Task { await MessagesInbox.shared.refresh(api: session.api) } }
             }
             .onChange(of: studip.finishedRuns) { _, _ in Task { await MessagesInbox.shared.refresh(api: session.api) } }
+            // Moodle-Nachrichten der Hochschule Hannover kommen mit deren Abgleich
+            .onReceive(hsh.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()) { _ in
+                Task { await MessagesInbox.shared.refresh(api: session.api) }
+            }
+            // Learnweb-Nachrichten der Uni Hildesheim kommen mit deren Abgleich (LearnwebMessages, 05.11.2026)
+            .onReceive(hildesheim.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()) { _ in
+                Task { await MessagesInbox.shared.refresh(api: session.api) }
+            }
     }
 }

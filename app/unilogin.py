@@ -122,7 +122,7 @@ def save_session(name: str, cookies: list[dict]) -> None:
 
 
 def forget(name: str | None = None) -> None:
-    names = [name] if name else ["STUDIP_COOKIES", "LEARNWEB_COOKIES"]
+    names = [name] if name else ["STUDIP_COOKIES", "LEARNWEB_COOKIES", "HSH_COOKIES"]
     if config.is_hosted():
         config.set_env({n: None for n in names})
         return
@@ -194,6 +194,10 @@ def check_cookies(key: str, cookies: list[dict]) -> bool:
         from . import hildesheim
         html = _get_with_cookies(hildesheim.learnweb_base() + "/my/", cookies)
         return bool(html) and "sesskey" in html and "notloggedin" not in html
+    if key == "hsh":
+        from . import hsh
+        html = _get_with_cookies(hsh.moodle_base() + "/my/", cookies)
+        return bool(html) and "sesskey" in html and "notloggedin" not in html
     from .config import STUDIP_BASE
     text = _get_with_cookies(f"{STUDIP_BASE}/jsonapi.php/v1/users/me", cookies, accept="application/vnd.api+json")
     return bool(text) and '"username"' in text
@@ -208,6 +212,9 @@ def _cookie_urls(key: str) -> list[str]:
         from . import hildesheim
         from .universities import HILDESHEIM_CAS, LSF_BASE
         return [hildesheim.learnweb_base(), HILDESHEIM_CAS + "/", LSF_BASE]
+    if key == "hsh":
+        from . import hisinone, hsh
+        return [hsh.moodle_base(), hisinone.HSH_CM_BASE, "https://idp.hs-hannover.de/"]
     from .config import STUDIP_BASE
     return [STUDIP_BASE, LUH_SSO_URL]
 
@@ -221,8 +228,31 @@ def _target(university: str | None) -> tuple[str, str, str, object, Path]:
         base = hildesheim.learnweb_base()
         return (key, "LEARNWEB_COOKIES", f"{base}/login/index.php?authCAS=CAS",
                 lambda page: learnweb.SessionClient(page, base).is_logged_in(), hildesheim._profile_dir())
+    if key == "hsh":
+        from . import hsh
+        return key, hsh.SESSION, hsh.login_url(), hsh_window_check(), hsh._profile_dir()
     from . import studip_sync
     return key, "STUDIP_COOKIES", studip_sync.SHIB_LOGIN_URL, studip_sync._is_logged_in, studip_sync._profile_dir()
+
+
+def hsh_window_check():
+    """Anmeldefenster der HsH in zwei Schritten im selben Fenster: erst Moodle, dann das Campusmanagement (HISinOne,
+    SAML mit demselben SSO-Account). Nach Moodle wird die Sitzung schon gemerkt und das Fenster zur SSO-Anmeldung von
+    HISinOne geleitet; fertig, sobald HISinOne den Abmelden-Link zeigt. Laeuft die Zeit dort ab, bleibt Moodle angemeldet."""
+    from . import hisinone, hsh, learnweb
+    state = {"moodle": False}
+
+    def check(page) -> bool:
+        if not state["moodle"]:
+            if not learnweb.SessionClient(page, hsh.moodle_base()).is_logged_in():
+                return False
+            state["moodle"] = True
+            save_session(hsh.SESSION, page.context.cookies())
+            _set(message="Moodle angemeldet – jetzt im selben Fenster beim Campusmanagement anmelden.")
+            page.goto(hisinone.SSO_LOGIN_URL, wait_until="domcontentloaded")
+            return False
+        return hisinone.is_hisinone_url(page.url) and hisinone.is_logged_in(page.content())
+    return check
 
 
 def session_name(university: str | None = None) -> str:

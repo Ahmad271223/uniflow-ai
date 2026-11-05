@@ -177,7 +177,7 @@ Projekte sind ohne Antrag zugelassen. Damit lässt sich Phase 1 testen, ohne das
 
 ## 7. Entscheidungen des Inhabers
 
-**Nachtrag 27.10.2026:** Mit dem Abosystem (`docs/ABO-SYSTEM.md`) wünscht der Inhaber die ChatGPT-Verbindung als Premiumfunktion ab Pro Connect (seit 04.11.2026 gibt es Pro Connect nicht mehr: die Anzeige-Regel hängt an Pro AI). Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ muss die Nutzung des eigenen ChatGPT-Abos aber ohne Zahlung an den Partner möglich sein. Deshalb ist die Regel nur eine Anzeige-Regel (`chatgpt_connection_premium`), die Integration bleibt aus (`plan_gating_allowed = False`), bis OpenAI die Kopplung für StudiNow schriftlich bestätigt. Diese Frage gehört in den Antrag (Abschnitt 6).
+**Nachtrag 27.10.2026:** Mit dem Abosystem (`docs/ABO-SYSTEM.md`) wünscht der Inhaber die ChatGPT-Verbindung als Premiumfunktion ab Pro Connect (seit 04.11.2026 gibt es Pro Connect nicht mehr: die Anzeige-Regel hing an Pro AI; seit 05.11.2026 gilt sie in jedem Tarif, auch Free, `docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`). Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ muss die Nutzung des eigenen ChatGPT-Abos aber ohne Zahlung an den Partner möglich sein. Deshalb ist die Regel nur eine Anzeige-Regel (`chatgpt_connection_premium`), die Integration bleibt aus (`plan_gating_allowed = False`), bis OpenAI die Kopplung für StudiNow schriftlich bestätigt. Diese Frage gehört in den Antrag (Abschnitt 6).
 
 | Thema | Vorschlag |
 |---|---|
@@ -285,3 +285,52 @@ Commit d5830f6 vom 3.11.2026):
 - **Geräte-Probe** `StudIPDeviceProbeTests.testChatGPTModelsOnTheDevice` (nur mit `UF_DEVICE_PROBE=1`, Konto aus dem
   Schlüsselbund des iPads): Angaben des Tokens ohne Geheimnisse, Antwort von `/v1/models`, bis zu sechs Kandidaten
   mit „Antworte nur: OK“ – je Modell Status und Anfang von Antwort oder Fehler.
+
+## 11. Stand 5.11.2026: „ChatGPT verbinden“ auf dem iPad ausgeschaltet
+
+Gerätetest des Inhabers: Nach Kontowahl bzw. E-Mail bei OpenAI passierte nichts mehr. Ursache: Sign in with ChatGPT
+ist für StudiNow von OpenAI noch nicht freigegeben (`app/plans.py` `INTEGRATIONS["chatgpt"].status = "disabled"`), die
+Anmeldung kann also nicht abschließen.
+
+- **Schalter** `ChatGPTLink.isEnabled = false` (wie `StudyTimer.isEnabled`). Aus heißt: keine Anmeldeseite
+  (`connect()` setzt nur den Hinweis), `enabled` ist nie wahr, das lokale Backend bekommt keine KI über ChatGPT, eine
+  früher gespeicherte Verbindung bleibt im Schlüsselbund, wird aber nicht benutzt.
+- **Einstellungen → Erweitert:** Karte „KI über mein ChatGPT“ mit „Eigenes ChatGPT verbinden – bald verfügbar“
+  (`ChatGPTSoonCard`), ohne Knopf.
+- **KI-Hilfe, KI-Start, Wochentest- und Karteikarten-Dialog, Fragen zum Test, Aufnahmen, Seite „Tests“:** statt
+  „Verbinde dein ChatGPT“/„ChatGPT verbinden“ der Tarif-Hinweis `ChatGPTLink.planHint` („Die KI-Hilfe kommt mit der
+  StudiNow-KI in StudiNow Pro AI. …“) und „Tarife ansehen“ (Einstellungen → Konto, `ChatGPTLink.settingsTab`).
+  Kostenzeilen: „Kommt mit StudiNow Pro AI“ bzw. „KI kommt mit StudiNow Pro AI · N Anfragen diesen Monat“.
+- **Wieder einschalten** nach der Freigabe: `isEnabled = true`; alle Wege (Karte, Neu verbinden, Freigabe nachholen)
+  sind unverändert vorhanden. Tests: `ChatGPTLinkAppTests.testSwitchOffOffersNoLoginAnywhere`,
+  `testSettingsShowSoonCardWithoutConnectButton`.
+- Auf dem iPad gab es damit zunächst keine KI-Antworten; seit dem 5.11.2026 antwortet die **StudiNow-KI über Pro AI**
+  (Abschnitt 12).
+
+### Bild in der KI-Hilfe („Bereich an KI“, 5.11.2026)
+
+`POST /api/ai/tutor` nimmt `image` (Base64 JPEG/PNG, auch als data-URL, höchstens 3 MB dekodiert): iPad-Kern
+(`AIEndpoints.tutorImage`, mit eigenem ChatGPT über `ChatGPTVisionAI` als `input_image`), PC/Dienst
+(`ai.tutor_image`, `_tutor_hosted` → `ai_backend.complete(image=…)`, Bild-Tokens in Schätzung und Abrechnung über
+`ai_prices`), Windows über die Relay-Aufgabe `tutor:*` (andere Aufgaben: 400 `image_not_allowed`). Mit Bild nie aus
+einem Speicher und nie hinein (persönlich). Kaputtes oder zu großes Bild: 400/413 `image_invalid`.
+
+## 12. Stand 5.11.2026: KI auf dem iPad über die StudiNow-KI (Pro AI)
+
+Entscheidung des Inhabers: Die KI muss in 1.0 kommen, also über Pro AI statt über das eigene ChatGPT. Einzelheiten
+(Kauf, Anmeldung, Weg der KI, Fehler, Probe) in `docs/ABO-SYSTEM.md`, Abschnitt 6b.
+
+- **Anbieter** `StudiNowAI: AIProvider` (UniFlowCore/AI/StudiNowAI.swift): nimmt den im lokalen Backend gebauten
+  Prompt und schickt ihn mit Aufgabe (`AIRelayTask`, Kontextvariable wie `ai.for_task`) und Sitzungs-Token an
+  `POST /api/ai/relay`; System-Text, Schema, Modell (gpt-6-luna oder Claude Sonnet über Bedrock, `app/ai_router.py`),
+  Recht, Kontingent und Credits bestimmt der Dienst. Ohne Aufgabe wird nichts gesendet.
+- **Reihenfolge** in `LocalAI`: eigenes ChatGPT (`set`, solange `ChatGPTLink.isEnabled` aus ist nie gesetzt) vor der
+  StudiNow-KI (`setService`). Gespeichertes und Geteiltes kommt in den Endpunkten vorher (0 Credits).
+- **Aufgaben:** KI-Hilfe und KI-Start `tutor:<modus>` (mit Bild beim „Bereich an KI“), Karteikarten `flashcards`,
+  Wochentest `week_test`, Bewerten `grade`, Wochentests mit Seitenmarkern `weekly`; „Ganzes Dokument“ rechnet im Dienst
+  (`/api/ai/document/plan|step` mit `page_texts`). Dokument-Index, „Vorab einordnen“ und das Einordnen einer Datei laufen
+  nicht über die StudiNow-KI (keine Aufgabe, kein Hintergrund mit Credits).
+- **Oberfläche:** `ufAIAccess`/`ufStudiNowAI` (`UFAIAccessProvider`): bereit → KI-Stellen fragen, Kostenzeile
+  „StudiNow-KI · – 3 Credits (37 übrig)“; Pro AI ohne Anmeldung → „Mit StudiNow-Konto anmelden“; Free/Plus → wie in
+  Abschnitt 11 der Tarif-Hinweis.
+

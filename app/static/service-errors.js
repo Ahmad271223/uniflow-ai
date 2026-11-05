@@ -14,6 +14,9 @@ const KNOWN = {
   ai_not_configured_prices: "Die StudiNow-KI ist im Dienst noch nicht freigeschaltet. Bitte versuche es später erneut.",
   email_taken: "Für diese E-Mail-Adresse gibt es schon ein StudiNow-Konto. Melde dich dort mit E-Mail und Passwort an und bestätige die Adresse; danach lässt sich die Anmeldung verknüpfen.",
   last_login_method: "Das ist der einzige Anmeldeweg deines Kontos. Lege zuerst ein Passwort fest oder verknüpfe einen anderen Weg, dann kannst du diesen entfernen.",
+  subscription_owned_by_other_account: "Dieses App-Store-Abo ist schon mit einem anderen StudiNow-Konto verbunden. Melde dich mit jenem Konto an, dann gilt es auch für die StudiNow-KI.",
+  apple_not_configured: "Der StudiNow-Dienst kann App-Store-Käufe gerade noch nicht prüfen. Dein Abo gilt auf dem iPad trotzdem; bitte versuche es später erneut.",
+  provider_not_configured: "„Mit Apple anmelden“ ist beim StudiNow-Dienst noch nicht eingerichtet. Melde dich vorerst mit E-Mail und Passwort an.",
   cross_site: "Die Anfrage wurde aus Sicherheitsgründen abgelehnt, weil sie nicht direkt aus StudiNow kam. Starte sie bitte in der App oder auf der StudiNow-Webseite selbst.",
 };
 

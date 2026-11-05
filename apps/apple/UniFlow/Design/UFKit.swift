@@ -560,6 +560,7 @@ private struct UFReloadModifier: ViewModifier {
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     let action: () async -> Void
 
     func body(content: Content) -> some View {
@@ -568,6 +569,12 @@ private struct UFReloadModifier: ViewModifier {
             .onChange(of: shell.reloadToken) { _, _ in Task { await action() } }
             .onChange(of: studip.finishedRuns) { _, _ in Task { await action() } }
             .onReceive(hildesheimRuns) { _ in Task { await action() } }
+            .onReceive(hshRuns) { _ in Task { await action() } }
+    }
+
+    /// Ende jedes Abgleichs der Hochschule Hannover (ohne Verbindung nie)
+    private var hshRuns: AnyPublisher<Int, Never> {
+        hsh.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()
     }
 
     /// Ende jedes Hildesheimer Abgleichs (ohne Verbindung nie)

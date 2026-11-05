@@ -32,7 +32,7 @@ COPY docs/release ./docs/release
 # Studienverlauf: Register der Quellen und Grundstock der Modulkataloge (nur Fakten, 0,3 MB) im selben Unterpfad wie im
 # Repo (app/study_catalog.py liest ROOT/packages/... und ROOT/apps/apple/...); .dockerignore laesst genau diese Dateien durch
 COPY packages/shared-contracts/study-sources.json packages/shared-contracts/study-sources-all.json ./packages/shared-contracts/
-COPY apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz ./apps/apple/UniFlow/Resources/StudyCatalogSeed/
+COPY apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz apps/apple/UniFlow/Resources/StudyCatalogSeed/hildesheim.json.gz ./apps/apple/UniFlow/Resources/StudyCatalogSeed/
 
 # Unprivilegierter Dienstnutzer; /data und /logs gehoeren ihm (benannte Volumes uebernehmen die Rechte beim ersten Start)
 RUN useradd --uid 1000 --user-group --create-home --home-dir /home/uniflow --shell /usr/sbin/nologin uniflow \

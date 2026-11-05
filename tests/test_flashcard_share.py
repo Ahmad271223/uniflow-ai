@@ -356,7 +356,7 @@ def test_share_adopt_withdraw_like_report_and_no_cross_module(hosted):
     assert _call(hosted, "POST", f"/api/community/card-stacks/{sh['id']}/report", {"reason": "kaputt"}, headers=hd, status=400)
     assert _call(hosted, "GET", f"/api/community/card-stacks?module={key}", headers=hb)["stacks"][0]["reported_by_me"] is True
     _call(hosted, "POST", f"/api/community/card-stacks/{sh['id']}/report", {"reason": "offensive", "note": "x"}, headers=hd)
-    eve, he = user(hosted, "eve@beispiel.de", plan="free")
+    eve, he = user(hosted, "eve@beispiel.de", plan="plus")
     _member(hosted, he, key)
     assert _call(hosted, "POST", f"/api/community/card-stacks/{sh['id']}/report", {"reason": "other"}, headers=he)["hidden"] is True
     assert _call(hosted, "GET", f"/api/community/card-stacks?module={key}", headers=hb)["stacks"] == [], "ab 3 Meldungen verborgen"
@@ -374,7 +374,10 @@ def test_share_adopt_withdraw_like_report_and_no_cross_module(hosted):
     gen = _stack_with_cards(hosted, ha, "Analysis I", name="Formeln")
     g = _call(hosted, "POST", f"/api/flashcard-stacks/{gen['id']}/share", headers=ha)
     assert g["week"] is None and [x["id"] for x in _call(hosted, "GET", f"/api/community/card-stacks?module={key}&week=0", headers=hb)["stacks"]] == [g["id"]]
-    # Free-Konto (z. B. nach der Probe, Stapel aus der Probe) darf nicht teilen und nicht uebernehmen, Lesen schon
+    # Free-Konto (z. B. nach der Probe, Stapel aus der Probe) darf nicht teilen, nicht uebernehmen und seit 05.11.2026
+    # auch nicht lesen (Community ab Plus)
+    from app import accounts
+    accounts.set_plan(eve["id"], "free")
     _seed_user(hosted, he)
     fs = _in_user(hosted, he, lambda conn: conn.execute(
         "INSERT INTO flashcard_stacks(name, subject, created_at, kind) VALUES ('Klausur', 'Analysis I', '2026-11-01', 'eigene')").lastrowid)
@@ -383,7 +386,8 @@ def test_share_adopt_withdraw_like_report_and_no_cross_module(hosted):
     d = _call(hosted, "POST", f"/api/flashcard-stacks/{fs}/share", headers=he, status=403)
     assert (d["code"], d["entitlement"], d["detail"]) == ("plan_required", "can_use_flashcards", "Karteikarten gibt es ab StudiNow Plus.")
     assert _call(hosted, "POST", f"/api/community/card-stacks/{g['id']}/adopt", headers=he, status=403)["entitlement"] == "can_use_flashcards"
-    assert len(_call(hosted, "GET", f"/api/community/card-stacks?module={key}", headers=he)["stacks"]) == 2
+    d = _call(hosted, "GET", f"/api/community/card-stacks?module={key}", headers=he, status=403)
+    assert (d["entitlement"], d["detail"]) == ("can_read_community", "Die Community gibt es ab StudiNow Plus.")
     # Konto loeschen zieht die eigenen Stapel zurueck
     from app import community_cards
     assert community_cards.forget_author(ada["id"]) == 2
@@ -412,3 +416,36 @@ def test_free_account_can_still_withdraw_its_shared_stack(hosted):
     assert w["withdrawn"] is True and w["stack"]["shared_id"] is None and sh["id"]
     # erneut teilen ist fuer Free gesperrt
     assert _call(hosted, "POST", f"/api/flashcard-stacks/{own['id']}/share", headers=ha, status=403)
+
+
+def test_adopting_stacks_counts_plus_four_per_month_pro_ai_fair_use(hosted, monkeypatch):
+    """Kontingent `card_stacks_adopted` (Entscheidung 05.11.2026): Plus uebernimmt 4 Stapel von StudiNow je Monat, der
+    fuenfte antwortet 429 quota_exhausted; derselbe Stapel zaehlt einmal (vorhandene Kopie, Loeschen und erneut
+    uebernehmen); Pro AI unbegrenzt (Fair Use 300)."""
+    from app.solution_format import community_module_key
+    monkeypatch.setenv("LERNAPP_LIMIT_DECK_USER", "100/1440")
+    ada, ha = user(hosted, "ada-kontingent@beispiel.de", plan="plus")
+    ben, hb = user(hosted, "ben-kontingent@beispiel.de", plan="plus")
+    cleo, hc = user(hosted, "cleo-kontingent@beispiel.de", plan="pro_ai")
+    key = community_module_key("luh", "Analysis I")
+    for h in (ha, hb, hc):
+        _seed_user(hosted, h)
+        _member(hosted, h, key)
+    shared = [_call(hosted, "POST", f"/api/flashcard-stacks/{_stack_with_cards(hosted, ha, 'Analysis I', name=f'S{i}', week=i + 1)['id']}/share",
+                    headers=ha)["id"] for i in range(5)]
+    first = _call(hosted, "POST", f"/api/community/card-stacks/{shared[0]}/adopt", headers=hb)
+    for sid in shared[1:4]:
+        assert _call(hosted, "POST", f"/api/community/card-stacks/{sid}/adopt", headers=hb)["already"] is False
+    q = _call(hosted, "GET", "/api/entitlements", headers=hb)["quotas"]["card_stacks_adopted"]
+    assert (q["used"], q["limit"]) == (4, 4)
+    d = _call(hosted, "POST", f"/api/community/card-stacks/{shared[4]}/adopt", headers=hb, status=429)
+    assert (d["code"], d["feature"], d["detail"]) == (
+        "quota_exhausted", "card_stacks_adopted",
+        "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel): Kontingent für diesen Monat aufgebraucht (4 von 4).")
+    assert _call(hosted, "POST", f"/api/community/card-stacks/{shared[0]}/adopt", headers=hb)["already"] is True, "vorhandene Kopie"
+    _call(hosted, "DELETE", f"/api/flashcard-stacks/{first['stack']['id']}", headers=hb)
+    assert _call(hosted, "POST", f"/api/community/card-stacks/{shared[0]}/adopt", headers=hb)["already"] is False, "derselbe Stapel zaehlt einmal"
+    for sid in shared:
+        _call(hosted, "POST", f"/api/community/card-stacks/{sid}/adopt", headers=hc)
+    q = _call(hosted, "GET", "/api/entitlements", headers=hc)["quotas"]["card_stacks_adopted"]
+    assert (q["used"], q["limit"], q["unlimited"]) == (5, 300, True)

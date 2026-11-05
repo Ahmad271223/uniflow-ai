@@ -554,7 +554,9 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertEqual(h.learnweb, .ok(clock.now))
         XCTAssertEqual(h.lsf, .ok(clock.now))
         XCTAssertEqual(HildesheimConnection.statusText(.learnweb, h.learnweb, now: clock.now), "Learnweb: 10:00 ok")
-        XCTAssertEqual(h.messages.first, "2 neue/geänderte Dateien aus 1 Learnweb-Kursen")
+        // seit 05.11.2026 (`SyncOrder`) kommt der LSF-Stundenplan vor den Dateien
+        XCTAssertEqual(h.messages.first, "Stundenplan: 1 neu, 0 unverändert, 0 entfernt")
+        XCTAssertTrue(h.messages.contains("2 neue/geänderte Dateien aus 1 Learnweb-Kursen"), "\(h.messages)")
 
         // Netz: Schluessel nie in einer Adresse, Downloads per POST an die eigene Pluginfile-Adresse, LSF mit der
         // Sitzung des Containers, die LSF-Sitzung nie beim Learnweb

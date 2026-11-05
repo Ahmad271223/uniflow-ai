@@ -22,6 +22,8 @@ struct TutorPanel: View {
     let close: () -> Void
     /// Frage aus "Text markieren" (markierter Text und Modus); wird gesendet und danach geleert
     var request: Binding<EditorBridge.TutorRequest?> = .constant(nil)
+    /// Anhang aus dem Editor (markierter Text, Bereich als Bild); landet im Eingabefeld und wird danach geleert
+    var attachment: Binding<TutorAttachment?> = .constant(nil)
     /// Modul des Dokuments fuer "Wochentest erstellen" im Reiter Test (nil: der Dialog fragt nach dem Modul)
     var moduleID: Int? = nil
     /// Seitennotizen und Blatt daneben der offenen Folie als Text (`AttachedNotes`, 05.11.2026); leer = keine
@@ -34,6 +36,8 @@ struct TutorPanel: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufAIAccess) private var aiAccess
+    @Environment(\.ufStudiNowAI) private var studinowAI
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.openURL) private var openURL
@@ -126,7 +130,7 @@ struct TutorPanel: View {
     @State private var busy = false
     @State private var error: String?
     /// 429 `credits_exhausted` des Dienstes: unter der Meldung der Weg zum Tarif
-    @State private var creditsExhausted = false
+    @State private var errorAction: StudiNowAIAction?
     @State private var tab: Tab = .explain
     /// Umfang und Lauf fuer das ganze Dokument (05.11.2026, TutorDocumentRun.swift): "Diese Seite | Ganzes Dokument |
     /// Seiten …", "Ganze Vorlesung erklären", "Alle Aufgaben erklären"
@@ -135,11 +139,16 @@ struct TutorPanel: View {
     @State private var docTo = 1
     @StateObject private var docRunner = TutorDocRunner()
     @FocusState private var inputFocused: Bool
+    /// Anhang im Eingabefeld (05.11.2026): geht mit der naechsten Frage bzw. dem naechsten Modus mit, danach weg
+    @State private var attached: TutorAttachment?
+
+    /// KI erreichbar (`ufAIEnabled`); sonst zeigt die Leiste den Anhang und den Tarif-Hinweis
+    private var canAsk: Bool { aiEnabled }
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            if aiEnabled {
+            if canAsk {
                 tabBar
                 conversation
             } else {
@@ -150,11 +159,20 @@ struct TutorPanel: View {
         // Weitermachen wie zuvor (04.11.2026): das gemerkte Gespraech dieses Dokuments mit Antworten, Karten,
         // Anschlussfragen und "Schon erklärt" wieder zeigen (`TutorConversations`, bleibt auf dem Geraet)
         .onAppear { restoreConversation() }
+        .task(id: studinowAI) { if studinowAI { await studoraAccount?.refreshCredits() } }
         .onChange(of: fileID) { _, _ in messages = []; error = nil; restoreConversation() }
         .task(id: request.wrappedValue?.id) {
-            guard aiEnabled, let r = request.wrappedValue else { return }
+            guard let r = request.wrappedValue else { return }
             request.wrappedValue = nil
+            // ohne KI nicht still verwerfen: der Text steht dann als Anhang da, darunter der Hinweis
+            guard canAsk else { attached = TutorAttachment(kind: .selection, text: r.selection, page: page()); return }
             await send(mode: r.mode, selection: r.selection)
+        }
+        .task(id: attachment.wrappedValue?.id) {
+            guard let a = attachment.wrappedValue else { return }
+            attachment.wrappedValue = nil
+            attached = a
+            if canAsk { inputFocused = true }
         }
     }
 
@@ -277,12 +295,16 @@ struct TutorPanel: View {
     /// jeder, 0 Credits; die Karte bleibt leer, wenn der Index die Seite nicht kennt)
     @ViewBuilder private var notConnected: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) { DocIndexPageCard(fileID: fileID, page: page, open: open) }
+            VStack(alignment: .leading, spacing: 12) {
+                // der Anhang kam an (sichtbar), auch wenn die KI hier noch nicht antworten kann
+                if let a = attached { TutorAttachmentCard(attachment: a) { attached = nil } }
+                DocIndexPageCard(fileID: fileID, page: page, open: open)
+            }
                 .padding(.horizontal, 14).padding(.top, 14)
             if let chatgpt {
-                TutorConnectState(link: chatgpt) { leave(.settings(tab: "advanced")) }
+                TutorConnectState(link: chatgpt) { leave(.settings(tab: ChatGPTLink.settingsTab)) }
             } else {
-                TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { leave(.settings(tab: "advanced")) }
+                TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { leave(.settings(tab: ChatGPTLink.settingsTab)) }
             }
         }
     }
@@ -310,8 +332,11 @@ struct TutorPanel: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(error).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                                     .accessibilityIdentifier("tutor.error")
-                                if creditsExhausted {
-                                    UFButton("Tarif ansehen", icon: "star", size: .small) { leave(.settings(tab: "account")) }
+                                if let errorAction {
+                                    // Tarif (Recht, Kontingent, Credits) bzw. Anmeldung beim StudiNow-Konto
+                                    UFButton(StudoraAccountLink.errorButton(errorAction), icon: errorAction == .signIn ? "user" : "star", size: .small) {
+                                        leave(.settings(tab: "account"))
+                                    }
                                         .accessibilityIdentifier("tutor.plans")
                                 }
                             }
@@ -347,11 +372,15 @@ struct TutorPanel: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 6) {
-            AIComposer(placeholder: checking ? "Deine Lösung oder deinen Rechenweg eintragen" : "Frag etwas zur Seite …",
+            if let a = attached {
+                TutorAttachmentCard(attachment: a) { attached = nil }
+            }
+            AIComposer(placeholder: checking ? "Deine Lösung oder deinen Rechenweg eintragen"
+                                             : (attached == nil ? "Frag etwas zur Seite …" : "Frag etwas dazu – oder gleich senden: „Erklär mir das“"),
                        text: $input, focused: $inputFocused,
-                       canSend: !busy && !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       canSend: Self.canSend(busy: busy, input: input, attached: attached != nil, checking: checking),
                        sendLabel: checking ? "Lösung prüfen" : "Senden", inputID: "tutor.input", sendID: "tutor.ask",
-                       send: { Task { await send(mode: checking ? "check" : "ask") } }) {
+                       send: { Task { await send(mode: Self.composerMode(checking: checking, input: input, attached: attached != nil)) } }) {
                 if checking {
                     Button { checking = false } label: {
                         AIComposerPill(icon: "check", text: "Lösung prüfen", tint: Tab.test.pair.fg, fill: Tab.test.pair.bg)
@@ -361,8 +390,9 @@ struct TutorPanel: View {
                     .accessibilityIdentifier("tutor.check.off")
                 }
             }
-            Text(Self.footer(page: page(), model: chatgpt?.status?.model, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
-                             adopted: Self.storedLabel(messages.last?.explain) != nil, trial: studoraAccount?.planStatus?.trialActive ?? false))
+            Text(Self.footer(page: attached?.page ?? page(), model: chatgpt?.status?.model, credits: studoraAccount?.credits, charge: studoraAccount?.lastCharge,
+                             adopted: Self.storedLabel(messages.last?.explain) != nil, trial: studoraAccount?.planStatus?.trialActive ?? false,
+                             studinow: studinowAI))
                 .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 6)
@@ -376,8 +406,13 @@ struct TutorPanel: View {
     /// Modelle je Konto ab; die Sitzung wechselt dann, und hier steht, womit die Antwort wirklich kam). Mit Credits-Stand
     /// vom Dienst steht der Weg mit den Credits (`AICost.creditsLine`): "Dein ChatGPT – 0 Credits", nach einer
     /// gespeicherten Antwort "Schon erklärt · 0 Credits", nach einer berechneten "– 3 Credits (37 übrig)".
+    /// `studinow`: Antworten kommen ueber die StudiNow-KI (Credits): "Seite 3 · StudiNow-KI · – 3 Credits (37 übrig)"
     static func footer(page: Int, model: String?, credits: StudoraCredits? = nil, charge: StudoraCredits.Charge? = nil,
-                       adopted: Bool = false, trial: Bool = false) -> String {
+                       adopted: Bool = false, trial: Bool = false, studinow: Bool = false) -> String {
+        if studinow {
+            let line = AICost.creditsLine(credits: credits, chatgpt: false, adopted: adopted, charge: charge, trial: trial)
+            return "Seite \(page) · StudiNow-KI" + (line.map { " · \($0)" } ?? "")
+        }
         let m = (model ?? "").trimmingCharacters(in: .whitespaces)
         let way = credits != nil
             ? AICost.creditsLine(credits: credits, chatgpt: charge == nil && !adopted, adopted: adopted, charge: charge, trial: trial) ?? "über dein ChatGPT"
@@ -495,30 +530,56 @@ struct TutorPanel: View {
         }
     }
 
+    /// Senden moeglich: nichts laeuft und es gibt Text oder einen Anhang (beim Pruefen der Loesung immer Text)
+    static func canSend(busy: Bool, input: String, attached: Bool, checking: Bool) -> Bool {
+        let typed = !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !busy && (typed || (attached && !checking))
+    }
+
+    /// Modus des Sendeknopfs: Loesung pruefen, freie Frage, oder mit Anhang ohne Frage "Erklären"
+    static func composerMode(checking: Bool, input: String, attached: Bool) -> String {
+        if checking { return "check" }
+        return attached && input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "explain" : "ask"
+    }
+
+    /// Rumpf von POST /api/ai/tutor: `selection` = markierter bzw. erkannter Text, `image` = Ausschnitt als JPEG
+    /// (Base64, "Bereich an KI"; Vertrag wie app/server.py `ai.tutor_image`)
+    static func requestBody(fileID: String, page: Int, mode: String, history: JSONValue, typed: String, selection: String,
+                            image: Data?, force: Bool) -> [String: JSONValue] {
+        var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode), "history": history]
+        if mode == "check" { body["own_solution"] = .string(typed) } else if !typed.isEmpty { body["question"] = .string(typed) }
+        if !selection.isEmpty { body["selection"] = .string(String(selection.prefix(TutorAttachment.maxText))) }
+        if let image, !image.isEmpty { body["image"] = .string(image.base64EncodedString()) }
+        if force { body["force"] = true }
+        return body
+    }
+
     /// `force` ("Neu erklaeren lassen"): am Erklaerungsspeicher vorbei live fragen; die Antwort belegt den naechsten
     /// freien Platz oder bleibt lokal
     private func send(mode: String, selection given: String? = nil, force: Bool = false, docIntent: Bool = true) async {
         guard let api = session.api, !busy else { return }
         let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         // Wunsch fuers ganze Dokument im Eingabefeld ("Erkläre die ganze Vorlesung", "Löse alle Aufgaben", "Seiten 5 bis 12")
-        if mode == "ask", docIntent, given == nil, DocExplain.parseIntent(typed) != nil {
+        if mode == "ask", docIntent, given == nil, attached == nil, DocExplain.parseIntent(typed) != nil {
             await startDoc(question: typed)
             return
         }
-        let page = page(), selection = given ?? selection()
-        var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode),
-                                         "history": Self.history(messages)]
-        if mode == "check" { body["own_solution"] = .string(typed) } else if !typed.isEmpty { body["question"] = .string(typed) }
-        if !selection.isEmpty { body["selection"] = .string(selection) }
-        if force { body["force"] = true }
+        // der Anhang (markierter Text, Bereich) geht mit, sofern kein Text aus "Text markieren" kommt
+        let using = given == nil ? attached : nil
+        let page = using?.page ?? page()
+        var body = Self.requestBody(fileID: fileID, page: page, mode: mode, history: Self.history(messages), typed: typed,
+                                    selection: given ?? using?.text ?? selection(), image: using?.image, force: force)
         if let t = Tab.tab(for: mode), t != tab, mode != "check" { tab = t }
+        let quoted = given ?? using.flatMap { $0.text.isEmpty ? nil : $0.text }
         messages.append(Message(fromUser: true, text: Self.label(mode: mode, input: typed, force: force)
-                                + (given.map { "\n„\(String($0.prefix(160)))\($0.count > 160 ? " …" : "")“" } ?? "")))
+                                + (using?.image != nil ? "\n[\(using!.title) als Bild]" : "")
+                                + (quoted.map { "\n„\(String($0.prefix(160)))\($0.count > 160 ? " …" : "")“" } ?? "")))
         input = ""
+        if using != nil { attached = nil }
         if mode == "check" { checking = false }
         busy = true
         error = nil
-        creditsExhausted = false
+        errorAction = nil
         defer { busy = false }
         do {
             // eigene Notizen zur Folie (Seitennotizen, Blatt daneben) als Kontext; der Dienst nutzt dann keinen
@@ -535,12 +596,13 @@ struct TutorPanel: View {
             if mode != "flashcards" { AIRecents.shared.record(question: Self.label(mode: mode, input: typed), answer: r.s("answer") ?? "", fileID: fileID) }
             persistConversation()
         } catch {
-            // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), Eingabe zurueck ins Feld
+            // Frage ohne Antwort nicht im Verlauf lassen (ginge sonst doppelt mit), Eingabe und Anhang zurueck ins Feld
             if messages.last?.fromUser == true { messages.removeLast() }
             input = typed
+            if let using { attached = using }
             if mode == "check" { checking = true }
             self.error = error.localizedDescription
-            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+            errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
         }
         // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Fusszeile nennt es
         await chatgpt?.refresh()
@@ -558,7 +620,7 @@ struct TutorPanel: View {
         input = ""
         busy = true
         error = nil
-        creditsExhausted = false
+        errorAction = nil
         do {
             let plan = try await docRunner.prepare(api: api, fileID: fileID, page: page(), mode: mode, scope: scope, question: question)
             busy = false
@@ -576,7 +638,7 @@ struct TutorPanel: View {
             if messages.last?.fromUser == true { messages.removeLast() }
             input = question ?? ""
             self.error = error.localizedDescription
-            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+            errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
         }
     }
 
@@ -597,7 +659,7 @@ struct TutorPanel: View {
             }
         } catch {
             self.error = error.localizedDescription
-            creditsExhausted = studoraAccount?.noteAIError(error) ?? StudoraCredits.isExhausted(error)
+            errorAction = StudoraAccountLink.errorAction(error, account: studoraAccount)
         }
         // nichts angekommen (Fehler im ersten Teil): keine leere Antwort stehen lassen
         if let i = messages.firstIndex(where: { $0.id == answerID }), messages[i].text.isEmpty { messages.remove(at: i) }
@@ -643,11 +705,14 @@ struct TutorConnectState: View {
     @ObservedObject var link: ChatGPTLink
     let openSettings: () -> Void
     @State private var busy = false
+    @Environment(\.ufAIAccess) private var access
 
-    enum Reason: Equatable { case notConnected, reauth, noSharing, switchedOff, noModel, ready }
+    /// `signIn`: Pro AI bzw. Probe, aber nicht beim StudiNow-Konto angemeldet (StudiNow-KI wartet auf die Anmeldung)
+    enum Reason: Equatable { case notConnected, signIn, reauth, noSharing, switchedOff, noModel, ready }
 
-    static func reason(_ s: ChatGPTSession.Status?) -> Reason {
-        guard let s, s.connected else { return .notConnected }
+    static func reason(_ s: ChatGPTSession.Status?, enabled: Bool = ChatGPTLink.isEnabled, access: StudiNowAIAccess = .planRequired) -> Reason {
+        // ausgeschaltet (`ChatGPTLink.isEnabled`): auch eine alte Verbindung bietet kein "Neu verbinden" an
+        guard enabled, let s, s.connected else { return access == .signInRequired ? .signIn : .notConnected }
         if s.needsReauth { return .reauth }
         if !s.sharing { return .noSharing }
         if !s.useForAI { return .switchedOff }
@@ -656,7 +721,7 @@ struct TutorConnectState: View {
     }
 
     var body: some View {
-        let reason = Self.reason(link.status)
+        let reason = Self.reason(link.status, access: access)
         Content(reason: reason, message: link.message, busy: busy || link.connecting, fix: fix(reason), openSettings: openSettings)
             .task {
                 await link.refresh()
@@ -673,7 +738,7 @@ struct TutorConnectState: View {
         case .noSharing: return run { await link.connect(reconsent: true) }
         case .switchedOff: return run { await link.setUseForAI(true) }
         case .noModel: return run { await link.loadModels() }
-        case .notConnected, .ready: return nil
+        case .notConnected, .signIn, .ready: return nil
         }
     }
 
@@ -686,13 +751,24 @@ struct TutorConnectState: View {
 
         static func text(_ r: Reason) -> (info: String, action: String?) {
             switch r {
-            case .notConnected: return ("Verbinde dein ChatGPT, dann kannst du hier Fragen zur Seite stellen, Aufgaben lösen lassen, Hinweise bekommen und deine Lösung prüfen.", nil)
+            case .notConnected:
+                // ohne Freigabe durch OpenAI kein "Verbinde dein ChatGPT" (die Anmeldung hinge), sondern der Tarif-Hinweis
+                guard ChatGPTLink.isEnabled else { return (ChatGPTLink.planHint, nil) }
+                return ("Verbinde dein ChatGPT, dann kannst du hier Fragen zur Seite stellen, Aufgaben lösen lassen, Hinweise bekommen und deine Lösung prüfen.", nil)
+            case .signIn: return (StudoraAccountLink.aiSignInHint, nil)
             case .reauth: return ("Die Anmeldung bei ChatGPT ist abgelaufen.", "Neu verbinden")
             case .noSharing: return ("ChatGPT ist verbunden, aber die Freigabe für dein Abo fehlt. Ohne sie laufen keine Anfragen.", "Freigabe nachholen")
             case .switchedOff: return ("ChatGPT ist verbunden, aber „KI-Anfragen über mein ChatGPT“ ist ausgeschaltet.", "Einschalten")
             case .noModel: return ("ChatGPT ist verbunden, StudiNow richtet es gerade ein.", "Erneut versuchen")
             case .ready: return ("ChatGPT ist bereit.", nil)
             }
+        }
+
+        /// Knopf unter dem Hinweis: "ChatGPT verbinden" nur mit `ChatGPTLink.isEnabled`, sonst der Weg zu den Tarifen
+        static func buttonTitle(_ r: Reason) -> String {
+            if r == .signIn { return "Mit StudiNow-Konto anmelden" }
+            guard r == .notConnected else { return "Einstellungen öffnen" }
+            return ChatGPTLink.isEnabled ? "ChatGPT verbinden" : "Tarife ansehen"
         }
 
         var body: some View {
@@ -707,12 +783,71 @@ struct TutorConnectState: View {
                 if let message {
                     Text(message).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
                 }
-                UFButton(reason == .notConnected ? "ChatGPT verbinden" : "Einstellungen öffnen", icon: "settings",
-                         kind: reason == .notConnected ? .primary : .normal) { openSettings() }
+                UFButton(Self.buttonTitle(reason), icon: reason == .signIn ? "user" : reason == .notConnected && !ChatGPTLink.isEnabled ? "star" : "settings",
+                         kind: reason == .notConnected || reason == .signIn ? .primary : .normal) { openSettings() }
                     .accessibilityIdentifier("tutor.connect")
                 Spacer()
             }
             .padding(16)
         }
+    }
+}
+
+/// Anhang im Eingabefeld der KI-Hilfe (05.11.2026): Bild des Bereichs als Vorschau, Titel mit Seite, Anfang des
+/// (erkannten) Texts; entfernen, als Bild teilen, Bild oder Text kopieren (z. B. in eine Notiz einfuegen)
+struct TutorAttachmentCard: View {
+    let attachment: TutorAttachment
+    let remove: () -> Void
+
+    private var image: UIImage? { attachment.image.flatMap(UIImage.init(data:)) }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFit()
+                    .frame(maxWidth: 88, maxHeight: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(UF.lineStrong, lineWidth: 1))
+                    .accessibilityLabel("Vorschau des Bereichs")
+                    .accessibilityIdentifier("tutor.attachment.image")
+            } else {
+                UFIcon("text-select", size: 16).foregroundStyle(UF.accent).padding(.top, 2)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(attachment.title).ufFont(12.8, 650, lh: 1.3).foregroundStyle(UF.text)
+                    .accessibilityIdentifier("tutor.attachment.title")
+                Text(attachment.text.isEmpty ? "Kein Text erkannt – das Bild geht mit." : attachment.text)
+                    .ufFont(12.16, lh: 1.4).foregroundStyle(UF.muted).lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("tutor.attachment.text")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Menu {
+                if let image {
+                    ShareLink(item: Image(uiImage: image), preview: SharePreview(attachment.title, image: Image(uiImage: image))) {
+                        Label("Als Bild teilen", systemImage: "square.and.arrow.up")
+                    }
+                    Button { UIPasteboard.general.image = image } label: { Label("Bild kopieren (für eine Notiz)", systemImage: "doc.on.doc") }
+                }
+                if !attachment.text.isEmpty {
+                    Button { UIPasteboard.general.string = attachment.text } label: { Label("Text kopieren", systemImage: "doc.on.clipboard") }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle").font(.system(size: 17)).frame(width: 32, height: 32).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Mehr zum Anhang")
+            .accessibilityIdentifier("tutor.attachment.more")
+            Button(action: remove) {
+                Image(systemName: "xmark.circle.fill").font(.system(size: 17)).foregroundStyle(UF.muted)
+                    .frame(width: 32, height: 32).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Anhang entfernen")
+            .accessibilityIdentifier("tutor.attachment.remove")
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 12).fill(UF.surface2))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tutor.attachment")
     }
 }

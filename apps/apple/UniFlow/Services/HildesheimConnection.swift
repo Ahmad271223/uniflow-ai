@@ -59,6 +59,8 @@ final class HildesheimConnection: ObservableObject {
     @Published private(set) var finishedRuns = 0
     /// Ergebnis des letzten "Dateien laden" fuer Kurse frueherer Semester (`loadOlderFiles`)
     @Published private(set) var olderFilesNote: String?
+    /// "Angemeldete Prüfungen abrufen" (Pruefungsanmeldung, "Meine POS-Anmeldungen" im LSF) laeuft
+    @Published private(set) var registrationsRunning = false
     /// Bericht des letzten Abgleichs (Tests, Diagnose)
     private(set) var lastReport: HildesheimSync.Report?
 
@@ -186,6 +188,22 @@ final class HildesheimConnection: ObservableObject {
         set(.learnweb, .connected)
         afterSignIn(.learnweb)
         return true
+    }
+
+    // MARK: Nachrichten und Abgaben (Knopfdruck, 05.11.2026)
+
+    /// Learnweb mit der Sitzung der Webansicht (Antworten, Abgaben in Learnweb-Aufgaben; `MoodleWeb` wie die Hochschule
+    /// Hannover). Instanz: die beim Verbinden bzw. im letzten Abgleich gemerkte. nil ohne Learnweb-Verbindung.
+    func moodleWeb() async -> MoodleWeb? {
+        guard isConnected(.learnweb) else { return nil }
+        let base = defaults.string(forKey: Keys.learnwebBase) ?? UniversityProfile.hildesheimLearnweb.absoluteString
+        return MoodleWeb(base: base, transport: await makeTransport(websiteDataStore), retry: retry)
+    }
+
+    /// Anmeldung beim Antworten oder Abgeben abgelaufen: Learnweb braucht eine neue (stille) Anmeldung
+    func learnwebExpired() {
+        guard isConnected(.learnweb) else { return }
+        set(.learnweb, .needsLogin)
     }
 
     /// LSF verbunden (die Webansicht zeigt eine angemeldete Seite des LSF, `LSFClient.isLoggedIn`)
@@ -427,6 +445,30 @@ final class HildesheimConnection: ObservableObject {
         olderFilesNote = nil
         await run(olderOnly: true)
         return olderFilesNote
+    }
+
+    /// Knopf "Angemeldete Prüfungen abrufen" (Pruefungsanmeldung, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): liest nur
+    /// "Meine POS-Anmeldungen" im LSF mit der Sitzung der Webansicht (`QISRegistrationsSync`, `layout: .hildesheim`).
+    /// Meldet nie an oder ab. nil ohne LSF-Verbindung, waehrend eines Abgleichs oder mit Demo-Inhalten. Der normale
+    /// Abgleich liest die Seite nach dem Notenspiegel ohnehin mit (`HildesheimSync`).
+    @discardableResult
+    func fetchRegistrations() async -> QISRegistrationsSync.Report? {
+        guard isConnected(.lsf), !stopped, !isRunning, !registrationsRunning else { return nil }
+        if await demoActive() { return nil }
+        guard isConnected(.lsf), !stopped, !isRunning, !registrationsRunning else { return nil }
+        registrationsRunning = true
+        defer { registrationsRunning = false }
+        let transport = await makeTransport(websiteDataStore)
+        let r: QISRegistrationsSync.Report
+        do {
+            let db = try await host.backend().context.database
+            r = await QISRegistrationsSync.run(db: db, transport: transport, clock: clock, retry: retry, layout: .hildesheim)
+        } catch {
+            r = QISRegistrationsSync.Report(message: LocalBackendHost.message(for: error))
+        }
+        if r.needsLogin { set(.lsf, .needsLogin) }
+        finishedRuns += 1                                       // offene Seiten laden neu (Haken)
+        return r
     }
 
     /// Lauf von `loadOlderFiles`: Stand und Meldungen des letzten vollen Abgleichs bleiben

@@ -1,9 +1,11 @@
-"""KI-Anbindung ueber die Claude Code CLI (`claude -p`).
+"""KI-Anbindung am PC: eigenes ChatGPT, StudiNow-KI ueber das Konto (app/ai_relay.py) oder, nur fuer Entwickler, die
+Claude Code CLI (`claude -p`).
 
 Alle Funktionen liefern geparstes JSON. Die Prompts verlangen reines JSON als Antwort.
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import re
@@ -99,19 +101,66 @@ def no_console() -> dict:
     return {"creationflags": subprocess.CREATE_NO_WINDOW, "startupinfo": si}
 
 
+_TASK: contextvars.ContextVar[tuple[str, dict] | None] = contextvars.ContextVar("ai_task", default=None)
+
+
+@contextmanager
+def for_task(name: str, **relay):
+    """Aufgabe der folgenden ask()-Aufrufe fuer die StudiNow-KI am PC (app/ai_relay.py): Name aus ai_relay.TASKS,
+    dazu request_id, cache, fresh, second_opinion, route_text, options, exam (None-Werte fallen weg)."""
+    from . import ai_relay
+    ai_relay.take()                          # Ergebnis einer frueheren Anfrage gilt nicht fuer diese
+    tok = _TASK.set((name, {k: v for k, v in relay.items() if v is not None}))
+    try:
+        yield
+    finally:
+        _TASK.reset(tok)
+
+
+def source() -> str:
+    """Weg der KI am PC (05.11.2026, app/ai_relay.py): chatgpt | cli | studinow | none."""
+    from . import ai_relay
+    return ai_relay.source()
+
+
+def reads_pdfs() -> bool:
+    """PDF-Seiten selbst lesen (Formeln, Skizzen) kann nur die Claude-Kommandozeile; sonst gilt der Text der Datei."""
+    return source() == "cli"
+
+
 def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[str] | None = None,
         model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None,
         schema: dict | None = None) -> str:
-    """Schickt einen Prompt an `claude -p` und gibt den Antworttext zurueck; mit verbundenem ChatGPT-Abo an die
-    Responses API (dann ohne Werkzeuge: Bilder und PDF-Seiten kann nur Claude lesen, Text geht ueber beide).
+    """Schickt einen Prompt an die KI des PCs und gibt den Antworttext zurueck. Weg (`source`, 05.11.2026): eigenes
+    ChatGPT (Responses API, ohne Werkzeuge: Bilder und PDF-Seiten kann nur Claude lesen) -> Claude-Kommandozeile nur
+    als Entwickler-Schalter (LERNAPP_AI_CLI=1) -> StudiNow-KI ueber das Konto (app/ai_relay.py, nur mit `task`, Credits
+    und Tarif prueft der Dienst; Fehler als ai_relay.RelayError mit Status und Code) -> ohne Konto im
+    Entwicklungsserver `claude -p`, in der Windows-App sonst AIError mit Hinweis.
     allowed_tools: z. B. ["Read"], damit Claude eine Bilddatei (Stundenplan-Screenshot) lesen darf.
     cwd: Arbeitsordner der CLI (Lesen nur dort erlaubt); blocked_tools: ausdruecklich gesperrte Werkzeuge.
-    schema: JSON-Schema der Antwort (nur ChatGPT erzwingt es; der Prompt verlangt die Form ohnehin)."""
+    schema: JSON-Schema der Antwort (nur ChatGPT erzwingt es; der Prompt verlangt die Form ohnehin).
+    Die Aufgabe fuer die StudiNow-KI (ai_relay, z. B. "tutor:explain") und Zusatzangaben (request_id, cache, options)
+    setzt der Aufrufer mit `with for_task(...)` (Kontextvariable; die Signatur bleibt fuer Attrappen in Tests gleich)."""
     _refuse_hosted()
-    if uses_chatgpt():
+    src = source()
+    if src == "chatgpt":
         if allowed_tools or cwd:
             raise AIError("Bilder und PDF-Seiten liest nur Claude; mit ChatGPT wird der Text der Datei genutzt.")
         return ask_chatgpt(prompt, system, schema)
+    if src == "studinow":
+        from . import ai_relay
+        if allowed_tools or cwd:
+            raise AIError("Bilder und PDF-Seiten liest die StudiNow-KI am PC nicht; es wird der Text der Datei genutzt.")
+        task, relay = _TASK.get() or (None, {})
+        if not task or not ai_relay.known_task(task):
+            raise AIError("Diese KI-Funktion gibt es am PC nur mit deinem eigenen ChatGPT (Einstellungen → KI).")
+        text = ai_relay.complete(task, prompt, **relay)["answer"]
+        with open(LOG_DIR / "ai.log", "a", encoding="utf-8") as f:
+            f.write(f"\n===== PROMPT (StudiNow-KI {task}, {len(prompt)} Zeichen) =====\n{prompt[:1500]}\n----- ANTWORT -----\n{text[:3000]}\n")
+        return text
+    if src == "none":
+        from . import ai_relay
+        raise AIError(ai_relay.NO_AI)
     env = _child_env()
     cmd = cli_command(model or CLAUDE_MODEL, allowed_tools, blocked_tools, system)
     import tempfile
@@ -319,12 +368,57 @@ def tutor_history(raw) -> list[dict]:
     return out[-TUTOR_HISTORY_TURNS:]
 
 
+# "Bereich an KI" (05.11.2026, iPad): Ausschnitt der Seite als Bild (`image`, Base64 JPEG/PNG, auch als data-URL) in
+# POST /api/ai/tutor und in der Relay-Aufgabe tutor:*; Grenze wie AIEndpoints.tutorImageMaxBytes in Swift
+TUTOR_IMAGE_MAX_BYTES = 3_000_000
+TUTOR_IMAGE_NOTE = ("ANGEHAENGTES BILD: Ausschnitt der Seite, den ich eingekreist habe (PDF, meine Handschrift und Notizen). "
+                    "Beziehe dich vor allem darauf; der markierte Text oben ist die Texterkennung dieses Ausschnitts und kann "
+                    "Fehler enthalten.")
+
+
+class TutorImageError(ValueError):
+    """`image` der Anfrage unbrauchbar (kein JPEG/PNG, kaputt oder zu gross)"""
+
+
+def tutor_image(raw) -> bytes | None:
+    """Bild der Anfrage: None ohne Angabe; Bytes eines JPEG/PNG bis TUTOR_IMAGE_MAX_BYTES; sonst TutorImageError."""
+    import base64
+    import binascii
+    from . import ai_prices
+    if raw is None or raw == "":
+        return None
+    if not isinstance(raw, str):
+        raise TutorImageError("Das Bild muss als Base64-Text kommen.")
+    s = raw.strip()
+    if s.startswith("data:") and "," in s:
+        s = s.split(",", 1)[1]
+    if len(s) > TUTOR_IMAGE_MAX_BYTES * 4 // 3 + 4:
+        raise TutorImageError("Das Bild ist zu groß.")
+    try:
+        data = base64.b64decode(s, validate=False)
+    except (binascii.Error, ValueError) as e:
+        raise TutorImageError("Das Bild ist nicht lesbar.") from e
+    if not data or len(data) > TUTOR_IMAGE_MAX_BYTES:
+        raise TutorImageError("Das Bild ist zu groß." if data else "Das Bild ist leer.")
+    if ai_prices.image_mime(data) is None:
+        raise TutorImageError("Nur JPEG- oder PNG-Bilder.")
+    return data
+
+
 def tutor(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
           course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None,
-          history: list[dict] | None = None, studip: str = "", own_notes: str = "") -> str:
-    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history, studip,
-                            own_notes=own_notes),
-               TUTOR_SYSTEM)
+          history: list[dict] | None = None, studip: str = "", own_notes: str = "", relay: dict | None = None,
+          image: bytes | None = None) -> str:
+    """Antwort der KI-Hilfe; `relay`: Zusatzangaben fuer die StudiNow-KI (request_id, cache, fresh, second_opinion).
+    `image`: Ausschnitt der Seite; geht nur ueber die StudiNow-KI mit (eigenes ChatGPT und Kommandozeile am PC: Text)."""
+    prompt = tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources, history, studip,
+                          own_notes=own_notes)
+    if image:
+        prompt += "\n\n" + TUTOR_IMAGE_NOTE
+    extra = {**(relay or {}), **({"image": image, "cache": False} if image else {})}
+    with for_task(f"tutor:{mode if mode in TUTOR_MODES else 'explain'}",
+                  **{"route_text": " ".join(x for x in (selection, question) if x) or None, **extra}):
+        return ask(prompt, TUTOR_SYSTEM)
 
 
 # Kontext aus Stud.IP (02.11.2026): Kursbeschreibung, Sonstiges und Sitzungsthemen, sparsam gekuerzt
@@ -601,7 +695,7 @@ def generate_test(subject: str, duration_min: int, materials: list[dict], exam: 
         exam_block = ""
     pdf_mats, budget = [], PDF_PAGES_TOTAL
     for m in materials:
-        if is_pdf(m.get("local_path")) and budget > 0:
+        if is_pdf(m.get("local_path")) and budget > 0 and reads_pdfs():
             take = min(PDF_PAGES_PER_MATERIAL, budget)
             pdf_mats.append((m, take))
             budget -= take
@@ -624,7 +718,8 @@ def generate_test(subject: str, duration_min: int, materials: list[dict], exam: 
     block = test_text_block(materials)
     why = None
     for attempt in range(2):
-        res = parse_json(ask(_test_prompt(subject, duration_min, block, exam_block, options), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
+        with for_task("week_test", options=options, exam=bool(exam_block)):
+            res = parse_json(ask(_test_prompt(subject, duration_min, block, exam_block, options), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
         why = check_week_test(res, exam=bool(exam_block), options=options)
         if why is None:
             res["_input"] = "text"
@@ -634,7 +729,8 @@ def generate_test(subject: str, duration_min: int, materials: list[dict], exam: 
 
 
 def grade_test(subject: str, questions: list[dict], answers: dict) -> dict:
-    return parse_json(ask(grade_prompt(subject, questions, answers), SYSTEM))
+    with for_task("grade"):
+        return parse_json(ask(grade_prompt(subject, questions, answers), SYSTEM))
 
 
 def grade_prompt(subject: str, questions: list[dict], answers: dict) -> str:
@@ -733,7 +829,8 @@ def check_flashcards(res) -> list[dict]:
 
 def flashcards(course: str, file_name: str, pages: list[int] | None, text: str, count: int = FLASHCARDS_DEFAULT, topic: str = "") -> list[dict]:
     """Karteikarten mit der KI des PCs (Textweg); ohne Karten in der Antwort AIError."""
-    res = parse_json(ask(flashcards_prompt(course, file_name, pages, text, count, topic), SYSTEM, schema=FLASHCARDS_SCHEMA))
+    with for_task("flashcards"):
+        res = parse_json(ask(flashcards_prompt(course, file_name, pages, text, count, topic), SYSTEM, schema=FLASHCARDS_SCHEMA))
     cards = check_flashcards(res)
     if not cards:
         raise AIError("Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.")

@@ -1,7 +1,7 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=44";
-import { PdfEditor } from "./editor.js?v=67";
-import { setupLectureMarker } from "./views-weekly.js?v=14";
+import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=45";
+import { PdfEditor } from "./editor.js?v=70";
+import { setupLectureMarker } from "./views-weekly.js?v=15";
 import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
 import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
 
@@ -41,6 +41,7 @@ export async function viewDoc(parts, params, view) {
   $("#docDone")?.addEventListener("click", async () => { await api(`/tasks/${params.task}/status`, { method: "POST", body: { status: "erledigt" } }); toast("Aufgabe erledigt"); location.hash = "#/plan"; });
   const edA = await mountDoc($("#paneA"), f, { page: +params.page || f.last_page || 1, penInput: settings.pen_input, onPage: debounce(p => api(`/files/${id}/opened`, { method: "POST", body: { last_page: p } }).catch(() => {}), 800), restore: docTabs.state[id] });
   let lastEd = edA;
+  if (params.ki === "1") edA?.ai?.open();          // Weitermachen / "Zuletzt benutzt": KI-Hilfe mit dem gespeicherten Gespraech (recent.js)
   if (edA) { edA.tabId = id; edA.onActive = () => { lastEd = edA; }; edA.delegate = () => lastEd; $("#noteArea").value = edA.model.note || ""; $("#noteArea").oninput = debounce(() => { edA.model.note = $("#noteArea").value; edA.markDirty(); $("#noteSaved").textContent = "gespeichert"; }, 600); }
   $("#docNotes").onclick = () => { notesOpen = !notesOpen; $("#paneN").hidden = !notesOpen; $("#docPanes").classList.toggle("notes", notesOpen); layoutSplit(); };
   // geteilte Ansicht: Skript auf der Seite der freien Hand, Breite ziehbar und gemerkt

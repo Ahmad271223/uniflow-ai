@@ -1,0 +1,1914 @@
+{
+ "catalogs": 105,
+ "entries": [
+  {
+   "code": "angewandte-informatik|b.sc.|2024",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|angewandte-informatik|b.sc.|2024",
+   "library_key": "0a349f5f18abe06f9bfabbfc9304d47daad22e79fd649c574d8eff18d398e9de",
+   "modules": 86,
+   "po": "2024",
+   "program": "Angewandte Informatik",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Angewandte Informatik PO-Version: 2024",
+    "Angewandte Informatik"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "angewandte-informatik|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|angewandte-informatik|m.sc.|2024",
+   "library_key": "ee26fc54deb85f11944043a938123c02b774cedbd31fe5d9abfdcc53ba7d65ad",
+   "modules": 118,
+   "po": "2024",
+   "program": "Angewandte Informatik",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Angewandte Informatik PO-Version: 2024",
+    "Angewandte Informatik"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "barrierefreie-kommunikation|m.a.|2019",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
+   "library_key": "d3c11ee6de67cf735db939ec9c85be860e5caf6259a460bddfa9416566dadc2c",
+   "modules": 3,
+   "po": "2019",
+   "program": "Barrierefreie Kommunikation",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Barrierefreie Kommunikation PO-Version: 2019",
+    "Barrierefreie Kommunikation"
+   ],
+   "study_plan": false,
+   "term": "SS 2024"
+  },
+  {
+   "code": "biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "07be462fe6736ff959c816df83383c21c71a6aa62fc32f909554e9a064ec58d1",
+   "modules": 5,
+   "po": "2026",
+   "program": "Biologie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Biologie PO-Version: 2026",
+    "Biologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "library_key": "3a22df245d7afba1f9835894a8c92f99d144154d11bebb785919946cfd8b6715",
+   "modules": 15,
+   "po": "2025",
+   "program": "Biologie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Biologie PO-Version: 2026",
+    "Biologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "61a2140cecb310fd6979a31752c6c3eaa387c5eca93a71f7ac56c9b9efe0725e",
+   "modules": 4,
+   "po": "2026",
+   "program": "Chemie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Chemie PO-Version: 2026",
+    "Chemie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "library_key": "58e33bee56fa2c4454536b71906c3cb0cafcc9e999c31e9ce6245f9ce045f7ac",
+   "modules": 11,
+   "po": "2025",
+   "program": "Chemie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Chemie PO-Version: 2026",
+    "Chemie"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "data-analytics-advanced-track|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|data-analytics-advanced-track|m.sc.|2024",
+   "library_key": "134a7926b48c58ea744b0c520e1fd2fe7671389580b6595a68cc083ea0161509",
+   "modules": 56,
+   "po": "2024",
+   "program": "Data Analytics (Advanced Track)",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Data Analytics (Advanced Track) PO-Version: 2024",
+    "Data Analytics (Advanced Track)"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "data-analytics-cognitive-systems|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|data-analytics-cognitive-systems|m.sc.|2024",
+   "library_key": "5d3af8549da25276c0f08d1091766de87ba414e2ac7e7efa201e9d5f7f08f994",
+   "modules": 57,
+   "po": "2024",
+   "program": "Data Analytics (Cognitive Systems)",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Data Analytics (Cognitive Systems) PO-Version: 2024",
+    "Data Analytics (Cognitive Systems)"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "data-analytics|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|data-analytics|m.sc.|2024",
+   "library_key": "2ccea8c4bff40320ad656c641f1f5306a64fe3e78da2d8a8e0043a04f0d6eb5a",
+   "modules": 61,
+   "po": "2024",
+   "program": "Data Analytics",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Data Analytics PO-Version: 2024",
+    "Data Analytics"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
+   "library_key": "d6a50921e52f72a001d8d277a1b54a993224af62043c8cd3eca846d202759874",
+   "modules": 8,
+   "po": "2018",
+   "program": "Deutsch als Zweitsprache/Deutsch als Fremdsprache",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Deutsch als Zweitsprache/Deutsch als Fremdsprache PO-Version: 2018",
+    "Deutsch als Zweitsprache/Deutsch als Fremdsprache"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "deutsch-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|deutsch-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "91e2992522aadf91277ca247554e891ea5be7989ffcca3e9f9c96f866aa9386b",
+   "modules": 5,
+   "po": "2026",
+   "program": "Deutsch im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Deutsch PO-Version: 2026",
+    "Deutsch"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "74faa25862320c06b3d2f108070f4bf94c4bce091c269adf18904c418430d903",
+   "modules": 5,
+   "po": "2026",
+   "program": "Deutsch im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Deutsch PO-Version: 2026",
+    "Deutsch"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "library_key": "396d59abd4eccfe3bfa59015dc3104e8411ab74956584a2fdf0a04fe9729546d",
+   "modules": 10,
+   "po": "2022",
+   "program": "Deutsch im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Deutsch PO-Version: 2026",
+    "Deutsch"
+   ],
+   "study_plan": false,
+   "term": "SS 2022"
+  },
+  {
+   "code": "englisch-im-master-lehramt-an-grundschulen|m.ed.|2025",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|englisch-im-master-lehramt-an-grundschulen|m.ed.|2025",
+   "library_key": "9bab8cccdbc25efaa08cfc28845cf18b8cb552915518a45c189b6479ee9b5909",
+   "modules": 4,
+   "po": "2025",
+   "program": "Englisch im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Englisch PO-Version: 2026",
+    "Englisch"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025",
+   "library_key": "fb767dedd8bea74d8ed7df3831b5fdbc3cf3c6c88e88a90fdd8708f0a6e996a4",
+   "modules": 4,
+   "po": "2025",
+   "program": "Englisch im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Englisch PO-Version: 2026",
+    "Englisch"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "english-applied-linguistics|b.a.|2026",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|english-applied-linguistics|b.a.|2026",
+   "library_key": "155e52a1c01d219132dd3d8eabb1322e9a07c61a92b33cebdeb9079fe1ef354d",
+   "modules": 9,
+   "po": "2026",
+   "program": "English Applied Linguistics",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. English Applied Linguistics PO-Version: 2026",
+    "English Applied Linguistics"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "erziehungswissenschaft|b.a.|2023",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|erziehungswissenschaft|b.a.|2023",
+   "library_key": "63c92638f99e0ddf24ed8b66166285bf0d33fe009c7498ab3f1d4edf8fbc34b4",
+   "modules": 9,
+   "po": "2023",
+   "program": "Erziehungswissenschaft",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Erziehungswissenschaft PO-Version: 2023",
+    "Erziehungswissenschaft"
+   ],
+   "study_plan": false,
+   "term": "SS 2022"
+  },
+  {
+   "code": "evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "0d5a07246ade6d13ed36526b0989e63efc5dc84ab9f1fb66da8f0dfbaf844cbb",
+   "modules": 3,
+   "po": "2026",
+   "program": "Evangelische Theologie im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Evangelische Theologie PO-Version: 2026",
+    "Evangelische Theologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "2a7e2d157f934beceea55eb1ffddc1cd9b4266d74d1eec7460065d49a5079a7e",
+   "modules": 3,
+   "po": "2026",
+   "program": "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Evangelische Theologie PO-Version: 2026",
+    "Evangelische Theologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "library_key": "6c32a08bfcdd000c953d7e56e2344bfcf258bccd263561b6ae8bad1a55f4d419",
+   "modules": 6,
+   "po": "2021",
+   "program": "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Evangelische Theologie PO-Version: 2026",
+    "Evangelische Theologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+   "library_key": "edd4a50c7a30a4686770e7d3cfb8841b6318bad91156caf92ffe34320393b3f9",
+   "modules": 4,
+   "po": "2017",
+   "program": "Geographie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Geographie PO-Version: 2026",
+    "Geographie"
+   ],
+   "study_plan": false,
+   "term": "WS 2016/17"
+  },
+  {
+   "code": "geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "cdb1dcf291ce4c1df7655c9dd9781068cc596835d97b2e3d821ffc34e0afb634",
+   "modules": 4,
+   "po": "2026",
+   "program": "Geographie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Geographie PO-Version: 2026",
+    "Geographie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "library_key": "b69879251e34c3186703ab38f7a74e36064f407908fd7c13037304feb7d040a8",
+   "modules": 17,
+   "po": "2025",
+   "program": "Geographie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Geographie PO-Version: 2026",
+    "Geographie"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "3dc1b2d48744a5ad7a91260966d61e2145a8ce72a73e8b3873c10d41048b45f7",
+   "modules": 5,
+   "po": "2026",
+   "program": "Geschichte im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Geschichte PO-Version: 2026",
+    "Geschichte"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "library_key": "2c6a4dae6c14d74b01073d99004ff0c73a42273d979842ff4e4b7a2af6148ce7",
+   "modules": 8,
+   "po": "2021",
+   "program": "Geschichte im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Geschichte PO-Version: 2026",
+    "Geschichte"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "informationsmanagement-und-informationstechnologie|b.sc.|2024",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024",
+   "library_key": "dc90daa90c61389cafa9565fccf799d162b6cb023d1067cd9047e2c8e6bcdcf5",
+   "modules": 90,
+   "po": "2024",
+   "program": "Informationsmanagement und Informationstechnologie",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Informationsmanagement und Informationstechnologie PO-Version: 2024",
+    "Informationsmanagement und Informationstechnologie"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "informationsmanagement-und-informationstechnologie|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024",
+   "library_key": "965c6c50a4bb22e21dff6e7e0c4defc0b422dc1dc5dc0a22bbc1391b37828acd",
+   "modules": 129,
+   "po": "2024",
+   "program": "Informationsmanagement und Informationstechnologie",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Informationsmanagement und Informationstechnologie PO-Version: 2024",
+    "Informationsmanagement und Informationstechnologie"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
+   "library_key": "5d49ef49a86cc115ec033a753b1682c6e978f5213cceba1baac426bf38700bec",
+   "modules": 5,
+   "po": "unbekannt",
+   "program": "Inklusive Pädagogik und Kommunikation",
+   "qis_labels": [
+    "Inklusive Pädagogik und Kommunikation"
+   ],
+   "study_plan": false,
+   "term": "SS 2020"
+  },
+  {
+   "code": "internationale-fachkommunikation-sprachen-und-technik|m.a.|2020",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationale-fachkommunikation-sprachen-und-technik|m.a.|2020",
+   "library_key": "2c587253fc751442cf643d8d105ccaf8e5f70b6c57d1483fc852151e2da195ea",
+   "modules": 12,
+   "po": "2020",
+   "program": "Internationale Fachkommunikation - Sprachen und Technik",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Internationale Fachkommunikation - Sprachen und Technik PO-Version: 2020",
+    "Internationale Fachkommunikation - Sprachen und Technik"
+   ],
+   "study_plan": false,
+   "term": "WS 2020/21"
+  },
+  {
+   "code": "internationale-kommunikation-und-uebersetzen|b.a.|2024",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|internationale-kommunikation-und-uebersetzen|b.a.|2024",
+   "library_key": "3eb94e77ef2e6259dbc08577ee63d854ab8f92ae7dace2817fce1efc57ee39b4",
+   "modules": 12,
+   "po": "2024",
+   "program": "Internationale Kommunikation und Übersetzen",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Internationale Kommunikation und Übersetzen PO-Version: 2024",
+    "Internationale Kommunikation und Übersetzen"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024",
+   "library_key": "6ce0ad5d26fc2039365de693e833958f54bfc5af97c8eef7ebd19766f238371d",
+   "modules": 23,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement - Digitale Sozialwissenschaften",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Internationales Informationsmanagement - Digitale Sozialwissenschaften PO-Version: 2024",
+    "Internationales Informationsmanagement - Digitale Sozialwissenschaften"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024",
+   "library_key": "a63331d8212eec9e31c14b65d1f5b8a60b31ec8abc1d35dcb329edc60d0abe3c",
+   "modules": 23,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation PO-Version: 2024",
+    "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "internationales-informationsmanagement-informationswissenschaft|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement-informationswissenschaft|m.a.|2024",
+   "library_key": "86fbc6694565b11981f9d625fd2eb592287471f1cba122b79f8664a60dc424b7",
+   "modules": 7,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement – Informationswissenschaft",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Internationales Informationsmanagement – Informationswissenschaft PO-Version: 2024",
+    "Internationales Informationsmanagement – Informationswissenschaft"
+   ],
+   "study_plan": false,
+   "term": "SS 2024"
+  },
+  {
+   "code": "internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024",
+   "library_key": "3795d00e0cd386752c5c5382094e50001417df6445df76584f3d68db1fedd45c",
+   "modules": 23,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft PO-Version: 2024",
+    "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "internationales-informationsmanagement-linguistik|b.a.|2024",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement-linguistik|b.a.|2024",
+   "library_key": "263735c35af4a34bd2c5833873c1e0dbf1ed3af0c9833c4a95b1d828fab755a6",
+   "modules": 23,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement – Linguistik",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Internationales Informationsmanagement – Linguistik PO-Version: 2024",
+    "Internationales Informationsmanagement – Linguistik"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024",
+   "library_key": "81ee199ff6173cd5577132692e858c9f3dec2e812e9506f0d16ebde39b7c2495",
+   "modules": 6,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation PO-Version: 2024",
+    "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "internationales-informationsmanagement|b.a.|2024",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|internationales-informationsmanagement|b.a.|2024",
+   "library_key": "463f05a3c1efdd27a275e89586e5cab3a50473b2f56fd92567e66f23e43086a6",
+   "modules": 23,
+   "po": "2024",
+   "program": "Internationales Informationsmanagement",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Internationales Informationsmanagement PO-Version: 2024",
+    "Internationales Informationsmanagement"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "katholische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|katholische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "37748ad0dcfdbda3767dbee7ab5f3f336f0b7e2f0f979c0743410afe23c24cb5",
+   "modules": 4,
+   "po": "2026",
+   "program": "Katholische Theologie im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Katholische Theologie PO-Version: 2026",
+    "Katholische Theologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "3059b64685fc105be8b0692dab5d14c93fd850781514179d520c76f90c8a9569",
+   "modules": 4,
+   "po": "2026",
+   "program": "Katholische Theologie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Katholische Theologie PO-Version: 2026",
+    "Katholische Theologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "library_key": "5dd4480b9d538c651d3b54094a55412428ed753ccb94e4e1bc1290d721abea19",
+   "modules": 6,
+   "po": "2022",
+   "program": "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Katholische Theologie PO-Version: 2026",
+    "Katholische Theologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2022"
+  },
+  {
+   "code": "kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
+   "library_key": "3f568749285f5fb984fb587b19004f735c2d98da234a82409e6053248e86b34b",
+   "modules": 14,
+   "po": "2024",
+   "program": "Künste und Gegenwartskulturen transdisziplinär",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Künste und Gegenwartskulturen transdisziplinär PO-Version: 2024",
+    "Künste und Gegenwartskulturen transdisziplinär",
+    "Abschluss: Master Studiengang: M.A. Inszenierung der Künste und Medien PO-Version: 2024",
+    "Inszenierung der Künste und Medien"
+   ],
+   "study_plan": false,
+   "term": "SS 2023"
+  },
+  {
+   "code": "kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste|m.a.|2024",
+   "library_key": "bffc9734cf0aed18fd9b8d9efd7d1ea2c9c3cd2f6821ba92651369a94b211dfd",
+   "modules": 11,
+   "po": "2024",
+   "program": "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste PO-Version: 2024",
+    "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste",
+    "Abschluss: Master Studiengang: M.A. Kulturvermittlung - PO-Version: 2024",
+    "Kulturvermittlung -"
+   ],
+   "study_plan": false,
+   "term": "SS 2023"
+  },
+  {
+   "code": "kulturwissenschaften-und-kuenstlerische-praxis|b.a.|2022",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|kulturwissenschaften-und-kuenstlerische-praxis|b.a.|2022",
+   "library_key": "9d192e79cbf0b4bbc2936e31502a818d485867115e0ba1d41ceb3b9dcab4beca",
+   "modules": 56,
+   "po": "2022",
+   "program": "Kulturwissenschaften und künstlerische Praxis",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Kulturwissenschaften und künstlerische Praxis PO-Version: 2022",
+    "Kulturwissenschaften und künstlerische Praxis",
+    "Abschluss: Bachelor Studiengang: B.A. Kulturwissenschaften und ästhetische Praxis PO-Version: 2022",
+    "Kulturwissenschaften und ästhetische Praxis"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "kunst-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|kunst-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "19ed7e2e1e9a793e212cede264fd5fbe6047b5dc8d47a57094e480f0ec304a51",
+   "modules": 5,
+   "po": "2026",
+   "program": "Kunst im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Kunst PO-Version: 2026",
+    "Kunst"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "55e2c6e9f15969ac47b18a4f9200bf70b445440e459eb6d62d68d4ddb1ecb34c",
+   "modules": 5,
+   "po": "2026",
+   "program": "Kunst im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Kunst PO-Version: 2026",
+    "Kunst"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "library_key": "ad49b1841b92faf6b2521a12f0da12198839ebbeec8a0f7db9a9cc26254a6be0",
+   "modules": 8,
+   "po": "2022",
+   "program": "Kunst im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Kunst PO-Version: 2026",
+    "Kunst"
+   ],
+   "study_plan": false,
+   "term": "WS 2022/23"
+  },
+  {
+   "code": "lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "e6354c822a39fa1614ee02880a0be457af753e09acc73866da86d26b909fedda",
+   "modules": 15,
+   "po": "2026",
+   "program": "Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Lehramt an Grundschulen PO-Version: 2026",
+    "Lehramt an Grundschulen"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "9445bfb030a665b50b5850c443206ef283abb29f0f3573e2a379e070dd1db771",
+   "modules": 15,
+   "po": "2026",
+   "program": "Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Lehramt an Haupt- und Realschulen PO-Version: 2026",
+    "Lehramt an Haupt- und Realschulen"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "literarisches-schreiben-und-kulturjournalismus|b.a.|2022",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|literarisches-schreiben-und-kulturjournalismus|b.a.|2022",
+   "library_key": "56140fd02f0f548bb2ef4ecdcaf6d5837a08778d285b9fe607b469acb3b43861",
+   "modules": 41,
+   "po": "2022",
+   "program": "Literarisches Schreiben und Kulturjournalismus",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Literarisches Schreiben und Kulturjournalismus PO-Version: 2022",
+    "Literarisches Schreiben und Kulturjournalismus",
+    "Abschluss: Bachelor Studiengang: B.A. Kreatives Schreiben und Kulturjournalismus PO-Version: 2022",
+    "Kreatives Schreiben und Kulturjournalismus"
+   ],
+   "study_plan": false,
+   "term": "WS 2022/23"
+  },
+  {
+   "code": "literarisches-schreiben-und-lektorieren|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|literarisches-schreiben-und-lektorieren|m.a.|2024",
+   "library_key": "554f5c4b341908b151acbf5a7e6372bef06c40da5b356883d6ad012d3a3eb48f",
+   "modules": 9,
+   "po": "2024",
+   "program": "Literarisches Schreiben und Lektorieren",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Literarisches Schreiben und Lektorieren PO-Version: 2024",
+    "Literarisches Schreiben und Lektorieren"
+   ],
+   "study_plan": false,
+   "term": "SS 2023"
+  },
+  {
+   "code": "mathematik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|mathematik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "5ddece21e9dfe46a9cf0fb00c9ae3a8bf8d6b33677488a1953566984bac3bb6a",
+   "modules": 7,
+   "po": "2026",
+   "program": "Mathematik im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Mathematik PO-Version: 2026",
+    "Mathematik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "c7b49fcc97e4a35bf99ec72f4e74ebaf6032898d5603a55d57fb3371186f9755",
+   "modules": 7,
+   "po": "2026",
+   "program": "Mathematik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Mathematik PO-Version: 2026",
+    "Mathematik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "library_key": "f075969ac022860d4e0669d1b90859ae8cf64d044dba4cf488ecb736a07bb019",
+   "modules": 11,
+   "po": "2014",
+   "program": "Mathematik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Mathematik PO-Version: 2026",
+    "Mathematik"
+   ],
+   "study_plan": false,
+   "term": "SS 2014"
+  },
+  {
+   "code": "mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+   "library_key": "f11bf6e24cd7a7025321ed9e44bba6447fde2477a14b46e2059543e34da33923",
+   "modules": 12,
+   "po": "2025",
+   "program": "Mathematik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Mathematik PO-Version: 2026",
+    "Mathematik"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "medientext-und-medienuebersetzung|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
+   "library_key": "d6541592a5ec1601d493e24eab0405609e882c3f1e52c41275551cb42804a0f6",
+   "modules": 10,
+   "po": "2024",
+   "program": "Medientext und Medienübersetzung",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Medientext und Medienübersetzung PO-Version: 2024",
+    "Medientext und Medienübersetzung"
+   ],
+   "study_plan": false,
+   "term": "WS 2024/25"
+  },
+  {
+   "code": "musik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|musik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "427cc0021dee12fa85c920c13fd0669268c96ddcdaed3f78df8a8ee6b6b4829a",
+   "modules": 7,
+   "po": "2026",
+   "program": "Musik im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Musik PO-Version: 2026",
+    "Musik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "d4b6b7f22d8f160fa19524bcc75bb27594b48869eaba147e3aa23ca2e59cf7f4",
+   "modules": 7,
+   "po": "2026",
+   "program": "Musik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Musik PO-Version: 2026",
+    "Musik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "library_key": "60f89e2fb9240e353bbd8c55e6b03bb9de61c216c94dec5ccd30ee5d89ac14a4",
+   "modules": 23,
+   "po": "2014",
+   "program": "Musik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Musik PO-Version: 2026",
+    "Musik"
+   ],
+   "study_plan": false,
+   "term": "SS 2014"
+  },
+  {
+   "code": "musik-welt-kulturelle-diversitaet-in-der-musikalischen-bildung|m.a.|2018",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|musik-welt-kulturelle-diversitaet-in-der-musikalischen-bildung|m.a.|2018",
+   "library_key": "f2060b1a7df928b3c90a81d7c3f574b49baba4dbe1d329bda870a12c3ba20d94",
+   "modules": 23,
+   "po": "2018",
+   "program": "musik.welt -- Kulturelle Diversität in der musikalischen Bildung",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. musik.welt -- Kulturelle Diversität in der musikalischen Bildung PO-Version: 2018",
+    "musik.welt -- Kulturelle Diversität in der musikalischen Bildung"
+   ],
+   "study_plan": false,
+   "term": "WS 2017/18"
+  },
+  {
+   "code": "paedagogik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|paedagogik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "9dbae0a2ca97c7b0d7ecba464b4e6a6dda907b848f05ff5100a89ca6ed318daa",
+   "modules": 5,
+   "po": "2026",
+   "program": "Pädagogik im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Pädagogik PO-Version: 2026",
+    "Pädagogik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "paedagogik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|paedagogik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "cc58bdc350f5ba308d8c40634193691a2a3ae27364610972ca7f6f86c07313af",
+   "modules": 5,
+   "po": "2026",
+   "program": "Pädagogik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Pädagogik PO-Version: 2026",
+    "Pädagogik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "library_key": "4a1259e83b618bc97f8d1efafd7e44b78142cb7c988954faa5238c40310caaad",
+   "modules": 7,
+   "po": "2021",
+   "program": "Pädagogik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Pädagogik PO-Version: 2026",
+    "Pädagogik"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "library_key": "cd15bb7006d523fcee0f45a0d4745866ae3c21a5c1d83baa0f3bac0f9ed4184f",
+   "modules": 8,
+   "po": "2026",
+   "program": "Philosophie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Philosophie PO-Version: 2026",
+    "Philosophie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "philosophie-kuenste-medien|b.a.|2022",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|philosophie-kuenste-medien|b.a.|2022",
+   "library_key": "6291307c53dfb2dcda1a7f4cabbe53058798c0cee84672114008cdc328952bf0",
+   "modules": 40,
+   "po": "2022",
+   "program": "Philosophie – Künste – Medien",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Philosophie – Künste – Medien PO-Version: 2022",
+    "Philosophie – Künste – Medien"
+   ],
+   "study_plan": false,
+   "term": "WS 2026/27"
+  },
+  {
+   "code": "philosophie-und-kuenste-interkulturell|m.a.|2024",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|philosophie-und-kuenste-interkulturell|m.a.|2024",
+   "library_key": "f5fa915b17d32ca5d8b26227258e2d7865218e151c526ab64abd9c4563616a91",
+   "modules": 16,
+   "po": "2024",
+   "program": "Philosophie und Künste interkulturell",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Philosophie und Künste interkulturell PO-Version: 2024",
+    "Philosophie und Künste interkulturell"
+   ],
+   "study_plan": false,
+   "term": "SS 2020"
+  },
+  {
+   "code": "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+   "library_key": "33c81d2c7f1ff7972a724d91f3f84f7adbfa9e0fbd26913c015b297fcb9319b1",
+   "modules": 6,
+   "po": "2017",
+   "program": "Physik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Physik PO-Version: 2026",
+    "Physik"
+   ],
+   "study_plan": false,
+   "term": "WS 2016/17"
+  },
+  {
+   "code": "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "98a2401ff7d9fb18bb4be812b40c31ea8e6985ef97ed93994be3449ce0171672",
+   "modules": 5,
+   "po": "2026",
+   "program": "Physik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Physik PO-Version: 2026",
+    "Physik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "library_key": "0a77fe8ed8fa25708973294130f54e4d7da275473b67f48b21564ec14f8b2426",
+   "modules": 13,
+   "po": "2022",
+   "program": "Physik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Physik PO-Version: 2026",
+    "Physik"
+   ],
+   "study_plan": false,
+   "term": "WS 2022/23"
+  },
+  {
+   "code": "politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "a8baec3645d1c724303a9a54a41b361ac6055bc4ef7cbfebf81a3adaf2bb536c",
+   "modules": 5,
+   "po": "2026",
+   "program": "Politikwissenschaft im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Politikwissenschaft PO-Version: 2026",
+    "Politikwissenschaft"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "library_key": "e87a4f955a1e6e7ce59202b1a209c9be510339b9bbfb09ebf682bd2545f9d55a",
+   "modules": 17,
+   "po": "2026",
+   "program": "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Politikwissenschaft PO-Version: 2026",
+    "Politikwissenschaft"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "polyvalenter-zwei-faecher-bachelor-studiengang|b.a.|2026",
+   "degree": "B.A.",
+   "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|polyvalenter-zwei-faecher-bachelor-studiengang|b.a.|2026",
+   "library_key": "63d37d97c3658c7ed661903b3dadc805e64fae992a3653efce5e9accad33df53",
+   "modules": 7,
+   "po": "2026",
+   "program": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Polyvalenter Zwei-Fächer-Bachelor-Studiengang PO-Version: 2026",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "polyvalenter-zwei-faecher-bachelor-studiengang|b.sc.|2026",
+   "degree": "B.Sc.",
+   "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|polyvalenter-zwei-faecher-bachelor-studiengang|b.sc.|2026",
+   "library_key": "e7f180db1124319c4cfc5e71606a216ae2080b7ef0cf6a63ae6540ac0d9bb267",
+   "modules": 7,
+   "po": "2026",
+   "program": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Polyvalenter Zwei-Fächer-Bachelor-Studiengang PO-Version: 2026",
+    "Polyvalenter Zwei-Fächer-Bachelor-Studiengang"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "psychologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|psychologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "54dfc8406fa70dddae608749588f361d0c740ea21b31b736de9a13a3632bfda1",
+   "modules": 4,
+   "po": "2026",
+   "program": "Psychologie im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Psychologie PO-Version: 2026",
+    "Psychologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "psychologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|psychologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "7b60576ea2abf9043e824f8b016c7eab716051dcf2d058d30a03f81b3da431c1",
+   "modules": 4,
+   "po": "2026",
+   "program": "Psychologie im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Psychologie PO-Version: 2026",
+    "Psychologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "library_key": "17d2425df08e80f418663e3e5293d53b7281452c84b881cd7f7031a00724968b",
+   "modules": 8,
+   "po": "2021",
+   "program": "Psychologie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Psychologie PO-Version: 2026",
+    "Psychologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie|m.sc.|2021",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie|m.sc.|2021",
+   "library_key": "df6b077a138401127234ef0fd44d2d46ce40684ee6e51abfa8d15d22d6a9d442",
+   "modules": 9,
+   "po": "2021",
+   "program": "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie PO-Version: 2021",
+    "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "psychologie|b.sc.|2021",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|psychologie|b.sc.|2021",
+   "library_key": "c554f5f6e1c8cb46bbdf941b2e759a49df3f2447da0886786010900686e3f2c1",
+   "modules": 20,
+   "po": "2021",
+   "program": "Psychologie",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Psychologie PO-Version: 2021",
+    "Psychologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "psychologie|m.sc.|2021",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|psychologie|m.sc.|2021",
+   "library_key": "f8ea9f74aeb6aa4e076933a90e3e4b6e51133ac6f7261ce49f75491687b5a272",
+   "modules": 10,
+   "po": "2021",
+   "program": "Psychologie",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Psychologie PO-Version: 2021",
+    "Psychologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "sachunterricht-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sachunterricht-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "5ef27cee4c14a9c55cb7744070b213b0f35d5833e1b5419e43c00ba09a777947",
+   "modules": 5,
+   "po": "2026",
+   "program": "Sachunterricht im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Sachunterricht PO-Version: 2026",
+    "Sachunterricht"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "library_key": "819a13db2412322f193a30e34291c552df1ca6c0981806c7b33e89b98ab159c5",
+   "modules": 7,
+   "po": "2021",
+   "program": "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Sachunterricht PO-Version: 2026",
+    "Sachunterricht"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "software-engineering|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|software-engineering|m.sc.|2024",
+   "library_key": "2783576c5d3d8640b38cf2a9fb8b37b5a82a34f5a77f345240c98f81fa7289cc",
+   "modules": 61,
+   "po": "2024",
+   "program": "Software Engineering",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Software Engineering PO-Version: 2024",
+    "Software Engineering"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "sozial-und-organisationspaedagogik|m.a.|2025",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sozial-und-organisationspaedagogik|m.a.|2025",
+   "library_key": "34cd9ade2ce9e45bfacff0c943f8dc3d2687c23b44cc99e7490a63e47ef2bb7b",
+   "modules": 10,
+   "po": "2025",
+   "program": "Sozial- und Organisationspädagogik",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Sozial- und Organisationspädagogik PO-Version: 2025",
+    "Sozial- und Organisationspädagogik"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "soziale-dienste|m.a.|2025",
+   "degree": "M.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|soziale-dienste|m.a.|2025",
+   "library_key": "1e1a4eb4c4bcc27a6b9c108eab793adbb2e1cd9e19d2fa44bcc08e3bb96dab45",
+   "modules": 9,
+   "po": "2025",
+   "program": "Soziale Dienste",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.A. Soziale Dienste PO-Version: 2025",
+    "Soziale Dienste"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "sozialpaedagogik|b.a.|2025",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sozialpaedagogik|b.a.|2025",
+   "library_key": "2b16b81335d78d2a82dac57ba466f61314963f8cf01c6c38103f45704c122b70",
+   "modules": 16,
+   "po": "2025",
+   "program": "Sozialpädagogik",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Sozialpädagogik PO-Version: 2025",
+    "Sozialpädagogik"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+   "library_key": "3844ac0451a6d85805a91516d409de71c50255a4e6686c46fc9899273c96177a",
+   "modules": 7,
+   "po": "2026",
+   "program": "Soziologie im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Soziologie PO-Version: 2026",
+    "Soziologie"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "sport-gesundheit-und-leistung|b.a.|2026",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sport-gesundheit-und-leistung|b.a.|2026",
+   "library_key": "2926ea9351cf7ac79eccdff8a9b3130ea58a1e5c5d74b1dd354cfa986b68c6bc",
+   "modules": 6,
+   "po": "2026",
+   "program": "Sport, Gesundheit und Leistung",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Sport, Gesundheit und Leistung PO-Version: 2026",
+    "Sport, Gesundheit und Leistung"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "sport-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sport-im-master-lehramt-an-grundschulen|m.ed.|2026",
+   "library_key": "f37f6ab7485eafcf0a57de4e87f9a0397a2adeb7a0966805e84e80cf64a34933",
+   "modules": 5,
+   "po": "2026",
+   "program": "Sport im Master Lehramt an Grundschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Sport PO-Version: 2026",
+    "Sport"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "215d8eda5cc33602b0b134caceef9937d460781613c737f36543a11f9b11044a",
+   "modules": 5,
+   "po": "2026",
+   "program": "Sport im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Sport PO-Version: 2026",
+    "Sport"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "library_key": "dd33aba64c91708bfb563dd69c336849d183edb9483aa6b5b4b7fde872715ea8",
+   "modules": 6,
+   "po": "2014",
+   "program": "Sport im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Sport PO-Version: 2026",
+    "Sport"
+   ],
+   "study_plan": false,
+   "term": "SS 2014"
+  },
+  {
+   "code": "sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+   "library_key": "48a551fe3c3e008af5eb1450b5330fff245b8fca65d321c87dee67a43b2f4ede",
+   "modules": 8,
+   "po": "2022",
+   "program": "Sport im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Sport PO-Version: 2026",
+    "Sport"
+   ],
+   "study_plan": false,
+   "term": "SS 2022"
+  },
+  {
+   "code": "sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
+   "library_key": "d27c11dc0a317fd86fc5c47a6c92c2d0ee7367545a47b28d10867723ad52b82f",
+   "modules": 14,
+   "po": "2021",
+   "program": "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne PO-Version: 2021",
+    "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "szenische-kuenste|b.a.|2022",
+   "degree": "B.A.",
+   "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modultabelle",
+   "key": "hildesheim|szenische-kuenste|b.a.|2022",
+   "library_key": "6f64687d9e45a63fcaf7ac7002d5921373916eae13d0dc65b53e6b9f1439e8f1",
+   "modules": 49,
+   "po": "2022",
+   "program": "Szenische Künste",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Szenische Künste PO-Version: 2022",
+    "Szenische Künste"
+   ],
+   "study_plan": false,
+   "term": "WS 2022/23"
+  },
+  {
+   "code": "technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "0cfa73162c39e26c66c0da4c113c9a4e14e026ff9d176a434c931b7ea11bb3d0",
+   "modules": 5,
+   "po": "2026",
+   "program": "Technik im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Technik PO-Version: 2026",
+    "Technik"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+   "library_key": "c6ed0f9fc94119a3ae3a220e06ccb39b4bbfc48bb2c240a41f7a5691f555f28f",
+   "modules": 9,
+   "po": "2021",
+   "program": "Technik im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Technik PO-Version: 2026",
+    "Technik"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021",
+   "library_key": "03847f565b52af27de6c58aa9b7695a503eaec52d202d21e8913fa8bdb8ee5b8",
+   "modules": 20,
+   "po": "2021",
+   "program": "Umwelt, Naturschutz und Nachhaltigkeit",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Umwelt, Naturschutz und Nachhaltigkeit PO-Version: 2021",
+    "Umwelt, Naturschutz und Nachhaltigkeit"
+   ],
+   "study_plan": false,
+   "term": "SS 2021"
+  },
+  {
+   "code": "umweltinformatik|b.sc.|2024",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|umweltinformatik|b.sc.|2024",
+   "library_key": "ae39bd359be7b1e470ae97944923fea87715ab37135a4ad0a9ecdeaad644078e",
+   "modules": 83,
+   "po": "2024",
+   "program": "Umweltinformatik",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Umweltinformatik PO-Version: 2024",
+    "Umweltinformatik"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "umweltinformatik|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|umweltinformatik|m.sc.|2024",
+   "library_key": "1b4f11e7a2a274bc150ab353866575d3c8abb6907b84a82baf47583e273c2168",
+   "modules": 105,
+   "po": "2024",
+   "program": "Umweltinformatik",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Umweltinformatik PO-Version: 2024",
+    "Umweltinformatik"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "umweltsicherung|b.sc.|2026",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|umweltsicherung|b.sc.|2026",
+   "library_key": "9a973273c4b77e4a3f5a44452593ae1bf3b3cdf2b4e735ae9525a00e3196302a",
+   "modules": 6,
+   "po": "2026",
+   "program": "Umweltsicherung",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Umweltsicherung PO-Version: 2026",
+    "Umweltsicherung"
+   ],
+   "study_plan": false,
+   "term": "SS 2025"
+  },
+  {
+   "code": "umweltwissenschaft-und-naturschutz|m.sc.|2011",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|umweltwissenschaft-und-naturschutz|m.sc.|2011",
+   "library_key": "af64866f1c2dbbe22a01ce9a3d4215acfb30cc0c14f3afc734d67bc64a82f2c1",
+   "modules": 13,
+   "po": "2011",
+   "program": "Umweltwissenschaft und Naturschutz",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Umweltwissenschaft und Naturschutz PO-Version: 2011",
+    "Umweltwissenschaft und Naturschutz"
+   ],
+   "study_plan": false,
+   "term": "SS 2011"
+  },
+  {
+   "code": "wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "degree": "M.Ed.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+   "library_key": "0b63ac6b091cf592f5a2efb356b85d2174ff62cb3a793c31a2593ca6795dd092",
+   "modules": 5,
+   "po": "2026",
+   "program": "Wirtschaft im Master Lehramt an Haupt- und Realschulen",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Ed. Wirtschaft PO-Version: 2026",
+    "Wirtschaft"
+   ],
+   "study_plan": false,
+   "term": "SS 2026"
+  },
+  {
+   "code": "wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "degree": "B.A./B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+   "library_key": "62ecd590a78557d4421f8f5d42c62d2a16b2c37db9d58fb0e67da385fdfcc6f8",
+   "modules": 9,
+   "po": "2014",
+   "program": "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.A. Wirtschaft PO-Version: 2026",
+    "Wirtschaft"
+   ],
+   "study_plan": false,
+   "term": "SS 2014"
+  },
+  {
+   "code": "wirtschaft-plus|b.sc.|2026",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-modulbeschreibung",
+   "key": "hildesheim|wirtschaft-plus|b.sc.|2026",
+   "library_key": "92004cdae9af6d6943cb5c76ee1f1f87ea26112204ff48626ede9a2a64f3a4e7",
+   "modules": 22,
+   "po": "2026",
+   "program": "Wirtschaft Plus",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Wirtschaft Plus PO-Version: 2026",
+    "Wirtschaft Plus"
+   ],
+   "study_plan": false,
+   "term": "SS 2019"
+  },
+  {
+   "code": "wirtschaftsinformatik|b.sc.|2024",
+   "degree": "B.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
+   "library_key": "86930ce5f5b63d8296d61554d552b4cc1eec11f0caf9a50cf44499e53bf20436",
+   "modules": 73,
+   "po": "2024",
+   "program": "Wirtschaftsinformatik",
+   "qis_labels": [
+    "Abschluss: Bachelor Studiengang: B.Sc. Wirtschaftsinformatik PO-Version: 2024",
+    "Wirtschaftsinformatik"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  },
+  {
+   "code": "wirtschaftsinformatik|m.sc.|2024",
+   "degree": "M.Sc.",
+   "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+   "file": "hildesheim.json.gz",
+   "format": "hildesheim-it-modulhandbuch",
+   "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
+   "library_key": "7b78a05fabcc14b979fe8df68a600d99cd2fb44c0c9a45aa5533a5458374e5c6",
+   "modules": 100,
+   "po": "2024",
+   "program": "Wirtschaftsinformatik",
+   "qis_labels": [
+    "Abschluss: Master Studiengang: M.Sc. Wirtschaftsinformatik PO-Version: 2024",
+    "Wirtschaftsinformatik"
+   ],
+   "study_plan": false,
+   "term": "WS 2023/24"
+  }
+ ],
+ "files": {
+  "hildesheim.json.gz": {
+   "bytes": 126096,
+   "catalogs": 105,
+   "raw_bytes": 1119110,
+   "sha256": "d554b7c72dc87969203c8da59423a385de736ef6d016e92a3ea99d9203c07a8e"
+  }
+ },
+ "generator": "tools/build-hildesheim-seed.py",
+ "modules": 2050,
+ "university": "hildesheim",
+ "v": 1
+}

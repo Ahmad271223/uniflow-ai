@@ -79,7 +79,7 @@ API: `GET /dashboard`.
 
 | Element/Funktion | Was der Nutzer sieht/tut | API | Datei:Zeile |
 |---|---|---|---|
-| Begrüßung | „Guten Morgen“ (<11 Uhr), „Guten Tag“ (<18 Uhr), sonst „Guten Abend“. Datumszeile: Wochentag, Datum · „heute N Lernpaket(e)“ oder „heute ist nichts geplant“ · „N Uni-Termine“ | – | app.js:80, 87 |
+| Begrüßung | „Hallo Lea – lass uns gemeinsam lernen.“, vor 11 Uhr „Guten Morgen, Lea – …“, ab 18 Uhr „Guten Abend, Lea – …“, ohne Namen „Hallo – …“ (greeting.js, seit 05.11.2026 wie UFGreeting). Datumszeile: Wochentag, Datum · „heute N Lernpaket(e)“ oder „heute ist nichts geplant“ · „N Uni-Termine“ | – | app.js:80, 87 |
 | Button „Tagesansicht“ | Link `#/plan?view=day&date=<heute>` | – | app.js:88 |
 | Button „Weiterlernen“ (primary) | nur bei offener Aufgabe; führt zu `#/doc/<file>?task=<id>`, ohne Datei zur Tagesansicht | – | app.js:85, 88 |
 | KPI 1 | geplante Minuten heute, dazu „· X frei“ | – | app.js:89 |
@@ -855,3 +855,31 @@ Dunkel gilt bei `[data-theme=dark]` (:13–19) und bei `prefers-color-scheme: da
 21. **Kein Sidebar-Eintrag** für `#/cards` (nur über den Link in der Tests-Statusleiste) und `#/tasks`.
 22. **CSS ohne Verwendung in den Views**: `.doc-bar`, `.cal-week`, `.cal-day` (nur als Drop-Selektor), `.lib`/`.lib-nav`, `.filters`, `.tt-day`, `.today-card`, `.doc-tab.home`, `.cal-day-view`, `.pkg.uni`, `.legend`. Außerdem `.greet h1` 1.6rem, das von `.page-head h1` (1.9rem) überschrieben wird.
 23. **Backend-Routen ohne Aufrufer im Frontend** (auch nicht in editor.js): `/overview`, `/plan`, `/plan/items` (POST/PATCH/DELETE), `/plan/generate`, `/subjects`, `/tasks/history`, `/timetable/free`, `/timetable/exceptions`, `/files/:id/analyze`, `DELETE /modules/:id`. Für das Löschen eines Moduls gibt es keine Oberfläche.
+
+## KI-Start `#/ki` (Stand 05.11.2026)
+
+`views-ai.js` mit Regeln in `ai-start-logic.js` (wie `AIStartView.swift`): „Was möchtest du heute lernen?“, fünf farbige
+Aktionen (Fragen, Karteikarten, Erklären/PDF analysieren, Wochentest, Hilfe ohne KI · 0 Credits), Frage-Feld mit Modul
+und angehängtem Dokument, danach Gespräch mit Markdown-Antworten und Anschlussfragen, „Zuletzt“ im Browser. Ohne
+Dokument geht das gewählte Modul als Kontext mit (`module_id` → Modulname als Kurs im Prompt). Statuszeile vor der ersten
+Antwort aus `GET /api/ai/source` (Weg der KI, am PC mit Konto der Credits-Stand); bei Tarif-, Kontingent-, Credits- und
+Abo-Fehlern der Knopf „Tarif ansehen“. Tests `tests/js/ai-start.test.mjs`, `tests/js/ai-source.test.mjs`.
+
+## Weitermachen, „Zuletzt benutzt“, Einladungen, Erststart (Stand 05.11.2026)
+
+- Übersicht: Karte „Zuletzt benutzt“ (10 Einträge aus `GET /api/recent`: Dokument mit Seite, KI-Gespräch, Wochentest;
+  `recent.js`, Regeln `recent-logic.js`, Tests `tests/js/recent.test.mjs`, `tests/test_recent.py`).
+- Weitermachen: Wer das Fenster mit offenem Dokument schließt, landet beim nächsten Start auf dessen Seite, mit offener
+  KI-Hilfe samt Gespräch (`#/doc/<id>?page=N&ki=1`); wer das Dokument in der App verlässt, startet auf der Übersicht.
+- `#/einladungen` (auch `#/invites`): Freunde einladen mit Links, Teilen, QR-Code (`invites.js`, `qr.js`), ohne Belohnungen.
+- Erststart nach der Konto-Anmeldung: `onboarding.js` (Vollbild, vier Schritte), Einstellung `onboarding_done`.
+
+## Mensa `#/mensa` (Stand 05.11.2026)
+
+`mensa.js` mit Regeln in `mensa-logic.js` (wie `MensaViews.swift`): Mensa-Auswahl in Gruppen (Favoriten, deine
+Hochschule, weitere in der Nähe, andere Orte), Stern für Favoriten, Heute/Morgen/Woche, Preis für
+Studierende/Bedienstete/Gäste, Filter-Chips (vegan, vegetarisch, ohne Schwein) und „Allergene meiden“, Sortierung
+(Menülinie, Preis, Kalorien, Eiweiß), Gerichtkarten mit kcal; Antippen öffnet alle Angaben (Preise, Bestandteile,
+Nährwerte, Kennzeichnungen, Allergene, Zusatzstoffe), Öffnungszeiten und Quelle; Einstellungen im Browser (`mensa-prefs`).
+Karte „Heute in der Mensa“ auf der Übersicht. Daten `GET /api/mensa/canteens`, `GET /api/mensa/menu` (`app/mensa_api.py`),
+Quellen und Bedingungen in docs/MENSA-2026-11-05.md. Tests `tests/js/mensa.test.mjs`, `tests/test_mensa.py`.

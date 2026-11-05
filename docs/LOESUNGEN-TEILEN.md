@@ -494,7 +494,7 @@ verschlüsselt mit dem Modul-Geheimnis (die öffentliche Datenbank ist für jede
   Likes und Übernahmen bleiben, `updated_at` neu, `update_user`; nicht geteilt 404 `not_shared`, verborgen 403 `stack_hidden`.
 - `DELETE /api/flashcard-stacks/{id}/share` → Zurückziehen (nur der Autor, in jedem Tarif); die Karten werden geleert.
 - `GET /api/community/card-stacks?module=<Schlüssel>|module_id=<lokal>&week=` → `{community_key, stacks, weeks}`; nur
-  Mitglieder, auch Free darf lesen; `week` 0 = Allgemein; `weeks` zählt die sichtbaren Stapel je Woche (`"5": 2, "0": 1`).
+  Mitglieder, ab Plus (`can_read_community`, seit 05.11.2026; vorher auch Free); `week` 0 = Allgemein; `weeks` zählt die sichtbaren Stapel je Woche (`"5": 2, "0": 1`).
   Meistgelikte zuerst; gesperrte Autoren und die eigene Sperrliste ausgeblendet.
 - `GET /api/community/card-stacks/{id}` → mit `cards_list`; `GET /api/community/card-stacks/mine` → eigene geteilte.
 - `POST /api/community/card-stacks/{id}/adopt` → eigener Stapel im passenden lokalen Modul (`source = community`,

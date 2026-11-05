@@ -159,8 +159,12 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canImportDocuments = "can_import_documents"
     case canViewTimetable = "can_view_timetable"
     case canUseBasicPlanner = "can_use_basic_planner"
-    case canReadCommunity = "can_read_community"
+    /// eigenes ChatGPT verbinden und zu Folien fragen: seit 05.11.2026 in jedem Tarif (Name historisch); die
+    /// Verbindung selbst ist aus, bis OpenAI sie freigibt (plans.json `integrations.chatgpt`)
+    case chatgptConnectionPremium = "chatgpt_connection_premium"
     // Plus
+    /// Community lesen, beitreten und mitmachen: ab Plus (Entscheidung 05.11.2026, vorher Free)
+    case canReadCommunity = "can_read_community"
     case canAnnotatePDF = "can_annotate_pdf"
     case canUsePencilKit = "can_use_pencilkit"
     case canWriteCommunityComments = "can_write_community_comments"
@@ -175,7 +179,6 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canReviewWrongAnswers = "can_review_wrong_answers"
     case canUseExtendedTestHistory = "can_use_extended_test_history"
     case canGetRecommendations = "can_get_recommendations"
-    case chatgptConnectionPremium = "chatgpt_connection_premium"
     // Pro AI (StudiNow-KI ueber den Dienst)
     case canUseAIExplanations = "can_use_ai_explanations"
     case canUseAIGeneratedQuestions = "can_use_ai_generated_questions"
@@ -191,13 +194,14 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     /// niedrigster Tarif mit diesem Recht (`from`)
     var from: UFPlan {
         switch self {
-        case .canViewPDF, .canManageCourses, .canImportDocuments, .canViewTimetable, .canUseBasicPlanner, .canReadCommunity:
+        case .canViewPDF, .canManageCourses, .canImportDocuments, .canViewTimetable, .canUseBasicPlanner,
+             .chatgptConnectionPremium:
             return .free
-        case .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
+        case .canReadCommunity, .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
              .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards:
             return .plus
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
-             .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,
+             .canGetRecommendations, .canUseAIExplanations, .canUseAIGeneratedQuestions,
              .canUseAISummaries, .canUseAIRecommendations, .canSyncAnnotations, .canUsePreparedWeekSets:
             return .proAI
         }
@@ -211,7 +215,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canImportDocuments: return "Automatischer Dokumentimport aus Stud.IP bzw. Learnweb"
         case .canViewTimetable: return "Stundenplan ansehen"
         case .canUseBasicPlanner: return "Lernkalender und Lernplanung"
-        case .canReadCommunity: return "Community-Beiträge lesen"
+        case .canReadCommunity: return "Community lesen, beitreten und mitmachen"
         case .canAnnotatePDF: return "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder"
         case .canUsePencilKit: return "Apple Pencil (PencilKit) und handschriftliche Notizen"
         case .canWriteCommunityComments: return "Community-Kommentare schreiben"
@@ -224,7 +228,7 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
         case .canReviewWrongAnswers: return "Automatische Wiederholung falscher Antworten"
         case .canUseExtendedTestHistory: return "Vollständige Testliste (Free und Plus: die letzten 10)"
         case .canGetRecommendations: return "Personalisierte Lernempfehlungen"
-        case .chatgptConnectionPremium: return "Eigenes ChatGPT-Konto verbinden (in Vorbereitung)"
+        case .chatgptConnectionPremium: return "Eigenes ChatGPT verbinden und zu Folien fragen (in Vorbereitung)"
         case .canUseAIExplanations: return "KI-Erklärungen zu Aufgaben"
         case .canUseAIGeneratedQuestions: return "Automatische Lernfragen und Wiederholungsaufgaben"
         case .canUseAISummaries: return "KI-Zusammenfassungen"
@@ -273,8 +277,8 @@ extension UFEntitlement {
         case .canImportDocuments: return .onDevice([.studipSync])
         case .canViewTimetable: return .onDevice([.modulesTimetable])
         case .canUseBasicPlanner: return .onDevice([.studyCalendar, .studyPlanning])
-        // Lesen in Free wie im Vertrag und im Dienst (app/community.py: Lesen, Laden, Melden, Blockieren, Zurueckziehen
-        // fuer alle Konten; nur das Veroeffentlichen braucht can_share_solutions)
+        // Lesen ab Plus wie im Vertrag und im Dienst (Entscheidung 05.11.2026); eigene Beitraege zurueckziehen geht
+        // nach dem Herabstufen weiter (nichts wird geloescht)
         case .canReadCommunity: return .onDevice([.communityRead])
         case .canAnnotatePDF, .canUsePencilKit: return .onDevice([.pencilWriting])
         case .canShareSolutions: return .onDevice([.shareSolutions])

@@ -913,7 +913,8 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(stored["solutionID"]?.string, sid)
         XCTAssertNil(stored["text"])
         let raw = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(stored["payload"]?.string)))
-        for plain in ["Vorzeichen", "Ben", "p1"] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
+        // kurze Klartexte mit Anfuehrungszeichen wie im JSON: zwei zufaellige Bytes "p1" im Chiffrat kommen vor (wackelte)
+        for plain in ["Vorzeichen", "\"Ben\"", "\"p1\""] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
 
         // Lea (Autorin) liest, antwortet (Stelle vom Kommentar), darf die eigene Loesung nicht liken
         let lea = member(cloud, "_user-ada", pseudonym: "Lea")
@@ -1013,7 +1014,8 @@ final class CommunityCloudKitTests: XCTestCase {
         let stored = try XCTUnwrap(cloud.all(CommunityRecordType.comment).first)
         XCTAssertEqual(stored["solutionID"]?.string, CommunityDiscussion.spaceTarget(space.key))
         let raw = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(stored["payload"]?.string)))
-        for plain in ["2b", "Lea"] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
+        // laengere Klartexte: zwei bis drei zufaellige Bytes kommen im Chiffrat vor (wie "p1" oben)
+        for plain in ["Aufgabe 2b", "\"Lea\""] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
         var posts = try await lea.posts(in: space)
         XCTAssertEqual(posts.map(\.question.text), ["Wie löst man Aufgabe 2b?"])
         XCTAssertFalse(posts[0].answered)

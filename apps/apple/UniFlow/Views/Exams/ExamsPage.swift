@@ -1214,11 +1214,12 @@ struct ExamAskPanel: View {
 
     private var connectHint: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Für Fragen an die KI verbinde zuerst deine KI in den Einstellungen.").ufFont(13.6).foregroundStyle(UF.text2)
+            Text(ChatGPTLink.isEnabled ? "Für Fragen an die KI verbinde zuerst deine KI in den Einstellungen." : ChatGPTLink.planHint)
+                .ufFont(13.6).foregroundStyle(UF.text2)
                 .fixedSize(horizontal: false, vertical: true)
-            UFButton("KI verbinden", icon: "settings", size: .small) {
+            UFButton(ChatGPTLink.isEnabled ? "KI verbinden" : "Tarife ansehen", icon: ChatGPTLink.isEnabled ? "settings" : "star", size: .small) {
                 if let close { close() } else { closeDialog() }
-                router.go(.settings(tab: "advanced"))
+                router.go(.settings(tab: ChatGPTLink.settingsTab))
             }
         }
     }

@@ -3,6 +3,7 @@ import Foundation
 /// Erinnerungen an den Meldezeitraum (lokale Mitteilungen, reine Funktion; docs/PRUEFUNGSANMELDUNG-2026-11-05.md): am
 /// ersten Tag, 7 Tage und 2 Tage vor dem Ende jeweils um 9:00 (Berlin), fuer das Fenster "alle anderen
 /// Prüfungsformen" und - wenn noch VbP fehlen - fuer VbP. Nur kuenftige Zeitpunkte, nur mit sicher bekanntem Zeitraum.
+/// Fenster ohne Ende (`open_end`, Uni Hildesheim: Fristen je Pruefung im LSF) nur am ersten Tag.
 /// Kennungen "de.uniflow.ai.examreg.<Container>.<Semester>.<Art><n>.<Zeitpunkt>"; eigener Anfang, damit der Schalter
 /// fuer Abgaben und Pruefungen (`DueReminders`) und dieser sich nicht gegenseitig zuruecknehmen.
 public enum ExamRegistrationReminders {
@@ -34,10 +35,13 @@ public enum ExamRegistrationReminders {
             if period == "vbp" && missing == 0 { continue }                     // VbP nur, wenn dort etwas fehlt
             let what = period == "vbp" ? "Prüfungsanmeldung (VbP)" : "Prüfungsanmeldung"
             let count = missing == 0 ? "" : (missing == 1 ? " · 1 Prüfung laut Plan noch nicht angemeldet" : " · \(missing) Prüfungen laut Plan noch nicht angemeldet")
-            let body = "\(term): bis \(when(w["end"]?.string ?? ""))" + count
+            let openEnd = w["open_end"]?.bool ?? false
+            let system = response["system"]?.string ?? "QIS"
+            let body = (openEnd ? "\(term): Anmeldung im \(system) freigeschaltet, Fristen je Prüfung" : "\(term): bis \(when(w["end"]?.string ?? ""))")
+                + count
             var slots: [(tag: String, day: Int, title: String)] = [("start", start, "\(what) beginnt heute")]
-            if end - 7 > start { slots.append(("d7", end - 7, "\(what): noch 7 Tage")) }
-            if end - 2 > start { slots.append(("d2", end - 2, "\(what) endet übermorgen")) }
+            if !openEnd, end - 7 > start { slots.append(("d7", end - 7, "\(what): noch 7 Tage")) }
+            if !openEnd, end - 2 > start { slots.append(("d2", end - 2, "\(what) endet übermorgen")) }
             let base = prefix(container: container) + ExamRegistrationPeriods.slugify(term) + "." + (period == "vbp" ? "vbp" : "meldung")
                 + String(w["n"]?.int ?? 1) + "."
             for s in slots {

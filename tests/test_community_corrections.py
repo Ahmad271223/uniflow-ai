@@ -35,7 +35,12 @@ def world(hosted):  # noqa: F811
     app = hosted
     autor, leser = member(app, "autor@beispiel.de"), member(app, "leser@beispiel.de")
     fremd = member(app, "fremd@beispiel.de", course="2" * 64)
-    free = member(app, "free@beispiel.de", plus=False)
+    # Free-Konto, das als Plus beigetreten ist und herabgestuft wurde (Community ab Plus, 05.11.2026)
+    from app import accounts
+    u_free, free = _user(app, "free@beispiel.de")
+    call(app, "POST", "/claims", free, {"fingerprints": [], "course_keys": [KURS]})
+    assert call(app, "POST", f"/communities/{KURS}/join", free, {"kind": "course"})[0] == 200
+    accounts.set_plan(u_free["id"], "free")
     pkg = package()
     sid = pkg["header"]["solutionId"]
     assert call(app, "POST", "/solutions", autor, {"package": pkg, "title": "Blatt 4", "community_key": KURS})[0] == 201
@@ -58,8 +63,9 @@ def test_send_list_inbox_and_counter(world):
     # Mitglieder sehen die Korrektur unter der Diskussion; der Ersteller mit Zustand "offen"
     rows = call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.autor)[1]["corrections"]
     assert [r["id"] for r in rows] == [cid(1)] and rows[0]["for_me"] and rows[0]["status"] == "open" and not rows[0]["mine"]
-    rows = call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.free)[1]["corrections"]
-    assert [r["id"] for r in rows] == [cid(1)] and rows[0]["status"] is None, "Lesen duerfen alle Mitglieder"
+    rows = call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.leser)[1]["corrections"]
+    assert [r["id"] for r in rows] == [cid(1)] and rows[0]["status"] is None, "Lesen duerfen alle Mitglieder mit Plus"
+    assert call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.free)[1]["code"] == "plan_required", "Community ab Plus (05.11.2026)"
     assert call(w.app, "GET", f"/solutions/{w.sid}/corrections", w.fremd)[0] == 404, "Fremde sehen nichts"
     # Posteingang des Erstellers: ohne Chiffrat, mit Titel; die Zahl ist die am Menuepunkt
     box = call(w.app, "GET", "/corrections/inbox", w.autor)[1]
@@ -238,11 +244,11 @@ def test_question_likes_and_unanswered_filter(world):
     assert call(w.app, "POST", f"/questions/{q1['id']}/like", w.autor)[1]["likes"] == 1, "idempotent"
     rows = {r["id"]: r for r in call(w.app, "GET", f"/courses/{key}/questions", w.autor)[1]["questions"]}
     assert rows[q1["id"]]["likes"] == 1 and rows[q1["id"]]["liked_by_me"] and not rows[q2["id"]]["liked_by_me"]
-    assert call(w.app, "POST", f"/questions/{q1['id']}/like", w.free)[0] == 200, "Liken ist nicht an den Tarif gebunden"
+    assert call(w.app, "POST", f"/questions/{q1['id']}/like", w.free)[1]["code"] == "plan_required", "Liken ab Plus (05.11.2026)"
     call(w.app, "POST", f"/questions/{q2['id']}/answers", w.autor, {"body": "Antwort"})
     open_ = call(w.app, "GET", f"/courses/{key}/questions?unanswered=true", w.autor)[1]["questions"]
     assert [r["id"] for r in open_] == [q1["id"]], "nur ohne Antwort"
-    assert call(w.app, "DELETE", f"/questions/{q1['id']}/like", w.autor)[1]["likes"] == 1
+    assert call(w.app, "DELETE", f"/questions/{q1['id']}/like", w.autor)[1]["likes"] == 0
     _, unverified = _user(w.app, "u@beispiel.de", verified=False)
     assert call(w.app, "POST", f"/questions/{q1['id']}/like", unverified)[1]["code"] == "email_unverified"
 

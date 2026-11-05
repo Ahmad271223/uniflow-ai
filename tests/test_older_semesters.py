@@ -86,7 +86,10 @@ def test_pending_follows_choice_and_requests(app, older, monkeypatch):
     started = []
     monkeypatch.setattr(older_semesters_api, "start_loading", lambda: started.append(1) or {"started": True, "note": "x"})
     with db.cursor() as conn:
-        assert os_.pending(conn) == set(), "Vorgabe: nur aktuelles Semester, nichts vorgemerkt"
+        # seit 05.11.2026 (app/sync_order.py): Vorgabe "Nur WLAN", Stufe (d) holt alles Fruehere im Hintergrund
+        assert os_.mode(conn) == "wifi" and os_.pending(conn) == {"ol-sose", "ol-wise"}
+        os_.set_mode(conn, "off", "2026-11-03T09:00:00")
+        assert os_.choice(conn) == "current" and os_.pending(conn) == set(), "Aus: nur Vorgemerktes"
     st, r = _post(app, "/api/older-semesters/request", {"course_ids": ["ol-sose", "ol-neu", "unbekannt", "ol-sose"]})
     assert st == 200 and r["requested"] == 1, "nur Kurse frueherer Semester zaehlen, ein Kurs nur einmal"
     assert started == [1], "Abgleich wird gestartet"
@@ -133,6 +136,8 @@ def test_load_route_starts_only_when_something_is_pending(app, older, monkeypatc
     from app import db, older_semesters as os_, older_semesters_api
     started = []
     monkeypatch.setattr(older_semesters_api, "start_loading", lambda: started.append(1) or {"started": True, "note": "x"})
+    with db.cursor() as conn:
+        os_.set_mode(conn, "off", "2026-11-03T09:00:00")
     st, r = _post(app, "/api/older-semesters/load", {})
     assert st == 200 and r["started"] is False and started == []
     with db.cursor() as conn:
@@ -165,6 +170,7 @@ def test_studip_sync_loads_only_wanted_older_courses(app, older, monkeypatch, tm
     courses = [{"id": c, "title": c, "number": None, "semester": ""} for c in ("ol-neu", "ol-sose", "ol-wise")]
     new: list = []
     with db.cursor() as conn:
+        os_.set_mode(conn, "off", "2026-11-03T09:00:00")
         assert studip_sync.sync_older_files(None, conn, courses, "2026-11-03", new) == 0, "nichts gewuenscht, nichts geladen"
         os_.request(conn, ["ol-sose"], "2026-11-03T10:00:00")
         assert studip_sync.sync_older_files(None, conn, courses, "2026-11-03", new) == 1
@@ -216,6 +222,8 @@ def test_learnweb_sync_older_only_and_full(app, older, monkeypatch, tmp_path):
           {"id": "ol-lwalt2", "moodle_id": 303, "title": "LW alt 2", "number": None, "semester": "SoSe 2025"}]
     try:
         new: list = []
+        with db.cursor() as conn:
+            os_.set_mode(conn, "off", "2026-11-03T09:00:00")
         assert hildesheim.sync_learnweb(None, Client(), lw, "", "2026-11-03", new) == 1
         assert asked == [301], "ohne Wunsch nur das aktuelle Semester"
         with db.cursor() as conn:
@@ -228,7 +236,10 @@ def test_learnweb_sync_older_only_and_full(app, older, monkeypatch, tmp_path):
             os_.set_choice(conn, "all", "2026-11-03T11:00:00")
         asked.clear()
         assert hildesheim.sync_learnweb(None, Client(), lw, "", "2026-11-03", new) == 1
-        assert sorted(asked) == [301, 303], "voller Abgleich: aktuell plus noch nicht geladene fruehere Kurse"
+        assert asked == [301], "voller Abgleich (05.11.2026): nur das aktuelle Semester, fruehere danach in Stufe (d)"
+        asked.clear()
+        assert hildesheim.sync_learnweb(None, Client(), lw, "", "2026-11-03", new, older_only=True) == 1
+        assert asked == [303], "Stufe (d): der noch nicht geladene fruehere Kurs"
     finally:
         with db.cursor() as conn:
             conn.execute("DELETE FROM files WHERE course_id LIKE 'ol-lw%'")
@@ -239,5 +250,5 @@ def test_routes_are_registered(app):
     """Im Dienst gilt wie bei jeder /api-Route die Sitzung (tests/test_accounts.py prueft alle Routen)."""
     from app import older_semesters_api
     paths = {r.path for r in older_semesters_api.router.routes}
-    assert paths == {"/api/older-semesters", "/api/older-semesters/choice", "/api/older-semesters/request",
+    assert paths == {"/api/older-semesters", "/api/older-semesters/choice", "/api/older-semesters/mode", "/api/older-semesters/request",
                      "/api/older-semesters/load", "/api/older-semesters/courses/{course_id}/files"}

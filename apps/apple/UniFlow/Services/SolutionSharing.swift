@@ -356,7 +356,7 @@ enum SolutionSharing {
     /// die Community im Build, steht das dabei, statt "erscheint unter Ebenen" zu versprechen.
     static func receivedMessage(label: String, canView: Bool) -> String {
         canView ? "\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“."
-            : "\(label) gespeichert – ansehen kannst du sie, sobald die Community auf diesem iPad verfügbar ist."
+            : "\(label) gespeichert – ansehen kannst du sie ab \(UFPlan.plus.name) (Community)."
     }
 
     /// Datei *.uniflowsolution uebernehmen (Teilen-Menue, Dateien-App, AirDrop): Kopf pruefen, verschluesselt ablegen.

@@ -1,5 +1,5 @@
 // Gemeinsame Helfer für alle Ansichten
-import { icon } from "./icons.js?v=32";
+import { icon } from "./icons.js?v=33";
 import { hintInfo, relatedEvent } from "./hints.js?v=3";
 import { responseError, resendNote, ACTION_LABEL } from "./service-errors.js?v=1";
 export { icon };
@@ -81,9 +81,15 @@ export function chipDetail(key) {
       ${d._kind === "notice" && d.announcement_id ? `<details class="small"><summary class="muted">Ganze Ankündigung</summary><div class="ann-full muted" style="margin-top:.4rem;max-height:40vh;overflow:auto;white-space:pre-wrap">Wird geladen …</div></details>` : ""}
       ${d._kind === "notice" && d.kind === "ausfall" && ev ? `<div class="hint-decide">${ev.status === "ausfall" ? `${cancelMark(ev)}` : `<div class="muted small">Aus dem Text erkannt, nicht sicher. Der Termin bleibt im Plan${unsure ? ", bis du entscheidest" : ""}.</div>${unsure ? `<div class="row" style="gap:.4rem;margin-top:.45rem"><button class="btn primary sm" data-hatt="cancelled">${icon("alert", 14)} Fällt aus</button><button class="btn sm" data-hatt="today_attend">${icon("check", 14)} Findet statt</button></div>` : ""}`}</div>` : ""}
     </div>
-    <div class="modal-foot">${ev ? `<button class="btn sm" data-hev>${icon("calendar", 14)} Zum Termin</button>` : ""}${h.url ? `<a class="btn sm" href="${esc(h.url)}" target="_blank" rel="noopener">${icon("arrow-right", 14)} Quelle öffnen</a>` : ""}<button class="btn ghost sm" data-close>Schließen</button></div>`);
+    <div class="modal-foot">${ev ? `<button class="btn sm" data-hev>${icon("calendar", 14)} Zum Termin</button>` : ""}${h.url ? `<a class="btn sm" href="${esc(h.url)}" target="_blank" rel="noopener">${icon("arrow-right", 14)} Quelle öffnen</a>` : ""}${d.detected && d.file_id ? `<a class="btn sm" href="#/doc/${encodeURIComponent(d.file_id)}${(d.page || 1) > 1 ? `?page=${+d.page}` : ""}" data-close>${icon("file-text", 14)} Im Dokument</a>` : ""}${d.detected ? `${d.confirmed ? "" : `<button class="btn sm" data-due="confirmed">${icon("check", 14)} Stimmt</button>`}<button class="btn sm" data-due="hidden">${icon("x", 14)} Stimmt nicht</button>` : ""}<button class="btn ghost sm" data-close>Schließen</button></div>`);
+  // automatisch erkannte Frist (app/due_store.py): bestaetigen oder ausblenden, gilt auch fuer Erinnerungen (05.11.2026)
+  $$("[data-due]", m).forEach(b => b.onclick = async () => {
+    try { await api(`/due/${encodeURIComponent(d.id)}`, { method: "PATCH", body: { [b.dataset.due]: true } }); }
+    catch (e) { toast(`Nicht gespeichert: ${e.message}`, 4000); return; }
+    toast(b.dataset.due === "hidden" ? "Ausgeblendet – erscheint nicht mehr" : "Bestätigt"); m.remove(); state.route();
+  });
   const ev$ = $("[data-hev]", m);
-  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=46").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
+  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=47").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
   $$("[data-hatt]", m).forEach(b => b.onclick = async () => {
     try { await api("/timetable/attendance", { method: "POST", body: { event_id: ev.event_id, date: d.date, mode: b.dataset.hatt } }); }
     catch (e) { toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); return; }

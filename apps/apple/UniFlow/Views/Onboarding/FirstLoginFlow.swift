@@ -15,6 +15,8 @@ import UniFlowCore
 /// Eine Anmeldeseite des ersten Starts
 enum FirstLoginStep: String, CaseIterable, Identifiable {
     case studip, qis, learnweb, lsf
+    /// Hochschule Hannover: Moodle (eigenes Formular), dann Campusmanagement (SAML), je mit dem SSO-Account
+    case moodle, campus
 
     var id: String { rawValue }
 
@@ -23,6 +25,7 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
         switch u {
         case .luh: return [.studip, .qis]
         case .hildesheim: return [.learnweb, .lsf]
+        case .hsh: return [.moodle, .campus]
         }
     }
 
@@ -32,6 +35,8 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
         case .qis: return "Bei QIS anmelden"
         case .learnweb: return "Beim Learnweb anmelden"
         case .lsf: return "Beim LSF anmelden"
+        case .moodle: return "Bei Moodle anmelden"
+        case .campus: return "Im Campusmanagement anmelden"
         }
     }
 
@@ -42,6 +47,8 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
         case .qis: return "Danach steht dein Notenspiegel in StudiNow. Meist dieselbe LUH-ID wie bei Stud.IP."
         case .learnweb: return "StudiNow holt danach deine Learnweb-Kurse und -Dateien auf dieses \(UFDevice.name) (UNI-Account)."
         case .lsf: return "Danach kommen Stundenplan und Notenspiegel aus dem LSF. Mit der Learnweb-Anmeldung geht das meist ohne neues Passwort."
+        case .moodle: return "StudiNow holt danach deine Moodle-Kurse, -Dateien und -Fristen auf dieses iPad (SSO-Account)."
+        case .campus: return "Danach kommen Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement. Moodle und Campusmanagement haben keine gemeinsame Anmeldung: derselbe SSO-Account, noch einmal eingeben."
         }
     }
 }
@@ -64,18 +71,20 @@ struct FirstLoginFlow: View {
     var body: some View {
         Group {
             if syncing || index >= steps.count {
-                FirstSyncView(university: university, studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim) {
+                FirstSyncView(university: university, studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim,
+                              hsh: containers.hsh) {
                     account.markLoginDone()
                 }
             } else {
                 FirstLoginPage(step: steps[index], index: index, count: steps.count, studip: containers.studip, qis: containers.qis,
-                               hildesheim: containers.hildesheim, onDone: advance, onLater: later,
-                               demo: Self.offersDemo(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim)
+                               hildesheim: containers.hildesheim, hsh: containers.hsh, onDone: advance, onLater: later,
+                               demo: Self.offersDemo(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim, hsh: containers.hsh)
                                    ? (startingDemo ? .starting : .offered) : .hidden,
                                onDemo: startDemo)
                     .id(steps[index])
                     .onAppear {
-                        if Self.isConnected(steps[index], studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim) { advance() }
+                        if Self.isConnected(steps[index], studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim,
+                                            hsh: containers.hsh) { advance() }
                     }
             }
         }
@@ -84,18 +93,21 @@ struct FirstLoginFlow: View {
     }
 
     /// Quelle dieses Schritts schon verbunden (z. B. nach Hochschulwechsel zurueck)?
-    static func isConnected(_ step: FirstLoginStep, studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?) -> Bool {
+    static func isConnected(_ step: FirstLoginStep, studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?,
+                            hsh: HsHConnection? = nil) -> Bool {
         switch step {
         case .studip: return studip.phase != .signedOut && studip.phase != .needsLogin
         case .qis: return qis?.isConnected == true && qis?.state != .needsLogin
         case .learnweb: return hildesheim?.isConnected(.learnweb) == true && hildesheim?.state(.learnweb) != .needsLogin
         case .lsf: return hildesheim?.isConnected(.lsf) == true && hildesheim?.state(.lsf) != .needsLogin
+        case .moodle: return hsh?.isConnected(.moodle) == true && hsh?.state(.moodle) != .needsLogin
+        case .campus: return hsh?.isConnected(.campus) == true && hsh?.state(.campus) != .needsLogin
         }
     }
 
     /// Ist irgendeine Quelle verbunden (dann lohnt der Erstabgleich)?
-    static func anyConnected(studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?) -> Bool {
-        studip.hasStoredSession || qis?.isConnected == true || hildesheim?.anyConnected == true
+    static func anyConnected(studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?, hsh: HsHConnection? = nil) -> Bool {
+        studip.hasStoredSession || qis?.isConnected == true || hildesheim?.anyConnected == true || hsh?.anyConnected == true
     }
 
     private func advance() {
@@ -105,13 +117,13 @@ struct FirstLoginFlow: View {
     /// "Später anmelden": die uebrigen Anmeldeseiten auslassen; verbundene Quellen gleichen noch ab, sonst gleich die
     /// Oberflaeche mit den Karten "… verbinden"
     private func later() {
-        if Self.anyConnected(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim) { syncing = true } else { account.markLoginDone() }
+        if Self.anyConnected(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim, hsh: containers.hsh) { syncing = true } else { account.markLoginDone() }
     }
 
     /// "Ohne Hochschulkonto ansehen (Demo)" nur, solange keine Quelle der Hochschule verbunden ist (wer sich angemeldet
     /// hat, braucht keine Demo, und ein laufender Abgleich soll nicht neben der Demo weiterlaufen)
-    static func offersDemo(studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?) -> Bool {
-        !anyConnected(studip: studip, qis: qis, hildesheim: hildesheim)
+    static func offersDemo(studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?, hsh: HsHConnection? = nil) -> Bool {
+        !anyConnected(studip: studip, qis: qis, hildesheim: hildesheim, hsh: hsh)
     }
 
     private func startDemo() {
@@ -148,6 +160,7 @@ struct FirstLoginPage: View {
     let studip: StudIPSync
     let qis: QISConnection?
     let hildesheim: HildesheimConnection?
+    var hsh: HsHConnection? = nil
     let onDone: () -> Void
     let onLater: () -> Void
     var demo: FirstLoginDemo = .hidden
@@ -202,6 +215,12 @@ struct FirstLoginPage: View {
         case .learnweb, .lsf:
             if let hildesheim {
                 HildesheimStepPane(target: step == .learnweb ? .learnweb : .lsf, connection: hildesheim, onDone: onDone) { later }
+            } else {
+                missing
+            }
+        case .moodle, .campus:
+            if let hsh {
+                HsHLoginPane(source: step == .moodle ? .moodle : .campus, connection: hsh, onSignedIn: onDone) { later }
             } else {
                 missing
             }
@@ -363,6 +382,39 @@ enum FirstSyncProgress {
         ]
     }
 
+    /// Hochschule Hannover: Moodle (Dateien), Campusmanagement (Stundenplan, Leistungen); Reihenfolge wie der Abgleich
+    /// (aktuelles Semester zuerst: Kurse/Dateien, Stundenplan, dann Leistungen)
+    static func hsh(moodle: HsHConnection.State, campus: HsHConnection.State, messages: [String]) -> [FirstSyncRow] {
+        func state(_ s: HsHConnection.State) -> FirstSyncRow.State {
+            switch s {
+            case .notConnected: return .skipped
+            case .connected: return .waiting
+            case .running: return .running
+            case .ok: return .done
+            case .needsLogin: return .needsLogin
+            case .failed: return .failed
+            }
+        }
+        func message(_ word: String) -> String? { messages.first { $0.contains(word) } }
+        func detail(_ s: HsHConnection.State, _ word: String, skipped: String) -> String? {
+            switch s {
+            case .notConnected: return skipped
+            case .failed(let m): return message(word) ?? m
+            case .needsLogin: return "Anmeldung abgelaufen – bitte erneut anmelden"
+            case .ok: return message(word)
+            case .connected, .running: return nil
+            }
+        }
+        return [
+            FirstSyncRow(id: "files", title: "Kurse und Dateien aus Moodle", state: state(moodle),
+                         detail: detail(moodle, "Moodle", skipped: "Moodle später anmelden")),
+            FirstSyncRow(id: "timetable", title: "Stundenplan aus dem Campusmanagement", state: state(campus),
+                         detail: detail(campus, "Stundenplan", skipped: "Campusmanagement später anmelden")),
+            FirstSyncRow(id: "grades", title: "Leistungen aus dem Campusmanagement", state: state(campus),
+                         detail: detail(campus, "Notenspiegel", skipped: "Campusmanagement später anmelden")),
+        ]
+    }
+
     /// Fertig: keine Zeile wartet oder laeuft noch
     static func isFinished(_ rows: [FirstSyncRow]) -> Bool { !rows.contains { $0.state == .waiting || $0.state == .running } }
 
@@ -381,10 +433,13 @@ struct FirstSyncView: View {
     @ObservedObject var studip: StudIPSync
     let qis: QISConnection?
     let hildesheim: HildesheimConnection?
+    var hsh: HsHConnection? = nil
     let onDone: () -> Void
 
     var body: some View {
-        if university == .hildesheim, let hildesheim {
+        if university == .hsh, let hsh {
+            HsHObserver(connection: hsh, onDone: onDone)
+        } else if university == .hildesheim, let hildesheim {
             HildesheimObserver(connection: hildesheim, onDone: onDone)
         } else if let qis {
             QISObserver(connection: qis, studip: studip, onDone: onDone)
@@ -403,6 +458,15 @@ struct FirstSyncView: View {
         let onDone: () -> Void
         var body: some View {
             FirstSyncPage(rows: FirstSyncProgress.hildesheim(learnweb: connection.learnweb, lsf: connection.lsf, messages: connection.messages),
+                          onDone: onDone)
+        }
+    }
+
+    private struct HsHObserver: View {
+        @ObservedObject var connection: HsHConnection
+        let onDone: () -> Void
+        var body: some View {
+            FirstSyncPage(rows: FirstSyncProgress.hsh(moodle: connection.moodle, campus: connection.campus, messages: connection.messages),
                           onDone: onDone)
         }
     }

@@ -17,8 +17,9 @@ enum OlderSemesterLoad {
     }
 
     /// Abgleich der Hochschule fuer die vorgemerkten Kurse (auch nach der Wahl "Frühere Semester auch laden")
-    static func start(studip: StudIPSync, hildesheim: HildesheimConnection?) async throws -> String? {
+    static func start(studip: StudIPSync, hildesheim: HildesheimConnection?, hsh: HsHConnection? = nil) async throws -> String? {
         if studip.offersStudIP { return await studip.loadOlderFiles() }
+        if let hsh { return await hsh.loadOlderFiles() }
         return await hildesheim?.loadOlderFiles()
     }
 
@@ -41,8 +42,9 @@ enum OlderSemesterLoad {
 // MARK: - Frage nach dem ersten Abgleich
 
 /// Zeigt die Frage einmal je Container: nach einem Abgleich (oder beim Oeffnen), wenn noch nie entschieden wurde und
-/// es Kurse frueherer Semester gibt. Schon beim Zeigen gilt "Nur aktuelles Semester" als Wahl, die Frage kommt also
-/// nie wieder; "Frühere Semester auch laden" aendert sie. Nicht unter XCTest (Logik: `shouldAsk`).
+/// es Kurse frueherer Semester gibt. Schon beim Zeigen gilt die Vorgabe "Nur WLAN" als Wahl (05.11.2026: fruehere
+/// Semester kommen danach im Hintergrund, `SyncOrder`), die Frage kommt also nie wieder; "Nur aktuelles Semester"
+/// stellt auf Aus. Nicht unter XCTest (Logik: `shouldAsk`).
 struct OlderSemestersQuestionHost: ViewModifier {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
@@ -70,17 +72,18 @@ struct OlderSemestersQuestionHost: ViewModifier {
         guard !StudIPSync.isUnderTest(), let api = session.api, api.isLocal, !studip.isRunning, hildesheim?.isRunning != true,
               let overview = try? await api.value("/api/older-semesters"), Self.shouldAsk(overview) else { return }
         // als gefragt merken, bevor die Frage erscheint (ein zweiter Abgleich zeigt sie nicht noch einmal)
-        guard (try? await api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "current"])) != nil else { return }
+        guard (try? await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": "wifi"])) != nil else { return }
         let courses = (overview["semesters"]?.array ?? []).reduce(0) { $0 + ($1["courses"]?.array?.count ?? 0) }
         overlay.modal { OlderSemestersQuestion(current: overview.s("current") ?? "", courses: courses) }
     }
 }
 
-/// "Auch frühere Semester laden?" – ruhig, Vorgabe "Nur aktuelles Semester"
+/// "Auch frühere Semester laden?" – ruhig, Vorgabe "Frühere Semester auch laden" (im Hintergrund, nur im WLAN)
 struct OlderSemestersQuestion: View {
     let current: String
     let courses: Int
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var containers: ContainerManager
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
@@ -89,6 +92,7 @@ struct OlderSemestersQuestion: View {
     static func text(current: String, courses: Int) -> String {
         "StudiNow hat die Dateien deines aktuellen Semesters\(current.isEmpty ? "" : " (\(current))") geladen. "
             + "Dazu gibt es \(courses) \(courses == 1 ? "Kurs" : "Kurse") aus früheren Semestern. "
+            + "StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. "
             + "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs."
     }
 
@@ -97,17 +101,20 @@ struct OlderSemestersQuestion: View {
             Text(Self.text(current: current, courses: courses))
                 .ufFont(14.08).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
         } foot: {
-            UFButton("Nur aktuelles Semester", kind: .primary) { close() }
-                .frame(minHeight: 44)
-            UFButton("Frühere Semester auch laden") {
+            UFButton("Nur aktuelles Semester") {
                 close()
                 Task {
-                    guard let api = session.api,
-                          await toast.attempt("Frühere Semester laden", {
-                              _ = try await api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "all"])
-                          }) else { return }
-                    if let note = try? await OlderSemesterLoad.start(studip: studip, hildesheim: hildesheim) { toast.show(note, seconds: 4) }
+                    guard let api = session.api else { return }
+                    _ = await toast.attempt("Speichern", {
+                        _ = try await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": "off"])
+                    })
                 }
+            }
+            .frame(minHeight: 44)
+            // schon beim Zeigen gespeichert (Nur WLAN); laden beginnt im Hintergrund (`OlderSemesterLoader`)
+            UFButton("Frühere Semester auch laden", kind: .primary) {
+                close()
+                OlderSemesterLoader.shared.kick(containers)
             }
             .frame(minHeight: 44)
         }
@@ -135,7 +142,7 @@ struct LibrarySemestersSection: View {
         if !semesters.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Frühere Semester").ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
-                Text(overview["choice"]?.string == "all"
+                Text((overview["mode"]?.string ?? (overview["choice"]?.string == "all" ? "auto" : "off")) != "off"
                      ? "StudiNow lädt die Dateien früherer Semester mit. Einzelne Kurse kannst du hier erneut laden."
                      : "StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester kannst du hier je Semester oder je Kurs laden.")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)

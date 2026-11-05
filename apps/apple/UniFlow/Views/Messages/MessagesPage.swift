@@ -13,6 +13,7 @@ import UniFlowCore
 enum MessagesText {
     static let title = "Nachrichten"
     static let open = "In Stud.IP öffnen"
+    static let openLearnweb = "Im Learnweb öffnen"
     static let empty = "Keine Nachrichten"
     static let searchPrompt = "Nachrichten durchsuchen"
     static let back = "Nachrichten"
@@ -80,6 +81,11 @@ enum MessagesText {
 struct MessagesPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    /// Hochschule Hannover: Moodle-Nachrichten (Kennung "moodle-…")
+    @Environment(\.hsh) private var hsh
+    /// Uni Hildesheim: Learnweb-Nachrichten (Kennung "lw-msg-…", `LearnwebMessages`)
+    @Environment(\.hildesheim) private var hildesheim
+    @State private var moodleReply: MoodleReplyTarget?
     @Environment(\.ufWindowWidth) private var windowWidth
     /// iPhone: Seitenrand 16 pt
     @Environment(\.ufCompact) private var compact
@@ -104,6 +110,15 @@ struct MessagesPage: View {
     @State private var composing: Composing?
     /// eigene Antworten dieses Containers (`StudIPReplyLog`)
     @State private var replies = StudIPReplyLog()
+
+    /// Antwort auf eine Moodle-Nachricht (Unterhaltung)
+    struct MoodleReplyTarget: Identifiable {
+        let conversation: Int
+        let subject: String
+        /// Learnweb der Uni Hildesheim (sonst Moodle der Hochschule Hannover)
+        var learnweb = false
+        var id: String { "\(learnweb ? "lw" : "hsh")-\(conversation)" }
+    }
 
     /// offenes Antwortfenster
     struct Composing: Identifiable {
@@ -144,6 +159,16 @@ struct MessagesPage: View {
         .sheet(item: $composing, onDismiss: loadReplies) { c in
             MessageReplyEntry(original: c.original, mode: c.mode)
         }
+        .sheet(item: $moodleReply) { t in
+            let hsh = self.hsh, hildesheim = self.hildesheim
+            if t.learnweb {
+                MoodleReplySheet(conversation: t.conversation, subject: t.subject, web: { await hildesheim?.moodleWeb() },
+                                 onExpired: { hildesheim?.learnwebExpired() }, notice: LearnwebMessages.notice)
+            } else {
+                MoodleReplySheet(conversation: t.conversation, subject: t.subject, web: { await hsh?.moodleWeb() },
+                                 onExpired: { hsh?.moodleExpired() })
+            }
+        }
     }
 
     private func loadReplies() {
@@ -160,7 +185,7 @@ struct MessagesPage: View {
     }
 
     private var subline: String {
-        total > 0 ? "\(MessagesText.count(total)) · \(MessagesText.syncLine(studip.lastRun))" : MessagesText.syncLine(studip.lastRun)
+        total > 0 ? "\(MessagesText.count(total)) · \(MessagesText.syncLine(hsh?.lastRun ?? hildesheim?.lastRun ?? studip.lastRun))" : MessagesText.syncLine(hsh?.lastRun ?? hildesheim?.lastRun ?? studip.lastRun)
     }
 
     private var searchField: some View {
@@ -243,7 +268,7 @@ struct MessagesPage: View {
 
     private var emptyState: some View {
         UFEmpty(icon: "mail", text: failed.map { "Nachrichten nicht lesbar: \($0)" } ?? MessagesText.empty) {
-            Text(MessagesText.syncLine(studip.lastRun)).ufFont(12.8).foregroundStyle(UF.muted)
+            Text(MessagesText.syncLine(hsh?.lastRun ?? hildesheim?.lastRun ?? studip.lastRun)).ufFont(12.8).foregroundStyle(UF.muted)
                 .multilineTextAlignment(.center)
         }
         .padding(.vertical, 40)
@@ -362,6 +387,49 @@ struct MessagesPage: View {
 
     /// "Antworten", "Allen antworten" (wenn der Abgleich mehrere Empfaenger kennt), "In Stud.IP öffnen"
     private func replyBar(_ m: JSONValue) -> some View {
+        if let conv = MoodleMessages.conversationID(m.s("id") ?? "") { return AnyView(moodleReplyBar(m, conversation: conv)) }
+        if let conv = LearnwebMessages.conversation(of: m.s("id") ?? "") { return AnyView(learnwebReplyBar(m, conversation: conv)) }
+        return AnyView(studipReplyBar(m))
+    }
+
+    /// Moodle-Nachricht: "Antworten" (in die Unterhaltung), "In Moodle öffnen"
+    private func moodleReplyBar(_ m: JSONValue, conversation: Int) -> some View {
+        UFFlexWrap(gap: 8) {
+            if hsh?.isConnected(.moodle) == true {
+                UFButton(MoodleTexts.reply, icon: "pen", kind: .primary) {
+                    moodleReply = MoodleReplyTarget(conversation: conversation, subject: m.s("subject") ?? "Moodle")
+                }
+                .accessibilityHint("Schreibt eine Antwort in diese Moodle-Unterhaltung")
+                .accessibilityIdentifier("messages.reply")
+            }
+            if let url = UFDayExtras.safeURL(m.s("url")) {
+                UFButton(MoodleTexts.open, icon: "arrow-right") { openURL(url) }
+                    .accessibilityIdentifier("messages.open")
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    /// Learnweb-Nachricht (Uni Hildesheim): "Antworten" (in die Unterhaltung, ueber die Learnweb-Sitzung), "Im Learnweb öffnen"
+    private func learnwebReplyBar(_ m: JSONValue, conversation: Int) -> some View {
+        UFFlexWrap(gap: 8) {
+            if hildesheim?.isConnected(.learnweb) == true {
+                UFButton(MoodleTexts.reply, icon: "pen", kind: .primary) {
+                    moodleReply = MoodleReplyTarget(conversation: conversation, subject: m.s("subject") ?? "Learnweb", learnweb: true)
+                }
+                .accessibilityHint("Schreibt eine Antwort in diese Learnweb-Unterhaltung")
+                .accessibilityIdentifier("messages.reply")
+            }
+            if let url = UFDayExtras.safeURL(m.s("url")) {
+                UFButton(MessagesText.openLearnweb, icon: "arrow-right") { openURL(url) }
+                    .accessibilityHint("Öffnet die Unterhaltung im Learnweb")
+                    .accessibilityIdentifier("messages.open")
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func studipReplyBar(_ m: JSONValue) -> some View {
         let original = MessageReplyOriginal(m)
         // ohne Sitzung zeigt das Fenster "Stud.IP ist nicht verbunden" (Anmelden in den Einstellungen)
         let canReply = original != nil && StudIPMessageReply.isReplyable(senderLabel: m.s("sender"))
@@ -447,6 +515,8 @@ struct MessagesPage: View {
     /// Ziehen nach unten: kurzer Stud.IP-Abgleich (holt auch die Nachrichten), dann neu lesen
     private func pullRefresh() async {
         if MessagesInbox.studipConnected(studip), !studip.isRunning { await studip.run(scope: .lists) }
+        if let hsh, hsh.isConnected(.moodle), !hsh.isRunning { await hsh.syncMessages() }
+        if let hildesheim, hildesheim.isConnected(.learnweb), !hildesheim.isRunning { await hildesheim.run(scope: .lists) }
         await load()
     }
 }

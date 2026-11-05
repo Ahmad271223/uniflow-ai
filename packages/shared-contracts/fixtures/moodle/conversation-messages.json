@@ -1,0 +1,42 @@
+{
+ "_hinweis": "NACHGEBAUT (keine echte Antwort, erfundene Daten): Standard-Moodle, docs/HSH-2026-11-05.md",
+ "12": {
+  "id": 12,
+  "members": [
+   {
+    "id": 42,
+    "fullname": "Ich Selbst"
+   },
+   {
+    "id": 77,
+    "fullname": "Erfunden Lehrperson"
+   }
+  ],
+  "messages": [
+   {
+    "id": 345,
+    "useridfrom": 77,
+    "text": "<p>Bitte bis 12.11. abgeben.</p><p>Gruß</p>",
+    "timecreated": 1793000000
+   },
+   {
+    "id": 344,
+    "useridfrom": 42,
+    "text": "Meine Frage",
+    "timecreated": 1792990000
+   }
+  ]
+ },
+ "13": {
+  "id": 13,
+  "members": [],
+  "messages": [
+   {
+    "id": 400,
+    "useridfrom": 88,
+    "text": "Treffen am Freitag 14:00",
+    "timecreated": 1793001000
+   }
+  ]
+ }
+}

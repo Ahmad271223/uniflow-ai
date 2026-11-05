@@ -95,6 +95,9 @@ wie am PC.
 
 - **PC-App / Einzelplatz:** Schlüssel und eigene Variante werden gespeichert; ein zweites Modul mit denselben Dateien
   nimmt den eigenen Test (`adopted_from = local`). Ohne Dienst wird nichts geteilt. Tests: `tests/test_testshare.py`.
+- **Windows-App mit StudiNow-Konto (05.11.2026):** derselbe Pool wie im Dienst über `/api/v2/shared-tests`
+  (`testshare.obtain_via_service`): übernehmen (`adopted_from = service`), warten (bis 90 s), sonst belegen, mit der
+  KI des PCs erzeugen und veröffentlichen; ohne Netz eigener Test. Tests: `tests/test_ai_relay.py`.
 - **iPad V1 ohne Server (CloudKit, fertig):** `apps/apple/UniFlow/Services/WeeklyTestCloudKit.swift` setzt
   `WeeklyTestShareProvider` (Kern, `LocalBackend/Weekly/WeeklyTestShare.swift`) mit der öffentlichen CloudKit-Datenbank um;
   der Wochentest-Endpunkt (`WeekTests.create`) ruft `WeeklyTestShare.obtain` auf, bevor die KI des Nutzers erzeugt.

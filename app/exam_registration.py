@@ -1,6 +1,11 @@
 """Pruefungsanmeldung (Entscheidung des Inhabers 05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): Meldezeitraeume
-der LUH je Studiengang aus packages/shared-contracts/exam-registration-luh.json, Zuordnung Studiengang -> Terminseite
-des Pruefungsamts und Phase des naechsten Fensters je Tag.
+je Hochschule und Studiengang (LUH: packages/shared-contracts/exam-registration-luh.json, Uni Hildesheim:
+exam-registration-hildesheim.json), Zuordnung Studiengang -> Terminseite des Pruefungsamts und Phase des naechsten
+Fensters je Tag.
+
+Uni Hildesheim: keine einheitliche Frist, nur der Start der POS-Anmeldung im LSF fuer alle Bachelor- und
+Masterstudiengaenge; das Fenster hat `open_end` (Ende = Ende des Semesters, keine Anmeldefrist; die Frist steht im LSF
+an jeder Pruefung). Studiengaenge ohne eigenen Eintrag nehmen den Eintrag mit `default` (alle Bachelor/Master).
 
 Gleiche Regeln im Swift-Kern (ExamRegistration/ExamRegistrationPeriods.swift); Faelle in
 packages/shared-contracts/fixtures/exam-registration/period-cases.json (tools/gen-exam-registration-fixture.py).
@@ -24,16 +29,41 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "packages" / "shared-contracts" / "exam-registration-luh.json"
+HILDESHEIM_PATH = ROOT / "packages" / "shared-contracts" / "exam-registration-hildesheim.json"
+HSH_PATH = ROOT / "packages" / "shared-contracts" / "exam-registration-hsh.json"
+DATA_PATHS = {"luh": DATA_PATH, "hildesheim": HILDESHEIM_PATH, "hsh": HSH_PATH}
 
 SOON_DAYS = 7
 
-DEGREE_SLUGS = {"bsc": "bsc", "msc": "msc", "ba": "ba", "ma": "ma", "med": "med", "bed": "bed", "llb": "llb", "llm": "llm"}
-BACHELOR = ["bsc", "ba", "bed"]
-MASTER = ["msc", "ma", "med"]
+DEGREE_SLUGS = {"bsc": "bsc", "msc": "msc", "ba": "ba", "ma": "ma", "med": "med", "bed": "bed", "llb": "llb", "llm": "llm",
+                "beng": "beng", "meng": "meng", "mba": "mba"}          # B.Eng./M.Eng./MBA: Hochschule Hannover
+BACHELOR = ["bsc", "ba", "bed", "beng"]
+MASTER = ["msc", "ma", "med", "meng", "mba"]
 
 
 def load_data(path: Path = DATA_PATH) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def for_university(key: str | None) -> dict | None:
+    """Daten der Hochschule (`luh` | `hildesheim`) oder None (keine Daten: nicht unterstuetzt)"""
+    path = DATA_PATHS.get(key or "")
+    return load_data(path) if path else None
+
+
+def system(data: dict) -> str:
+    """Name des Pruefungssystems in den Texten: "QIS" (LUH) oder "LSF" (Uni Hildesheim)"""
+    return str(data.get("system") or "QIS")
+
+
+def default_program(data: dict) -> dict | None:
+    """Eintrag fuer alle Studiengaenge ohne eigenen (`default`), sonst None"""
+    return next((p for p in data.get("programs") or [] if p.get("default")), None)
+
+
+def resolve_program(data: dict, name: str | None, degree: str | None = None) -> dict | None:
+    """`find_program`, sonst der Eintrag fuer alle Studiengaenge (Uni Hildesheim), sonst None"""
+    return find_program(data, name, degree) or default_program(data)
 
 
 def fold(text: str) -> str:
@@ -72,7 +102,7 @@ def find_program(data: dict, name: str | None, degree: str | None = None) -> dic
     cands = degree_slugs(degree, name or "")
     if not cands:
         cands = sorted(set(DEGREE_SLUGS.values()))
-    hits = [p for p in programs if p.get("slug") in {f"{base}-{d}" for d in cands}]
+    hits = [p for p in programs if not p.get("default") and p.get("slug") in {f"{base}-{d}" for d in cands}]
     return hits[0] if len(hits) == 1 else None
 
 
@@ -110,7 +140,8 @@ def window_state(data: dict, program: dict | None, today: str, kind: str = "meld
     term, p, phase = pick
     start, end = date.fromisoformat(p["start"]), date.fromisoformat(p["end"])
     return {"term": term, "kind": p["kind"], "n": p.get("n", 1), "label": p["label"], "start": p["start"], "end": p["end"],
-            "phase": phase, "days_left": (end - t).days, "days_until": max(0, (start - t).days)}
+            "phase": phase, "days_left": (end - t).days, "days_until": max(0, (start - t).days),
+            "open_end": bool(p.get("open_end"))}
 
 
 def term_periods(data: dict, program: dict | None, term: str | None) -> list[dict]:

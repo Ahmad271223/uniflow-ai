@@ -28,6 +28,8 @@ public struct LocalContext: Sendable {
     public let cardShare = LocalTestShare()
     /// Eigene Stapel in der Modul-Community (CloudKit `CardStackShare`), von der App gesetzt; nil = nicht verfuegbar
     public let cardCommunity = LocalCardCommunity()
+    /// Mensa: oeffentliche Speiseplaene mit Cache (Mensa/LocalMensa.swift); Tests setzen Abruf und Ordner
+    public let mensa = LocalMensa()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {

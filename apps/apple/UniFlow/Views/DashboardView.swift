@@ -125,6 +125,9 @@ struct DashboardView: View {
                 UpcomingExamsCard(api: api, token: day)
                 // "Prüfungsanmeldung" (05.11.2026, `ExamRegistrationCard`): nur im Meldezeitraum und in den 7 Tagen davor
                 ExamRegistrationCard(api: api, token: day)
+                // "Heute in der Mensa" (05.11.2026, `MensaTodayCard`): drei Hauptgerichte, am Wochenende und an
+                // geschlossenen Tagen keine Karte
+                MensaTodayCard(api: api, token: day)
 
                 // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
                 // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)

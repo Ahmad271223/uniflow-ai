@@ -78,7 +78,8 @@
     "end": "2026-11-22",
     "phase": "later",
     "days_left": 33,
-    "days_until": 20
+    "days_until": 20,
+    "open_end": false
    },
    "periods": 6
   },
@@ -96,7 +97,8 @@
     "end": "2026-11-01",
     "phase": "open",
     "days_left": 12,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -114,7 +116,8 @@
     "end": "2026-11-22",
     "phase": "soon",
     "days_left": 17,
-    "days_until": 4
+    "days_until": 4,
+    "open_end": false
    },
    "periods": 6
   },
@@ -132,7 +135,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 171,
-    "days_until": 158
+    "days_until": 158,
+    "open_end": false
    },
    "periods": 6
   },
@@ -150,7 +154,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 13,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -168,7 +173,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 167,
-    "days_until": 154
+    "days_until": 154,
+    "open_end": false
    },
    "periods": 6
   },
@@ -186,7 +192,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 7,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -204,7 +211,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 161,
-    "days_until": 148
+    "days_until": 148,
+    "open_end": false
    },
    "periods": 6
   },
@@ -222,7 +230,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 0,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -240,7 +249,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 154,
-    "days_until": 141
+    "days_until": 141,
+    "open_end": false
    },
    "periods": 6
   },
@@ -258,7 +268,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 174,
-    "days_until": 161
+    "days_until": 161,
+    "open_end": false
    },
    "periods": 6
   },
@@ -276,7 +287,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 153,
-    "days_until": 140
+    "days_until": 140,
+    "open_end": false
    },
    "periods": 6
   },
@@ -294,7 +306,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 78,
-    "days_until": 65
+    "days_until": 65,
+    "open_end": false
    },
    "periods": 6
   },
@@ -312,7 +325,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 57,
-    "days_until": 44
+    "days_until": 44,
+    "open_end": false
    },
    "periods": 6
   },
@@ -330,7 +344,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 76,
-    "days_until": 63
+    "days_until": 63,
+    "open_end": false
    },
    "periods": 6
   },
@@ -348,7 +363,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 55,
-    "days_until": 42
+    "days_until": 42,
+    "open_end": false
    },
    "periods": 6
   },
@@ -366,7 +382,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 69,
-    "days_until": 56
+    "days_until": 56,
+    "open_end": false
    },
    "periods": 6
   },
@@ -384,7 +401,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 48,
-    "days_until": 35
+    "days_until": 35,
+    "open_end": false
    },
    "periods": 6
   },
@@ -402,7 +420,8 @@
     "end": "2027-05-16",
     "phase": "soon",
     "days_left": 16,
-    "days_until": 3
+    "days_until": 3,
+    "open_end": false
    },
    "periods": 6
   },
@@ -444,7 +463,8 @@
     "end": "2026-11-22",
     "phase": "later",
     "days_left": 33,
-    "days_until": 20
+    "days_until": 20,
+    "open_end": false
    },
    "periods": 6
   },
@@ -462,7 +482,8 @@
     "end": "2026-11-01",
     "phase": "open",
     "days_left": 12,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -480,7 +501,8 @@
     "end": "2026-11-22",
     "phase": "soon",
     "days_left": 17,
-    "days_until": 4
+    "days_until": 4,
+    "open_end": false
    },
    "periods": 6
   },
@@ -498,7 +520,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 171,
-    "days_until": 158
+    "days_until": 158,
+    "open_end": false
    },
    "periods": 6
   },
@@ -516,7 +539,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 13,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -534,7 +558,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 167,
-    "days_until": 154
+    "days_until": 154,
+    "open_end": false
    },
    "periods": 6
   },
@@ -552,7 +577,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 7,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -570,7 +596,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 161,
-    "days_until": 148
+    "days_until": 148,
+    "open_end": false
    },
    "periods": 6
   },
@@ -588,7 +615,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 0,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -606,7 +634,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 154,
-    "days_until": 141
+    "days_until": 141,
+    "open_end": false
    },
    "periods": 6
   },
@@ -624,7 +653,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 174,
-    "days_until": 161
+    "days_until": 161,
+    "open_end": false
    },
    "periods": 6
   },
@@ -642,7 +672,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 153,
-    "days_until": 140
+    "days_until": 140,
+    "open_end": false
    },
    "periods": 6
   },
@@ -660,7 +691,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 78,
-    "days_until": 65
+    "days_until": 65,
+    "open_end": false
    },
    "periods": 6
   },
@@ -678,7 +710,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 57,
-    "days_until": 44
+    "days_until": 44,
+    "open_end": false
    },
    "periods": 6
   },
@@ -696,7 +729,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 76,
-    "days_until": 63
+    "days_until": 63,
+    "open_end": false
    },
    "periods": 6
   },
@@ -714,7 +748,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 55,
-    "days_until": 42
+    "days_until": 42,
+    "open_end": false
    },
    "periods": 6
   },
@@ -732,7 +767,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 69,
-    "days_until": 56
+    "days_until": 56,
+    "open_end": false
    },
    "periods": 6
   },
@@ -750,7 +786,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 48,
-    "days_until": 35
+    "days_until": 35,
+    "open_end": false
    },
    "periods": 6
   },
@@ -768,7 +805,8 @@
     "end": "2027-05-16",
     "phase": "soon",
     "days_left": 16,
-    "days_until": 3
+    "days_until": 3,
+    "open_end": false
    },
    "periods": 6
   },
@@ -810,7 +848,8 @@
     "end": "2026-11-22",
     "phase": "later",
     "days_left": 33,
-    "days_until": 20
+    "days_until": 20,
+    "open_end": false
    },
    "periods": 6
   },
@@ -828,7 +867,8 @@
     "end": "2026-11-01",
     "phase": "open",
     "days_left": 12,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -846,7 +886,8 @@
     "end": "2026-11-22",
     "phase": "soon",
     "days_left": 17,
-    "days_until": 4
+    "days_until": 4,
+    "open_end": false
    },
    "periods": 6
   },
@@ -864,7 +905,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 171,
-    "days_until": 158
+    "days_until": 158,
+    "open_end": false
    },
    "periods": 6
   },
@@ -882,7 +924,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 13,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -900,7 +943,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 167,
-    "days_until": 154
+    "days_until": 154,
+    "open_end": false
    },
    "periods": 6
   },
@@ -918,7 +962,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 7,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -936,7 +981,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 161,
-    "days_until": 148
+    "days_until": 148,
+    "open_end": false
    },
    "periods": 6
   },
@@ -954,7 +1000,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 0,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -972,7 +1019,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 154,
-    "days_until": 141
+    "days_until": 141,
+    "open_end": false
    },
    "periods": 6
   },
@@ -990,7 +1038,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 174,
-    "days_until": 161
+    "days_until": 161,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1008,7 +1057,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 153,
-    "days_until": 140
+    "days_until": 140,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1026,7 +1076,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 78,
-    "days_until": 65
+    "days_until": 65,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1044,7 +1095,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 57,
-    "days_until": 44
+    "days_until": 44,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1062,7 +1114,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 76,
-    "days_until": 63
+    "days_until": 63,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1080,7 +1133,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 55,
-    "days_until": 42
+    "days_until": 42,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1098,7 +1152,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 69,
-    "days_until": 56
+    "days_until": 56,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1116,7 +1171,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 48,
-    "days_until": 35
+    "days_until": 35,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1134,7 +1190,8 @@
     "end": "2027-05-16",
     "phase": "soon",
     "days_left": 16,
-    "days_until": 3
+    "days_until": 3,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1176,7 +1233,8 @@
     "end": "2026-11-22",
     "phase": "later",
     "days_left": 33,
-    "days_until": 20
+    "days_until": 20,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1194,7 +1252,8 @@
     "end": "2026-11-01",
     "phase": "open",
     "days_left": 12,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1212,7 +1271,8 @@
     "end": "2026-11-22",
     "phase": "soon",
     "days_left": 17,
-    "days_until": 4
+    "days_until": 4,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1230,7 +1290,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 171,
-    "days_until": 158
+    "days_until": 158,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1248,7 +1309,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 13,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1266,7 +1328,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 167,
-    "days_until": 154
+    "days_until": 154,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1284,7 +1347,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 7,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1302,7 +1366,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 161,
-    "days_until": 148
+    "days_until": 148,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1320,7 +1385,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 0,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1338,7 +1404,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 154,
-    "days_until": 141
+    "days_until": 141,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1356,7 +1423,8 @@
     "end": "2027-03-07",
     "phase": "later",
     "days_left": 104,
-    "days_until": 98
+    "days_until": 98,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1374,7 +1442,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 153,
-    "days_until": 140
+    "days_until": 140,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1392,7 +1461,8 @@
     "end": "2027-03-07",
     "phase": "soon",
     "days_left": 8,
-    "days_until": 2
+    "days_until": 2,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1410,7 +1480,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 57,
-    "days_until": 44
+    "days_until": 44,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1428,7 +1499,8 @@
     "end": "2027-03-07",
     "phase": "open",
     "days_left": 6,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1446,7 +1518,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 55,
-    "days_until": 42
+    "days_until": 42,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1464,7 +1537,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 69,
-    "days_until": 56
+    "days_until": 56,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1482,7 +1556,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 48,
-    "days_until": 35
+    "days_until": 35,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1500,7 +1575,8 @@
     "end": "2027-05-16",
     "phase": "soon",
     "days_left": 16,
-    "days_until": 3
+    "days_until": 3,
+    "open_end": false
    },
    "periods": 9
   },
@@ -1542,7 +1618,8 @@
     "end": "2026-11-22",
     "phase": "later",
     "days_left": 33,
-    "days_until": 20
+    "days_until": 20,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1560,7 +1637,8 @@
     "end": "2026-11-01",
     "phase": "open",
     "days_left": 12,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1578,7 +1656,8 @@
     "end": "2026-11-22",
     "phase": "soon",
     "days_left": 17,
-    "days_until": 4
+    "days_until": 4,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1596,7 +1675,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 171,
-    "days_until": 158
+    "days_until": 158,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1614,7 +1694,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 13,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1632,7 +1713,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 167,
-    "days_until": 154
+    "days_until": 154,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1650,7 +1732,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 7,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1668,7 +1751,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 161,
-    "days_until": 148
+    "days_until": 148,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1686,7 +1770,8 @@
     "end": "2026-11-22",
     "phase": "open",
     "days_left": 0,
-    "days_until": 0
+    "days_until": 0,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1704,7 +1789,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 154,
-    "days_until": 141
+    "days_until": 141,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1722,7 +1808,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 174,
-    "days_until": 161
+    "days_until": 161,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1740,7 +1827,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 153,
-    "days_until": 140
+    "days_until": 140,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1758,7 +1846,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 78,
-    "days_until": 65
+    "days_until": 65,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1776,7 +1865,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 57,
-    "days_until": 44
+    "days_until": 44,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1794,7 +1884,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 76,
-    "days_until": 63
+    "days_until": 63,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1812,7 +1903,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 55,
-    "days_until": 42
+    "days_until": 42,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1830,7 +1922,8 @@
     "end": "2027-05-16",
     "phase": "later",
     "days_left": 69,
-    "days_until": 56
+    "days_until": 56,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1848,7 +1941,8 @@
     "end": "2027-04-25",
     "phase": "later",
     "days_left": 48,
-    "days_until": 35
+    "days_until": 35,
+    "open_end": false
    },
    "periods": 6
   },
@@ -1866,7 +1960,8 @@
     "end": "2027-05-16",
     "phase": "soon",
     "days_left": 16,
-    "days_until": 3
+    "days_until": 3,
+    "open_end": false
    },
    "periods": 6
   },
@@ -2132,7 +2227,8 @@
    "slugs": [
     "bsc",
     "ba",
-    "bed"
+    "bed",
+    "beng"
    ]
   },
   {
@@ -2141,7 +2237,9 @@
    "slugs": [
     "msc",
     "ma",
-    "med"
+    "med",
+    "meng",
+    "mba"
    ]
   },
   {
@@ -2149,5 +2247,614 @@
    "text": "",
    "slugs": []
   }
- ]
+ ],
+ "hildesheim": {
+  "programs": [
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "slug": "angewandte-informatik-bsc",
+    "resolved": "angewandte-informatik-bsc",
+    "has_table": true
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "slug": "angewandte-informatik-msc",
+    "resolved": "angewandte-informatik-msc",
+    "has_table": true
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "slug": "erziehungswissenschaft-ma",
+    "resolved": "erziehungswissenschaft-ma",
+    "has_table": true
+   },
+   {
+    "name": "Psychologie",
+    "degree": "B.Sc.",
+    "slug": "psychologie-bsc",
+    "resolved": "psychologie-bsc",
+    "has_table": true
+   },
+   {
+    "name": "Wirtschaftsinformatik",
+    "degree": null,
+    "slug": null,
+    "resolved": "alle-bachelor-und-masterstudiengaenge",
+    "has_table": true
+   },
+   {
+    "name": "Informationsmanagement und Informationstechnologie",
+    "degree": "Bachelor of Science",
+    "slug": "informationsmanagement-und-informationstechnologie-bsc",
+    "resolved": "informationsmanagement-und-informationstechnologie-bsc",
+    "has_table": true
+   },
+   {
+    "name": "Kochkunst",
+    "degree": "B.Sc.",
+    "slug": null,
+    "resolved": "alle-bachelor-und-masterstudiengaenge",
+    "has_table": true
+   },
+   {
+    "name": "",
+    "degree": null,
+    "slug": null,
+    "resolved": "alle-bachelor-und-masterstudiengaenge",
+    "has_table": true
+   }
+  ],
+  "phases": [
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-03",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "later",
+     "days_left": 148,
+     "days_until": 8,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-04",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "soon",
+     "days_left": 147,
+     "days_until": 7,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-05",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "soon",
+     "days_left": 146,
+     "days_until": 6,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-11",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 140,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-25",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 126,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-26",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 125,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2027-03-31",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 0,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2027-04-01",
+    "kind": "meldung",
+    "window": null,
+    "periods": 0
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2026-11-03",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "later",
+     "days_left": 148,
+     "days_until": 8,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2026-11-04",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "soon",
+     "days_left": 147,
+     "days_until": 7,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2026-11-05",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "soon",
+     "days_left": 146,
+     "days_until": 6,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2026-11-11",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 140,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2026-11-25",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 126,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2026-11-26",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 125,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2027-03-31",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 0,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": "M.Sc.",
+    "today": "2027-04-01",
+    "kind": "meldung",
+    "window": null,
+    "periods": 0
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2026-11-03",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "later",
+     "days_left": 148,
+     "days_until": 8,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2026-11-04",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "soon",
+     "days_left": 147,
+     "days_until": 7,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2026-11-05",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "soon",
+     "days_left": 146,
+     "days_until": 6,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2026-11-11",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 140,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2026-11-25",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 126,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2026-11-26",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 125,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2027-03-31",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)",
+     "start": "2026-11-11",
+     "end": "2027-03-31",
+     "phase": "open",
+     "days_left": 0,
+     "days_until": 0,
+     "open_end": true
+    },
+    "periods": 1
+   },
+   {
+    "name": "Erziehungswissenschaft",
+    "degree": "M.A.",
+    "today": "2027-04-01",
+    "kind": "meldung",
+    "window": null,
+    "periods": 0
+   }
+  ],
+  "count": 72,
+  "with_table": 64
+ },
+ "hsh": {
+  "programs": [
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "slug": "angewandte-informatik-bsc",
+    "has_table": true
+   },
+   {
+    "name": "Angewandte Informatik (PO-Version 2019)",
+    "degree": null,
+    "slug": null,
+    "has_table": false
+   },
+   {
+    "name": "Elektrotechnik und Informationstechnik",
+    "degree": "B.Eng.",
+    "slug": "elektrotechnik-und-informationstechnik-beng",
+    "has_table": false
+   },
+   {
+    "name": "Elektrische Energiesysteme und Elektromobilität",
+    "degree": "M.Eng.",
+    "slug": "elektrische-energiesysteme-und-elektromobilitaet-meng",
+    "has_table": false
+   },
+   {
+    "name": "Kochkunst",
+    "degree": "B.Eng.",
+    "slug": null,
+    "has_table": false
+   }
+  ],
+  "phases": [
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-09-01",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "Anmeldung zu den Prüfungen (Prüfungszeitraum A)",
+     "start": "2026-09-07",
+     "end": "2026-09-14",
+     "phase": "soon",
+     "days_left": 13,
+     "days_until": 6,
+     "open_end": false
+    },
+    "periods": 2
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-09-10",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 1,
+     "label": "Anmeldung zu den Prüfungen (Prüfungszeitraum A)",
+     "start": "2026-09-07",
+     "end": "2026-09-14",
+     "phase": "open",
+     "days_left": 4,
+     "days_until": 0,
+     "open_end": false
+    },
+    "periods": 2
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-11-05",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 2,
+     "label": "Anmeldung zu den Prüfungen (Prüfungszeitraum B)",
+     "start": "2026-11-30",
+     "end": "2026-12-13",
+     "phase": "later",
+     "days_left": 38,
+     "days_until": 25,
+     "open_end": false
+    },
+    "periods": 2
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2026-12-01",
+    "kind": "meldung",
+    "window": {
+     "term": "WiSe 26/27",
+     "kind": "meldung",
+     "n": 2,
+     "label": "Anmeldung zu den Prüfungen (Prüfungszeitraum B)",
+     "start": "2026-11-30",
+     "end": "2026-12-13",
+     "phase": "open",
+     "days_left": 12,
+     "days_until": 0,
+     "open_end": false
+    },
+    "periods": 2
+   },
+   {
+    "name": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "today": "2027-03-01",
+    "kind": "meldung",
+    "window": null,
+    "periods": 0
+   }
+  ],
+  "count": 75,
+  "with_table": 37
+ }
 }

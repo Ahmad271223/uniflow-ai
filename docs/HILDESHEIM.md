@@ -112,6 +112,22 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 - Dabei behoben: Absturz der Protokollausgabe bei U+0308 (Windows-Konsole), Dateinamen jetzt NFC, jeder Kurs in eigener
   Transaktion, LUH-Semesterfilter galt fälschlich auch für Hildesheim, Notenspiegel-Kopfzeile nicht in der ersten Zeile.
 
+## Prüfungsanmeldung (05.11.2026)
+
+- Start der POS-Anmeldung im LSF aus den öffentlichen Seiten (WiSe 26/27: 11.11.2026, alle Bachelor/Master, keine
+  einheitliche Frist), Daten `packages/shared-contracts/exam-registration-hildesheim.json`; „Im LSF anmelden“ öffnet die
+  LSF-Startseite. „Meine POS-Anmeldungen“ wird nach dem Notenspiegel nur lesend gelesen (iPad `HildesheimSync`, PC
+  `qis.run`). Nie „An-/Abmeldung zu Studien-/Prüfungsleistungen“, „Zur Anmeldung“, „Zur Stornierung“.
+  Einzelheiten und offene Prüfpunkte: docs/PRUEFUNGSANMELDUNG-2026-11-05.md, Abschnitt „Uni Hildesheim“.
+
+## Nachrichten, Abgeben, Wartungshinweise (05.11.2026)
+
+- Learnweb-Nachrichten (Moodle-Unterhaltungen) kommen nach den Ankündigungen in die Liste „Nachrichten“
+  (`app/learnweb_messages.py`, Kern `LearnwebMessages.swift`), nur lesend, ohne Personennamen; Antworten nur auf
+  Knopfdruck in die Unterhaltung. Abgeben in Learnweb-Aufgaben über das gemeinsame Moodle-Abgabeblatt der App.
+- Wartungshinweise des LSF („+++ … +++“) erscheinen als „LSF-Hinweis: …“.
+- Stand je Funktion und Testliste: `docs/HILDESHEIM-STAND-2026-11-05.md`.
+
 ## Offen
 
 - Bescheinigungen (Immatrikulation): Quelle in Hildesheim unbekannt, im LSF-Menü nicht vorhanden.

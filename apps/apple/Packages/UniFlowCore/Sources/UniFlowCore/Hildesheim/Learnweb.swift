@@ -45,6 +45,7 @@ public enum Learnweb {
 
     private static let semRE = HText.regex("^\\s*((?:SoSe|SS|WiSe|WS)\\s*\\d{2,4}(?:/\\d{2,4})?)\\s*:\\s*", [.caseInsensitive])
     private static let numRE = HText.regex("^(\\d{3,5})\\s+")
+    private static let commaSemRE = HText.regex("^(.+?),\\s*((?:SoSe|SS|WiSe|WS)\\s*\\d{2,4}(?:/\\d{2,4})?)\\s*(?:,.*)?$", [.caseInsensitive])
     private static let pluginRE = HText.regex("/pluginfile\\.php/\\d+/mod_(resource|folder)/content/(\\d+)/(.+)$")
     private static let folderLinkRE = HText.regex("href=\"([^\"]*/pluginfile\\.php/\\d+/mod_folder/content/\\d+/[^\"]+)\"")
     private static let forceDownloadRE = HText.regex("[?&]forcedownload=1")
@@ -57,6 +58,10 @@ public enum Learnweb {
         if let m = HText.match(semRE, t) {
             sem = HText.collapse(m.groups[1] ?? "")
             t = String(t[m.range.upperBound...])
+        } else if let m = HText.match(commaSemRE, t) {
+            // Moodle der Hochschule Hannover: "<Titel>, WiSe 2026/27, <Lehrende>" (docs/HSH-2026-11-05.md)
+            sem = HText.collapse(m.groups[2] ?? "")
+            t = HText.collapse(m.groups[1] ?? t)
         }
         let num = HText.match(numRE, t)?.groups[1] ?? nil
         return CourseTitle(semester: sem, number: num, title: t)

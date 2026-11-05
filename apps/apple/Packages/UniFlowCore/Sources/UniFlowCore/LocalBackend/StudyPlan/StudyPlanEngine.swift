@@ -584,10 +584,12 @@ public enum StudyPlanEngine {
         func fitsSlot(_ mid: String, _ s: (Int, [JSONValue])) -> Bool {
             s.1.isEmpty || memOf[mid]!.contains { s.1.contains(.string($0)) }
         }
+        var ownSlot = Set<String>()
         for mid in included {                                       // eigener Platz: belegt einen Platz in dem Semester
             guard let p = placed[mid] else { continue }
             for (k, s) in slots.enumerated() where !taken.contains(k) && start + s.0 - 1 == p && fitsSlot(mid, s) {
                 taken.insert(k)
+                ownSlot.insert(mid)
                 break
             }
         }
@@ -597,6 +599,16 @@ public enum StudyPlanEngine {
                 taken.insert(k)
                 slotSem[mid] = s.0
                 break
+            }
+        }
+        // Wahl(pflicht)modul ohne Fachsemester auf eigener Lage ohne Platz in dem Semester: belegt trotzdem einen Platz
+        // seines Bereichs (den naechstgelegenen), sonst bliebe der Platz offen, obwohl das Modul ihn fuellt (05.11.2026)
+        for mid in included {
+            guard let p = placed[mid], !ownSlot.contains(mid), electiveKinds.contains(textOf(byID[mid]!["kind"])),
+                  semOf(byID[mid]!) == nil else { continue }
+            let free = slots.indices.filter { !taken.contains($0) && fitsSlot(mid, slots[$0]) }
+            if let k = free.min(by: { (abs(start + slots[$0].0 - 1 - p), $0) < (abs(start + slots[$1].0 - 1 - p), $1) }) {
+                taken.insert(k)
             }
         }
 
@@ -786,13 +798,23 @@ public enum StudyPlanEngine {
             room[aid] = .some(mx.flatMap { $0 != 0 ? $0 - used[aid]! : nil })
             nslots[aid] = 0
         }
+        // Bedarf schon durch Module (bestanden, geplant, gewaehlt, eigene Eintraege) gedeckt: keine weiteren Plaetze
+        var met: [String: Bool] = [:]
+        for a in areaList {
+            let aid = aidOf(a)
+            met[aid] = (target[aid]! != nil || mreq[aid]! != nil) && !((openLP[aid]!).map { $0 > 0 } ?? false)
+                && !((openN[aid]!).map { $0 > 0 } ?? false)
+        }
         var customLP: [Int: Double] = [:], slotLP: [Int: Double] = [:]
         for (t, e) in custom { customLP[t, default: 0] += e["lp"]!.double! }
         var places: [(Int, [String: JSONValue])] = []
-        func isOpen(_ aid: String) -> Bool {
-            if let o = openLP[aid]! { return o > 0 }
-            if let n = openN[aid]! { return n > 0 }
-            return false
+        func isOpen(_ aid: String) -> Bool {                       // LP oder Zahl der Module noch offen
+            ((openLP[aid]!).map { $0 > 0 } ?? false) || ((openN[aid]!).map { $0 > 0 } ?? false)
+        }
+        // Spanne bis zur Obergrenze, der ganze Platz passt, Bedarf nicht durch Module gedeckt
+        func hasRoom(_ aid: String, _ lp: Double) -> Bool {
+            guard !met[aid]!, let r = room[aid]! else { return false }
+            return r > 0 && r >= lp
         }
         func isUnknown(_ aid: String) -> Bool { openLP[aid]! == nil && openN[aid]! == nil && room[aid]! == nil }
         func termLoad(_ t: Int) -> Double { load(t) + (customLP[t] ?? 0) + (slotLP[t] ?? 0) }
@@ -835,9 +857,12 @@ public enum StudyPlanEngine {
         for (k, o) in rawSlots.enumerated() where !taken.contains(k) {
             let ar = slotAreas(o)
             let cands = ar.isEmpty ? choice : ar.filter { choice.contains($0) }
-            guard let pick = cands.first(where: isOpen) ?? cands.first(where: { room[$0]!.map { $0 > 0 } ?? false })
+            let slotLPValue = num(o["lp"]).flatMap { $0 > 0 ? $0 : nil }
+            // zuerst offener Bedarf, dann Spanne bis zur Obergrenze, dann ohne Angabe; ist der Bedarf eines Bereichs
+            // durch Module gedeckt, bekommt er keinen Platz mehr
+            guard let pick = cands.first(where: isOpen) ?? cands.first(where: { hasRoom($0, slotLPValue ?? unit[$0]!) })
                     ?? cands.first(where: isUnknown) else { continue }
-            let lp = num(o["lp"]).flatMap { $0 > 0 ? $0 : nil } ?? unit[pick]!
+            let lp = slotLPValue ?? unit[pick]!
             if let r = room[pick]! { room[pick] = .some(r - lp) }
             if let x = openLP[pick]! { openLP[pick] = .some(x - lp) }
             if let x = openN[pick]! { openN[pick] = .some(x - 1) }
@@ -850,10 +875,12 @@ public enum StudyPlanEngine {
         for aid in choice where !referenced.contains(aid) {
             let o = openLP[aid]!
             var n: Int
-            if let o {
-                n = o > 0 ? Int((o / unit[aid]!).rounded(.up)) : 0
-            } else if let x = openN[aid]! {
-                n = max(0, x)
+            var step = unit[aid]!
+            if o != nil || openN[aid]! != nil {
+                // so viele Plaetze, dass LP und Zahl der Module reichen (beides muss erfuellt sein)
+                n = o.map { $0 > 0 ? Int(($0 / step).rounded(.up)) : 0 } ?? 0
+                if let o, n > 1, step < 3 { n = 1; step = o }          // kleine Module (1-2 LP): ein Platz fuer alles
+                n = max(n, openN[aid]! ?? 0)
             } else if counted[aid]!.isEmpty && unknownLeft > 0 {       // ohne LP-Angabe: ein Platz, solange nichts gewaehlt
                 n = 1
                 unknownLeft -= 1
@@ -861,10 +888,9 @@ public enum StudyPlanEngine {
                 n = 0
             }
             let h = hintOf([aid])
-            var step = unit[aid]!
-            if let o, step < 3, n > 1 { n = 1; step = o }
             for j in 0..<min(n, maxAreaSlots) {
-                let lp = o.map { min(step, $0 - Double(j) * step) } ?? step
+                let lp: Double
+                if let o, o - Double(j) * step > 0 { lp = min(step, o - Double(j) * step) } else { lp = unit[aid]! }
                 place(pickTerm(h), "area", textOf(areaBy[aid]!["name"]), aid, [aid], groupOf[aid], lp, nil, h)
             }
         }

@@ -304,3 +304,21 @@ test("Quelle mit Seitenzahl springt in der PDF auf die Seite", () => {
   assert.equal(L.sourceLabel(22), "Im Modulkatalog ansehen (S. 22)");
   assert.equal(L.sourceLabel(null), "Im Modulkatalog ansehen");
 });
+
+test("Quelle des Notenspiegels je Hochschule: QIS (LUH), LSF (Hildesheim), Campusmanagement (HsH)", () => {
+  const po = { suggested_po: "2025", po_confirmed: false, qis_program: "Musterfach" };
+  try {
+    L.setUniversity("hildesheim");
+    assert.match(L.poCardHtml(po, icon), /LSF nennt „Musterfach“/);
+    assert.match(L.noQisHtml(icon), /Verbinde das LSF, damit StudiNow deinen Studiengang kennt/);
+    assert.match(L.customHint(), /Heißt er wie im LSF,/);
+    L.setUniversity("hsh");
+    assert.match(L.poCardHtml(po, icon), /Campusmanagement nennt „Musterfach“/);
+    assert.match(L.noQisHtml(icon), /Melde dich im Campusmanagement an, damit StudiNow/);
+    assert.equal(L.source().aus, "aus dem Campusmanagement");
+    for (const html of [L.poCardHtml(po, icon), L.noQisHtml(icon), L.customHint()]) assert.ok(!html.includes("QIS"), html);
+    L.setUniversity("unbekannt");                     // unbekannt: LUH
+    assert.match(L.noQisHtml(icon), /Verbinde QIS, damit/);
+    assert.equal(L.customHint(), L.CUSTOM_HINT);
+  } finally { L.setUniversity("luh"); }
+});

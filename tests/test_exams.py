@@ -91,3 +91,31 @@ def test_endpoint_merges_sources_and_fills_exam_date(app, monkeypatch, tmp_path)
     asgi_call(app, "GET", "/api/exams/upcoming")
     with db.cursor() as conn:
         assert db.row(conn, "SELECT exam_date FROM modules WHERE id=4")["exam_date"] == "2027-02-16", "nie ueberschrieben"
+
+
+def test_registered_exams_with_date_feed_upcoming(monkeypatch, tmp_path):
+    """Uni Hildesheim (und LUH): gelesene Anmeldungen mit Termin ("Meine POS-Anmeldungen" im LSF bzw. "Info über
+    angemeldete Prüfungen" im QIS) sind eine Quelle der Klausurtermine, mit Uhrzeit und Raum; stornierte nicht.
+    Learnweb-Tests mit "Klausur" im Namen kommen als Frist dazu. Erfundene Zeilen."""
+    from app import db, exams, qis_registrations
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "klausuren-lsf.db")
+    db.init_db()
+    with db.cursor() as conn:
+        conn.execute("INSERT INTO modules(id, name, color, created_at) VALUES (7, 'Grundlagen der Informatik', '#4f5bd5', 't')")
+        qis_registrations.store(conn, [
+            {"pruefungsnr": "4711", "text": "Grundlagen der Informatik", "semester": "WiSe 26/27", "datum": "15.02.2027",
+             "time": "10:00", "room": "Forum HS 1", "status": "zugelassen", "raw": ""},
+            {"pruefungsnr": "5040", "text": "Statistik I", "semester": "WiSe 26/27", "datum": "22.02.2027", "time": "09:00",
+             "status": "storniert", "raw": ""},
+            {"pruefungsnr": "5032", "text": "Seminar ohne Termin", "semester": "WiSe 26/27", "status": "AN", "raw": ""},
+        ], "t")
+        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, kind, due_at, url, fetched_at)
+                        VALUES ('lw-ev-1', 'learnweb', NULL, 'E-Klausur Statistik', 'test_ende', '2027-02-10T12:00', 'https://x', 't')""")
+        items = exams.upcoming(conn, date(2026, 11, 20))
+    gi = next(x for x in items if x.get("module_id") == 7)
+    assert (gi["date"], gi["time"], gi["room"]) == ("2027-02-15", "10:00", "Forum HS 1")
+    assert [s["kind"] for s in gi["sources"]] == ["anmeldung"] and gi["source_label"] == "aus deinen angemeldeten Prüfungen"
+    assert not any("Statistik I" == (x.get("title_name") or x.get("module_name") or "") for x in items)
+    assert not any(x["date"] == "2027-02-22" for x in items), "storniert: kein Termin"
+    lw = next(x for x in items if x["date"] == "2027-02-10")
+    assert lw["sources"][0]["label"] == "aus dem Learnweb-Kalender"

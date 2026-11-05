@@ -330,12 +330,174 @@ final class ExamRegistrationTests: XCTestCase {
         XCTAssertEqual(noPlan["program"], .null)
         XCTAssertEqual(noPlan["window"], .null)
         XCTAssertEqual(noPlan["source"]?["url"]?.string, ExamRegistrationPeriods.luh.generalURL)
-        XCTAssertEqual(noPlan["suggestions"]?.array?.compactMap { $0["title"]?.string }, ["Algorithmen und Datenstrukturen"])
+        XCTAssertEqual(noPlan["suggestions"]?.array?.compactMap { $0["title"]?.string }, ["Algorithmen und Datenstrukturen", "Prüfung Rechnernetze"])
         XCTAssertEqual(noPlan["suggestions"]?.array?.first?["reason_kind"]?.string, "klausur")
-        // Uni Hildesheim: nicht unterstuetzt
+        // Termin aus der gelesenen Anmeldung ("Nächste Klausuren"): abgehakt ueber die Info-Seite
+        let rn = noPlan["suggestions"]?.array?.last ?? .null
+        XCTAssertEqual(rn["registered"]?.bool, true)
+        XCTAssertEqual(rn["registered_via"]?.string, "qis_info")
+        XCTAssertEqual(rn["exam_date"]?.string, "2027-03-01")
+        XCTAssertEqual(rn["exam_time"]?.string, "09:00")
+        // Uni Hildesheim: unterstuetzt (LSF, Start der POS-Anmeldung); andere Hochschulen nicht
         let hi = try await get(try await backend(now: "2026-11-20T10:00:00", catalog: false, university: "hildesheim"))
-        XCTAssertEqual(hi["supported"]?.bool, false)
-        XCTAssertEqual(hi["show_card"]?.bool, false)
+        XCTAssertEqual(hi["supported"]?.bool, true)
+        XCTAssertEqual(hi["system"]?.string, "LSF")
+    }
+
+    // MARK: Uni Hildesheim (POS-Anmeldung im LSF, gelesen am 05.11.2026)
+
+    func testHildesheimPeriodCasesMatchPython() throws {
+        let fx = try JSONValue.parse(repo("packages/shared-contracts/fixtures/exam-registration/period-cases.json"))["hildesheim"] ?? .null
+        let data = try XCTUnwrap(ExamRegistrationPeriods.for(university: "hildesheim"))
+        XCTAssertEqual(data.university, "hildesheim")
+        XCTAssertEqual(data.system, "LSF")
+        XCTAssertEqual(data.qisMenu, UniversityProfile.hildesheimLSFStart.absoluteString, "Im LSF anmelden: Startseite des LSF")
+        XCTAssertEqual(data.programs.count, fx["count"]?.int)
+        XCTAssertEqual(data.programs.filter { $0.table != nil }.count, fx["with_table"]?.int)
+        XCTAssertTrue(data.rules.allSatisfy { $0.days == nil }, "keine erfundenen Ruecktrittsfristen")
+        XCTAssertNil(ExamRegistrationPeriods.for(university: "tu-berlin"))
+        XCTAssertEqual(ExamRegistrationPeriods.for(university: "luh")?.university, "luh")
+        for c in fx["programs"]?.array ?? [] {
+            XCTAssertEqual(data.program(name: c["name"]?.string, degree: c["degree"]?.string)?.slug, c["slug"]?.string, "\(c)")
+            let r = data.resolve(name: c["name"]?.string, degree: c["degree"]?.string)
+            XCTAssertEqual(r?.slug, c["resolved"]?.string, "\(c)")
+            XCTAssertEqual(r?.table != nil, c["has_table"]?.bool ?? false, "\(c)")
+        }
+        let phases = fx["phases"]?.array ?? []
+        XCTAssertGreaterThan(phases.count, 20)
+        for c in phases {
+            let p = data.resolve(name: c["name"]?.string, degree: c["degree"]?.string)
+            let w = data.window(p, today: c["today"]?.string ?? "", kind: c["kind"]?.string ?? "")
+            XCTAssertEqual(w?.json ?? .null, c["window"] ?? .null, "\(c["name"] ?? .null) \(c["today"] ?? .null)")
+            XCTAssertEqual(data.periods(p, term: w?.term).count, c["periods"]?.int)
+        }
+    }
+
+    /// LSF mit festen Seiten aus den Fixtures (lsf-*.html, erfunden): Start -> POS-Management -> Meine POS-Anmeldungen
+    private func lsf(overview: String = "anmeldungen", expired: Bool = false) throws -> FakeUniTransport {
+        let pages = try ["start": page("lsf-start.html"), "pos": page("lsf-pos.html"), "anmeldungen": page("lsf-anmeldungen.html"),
+                         "anmeldungen-empty": page("lsf-anmeldungen-empty.html")]
+        let start = UniversityProfile.hildesheimLSFStart.absoluteString
+        return FakeUniTransport { r in
+            let u = r.url.absoluteString
+            if expired { return UniResponse(status: 200, finalURL: URL(string: "https://www.uni-hildesheim.de/sso/login?service=x"), body: Data()) }
+            if u == start { return ok(pages["start"]!) }
+            if u.contains("subitem=posManagement") { return ok(pages["pos"]!) }
+            if u.contains("moduleParameter=myPOSAnmeldungen") { return ok(pages[overview]!) }
+            return ok("<html><body>VERBOTEN</body></html>")
+        }
+    }
+
+    func testLSFWalkReadsPOSOverviewAndNeverRegisters() async throws {
+        let t = try lsf()
+        let r = try await QISRegistrationClient(transport: t, retry: noWait, layout: .hildesheim).fetch()
+        XCTAssertEqual(r.registrations.map(\.text), ["Grundlagen der Informatik (Klausur)", "Seminar Medienpädagogik", "Statistik I"])
+        XCTAssertEqual(r.registrations.map(\.registered), [true, true, false], "zugelassen, AN, storniert")
+        XCTAssertEqual(r.registrations[0].pruefungsnr, "4711")
+        XCTAssertEqual(r.registrations[0].isoDate, "2027-02-15")
+        XCTAssertEqual(r.registrations[0].clock, "10:00")
+        XCTAssertEqual(r.registrations[0].room, "Forum HS 1")
+        XCTAssertEqual(r.registrations[0].abschluss, "Abschluss: [82] Bachelor Studiengang: [079] Angewandte Informatik PO-Version: 2019")
+        XCTAssertEqual(r.pages, 3)
+        XCTAssertEqual(r.tables, 1)
+        let urls = t.requests.map(\.url.absoluteString)
+        XCTAssertEqual(urls.count, 3, "\(urls)")
+        for forbidden in ["studyPOSAnmeldung", "prfAnm", "storno", "belegen", "type=4"] {
+            XCTAssertFalse(urls.contains { $0.contains(forbidden) }, forbidden)
+        }
+        XCTAssertTrue(t.requests.allSatisfy { $0.method == "GET" && $0.body == nil }, "keine Formulare")
+        let empty = try await QISRegistrationClient(transport: try lsf(overview: "anmeldungen-empty"), retry: noWait, layout: .hildesheim).fetch()
+        XCTAssertEqual(empty.registrations, [])
+        do {
+            _ = try await QISRegistrationClient(transport: try lsf(expired: true), retry: noWait, layout: .hildesheim).fetch()
+            XCTFail("abgelaufen erwartet")
+        } catch { XCTAssertEqual(error as? QISError, .sessionExpired) }
+        let start = try page("lsf-start.html")
+        do {
+            _ = try await QISRegistrationClient(transport: FakeUniTransport { _ in ok(start) }, retry: noWait, layout: .hildesheim).fetch()
+            XCTFail("nicht gefunden erwartet")
+        } catch {
+            XCTAssertEqual(error as? QISRegistrationError, .posOverviewNotFound)
+            XCTAssertEqual((error as? QISRegistrationError)?.description, "Die Seite „Meine POS-Anmeldungen“ wurde im LSF nicht gefunden.")
+        }
+    }
+
+    func testLSFLinksOverviewAllowedRegistrationNever() {
+        func link(_ text: String, _ query: String) -> QISLink {
+            let a = "https://lsf.uni-hildesheim.de/qisserver/rds?" + query
+            return QISLink(text: text, address: a, parameters: QISParser.parameters(of: a))
+        }
+        XCTAssertTrue(QISRegistrationLinks.isInfo(link("Meine POS-Anmeldungen", "state=posAnmeldungen&next=list.vm")))
+        XCTAssertTrue(QISRegistrationLinks.isPOSMenu(link("POS-Management", "state=user&type=8&subitem=posManagement")))
+        for (text, q) in [("An-/Abmeldung zu Studien-/Prüfungsleistungen", "state=change&moduleParameter=studyPOSAnmeldung"),
+                          ("Zur Anmeldung", "state=x"), ("Zur Stornierung der Anmeldung", "state=posAnmeldungen&storno=1"),
+                          ("Meine POS-Anmeldungen", "state=prfAnmStudent"), ("Meine POS-Anmeldungen", "state=posAnmeldungen&stornieren=1"),
+                          ("Belegen/Abmelden", "state=wplan&act=belegen"), ("Weiter", "state=x&moduleParameter=posAnmeldung")] {
+            XCTAssertTrue(QISRegistrationLinks.isForbidden(link(text, q)), text + " " + q)
+            XCTAssertFalse(QISRegistrationLinks.isInfo(link(text, q)), text + " " + q)
+        }
+        for st in ["storniert", "Storniert am 01.12.2026", "abgelehnt", "nicht zugelassen"] { XCTAssertFalse(RegistrationRows.isRegistered(st), st) }
+        XCTAssertTrue(RegistrationRows.isRegistered("zugelassen"))
+    }
+
+    func testLSFSyncSaysLSF() async throws {
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.migrate(clock: .fixed(berlin: "2026-11-20T10:00:00")!, university: "hildesheim")
+        let none = await QISRegistrationsSync.run(db: db, transport: try lsf(overview: "anmeldungen-empty"), retry: noWait, layout: .hildesheim)
+        XCTAssertEqual(none.message, "Im LSF sind keine Prüfungen angemeldet.")
+        let r = await QISRegistrationsSync.run(db: db, transport: try lsf(), retry: noWait, layout: .hildesheim)
+        XCTAssertEqual(r.count, 2)
+        let dump = try await db.withConnection { c in
+            try c.rows("SELECT * FROM exam_registrations").map { String(decoding: JSONValue.object($0).serialized(), as: UTF8.self) }.joined()
+        }
+        for secret in ["Erika", "7654321", "Beispielweg"] { XCTAssertFalse(dump.contains(secret), secret) }
+    }
+
+    func testHildesheimPOSStartWithoutDeadline() async throws {
+        func hi(_ now: String) async throws -> JSONValue {
+            let b = try await backend(now: now, university: "hildesheim")
+            try await b.context.database.transaction { c in
+                try QISRegistrationsSync.store(c, [QISRegistration(pruefungsnr: "4711", text: "Rechnernetze", semester: "WiSe 26/27",
+                                                                   datum: "01.03.2027", time: "09:00", status: "zugelassen", raw: "")], now: "t")
+            }
+            return try await get(b)
+        }
+        let v = try await hi("2026-11-05T10:00:00")
+        XCTAssertEqual(v["supported"]?.bool, true)
+        XCTAssertEqual(v["system"]?.string, "LSF")
+        XCTAssertEqual(v["open_label"]?.string, "Im LSF anmelden")
+        XCTAssertEqual(v["qis_url"]?.string, "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")
+        XCTAssertEqual(v["program"]?["slug"]?.string, "alle-bachelor-und-masterstudiengaenge")
+        XCTAssertEqual(v["program"]?["all_programs"]?.bool, true)
+        XCTAssertEqual(v["source"]?["checked_at"]?.string, "2026-11-05")
+        XCTAssertEqual(v["window"]?["phase"]?.string, "soon")
+        XCTAssertEqual(v["window"]?["start"]?.string, "2026-11-11")
+        XCTAssertEqual(v["window"]?["open_end"]?.bool, true)
+        XCTAssertEqual(v["show_card"]?.bool, true)
+        XCTAssertEqual(v["warnings"]?.array?.count, 0)
+        XCTAssertTrue(v["period_note"]?.string?.hasPrefix("Die Uni Hildesheim hat keine einheitliche Anmeldefrist") == true)
+        XCTAssertTrue(v["hint"]?.string?.contains("POS-Management") == true)
+        XCTAssertEqual(v["periods"]?.array?.first?["open_end"]?.bool, true)
+        let s = v["suggestions"]?.array ?? []
+        XCTAssertTrue(s.filter { $0["id"]?.string != "rechnernetze" }.allSatisfy { $0["withdraw_until"] == .null }, "keine erfundene Ruecktrittsfrist")
+        let rn = try XCTUnwrap(s.first { $0["id"]?.string == "rechnernetze" })
+        XCTAssertEqual(rn["registered_via"]?.string, "qis_info")
+        XCTAssertEqual(rn["exam_source"]?.string, "aus deinen angemeldeten Prüfungen")
+        // Erinnerung nur am ersten Tag
+        let plan = ExamRegistrationReminders.plan(v, container: "C1", now: UniFlowClock.fixed(berlin: "2026-11-05T10:00:00")!.now)
+        XCTAssertEqual(plan.map(\.identifier), ["de.uniflow.ai.examreg.C1.wise-26-27.meldung1.start"])
+        XCTAssertTrue(plan[0].body.hasPrefix("WiSe 26/27: Anmeldung im LSF freigeschaltet, Fristen je Prüfung"))
+        // kurz vor dem Semesterende: keine Warnung "endet morgen", keine Karte mehr
+        let late = try await hi("2027-03-30T10:00:00")
+        XCTAssertEqual(late["window"]?["phase"]?.string, "open")
+        XCTAssertEqual(late["warnings"]?.array?.count, 0)
+        XCTAssertEqual(late["show_card"]?.bool, false)
+        let day14 = try await hi("2026-11-25T10:00:00")
+        XCTAssertEqual(day14["show_card"]?.bool, true)
+        let day15 = try await hi("2026-11-26T10:00:00")
+        XCTAssertEqual(day15["show_card"]?.bool, false)
+        let summer = try await hi("2027-04-02T10:00:00")
+        XCTAssertEqual(summer["window"], .null, "SoSe 27 noch nicht bekannt -> nur Link")
     }
 
     func testEmptyDatabaseAnswers() async throws {
@@ -344,6 +506,36 @@ final class ExamRegistrationTests: XCTestCase {
         XCTAssertEqual(v["supported"]?.bool, true)
         XCTAssertEqual(v["suggestions"]?.array, [])
         XCTAssertEqual(v["registrations_checked_at"], .null)
+    }
+
+    /// Klausurtermine: gelesene Anmeldungen mit Termin ("Meine POS-Anmeldungen" bzw. Info-Seite) mit Uhrzeit und Raum,
+    /// stornierte nicht; Learnweb-Test mit "Klausur" im Namen als Frist (wie tests/test_exams.py)
+    func testRegisteredExamsWithDateFeedUpcoming() async throws {
+        let b = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: .fixed(berlin: "2026-11-20T10:00:00")!, university: "hildesheim")
+        let items = try await b.context.database.transaction { c -> [[String: JSONValue]] in
+            _ = try c.execute("INSERT INTO modules(id, name, color, created_at) VALUES (7, 'Grundlagen der Informatik', '#4f5bd5', 't')")
+            try QISRegistrationsSync.store(c, [
+                QISRegistration(pruefungsnr: "4711", text: "Grundlagen der Informatik", semester: "WiSe 26/27", datum: "15.02.2027",
+                                time: "10:00", room: "Forum HS 1", status: "zugelassen", raw: ""),
+                QISRegistration(pruefungsnr: "5040", text: "Statistik I", semester: "WiSe 26/27", datum: "22.02.2027", time: "09:00",
+                                status: "storniert", raw: ""),
+                QISRegistration(pruefungsnr: "5032", text: "Seminar ohne Termin", semester: "WiSe 26/27", status: "AN", raw: ""),
+            ], now: "t")
+            _ = try c.execute("""
+                INSERT INTO deadlines(id, source, course_id, title, kind, due_at, url, fetched_at)
+                VALUES ('lw-ev-1', 'learnweb', NULL, 'E-Klausur Statistik', 'test_ende', '2027-02-10T12:00', 'https://x', 't')
+                """)
+            return try Exams.upcoming(c, today: BerlinClock.parseISODate("2026-11-20")!)
+        }
+        let gi = try XCTUnwrap(items.first { $0["module_id"]?.int == 7 })
+        XCTAssertEqual(gi["date"]?.string, "2027-02-15")
+        XCTAssertEqual(gi["time"]?.string, "10:00")
+        XCTAssertEqual(gi["room"]?.string, "Forum HS 1")
+        XCTAssertEqual(gi["sources"]?.array?.compactMap { $0["kind"]?.string }, ["anmeldung"])
+        XCTAssertEqual(gi["source_label"]?.string, "aus deinen angemeldeten Prüfungen")
+        XCTAssertFalse(items.contains { $0["date"]?.string == "2027-02-22" }, "storniert: kein Termin")
+        let lw = try XCTUnwrap(items.first { $0["date"]?.string == "2027-02-10" })
+        XCTAssertEqual(lw["sources"]?.array?.first?["label"]?.string, "aus dem Learnweb-Kalender")
     }
 
     // MARK: Erinnerungen

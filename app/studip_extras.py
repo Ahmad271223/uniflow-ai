@@ -446,6 +446,8 @@ def sync(get, conn, uid: str, base: str, today: date, fetched_at: str) -> dict:
         res["global_news"] = store_global_news(conn, global_news(b["data"], base), fetched_at)["total"]
     if messages_allowed() and (b := ask("inbox", f"users/{uid}/inbox?page[limit]=30&include=sender", f"users/{uid}/inbox?page[limit]=30")) is not None:
         res["messages"] = store_messages(conn, parse_messages(b["data"], b.get("included"), base, today), fetched_at)
+        from . import studip_reply      # Zahl der Empfaenger je Nachricht ("Allen antworten"), keine Namen
+        studip_reply.store_message_meta(conn, studip_reply.parse_message_meta(b["data"]))
     if (b := ask("activitystream", f"users/{uid}/activitystream")) is not None:
         res["activity"] = store_activity(conn, parse_activity(b["data"], base), fetched_at, today)
     if (b := ask("consultations", f"users/{uid}/consultation-bookings?include=slot,slot.block",

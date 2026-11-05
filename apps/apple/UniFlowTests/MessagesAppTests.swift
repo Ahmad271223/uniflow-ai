@@ -259,6 +259,37 @@ final class MessagesAppTests: XCTestCase {
         XCTAssertTrue(env.wait { env.labels().contains { $0.contains("liegt im Prüfungsamt bereit") } }, env.labels().joined(separator: "\n"))
     }
 
+    /// Uni Hildesheim (05.11.2026): Learnweb-Unterhaltungen (erfunden, Moodle-Format) in derselben Liste, Leser mit
+    /// "Im Learnweb öffnen", ohne Personennamen
+    func testLearnwebMessagesOfHildesheim() throws {
+        let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true),
+                                    clock: .fixed(berlin: "2026-11-04T10:30:00")!)
+        let convs: JSONValue = ["conversations": [
+            ["id": 12, "type": 1, "name": "", "members": [["id": 815, "fullname": "Erika Beispiel"]],
+             "messages": [["id": 345, "useridfrom": 815, "text": "<p>Die Sprechstunde am 12.11. um 14 Uhr fällt aus.</p>", "timecreated": 1_793_786_400]]],
+            ["id": 13, "type": 2, "name": "Lerngruppe Statistik A",
+             "messages": [["id": 399, "useridfrom": 900, "text": "Treffen Donnerstag?", "timecreated": 1_793_700_000]]],
+        ]]
+        try pumping {
+            let backend = try await host.backend()
+            let items = LearnwebMessages.parseConversations(convs, me: 4711, base: "https://www.uni-hildesheim.de/learnweb2026", today: 20761)
+            var d = StudIPExtras.Download()
+            d.messages = items
+            let clock = backend.context.clock
+            try await backend.context.database.transaction { try StudIPExtras.store(d, in: $0, clock: clock) }
+        }
+        let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
+        let env = try page(api, split: true)
+        XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Neu, Nachricht im Learnweb, von Learnweb-Kontakt") } },
+                      env.labels().joined(separator: "\n"))
+        XCTAssertTrue(env.wait { env.labels().contains(MessagesText.openLearnweb) }, env.labels().joined(separator: "\n"))
+        let l = env.labels()
+        XCTAssertTrue(l.contains { $0.hasPrefix("Neu, Lerngruppe Statistik A, von Learnweb-Gruppe") }, l.joined(separator: "\n"))
+        XCTAssertTrue(l.contains { $0.contains("Sprechstunde am 12.11. um 14 Uhr fällt aus") })
+        XCTAssertFalse(l.contains(MessagesText.open), "kein Stud.IP-Knopf")
+        XCTAssertFalse(l.contains { $0.contains("Erika") }, "keine Personennamen")
+    }
+
     func testSecondVisitShowsNoNewDots() throws {
         let (api, _) = try api()
         defaults.set("2026-11-02T12:00:00+01:00", forKey: MessagesInbox.seenKey)

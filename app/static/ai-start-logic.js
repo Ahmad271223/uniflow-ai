@@ -2,7 +2,7 @@
 // (tests/js/ai-start.test.mjs): ruhiger Start mit einer Frage und fuenf farbigen Aktionen, danach ein Gespraech mit
 // Eingabe unten. Kontext ist das gewaehlte Modul und ein angehaengtes Dokument (dessen erste Seite); Fragen gehen an
 // POST /api/ai/tutor wie die KI-Hilfe im Editor. "Hilfe" fragt keine KI (0 Credits). Gezeichnet wird in views-ai.js.
-import { creditsLine } from "./ai-panel.js?v=1";
+import { creditsLine, sourceLine } from "./ai-panel.js?v=2";
 
 /** Aktionen in der Reihenfolge der Pillen; `tone` ist die Farbe (CSS-Klasse tone-<tone>) */
 export const ACTIONS = [
@@ -84,10 +84,11 @@ export function historyOf(turns, max = 6) {
   return turns.flatMap(t => [{ role: "user", text: t.question }, { role: "assistant", text: t.text }]).slice(-max);
 }
 
-/** Rumpf fuer POST /api/ai/tutor: Frage, optional Dokument (Seite 1), bisheriges Gespraech */
-export function requestBody({ mode = "ask", question = "", fileId = "", turns = [] }) {
+/** Rumpf fuer POST /api/ai/tutor: Frage, optional Dokument (Seite 1) oder Modul als Kontext, bisheriges Gespraech */
+export function requestBody({ mode = "ask", question = "", fileId = "", moduleId = 0, turns = [] }) {
   const body = { mode, page: 1, history: historyOf(turns) };
   if (fileId) body.file_id = fileId;
+  else if (moduleId) body.module_id = moduleId;
   if (question) body.question = question;
   return body;
 }
@@ -115,8 +116,9 @@ export function plain(markdown) {
 // ---------------------------------------------------------------- Kostenzeile
 export const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 export const countLine = n => (n === 1 ? "1 Anfrage diesen Monat" : `${n} Anfragen diesen Monat`);
-/** "3 Anfragen diesen Monat · Credits: 37 von 100 übrig" (Credits nur im Dienst) */
-export function statusLine(count, credits, explain) {
-  const c = creditsLine(credits, explain);
+/** "3 Anfragen diesen Monat · Credits: 37 von 100 übrig" (Credits im Dienst und am PC mit StudiNow-Konto); vor der
+ *  ersten Antwort der Weg der KI aus GET /api/ai/source ("über dein ChatGPT · 0 Credits") */
+export function statusLine(count, credits, explain, source = null) {
+  const c = creditsLine(credits, explain) || sourceLine(source);
   return c ? `${countLine(count)} · ${c}` : countLine(count);
 }
