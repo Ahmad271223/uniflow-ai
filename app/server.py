@@ -1154,7 +1154,7 @@ def ai_tutor(request: Request, body: dict = Body(...)):
     # beim naechsten Mal sofort da, 0 Credits. `force` ("Neu erklaeren lassen") fragt live nach und belegt den naechsten Platz.
     from . import explain_local
     force = body.get("force") is True
-    shareable = bool(text.strip()) and explain_local.is_shareable(mode, body.get("selection") or "", body.get("question") or "",
+    shareable = bool(text.strip()) and not body.get("second_opinion") and explain_local.is_shareable(mode, body.get("selection") or "", body.get("question") or "",
                                                                   body.get("own_solution") or "", _own_notes(body))
     # eine fertige request_id wiederholt die gespeicherte Antwort mit Credits-Stand (replay), das geht vor dem Speicher
     replayed = hosted and bool(body.get("request_id")) and _ai_replay(request, str(body["request_id"])[:80]) is not None

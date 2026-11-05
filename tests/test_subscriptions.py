@@ -563,6 +563,9 @@ def test_ai_not_configured_is_honest(hosted, monkeypatch):
     ai_backend.set_provider(None)
     monkeypatch.delenv("LERNAPP_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("LERNAPP_AI_PROVIDER", raising=False)
+    # auch die Schluessel der Modellmischung (DeepSeek, Claude ueber Bedrock/AWS): auf Entwicklerrechnern oft gesetzt
+    for name in ("LERNAPP_DEEPSEEK_API_KEY", "LERNAPP_ANTHROPIC_API_KEY", "AWS_ACCESS_KEY_ID", "AWS_BEARER_TOKEN_BEDROCK"):
+        monkeypatch.delenv(name, raising=False)
     _, h = user(hosted, "ohne@beispiel.de", plan="pro_ai")
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({"mode": "explain"})))
     assert (st, d["code"]) == (503, "ai_not_configured")
