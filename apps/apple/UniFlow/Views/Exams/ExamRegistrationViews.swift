@@ -245,14 +245,22 @@ enum ExamRegistrationText {
 struct ExamRegistrationQISButton: View {
     let url: URL?
     var size: UFButtonSize = .regular
+    /// Kompakt (iPhone): Knopf in voller Breite, mindestens 48 pt hoch (Daumen), statt neben dem Titel
+    var wide = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         if let url {
-            UFButton("Im QIS anmelden", icon: "arrow-right", kind: .primary, size: size) { openURL(url) }
-                .fixedSize()
-                .accessibilityHint("Öffnet das QIS. Anmelden und bestätigen tust du dort selbst.")
-                .accessibilityIdentifier("examreg.qis")
+            Group {
+                if wide {
+                    UFWideButton("Im QIS anmelden", icon: "arrow-right", kind: .primary) { openURL(url) }
+                } else {
+                    UFButton("Im QIS anmelden", icon: "arrow-right", kind: .primary, size: size) { openURL(url) }
+                        .fixedSize()
+                }
+            }
+            .accessibilityHint("Öffnet das QIS. Anmelden und bestätigen tust du dort selbst.")
+            .accessibilityIdentifier("examreg.qis")
         }
     }
 }
@@ -260,21 +268,24 @@ struct ExamRegistrationQISButton: View {
 /// "Angemeldete Prüfungen abrufen" (nur lesend) bzw. "QIS verbinden"
 struct ExamRegistrationFetchButton: View {
     let reload: () async -> Void
+    /// Kompakt (iPhone): volle Breite
+    var wide = false
     @Environment(\.qis) private var qis
 
     var body: some View {
-        if let qis { Inner(connection: qis, reload: reload) }
+        if let qis { Inner(connection: qis, reload: reload, wide: wide) }
     }
 
     private struct Inner: View {
         @ObservedObject var connection: QISConnection
         let reload: () async -> Void
+        let wide: Bool
         @State private var login = false
 
         var body: some View {
             Group {
                 if connection.isConnected && connection.state != .needsLogin {
-                    UFButton(connection.registrationsRunning ? "Ruft ab …" : "Angemeldete Prüfungen abrufen", icon: "sync", size: .small) {
+                    button(connection.registrationsRunning ? "Ruft ab …" : "Angemeldete Prüfungen abrufen", icon: "sync") {
                         Task {
                             await connection.fetchRegistrations()
                             await reload()
@@ -283,12 +294,20 @@ struct ExamRegistrationFetchButton: View {
                     .disabled(connection.registrationsRunning || connection.isRunning)
                     .accessibilityIdentifier("examreg.fetch")
                 } else {
-                    UFButton(connection.isConnected ? "QIS erneut anmelden" : "QIS verbinden", icon: "arrow-right", size: .small) { login = true }
+                    button(connection.isConnected ? "QIS erneut anmelden" : "QIS verbinden", icon: "arrow-right") { login = true }
                         .accessibilityIdentifier("examreg.connect")
                 }
             }
-            .fixedSize()
+            .fixedSize(horizontal: !wide, vertical: !wide)
             .sheet(isPresented: $login) { QISLoginView(connection: connection) }
+        }
+
+        @ViewBuilder private func button(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+            if wide {
+                UFWideButton(title, icon: icon, action: action)
+            } else {
+                UFButton(title, icon: icon, size: .small, action: action)
+            }
         }
     }
 }
@@ -299,6 +318,8 @@ struct ExamRegistrationFetchButton: View {
 struct ExamRegistrationList: View {
     let items: [ExamRegistrationState.Suggestion]
     var limit: Int?
+    /// Kompakt (iPhone): Abzeichen unter dem Titel statt rechts daneben (lange Modulnamen behalten die Breite)
+    var compact = false
 
     var body: some View {
         let shown = limit.map { Array(items.prefix($0)) } ?? items
@@ -319,10 +340,15 @@ struct ExamRegistrationList: View {
                 .foregroundStyle(s.registered ? UF.ok : UF.warn)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if compact {
                     Text(s.title).ufFont(14.5, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 4)
-                    UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize()
+                    UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize().padding(.vertical, 2)
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(s.title).ufFont(14.5, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize()
+                    }
                 }
                 Text(s.reason + (s.period == "vbp" ? " · VbP" : "")).ufFont(12.8).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -411,22 +437,33 @@ struct ExamRegistrationCard: View {
     let api: APIClient?
     var token: String = ""
     @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         ExamRegistrationLoader(api: api, token: token) { state, reload in
-            if let st = state, st.showCard { Self.card(st, reload: reload, open: { router.go(.studyPlan()) }).padding(.bottom, 19.2) }
+            if let st = state, st.showCard {
+                Self.card(st, compact: compact, reload: reload, open: { router.go(.studyPlan()) }).padding(.bottom, 19.2)
+            }
         }
     }
 
-    @ViewBuilder static func card(_ st: ExamRegistrationState, reload: @escaping () async -> Void, open: @escaping () -> Void) -> some View {
+    /// `compact` (iPhone): eine Spalte - Titel allein, "Im QIS anmelden" in voller Breite unter der Liste, darunter
+    /// Hinweis und die beiden anderen Knoepfe untereinander; breit (iPad) wie bisher
+    @ViewBuilder static func card(_ st: ExamRegistrationState, compact: Bool = false, reload: @escaping () async -> Void,
+                                  open: @escaping () -> Void) -> some View {
         let missing = st.suggestions.filter { !$0.registered }
         UFCard {
-            UFCardHead("Prüfungsanmeldung", icon: "exam", wrap: true) {
-                ExamRegistrationQISButton(url: st.qisURL, size: .small)
+            if compact {
+                UFCardHead("Prüfungsanmeldung", icon: "exam", wrap: true)
+            } else {
+                UFCardHead("Prüfungsanmeldung", icon: "exam", wrap: true) {
+                    ExamRegistrationQISButton(url: st.qisURL, size: .small)
+                }
             }
             VStack(alignment: .leading, spacing: 10) {
                 if let w = st.window {
                     Text(ExamRegistrationText.windowLine(w)).ufFont(13.6, 650).foregroundStyle(w.isOpen ? UF.accentText : UF.text2)
+                        .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("examreg.window")
                 }
                 ExamRegistrationWarnings(warnings: st.warnings)
@@ -436,13 +473,23 @@ struct ExamRegistrationCard: View {
                 } else {
                     Text(missing.isEmpty ? "Alle vorgeschlagenen Prüfungen sind angemeldet." : "Diese Prüfungen solltest du anmelden:")
                         .ufFont(13.12, 600).foregroundStyle(UF.text)
-                    ExamRegistrationList(items: st.suggestions, limit: 5)
+                    ExamRegistrationList(items: st.suggestions, limit: 5, compact: compact)
                 }
-                ExamRegistrationHint(text: st.hint)
-                UFFlexWrap(gap: 8) {
-                    ExamRegistrationFetchButton(reload: reload)
-                    UFButton("Im Studienverlauf", icon: "columns", kind: .ghost, size: .small, action: open).fixedSize()
-                        .accessibilityIdentifier("examreg.open")
+                if compact {
+                    ExamRegistrationQISButton(url: st.qisURL, wide: true)
+                    ExamRegistrationHint(text: st.hint)
+                    VStack(spacing: 8) {
+                        ExamRegistrationFetchButton(reload: reload, wide: true)
+                        UFWideButton("Im Studienverlauf", icon: "columns", kind: .ghost, action: open)
+                            .accessibilityIdentifier("examreg.open")
+                    }
+                } else {
+                    ExamRegistrationHint(text: st.hint)
+                    UFFlexWrap(gap: 8) {
+                        ExamRegistrationFetchButton(reload: reload)
+                        UFButton("Im Studienverlauf", icon: "columns", kind: .ghost, size: .small, action: open).fixedSize()
+                            .accessibilityIdentifier("examreg.open")
+                    }
                 }
             }
         }
@@ -456,31 +503,44 @@ struct ExamRegistrationCard: View {
 /// Erinnerungen, Regeln, Quelle
 struct ExamRegistrationSection: View {
     let api: APIClient?
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         ExamRegistrationLoader(api: api) { state, reload in
-            if let st = state { Self.section(st, reload: reload) }
+            if let st = state { Self.section(st, compact: compact, reload: reload) }
         }
     }
 
-    @ViewBuilder static func section(_ st: ExamRegistrationState, reload: @escaping () async -> Void) -> some View {
+    /// `compact` (iPhone): eine Spalte - Zeitraeume als Name ueber Datum, Vorschlaege mit Abzeichen unter dem Titel,
+    /// "Im QIS anmelden" und "Angemeldete Prüfungen abrufen" in voller Breite; breit (iPad) wie bisher
+    @ViewBuilder static func section(_ st: ExamRegistrationState, compact: Bool = false, reload: @escaping () async -> Void) -> some View {
         UFCard {
-            UFCardHead("Prüfungsanmeldung" + (st.term.map { " · \($0)" } ?? ""), icon: "exam", wrap: true) {
-                ExamRegistrationQISButton(url: st.qisURL, size: .small)
+            if compact {
+                UFCardHead("Prüfungsanmeldung" + (st.term.map { " · \($0)" } ?? ""), icon: "exam", wrap: true)
+            } else {
+                UFCardHead("Prüfungsanmeldung" + (st.term.map { " · \($0)" } ?? ""), icon: "exam", wrap: true) {
+                    ExamRegistrationQISButton(url: st.qisURL, size: .small)
+                }
             }
             VStack(alignment: .leading, spacing: 12) {
-                periodsBlock(st)
+                periodsBlock(st, compact: compact)
                 ExamRegistrationWarnings(warnings: st.warnings)
                 if let m = st.planMessage { Text(m).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true) }
                 if st.suggestions.isEmpty {
                     Text("Für dieses Semester schlägt dein Studienverlauf keine Prüfung vor.").ufFont(13.12).foregroundStyle(UF.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text("Diese Prüfungen solltest du anmelden").ufFont(13.6, 650).foregroundStyle(UF.text)
-                    ExamRegistrationList(items: st.suggestions)
+                    ExamRegistrationList(items: st.suggestions, compact: compact)
                 }
-                registeredBlock(st)
+                if compact { ExamRegistrationQISButton(url: st.qisURL, wide: true) }
+                registeredBlock(st, compact: compact)
                 ExamRegistrationHint(text: st.hint)
-                UFFlexWrap(gap: 8) { ExamRegistrationFetchButton(reload: reload) }
+                if compact {
+                    ExamRegistrationFetchButton(reload: reload, wide: true)
+                } else {
+                    UFFlexWrap(gap: 8) { ExamRegistrationFetchButton(reload: reload) }
+                }
                 ExamRegistrationReminderToggle()
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(st.rules, id: \.self) { r in Text("• " + r).ufFont(11.84).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true) }
@@ -492,20 +552,34 @@ struct ExamRegistrationSection: View {
         .accessibilityIdentifier("examreg.section")
     }
 
-    @ViewBuilder private static func periodsBlock(_ st: ExamRegistrationState) -> some View {
+    @ViewBuilder private static func periodsBlock(_ st: ExamRegistrationState, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if let w = st.window {
                 Text(ExamRegistrationText.windowLine(w)).ufFont(13.6, 650).foregroundStyle(w.isOpen ? UF.accentText : UF.text)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("examreg.window")
             }
             if let w = st.vbpWindow, w.phase != "later" {
                 Text(ExamRegistrationText.windowLine(w)).ufFont(12.8, 600).foregroundStyle(UF.text2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if !st.periods.isEmpty {
                 ForEach(st.periods.filter { $0.kind.hasSuffix("meldung") || $0.kind.hasSuffix("pruefung") }) { p in
-                    HStack(spacing: 8) {
-                        Text(p.label).ufFont(12.48).foregroundStyle(UF.text2).frame(maxWidth: .infinity, alignment: .leading)
-                        Text(ExamRegistrationText.range(p.start, p.end)).ufFont(12.48, 600).monospacedDigit().foregroundStyle(UF.text)
+                    Group {
+                        if compact {
+                            // Name ueber dem Datum: lange Namen ("Prüfungszeitraum VbP …") brechen um statt zu quetschen
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(p.label).ufFont(12.48).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                                Text(ExamRegistrationText.range(p.start, p.end)).ufFont(12.48, 600).monospacedDigit().foregroundStyle(UF.text)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 2)
+                        } else {
+                            HStack(spacing: 8) {
+                                Text(p.label).ufFont(12.48).foregroundStyle(UF.text2).frame(maxWidth: .infinity, alignment: .leading)
+                                Text(ExamRegistrationText.range(p.start, p.end)).ufFont(12.48, 600).monospacedDigit().foregroundStyle(UF.text)
+                            }
+                        }
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -519,13 +593,14 @@ struct ExamRegistrationSection: View {
                 Link(destination: u) {
                     Text("Quelle: Terminseite des Prüfungsamts" + (st.checkedAt.map { " (gelesen am \(UFFmt.date($0)))" } ?? ""))
                         .ufFont(11.84, 600).foregroundStyle(UF.accentText)
+                        .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityIdentifier("examreg.source")
             }
         }
     }
 
-    @ViewBuilder private static func registeredBlock(_ st: ExamRegistrationState) -> some View {
+    @ViewBuilder private static func registeredBlock(_ st: ExamRegistrationState, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(ExamRegistrationText.checked(st)).ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("examreg.checked")
@@ -533,12 +608,21 @@ struct ExamRegistrationSection: View {
             if !regs.isEmpty {
                 Text("Im QIS angemeldet").ufFont(12.8, 650).foregroundStyle(UF.text)
                 ForEach(regs) { r in
-                    HStack(spacing: 6) {
+                    let when = [r.date.map { UFFmt.date($0) } ?? r.dateText, r.time.map { "\($0) Uhr" }].compactMap { $0 }.joined(separator: " ")
+                    HStack(alignment: compact ? .firstTextBaseline : .center, spacing: 6) {
                         UFIcon("check", size: 13).foregroundStyle(UF.ok)
-                        Text(r.text).ufFont(12.8).foregroundStyle(UF.text)
-                        Spacer(minLength: 4)
-                        Text([r.date.map { UFFmt.date($0) } ?? r.dateText, r.time.map { "\($0) Uhr" }].compactMap { $0 }.joined(separator: " "))
-                            .ufFont(12.48).foregroundStyle(UF.muted)
+                        if compact {
+                            // Termin unter dem Namen der Pruefung
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(r.text).ufFont(12.8).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                if !when.isEmpty { Text(when).ufFont(12.48).foregroundStyle(UF.muted) }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text(r.text).ufFont(12.8).foregroundStyle(UF.text)
+                            Spacer(minLength: 4)
+                            Text(when).ufFont(12.48).foregroundStyle(UF.muted)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -555,32 +639,48 @@ struct ExamRegistrationModuleBlock: View {
     let api: APIClient?
     var catalogID: String?
     var appModuleID: Int?
+    /// kompakt auch im Blatt "Moduldetails" (`\.ufCompact` reicht in Blaetter hinein)
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         ExamRegistrationLoader(api: api, token: (catalogID ?? "") + "|" + String(appModuleID ?? 0)) { state, reload in
             if let st = state, let s = catalogID.flatMap(st.suggestion(catalogID:)) ?? appModuleID.flatMap(st.suggestion(appModuleID:)) {
-                Self.block(st, s, reload: reload)
+                Self.block(st, s, compact: compact, reload: reload)
             }
         }
     }
 
-    @ViewBuilder static func block(_ st: ExamRegistrationState, _ s: ExamRegistrationState.Suggestion,
+    /// `compact` (iPhone, auch im Blatt "Moduldetails"): Kopf umbrechend (Abzeichen rutscht bei grosser Schrift unter
+    /// den Titel), "Im QIS anmelden" in voller Breite; breit (iPad) wie bisher
+    @ViewBuilder static func block(_ st: ExamRegistrationState, _ s: ExamRegistrationState.Suggestion, compact: Bool = false,
                                    reload: @escaping () async -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                UFIcon("exam", size: 15)
-                Text("Prüfung anmelden").ufFont(14.4, 700)
-                Spacer(minLength: 4)
-                UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize()
+            if compact {
+                UFFlexWrap(gap: 8, rowGap: 6) {
+                    HStack(spacing: 8) {
+                        UFIcon("exam", size: 15)
+                        Text("Prüfung anmelden").ufFont(14.4, 700).fixedSize(horizontal: false, vertical: true)
+                    }
+                    UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize()
+                }
+                .foregroundStyle(UF.text)
+            } else {
+                HStack(spacing: 8) {
+                    UFIcon("exam", size: 15)
+                    Text("Prüfung anmelden").ufFont(14.4, 700)
+                    Spacer(minLength: 4)
+                    UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize()
+                }
+                .foregroundStyle(UF.text)
             }
-            .foregroundStyle(UF.text)
             Text(([s.reason] + [ExamRegistrationText.examLine(s), ExamRegistrationText.via(s)].compactMap { $0 }).joined(separator: " · "))
                 .ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             if let w = s.period == "vbp" ? st.vbpWindow : st.window {
                 Text(ExamRegistrationText.windowLine(w)).ufFont(12.8, 600).foregroundStyle(UF.accentText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if !s.registered {
-                ExamRegistrationQISButton(url: st.qisURL, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, size: .small, wide: compact)
                 ExamRegistrationHint(text: st.hint)
             }
         }

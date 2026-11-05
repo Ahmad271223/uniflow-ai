@@ -11,9 +11,17 @@ struct MessageReplySheet: View {
     @State private var showingLogin = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    /// iPhone-Fassung (docs/IPHONE-2026-11-04.md): Blatt von unten (halb/ganz), "Senden" in einer Leiste unten, die
+    /// ueber der Tastatur steht; `\.ufCompact` reicht aus der Seite in das Blatt. Breit (iPad) wie bisher.
+    @Environment(\.ufCompact) private var compact
+    @State private var detent: PresentationDetent = .medium
+    @FocusState private var focus: Field?
+
+    enum Field: Hashable { case subject, text }
 
     static let notice = "Wird über Stud.IP unter deinem Namen gesendet. Die Empfänger sehen deinen Namen."
     static let fallbackTitle = "In Stud.IP antworten"
+    static let hideKeyboard = "Tastatur ausblenden"
 
     init(model: @autoclosure @escaping () -> MessageReplyModel, login: ((@escaping () -> Void) -> AnyView)? = nil) {
         _model = StateObject(wrappedValue: model())
@@ -33,6 +41,9 @@ struct MessageReplySheet: View {
                     }
                 }
         }
+        .modifier(CompactSheet(compact: compact, detent: $detent))
+        // kompakt: wer schreibt, bekommt das ganze Blatt (die Tastatur nimmt sonst den Platz des Textes)
+        .onChange(of: focus) { _, f in if compact, f != nil { detent = .large } }
         .interactiveDismissDisabled(model.phase == .sending)
         .task { await model.start() }
         .sheet(isPresented: $showingLogin) {
@@ -135,13 +146,17 @@ struct MessageReplySheet: View {
 
             Section("Betreff") {
                 TextField("Betreff", text: $model.subject)
+                    .focused($focus, equals: .subject)
+                    .submitLabel(.next)
+                    .onSubmit { focus = .text }
                     .accessibilityLabel("Betreff")
                     .accessibilityIdentifier("reply.subject")
             }
 
             Section {
                 TextEditor(text: $model.text)
-                    .frame(minHeight: 180)
+                    .focused($focus, equals: .text)
+                    .frame(minHeight: compact ? 140 : 180)
                     .accessibilityLabel("Deine Antwort")
                     .accessibilityIdentifier("reply.text")
                 Toggle("Original zitieren", isOn: $model.quote)
@@ -183,19 +198,86 @@ struct MessageReplySheet: View {
                     .accessibilityIdentifier("reply.error")
                 }
                 if model.offersWebFallback { fallbackButton }
-                Button {
-                    Task { await model.send() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if model.phase == .sending { ProgressView().padding(.trailing, 6) }
-                        Text(model.phase == .sending ? "Wird gesendet …" : "Senden").bold()
-                        Spacer()
+                if !compact { sendButton }
+            }
+        }
+        // "Tastatur ausblenden" steht in der Leiste, nicht als Leiste ueber der Tastatur: deren Hoehe rechnet das Blatt
+        // nicht aus dem sicheren Bereich heraus, sie verdeckte sonst "Senden" (gemessen auf dem iPhone 17)
+        .modifier(CompactSendBar(compact: compact) {
+            HStack(spacing: 10) {
+                if focus != nil {
+                    Button { focus = nil } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.title3)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(UF.accentText)
+                    .accessibilityLabel(Self.hideKeyboard)
+                    .accessibilityIdentifier("reply.hideKeyboard")
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!model.canSend)
-                .accessibilityIdentifier("reply.send")
+                sendButton.controlSize(.large)
+            }
+        })
+        .scrollDismissesKeyboard(compact ? .interactively : .automatic)
+    }
+
+    private var sendButton: some View {
+        Button {
+            focus = nil
+            Task { await model.send() }
+        } label: {
+            HStack {
+                Spacer()
+                if model.phase == .sending { ProgressView().padding(.trailing, 6) }
+                Text(model.phase == .sending ? "Wird gesendet …" : "Senden").bold()
+                Spacer()
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(!model.canSend)
+        .accessibilityIdentifier("reply.send")
+    }
+
+    /// Kompakt: Hoehen halb und ganz mit Griff, ohne bedienbaren Hintergrund (eigener Abschluss "Senden")
+    private struct CompactSheet: ViewModifier {
+        let compact: Bool
+        @Binding var detent: PresentationDetent
+
+        func body(content: Content) -> some View {
+            if compact {
+                content
+                    .presentationDetents([.medium, .large], selection: $detent)
+                    .presentationDragIndicator(.visible)
+                    .presentationContentInteraction(.resizes)
+            } else {
+                content
+            }
+        }
+    }
+
+    /// Kompakt: "Senden" in einer Leiste am unteren Rand des Blatts; sie liegt im sicheren Bereich und steigt mit der
+    /// Tastatur, bleibt also bei jeder Hoehe und waehrend des Schreibens erreichbar
+    private struct CompactSendBar<Bar: View>: ViewModifier {
+        let compact: Bool
+        @ViewBuilder let bar: () -> Bar
+
+        func body(content: Content) -> some View {
+            if compact {
+                content.safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 0) {
+                        Divider()
+                        bar()
+                            .padding(.horizontal, UFCompactLearn.gutter)
+                            .padding(.vertical, 10)
+                    }
+                    .background(.bar)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("reply.sendBar")
+                }
+            } else {
+                content
             }
         }
     }

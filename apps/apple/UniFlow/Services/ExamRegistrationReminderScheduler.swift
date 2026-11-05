@@ -119,7 +119,7 @@ struct ExamRegistrationReminderToggle: View {
             }
             .tint(UF.accent)
             .accessibilityIdentifier("examreg.reminders")
-            Text(scheduler.denied ? "Mitteilungen sind für StudiNow ausgeschaltet (iPad-Einstellungen → StudiNow → Mitteilungen)."
+            Text(scheduler.denied ? "Mitteilungen sind für StudiNow ausgeschaltet (\(UFDevice.name)-Einstellungen → StudiNow → Mitteilungen)."
                                   : "Am ersten Tag, 7 und 2 Tage vor dem Ende um 9:00 Uhr.")
                 .ufFont(11.84).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }

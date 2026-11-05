@@ -11,7 +11,7 @@ import UniFlowCore
 @MainActor
 final class MessageReplyAppTests: XCTestCase {
 
-    nonisolated private static let host = UniversityKey.luh.profile.studipBase?.host ?? ""
+    nonisolated static let host = UniversityKey.luh.profile.studipBase?.host ?? ""
 
     override func tearDown() {
         UniStubProtocol.reset()
@@ -36,17 +36,17 @@ final class MessageReplyAppTests: XCTestCase {
         return d
     }
 
-    nonisolated private static func cookie() -> HTTPCookie {
+    nonisolated static func cookie() -> HTTPCookie {
         HTTPCookie(properties: [.name: "Seminar_Session", .value: "erfunden", .domain: host, .path: "/", .secure: "TRUE"])!
     }
 
-    nonisolated private static func json(_ s: String, status: Int = 200) -> UniStubProtocol.Reply {
+    nonisolated static func json(_ s: String, status: Int = 200) -> UniStubProtocol.Reply {
         .text(s, status: status, headers: ["Content-Type": "application/vnd.api+json"])
     }
 
     /// Erfundenes Stud.IP: users/me, Posteingang (m1 an mich und zwei weitere, m-sys Systemnachricht), Namen; schreibende
     /// Anfragen beantwortet `post`
-    nonisolated private static func install(post: @escaping @Sendable (UniStubProtocol.Seen) -> UniStubProtocol.Reply) {
+    nonisolated static func install(post: @escaping @Sendable (UniStubProtocol.Seen) -> UniStubProtocol.Reply) {
         UniStubProtocol.install { seen in
             let p = seen.url.absoluteString.removingPercentEncoding ?? seen.url.absoluteString
             if seen.method != "GET" { return post(seen) }
@@ -68,7 +68,7 @@ final class MessageReplyAppTests: XCTestCase {
         }
     }
 
-    nonisolated private static func created(_ seen: UniStubProtocol.Seen) -> UniStubProtocol.Reply {
+    nonisolated static func created(_ seen: UniStubProtocol.Seen) -> UniStubProtocol.Reply {
         json(#"{"data":{"type":"messages","id":"neu1"}}"#, status: 201)
     }
 
@@ -78,7 +78,7 @@ final class MessageReplyAppTests: XCTestCase {
                      pauseMillis: 0)
     }
 
-    private static let original = MessageReplyOriginal(localID: "sp-msg-m1", subject: "Tutorium entfällt", text: "Hallo,\ndas Tutorium fällt aus.",
+    static let original = MessageReplyOriginal(localID: "sp-msg-m1", subject: "Tutorium entfällt", text: "Hallo,\ndas Tutorium fällt aus.",
                                                        senderLabel: "Lehrende", sentAt: "2026-11-04T08:15:00+01:00")
 
     /// Ablauf mit festen Abhaengigkeiten; `readiness` liefert die Antworten von `ensureSession` nacheinander
