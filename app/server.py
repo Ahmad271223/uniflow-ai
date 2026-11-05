@@ -3213,7 +3213,11 @@ def api_grades_sync(show: bool = False):
             raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
         j = jobs.enqueue(uid, "grades", "manual")
         return {"started": "Notenspiegel", "job_id": j["id"], "status": j["status"], "already": j["already"]}
-    return _run_bg("Notenspiegel", lambda: qis.run(show_browser=show)["message"])
+    def _grades_then_catalog():
+        res = qis.run(show_browser=show)
+        study_catalog.start_if_needed()         # neuer Studiengang aus QIS: Modulkatalog im Hintergrund suchen (Studienverlauf)
+        return res["message"]
+    return _run_bg("Notenspiegel", _grades_then_catalog)
 
 
 @app.get("/api/qis/documents/{doc_id}")

@@ -11,7 +11,7 @@ const icon = n => `<i data-i="${n}"></i>`;
 
 test("Seitenleiste: drei Gruppen, alle bisherigen Ziele plus Karteikarten, Pillen nur unter Lernen", () => {
   assert.deepEqual(NAV_GROUPS.map(g => g.title), ["Studium", "Lernen", "Gemeinsam"]);
-  assert.deepEqual(navItems().map(x => x[0]), ["dashboard", "plan", "timetable", "modules", "files", "services", "exams", "cards", "community"]);
+  assert.deepEqual(navItems().map(x => x[0]), ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services", "exams", "cards", "community"]);
   const html = navHtml(icon);
   assert.match(html, /role="group" aria-labelledby="ng-lernen"><div class="nav-label" id="ng-lernen">Lernen<\/div>/);
   assert.match(html, /data-route="exams" class="nav-pill blue"/);

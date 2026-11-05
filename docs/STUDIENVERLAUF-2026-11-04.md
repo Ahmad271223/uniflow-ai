@@ -273,3 +273,17 @@ Lehramt; je Katalog eine PO: modkat → Quelle `luh-fei-modkat` (Laden möglich)
 Kürzel = Registerschlüssel ohne „luh|“). Einträge ohne Katalog bleiben ohne PO (keine Zuordnung, wie bisher).
 „Technische Informatik (PO-Version 2017)“ → TIBSc25 mit Bestätigung; „Elektrotechnik und Informationstechnik
 (PO-Version 2017)“ → ETBSc17 ohne.
+
+## Web und Windows (05.11.2026)
+
+Seite `#/studyplan` (Seitenleiste „Studienverlauf“ nach „Meine Module“, Knopf „Im Studienverlauf“ im Modul): `app/static/study-plan.js`
+(Ansicht) und `study-plan-logic.js` (Regeln und HTML, `tests/js/study-plan.test.mjs`) nach dem Vorbild von `StudyPlanPage.swift`: Kopf mit
+Ring, PO bestätigen, Hinweise, Karte „Nachholen im nächsten passenden Semester“ (nicht bestandene und liegengebliebene Module mit
+Ziel-Semester), Filter, Semester-Spalten (schmal untereinander), Moduldetail, Einstellungen, Katalogsuche mit Fortschritt, Link zum
+Modulhandbuch und **Studiengang wählen** (Register mit allen Studiengängen, ein Kürzel als `settings.po`, auch ohne QIS).
+Backend (nur Python, `app/study_catalog.py`): `GET /api/study-catalog/status` stößt die Suche im Hintergrund an (Regel wie im Kern: nie
+gesucht, Wiederholung fällig, `inputs` geändert), `POST /api/study-catalog/sync`, `GET /api/study-catalog/programs`; Modultexte werden am
+eigenen PC nachgeladen (`texts_loading`), im Dienst nie. Grundstock und Register liegen jetzt auch im Windows-Paket
+(`uniflow-backend.spec`) und im Docker-Image (`deploy/Dockerfile`, `.dockerignore`).
+Offen: Der Grundstock enthält in Prüfungs-/Studienleistung und Bereichsnamen bei etwa 35 Katalogen Literaturlisten und
+Beschreibungstexte (`tests/test_study_web.py`, xfail); die Oberfläche kürzt solche Felder auf 180 Zeichen.
