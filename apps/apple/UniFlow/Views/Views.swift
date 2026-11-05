@@ -126,6 +126,8 @@ struct LibraryView: View {
     @State private var extra: [String: LibFile] = [:]
     /// gibt es nicht (mehr)
     @State private var missing: Set<String> = []
+    /// Dokument ist zum Abpausen eingefroren: keine Reiter darueber (Papier darf nichts antippen)
+    @State private var editorTracing = false
 
     init(openFile: String? = nil, openPage: Int? = nil, openTask: Int? = nil) {
         self.openFile = openFile
@@ -187,7 +189,7 @@ struct LibraryView: View {
             } message: { Text(importMessage ?? "") }
         } detail: {
             VStack(spacing: 0) {
-                if !openTabs.isEmpty { tabStrip }
+                if !openTabs.isEmpty, !editorTracing { tabStrip }
                 if let id = fileSelection, let f = file(id), let api = session.api {
                     if f.opensInEditor {
                         // Identitaet je Datenquelle: beim Wechsel lokal <-> Server entsteht der DocumentStore neu fuer
@@ -218,6 +220,7 @@ struct LibraryView: View {
                     .toolbar { ToolbarItem(placement: .topBarLeading) { UFLogoMenu() } }
                 }
             }
+            .onPreferenceChange(EditorTracingKey.self) { editorTracing = $0 }
         }
         .navigationSplitViewStyle(.prominentDetail)
         .onChange(of: fileSelection) { _, new in
