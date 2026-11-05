@@ -13,7 +13,7 @@ import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=4";
 // Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
 import { masteryHtml, masteryTile } from "./mastery.js?v=2";
 // Testergebnis wie auf dem iPad: Ring, Einordnung und "Frag die KI zu Aufgabe n" (test-result.js)
-import * as TR from "./test-result.js?v=1";
+import * as TR from "./test-result.js?v=2";
 // Dialog "Wochentest erstellen" mit Aufgabenzahl, Schwierigkeit und Aufgabenarten (week-test-dialog.js, wie QuizComposer.swift)
 import { openWeekTestDialog, wantsDialog } from "./week-test-dialog.js?v=1";
 
@@ -97,7 +97,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=66"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=67"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -171,7 +171,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=66"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=67"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -592,14 +592,14 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=7");
+    const { renderLinkCard } = await import("./studora-link.js?v=8");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=10")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=11")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -633,7 +633,7 @@ export async function viewCommunity(_, params, view) {
   bindTabs();
   import("./community-spaces.js?v=19").then(m => m.renderSpaces($("#spacesCard", view)));
   Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=5")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=7").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=8").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });
