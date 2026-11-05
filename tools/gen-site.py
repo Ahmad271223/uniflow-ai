@@ -8,7 +8,7 @@ Die Markdown-Dateien sind die einzige Quelle (dieselben, die der Dienst unter /d
     EINLADUNG.md -> i/index.html           (Einladungsseite hinter https://studinow.app/i/<CODE>, nicht in der Navigation)
 dazu .well-known/apple-app-site-association (Universal Links /i/* fuer die iPad-App; Team-ID aus apps/apple/Config/Team.xcconfig,
 sonst Platzhalter [[TEAMID]]), style.css (eine Datei, Farben der App aus app/static/style.css bzw. UFTheme.swift, dunkel nach Systemeinstellung
-ohne Skript) und icon.svg (Kopie von app/static/icon.svg). Kein Skript, keine fremden Ressourcen, keine Schriften von
+ohne Skript) und icon.svg (Kopie von app/static/icon.svg), dazu _redirects und _headers fuer Netlify. Kein Skript, keine fremden Ressourcen, keine Schriften von
 Dritten. Fusszeile und Beschreibung kommen aus docs/release/angaben.json.
 
 Offene Platzhalter [[...]] bleiben wie im Dienst gelb markiert (zur Zeit nur der Hoster in der Datenschutzerklaerung).
@@ -53,6 +53,14 @@ EXTRA_PAGES = [
 ]
 SLUGS = {out[:-5]: out for _, out, _, _ in PAGES if out != "index.html"}
 AASA_PATH = ".well-known/apple-app-site-association"
+NETLIFY_REDIRECTS = """https://studinow.ai/* https://studinow.app/:splat 301!
+https://www.studinow.ai/* https://studinow.app/:splat 301!
+https://www.studinow.app/* https://studinow.app/:splat 301!
+/i/* /i/index.html 200
+"""
+NETLIFY_HEADERS = """/.well-known/apple-app-site-association
+  Content-Type: application/json
+"""
 TEAM_XCCONFIG = ROOT / "apps" / "apple" / "Config" / "Team.xcconfig"
 BUNDLE_ID = "de.uniflow.ai"
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")
@@ -234,6 +242,10 @@ def build() -> dict[str, str | bytes]:
     for src_name, out_name, nav_name, description in PAGES + EXTRA_PAGES:
         files[out_name] = render_page(src_name, out_name, nav_name, description, owner, year)
     files[AASA_PATH] = apple_app_site_association()
+    # Netlify (05.11.2026): Einladungslinks /i/<CODE> zeigen die Einladungsseite, studinow.ai leitet dauerhaft auf
+    # studinow.app um, die Apple-Datei geht als JSON raus (Universal Links)
+    files["_redirects"] = NETLIFY_REDIRECTS
+    files["_headers"] = NETLIFY_HEADERS
     return files
 
 

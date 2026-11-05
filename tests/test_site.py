@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "gen-site.py"
 SITE = ROOT / "site"
 PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.html", "impressum.html", "konto-loeschen.html")
-FILES = PAGES + ("style.css", "icon.svg")
+FILES = PAGES + ("style.css", "icon.svg", "_redirects", "_headers")
 # ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE> und Universal Links der iPad-App
 NESTED = ("i/index.html", ".well-known/apple-app-site-association")
 TEAM_ID = re.compile(r"(?:\b[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
@@ -30,7 +30,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert "10 Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
+    assert "12 Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
     return out
 
 
@@ -180,3 +180,10 @@ def test_pages_are_served_by_a_plain_static_server():
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+
+
+def test_netlify_files_route_invites_and_serve_the_apple_file_as_json():
+    red = (SITE / "_redirects").read_text(encoding="utf-8")
+    assert "/i/* /i/index.html 200" in red and "https://studinow.ai/* https://studinow.app/:splat 301!" in red
+    hdr = (SITE / "_headers").read_text(encoding="utf-8")
+    assert "/.well-known/apple-app-site-association\n  Content-Type: application/json" in hdr
