@@ -359,6 +359,8 @@ struct ExamRegistrationList: View {
                     Text("Letzter Versuch – sprich mit der Studienberatung.").ufFont(12.8, 600).foregroundStyle(UF.badText)
                 }
             }
+            // volle Breite, sonst endet die Trennlinie kompakt (ohne Spacer) nach dem Text (Store-Bilder 05.11.2026)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 8)
         .accessibilityElement(children: .ignore)

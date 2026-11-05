@@ -382,3 +382,156 @@ public enum DemoContent {
         return try status(c)
     }
 }
+
+// MARK: - Nur fuer die App-Store-Bilder
+
+/// Zusaetzliche Demo-Inhalte nur fuer die Store-Bilder (`StoreScreenshotTests`, `IPhoneStoreScreenshotTests`): ein
+/// erfundener Studienverlauf (Katalog "Informatik B.Sc.", Studienbeginn WiSe 25/26, Leistungen der ersten beiden
+/// Semester, daraus die Karte "Prüfungsanmeldung"), Nachrichten im Posteingang und ein Lernpaket fuer heute (fruehere
+/// Pakete der Woche erledigt). `install` legt nichts davon an; die
+/// App ruft `installStoreExtras` nie auf (keine Wirkung auf die Demo der Pruefer oder den normalen Betrieb). Alle Namen
+/// sind Rollen oder erfunden, keine echte Person, kein Hochschul-Logo.
+extension DemoContent {
+    /// Kennung des erfundenen Katalogs (`study_catalogs.origin`)
+    public static let storeOrigin = "demo-store"
+    /// Studiengang und Pruefungsordnung des Katalogs
+    public static let storeProgram = "Informatik"
+    public static let storePO = "2024"
+    /// QIS-Abschluss der Leistungen (wie im Notenspiegel)
+    static let storeAbschluss = "Informatik (PO-Version 2024)"
+
+    /// Module des Katalogs: id, Titel, Fachsemester, LP, Art, Pruefungsform
+    static let storeModules: [(id: String, title: String, sem: Int, lp: Int, kind: String, exam: String)] = [
+        ("programmieren-1", "Programmieren I", 1, 8, "pflicht", "Klausur 90 min"),
+        ("mathe-1", "Mathematik für Informatik I", 1, 10, "pflicht", "Klausur 120 min"),
+        ("logik", "Logik und diskrete Strukturen", 1, 5, "pflicht", "Klausur 90 min"),
+        ("rechnerarchitektur", "Grundlagen der Rechnerarchitektur", 1, 5, "pflicht", "Klausur 90 min"),
+        ("programmieren-2", "Programmieren II", 2, 8, "pflicht", "Klausur 90 min"),
+        ("mathe-2", "Mathematik für Informatik II", 2, 10, "pflicht", "Klausur 120 min"),
+        ("algorithmen", "Algorithmen und Datenstrukturen", 2, 8, "pflicht", "Klausur 120 min"),
+        ("technische-informatik", "Technische Informatik", 2, 5, "pflicht", "Klausur 90 min"),
+        ("theoretische-informatik", "Theoretische Informatik", 3, 8, "pflicht", "Klausur 120 min"),
+        ("datenbanken", "Datenbanksysteme", 3, 5, "pflicht", "Klausur 90 min"),
+        ("betriebssysteme", "Betriebssysteme", 3, 5, "pflicht", "Klausur 90 min"),
+        ("stochastik", "Stochastik für Informatik", 3, 5, "pflicht", "Klausur 90 min"),
+        ("softwaretechnik", "Softwaretechnik", 4, 8, "pflicht", "Klausur 90 min"),
+        ("rechnernetze", "Rechnernetze", 4, 5, "pflicht", "Klausur 90 min"),
+        ("software-projekt", "Software-Projekt", 4, 10, "pflicht", "Projektarbeit"),
+        ("it-sicherheit", "IT-Sicherheit", 4, 5, "pflicht", "Klausur 90 min"),
+        ("verteilte-systeme", "Verteilte Systeme", 5, 5, "pflicht", "Mündliche Prüfung"),
+        ("maschinelles-lernen", "Maschinelles Lernen", 5, 5, "wahlpflicht", "Klausur 90 min"),
+        ("computergrafik", "Computergrafik", 5, 5, "wahlpflicht", "Klausur 90 min"),
+        ("seminar", "Seminar Informatik", 5, 5, "pflicht", "Referat"),
+        ("schluesselkompetenzen", "Schlüsselkompetenzen", 5, 10, "pflicht", "keine"),
+        ("bachelorarbeit", "Bachelorarbeit", 6, 15, "abschluss", "Abschlussarbeit"),
+    ]
+
+    /// Leistungen: Modul, Semester, Note, Status (bestanden, AN = angemeldet)
+    static let storeGrades: [(id: String, semester: String, note: String?, status: String)] = [
+        ("programmieren-1", "WiSe 25/26", "1,7", "bestanden"),
+        ("mathe-1", "WiSe 25/26", "2,3", "bestanden"),
+        ("logik", "WiSe 25/26", "2,0", "bestanden"),
+        ("rechnerarchitektur", "WiSe 25/26", "1,3", "bestanden"),
+        ("programmieren-2", "SoSe 26", "1,7", "bestanden"),
+        ("mathe-2", "SoSe 26", "2,7", "bestanden"),
+        ("algorithmen", "SoSe 26", "2,0", "bestanden"),
+        ("technische-informatik", "SoSe 26", "2,7", "bestanden"),
+        ("datenbanken", "WiSe 26/27", nil, "AN"),
+    ]
+
+    /// Katalog als JSON (Form wie `packages/shared-contracts`, Fixture der Tests)
+    public static var storeCatalog: JSONValue {
+        let modules: [JSONValue] = storeModules.map { m in
+            ["id": .string(m.id), "title": .string(m.title), "code": .null, "area": .string(m.kind == "wahlpflicht" ? "wp" : "p"),
+             "kind": .string(m.kind), "lp": .number(Double(m.lp)), "semester": .number(Double(m.sem)),
+             "turnus": .string(m.sem % 2 == 1 ? "WS" : "SS"), "exam": .string(m.exam), "coursework": .null, "prerequisites": [],
+             "language": "deutsch", "workload_h": .number(Double(m.lp * 30)), "source_page": 1]
+        }
+        return ["v": 1, "university": "luh", "program": .string(storeProgram), "degree": "B.Sc.", "po": .string(storePO),
+                "catalog_term": "WS 2026/27", "code": "DEMO-INF-BSC", "regular_semesters": 6, "total_lp": 180,
+                "source": ["url": "", "fetched_at": "2026-10-01", "sha256": "demo"],
+                "areas": [["id": "p", "name": "Pflichtbereich", "lp_required": 160, "kind": "pflicht"],
+                          ["id": "wp", "name": "Wahlpflichtbereich", "lp_required": 10, "kind": "wahlpflicht"]],
+                "modules": .array(modules)]
+    }
+
+    /// Nachrichten im Posteingang: Kennung, Absender (Rolle), Betreff, Text, Tage vor heute, Uhrzeit, erkannter Tag
+    /// (Tage ab dem Montag dieser Woche, Uhrzeit, Art) oder nil; Frist und Raumwechsel wie die Demo (`install`)
+    static let storeMessages: [(id: String, sender: String, subject: String, text: String, ago: Int, time: String,
+                                date: (days: Int, time: String, kind: String)?)] = [
+        ("demo-msg-1", "Tutorium", "Fragen zu Übungsblatt 1",
+         "Hallo zusammen,\n\nim Tutorium am Mittwoch rechnen wir Aufgabe 2 und 3 von Übungsblatt 1 gemeinsam durch. Bringt eure Lösungsansätze mit – auch halbe.\n\nDie Abgabe bleibt nächste Woche vor der Übung.\n\nViele Grüße\nEuer Tutorium",
+         0, "08:15", (9, "13:45", "frist")),
+        ("demo-msg-2", "Lehrende", "Raumwechsel nächste Woche",
+         "Liebe Studierende,\n\ndie Vorlesung am Montag findet ausnahmsweise im Hörsaal B statt. Bitte bearbeitet Übungsblatt 1 vorher.\n\nBeste Grüße",
+         1, "16:40", (7, "10:00", "verlegt")),
+        ("demo-msg-3", "Lehrende", "Folien Woche 1 hochgeladen",
+         "Die Folien zur Einführung liegen im Dateibereich. Das Skript zu Kapitel 1 folgt bis Donnerstag.", 3, "12:05", nil),
+        ("demo-msg-4", "Studienberatung", "Sprechstunde zur Prüfungsanmeldung",
+         "Fragen zur Prüfungsanmeldung? Die offene Sprechstunde der Studienberatung ist dienstags von 10 bis 12 Uhr.", 6, "09:30", nil),
+    ]
+
+    /// `sent_at` wie von Stud.IP (Ortszeit Berlin mit Versatz), `days` relativ zu heute
+    static func storeSentAt(day: Int, time: String) -> String {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        let minutes = (parts.first ?? 0) * 60 + (parts.count > 1 ? parts[1] : 0)
+        let f = ISO8601DateFormatter()
+        f.timeZone = TimeZone(identifier: "Europe/Berlin")
+        f.formatOptions = [.withInternetDateTime]
+        return f.string(from: Date(timeIntervalSince1970: TimeInterval(BerlinClock.utcSeconds(day: day, minutes: minutes))))
+    }
+
+    /// Studienverlauf (Katalog, Einstellungen, Leistungen) und Nachrichten fuer die Store-Bilder anlegen; nach `install`
+    /// und in einer Transaktion aufrufen. Nur Tests.
+    public static func installStoreExtras(_ c: SQLiteConnection, clock: UniFlowClock) throws {
+        guard let today = BerlinClock.parseISODate(clock.today) else { throw LocalHTTPError(status: 500, message: "Ungültiges Datum") }
+        let now = clock.nowISO
+        let monday = today - BerlinClock.weekday(today)
+        _ = try StudyCatalogStore.store(c, payload: String(decoding: storeCatalog.serialized(), as: UTF8.self), texts: nil,
+                                        origin: storeOrigin, now: now)
+        try LocalSettings.write(c, key: StudyPlanEngine.settingsKey,
+                                value: .object([PyJSON.Member("po", .string(storePO)), PyJSON.Member("start_term", .string("WiSe 25/26")),
+                                                PyJSON.Member("electives", .array([]))]))
+        let titles = Dictionary(uniqueKeysWithValues: storeModules.map { ($0.id, ($0.title, $0.lp)) })
+        try UniStore.storeGrades(c, storeGrades.compactMap { g in
+            guard let (title, lp) = titles[g.id] else { return nil }
+            return QISGrade(pruefungsnr: "demo-\(g.id)", text: title, semester: g.semester, note: g.note, status: g.status,
+                            credits: g.status == "bestanden" ? String(lp) : nil, versuch: "1", abschluss: storeAbschluss)
+        }, now: now)
+        // Lernpakete: was vor heute lag, ist erledigt (kein "nachholen" im Bild); heute ein Paket, wenn keins da ist
+        let todayISO = BerlinClock.isoDate(today)
+        if let moduleID = try moduleIDs(c).first {
+            try c.execute("""
+                UPDATE study_tasks SET status='erledigt', done_at=?, actual_minutes=est_minutes
+                WHERE package_id IN (SELECT id FROM study_packages WHERE module_id=? AND date < ?)
+                """, [.text(now), .integer(moduleID), .text(todayISO)])
+            try c.execute("UPDATE study_packages SET status='erledigt' WHERE module_id=? AND date < ?", [.integer(moduleID), .text(todayISO)])
+            let hasToday = try c.scalar("SELECT COUNT(*) FROM study_packages WHERE module_id=? AND date=?",
+                                        [.integer(moduleID), .text(todayISO)])?.int ?? 0
+            if hasToday == 0 {
+                let tasks: [(type: String, file: String, title: String, minutes: Int)] = [
+                    ("uebung", "demo-blatt", "Aufgabe 3 und 4 rechnen", 40), ("vorlesung", "demo-skript", "Zweierkomplement nachlesen", 20),
+                ]
+                try c.execute("""
+                    INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at)
+                    VALUES (?,?,?,?,1,?,'geplant',9,0,?)
+                    """, [.text(todayISO), .integer(moduleID), .text(subject), .text("Übungsblatt 1 abschließen"),
+                          .integer(Int64(tasks.reduce(0) { $0 + $1.minutes })), .text(now)])
+                let packageID = c.lastInsertRowID
+                for (j, t) in tasks.enumerated() {
+                    try c.execute("INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,'geplant',?)",
+                                  [.integer(packageID), .text(t.type), .text(t.file), .text(t.title), .integer(Int64(j)), .integer(Int64(t.minutes)), .text(now)])
+                }
+            }
+        }
+        try c.executeScript(StudIPExtras.messagesTable)
+        for m in storeMessages {
+            var dates: [JSONValue] = []
+            if let d = m.date { dates.append(["date": .string(BerlinClock.isoDate(monday + d.days)), "time": .string(d.time), "kind": .string(d.kind)]) }
+            try c.execute("""
+                INSERT OR REPLACE INTO studip_messages(id, sender, subject, preview, sent_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?)
+                """, [.text(m.id), .text(m.sender), .text(m.subject), .text(m.text), .text(storeSentAt(day: today - m.ago, time: m.time)),
+                      .text(""), .text(JSONValue.array(dates).jsonString()), .text(now)])
+        }
+    }
+}
