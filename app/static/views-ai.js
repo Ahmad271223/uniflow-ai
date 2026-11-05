@@ -2,7 +2,7 @@
 // Frage-Feld mit Modul und Dokument), nach der ersten Frage ein Gespräch mit Antworten als Markdown und der Eingabe
 // unten. Regeln in ai-start-logic.js (tests/js/ai-start.test.mjs); Fragen gehen an POST /api/ai/tutor wie die KI-Hilfe
 // im Editor. Erreichbar über das Raster-Symbol in der KI-Hilfe und den Knopf "KI-Start" bei Tests & Wiederholung.
-import { $, $$, api, esc, icon, toast, state } from "./core.js?v=45";
+import { $, $$, api, esc, icon, toast, state } from "./core.js?v=46";
 import * as L from "./ai-start-logic.js?v=2";
 import { followUps, MODE_LABELS, needsPlan } from "./ai-panel.js?v=2";
 
@@ -13,7 +13,7 @@ const store = {
 const RECENTS_KEY = "uf.ai.recents", COUNT_KEY = () => `uf.ai.count.${L.monthKey()}`;
 
 export async function viewAiStart(_, params, view) {
-  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=70")]);
+  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=71")]);
   // in der Seitenleiste leuchtet "Tests & Wiederholung" (wie auf dem iPad)
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === "exams"));
   const st = { module: 0, fileId: "", question: "", turns: [], pending: null, busy: false, error: null, exhausted: false, help: false, credits: null, explain: null, loaded: false, source: null };

@@ -30,6 +30,8 @@ public struct LocalContext: Sendable {
     public let cardCommunity = LocalCardCommunity()
     /// Mensa: oeffentliche Speiseplaene mit Cache (Mensa/LocalMensa.swift); Tests setzen Abruf und Ordner
     public let mensa = LocalMensa()
+    /// Raumfinder: Standortfinder der LUH mit Cache (Rooms/LocalRooms.swift); Tests setzen Abruf und Ordner
+    public let rooms = LocalRooms()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {

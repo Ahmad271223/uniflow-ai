@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 151,
+ "count": 154,
  "paths": [
   {
    "method": "DELETE",
@@ -1833,6 +1833,370 @@
    "expect": {
     "status": 404,
     "reason": "eigene Aufnahmen nur auf dem Geraet"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/rooms/campuses",
+   "sources": [
+    "UniFlow/Views/Rooms/RoomFinderViews.swift"
+   ],
+   "request": {
+    "path": "/api/rooms/campuses?university=hsh"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "campuses": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "accessibility": {
+          "type": "object",
+          "keys": {
+           "building": {
+            "type": "array",
+            "item": null
+           },
+           "room": {
+            "type": "array",
+            "item": null
+           }
+          }
+         },
+         "address": {
+          "type": "object",
+          "keys": {
+           "city": {
+            "type": "string"
+           },
+           "house_number": {
+            "type": "string"
+           },
+           "line": {
+            "type": "string"
+           },
+           "street": {
+            "type": "string"
+           },
+           "zip": {
+            "type": "string"
+           }
+          }
+         },
+         "building": {
+          "type": "null"
+         },
+         "building_name": {
+          "type": "null"
+         },
+         "building_url": {
+          "type": "null"
+         },
+         "description": {
+          "type": "null"
+         },
+         "floor": {
+          "type": "null"
+         },
+         "floor_label": {
+          "type": "null"
+         },
+         "floorplan_url": {
+          "type": "null"
+         },
+         "id": {
+          "type": "string"
+         },
+         "lat": {
+          "type": "null"
+         },
+         "lon": {
+          "type": "null"
+         },
+         "maps": {
+          "type": "object",
+          "keys": {
+           "apple": {
+            "type": "string"
+           },
+           "apple_route": {
+            "type": "string"
+           },
+           "google": {
+            "type": "string"
+           },
+           "google_app": {
+            "type": "string"
+           },
+           "google_app_route": {
+            "type": "string"
+           },
+           "google_route": {
+            "type": "string"
+           },
+           "query": {
+            "type": "string"
+           }
+          }
+         },
+         "note": {
+          "type": "string"
+         },
+         "opening_hours_url": {
+          "type": "null"
+         },
+         "position_ok": {
+          "type": "bool"
+         },
+         "room": {
+          "type": "null"
+         },
+         "room_name": {
+          "type": "null"
+         },
+         "room_url": {
+          "type": "null"
+         },
+         "source": {
+          "type": "string"
+         },
+         "subtitle": {
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         },
+         "type": {
+          "type": "string"
+         },
+         "website": {
+          "type": "null"
+         }
+        }
+       }
+      },
+      "finder": {
+       "type": "bool"
+      },
+      "name": {
+       "type": "string"
+      },
+      "note": {
+       "type": "string"
+      },
+      "source": {
+       "type": "object",
+       "keys": {
+        "attribution": {
+         "type": "string"
+        },
+        "key": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        },
+        "url": {
+         "type": "string"
+        }
+       }
+      },
+      "university": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/rooms/resolve",
+   "sources": [
+    "UniFlow/Views/Rooms/RoomFinderViews.swift"
+   ],
+   "request": {
+    "path": "/api/rooms/resolve?text=Seminarraum&university=luh"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "message": {
+       "type": "null"
+      },
+      "parts": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "building": {
+          "type": "null"
+         },
+         "building_name": {
+          "type": "null"
+         },
+         "campus": {
+          "type": "null"
+         },
+         "candidates": {
+          "type": "array",
+          "item": null
+         },
+         "floor": {
+          "type": "null"
+         },
+         "linkable": {
+          "type": "bool"
+         },
+         "maps": {
+          "type": "object",
+          "keys": {
+           "apple": {
+            "type": "string"
+           },
+           "apple_route": {
+            "type": "string"
+           },
+           "google": {
+            "type": "string"
+           },
+           "google_app": {
+            "type": "string"
+           },
+           "google_app_route": {
+            "type": "string"
+           },
+           "google_route": {
+            "type": "string"
+           },
+           "query": {
+            "type": "string"
+           }
+          }
+         },
+         "note": {
+          "type": "string"
+         },
+         "online": {
+          "type": "bool"
+         },
+         "place": {
+          "type": "null"
+         },
+         "query": {
+          "type": "null"
+         },
+         "room": {
+          "type": "null"
+         },
+         "status": {
+          "type": "string"
+         },
+         "text": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "source": {
+       "type": "object",
+       "keys": {
+        "attribution": {
+         "type": "string"
+        },
+        "key": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        },
+        "url": {
+         "type": "string"
+        }
+       }
+      },
+      "stale": {
+       "type": "bool"
+      },
+      "text": {
+       "type": "string"
+      },
+      "university": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/rooms/search",
+   "sources": [
+    "UniFlow/Views/Rooms/RoomFinderViews.swift"
+   ],
+   "request": {
+    "path": "/api/rooms/search"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "count": {
+       "type": "number"
+      },
+      "items": {
+       "type": "array",
+       "item": null
+      },
+      "message": {
+       "type": "null"
+      },
+      "page": {
+       "type": "number"
+      },
+      "pages": {
+       "type": "number"
+      },
+      "query": {
+       "type": "string"
+      },
+      "source": {
+       "type": "object",
+       "keys": {
+        "attribution": {
+         "type": "string"
+        },
+        "key": {
+         "type": "string"
+        },
+        "name": {
+         "type": "string"
+        },
+        "url": {
+         "type": "string"
+        }
+       }
+      },
+      "stale": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
    }
   },
   {

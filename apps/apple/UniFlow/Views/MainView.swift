@@ -58,6 +58,9 @@ struct MainView: View {
             case .mensa:
                 // Mensa (05.11.2026): oeffentliche Speiseplaene, ohne Stud.IP und ohne Tarif
                 MensaPage().id(session.api?.base)
+            case .rooms:
+                // Raumfinder (05.11.2026): Standortfinder der LUH, Standorte von HsH und Hildesheim, ohne Tarif
+                RoomFinderPage().id(session.api?.base)
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }

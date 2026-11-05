@@ -11,8 +11,9 @@ export const NAV_GROUPS = [
   { id: "studium", title: "Studium", items: [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"],
     ["modules", "Meine Module", "book"], ["studyplan", "Studienverlauf", "columns"], ["files", "Dokumente & Notizen", "folder"], ["services", "Uni & Noten", "graduation"]] },
   { id: "lernen", title: "Lernen", items: [["exams", "Tests & Wiederholung", "exam", "blue"], ["cards", "Karteikarten", "cards", "peach"]] },
-  // Mensa (05.11.2026, mensa.js): Speiseplaene der Studentenwerke, frei in jedem Tarif
-  { id: "alltag", title: "Alltag", items: [["mensa", "Mensa", "utensils"]] },
+  // Mensa (05.11.2026, mensa.js): Speiseplaene der Studentenwerke; Raumfinder (05.11.2026, rooms.js): Standortfinder der
+  // LUH mit Link zu Google Maps; beide frei in jedem Tarif
+  { id: "alltag", title: "Alltag", items: [["mensa", "Mensa", "utensils"], ["raumfinder", "Raumfinder", "map-pin"]] },
   { id: "gemeinsam", title: "Gemeinsam", items: [["community", "Community", "users"]] },
 ];
 

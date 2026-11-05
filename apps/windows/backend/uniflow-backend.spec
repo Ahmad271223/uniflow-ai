@@ -26,6 +26,7 @@ datas += [(str(ROOT / "packages" / "shared-contracts" / "study-sources.json"), "
           (str(ROOT / "packages" / "shared-contracts" / "exam-registration-hildesheim.json"), "packages/shared-contracts"),
           (str(ROOT / "packages" / "shared-contracts" / "exam-registration-hsh.json"), "packages/shared-contracts"),
           (str(ROOT / "packages" / "shared-contracts" / "mensa.json"), "packages/shared-contracts"),
+          (str(ROOT / "packages" / "shared-contracts" / "rooms.json"), "packages/shared-contracts"),
           (str(ROOT / "apps" / "apple" / "UniFlow" / "Resources" / "StudyCatalogSeed" / "luh.json.gz"),
            "apps/apple/UniFlow/Resources/StudyCatalogSeed"),
           # Grundstock der Universitaet Hildesheim (tools/build-hildesheim-seed.py, 0,1 MB)

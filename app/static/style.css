@@ -1296,3 +1296,9 @@ button.sp-chip:hover { border-color: var(--line-strong); } .sp-chip:focus-visibl
 .sem-hint svg { flex: none; }
 .sem-head { font-size: 1.02rem; margin: 1.2rem 0 .7rem; display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
 .mod-older .older-ct .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; vertical-align: middle; }
+/* Raumfinder (05.11.2026, rooms.js): Raumangabe als Link in Stundenplan, Lernkalender und Klausuren (rooms-logic.js roomLink) */
+.room-link { display: inline-flex; align-items: center; gap: .25rem; padding: .1rem .2rem; margin: -.1rem -.2rem; border: 0; background: none;
+  color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer; text-align: left; border-radius: 6px; min-height: 28px; }
+.room-link:hover span, .room-link:focus-visible span { text-decoration: underline; }
+.room-link svg { flex: none; }
+.ov-exam-room { padding: 0 .8rem .5rem calc(58px + 1.6rem); margin-top: -.3rem; }

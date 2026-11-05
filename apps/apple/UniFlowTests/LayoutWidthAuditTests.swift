@@ -150,6 +150,8 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "community", route: .community, marker: "Deine Communities")
         // Mensa (05.11.2026): erfundener Plan ohne Netz (`MensaDemoHTTP` unter XCTest), Oeffnungszeiten immer da
         report += audit(env, "mensa", route: .mensa, marker: "Öffnungszeiten")
+        // Raumfinder (05.11.2026): Suche und Standorte der LUH (Demo-Treffer unter XCTest, kein Netz)
+        report += audit(env, "raumfinder", route: .rooms, marker: "Hauptgebäude (Welfengarten)")
         report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
         report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")

@@ -713,7 +713,8 @@ struct DatedEventDialog: View {
     var body: some View {
         UFDialog("\(e.s("title") ?? "Termin") \(e.s("start") ?? "")–\(e.s("end") ?? "")") {
             VStack(alignment: .leading, spacing: 6.4) {
-                if let room = e.s("room"), !room.isEmpty { Text(room).ufFont(13.12).foregroundStyle(UF.text2) }
+                // Raumfinder (05.11.2026): Raum antippen -> Ort mit Google-Maps-Link
+                if let room = e.s("room"), !room.isEmpty { UFRoomLink(text: room) }
                 UFSessionTopic(e: e)
                 // Absage aus einer Ankuendigung oder in Stud.IP: nur Hinweis mit Quelle (ohne Serie keine Ausnahme fuer den Tag)
                 UFCancelHintBox(e: e, decide: nil)

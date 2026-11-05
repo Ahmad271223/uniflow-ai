@@ -237,6 +237,10 @@ struct EventDrawer: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             UFButton(icon: "x", kind: .ghost) { close() }
         } content: {
+            // Raumfinder (05.11.2026): Raum antippen -> Ort, Raumplan und Google-Maps-Link
+            if let room = e.s("room"), !room.isEmpty, Rooms.mayLink(room) {
+                UFRoomLink(text: room).padding(.bottom, 9.6)
+            }
             // Sitzungsthema aus Stud.IP (eine Zeile, aufklappbar)
             UFSessionTopic(e: occ).padding(.bottom, UFSessionTopic.text(occ) == nil ? 0 : 9.6)
             // Absage aus einer Ankuendigung: Quelle und Entscheidung ("Fällt aus" / "Findet statt")
@@ -300,7 +304,8 @@ struct EventDrawer: View {
 
     private func subline(_ e: JSONValue) -> String {
         var s = "\(UFKind.text(e.s("kind"))) · \(UFFmt.short(date)) · \(occ.s("start") ?? "")–\(occ.s("end") ?? "")"
-        if let r = e.s("room"), !r.isEmpty { s += " · \(r)" }
+        // der Raum steht als Link darunter (UFRoomLink); nur "Online" & Co. bleiben hier
+        if let r = e.s("room"), !r.isEmpty, !Rooms.mayLink(r) { s += " · \(r)" }
         if let l = e.s("lecturer"), !l.isEmpty { s += " · \(l)" }
         return s
     }

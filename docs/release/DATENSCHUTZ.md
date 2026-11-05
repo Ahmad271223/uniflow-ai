@@ -75,6 +75,16 @@ Geschrieben wird nur, wenn du es ausdrücklich auslöst: Antwortest du in der Ap
 „Jetzt abgeben“ eine Datei ab, sendet StudiNow genau diese Antwort bzw. Datei mit deinem Zugang an das System deiner
 Hochschule. Darüber hinaus schreibt StudiNow nichts in die Hochschulsysteme.
 
+**Raumfinder (frei in jedem Tarif, ohne Anmeldung):** Suchst du im Raumfinder nach einem Raum, Gebäude oder einer
+Einrichtung oder tippst du auf eine Raumangabe (etwa im Stundenplan, Lernkalender oder bei einer Klausur), schickt die App
+– bzw. am PC und im Web unser Dienst – nur den Suchtext (z. B. „F102“ oder „1101“) an den öffentlichen Standortfinder der
+Leibniz Universität Hannover (`standortfinder.uni-hannover.de`), ohne Zugangsdaten und ohne Bezug zu deiner Person.
+Gefundene Orte bleiben 30 Tage im Zwischenspeicher deines Geräts bzw. des Dienstes. Für die Hochschule Hannover und die
+Universität Hildesheim gibt es keinen öffentlichen Raumfinder; dort zeigt StudiNow nur die Adresse des Standorts aus
+einer festen Liste, ohne Abfrage. **Google Maps und Apple Karten** erhalten von StudiNow nichts von selbst: Erst wenn du
+auf „In Google Maps öffnen“, „Route“ oder „In Apple Karten“ tippst, öffnet sich die Karte (App oder Browser) mit dem
+Ort bzw. den Koordinaten; ab dann gelten die Datenschutzhinweise von Google bzw. Apple.
+
 Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschutzhinweise und Nutzungsregeln. Sie
 sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). StudiNow ist kein
 Angebot der Hochschulen und nicht mit ihnen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die
@@ -349,7 +359,10 @@ nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
 - **Stripe** (Abschnitt 9) erhält beim Abschluss im Web oder unter Windows E-Mail-Adresse, Kundenkennung und Tarif;
   eigener Verantwortlicher für die Zahlung. Eine Übermittlung in die USA durch Stripe stützt sich auf das EU-US Data
   Privacy Framework bzw. die Standardvertragsklauseln von Stripe.
-- **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4).
+- **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4); der Standortfinder der Leibniz Universität
+  Hannover nur den Suchtext des Raumfinders (Abschnitt 4).
+- **Google bzw. Apple** (Karten) erhalten einen Ort erst, wenn du im Raumfinder auf einen Karten-Link tippst; dann als
+  eigene Verantwortliche (Abschnitt 4).
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
   OpenAI.

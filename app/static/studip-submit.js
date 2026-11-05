@@ -3,7 +3,7 @@
 // { bytes: true }); "Notizen und Blätter mitschicken" flicht Seitennotizen und Blaetter daneben hinter ihre Folie
 // (side-notes.js, wie NotesExport auf dem iPad). Kurs, Ordner (Hausaufgabenordner zuerst), Dateiname "Nachname_Blatt3.pdf",
 // Vorschau, "Jetzt abgeben" (genau ein Hochladen, app/studip_submit.py), danach "In Stud.IP öffnen" im App-Fenster.
-import { $, api, icon, modal, toast } from "./core.js?v=45";
+import { $, api, icon, modal, toast } from "./core.js?v=46";
 import * as L from "./studip-submit-logic.js?v=1";
 
 const { esc } = L;

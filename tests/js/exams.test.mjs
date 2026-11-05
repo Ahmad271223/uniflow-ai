@@ -38,7 +38,11 @@ test("Karte aus der Antwort des Servers: erste vier, Rest gezählt", () => {
   assert.equal(html.split('class="item ov-exam"').length - 1, LIMIT, "höchstens vier Zeilen");
   assert.match(html, new RegExp(`und ${items.length - LIMIT} weitere`));
   const ana = items.find(e => e.module_id === 1);
-  assert.ok(html.includes("09:00–11:00 Uhr · Hörsaal F 303 · Hörsaal F 102"));
+  // Raumfinder (05.11.2026): der Raum steht als Link unter der Zeile (Ort mit Google Maps), die Zeile nennt die Uhrzeit;
+  // VoiceOver liest beides in der Beschriftung der Zeile
+  assert.ok(html.includes(">09:00–11:00 Uhr<"));
+  assert.ok(html.includes('data-room="Hörsaal F 303 · Hörsaal F 102"'));
+  assert.match(html, /aria-label="[^"]*09:00–11:00 Uhr · Hörsaal F 303 · Hörsaal F 102/);
   assert.ok(html.includes(ana.source_label));
 });
 

@@ -5,7 +5,7 @@
 // Ohne Eintraege erscheint der Bereich nicht. Die Fristen der Courseware-Aufgaben stehen nicht hier, sondern wo Fristen
 // schon stehen ("Abgaben & Prüfungen", Planer). Dazu "Blubber" (Kurs-Chats, GET /api/studip/blubber?module=): der Abgleich
 // ist vorerst ausgeschaltet (app/studip_blubber.py SYNC_ENABLED), die Gruppe erscheint nur, wenn Beitraege gespeichert sind.
-import { $, $$, esc, icon, safeUrl, fmtShort, modal } from "./core.js?v=45";
+import { $, $$, esc, icon, safeUrl, fmtShort, modal } from "./core.js?v=46";
 
 export const TEXTS = { title: "Aus Stud.IP", readerOpen: "In Stud.IP öffnen", icons: { courseware: "book", wiki: "file-text", forum: "users", blubber: "note" }, blubberLabel: "Blubber" };
 

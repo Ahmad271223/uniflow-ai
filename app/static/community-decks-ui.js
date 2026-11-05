@@ -2,9 +2,9 @@
 // Lehrwoche ("Woche 5", "Allgemein"), ansehen und als eigenen Stapel uebernehmen (in das eigene Modul der Community,
 // 0 Credits, ab Plus). Daten: GET /api/community/card-stacks?module=<Schluessel> (app/community_cards_api.py). Teilen geht
 // von der Seite "Karteikarten" aus (Stapel -> ... -> Stapel teilen). Lerngruppen haben keine geteilten Stapel.
-import { $$, api, esc, icon, can } from "./core.js?v=45";
+import { $$, api, esc, icon, can } from "./core.js?v=46";
 import * as F from "./flashcard-stacks.js?v=3";
-import { showShared, adoptShared, lockIcon } from "./flashcard-stacks-ui.js?v=4";
+import { showShared, adoptShared, lockIcon } from "./flashcard-stacks-ui.js?v=5";
 
 /** Panel fuellen. space: {key, kind, name}; weeks: Lehrwochen des Moduls ({week, label, topic}) fuer die Beschriftung */
 export async function renderDecksPanel(panel, { space, weeks = [] } = {}) {

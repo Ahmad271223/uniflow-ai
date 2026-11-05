@@ -4,7 +4,7 @@
 // denselben Tagen wie auf dem iPad (erster Tag, 7 und 2 Tage vor dem Ende): als Hinweis in der App und, wenn in der
 // Windows-App die Erinnerungen eingeschaltet und erlaubt sind (due-reminders.js), einmal als Windows-Mitteilung. StudiNow meldet nie selbst an; "Im QIS/LSF anmelden" oeffnet nur QIS bzw. LSF.
 // Regeln und Texte: exam-registration-logic.js; Daten: GET /api/exam-registration (app/exam_registration_api.py).
-import { $, $$, api, icon, toast, todayISO } from "./core.js?v=45";
+import { $, $$, api, icon, toast, todayISO } from "./core.js?v=46";
 import * as L from "./exam-registration-logic.js?v=2";
 
 const DISMISS_KEY = "xr-dismissed";

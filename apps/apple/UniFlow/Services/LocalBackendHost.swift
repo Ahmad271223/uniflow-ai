@@ -128,6 +128,8 @@ final class LocalBackendHost: @unchecked Sendable {
         // Mensa (05.11.2026): oeffentliche Speiseplaene direkt beim Studentenwerk; unter XCTest nie ins Netz, sondern
         // ein erfundener Plan (`MensaDemoHTTP`) ohne Cache auf der Platte
         if StudIPSync.isUnderTest() { backend.context.mensa.configure(http: MensaDemoHTTP(clock: clock), folder: nil) }
+        // Raumfinder: unter XCTest sechs gespeicherte Treffer des Standortfinders (`RoomFinderDemoHTTP`), Cache nur im Speicher
+        if StudIPSync.isUnderTest() { backend.context.rooms.configure(http: RoomFinderDemoHTTP(), folder: nil) }
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
     }
