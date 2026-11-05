@@ -4,6 +4,7 @@
 // Der Plan unten ist erfunden und hat die Form von GET /api/study-plan (docs/STUDIENVERLAUF-2026-11-04.md "Für Web und iPhone").
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import * as L from "../../app/static/study-plan-logic.js";
 
 const icon = n => `<i data-i="${n}"></i>`;
@@ -298,4 +299,49 @@ test("Einstellungen: Schwerpunkt und eigene Eintraege nur, wenn geaendert", () =
   assert.match(html, /data-rm-custom="eigen-1" aria-label="Japanisch I entfernen"/);
   assert.equal(L.settingsExtraHtml({ available: false }, ui, icon), "");
   assert.match(L.settingsHtml({ po_options: [], term_options: [], elective_options: [] }, { po: "", start: "", chosen: new Set() }, icon, "<p>EXTRA</p>"), /<p>EXTRA<\/p><div class="sp-err small" id="spSetErr" hidden><\/div><\/div>$/);
+});
+
+// Volle Bereiche (Fund 05.11.2026, INFBSc22: "Proseminar" blieb bei "noch 0 von 5 LP offen" stehen). Die Plaene kommen
+// aus dem Kern (packages/shared-contracts/fixtures/study-plan-engine/engine.json, tools/gen-study-plan-fixture.py)
+const ENGINE = JSON.parse(readFileSync(new URL("../../packages/shared-contracts/fixtures/study-plan-engine/engine.json", import.meta.url), "utf8"));
+const fullCase = name => ENGINE.cases.find(c => c.name === name).expected;
+const slotsBy = plan => L.allSlots(plan).reduce((o, sl) => ({ ...o, [sl.area]: [...(o[sl.area] || []), sl] }), {});
+
+test("Volle Bereiche: kein Platz zeigt 'noch 0 von … LP offen' oder alle Module gewählt", () => {
+  const cases = ENGINE.cases.filter(c => c.catalog_code === "TIBSc26");
+  assert.equal(cases.length, 6);
+  for (const c of cases) {
+    for (const sl of L.allSlots(c.expected)) {
+      const line = L.slotLine(sl, c.expected), a = L.area(c.expected, sl.area);
+      assert.doesNotMatch(line, /^noch 0 von/, `${c.name}: ${sl.title}`);
+      if (a?.modules_required != null && !(a.target > 0 && a.lp_open > 0)) assert.ok(a.count < a.modules_required, `${c.name}: ${line}`);
+    }
+  }
+  assert.equal(slotsBy(fullCase("bereiche_offen_verlaufsplan"))["akademisches-arbeiten"].length, 1);
+  for (const name of ["proseminar_bereich_voll_fachsemester", "proseminar_bereich_voll_eigene_lage"]) {
+    const plan = fullCase(name);
+    assert.equal(slotsBy(plan)["akademisches-arbeiten"], undefined, name);
+    assert.equal(L.areaLine(L.area(plan, "akademisches-arbeiten")), "5 von 5 LP", name);
+  }
+  const lp = fullCase("lp_bereich_voll");
+  assert.equal(slotsBy(lp).vertiefung, undefined);
+  assert.deepEqual(slotsBy(lp).praxis.map(sl => sl.lp), [5, 5]);
+  const part = fullCase("lp_bereich_teilweise");
+  assert.deepEqual(slotsBy(part).vertiefung.map(sl => L.slotLine(sl, part)), Array(3).fill("noch 5 von 10 LP offen"));
+  const count = fullCase("zahl_bereich_voll");
+  assert.equal(slotsBy(count).seminare, undefined);
+  assert.deepEqual(slotsBy(count).labore.map(sl => L.slotLine(sl, count)), ["1 von 2 Modulen gewählt"], "LP gedeckt, Zahl offen");
+});
+
+test("Bereiche und Wahl: Bereich nur mit Zahl der Module sichtbar, Fortschritt und erledigt mit LP und Zahl", () => {
+  const plan = fullCase("zahl_bereich_voll");
+  assert.ok(L.shownAreas(fullCase("bereiche_offen_verlaufsplan")).some(a => a.id === "seminare"), "Zahl der Module ohne LP-Ziel und ohne Wahl");
+  assert.deepEqual(L.areaProgress(L.area(plan, "seminare")), { pct: 100, done: false }, "eigener Eintrag geplant, noch nicht bestanden");
+  assert.deepEqual(L.areaProgress({ modules_required: 1, count: 1, count_done: 1 }), { pct: 100, done: true });
+  assert.deepEqual(L.areaProgress({ target: 6, lp_done: 6, lp_planned: 0, modules_required: 2, count: 1, count_done: 1 }), { pct: 100, done: false }, "6 LP bestanden, aber 1 von 2 Modulen");
+  assert.deepEqual(L.areaProgress({ target: 6, lp_done: 9, modules_required: 2, count: 2, count_done: 2 }), { pct: 100, done: true });
+  assert.deepEqual(L.areaProgress({ target: null, modules_required: null }), { pct: null, done: false });
+  const html = L.areasHtml(plan, icon, true);
+  assert.match(html, /aria-label="Seminare, Wahlpflicht, 3 LP · 1 von 1 Modulen"[\s\S]*?<div class="progress" aria-hidden="true"><i style="width:100%">/);
+  assert.match(html, /aria-label="Labore, Wahlpflicht, 6 von 6 LP · 1 von 2 Modulen"[\s\S]*?<div class="progress" aria-hidden="true"><i style="width:100%">/);
 });

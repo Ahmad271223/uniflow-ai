@@ -449,6 +449,14 @@ ohne Netz) bei 1440 × 900 und 390 × 844, hell und dunkel: alle 33 Chips ohne R
 (`~/Studora-Builds/web-studienverlauf/`). **Abo:** am iPad ist der Studienverlauf Free; in Web/Windows gilt die Konto- und
 Abo-Pflicht (Probe oder Plus/Pro AI). Ohne Abo (`gateState` = `locked`) nur lesen: Hinweis mit „Abo wählen“, keine
 Knöpfe zum Ändern, nichts zum Ziehen (der Server lehnt Schreiben ohnehin ab). Prüfungsanmeldung gibt es im Web nicht
-(keine Python-Route). Fund: Ein Platz aus dem Studienverlaufsplan (`kind: slot`, z. B. „Proseminar“ in INFBSc22) bleibt
-stehen, auch wenn sein Bereich mit einem gewählten Modul voll ist („noch 0 von 5 LP offen“); das liefert der Kern so, auch
-am iPad.
+(keine Python-Route). Fund: Ein Platz aus dem Studienverlaufsplan (`kind: slot`, z. B. „Proseminar“ in INFBSc22) blieb
+stehen, auch wenn sein Bereich mit einem gewählten Modul voll war („noch 0 von 5 LP offen“), auch am iPad.
+**Behoben 05.11.2026** (Kern in Python und Swift, Regel im Kopf von `app/study_plan.py`): Ein Wahl(pflicht)modul ohne
+Fachsemester belegt auch auf eigener Lage einen Platz seines Bereichs (den nächstgelegenen). Ein freier Platz geht nur an
+einen Bereich mit offenem Bedarf (LP oder Zahl der Module; beides muss erfüllt sein) oder an einen Bereich, in dessen
+Spanne bis zur Obergrenze der ganze Platz passt; ist der Bedarf durch bestandene, geplante, gewählte Module oder eigene
+Einträge gedeckt, fällt jeder weitere Platz des Bereichs weg. Ohne Wahl bleibt der Verlaufsplan ganz stehen. Ein Modul in
+mehreren Bereichen zählt genau einmal (eigener Bereich, solange offen, sonst der erste aktive mit offenem Bedarf). Plätze
+ohne Verlaufsplan reichen für LP und Zahl. Kasten „Bereiche und Wahl“ (Web und iPad): Bereiche nur mit Zahl der Module
+erscheinen, der Fortschritt ist erst grün, wenn LP und Zahl bestanden sind; die Platzzeile zeigt den offenen Teil.
+Fixture-Fälle `bereiche_offen_verlaufsplan`, `proseminar_bereich_voll_*`, `lp_bereich_*`, `zahl_bereich_voll` (TIBSc26).

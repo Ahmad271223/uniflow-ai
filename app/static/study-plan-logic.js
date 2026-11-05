@@ -674,8 +674,11 @@ export function slotLine(slot, plan) {
   }
   const a = area(plan, slot?.area);
   if (!a) return "Modul wählen";
-  if (a.modules_required != null) return `${Math.min(Number(a.count) || 0, a.modules_required)} von ${a.modules_required} Modulen gewählt`;
+  // was noch fehlt zuerst: Zahl der Module, sonst LP (05.11.2026: bei LP und Zahl zeigt der Platz den offenen Teil)
+  const countText = () => `${Math.min(Number(a.count) || 0, a.modules_required)} von ${a.modules_required} Modulen gewählt`;
+  if (a.modules_required != null && (Number(a.count) || 0) < a.modules_required) return countText();
   if (a.target != null && a.lp_open != null) return `noch ${number(a.lp_open)} von ${number(a.target)} LP offen`;
+  if (a.modules_required != null) return countText();
   return `${Number(a.options) || 0} Module zur Wahl`;
 }
 
@@ -729,10 +732,21 @@ export function replaceSlot(plan, m) {
 
 /** Bereiche im Kasten: aktiv, kein Abschluss, mit Ziel oder Stand; Wahlbereiche zuerst */
 export function shownAreas(plan) {
-  return (plan?.areas || []).filter(a => a.active !== false && a.type !== "abschluss" && (a.target != null || (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0) > 0))
+  return (plan?.areas || []).filter(a => a.active !== false && a.type !== "abschluss" && (a.target != null || a.modules_required != null || (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0) > 0))
     .map((a, i) => [a, i]).sort((x, y) => ((x[0].choice ? 0 : 1) - (y[0].choice ? 0 : 1)) || x[1] - y[1]).map(x => x[0]);
 }
 export const hasAreasBox = plan => (plan?.groups || []).length > 0 || (plan?.areas || []).some(a => a.choice) || (plan?.excluded || []).length > 0;
+
+/** Fortschritt im Kasten (0..100 oder null) und ob der Bedarf bestanden ist: LP und Zahl der Module muessen beide
+ *  reichen; nur Zahl der Module (ohne LP-Ziel) misst die Zahl (05.11.2026) */
+export function areaProgress(a) {
+  const t = Number(a.target) || 0, n = Number(a.modules_required) || 0;
+  const have = (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0);
+  const countOk = n <= 0 || (Number(a.count_done) || 0) >= n;
+  if (t > 0) return { pct: Math.min(100, (have / t) * 100), done: Number(a.lp_done) >= t && countOk };
+  if (n > 0) return { pct: Math.min(100, ((Number(a.count) || 0) / n) * 100), done: countOk };
+  return { pct: null, done: false };
+}
 
 /** "10 von 15 LP · 5 bestanden · 2 von 3 Modulen" */
 export function areaLine(a) {
@@ -752,8 +766,7 @@ export function areasHtml(plan, ic, edit) {
     return `<div class="sp-group${name ? "" : " open"}"><b>${esc(text)}</b>${edit ? `<button type="button" class="btn sm" data-track="${esc(g.id)}" aria-label="${esc(`${g.label} ${name ? "ändern" : "wählen"}`)}">${name ? "Ändern" : "Wählen"}</button>` : ""}</div>`;
   }).join("");
   const rows = shownAreas(plan).map(a => {
-    const have = (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0), t = Number(a.target) || 0;
-    const p = t > 0 ? Math.min(100, (have / t) * 100) : null, done = t > 0 && Number(a.lp_done) >= t;
+    const { pct: p, done } = areaProgress(a);
     return `<div class="sp-area" role="group" aria-label="${esc(`${a.name}, ${kindText(a.kind)}, ${areaLine(a)}`)}"><div class="sp-area-h"><b>${esc(a.name)}</b><span class="sp-tag ${kindClass(a.kind)}">${esc(kindText(a.kind))}</span></div>`
       + (p != null ? `<div class="progress${done ? " ok" : ""}" aria-hidden="true"><i style="width:${p.toFixed(0)}%"></i></div>` : "")
       + `<small>${esc(areaLine(a))}</small>${a.rule ? `<details class="sp-rule"><summary>Regel</summary><p>${esc(shorten(a.rule, 500))}</p></details>` : ""}</div>`;

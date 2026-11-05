@@ -94,7 +94,8 @@ struct StudyPlanAreasCard: View {
     let restore: (StudyPlanOption) -> Void
 
     private var shown: [StudyPlanArea] {
-        plan.areas.filter { $0.active && $0.type != "abschluss" && ($0.target != nil || $0.lpDone + $0.lpPlanned > 0) }
+        plan.areas.filter { $0.active && $0.type != "abschluss"
+            && ($0.target != nil || $0.modulesRequired != nil || $0.lpDone + $0.lpPlanned > 0) }
             .sorted { ($0.choice ? 0 : 1, 0) < ($1.choice ? 0 : 1, 0) }
     }
 
@@ -146,7 +147,7 @@ struct StudyPlanAreasCard: View {
     }
 
     private func areaRow(_ a: StudyPlanArea) -> some View {
-        let have = a.lpDone + a.lpPlanned
+        let progress = StudyPlanText.areaProgress(a)
         return VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(a.name).ufFont(13.12, 600, lh: 1.3).foregroundStyle(UF.text)
@@ -154,8 +155,8 @@ struct StudyPlanAreasCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 StudyPlanTag(text: StudyPlanText.kind(a.kind), pair: StudyPlanText.kindPair(a.kind))
             }
-            if let t = a.target, t > 0 {
-                UFProgress(value: min(1, have / t), ok: a.lpDone >= t).accessibilityHidden(true)
+            if let value = progress.value {
+                UFProgress(value: value, ok: progress.done).accessibilityHidden(true)
             }
             Text(StudyPlanText.areaLine(a)).ufFont(12, lh: 1.35).foregroundStyle(UF.text2).monospacedDigit()
                 .fixedSize(horizontal: false, vertical: true)

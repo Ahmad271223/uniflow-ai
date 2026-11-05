@@ -130,6 +130,45 @@ CATALOG_AREAS_NO_LP = {**CATALOG_AREAS, "code": "ETBSc17",
                        "areas": [{k: v for k, v in a.items() if k != "modules_required"} | {"lp_required": None}
                                  if a["id"] == "seminare" else a for a in CATALOG_AREAS["areas"]]}
 
+# Volle Bereiche (05.11.2026, Fund im Web: "Proseminar" in INFBSc22 blieb trotz "0 von 5 LP offen" stehen): Plaetze
+# laut Verlaufsplan fuer Akademisches Arbeiten (5 LP, bis 10; ein Wahlpflichtmodul mit Fachsemester 1 deckt den Bedarf
+# wie "Einfuehrung in die Informatik"), Vertiefung nur mit LP (10, bis 20), Seminare nur mit Zahl der Module (1),
+# Labore mit LP und Zahl (6 LP, 2 Module), Praxis als Spanne (0 - 10 LP); ein Modul ist in Vertiefung und Praxis waehlbar
+CATALOG_FULL = {
+    **{k: v for k, v in CATALOG.items() if k not in ("areas", "modules")}, "code": "TIBSc26", "catalog_term": "WS 2026/27",
+    "study_plan": {"url": "https://plan.example.invalid/verlaufsplan-26.pdf", "fetched_at": None, "sha256": None},
+    "areas": [a for a in CATALOG["areas"] if a["id"] not in _ELECTIVE] + [
+        {"id": "akademisches-arbeiten", "name": "Akademisches Arbeiten", "lp_required": 5, "lp_max": 10, "kind": "pflicht"},
+        {"id": "vertiefung", "name": "Vertiefung", "lp_required": 10, "lp_max": 20, "kind": "pflicht"},
+        {"id": "seminare", "name": "Seminare", "lp_required": None, "lp_max": None, "kind": "wahlpflicht",
+         "modules_required": 1},
+        {"id": "labore", "name": "Labore", "lp_required": 6, "lp_max": None, "kind": "wahlpflicht", "modules_required": 2},
+        {"id": "praxis", "name": "Praxis", "lp_required": 0, "lp_max": 10, "kind": "pflicht", "modules": ["vertiefung-c"]},
+    ],
+    "modules": [m for m in CATALOG["modules"] if m["area"] not in _ELECTIVE] + [
+        mod("einfuehrung-wa", "Einführung in das wissenschaftliche Arbeiten", "akademisches-arbeiten", 5, 1, "WS",
+            kind="wahlpflicht"),
+        mod("proseminar-a", "Proseminar Rechnernetze", "akademisches-arbeiten", 5, None, "WS+SS", kind="wahlpflicht"),
+        mod("proseminar-b", "Proseminar Robotik", "akademisches-arbeiten", 5, None, "WS+SS", kind="wahlpflicht"),
+        mod("vertiefung-a", "Vertiefung Echtzeitsysteme", "vertiefung", 5, None, "WS+SS", kind="wahlpflicht"),
+        mod("vertiefung-b", "Vertiefung Compilerbau", "vertiefung", 5, None, "WS+SS", kind="wahlpflicht"),
+        mod("vertiefung-c", "Vertiefung Datenbanken", "vertiefung", 5, None, "WS+SS", kind="wahlpflicht"),
+        mod("seminar-x", "Seminar Sicherheit", "seminare", 4, None, "WS+SS", kind="wahlpflicht"),
+        mod("seminar-y", "Seminar Verteilte Systeme", "seminare", 4, None, "WS+SS", kind="wahlpflicht"),
+        mod("labor-a", "Labor Mikrocontroller", "labore", 6, None, "WS+SS", kind="wahlpflicht"),
+        mod("labor-b", "Labor FPGA", "labore", 3, None, "WS+SS", kind="wahlpflicht"),
+        mod("praxis-a", "Praxisprojekt", "praxis", 5, None, "WS+SS", kind="wahlpflicht"),
+    ],
+    "plan_slots": [{"semester": 4, "title": "Proseminar", "areas": ["akademisches-arbeiten"], "lp": 5, "lp_max": None},
+                   {"semester": 4, "title": "Vertiefung", "areas": ["vertiefung"], "lp": 5, "lp_max": None},
+                   {"semester": 5, "title": "Vertiefung", "areas": ["vertiefung"], "lp": 5, "lp_max": None},
+                   {"semester": 5, "title": "Seminar", "areas": ["seminare"], "lp": None, "lp_max": None},
+                   {"semester": 5, "title": "Labor", "areas": ["labore"], "lp": 3, "lp_max": None},
+                   {"semester": 5, "title": "Labor", "areas": ["labore"], "lp": 3, "lp_max": None},
+                   {"semester": 6, "title": "Wahlmodul", "areas": ["vertiefung", "praxis"], "lp": 5, "lp_max": None},
+                   {"semester": 6, "title": "Wahlmodul", "areas": ["vertiefung", "praxis"], "lp": 5, "lp_max": None}],
+}
+
 ABSCHLUSS = "Technische Informatik (PO-Version 2017)"
 
 
@@ -242,6 +281,31 @@ CASES = [
                                  "datenstrukturen": "Herbst"}},
      "grades": passed([(t, "WiSe 25/26") for t in SEM1 if "theoretischen" not in t])
      + [g("Grundlagen der theoretischen Informatik", "WiSe 25/26", "nicht bestanden", "5,0", "1")]},
+    # volle Bereiche (05.11.2026)
+    {"name": "bereiche_offen_verlaufsplan", "catalog_code": "TIBSc26", "what": "nichts gewaehlt: alle Plaetze laut "
+     "Verlaufsplan, die beiden Wahlmodule im 6. Fachsemester ueber die Spanne der Vertiefung (bis 20 LP)",
+     "today": "2026-11-04", "settings": {"start_term": "WiSe 26/27"}, "grades": []},
+    {"name": "proseminar_bereich_voll_fachsemester", "catalog_code": "TIBSc26", "what": "Einfuehrung in das "
+     "wissenschaftliche Arbeiten (Fachsemester 1) deckt Akademisches Arbeiten: kein Platz Proseminar mehr, obwohl die "
+     "Obergrenze 10 LP erlaubt (wie INFBSc22)", "today": "2026-11-04",
+     "settings": {"start_term": "WiSe 26/27", "electives": ["einfuehrung-wa"]}, "grades": []},
+    {"name": "proseminar_bereich_voll_eigene_lage", "catalog_code": "TIBSc26", "what": "Proseminar auf eigener Lage im "
+     "WiSe 27/28 (dort kein Platz): belegt trotzdem den Platz Proseminar im 4. Fachsemester",
+     "today": "2026-11-04", "settings": {"start_term": "WiSe 26/27", "electives": ["proseminar-a"],
+                                         "placements": {"proseminar-a": "WiSe 27/28"}}, "grades": []},
+    {"name": "lp_bereich_voll", "catalog_code": "TIBSc26", "what": "eigener Eintrag mit 10 LP deckt die Vertiefung: "
+     "keine Plaetze Vertiefung mehr, die Wahlmodule gehen an die Praxis (0 - 10 LP)", "today": "2026-11-04",
+     "settings": {"start_term": "WiSe 26/27", "custom": [{"title": "Auslandsmodul", "lp": 10, "area": "vertiefung"}]},
+     "grades": []},
+    {"name": "lp_bereich_teilweise", "catalog_code": "TIBSc26", "what": "Vertiefung Datenbanken (auch in der Praxis "
+     "waehlbar) zaehlt einmal, in der Vertiefung (5 von 10 LP), und belegt deren ersten Platz; der zweite zeigt die "
+     "restlichen 5 LP, die Wahlmodule bleiben in der Spanne bis 20 LP", "today": "2026-11-04",
+     "settings": {"start_term": "WiSe 26/27", "electives": ["vertiefung-c"]}, "grades": []},
+    {"name": "zahl_bereich_voll", "catalog_code": "TIBSc26", "what": "Seminare (1 Modul) mit eigenem Eintrag gedeckt: kein "
+     "Platz Seminar; Labore: Labor Mikrocontroller deckt 6 LP, aber erst 1 von 2 Modulen, ein Platz Labor bleibt",
+     "today": "2026-11-04", "settings": {"start_term": "WiSe 26/27", "electives": ["labor-a"],
+                                         "custom": [{"title": "Seminar im Ausland", "lp": 3, "area": "seminare"}]},
+     "grades": []},
 ]
 
 NAMES = ["Programmieren I", "Übung zu Programmieren I", "Programmieren 1", "Vorlesung und Übung Mathematik II",
@@ -362,7 +426,8 @@ def build(check: bool) -> int:
 
         cases = []
         for c in CASES:
-            cat = {"TIBSc25": CATALOG_SLOTS, "ETBSc25": CATALOG_AREAS, "ETBSc17": CATALOG_AREAS_NO_LP}.get(c.get("catalog_code"), CATALOG)
+            cat = {"TIBSc25": CATALOG_SLOTS, "ETBSc25": CATALOG_AREAS, "ETBSc17": CATALOG_AREAS_NO_LP,
+                   "TIBSc26": CATALOG_FULL}.get(c.get("catalog_code"), CATALOG)
             cases.append({**c, "expected": study_plan.build_plan(cat, c["grades"], c["settings"], c["today"])})
         picks = []
         for p in PICKS:
@@ -372,7 +437,7 @@ def build(check: bool) -> int:
         engine = {
             "generator": "tools/gen-study-plan-fixture.py", "catalog": CATALOG,
             "catalogs": {c["code"]: c for c in (CATALOG, CATALOG_INF, CATALOG_OLD, CATALOG_SLOTS, CATALOG_AREAS,
-                                                CATALOG_AREAS_NO_LP)},
+                                                CATALOG_AREAS_NO_LP, CATALOG_FULL)},
             "cases": cases,
             "name_keys": [{"text": t, "key": study_plan.name_key(t)} for t in NAMES],
             "terms": [{"text": t, "term": study_plan.parse_term(t),

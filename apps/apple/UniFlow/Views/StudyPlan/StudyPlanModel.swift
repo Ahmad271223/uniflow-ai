@@ -166,6 +166,7 @@ struct StudyPlanArea: Identifiable, Equatable {
     let lpPlanned: Double
     let lpOpen: Double?
     let count: Int
+    let countDone: Int
     let options: Int
     let rule: String?
 
@@ -185,6 +186,7 @@ struct StudyPlanArea: Identifiable, Equatable {
         lpPlanned = v.n("lp_planned") ?? 0
         lpOpen = v.n("lp_open")
         count = v.i("count") ?? 0
+        countDone = v.i("count_done") ?? 0
         options = v.i("options") ?? 0
         rule = v.s("rule").flatMap { $0.isEmpty ? nil : $0 }
     }
@@ -904,9 +906,20 @@ enum StudyPlanText {
             return n > 0 ? "Eine von \(n) Richtungen wählen" : "Eine Richtung wählen"
         }
         guard let a = plan.area(slot.area) else { return "Modul wählen" }
-        if let n = a.modulesRequired { return "\(min(a.count, n)) von \(n) Modulen gewählt" }
+        // was noch fehlt zuerst: Zahl der Module, sonst LP (05.11.2026, wie slotLine in app/static/study-plan-logic.js)
+        if let n = a.modulesRequired, a.count < n { return "\(a.count) von \(n) Modulen gewählt" }
         if let t = a.target, let o = a.lpOpen { return "noch \(number(o)) von \(number(t)) LP offen" }
+        if let n = a.modulesRequired { return "\(min(a.count, n)) von \(n) Modulen gewählt" }
         return "\(a.options) Module zur Wahl"
+    }
+
+    /// Fortschritt im Kasten "Bereiche und Wahl" (0...1 oder nil) und ob der Bedarf bestanden ist: LP und Zahl der Module
+    /// muessen beide reichen; nur Zahl der Module (ohne LP-Ziel) misst die Zahl (05.11.2026, wie areaProgress im Web)
+    static func areaProgress(_ a: StudyPlanArea) -> (value: Double?, done: Bool) {
+        let countOK = (a.modulesRequired ?? 0) <= 0 || a.countDone >= a.modulesRequired!
+        if let t = a.target, t > 0 { return (min(1, (a.lpDone + a.lpPlanned) / t), a.lpDone >= t && countOK) }
+        if let n = a.modulesRequired, n > 0 { return (min(1, Double(a.count) / Double(n)), countOK) }
+        return (nil, false)
     }
 
     /// Titel des Platzes mit LP: "Seminar (5 LP)"

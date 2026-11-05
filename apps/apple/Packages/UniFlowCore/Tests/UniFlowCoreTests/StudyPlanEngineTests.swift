@@ -133,6 +133,47 @@ final class StudyPlanEngineTests: XCTestCase {
         XCTAssertFalse((chosen["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }.contains { $0["kind"] == "track" })
     }
 
+    /// Volle Bereiche (Fund 05.11.2026, INFBSc22: "Proseminar" blieb bei "noch 0 von 5 LP offen" stehen): kein Platz
+    /// eines Bereichs, dessen Bedarf (LP und/oder Zahl der Module) durch Module gedeckt ist; nur LP, nur Zahl, beides
+    func testFullAreasHaveNoOpenSlots() throws {
+        let fx = try studyPlanFixture("engine.json")
+        let cat = try XCTUnwrap(fx["catalogs"]?["TIBSc26"])
+        func plan(_ settings: [String: JSONValue]) -> (slots: [String: [Int]], areas: [String: JSONValue]) {
+            var start = settings
+            start["start_term"] = "WiSe 26/27"
+            let p = StudyPlanEngine.buildPlan(catalog: cat, grades: [], settings: start, today: "2026-11-04")
+            var slots: [String: [Int]] = [:]
+            for s in p["semesters"]?.array ?? [] {
+                for sl in s["slots"]?.array ?? [] { slots[sl["area"]?.string ?? "", default: []].append(s["fachsemester"]?.int ?? 0) }
+            }
+            var areas: [String: JSONValue] = [:]
+            for a in p["areas"]?.array ?? [] { areas[a["id"]?.string ?? ""] = a }
+            return (slots, areas)
+        }
+        let open = plan([:])
+        XCTAssertEqual(open.slots, ["akademisches-arbeiten": [4], "vertiefung": [4, 5, 6, 6], "seminare": [5], "labore": [5, 5]])
+        // Proseminar: Modul mit Fachsemester 1 deckt den Bereich (wie INFBSc22), bzw. Proseminar auf eigener Lage ohne Platz
+        for settings: [String: JSONValue] in [["electives": ["einfuehrung-wa"]],
+                                              ["electives": ["proseminar-a"], "placements": ["proseminar-a": "WiSe 27/28"]]] {
+            let r = plan(settings)
+            XCTAssertNil(r.slots["akademisches-arbeiten"], "\(settings)")
+            XCTAssertEqual(r.areas["akademisches-arbeiten"]?["lp_open"]?.double, 0)
+            XCTAssertEqual(r.slots["vertiefung"], [4, 5, 6, 6])
+        }
+        // nur LP: gedeckt -> keine Plaetze, Wahlmodule an die Spanne der Praxis; teilweise -> Rest bleibt
+        let full = plan(["custom": [["title": "Auslandsmodul", "lp": 10, "area": "vertiefung"]]])
+        XCTAssertNil(full.slots["vertiefung"])
+        XCTAssertEqual(full.slots["praxis"], [6, 6])
+        let part = plan(["electives": ["vertiefung-c"]])
+        XCTAssertEqual(part.slots["vertiefung"], [5, 6, 6])
+        XCTAssertEqual(part.areas["vertiefung"]?["lp_open"]?.double, 5)
+        XCTAssertEqual(part.areas["praxis"]?["chosen"], .array([]), "Modul in zwei Bereichen zaehlt einmal")
+        // nur Zahl: gedeckt -> kein Platz; LP und Zahl: LP gedeckt, 1 von 2 Modulen -> ein Platz bleibt
+        let count = plan(["electives": ["labor-a"], "custom": [["title": "Seminar im Ausland", "lp": 3, "area": "seminare"]]])
+        XCTAssertNil(count.slots["seminare"])
+        XCTAssertEqual(count.slots["labore"], [5])
+    }
+
     /// Katalog aus dem Speicher statt aus der Tabelle (Quelle austauschbar, solange der Katalog-Abruf fehlt)
     func testMemoryCatalogSource() async throws {
         let fx = try studyPlanFixture("engine.json")
