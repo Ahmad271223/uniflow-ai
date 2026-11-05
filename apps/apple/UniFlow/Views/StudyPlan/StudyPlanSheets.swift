@@ -117,6 +117,8 @@ struct StudyModuleSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             titleBlock(d)
             ownBlock(d)
+            // "Prüfung anmelden" (05.11.2026): nur wenn der Studienverlauf das Modul in diesem Semester vorschlaegt
+            ExamRegistrationModuleBlock(api: api, catalogID: currentID)
             factsBlock(d)
             if !d.sections.isEmpty { textsBlock(d) } else if d.textsLoading { textsLoadingBlock }
             materialsBlock(d)

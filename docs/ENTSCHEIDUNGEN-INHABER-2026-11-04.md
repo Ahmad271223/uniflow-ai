@@ -13,3 +13,8 @@
   - Plus gilt je Gerät: kein Notizen-Abgleich zwischen Geräten (Recht `can_sync_annotations` erst ab Pro AI).
   - **Pro Connect entfällt**: nur noch Free, Plus und Pro AI. Seine Rechte gehören zu Pro AI; ein alter Eintrag
     `pro_connect` zählt als Pro AI (`plans.LEGACY_PLANS`, `billing.normalize_plan`). Stripe kennt nur noch `plus` und `pro_ai`.
+- 05.11.2026: Pro AI bleibt bei 100 Credits = 1 € als harte Obergrenze je Monat (vor jeder Anfrage wird ihre
+  Obergrenze reserviert, nie mehr berechnet; `app/credits.py`, `app/ai_prices.worst_case_microeur`).
+- 05.11.2026: StudiNow-KI mischt drei Modelle nach Aufgabe, etwa 50 % DeepSeek (nur über einen EU-Anbieter, Scaleway
+  Paris), 25 % ChatGPT, 25 % Claude Sonnet 5.5 (Amazon Bedrock Frankfurt) für schwere Fälle
+  (`docs/KI-MODELLMISCHUNG-2026-11-05.md`).

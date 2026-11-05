@@ -1,0 +1,9 @@
+{"data":[
+ {"type":"messages","id":"stub-m1","attributes":{"subject":"Tutorium entfällt am Donnerstag","message":"<p>Liebe Studierende,</p><p>das Tutorium am 12.11. fällt aus. Fragen gerne per Nachricht.</p><p>Viele Grüße</p>","mkdate":"2026-11-04T08:15:00+01:00","priority":"normal"},
+  "relationships":{"sender":{"data":{"type":"users","id":"u-stub-doz"}},
+                   "recipients":{"data":[{"type":"users","id":"u-demo"},{"type":"users","id":"u-stub-kommilitonin"}]}}},
+ {"type":"messages","id":"stub-m2","attributes":{"subject":"Ihre Immatrikulationsbescheinigung","message":"Die Bescheinigung liegt im Prüfungsamt bereit.","mkdate":"2026-11-02T12:00:00+01:00","priority":"normal"},
+  "relationships":{"sender":{"data":{"type":"users","id":"____%system%____"}}}}
+],
+"included":[{"type":"users","id":"u-stub-doz","attributes":{"formatted-name":"Dr. Beispiel Dozentin","permission":"dozent"}}],
+"links":{}}

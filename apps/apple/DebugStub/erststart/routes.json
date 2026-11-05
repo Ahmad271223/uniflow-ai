@@ -4,6 +4,23 @@
   "file": "studip-me.json"
  },
  {
+  "match": "jsonapi.php/v1/users/u-demo/inbox",
+  "file": "studip-inbox.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/u-stub-kommilitonin",
+  "body": "{\"data\":{\"type\":\"users\",\"id\":\"u-stub-kommilitonin\",\"attributes\":{\"formatted-name\":\"Erfundene Kommilitonin\"}}}",
+  "contentType": "application/vnd.api+json"
+ },
+ {
+  "match": "jsonapi.php/v1/messages",
+  "method": "POST",
+  "status": 201,
+  "body": "{\"data\":{\"type\":\"messages\",\"id\":\"stub-gesendet\"}}",
+  "contentType": "application/vnd.api+json",
+  "location": "https://studip.uni-hannover.de/jsonapi.php/v1/messages/stub-gesendet"
+ },
+ {
   "match": "jsonapi.php/v1/users/u-demo/courses",
   "file": "studip-courses.json"
  },

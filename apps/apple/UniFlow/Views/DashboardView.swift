@@ -123,6 +123,8 @@ struct DashboardView: View {
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
                 // "Nächste Klausuren" (04.11.2026, `UpcomingExamsCard`): aus allen Quellen, nur wenn es welche gibt
                 UpcomingExamsCard(api: api, token: day)
+                // "Prüfungsanmeldung" (05.11.2026, `ExamRegistrationCard`): nur im Meldezeitraum und in den 7 Tagen davor
+                ExamRegistrationCard(api: api, token: day)
 
                 // drei Kennzahlen immer in einer Reihe (iPad hochkant: vorher 2 + 1 mit leerer Zelle), erst sehr schmal
                 // untereinander; Kennzahlen sind Schrift, keine Kacheln mit Zierrat (Design-Ueberarbeitung 03.11.2026)

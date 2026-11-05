@@ -20,9 +20,11 @@ eingeschaltet hast.
   Für den Abgleich durch den Dienst stimmst du vorher ausdrücklich zu: Der Dienst meldet sich dann um 8 und 15 Uhr
   von seiner Adresse bei deiner Hochschule an und lädt neue Unterlagen in dein Konto. Du kannst die Zugangsdaten
   jederzeit löschen; die Zustimmung endet damit, deine Unterlagen bleiben.
-- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** StudiNow wertet deine
-  Inhalte nicht selbst automatisiert aus. KI gibt es nur, wenn du **dein eigenes ChatGPT** verbindest (Abschnitt 8a):
-  dann gehen Texte, die du für eine KI-Funktion auswählst, direkt von deinem Gerät an OpenAI.
+- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** KI gibt es nur für
+  KI-Funktionen, die du nutzt. Es gibt zwei Wege:
+  - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
+  - Du nutzt im Tarif **Pro AI** die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
+    von drei Auftragsverarbeitern weiter: Scaleway (Paris), Amazon Web Services (Frankfurt) oder OpenAI.
 
 ## 2. Verantwortlicher
 
@@ -250,6 +252,40 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bzw. nutzt die 
 Sperren Art. 6 Abs. 1 lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer). Alle drei Funktionen sind freiwillig;
 ohne sie funktioniert StudiNow genauso.
 
+## 8c. StudiNow-KI im Dienst (Tarif Pro AI) – Entwurf, vor Veröffentlichung rechtlich prüfen
+
+- **Wann:** nur wenn du mit deinem StudiNow-Konto (Pro AI oder Probe, bestätigte E-Mail-Adresse) eine KI-Funktion im
+  Dienst nutzt, z. B. eine Frage im Editor, eine Erklärung des ganzen Dokuments, Karteikarten oder einen Wochentest.
+- **Was gesendet wird:**
+  - der Text der betroffenen Seite oder deiner Markierung;
+  - deine Frage oder Lösung, wenn du eine schreibst;
+  - die Namen von Kurs und Datei;
+  - passende Stellen aus deinen Unterlagen und Lerntexte deines Kurses;
+  - deine eigenen Notizen zur Seite, wenn du sie mitschickst;
+  - bei Wochentests und Karteikarten die Texte der Unterlagen;
+  - beim Einordnen einer Seite ohne Text das Bild der Seite.
+
+  Nie gesendet werden dein Name, deine E-Mail-Adresse, Zugangsdaten, Hochschul-Sitzungen und Noten. OpenAI erhält zur
+  Missbrauchserkennung eine nicht umkehrbare Kennung deines Kontos, nicht die Konto-ID.
+- **Wohin:** Der Dienst gibt jede Anfrage an **einen** von drei Auftragsverarbeitern weiter. Welcher es ist, hängt von
+  der Aufgabe ab (einfache Aufgaben an günstige Modelle, schwere an Claude), bei einer Störung auch vom Ersatz:
+  - **Scaleway SAS** (Paris, Frankreich): Modell „DeepSeek“ in einem Rechenzentrum in Paris. Laut Scaleway werden
+    Anfragen nicht gespeichert und nicht zum Training verwendet; bei Fehlern oder Verdacht auf Missbrauch bis zu zwei
+    Wochen. Die Firma DeepSeek und ihre Server in China erhalten **keine** Daten.
+  - **Amazon Web Services EMEA SARL** (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
+    Modell „Claude Sonnet“ von Anthropic.
+  - **OpenAI**: ChatGPT-Modelle. Die Verarbeitung findet in den USA statt (siehe Abschnitt 12), bis unser Projekt mit
+    Datenresidenz in der EU freigeschaltet ist; dann ändern wir diesen Satz.
+- **Was StudiNow speichert:**
+  - je Anfrage Zeitpunkt, Zweck, Modell, Anzahl der Tokens und Kosten (für Credits und Budget);
+  - die Antwort 24 Stunden lang, damit eine wiederholte Anfrage nicht doppelt kostet;
+  - Antworten ohne eigene Notizen bis zu 30 Tage ohne Bezug zu deinem Konto, damit eine gleiche Anfrage sofort
+    beantwortet wird;
+  - Erklärungen ganzer Dokumente ohne Namen, für alle mit derselben Datei.
+- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO, weil du die KI-Funktion deines Tarifs nutzt. Mit allen drei
+  Anbietern besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO; sie dürfen die Daten nur für uns
+  verarbeiten.
+
 ## 9. Käufe und Abos
 
 Das Abo StudiNow Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
@@ -278,7 +314,9 @@ Art. 6 Abs. 1 lit. b DSGVO.
 
 Der Dienst läuft bei [[Hoster]], Serverstandort [[Serverstandort]], auf Grundlage eines Vertrags zur
 Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
-[[Mail-Anbieter]] in unserem Auftrag. Weitere Auftragsverarbeiter gibt es nicht.
+[[Mail-Anbieter]] in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind **Scaleway SAS** (Paris, Frankreich),
+**Amazon Web Services EMEA SARL** (Amazon Bedrock, Region Frankfurt) und **OpenAI** Auftragsverarbeiter, jeweils mit
+einem Vertrag nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
 
 ## 12. Empfänger und Übermittlung in Drittländer
 
@@ -293,6 +331,10 @@ Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetz
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
   OpenAI.
+- **StudiNow-KI (Abschnitt 8c):**
+  - Scaleway und Amazon Web Services verarbeiten in der EU.
+  - OpenAI verarbeitet als unser Auftragsverarbeiter in den USA. Die Übermittlung stützt sich auf das EU-US Data
+    Privacy Framework bzw. die Standardvertragsklauseln im Vertrag mit OpenAI.
 - Sonst geben wir keine Daten weiter – nicht an Werbenetzwerke, nicht an Analyse-Dienste, nicht an Dritte zum
   Verkauf. Behörden erhalten Daten nur, wenn wir gesetzlich dazu verpflichtet sind.
 
@@ -300,9 +342,9 @@ Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetz
 
 Kein Tracking über Apps oder Websites hinweg, keine Werbung, keine Profilbildung, keine automatisierten
 Entscheidungen mit rechtlicher Wirkung (Art. 22 DSGVO), keine Analyse- oder Absturz-SDKs von Dritten, keine
-Auswertung deiner Notizen und Dateien durch eigene KI-Systeme von StudiNow. KI nutzt du nur über dein eigenes ChatGPT,
-wenn du es selbst verbindest (Abschnitt 8a). Eine KI im StudiNow-Dienst (Tarif Pro AI) ergänzen wir hier, bevor es
-sie gibt.
+Verwendung deiner Notizen und Dateien für Werbung, Profile oder das Training von KI-Modellen. KI verarbeitet deine
+Inhalte nur für die KI-Funktionen, die du nutzt: über dein eigenes ChatGPT (Abschnitt 8a) oder die StudiNow-KI im
+Tarif Pro AI (Abschnitt 8c).
 
 ## 14. Deine Rechte
 

@@ -107,8 +107,8 @@ def plan(request: Request, body: dict = Body(...)):
     credits, balance, remaining = None, None, None
     if way == "credits":
         from . import ai_backend
-        model = ai_backend.model()
-        credits = sum(de.estimate_step_credits(s, model) for s in todo)
+        # Modellmischung: je Schritt der Preis des teuersten Modells seines Weges (Aufgaben gehen an Sonnet)
+        credits = sum(de.estimate_step_credits(s, ai_backend.estimate_model(f"tutor:doc_{s['kind']}")) for s in todo)
         balance = ai_backend.credits_balance(request.state.user["id"]) if getattr(request.state, "user", None) else None
         remaining = balance.get("remaining") if balance else None
     est = de.estimate_message(way, len(todo), len(steps) - len(todo), credits, remaining)
@@ -128,7 +128,8 @@ def step(request: Request, body: dict = Body(...)):
     if st is None:
         raise HTTPException(404, {"detail": "Diesen Teil gibt es im Dokument nicht mehr. Bitte neu starten.", "code": "step_not_found"})
     hosted = config.is_hosted()
-    force = bool(body.get("force"))
+    second = bool(body.get("second_opinion"))              # "Antwort war falsch": Zweitmeinung von Sonnet, neu erzeugt
+    force = bool(body.get("force")) or second
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     conn = de.connect()
     try:
@@ -171,7 +172,8 @@ def step(request: Request, body: dict = Body(...)):
             entitlements.consume(request, "ai_assist", rid)
             try:
                 c = ai_backend.complete(request.state.user["id"], f"tutor:doc_{st['kind']}", de.SYSTEM, prompt, request_id=rid,
-                                        keep_result=True, max_output_tokens=de.MAX_OUTPUT[st["kind"]])
+                                        keep_result=True, max_output_tokens=de.MAX_OUTPUT[st["kind"]],
+                                        route_hint="second_opinion" if second else None)
             except ai_backend.AIUnavailable as e:
                 entitlements.refund(request, "ai_assist", rid)
                 raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})

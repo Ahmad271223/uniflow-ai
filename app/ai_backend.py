@@ -3,10 +3,13 @@
 Die App ruft nie selbst einen KI-Anbieter mit einem StudiNow-Schluessel auf: alle Anfragen laufen ueber den Dienst.
 Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt nur auf dem Server.
 
-    LERNAPP_AI_PROVIDER        openai | none (Standard: openai, wenn ein Schluessel gesetzt ist, sonst none)
+    LERNAPP_AI_PROVIDER        leer/mix = Modellmischung aller eingerichteten Anbieter (app/ai_router.py) | openai |
+                               deepseek | anthropic = nur dieser | none = aus
     LERNAPP_OPENAI_API_KEY     Schluessel des StudiNow-Kontos bei OpenAI (nie in der App, nie im Repo, nie im Protokoll);
                                ersatzweise OPENAI_API_KEY
-    LERNAPP_AI_MODEL           Modell fuer alle StudiNow-KI-Anfragen (Pflicht, wenn der Anbieter aktiv ist)
+    LERNAPP_OPENAI_BASE_URL    Standard https://api.openai.com/v1; EU-Datenresidenz: https://eu.api.openai.com/v1 (Projekt
+                               mit EU-Region noetig; Preise dann +10 %, app/ai_prices.py)
+    LERNAPP_AI_MODEL           OpenAI-Modell der StudiNow-KI (Pflicht fuer OpenAI); DeepSeek und Claude: app/ai_providers.py
     LERNAPP_AI_MODELS          weitere erlaubte Modelle (Komma-Liste), die ein Client ausdruecklich waehlen darf; jedes
                                braucht einen Preis in app/ai_prices.py
     LERNAPP_AI_PRICE_IN_EUR    aeltere Angabe: Preis je 1 Mio. Eingabe-Tokens in EUR fuer alle Modelle (sonst die Tabelle
@@ -36,7 +39,16 @@ Kostenkontrolle (Tabellen in accounts.db):
   dadurch nicht gemeinsam ueberschreiten.
 - `ai_inflight`: Sperre je Generierungsschluessel (z. B. Fach+Thema+Schwierigkeit). Eine zweite gleiche Generierung
   wartet auf die erste und nutzt deren Ergebnis, statt doppelt zu bezahlen.
-- `ai_cache`: Antworten fuer gleiche Anfragen (gleicher Zweck, gleiches Modell, gleicher Text), 30 Tage.
+- `ai_cache`: Antworten fuer gleiche Anfragen (gleicher Zweck, gleicher Text), 30 Tage; das Modell gehoert nicht zum
+  Schluessel (eine Antwort von DeepSeek gilt auch fuer den naechsten, den der Router zu OpenAI schicken wuerde), es wird
+  aber mit gespeichert (`model`).
+
+Modellmischung (05.11.2026, app/ai_router.py, docs/KI-MODELLMISCHUNG-2026-11-05.md): je Anfrage waehlt der Router
+deterministisch aus request_id und Zweck einen Anbieter (DeepSeek in der EU, OpenAI, Claude Sonnet 5.5), schwere Faelle
+gehen an Sonnet. Vor dem Aufruf wird die harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das TEUERSTE Modell
+der Kette reserviert; reicht der Rest der Credits nicht, wird die Ausgabegrenze verkleinert oder abgelehnt. Faellt der
+gewaehlte Anbieter aus, ohne etwas zu berechnen (5xx, 429, keine Verbindung), uebernimmt der naechste innerhalb derselben
+Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr als seine Credits (Pro AI 100 = 1 EUR).
 """
 from __future__ import annotations
 
@@ -81,7 +93,8 @@ CREATE TABLE IF NOT EXISTS ai_inflight (
 CREATE TABLE IF NOT EXISTS ai_cache (
     key TEXT PRIMARY KEY,
     result TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    model TEXT                             -- welches Modell die Antwort erzeugt hat (nicht Teil des Schluessels)
 );
 """
 
@@ -97,12 +110,16 @@ CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test")
 
 
 class AIUnavailable(Exception):
-    def __init__(self, code: str, message: str, status: int = 503, extra: dict | None = None, billed: "Completion | None" = None):
+    def __init__(self, code: str, message: str, status: int = 503, extra: dict | None = None, billed: "Completion | None" = None,
+                 *, retryable: bool = False, started: bool = False):
         super().__init__(message)
         self.code, self.message, self.status = code, message, status
-        # extra: zusaetzliche Felder fuer die Antwort (z. B. Credits); billed: Nutzung, die OpenAI trotz Fehler berechnet
-        # hat (abgebrochene Antwort) - die wird abgerechnet, nicht zurueckgegeben
+        # extra: zusaetzliche Felder fuer die Antwort (z. B. Credits); billed: Nutzung, die der Anbieter trotz Fehler
+        # berechnet hat (abgebrochene Antwort) - die wird abgerechnet, nicht zurueckgegeben
         self.extra, self.billed = extra or {}, billed
+        # retryable: der Anbieter hat nichts berechnet, der naechste der Kette darf uebernehmen (app/ai_router.py);
+        # started: der Anbieter hatte angenommen, die Nutzung ist unbekannt -> die Reservierung wird abgerechnet
+        self.retryable, self.started = retryable, started
 
 
 @dataclass
@@ -117,6 +134,9 @@ class Completion:
     credits_charged: int = 0
     credits_reserved: int = 0
     replay: bool = False
+    provider: str = ""                # Anbieter, der geantwortet hat (openai | deepseek | anthropic | Attrappe)
+    usage_known: bool = True          # False: Anbieter nannte keine Nutzung -> die Reservierung wird abgerechnet
+    source_model: str = ""            # bei Treffern im Zwischenspeicher: Modell, das die Antwort erzeugt hat
 
     @staticmethod
     def from_usage(text: str, data: dict, model: str, images: int = 0) -> "Completion":
@@ -133,7 +153,7 @@ class Completion:
         return Completion(text, n(usage.get("input_tokens")), n(usage.get("output_tokens")),
                           (data.get("model") if isinstance(data, dict) else None) or model,
                           cached_tokens=n(details_in.get("cached_tokens")), reasoning_tokens=n(details_out.get("reasoning_tokens")),
-                          images=images)
+                          images=images, provider="openai")
 
 
 # ---------------------------------------------------------------- Konfiguration
@@ -151,10 +171,33 @@ def api_key() -> str:
 
 
 def provider_name() -> str:
+    """mix (Standard, sobald irgendein Anbieter eingerichtet ist) | openai | deepseek | anthropic | none."""
     p = (os.environ.get("LERNAPP_AI_PROVIDER") or "").strip().lower()
-    if not p:
-        return "openai" if api_key() else "none"
+    if not p or p == "mix":
+        return "mix" if configured_providers(ignore_choice=True) else "none"
     return p
+
+
+def openai_base_url() -> str:
+    return ((os.environ.get("LERNAPP_OPENAI_BASE_URL") or "").strip() or "https://api.openai.com/v1").rstrip("/")
+
+
+def configured_providers(ignore_choice: bool = False) -> set[str]:
+    """Anbieter mit Schluessel (und Modell); LERNAPP_AI_PROVIDER=openai|deepseek|anthropic laesst nur diesen, none keinen."""
+    from . import ai_providers
+    out = set()
+    if api_key() and model():
+        out.add("openai")
+    if ai_providers.deepseek_configured():
+        out.add("deepseek")
+    if ai_providers.anthropic_configured():
+        out.add("anthropic")
+    if ignore_choice:
+        return out
+    choice = (os.environ.get("LERNAPP_AI_PROVIDER") or "").strip().lower()
+    if choice in ("", "mix"):
+        return out
+    return out & {choice}
 
 
 def model() -> str:
@@ -225,11 +268,12 @@ def cost_microeur(input_tokens: int, output_tokens: int, model_name: str | None 
 # ---------------------------------------------------------------- Anbieter
 
 _KEY_RE = re.compile(r"sk-[A-Za-z0-9_\-*.]{3,}")
+_AWS_KEY_RE = re.compile(r"\b(AKIA|ASIA)[A-Z0-9]{12,}\b")
 
 
 def scrub(text: str) -> str:
     """Schluessel nie weitergeben: OpenAI nennt bei 401 einen Teil davon in der Fehlermeldung."""
-    return _KEY_RE.sub("sk-***", text or "")
+    return _AWS_KEY_RE.sub("AKIA***", _KEY_RE.sub("sk-***", text or ""))
 
 
 def urllib_transport(url: str, headers: dict, body: bytes, timeout: float):
@@ -272,9 +316,11 @@ class OpenAIProvider:
     label = "openai"
     supports_options = True
 
-    def __init__(self, api_key: str, model_name: str, timeout: int = 120, transport=None):
+    def __init__(self, api_key: str, model_name: str, timeout: int = 120, transport=None, base_url: str | None = None):
         self.api_key, self.model, self.timeout = api_key, model_name, timeout
         self.transport = transport or urllib_transport
+        if base_url:                                 # EU-Datenresidenz: https://eu.api.openai.com/v1
+            self.URL = base_url.rstrip("/") + "/responses"
 
     def __repr__(self) -> str:                       # nie den Schluessel zeigen
         return f"{type(self).__name__}(model={self.model!r})"
@@ -309,18 +355,20 @@ class OpenAIProvider:
         body = self.request_body(system, prompt, schema, image=image, max_output_tokens=max_output_tokens, cache_key=cache_key,
                                  user_tag=user_tag)
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "Accept": "text/event-stream"}
+        from .ai_providers import guarded, http_error
         try:
             status, lines = self.transport(self.URL, headers, json.dumps(body).encode("utf-8"), self.timeout)
-            if status >= 400:
-                detail = scrub(_error_message("\n".join(lines)))
-                if status == 401:
-                    raise AIUnavailable("ai_provider_error", "Der KI-Anbieter hat den Schlüssel des Dienstes abgelehnt.", 502)
-                if status == 429:
-                    raise AIUnavailable("ai_provider_busy", "Der KI-Anbieter ist gerade ausgelastet. Bitte gleich noch einmal.", 503)
-                raise AIUnavailable("ai_provider_error", f"Der KI-Anbieter antwortete mit Fehler {status}." + (f" {detail[:200]}" if detail else ""), 502)
-            text, data = consume_stream(lines, on_delta=on_delta, who="Der KI-Anbieter", model=self.model, images=1 if image else 0)
         except (urllib.error.URLError, TimeoutError, OSError):
-            raise AIUnavailable("ai_provider_unreachable", "Der KI-Anbieter ist nicht erreichbar.", 502)
+            raise AIUnavailable("ai_provider_unreachable", "Der KI-Anbieter ist nicht erreichbar.", 502, retryable=True)
+        if status >= 400:
+            raise http_error("Der KI-Anbieter", status, scrub(_error_message("\n".join(lines))))
+        try:
+            text, data = consume_stream(guarded(lines), on_delta=on_delta, who="Der KI-Anbieter", model=self.model, images=1 if image else 0)
+        except AIUnavailable as e:
+            e.started = True                         # angenommen, dann abgebrochen: kein Wechsel des Anbieters
+            raise
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise AIUnavailable("ai_provider_unreachable", "Der KI-Anbieter hat die Antwort abgebrochen.", 502, started=True)
         return Completion.from_usage(text, data, self.model, images=1 if image else 0)
 
 
@@ -529,20 +577,85 @@ def set_provider(p) -> None:
     _provider_override = p
 
 
+def _not_configured() -> AIUnavailable:
+    return AIUnavailable("ai_not_configured", "Die StudiNow-KI ist auf dem Server noch nicht eingerichtet.")
+
+
+def build(provider_label: str, model_name: str | None = None):
+    """Anbieter-Objekt fuer openai | deepseek | anthropic (Modell aus der Umgebung, wenn keins genannt)."""
+    from . import ai_providers
+    if provider_label == "openai":
+        if not api_key() or not (model_name or model()):
+            raise _not_configured()
+        return OpenAIProvider(api_key(), model_name or model(), base_url=openai_base_url())
+    if provider_label == "deepseek":
+        return ai_providers.deepseek_provider(model_name)
+    if provider_label == "anthropic":
+        return ai_providers.anthropic_provider(model_name)
+    raise _not_configured()
+
+
 def provider(model_name: str | None = None):
-    """Anbieter fuer eine Anfrage. `model_name` (Wunsch des Clients) muss in allowed_models() stehen, sonst 400
-    model_not_allowed; ohne Wunsch gilt LERNAPP_AI_MODEL."""
+    """Erster Anbieter fuer eine Anfrage ohne Zweck (Vorpruefungen). `model_name` (Wunsch des Clients) muss in
+    allowed_models() stehen, sonst 400 model_not_allowed."""
+    return route("default", "probe", model_name=model_name)[0]
+
+
+def route(purpose: str, request_id: str, *, model_name: str | None = None, image: bytes | None = None,
+          route_text: str | None = None, route_hint: str | None = None) -> list:
+    """Anbieter-Kette einer Anfrage (app/ai_router.py): [gewaehlt, Ersatz ...]. Mit `model_name` genau dieses Modell
+    (beim Anbieter laut app/ai_prices.py). Tests: set_provider ersetzt alles durch eine Attrappe."""
+    from . import ai_router
     if model_name and model_name not in allowed_models():
         raise AIUnavailable("model_not_allowed", "Dieses Modell ist für die StudiNow-KI nicht freigegeben.", 400)
     if _provider_override is not None:
-        return _provider_override
-    name = provider_name()
-    if name == "openai":
-        key = api_key()
-        if not key or not model():
-            raise AIUnavailable("ai_not_configured", "Die StudiNow-KI ist auf dem Server noch nicht eingerichtet.")
-        return OpenAIProvider(key, model_name or model())
-    raise AIUnavailable("ai_not_configured", "Die StudiNow-KI ist auf dem Server noch nicht eingerichtet.")
+        return [_provider_override]
+    configured = configured_providers()
+    if not configured:
+        raise _not_configured()
+    if model_name:
+        prov = ai_prices.provider_of(model_name)
+        if prov not in configured:
+            raise _not_configured()
+        return [build(prov, model_name)]
+
+    def vision_ok(c) -> bool:
+        p = ai_prices.price(c.model or _default_model(c.provider))
+        return p is None or p.vision
+    choices, _hard = ai_router.chain(purpose, request_id, configured=configured, route_text=route_text, hint=route_hint,
+                                     needs_vision=bool(image), vision_ok=vision_ok)
+    out = []
+    for c in choices:
+        try:
+            out.append(build(c.provider, c.model))
+        except AIUnavailable:                        # falsch eingerichtet (z. B. Adresse in China): ueberspringen
+            continue
+    if not out:
+        raise _not_configured()
+    return out
+
+
+def _default_model(provider_label: str) -> str:
+    from . import ai_providers
+    return {"openai": model(), "deepseek": ai_providers.deepseek_model(),
+            "anthropic": ai_providers.anthropic_model()}.get(provider_label, "")
+
+
+def estimate_model(purpose: str) -> str | None:
+    """Modell fuer die Kostenzeile vor einem Lauf (app/doc_explain_api.py): das teuerste Modell des Weges dieses Zwecks
+    unter den eingerichteten Anbietern - die Zeile verspricht so nie zu wenig."""
+    from . import ai_router
+    if _provider_override is not None:
+        return getattr(_provider_override, "model", None) or model()
+    configured = configured_providers()
+    choices, _ = ai_router.chain(purpose, "estimate", configured=configured)
+    best, best_out = None, -1.0
+    for c in choices[:max(1, len(ai_router.route_for(purpose)))]:
+        m = c.model or _default_model(c.provider)
+        p = ai_prices.price(m)
+        if p and p.output_eur > best_out:
+            best, best_out = m, p.output_eur
+    return best or model()
 
 
 def available() -> bool:
@@ -562,6 +675,8 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE ai_usage_log ADD COLUMN trial INTEGER NOT NULL DEFAULT 0")
     if "library" not in cols:
         conn.execute("ALTER TABLE ai_usage_log ADD COLUMN library INTEGER NOT NULL DEFAULT 0")
+    if "model" not in {r[1] for r in conn.execute("PRAGMA table_info(ai_cache)")}:
+        conn.execute("ALTER TABLE ai_cache ADD COLUMN model TEXT")
 
 
 def connect() -> sqlite3.Connection:
@@ -614,8 +729,8 @@ def library_exhausted() -> AIUnavailable:
 def check_library(calls: int = 1, now: datetime | None = None) -> None:
     """Vorpruefung vor einer Vorarbeit der Bibliothek (mehrere Aufrufe): Anbieter eingerichtet, Preise gesetzt (Dienst),
     Budget der Bibliothek reicht fuer `calls` Reservierungen. Wirft AIUnavailable (503 bzw. 429), sonst nichts."""
-    provider()
-    if config.is_hosted() and not prices_set():
+    chain = route("library", "check")
+    if config.is_hosted() and not any(prices_set(getattr(p, "model", None) or model()) for p in chain):
         raise AIUnavailable("ai_not_configured_prices", "Die StudiNow-KI ist noch nicht freigeschaltet: Die Token-Preise "
                             "(LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR) fehlen auf dem Server.", 503)
     conn = connect()
@@ -687,12 +802,14 @@ def _cost(c: Completion, requested_model: str | None) -> int:
     return cost_microeur(c.input_tokens, c.output_tokens, m, c.cached_tokens)
 
 
-def settle(conn: sqlite3.Connection, log_id: int, c: Completion | None, provider_label: str = "", requested_model: str | None = None) -> int:
-    """Protokollzeile abschliessen; liefert die Kosten in Millionstel EUR (0 bei Fehler ohne Nutzung)."""
+def settle(conn: sqlite3.Connection, log_id: int, c: Completion | None, provider_label: str = "", requested_model: str | None = None,
+           cost_override: int | None = None) -> int:
+    """Protokollzeile abschliessen; liefert die Kosten in Millionstel EUR (0 bei Fehler ohne Nutzung). `cost_override`:
+    Nutzung unbekannt -> die reservierte Obergrenze."""
     if c is None:
         conn.execute("UPDATE ai_usage_log SET state='failed', cost_microeur=0 WHERE id=?", (log_id,))
         return 0
-    cost = _cost(c, requested_model)
+    cost = int(cost_override) if cost_override is not None else _cost(c, requested_model)
     conn.execute("UPDATE ai_usage_log SET state='done', provider=?, model=?, input_tokens=?, output_tokens=?, cost_microeur=? WHERE id=?",
                  (provider_label, c.model, c.input_tokens, c.output_tokens, cost, log_id))
     return cost
@@ -704,10 +821,14 @@ def month_report(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
                         FROM ai_usage_log WHERE period=? AND state='done'""", (period,)).fetchone()
     lib = conn.execute("SELECT COUNT(*), COALESCE(SUM(cost_microeur),0) FROM ai_usage_log WHERE period=? AND state='done' AND library=1",
                        (period,)).fetchone()
+    by = conn.execute("SELECT COALESCE(provider, ''), COUNT(*), COALESCE(SUM(cost_microeur),0) FROM ai_usage_log "
+                      "WHERE period=? AND state='done' GROUP BY provider", (period,)).fetchall()
     return {"period": period, "requests": r[0], "input_tokens": r[1], "output_tokens": r[2],
             "cost_eur": round(r[3] / 1_000_000, 6), "budget_eur": budget_microeur() / 1_000_000,
             "library_requests": lib[0], "library_cost_eur": round(lib[1] / 1_000_000, 6),
-            "library_budget_eur": library_budget_microeur() / 1_000_000}
+            "library_budget_eur": library_budget_microeur() / 1_000_000,
+            "by_provider": {p or "?": {"requests": n, "cost_eur": round(cst / 1_000_000, 6),
+                                       "share": round(n / r[0], 4) if r[0] else 0.0} for p, n, cst in by}}
 
 
 def user_tag(user_id: str | None) -> str | None:
@@ -752,91 +873,142 @@ def replay(user_id: str | None, request_id: str | None, now: datetime | None = N
     return None
 
 
+MIN_SHRUNK_OUTPUT = 400          # kleiner wird eine Ausgabegrenze beim Verkleinern nie (sonst lieber 429 credits_exhausted)
+
+
+def _prices_missing() -> AIUnavailable:
+    return AIUnavailable("ai_not_configured_prices", "Die StudiNow-KI ist noch nicht freigeschaltet: Die Token-Preise "
+                         "fuer das Modell fehlen auf dem Server (app/ai_prices.py, LERNAPP_AI_PRICES oder "
+                         "LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR).", 503)
+
+
 def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
              cache: bool = False, now: datetime | None = None, *, image: bytes | None = None, model_name: str | None = None,
              max_output_tokens: int | None = None, request_id: str | None = None, credits: bool | None = None,
              rate_limit: bool = True, on_delta=None, keep_result: bool = False, budget_reserve: int | None = None,
-             library: bool = False) -> Completion:
+             library: bool = False, route_hint: str | None = None, route_text: str | None = None) -> Completion:
     """Eine StudiNow-KI-Anfrage mit Budget, Rate-Limit, Credits (app/credits.py), Protokoll und optionalem Cache.
 
+    Modellmischung (app/ai_router.py): der Router waehlt aus request_id und Zweck einen Anbieter, schwere Faelle
+    (`route_hint` "hard"/"second_opinion", Rechnen in `route_text` = Frage oder Markierung) gehen an Sonnet.
     credits: None = automatisch (im Dienst fuer Konten bei den Zwecken aus charges_credits). Vor dem Aufruf wird die
-    Schaetzung (app/ai_prices.py) reserviert, danach mit `usage` abgerechnet; ein Fehler ohne Nutzung gibt sie zurueck,
-    eine abgebrochene Antwort mit Nutzung wird abgerechnet. Dieselbe request_id wird nie zweimal berechnet
-    (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG (input_image).
+    harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das teuerste Modell der Kette reserviert - reicht der Rest
+    nicht, wird `max_output_tokens` verkleinert (hoechstens bis MIN_SHRUNK_OUTPUT), sonst 429 credits_exhausted. Danach
+    wird mit `usage` abgerechnet (nie mehr als reserviert); ein Fehler ohne Nutzung gibt die Reservierung zurueck und
+    der naechste Anbieter der Kette uebernimmt, wenn der erste nichts berechnet hat. Dieselbe request_id wird nie zweimal
+    berechnet (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG.
     `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits; `user_id` wird dann
     nicht gespeichert)."""
     from . import credits as ledger
     if library:
         user_id = None
-    p = provider(model_name)                         # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
-    requested = model_name or getattr(p, "model", None) or model()
+    rid = request_id or ("auto:" + uuid.uuid4().hex)
+    # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
+    chain = route(purpose, rid, model_name=model_name, image=image, route_text=route_text, route_hint=route_hint)
+    models = [model_name or getattr(p, "model", None) or model() for p in chain]
     hosted = config.is_hosted()
-    if hosted and not prices_set(requested):
+    if hosted:
         # ohne Token-Preise rechnet kein Budget (Kosten blieben 0): im Dienst lieber sperren als unbegrenzt ausgeben
-        raise AIUnavailable("ai_not_configured_prices", "Die StudiNow-KI ist noch nicht freigeschaltet: Die Token-Preise "
-                            "fuer das Modell fehlen auf dem Server (app/ai_prices.py, LERNAPP_AI_PRICES oder "
-                            "LERNAPP_AI_PRICE_IN_EUR / LERNAPP_AI_PRICE_OUT_EUR).", 503)
+        keep = [i for i, m in enumerate(models) if prices_set(m)]
+        if not keep:
+            raise _prices_missing()
+        chain, models = [chain[i] for i in keep], [models[i] for i in keep]
+    requested = models[0]
     charge = bool(user_id) and (credits if credits is not None else (hosted and charges_credits(purpose)))
     max_out = int(max_output_tokens or max_output(purpose))
-    label = getattr(p, "label", type(p).__name__)
+    images = [image] if image else None
+
+    def worst(out_tokens: int) -> int:
+        return max(ai_prices.worst_case_microeur(m, system, prompt, out_tokens, images, schema) for m in models)
+
+    def estimate(out_tokens: int) -> int:
+        return max(ai_prices.estimate_credits(m, system, prompt, out_tokens, images, schema=schema) for m in models)
     conn = connect()
     try:
         key = None
         if cache and not image:
-            key = "c:" + hashlib.sha256(json.dumps([purpose, requested, system, prompt, schema], sort_keys=True).encode()).hexdigest()
-            hit = conn.execute("SELECT result, created_at FROM ai_cache WHERE key=?", (key,)).fetchone()
+            # ohne Modell im Schluessel: dieselbe Antwort gilt fuer jedes Modell der Mischung (gespeichert wird, wer sie schrieb)
+            key = "c2:" + hashlib.sha256(json.dumps([purpose, system, prompt, schema], sort_keys=True).encode()).hexdigest()
+            hit = conn.execute("SELECT result, created_at, model FROM ai_cache WHERE key=?", (key,)).fetchone()
             if hit and hit[1] >= (_now(now) - timedelta(days=CACHE_DAYS)).isoformat():
-                return Completion(hit[0], 0, 0, "cache")
-        rid = request_id or ("auto:" + uuid.uuid4().hex)
+                return Completion(hit[0], 0, 0, "cache", source_model=hit[2] or "")
         held = None
         if charge:
-            est = ai_prices.estimate_credits(requested, system, prompt, max_out, [image] if image else None)
             try:
-                held = ledger.reserve(conn, user_id, rid, purpose, est, now, model=requested)
+                held = ledger.reserve(conn, user_id, rid, purpose, estimate(max_out), now, model=requested)
             except ledger.CreditsError as e:
-                raise AIUnavailable(e.code, e.message, e.status, e.extra)
+                remaining = int(((e.extra or {}).get("credits") or {}).get("remaining") or 0)
+                fit = min(ai_prices.max_output_within(m, system, prompt, remaining * ai_prices.MICROEUR_PER_CREDIT, images, schema)
+                          for m in models) if e.code == "credits_exhausted" and remaining > 0 else 0
+                fit = min(fit, max_out - 1)
+                if fit < min(MIN_SHRUNK_OUTPUT, max_out - 1) or estimate(fit) > remaining:
+                    raise AIUnavailable(e.code, e.message, e.status, e.extra)
+                max_out = fit                        # kleinere Antwort, die sicher in den Rest passt
+                try:
+                    held = ledger.reserve(conn, user_id, rid, purpose, estimate(max_out), now, model=requested)
+                except ledger.CreditsError as e2:
+                    raise AIUnavailable(e2.code, e2.message, e2.status, e2.extra)
             if held.replay:
                 if held.result is not None:
                     return Completion(held.result, 0, 0, requested, credits_charged=0, replay=True)
                 raise AIUnavailable("duplicate_request", "Diese Anfrage wurde schon verarbeitet.", 409)
+        ceiling = worst(max_out)                     # hoechstens so viel kann diese Anfrage kosten (auch mit Ersatz)
         try:
+            # Becken (gesamt, Probe, je Konto): Reservierung wie bisher; die harte Grenze je Konto halten die Credits
             log_id = reserve(conn, user_id, purpose, now, rate_limit=rate_limit, amount_microeur=budget_reserve, library=library)
         except Exception:
             if held:
                 ledger.refund(conn, user_id, rid)
             raise
-        opts = {}
-        if getattr(p, "supports_options", False):
-            opts = {"image": image, "max_output_tokens": max_out, "on_delta": on_delta,
-                    "cache_key": "studinow:" + purpose.split(":", 1)[0], "user_tag": user_tag(user_id)}
-        try:
-            c = p.complete(system, prompt, schema, **opts) if opts else p.complete(system, prompt, schema)
-        except AIUnavailable as e:
-            if e.billed is not None:                 # OpenAI hat schon gerechnet (abgebrochene Antwort): abrechnen
-                cost = settle(conn, log_id, e.billed, label, requested)
-                if held:
-                    charged = ledger.settle(conn, user_id, rid, cost, model=e.billed.model, input_tokens=e.billed.input_tokens,
-                                            cached_tokens=e.billed.cached_tokens, output_tokens=e.billed.output_tokens,
-                                            images=e.billed.images, now=now)
-                    e.extra = {**e.extra, "credits_charged": charged}
-            else:
+
+        def book(c: Completion, label: str, used_model: str, cost_override: int | None = None) -> int:
+            cost = settle(conn, log_id, c, label, used_model, cost_override)
+            if held:
+                c.credits_charged = ledger.settle(conn, user_id, rid, cost, model=c.model, input_tokens=c.input_tokens,
+                                                  cached_tokens=c.cached_tokens, output_tokens=c.output_tokens, images=c.images,
+                                                  result=c.text if keep_result and c.text else None, now=now)
+                c.credits_reserved = held.reserved
+            return cost
+        c = None
+        for i, p in enumerate(chain):
+            label = getattr(p, "label", type(p).__name__)
+            opts = {}
+            if getattr(p, "supports_options", False):
+                opts = {"image": image, "max_output_tokens": max_out, "on_delta": on_delta,
+                        "cache_key": "studinow:" + purpose.split(":", 1)[0], "user_tag": user_tag(user_id)}
+            try:
+                c = p.complete(system, prompt, schema, **opts) if opts else p.complete(system, prompt, schema)
+            except AIUnavailable as e:
+                if e.retryable and e.billed is None and not e.started and i + 1 < len(chain):
+                    continue                         # nichts berechnet: der naechste Anbieter, dieselbe Reservierung
+                if e.billed is not None:             # der Anbieter hat schon gerechnet (abgebrochene Antwort): abrechnen
+                    if not e.billed.provider:
+                        e.billed.provider = label
+                    book(e.billed, label, models[i], None if e.billed.usage_known else ceiling)
+                    if held:
+                        e.extra = {**e.extra, "credits_charged": e.billed.credits_charged}
+                elif e.started:                      # angenommen, Nutzung unbekannt: die Obergrenze abrechnen
+                    gone = Completion("", 0, 0, models[i], provider=label, usage_known=False)
+                    book(gone, label, models[i], ceiling)
+                    if held:
+                        e.extra = {**e.extra, "credits_charged": gone.credits_charged}
+                else:
+                    settle(conn, log_id, None)
+                    if held:
+                        ledger.refund(conn, user_id, rid)
+                raise
+            except Exception:
                 settle(conn, log_id, None)
                 if held:
                     ledger.refund(conn, user_id, rid)
-            raise
-        except Exception:
-            settle(conn, log_id, None)
-            if held:
-                ledger.refund(conn, user_id, rid)
-            raise
-        cost = settle(conn, log_id, c, label, requested)
-        if held:
-            c.credits_charged = ledger.settle(conn, user_id, rid, cost, model=c.model, input_tokens=c.input_tokens,
-                                              cached_tokens=c.cached_tokens, output_tokens=c.output_tokens, images=c.images,
-                                              result=c.text if keep_result else None, now=now)
-            c.credits_reserved = held.reserved
-        if key and c.text:
-            conn.execute("INSERT OR REPLACE INTO ai_cache(key, result, created_at) VALUES (?,?,?)", (key, c.text, _now(now).isoformat()))
+                raise
+            if not c.provider:
+                c.provider = label
+            book(c, label, models[i], None if c.usage_known else ceiling)
+            break
+        if key and c is not None and c.text:
+            conn.execute("INSERT OR REPLACE INTO ai_cache(key, result, created_at, model) VALUES (?,?,?,?)",
+                         (key, c.text, _now(now).isoformat(), c.model))
         return c
     finally:
         conn.close()

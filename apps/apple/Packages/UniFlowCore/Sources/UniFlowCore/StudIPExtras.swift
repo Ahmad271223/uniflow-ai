@@ -408,6 +408,8 @@ public enum StudIPExtras {
         public var holidays: [StudIPTerms.Holiday]?
         public var globalNews: [Announcements.Item]?
         public var messages: [Message]?
+        /// Zahl der Empfaenger je Nachricht (Antworten, StudIPMessageReply.swift); nur gesetzt, wenn die Liste sie nennt
+        public var messageMeta: [String: Int]?
         public var activity: [Activity]?
         public var bookings: [Booking]?
         /// fehlende Endpunkte nach diesem Abruf
@@ -453,6 +455,7 @@ public enum StudIPExtras {
         if let j = await ask("studip-news", ["studip/news?page[limit]=50"]) { d.globalNews = globalNews(j["data"], base: base, today: today) }
         if let j = await ask("inbox", ["users/\(userID)/inbox?page[limit]=30&include=sender", "users/\(userID)/inbox?page[limit]=30"]) {
             d.messages = parseMessages(j["data"], included: j["included"], base: base, today: today)
+            d.messageMeta = parseMessageMeta(j["data"])
         }
         if let j = await ask("activitystream", ["users/\(userID)/activitystream"]) { d.activity = parseActivity(j["data"], base: base) }
         if let j = await ask("consultations", ["users/\(userID)/consultation-bookings?include=slot,slot.block", "users/\(userID)/consultation-bookings"]) {
@@ -472,7 +475,10 @@ public enum StudIPExtras {
         let today = BerlinClock.parseISODate(clock.today) ?? 0
         try StudIPTerms.store(c, semesters: d.semesters, holidays: d.holidays, fetchedAt: now)
         if let g = d.globalNews { try storeGlobalNews(c, g, fetchedAt: now) }
-        if let m = d.messages { try storeMessages(c, m, fetchedAt: now) }
+        if let m = d.messages {
+            try storeMessages(c, m, fetchedAt: now)
+            try storeMessageMeta(c, d.messageMeta ?? [:])
+        }
         if let a = d.activity { try storeActivity(c, a, fetchedAt: now, today: today) }
         if let b = d.bookings { try storeConsultations(c, b, fetchedAt: now) }
         try saveMissing(c, d.missing)
