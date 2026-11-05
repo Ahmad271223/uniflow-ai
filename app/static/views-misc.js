@@ -14,6 +14,8 @@ import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=4";
 import { masteryHtml, masteryTile } from "./mastery.js?v=2";
 // Testergebnis wie auf dem iPad: Ring, Einordnung und "Frag die KI zu Aufgabe n" (test-result.js)
 import * as TR from "./test-result.js?v=1";
+// Dialog "Wochentest erstellen" mit Aufgabenzahl, Schwierigkeit und Aufgabenarten (week-test-dialog.js, wie QuizComposer.swift)
+import { openWeekTestDialog, wantsDialog } from "./week-test-dialog.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -110,10 +112,20 @@ export async function viewExams(parts, params, view) {
       ${pct !== null ? `<div class="progress ${pct >= 60 ? "ok" : ""}" style="margin:.5rem 0 .3rem"><i style="width:${pct}%;${pct < 60 ? "background:var(--bad)" : ""}"></i></div><div class="row between small"><span>${Math.round(t.score)}/${Math.round(t.max_score)} Punkte (${pct} %)</span><a class="btn test-go" href="#/exams/${t.id}">Ansehen</a></div>` : `<div class="row between small" style="margin-top:.5rem"><span class="muted">${t.started_at ? "begonnen" : "noch nicht gestartet"}</span><a class="btn primary test-go" href="#/exams/${t.id}">${icon("play", 15)} ${t.started_at ? "Fortsetzen" : "Starten"}</a></div>`}
 </div>`; }).join("")).join("") : `<div class="card empty">${icon("exam", 36)}<div>Noch keine Wochentests. Sie entstehen automatisch pro Modul und Lehrwoche, sobald neue Inhalte da sind, oder manuell unten.</div></div>`;
   view.innerHTML = `<div class="content"><div class="page-head"><div><h1>Tests & Wiederholung</h1><div class="sub">Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.</div></div>
-      <div class="actions"><select class="input" id="exSubj" style="width:auto">${mods.map(s => `<option value="${s.id}">${esc(shortName(s.name))}</option>`).join("")}</select><select class="input" id="exDur" style="width:auto">${[15, 30, 45, 60, 90].map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${n} min</option>`).join("")}</select><button class="btn sm" id="exGen">${icon("plus", 14)} Zusatztest</button><button class="btn primary sm" id="exWeek">${icon("sparkles", 14)} Wochentests erstellen</button></div></div>
+      <div class="actions"><a class="btn sm" href="#/ki" id="exAi">${icon("sparkles", 14)} KI-Start</a><button class="btn sm" id="exWeek" title="Erstellt alle Wochentests, die noch fehlen">${icon("refresh", 14)} Fehlende Wochentests</button><button class="btn primary sm" id="exGen">${icon("plus", 14)} Wochentest erstellen</button></div></div>
     <div class="statbar"><span><b>${tests.filter(t => !t.submitted_at).length}</b> offene Tests</span><span><b>${tests.filter(t => t.submitted_at).length}</b> abgeschlossen${tests.some(t => t.submitted_at) ? ` · Ø ${Math.round(tests.filter(t => t.submitted_at).reduce((a, t) => a + 100 * t.score / t.max_score, 0) / tests.filter(t => t.submitted_at).length)} %` : ""}</span><a href="#/cards"><b>${cards.length}</b> Karteikarten fällig →</a></div>
     <div class="test-grid">${cardsHtml}</div></div>`;
-  $("#exGen").onclick = async () => { try { await api("/tests/generate", { method: "POST", body: { module_id: +$("#exSubj").value, duration_min: +$("#exDur").value } }); toast("Zusatztest wird erstellt (ca. 1 Minute)…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
+  // Platzhalterkarte mit dem Stand des Auftrags (wie auf dem iPad): "Gemeinsamer Test wird gesucht …", "Aufgaben werden erstellt … 15 Aufgaben";
+  // der Text kommt aus /api/bg (planner.create_test meldet die Phasen), beim Fertigwerden zeichnet app.js die Seite neu
+  const placeholder = info => {
+    const g = $(".test-grid", view); if (!g || $("#exPh", view)) return;
+    g.insertAdjacentHTML("afterbegin", `<div class="card test-card" id="exPh" aria-live="polite"><div class="row">${icon("sparkles", 16)} <b class="uf-shimmer">Wochentest wird erstellt …</b></div><div class="small" id="exPhLine" style="margin:.4rem 0">${info.shared ? "Gemeinsamer Test wird gesucht …" : `Aufgaben werden erstellt … ${info.count} Aufgaben`}</div><div class="small muted">${info.shared ? "Gibt es für dieses Modul schon einen gemeinsamen Test, bekommst du eine Variante ohne neue KI-Anfrage." : "Eigener Test, nicht geteilt. "}Das dauert etwa eine Minute; du kannst die Seite derweil verlassen.</div></div>`);
+    const tick = async () => { if (!view.isConnected || !$("#exPh", view)) return; try { const bg = await api("/bg"); const line = $("#exPhLine", view); if (line && bg.running && bg.message) line.textContent = bg.message.replace(/^[^:]+:\s*/, ""); if (bg.running) setTimeout(tick, 2000); } catch { /* nur Anzeige */ } };
+    setTimeout(tick, 1200);
+  };
+  const newTest = (moduleId = 0) => openWeekTestDialog({ api, modal, icon, toast, modules: mods, moduleId, onStarted: info => { window.pollBg?.(); placeholder(info); } });
+  $("#exGen").onclick = () => newTest();
+  const want = wantsDialog(params); if (want) newTest(want.moduleId);                   // #/exams?neu=<Modul> (KI-Start, KI-Hilfe)
   $("#exWeek").onclick = async () => { try { await api("/tests/generate-week", { method: "POST" }); toast("Fehlende Wochentests werden erstellt…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
   // eigene Rueckfrage statt confirm(): gross genug fuer den Finger, auch in der iPad-App zuverlaessig
   $$("[data-del]", view).forEach(b => b.onclick = () => {
@@ -133,12 +145,12 @@ async function runTest(id, params, view) {
         <div class="tr-num"><div><b class="tr-pct">${r.pct} %</b> <span class="muted">${r.total} / ${r.max} Punkte</span></div><div><b>${r.right}/${r.n} richtig</b>${r.redo ? `<span class="muted"> · ${r.redo} zum Nacharbeiten</span>` : ""}</div><span class="tr-status">${icon(r.tone === "ok" ? "check" : "alert", 14)} ${esc(r.status)}</span></div></div>
         ${t.feedback.summary ? `<p class="tr-sum">${esc(t.feedback.summary)}</p>` : ""}${t.feedback.weak_topics?.length ? `<div class="tr-weak"><b class="small">Nochmal anschauen:</b>${t.feedback.weak_topics.map(w => `<span class="tr-topic">${esc(w)}</span>`).join("")}</div>` : ""}</section>`; })() : ""}
       <div class="row wrap" style="gap:.3rem;margin-bottom:.8rem">${t.questions.map((qq, i) => `<button class="chip ${i === cur ? "on" : ""}" data-q="${i}" style="${fb[String(qq.nr)] ? `border-color:${fb[String(qq.nr)].points >= fb[String(qq.nr)].max * .6 ? "var(--ok)" : "var(--bad)"}` : answers[String(qq.nr)] ? "border-color:var(--accent)" : ""}">${qq.nr}</button>`).join("")}</div>
-      <div class="q ${f ? (f.points >= f.max * .6 ? "good" : "bad") : ""}"><div class="qh"><span>Aufgabe ${q.nr} von ${t.questions.length} · ${q.type === "mc" ? "Multiple Choice" : q.type === "calc" ? "Rechnen / Programmieren" : "Kurzantwort"}</span><span>${q.points} P.${f ? ` → ${f.points}` : ""}</span></div>
+      <div class="q ${f ? (f.points >= f.max * .6 ? "good" : "bad") : ""}"><div class="qh"><span>Aufgabe ${q.nr} von ${t.questions.length} · ${esc(TR.kindLabel(q.type))}</span><span>${q.points} P.${f ? ` → ${f.points}` : ""}</span></div>
         <div style="font-size:1.02rem;margin-bottom:.7rem">${esc(q.question).replace(/\n/g, "<br>")}</div>
-        ${q.type === "mc" ? (q.options || []).map(o => `<label class="opt"><input type="radio" name="q" value="${esc(o)}" ${ans === o ? "checked" : ""} ${t.submitted_at ? "disabled" : ""}> ${esc(o)}</label>`).join("") : `<textarea class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="Deine Antwort / Rechenweg">${esc(ans)}</textarea>`}
-        ${f ? `<div class="fb"><b>Feedback:</b> ${esc(f.feedback)}<br><b>Musterlösung:</b> ${esc(q.answer)}</div><button class="btn primary tr-ask" id="qAsk">${icon("sparkles", 16)} ${esc(TR.askLabel(q.nr))}</button>` : ""}</div>
+        ${TR.isChoice(q) ? `<div class="${TR.isTwoWay(q) ? "opt-two" : ""}">${TR.choices(q).map(o => `<label class="opt${TR.isTwoWay(q) ? " big" : ""}"><input type="radio" name="q" value="${esc(o)}" ${ans === o ? "checked" : ""} ${t.submitted_at ? "disabled" : ""}> ${esc(o)}</label>`).join("")}</div>` : q.type === "cloze" ? `<input class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="Lücke ausfüllen" aria-label="Lücke zu Aufgabe ${q.nr}" value="${esc(ans)}">` : `<textarea class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="${q.type === "calc" ? "Deine Antwort / Rechenweg" : "Deine Antwort"}">${esc(ans)}</textarea>`}
+        ${f ? `<div class="fb"><b>Feedback:</b> ${esc(f.feedback)}<br><b>Musterlösung:</b> ${esc(TR.correctAnswer(q))}${TR.explanationOf(q, f) ? `<br><b>Erklärung:</b> ${esc(TR.explanationOf(q, f))}` : ""}</div><button class="btn primary tr-ask" id="qAsk">${icon("sparkles", 16)} ${esc(TR.askLabel(q.nr))}</button>` : ""}</div>
       <div class="row between"><button class="btn" id="qPrev" ${cur === 0 ? "disabled" : ""}>${icon("chevron-left", 14)} Zurück</button>${cur < t.questions.length - 1 ? `<button class="btn primary" id="qNext">Weiter ${icon("chevron-right", 14)}</button>` : (t.submitted_at ? "" : `<button class="btn ok" id="qSubmit">${icon("check", 14)} Abgeben & bewerten</button>`)}</div></div>`;
-    const save = () => { const q = t.questions[cur]; const el = q.type === "mc" ? $("input[name=q]:checked", view) : $("#qa", view); answers[String(q.nr)] = el ? el.value : ""; };
+    const save = () => { const q = t.questions[cur]; const el = TR.isChoice(q) ? $("input[name=q]:checked", view) : $("#qa", view); answers[String(q.nr)] = el ? el.value : ""; };
     $$("[data-q]", view).forEach(b => b.onclick = () => { save(); cur = +b.dataset.q; render(); });
     $("#qPrev").onclick = () => { save(); cur--; render(); }; $("#qNext")?.addEventListener("click", () => { save(); cur++; render(); });
     $("#qSubmit")?.addEventListener("click", async () => { save(); const open = t.questions.filter(q => !answers[String(q.nr)]).length; if (!confirm(`Test abgeben?${open ? ` ${open} Aufgaben sind unbeantwortet.` : ""} Die KI bewertet deine Antworten.`)) return; $("#qSubmit").disabled = true; $("#qSubmit").textContent = "Wird bewertet…"; clearInterval(timerInt); try { await api(`/tests/${id}/submit`, { method: "POST", body: { answers } }); if (params.task) await api(`/tasks/${params.task}/status`, { method: "POST", body: { status: "erledigt" } }); runTest(id, params, view); } catch (e) { toast("Bewertung fehlgeschlagen: " + e.message, 5000); $("#qSubmit").disabled = false; } });
@@ -181,7 +193,7 @@ let cardsStack = null;                                                        //
 let cardsWeek = null;                                                         // Wochenfilter der Stapelliste (null = alle)
 // Tarif (04.11.2026): ohne `can_use_flashcards` (Free im Dienst, z. B. nach der Probe) nur lesen – Stapel und Karten
 // bleiben sichtbar, statt der Knoepfe zum Anlegen, Bearbeiten, Ueben, Teilen und Uebernehmen steht der Hinweis auf Plus.
-export async function viewCards(_, __, view) {
+export async function viewCards(_, params, view) {
   let [dueAll, all, stacks, modules] = await Promise.all([api("/flashcards?due=true"), api("/flashcards"), api("/flashcard-stacks"), api("/modules")]);
   let i = 0, shown = false, editing = null;
   const ro = FC.readOnly(state.hosted, state.entitlements);
@@ -508,6 +520,7 @@ export async function viewCards(_, __, view) {
   };
   document.addEventListener("keydown", cardKeys);
   render();
+  if (params?.ki) $("#aiOrder", view)?.click();                                // KI-Start -> "Karteikarten": KI-Auftrag gleich offen
   loadShared().then(() => { if (view.isConnected && !trainer.active && shareAvail) render(); }).catch(() => {});
 }
 

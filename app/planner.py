@@ -5,7 +5,7 @@ import json
 import re
 from datetime import date, datetime, timedelta
 
-from . import ai, db
+from . import ai, db, progress
 from .extract import extract_text
 from .study import monday
 
@@ -207,6 +207,9 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
     if not mats:
         raise RuntimeError(f"Keine Materialien fuer {subject}")
     share_variant = adopted_from = None
+    # Zwischenstand fuer /api/bg (wie die Phasen auf dem iPad): suchen, uebernehmen, Aufgaben erstellen
+    progress.report("Gemeinsamer Test gefunden – wird übernommen …" if shared else "Gemeinsamer Test wird gesucht …" if key
+                    else f"Aufgaben werden erstellt … {options['count']} Aufgaben")
     if shared:
         # Lehrwochen-Nummer gehoert dem jeweiligen Nutzer: aus dem geteilten Titel entfernen, unten neu setzen
         res = {"title": re.sub(r"^Lehrwoche \d+:\s*", "", shared["title"] or ""), "questions": json.loads(shared["questions"] or "[]")}
@@ -215,7 +218,10 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
     elif key:
         # Varianten-Regel (hoechstens 3 Tests je Schluessel, feste Variante je Nutzer): im Dienst ueber den Pool,
         # am Einzelplatz nur die eigene Variante merken
-        got = testshare.obtain(key, uid, lambda: ai.generate_test(subject, duration_min, mats, exam=exam, options=options), log=log)
+        def generate():
+            progress.report(f"Aufgaben werden erstellt … {options['count']} Aufgaben")
+            return ai.generate_test(subject, duration_min, mats, exam=exam, options=options)
+        got = testshare.obtain(key, uid, generate, log=log)
         res = {"title": re.sub(r"^Lehrwoche \d+:\s*", "", got.get("title") or ""), "questions": got["questions"]}
         share_variant, adopted_from = got["share_variant"], got["adopted_from"]
     else:

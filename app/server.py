@@ -1128,7 +1128,7 @@ TUTOR_ENTITLEMENT = {"summary": "can_use_ai_summaries", "flashcards": "can_use_a
 
 @app.post("/api/ai/tutor")
 def ai_tutor(request: Request, body: dict = Body(...)):
-    from . import ai
+    from . import ai, ai_backend
     mode = body.get("mode") or "explain"
     hosted = config.is_hosted()
     if hosted:
@@ -1148,10 +1148,27 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
+    # Erklaerungsspeicher (05.11.2026, app/explain_local.py): ganze Seite ohne Markierung, Frage und eigene Notizen wird gemerkt;
+    # beim naechsten Mal sofort da, 0 Credits. `force` ("Neu erklaeren lassen") fragt live nach und belegt den naechsten Platz.
+    from . import explain_local
+    force = body.get("force") is True
+    shareable = bool(text.strip()) and explain_local.is_shareable(mode, body.get("selection") or "", body.get("question") or "",
+                                                                  body.get("own_solution") or "", _own_notes(body))
+    # eine fertige request_id wiederholt die gespeicherte Antwort mit Credits-Stand (replay), das geht vor dem Speicher
+    replayed = hosted and bool(body.get("request_id")) and _ai_replay(request, str(body["request_id"])[:80]) is not None
+    if shareable and not force and not replayed:
+        with db.cursor() as conn:
+            hit = explain_local.lookup(conn, text, page, mode)
+        if hit:
+            state = ai_backend.credits_balance(request.state.user["id"]) if hosted else None
+            return {"answer": hit["answer"], "cards": None, "sources": [],
+                    "explain": explain_local.descriptor(stored=True, source=hit["source"], variant=hit["variant"], created_at=hit["created_at"]),
+                    "credits": {**state, "charged": 0, "replay": False} if state else None}
     sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
     credits_state = None
+    c = None
     if hosted:
-        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip)
+        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip, fresh=force)
         answer, credits_state = c.text, _credits_state(request, c)
     else:
         try:
@@ -1167,7 +1184,15 @@ def ai_tutor(request: Request, body: dict = Body(...)):
         except ai.AIError:
             cards = None
     cited = {int(n) for n in re.findall(r"\[(\d{1,2})\]", answer or "")}
-    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state}
+    explain = None
+    if shareable:
+        # gemeinsame Antwort im Dienst = Treffer im Zwischenspeicher der StudiNow-KI (gleiche Anfrage), sonst frisch erzeugt
+        cloud = bool(c is not None and getattr(c, "model", "") == "cache")
+        with db.cursor() as conn:
+            variant = explain_local.store(conn, text, page, mode, answer, "cloud" if cloud else "ai")
+        explain = explain_local.descriptor(stored=cloud, source="cloud", variant=variant)
+    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state,
+            "explain": explain}
 
 
 # Karteikarten aus einem Dokument (03.11.2026): hoechstens so viele Seiten je Anfrage
@@ -1382,7 +1407,7 @@ def _own_notes(body: dict) -> str:
 
 
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
-                  sources: list[dict] | None = None, studip: str = ""):
+                  sources: list[dict] | None = None, studip: str = "", fresh: bool = False):
     """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
     zurueckgebucht. Liefert die Completion (Text und berechnete Credits); mit request_id des Clients wird dieselbe
     Anfrage nie zweimal berechnet (Wiederholung aus dem Speicher, app/credits.py)."""
@@ -1399,7 +1424,7 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     try:
         # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=not notes,
-                                   request_id=rid, keep_result=True)
+                                   request_id=rid, keep_result=True, fresh=fresh)
     except ai_backend.AIUnavailable as e:
         entitlements.refund(request, "ai_assist", rid)
         raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
