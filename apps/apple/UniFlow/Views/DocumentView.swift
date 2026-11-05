@@ -546,7 +546,7 @@ struct DocumentView: View {
             }
         }
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
-        .sheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
+        .sheet(isPresented: $submittingToStudIP) { Self.submitSheet(store: store, api: api, compact: compact) }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
@@ -754,6 +754,12 @@ struct DocumentView: View {
             companion = nil
         }
         .id(c.id + "-" + String(c.pdfPage ?? -1))
+    }
+
+    /// Blatt "In Stud.IP abgeben": kompakt (iPhone) von unten, halb/ganz, ohne bedienbaren Hintergrund; iPad wie bisher
+    static func submitSheet(store: DocumentStore, api: APIClient, compact: Bool) -> some View {
+        StudIPSubmitEntry(store: store, api: api)
+            .ufHalfSheet(when: compact)
     }
 
     /// Blatt daneben (Notizbuch): wer darauf schreibt, schreibt neben der gerade angezeigten Seite dieses Dokuments.

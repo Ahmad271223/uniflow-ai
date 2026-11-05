@@ -162,15 +162,22 @@ struct TutorDocControls: View {
     @Binding var from: Int
     @Binding var to: Int
     let busy: Bool
+    /// Schnellknoepfe in einer Reihe zum seitlichen Schieben (KI-Hilfe als Blatt am iPhone: das Gespraech behaelt
+    /// bei halber Hoehe Platz); sonst umbrechend wie bisher
+    var chipsInRow = false
     let start: (_ mode: String) -> Void
+    /// Kompakt (iPhone, KI-Hilfe als Blatt): bei sehr grosser Schrift ein Menue statt der abgeschnittenen Segmente,
+    /// und die Seitenfelder bekommen "Fertig" ueber der Zifferntastatur (die des iPhones hat keine Taste zum Schliessen)
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @FocusState private var pageFocus: Bool
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("Umfang", selection: $scope) {
-                ForEach(TutorDocScope.allCases) { s in Text(s.title).tag(s) }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("tutor.scope")
+            scopePicker
+                .accessibilityIdentifier("tutor.scope")
             if scope == .range {
                 HStack(spacing: 6) {
                     Text("Seiten").ufFont(12.8).foregroundStyle(UF.muted)
@@ -178,19 +185,52 @@ struct TutorDocControls: View {
                     Text("bis").ufFont(12.8).foregroundStyle(UF.muted)
                     pageField($to, id: "tutor.scope.to")
                 }
-            }
-            UFFlexWrap(gap: 6, rowGap: 6) {
-                ForEach(TutorDocRun.chips, id: \.mode) { c in
-                    AIModeChip(text: c.label, icon: c.icon, pair: CommunityPalette.mint) { start(c.mode) }
-                        .disabled(busy)
-                        .accessibilityIdentifier("tutor.doc.\(c.mode)")
+                .toolbar {
+                    if compact {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Fertig") { pageFocus = false }.accessibilityIdentifier("tutor.scope.done")
+                        }
+                    }
                 }
             }
+            if chipsInRow {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) { chips }.padding(.vertical, 2)
+                }
+            } else {
+                UFFlexWrap(gap: 6, rowGap: 6) { chips }
+            }
+        }
+    }
+
+    private var chips: some View {
+        ForEach(TutorDocRun.chips, id: \.mode) { c in
+            AIModeChip(text: c.label, icon: c.icon, pair: CommunityPalette.mint) { start(c.mode) }
+                .disabled(busy)
+                .accessibilityIdentifier("tutor.doc.\(c.mode)")
+        }
+    }
+
+    /// Umfang: Segmente wie am iPad; kompakt mit sehr grosser Schrift ein Menue (die drei Segmente passten nur abgeschnitten)
+    @ViewBuilder private var scopePicker: some View {
+        if compact && typeSize.isAccessibilitySize {
+            Picker("Umfang", selection: $scope) {
+                ForEach(TutorDocScope.allCases) { s in Text(s.title).tag(s) }
+            }
+            .pickerStyle(.menu)
+            .tint(UF.accentText)
+        } else {
+            Picker("Umfang", selection: $scope) {
+                ForEach(TutorDocScope.allCases) { s in Text(s.title).tag(s) }
+            }
+            .pickerStyle(.segmented)
         }
     }
 
     private func pageField(_ value: Binding<Int>, id: String) -> some View {
         TextField("1", value: value, format: .number)
+            .focused($pageFocus)
             .keyboardType(.numberPad)
             .multilineTextAlignment(.center)
             .ufFont(13.12)

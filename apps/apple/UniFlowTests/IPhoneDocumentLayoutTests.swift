@@ -33,6 +33,10 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        // erster Test des Laufs: die Abfrage des App Store beim Start setzte den Tarif sonst spaeter auf Free zurueck
+        for _ in 0..<200 where await MainActor.run(body: { Entitlements.shared.loading }) {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
         await MainActor.run {
             let before = Entitlements.shared.plan
             Entitlements.shared.setPlanForTesting(.plus)
@@ -53,7 +57,10 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
             let path = request.url?.path ?? ""
             let query = request.url?.query.map { "?" + $0 } ?? ""
-            let (answer, bytes) = lock.withLock { (canned[path + query] ?? canned[path], raw[path]) }
+            let (answer, bytes) = lock.withLock { () -> (JSONValue?, (data: Data, type: String)?) in
+                counts[path, default: 0] += 1
+                return (canned[path + query] ?? canned[path], raw[path])
+            }
             if let bytes {
                 return (bytes.data, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": bytes.type])!)
             }
@@ -61,7 +68,9 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
             return (data, HTTPURLResponse(url: request.url!, statusCode: answer == nil ? 404 : 200, httpVersion: nil, headerFields: nil)!)
         }
 
+        private var counts: [String: Int] = [:]
         func answer(_ path: String, _ v: JSONValue) { lock.withLock { canned[path] = v } }
+        func bodiesCount(_ path: String) -> Int { lock.withLock { counts[path] ?? 0 } }
         func answer(_ path: String, data: Data, type: String) { lock.withLock { raw[path] = (data, type) } }
     }
 
@@ -90,10 +99,12 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
     }
 
     /// Dokument gehostet; `compact`: Groessenklassen eines iPhones hochkant und Geraet iPhone
-    private func host(compact: Bool, phone: Bool? = nil, size: CGSize? = nil) throws -> (HostedEnvironment, Transport) {
+    private func host(compact: Bool, phone: Bool? = nil, size: CGSize? = nil,
+                      typeSize: DynamicTypeSize = .large) throws -> (HostedEnvironment, Transport) {
         let (t, file) = try document()
         UFCompact.phoneOverride = phone ?? compact
-        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t)) }.environment(\.ufAIEnabled, true),
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t)) }.environment(\.ufAIEnabled, true)
+                                            .environment(\.dynamicTypeSize, typeSize),
                                           api: api(t), size: size ?? (compact ? Self.phone : Self.pad))
         env.hosting.traitOverrides.horizontalSizeClass = compact ? .compact : .regular
         env.hosting.traitOverrides.verticalSizeClass = .regular
@@ -479,6 +490,313 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
         XCTAssertTrue(tap(env, id: "text.tutor"))
         XCTAssertTrue(env.wait { self.element(env, id: "tutor.tabs") != nil })
         XCTAssertNil(presented(env))
+    }
+
+    // MARK: - Neu aus develop (05.11.2026) auf schmaler Breite
+
+    /// Die drei iPhones hochkant (17e, 17, 17 Pro Max)
+    static let phones: [CGSize] = [CGSize(width: 390, height: 844), CGSize(width: 402, height: 874), CGSize(width: 440, height: 956)]
+
+    /// Plan fuer "Ganze Vorlesung erklären" mit Rueckfrage zu den Kosten (zwei Teile), Antwort je Teil mit einem Block
+    static let docPlan: JSONValue = [
+        "intent": true, "mode": "lecture", "scope": ["kind": "all", "from": 1, "to": 3, "label": "Ganzes Dokument (Seiten 1–3)"],
+        "title": "Ganze Vorlesung erklären · Ganzes Dokument (Seiten 1–3)",
+        "steps": [["id": "1:lecture:1-2", "kind": "lecture", "from": 1, "to": 2, "title": "Seiten 1–2", "tasks": [], "cached": false],
+                  ["id": "2:overview:1-3", "kind": "overview", "from": 1, "to": 3, "title": "Überblick und Prüfungsrelevantes", "tasks": [], "cached": false]],
+        "calls": 2, "cached": 0, "estimate": ["way": "credits", "credits": 6, "calls": 2], "confirm": true, "enough": true,
+        "message": "Kostet etwa 6 Credits, du hast 74. Die Teile kommen nacheinander, du kannst jederzeit stoppen.",
+    ]
+    static let docStep: JSONValue = [
+        "step": "1:lecture:1-2",
+        "blocks": [["kind": "section", "title": "Konvergenz von Folgen und die Epsilon-Definition im Detail", "from": 2, "to": 3,
+                    "text": "Eine Folge konvergiert, wenn ihre Glieder dem Grenzwert beliebig nahe kommen.\n- Beispiel: $a_n = 1/n$"]],
+        "stored": ["stored": false, "variant": 1, "shared": true],
+    ]
+
+    /// Segment des Umfangs waehlen ("Diese Seite | Ganzes Dokument | Seiten …"); nil = kein Segmentschalter da
+    @discardableResult
+    private func selectScope(_ env: HostedEnvironment, _ title: String) -> Bool {
+        func find(_ v: UIView) -> UISegmentedControl? {
+            if let s = v as? UISegmentedControl, (0..<s.numberOfSegments).contains(where: { s.titleForSegment(at: $0) == title }) { return s }
+            for c in v.subviews { if let s = find(c) { return s } }
+            return nil
+        }
+        guard let control = find(env.window),
+              let i = (0..<control.numberOfSegments).first(where: { control.titleForSegment(at: $0) == title }) else { return false }
+        control.selectedSegmentIndex = i
+        control.sendActions(for: .valueChanged)
+        env.pump(0.3)
+        return true
+    }
+
+    private func segmented(_ env: HostedEnvironment) -> UISegmentedControl? {
+        func find(_ v: UIView) -> UISegmentedControl? {
+            if let s = v as? UISegmentedControl, (0..<s.numberOfSegments).contains(where: { s.titleForSegment(at: $0) == "Ganzes Dokument" }) { return s }
+            for c in v.subviews where !c.isHidden { if let s = find(c) { return s } }
+            return nil
+        }
+        return find(env.window)
+    }
+
+    /// Element liegt ganz im Bildschirm (waagerecht) und hat eine Flaeche
+    private func assertInside(_ env: HostedEnvironment, id: String, _ context: String, file: StaticString = #filePath, line: UInt = #line) {
+        guard let e = element(env, id: id) else { return XCTFail("\(id) fehlt (\(context))\n" + dump(env), file: file, line: line) }
+        let f = env.window.convert(e.accessibilityFrame, from: nil)
+        XCTAssertGreaterThan(f.width, 1, "\(id) ohne Breite (\(context))", file: file, line: line)
+        XCTAssertGreaterThanOrEqual(f.minX, -1, "\(id) ragt links heraus (\(context)): \(f)", file: file, line: line)
+        XCTAssertLessThanOrEqual(f.maxX, env.window.bounds.maxX + 1, "\(id) ragt rechts heraus (\(context)): \(f)", file: file, line: line)
+    }
+
+    private func assertNoOverflow(_ env: HostedEnvironment, _ context: String, file: StaticString = #filePath, line: UInt = #line) {
+        let found = LayoutWidthAuditTests.overflows(in: env.window)
+        XCTAssertTrue(found.isEmpty, "\(context): " + found.prefix(12).map(\.text).joined(separator: "\n"), file: file, line: line)
+    }
+
+    /// KI-Hilfe als Blatt auf den drei iPhones: Umfang "Diese Seite | Ganzes Dokument | Seiten …" und die Schnellknoepfe
+    /// im Blatt, "Seiten …" mit beiden Feldern, Rueckfrage zu den Kosten, Lauf mit Bloecken; der Seitenknopf eines Blocks
+    /// springt zur Seite, das Blatt bleibt offen. Nichts ragt ueber den Rand.
+    func testTutorSheetWholeDocumentOnPhones() throws {
+        for size in Self.phones {
+            let name = "\(Int(size.width))x\(Int(size.height))"
+            let (env, t) = try host(compact: true, size: size)
+            t.answer("/api/ai/document/plan", Self.docPlan)
+            t.answer("/api/ai/document/step", Self.docStep)
+            let vc = try XCTUnwrap(editor(env))
+            XCTAssertTrue(tap(env, id: "doc.tutor"), dump(env))
+            XCTAssertTrue(env.wait { self.segmented(env) != nil && self.element(env, id: "tutor.doc.lecture") != nil }, "Umfang im Blatt (\(name))\n" + dump(env))
+            XCTAssertNotNil(presented(env), "KI-Hilfe als Blatt")
+            let seg = try XCTUnwrap(segmented(env))
+            XCTAssertEqual((0..<seg.numberOfSegments).map { seg.titleForSegment(at: $0) }, ["Diese Seite", "Ganzes Dokument", "Seiten …"])
+            let segFrame = seg.convert(seg.bounds, to: env.window)
+            XCTAssertLessThanOrEqual(segFrame.maxX, size.width + 1, "Umfang passt (\(name)): \(segFrame)")
+            XCTAssertGreaterThanOrEqual(segFrame.minX, -1)
+            for id in ["tutor.doc.lecture", "tutor.input"] { assertInside(env, id: id, name) }
+            XCTAssertNotNil(element(env, id: "tutor.doc.tasks"), "zweiter Schnellknopf in der Reihe")
+            // Blatt halb hoch: Umfang, je eine Reihe Schnellknoepfe und Knoepfe des Reiters, darunter Platz fuers Gespraech
+            if let explain = element(env, id: "tutor.mode.explain"), let doc = element(env, id: "tutor.doc.lecture") {
+                let a = env.window.convert(doc.accessibilityFrame, from: nil), b = env.window.convert(explain.accessibilityFrame, from: nil)
+                XCTAssertLessThan(b.minY - a.maxY, 30, "Knoepfe des Reiters direkt unter den Schnellknoepfen (eine Reihe)")
+                let summary = try XCTUnwrap(element(env, id: "tutor.mode.summary"))
+                XCTAssertEqual(env.window.convert(summary.accessibilityFrame, from: nil).midY, b.midY, accuracy: 2, "Knoepfe des Reiters in einer Reihe")
+            }
+            let l = labels(env)
+            XCTAssertTrue(l.contains("Ganze Vorlesung erklären") && l.contains("Alle Aufgaben erklären"), dump(env))
+            assertNoOverflow(env, "KI-Hilfe \(name)")
+
+            // "Seiten …": zwei Felder im Blatt
+            XCTAssertTrue(selectScope(env, "Seiten …"))
+            XCTAssertTrue(env.wait { self.element(env, id: "tutor.scope.to") != nil }, dump(env))
+            for id in ["tutor.scope.from", "tutor.scope.to"] { assertInside(env, id: id, "Seiten \(name)") }
+            assertNoOverflow(env, "Seiten … \(name)")
+            XCTAssertTrue(selectScope(env, "Ganzes Dokument"))
+            XCTAssertTrue(env.wait { self.element(env, id: "tutor.scope.to") == nil })
+
+            // Rueckfrage zu den Kosten, dann der Lauf
+            XCTAssertTrue(tap(env, id: "tutor.doc.lecture"))
+            XCTAssertTrue(env.wait { self.element(env, id: "tutor.doc.start") != nil }, "Rueckfrage (\(name))\n" + dump(env))
+            if let sheet = presented(env)?.sheetPresentationController {
+                sheet.animateChanges { sheet.selectedDetentIdentifier = .large }
+                env.pump(0.6)
+            }
+            for id in ["tutor.doc.start", "tutor.doc.cancel"] { assertInside(env, id: id, "Rueckfrage \(name)") }
+            XCTAssertTrue(labels(env).contains { $0.hasPrefix("Kostet etwa 6 Credits") }, dump(env))
+            assertNoOverflow(env, "Rueckfrage \(name)")
+            XCTAssertTrue(tap(env, id: "tutor.doc.start"))
+            // die Kennung der Antwort (tutor.doc.answer) liegt ueber den Knoepfen: Seitenknopf ueber seinen Namen
+            let pageButton = "Zu Seiten 2–3 springen"
+            XCTAssertTrue(env.wait(timeout: 15) { self.element(env, label: pageButton) != nil && self.element(env, id: "tutor.doc.progress") == nil },
+                          "Bloecke (\(name))\n" + dump(env))
+            XCTAssertEqual(t.bodiesCount("/api/ai/document/step"), 2, "zwei Teile nacheinander")
+            if let b = element(env, label: pageButton) {
+                let f = env.window.convert(b.accessibilityFrame, from: nil)
+                XCTAssertTrue(f.minX >= -1 && f.maxX <= size.width + 1, "Seitenknopf ragt heraus (\(name)): \(f)")
+            }
+            assertNoOverflow(env, "Bloecke \(name)")
+            XCTAssertTrue(tap(env, label: pageButton))
+            XCTAssertTrue(env.wait { vc.currentPageIndex == 1 }, "Seitenknopf springt zur Seite 2 (\(name))")
+            XCTAssertNotNil(presented(env), "Blatt bleibt offen")
+            XCTAssertTrue(tap(env, id: "tutor.close"))
+            XCTAssertTrue(env.wait { self.presented(env) == nil })
+            env.window.isHidden = true
+        }
+    }
+
+    /// Sehr grosse Schrift (accessibility3) am iPhone: der Umfang ist ein Menue statt dreier abgeschnittener Segmente,
+    /// die Schnellknoepfe bleiben im Bild; am iPad bleiben es Segmente
+    func testTutorScopeIsMenuWithLargeTextOnPhone() throws {
+        let (env, _) = try host(compact: true, typeSize: .accessibility3)
+        env.window.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge   // gilt auch im Blatt
+        env.pump(0.3)
+        XCTAssertTrue(tap(env, id: "doc.tutor"))
+        XCTAssertTrue(env.wait { self.element(env, id: "tutor.doc.lecture") != nil }, dump(env))
+        env.pump(0.4)
+        XCTAssertNil(segmented(env), "kein Segmentschalter bei sehr grosser Schrift")
+        XCTAssertTrue(labels(env).contains { $0.contains("Diese Seite") }, "Menue zeigt den Umfang\n" + dump(env))
+        assertInside(env, id: "tutor.doc.lecture", "accessibility3")
+        XCTAssertNotNil(element(env, id: "tutor.doc.tasks"))
+        assertNoOverflow(env, "KI-Hilfe accessibility3")
+
+        UserDefaults.standard.set("tutor", forKey: "UFDocPanel")
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: "UFDocPanel") }
+        let (pad, _) = try host(compact: false, typeSize: .accessibility3)
+        pad.window.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
+        XCTAssertTrue(pad.wait { self.segmented(pad) != nil }, "iPad: Segmente wie bisher\n" + dump(pad))
+    }
+
+    // MARK: Lösung teilen mit "Notizen und Blätter mitschicken"
+
+    /// async-Arbeit mit laufender Hauptschleife
+    private func pumping<T>(_ work: @escaping @MainActor () async throws -> T) throws -> T {
+        var result: Result<T, Error>?
+        Task { @MainActor in
+            do { result = .success(try await work()) } catch { result = .failure(error) }
+        }
+        let end = Date().addingTimeInterval(30)
+        while result == nil && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+        return try XCTUnwrap(result, "Zeitueberschreitung").get()
+    }
+
+    /// Dokument im lokalen Backend mit einer beschriebenen Seitennotiz hinter Seite 1 (wie NotesExportAppTests)
+    private func storeWithSideNote() throws -> (DocumentStore, APIClient) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("iphone-teilen-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let backend = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-11-05T10:00:00")!)
+        let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: backend))
+        let fileID = "folien-" + UUID().uuidString.prefix(8).lowercased()
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
+        try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try makePDF().write(to: pdfURL)
+        let file = LibFile(id: fileID, name: "Folgen und Reihen.pdf", title: "Folgen und Reihen", kind: "pdf", module_id: nil, subject: "Analysis",
+                           doc_type: nil, ai_title: nil, sub_label: nil, downloaded_at: "2026-11-05", has_notes: nil, page_count: 3, studip_folder: nil)
+        let store = try pumping { () -> DocumentStore in
+            let store = DocumentStore(file: file, api: api, root: root)
+            await store.load()
+            await store.addBlankPage(afterKey: "p1", template: "lined")
+            let keys = await store.pageStructureDocument().pageOrder.compactMap { $0["key"]?.string }
+            let pts = (0..<12).map { i in
+                PKStrokePoint(location: CGPoint(x: 60 + CGFloat(i) * 30, y: 200), timeOffset: Double(i) * 0.01, size: CGSize(width: 8, height: 8),
+                              opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+            }
+            let ink = PKDrawing(strokes: [PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: Date()))])
+            store.canvasChanged(pageKey: keys[1], drawing: ink)
+            await store.flush()
+            return store
+        }
+        addTeardownBlock { @MainActor in await store.close() }
+        return (store, api)
+    }
+
+    /// "Lösung teilen" auf den drei iPhones: Schalter "Notizen und Blätter mitschicken" im Bild, laesst sich umschalten,
+    /// die Vorschau (Kacheln) und die Knoepfe ragen nicht ueber den Rand
+    func testShareSheetNotesToggleOnPhones() throws {
+        let (store, api) = try storeWithSideNote()
+        for size in Self.phones {
+            let name = "\(Int(size.width))x\(Int(size.height))"
+            UFCompact.phoneOverride = true
+            let env = try hostWithEnvironment(SolutionShareSheet(store: store, api: api, notebook: nil) {}, api: api, size: size)
+            env.hosting.traitOverrides.horizontalSizeClass = .compact
+            env.hosting.traitOverrides.verticalSizeClass = .regular
+            XCTAssertTrue(env.wait(timeout: 20) {
+                self.element(env, id: "share.includeNotes") != nil && self.labels(env).contains { $0.hasPrefix("Notiz zu Folie 1") }
+            }, "Schalter (\(name))\n" + dump(env))
+            let toggle = try XCTUnwrap(element(env, id: "share.includeNotes"), dump(env))
+            XCTAssertTrue(toggle.accessibilityLabel?.hasPrefix(SolutionTexts.includeNotes) == true)
+            XCTAssertTrue(labels(env).contains { $0.hasPrefix("Notiz zu Folie 1") }, "Seitennotiz in der Vorschau")
+            let f = env.window.convert(toggle.accessibilityFrame, from: nil)
+            XCTAssertLessThanOrEqual(f.maxX, size.width + 1, "Schalter ragt heraus (\(name)): \(f)")
+            XCTAssertGreaterThanOrEqual(f.minX, -1)
+            XCTAssertEqual(toggle.accessibilityValue, "1", "Standard an")
+            XCTAssertTrue(toggle.accessibilityActivate())
+            XCTAssertTrue(env.wait { toggle.accessibilityValue == "0" }, "umgeschaltet (\(name))")
+            assertNoOverflow(env, "Lösung teilen \(name)")
+            env.window.isHidden = true
+        }
+    }
+
+    // MARK: In Stud.IP abgeben (Formular im Blatt)
+
+    nonisolated private static let course = "0123456789abcdef0123456789abcdef"
+    nonisolated private static let studipHost = UniversityKey.luh.profile.studipBase?.host ?? ""
+
+    /// Erfundenes Stud.IP (UniStubProtocol, nichts geht ins Netz): Ordner mit Abgabeordner und Lizenzen
+    nonisolated private static func installStudIP() {
+        UniStubProtocol.install { seen in
+            let p = seen.url.absoluteString.removingPercentEncoding ?? seen.url.absoluteString
+            guard seen.method == "GET" else { return UniStubProtocol.Reply(status: 500) }
+            if p.contains("/users/me") {
+                return .text(#"{"data":{"type":"users","id":"u1","attributes":{"family-name":"Mustermann","given-name":"Erika"}}}"#,
+                             headers: ["Content-Type": "application/vnd.api+json"])
+            }
+            if p.contains("/courses/\(course)/folders") {
+                return .text("""
+                {"data":[
+                 {"type":"folders","id":"root","attributes":{"name":"Analysis I Übung","folder-type":"RootFolder","is-visible":true,"is-writable":false}},
+                 {"type":"folders","id":"ue","attributes":{"name":"Übungen und Materialien zur Vorlesung","folder-type":"StandardFolder","is-visible":true,"is-writable":true},"relationships":{"parent":{"data":{"type":"folders","id":"root"}}}},
+                 {"type":"folders","id":"hw3","attributes":{"name":"Abgabe Übungsblatt 3 (Gruppe Mittwoch)","folder-type":"HomeworkFolder","is-visible":true,"is-writable":true},"relationships":{"parent":{"data":{"type":"folders","id":"ue"}}}}
+                ]}
+                """, headers: ["Content-Type": "application/vnd.api+json"])
+            }
+            if p.contains("/terms-of-use") {
+                return .text(#"{"data":[{"type":"terms-of-use","id":"SELFMADE_NONPUB","attributes":{"name":"Selbst verfasstes, nicht publiziertes Werk"}}]}"#,
+                             headers: ["Content-Type": "application/vnd.api+json"])
+            }
+            return UniStubProtocol.Reply(status: 404)
+        }
+    }
+
+    private func submitModel() throws -> StudIPSubmitModel {
+        let suite = "uniflow-iphone-abgeben-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        let cookie = HTTPCookie(properties: [.name: "Seminar_Session", .value: "erfunden", .domain: Self.studipHost, .path: "/", .secure: "TRUE"])!
+        let deps = StudIPSubmitModel.Dependencies(
+            connected: { true },
+            ensureSession: { _ in .ready },
+            client: {
+                StudIPClient(base: StudIPSync.base, transport: URLSessionStudIPWriter(cookies: [cookie], host: Self.studipHost,
+                                                                                     configuration: UniStubProtocol.configuration()),
+                             pauseMillis: 0)
+            },
+            courses: { [.init(id: Self.course, title: "Analysis I für Ingenieurinnen und Ingenieure – Übung", moduleID: 7, kind: "uebung")] },
+            makePDF: { _ in .init(data: Data("%PDF-1.4\nerfunden\n%%EOF".utf8), pages: 4) },
+            defaults: defaults,
+            now: { Date(timeIntervalSince1970: 1_793_890_000) })
+        return StudIPSubmitModel(documentID: "doc1", documentTitle: "Übungsblatt 03", documentCourseID: Self.course, moduleID: 7, dependencies: deps)
+    }
+
+    /// Formular "In Stud.IP abgeben" auf den drei iPhones: Hinweis, Kurs, Abgabeordner, Dateiname, Schalter, Vorschau und
+    /// "Jetzt abgeben" ohne Ueberbreite (lange Kurs- und Ordnernamen); es wird nichts hochgeladen
+    func testStudIPSubmitFormOnPhones() throws {
+        Self.installStudIP()
+        addTeardownBlock { UniStubProtocol.reset() }
+        for size in Self.phones {
+            let name = "\(Int(size.width))x\(Int(size.height))"
+            let model = try submitModel()
+            let env = try hostWithEnvironment(StudIPSubmitSheet(model: model), size: size)
+            env.hosting.traitOverrides.horizontalSizeClass = .compact
+            env.hosting.traitOverrides.verticalSizeClass = .regular
+            XCTAssertTrue(env.wait(timeout: 20) { self.labels(env).contains { $0.hasPrefix("Übungen und Materialien zur Vorlesung/Abgabe") } },
+                          "Ordner (\(name))\n" + dump(env))
+            env.pump(0.6)
+            XCTAssertTrue(labels(env).contains { $0.hasPrefix("Die Datei wird an deine Hochschule hochgeladen") })
+            assertNoOverflow(env, "Abgeben oben \(name)")
+            // Formular ans Ende rollen (Listenzeilen entstehen erst im Bild)
+            func scroller(_ v: UIView) -> UIScrollView? {
+                if let s = v as? UIScrollView, s.contentSize.height > s.bounds.height { return s }
+                for c in v.subviews { if let s = scroller(c) { return s } }
+                return nil
+            }
+            if let list = scroller(env.window) {
+                list.setContentOffset(CGPoint(x: 0, y: max(0, list.contentSize.height - list.bounds.height + list.adjustedContentInset.bottom)), animated: false)
+                env.pump(0.6)
+            }
+            let l = labels(env)
+            for needed in ["Notizen und Blätter mitschicken", "Jetzt abgeben"] { XCTAssertTrue(l.contains { $0.hasPrefix(needed) }, "\(needed) (\(name))\n" + dump(env)) }
+            assertNoOverflow(env, "Abgeben unten \(name)")
+            env.window.isHidden = true
+        }
+        XCTAssertFalse(UniStubProtocol.requests.contains { $0.method != "GET" }, "nichts hochgeladen")
     }
 
     // MARK: - Bildschirmfotos (nur mit UF_SCREENSHOT_DIR)

@@ -230,6 +230,174 @@ final class LayoutWidthAuditTests: XCTestCase {
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
+    /// Neu aus develop (05.11.2026) im Dokument auf dem iPhone: das Menue "…" fuehrt ueber "Teilen" zu "PDF exportieren",
+    /// "Lösung teilen …" und "In Stud.IP abgeben …"; "Abgeben" oeffnet ein Blatt von unten (halb/ganz), das auf den drei
+    /// iPhones nicht ueber den Rand ragt. Stud.IP ist hier nicht verbunden, es geht keine Anfrage an die Hochschule.
+    func testIPhoneDokumentNeu() throws {
+        let doc = try host(MainView())
+        UFCompact.phoneOverride = true
+        defer { UFCompact.phoneOverride = nil }
+        doc.hosting.traitOverrides.horizontalSizeClass = .compact
+        doc.hosting.traitOverrides.verticalSizeClass = .regular
+        doc.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
+        doc.view.frame = doc.window.bounds
+        doc.router.go(.doc("demo-skript"))
+        XCTAssertTrue(doc.wait(timeout: 25) { Self.menu(in: doc.window, titled: "Teilen") != nil }, "Menü „…“ mit „Teilen“ fehlt\n" + Self.barDiagnose(doc.window))
+        let share = try XCTUnwrap(Self.menu(in: doc.window, titled: "Teilen"))
+        let titles = Self.actions(in: share).map(\.title)
+        for needed in ["Ganzes Dokument", "Diese Seite", "Meine geteilten Lösungen …", "In Stud.IP abgeben …"] {
+            XCTAssertTrue(titles.contains(needed), "\(needed) fehlt in „Teilen“: \(titles)")
+        }
+        XCTAssertTrue(titles.contains { $0.hasPrefix("Lösung teilen") }, "\(titles)")
+        // Ein Menue laesst sich im Testaufbau nicht aufklappen (SwiftUI fuehrt den Eintrag erst nach dem Schliessen des
+        // offenen Menues aus): das Blatt kommt hier aus derselben Funktion, die das Dokument verwendet
+        doc.window.isHidden = true
+        let api = container.api
+        let file = try pumping { try await api.json("/api/files/demo-skript", as: LibFile.self) }
+        let store = DocumentStore(file: file, api: api)
+        let sheetEnv = try host(SubmitPresenter(store: store, api: api))
+        sheetEnv.hosting.traitOverrides.horizontalSizeClass = .compact
+        sheetEnv.hosting.traitOverrides.verticalSizeClass = .regular
+        sheetEnv.window.frame = CGRect(origin: .zero, size: Self.iphone[1].size)
+        sheetEnv.view.frame = sheetEnv.window.bounds
+        let env = sheetEnv
+        func sheet() -> UIViewController? {
+            var vc = env.window.rootViewController
+            while let p = vc?.presentedViewController { vc = p }
+            return vc === env.window.rootViewController ? nil : vc
+        }
+        XCTAssertTrue(env.wait(timeout: 10) { Self.texts(env.window).contains("In Stud.IP abgeben") && sheet() != nil }, "Blatt „Abgeben“ fehlt")
+        let detents = sheet()?.sheetPresentationController?.detents.map(\.identifier) ?? []
+        XCTAssertEqual(Set(detents), [.medium, .large], "Blatt von unten, halb und ganz")
+        XCTAssertTrue(env.wait(timeout: 10) { Self.texts(env.window).contains { $0.contains("Stud.IP ist nicht verbunden") } }, "\(Self.texts(env.window))")
+        var report: [String] = []
+        for v in Self.iphone.prefix(3) {
+            env.window.frame = CGRect(origin: .zero, size: v.size)
+            env.view.frame = env.window.bounds
+            env.pump(0.8)
+            let found = Self.overflows(in: env.window)
+            shoot(env, "dokument-abgeben-\(v.name)", marks: found.map(\.rect))
+            if !found.isEmpty { report.append("abgeben @ \(v.name): " + found.prefix(20).map(\.text).joined(separator: "\n")) }
+        }
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+        sheet()?.dismiss(animated: false)
+        env.pump(0.5)
+    }
+
+    /// Menue einer Taste der Navigationsleiste (auch Untermenue) mit diesem Titel
+    static func menu(in view: UIView, titled title: String) -> UIMenu? {
+        func search(_ m: UIMenu) -> UIMenu? {
+            if m.title == title { return m }
+            for c in children(of: m) { if let sub = c as? UIMenu, let hit = search(sub) { return hit } }
+            return nil
+        }
+        for m in barMenus(in: view) { if let hit = search(m) { return hit } }
+        return nil
+    }
+
+    /// Alle Menues der Navigationsleisten (Tasten, Gruppen, Tasten mit eigener Ansicht)
+    static func barMenus(in view: UIView) -> [UIMenu] {
+        var out: [UIMenu] = []
+        func items(_ item: UINavigationItem) -> [UIBarButtonItem] {
+            var all = (item.leftBarButtonItems ?? []) + (item.rightBarButtonItems ?? [])
+            for g in item.leadingItemGroups + item.trailingItemGroups + item.centerItemGroups {
+                all += g.barButtonItems
+                if let r = g.representativeItem { all.append(r) }
+            }
+            return all
+        }
+        func controls(_ v: UIView) {
+            if let b = v as? UIButton, let m = b.menu { out.append(m) }
+            for s in v.subviews { controls(s) }
+        }
+        func visit(_ v: UIView) {
+            if let bar = v as? UINavigationBar {
+                for item in bar.items ?? [] {
+                    for b in items(item) {
+                        if let m = b.menu { out.append(m) }
+                        if let c = b.customView { controls(c) }
+                    }
+                }
+                controls(bar)
+            }
+            for s in v.subviews { visit(s) }
+        }
+        visit(view)
+        return out
+    }
+
+    /// Fuer Fehlermeldungen: Tasten der Navigationsleisten und ihre Menues
+    static func barDiagnose(_ view: UIView) -> String {
+        var out: [String] = []
+        func visit(_ v: UIView) {
+            if let bar = v as? UINavigationBar {
+                for item in bar.items ?? [] {
+                    for b in (item.rightBarButtonItems ?? []) + (item.leftBarButtonItems ?? []) + item.trailingItemGroups.flatMap(\.barButtonItems) {
+                        out.append("\(item.title ?? "-"): \(b.title ?? "-") menu=\(b.menu.map { children(of: $0).map(\.title) } ?? [])")
+                    }
+                }
+            }
+            for s in v.subviews { visit(s) }
+        }
+        visit(view)
+        return out.joined(separator: "\n")
+    }
+
+    /// Eintraege eines Menues; SwiftUI liefert die Eintraege einer Leisten-Taste erst beim Oeffnen
+    /// (`UIDeferredMenuElement` "Laden …"): dessen Lieferant wird hier direkt aufgerufen, wie es UIKit beim Oeffnen tut
+    static func children(of menu: UIMenu) -> [UIMenuElement] {
+        menu.children.flatMap { c -> [UIMenuElement] in
+            guard let d = c as? UIDeferredMenuElement else { return [c] }
+            return fulfill(d)
+        }
+    }
+
+    static func fulfill(_ d: UIDeferredMenuElement) -> [UIMenuElement] {
+        typealias Completion = @convention(block) ([UIMenuElement]) -> Void
+        typealias Provider = @convention(block) (Completion) -> Void
+        // UIDeferredMenuElement._elementProvider (UIDeferredMenuElementProvider) haelt den Block des Lieferanten
+        guard let iv = class_getInstanceVariable(UIDeferredMenuElement.self, "_elementProvider"),
+              let provider = object_getIvar(d, iv) as AnyObject? else { return [] }
+        for (name, block) in blocks(of: provider) where !name.lowercased().contains("highlight") {
+            var out: [UIMenuElement]?
+            let done: Completion = { out = $0 }
+            unsafeBitCast(block, to: Provider.self)(done)
+            let end = Date().addingTimeInterval(2)
+            while out == nil && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            if let out { return out }
+        }
+        return []
+    }
+
+    /// Block-Felder (Typ "@?") eines Objekts samt Oberklassen
+    static func blocks(of object: AnyObject) -> [(String, AnyObject)] {
+        var out: [(String, AnyObject)] = []
+        var cls: AnyClass? = type(of: object)
+        while let c = cls, c != NSObject.self {
+            var n: UInt32 = 0
+            if let ivars = class_copyIvarList(c, &n) {
+                for i in 0..<Int(n) where ivar_getTypeEncoding(ivars[i]).map({ String(cString: $0) }) == "@?" {
+                    if let b = object_getIvar(object, ivars[i]) {
+                        out.append((ivar_getName(ivars[i]).map { String(cString: $0) } ?? "", b as AnyObject))
+                    }
+                }
+                free(ivars)
+            }
+            cls = class_getSuperclass(c)
+        }
+        return out
+    }
+
+    /// Alle Aktionen eines Menues samt Untermenues
+    static func actions(in menu: UIMenu) -> [UIAction] {
+        children(of: menu).flatMap { c -> [UIAction] in
+            if let a = c as? UIAction { return [a] }
+            if let m = c as? UIMenu { return actions(in: m) }
+            return []
+        }
+    }
+
+
     /// Anmeldung und Hochschulwahl (vor der App-Huelle)
     func testIPhoneAnmeldung() throws {
         var report: [String] = []
@@ -360,7 +528,8 @@ final class LayoutWidthAuditTests: XCTestCase {
             env.window.frame = CGRect(origin: .zero, size: v.size)
             env.view.frame = env.window.bounds
             env.pump(0.6)
-            if let marker, !env.wait(timeout: 15, until: { Self.texts(env.view).contains { $0.contains(marker) } }) {
+            if let marker, !env.wait(timeout: 15, until: { Self.texts(env.view).contains { $0.contains(marker) } }),
+               !Self.scrolledInto(env, marker) {
                 report.append("\(page) @ \(v.name): „\(marker)“ erscheint nicht")
             }
             env.pump(0.6)
@@ -384,6 +553,31 @@ final class LayoutWidthAuditTests: XCTestCase {
         }
         UserDefaults.standard.set("full", forKey: "sidebar")
         return report
+    }
+
+    /// Merkmal unterhalb des sichtbaren Bereichs (iPhone quer: wenig Hoehe, Listen legen Zeilen erst im Bild an): die
+    /// senkrechten Rollbereiche schrittweise nach unten rollen, bis es erscheint; danach wieder nach oben
+    static func scrolledInto(_ env: HostedEnvironment, _ marker: String) -> Bool {
+        func scrollers(_ v: UIView) -> [UIScrollView] {
+            var out: [UIScrollView] = []
+            if let s = v as? UIScrollView, !v.isHidden, s.contentSize.height > s.bounds.height + 1, s.contentSize.width <= s.bounds.width + 1 { out.append(s) }
+            for c in v.subviews where !c.isHidden { out += scrollers(c) }
+            return out
+        }
+        let list = scrollers(env.view)
+        defer {
+            for s in list { s.setContentOffset(CGPoint(x: s.contentOffset.x, y: -s.adjustedContentInset.top), animated: false) }
+            env.pump(0.3)
+        }
+        for _ in 0..<8 {
+            for s in list {
+                let maxY = s.contentSize.height - s.bounds.height + s.adjustedContentInset.bottom
+                s.setContentOffset(CGPoint(x: s.contentOffset.x, y: min(maxY, s.contentOffset.y + s.bounds.height * 0.7)), animated: false)
+            }
+            env.pump(0.4)
+            if texts(env.view).contains(where: { $0.contains(marker) }) { return true }
+        }
+        return false
     }
 
     // MARK: - Pruefung
@@ -428,6 +622,8 @@ final class LayoutWidthAuditTests: XCTestCase {
         }
         func visit(_ v: UIView, exempt: Bool, clip: CGRect = .infinite) {
             guard !v.isHidden, v.alpha > 0.01 else { return }
+            // Abdunkelung hinter einem Blatt (System): reicht absichtlich ueber den Bildschirm hinaus
+            if String(describing: type(of: v)) == "UIDimmingView" { return }
             let full = v.convert(v.bounds, to: window)
             let r = clipped(full, clip)
             if !exempt && bad(r) { note("View \(name(v))", r) }
@@ -447,6 +643,7 @@ final class LayoutWidthAuditTests: XCTestCase {
 
         // Bedienungshilfen: Namen der zu breiten Elemente (ausser in waagerecht scrollenden Bereichen)
         for e in elements(in: window) {
+            if String(describing: type(of: e)) == "UIDimmingView" { continue }     // "Einblendmenü schließen" hinter Blaettern
             let r = e.accessibilityFrame
             guard bad(r) else { continue }
             let mid = r.midY
@@ -503,5 +700,18 @@ final class LayoutWidthAuditTests: XCTestCase {
         }
         let file = outDir.appendingPathComponent(name + (marks.isEmpty ? "" : "-ZU-BREIT") + ".png")
         do { try data.write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
+    }
+}
+
+/// Stellt das Blatt "In Stud.IP abgeben" so dar wie das Dokument (`DocumentView.submitSheet`)
+private struct SubmitPresenter: View {
+    let store: DocumentStore
+    let api: APIClient
+    @State private var shown = false
+
+    var body: some View {
+        Color.clear
+            .sheet(isPresented: $shown) { DocumentView.submitSheet(store: store, api: api, compact: true) }
+            .task { shown = true }
     }
 }

@@ -220,9 +220,10 @@ struct TutorPanel: View {
         switch tab {
         case .explain:
             VStack(alignment: .leading, spacing: 10) {
-            TutorDocControls(scope: $docScope, from: $docFrom, to: $docTo, busy: busy) { mode in Task { await startDoc(mode: mode) } }
-            if typeSize.isAccessibilitySize {
-                // sehr grosse Schrift: eine Reihe zum seitlichen Schieben, damit das Gespraech Platz behaelt
+            TutorDocControls(scope: $docScope, from: $docFrom, to: $docTo, busy: busy, chipsInRow: inSheet) { mode in Task { await startDoc(mode: mode) } }
+            if typeSize.isAccessibilitySize || inSheet {
+                // sehr grosse Schrift bzw. Blatt am iPhone: eine Reihe zum seitlichen Schieben, damit das Gespraech Platz
+                // behaelt
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(Tab.explain.modes, id: \.self) { key in modeChip(key, icon: key == "explain" ? "sparkles" : nil) }

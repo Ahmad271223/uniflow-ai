@@ -38,4 +38,10 @@ extension View {
     func ufHalfSheet(interactiveBackground: Bool = true) -> some View {
         modifier(UFHalfSheetStyle(interactiveBackground: interactiveBackground))
     }
+
+    /// Nur kompakt ein Blatt von unten (halb/ganz); breit (iPad) bleibt die Darstellung wie sie ist. Fuer Formulare
+    /// mit eigenem Abschluss (z. B. "In Stud.IP abgeben") ohne bedienbaren Hintergrund.
+    @ViewBuilder func ufHalfSheet(when compact: Bool, interactiveBackground: Bool = false) -> some View {
+        if compact { ufHalfSheet(interactiveBackground: interactiveBackground) } else { self }
+    }
 }

@@ -67,10 +67,14 @@ struct SolutionShareSheet: View {
 
     /// Dienst des aktiven Containers (Tests geben einen eigenen mit)
     var community: CommunityService = SolutionSharing.community
+    /// Kompakt (iPhone): Seitenrand 16 wie die Systemlisten, sonst wie bisher
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    private var compact: Bool { UFCompact.isCompact(horizontal: hSize, vertical: vSize) }
 
     var body: some View {
         NavigationStack {
-            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+            UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: compact ? 16 : 20, bottom: 32, trailing: compact ? 16 : 20)) {
                 UFGate(.shareSolutions) { content }
             }
             .navigationTitle("Lösung teilen")
