@@ -20,12 +20,15 @@ Bausteine (gleiche Regeln im Swift-Kern, UniFlowCore/StudyCatalog/*; Fixture too
 """
 from __future__ import annotations
 
+import contextvars
 import copy
 import hashlib
 import io
 import json
 import math
+import os
 import re
+import threading
 import unicodedata
 import urllib.error
 import urllib.request
@@ -822,6 +825,50 @@ def parse_luh_modkat(pages: list[str], meta: dict) -> tuple[dict, dict]:
     return catalog, texts
 
 
+MODULE_COUNT_RE = re.compile(r"\b([0-9]+|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn) (?:weitere )?(?:Wahlpflicht|Wahl|Pflicht)?[Mm]odule\b", re.I)
+COUNT_WORDS = {"zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "sechs": 6, "sieben": 7, "acht": 8,
+               "neun": 9, "zehn": 10}
+MAX_RULE = 400
+
+
+def modkat_area_extras(pages: list[str], catalog: dict) -> dict:
+    """Wahlbereiche (05.11.2026), nur fuer den Grundstock (tools/build-luh-seed.py): je Bereich der neueren
+    modkat-Form die Regel unter "Information zum Kompetenzbereich" ("Der Studienschwerpunkt ist absolviert, wenn
+    mindestens vier Module ...") und alle Module der Bereichstabelle (ein Modul steht oft in mehreren Bereichen, der
+    Katalog fuehrt es nur im ersten). Ergebnis {Bereichs-id: {rule, modules, modules_required}}; der Leser selbst
+    (parse_luh_modkat, gleich im Swift-Kern) bleibt unveraendert."""
+    clean = clean_pages(pages)
+    toc = _toc(clean)
+    n_pages = len(clean)
+    starts = sorted({e["page"] for e in toc})
+    by_name = {a["name"]: a["id"] for a in catalog.get("areas") or []}
+    titles = [(m["id"], m["title"]) for m in catalog.get("modules") or []]
+    out: dict = {}
+    for e in toc:
+        if e["kind"] != "area" or e["title"] not in by_name or not 1 <= e["page"] <= n_pages:
+            continue
+        nxt = next((p for p in starts if p > e["page"]), n_pages + 1)
+        lines = [l for p in range(e["page"], max(e["page"] + 1, nxt)) if 1 <= p <= n_pages for l in clean[p - 1]]
+        info = next((i for i, l in enumerate(lines) if AREA_INFO_RE.match(l)), None)
+        head = next((i for i, l in enumerate(lines) if TABLE_HEAD_RE.match(l) or l.startswith("Modul Modul LP SWS")), None)
+        if info is None or head is None:
+            continue
+        rule = " ".join(lines[info + 1:head]).strip(" ")
+        rule = re.sub(r" {2,}", " ", rule)
+        if len(rule) > MAX_RULE:
+            cut = rule[:MAX_RULE].rsplit(". ", 1)[0]
+            rule = cut + "." if len(cut) > 40 else rule[:MAX_RULE - 1] + "…"
+        table = _plan_join(lines[head:])
+        mods = [mid for mid, t in titles if re.search(r"(?:^| )" + re.escape(t) + r" [0-9]", table)]
+        count = None
+        m = MODULE_COUNT_RE.search(rule)
+        if m:
+            w = m.group(1).lower()
+            count = int(w) if w.isdigit() else COUNT_WORDS.get(w)
+        out[by_name[e["title"]]] = {"rule": rule or None, "modules": mods, "modules_required": count}
+    return out
+
+
 def dumps(value) -> str:
     """Kanonische Form fuer Vergleiche mit dem Swift-Kern (PyJSON.dumps(ensureASCII: false))"""
     return json.dumps(value, ensure_ascii=False)
@@ -1435,6 +1482,7 @@ def set_state(conn, key: str, value) -> None:
 # ----------------------------------------------------------------------------
 
 MESSAGES = {
+    "searching": "StudiNow sucht den Modulkatalog deines Studiengangs …",
     "no_program": "Noch kein Studiengang bekannt. Verbinde QIS oder wähle deine Prüfungsordnung.",
     "not_found": "Für deinen Studiengang gibt es noch keinen Katalog.",
     "ready": "Modulkatalog geladen",
@@ -1626,7 +1674,7 @@ def run_sync(conn, fetch=urllib_fetch, now: datetime | None = None, university: 
     uni = university or (db.row(conn, "SELECT value FROM settings WHERE key='university'") or {}).get("value") or "luh"
     settings = plan_settings(conn)
     label = qis_label(conn)
-    base = {"checked_at": _iso(now), "qis_label": label}
+    base = {"checked_at": _iso(now), "qis_label": label, "inputs": inputs(conn)}
     custom = clean_catalog_url(settings.get("catalog_url"))
     if custom:
         return _run_custom(conn, custom, fetch, now, uni, reg, base, force)
@@ -1824,10 +1872,298 @@ def status(conn) -> dict:
     return {"state": "idle", "message": "Der Modulkatalog wurde noch nicht gesucht."}
 
 
+# ----------------------------------------------------------------------------
+# Ausloeser am PC und im Dienst (Web/Windows, 05.11.2026)
+# ----------------------------------------------------------------------------
+# Auf dem iPad stoesst der Kern die Suche an (StudyCatalogTriggers). Hier tut das `GET /api/study-catalog/status`: noch nie
+# gesucht, Stand nicht abgeschlossen, Wiederholung faellig oder Eingaben geaendert (QIS-Studiengang, PO, eigener Link)
+# -> Suche im Hintergrund (eigener Thread mit Nutzerkontext), Stand sofort "searching". Der Grundstock (App-Ressource
+# StudyCatalogSeed) wird gelesen, bevor etwas geladen wird.
+
+FETCH = urllib_fetch                    # Tests setzen eine Attrappe (kein echtes Netz)
+AUTO_SYNC = os.environ.get("LERNAPP_NO_SCHEDULER") != "1"      # Tests: aus; einzelne Tests schalten ein
+BUSY_STATES = ("searching", "downloading", "parsing")
+SETTLED_STATES = ("ready", "library", "seed", "error", "not_found", "idle")
+BUSY_SECONDS = 600                      # ein Zwischenstand aelter als 10 Minuten gilt als abgebrochen
+_lock = threading.Lock()
+_active: set = set()
+_seed_cache: dict | None = None
+
+
+def seed_cached() -> dict:
+    """Grundstock einmal je Prozess lesen (rund 0,4 s)"""
+    global _seed_cache
+    if _seed_cache is None:
+        _seed_cache = load_seed()
+    return _seed_cache
+
+
+def inputs(conn) -> str:
+    """Fingerabdruck der Eingaben eines Laufs: QIS-Studiengang, PO und eigener Link (steht im Stand als `inputs`)"""
+    s = plan_settings(conn)
+    po = s.get("po") if isinstance(s.get("po"), str) else None
+    return json.dumps([qis_label(conn), po, clean_catalog_url(s.get("catalog_url"))], ensure_ascii=False, separators=(",", ":"))
+
+
+def due(conn, now: datetime) -> bool:
+    """Soll die Suche (wieder) anlaufen? Gleiche Regel wie StudyCatalogEndpoints im Kern"""
+    raw = get_state(conn, "status")
+    st = status(conn)
+    state = st.get("state")
+    started = _parse_iso(st.get("checked_at"))
+    if state in BUSY_STATES and started and (now - started).total_seconds() < BUSY_SECONDS:
+        return False
+    retry = _parse_iso(st.get("retry_at"))
+    retry_due = state == "error" and retry is not None and retry <= now
+    return (not isinstance(raw, dict)) or state not in SETTLED_STATES or retry_due or st.get("inputs") != inputs(conn)
+
+
+def _run_key() -> tuple:
+    from . import config
+    return (config.current_user_id() or "", str(config.db_path() if config.current_user_id() else db.DB_PATH))
+
+
+def _run_once(force: bool, fetch, seed, now) -> dict | None:
+    try:
+        with db.cursor() as conn:
+            return run_sync(conn, fetch=fetch or FETCH, now=now, force=force, seed=seed if seed is not None else seed_cached())
+    except Exception as e:  # noqa: BLE001 - die Suche darf die Anfrage nie zu Fall bringen
+        at = now or datetime.now(timezone.utc)
+        with db.cursor() as conn:
+            set_state(conn, "status", {"state": "error", "error": str(e)[:200], "message": MESSAGES["error_parse"],
+                                       "checked_at": _iso(at), "retry_at": _iso(at + timedelta(hours=RETRY_HOURS)),
+                                       "inputs": inputs(conn)})
+        return None
+
+
+def maybe_start(conn, force: bool = False, now: datetime | None = None, fetch=None, seed=None, background: bool = True) -> dict | None:
+    """Suche anstossen, wenn sie faellig ist (oder `force`); nie zwei zugleich je Konto. Gibt den neuen Zwischenstand
+    ("searching") zurueck, sonst None. `background=False` laeuft in dieser Anfrage und gibt den Endstand zurueck (Tests)."""
+    now = now or datetime.now(timezone.utc)
+    if not force and not due(conn, now):
+        return None
+    key = _run_key()
+    with _lock:
+        if key in _active:
+            return None
+        _active.add(key)
+    try:
+        prev = get_state(conn, "status")
+        state = dict(prev) if isinstance(prev, dict) else {}
+        state.update(state="searching", message=MESSAGES["searching"], checked_at=_iso(now), inputs=inputs(conn))
+        state.pop("error", None)
+        state.pop("retry_at", None)
+        set_state(conn, "status", state)
+        conn.commit()                       # der Lauf (anderer Thread, andere Verbindung) sieht den Zwischenstand
+    except Exception:
+        with _lock:
+            _active.discard(key)
+        raise
+    ctx = contextvars.copy_context()
+
+    def work():
+        try:
+            ctx.run(_run_once, force, fetch, seed, now)
+        finally:
+            with _lock:
+                _active.discard(key)
+
+    if not background:
+        work()
+        return get_state(conn, "status")
+    threading.Thread(target=work, daemon=True, name="study-catalog").start()
+    return state
+
+
+def start_if_needed(force: bool = False) -> bool:
+    """Fuer Aufrufer ausserhalb einer Anfrage (nach dem QIS-Abruf am PC): leise, Fehler stoeren nie"""
+    if not AUTO_SYNC:
+        return False
+    try:
+        with db.cursor() as conn:
+            return maybe_start(conn, force=force) is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+# ----------------------------------------------------------------------------
+# Modultexte nachladen (nur auf dem eigenen PC, nie geteilt)
+# ----------------------------------------------------------------------------
+
+def text_count(conn, key: str) -> int:
+    if not _has_tables(conn):
+        return 0
+    return (db.row(conn, "SELECT COUNT(*) AS n FROM study_module_texts WHERE catalog_key=?", (key,)) or {"n": 0})["n"]
+
+
+def texts_wanted(conn, key: str, now: datetime | None = None) -> bool:
+    """Katalog ohne lokale Texte, Quelle ein modkat-Link, noch nicht geladen und keine laufende Pause. Im Dienst
+    (hosted) nie: Texte sollen auf dem Geraet der Person bleiben (Swift: `StudyCatalogPipeline.textsWanted`)."""
+    from . import config
+    if config.is_hosted():
+        return False
+    now = now or datetime.now(timezone.utc)
+    cat = get_catalog(conn, key)
+    src = cat.get("source") if isinstance(cat, dict) and isinstance(cat.get("source"), dict) else {}
+    if not cat or text_count(conn, key) or not modkat_parts(src.get("url") or ""):
+        return False
+    prev = get_state(conn, "texts:" + key) or {}
+    at = _parse_iso(prev.get("at"))
+    kind = prev.get("state")
+    if kind in ("loaded", "unsupported"):
+        return False
+    if kind == "missing":
+        return not (at and now - at < timedelta(days=MISSING_DAYS))
+    if kind == "error":
+        return not (at and now - at < timedelta(hours=RETRY_HOURS))
+    return True
+
+
+def load_texts(conn, key: str, fetch=None, now: datetime | None = None) -> dict:
+    """Modultexte (Inhalt, Lernziele, Literatur) eines Katalogs aus Grundstock oder Bibliothek nachladen: die oeffentliche
+    PDF der Quelle einmal laden (ohne Cookies, ETag), mit dem modkat-Leser lesen und nur die Texte ablegen; die Fakten
+    bleiben, wie sie sind. Andere Formate (luh-grundstock) liest der PC nicht. Ergebnis: Stand
+    {state: loaded|have|unsupported|missing|error|none}. Fehler: 24 Stunden Pause, 404: 30 Tage."""
+    now = now or datetime.now(timezone.utc)
+    cat = get_catalog(conn, key)
+    if cat is None:
+        return {"state": "none"}
+    n = text_count(conn, key)
+    if n:
+        return {"state": "have", "modules": n}
+    state_key = "texts:" + key
+    prev = get_state(conn, state_key) or {}
+    at = _parse_iso(prev.get("at"))
+
+    def remember(v: dict) -> dict:
+        set_state(conn, state_key, v)
+        return v
+
+    if prev.get("state") in ("loaded", "unsupported"):
+        return prev
+    if prev.get("state") == "missing" and at and now - at < timedelta(days=MISSING_DAYS):
+        return prev
+    if prev.get("state") == "error" and at and now - at < timedelta(hours=RETRY_HOURS):
+        return prev
+    src = cat.get("source") if isinstance(cat.get("source"), dict) else {}
+    url = src.get("url")
+    if not isinstance(url, str) or not url.startswith("https://") or not modkat_parts(url):
+        return remember({"state": "unsupported", "at": _iso(now)})
+    cache = get_state(conn, "http:" + url) or {}
+    r = (fetch or FETCH)(url, cache.get("etag"), cache.get("last_modified"))
+    if r.status == 404:
+        return remember({"state": "missing", "at": _iso(now)})
+    if r.status != 200:
+        return remember({"state": "error", "at": _iso(now), "error": r.error or f"HTTP {r.status}"})
+    try:
+        meta = {"university": cat.get("university"), "program": cat.get("program"), "degree": cat.get("degree"),
+                "po": str(cat.get("po")), "code": cat.get("code"), "catalog_term": cat.get("catalog_term"),
+                "regular_semesters": cat.get("regular_semesters"), "total_lp": cat.get("total_lp"),
+                "source": {"url": url, "fetched_at": _iso(now), "sha256": hashlib.sha256(r.data).hexdigest()}}
+        parsed, all_texts = parse_luh_modkat(pdf_pages(r.data), meta)
+    except Exception as e:  # noqa: BLE001
+        return remember({"state": "error", "at": _iso(now), "error": str(e)[:200]})
+    by_title: dict = {}
+    for m in parsed.get("modules") or []:
+        by_title.setdefault(name_key(m.get("title") or ""), m["id"])
+    texts = {}
+    for m in cat.get("modules") or []:
+        pid = m["id"] if m["id"] in all_texts else by_title.get(name_key(m.get("title") or ""))
+        if pid in all_texts:
+            texts[m["id"]] = all_texts[pid]
+    if not texts:
+        return remember({"state": "error", "at": _iso(now), "error": "keine Modultexte"})
+    conn.executemany("INSERT INTO study_module_texts(catalog_key, module_id, content, goals, literature) VALUES (?,?,?,?,?)",
+                     [(key, mid, t.get("content"), t.get("goals"), t.get("literature")) for mid, t in texts.items()])
+    set_state(conn, "http:" + url, {"etag": r.etag, "last_modified": r.last_modified})
+    return remember({"state": "loaded", "at": _iso(now), "modules": len(texts), "sha256": hashlib.sha256(r.data).hexdigest()})
+
+
+def start_texts(key: str, fetch=None, background: bool = True) -> bool:
+    """Texte im Hintergrund nachladen (ein Lauf je Konto und Katalog); true, wenn einer laeuft oder anlief"""
+    run_key = _run_key() + ("texts", key)
+    with _lock:
+        if run_key in _active:
+            return True
+        _active.add(run_key)
+    ctx = contextvars.copy_context()
+
+    def job():
+        try:
+            with db.cursor() as conn:
+                load_texts(conn, key, fetch)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def work():
+        try:
+            ctx.run(job)
+        finally:
+            with _lock:
+                _active.discard(run_key)
+
+    if not background:
+        work()
+    else:
+        threading.Thread(target=work, daemon=True, name="study-texts").start()
+    return True
+
+
+# ----------------------------------------------------------------------------
+# Register zum Auswaehlen (Web): Studiengaenge mit Pruefungsordnungen
+# ----------------------------------------------------------------------------
+
+def programs(registry: dict | None = None, university: str = "luh", seed: dict | None = None) -> list[dict]:
+    """Studiengaenge des Registers zur Auswahl: [{id, program, degree, faculty, pos: [{po, code, catalog_terms,
+    loadable}]}] nach Name; Eintraege ohne Katalog haben `pos: []` (der Katalog fehlt noch). `loadable`: der PC kann
+    den Katalog laden (modkat) oder er liegt im Grundstock."""
+    reg = registry or load_registry()
+    seed_codes = {c.get("code") for c in (seed or {}).values()}
+    out = []
+    for uni in reg.get("universities") or []:
+        if uni.get("id") != university:
+            continue
+        sources = {s.get("id"): s for s in uni.get("sources") or []}
+        for p in uni.get("programs") or []:
+            pos = []
+            for x in p.get("pos") or []:
+                src = sources.get(x.get("source")) or {}
+                pos.append({"po": str(x.get("po")), "code": x.get("code"), "catalog_terms": list(x.get("catalog_terms") or []),
+                            "loadable": bool(src.get("url_pattern")) or x.get("code") in seed_codes})
+            out.append({"id": p.get("id"), "program": p.get("program"), "degree": p.get("degree"), "faculty": p.get("faculty"),
+                        "regular_semesters": p.get("regular_semesters"), "total_lp": p.get("total_lp"), "pos": pos})
+    out.sort(key=lambda e: (name_key(e["program"] or ""), e["degree"] or ""))
+    return out
+
+
 router = APIRouter(prefix="/api/study-catalog", tags=["study-catalog"])
 
 
 @router.get("/status")
 def api_status():
+    """Stand der Suche; stoesst sie im Hintergrund an, wenn sie faellig ist (nie gesucht oder Eingaben geaendert)"""
     with db.cursor() as conn:
+        if AUTO_SYNC:
+            started = maybe_start(conn)
+            if started:
+                return started
         return status(conn)
+
+
+@router.post("/sync")
+def api_sync(body: dict | None = None):
+    """Suche jetzt anstossen (`{"force": true}`: auch wenn nichts neu ist); antwortet sofort mit dem Stand"""
+    force = bool((body or {}).get("force"))
+    with db.cursor() as conn:
+        started = maybe_start(conn, force=force) if AUTO_SYNC else None
+        return started or status(conn)
+
+
+@router.get("/programs")
+def api_programs(q: str = ""):
+    """Studiengaenge des Registers zum Waehlen (Web); `q` filtert nach Name"""
+    items = programs(seed=seed_cached())
+    key = name_key(q) if q.strip() else ""
+    if key:
+        items = [e for e in items if key in name_key(e["program"] or "")]
+    return {"programs": items, "count": len(items)}

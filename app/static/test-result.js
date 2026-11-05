@@ -34,5 +34,30 @@ export function tutorContext(q, answer, f) {
 }
 
 /** Unterzeile der KI-Hilfe: "Aufgabe 1 · Multiple Choice" */
-export const QTYPE = { mc: "Multiple Choice", calc: "Rechnen / Programmieren", tf: "Wahr / Falsch" };
+export const QTYPE = { mc: "Multiple Choice", calc: "Rechnen / Programmieren", tf: "Wahr / Falsch", cloze: "Lückentext", short: "Kurzantwort" };
 export const askSub = q => `Aufgabe ${q.nr} · ${QTYPE[q.type] || "Kurzantwort"}`;
+
+// Aufgabenarten seit 04.11.2026 (wie ExamQuestionCard in ExamsPage.swift): Wahr/Falsch und Lueckentext neben Multiple Choice,
+// Kurzantwort und Rechnen. Auswahl-Aufgaben haben Antwortmoeglichkeiten (Wahr/Falsch immer die zwei festen), der
+// Lueckentext ein einzeiliges Feld; die richtige Antwort ist beim Lueckentext das Wort fuer die Luecke (`blank`).
+export const TF_OPTIONS = ["Wahr", "Falsch"];
+export const kindLabel = type => QTYPE[type] || "Kurzantwort";
+export const isChoice = q => q?.type === "mc" || q?.type === "tf";
+/** Antwortmoeglichkeiten: bei Wahr/Falsch immer die beiden festen, auch wenn der Test keine mitbringt */
+export function choices(q) {
+  const o = Array.isArray(q?.options) ? q.options.map(String) : [];
+  return q?.type === "tf" && o.length !== 2 ? TF_OPTIONS : o;
+}
+/** Zwei Optionen (Wahr/Falsch, Ja/Nein): zwei grosse Flaechen nebeneinander */
+export const isTwoWay = q => isChoice(q) && choices(q).length === 2;
+/** Richtige Antwort zum Anzeigen: beim Lueckentext das Wort fuer die Luecke, sonst die Musterloesung */
+export function correctAnswer(q) {
+  const blank = String(q?.blank ?? "").trim();
+  return q?.type === "cloze" && blank ? blank : String(q?.answer ?? "");
+}
+
+/** Erklaerung zur Aufgabe: die der KI aus dem Test (`explanation`, 1-3 Saetze), nur wenn die Rueckmeldung der Bewertung nicht dasselbe sagt */
+export function explanationOf(q, f) {
+  const e = String(q?.explanation ?? "").trim();
+  return e && e !== String(f?.feedback ?? "").trim() ? e : "";
+}

@@ -56,7 +56,12 @@ def purchase_channels() -> dict:
 
 @router.get("/api/billing/plans")
 def billing_plans():
-    return {**plans.contract(), "purchase": purchase_channels(), "studora_ai_configured": _ai_configured()}
+    purchase = purchase_channels()
+    if not config.is_hosted():
+        from . import account_mode
+        if account_mode.required():
+            purchase = account_mode.cached_purchase() or purchase   # Windows-App: Kaufwege des Dienstes
+    return {**plans.contract(), "purchase": purchase, "studora_ai_configured": _ai_configured()}
 
 
 def _ai_configured() -> bool:
@@ -66,14 +71,22 @@ def _ai_configured() -> bool:
 
 @router.get("/api/entitlements")
 def get_entitlements(request: Request):
-    """Eigener Stand. Die Apps richten danach ihre Oberflaeche aus; der Server prueft trotzdem jeden Aufruf."""
+    """Eigener Stand. Die Apps richten danach ihre Oberflaeche aus; der Server prueft trotzdem jeden Aufruf.
+    `access` (05.11.2026, app/access.py): Abo-Pflicht je Client; fuer iPad/Android ("app") nur zur Information."""
     out = entitlements.status(request)
     out["purchase"] = purchase_channels()
     if config.is_hosted():
-        from . import ai_backend
-        out["apple_account_token"] = apple_store.account_token(_user(request)["id"])
+        from . import access, ai_backend
+        u = _user(request)
+        out["apple_account_token"] = apple_store.account_token(u["id"])
         # Credits des Monats (app/credits.py): period, allowance, used, reserved, remaining, resets_at, plan
-        out["credits"] = ai_backend.credits_balance(_user(request)["id"])
+        out["credits"] = ai_backend.credits_balance(u["id"])
+        out["access"] = access.for_status(out, access.client_type(request), u.get("role"))
+    else:
+        from . import account_mode
+        if account_mode.required():
+            # Windows-App: Kaufwege so, wie der Dienst sie zuletzt gemeldet hat (Stripe ist nur dort eingerichtet)
+            out["purchase"] = account_mode.cached_purchase() or out["purchase"]
     return out
 
 
@@ -115,14 +128,16 @@ def stripe_checkout(request: Request, body: dict = Body(...)):
     plan = str(body.get("plan") or "")
     if not plans.is_sellable(plan):
         raise HTTPException(400, {"detail": "Bitte einen kostenpflichtigen Tarif angeben.", "code": "plan_invalid"})
-    return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan))
+    client = "windows" if body.get("client") == "windows" else None
+    return _stripe_call(lambda conn: stripe_billing.checkout(conn, u, plan, client))
 
 
 @router.post("/api/billing/stripe/portal")
-def stripe_portal(request: Request):
+def stripe_portal(request: Request, body: dict | None = Body(default=None)):
     _hosted()
     u = _user(request)
-    return _stripe_call(lambda conn: stripe_billing.portal(conn, u))
+    client = "windows" if isinstance(body, dict) and body.get("client") == "windows" else None
+    return _stripe_call(lambda conn: stripe_billing.portal(conn, u, client))
 
 
 @router.post("/api/billing/stripe/webhook")

@@ -107,8 +107,8 @@ final class EntitlementTests: XCTestCase {
     /// steht nur unter "in Vorbereitung", PlanContractTests)
     func testPlanCards() {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
-                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes, .uniGrades,
-                        .communityRead])
+                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .viewNotes, .uniGrades,
+                        .communityRead])   // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 }, [.pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests])
         XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [])
         for f in UFFeature.allCases {

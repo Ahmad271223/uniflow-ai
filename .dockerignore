@@ -36,3 +36,7 @@ docs/paritaet
 .DS_Store
 Thumbs.db
 deploy/.env
+# Ausnahmen: Register und Grundstock der Modulkataloge (Studienverlauf, deploy/Dockerfile)
+!packages/shared-contracts/study-sources.json
+!packages/shared-contracts/study-sources-all.json
+!apps/apple/UniFlow/Resources/StudyCatalogSeed/luh.json.gz

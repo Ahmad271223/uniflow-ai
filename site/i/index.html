@@ -5,21 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Du bist zu StudiNow eingeladen – StudiNow</title>
 <meta name="description" content="Du bist zu StudiNow eingeladen: App laden, Konto anlegen, Einladung annehmen. Die einladende Person bekommt Angebotscodes.">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<header class="header"><div class="inner">
-<a class="brand" href="../index.html"><img src="../icon.svg" alt="" width="30" height="30">StudiNow</a>
-<nav class="nav" aria-label="Seiten"><a href="../index.html">Start</a><a href="../support.html">Support</a><a href="../datenschutz.html">Datenschutz</a><a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a><a href="../impressum.html">Impressum</a><a href="../konto-loeschen.html">Konto löschen</a></nav>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
+<header class="header"><div class="wrap header-inner">
+<a class="brand" href="../index.html"><img src="../icon.svg" alt="" width="32" height="32">StudiNow</a>
+<nav class="nav" aria-label="Hauptnavigation"><a href="../index.html#funktionen">Funktionen</a><a href="../index.html#preise">Preise</a><a href="../index.html#fragen">Fragen</a><a href="../support.html">Support</a></nav>
+<a class="btn btn-small" href="../index.html#laden">App laden</a>
 </div></header>
-<main class="home">
+<main id="inhalt" class="doc invite">
+<article class="prose">
 <h1>Du bist zu StudiNow eingeladen</h1>
 <p>Jemand aus deinem Studiengang nutzt StudiNow und hat dir einen Einladungslink geschickt. StudiNow bringt Skripte und
 Übungsblätter aus Stud.IP, Stundenplan und Lernkalender und Handschrift mit dem Apple Pencil auf dein iPad – ohne
 Tracking.</p>
-<p class="cta"><a class="badge" href="#app-store" title="Link folgt mit der Veröffentlichung im App Store">Laden im App Store</a>
-<span class="muted">für iPad · Mac „Designed for iPad“ · die erste Woche ist alles frei</span></p>
+<p class="cta"><a class="btn btn-store" href="#" aria-describedby="store-note"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Im App Store laden</a>
+<span class="note" id="store-note"><strong>Bald verfügbar</strong> für das iPad. Die erste Woche ist alles frei.</span></p>
 
 <h2>So geht es weiter</h2>
 <ol>
@@ -61,13 +65,19 @@ musst nichts kaufen und nichts teilen.</p>
 <h2>Fragen?</h2>
 <p><a href="../support.html">Support und häufige Fragen</a> · support@studinow.app ·
 <a href="../datenschutz.html">Datenschutz</a></p>
+</article>
 </main>
-<footer class="footer"><div class="inner">
-<span>© 2026 IT solutions by Ahmad Fakih</span>
-<a href="../impressum.html">Impressum</a>
-<a href="../datenschutz.html">Datenschutz</a>
-<a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
-<a href="../support.html">Support</a>
-</div></footer>
+<footer class="footer">
+<div class="wrap footer-grid">
+<div class="footer-about">
+<a class="brand" href="../index.html"><img src="../icon.svg" alt="" width="32" height="32">StudiNow</a>
+<p>Die Lern-App für Studierende: Unterlagen, Termine und Lernen an einem Ort. Ein unabhängiges Angebot, nicht mit den Hochschulen verbunden.</p>
+</div>
+<nav class="footer-col" aria-label="Produkt"><p>Produkt</p><ul><li><a href="../index.html">Startseite</a></li><li><a href="../index.html#funktionen">Funktionen</a></li><li><a href="../index.html#so-gehts">So geht’s</a></li><li><a href="../index.html#preise">Preise</a></li></ul></nav>
+<nav class="footer-col" aria-label="Hilfe"><p>Hilfe</p><ul><li><a href="../support.html">Support</a></li><li><a href="../index.html#fragen">Häufige Fragen</a></li><li><a href="../konto-loeschen.html">Konto löschen</a></li><li><a href="mailto:support@studinow.app">support@studinow.app</a></li></ul></nav>
+<nav class="footer-col" aria-label="Rechtliches"><p>Rechtliches</p><ul><li><a href="../impressum.html">Impressum</a></li><li><a href="../datenschutz.html">Datenschutz</a></li><li><a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a></li></ul></nav>
+</div>
+<div class="wrap footer-bottom"><span>© 2026 IT solutions by Ahmad Fakih</span><span>Kein Tracking, keine Werbung</span></div>
+</footer>
 </body>
 </html>

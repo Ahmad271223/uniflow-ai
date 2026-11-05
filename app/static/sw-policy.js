@@ -17,7 +17,7 @@
     /^\/api\/desktop(\/|$)/, /^\/api\/services(\/|$)/, /^\/api\/diag(\/|$)/, /^\/api\/files\/[^/]+\/recordings(\/|$)/,
     /^\/api\/recordings(\/|$)/, /^\/api\/community\/notifications(\/|$)/,
     // Stud.IP-Nachrichten (ganzer Text) nie offline auf dem Geraet ablegen (Datenschutz, nur lokal im Speicher der App)
-    /^\/api\/news(\/|$)/];
+    /^\/api\/news(\/|$)/, /^\/api\/studip\/messages(\/|$)/];
   const FILE_CONTENT = /^\/api\/files\/[^/]+\/(content|docx)$/;
 
   /// Entscheidung fuer eine Anfrage: {kind: "bypass"|"shell"|"files"|"api"|"write", reason}

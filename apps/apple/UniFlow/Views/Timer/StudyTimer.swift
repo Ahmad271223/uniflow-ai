@@ -16,6 +16,11 @@ import UserNotifications
 /// in die naechste Phase und wartet auf "Start" – wie im Web endet jede Phase mit Anhalten).
 @MainActor
 final class StudyTimer: ObservableObject {
+    /// Entscheidung des Inhabers 05.11.2026 ("bitte timer entfernen erstmal"): Zeitmesser vorerst ausgeblendet
+    /// (Knopf in der Kopfzeile, Kasten/Pille, Sprungziel "timer", Eintrag auf der Free-Tarifkarte). Der Code bleibt;
+    /// wieder einschalten = true.
+    static let isEnabled = false
+
     enum Mode: String, Codable { case stopwatch, countdown, pomodoro }
     struct Pomo: Equatable, Codable { var work = 25, pause = 5, phase = "work", round = 1 }
 
@@ -268,6 +273,7 @@ struct StudyTimerHost: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
+                if StudyTimer.isEnabled {
                 ZStack(alignment: .bottomTrailing) {
                     Color.clear.allowsHitTesting(false)
                     if timer.open {
@@ -279,6 +285,7 @@ struct StudyTimerHost: ViewModifier {
                 }
                 .ignoresSafeArea()
                 .animation(UF.motion(.easeOut(duration: 0.15)), value: timer.open)
+                }
             }
             .onAppear { timer.toast = toast }
             .onChange(of: scenePhase) { _, phase in

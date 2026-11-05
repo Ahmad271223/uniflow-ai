@@ -4,8 +4,8 @@ Jemand aus deinem Studiengang nutzt StudiNow und hat dir einen Einladungslink ge
 Übungsblätter aus Stud.IP, Stundenplan und Lernkalender und Handschrift mit dem Apple Pencil auf dein iPad – ohne
 Tracking.
 
-<p class="cta"><a class="badge" href="#app-store" title="Link folgt mit der Veröffentlichung im App Store">Laden im App Store</a>
-<span class="muted">für iPad · Mac „Designed for iPad“ · die erste Woche ist alles frei</span></p>
+<p class="cta"><a class="btn btn-store" href="#" aria-describedby="store-note">:i-download: Im App Store laden</a>
+<span class="note" id="store-note"><strong>Bald verfügbar</strong> für das iPad. Die erste Woche ist alles frei.</span></p>
 
 ## So geht es weiter
 

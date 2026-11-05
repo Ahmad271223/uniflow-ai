@@ -322,6 +322,7 @@
    "method": "GET",
    "path": "/api/study-plan",
    "response": {
+    "areas": [],
     "available": false,
     "catalog_term": null,
     "code": null,
@@ -330,11 +331,14 @@
     "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "electives": [],
+    "excluded": [],
+    "groups": [],
     "lp_done": 0,
     "lp_expected": 0,
     "lp_total": 0,
     "message": "Für deinen Studiengang gibt es noch keinen Katalog.",
     "notes": [],
+    "placements": {},
     "po": null,
     "po_confirmed": false,
     "program": null,
@@ -354,9 +358,12 @@
    "response": {
     "abschluss": "Technische Informatik (PO-Version 2017)",
     "catalogs": [],
+    "custom": [],
     "elective_lp_required": null,
     "elective_options": [],
     "electives": [],
+    "excluded": [],
+    "placements": {},
     "po": null,
     "po_options": [],
     "start_term": null,
@@ -375,7 +382,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -437,6 +445,190 @@
    "method": "GET",
    "path": "/api/study-plan",
    "response": {
+    "areas": [
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "programmieren-1",
+       "theoretische-informatik",
+       "programmieren-2",
+       "datenstrukturen",
+       "betriebssysteme",
+       "software-engineering",
+       "rechnernetze"
+      ],
+      "count": 7,
+      "count_done": 2,
+      "group": null,
+      "id": "informatik",
+      "kind": "pflicht",
+      "lp_done": 10,
+      "lp_max": null,
+      "lp_open": 14,
+      "lp_planned": 26,
+      "lp_required": 50,
+      "modules_required": null,
+      "name": "Grundlagen der Informatik",
+      "options": 7,
+      "rule": null,
+      "slots": 0,
+      "target": 50,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "mathematik-1",
+       "mathematik-2",
+       "mathematik-3",
+       "stochastik"
+      ],
+      "count": 4,
+      "count_done": 2,
+      "group": null,
+      "id": "mathematik",
+      "kind": "pflicht",
+      "lp_done": 16,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 13,
+      "lp_required": 29,
+      "modules_required": null,
+      "name": "Mathematik",
+      "options": 4,
+      "rule": null,
+      "slots": 0,
+      "target": 29,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "et-1",
+       "et-2",
+       "signale-systeme",
+       "digitalschaltungen",
+       "regelungstechnik"
+      ],
+      "count": 5,
+      "count_done": 1,
+      "group": null,
+      "id": "elektrotechnik",
+      "kind": "pflicht",
+      "lp_done": 6,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 22,
+      "lp_required": 28,
+      "modules_required": null,
+      "name": "Elektrotechnik",
+      "options": 5,
+      "rule": null,
+      "slots": 0,
+      "target": 28,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "digitale-systeme",
+       "rechnerstrukturen",
+       "softwareprojekt",
+       "seminar",
+       "labor",
+       "fachpraktikum"
+      ],
+      "count": 6,
+      "count_done": 1,
+      "group": null,
+      "id": "technische-informatik",
+      "kind": "pflicht",
+      "lp_done": 5,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 33,
+      "lp_required": 33,
+      "modules_required": null,
+      "name": "Technische Informatik",
+      "options": 6,
+      "rule": null,
+      "slots": 0,
+      "target": 33,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "wahlpflicht",
+      "kind": "wahlpflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 20,
+      "lp_planned": 0,
+      "lp_required": 20,
+      "modules_required": null,
+      "name": "Wahlpflicht",
+      "options": 5,
+      "rule": null,
+      "slots": 4,
+      "target": 20,
+      "type": "wahlpflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "schluessel",
+      "kind": "wahl",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 5,
+      "lp_planned": 0,
+      "lp_required": 5,
+      "modules_required": null,
+      "name": "Schlüsselkompetenzen",
+      "options": 1,
+      "rule": null,
+      "slots": 1,
+      "target": 5,
+      "type": "schluessel"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "bachelorarbeit"
+      ],
+      "count": 1,
+      "count_done": 0,
+      "group": null,
+      "id": "abschluss",
+      "kind": "abschluss",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 15,
+      "lp_required": 15,
+      "modules_required": null,
+      "name": "Abschluss",
+      "options": 1,
+      "rule": null,
+      "slots": 0,
+      "target": 15,
+      "type": "abschluss"
+     }
+    ],
     "available": true,
     "catalog_term": "WS 2025/26",
     "code": "TIBSc22",
@@ -447,71 +639,103 @@
     "electives": [
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "eingebettete-systeme",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 4,
       "status": null,
-      "title": "Eingebettete Systeme"
+      "title": "Eingebettete Systeme",
+      "turnus": "SS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "datenbanken",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 5,
       "status": null,
-      "title": "Datenbanksysteme I"
+      "title": "Datenbanksysteme I",
+      "turnus": "WS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "bildverarbeitung",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 5,
       "status": null,
-      "title": "Digitale Bildverarbeitung"
+      "title": "Digitale Bildverarbeitung",
+      "turnus": "WS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "ki",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": null,
       "status": null,
-      "title": "Grundlagen der künstlichen Intelligenz"
+      "title": "Grundlagen der künstlichen Intelligenz",
+      "turnus": "WS+SS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "robotik",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 5,
       "status": null,
-      "title": "Robotik I"
+      "title": "Robotik I",
+      "turnus": "WS"
      },
      {
       "area": "schluessel",
+      "areas": [
+       "schluessel"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "schluesselkompetenzen",
       "included": false,
       "kind": "wahl",
       "lp": 5,
       "semester": null,
       "status": null,
-      "title": "Schlüsselkompetenzen"
+      "title": "Schlüsselkompetenzen",
+      "turnus": "unbekannt"
      }
     ],
+    "excluded": [],
+    "groups": [],
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
@@ -524,6 +748,7 @@
       "tone": "warn"
      }
     ],
+    "placements": {},
     "po": "2022",
     "po_confirmed": false,
     "program": "Technische Informatik",
@@ -534,17 +759,20 @@
       "current": false,
       "fachsemester": 1,
       "lp": 29,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "informatik",
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "programmieren-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -556,11 +784,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "mathematik-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -572,11 +802,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "digitale-systeme",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -588,11 +820,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "et-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -604,11 +838,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "theoretische-informatik",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -616,23 +852,27 @@
         "turnus": "WS"
        }
       ],
+      "slots": [],
       "term": "WiSe 25/26"
      },
      {
       "current": false,
       "fachsemester": 2,
       "lp": 8,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "mathematik",
         "attempt": 1,
         "code": null,
         "grade": "2,0",
+        "hints": [],
         "id": "mathematik-2",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 2,
         "status": "bestanden",
@@ -640,23 +880,27 @@
         "turnus": "SS"
        }
       ],
+      "slots": [],
       "term": "SoSe 26"
      },
      {
       "current": true,
       "fachsemester": 3,
       "lp": 14,
+      "lp_slots": 5,
       "modules": [
        {
         "area": "mathematik",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "mathematik-3",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 3,
         "status": "offen",
@@ -668,16 +912,35 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "signale-systeme",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 3,
         "status": "offen",
         "title": "Signale und Systeme",
         "turnus": "WS"
+       }
+      ],
+      "slots": [
+       {
+        "area": "schluessel",
+        "area_kind": "wahl",
+        "areas": [
+         "schluessel"
+        ],
+        "fachsemester": 3,
+        "group": null,
+        "id": "platz-5",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Schlüsselkompetenzen",
+        "type": "schluessel"
        }
       ],
       "term": "WiSe 26/27"
@@ -686,17 +949,20 @@
       "current": false,
       "fachsemester": 4,
       "lp": 32,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "informatik",
         "attempt": 1,
         "code": "1234",
         "grade": null,
+        "hints": [],
         "id": "programmieren-2",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Nicht bestanden – nächster Versuch",
         "semester": 2,
         "status": "nicht_bestanden",
@@ -708,11 +974,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "rechnerstrukturen",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Noch nicht abgelegt – nachholen",
         "semester": 2,
         "status": "geplant",
@@ -724,11 +992,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "et-2",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Noch nicht abgelegt – nachholen",
         "semester": 2,
         "status": "geplant",
@@ -740,11 +1010,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "datenstrukturen",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Noch nicht abgelegt – nachholen",
         "semester": 2,
         "status": "geplant",
@@ -756,11 +1028,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "stochastik",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 4,
         "status": "geplant",
@@ -772,11 +1046,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "regelungstechnik",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 4,
         "status": "geplant",
@@ -784,23 +1060,27 @@
         "turnus": "SS"
        }
       ],
+      "slots": [],
       "term": "SoSe 27"
      },
      {
       "current": false,
       "fachsemester": 5,
       "lp": 25,
+      "lp_slots": 10,
       "modules": [
        {
         "area": "informatik",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "betriebssysteme",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "WiSe 26/27",
+        "placed": false,
         "reason": "Voraussetzung Programmieren II zuerst",
         "semester": 3,
         "status": "geplant",
@@ -812,11 +1092,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "software-engineering",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "WiSe 26/27",
+        "placed": false,
         "reason": "Voraussetzung Programmieren II zuerst",
         "semester": 3,
         "status": "geplant",
@@ -828,11 +1110,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "digitalschaltungen",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "WiSe 26/27",
+        "placed": false,
         "reason": "Voraussetzung Elektrotechnische Grundlagen II zuerst",
         "semester": 3,
         "status": "geplant",
@@ -844,11 +1128,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "seminar",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 3,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 5,
         "status": "geplant",
@@ -860,16 +1146,50 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "labor",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 7,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 5,
         "status": "geplant",
         "title": "Labor Technische Informatik",
         "turnus": "WS"
+       }
+      ],
+      "slots": [
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-2",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       },
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-4",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
        }
       ],
       "term": "WiSe 27/28"
@@ -878,17 +1198,20 @@
       "current": false,
       "fachsemester": 6,
       "lp": 23,
+      "lp_slots": 10,
       "modules": [
        {
         "area": "informatik",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "rechnernetze",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "SoSe 27",
+        "placed": false,
         "reason": "Voraussetzung Grundlagen der Betriebssysteme zuerst",
         "semester": 4,
         "status": "geplant",
@@ -900,11 +1223,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "softwareprojekt",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": "SoSe 27",
+        "placed": false,
         "reason": "Voraussetzung Software-Engineering zuerst",
         "semester": 4,
         "status": "geplant",
@@ -916,16 +1241,50 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "fachpraktikum",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 10,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 6,
         "status": "geplant",
         "title": "Fachpraktikum",
         "turnus": "WS+SS"
+       }
+      ],
+      "slots": [
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-1",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       },
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-3",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
        }
       ],
       "term": "SoSe 28"
@@ -934,17 +1293,20 @@
       "current": false,
       "fachsemester": 7,
       "lp": 15,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "abschluss",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "bachelorarbeit",
         "kind": "abschluss",
         "last_attempt": false,
         "lp": 15,
         "moved_from": "SoSe 28",
+        "placed": false,
         "reason": "Voraussetzung Softwareprojekt zuerst",
         "semester": 6,
         "status": "geplant",
@@ -952,6 +1314,7 @@
         "turnus": "WS+SS"
        }
       ],
+      "slots": [],
       "term": "WiSe 28/29"
      }
     ],
@@ -983,6 +1346,7 @@
       "program": "Technische Informatik"
      }
     ],
+    "custom": [],
     "elective_lp_required": 20,
     "elective_options": [
      {
@@ -1041,6 +1405,8 @@
      }
     ],
     "electives": [],
+    "excluded": [],
+    "placements": {},
     "po": null,
     "po_options": [
      "2022"
@@ -1061,7 +1427,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -1339,6 +1706,7 @@
       "program": "Technische Informatik"
      }
     ],
+    "custom": [],
     "elective_lp_required": 20,
     "elective_options": [
      {
@@ -1400,6 +1768,8 @@
      "ki",
      "robotik"
     ],
+    "excluded": [],
+    "placements": {},
     "po": null,
     "po_options": [
      "2022"
@@ -1420,7 +1790,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -1428,6 +1799,193 @@
    "method": "GET",
    "path": "/api/study-plan",
    "response": {
+    "areas": [
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "programmieren-1",
+       "theoretische-informatik",
+       "programmieren-2",
+       "datenstrukturen",
+       "betriebssysteme",
+       "software-engineering",
+       "rechnernetze"
+      ],
+      "count": 7,
+      "count_done": 2,
+      "group": null,
+      "id": "informatik",
+      "kind": "pflicht",
+      "lp_done": 10,
+      "lp_max": null,
+      "lp_open": 14,
+      "lp_planned": 26,
+      "lp_required": 50,
+      "modules_required": null,
+      "name": "Grundlagen der Informatik",
+      "options": 7,
+      "rule": null,
+      "slots": 0,
+      "target": 50,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "mathematik-1",
+       "mathematik-2",
+       "mathematik-3",
+       "stochastik"
+      ],
+      "count": 4,
+      "count_done": 2,
+      "group": null,
+      "id": "mathematik",
+      "kind": "pflicht",
+      "lp_done": 16,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 13,
+      "lp_required": 29,
+      "modules_required": null,
+      "name": "Mathematik",
+      "options": 4,
+      "rule": null,
+      "slots": 0,
+      "target": 29,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "et-1",
+       "et-2",
+       "signale-systeme",
+       "digitalschaltungen",
+       "regelungstechnik"
+      ],
+      "count": 5,
+      "count_done": 1,
+      "group": null,
+      "id": "elektrotechnik",
+      "kind": "pflicht",
+      "lp_done": 6,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 22,
+      "lp_required": 28,
+      "modules_required": null,
+      "name": "Elektrotechnik",
+      "options": 5,
+      "rule": null,
+      "slots": 0,
+      "target": 28,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "digitale-systeme",
+       "rechnerstrukturen",
+       "softwareprojekt",
+       "seminar",
+       "labor",
+       "fachpraktikum"
+      ],
+      "count": 6,
+      "count_done": 1,
+      "group": null,
+      "id": "technische-informatik",
+      "kind": "pflicht",
+      "lp_done": 5,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 33,
+      "lp_required": 33,
+      "modules_required": null,
+      "name": "Technische Informatik",
+      "options": 6,
+      "rule": null,
+      "slots": 0,
+      "target": 33,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [
+       "ki",
+       "robotik"
+      ],
+      "count": 2,
+      "count_done": 0,
+      "group": null,
+      "id": "wahlpflicht",
+      "kind": "wahlpflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 10,
+      "lp_planned": 10,
+      "lp_required": 20,
+      "modules_required": null,
+      "name": "Wahlpflicht",
+      "options": 5,
+      "rule": null,
+      "slots": 2,
+      "target": 20,
+      "type": "wahlpflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "schluessel",
+      "kind": "wahl",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 5,
+      "lp_planned": 0,
+      "lp_required": 5,
+      "modules_required": null,
+      "name": "Schlüsselkompetenzen",
+      "options": 1,
+      "rule": null,
+      "slots": 1,
+      "target": 5,
+      "type": "schluessel"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "bachelorarbeit"
+      ],
+      "count": 1,
+      "count_done": 0,
+      "group": null,
+      "id": "abschluss",
+      "kind": "abschluss",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 15,
+      "lp_required": 15,
+      "modules_required": null,
+      "name": "Abschluss",
+      "options": 1,
+      "rule": null,
+      "slots": 0,
+      "target": 15,
+      "type": "abschluss"
+     }
+    ],
     "available": true,
     "catalog_term": "WS 2025/26",
     "code": "TIBSc22",
@@ -1438,71 +1996,103 @@
     "electives": [
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "eingebettete-systeme",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 4,
       "status": null,
-      "title": "Eingebettete Systeme"
+      "title": "Eingebettete Systeme",
+      "turnus": "SS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "datenbanken",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 5,
       "status": null,
-      "title": "Datenbanksysteme I"
+      "title": "Datenbanksysteme I",
+      "turnus": "WS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "bildverarbeitung",
       "included": false,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 5,
       "status": null,
-      "title": "Digitale Bildverarbeitung"
+      "title": "Digitale Bildverarbeitung",
+      "turnus": "WS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": true,
+      "excluded": false,
       "id": "ki",
       "included": true,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": null,
       "status": "geplant",
-      "title": "Grundlagen der künstlichen Intelligenz"
+      "title": "Grundlagen der künstlichen Intelligenz",
+      "turnus": "WS+SS"
      },
      {
       "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
       "chosen": true,
+      "excluded": false,
       "id": "robotik",
       "included": true,
       "kind": "wahlpflicht",
       "lp": 5,
       "semester": 5,
       "status": "geplant",
-      "title": "Robotik I"
+      "title": "Robotik I",
+      "turnus": "WS"
      },
      {
       "area": "schluessel",
+      "areas": [
+       "schluessel"
+      ],
       "chosen": false,
+      "excluded": false,
       "id": "schluesselkompetenzen",
       "included": false,
       "kind": "wahl",
       "lp": 5,
       "semester": null,
       "status": null,
-      "title": "Schlüsselkompetenzen"
+      "title": "Schlüsselkompetenzen",
+      "turnus": "unbekannt"
      }
     ],
+    "excluded": [],
+    "groups": [],
     "lp_done": 37,
     "lp_expected": 59,
     "lp_total": 180,
@@ -1515,6 +2105,7 @@
       "tone": "warn"
      }
     ],
+    "placements": {},
     "po": "2022",
     "po_confirmed": false,
     "program": "Technische Informatik",
@@ -1525,17 +2116,20 @@
       "current": false,
       "fachsemester": 1,
       "lp": 29,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "informatik",
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "programmieren-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -1547,11 +2141,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "mathematik-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -1563,11 +2159,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "digitale-systeme",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -1579,11 +2177,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "et-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -1595,11 +2195,13 @@
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "theoretische-informatik",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -1607,23 +2209,27 @@
         "turnus": "WS"
        }
       ],
+      "slots": [],
       "term": "WiSe 25/26"
      },
      {
       "current": false,
       "fachsemester": 2,
       "lp": 8,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "mathematik",
         "attempt": 1,
         "code": null,
         "grade": "2,0",
+        "hints": [],
         "id": "mathematik-2",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 2,
         "status": "bestanden",
@@ -1631,23 +2237,27 @@
         "turnus": "SS"
        }
       ],
+      "slots": [],
       "term": "SoSe 26"
      },
      {
       "current": true,
       "fachsemester": 3,
       "lp": 14,
+      "lp_slots": 5,
       "modules": [
        {
         "area": "mathematik",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "mathematik-3",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 3,
         "status": "offen",
@@ -1659,16 +2269,35 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "signale-systeme",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 3,
         "status": "offen",
         "title": "Signale und Systeme",
         "turnus": "WS"
+       }
+      ],
+      "slots": [
+       {
+        "area": "schluessel",
+        "area_kind": "wahl",
+        "areas": [
+         "schluessel"
+        ],
+        "fachsemester": 3,
+        "group": null,
+        "id": "platz-3",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Schlüsselkompetenzen",
+        "type": "schluessel"
        }
       ],
       "term": "WiSe 26/27"
@@ -1677,17 +2306,20 @@
       "current": false,
       "fachsemester": 4,
       "lp": 32,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "informatik",
         "attempt": 1,
         "code": "1234",
         "grade": null,
+        "hints": [],
         "id": "programmieren-2",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Nicht bestanden – nächster Versuch",
         "semester": 2,
         "status": "nicht_bestanden",
@@ -1699,11 +2331,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "rechnerstrukturen",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Noch nicht abgelegt – nachholen",
         "semester": 2,
         "status": "geplant",
@@ -1715,11 +2349,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "et-2",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Noch nicht abgelegt – nachholen",
         "semester": 2,
         "status": "geplant",
@@ -1731,11 +2367,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "datenstrukturen",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 6,
         "moved_from": "SoSe 26",
+        "placed": false,
         "reason": "Noch nicht abgelegt – nachholen",
         "semester": 2,
         "status": "geplant",
@@ -1747,11 +2385,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "stochastik",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 4,
         "status": "geplant",
@@ -1763,11 +2403,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "regelungstechnik",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 4,
         "status": "geplant",
@@ -1775,23 +2417,27 @@
         "turnus": "SS"
        }
       ],
+      "slots": [],
       "term": "SoSe 27"
      },
      {
       "current": false,
       "fachsemester": 5,
       "lp": 35,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "informatik",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "betriebssysteme",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "WiSe 26/27",
+        "placed": false,
         "reason": "Voraussetzung Programmieren II zuerst",
         "semester": 3,
         "status": "geplant",
@@ -1803,11 +2449,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "software-engineering",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "WiSe 26/27",
+        "placed": false,
         "reason": "Voraussetzung Programmieren II zuerst",
         "semester": 3,
         "status": "geplant",
@@ -1819,11 +2467,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "digitalschaltungen",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "WiSe 26/27",
+        "placed": false,
         "reason": "Voraussetzung Elektrotechnische Grundlagen II zuerst",
         "semester": 3,
         "status": "geplant",
@@ -1835,11 +2485,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "robotik",
         "kind": "wahlpflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 5,
         "status": "geplant",
@@ -1851,11 +2503,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "seminar",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 3,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 5,
         "status": "geplant",
@@ -1867,11 +2521,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "labor",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 7,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 5,
         "status": "geplant",
@@ -1883,11 +2539,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "ki",
         "kind": "wahlpflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": null,
         "status": "geplant",
@@ -1895,23 +2553,27 @@
         "turnus": "WS+SS"
        }
       ],
+      "slots": [],
       "term": "WiSe 27/28"
      },
      {
       "current": false,
       "fachsemester": 6,
       "lp": 23,
+      "lp_slots": 10,
       "modules": [
        {
         "area": "informatik",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "rechnernetze",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": "SoSe 27",
+        "placed": false,
         "reason": "Voraussetzung Grundlagen der Betriebssysteme zuerst",
         "semester": 4,
         "status": "geplant",
@@ -1923,11 +2585,13 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "softwareprojekt",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 8,
         "moved_from": "SoSe 27",
+        "placed": false,
         "reason": "Voraussetzung Software-Engineering zuerst",
         "semester": 4,
         "status": "geplant",
@@ -1939,16 +2603,50 @@
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "fachpraktikum",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 10,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 6,
         "status": "geplant",
         "title": "Fachpraktikum",
         "turnus": "WS+SS"
+       }
+      ],
+      "slots": [
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-1",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       },
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-2",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
        }
       ],
       "term": "SoSe 28"
@@ -1957,17 +2655,20 @@
       "current": false,
       "fachsemester": 7,
       "lp": 15,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "abschluss",
         "attempt": null,
         "code": null,
         "grade": null,
+        "hints": [],
         "id": "bachelorarbeit",
         "kind": "abschluss",
         "last_attempt": false,
         "lp": 15,
         "moved_from": "SoSe 28",
+        "placed": false,
         "reason": "Voraussetzung Softwareprojekt zuerst",
         "semester": 6,
         "status": "geplant",
@@ -1975,6 +2676,7 @@
         "turnus": "WS+SS"
        }
       ],
+      "slots": [],
       "term": "WiSe 28/29"
      }
     ],
@@ -2009,12 +2711,15 @@
       "program": "Technische Informatik"
      }
     ],
+    "custom": [],
     "elective_lp_required": 20,
     "elective_options": [],
     "electives": [
      "ki",
      "robotik"
     ],
+    "excluded": [],
+    "placements": {},
     "po": "INFBSc22",
     "po_options": [
      "2022"
@@ -2035,7 +2740,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -2043,6 +2749,164 @@
    "method": "GET",
    "path": "/api/study-plan",
    "response": {
+    "areas": [
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "programmieren-1"
+      ],
+      "count": 1,
+      "count_done": 1,
+      "group": null,
+      "id": "informatik",
+      "kind": "pflicht",
+      "lp_done": 5,
+      "lp_max": null,
+      "lp_open": 45,
+      "lp_planned": 0,
+      "lp_required": 50,
+      "modules_required": null,
+      "name": "Grundlagen der Informatik",
+      "options": 1,
+      "rule": null,
+      "slots": 0,
+      "target": 50,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "mathematik",
+      "kind": "pflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 29,
+      "lp_planned": 0,
+      "lp_required": 29,
+      "modules_required": null,
+      "name": "Mathematik",
+      "options": 0,
+      "rule": null,
+      "slots": 0,
+      "target": 29,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "elektrotechnik",
+      "kind": "pflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 28,
+      "lp_planned": 0,
+      "lp_required": 28,
+      "modules_required": null,
+      "name": "Elektrotechnik",
+      "options": 0,
+      "rule": null,
+      "slots": 0,
+      "target": 28,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "technische-informatik",
+      "kind": "pflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 33,
+      "lp_planned": 0,
+      "lp_required": 33,
+      "modules_required": null,
+      "name": "Technische Informatik",
+      "options": 0,
+      "rule": null,
+      "slots": 0,
+      "target": 33,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "wahlpflicht",
+      "kind": "wahlpflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 20,
+      "lp_planned": 0,
+      "lp_required": 20,
+      "modules_required": null,
+      "name": "Wahlpflicht",
+      "options": 0,
+      "rule": null,
+      "slots": 4,
+      "target": 20,
+      "type": "wahlpflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "schluessel",
+      "kind": "wahl",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 5,
+      "lp_planned": 0,
+      "lp_required": 5,
+      "modules_required": null,
+      "name": "Schlüsselkompetenzen",
+      "options": 0,
+      "rule": null,
+      "slots": 1,
+      "target": 5,
+      "type": "schluessel"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "abschluss",
+      "kind": "abschluss",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 15,
+      "lp_planned": 0,
+      "lp_required": 15,
+      "modules_required": null,
+      "name": "Abschluss",
+      "options": 0,
+      "rule": null,
+      "slots": 0,
+      "target": 15,
+      "type": "abschluss"
+     }
+    ],
     "available": true,
     "catalog_term": "WS 2025/26",
     "code": "INFBSc22",
@@ -2051,11 +2915,14 @@
     "degree": "B.Sc.",
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "electives": [],
+    "excluded": [],
+    "groups": [],
     "lp_done": 5,
     "lp_expected": 5,
     "lp_total": 180,
     "message": null,
     "notes": [],
+    "placements": {},
     "po": "2022",
     "po_confirmed": true,
     "program": "Informatik",
@@ -2066,17 +2933,20 @@
       "current": false,
       "fachsemester": 1,
       "lp": 5,
+      "lp_slots": 0,
       "modules": [
        {
         "area": "informatik",
         "attempt": 1,
         "code": null,
         "grade": "2,3",
+        "hints": [],
         "id": "programmieren-1",
         "kind": "pflicht",
         "last_attempt": false,
         "lp": 5,
         "moved_from": null,
+        "placed": false,
         "reason": null,
         "semester": 1,
         "status": "bestanden",
@@ -2084,41 +2954,130 @@
         "turnus": "WS"
        }
       ],
+      "slots": [],
       "term": "WiSe 25/26"
      },
      {
       "current": false,
       "fachsemester": 2,
       "lp": 0,
+      "lp_slots": 0,
       "modules": [],
+      "slots": [],
       "term": "SoSe 26"
      },
      {
       "current": true,
       "fachsemester": 3,
       "lp": 0,
+      "lp_slots": 5,
       "modules": [],
+      "slots": [
+       {
+        "area": "schluessel",
+        "area_kind": "wahl",
+        "areas": [
+         "schluessel"
+        ],
+        "fachsemester": 3,
+        "group": null,
+        "id": "platz-5",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Schlüsselkompetenzen",
+        "type": "schluessel"
+       }
+      ],
       "term": "WiSe 26/27"
      },
      {
       "current": false,
       "fachsemester": 4,
       "lp": 0,
+      "lp_slots": 0,
       "modules": [],
+      "slots": [],
       "term": "SoSe 27"
      },
      {
       "current": false,
       "fachsemester": 5,
       "lp": 0,
+      "lp_slots": 10,
       "modules": [],
+      "slots": [
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-1",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       },
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-3",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       }
+      ],
       "term": "WiSe 27/28"
      },
      {
       "current": false,
       "fachsemester": 6,
       "lp": 0,
+      "lp_slots": 10,
       "modules": [],
+      "slots": [
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-2",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       },
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-4",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       }
+      ],
       "term": "SoSe 28"
      }
     ],
@@ -2160,12 +3119,15 @@
       "program": "Technische Informatik"
      }
     ],
+    "custom": [],
     "elective_lp_required": null,
     "elective_options": [],
     "electives": [
      "ki",
      "robotik"
     ],
+    "excluded": [],
+    "placements": {},
     "po": "1999",
     "po_options": [
      "2022"
@@ -2186,7 +3148,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -2194,6 +3157,7 @@
    "method": "GET",
    "path": "/api/study-plan",
    "response": {
+    "areas": [],
     "available": false,
     "catalog_term": null,
     "code": null,
@@ -2202,11 +3166,14 @@
     "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "electives": [],
+    "excluded": [],
+    "groups": [],
     "lp_done": 0,
     "lp_expected": 0,
     "lp_total": 0,
     "message": "Für die Prüfungsordnung 1999 gibt es noch keinen Katalog.",
     "notes": [],
+    "placements": {},
     "po": null,
     "po_confirmed": true,
     "program": null,
@@ -2244,6 +3211,7 @@
       "program": "Technische Informatik"
      }
     ],
+    "custom": [],
     "elective_lp_required": 20,
     "elective_options": [
      {
@@ -2305,6 +3273,8 @@
      "ki",
      "robotik"
     ],
+    "excluded": [],
+    "placements": {},
     "po": null,
     "po_options": [
      "2022"
@@ -2325,7 +3295,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -2386,6 +3357,7 @@
       "program": "Technische Informatik"
      }
     ],
+    "custom": [],
     "elective_lp_required": 20,
     "elective_options": [
      {
@@ -2447,6 +3419,8 @@
      "ki",
      "robotik"
     ],
+    "excluded": [],
+    "placements": {},
     "po": null,
     "po_options": [
      "2022"
@@ -2467,7 +3441,8 @@
      "SoSe 22",
      "WiSe 21/22",
      "SoSe 21"
-    ]
+    ],
+    "tracks": {}
    },
    "status": 200
   },
@@ -2543,13 +3518,1421 @@
     "workload_h": 150
    },
    "status": 200
+  },
+  {
+   "body": {
+    "custom": [
+     {
+      "lp": 4,
+      "title": "Spanisch A1"
+     },
+     {
+      "id": "eigen-1",
+      "lp": 99,
+      "semester": 30,
+      "title": "Rhetorik"
+     }
+    ],
+    "excluded": [
+     "stochastik",
+     "stochastik",
+     ""
+    ],
+    "placements": {
+     "leer": "",
+     "mathematik-3": "WS 2027/28",
+     "rechnernetze": "SoSe 27"
+    },
+    "po": null,
+    "tracks": {
+     "": "y",
+     "schwerpunkt": "x"
+    }
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "custom": [
+     {
+      "area": null,
+      "id": "eigen-2",
+      "lp": 4,
+      "semester": null,
+      "title": "Spanisch A1"
+     },
+     {
+      "area": null,
+      "id": "eigen-1",
+      "lp": 0,
+      "semester": null,
+      "title": "Rhetorik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [
+     "ki",
+     "robotik"
+    ],
+    "excluded": [
+     "stochastik"
+    ],
+    "placements": {
+     "mathematik-3": "WiSe 27/28",
+     "rechnernetze": "SoSe 27"
+    },
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": null,
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ],
+    "tracks": {
+     "schwerpunkt": "x"
+    }
+   },
+   "status": 200
+  },
+  {
+   "method": "GET",
+   "path": "/api/study-plan",
+   "response": {
+    "areas": [
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "programmieren-1",
+       "theoretische-informatik",
+       "programmieren-2",
+       "datenstrukturen",
+       "betriebssysteme",
+       "software-engineering",
+       "rechnernetze"
+      ],
+      "count": 7,
+      "count_done": 2,
+      "group": null,
+      "id": "informatik",
+      "kind": "pflicht",
+      "lp_done": 10,
+      "lp_max": null,
+      "lp_open": 14,
+      "lp_planned": 26,
+      "lp_required": 50,
+      "modules_required": null,
+      "name": "Grundlagen der Informatik",
+      "options": 7,
+      "rule": null,
+      "slots": 0,
+      "target": 50,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "mathematik-1",
+       "mathematik-2",
+       "mathematik-3"
+      ],
+      "count": 3,
+      "count_done": 2,
+      "group": null,
+      "id": "mathematik",
+      "kind": "pflicht",
+      "lp_done": 16,
+      "lp_max": null,
+      "lp_open": 5,
+      "lp_planned": 8,
+      "lp_required": 29,
+      "modules_required": null,
+      "name": "Mathematik",
+      "options": 4,
+      "rule": null,
+      "slots": 0,
+      "target": 29,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "et-1",
+       "et-2",
+       "signale-systeme",
+       "digitalschaltungen",
+       "regelungstechnik"
+      ],
+      "count": 5,
+      "count_done": 1,
+      "group": null,
+      "id": "elektrotechnik",
+      "kind": "pflicht",
+      "lp_done": 6,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 22,
+      "lp_required": 28,
+      "modules_required": null,
+      "name": "Elektrotechnik",
+      "options": 5,
+      "rule": null,
+      "slots": 0,
+      "target": 28,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "digitale-systeme",
+       "rechnerstrukturen",
+       "softwareprojekt",
+       "seminar",
+       "labor",
+       "fachpraktikum"
+      ],
+      "count": 6,
+      "count_done": 1,
+      "group": null,
+      "id": "technische-informatik",
+      "kind": "pflicht",
+      "lp_done": 5,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 33,
+      "lp_required": 33,
+      "modules_required": null,
+      "name": "Technische Informatik",
+      "options": 6,
+      "rule": null,
+      "slots": 0,
+      "target": 33,
+      "type": "pflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [
+       "ki",
+       "robotik"
+      ],
+      "count": 2,
+      "count_done": 0,
+      "group": null,
+      "id": "wahlpflicht",
+      "kind": "wahlpflicht",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 10,
+      "lp_planned": 10,
+      "lp_required": 20,
+      "modules_required": null,
+      "name": "Wahlpflicht",
+      "options": 5,
+      "rule": null,
+      "slots": 2,
+      "target": 20,
+      "type": "wahlpflicht"
+     },
+     {
+      "active": true,
+      "choice": true,
+      "chosen": [],
+      "count": 0,
+      "count_done": 0,
+      "group": null,
+      "id": "schluessel",
+      "kind": "wahl",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 5,
+      "lp_planned": 0,
+      "lp_required": 5,
+      "modules_required": null,
+      "name": "Schlüsselkompetenzen",
+      "options": 1,
+      "rule": null,
+      "slots": 1,
+      "target": 5,
+      "type": "schluessel"
+     },
+     {
+      "active": true,
+      "choice": false,
+      "chosen": [
+       "bachelorarbeit"
+      ],
+      "count": 1,
+      "count_done": 0,
+      "group": null,
+      "id": "abschluss",
+      "kind": "abschluss",
+      "lp_done": 0,
+      "lp_max": null,
+      "lp_open": 0,
+      "lp_planned": 15,
+      "lp_required": 15,
+      "modules_required": null,
+      "name": "Abschluss",
+      "options": 1,
+      "rule": null,
+      "slots": 0,
+      "target": 15,
+      "type": "abschluss"
+     }
+    ],
+    "available": true,
+    "catalog_term": "WS 2025/26",
+    "code": "TIBSc22",
+    "current_fachsemester": 3,
+    "current_term": "WiSe 26/27",
+    "degree": "B.Sc.",
+    "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
+    "electives": [
+     {
+      "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
+      "chosen": false,
+      "excluded": false,
+      "id": "eingebettete-systeme",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "status": null,
+      "title": "Eingebettete Systeme",
+      "turnus": "SS"
+     },
+     {
+      "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
+      "chosen": false,
+      "excluded": false,
+      "id": "datenbanken",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Datenbanksysteme I",
+      "turnus": "WS"
+     },
+     {
+      "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
+      "chosen": false,
+      "excluded": false,
+      "id": "bildverarbeitung",
+      "included": false,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": null,
+      "title": "Digitale Bildverarbeitung",
+      "turnus": "WS"
+     },
+     {
+      "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
+      "chosen": true,
+      "excluded": false,
+      "id": "ki",
+      "included": true,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "status": "offen",
+      "title": "Grundlagen der künstlichen Intelligenz",
+      "turnus": "WS+SS"
+     },
+     {
+      "area": "wahlpflicht",
+      "areas": [
+       "wahlpflicht"
+      ],
+      "chosen": true,
+      "excluded": false,
+      "id": "robotik",
+      "included": true,
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "status": "geplant",
+      "title": "Robotik I",
+      "turnus": "WS"
+     },
+     {
+      "area": "schluessel",
+      "areas": [
+       "schluessel"
+      ],
+      "chosen": false,
+      "excluded": false,
+      "id": "schluesselkompetenzen",
+      "included": false,
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "status": null,
+      "title": "Schlüsselkompetenzen",
+      "turnus": "unbekannt"
+     }
+    ],
+    "excluded": [
+     {
+      "id": "stochastik",
+      "kind": "pflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Stochastik für Ingenieure"
+     }
+    ],
+    "groups": [],
+    "lp_done": 37,
+    "lp_expected": 59,
+    "lp_total": 180,
+    "message": null,
+    "notes": [
+     {
+      "kind": "rueckstand",
+      "module_id": null,
+      "text": "Du liegst 22 LP hinter dem Studienverlaufsplan: 37 von 59 LP bis zum Ende des 2. Fachsemesters.",
+      "tone": "warn"
+     }
+    ],
+    "placements": {
+     "mathematik-3": "WiSe 27/28",
+     "rechnernetze": "SoSe 27"
+    },
+    "po": "2022",
+    "po_confirmed": false,
+    "program": "Technische Informatik",
+    "qis_program": "Technische Informatik (PO-Version 2017)",
+    "reason": null,
+    "semesters": [
+     {
+      "current": false,
+      "fachsemester": 1,
+      "lp": 29,
+      "lp_slots": 0,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "hints": [],
+        "id": "programmieren-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Programmieren I",
+        "turnus": "WS"
+       },
+       {
+        "area": "mathematik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "hints": [],
+        "id": "mathematik-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Mathematik I",
+        "turnus": "WS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "hints": [],
+        "id": "digitale-systeme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Grundlagen digitaler Systeme",
+        "turnus": "WS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "hints": [],
+        "id": "et-1",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Elektrotechnische Grundlagen I",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,3",
+        "hints": [],
+        "id": "theoretische-informatik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 1,
+        "status": "bestanden",
+        "title": "Grundlagen der theoretischen Informatik",
+        "turnus": "WS"
+       }
+      ],
+      "slots": [],
+      "term": "WiSe 25/26"
+     },
+     {
+      "current": false,
+      "fachsemester": 2,
+      "lp": 8,
+      "lp_slots": 0,
+      "modules": [
+       {
+        "area": "mathematik",
+        "attempt": 1,
+        "code": null,
+        "grade": "2,0",
+        "hints": [],
+        "id": "mathematik-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 2,
+        "status": "bestanden",
+        "title": "Mathematik II",
+        "turnus": "SS"
+       }
+      ],
+      "slots": [],
+      "term": "SoSe 26"
+     },
+     {
+      "current": true,
+      "fachsemester": 3,
+      "lp": 15,
+      "lp_slots": 5,
+      "modules": [
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "signale-systeme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 3,
+        "status": "offen",
+        "title": "Signale und Systeme",
+        "turnus": "WS"
+       },
+       {
+        "area": "wahlpflicht",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "ki",
+        "kind": "wahlpflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": null,
+        "status": "offen",
+        "title": "Grundlagen der künstlichen Intelligenz",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": null,
+        "attempt": null,
+        "code": null,
+        "custom": true,
+        "grade": null,
+        "hints": [],
+        "id": "eigen-2",
+        "kind": "wahl",
+        "last_attempt": false,
+        "lp": 4,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": null,
+        "status": "offen",
+        "title": "Spanisch A1",
+        "turnus": null
+       },
+       {
+        "area": null,
+        "attempt": null,
+        "code": null,
+        "custom": true,
+        "grade": null,
+        "hints": [],
+        "id": "eigen-1",
+        "kind": "wahl",
+        "last_attempt": false,
+        "lp": 0,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": null,
+        "status": "offen",
+        "title": "Rhetorik",
+        "turnus": null
+       }
+      ],
+      "slots": [
+       {
+        "area": "schluessel",
+        "area_kind": "wahl",
+        "areas": [
+         "schluessel"
+        ],
+        "fachsemester": 3,
+        "group": null,
+        "id": "platz-3",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Schlüsselkompetenzen",
+        "type": "schluessel"
+       }
+      ],
+      "term": "WiSe 26/27"
+     },
+     {
+      "current": false,
+      "fachsemester": 4,
+      "lp": 32,
+      "lp_slots": 0,
+      "modules": [
+       {
+        "area": "informatik",
+        "attempt": 1,
+        "code": "1234",
+        "grade": null,
+        "hints": [],
+        "id": "programmieren-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 26",
+        "placed": false,
+        "reason": "Nicht bestanden – nächster Versuch",
+        "semester": 2,
+        "status": "nicht_bestanden",
+        "title": "Programmieren II",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "rechnerstrukturen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "SoSe 26",
+        "placed": false,
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Rechnerstrukturen",
+        "turnus": "SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "et-2",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": "SoSe 26",
+        "placed": false,
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Elektrotechnische Grundlagen II",
+        "turnus": "SS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "datenstrukturen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 6,
+        "moved_from": "SoSe 26",
+        "placed": false,
+        "reason": "Noch nicht abgelegt – nachholen",
+        "semester": 2,
+        "status": "geplant",
+        "title": "Datenstrukturen und Algorithmen",
+        "turnus": "SS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [
+         "Voraussetzung Grundlagen der Betriebssysteme liegt nicht davor"
+        ],
+        "id": "rechnernetze",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "placed": true,
+        "reason": null,
+        "semester": 4,
+        "status": "geplant",
+        "title": "Grundlagen der Rechnernetze",
+        "turnus": "SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "regelungstechnik",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 4,
+        "status": "geplant",
+        "title": "Grundlagen der Regelungstechnik",
+        "turnus": "SS"
+       }
+      ],
+      "slots": [],
+      "term": "SoSe 27"
+     },
+     {
+      "current": false,
+      "fachsemester": 5,
+      "lp": 33,
+      "lp_slots": 0,
+      "modules": [
+       {
+        "area": "mathematik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "mathematik-3",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": null,
+        "placed": true,
+        "reason": null,
+        "semester": 3,
+        "status": "geplant",
+        "title": "Mathematik III",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "betriebssysteme",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "placed": false,
+        "reason": "Voraussetzung Programmieren II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Grundlagen der Betriebssysteme",
+        "turnus": "WS"
+       },
+       {
+        "area": "informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "software-engineering",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "placed": false,
+        "reason": "Voraussetzung Programmieren II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Software-Engineering",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": "elektrotechnik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "digitalschaltungen",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 26/27",
+        "placed": false,
+        "reason": "Voraussetzung Elektrotechnische Grundlagen II zuerst",
+        "semester": 3,
+        "status": "geplant",
+        "title": "Digitalschaltungen der Elektronik",
+        "turnus": "WS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "seminar",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 3,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Seminar Technische Informatik",
+        "turnus": "WS+SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "labor",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 7,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 5,
+        "status": "geplant",
+        "title": "Labor Technische Informatik",
+        "turnus": "WS"
+       }
+      ],
+      "slots": [],
+      "term": "WiSe 27/28"
+     },
+     {
+      "current": false,
+      "fachsemester": 6,
+      "lp": 18,
+      "lp_slots": 10,
+      "modules": [
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "softwareprojekt",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 8,
+        "moved_from": "SoSe 27",
+        "placed": false,
+        "reason": "Voraussetzung Software-Engineering zuerst",
+        "semester": 4,
+        "status": "geplant",
+        "title": "Softwareprojekt",
+        "turnus": "SS"
+       },
+       {
+        "area": "technische-informatik",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "fachpraktikum",
+        "kind": "pflicht",
+        "last_attempt": false,
+        "lp": 10,
+        "moved_from": null,
+        "placed": false,
+        "reason": null,
+        "semester": 6,
+        "status": "geplant",
+        "title": "Fachpraktikum",
+        "turnus": "WS+SS"
+       }
+      ],
+      "slots": [
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-1",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       },
+       {
+        "area": "wahlpflicht",
+        "area_kind": "wahlpflicht",
+        "areas": [
+         "wahlpflicht"
+        ],
+        "fachsemester": 5,
+        "group": null,
+        "id": "platz-2",
+        "kind": "area",
+        "lp": 5,
+        "lp_max": null,
+        "title": "Wahlpflicht",
+        "type": "wahlpflicht"
+       }
+      ],
+      "term": "SoSe 28"
+     },
+     {
+      "current": false,
+      "fachsemester": 7,
+      "lp": 20,
+      "lp_slots": 0,
+      "modules": [
+       {
+        "area": "wahlpflicht",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "robotik",
+        "kind": "wahlpflicht",
+        "last_attempt": false,
+        "lp": 5,
+        "moved_from": "WiSe 27/28",
+        "placed": false,
+        "reason": "Mehr als 36 LP im Semester",
+        "semester": 5,
+        "status": "geplant",
+        "title": "Robotik I",
+        "turnus": "WS"
+       },
+       {
+        "area": "abschluss",
+        "attempt": null,
+        "code": null,
+        "grade": null,
+        "hints": [],
+        "id": "bachelorarbeit",
+        "kind": "abschluss",
+        "last_attempt": false,
+        "lp": 15,
+        "moved_from": "SoSe 28",
+        "placed": false,
+        "reason": "Voraussetzung Softwareprojekt zuerst",
+        "semester": 6,
+        "status": "geplant",
+        "title": "Bachelorarbeit",
+        "turnus": "WS+SS"
+       }
+      ],
+      "slots": [],
+      "term": "WiSe 28/29"
+     }
+    ],
+    "start_term": "WiSe 25/26",
+    "suggested_po": "2022",
+    "university": "luh",
+    "unmatched": []
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "electives": []
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "custom": [
+     {
+      "area": null,
+      "id": "eigen-2",
+      "lp": 4,
+      "semester": null,
+      "title": "Spanisch A1"
+     },
+     {
+      "area": null,
+      "id": "eigen-1",
+      "lp": 0,
+      "semester": null,
+      "title": "Rhetorik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [],
+    "excluded": [
+     "stochastik"
+    ],
+    "placements": {
+     "mathematik-3": "WiSe 27/28",
+     "rechnernetze": "SoSe 27"
+    },
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": null,
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ],
+    "tracks": {
+     "schwerpunkt": "x"
+    }
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "placements": {
+     "mathematik-3": "Herbst 27"
+    }
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "Unbekanntes Semester: Herbst 27"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "placements": [
+     "x"
+    ]
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "placements muss ein Objekt {Modul: Semester} sein"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "tracks": {
+     "schwerpunkt": 1
+    }
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "tracks muss ein Objekt {Gruppe: Bereich} sein"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "excluded": "stochastik"
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "excluded muss eine Liste von Modul-ids sein"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "custom": [
+     1
+    ]
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "detail": "custom muss eine Liste von Eintraegen sein"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "excluded": null,
+    "placements": null
+   },
+   "method": "POST",
+   "path": "/api/study-plan/settings",
+   "response": {
+    "abschluss": "Technische Informatik (PO-Version 2017)",
+    "catalogs": [
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "INFBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Informatik"
+     },
+     {
+      "catalog_term": "WS 2025/26",
+      "code": "TIBSc22",
+      "degree": "B.Sc.",
+      "po": "2022",
+      "program": "Technische Informatik"
+     }
+    ],
+    "custom": [
+     {
+      "area": null,
+      "id": "eigen-2",
+      "lp": 4,
+      "semester": null,
+      "title": "Spanisch A1"
+     },
+     {
+      "area": null,
+      "id": "eigen-1",
+      "lp": 0,
+      "semester": null,
+      "title": "Rhetorik"
+     }
+    ],
+    "elective_lp_required": 20,
+    "elective_options": [
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "eingebettete-systeme",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 4,
+      "title": "Eingebettete Systeme"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "datenbanken",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Datenbanksysteme I"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "bildverarbeitung",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Digitale Bildverarbeitung"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "ki",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": null,
+      "title": "Grundlagen der künstlichen Intelligenz"
+     },
+     {
+      "area": "wahlpflicht",
+      "area_name": "Wahlpflicht",
+      "id": "robotik",
+      "kind": "wahlpflicht",
+      "lp": 5,
+      "semester": 5,
+      "title": "Robotik I"
+     },
+     {
+      "area": "schluessel",
+      "area_name": "Schlüsselkompetenzen",
+      "id": "schluesselkompetenzen",
+      "kind": "wahl",
+      "lp": 5,
+      "semester": null,
+      "title": "Schlüsselkompetenzen"
+     }
+    ],
+    "electives": [],
+    "excluded": [],
+    "placements": {},
+    "po": null,
+    "po_options": [
+     "2022"
+    ],
+    "start_term": null,
+    "suggested_po": "2022",
+    "suggested_start_term": "WiSe 25/26",
+    "term_options": [
+     "WiSe 26/27",
+     "SoSe 26",
+     "WiSe 25/26",
+     "SoSe 25",
+     "WiSe 24/25",
+     "SoSe 24",
+     "WiSe 23/24",
+     "SoSe 23",
+     "WiSe 22/23",
+     "SoSe 22",
+     "WiSe 21/22",
+     "SoSe 21"
+    ],
+    "tracks": {
+     "schwerpunkt": "x"
+    }
+   },
+   "status": 200
   }
  ],
  "tables_after": {
   "settings": [
    {
     "key": "study_plan",
-    "value": "{\"po\": null, \"start_term\": null, \"electives\": [\"ki\", \"robotik\"]}"
+    "value": "{\"po\": null, \"start_term\": null, \"electives\": [], \"tracks\": {\"schwerpunkt\": \"x\"}, \"custom\": [{\"id\": \"eigen-2\", \"title\": \"Spanisch A1\", \"lp\": 4, \"area\": null, \"semester\": null}, {\"id\": \"eigen-1\", \"title\": \"Rhetorik\", \"lp\": 0, \"area\": null, \"semester\": null}]}"
    }
   ]
  },

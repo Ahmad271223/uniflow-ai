@@ -136,3 +136,10 @@ Bitte notieren: Status (201?), Darstellung des Texts (HTML oder Text), CSRF ja/n
 
 Lücke, nicht umgesetzt (wie beim Abgeben): Der Dienst ruft Stud.IP nie selbst auf, am PC liest der Abgleich nur. Dort
 bleibt „In Stud.IP öffnen“.
+
+## Echter Test (05.11.2026)
+
+Der Inhaber hat auf seinem iPad mit seinem LUH-Konto eine Stud.IP-Nachricht aus der App beantwortet: „schreiben hat
+geklappt sehr gut“. Damit ist belegt, dass die JSON:API der LUH schreibende Anfragen (`POST messages`) mit dem
+Sitzungs-Cookie annimmt, ohne zusätzliches Sicherheits-Token. Dasselbe Muster nutzt „Abgeben in Stud.IP“
+(`docs/ABGEBEN-STUDIP-2026-11-05.md`); dort steht der echte Test noch aus.

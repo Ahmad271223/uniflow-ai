@@ -1,18 +1,25 @@
-"""Modellmischung der StudiNow-KI (Entscheidung des Inhabers 05.11.2026): etwa 50 % DeepSeek (nur ueber einen Anbieter in
-der EU), 25 % ChatGPT (OpenAI), 25 % Claude Sonnet 5.5 - nicht zufaellig, sondern nach Aufgabe: einfache Fragen,
-Karteikarten, Dokument-Index und Zusammenfassungen an die guenstigen Modelle, schwere Faelle (Rechnen und Herleiten,
-"Erklaere alle Aufgaben", Bewerten von Loesungen, "Antwort war falsch" als Zweitmeinung) an Sonnet.
-Bericht und Quellen: docs/KI-MODELLMISCHUNG-2026-11-05.md.
+"""Modellmischung der StudiNow-KI nach Aufgabe, nicht zufaellig: einfache Fragen, Karteikarten, Dokument-Index und
+Zusammenfassungen an ChatGPT (OpenAI gpt-6-luna), schwere Faelle (Rechnen und Herleiten, "Erklaere alle Aufgaben",
+Bewerten von Loesungen, "Antwort war falsch" als Zweitmeinung) an Claude Sonnet 5.5 (Amazon Bedrock Frankfurt).
+Entscheidungen des Inhabers: 05.11.2026 zuerst etwa 50 % DeepSeek / 25 % ChatGPT / 25 % Sonnet, noch am selben Tag
+"also nein dann benutz gpt eher als deepseek": etwa 75 % ChatGPT / 25 % Sonnet, DeepSeek standardmaessig AUS.
+DeepSeek (nur ueber einen EU-Anbieter, Scaleway Paris; app/ai_providers.py) bleibt im Code und laesst sich per
+Konfiguration wieder einschalten (OPT_IN, siehe unten). Bericht und Quellen: docs/KI-MODELLMISCHUNG-2026-11-05.md.
 
 Umgebung (deploy/.env, alles optional):
     LERNAPP_AI_ROUTES     JSON, ueberschreibt die Wege je Zweck. Form:
-                            {"routes": {"tutor:explain": "deepseek:65,openai:35", "default": [["deepseek", 50], ...]},
+                            {"routes": {"tutor:explain": "openai:100", "default": [["openai", 75], ...]},
                              "hard": "anthropic:100", "hard_purposes": ["tutor:steps", ...], "math": true}
                           Ein Zweck sucht erst exakt (tutor:explain), dann den Anfang mit Stern (tutor:*), dann "default".
                           Eintraege: Anbieter (deepseek | openai | anthropic, auch chatgpt/claude/sonnet) mit Gewicht;
                           "anbieter/modell:gewicht" legt das Modell fest (sonst das Modell des Anbieters aus der Umgebung).
-    LERNAPP_AI_DISABLED   Notschalter je Anbieter, Komma-Liste (z. B. "deepseek"): der Anbieter bekommt keine Anfrage
+    LERNAPP_AI_DISABLED   Notschalter je Anbieter, Komma-Liste (z. B. "anthropic"): der Anbieter bekommt keine Anfrage
                           mehr, seine Anteile gehen an die anderen des Weges.
+
+DeepSeek ist standardmaessig aus (OPT_IN): Er zaehlt nur als eingerichtet, wenn LERNAPP_DEEPSEEK_API_KEY gesetzt ist UND
+er in LERNAPP_AI_ROUTES vorkommt (in einem Weg oder im schweren Weg) oder LERNAPP_AI_PROVIDER=deepseek gilt
+(app/ai_backend.configured_providers). Ein Schluessel allein schickt also nie Daten an Scaleway, auch nicht als Ersatz.
+Die fruehere Mischung (etwa 49/26/25) steht als DEEPSEEK_ROUTES_EXAMPLE unten und in deploy/.env.example.
 
 Regeln:
 - Dieselbe request_id (Wiederholung nach Netzfehler) landet immer beim selben Modell: die Wahl ist ein Hash aus
@@ -35,11 +42,19 @@ PROVIDERS = ("deepseek", "openai", "anthropic")
 ALIASES = {"chatgpt": "openai", "gpt": "openai", "claude": "anthropic", "sonnet": "anthropic", "bedrock": "anthropic",
            "scaleway": "deepseek"}
 
-# Standardwege (Gewichte je Zweck). Ergibt bei TYPICAL_MIX etwa 50 / 25 / 25 (expected_share, Test in
-# tests/test_ai_routing.py).
-SIMPLE = (("deepseek", 65), ("openai", 35))
-MEDIUM = (("deepseek", 50), ("openai", 25), ("anthropic", 25))
+# Anbieter, die nur auf ausdruecklichen Wunsch laufen (Inhaber 05.11.2026: ChatGPT statt DeepSeek)
+OPT_IN = ("deepseek",)
+
+# Standardwege (Gewichte je Zweck), ohne DeepSeek. Ergibt bei TYPICAL_MIX etwa 75 % OpenAI / 25 % Sonnet
+# (expected_share, Test in tests/test_ai_routing.py).
+SIMPLE = (("openai", 100),)
+MEDIUM = (("openai", 75), ("anthropic", 25))
 HARD = (("anthropic", 100),)
+# DeepSeek wieder einschalten (Wert fuer LERNAPP_AI_ROUTES; dazu LERNAPP_DEEPSEEK_API_KEY und Scaleway als
+# Auftragsverarbeiter in der Datenschutzerklaerung): die Mischung vom 05.11.2026 vormittags, etwa 49/26/25.
+DEEPSEEK_ROUTES_EXAMPLE = ('{"default":"deepseek:65,openai:35","tutor:ask":"deepseek:50,openai:25,anthropic:25",'
+                           '"tutor:similar":"deepseek:50,openai:25,anthropic:25","week_test":"deepseek:50,openai:25,anthropic:25",'
+                           '"weekly_test":"deepseek:50,openai:25,anthropic:25","test_generation":"deepseek:50,openai:25,anthropic:25"}')
 DEFAULT_ROUTES: dict[str, tuple] = {
     "default": SIMPLE,
     "tutor:ask": MEDIUM, "tutor:similar": MEDIUM,
@@ -134,6 +149,15 @@ def config() -> dict:
     if "math" in data:
         cfg["math"] = bool(data["math"])
     return cfg
+
+
+def named_in_config(provider: str) -> bool:
+    """Kommt der Anbieter in LERNAPP_AI_ROUTES vor (ein Weg oder der schwere Weg)? Fuer OPT_IN-Anbieter (DeepSeek) die
+    Bedingung, ueberhaupt als eingerichtet zu gelten; die Standardwege nennen ihn nie."""
+    if not (os.environ.get("LERNAPP_AI_ROUTES") or "").strip():
+        return False
+    cfg = config()
+    return any(c.provider == provider for route in (*cfg["routes"].values(), cfg["hard"]) for c, _w in route)
 
 
 def disabled() -> set[str]:

@@ -172,8 +172,42 @@ def user_for_customer(conn, cid: str | None) -> str | None:
     return row[0] if row else None
 
 
-def checkout(conn, user: dict, plan: str) -> dict:
-    """Checkout-Sitzung fuer ein Monatsabo; die Oberflaeche leitet auf `url` weiter."""
+APPLE_ACTIVE = "Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones."
+STRIPE_ACTIVE = "Du hast schon ein Abo. Wechseln oder kündigen kannst du unter „Abo verwalten“."
+# Rueckseite nach Checkout und Kundenportal fuer die Windows-App (05.11.2026): eine schlichte Seite des Dienstes ohne
+# Anmeldung ("zurueck zur App"); die App fragt den Stand danach selbst ab (app/account_mode.py)
+APP_RETURN_PATH = "/abo-fertig"
+
+
+def active_source(conn, user_id: str, source: str) -> bool:
+    """Traegt die Quelle (app_store, stripe) gerade einen aktiven, nicht abgelaufenen Tarif?"""
+    t = datetime.now(timezone.utc).isoformat()
+    for (plan, expires, status) in conn.execute(
+            "SELECT plan, expires_at, status FROM entitlements WHERE user_id=? AND source=?", (str(user_id), source)):
+        if billing.normalize_plan(plan) and billing._row_active(status, expires, t):
+            return True
+    return False
+
+
+def guard_second_purchase(conn, user_id: str) -> None:
+    """Kein zweites Abo (05.11.2026): ein aktives Apple-Abo verwaltet man in den Einstellungen des iPads/iPhones,
+    ein aktives Stripe-Abo im Kundenportal. 409 apple_subscription_active bzw. stripe_subscription_active."""
+    if active_source(conn, user_id, "app_store"):
+        raise StripeError("apple_subscription_active", APPLE_ACTIVE, 409)
+    if active_source(conn, user_id, "stripe"):
+        raise StripeError("stripe_subscription_active", STRIPE_ACTIVE, 409)
+
+
+def _returns(base: str, client: str | None) -> tuple[str, str]:
+    if client == "windows":
+        return f"{base}{APP_RETURN_PATH}?checkout=success", f"{base}{APP_RETURN_PATH}?checkout=cancel"
+    return f"{base}/#/abo?checkout=success", f"{base}/#/abo?checkout=cancel"
+
+
+def checkout(conn, user: dict, plan: str, client: str | None = None) -> dict:
+    """Checkout-Sitzung fuer ein Monatsabo; die Oberflaeche leitet auf `url` weiter. `client` "windows": Rueckkehr auf
+    die schlichte Seite /abo-fertig statt in die Web-App. Mit aktivem Apple- oder Stripe-Abo: 409 (kein zweiter Kauf)."""
+    guard_second_purchase(conn, user["id"])
     if not available():
         raise StripeError("stripe_not_configured", "Im Web gibt es noch keinen Abschluss (Stripe nicht eingerichtet).", 503)
     price = prices().get(plan)
@@ -184,21 +218,22 @@ def checkout(conn, user: dict, plan: str) -> dict:
         "mode": "subscription", "customer": customer_id(conn, user), "client_reference_id": user["id"], "locale": "de",
         "line_items": [{"price": price, "quantity": 1}],
         "subscription_data": {"metadata": {"user_id": user["id"], "plan": plan}},
-        "success_url": f"{base}/#/abo?checkout=success", "cancel_url": f"{base}/#/abo?checkout=cancel",
+        "success_url": _returns(base, client)[0], "cancel_url": _returns(base, client)[1],
     })
     if not isinstance(s.get("url"), str):
         raise StripeError("stripe_error", "Stripe hat keine Checkout-Adresse geliefert.", 502)
     return {"url": s["url"], "session_id": s.get("id"), "plan": plan}
 
 
-def portal(conn, user: dict) -> dict:
+def portal(conn, user: dict, client: str | None = None) -> dict:
     """Kundenportal: Zahlungsart, Wechsel, Kuendigung, Rechnungen."""
     if not available():
         raise StripeError("stripe_not_configured", "Stripe ist nicht eingerichtet.", 503)
     cid = customer_id(conn, user, create=False)
     if not cid:
         raise StripeError("no_subscription", "Für dieses Konto gibt es kein Stripe-Abo.", 404)
-    s = http_post_form("/billing_portal/sessions", {"customer": cid, "return_url": f"{public_url()}/#/abo"})
+    back = f"{public_url()}{APP_RETURN_PATH}?portal=1" if client == "windows" else f"{public_url()}/#/abo"
+    s = http_post_form("/billing_portal/sessions", {"customer": cid, "return_url": back})
     if not isinstance(s.get("url"), str):
         raise StripeError("stripe_error", "Stripe hat keine Portal-Adresse geliefert.", 502)
     return {"url": s["url"]}

@@ -9,7 +9,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 /** Gruppen der Seitenleiste: [Route, Titel, Symbol, Pille] */
 export const NAV_GROUPS = [
   { id: "studium", title: "Studium", items: [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"],
-    ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["services", "Uni & Noten", "graduation"]] },
+    ["modules", "Meine Module", "book"], ["studyplan", "Studienverlauf", "columns"], ["files", "Dokumente & Notizen", "folder"], ["services", "Uni & Noten", "graduation"]] },
   { id: "lernen", title: "Lernen", items: [["exams", "Tests & Wiederholung", "exam", "blue"], ["cards", "Karteikarten", "cards", "peach"]] },
   { id: "gemeinsam", title: "Gemeinsam", items: [["community", "Community", "users"]] },
 ];
@@ -27,9 +27,11 @@ export function navHtml(icon, groups = NAV_GROUPS) {
 /** Kurzname des Tarifs wie auf dem iPad */
 const SHORT = { free: "Free", plus: "Plus", pro_ai: "Pro AI", pro_connect: "Pro AI" };
 
-/** Tarifzeile unter dem Namen: "Probe · noch 5 Tage", "Free", "Plus", "Pro AI"; am eigenen PC "Eigener PC" */
+/** Tarifzeile unter dem Namen: "Probe · noch 5 Tage", "Free", "Plus", "Pro AI"; am eigenen PC "Eigener PC";
+    mit Abo-Pflicht (Web, Windows, 05.11.2026) ohne Abo "Kein Abo · nur lesen" */
 export function planLabel(ent, hosted) {
   if (!hosted) return "Eigener PC";
+  if (ent?.access?.locked) return "Kein Abo · nur lesen";
   const tr = ent?.trial;
   if (tr?.active) { const n = Math.max(1, Number(tr.days_left) || 1); return `Probe · noch ${n} ${n === 1 ? "Tag" : "Tage"}`; }
   return SHORT[ent?.plan] || "Free";
@@ -38,6 +40,7 @@ export function planLabel(ent, hosted) {
 /** Knopf zur Tarifseite: Free und Probe "Plus holen", Plus "Pro AI holen", Pro AI keiner; am eigenen PC keiner */
 export function upgradeCta(ent, hosted) {
   if (!hosted) return null;
+  if (ent?.access?.locked) return { label: "Abo wählen", href: "#/abo" };
   const plan = ent?.plan || "free";
   if (ent?.trial?.active || plan === "free") return { label: "Plus holen", href: "#/abo" };
   if (plan === "plus") return { label: "Pro AI holen", href: "#/abo" };

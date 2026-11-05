@@ -38,7 +38,7 @@ from .sync import ENTITIES, SYNC_COLS
 APPLIED_DEVICE = "~dienst"
 PAGE = 2000
 PUSH_BATCH = 400
-LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input"}
+LOCAL_SETTINGS = {"lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input", "messages_seen_up_to"}
 # Spalten, die nur auf diesem Geraet etwas bedeuten (IDs von Tabellen ausserhalb des Abgleichs)
 LOCAL_COLS = {"study_tasks": {"test_id"}}
 _SECRET_RE = re.compile(r"token|secret|passw|pin$|_path$|_dir$|service", re.I)
@@ -586,6 +586,10 @@ def run(force: bool = False) -> dict:
         return {"ok": False, "error": "Nicht mit einem StudiNow-Konto verbunden."}
     if (msg := service_link.university_mismatch(st)):
         return {"ok": False, "error": msg}
+    from . import account_mode
+    if account_mode.locked():
+        # Windows-App ohne aktives Abo (05.11.2026): nur lesen, also auch kein Abgleich; die Daten bleiben
+        return {"ok": False, "error": "Ohne aktives Abo gleicht StudiNow nicht ab; deine Daten bleiben lesbar."}
     if not _lock.acquire(blocking=False):
         return {"ok": False, "error": "Abgleich läuft schon.", "running": True}
     started = time.time()

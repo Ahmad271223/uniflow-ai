@@ -276,7 +276,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     let pdfView = PDFView()
     let toolPicker: PKToolPicker
     /// Nur ein Editor zeigt die Palette (geteilte Ansicht: Uebung und Skript teilen sich eine Palette).
-    private let ownsToolPicker: Bool
+    let ownsToolPicker: Bool
     /// Palette soll zu sehen sein (Schreiben erlaubt); `restorePicker` holt sie dann zurueck
     private var pickerWanted = false
     /// PDF-Seite (1-basiert), zu der beim ersten Anzeigen gesprungen wird (z. B. Skriptstelle).
@@ -332,6 +332,22 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private(set) var shownLayoutVersion = -1
     /// Seite, die nach dem naechsten Neuaufbau gezeigt werden soll (nach Einfuegen, Papierkorb, Wiederherstellen).
     private var pendingFocusKey: String?
+
+    /// Bildschirm fixieren (`EditorFreezeLock.swift`, docs/FIXIEREN-ABPAUSEN-2026-11-05.md): "Ansicht fixieren" sperrt
+    /// Zoom, Scrollen und Seitenwechsel, "Zum Abpausen einfrieren" zusaetzlich jede Eingabe.
+    var freezeMode: EditorFreeze.Mode = .off {
+        didSet { if freezeMode != oldValue { freezeModeChanged(from: oldValue) } }
+    }
+    /// Kontrast fuer das Abpausen (weisser Hintergrund, ohne Seitenschatten); wirkt nur beim Abpausen
+    var traceContrast = false {
+        didSet { if traceContrast != oldValue { applyTraceLook() } }
+    }
+    /// Stelle und Zoom beim Fixieren; die Ansicht kehrt nach jedem Layout dorthin zurueck
+    var freezeAnchor: FreezeAnchor?
+    /// vom Fixieren abgeschaltete Gesten (werden beim Loesen wieder eingeschaltet)
+    var freezeDisabledGestures: [WeakGesture] = []
+    /// Stand der Gesten des Systems vor dem Fixieren (Zurueck-Wischen, Seitenleiste der geteilten Ansicht)
+    var freezeSystemGestures: FreezeSystemGestures?
 
     var onZoomChange: ((CGFloat) -> Void)?
     /// Anzeige-Index und Seitenschluessel der aktuellen Seite.
@@ -618,6 +634,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        releaseSystemGestures()                               // Zurueck-Wischen gehoert wieder der Navigation
         if ownsToolPicker { toolPicker.setVisible(false, forFirstResponder: anchor) }
         // Verlassen schreibt nie: jede Aenderung einer geladenen Canvas ging schon beim Zeichnen an den Store
         // (`canvasViewDrawingDidChange`), hier wird nur ein offener Rueckgaengig-Schritt abgeschlossen
@@ -632,6 +649,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        // fixiert: kein neues Einpassen, Zoom und Stelle bleiben (Leisten ein/aus, geteilte Ansicht, Drehen)
+        if freezeAnchor != nil, lastFit > 0 {
+            keepFrozenView()
+            return
+        }
         let widest = pdfView.scaleFactorForSizeToFit
         guard widest > 0 else { return }
         let fit = widest * mixedFormatFactor
@@ -657,7 +679,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Seiten (sonst stand sie am linken Rand der breiten Spalte, und die Seiten waren nicht zu sehen).
     /// `page`: die Seite vor dem Zoomwechsel; PDFView verschiebt beim Zoomen auch senkrecht, danach wieder zu ihr.
     private func centerColumn(keeping page: PDFPage?) {
-        guard mixedFormatFactor > 1.001 else { return }
+        guard mixedFormatFactor > 1.001, freezeMode == .off else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if let page, page.document === self.pdfView.document { self.pdfView.go(to: page) }
@@ -711,6 +733,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     private func scaleChanged() {
+        // fixiert: ein Zoom, der doch durchkam (Trackpad, PDFKit), wird zurueckgenommen
+        if let a = freezeAnchor, abs(pdfView.scaleFactor - a.scale) > 0.0001 {
+            DispatchQueue.main.async { [weak self] in self?.keepFrozenView() }
+        }
         scheduleRenderScale()
         if lastFit > 0 { userZoomed = ZoomPolicy.isUserZoom(scale: pdfView.scaleFactor, fitScale: lastFit) }
         onZoomChange?(lastFit > 0 ? pdfView.scaleFactor / lastFit : 1)
@@ -725,9 +751,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         scroll.panGestureRecognizer.minimumNumberOfTouches = effectivePencilOnly ? 1 : 2
         scroll.pinchGestureRecognizer?.allowedTouchTypes = fingers
         scroll.delaysContentTouches = false
+        applyFreezeGestures()
     }
 
-    private func firstScrollView(in v: UIView) -> UIScrollView? {
+    func firstScrollView(in v: UIView) -> UIScrollView? {
         if let s = v as? UIScrollView { return s }
         for sub in v.subviews { if let s = firstScrollView(in: sub) { return s } }
         return nil
@@ -763,8 +790,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             pdf.page(at: i).map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize.width }
         })
         view.setNeedsLayout()                                   // neue Einpassung, falls sich die Formate geaendert haben
-        if lastFit > 0 { pdfView.scaleFactor = keepScale }
-        if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) { show(page: page) }
+        if lastFit > 0 { pdfView.scaleFactor = freezeAnchor?.scale ?? keepScale }
+        if freezeAnchor != nil {
+            restoreFreezeAnchor()                               // fixiert: dieselbe Stelle derselben Seite
+        } else if let keepKey, let i = layout.index(ofKey: keepKey), let page = pdf.page(at: i) {
+            show(page: page)
+        }
         // PDFKit nimmt beim Setzen des Dokuments den Fokus; zurueck zum Anker, sonst bliebe die Palette weg
         // ("Seite einfuegen schliesst die Leiste")
         if ownsToolPicker, pickerWanted, paletteBlocker == .none, !anchor.isFirstResponder { anchor.becomeFirstResponder() }
@@ -1337,13 +1368,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     // MARK: Steuerung von aussen
 
+    /// Fixiert (`freezeMode`): kein Seitenwechsel, die Seite verrutscht nicht (Seitenleiste, Suche, Gehe zu Seite)
     func goToPage(_ index: Int) {
-        guard let page = pdfView.document?.page(at: index) else { return }
+        guard freezeMode == .off, let page = pdfView.document?.page(at: index) else { return }
         show(page: page)
     }
 
     func show(_ selection: PDFSelection) {
         pdfView.highlightedSelections = [selection]
+        guard freezeMode == .off else { return }
         pdfView.go(to: selection)
         centerHorizontally()
     }
@@ -1362,7 +1395,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func fitWidth() {
-        guard lastFit > 0 else { return }
+        guard lastFit > 0, freezeMode == .off else { return }
         userZoomed = false
         pdfView.scaleFactor = lastFit
     }

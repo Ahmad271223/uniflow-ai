@@ -80,6 +80,14 @@ struct StudyPlanModule: Identifiable, Equatable {
     let movedFrom: String?
     let reason: String?
     let lastAttempt: Bool
+    /// selbst verschoben oder vorgezogen (Einstellung `placements`)
+    let placed: Bool
+    /// Hinweise des Kerns: Turnus passt nicht, Voraussetzung nicht davor
+    let hints: [String]
+    /// eigener Eintrag (z. B. Studium generale einer anderen Fakultaet)
+    let custom: Bool
+    /// empfohlenes Fachsemester laut Katalog
+    let recommended: Int?
 
     init(_ v: JSONValue) {
         id = v.s("id") ?? v.i("id").map(String.init) ?? UUID().uuidString
@@ -95,9 +103,137 @@ struct StudyPlanModule: Identifiable, Equatable {
         movedFrom = (v.s("moved_from") ?? v.s("postponed_from")).flatMap { $0.isEmpty ? nil : $0 }
         reason = (v.s("reason") ?? v.s("moved_reason")).flatMap { $0.isEmpty ? nil : $0 }
         lastAttempt = v["last_attempt"]?.bool ?? ((attempt ?? 0) >= 3 && StudyPlanStatus.from(v.s("status"), movedFrom: nil) == .failed)
+        placed = v["placed"]?.bool ?? false
+        hints = v.list("hints").compactMap(\.string).filter { !$0.isEmpty }
+        custom = v["custom"]?.bool ?? false
+        recommended = v.i("semester")
     }
 
     var status: StudyPlanStatus { StudyPlanStatus.from(rawStatus, movedFrom: movedFrom) }
+    /// verschiebbar: alles ausser Bestandenem (liegt im Semester aus QIS) und eigenen Eintraegen
+    var movable: Bool { status != .passed && !custom }
+    /// gewaehltes Wahlmodul, das sich gegen ein anderes tauschen laesst (nicht bestanden, nicht angemeldet)
+    var replaceable: Bool { elective && movable && status != .registered && status != .failed }
+    var elective: Bool { kind == "wahlpflicht" || kind == "wahl" }
+}
+
+/// Platz fuer offene Wahl im Semester (Kern: `semesters[].slots`): Platz laut Verlaufsplan, aus offenen LP eines
+/// Wahlbereichs oder "Schwerpunkt wählen"
+struct StudyPlanSlot: Identifiable, Equatable {
+    let id: String
+    let kind: String
+    let title: String
+    let area: String?
+    let areas: [String]
+    let group: String?
+    let type: String
+    let areaKind: String
+    let lp: Double?
+    let fachsemester: Int?
+    var term: String = ""
+
+    init(_ v: JSONValue, term: String) {
+        id = v.s("id") ?? UUID().uuidString
+        kind = v.s("kind") ?? "area"
+        title = v.s("title") ?? "Wahlmodul"
+        area = v.s("area")
+        areas = v.list("areas").compactMap(\.string)
+        group = v.s("group")
+        type = v.s("type") ?? "wahl"
+        areaKind = v.s("area_kind") ?? "wahlpflicht"
+        lp = v.n("lp")
+        fachsemester = v.i("fachsemester")
+        self.term = term
+    }
+
+    var isTrack: Bool { kind == "track" }
+}
+
+/// Bereich mit Stand (Kern: `areas`)
+struct StudyPlanArea: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let type: String
+    let kind: String
+    let group: String?
+    let active: Bool
+    let choice: Bool
+    let lpRequired: Double?
+    let lpMax: Double?
+    let target: Double?
+    let modulesRequired: Int?
+    let lpDone: Double
+    let lpPlanned: Double
+    let lpOpen: Double?
+    let count: Int
+    let options: Int
+    let rule: String?
+
+    init(_ v: JSONValue) {
+        id = v.s("id") ?? ""
+        name = v.s("name") ?? "Bereich"
+        type = v.s("type") ?? "pflicht"
+        kind = v.s("kind") ?? "pflicht"
+        group = v.s("group")
+        active = v["active"]?.bool ?? true
+        choice = v["choice"]?.bool ?? false
+        lpRequired = v.n("lp_required")
+        lpMax = v.n("lp_max")
+        target = v.n("target")
+        modulesRequired = v.i("modules_required")
+        lpDone = v.n("lp_done") ?? 0
+        lpPlanned = v.n("lp_planned") ?? 0
+        lpOpen = v.n("lp_open")
+        count = v.i("count") ?? 0
+        options = v.i("options") ?? 0
+        rule = v.s("rule").flatMap { $0.isEmpty ? nil : $0 }
+    }
+}
+
+/// Gruppe "eins waehlen" (Schwerpunkt, Nebenfach, Vertiefungsrichtung)
+struct StudyPlanGroup: Identifiable, Equatable {
+    let id: String
+    let label: String
+    let options: [String]
+    let chosen: String?
+    let auto: Bool
+
+    init(_ v: JSONValue) {
+        id = v.s("id") ?? ""
+        label = v.s("label") ?? "Schwerpunkt"
+        options = v.list("options").compactMap(\.string)
+        chosen = v.s("chosen")
+        auto = v["auto"]?.bool ?? false
+    }
+}
+
+/// Katalogmodul zum Waehlen (Kern: `electives` und `excluded`)
+struct StudyPlanOption: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let kind: String
+    let area: String?
+    let areas: [String]
+    let lp: Double
+    let semester: Int?
+    let turnus: String
+    let chosen: Bool
+    let included: Bool
+    let excluded: Bool
+
+    init(_ v: JSONValue, excluded: Bool = false) {
+        id = v.s("id") ?? ""
+        title = v.s("title") ?? "Modul"
+        kind = StudyPlanText.key(v.s("kind") ?? "wahlpflicht")
+        area = v.s("area")
+        areas = v.list("areas").compactMap(\.string)
+        lp = v.n("lp") ?? 0
+        semester = v.i("semester")
+        turnus = v.s("turnus") ?? "unbekannt"
+        chosen = v["chosen"]?.bool ?? false
+        included = v["included"]?.bool ?? false
+        self.excluded = excluded || (v["excluded"]?.bool ?? false)
+    }
 }
 
 struct StudyPlanSemester: Identifiable, Equatable {
@@ -106,15 +242,24 @@ struct StudyPlanSemester: Identifiable, Equatable {
     let lp: Double
     let current: Bool
     var modules: [StudyPlanModule]
+    /// offene Plaetze (Wahlbereiche), LP dieser Plaetze
+    var slots: [StudyPlanSlot]
+    let lpSlots: Double
     var id: String { term }
 
     init(_ v: JSONValue, currentTerm: String?) {
-        term = v.s("term") ?? v.s("name") ?? "Semester"
+        let term = v.s("term") ?? v.s("name") ?? "Semester"
+        self.term = term
         fachsemester = v.i("fachsemester") ?? v.i("semester")
         modules = v.list("modules").map(StudyPlanModule.init)
         lp = v.n("lp") ?? modules.reduce(0) { $0 + $1.lp }
         current = v["current"]?.bool ?? (currentTerm != nil && currentTerm == term)
+        slots = v.list("slots").map { StudyPlanSlot($0, term: term) }
+        lpSlots = v.n("lp_slots") ?? 0
     }
+
+    /// frei bis zum Richtwert 30 LP
+    var lpFree: Double { max(0, StudyPlanText.lpTarget - lp) }
 
     /// Richtwert 30 LP je Semester; ueber 36 LP warnt die Spalte (wie die Regel im Kern)
     var overloaded: Bool { lp > StudyPlanText.lpLimit + 0.01 }
@@ -171,6 +316,14 @@ struct StudyPlan: Equatable {
     let poConfirmed: Bool
     let qisProgram: String?
     let semesters: [StudyPlanSemester]
+    let currentTerm: String?
+    let startTerm: String?
+    /// Wahlbereiche, Gruppen, waehlbare und ausgeschlossene Module, eigene Lage (05.11.2026)
+    let areas: [StudyPlanArea]
+    let groups: [StudyPlanGroup]
+    let options: [StudyPlanOption]
+    let excluded: [StudyPlanOption]
+    let placements: [String: String]
 
     init(_ v: JSONValue) {
         available = v["available"]?.bool ?? !v.list("semesters").isEmpty
@@ -193,7 +346,44 @@ struct StudyPlan: Equatable {
         suggestedPO = v.s("suggested_po") ?? v.i("suggested_po").map(String.init)
         poConfirmed = v["po_confirmed"]?.bool ?? (suggestedPO == nil)
         qisProgram = v.s("qis_program") ?? v.s("qis_abschluss")
+        currentTerm = current
+        startTerm = v.s("start_term")
+        areas = v.list("areas").map(StudyPlanArea.init).filter { !$0.id.isEmpty }
+        groups = v.list("groups").map(StudyPlanGroup.init).filter { !$0.id.isEmpty }
+        options = v.list("electives").map { StudyPlanOption($0) }.filter { !$0.id.isEmpty }
+        excluded = v.list("excluded").map { StudyPlanOption($0, excluded: true) }.filter { !$0.id.isEmpty }
+        var pl: [String: String] = [:]
+        for (k, t) in v["placements"]?.object ?? [:] { if let t = t.string { pl[k] = t } }
+        placements = pl
     }
+
+    func area(_ id: String?) -> StudyPlanArea? { id.flatMap { i in areas.first { $0.id == i } } }
+
+    /// Semester fuer "Verschieben nach …": vom aktuellen (bzw. ersten) bis vier Semester nach dem letzten im Plan
+    var moveTerms: [String] {
+        let known = semesters.compactMap { StudyPlanEngine.parseTerm($0.term) }
+        let from = currentTerm.flatMap(StudyPlanEngine.parseTerm) ?? known.first
+        guard let from, let last = known.max() else { return semesters.map(\.term) }
+        return (from...max(from, last + 4)).map(StudyPlanEngine.termName)
+    }
+
+    /// Fachsemester eines Semesternamens (auch nach dem letzten Semester im Plan)
+    func fachsemester(of term: String) -> Int? {
+        if let s = semesters.first(where: { $0.term == term }) { return s.fachsemester }
+        guard let t = StudyPlanEngine.parseTerm(term), let first = semesters.first, let f = first.fachsemester,
+              let t0 = StudyPlanEngine.parseTerm(first.term) else { return nil }
+        return t - t0 + f
+    }
+
+    /// waehlbare Module fuer einen Platz (Bereiche des Platzes; leer = alle Wahlbereiche), noch nicht im Plan
+    func choices(for slot: StudyPlanSlot?) -> [StudyPlanOption] {
+        let open = (options.filter { !$0.included && !$0.excluded }) + excluded
+        guard let slot, !slot.areas.isEmpty else { return open }
+        return open.filter { o in o.areas.contains { slot.areas.contains($0) } || (o.area.map(slot.areas.contains) ?? false) }
+    }
+
+    /// eigene Eintraege im Plan (fuer das Bearbeiten in den Einstellungen)
+    var customModules: [StudyPlanModule] { modules.filter(\.custom) }
 
     var modules: [StudyPlanModule] { semesters.flatMap(\.modules) }
 
@@ -422,6 +612,102 @@ struct StudyPlanSettings: Equatable {
     }
 }
 
+// MARK: - Aendern (eigene Lage, Wahl, Schwerpunkt, eigene Eintraege)
+
+/// Rumpf fuer POST /api/study-plan/settings je Aenderung (05.11.2026). Der Kern speichert teilweise: nur die genannten
+/// Schluessel aendern sich. Ausgangsstand ist der gelesene Plan (gewaehlte Module, eigene Lage, Schwerpunkt).
+enum StudyPlanEdit {
+    static func dict(_ d: [String: String]) -> JSONValue { .object(d.mapValues(JSONValue.string)) }
+
+    /// Modul in ein Semester legen (verschieben, vorziehen)
+    static func move(_ plan: StudyPlan, id: String, to term: String) -> JSONValue {
+        var p = plan.placements
+        p[id] = term
+        return ["placements": dict(p)]
+    }
+
+    /// zurueck ins empfohlene Semester
+    static func resetPlacement(_ plan: StudyPlan, id: String) -> JSONValue {
+        var p = plan.placements
+        p[id] = nil
+        return ["placements": dict(p)]
+    }
+
+    /// Modul aus dem Katalog in den Plan nehmen, optional in ein Semester
+    static func choose(_ plan: StudyPlan, option: StudyPlanOption, term: String?) -> JSONValue {
+        var o: [String: JSONValue] = [:]
+        if option.excluded {
+            o["excluded"] = .array(plan.excluded.map(\.id).filter { $0 != option.id }.map(JSONValue.string))
+        }
+        if option.kind == "wahlpflicht" || option.kind == "wahl" {
+            var chosen = plan.options.filter(\.chosen).map(\.id)
+            if !chosen.contains(option.id) { chosen.append(option.id) }
+            o["electives"] = .array(chosen.map(JSONValue.string))
+        }
+        if let term {
+            var p = plan.placements
+            p[option.id] = term
+            o["placements"] = dict(p)
+        }
+        return .object(o)
+    }
+
+    /// gewaehltes Wahlmodul gegen ein anderes tauschen: altes ab, neues dazu, neues im Semester des alten
+    static func replace(_ plan: StudyPlan, old: String, option: StudyPlanOption, term: String?) -> JSONValue {
+        var chosen = plan.options.filter { $0.chosen && $0.id != old }.map(\.id)
+        if !chosen.contains(option.id) { chosen.append(option.id) }
+        var p = plan.placements
+        p[old] = nil
+        if let term { p[option.id] = term }
+        return ["electives": .array(chosen.map(JSONValue.string)), "placements": dict(p)]
+    }
+
+    /// "Nicht belegen": Wahlmodul abwaehlen, sonst ausschliessen; die eigene Lage faellt weg
+    static func drop(_ plan: StudyPlan, module m: StudyPlanModule) -> JSONValue {
+        var o: [String: JSONValue] = [:]
+        if m.elective, plan.options.contains(where: { $0.id == m.id && $0.chosen }) {
+            o["electives"] = .array(plan.options.filter { $0.chosen && $0.id != m.id }.map { .string($0.id) })
+        } else {
+            o["excluded"] = .array((plan.excluded.map(\.id) + [m.id]).map(JSONValue.string))
+        }
+        if plan.placements[m.id] != nil {
+            var p = plan.placements
+            p[m.id] = nil
+            o["placements"] = dict(p)
+        }
+        return .object(o)
+    }
+
+    /// "Plan zurücksetzen": eigene Lage und "Nicht belegen" weg (Wahl, Schwerpunkt, eigene Eintraege bleiben)
+    static let reset: JSONValue = ["placements": .null, "excluded": .null]
+
+    /// Schwerpunkt (Bereich) einer Gruppe waehlen
+    static func track(_ plan: StudyPlan, group: String, area: String?) -> JSONValue {
+        var t: [String: String] = [:]
+        for g in plan.groups where !g.auto { if let c = g.chosen { t[g.id] = c } }
+        t[group] = area
+        return ["tracks": dict(t)]
+    }
+
+    static func customJSON(_ m: StudyPlanModule, plan: StudyPlan) -> JSONValue {
+        let fach = plan.semester(of: m.id)?.fachsemester
+        return ["id": .string(m.id), "title": .string(m.title), "lp": .number(m.lp), "area": m.area.map(JSONValue.string) ?? .null,
+                "semester": (m.recommended ?? fach).map { .number(Double($0)) } ?? .null]
+    }
+
+    /// eigenen Eintrag hinzufuegen (Titel, LP, Bereich, Fachsemester)
+    static func addCustom(_ plan: StudyPlan, title: String, lp: Double, area: String?, fachsemester: Int?) -> JSONValue {
+        let new: JSONValue = ["title": .string(title.trimmingCharacters(in: .whitespacesAndNewlines)), "lp": .number(lp),
+                              "area": area.map(JSONValue.string) ?? .null,
+                              "semester": fachsemester.map { .number(Double($0)) } ?? .null]
+        return ["custom": .array(plan.customModules.map { customJSON($0, plan: plan) } + [new])]
+    }
+
+    static func removeCustom(_ plan: StudyPlan, id: String) -> JSONValue {
+        ["custom": .array(plan.customModules.filter { $0.id != id }.map { customJSON($0, plan: plan) })]
+    }
+}
+
 // MARK: - Texte und Regeln
 
 enum StudyPlanText {
@@ -440,6 +726,7 @@ enum StudyPlanText {
     static let lastAttemptWarning = "Letzter Versuch – sprich mit der Studienberatung."
     /// Richtwert je Semester 30 LP; Warnung ab mehr als 36 LP
     static let lpLimit: Double = 36
+    static let lpTarget: Double = 30
 
     /// Schluessel ohne Umlaute, klein, mit Unterstrich ("Nicht bestanden" -> "nicht_bestanden")
     static func key(_ s: String) -> String {
@@ -549,6 +836,9 @@ enum StudyPlanText {
         if m.status != .moved, let f = m.movedFrom { parts.append("aus \(f)") }
         if let r = m.reason { parts.append(r) }
         if m.lastAttempt { parts.append("letzter Versuch") }
+        if m.placed { parts.append("selbst eingeplant") }
+        if m.custom { parts.append("eigener Eintrag") }
+        parts.append(contentsOf: m.hints)
         return parts.joined(separator: ", ")
     }
 
@@ -564,6 +854,7 @@ enum StudyPlanText {
         var parts = [s.term]
         if let f = s.fachsemester { parts.append("\(f). Fachsemester") }
         parts.append("\(number(s.lp)) Leistungspunkte" + (s.overloaded ? ", mehr als der Richtwert" : ""))
+        if s.lpSlots > 0 { parts.append("dazu \(number(s.lpSlots)) Leistungspunkte offene Wahl") }
         if s.current { parts.append("aktuelles Semester") }
         return parts.joined(separator: ", ")
     }
@@ -602,6 +893,107 @@ enum StudyPlanText {
             if winter { winter = false } else { winter = true; year -= 1 }
         }
         return out
+    }
+
+    // MARK: Wahlbereiche und eigene Lage (05.11.2026)
+
+    /// Zeile unter dem Platz: "noch 10 von 15 LP offen", "1 von 3 Modulen gewählt", "Eine von 5 Richtungen wählen"
+    static func slotLine(_ slot: StudyPlanSlot, plan: StudyPlan) -> String {
+        if slot.isTrack {
+            let n = plan.groups.first { $0.id == slot.group }?.options.count ?? 0
+            return n > 0 ? "Eine von \(n) Richtungen wählen" : "Eine Richtung wählen"
+        }
+        guard let a = plan.area(slot.area) else { return "Modul wählen" }
+        if let n = a.modulesRequired { return "\(min(a.count, n)) von \(n) Modulen gewählt" }
+        if let t = a.target, let o = a.lpOpen { return "noch \(number(o)) von \(number(t)) LP offen" }
+        return "\(a.options) Module zur Wahl"
+    }
+
+    /// Titel des Platzes mit LP: "Seminar (5 LP)"
+    static func slotTitle(_ slot: StudyPlanSlot) -> String {
+        guard let lp = slot.lp, lp > 0 else { return slot.title }
+        return "\(slot.title) (\(number(lp)) LP)"
+    }
+
+    /// VoiceOver je Platz
+    static func accessibility(_ slot: StudyPlanSlot, plan: StudyPlan) -> String {
+        var parts = ["Offener Platz", slotTitle(slot).replacingOccurrences(of: " LP)", with: " Leistungspunkte)")]
+        if !slot.isTrack { parts.append(kind(slot.areaKind)) }
+        parts.append(slotLine(slot, plan: plan))
+        return parts.joined(separator: ", ")
+    }
+
+    /// Bereichszeile: "10 von 15 LP · 5 bestanden · 2 von 3 Modulen"
+    static func areaLine(_ a: StudyPlanArea) -> String {
+        var parts: [String] = []
+        let have = a.lpDone + a.lpPlanned
+        if let t = a.target { parts.append("\(number(have)) von \(number(t)) LP") } else { parts.append("\(number(have)) LP") }
+        if a.lpDone > 0 { parts.append("\(number(a.lpDone)) bestanden") }
+        if let n = a.modulesRequired { parts.append("\(min(a.count, n)) von \(n) Modulen") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Rueckmeldung nach dem Verschieben: "3 Module vorgezogen – im 3. Semester sind jetzt 12 LP frei"
+    static func moveMessage(title: String, from: StudyPlanSemester?, to term: String, after plan: StudyPlan) -> String {
+        let source = from.flatMap { f in plan.semesters.first { $0.term == f.term } }
+        let free = source.map { "im \($0.fachsemester.map { "\($0). Semester" } ?? $0.term) sind jetzt \(number($0.lpFree)) LP frei" }
+        let fromT = from.flatMap { StudyPlanEngine.parseTerm($0.term) }, toT = StudyPlanEngine.parseTerm(term)
+        let earlier = fromT != nil && toT != nil && toT! < fromT!
+        let head: String
+        if earlier {
+            let pulled = plan.modules.filter { m in
+                guard m.placed, let r = m.recommended, let f = plan.semester(of: m.id)?.fachsemester else { return false }
+                return f < r
+            }.count
+            head = pulled >= 2 ? "\(pulled) Module vorgezogen" : "\(title) vorgezogen nach \(term)"
+        } else {
+            head = "\(title) verschoben nach \(term)"
+        }
+        return free.map { "\(head) – \($0)" } ?? head
+    }
+
+    /// Hinweis beim Ziel: Turnus passt nicht
+    static func turnusWarning(_ turnus: String, term: String) -> String? {
+        guard let t = StudyPlanEngine.parseTerm(term) else { return nil }
+        let winter = t % 2 == 1
+        switch StudyPlanText.turnus(turnus) {
+        case "WiSe" where !winter: return "Laut Katalog nur im Wintersemester angeboten"
+        case "SoSe" where winter: return "Laut Katalog nur im Sommersemester angeboten"
+        default: return nil
+        }
+    }
+
+    /// Kurzname fuer die Gesamtansicht: passt der Titel nicht in die Breite, Fuellwoerter weg und lange Woerter
+    /// gekuerzt ("Grundlagen der Rechnernetze" -> "Grundl. Rechnernetze" -> "Grun. Rech."), zuletzt Anfangsbuchstaben
+    static func abbreviation(_ title: String, width: CGFloat, font: CGFloat) -> String {
+        let fits = { (s: String) in CGFloat(s.count) * font * 0.56 <= max(20, width) }
+        if fits(title) { return title }
+        let filler: Set<String> = ["der", "die", "das", "und", "für", "in", "im", "zur", "zum", "von", "des", "den", "mit", "an", "&", "-", "–"]
+        let words = title.split(separator: " ").map(String.init).filter { !filler.contains($0.lowercased()) }
+        for keep in [7, 5, 4, 3] {
+            let s = words.map { w -> String in
+                let roman = w.allSatisfy { "IVX0123456789:".contains($0) }
+                return roman || w.count <= keep + 1 ? w : String(w.prefix(keep)) + "."
+            }.joined(separator: " ")
+            if fits(s) { return s }
+        }
+        return words.map { w in w.allSatisfy { "IVX0123456789".contains($0) } ? " " + w : String(w.prefix(1)) }.joined()
+    }
+
+    /// Kurzform des Bereichstyps fuer das Etikett am Platz
+    static func typeLabel(_ type: String) -> String? {
+        switch type {
+        case "studium_generale": return "Studium generale"
+        case "schluessel": return "Schlüsselkompetenzen"
+        case "seminar": return "Seminar"
+        case "labor": return "Labor"
+        case "projekt": return "Projekt"
+        case "praktikum": return "Praktikum"
+        case "schwerpunkt": return "Schwerpunkt"
+        case "nebenfach": return "Nebenfach"
+        case "vertiefung": return "Vertiefung"
+        default: return nil
+        }
     }
 
     /// Fachsemester-Zeile: "3. Fachsemester"

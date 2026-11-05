@@ -96,6 +96,40 @@ CATALOG_SLOTS = {**CATALOG, "code": "TIBSc25", "catalog_term": "WS 2026/27",
                                 {"semester": 5, "title": "Wahlpflichtmodul", "areas": ["wahlpflicht"], "lp": 5, "lp_max": None},
                                 {"semester": 6, "title": "Wahlmodul", "areas": [], "lp": 5, "lp_max": None}]}
 
+# Wahlbereiche (05.11.2026): Schwerpunkte als Gruppe (mit "Allgemeine ..." als Wahl ohne Schwerpunkt), Module in
+# mehreren Bereichen (`areas[].modules`), Seminarbereich mit Zahl der Module, Studium generale ohne Module (eigener
+# Eintrag), Regeltext; ohne Studienverlaufsplan (Plaetze aus den offenen LP)
+_ELECTIVE = {"wahlpflicht", "schluessel"}
+CATALOG_AREAS = {
+    **{k: v for k, v in CATALOG.items() if k not in ("areas", "modules")}, "code": "ETBSc25", "catalog_term": "WS 2026/27",
+    "areas": [a for a in CATALOG["areas"] if a["id"] not in _ELECTIVE] + [
+        {"id": "seminare", "name": "Seminare", "lp_required": 5, "lp_max": None, "kind": "wahlpflicht", "modules_required": 1},
+        {"id": "studium-generale", "name": "Studium Generale", "lp_required": 4, "lp_max": None, "kind": "wahl", "semester": 3,
+         "rule": "Lehrveranstaltungen anderer Fakultäten."},
+        {"id": "allgemeine-et", "name": "Allgemeine Elektrotechnik", "lp_required": 0, "lp_max": 15, "kind": "pflicht",
+         "group": "schwerpunkt", "modules": ["robotik", "datenbanken"]},
+        {"id": "schwerpunkt-robotik", "name": "Schwerpunkt Robotik", "lp_required": 0, "lp_max": 15, "kind": "pflicht",
+         "rule": "Mindestens zwei Module.", "modules_required": 2, "modules": ["ki"]},
+        {"id": "schwerpunkt-daten", "name": "Schwerpunkt Daten", "lp_required": 0, "lp_max": 15, "kind": "pflicht",
+         "modules": ["ki"]},
+    ],
+    "modules": [m for m in CATALOG["modules"] if m["area"] not in _ELECTIVE] + [
+        mod("seminar-a", "Seminar Eingebettete Systeme", "seminare", 5, None, "WS", kind="wahlpflicht"),
+        mod("seminar-b", "Seminar Datenbanken", "seminare", 5, None, "SS", kind="wahlpflicht"),
+        mod("robotik", "Robotik I", "schwerpunkt-robotik", 5, None, "WS", ["regelungstechnik"], kind="wahlpflicht"),
+        mod("robotik-2", "Robotik II", "schwerpunkt-robotik", 5, None, "SS", ["robotik"], kind="wahlpflicht"),
+        mod("robotik-pflicht", "Grundlagen der Robotik", "schwerpunkt-robotik", 5, 5, "WS"),
+        mod("datenbanken", "Datenbanksysteme I", "schwerpunkt-daten", 5, None, "WS", kind="wahlpflicht"),
+        mod("ki", "Grundlagen der künstlichen Intelligenz", "allgemeine-et", 5, None, "WS+SS", kind="wahlpflicht"),
+        mod("messtechnik", "Messtechnik", "allgemeine-et", 5, None, "SS", kind="wahlpflicht"),
+    ],
+}
+
+# Wahlbereich ohne LP-Angabe (viele Kataloge ausserhalb der FEI): ein Platz, solange nichts gewaehlt ist
+CATALOG_AREAS_NO_LP = {**CATALOG_AREAS, "code": "ETBSc17",
+                       "areas": [{k: v for k, v in a.items() if k != "modules_required"} | {"lp_required": None}
+                                 if a["id"] == "seminare" else a for a in CATALOG_AREAS["areas"]]}
+
 ABSCHLUSS = "Technische Informatik (PO-Version 2017)"
 
 
@@ -176,6 +210,38 @@ CASES = [
      + passed([("Eingebettete Systeme", "SoSe 26")])},
     {"name": "noch_nichts", "what": "keine QIS-Zeilen, Beginn = aktuelles Semester", "today": "2026-11-04",
      "settings": {}, "grades": []},
+    {"name": "wahlbereiche_offen", "catalog_code": "ETBSc25", "what": "Wahlbereiche ohne Wahl: Plaetze fuer Seminar "
+     "(1 Modul), Studium generale (4 LP, 3. Fachsemester, ohne Module) und 'Schwerpunkt wählen' (15 LP); Pflichtmodul des "
+     "Schwerpunkts fehlt", "today": "2026-11-04", "settings": {},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1]) + passed([(t, "SoSe 26") for t in SEM2])},
+    {"name": "schwerpunkt_gewaehlt", "catalog_code": "ETBSc25", "what": "Schwerpunkt Robotik gewaehlt: dessen Pflichtmodul "
+     "im Plan, Robotik I auf eigenen Platz (WiSe 27/28), KI zaehlt im Schwerpunkt (Mitglied ueber areas[].modules), eigener "
+     "Eintrag Studium generale aus QIS bestanden, ein zweiter geplant", "today": "2026-11-04",
+     "settings": {"tracks": {"schwerpunkt": "schwerpunkt-robotik"}, "electives": ["robotik", "ki", "seminar-b"],
+                  "placements": {"robotik": "WiSe 27/28"},
+                  "custom": [{"title": "Spanisch A1", "lp": 4, "area": "studium-generale"},
+                             {"id": "eigen-7", "title": "Rhetorik", "lp": 2.5, "area": "studium-generale", "semester": 5},
+                             {"title": "  ", "lp": 3}]},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1]) + passed([(t, "SoSe 26") for t in SEM2])
+     + [g("Spanisch A1", "SoSe 26", "bestanden", "1,3", credits="4")]},
+    {"name": "schwerpunkt_aus_qis", "catalog_code": "ETBSc25", "what": "ohne Einstellung: Datenbanksysteme I bestanden -> "
+     "Schwerpunkt Daten", "today": "2026-11-04", "settings": {},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1]) + passed([("Datenbanksysteme I", "SoSe 26")])},
+    {"name": "wahlbereich_ohne_lp", "catalog_code": "ETBSc17", "what": "Seminare ohne LP-Angabe: ein Platz; mit gewaehltem "
+     "Seminar keiner mehr", "today": "2026-11-04", "settings": {"tracks": {"schwerpunkt": "schwerpunkt-daten"}},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1])},
+    {"name": "wahlbereich_ohne_lp_gewaehlt", "catalog_code": "ETBSc17", "what": "Seminar gewaehlt: kein Platz mehr",
+     "today": "2026-11-04", "settings": {"electives": ["seminar-a"]}, "grades": []},
+    {"name": "selbst_verschoben", "what": "eigene Lage: Rechnernetze (SS) ins WiSe 26/27 vorgezogen (Turnus-Hinweis), "
+     "Mathematik III ins SoSe 27 (Hinweis Voraussetzung fuer Signale ... nicht), Stochastik nicht belegt, Programmieren I "
+     "bestanden bleibt (Lage ignoriert), Theoretische Informatik nicht bestanden auf WiSe 27/28 gelegt, alte Lage "
+     "(SoSe 25) wird nachgeholt", "today": "2026-11-04",
+     "settings": {"start_term": "WiSe 25/26", "excluded": ["stochastik"],
+                  "placements": {"rechnernetze": "WiSe 26/27", "mathematik-3": "SoSe 27", "programmieren-1": "SoSe 27",
+                                 "theoretische-informatik": "WiSe 27/28", "et-2": "SoSe 25", "unbekannt": "WiSe 26/27",
+                                 "datenstrukturen": "Herbst"}},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1 if "theoretischen" not in t])
+     + [g("Grundlagen der theoretischen Informatik", "WiSe 25/26", "nicht bestanden", "5,0", "1")]},
 ]
 
 NAMES = ["Programmieren I", "Übung zu Programmieren I", "Programmieren 1", "Vorlesung und Übung Mathematik II",
@@ -268,6 +334,19 @@ def steps_def():
         {"method": "POST", "path": "/api/study-plan/settings", "body": {"start_term": None}},
         {"method": "POST", "path": "/api/study-plan/settings", "body": [1]},
         {"method": "GET", "path": "/api/study-plan/module/robotik"},
+        # Wahlbereiche und eigene Lage (05.11.2026)
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {
+            "po": None, "tracks": {"schwerpunkt": "x", "": "y"}, "excluded": ["stochastik", "stochastik", ""],
+            "placements": {"mathematik-3": "WS 2027/28", "rechnernetze": "SoSe 27", "leer": ""},
+            "custom": [{"title": "Spanisch A1", "lp": 4}, {"title": "Rhetorik", "lp": 99, "semester": 30, "id": "eigen-1"}]}},
+        {"method": "GET", "path": "/api/study-plan"},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"electives": []}},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"placements": {"mathematik-3": "Herbst 27"}}},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"placements": ["x"]}},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"tracks": {"schwerpunkt": 1}}},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"excluded": "stochastik"}},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"custom": [1]}},
+        {"method": "POST", "path": "/api/study-plan/settings", "body": {"placements": None, "excluded": None}},
     ]
 
 
@@ -283,7 +362,7 @@ def build(check: bool) -> int:
 
         cases = []
         for c in CASES:
-            cat = CATALOG_SLOTS if c.get("catalog_code") == "TIBSc25" else CATALOG
+            cat = {"TIBSc25": CATALOG_SLOTS, "ETBSc25": CATALOG_AREAS, "ETBSc17": CATALOG_AREAS_NO_LP}.get(c.get("catalog_code"), CATALOG)
             cases.append({**c, "expected": study_plan.build_plan(cat, c["grades"], c["settings"], c["today"])})
         picks = []
         for p in PICKS:
@@ -292,7 +371,9 @@ def build(check: bool) -> int:
                           "code": cat["code"] if cat else None, "reason": reason})
         engine = {
             "generator": "tools/gen-study-plan-fixture.py", "catalog": CATALOG,
-            "catalogs": {c["code"]: c for c in (CATALOG, CATALOG_INF, CATALOG_OLD, CATALOG_SLOTS)}, "cases": cases,
+            "catalogs": {c["code"]: c for c in (CATALOG, CATALOG_INF, CATALOG_OLD, CATALOG_SLOTS, CATALOG_AREAS,
+                                                CATALOG_AREAS_NO_LP)},
+            "cases": cases,
             "name_keys": [{"text": t, "key": study_plan.name_key(t)} for t in NAMES],
             "terms": [{"text": t, "term": study_plan.parse_term(t),
                        "name": study_plan.term_name(study_plan.parse_term(t)) if study_plan.parse_term(t) else None} for t in TERMS],

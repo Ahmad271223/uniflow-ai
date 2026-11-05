@@ -1,9 +1,10 @@
-"""Modellmischung der StudiNow-KI (05.11.2026, app/ai_router.py, app/ai_providers.py, docs/KI-MODELLMISCHUNG-2026-11-05.md):
+"""Modellmischung der StudiNow-KI (05.11.2026: ChatGPT etwa 75 %, Sonnet 25 %, DeepSeek nur auf Wunsch; app/ai_router.py, app/ai_providers.py, docs/KI-MODELLMISCHUNG-2026-11-05.md):
 Adapter lesen die Nutzung, der Router waehlt deterministisch nach Gewicht, schwere Faelle gehen an Sonnet, Ersatz ohne
 doppelte Abrechnung, Preise fail closed, Zwischenspeicher ueber Modelle hinweg, Reservierung mit dem Preis des
 gewaehlten Modells, und die harte Grenze: ein Konto verursacht im Monat nie mehr als seine 100 Credits (1 EUR).
 Alles mit Attrappen, kein Aufruf eines echten Anbieters."""
 import json
+import re
 import threading
 from collections import Counter
 
@@ -256,23 +257,52 @@ def test_claude_only_from_the_eu_unless_explicitly_allowed(monkeypatch):
 
 def test_routing_is_deterministic_and_follows_the_weights(table_prices):
     from app import ai_router
-    every = {"deepseek", "openai", "anthropic"}
-    first = [ai_router.chain("tutor:explain", f"id{i}", configured=every)[0] for i in range(40)]
-    assert first == [ai_router.chain("tutor:explain", f"id{i}", configured=every)[0] for i in range(40)], "Wiederholung = gleiches Modell"
+    every = {"openai", "anthropic"}
+    first = [ai_router.chain("tutor:ask", f"id{i}", configured=every)[0] for i in range(40)]
+    assert first == [ai_router.chain("tutor:ask", f"id{i}", configured=every)[0] for i in range(40)], "Wiederholung = gleiches Modell"
     n = 6000
     simple = Counter(ai_router.chain("tutor:explain", f"s{i}", configured=every)[0][0].provider for i in range(n))
-    assert abs(simple["deepseek"] / n - 0.65) < 0.03 and abs(simple["openai"] / n - 0.35) < 0.03 and simple["anthropic"] == 0
+    assert simple == {"openai": n}, "einfache Aufgaben: nur ChatGPT"
     medium = Counter(ai_router.chain("tutor:ask", f"m{i}", configured=every)[0][0].provider for i in range(n))
-    assert abs(medium["deepseek"] / n - 0.50) < 0.03 and abs(medium["anthropic"] / n - 0.25) < 0.03
+    assert abs(medium["openai"] / n - 0.75) < 0.03 and abs(medium["anthropic"] / n - 0.25) < 0.03 and not medium["deepseek"]
     order, _ = ai_router.chain("tutor:ask", "x", configured=every)
     assert sorted(c.provider for c in order) == sorted(every), "alle anderen stehen als Ersatz dahinter"
 
 
-def test_typical_mix_lands_near_50_25_25(table_prices):
+def test_typical_mix_lands_near_75_25_without_deepseek(table_prices):
+    """Inhaber 05.11.2026 ("also nein dann benutz gpt eher als deepseek"): ChatGPT statt DeepSeek, Sonnet behaelt die
+    schweren Faelle."""
     from app import ai_router
     share = ai_router.expected_share()
-    assert abs(share["deepseek"] - 0.50) <= 0.03 and abs(share["openai"] - 0.25) <= 0.03 and abs(share["anthropic"] - 0.25) <= 0.03, share
+    assert share["deepseek"] == 0 and abs(share["openai"] - 0.75) <= 0.03 and abs(share["anthropic"] - 0.25) <= 0.03, share
     assert abs(sum(share.values()) - 1) < 1e-6
+    assert all(c.provider != "deepseek" for route in (*ai_router.DEFAULT_ROUTES.values(), ai_router.HARD) for c, _ in
+               ai_router.parse_route(route)), "kein DeepSeek in den Standardwegen"
+
+
+def test_deepseek_is_off_by_default_even_with_a_key(table_prices, monkeypatch):
+    from app import ai_backend, ai_router
+    ai_backend.set_provider(None)
+    monkeypatch.setenv("LERNAPP_OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("LERNAPP_AI_MODEL", "gpt-6-luna")
+    monkeypatch.setenv("LERNAPP_DEEPSEEK_API_KEY", "scw-test")
+    monkeypatch.delenv("LERNAPP_AI_PROVIDER", raising=False)
+    assert ai_backend.configured_providers() == {"openai"}, "Schluessel allein schaltet DeepSeek nicht ein"
+    for i in range(200):                                   # auch nicht als Ersatz
+        assert [c.provider for c in ai_router.chain("tutor:explain", f"d{i}", configured=ai_backend.configured_providers())[0]] == ["openai"]
+    # wieder einschalten: Weg mit DeepSeek in LERNAPP_AI_ROUTES (Beispiel in deploy/.env.example) -> etwa 49/26/25
+    monkeypatch.setenv("LERNAPP_AI_ROUTES", ai_router.DEEPSEEK_ROUTES_EXAMPLE)
+    assert ai_backend.configured_providers() == {"openai", "deepseek"}
+    share = ai_router.expected_share()
+    assert abs(share["deepseek"] - 0.49) <= 0.03 and abs(share["openai"] - 0.26) <= 0.03 and abs(share["anthropic"] - 0.25) <= 0.03, share
+    monkeypatch.delenv("LERNAPP_AI_ROUTES")
+    monkeypatch.setenv("LERNAPP_AI_PROVIDER", "deepseek")
+    assert ai_backend.configured_providers() == {"deepseek"}, "ausdruecklich gewaehlt"
+    monkeypatch.delenv("LERNAPP_DEEPSEEK_API_KEY")
+    assert ai_backend.configured_providers() == set(), "ohne Schluessel nie"
+    env_example = (__import__("pathlib").Path(__file__).resolve().parents[1] / "deploy" / ".env.example").read_text(encoding="utf-8")
+    assert f"# LERNAPP_AI_ROUTES={ai_router.DEEPSEEK_ROUTES_EXAMPLE}" in env_example
+    assert re.search(r"^LERNAPP_DEEPSEEK_API_KEY=\s*$", env_example, re.M), "in der Vorlage leer"
 
 
 def test_hard_cases_go_to_sonnet(table_prices, monkeypatch):
@@ -311,6 +341,7 @@ def test_routes_are_configurable(table_prices, monkeypatch):
 def test_requests_with_image_only_go_to_models_that_read_images(table_prices, monkeypatch):
     from app import ai_backend
     monkeypatch.setenv("LERNAPP_DEEPSEEK_MODEL", "deepseek-v4-flash-0731")         # nur Text
+    monkeypatch.setenv("LERNAPP_AI_ROUTES", ai_router_example())                   # DeepSeek eingeschaltet
     monkeypatch.setattr(ai_backend, "configured_providers", lambda ignore_choice=False: {"deepseek", "openai"})
     built = []
     monkeypatch.setattr(ai_backend, "build", lambda label, model_name=None: built.append(label) or Fake(label))
@@ -320,6 +351,11 @@ def test_requests_with_image_only_go_to_models_that_read_images(table_prices, mo
         built.clear()
         ai_backend.route("doc_index_page", f"b{i}", image=b"\x89PNG\r\n\x1a\n")
         assert built == ["openai"]
+
+
+def ai_router_example() -> str:
+    from app import ai_router
+    return ai_router.DEEPSEEK_ROUTES_EXAMPLE
 
 
 # ---------------------------------------------------------------- Preise
@@ -362,45 +398,44 @@ def test_worst_case_is_an_upper_bound_for_any_text():
 def test_fallback_on_5xx_charges_once(hosted, table_prices, monkeypatch):
     from app import ai_backend, credits
     u, _ = user(hosted, "ersatz@beispiel.de", plan="pro_ai")
-    fakes = {"deepseek": Fake("deepseek", error=busy), "openai": Fake("openai", usage=(3000, 600)),
-             "anthropic": Fake("anthropic")}
+    fakes = {"openai": Fake("openai", error=busy), "anthropic": Fake("anthropic", usage=(1000, 200))}
     install(monkeypatch, fakes)
-    rid = rid_for("tutor:explain", "deepseek")
-    c = ai_backend.complete(u["id"], "tutor:explain", "SYS", "Frage", request_id=rid)
-    assert c.provider == "openai" and (fakes["deepseek"].calls, fakes["openai"].calls, fakes["anthropic"].calls) == (1, 1, 0)
+    rid = rid_for("tutor:ask", "openai", configured=fakes)
+    c = ai_backend.complete(u["id"], "tutor:ask", "SYS", "Frage", request_id=rid)
+    assert c.provider == "anthropic" and (fakes["openai"].calls, fakes["anthropic"].calls) == (1, 1)
     conn = credits.connect()
     try:
         rows = conn.execute("SELECT state, charged, model FROM credit_ledger WHERE user_id=?", (u["id"],)).fetchall()
         log = conn.execute("SELECT state, provider, model FROM ai_usage_log WHERE user_id=?", (u["id"],)).fetchall()
     finally:
         conn.close()
-    assert rows == [("settled", 1, "gpt-6-luna")] and log == [("done", "openai", "gpt-6-luna")], (rows, log)
+    assert rows == [("settled", 1, "claude-sonnet-5-5")] and log == [("done", "anthropic", "claude-sonnet-5-5")], (rows, log)
     assert month(u["id"])[1:] == (1, 0)
 
 
 def test_no_fallback_after_the_provider_started(hosted, table_prices, monkeypatch):
     from app import ai_backend
     u, _ = user(hosted, "angefangen@beispiel.de", plan="pro_ai")
-    fakes = {"deepseek": Fake("deepseek", error=broke_midway), "openai": Fake("openai")}
+    fakes = {"openai": Fake("openai", error=broke_midway), "anthropic": Fake("anthropic")}
     install(monkeypatch, fakes)
-    rid = rid_for("tutor:explain", "deepseek", configured=fakes)
+    rid = rid_for("tutor:explain", "openai", configured=fakes)
     with pytest.raises(ai_backend.AIUnavailable) as e:
         ai_backend.complete(u["id"], "tutor:explain", "SYS", "Frage", request_id=rid)
     allowance, used, reserved = month(u["id"])
-    assert fakes["openai"].calls == 0, "angenommen und abgebrochen: kein zweiter Anbieter, sonst doppelte Kosten"
+    assert fakes["anthropic"].calls == 0, "angenommen und abgebrochen: kein zweiter Anbieter, sonst doppelte Kosten"
     assert reserved == 0 and 0 < used == e.value.extra["credits_charged"], "Nutzung unbekannt: die Obergrenze wird berechnet"
 
 
 def test_cache_is_shared_across_models_and_records_the_producer(hosted, table_prices, monkeypatch):
     from app import ai_backend
-    fakes = {"deepseek": Fake("deepseek"), "openai": Fake("openai")}
+    fakes = {"openai": Fake("openai"), "anthropic": Fake("anthropic")}
     install(monkeypatch, fakes)
-    a = rid_for("tutor:explain", "deepseek", configured=fakes, prefix="a")
-    b = rid_for("tutor:explain", "openai", configured=fakes, prefix="b")
-    first = ai_backend.complete(None, "tutor:explain", "SYS", "Seite 3", cache=True, request_id=a)
-    again = ai_backend.complete(None, "tutor:explain", "SYS", "Seite 3", cache=True, request_id=b)
-    assert first.provider == "deepseek" and again.model == "cache" and again.text == first.text
-    assert again.source_model == "deepseek-v4.1-flash-1017" and fakes["openai"].calls == 0, "kein Fragmentieren nach Modell"
+    a = rid_for("tutor:ask", "openai", configured=fakes, prefix="a")
+    b = rid_for("tutor:ask", "anthropic", configured=fakes, prefix="b")
+    first = ai_backend.complete(None, "tutor:ask", "SYS", "Seite 3", cache=True, request_id=a)
+    again = ai_backend.complete(None, "tutor:ask", "SYS", "Seite 3", cache=True, request_id=b)
+    assert first.provider == "openai" and again.model == "cache" and again.text == first.text
+    assert again.source_model == "gpt-6-luna" and fakes["anthropic"].calls == 0, "kein Fragmentieren nach Modell"
 
 
 def test_reservation_uses_the_price_of_the_routed_model(hosted, table_prices, monkeypatch):
@@ -419,7 +454,7 @@ def test_reservation_uses_the_price_of_the_routed_model(hosted, table_prices, mo
     assert reserved["anthropic"] > reserved["deepseek"] >= reserved["openai"], reserved
     # mit Ersatz-Kette: reserviert wird fuer das teuerste Modell der Kette
     u, _ = user(hosted, "kette@beispiel.de", plan="pro_ai")
-    install(monkeypatch, {"deepseek": Fake("deepseek"), "anthropic": Fake("anthropic")})
+    install(monkeypatch, {"openai": Fake("openai"), "anthropic": Fake("anthropic")})
     ai_backend.complete(u["id"], "tutor:explain", "SYS", "Frage " * 400, request_id="e2")
     conn = credits.connect()
     try:
@@ -432,7 +467,8 @@ def test_doc_plan_estimate_uses_the_route(hosted, table_prices, monkeypatch):
     from app import ai_backend
     install(monkeypatch, {"deepseek": Fake("deepseek"), "openai": Fake("openai"), "anthropic": Fake("anthropic")})
     assert ai_backend.estimate_model("tutor:doc_tasks") == "claude-sonnet-5-5", "Aufgaben gehen an Sonnet"
-    assert ai_backend.estimate_model("tutor:doc_lecture") == "deepseek-v4.1-flash-1017", "teuerstes der guenstigen Modelle"
+    assert ai_backend.estimate_model("tutor:doc_lecture") == "gpt-6-luna", "einfacher Weg: ChatGPT"
+    assert ai_backend.estimate_model("tutor:ask") == "claude-sonnet-5-5", "teuerstes Modell des Weges"
 
 
 def test_second_opinion_skips_the_cache_and_asks_sonnet(hosted, table_prices, monkeypatch):
@@ -442,9 +478,9 @@ def test_second_opinion_skips_the_cache_and_asks_sonnet(hosted, table_prices, mo
     fakes = {"deepseek": Fake("deepseek"), "openai": Fake("openai"), "anthropic": Fake("anthropic")}
     install(monkeypatch, fakes)
     body = {"mode": "explain", "page_text": "Satz von Gauss"}
-    rid = rid_for("tutor:explain", "deepseek", prefix="t")
+    rid = rid_for("tutor:explain", "openai", prefix="t")
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({**body, "request_id": rid})))
-    assert st == 200 and d["answer"] == "Antwort von deepseek", d
+    assert st == 200 and d["answer"] == "Antwort von openai", d
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({**body, "request_id": rid + "x", "second_opinion": True})))
     assert st == 200 and d["answer"] == "Antwort von anthropic" and fakes["anthropic"].calls == 1, d
 

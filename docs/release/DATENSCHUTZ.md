@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 03.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 05.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -9,9 +9,10 @@ eingeschaltet hast.
 
 ## 1. Das Wichtigste in Kürze
 
-- **Ohne StudiNow-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts – außer dem, was du
-  auf dem iPad bewusst mit anderen teilst: Community-Beiträge, gemeinsame Wochentests und Einträge der Bibliothek liegen
-  verschlüsselt in Apples iCloud (Abschnitt 8b).
+- **Ohne StudiNow-Konto** (iPad-App) bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts – außer
+  dem, was du auf dem iPad bewusst mit anderen teilst: Community-Beiträge, gemeinsame Wochentests und Einträge der
+  Bibliothek liegen verschlüsselt in Apples iCloud (Abschnitt 8b). Die Web-Oberfläche und die Windows-App brauchen
+  seit dem 05.11.2026 immer ein StudiNow-Konto (Abschnitt 5).
 - **Mit StudiNow-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
   und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
   schaltest du einzeln ein (Abschnitte 6–8).
@@ -24,7 +25,7 @@ eingeschaltet hast.
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:
   - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
   - Du nutzt im Tarif **Pro AI** die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
-    von drei Auftragsverarbeitern weiter: Scaleway (Paris), Amazon Web Services (Frankfurt) oder OpenAI.
+    von zwei Auftragsverarbeitern weiter: OpenAI oder Amazon Web Services (Frankfurt).
 
 ## 2. Verantwortlicher
 
@@ -93,7 +94,17 @@ Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von StudiNow); für die Schutzmaßnahmen gegen
 Missbrauch Art. 6 Abs. 1 lit. f DSGVO (unser Interesse an einem sicheren Dienst). Ohne diese Daten können wir kein
-Konto führen. Du kannst StudiNow auch ohne Konto nutzen (Abschnitt 3).
+Konto führen. In der iPad-App kannst du StudiNow auch ohne Konto nutzen (Abschnitt 3). Die Web-Oberfläche und die
+Windows-App brauchen immer ein StudiNow-Konto; ohne aktives Abo (nach der Probe) kannst du dort deine Daten nur
+ansehen und exportieren, gelöscht wird dadurch nichts.
+
+**Windows-App:** Du meldest dich mit E-Mail und Passwort deines StudiNow-Kontos an oder über deinen Browser („Mit
+Apple anmelden“, „Mit Google anmelden“, Konto anlegen; die Anmeldung läuft dann auf der Anmeldeseite des Dienstes und
+wird mit einem Einmal-Code an die App auf deinem PC übergeben). Dein Passwort geht dabei nur einmal verschlüsselt an den
+Dienst und wird auf dem PC nicht gespeichert. Auf dem PC liegen nur ein Sitzungsschlüssel in der
+Windows-Anmeldeinformationsverwaltung (du löschst ihn mit „Abmelden“) und der zuletzt abgerufene Abo-Stand (Tarif,
+Probe, Ablauf), damit die App bis zu 7 Tage ohne Internet weiter funktioniert. Beim Abruf erfährt der Dienst, dass die
+Anfrage von der Windows-App kommt.
 
 ## 6. Hochschul-Zugangsdaten im Konto und automatischer Abgleich
 
@@ -146,7 +157,7 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
   Module, Stundenplan-Anpassungen, Lernkalender, Karteikarten und Einstellungen mit deinem Konto im Dienst ab (wie
   in Abschnitt 7 beschrieben). Hochschuldateien selbst lädt jedes Gerät von der Hochschule; zu Notizen speichert der
   Dienst nur Name und Kurs der Datei. Abschalten: Community → StudiNow-Konto → „Mit dem iPad abgleichen“.
-- **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem StudiNow-Konto an. Dein
+- **Windows-App:** Die Windows-App ist immer mit deinem StudiNow-Konto angemeldet (Abschnitt 5). Dein
   StudiNow-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
   Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs
   aus deinem Hochschul-Abgleich, nie die Dateien. Lösungen werden auf deinem PC ver- und entschlüsselt.
@@ -267,22 +278,20 @@ ohne sie funktioniert StudiNow genauso.
 
   Nie gesendet werden dein Name, deine E-Mail-Adresse, Zugangsdaten, Hochschul-Sitzungen und Noten. OpenAI erhält zur
   Missbrauchserkennung eine nicht umkehrbare Kennung deines Kontos, nicht die Konto-ID.
-- **Wohin:** Der Dienst gibt jede Anfrage an **einen** von drei Auftragsverarbeitern weiter. Welcher es ist, hängt von
-  der Aufgabe ab (einfache Aufgaben an günstige Modelle, schwere an Claude), bei einer Störung auch vom Ersatz:
-  - **Scaleway SAS** (Paris, Frankreich): Modell „DeepSeek“ in einem Rechenzentrum in Paris. Laut Scaleway werden
-    Anfragen nicht gespeichert und nicht zum Training verwendet; bei Fehlern oder Verdacht auf Missbrauch bis zu zwei
-    Wochen. Die Firma DeepSeek und ihre Server in China erhalten **keine** Daten.
-  - **Amazon Web Services EMEA SARL** (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
-    Modell „Claude Sonnet“ von Anthropic.
+- **Wohin:** Der Dienst gibt jede Anfrage an **einen** von zwei Auftragsverarbeitern weiter. Welcher es ist, hängt von
+  der Aufgabe ab (die meisten Aufgaben an ChatGPT, schwere wie Rechnen, Herleiten oder das Prüfen einer Lösung an
+  Claude), bei einer Störung auch vom Ersatz:
   - **OpenAI**: ChatGPT-Modelle. Die Verarbeitung findet in den USA statt (siehe Abschnitt 12), bis unser Projekt mit
     Datenresidenz in der EU freigeschaltet ist; dann ändern wir diesen Satz.
+  - **Amazon Web Services EMEA SARL** (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
+    Modell „Claude Sonnet“ von Anthropic.
 - **Was StudiNow speichert:**
   - je Anfrage Zeitpunkt, Zweck, Modell, Anzahl der Tokens und Kosten (für Credits und Budget);
   - die Antwort 24 Stunden lang, damit eine wiederholte Anfrage nicht doppelt kostet;
   - Antworten ohne eigene Notizen bis zu 30 Tage ohne Bezug zu deinem Konto, damit eine gleiche Anfrage sofort
     beantwortet wird;
   - Erklärungen ganzer Dokumente ohne Namen, für alle mit derselben Datei.
-- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO, weil du die KI-Funktion deines Tarifs nutzt. Mit allen drei
+- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO, weil du die KI-Funktion deines Tarifs nutzt. Mit beiden
   Anbietern besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO; sie dürfen die Daten nur für uns
   verarbeiten.
 
@@ -293,6 +302,14 @@ Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach
 erhalten keine Zahlungsdaten, sondern nur die Information, dass und wie lange ein Abo besteht (Transaktions- und
 Produktkennung), um Plus freizuschalten. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
+
+**Web und Windows (Entwurf, vor Veröffentlichung rechtlich prüfen):** Dort schließt du ein Abo – sobald wir den
+Abschluss eingerichtet haben – über den Zahlungsdienstleister Stripe ab (Stripe Payments Europe, Ltd., Irland; eigener
+Verantwortlicher für die Zahlungsabwicklung). Die Windows-App öffnet dafür die Bezahlseite von Stripe in deinem
+Browser. Wir übermitteln Stripe deine E-Mail-Adresse, eine Kundenkennung und den gewählten Tarif; Zahlungsdaten gibst
+du nur bei Stripe ein, wir erhalten sie nicht. Von Stripe erhalten wir Kunden- und Abo-Kennung, Tarif, Status und
+Laufzeit, um das Abo freizuschalten; Kündigen und Wechseln geht im Kundenportal von Stripe. Hast du schon ein Abo über
+Apple, bietet die App keinen zweiten Kauf an.
 
 ## 10. Web-Oberfläche, Cookies und Server-Protokolle
 
@@ -314,9 +331,9 @@ Art. 6 Abs. 1 lit. b DSGVO.
 
 Der Dienst läuft bei [[Hoster]], Serverstandort [[Serverstandort]], auf Grundlage eines Vertrags zur
 Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
-[[Mail-Anbieter]] in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind **Scaleway SAS** (Paris, Frankreich),
-**Amazon Web Services EMEA SARL** (Amazon Bedrock, Region Frankfurt) und **OpenAI** Auftragsverarbeiter, jeweils mit
-einem Vertrag nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
+STRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland) in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind **OpenAI** und
+**Amazon Web Services EMEA SARL** (Amazon Bedrock, Region Frankfurt) Auftragsverarbeiter, jeweils mit einem Vertrag
+nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
 
 ## 12. Empfänger und Übermittlung in Drittländer
 
@@ -327,12 +344,15 @@ einem Vertrag nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
   Einträge der Bibliothek der iPad-App (Abschnitt 8b), verschlüsselt und nur mit der CloudKit-Nutzerkennung; die
   Datenbank stellt Apple im Rahmen des Apple Developer Program bereit (Rechenzentren auch in den USA, EU-US Data
   Privacy Framework bzw. Standardvertragsklauseln).
+- **Stripe** (Abschnitt 9) erhält beim Abschluss im Web oder unter Windows E-Mail-Adresse, Kundenkennung und Tarif;
+  eigener Verantwortlicher für die Zahlung. Eine Übermittlung in die USA durch Stripe stützt sich auf das EU-US Data
+  Privacy Framework bzw. die Standardvertragsklauseln von Stripe.
 - **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4).
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
   OpenAI.
 - **StudiNow-KI (Abschnitt 8c):**
-  - Scaleway und Amazon Web Services verarbeiten in der EU.
+  - Amazon Web Services verarbeitet in der EU (Frankfurt).
   - OpenAI verarbeitet als unser Auftragsverarbeiter in den USA. Die Übermittlung stützt sich auf das EU-US Data
     Privacy Framework bzw. die Standardvertragsklauseln im Vertrag mit OpenAI.
 - Sonst geben wir keine Daten weiter – nicht an Werbenetzwerke, nicht an Analyse-Dienste, nicht an Dritte zum

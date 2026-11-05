@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from collections import Counter
 from datetime import date
@@ -57,6 +58,33 @@ NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 REGISTERED_RE = re.compile(r"^an$|angemeldet")
 PROGRAM_RE = re.compile(r"\s*\(.*$")
 DIGITS_RE = re.compile(r"[0-9]{1,3}")
+CREDITS_RE = re.compile(r"[0-9]{1,3}(?:[.,][0-9]{1,2})?")
+
+# Wahlbereiche (05.11.2026): Typ eines Bereichs aus seinem Namen (klein, Umlaute ausgeschrieben), erster Treffer zaehlt;
+# ohne Treffer aus der Art der Module (pflicht | wahlpflicht | wahl). Ein Katalog darf `type` und `group` selbst nennen.
+AREA_TYPE_RULES = (
+    ("abschluss", re.compile(r"bachelorarbeit|masterarbeit|abschlussarbeit")),
+    ("studium_generale", re.compile(r"studium generale")),
+    ("schluessel", re.compile(r"schluesselkompetenz|soft skills|zusatzkompetenz|ueberfachlich")),
+    ("praktikum", re.compile(r"betriebspraktikum|fachpraktikum|industriepraktikum|berufspraktikum|berufspraktische")),
+    ("seminar", re.compile(r"seminar|akademisches arbeiten")),
+    ("labor", re.compile(r"labor|praktikum")),
+    ("projekt", re.compile(r"projekt")),
+    ("schwerpunkt", re.compile(r"schwerpunkt|vertiefungsrichtung|studienrichtung|profilbereich")),
+    ("nebenfach", re.compile(r"nebenfach|anwendungsfach")),
+    ("vertiefung", re.compile(r"vertiefung|spezialisierung")),
+)
+AREA_TYPES = {t for t, _ in AREA_TYPE_RULES} | {"pflicht", "wahlpflicht", "wahl"}
+GROUP_TYPES = ("schwerpunkt", "nebenfach")
+GROUP_LABELS = {"schwerpunkt": "Schwerpunkt", "nebenfach": "Nebenfach", "vertiefungsrichtung": "Vertiefungsrichtung",
+                "studienrichtung": "Studienrichtung"}
+EARLY_TYPES = ("studium_generale", "schluessel", "seminar")
+UNIT_LP = 5
+MAX_AREA_SLOTS = 8
+MAX_UNKNOWN_SLOTS = 4
+CUSTOM_ID_RE = re.compile(r"eigen-[0-9]{1,4}")
+MAX_CUSTOM = 40
+MAX_CUSTOM_TITLE = 120
 
 
 # ----------------------------------------------------------------------------
@@ -181,6 +209,93 @@ def row_result(r: dict) -> str | None:
 
 def is_bereich(r: dict) -> bool:
     return r.get("level") == "bereich" or bool(grades_model.BEREICH_RE.match(text_of(r.get("text"))))
+
+
+def fold(text) -> str:
+    """klein, Umlaute ausgeschrieben (Bereichsnamen und Modultitel fuer die Typ-Regeln)"""
+    return text_of(text).lower().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+
+
+def area_type_of(name, kind: str, titles: list[str]) -> str:
+    """Typ eines Bereichs: aus dem Namen (AREA_TYPE_RULES), sonst aus den Modultiteln (mindestens die Haelfte nennt
+    "Seminar" bzw. "Labor"), sonst die Art (pflicht | wahlpflicht | wahl | abschluss)"""
+    f = fold(name)
+    for t, rx in AREA_TYPE_RULES:
+        if rx.search(f):
+            return t
+    if kind != "abschluss" and len(titles) >= 2:
+        for word in ("seminar", "labor"):
+            if 2 * sum(1 for x in titles if word in fold(x)) >= len(titles):
+                return word
+    return kind
+
+
+def credits_of(r: dict) -> float:
+    """LP einer QIS-Zeile ("5", "7,5"), sonst 0"""
+    s = text_of(r.get("credits")).strip()
+    return float(s.replace(",", ".")) if CREDITS_RE.fullmatch(s) else 0.0
+
+
+def _int_value(v) -> int | None:
+    """ganze Zahl (auch 5.0) oder None"""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or v in (float("inf"), float("-inf")):
+        return None
+    return int(v) if float(v) == int(v) else None
+
+
+def clean_tracks(v) -> dict:
+    """{Gruppe: Bereichs-id}, beide nicht leer, nach Gruppe sortiert"""
+    if not isinstance(v, dict):
+        return {}
+    return {k: v[k] for k in sorted(v) if isinstance(k, str) and k and isinstance(v[k], str) and v[k]}
+
+
+def clean_placements(v) -> dict:
+    """{Modul-id: Semestername ("WiSe 27/28")}, eigene Lage je Modul; nach Modul-id sortiert"""
+    if not isinstance(v, dict):
+        return {}
+    out = {}
+    for k in sorted(v):
+        t = parse_term(v[k])
+        if isinstance(k, str) and k and t is not None:
+            out[k] = term_name(t)
+    return out
+
+
+def clean_ids(v) -> list[str]:
+    """Liste von ids: Texte, nicht leer, sortiert, ohne Doppelte"""
+    return sorted({e for e in v if isinstance(e, str) and e}) if isinstance(v, list) else []
+
+
+def clean_custom(v) -> list[dict]:
+    """Eigene Eintraege (z. B. Studium generale aus einer anderen Fakultaet): {id, title, lp, area, semester};
+    Titel noetig (hoechstens 120 Zeichen), LP 0..60, Fachsemester 1..20 oder null; ids "eigen-<n>", fehlende neu"""
+    items = [c for c in v if isinstance(c, dict)] if isinstance(v, list) else []
+    rows, used = [], set()
+    for c in items:
+        title = text_of(c.get("title")).strip()[:MAX_CUSTOM_TITLE].strip()
+        if not title:
+            continue
+        lp = num(c.get("lp"))
+        lp = lp if lp is not None and 0 <= lp <= 60 else 0
+        lp = int(lp) if float(lp) == int(lp) else float(lp)
+        sem = _int_value(c.get("semester"))
+        cid = text_of(c.get("id"))
+        cid = cid if CUSTOM_ID_RE.fullmatch(cid) and cid not in used else None
+        if cid:
+            used.add(cid)
+        rows.append({"id": cid, "title": title, "lp": lp, "area": text_of(c.get("area")) or None,
+                     "semester": sem if sem is not None and 1 <= sem <= 20 else None})
+        if len(rows) >= MAX_CUSTOM:
+            break
+    n = 1
+    for r in rows:
+        if r["id"] is None:
+            while f"eigen-{n}" in used:
+                n += 1
+            r["id"] = f"eigen-{n}"
+            used.add(r["id"])
+    return rows
 
 
 # ----------------------------------------------------------------------------
@@ -316,8 +431,8 @@ def _catalog_rank(c: dict) -> tuple:
 # Plan
 # ----------------------------------------------------------------------------
 
-def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
-    """{Modul-id: [Zeilen]} und die nicht zugeordneten Texte (sortiert, ohne Doppelte)"""
+def _index(mods: list[dict]) -> tuple[dict, dict]:
+    """(Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id), jeweils das erste Modul"""
     by_code: dict[str, str] = {}
     by_key: dict[str, str] = {}
     for m in mods:
@@ -327,15 +442,24 @@ def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
         k = name_key(m.get("title"))
         if k and k not in by_key:
             by_key[k] = m["id"]
+    return by_code, by_key
+
+
+def _row_module(r: dict, by_code: dict, by_key: dict) -> str | None:
+    nr = text_of(r.get("pruefungsnr")).strip()
+    mid = by_code.get(nr) if nr else None
+    return mid if mid is not None else by_key.get(name_key(r.get("text")))
+
+
+def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
+    """{Modul-id: [Zeilen]} und die nicht zugeordneten Texte (sortiert, ohne Doppelte)"""
+    by_code, by_key = _index(mods)
     hist: dict[str, list[dict]] = {}
     unmatched: set[str] = set()
     for r in grades:
         if not isinstance(r, dict) or is_bereich(r):
             continue
-        nr = text_of(r.get("pruefungsnr")).strip()
-        mid = by_code.get(nr) if nr else None
-        if mid is None:
-            mid = by_key.get(name_key(r.get("text")))
+        mid = _row_module(r, by_code, by_key)
         if mid is None:
             if text_of(r.get("text")).strip():
                 unmatched.add(text_of(r.get("text")).strip())
@@ -382,12 +506,94 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
 
     el = settings.get("electives")
     chosen = [e for e in el if isinstance(e, str)] if isinstance(el, list) else []
-    included = [m["id"] for m in mods
-                if text_of(m.get("kind")) not in ELECTIVE_KINDS or m["id"] in chosen or m["id"] in hist]
 
     def sem_of(m: dict) -> int | None:
         s = num(m.get("semester"))
         return int(s) if s is not None and s >= 1 else None
+
+    # Bereiche (Wahlbereiche, 05.11.2026): Mitglieder aus module.area und `areas[].modules` (ein Modul kann in mehreren
+    # Bereichen waehlbar sein), Art aus den Modulen, Typ aus dem Namen, Gruppen fuer Schwerpunkt/Nebenfach (eins waehlen)
+    area_list: list[dict] = []
+    area_by: dict[str, dict] = {}
+    for a in catalog.get("areas") or []:
+        if isinstance(a, dict) and isinstance(a.get("id"), str) and a["id"] and a["id"] not in area_by:
+            area_by[a["id"]] = a
+            area_list.append(a)
+    members: dict[str, list[str]] = {}
+    for a in area_list:
+        listed = {x for x in a.get("modules") or [] if isinstance(x, str)} if isinstance(a.get("modules"), list) else set()
+        members[a["id"]] = [m["id"] for m in mods if m.get("area") == a["id"] or m["id"] in listed]
+    member_sets = {aid: set(ids) for aid, ids in members.items()}
+    mem_of: dict[str, list[str]] = {}
+    for m in mods:
+        prim = m.get("area") if isinstance(m.get("area"), str) and m.get("area") in area_by else None
+        mem_of[m["id"]] = ([prim] if prim else []) + [a["id"] for a in area_list
+                                                       if a["id"] != prim and m["id"] in member_sets[a["id"]]]
+    akind: dict[str, str] = {}
+    atype: dict[str, str] = {}
+    for a in area_list:
+        aid = a["id"]
+        kinds = [text_of(by_id[i].get("kind")) for i in members[aid]]
+        if text_of(a.get("kind")) == "abschluss" or (kinds and all(k == "abschluss" for k in kinds)):
+            k = "abschluss"
+        elif "wahlpflicht" in kinds:
+            k = "wahlpflicht"
+        elif "wahl" in kinds:
+            k = "wahl"
+        elif kinds:
+            k = "pflicht" if num(a.get("lp_max")) is None else "wahlpflicht"
+        else:
+            k = text_of(a.get("kind")) if text_of(a.get("kind")) in ("pflicht", "wahlpflicht", "wahl") else "pflicht"
+        akind[aid] = k
+        t = text_of(a.get("type"))
+        atype[aid] = t if t in AREA_TYPES else area_type_of(a.get("name"), k,
+                                                            [text_of(by_id[i].get("title")) for i in members[aid]])
+    groups: dict[str, list[str]] = {}
+    for a in area_list:
+        g = text_of(a.get("group")) or (atype[a["id"]] if atype[a["id"]] in GROUP_TYPES else "")
+        if g:
+            groups.setdefault(g, []).append(a["id"])
+    groups = {g: ids for g, ids in groups.items() if len(ids) >= 2}
+    group_of = {aid: g for g, ids in groups.items() for aid in ids}
+    # gewaehlter Schwerpunkt je Gruppe: Einstellung, sonst der mit den meisten LP bestandener/angemeldeter Module
+    wanted = clean_tracks(settings.get("tracks"))
+    track: dict[str, str] = {}
+    track_auto: dict[str, bool] = {}
+    for g, ids in groups.items():
+        if wanted.get(g) in ids:
+            track[g], track_auto[g] = wanted[g], False
+            continue
+        best, score = None, 0
+        for aid in ids:
+            sc = sum(lp_of(by_id[i]) for i in members[aid] if by_id[i].get("area") == aid
+                     and any(row_result(r) in ("passed", "registered") for r in hist.get(i, [])))
+            if sc > score:
+                best, score = aid, sc
+        if best is not None:
+            track[g], track_auto[g] = best, True
+    active = {a["id"] for a in area_list if a["id"] not in group_of or track.get(group_of[a["id"]]) == a["id"]}
+    choice = [a["id"] for a in area_list
+              if a["id"] in active and akind[a["id"]] in ELECTIVE_KINDS and atype[a["id"]] != "abschluss"]
+
+    # Module im Plan: Pflicht, gewaehlte Wahlmodule und alles aus QIS. "Nicht belegen" (05.11.2026) nimmt ein Modul heraus
+    # (ausser QIS kennt es); Pflichtmodule eines nicht gewaehlten Schwerpunkts fehlen ebenso
+    excluded = set(clean_ids(settings.get("excluded")))
+
+    def in_plan(m: dict) -> bool:
+        if m["id"] in hist:
+            return True
+        if m["id"] in excluded:
+            return False
+        if text_of(m.get("kind")) in ELECTIVE_KINDS:
+            return m["id"] in chosen
+        prim = m.get("area")
+        return m["id"] in chosen or not (isinstance(prim, str) and prim in group_of and prim not in active)
+
+    included = [m["id"] for m in mods if in_plan(m)]
+    # eigene Lage je Modul (verschoben, vorgezogen, auf einen Platz gewaehlt): Semester als Zahl; Bestandenes bleibt
+    # im Semester aus QIS
+    placed = {k: parse_term(v) for k, v in clean_placements(settings.get("placements")).items()
+              if k in included and not any(row_result(r) == "passed" for r in hist.get(k, []))}
 
     # Plaetze fuer Wahlmodule laut Studienverlaufsplan (`plan_slots`): gewaehlte Wahl(pflicht)module ohne Fachsemester
     # belegen der Reihe nach den ersten freien Platz ihres Bereichs (leere Bereichsliste = jeder); Module mit
@@ -396,11 +602,22 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
              if isinstance(s, dict) and isinstance(num(s.get("semester")), int) and num(s.get("semester")) >= 1]
     slot_sem: dict[str, int] = {}
     taken: set[int] = set()
-    elect = [i for i in included if text_of(by_id[i].get("kind")) in ELECTIVE_KINDS and sem_of(by_id[i]) is None]
+
+    def fits_slot(mid: str, s: dict) -> bool:
+        areas = s.get("areas") if isinstance(s.get("areas"), list) else []
+        return not areas or any(a in areas for a in mem_of[mid])
+
+    for mid in included:                                        # eigener Platz: belegt einen Platz in dem Semester
+        if mid in placed:
+            for k, s in enumerate(slots):
+                if k not in taken and start + int(num(s["semester"])) - 1 == placed[mid] and fits_slot(mid, s):
+                    taken.add(k)
+                    break
+    elect = [i for i in included if text_of(by_id[i].get("kind")) in ELECTIVE_KINDS and sem_of(by_id[i]) is None
+             and i not in placed]
     for mid in [i for i in elect if i in hist] + [i for i in elect if i not in hist]:
         for k, s in enumerate(slots):
-            areas = s.get("areas") if isinstance(s.get("areas"), list) else []
-            if k not in taken and (not areas or by_id[mid].get("area") in areas):
+            if k not in taken and fits_slot(mid, s):
                 taken.add(k)
                 slot_sem[mid] = int(num(s["semester"]))
                 break
@@ -413,9 +630,10 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         passed = [r for r in rows if row_result(r) == "passed"]
         registered = [r for r in rows if row_result(r) == "registered"]
         st = {"status": None, "term": None, "attempt": None, "grade": None, "moved_from": None, "reason": None,
-              "failed": failed_n, "final": final}
+              "failed": failed_n, "final": final, "placed": False}
         sem = sem_of(m) or slot_sem.get(mid)
         rec = start + sem - 1 if sem else None
+        own = placed.get(mid)
         if passed:
             best = passed[0]
             for r in passed[1:]:
@@ -435,6 +653,13 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
             st.update(status="nicht_bestanden", term=next_fit(begin, turnus), attempt=failed_n,
                       moved_from=term_name(last_fail) if last_fail is not None else None,
                       reason="Nicht bestanden – nächster Versuch")
+            if own is not None and own >= begin:
+                st.update(term=own, placed=True)
+        elif own is not None:
+            st.update(status="plan", term=own, placed=True)
+            if own < lower:
+                st.update(term=next_fit(lower, turnus), placed=False, moved_from=term_name(own),
+                          reason="Noch nicht abgelegt – nachholen")
         elif rec is not None:
             t = next_fit(max(rec, start), turnus)
             st.update(status="plan", term=t)
@@ -474,7 +699,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
             changed = False
             for mid in included:
                 st = state[mid]
-                if st["status"] not in ("plan", "nicht_bestanden"):
+                if st["status"] not in ("plan", "nicht_bestanden") or st["placed"]:
                     continue
                 need, need_id = None, None
                 for p in prereqs(by_id[mid]):
@@ -495,7 +720,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     while included and t <= max(state[i]["term"] for i in included):
         while load(t) > CAP_LP:
             cands = [i for i in included if state[i]["term"] == t and state[i]["status"] == "plan"
-                     and text_of(by_id[i].get("kind")) in ELECTIVE_KINDS]
+                     and not state[i]["placed"] and text_of(by_id[i].get("kind")) in ELECTIVE_KINDS]
             if not cands:
                 break
             pick = cands[0]
@@ -511,15 +736,197 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         if st["status"] == "plan":
             st["status"] = "offen" if st["term"] <= current else "geplant"
 
+    # Eigene Eintraege (z. B. Studium generale einer anderen Fakultaet): Stand aus einer nicht zugeordneten QIS-Zeile
+    # mit gleichem Namensschluessel, sonst im gewaehlten Fachsemester (fruehestens jetzt)
+    by_code, by_key = _index(mods)
+    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and _row_module(r, by_code, by_key) is None]
+    custom = []
+    for c in clean_custom(settings.get("custom")):
+        key = name_key(c["title"])
+        rows = [r for r in loose if key and name_key(r.get("text")) == key]
+        passed_rows = [r for r in rows if row_result(r) == "passed"]
+        area = c["area"] if c["area"] in active else None
+        e = {"id": c["id"], "title": c["title"], "code": None, "kind": akind[area] if area else "wahl", "area": area,
+             "lp": c["lp"], "semester": c["semester"], "turnus": None, "status": None, "attempt": None, "grade": None,
+             "moved_from": None, "reason": None, "last_attempt": False, "placed": False, "hints": [], "custom": True}
+        if passed_rows:
+            best = passed_rows[0]
+            for r in passed_rows[1:]:
+                if (parse_term(r.get("semester")) or -1) >= (parse_term(best.get("semester")) or -1):
+                    best = r
+            t = parse_term(best.get("semester"))
+            e.update(status="bestanden", grade=text_of(best.get("note")).strip() or None)
+            t = max(t if t is not None else current, start)
+        elif any(row_result(r) == "registered" for r in rows):
+            t = current
+            e["status"] = "angemeldet"
+        else:
+            t = max(start + c["semester"] - 1 if c["semester"] else lower, lower)
+            e["status"] = "offen" if t <= current else "geplant"
+        custom.append((t, e))
+
+    # Stand je Bereich: jedes Modul zaehlt einmal, im eigenen Bereich, sonst im ersten aktiven Bereich mit Platz
+    target: dict[str, float | None] = {}
+    for a in area_list:
+        req, mx = num(a.get("lp_required")), num(a.get("lp_max"))
+        target[a["id"]] = req if req and req > 0 else (mx if a["id"] in group_of and a["id"] in active and mx else None)
+    used = {aid: 0 for aid in area_by}
+    done = {aid: 0 for aid in area_by}
+    counted: dict[str, list[str]] = {aid: [] for aid in area_by}
+    n_done = {aid: 0 for aid in area_by}
+
+    def count(cands: list[str], ident: str, lp, passed: bool) -> None:
+        pick = next((x for x in cands if target[x] is None or used[x] < target[x]), cands[0])
+        used[pick] += lp
+        counted[pick].append(ident)
+        if passed:
+            done[pick] += lp
+            n_done[pick] += 1
+
+    for mid in included:
+        cands = [x for x in mem_of[mid] if x in active]
+        if cands:
+            count(cands, mid, lp_of(by_id[mid]), state[mid]["status"] == "bestanden")
+    for _, e in custom:
+        if e["area"]:
+            count([e["area"]], e["id"], e["lp"], e["status"] == "bestanden")
+
+    # Plaetze im Semester fuer offene Wahl: freie Plaetze laut Verlaufsplan, sonst je Bereich aus den offenen LP
+    # (bzw. Modulen), im empfohlenen Semester mit der geringsten Last; Gruppe ohne Wahl: ein Platz "... waehlen"
+    unit: dict[str, float] = {}
+    mreq: dict[str, int | None] = {}
+    for a in area_list:
+        lps = sorted(lp_of(by_id[i]) for i in members[a["id"]] if lp_of(by_id[i]) > 0)
+        unit[a["id"]] = lps[(len(lps) - 1) // 2] if lps else UNIT_LP
+        n = _int_value(a.get("modules_required"))
+        mreq[a["id"]] = n if n is not None and n >= 1 else None
+    open_lp = {aid: target[aid] - used[aid] if target[aid] is not None else None for aid in area_by}
+    open_n = {aid: mreq[aid] - len(counted[aid]) if mreq[aid] is not None else None for aid in area_by}
+    room = {aid: num(area_by[aid].get("lp_max")) - used[aid] if num(area_by[aid].get("lp_max")) else None for aid in area_by}
+    nslots = {aid: 0 for aid in area_by}
+    custom_lp: dict[int, float] = {}
+    for t, e in custom:
+        custom_lp[t] = custom_lp.get(t, 0) + e["lp"]
+    slot_lp: dict[int, float] = {}
+    places: list[tuple[int, dict]] = []
+
+    def is_open(aid: str) -> bool:
+        if open_lp[aid] is not None:
+            return open_lp[aid] > 0
+        return open_n[aid] is not None and open_n[aid] > 0
+
+    def is_unknown(aid: str) -> bool:
+        return open_lp[aid] is None and open_n[aid] is None and room[aid] is None
+
+    def term_load(t: int) -> float:
+        return load(t) + custom_lp.get(t, 0) + slot_lp.get(t, 0)
+
+    def hint_of(aids: list[str]) -> int:
+        for aid in aids:
+            h = _int_value(area_by[aid].get("semester"))
+            if h is not None and 1 <= h <= 20:
+                return h
+        sems = sorted(sem_of(by_id[i]) for aid in aids for i in members[aid] if sem_of(by_id[i]))
+        if sems:
+            return sems[(len(sems) - 1) // 2]
+        if any(atype[aid] in EARLY_TYPES for aid in aids):
+            return max(1, (regular + 1) // 2)
+        return max(1, regular - 1)
+
+    def pick_term(h: int) -> int:
+        lo = max(start + h - 1, lower)
+        best = lo
+        for t in range(lo, max(last_regular, lo) + 1):
+            if term_load(t) < term_load(best):
+                best = t
+        return best
+
+    def place(t: int, kind: str, title: str, area, areas: list[str], group, lp, lp_max, fach: int) -> None:
+        places.append((t, {"id": f"platz-{len(places) + 1}", "kind": kind, "title": title, "area": area, "areas": areas,
+                           "group": group, "type": atype[area] if area else (group or "wahl"),
+                           "area_kind": akind[area] if area else "wahlpflicht", "lp": lp, "lp_max": lp_max,
+                           "fachsemester": fach}))
+        slot_lp[t] = slot_lp.get(t, 0) + (lp or 0)
+        if area:
+            nslots[area] += 1
+
+    referenced: set[str] = set()
+    for s in slots:
+        ar = [a for a in s.get("areas") if isinstance(a, str)] if isinstance(s.get("areas"), list) else []
+        referenced |= set(ar) if ar else set(choice)
+    for k, s in enumerate(slots):
+        if k in taken:
+            continue
+        ar = [a for a in s.get("areas") if isinstance(a, str)] if isinstance(s.get("areas"), list) else []
+        cands = [a for a in ar if a in choice] if ar else list(choice)
+        # zuerst Bereiche mit offenen LP/Modulen, dann Spannen bis zur Obergrenze ("0 - 15 LP"), dann ohne Angabe
+        pick = next((a for a in cands if is_open(a)), None)
+        if pick is None:
+            pick = next((a for a in cands if room[a] is not None and room[a] > 0), None)
+        if pick is None:
+            pick = next((a for a in cands if is_unknown(a)), None)
+        if pick is None:
+            continue
+        lp = num(s.get("lp"))
+        lp = lp if lp is not None and lp > 0 else unit[pick]
+        if room[pick] is not None:
+            room[pick] -= lp
+        if open_lp[pick] is not None:
+            open_lp[pick] -= lp
+        if open_n[pick] is not None:
+            open_n[pick] -= 1
+        fach = int(num(s["semester"]))
+        place(max(start + fach - 1, lower), "slot", text_of(s.get("title")) or text_of(area_by[pick].get("name")), pick,
+              cands, None, lp, num(s.get("lp_max")), fach)
+    unknown_left = [MAX_UNKNOWN_SLOTS]
+    for aid in choice:
+        if aid in referenced:
+            continue
+        o = open_lp[aid]
+        if o is not None:
+            n = math.ceil(o / unit[aid]) if o > 0 else 0
+        elif open_n[aid] is not None:
+            n = max(0, open_n[aid])
+        elif not counted[aid] and unknown_left[0] > 0:            # ohne LP-Angabe: ein Platz, solange nichts gewaehlt
+            n = 1
+            unknown_left[0] -= 1
+        else:
+            n = 0
+        h = hint_of([aid])
+        step = unit[aid]
+        if o is not None and step < 3 and n > 1:                  # kleine Module (1-2 LP): ein Platz fuer alles
+            n, step = 1, o
+        for j in range(min(n, MAX_AREA_SLOTS)):
+            lp = min(step, o - j * step) if o is not None else step
+            place(pick_term(h), "area", text_of(area_by[aid].get("name")), aid, [aid], group_of.get(aid), lp, None, h)
+    for g, ids in groups.items():
+        if g in track:
+            continue
+        lps = []
+        for aid in ids:
+            req, mx = num(area_by[aid].get("lp_required")), num(area_by[aid].get("lp_max"))
+            v = req if req and req > 0 else mx
+            if v:
+                lps.append(v)
+        h = hint_of(ids)
+        place(pick_term(h), "track", f"{GROUP_LABELS.get(g, g)} wählen", None, list(ids), g, max(lps) if lps else None,
+              None, h)
+
     # Semesterliste
-    last = max([last_regular] + [state[i]["term"] for i in included])
+    last = max([last_regular] + [state[i]["term"] for i in included] + [t for t, _ in custom] + [t for t, _ in places])
     semesters = []
     for t in range(start, last + 1):
         ids = sorted((i for i in included if state[i]["term"] == t), key=lambda i: (sem_of(by_id[i]) or 99, order[i]))
+        mine = [e for ct, e in custom if ct == t]
+        here = [p for pt, p in places if pt == t]
         semesters.append({"term": term_name(t), "fachsemester": t - start + 1, "current": t == current,
-                          "lp": sum(lp_of(by_id[i]) for i in ids), "modules": [_entry(by_id[i], state[i]) for i in ids]})
+                          "lp": sum(lp_of(by_id[i]) for i in ids) + sum(e["lp"] for e in mine),
+                          "modules": [_entry(by_id[i], state[i], module_hints(by_id[i], state[i], state, by_id))
+                                      for i in ids] + mine,
+                          "slots": here, "lp_slots": sum(p["lp"] or 0 for p in here)})
 
-    lp_done = sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden")
+    lp_done = sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden") \
+        + sum(e["lp"] for _, e in custom if e["status"] == "bestanden")
     total = num(catalog.get("total_lp"))
     lp_total = total if total else sum(lp_of(by_id[i]) for i in included)
     lp_expected = sum(lp_of(by_id[i]) for i in included if sem_of(by_id[i]) and start + sem_of(by_id[i]) - 1 < current)
@@ -560,7 +967,22 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         st = state.get(m["id"])
         electives.append({"id": m["id"], "title": text_of(m.get("title")), "kind": m.get("kind"), "area": m.get("area"),
                           "lp": lp_of(m), "semester": sem_of(m), "chosen": m["id"] in chosen, "included": st is not None,
-                          "status": st["status"] if st else None})
+                          "status": st["status"] if st else None, "areas": mem_of[m["id"]], "turnus": m.get("turnus"),
+                          "excluded": m["id"] in excluded})
+
+    areas_out = []
+    for a in area_list:
+        aid = a["id"]
+        areas_out.append({
+            "id": aid, "name": text_of(a.get("name")), "type": atype[aid], "kind": akind[aid], "group": group_of.get(aid),
+            "active": aid in active, "choice": akind[aid] in ELECTIVE_KINDS and atype[aid] != "abschluss",
+            "lp_required": num(a.get("lp_required")), "lp_max": num(a.get("lp_max")), "target": target[aid],
+            "modules_required": mreq[aid], "lp_done": done[aid], "lp_planned": used[aid] - done[aid],
+            "lp_open": max(0, target[aid] - used[aid]) if target[aid] is not None else None,
+            "count": len(counted[aid]), "count_done": n_done[aid], "options": len(members[aid]), "chosen": counted[aid],
+            "slots": nslots[aid], "rule": text_of(a.get("rule")) or None})
+    groups_out = [{"id": g, "label": GROUP_LABELS.get(g, g), "options": ids, "chosen": track.get(g),
+                   "auto": track_auto.get(g, False)} for g, ids in groups.items()]
 
     plan = {
         "available": True, "reason": None, "message": None,
@@ -569,15 +991,40 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         "start_term": term_name(start), "current_term": term_name(current), "current_fachsemester": current - start + 1,
         "semesters": semesters, "lp_done": lp_done, "lp_total": lp_total, "lp_expected": lp_expected,
         "notes": notes, "electives": electives, "unmatched": unmatched, "disclaimer": DISCLAIMER,
+        "areas": areas_out, "groups": groups_out,
+        "excluded": [{"id": i, "title": text_of(by_id[i].get("title")), "kind": by_id[i].get("kind"), "lp": lp_of(by_id[i]),
+                      "semester": sem_of(by_id[i])} for i in by_id if i in excluded and i not in state],
+        "placements": {k: term_name(v) for k, v in placed.items()},
     }
     return {"plan": plan, "state": state, "hist": hist, "by_id": by_id, "included": included}
 
 
-def _entry(m: dict, st: dict) -> dict:
+def _entry(m: dict, st: dict, hints: list[str] | None = None) -> dict:
     return {"id": m["id"], "title": text_of(m.get("title")), "code": m.get("code"), "kind": m.get("kind"),
             "area": m.get("area"), "lp": lp_of(m), "semester": num(m.get("semester")), "turnus": m.get("turnus"),
             "status": st["status"], "attempt": st["attempt"], "grade": st["grade"],
-            "moved_from": st["moved_from"], "reason": st["reason"], "last_attempt": last_attempt(st)}
+            "moved_from": st["moved_from"], "reason": st["reason"], "last_attempt": last_attempt(st),
+            "placed": st["placed"], "hints": hints or []}
+
+
+def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
+    """Hinweise je Modul im Plan: Turnus passt nicht zum Semester (nach eigenem Verschieben), Voraussetzung nicht davor
+    oder nicht im Plan"""
+    if st["status"] == "bestanden":
+        return []
+    out = []
+    turnus = turnus_of(m.get("turnus"))
+    if not fits(st["term"], turnus):
+        out.append(f"Laut Katalog nur im {'Wintersemester' if turnus == 'WS' else 'Sommersemester'} angeboten")
+    for p in prereqs(m):
+        if p not in by_id:
+            continue
+        ps, ptitle = state.get(p), text_of(by_id[p].get("title"))
+        if ps is None:
+            out.append(f"Voraussetzung {ptitle} ist nicht im Plan")
+        elif ps["status"] != "bestanden" and ps["term"] >= st["term"]:
+            out.append(f"Voraussetzung {ptitle} liegt nicht davor")
+    return out
 
 
 def last_attempt(st: dict) -> bool:
@@ -602,7 +1049,7 @@ def unavailable(reason: str, po: str | None = None) -> dict:
     return {"available": False, "reason": reason, "message": message, "university": None, "program": None, "degree": None, "po": None,
             "code": None, "catalog_term": None, "start_term": None, "current_term": None, "current_fachsemester": None,
             "semesters": [], "lp_done": 0, "lp_total": 0, "lp_expected": 0, "notes": [], "electives": [],
-            "unmatched": [], "disclaimer": DISCLAIMER}
+            "unmatched": [], "disclaimer": DISCLAIMER, "areas": [], "groups": [], "excluded": [], "placements": {}}
 
 
 # ----------------------------------------------------------------------------
@@ -625,6 +1072,11 @@ def load_settings(conn) -> dict:
     url = clean_catalog_url(v.get("catalog_url"))
     if url:
         out["catalog_url"] = url
+    # Wahlbereiche und eigene Lage (05.11.2026): immer da, gespeichert nur, wenn nicht leer
+    out["tracks"] = clean_tracks(v.get("tracks"))
+    out["placements"] = clean_placements(v.get("placements"))
+    out["excluded"] = clean_ids(v.get("excluded"))
+    out["custom"] = clean_custom(v.get("custom"))
     return out
 
 
@@ -687,17 +1139,28 @@ def module_response(conn, module_id: str, today: str, source=None) -> dict:
         files = db.rows(conn, f"SELECT id, name, course_id, mime FROM files WHERE course_id IN ({','.join('?' * len(ids))}) "
                               "ORDER BY name, id LIMIT 200", ids)
     src = cat.get("source") if isinstance(cat.get("source"), dict) else {}
-    return {
+    texts = source.module_text(cat, module_id)
+    loading = False
+    if texts is None and isinstance(source, DbCatalogSource):
+        # Katalog aus Grundstock ohne lokale Texte: im Hintergrund nachladen (einmal je Katalog, nur am eigenen PC)
+        from . import study_catalog as sc
+        key = sc.catalog_key(cat)
+        if sc.AUTO_SYNC and sc.texts_wanted(conn, key):
+            loading = sc.start_texts(key)
+    out = {
         "available": True, "id": module_id, "title": text_of(m.get("title")), "code": m.get("code"),
         "area": m.get("area"), "area_name": area.get("name") if area else None,
         "kind": m.get("kind"), "lp": lp_of(m), "semester": num(m.get("semester")), "turnus": m.get("turnus"),
         "exam": m.get("exam"), "coursework": m.get("coursework"), "language": m.get("language"),
         "workload_h": num(m.get("workload_h")), "prerequisites": pre, "required_for": required_for,
-        "texts": source.module_text(cat, module_id), "own": own, "app_modules": app_modules, "courses": courses,
+        "texts": texts, "own": own, "app_modules": app_modules, "courses": courses,
         "files": files, "source": {"url": src.get("url"), "page": num(m.get("source_page"))},
         "program": cat.get("program"), "po": cat.get("po"), "catalog_term": cat.get("catalog_term"),
         "disclaimer": DISCLAIMER,
     }
+    if loading:
+        out["texts_loading"] = True
+    return out
 
 
 def py_str(v) -> str:
@@ -773,9 +1236,35 @@ def save_settings(conn, body: dict, today: str, source=None) -> dict:
             s["catalog_url"] = url
         else:
             s.pop("catalog_url", None)
+    if "tracks" in body:
+        v = body["tracks"]
+        if v is not None and (not isinstance(v, dict) or not all(isinstance(x, str) for x in v.values())):
+            raise HTTPException(400, "tracks muss ein Objekt {Gruppe: Bereich} sein")
+        s["tracks"] = clean_tracks(v)
+    if "placements" in body:
+        v = body["placements"]
+        if v is not None and (not isinstance(v, dict) or not all(isinstance(x, str) or x is None for x in v.values())):
+            raise HTTPException(400, "placements muss ein Objekt {Modul: Semester} sein")
+        for k, x in (v or {}).items():
+            if isinstance(x, str) and x.strip() and parse_term(x) is None:
+                raise HTTPException(400, f"Unbekanntes Semester: {x.strip()}")
+        s["placements"] = clean_placements(v)
+    if "excluded" in body:
+        v = body["excluded"]
+        if v is not None and (not isinstance(v, list) or not all(isinstance(e, str) for e in v)):
+            raise HTTPException(400, "excluded muss eine Liste von Modul-ids sein")
+        s["excluded"] = clean_ids(v)
+    if "custom" in body:
+        v = body["custom"]
+        if v is not None and (not isinstance(v, list) or not all(isinstance(c, dict) for c in v)):
+            raise HTTPException(400, "custom muss eine Liste von Eintraegen sein")
+        s["custom"] = clean_custom(v)
     stored = {"po": s["po"], "start_term": s["start_term"], "electives": s["electives"]}
     if s.get("catalog_url"):
         stored["catalog_url"] = s["catalog_url"]
+    for k in ("tracks", "placements", "excluded", "custom"):
+        if s.get(k):
+            stored[k] = s[k]
     db.set_setting(conn, SETTINGS_KEY, stored)
     return settings_response(conn, today, source)
 

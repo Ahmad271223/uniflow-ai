@@ -54,10 +54,13 @@ Serverseitig (`app/entitlements.py`): Der Tarif kommt immer aus der Datenbank, n
 | `POST /api/ai/tutor` im Dienst (je Modus) | `can_use_ai_explanations`, `…_summaries`, `…_generated_questions` |
 
 Antwort ohne Recht: `403 {"code": "plan_required", "entitlement", "required_plan"}`. Kontingent leer:
-`429 {"code": "quota_exhausted", "feature", "used", "limit"}`. **Einzelplatz (eigener PC, Windows-App):** keine
-Konten, keine Tarife, alles frei; die KI läuft dort weiter über `claude -p`.
+`429 {"code": "quota_exhausted", "feature", "used", "limit"}`. Ohne aktives Abo in Web und Windows (Abschnitt 3d):
+`402 {"code": "subscription_required"}` für jedes Schreiben außer Konto und Abo. **Windows-App (seit 05.11.2026):**
+Tarif aus dem StudiNow-Konto (Quelle „account“, Abschnitt 3d). **Einzelplatz ohne Konto-Pflicht** (`serve.py` in der
+Entwicklung): keine Konten, keine Tarife, alles frei; die KI läuft dort weiter über `claude -p`.
 
-Web/Windows: `state.entitlements` aus `GET /api/entitlements`, `can(name)` in `core.js`; der Editor öffnet ohne
+Web/Windows: `state.entitlements` aus `GET /api/entitlements`, `can(name)` in `core.js` (gilt im Dienst und in der
+Windows-App mit Konto-Pflicht, `state.gated`); der Editor öffnet ohne
 `can_annotate_pdf` im Nur-Lesen-Modus (Werkzeuge aus, Hinweis mit Link auf die Abo-Seite). Seite `#/abo`, auch unter
 Einstellungen → Abo & Tarife.
 
@@ -83,8 +86,9 @@ Feld `users.plan`). Es gilt der höchste aktive Tarif.
   Eine `originalTransactionId` gehört genau einem Konto (`409 subscription_owned_by_other_account`).
 - Daten bleiben bei Kündigung und Ablauf: Notizen lesbar und exportierbar, nur Speichern wird gesperrt.
 
-**Web, Windows, Android:** kein Zahlungsweg vorhanden (kein Zahlungsanbieter eingerichtet). `GET /api/billing/plans`
-meldet `purchase.web.available = false`; ein Abo aus der Apple-App gilt automatisch auf allen Geräten desselben Kontos.
+**Web, Windows, Android:** Web und Windows schließen über Stripe ab (Abschnitte 3a und 3d), sobald Schlüssel und Preise im
+Dienst eingerichtet sind; bis dahin meldet `GET /api/billing/plans` `purchase.web.available = false`. Android: kein
+Zahlungsweg. Ein Abo aus der Apple-App gilt automatisch auf allen Geräten desselben Kontos.
 
 ## 3a. Probe und Stripe (30.10.2026)
 
@@ -163,6 +167,120 @@ Zahlungsdaten, einmal je Apple-ID, danach automatisch Free – nur dass das iPad
 - Berechtigung `com.apple.developer.ubiquity-kvstore-identifier` steht in `UniFlow.entitlements` (04.11.2026; mit
   Personal Team oder im Simulator zählt nur der Schlüsselbund).
 - **Offen (Inhaber):** Produkte in App Store Connect ohne Einführungsangebot, Pro AI erst mit dem Dienst.
+
+## 3c. Tarifseite in Web und Windows (05.11.2026)
+
+Angleichung an das iPad (3b), nur Oberfläche und Texte (`app/static/views-abo.js`, Tests `tests/test_web_abo.py`,
+`tests/test_tarife_texte.py`); die Rechte kommen weiter aus `app/plans.py`.
+
+- **Drei Karten** Free, Plus, Pro AI aus `GET /api/billing/plans` (`contract.order`); Pro Connect erscheint nirgends.
+  Kein Einführungsangebot, kein „1 Woche gratis“; die Probe heißt „alles wie Pro AI, ohne Zahlungsdaten, danach Free,
+  Daten bleiben“.
+- **Dienst (Web):** „Abschließen“ über Stripe nur an Plus und Pro AI (`purchase.web.plans`), nie an Free; ohne Stripe der
+  Hinweis auf die Apple-App. **Während der Probe** ist kein Tarif „Dein Tarif“ (wie `purchasedPlan` auf dem iPad): die Karte
+  Pro AI trägt „Probe läuft“ und bleibt kaufbar, Kopf „Probe: alles wie StudiNow Pro AI“. Nach der Probe ist Free der Stand,
+  dazu „Deine Probe ist vorbei“ mit „Bei Free bleiben“.
+- **Eigener PC ohne Konto-Pflicht (Einzelplatz, `mode: local`, nur noch `serve.py` in der Entwicklung):** keine Kaufwege
+  und kein Link zu einem Bezahlsystem. Pro AI steht ohne Preis als „kommt mit dem StudiNow-Dienst“, ohne Knopf; Plus zeigt
+  seinen Preis ohne Knopf. **Die Windows-App hat seit 05.11.2026 die Konto- und Abo-Pflicht (Abschnitt 3d, `mode:
+  account`)** und schließt über Stripe im Systembrowser ab.
+- Hinweis beim Geräte-Abgleich der Windows-App (`studora-link.js`): Notizen gleichen erst mit Pro AI zwischen den Geräten ab
+  (Plus gilt je Gerät), vorher stand dort „ab Plus“.
+
+## 3d. Konto- und Abo-Pflicht in Windows und Web (05.11.2026)
+
+Entscheidung des Inhabers, Wortlaut: „anmelden immer muss ohne abo geht nichts baue das ein“. **Auslegung des
+Koordinators:** In der Windows-App und in der Web-App des Dienstes (dieselbe Oberfläche) ist die Anmeldung mit dem
+StudiNow-Konto immer Pflicht, und ohne aktives Abo geht nichts. Neue Konten haben die 7-Tage-Probe (wie Pro AI, wie
+bisher). Nach der Probe ohne Plus oder Pro AI: nur die Abo-Seite („Abo wählen“) und die eigenen Daten zum Ansehen und
+Exportieren (nur lesen); Daten werden nie gelöscht (Entscheidung „Daten bleiben“). Die iPad-App behält ihren
+Free-Tarif unverändert (keine Swift-Änderung). Entscheidung im Wortlaut: `docs/ENTSCHEIDUNGEN-INHABER-2026-11-04.md`.
+
+**Zustände** (`app/access.py`, Windows zusätzlich `app/account_mode.py`):
+
+| Zustand | Windows-App | Web (Dienst) | Server |
+|---|---|---|---|
+| `signed_out` (kein Token) | nur Anmeldebildschirm | `/login` (wie bisher) | Windows lokal: jede `/api`-Anfrage außer Anmelden/Stand 401 `account_required`; Dienst 401 `unauthenticated` |
+| `trial` (Probe läuft) | alles wie Pro AI, Leiste „Probe: noch N Tage alles wie StudiNow Pro AI“ mit „Abo wählen“ | ebenso | alles erlaubt |
+| `active` (Plus/Pro AI aus App Store, Stripe oder Betrieb) | Rechte des Tarifs | ebenso | Rechte des Tarifs (`plans.py`) |
+| `subscription_required` (Probe vorbei, kein Abo) | Start auf der Abo-Seite: „Kein aktives Abo“, „Meine Daten ansehen“ (nur lesen), „Meine Daten exportieren“ (ZIP der Daten dieses PCs); Leiste „Nur lesen“ über jeder Seite; Editor im Nur-Lesen-Modus | ebenso; Export = DSGVO-Export des Kontos | Lesen (GET) erlaubt; Schreiben 402 `subscription_required` außer `/api/account/*`, `/api/billing/*`, `/api/app-login/*` (Windows lokal zusätzlich `/api/app-account/*`, `/api/desktop/*`, Abmelden, „Hochschul-Konto entfernen“) |
+| `unverified` (nur Windows: Abo seit mehr als 7 Tagen nicht prüfbar, oder Uhr zurückgestellt) | wie `subscription_required`, Text „Verbinde den PC kurz mit dem Internet“, Knopf „Erneut prüfen“ | – | 402 `subscription_unverified` |
+
+Konten mit Rolle `admin` sind ausgenommen. „Bei Free bleiben“ und die Aufforderung nach der Probe gibt es in Web und
+Windows nicht mehr (`trial-hint.js`, `planChoicePrompt` nur ohne Pflicht).
+
+**Client-Art im Dienst** (`access.client_type`): Anfrage nur mit Sitzungs-Cookie → `web`; `Authorization: Bearer` mit
+`X-StudiNow-Client: windows` bzw. `web` → `windows` bzw. `web`; jede andere Bearer-Anfrage → `app` (iPad, Android): der
+Vertrag bleibt unverändert, Free bleibt Free. **Fälschen bringt nichts:** Wer die Kopfzeile weglässt oder „ipad“
+schickt, bekommt genau die Rechte seines Tarifs aus der Datenbank wie auf dem iPad (ohne Abo also Free, nie mehr); die
+Pflicht entscheidet nur, ob ein Konto ohne Abo schreiben darf. `GET /api/entitlements` liefert zusätzlich `access`
+(`client`, `account_required`, `state`, `locked`, `read_only`, `trial_days_left`, `trial_ends_at`, `message`),
+`paid_plan` (Tarif ohne Probe) und `subscriptions` (`app_store`, `stripe`: aktives Abo je Quelle); alle anderen Felder
+wie bisher.
+
+**Windows: Anmeldung.** Dienstadresse fest `https://app.studinow.app` (`service_link.DEFAULT_SERVICE_URL`,
+überschreibbar mit `LERNAPP_SERVICE_URL`). Zwei Wege:
+- E-Mail und Passwort im Anmeldebildschirm: einmal über den lokalen Server an `POST /api/account/login`.
+- „Mit Apple anmelden“, „Mit Google anmelden“, „Konto anlegen“, „Passwort vergessen?“: im **Systembrowser** (nicht im
+  App-Fenster: Google sperrt eingebettete Browser). Ablauf wie OAuth für native Apps (RFC 8252) mit Loopback und PKCE
+  S256: `POST /api/app-account/browser-login` öffnet `{dienst}/login?app=windows&redirect_uri=http://127.0.0.1:<port>/konto/rueckkehr&state=…&code_challenge=…`;
+  die Anmeldeseite (`login.js`) meldet an (Passwort, Apple, Google, Registrieren – alles, was sie kann; ist im Browser
+  schon jemand angemeldet, fragt sie „Weiter“ / „Anderes Konto“), holt mit der Browser-Sitzung
+  `POST /api/app-login/code` (Einmal-Code, 2 Minuten, nur als SHA-256 gespeichert, an Konto, Challenge und Rückleitung
+  gebunden) und leitet auf den PC zurück. `GET /konto/rueckkehr` prüft `state` und tauscht den Code mit dem Verifier über
+  `POST /api/app-login/token` (öffentlich, jeder Versuch verbraucht den Code) gegen eine eigene Sitzung des Geräts
+  „StudiNow für Windows“. Rückleitungen nur auf `http://127.0.0.1|localhost|[::1]:<port>/konto/rueckkehr`.
+
+**Windows: Ablage des Tokens.** Nur das Sitzungs-Token des Dienstes (30 Tage gleitend, jede Nutzung verlängert es; es ist
+damit auch das Erneuerungs-Token), nie das Passwort, in der **Windows-Anmeldeinformationsverwaltung** (`app/token_store.py`:
+`CredWriteW`/`CredReadW`/`CredDeleteW` über ctypes, Typ generisch, Ziel `StudiNow/dienst-sitzung`,
+`CRED_PERSIST_LOCAL_MACHINE`). Begründung Python statt Tauri: Das Token braucht nur der lokale Python-Server, das
+Fenster sieht es nie; ctypes braucht keine neue Abhängigkeit (das Paket `keyring` bräuchte pywin32-ctypes und versteckte
+Importe für PyInstaller) und keine Rust-Änderung. Versagt die Ablage, gilt das Token nur bis zum Beenden im Speicher.
+Ein Token aus `service-account.json` (bis 0.5) zieht beim ersten Start einmal um. Außerhalb von Windows (Entwicklung):
+Datei `service-token` mit Rechten 0600.
+
+**Windows: Rechte und Kulanzzeit.** `account_mode.refresh` holt `GET /api/entitlements` mit `X-StudiNow-Client: windows`
+und legt die Antwort mit Zeitpunkt in `account-cache.json` im Datenordner ab: beim Start, alle 15 Minuten, beim
+Zurückkehren ins Fenster und nach Kauf/Portal alle 5 Sekunden (10 Minuten lang). Danach gilt der Stand mit der
+vorhandenen Rechte-Maschine (`entitlements.has`/`status`, `mode: "account"`): Plus hat am PC die Plus-Rechte, Pro AI
+die von Pro AI. Ohne Netz gilt der letzte Stand höchstens `LERNAPP_OFFLINE_GRACE_DAYS` Tage (Standard 7, höchstens 60);
+eine Probe endet auch offline zu ihrem Datum; läuft die Uhr mehr als einen Tag rückwärts, gilt der Stand als ungeprüft.
+Ein Apple-Abo vom iPad gilt automatisch (der Dienst kennt es am Konto). Credits der StudiNow-KI zählt allein der Dienst,
+gemeinsam für alle Geräte (die StudiNow-KI am PC ist noch nicht angebunden, `docs/WINDOWS-LUECKEN-2026-11-05.md` Punkt 3).
+Der Geräte-Abgleich ruht ohne aktives Abo. Grenze: Die Sperre am PC ist eine Sperre der Oberfläche und des lokalen
+Servers, kein Kopierschutz; alles, was Geld kostet oder geteilt wird, prüft der Dienst selbst.
+
+**Windows: Kaufen, verwalten.** „Abschließen“ (Plus, Pro AI) → `POST /api/app-account/checkout` → der lokale Server lässt
+den Dienst mit dem Token der App eine Stripe-Checkout-Sitzung anlegen (`POST /api/billing/stripe/checkout {plan,
+client: "windows"}`, keine zweite Anmeldung im Browser) und öffnet sie im Systembrowser. Rückkehr auf die schlichte
+Seite `{dienst}/abo-fertig` („Du kannst dieses Fenster schließen“); die App fragt den Stand selbst ab. „Abo verwalten“
+→ Stripe-Kundenportal (`POST /api/app-account/portal`). Die Kaufwege (Stripe eingerichtet?) kommen aus dem
+zwischengespeicherten Stand des Dienstes. Abweichung vom Auftrag „öffnet studinow.app/abo“: Die App öffnet direkt die
+Stripe-Seite, weil sie das Token schon hat und der Browser sonst erneut anmelden müsste.
+
+**Kein zweites Abo** (`stripe_billing.guard_second_purchase`, im Dienst für jeden Client): aktives Apple-Abo →
+409 `apple_subscription_active` „Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones.“;
+aktives Stripe-Abo → 409 `stripe_subscription_active` (wechseln im Kundenportal). Windows prüft das zusätzlich vorher
+und zeigt dann keinen Kaufknopf.
+
+**Eigene Daten exportieren** (auch ohne Abo und ohne Anmeldung): Windows `GET /api/app-account/export` (ZIP: Datenbank
+dieses PCs, Bilder und Aufnahmen der Notizen, selbst hinzugefügte Dokumente; ohne Hochschuldateien, Zugangsdaten,
+Sitzungen); Web `GET /api/account/export` (DSGVO-Export, Abschnitt Konto). „Hochschul-Konto entfernen“ (PC weitergeben)
+meldet jetzt auch vom StudiNow-Konto ab und geht ohne Abo.
+
+**Tests:** `tests/test_account_mode.py` (Ablage des Tokens, Zustände mit Kulanzzeit und Uhr, Client-Art, Sperre je
+Zustand, Anmeldung im Browser mit PKCE, Kauf und Portal, Apple-Abo sperrt den zweiten Kauf, Web-Pflicht, iPad-Vertrag
+unverändert, Admin ausgenommen), `tests/js/account-gate.test.mjs`. Bewusst geändert: `tests/test_web_abo.py` (nach der
+Probe im Web „Kein aktives Abo“ statt „Bei Free bleiben“), `tests/test_tarife_texte.py`, `tests/test_rechtstexte.py`
+(Stand der Rechtstexte). Handtest auf echtem Windows: `docs/WINDOWS-LUECKEN-2026-11-05.md`, Abschnitt „Handtest Konto-
+und Abo-Pflicht“.
+
+**Offen (Inhaber):** Stripe-Schlüssel, Webhook-Geheimnis und Preise im Dienst (`LERNAPP_STRIPE_*`), sonst kann unter
+Windows und im Web niemand abschließen und alle Konten sind nach der Probe gesperrt; Microsoft-Store-Regeln für den
+eigenen Zahlungsweg vor der Einreichung prüfen; Prüfkonto mit Abo für die Store-Prüfung; Datenschutz und
+Nutzungsbedingungen (Stripe, Konto-Pflicht) anwaltlich prüfen. Nicht geändert: die geplanten Hochschul-Abgleiche des
+Dienstes laufen auch für gesperrte Konten weiter (`app/jobs.py`).
 
 ## 4. ChatGPT-Verbindung
 

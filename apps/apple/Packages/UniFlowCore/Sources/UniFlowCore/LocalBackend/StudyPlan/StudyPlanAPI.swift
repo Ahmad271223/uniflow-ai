@@ -12,11 +12,21 @@ public enum StudyPlanAPI {
         var electives: [String]
         /// eigener Link zum Modulhandbuch (nur https, StudyCatalogPipeline.cleanCatalogURL); nur gespeichert, wenn gesetzt
         var catalogURL: String? = nil
+        /// Wahlbereiche und eigene Lage (05.11.2026): Schwerpunkt je Gruppe, Semester je Modul, "Nicht belegen",
+        /// eigene Eintraege; gespeichert nur, wenn nicht leer
+        var tracks: [(String, String)] = []
+        var placements: [(String, String)] = []
+        var excluded: [String] = []
+        var custom: [StudyPlanEngine.CustomEntry] = []
 
         var json: [String: JSONValue] {
             var o: [String: JSONValue] = ["po": StudyPlanEngine.opt(po), "start_term": StudyPlanEngine.opt(startTerm),
                                           "electives": .array(electives.map(JSONValue.string))]
             if let catalogURL { o["catalog_url"] = .string(catalogURL) }
+            o["tracks"] = .object(Dictionary(tracks.map { ($0.0, JSONValue.string($0.1)) }, uniquingKeysWith: { a, _ in a }))
+            o["placements"] = .object(Dictionary(placements.map { ($0.0, JSONValue.string($0.1)) }, uniquingKeysWith: { a, _ in a }))
+            o["excluded"] = .array(excluded.map(JSONValue.string))
+            o["custom"] = .array(custom.map { .object($0.json) })
             return o
         }
 
@@ -25,6 +35,12 @@ public enum StudyPlanAPI {
                      PyJSON.Member("start_term", startTerm.map(PyJSON.string) ?? .null),
                      PyJSON.Member("electives", .array(electives.map(PyJSON.string)))]
             if let catalogURL { m.append(PyJSON.Member("catalog_url", .string(catalogURL))) }
+            if !tracks.isEmpty { m.append(PyJSON.Member("tracks", .object(tracks.map { PyJSON.Member($0.0, .string($0.1)) }))) }
+            if !placements.isEmpty {
+                m.append(PyJSON.Member("placements", .object(placements.map { PyJSON.Member($0.0, .string($0.1)) })))
+            }
+            if !excluded.isEmpty { m.append(PyJSON.Member("excluded", .array(excluded.map(PyJSON.string)))) }
+            if !custom.isEmpty { m.append(PyJSON.Member("custom", .array(custom.map(\.stored)))) }
             return .object(m)
         }
     }
@@ -44,7 +60,9 @@ public enum StudyPlanAPI {
         let po = v["po"]?.string.flatMap { $0.isEmpty ? nil : $0 }
         let start = v["start_term"]?.string.flatMap { StudyPlanEngine.parseTerm($0) == nil ? nil : $0 }
         return Settings(po: po, startTerm: start, electives: sortedUnique(v["electives"]?.array?.compactMap(\.string) ?? []),
-                        catalogURL: StudyCatalogPipeline.cleanCatalogURL(v["catalog_url"]?.string))
+                        catalogURL: StudyCatalogPipeline.cleanCatalogURL(v["catalog_url"]?.string),
+                        tracks: StudyPlanEngine.cleanTracks(v["tracks"]), placements: StudyPlanEngine.cleanPlacements(v["placements"]),
+                        excluded: StudyPlanEngine.cleanIDs(v["excluded"]), custom: StudyPlanEngine.cleanCustom(v["custom"]))
     }
 
     static func gradeRows(_ c: SQLiteConnection) throws -> [[String: JSONValue]] {
@@ -224,6 +242,43 @@ public enum StudyPlanAPI {
                 s.catalogURL = u
             default: throw LocalHTTPError(status: 400, message: "catalog_url muss Text sein")
             }
+        }
+        if let v = body["tracks"] {
+            if !v.isNull {
+                guard let o = v.object, o.values.allSatisfy({ $0.string != nil }) else {
+                    throw LocalHTTPError(status: 400, message: "tracks muss ein Objekt {Gruppe: Bereich} sein")
+                }
+            }
+            s.tracks = StudyPlanEngine.cleanTracks(v)
+        }
+        if let v = body["placements"] {
+            if !v.isNull {
+                guard let o = v.object, o.values.allSatisfy({ $0.string != nil || $0.isNull }) else {
+                    throw LocalHTTPError(status: 400, message: "placements muss ein Objekt {Modul: Semester} sein")
+                }
+                for k in o.keys.sorted(by: PyText.less) {
+                    if let x = o[k]?.string, !PyText.strip(x).isEmpty, StudyPlanEngine.parseTerm(x) == nil {
+                        throw LocalHTTPError(status: 400, message: "Unbekanntes Semester: \(PyText.strip(x))")
+                    }
+                }
+            }
+            s.placements = StudyPlanEngine.cleanPlacements(v)
+        }
+        if let v = body["excluded"] {
+            if !v.isNull {
+                guard let list = v.array, list.allSatisfy({ $0.string != nil }) else {
+                    throw LocalHTTPError(status: 400, message: "excluded muss eine Liste von Modul-ids sein")
+                }
+            }
+            s.excluded = StudyPlanEngine.cleanIDs(v)
+        }
+        if let v = body["custom"] {
+            if !v.isNull {
+                guard let list = v.array, list.allSatisfy({ $0.object != nil }) else {
+                    throw LocalHTTPError(status: 400, message: "custom muss eine Liste von Eintraegen sein")
+                }
+            }
+            s.custom = StudyPlanEngine.cleanCustom(v)
         }
         try LocalSettings.write(c, key: StudyPlanEngine.settingsKey, value: s.stored)
         return try settings(c, today: today, source: source)

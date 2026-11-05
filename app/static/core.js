@@ -17,6 +17,9 @@ export const KIND_TXT = { vorlesung: "Vorlesung", uebung: "Übung", hoersaaluebu
 export async function api(path, opts = {}) {
   const r = await fetch("/api" + path, { headers: opts.body instanceof FormData ? {} : { "Content-Type": "application/json" }, ...opts, body: opts.body && !(opts.body instanceof FormData) && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
   if (r.status === 401 && state.hosted) { location.replace("/login"); }   // Sitzung im Dienst abgelaufen oder abgemeldet
+  // Windows-App: Anmeldung abgelaufen oder widerrufen -> neu laden zeigt den Anmeldebildschirm (account-gate.js); auf dem
+  // Anmeldebildschirm selbst (signed_in false) laufen Hintergrundabrufe ins Leere, ohne neu zu laden
+  if (r.status === 401 && state.appAccount?.signed_in) { location.reload(); }
   if (!r.ok) throw await responseError(r);   // Text zum Fehlercode des Dienstes: service-errors.js (wie ServiceErrorText auf dem iPad)
   return r.json();
 }
@@ -128,9 +131,10 @@ export const initial = s => (s || "?").replace(/^(Mathematik|Grundlagen|Einführ
 // Fachfarben fuer die Farbwahl: erste Stufe von PALETTE in app/colors.py (tests/test_module_colors.py vergleicht)
 export const PALETTE = ["#175ee8", "#e95905", "#167535", "#834bbf", "#b9454c", "#1f9682", "#896301", "#de5797", "#0486c2", "#748e03", "#626974", "#a1826c"];
 export const shortName = s => (s || "").replace("Mathematik für die Ingenieurwissenschaften", "Mathematik").replace("Elektrotechnische Grundlagen der Informatik", "Elektrotechnik").replace("Datenstrukturen und Algorithmen", "Datenstrukturen & Algorithmen").replace("Grundlagen digitaler Systeme", "Digitale Systeme");
-export const state = { route: () => {}, editors: [], hosted: false, account: null, entitlements: null };
-// Recht aus dem Abo-Stand (GET /api/entitlements). Auf dem eigenen PC ist alles erlaubt; der Server prueft trotzdem jeden Aufruf.
-export const can = name => !state.hosted || !!state.entitlements?.entitlements?.[name];
+export const state = { route: () => {}, editors: [], hosted: false, gated: false, account: null, appAccount: null, entitlements: null };
+// Recht aus dem Abo-Stand (GET /api/entitlements): im Dienst und in der Windows-App mit Konto-Pflicht (state.gated,
+// 05.11.2026); ohne Abo ist alles aus (nur lesen). Am eigenen PC ohne Konto-Pflicht ist alles erlaubt. Der Server prueft trotzdem jeden Aufruf.
+export const can = name => !(state.hosted || state.gated) || !!state.entitlements?.entitlements?.[name];
 
 // ---------------------------------------------------------------- Barrierefreiheit (28.10.2026)
 // Knoepfe nur mit Symbol bekommen ihren Titel als Namen fuer Bildschirmleser; Escape schliesst das oberste Fenster;

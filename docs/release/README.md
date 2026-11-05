@@ -12,7 +12,7 @@ erklärung, die Nutzungsbedingungen und das Impressum; die Store-Texte prüft de
 | `IMPRESSUM.md` | Impressum nach § 5 DDG (Einzelunternehmen IT solutions by Ahmad Fakih) | `https://studinow.app/impressum`; Händlerangaben im App Store (DSA) |
 | `KONTO-LOESCHEN.md` | Öffentliche Seite „Konto löschen“ (Pflicht im Play Store, nützlich für Apple) | `https://studinow.app/konto-loeschen` |
 | `SUPPORT.md` | Support-Seite mit Kontaktadresse und häufigen Fragen (Anmeldung bei der Uni, Daten auf dem iPad, Konto löschen) | `https://studinow.app/support` (Support-URL in App Store Connect) |
-| `STARTSEITE.md` | Produktseite der Website (was StudiNow kann, App-Store-Abzeichen und Bildschirmfotos als Platzhalter) | `https://studinow.app` |
+| `STARTSEITE.md` | Startseite der Website im Stil einer Lernplattform (seit 05.11.2026): Einstieg, Vertrauensleiste, Funktionen mit Bildschirmfotos aus `website-img/` (Demo-Inhalte, hell/dunkel), Schritte, Tarife, Fragen; App-Store-Knopf mit „Bald verfügbar“, bis es den Store-Link gibt | `https://studinow.app` |
 | `APP-STORE.md` | App Store Connect: Name, Untertitel, Werbetext, Beschreibung, Schlüsselwörter, Altersfreigabe, App-Datenschutz, Abo-Produkt, Hinweise für die Prüfung | App Store Connect (de-DE) |
 | `PLAY-STORE.md` | Play Console: Titel, Kurz- und Vollbeschreibung, Datensicherheit, Inhaltseinstufung, Zielgruppe, Abo-Produkt | Play Console (de-DE) |
 | `BETRIEB.md` | Betriebsanleitung für den gehosteten Dienst (Hosting-Paket `deploy/`: Docker, Caddy/TLS, `.env`, Backups, Updates, Löschfristen, Monitoring) | Inhaber, Server |
@@ -35,6 +35,9 @@ Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
   **eigene ChatGPT** des Nutzers; die Datenschutzerklärung beschreibt sie (Abschnitt 8a), die Hinweise für die
   App-Prüfung ebenfalls (nicht öffentlich, Richtlinie 2.3.1). Ob 1.0 sie bewirbt, entscheidet der Inhaber
   (`APP-STORE.md`, „Offene Entscheidung KI“); dann zuerst diesen Absatz und den Test ändern.
+  **Website (Wunsch des Inhabers vom 05.11.2026):** Die Startseite `studinow.app` nennt die KI-Hilfe (auch für das ganze
+  Dokument) und den Tarif StudiNow Pro AI; `tests/test_site.py` prüft das. Die Store-Felder bleiben bis zur Entscheidung
+  oben ohne KI.
 - **Nur, was wirklich funktioniert.** Uni & Noten auf dem iPad und die Online-Community gelten erst als Funktion,
   wenn sie am Gerät laufen („bald“ ist kein Store-Text). Fristen, Termine und Noten sind Abbilder der
   Hochschulsysteme; verbindlich bleibt immer die Hochschule – das steht in jedem Text.

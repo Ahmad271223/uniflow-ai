@@ -246,6 +246,15 @@ struct DocumentView: View {
     /// offene Korrekturhinweise zu meiner eigenen, geteilten Loesung dieser PDF ("N Korrekturhinweise")
     @State private var ownCorrections: [CommunityCorrection] = []
     @State private var ownCorrectionsDismissed = false
+    /// Bildschirm fixieren (docs/FIXIEREN-ABPAUSEN-2026-11-05.md): nur fuer diese Sitzung, nichts davon gespeichert
+    /// ausser dem Wunsch "Helligkeit auf Maximum"
+    @StateObject private var freeze = EditorFreezeSession()
+    @AppStorage(EditorFreeze.maxBrightnessPreferenceKey) private var freezeMaxBrightness = false
+    @AppStorage(EditorFreeze.introSeenKey) private var freezeIntroSeen = false
+    @State private var freezeContrast = false
+    /// Erklaerung beim ersten Mal, danach startet die gewaehlte Stufe
+    @State private var freezeIntroFor: EditorFreeze.Mode?
+    @Environment(\.scenePhase) private var scenePhase
 
     init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil) {
         self.api = api
@@ -397,6 +406,26 @@ struct DocumentView: View {
         }
     }
 
+    /// "Zum Abpausen einfrieren": nur die Seite, keine Leisten, keine Eingabe
+    private var tracing: Bool { freeze.isTracing }
+
+    /// Menue, Cmd-L: beim ersten Mal die Erklaerung, sonst gleich; "Ansicht fixieren" bei fixierter Ansicht loest sie
+    private func requestFreeze(_ mode: EditorFreeze.Mode) {
+        guard store.pdf != nil, !tracing else { return }
+        if mode == .view, freeze.mode == .view { freeze.unlock(); return }
+        if !freezeIntroSeen { freezeIntroFor = mode; return }
+        startFreeze(mode)
+    }
+
+    private func startFreeze(_ mode: EditorFreeze.Mode) {
+        freezeIntroSeen = true
+        if mode == .trace {
+            freeze.startTracing(.init(maxBrightness: freezeMaxBrightness && !PDFEditorController.isMac, highContrast: freezeContrast))
+        } else {
+            freeze.fixView()
+        }
+    }
+
     /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
     /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
     private var canWrite: Bool {
@@ -444,28 +473,28 @@ struct DocumentView: View {
                         // Seitenleiste auf der Seite der freien Hand (Linkshaender rechts), damit die Schreibhand sie
                         // nicht verdeckt oder beruehrt
                         // kompakt: Seiten und KI-Hilfe als Blatt von unten, keine geteilte Ansicht (siehe unten)
-                        if showSidebar, scriptLeft, !compact {
+                        if showSidebar, scriptLeft, !compact, !tracing {
                             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                             Divider()
                         }
-                        if showTutor, scriptLeft, !compact {
+                        if showTutor, scriptLeft, !compact, !tracing {
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                             Divider()
                         }
-                        if hasSidePane, scriptLeft, !compact {
+                        if hasSidePane, scriptLeft, !compact, !tracing {
                             sidePane.frame(width: geo.size.width * splitFraction)
                             splitHandle(width: geo.size.width)
                         }
                         primaryPane
-                        if hasSidePane, !scriptLeft, !compact {
+                        if hasSidePane, !scriptLeft, !compact, !tracing {
                             splitHandle(width: geo.size.width)
                             sidePane.frame(width: geo.size.width * splitFraction)
                         }
-                        if showTutor, !scriptLeft, !compact {
+                        if showTutor, !scriptLeft, !compact, !tracing {
                             Divider()
                             tutorPanel.frame(width: Self.tutorWidth(geo.size.width))
                         }
-                        if showSidebar, !scriptLeft, !compact {
+                        if showSidebar, !scriptLeft, !compact, !tracing {
                             Divider()
                             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite).frame(width: 200)
                         }
@@ -478,7 +507,7 @@ struct DocumentView: View {
         }
         .navigationTitle(store.file.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(fullScreen ? .hidden : .visible, for: .navigationBar)
+        .toolbar(fullScreen || tracing ? .hidden : .visible, for: .navigationBar)
         .toolbar {
             if compact { compactToolbar } else { toolbar }
         }
@@ -486,26 +515,52 @@ struct DocumentView: View {
         // kompakt: eigenes Zurueck (Route davor bzw. Bibliothek) statt des Zurueck der zusammengeklappten Spaltenansicht
         .navigationBarBackButtonHidden(compact && !readOnly)
         .overlay(alignment: .bottom) {
-            if compact {
+            // Abpausen: keine Leiste, auch nicht die untere des iPhones
+            if tracing {
+                EmptyView()
+            } else if compact {
                 if store.pdf != nil, store.errorMessage == nil { compactBottom }
             } else if bridge.objectMode {
                 ObjectToolbar(bridge: bridge).padding(.bottom, 12)
             }
         }
         // kompakt: Seitenuebersicht und KI-Hilfe als Blatt von unten (halb: die Seite bleibt sichtbar und bedienbar)
-        .sheet(isPresented: Binding(get: { compact && showSidebar }, set: { if !$0 { showSidebar = false } })) {
+        .sheet(isPresented: Binding(get: { compact && showSidebar && !tracing }, set: { if !$0 { showSidebar = false } })) {
             PageSidebar(store: store, bridge: bridge, markers: markers, canEdit: canWrite, sheet: true) { showSidebar = false }
                 .ufHalfSheet()
         }
-        .sheet(isPresented: Binding(get: { compact && showTutor }, set: { if !$0 { showTutor = false } })) {
+        .sheet(isPresented: Binding(get: { compact && showTutor && !tracing }, set: { if !$0 { showTutor = false } })) {
             tutorPanel(inSheet: true)
                 .ufHalfSheet()
         }
         .overlay(alignment: .topTrailing) {
-            if fullScreen {
+            if fullScreen, !tracing {
                 Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
                     .buttonStyle(.borderedProminent).padding()
             }
+        }
+        // Abpausen: Sperre ueber allem, Schloss auf der Seite der freien Hand; Statusleiste und Home-Balken zurueckhaltend
+        .overlay { if tracing { TraceLockOverlay(freeze: freeze, leading: scriptLeft) } }
+        .statusBarHidden(tracing)
+        .persistentSystemOverlays(tracing ? .hidden : .automatic)
+        .defersSystemGestures(on: tracing ? .all : [])
+        .preference(key: EditorTracingKey.self, value: tracing)
+        .background {
+            // Cmd-L: Ansicht fixieren bzw. loesen (beim Abpausen ohne Wirkung)
+            Button("") { requestFreeze(.view) }
+                .keyboardShortcut("l", modifiers: .command)
+                .opacity(0)
+                .accessibilityHidden(true)
+        }
+        .ufModal(isPresented: Binding(get: { freezeIntroFor != nil }, set: { if !$0 { freezeIntroFor = nil } })) {
+            FreezeIntroDialog(maxBrightness: $freezeMaxBrightness, contrast: $freezeContrast, start: { mode in
+                freezeIntroFor = nil
+                startFreeze(mode)
+            }, cancel: { freezeIntroFor = nil })
+        }
+        // App im Hintergrund: Helligkeit vorerst zurueck, beim Zurueckkommen wieder hell
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { freeze.suspend() } else if phase == .active { freeze.resume() }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         .onChange(of: bridge.tutorRequest) { _, r in if r != nil, !showTutor { openTutor() } }
@@ -640,6 +695,13 @@ struct DocumentView: View {
             case "companion": choosingCompanion = true
             default: break
             }
+            // -UFDocFreeze view|trace: gleich fixiert bzw. zum Abpausen eingefroren (Bildvergleiche, Tests); ohne
+            // Erklaerung und ohne etwas zu merken
+            switch UserDefaults.standard.string(forKey: "UFDocFreeze") {
+            case "view": freeze.fixView()
+            case "trace": freeze.startTracing(.init(highContrast: freezeContrast))
+            default: break
+            }
             #endif
             scheduleSuggestion(bridge.pageIndex)
             await reloadSolutionLayers()
@@ -659,6 +721,7 @@ struct DocumentView: View {
         // zu sehen oder nicht: ein anderes Fenster darf ein nicht sichtbares Dokument uebernehmen (OpenDocuments)
         .onAppear { store.setShown(true) }
         .onDisappear {
+            freeze.end()                          // Fixieren gilt nur fuer diese Sitzung; Bildschirm wie vorher
             correction?.saveNow()                 // Entwurf der Korrektur bleibt bis Senden oder Verwerfen
             store.setShown(false)
             suggestionTask?.cancel()
@@ -673,11 +736,14 @@ struct DocumentView: View {
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
                       onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled,
-                      paletteSuppressed: paletteSuppressed)
-            .ignoresSafeArea(edges: .bottom)
-            .overlay(alignment: .bottom) { if !compact { pageInfo } }
+                      paletteSuppressed: paletteSuppressed, freezeMode: freeze.mode, traceContrast: freezeContrast)
+            .ignoresSafeArea(edges: tracing ? .all : .bottom)
+            .overlay(alignment: .bottom) { if !compact, !tracing { pageInfo } }
+            .overlay(alignment: .topLeading) {
+                if freeze.mode == .view { FreezeBadge { freeze.unlock() } }
+            }
             .overlay(alignment: .top) {
-                VStack(spacing: 6) {
+                if !tracing { VStack(spacing: 6) {
                     if let correction {
                         CorrectionBar(session: correction, send: { await sendCorrection() },
                                       editMessage: { correctionMessage = correction.draft.note; editingCorrectionMessage = true },
@@ -702,7 +768,7 @@ struct DocumentView: View {
                         RecordingMatchBanner(fileID: store.file.id) { String((pdf.page(at: 0)?.string ?? "").prefix(1500)) }
                     }
                 }
-                .padding(.horizontal, compact ? 12 : 0)
+                .padding(.horizontal, compact ? 12 : 0) }
             }
     }
 
@@ -746,7 +812,7 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
-                      pencilOnly: editorPencilOnly, canEdit: canWrite, onStore: { [store, bridge] s, shown in
+                      pencilOnly: editorPencilOnly, canEdit: canWrite, viewLocked: freeze.locksView, onStore: { [store, bridge] s, shown in
                           // SwiftUI garantiert die Reihenfolge von Erscheinen (neu) und Verschwinden (alt) nicht
                           if shown { companionStore = s } else if companionStore === s { companionStore = nil }
                           Self.linkSideSheet(s, shown: shown, main: store, bridge: bridge)
@@ -1068,6 +1134,21 @@ struct DocumentView: View {
         }
         Button { present { showInfo = true } } label: { Label("Dokumentinformation", systemImage: "info.circle") }
         Button { present { fullScreen = true } } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
+        // Bildschirm fixieren (technische Zeichnungen, Abpausen; docs/FIXIEREN-ABPAUSEN-2026-11-05.md); kompakt
+        // schliessen offene Blaetter vorher (`present`)
+        Section(FreezeTexts.introTitle) {
+            Button { present { requestFreeze(.view) } } label: {
+                Label(freeze.mode == .view ? FreezeTexts.releaseView : FreezeTexts.fixView,
+                      systemImage: freeze.mode == .view ? "lock.open" : "lock")
+            }
+            .accessibilityIdentifier("doc.freeze.view")
+            Button { present { requestFreeze(.trace) } } label: { Label(FreezeTexts.trace, systemImage: "lock.rectangle") }
+                .accessibilityIdentifier("doc.freeze.trace")
+            if !PDFEditorController.isMac {
+                Toggle(isOn: $freezeMaxBrightness) { Label(FreezeTexts.brightness, systemImage: "sun.max") }
+            }
+            Toggle(isOn: $freezeContrast) { Label(FreezeTexts.contrast, systemImage: "circle.lefthalf.filled") }
+        }
     }
 
     // MARK: Leiste oben, kompakt
@@ -1123,6 +1204,7 @@ struct DocumentView: View {
                 }
             }
             Button { bridge.fitWidth() } label: { Label("Seite einpassen (\(bridge.zoomPercent) %)", systemImage: "arrow.left.and.right") }
+                .disabled(freeze.locksView)                      // fixiert: Zoom bleibt
         }
         Menu { shareMenuItems } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
@@ -1664,6 +1746,7 @@ struct DocumentView: View {
             Divider().frame(height: 14)
             Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
                 .accessibilityHint("Seite einpassen")
+                .disabled(freeze.locksView)                      // fixiert: Zoom bleibt
             if readOnly {
                 Divider().frame(height: 14)
                 Label("Alte Fassung – nur ansehen", systemImage: "doc.badge.clock").lineLimit(1)
@@ -1722,12 +1805,15 @@ struct CompanionView: View {
     let undoManager: UndoManager
     let pencilOnly: Bool
     let canEdit: Bool
+    /// "Ansicht fixieren" im Hauptdokument fixiert auch das Dokument daneben
+    var viewLocked = false
     /// meldet das offene Dokument an die Hauptansicht (sichtbar ja/nein)
     var onStore: (DocumentStore, Bool) -> Void = { _, _ in }
     let onClose: () -> Void
 
     init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
-         pencilOnly: Bool, canEdit: Bool = true, onStore: @escaping (DocumentStore, Bool) -> Void = { _, _ in }, onClose: @escaping () -> Void) {
+         pencilOnly: Bool, canEdit: Bool = true, viewLocked: Bool = false,
+         onStore: @escaping (DocumentStore, Bool) -> Void = { _, _ in }, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
@@ -1735,6 +1821,7 @@ struct CompanionView: View {
         self.undoManager = undoManager
         self.pencilOnly = pencilOnly
         self.canEdit = canEdit
+        self.viewLocked = viewLocked
         self.onStore = onStore
         self.onClose = onClose
     }
@@ -1752,7 +1839,8 @@ struct CompanionView: View {
             } else if store.pdf != nil {
                 PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                               toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage,
-                              canEdit: canEdit && !store.journalUnreadable && !store.viewOnlyHere)
+                              canEdit: canEdit && !store.journalUnreadable && !store.viewOnlyHere,
+                              freezeMode: viewLocked ? .view : .off)
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
@@ -2480,6 +2568,9 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var aiAvailable = false
     /// iPhone im Modus "Blättern": keine Palette (`PDFEditorController.paletteSuppressed`)
     var paletteSuppressed = false
+    /// Bildschirm fixieren (`EditorFreezeLock.swift`)
+    var freezeMode: EditorFreeze.Mode = .off
+    var traceContrast = false
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
@@ -2511,6 +2602,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.onAskAI = { [weak bridge] in bridge?.askAIRequested += 1 }
         vc.onFlashcardFromSelection = { [weak bridge] text in bridge?.makeFlashcard(text) }
         vc.onPaletteInset = { [weak bridge] h in if bridge?.paletteInset != h { bridge?.paletteInset = h } }
+        vc.traceContrast = traceContrast
+        vc.freezeMode = freezeMode
         bridge.controller = vc
         return vc
     }
@@ -2528,5 +2621,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.onCorrectionNote = onCorrectionNote
         if vc.correction !== correction { vc.correction = correction }
         if vc.shownCorrection != shownCorrection { vc.shownCorrection = shownCorrection }
+        if vc.traceContrast != traceContrast { vc.traceContrast = traceContrast }
+        if vc.freezeMode != freezeMode { vc.freezeMode = freezeMode }
     }
 }

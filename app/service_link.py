@@ -14,8 +14,13 @@ bleiben lokal), meldet sich fuer die Community aber am gehosteten Dienst an. Abl
   meldet die App die Fingerabdruecke (SHA-256) ihrer Hochschul-PDFs (`claim_local_files`, ergaenzend, nie ersetzend:
   das iPad desselben Kontos meldet seine eigenen). Nur der Fingerabdruck verlaesst den PC, nie die Datei.
 
-Adresse des Dienstes: `LERNAPP_SERVICE_URL` oder beim Anmelden eingegeben; nur https, ausser auf dem eigenen Rechner
-(127.0.0.1/localhost, fuer Tests).
+Adresse des Dienstes: `LERNAPP_SERVICE_URL`, sonst fest `https://app.studinow.app` (DEFAULT_SERVICE_URL, 05.11.2026),
+oder beim Anmelden eingegeben; nur https, ausser auf dem eigenen Rechner (127.0.0.1/localhost, fuer Tests).
+
+Token (05.11.2026): nicht mehr in `service-account.json`, sondern in der Windows-Anmeldeinformationsverwaltung
+(app/token_store.py; ausserhalb von Windows eine Datei mit Rechten 0600). `load_state` setzt es wie bisher als
+`token` in den Zustand ein, `save_state` legt es dort ab; ein Token aus einer alten Datei zieht beim ersten Lesen um.
+Jede Anfrage an den Dienst traegt `X-StudiNow-Client: windows` (Abo-Pflicht je Client, app/access.py).
 """
 from __future__ import annotations
 
@@ -29,10 +34,13 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import config, db
+from . import config, db, token_store
 
 STATE_FILE = "service-account.json"
 DEVICE_NAME = "StudiNow für Windows"
+DEFAULT_SERVICE_URL = "https://app.studinow.app"
+CLIENT_HEADER = "X-StudiNow-Client"
+CLIENT_NAME = "windows"
 TIMEOUT = 30
 UPLOAD_TIMEOUT = 180
 MAX_BODY = 80 << 20                    # groesser als das groesste Paket des Dienstes (community.MAX_PACKAGE_BYTES)
@@ -52,7 +60,7 @@ def state_path() -> Path:
     return config.DATA_DIR / STATE_FILE
 
 
-def load_state() -> dict:
+def _read_file() -> dict:
     try:
         d = json.loads(state_path().read_text(encoding="utf-8"))
         return d if isinstance(d, dict) else {}
@@ -60,16 +68,39 @@ def load_state() -> dict:
         return {}
 
 
-def save_state(d: dict) -> None:
+def _write_file(d: dict) -> None:
     p = state_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.write_text(json.dumps({k: v for k, v in d.items() if k != "token"}, ensure_ascii=False, indent=1), encoding="utf-8")
     try:
         os.chmod(tmp, 0o600)
     except OSError:
         pass
     os.replace(tmp, p)
+
+
+def load_state() -> dict:
+    """Zustand aus der Datei, dazu das Token aus der Ablage (app/token_store.py). Ein Token aus einer Datei bis 0.5
+    (stand frueher in service-account.json) zieht dabei einmal in die Ablage um und verschwindet aus der Datei."""
+    d = _read_file()
+    legacy = d.pop("token", None)
+    if legacy:
+        if not token_store.get():
+            token_store.put(str(legacy))
+        _write_file(d)
+    tok = token_store.get()
+    if tok:
+        d["token"] = tok
+    return d
+
+
+def save_state(d: dict) -> None:
+    """Datei ohne Token schreiben; das Token (oder sein Fehlen) gilt fuer die Ablage."""
+    _write_file(d)
+    tok = d.get("token") or None
+    if tok != token_store.get():
+        token_store.put(tok)
 
 
 def _device_id(st: dict) -> str:
@@ -94,7 +125,7 @@ def normalize_url(url: str | None) -> str:
 
 def service_url(st: dict | None = None) -> str:
     st = load_state() if st is None else st
-    return (st.get("url") or os.environ.get("LERNAPP_SERVICE_URL") or "").strip().rstrip("/")
+    return (st.get("url") or os.environ.get("LERNAPP_SERVICE_URL") or DEFAULT_SERVICE_URL).strip().rstrip("/")
 
 
 def linked(st: dict | None = None) -> bool:
@@ -122,7 +153,7 @@ def call(method: str, path: str, body: bytes | None = None, *, query: str = "", 
     base = url or service_url(st)
     if not base:
         raise LinkError("not_linked", "Die App ist mit keinem StudiNow-Konto verbunden.", 409)
-    headers = {"Accept": "application/json", "User-Agent": f"{DEVICE_NAME} (StudiNow)"}
+    headers = {"Accept": "application/json", "User-Agent": f"{DEVICE_NAME} (StudiNow)", CLIENT_HEADER: CLIENT_NAME}
     if body is not None:
         headers["Content-Type"] = content_type or "application/json"
     tok = token if token is not None else st.get("token")
@@ -203,6 +234,7 @@ def university_mismatch(st: dict) -> str | None:
 def status_info(st: dict | None = None, refresh: bool = True) -> dict:
     st = load_state() if st is None else st
     out = {"linked": linked(st), "url": service_url(st) or None, "env_url": bool(os.environ.get("LERNAPP_SERVICE_URL")),
+           "url_fixed": True, "token_store": token_store.kind(),
            "user": _public_user(st.get("user")), "linked_at": st.get("linked_at"), "claims": st.get("claims"),
            "expired": bool(st.get("expired_at") and not st.get("token")), "offline": False,
            "last_email": st.get("last_email") or (st.get("user") or {}).get("email")}

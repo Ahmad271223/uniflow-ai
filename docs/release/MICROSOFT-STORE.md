@@ -14,7 +14,7 @@ Einreichung die Testfassung (`…-test.msix`, Anleitung im `msix/README.md`) auf
 | --- | --- |
 | Microsoft-Konto und Entwicklerkonto im Partner Center (Einzelperson, laut Microsoft kostenlos; beim Anlegen prüfen) | du |
 | Öffentlicher Link zur Datenschutzerklärung (Pflicht, die App verarbeitet persönliche Daten) | du: Seite mit `tools/gen-site.py` erzeugen und veröffentlichen, z. B. unter `studinow.app` (Domain noch nicht gekauft) |
-| Mindestens ein Screenshot, besser 4 bis 6, ab 1366 × 768 (PNG) | du: aus der installierten App, am besten mit den Demo-Inhalten (Einstellungen → Erweitert → Demo-Inhalte) |
+| Mindestens ein Screenshot, besser 4 bis 6, ab 1366 × 768 (PNG) | du: aus der installierten App, am besten mit den Demo-Inhalten (erste Seite der App, ganz unten der kleine Link „Ohne Hochschulkonto ansehen (Demo)“). Die schmale Leiste „Demo-Inhalte – erfunden, ohne Hochschule“ über der Seite darf im Bild sein. |
 | App-Symbol | liegt in `apps/windows/app-icon.png` (1024 × 1024); das Paket erzeugt daraus alle Größen. Ist es nicht dein endgültiges StudiNow-Symbol, tausche die Datei vor dem Bauen. |
 | Support-Kontakt (E-Mail oder Webseite) | du |
 
@@ -37,9 +37,14 @@ Einreichung die Testfassung (`…-test.msix`, Anleitung im `msix/README.md`) auf
 **Preise und Verfügbarkeit:** kostenlos; Märkte: mindestens Deutschland; Sichtbarkeit zuerst „Privat, nur per Link“ zum
 Testen, danach öffentlich.
 
-**Kauf in der App:** In dieser Fassung gibt es auf Windows **keinen Kauf in der App** und keinen Link zu einem Bezahlsystem.
-Das Abo (Plus, später Pro AI) läuft über den Online-Dienst, den es noch nicht gibt. Sobald es einen Kauf auf Windows gibt,
-müssen die Store-Regeln für Zahlungen geprüft werden (die Bedingungen von Microsoft ändern sich; nicht geprüft).
+**Kauf in der App (geändert 05.11.2026, Entscheidung des Inhabers „anmelden immer muss ohne abo geht nichts“):** Die
+Windows-App braucht jetzt immer ein StudiNow-Konto und nach der 7-Tage-Probe ein Abo (Plus oder Pro AI); ohne Abo nur
+ansehen und exportieren (`app/account_mode.py`, `docs/ABO-SYSTEM.md` Abschnitt 3d). „Abschließen“ öffnet die
+Stripe-Bezahlseite des StudiNow-Dienstes im Standardbrowser; es gibt keinen Microsoft-Store-Kauf. **Vor der Einreichung
+prüfen:** Laut Microsoft-Store-Richtlinie (10.8.x) dürfen Apps, die keine Spiele sind, für digitale Inhalte einen eigenen
+oder fremden Zahlungsweg nutzen; die Richtlinie ändert sich, der aktuelle Wortlaut ist nicht geprüft. Im Formular
+„Preise und Verfügbarkeit“ bleibt die App selbst kostenlos; im Eintrag ehrlich angeben, dass ein Abo nötig ist
+(Beschreibung unten anpassen).
 
 **Eigenschaften:** Kategorie **Bildung** (Unterkategorie je nach Auswahl); Datenschutzerklärung: dein Link; Webseite und
 Support: dein Link bzw. deine Adresse.
@@ -60,6 +65,7 @@ beziehungsweise „USK 0“, je nach Antwort zu Nutzerinhalten ggf. höher.
 > Das kannst du tun:
 > • Unterlagen, Skripte und Übungsblätter automatisch laden und durchsuchen
 > • Stundenplan, Fristen und Neuigkeiten deiner Kurse auf einen Blick
+> • Nachrichten und Ankündigungen aus Stud.IP lesen (bleiben nur auf deinem PC)
 > • Direkt in den PDFs schreiben, markieren und Notizen machen
 > • Karteikarten anlegen und lernen, Tests zu deinem Stoff üben
 > • Lernplan mit Lernkalender und Wochenansicht
@@ -69,8 +75,9 @@ beziehungsweise „USK 0“, je nach Antwort zu Nutzerinhalten ggf. höher.
 > Deine Daten bleiben auf deinem Gerät. StudiNow ist ein unabhängiges Projekt und steht in keiner Verbindung zu deiner
 > Hochschule oder zu Stud.IP.
 
-Bewusst **nicht** beworben: Community, geteilte Lösungen und Pro AI. Sie brauchen den Online-Dienst und sind in dieser
-Windows-Fassung ohne Konto nicht nutzbar.
+Bewusst **nicht** beworben: Community, geteilte Lösungen und Pro AI. **Achtung (05.11.2026):** Die Windows-App braucht
+jetzt immer ein StudiNow-Konto und nach 7 Tagen Probe ein Abo; die Beschreibung muss das vor der Einreichung sagen
+(z. B. „Benötigt ein StudiNow-Konto. 7 Tage kostenlos testen, danach StudiNow Plus oder Pro AI im Abo.“).
 
 ### Merkmale (je bis 200 Zeichen)
 - Stud.IP und Learnweb: Kurse, Dateien, Stundenplan und Ankündigungen automatisch holen
@@ -91,15 +98,45 @@ StudiNow ist eine Desktop-App (Tauri-Fenster mit eingebautem lokalem Dienst auf 
 Darum braucht sie die eingeschränkte Fähigkeit runFullTrust: Der lokale Dienst und der Browser für die Hochschul-
 Anmeldung laufen als Prozesse neben dem Fenster. Die App öffnet keine Ports nach außen (nur 127.0.0.1).
 
-Ohne Hochschulkonto testen: Start der App → Einstellungen → Erweitert → "Demo-Inhalte anlegen". Danach gibt es ein Demo-
-Modul mit drei PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung. Die Hochschul-Anmeldung (Stud.IP,
-Learnweb) funktioniert nur mit einem echten Studierendenkonto; das Passwort gibt der Nutzer selbst im Anmeldefenster der
-Hochschule ein. Nur auf ausdrücklichen Wunsch (Einstellungen, mit Einwilligung) speichert die App die Zugangsdaten lokal
-im Datenordner des Nutzers; sie verlassen den PC nicht.
+Ohne Hochschulkonto testen (die Demo ist nur für die Prüfung gedacht und sonst nirgends in der App zu sehen):
+1. App starten. Die erste Seite ("Übersicht") zeigt, solange keine Hochschule verbunden ist, ganz unten die Karte
+   "Willkommen bei StudiNow". Ganz unten in dieser Karte steht ein kleiner unterstrichener Textlink
+   "Ohne Hochschulkonto ansehen (Demo)". Bitte diesen Link anklicken.
+2. Die App legt ein Demo-Modul "Grundlagen der Informatik" an: drei PDFs (Skript, Folien, Übungsblatt), Stundenplan,
+   Lernkalender, fünf Karteikarten, eine Abgabefrist und eine Ankündigung. Alles ist von uns erfunden, es sind keine
+   Inhalte einer Hochschule. Im Demo-Modus verbindet sich die App nicht mit der Hochschule und braucht keine Anmeldung.
+3. Solange die Demo läuft, steht über jeder Seite eine schmale Leiste "Demo-Inhalte – erfunden, ohne Hochschule" mit
+   dem Knopf "Beenden". "Beenden" (nach Rückfrage) entfernt alles, was die Demo angelegt hat, und führt zurück zur
+   ersten Seite mit dem Link.
+Die Hochschul-Anmeldung (Stud.IP, Learnweb) funktioniert nur mit einem echten Studierendenkonto; das Passwort gibt der
+Nutzer selbst im Anmeldefenster der Hochschule ein. Die App merkt sich die Sitzung (nicht das Passwort), damit der
+Nutzer angemeldet bleibt. Nur auf ausdrücklichen Wunsch (Einstellungen, mit Einwilligung) speichert die App die
+Zugangsdaten lokal im Datenordner des Nutzers; sie verlassen den PC nicht. Nachrichten aus Stud.IP erscheinen in der
+Seitenleiste unter "Nachrichten" (erst mit verbundenem Stud.IP); sie bleiben auf dem PC und werden in Stud.IP nicht als
+gelesen markiert.
 
-Kein Kauf in der App, keine Werbung, kein Konto bei uns nötig. Die Texterkennung (Tesseract, Apache-2.0) und PDFium sind
-mitgeliefert; Lizenzhinweise stehen in der Datei LIZENZEN.txt im Programmordner.
+Die App braucht ein StudiNow-Konto (seit 05.11.2026). Prüfkonto mit aktivem Abo: [im Partner Center unter „Hinweise für
+die Zertifizierung“ eintragen – E-Mail und Passwort eines eigens angelegten Kontos mit Tarif Plus oder Pro AI, z. B. per
+`python -m app.accounts plan <email> pro_ai` im Dienst]. Kein Kauf über den Microsoft Store, keine Werbung. Die
+Texterkennung (Tesseract, Apache-2.0) und PDFium sind mitgeliefert; Lizenzhinweise stehen in der Datei LIZENZEN.txt im
+Programmordner.
 ```
+
+### Demo für die Prüfer: Entscheidung und Stand (05.11.2026)
+Seit 05.11.2026 kommt vor der ersten Seite die Anmeldung mit dem StudiNow-Konto: Prüfer brauchen das Prüfkonto (oben);
+danach gilt wie bisher: Wie auf dem iPad (Entscheidung des Inhabers 04.11.2026 „Nur für Prüfer“): Normale Nutzer sehen die Demo nirgends. Der
+einzige Weg ist der kleine Textlink „Ohne Hochschulkonto ansehen (Demo)“ ganz unten auf der ersten Seite ohne
+Hochschulverbindung; unter Einstellungen → Erweitert gibt es die Demo nicht mehr. Der Link erscheint nur, solange keine
+Hochschule verbunden ist, keine Zugangsdaten hinterlegt sind und kein Modul existiert, und nur am eigenen PC (nie im
+Online-Dienst). Die Leiste „Demo-Inhalte – erfunden, ohne Hochschule“ mit „Beenden“ steht über jeder Seite. Der
+Wortlaut ist in `app/static/demo-logic.js` festgelegt und mit den Prüfhinweisen oben gleich.
+**Beim Prüfen auf einem echten Windows-Rechner kontrollieren:** dass der Link auf der ersten Seite ohne Hochschulkonto
+gefunden wird (ohne vorher etwas zu verbinden) und dass „Beenden“ zur ersten Seite zurückführt.
+
+### Store-Tauglichkeit der Oberfläche (geprüft 05.11.2026, `tests/test_web_windows_shell.py`)
+**Überholt für die Windows-App seit 05.11.2026:** Die Windows-App hat jetzt die Konto- und Abo-Pflicht mit Abschluss über
+Stripe im Browser (siehe „Kauf in der App“ oben). Ohne Kauf- und Bezahllinks ist nur noch der Einzelplatz ohne
+Konto-Pflicht (`serve.py` in der Entwicklung), den `tests/test_web_windows_shell.py` weiter prüft. Externe Links (Stud.IP, Learnweb) öffnen im Fenster der App bzw. im Standardbrowser, nur http und https.
 
 ## 4. Was ich noch anpassen kann, wenn du es willst
 - **Größe:** Das Paket enthält Chromium (für die Hochschul-Anmeldung) und Tesseract mit rund 165 MB. Beides lässt sich

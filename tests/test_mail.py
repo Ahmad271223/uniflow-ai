@@ -4,6 +4,7 @@ gehosteten Modus haengt der Server den Versand als accounts.reset_sender ein (Re
 import asyncio
 import json
 import smtplib
+import ssl
 
 import pytest
 from conftest import asgi_call
@@ -24,8 +25,8 @@ class FakeSMTP:
     """Zeichnet auf, was der Versand mit smtplib macht; eine Instanz je Klasse (SMTP / SMTP_SSL)."""
     instances: list = []
 
-    def __init__(self, host, port, timeout=None):
-        self.host, self.port, self.timeout = host, port, timeout
+    def __init__(self, host, port, timeout=None, context=None):
+        self.host, self.port, self.timeout, self.context = host, port, timeout, context
         self.calls: list = []
         self.messages: list = []
         self.fail_on = None
@@ -37,7 +38,8 @@ class FakeSMTP:
     def has_extn(self, name):
         return name == "starttls"
 
-    def starttls(self):
+    def starttls(self, context=None):
+        self.context = context
         self.calls.append("starttls")
 
     def login(self, user, password):
@@ -110,6 +112,7 @@ def test_smtp_starttls_login_and_message(mail_env, monkeypatch):
     s = FakeSMTP.instances[-1]
     assert type(s) is FakeSMTP and (s.host, s.port) == ("smtp.example", 587) and s.timeout
     assert s.calls == ["ehlo", "starttls", "ehlo", ("login", "postausgang", "sehr-geheim"), "send_message", "quit"]
+    assert s.context.verify_mode == ssl.CERT_REQUIRED and s.context.check_hostname, "Zertifikat wird geprueft"
     m = s.messages[0]
     assert m["From"] == "UniFlow <no-reply@uniflow.example>" and m["To"] == "Ärztin@beispiel.de"
     assert m["Subject"] == "Betreff mit Umlaut ä" and "äöü und ß" in m.get_content()
@@ -122,6 +125,7 @@ def test_smtp_starttls_login_and_message(mail_env, monkeypatch):
     assert mail.send("a@beispiel.de", "b", "c") is True
     s = FakeSMTP.instances[-1]
     assert type(s) is FakeSMTPSSL and s.port == 465 and s.calls == ["ehlo", "send_message", "quit"]
+    assert s.context.verify_mode == ssl.CERT_REQUIRED and s.context.check_hostname, "465 (STRATO): SSL mit Pruefung"
 
 
 def test_smtp_errors_are_logged_without_secrets_and_never_raise(mail_env, monkeypatch):

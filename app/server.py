@@ -59,12 +59,17 @@ from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/
 app.include_router(page_explain_api.router)
 from . import doc_explain_api  # noqa: E402 - KI-Hilfe fuer das ganze Dokument (/api/ai/document, docs/KI-GANZES-DOKUMENT-2026-11-05.md)
 app.include_router(doc_explain_api.router)
+from . import studip_messages  # noqa: E402 - Seite "Nachrichten" (Routen /api/studip/messages, nur lokal, app/studip_messages.py)
+app.include_router(studip_messages.router)
 from . import study_plan  # noqa: E402 - Studienverlauf (Routen /api/study-plan, docs/STUDIENVERLAUF-2026-11-04.md)
 app.include_router(study_plan.router)
 from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route /api/study-catalog/status)
 app.include_router(study_catalog.router)
 from . import week_library_api  # noqa: E402 - Fertige Fragen je Vorlesungswoche (Pro AI, /api/library/week-sets)
 app.include_router(week_library_api.router)
+from . import access, account_mode, account_mode_api, app_login_api  # noqa: E402 - Konto- und Abo-Pflicht (05.11.2026)
+app.include_router(account_mode_api.router)     # Windows-App: Anmelden, Abo, Export (/api/app-account, /konto/rueckkehr)
+app.include_router(app_login_api.router)        # Dienst: Anmeldung der Windows-App ueber den Browser (/api/app-login)
 db.init_db()
 
 
@@ -185,14 +190,15 @@ async def hosted_guard(request, call_next):
         # eingebaute Schnittstellenbeschreibung (Routenkarte, auch der Verwaltungs- und Agentenpfade): im Dienst aus
         return JSONResponse({"detail": "Nicht gefunden."}, status_code=404)
     if path in ("/", "/index.html", "/login"):
-        # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin
+        # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin - ausser die Windows-App holt
+        # sich ueber die Anmeldeseite eine Anmeldung (/login?app=windows, app/app_login_api.py)
         user = accounts.authenticate(account_api.token_of(request))
-        if path == "/login" and user:
+        if path == "/login" and user and request.query_params.get("app") != "windows":
             return RedirectResponse("/", status_code=302)
         if path != "/login" and not user:
             return RedirectResponse("/login", status_code=302)
         return await call_next(request)
-    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC:
+    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC or path in app_login_api.PUBLIC:
         return await call_next(request)
     why = hosted_unavailable(request.method, path)
     if why:
@@ -205,6 +211,15 @@ async def hosted_guard(request, call_next):
         return JSONResponse({"detail": "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten.", "code": "rate_limited"},
                             status_code=429, headers={"Retry-After": str(wait)})
     request.state.user = user
+    # Abo-Pflicht in Web und Windows (05.11.2026, app/access.py): ohne Probe und ohne Abo nur lesen; Konto und Abo
+    # bleiben bedienbar. iPad/Android (Bearer ohne Client-Kopfzeile) wie bisher.
+    client = access.client_type(request)
+    request.state.client = client
+    if client in access.GATED_CLIENTS and not access.write_allowed_when_locked(request.method, path):
+        acc = access.for_user(user, client)
+        if acc["locked"]:
+            status, body = access.blocked(acc["state"])
+            return JSONResponse(body, status_code=status)
     ctx = config.set_user_context(user["id"], user["university"])
     try:
         key = (user["id"], user["university"])
@@ -214,6 +229,25 @@ async def hosted_guard(request, call_next):
         return await call_next(request)
     finally:
         config.reset_user_context(ctx)
+
+
+@app.middleware("http")
+async def account_gate(request, call_next):
+    """Windows-App (app/account_mode.py): ohne Anmeldung nur Anmelden (401 account_required), ohne aktives Abo nur
+    lesen (402 subscription_required bzw. subscription_unverified); Oberflaeche und Rueckleitung bleiben erreichbar."""
+    if config.is_hosted() or not account_mode.required():
+        return await call_next(request)
+    path = request.url.path
+    if not path.startswith("/api/") or path.startswith(account_mode.ALWAYS_OPEN):
+        return await call_next(request)
+    from starlette.concurrency import run_in_threadpool
+    st = await run_in_threadpool(account_mode.state)
+    if not st["locked"]:
+        return await call_next(request)
+    if st["state"] != "signed_out" and access.write_allowed_when_locked(request.method, path, account_mode.LOCKED_WRITE_EXTRA):
+        return await call_next(request)
+    status, body = access.blocked(st["state"])
+    return JSONResponse(body, status_code=status)
 
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
@@ -372,6 +406,23 @@ def login_page():
     if not config.is_hosted():
         return RedirectResponse("/", status_code=302)
     return FileResponse(STATIC_DIR / "login.html", media_type="text/html")
+
+
+ABO_DONE_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>StudiNow – Abo</title>
+<style>body{{font:16px/1.5 system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}}main{{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(420px,92vw)}}h1{{font-size:1.2rem;margin:0 0 .4rem}}p{{margin:0;color:#4a5068}}</style></head>
+<body><main><h1>{title}</h1><p>{text}</p></main></body></html>"""
+
+
+@app.get("/abo-fertig", include_in_schema=False)
+def abo_done(checkout: str = "", portal: str = ""):
+    """Rueckseite nach Stripe-Checkout bzw. Kundenportal fuer die Windows-App (ohne Anmeldung, ohne Daten)."""
+    if checkout == "success":
+        title, text = "Danke!", "Die Zahlung ist abgeschlossen. Du kannst dieses Fenster schließen und zu StudiNow zurückkehren; dein Abo erscheint dort in wenigen Sekunden."
+    elif checkout == "cancel":
+        title, text = "Abgebrochen", "Es wurde nichts berechnet. Du kannst dieses Fenster schließen und zu StudiNow zurückkehren."
+    else:
+        title, text = "Fertig", "Du kannst dieses Fenster schließen und zu StudiNow zurückkehren."
+    return HTMLResponse(ABO_DONE_PAGE.format(title=title, text=text), headers={"Cache-Control": "no-store"})
 
 
 def _legal_page(page: str):
@@ -1128,7 +1179,7 @@ TUTOR_ENTITLEMENT = {"summary": "can_use_ai_summaries", "flashcards": "can_use_a
 
 @app.post("/api/ai/tutor")
 def ai_tutor(request: Request, body: dict = Body(...)):
-    from . import ai
+    from . import ai, ai_backend
     mode = body.get("mode") or "explain"
     hosted = config.is_hosted()
     if hosted:
@@ -1148,10 +1199,27 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
+    # Erklaerungsspeicher (05.11.2026, app/explain_local.py): ganze Seite ohne Markierung, Frage und eigene Notizen wird gemerkt;
+    # beim naechsten Mal sofort da, 0 Credits. `force` ("Neu erklaeren lassen") fragt live nach und belegt den naechsten Platz.
+    from . import explain_local
+    force = body.get("force") is True
+    shareable = bool(text.strip()) and not body.get("second_opinion") and explain_local.is_shareable(mode, body.get("selection") or "", body.get("question") or "",
+                                                                  body.get("own_solution") or "", _own_notes(body))
+    # eine fertige request_id wiederholt die gespeicherte Antwort mit Credits-Stand (replay), das geht vor dem Speicher
+    replayed = hosted and bool(body.get("request_id")) and _ai_replay(request, str(body["request_id"])[:80]) is not None
+    if shareable and not force and not replayed:
+        with db.cursor() as conn:
+            hit = explain_local.lookup(conn, text, page, mode)
+        if hit:
+            state = ai_backend.credits_balance(request.state.user["id"]) if hosted else None
+            return {"answer": hit["answer"], "cards": None, "sources": [],
+                    "explain": explain_local.descriptor(stored=True, source=hit["source"], variant=hit["variant"], created_at=hit["created_at"]),
+                    "credits": {**state, "charged": 0, "replay": False} if state else None}
     sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
     credits_state = None
+    c = None
     if hosted:
-        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip)
+        c = _tutor_hosted(request, body, mode, text, course, fname, page, sources, studip, fresh=force)
         answer, credits_state = c.text, _credits_state(request, c)
     else:
         try:
@@ -1167,7 +1235,15 @@ def ai_tutor(request: Request, body: dict = Body(...)):
         except ai.AIError:
             cards = None
     cited = {int(n) for n in re.findall(r"\[(\d{1,2})\]", answer or "")}
-    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state}
+    explain = None
+    if shareable:
+        # gemeinsame Antwort im Dienst = Treffer im Zwischenspeicher der StudiNow-KI (gleiche Anfrage), sonst frisch erzeugt
+        cloud = bool(c is not None and getattr(c, "model", "") == "cache")
+        with db.cursor() as conn:
+            variant = explain_local.store(conn, text, page, mode, answer, "cloud" if cloud else "ai")
+        explain = explain_local.descriptor(stored=cloud, source="cloud", variant=variant)
+    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources], "credits": credits_state,
+            "explain": explain}
 
 
 # Karteikarten aus einem Dokument (03.11.2026): hoechstens so viele Seiten je Anfrage
@@ -1382,7 +1458,7 @@ def _own_notes(body: dict) -> str:
 
 
 def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
-                  sources: list[dict] | None = None, studip: str = ""):
+                  sources: list[dict] | None = None, studip: str = "", fresh: bool = False):
     """StudiNow-KI (Pro AI): Kontingent ai_assist, Credits, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern
     zurueckgebucht. Liefert die Completion (Text und berechnete Credits); mit request_id des Clients wird dieselbe
     Anfrage nie zweimal berechnet (Wiederholung aus dem Speicher, app/credits.py)."""
@@ -1402,7 +1478,7 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     try:
         # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=not notes and not second,
-                                   request_id=rid, keep_result=True, route_hint="second_opinion" if second else None,
+                                   request_id=rid, keep_result=True, fresh=fresh, route_hint="second_opinion" if second else None,
                                    route_text=" ".join(str(body.get(k) or "") for k in ("selection", "question")))
     except ai_backend.AIUnavailable as e:
         entitlements.refund(request, "ai_assist", rid)
@@ -2167,11 +2243,12 @@ def demo_status():
 @app.post("/api/demo")
 def demo_toggle(body: dict = Body(default={})):
     """{enabled: true} legt den Demo-Kurs mit PDFs, Stundenplan, Lernkalender, Frist und Ankuendigung an (frisch),
-    {enabled: false} entfernt alles rueckstandslos."""
+    {enabled: false} entfernt alles rueckstandslos; mit "thorough": true ("Beenden" in der Demo-Leiste der Weboberflaeche)
+    auch die Spuren, die das Ausprobieren hinterlassen hat."""
     with db.cursor() as conn:
         if body.get("enabled"):
             return demo.install(conn)
-        removed = demo.remove(conn)                  # erst entfernen, dann den Stand melden
+        removed = demo.remove(conn, thorough=body.get("thorough") is True)         # erst entfernen, dann den Stand melden
         return {**demo.status(conn), "removed": removed}
 
 
@@ -3217,7 +3294,11 @@ def api_grades_sync(show: bool = False):
             raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
         j = jobs.enqueue(uid, "grades", "manual")
         return {"started": "Notenspiegel", "job_id": j["id"], "status": j["status"], "already": j["already"]}
-    return _run_bg("Notenspiegel", lambda: qis.run(show_browser=show)["message"])
+    def _grades_then_catalog():
+        res = qis.run(show_browser=show)
+        study_catalog.start_if_needed()         # neuer Studiengang aus QIS: Modulkatalog im Hintergrund suchen (Studienverlauf)
+        return res["message"]
+    return _run_bg("Notenspiegel", _grades_then_catalog)
 
 
 @app.get("/api/qis/documents/{doc_id}")

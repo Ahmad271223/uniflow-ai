@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Entwurf, Stand 04.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
+**Entwurf, Stand 05.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen
 (insbesondere Abschnitt 5: Widerrufsbelehrung und Erlöschen des Widerrufsrechts nach § 356 Abs. 5 BGB, Zuständigkeit
 von Apple/Google als Vertragspartner des Kaufs; Abschnitt 9: Haftung; Abschnitt 11).**
 
@@ -65,6 +65,14 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
 - **Probe:** Jede Person erhält einmal eine kostenlose Probe von 7 Tagen mit dem Umfang von StudiNow Pro AI, ohne
   Zahlungsdaten; mit StudiNow-Konto gehören dazu 25 Credits für die KI von StudiNow. Nach der Probe gilt automatisch
   StudiNow Free, es sei denn, du schließt ein Abo ab; die Probe wird nie von selbst kostenpflichtig.
+- **Web und Windows:** Die Web-Oberfläche und die Windows-App nutzt du immer mit deinem StudiNow-Konto. Dort gibt es
+  keinen Free-Tarif zum Arbeiten: Nach der Probe brauchst du StudiNow Plus oder Pro AI; ohne aktives Abo kannst du dort
+  deine Daten nur ansehen und exportieren, gelöscht wird nichts. Free bleibt in der iPad-App nutzbar. Die Windows-App
+  prüft dein Abo beim Dienst; ohne Internet gilt der zuletzt geprüfte Stand bis zu 7 Tage.
+- **Abschluss im Web und unter Windows:** über unseren Zahlungsdienstleister Stripe (die Windows-App öffnet die
+  Bezahlseite in deinem Browser), sobald wir ihn eingerichtet haben; Kündigen und Wechseln im Kundenportal von Stripe.
+  Ein Abo aus der Apple-App gilt automatisch auch im Web und unter Windows; ein zweites Abo über Stripe ist dann nicht
+  möglich.
 - **StudiNow Plus** ist ein monatliches Abo (Stand: 1,99 € pro Monat inkl. USt) mit den Plus-Funktionen aus
   Abschnitt 2.
 - **StudiNow Pro AI** ist ein monatliches Abo (Stand: 3,99 € pro Monat inkl. USt). Es enthält alles aus Plus und die
