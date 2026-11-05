@@ -1597,13 +1597,24 @@
    "request": {
     "path": "/api/recent?limit=15"
    },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "items": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
    "expect": {
     "status": 200,
     "type": "object",
     "keys": [
      "items"
-    ],
-    "reason": "nur auf dem Geraet (RecentEndpoints)"
+    ]
    }
   },
   {

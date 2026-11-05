@@ -6,13 +6,13 @@
 // neuen. Regeln und Texte: messages-logic.js; Daten: app/studip_messages.py (nur Liste, nie die Einzelansicht, nichts wird in
 // Stud.IP als gelesen markiert, nie im gehosteten Dienst, nie im Offline-Speicher, nie an die KI).
 import { $, $$, api, icon, toast, todayISO, debounce } from "./core.js?v=44";
-import * as L from "./messages-logic.js?v=1";
+import * as L from "./messages-logic.js?v=2";
 
 const { esc } = L;
 
 function ensureCss() {
   if (document.getElementById("msg-css")) return;
-  const l = document.createElement("link"); l.id = "msg-css"; l.rel = "stylesheet"; l.href = "messages.css?v=1"; document.head.append(l);
+  const l = document.createElement("link"); l.id = "msg-css"; l.rel = "stylesheet"; l.href = "messages.css?v=2"; document.head.append(l);
 }
 
 // ---------------------------------------------------------------- Menüpunkt und Zahl
@@ -114,6 +114,8 @@ export async function viewMessages(_, __, view) {
     pane.classList.toggle("has-sel", !!m);
     if (!m) { box.innerHTML = `<div class="msg-pick muted">${icon("mail", 30)}<div>${esc(data.messages.length ? L.TEXTS.pick : L.noHits(query))}</div></div>`; return; }
     box.innerHTML = L.readerHtml(m, { today, back: true, icon });
+    // Antworten / Allen antworten (05.11.2026, message-reply.js): Knoepfe, "Beantwortet am …", eigene Antwort
+    import("./message-reply.js?v=1").then(R => { if (selected === m.id) R.decorateReader(box, m, { onSent: () => load(false) }); }).catch(() => {});
     box.scrollTop = 0;
     $(".msg-back", box).onclick = () => { selected = null; drawResults(); $(".msg-row", body)?.focus(); };
     $$(".msg-row", body).forEach(b => { const on = b.dataset.id === selected; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current"); });

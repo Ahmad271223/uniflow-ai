@@ -1037,7 +1037,9 @@ def _ask(prompt: str, system: str = "") -> str:      # in Tests ersetzt
             return ai_backend.complete(config.current_user_id(), "weekly_test", system, prompt).text
         except ai_backend.AIUnavailable as e:
             raise WeeklyError(f"StudiNow-KI: {e}") from e
-    return ai.ask(prompt, system)
+    # am PC: eigenes ChatGPT oder die StudiNow-KI ueber das Konto (Aufgabe "weekly", app/ai_relay.py)
+    with ai.for_task("weekly"):
+        return ai.ask(prompt, system)
 
 
 # Kontingent je Konto im Dienst (app/jobs.py setzt je Job ein Objekt mit check() -> Grund | None und consume(id)):

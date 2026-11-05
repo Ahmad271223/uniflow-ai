@@ -135,6 +135,9 @@ def calendar_extras(conn, start: date, end: date, university: str | None = None)
             "overdue": bool(r["overdue"]),
             "course_title": r["course_title"], "color": r["color"],
             "source": r["source"]})                     # learnweb | studip (Courseware): Quelle im Detail (03.11.2026)
+    # aus Dokumenten und Ankuendigungen erkannte Abgaben, Tests und Pruefungen (app/due_store.py, wie Holidays.swift)
+    from . import due_store
+    due_store.merge_calendar(by_day, conn, start, end)
     return marks, by_day
 
 

@@ -1,4 +1,4 @@
-# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 04.11.2026)
+# StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 05.11.2026)
 
 Auftrag des Inhabers vom 27.10.2026, Tarife und Kontingente nach der Entscheidung vom 04.11.2026 (`docs/PREISLISTE.md`). Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
@@ -6,11 +6,18 @@ Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ 
 
 ## 1. Tarife
 
-| Tarif | Preis/Monat | Neue KI-Tests | Bibliothekstests | KI-Erklärungen u. a. | Credits | PDF bearbeiten |
-|---|---:|---:|---:|---:|---:|:---:|
-| StudiNow Free | 0,00 € | 0 | 0 | 0 | 0 | nein |
-| StudiNow Plus | 1,99 € | 4 | 4 | 0 | 0 | ja |
-| StudiNow Pro AI | 3,99 € | 20 | unbegrenzt (Fair Use 300) | 150 | 100 | ja |
+| Tarif | Preis/Monat | Neue KI-Tests | Bibliothekstests | Stapel von StudiNow | KI-Erklärungen u. a. | Credits | PDF bearbeiten | Community |
+|---|---:|---:|---:|---:|---:|---:|:---:|:---:|
+| StudiNow Free | 0,00 € | 0 | 0 | 0 | 0 | 0 | nein | nein |
+| StudiNow Plus | 1,99 € | 4 | 4 | 4 | 0 | 0 | ja | ja |
+| StudiNow Pro AI | 3,99 € | 20 | unbegrenzt (Fair Use 300) | unbegrenzt (Fair Use 300) | 150 | 100 | ja | ja |
+
+**Angleichung vom 05.11.2026** (`docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`): Free ohne Community (auch kein Lesen,
+`can_read_community` ab Plus) und ohne StudiNow-KI; das eigene ChatGPT darf in jedem Tarif verbunden werden (Fragen zu
+Folien, Schreiben erst ab Plus; Verbindung noch in Vorbereitung, Abschnitt 4). Neues Kontingent `card_stacks_adopted`
+(„Stapel von StudiNow“): fertige Wochenstapel aus dem Pool und geteilte Stapel der Community übernehmen, Plus 4 je
+Monat (Annahme), Pro AI unbegrenzt mit Fair Use 300; derselbe Stapel zählt im Monat einmal. Nach dem Verlust von Plus
+bleibt alles erhalten, eigene Community-Beiträge lassen sich weiter zurückziehen.
 
 **Pro Connect** (2,99 €) gibt es seit dem 04.11.2026 nicht mehr: seine Rechte (Lernstatistik, Wiederholung,
 Empfehlungen, vollständige Testliste, Anzeige der ChatGPT-Verbindung) gehören zu Pro AI. Der Schlüssel `pro_connect`
@@ -47,7 +54,9 @@ Serverseitig (`app/entitlements.py`): Der Tarif kommt immer aus der Datenbank, n
 | `POST /api/sync/push` (neue Einträge `flashcards`/`flashcard_stacks` ohne `id`, Ergebnis `plan_required`) | `can_use_flashcards` (Plus) |
 | `GET /api/library/week-sets…`, `POST …/prepare`, `POST …/start` (fertige Fragen je Vorlesungswoche, `docs/BIBLIOTHEK-WOCHENFRAGEN.md`) | `can_use_prepared_week_sets` (Pro AI) |
 | `POST /api/ai/flashcards` (aus Dokument oder auf Auftrag mit `module_id`, Woche, Anzahl) | `can_use_ai_generated_questions` (Pro AI) |
-| `POST /api/community/solutions` (Lesen und Laden für alle) | `can_share_solutions` |
+| `/api/community/*` und `/api/community/card-stacks*` lesen, beitreten, liken, melden (seit 05.11.2026; ausgenommen: eigene Beiträge auflisten, zurückziehen und löschen, Austreten, Moderation) | `can_read_community` (Plus) |
+| `POST /api/community/solutions` | `can_share_solutions` |
+| Stapel übernehmen (`POST /api/community/card-stacks/{id}/adopt`, Wochenstapel aus dem Pool `POST /api/flashcard-stacks/week/…`) | `can_use_flashcards` + Kontingent `card_stacks_adopted` |
 | `POST /api/library/tests` | `can_access_shared_tests` bzw. `can_generate_studora_ai_tests` |
 | `GET /api/learning/stats` · `…/review` · `…/recommendations` (Pro AI) | `can_use_advanced_analytics` · `can_review_wrong_answers` · `can_get_recommendations` |
 | `GET /api/tests` (ohne Recht die letzten 10; ältere bleiben gespeichert, Nutzungsbedingungen 5a) | `can_use_extended_test_history` (Pro AI) |
@@ -284,7 +293,8 @@ Dienstes laufen auch für gesperrte Konten weiter (`app/jobs.py`).
 
 ## 4. ChatGPT-Verbindung
 
-`chatgpt_connection_premium` (ab Pro AI, vorher Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle
+`chatgpt_connection_premium` (seit 05.11.2026 **in jedem Tarif**, auch Free; vorher ab Pro AI bzw. Pro Connect; der
+Name ist historisch) ist eine **reine Produktregel für die Anzeige**. Die offizielle
 Kontingentnutzung hängt nicht daran: Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ (openai.com/policies/
 sign-in-with-chatgpt-terms; die Seite selbst war für die Prüfung nicht abrufbar) müssen Nutzer ihr ChatGPT-Abo über
 die Funktion nutzen können, ohne den Partner zu bezahlen oder einen bezahlten Partner-Tarif abzuschließen; ein

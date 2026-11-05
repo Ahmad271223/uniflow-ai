@@ -1,12 +1,12 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=44";
 import { viewDashboard as viewHome } from "./views-home.js?v=19";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=65";
-import { viewFiles } from "./views-lib.js?v=64";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=66";
+import { viewFiles } from "./views-lib.js?v=65";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
 import { viewTimetable, openEvent } from "./views-tt.js?v=46";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=83";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=48";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=84";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=49";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=4";
 import { chipState } from "./sync-chip.js?v=1";
@@ -14,7 +14,7 @@ import { trialHintHtml } from "./trial-hint.js?v=2";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
 import { navHtml, accountHtml } from "./shell-nav.js?v=3";
 import { viewStudyPlan } from "./study-plan.js?v=2";   // Studienverlauf (05.11.2026)
-import { viewAiStart } from "./views-ai.js?v=2";                       // KI-Start (#/ki), Paket B 05.11.2026
+import { viewAiStart } from "./views-ai.js?v=3";                       // KI-Start (#/ki), Paket B 05.11.2026
 import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
 
 // ---------------------------------------------------------------- Shell
@@ -104,8 +104,10 @@ function renderAccount() {
 window.renderAccount = renderAccount;
 
 // ---------------------------------------------------------------- Router
-const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=1").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=2").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
 routes.ki = viewAiStart;
+// Freunde einladen (Links, Teilen, QR-Code; invites.js, 05.11.2026)
+routes.einladungen = routes.invites = (p, q, v) => import("./invites.js?v=1").then(m => m.viewInvites(p, q, v));
 async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
@@ -210,8 +212,13 @@ async function start() {
   renderAccount();
   api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); state.userName = n; renderAccount(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
+  // Erststart nach der Konto-Anmeldung (onboarding.js), sonst Weitermachen wie zuvor: letztes Dokument auf seiner Seite (recent.js, 05.11.2026)
+  import("./onboarding.js?v=1").then(m => m.maybeStart({ api, icon, esc, toast, state })).catch(() => false)
+    .then(shown => import("./recent.js?v=1").then(m => m.startResume({ api, account: state.hosted ? state.account?.id ?? state.account?.email : state.appAccount?.user?.id ?? "local", skip: !!shown }))).catch(() => {});
+  // Erinnerungen an erkannte Fristen (Windows-Mitteilung, Browser oder Hinweis in der App; due-reminders.js, 05.11.2026)
+  import("./due-reminders.js?v=1").then(m => m.init({ api, toast, icon, esc, state })).catch(() => {});
   // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
-  if (!state.hosted) { import("./demo-bar.js?v=1").then(m => m.init()).catch(() => {}); import("./messages.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
+  if (!state.hosted) { import("./demo-bar.js?v=1").then(m => m.init()).catch(() => {}); import("./messages.js?v=2").then(m => m.startNavItem()).catch(() => {}); }
   // Aufforderung "Tarif waehlen oder bei Free bleiben" nur ohne Abo-Pflicht; mit Pflicht (Web) zeigt die Leiste den Stand
   if (state.hosted && state.entitlements?.needs_plan_choice && !state.entitlements?.access?.account_required && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie

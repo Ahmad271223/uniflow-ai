@@ -76,11 +76,25 @@ export function creditsLine(credits, explain) {
   return `Credits: ${credits.remaining} von ${credits.allowance} übrig${reset ? ` · ${reset}` : ""}`;
 }
 
-/** Fusszeile des Eingabefelds: "Seite 3 · Schon erklärt · 0 Credits" */
-export function footerLine(page, credits, explain) {
-  const line = creditsLine(credits, explain);
+/** Weg der KI vor der ersten Antwort (GET /api/ai/source, 05.11.2026): am PC mit Konto der Credits-Stand, sonst der Weg */
+export function sourceLine(source) {
+  if (!source) return "";
+  if (source.source === "chatgpt") return "über dein ChatGPT · 0 Credits";
+  if (source.source === "studinow") return source.credits ? creditsLine(source.credits, null) : "StudiNow-KI · mit Credits";
+  if (source.source === "cli") return "Claude-Kommandozeile (Entwickler)";
+  if (source.source === "none") return "Keine KI verbunden";
+  return "";
+}
+
+/** Fusszeile des Eingabefelds: "Seite 3 · Schon erklärt · 0 Credits"; ohne Antwort der Weg der KI (`source`) */
+export function footerLine(page, credits, explain, source = null) {
+  const line = creditsLine(credits, explain) || sourceLine(source);
   return `Seite ${page}${line ? ` · ${line}` : ""}`;
 }
+
+/** Fehler, unter denen der Weg zum Tarif steht (Credits, Kontingent, Tarif, Abo) */
+export const PLAN_CODES = ["credits_exhausted", "quota_exhausted", "plan_required", "subscription_required", "subscription_unverified"];
+export const needsPlan = code => PLAN_CODES.includes(code);
 
 /** `history` fuer den Dienst: die letzten Beitraege, Karten als Text */
 export function historyFor(messages) {
@@ -116,6 +130,19 @@ export function sourceLinks(html, sources, esc) {
 
 /** Farbe eines Modus-Knopfes: der Reiter, zu dem er gehoert (Quizfragen liegen im Reiter Test) */
 export const tabClass = mode => tabOf(mode) || (mode === "quiz" ? "test" : "explain");
+
+// ---------------------------------------------------------------- eigene Notizen mitschicken (wie AttachedNotes auf dem iPad)
+export const OWN_NOTES_CHARS = 4000;                 // wie ai.OWN_NOTES_CHARS
+/** Text der Notizseiten (side-notes.js notePages) fuer `own_notes`: Textfelder und Haftnotizen wie SN.typedText, dazu
+ *  Handschrift nur mit erkanntem Text (vom iPad), in Reihenfolge, hoechstens OWN_NOTES_CHARS */
+export function notesText(doc, keys) {
+  const parts = [];
+  for (const k of keys || []) for (const o of doc?.pages?.[k]?.objects || []) {
+    const t = o?.type === "text" ? o.text : (o?.type === "stroke" ? (o.recognizedText || o.recognized_text) : null);
+    if (typeof t === "string" && t.trim()) parts.push(t.trim());
+  }
+  return parts.join("\n").slice(0, OWN_NOTES_CHARS);
+}
 
 /** Leerzustand als Einladung */
 export const emptyHtml = icon => `<div class="ed-ai-empty"><b>${icon("sparkles", 15)} Frag etwas zur offenen Seite</b><p class="muted small">Oder wähle oben Erklären, Karteikarten oder Test. Markierter Text wird mitgeschickt.</p></div>`;
@@ -158,18 +185,36 @@ export function panelHtml(icon, esc = s => s) {
     </form>`;
 }
 
+/** Gespraech der KI-Hilfe je Dokument laden und speichern (GET/PUT/DELETE /api/tutor-conversations/<Datei>, app/recent.py).
+ *  `onLoad(messages)` bekommt das gespeicherte Gespraech; Fehler bleiben still (ohne Abo nur lesen, offline). */
+export function conversationStore(fileId, nameOf, onLoad, fetchFn = (...a) => fetch(...a)) {
+  const url = fileId ? `/api/tutor-conversations/${encodeURIComponent(fileId)}` : null;
+  let timer = null;
+  const put = msgs => fetchFn(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_name: nameOf() || "", messages: msgs }) }).catch(() => {});
+  const ready = url ? fetchFn(url).then(r => (r.ok ? r.json() : null)).then(c => { if (Array.isArray(c?.messages)) onLoad(c.messages); }).catch(() => {}) : Promise.resolve();
+  return {
+    ready,
+    save(msgs) { if (!url) return; clearTimeout(timer); const copy = msgs.slice(); timer = setTimeout(() => put(copy), 300); },
+    clear() { if (!url) return; clearTimeout(timer); fetchFn(url, { method: "DELETE" }).catch(() => {}); },
+  };
+}
+
 /** Leiste in den Editor haengen. `ed` = Editor (pages, currentPage, fileId, model, c, pageText, docRun, goToPage, ...);
  *  `deps` = { $, $$, icon, esc, md, uid } aus editor.js. */
 export function createAiPanel(ed, deps) {
   const { $, $$, icon, esc, md, uid } = deps;
   const root = $(".ed-ai", ed.c);
-  const st = { tab: "explain", messages: [], busy: false, checking: false, credits: null, explain: null };
+  const st = { tab: "explain", messages: [], busy: false, checking: false, credits: null, explain: null, source: null };
+  // Weitermachen (04.11.2026 wie TutorConversations.swift): Gespraech je Dokument im eigenen Datenbestand (app/recent.py)
+  const conv = conversationStore(ed.fileId, () => ed.name, msgs => { if (!st.messages.length && msgs.length) { st.messages = msgs; renderAll(); } });
   root.innerHTML = panelHtml(icon, esc);
   const q = sel => $(sel, root);
   const out = () => q(".ed-ai-out");
 
   const page = () => { const pg = ed.pages[ed.currentPage]; return pg ? ed.pages.indexOf(pg) + 1 : 1; };
-  function updateFooter() { q(".ed-ai-foot").textContent = footerLine(page(), st.credits, st.explain); q(".ed-ai-page").textContent = `Seite ${page()}`; }
+  function updateFooter() { q(".ed-ai-foot").textContent = footerLine(page(), st.credits, st.explain, st.source); q(".ed-ai-page").textContent = `Seite ${page()}`; }
+  // Weg der KI und Credits-Stand (am PC ueber das StudiNow-Konto), bevor die erste Antwort da ist
+  fetch("/api/ai/source").then(r => r.ok ? r.json() : null).then(s => { st.source = s; updateFooter(); }).catch(() => {});
   function setTab(id) {
     st.tab = id;
     $$(".ed-ai-tab", root).forEach(b => { const on = b.dataset.tab === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
@@ -210,7 +255,7 @@ export function createAiPanel(ed, deps) {
         try {
           const r = await fetch("/api/flashcards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_id: ed.fileId, cards: m.cards }) });
           if (!r.ok) throw new Error(errorText(await r.json().catch(() => ({})), r.statusText));
-          m.saved = true; b.innerHTML = `${icon("cards", 14)} In Karteikarten gespeichert ✓`;
+          m.saved = true; b.innerHTML = `${icon("cards", 14)} In Karteikarten gespeichert ✓`; conv.save(st.messages);
         } catch (err) { b.disabled = false; ed.onStatus(`Karten nicht gespeichert: ${err.message}`); }
       };
     } else {
@@ -252,6 +297,16 @@ export function createAiPanel(ed, deps) {
     ed.model.pages[pg.key].objects.push(o); ed.addNode(pg, o); pg.layer.batchDraw(); ed.commit(pg, before);
   }
 
+  /** Notiztext einer Folie mit ihren Seitennotizen und den Blaettern daneben (side-notes.js); leer ohne Notizen */
+  async function ownNotesFor(pageKey) {
+    try {
+      const SN = await import("./side-notes.js?v=1");
+      const sheets = await SN.loadSheets(ed.model, async u => { const r = await fetch(u); if (!r.ok) throw new Error(String(r.status)); return r.json(); });
+      const doc = sheets.length ? SN.interleaved(ed.model, sheets) : ed.model;
+      return notesText(doc, SN.notePages(doc, pageKey));
+    } catch { return ""; }
+  }
+
   /** Eine Frage an die KI. mode: ask | explain | … | quiz; opts.force = "Neu erklaeren lassen" */
   async function ask(mode = "ask", opts = {}) {
     if (st.busy) return;
@@ -270,6 +325,9 @@ export function createAiPanel(ed, deps) {
       own_solution: mode === "check" ? typed : "", page_text: "", history: historyFor(st.messages) };
     if (opts.force) body.force = true;
     if (q(".ed-ai-ctx").checked && pg?.type === "pdf") body.page_text = await ed.pageText(pg.index);
+    // Seitennotizen und Blaetter neben der Folie gehen mit (docs/NOTIZEN-MITSCHICKEN-2026-11-05.md 4.3); dann nutzt der
+    // Server nie den geteilten Erklaerungsspeicher (persoenlicher Inhalt)
+    if (pg?.type === "pdf") { const notes = await ownNotesFor(pg.key); if (notes) body.own_notes = notes; }
     if (pg?.type === "blank" && q(".ed-ai-ctx").checked) body.page_text = (ed.model.pages[pg.key].objects.filter(o => o.type === "text").map(o => o.text).join("\n")) + "\n[Handschrift auf Notizseiten kann nicht gelesen werden]";
     const tab = tabOf(mode); if (tab && tab !== st.tab && mode !== "check") setTab(tab);
     const mine = { fromUser: true, text: userLabel(mode, typed, !!opts.force), quote: selection };
@@ -282,12 +340,12 @@ export function createAiPanel(ed, deps) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { const e = new Error(errorText(j, r.statusText)); e.code = errorCode(j); throw e; }
       const a = { fromUser: false, text: j.answer || "", cards: mode === "flashcards" && Array.isArray(j.cards) ? j.cards : [], sources: j.sources || [], mode: mode === "quiz" ? "similar" : mode, explain: j.explain || null };
-      st.messages.push(a); st.credits = j.credits || null; st.explain = a.explain;
+      st.messages.push(a); st.credits = j.credits || null; st.explain = a.explain; conv.save(st.messages);
       renderAll(); updateFooter();
     } catch (e) {
       // Frage ohne Antwort nicht im Verlauf lassen, Eingabe zurueck ins Feld
       st.messages.pop(); input.value = typed; q(".ed-ai-sel").value = selection; renderAll();
-      out().insertAdjacentHTML("beforeend", `<div class="ed-err" role="alert">Fehler: ${esc(e.message)}${e.code === "credits_exhausted" ? ` <a href="#/abo">Tarif ansehen</a>` : ""}</div>`); scroll();
+      out().insertAdjacentHTML("beforeend", `<div class="ed-err" role="alert">Fehler: ${esc(e.message)}${needsPlan(e.code) ? ` <a href="#/abo">Tarif ansehen</a>` : ""}</div>`); scroll();
     } finally { setBusy(false); }
   }
 
@@ -297,7 +355,7 @@ export function createAiPanel(ed, deps) {
   $$(".ed-ai-doc", root).forEach(b => b.onclick = () => ed.docRun(b.dataset.doc));
   q(".ed-ai-scope").onchange = e => { q(".ed-ai-range").hidden = e.target.value !== "range"; };
   q(".ed-ai-close").onclick = () => { root.hidden = true; };
-  q(".ed-ai-new").onclick = () => { if (st.busy) return; st.messages = []; st.credits = null; st.explain = null; renderAll(); updateFooter(); };
+  q(".ed-ai-new").onclick = () => { if (st.busy) return; st.messages = []; st.credits = null; st.explain = null; renderAll(); updateFooter(); conv.clear(); };
   q(".ed-ai-checkoff").onclick = () => setChecking(false);
   q(".ed-ai-form").onsubmit = e => { e.preventDefault(); ask(st.checking ? "check" : "ask"); };
   q(".ed-ai-q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); q(".ed-ai-form").requestSubmit(); } });

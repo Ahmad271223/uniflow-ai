@@ -3,8 +3,8 @@
 // unten. Regeln in ai-start-logic.js (tests/js/ai-start.test.mjs); Fragen gehen an POST /api/ai/tutor wie die KI-Hilfe
 // im Editor. Erreichbar über das Raster-Symbol in der KI-Hilfe und den Knopf "KI-Start" bei Tests & Wiederholung.
 import { $, $$, api, esc, icon, toast, state } from "./core.js?v=44";
-import * as L from "./ai-start-logic.js?v=1";
-import { followUps, MODE_LABELS } from "./ai-panel.js?v=1";
+import * as L from "./ai-start-logic.js?v=2";
+import { followUps, MODE_LABELS, needsPlan } from "./ai-panel.js?v=2";
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -13,10 +13,10 @@ const store = {
 const RECENTS_KEY = "uf.ai.recents", COUNT_KEY = () => `uf.ai.count.${L.monthKey()}`;
 
 export async function viewAiStart(_, params, view) {
-  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=67")]);
+  const [mods, lib, { md }] = await Promise.all([api("/modules").catch(() => []), api("/library").catch(() => ({ files: [] })), import("./editor.js?v=68")]);
   // in der Seitenleiste leuchtet "Tests & Wiederholung" (wie auf dem iPad)
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === "exams"));
-  const st = { module: 0, fileId: "", question: "", turns: [], pending: null, busy: false, error: null, exhausted: false, help: false, credits: null, explain: null, loaded: false };
+  const st = { module: 0, fileId: "", question: "", turns: [], pending: null, busy: false, error: null, exhausted: false, help: false, credits: null, explain: null, loaded: false, source: null };
   const docs = () => L.documents(lib.files, st.module);
   const attach = () => L.attachment(st.fileId, docs());
   if (!st.fileId) st.fileId = docs()[0]?.id || "";
@@ -99,7 +99,7 @@ export async function viewAiStart(_, params, view) {
   function draw() {
     root.dataset.layout = lay();
     $("#aiHead", view).hidden = lay() === "chat"; $("#aiNew", view).hidden = lay() !== "chat";
-    $("#aiStatus", view).textContent = L.statusLine(count(), st.credits, st.explain);
+    $("#aiStatus", view).textContent = L.statusLine(count(), st.credits, st.explain, st.source);
     const err = $("#aiErr", view); err.hidden = !st.error;
     err.innerHTML = st.error ? `${esc(st.error)}${st.exhausted ? ` <a class="btn sm" href="#/abo">${icon("star", 13)} Tarif ansehen</a>` : ""}` : "";
     $("#aiSend", view).disabled = st.busy; $$(".ai-pill", view).forEach(b => b.disabled = st.busy && b.dataset.act !== "help");
@@ -110,7 +110,7 @@ export async function viewAiStart(_, params, view) {
   async function send({ mode = "ask", question = "", label, busy }) {
     if (st.busy) return;
     const f = st.fileId ? docs().find(d => d.id === st.fileId) : null;
-    const body = L.requestBody({ mode, question, fileId: f?.id || "", turns: st.turns });
+    const body = L.requestBody({ mode, question, fileId: f?.id || "", moduleId: st.module, turns: st.turns });
     st.busy = true; st.error = null; st.exhausted = false; st.help = false; st.pending = { label: label || question || MODE_LABELS[mode] || mode, busy };
     if (mode === "ask") q.value = "";
     draw();
@@ -123,7 +123,7 @@ export async function viewAiStart(_, params, view) {
       store.set(COUNT_KEY(), count() + 1); store.set(RECENTS_KEY, L.addRecent(recents(), { question: a.question, answer: text, fileId: a.fileId, fileName: a.fileName }));
     } catch (e) {
       st.pending = null; if (mode === "ask" && !q.value) q.value = question;      // Frage zurueck ins Feld
-      st.error = e.message || "Die KI ist gerade nicht erreichbar."; st.exhausted = e.code === "credits_exhausted";
+      st.error = e.message || "Die KI ist gerade nicht erreichbar."; st.exhausted = needsPlan(e.code);
     }
     st.busy = false; draw();
   }
@@ -150,6 +150,8 @@ export async function viewAiStart(_, params, view) {
     else { st.help = !st.help; drawHelp(); if (st.help) $("#aiHelp", view).scrollIntoView?.({ block: "start", behavior: "smooth" }); }
   });
   drawAttach(); draw();
+  // Weg der KI und Credits-Stand (am PC ueber das StudiNow-Konto) fuer die Statuszeile
+  api("/ai/source").then(s => { st.source = s; if (!st.busy) $("#aiStatus", view).textContent = L.statusLine(count(), st.credits, st.explain, st.source); }).catch(() => {});
   if (params?.q) { q.value = params.q; }
   q.focus();
 }

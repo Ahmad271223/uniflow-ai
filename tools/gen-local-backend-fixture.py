@@ -288,11 +288,10 @@ SAMPLES: dict[str, dict] = {
     "GET /api/studip/messages": {"path": "/api/studip/messages", "python": False,
                                  "expect": {"status": 200, "type": "object", "keys": ["fetched_at", "messages", "q", "total"],
                                             "reason": "nur auf dem Geraet (StudIPMessagesEndpoints)"}},
-    # Zuletzt benutzt (RecentEndpoints, 04.11.2026): nur im Kern, weder Python noch Web haben die Liste
-    # (docs/paritaet/ipad-app.md); auf leerer Datenbank leer
-    "GET /api/recent": {"path": "/api/recent?limit=15", "python": False,
-                        "expect": {"status": 200, "type": "object", "keys": ["items"],
-                                   "reason": "nur auf dem Geraet (RecentEndpoints)"}},
+    # Zuletzt benutzt (RecentEndpoints, 04.11.2026; Python app/recent.py seit 05.11.2026, dort mit den KI-Gespraechen);
+    # auf leerer Datenbank leer
+    "GET /api/recent": {"path": "/api/recent?limit=15",
+                        "expect": {"status": 200, "type": "object", "keys": ["items"]}},
     # Pruefungsanmeldung (ExamRegistrationEndpoints, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): nur im Kern; der PC liest
     # "Info über angemeldete Prüfungen" nicht, app/exam_registration.py hat nur Daten, Zuordnung und Phase
     "GET /api/exam-registration": {"path": "/api/exam-registration", "python": False,

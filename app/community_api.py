@@ -6,7 +6,7 @@ import json
 
 from fastapi import APIRouter, Body, HTTPException, Request, Response
 
-from . import community, config
+from . import community, config, entitlements
 
 router = APIRouter(prefix="/api/community", tags=["community"])
 
@@ -15,12 +15,23 @@ def _err(e: community.CommunityError) -> HTTPException:
     return HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
 
 
-def _user(request: Request) -> dict:
+def _account(request: Request) -> dict:
+    """Angemeldet im Dienst, ohne Tarifpruefung: nur fuer eigene Daten (eigene Beitraege auflisten, zurueckziehen,
+    loeschen, austreten, Sperrliste), Geraete-Meldungen und die Moderation."""
     if not config.is_hosted():
         raise HTTPException(501, {"detail": "Die Community gibt es nur im gehosteten Dienst (LERNAPP_MODE=hosted).", "code": "not_hosted"})
     u = getattr(request.state, "user", None)
     if not u:
         raise HTTPException(401, {"detail": "Anmeldung erforderlich.", "code": "unauthenticated"})
+    return u
+
+
+def _user(request: Request) -> dict:
+    """Angemeldet und Recht `can_read_community` (Entscheidung 05.11.2026: Community ab StudiNow Plus, auch das Lesen;
+    403 plan_required "Die Community gibt es ab StudiNow Plus."). Die Moderation (Rolle admin) braucht keinen Tarif."""
+    u = _account(request)
+    if u.get("role") != "admin":
+        entitlements.require(request, "can_read_community")
     return u
 
 
@@ -34,7 +45,7 @@ def _run(fn, *args):
 @router.get("/info")
 def info(request: Request):
     """Regeln des Dienstes und eigener Tarifstand; im Einzelplatzmodus 501."""
-    return community.info(_user(request))
+    return community.info(_account(request))
 
 
 @router.post("/solutions", status_code=201)
@@ -71,17 +82,17 @@ def find(request: Request, fingerprint: str = "", limit: int = 200, offset: int 
 
 @router.get("/mine")
 def mine(request: Request):
-    return {"solutions": community.mine(_user(request))}
+    return {"solutions": community.mine(_account(request))}
 
 
 @router.get("/blocks")
 def blocks(request: Request):
-    return {"blocked": community.blocks(_user(request))}
+    return {"blocked": community.blocks(_account(request))}
 
 
 @router.get("/moderation")
 def moderation(request: Request):
-    u = _user(request)
+    u = _account(request)
     return {"solutions": _run(community.moderation_queue, u), **_run(community_qa.moderation_posts, u)}
 
 
@@ -89,7 +100,7 @@ def moderation(request: Request):
 def claims(request: Request, body: dict = Body(...)):
     """Geraet meldet die Fingerabdruecke (SHA-256) seiner PDFs aus dem Hochschul-Abgleich: {fingerprints: [...],
     replace?: bool}. Danach findet, laedt, liked und kommentiert das Konto Loesungen zu diesen PDFs."""
-    u = _user(request)
+    u = _account(request)
     return _run(community.claim_files, u, config.university(), body.get("fingerprints") or [], bool(body.get("replace")), body.get("course_keys"))
 
 
@@ -107,7 +118,7 @@ def join(request: Request, community_key: str, body: dict = Body(default={})):
 
 @router.delete("/communities/{community_key}/join")
 def leave(request: Request, community_key: str):
-    return _run(community.leave, _user(request), community_key)
+    return _run(community.leave, _account(request), community_key)
 
 
 @router.get("/communities/{community_key}/solutions")
@@ -159,7 +170,7 @@ def edit_comment(request: Request, comment_id: str, body: dict = Body(...)):
 
 @router.delete("/comments/{comment_id}")
 def delete_comment(request: Request, comment_id: str):
-    return _run(community.delete_comment, _user(request), comment_id)
+    return _run(community.delete_comment, _account(request), comment_id)
 
 
 @router.post("/comments/{comment_id}/report")
@@ -170,7 +181,7 @@ def report_comment(request: Request, comment_id: str, body: dict = Body(...)):
 @router.get("/admin/leaderboard")
 def leaderboard(request: Request, limit: int = 50):
     """Nur Inhaber (Rolle admin): Autoren nach erhaltenen Likes, mit Konto-E-Mail."""
-    return {"authors": _run(community.leaderboard, _user(request), limit)}
+    return {"authors": _run(community.leaderboard, _account(request), limit)}
 
 
 @router.get("/solutions/{solution_id}")
@@ -185,7 +196,7 @@ def download(request: Request, solution_id: str):
 
 @router.delete("/solutions/{solution_id}")
 def withdraw(request: Request, solution_id: str):
-    return _run(community.withdraw, _user(request), solution_id)
+    return _run(community.withdraw, _account(request), solution_id)
 
 
 @router.post("/solutions/{solution_id}/report")
@@ -200,13 +211,13 @@ def block(request: Request, solution_id: str):
 
 @router.delete("/blocks/{pseudonym}")
 def unblock(request: Request, pseudonym: str):
-    return _run(community.unblock, _user(request), pseudonym)
+    return _run(community.unblock, _account(request), pseudonym)
 
 
 @router.post("/solutions/{solution_id}/moderate")
 def moderate(request: Request, solution_id: str, body: dict = Body(...)):
     """Nur Admin: hide | restore | remove | ban_author | unban_author."""
-    return _run(community.moderate, _user(request), solution_id, body.get("action") or "", body.get("reason"))
+    return _run(community.moderate, _account(request), solution_id, body.get("action") or "", body.get("reason"))
 
 
 # ---------------------------------------------------------------- Teil 2: Fragen je Kurs, Lesezeichen, Benachrichtigungen
@@ -241,7 +252,7 @@ def qa_edit(request: Request, qid: str, body: dict = Body(...)):
 
 @router.delete("/questions/{qid}")
 def qa_delete(request: Request, qid: str):
-    return _run(community_qa.delete, _user(request), "question", qid)
+    return _run(community_qa.delete, _account(request), "question", qid)
 
 
 @router.post("/questions/{qid}/answers", status_code=201)
@@ -272,7 +283,7 @@ def qa_answer_edit(request: Request, aid: str, body: dict = Body(...)):
 
 @router.delete("/answers/{aid}")
 def qa_answer_delete(request: Request, aid: str):
-    return _run(community_qa.delete, _user(request), "answer", aid)
+    return _run(community_qa.delete, _account(request), "answer", aid)
 
 
 @router.post("/answers/{aid}/vote")
@@ -302,7 +313,7 @@ def qa_moderate(request: Request, kind: str, target_id: str, body: dict = Body(.
          "card-stacks": "card_stack"}.get(kind)
     if not k:
         raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
-    return _run(community_qa.moderate_post, _user(request), k, target_id, body.get("action") or "")
+    return _run(community_qa.moderate_post, _account(request), k, target_id, body.get("action") or "")
 
 
 @router.get("/bookmarks")
@@ -317,7 +328,7 @@ def bm_add(request: Request, kind: str, target_id: str):
 
 @router.delete("/bookmarks/{kind}/{target_id}")
 def bm_del(request: Request, kind: str, target_id: str):
-    return _run(community_qa.bookmark, _user(request), kind, target_id, False)
+    return _run(community_qa.bookmark, _account(request), kind, target_id, False)
 
 
 @router.get("/notifications")
@@ -329,7 +340,7 @@ def notif_list(request: Request, unread: bool = False, limit: int = 50):
 def notif_read(request: Request, body: dict = Body(default={})):
     """{ids?: [...]} oder alles gelesen."""
     ids = body.get("ids") if isinstance(body, dict) else None
-    return community_qa.mark_read(_user(request), ids if isinstance(ids, list) else None)
+    return community_qa.mark_read(_account(request), ids if isinstance(ids, list) else None)
 
 
 # ---------------------------------------------------------------- Korrekturvorschlaege (03.11.2026, app/community_corrections.py)
@@ -371,7 +382,7 @@ def correction_status(request: Request, correction_id: str, body: dict = Body(..
 
 @router.delete("/corrections/{correction_id}")
 def correction_delete(request: Request, correction_id: str):
-    return _run(community_corrections.delete, _user(request), correction_id)
+    return _run(community_corrections.delete, _account(request), correction_id)
 
 
 @router.post("/corrections/{correction_id}/report")

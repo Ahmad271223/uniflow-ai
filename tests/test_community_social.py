@@ -84,7 +84,7 @@ def test_device_claims_let_windows_and_ipad_share_and_open(hosted):
 
 def test_likes_are_idempotent_not_for_own_and_need_a_confirmed_address(hosted):
     a, ha = _user(hosted, "autor@beispiel.de")
-    b, hb = _user(hosted, "leser@beispiel.de", plus=False)              # liken geht auch mit Free
+    b, hb = _user(hosted, "leser@beispiel.de")                          # liken ab Plus (Community ab Plus, 05.11.2026)
     u, hu = _user(hosted, "neu@beispiel.de", verified=False)
     for h in (ha, hb, hu):
         _claim(hosted, h, FP)
@@ -111,7 +111,9 @@ def test_comments_with_anchor_replies_edit_delete_report(hosted):
     sid = _publish(hosted, ha)[1]["solution_id"]
     base = f"/api/community/solutions/{sid}/comments"
     st, d = _j(asgi_call(hosted, "POST", base, headers=hf, body=json.dumps({"text": "Danke"})))
-    assert (st, d["code"]) == (403, "plan_required"), "Kommentieren ab Plus, Lesen fuer alle"
+    assert (st, d["code"]) == (403, "plan_required"), "Kommentieren ab Plus"
+    st, d = _j(asgi_call(hosted, "GET", base, headers=hf))
+    assert (st, d["code"]) == (403, "plan_required"), "Lesen ebenfalls ab Plus (05.11.2026)"
     st, d = _j(asgi_call(hosted, "POST", base, headers=hb, body=json.dumps({"text": "  "})))
     assert (st, d["code"]) == (400, "text_empty")
     st, d = _j(asgi_call(hosted, "POST", base, headers=hb, body=json.dumps({"text": "x", "page_key": "p1", "anchor": {"x": 2, "y": 0.5}})))
@@ -124,10 +126,10 @@ def test_comments_with_anchor_replies_edit_delete_report(hosted):
     st, r2 = _j(asgi_call(hosted, "POST", base, headers=hb, body=json.dumps({"text": "Danke!", "parent_id": r1["id"]})))
     assert r2["parent_id"] == c1["id"], "eine Ebene: Antwort auf Antwort haengt am ersten Kommentar"
     st, c2 = _j(asgi_call(hosted, "POST", base, headers=hb, body=json.dumps({"text": "Allgemein: sehr übersichtlich."})))
-    st, d = _j(asgi_call(hosted, "GET", base, headers=hf))
+    st, d = _j(asgi_call(hosted, "GET", base, headers=hb))
     assert st == 200 and [c["text"] for c in d["comments"]] == ["Hier fehlt die Begründung für Schritt 2.", "Stimmt, ergänze ich.", "Danke!",
                                                                  "Allgemein: sehr übersichtlich."]
-    st, d = _j(asgi_call(hosted, "GET", f"/api/community/solutions?fingerprint={FP}", headers=hf))
+    st, d = _j(asgi_call(hosted, "GET", f"/api/community/solutions?fingerprint={FP}", headers=hb))
     assert d["solutions"][0]["comments"] == 4
     # bearbeiten nur der Verfasser
     assert _j(asgi_call(hosted, "PATCH", f"/api/community/comments/{c1['id']}", headers=ha, body=json.dumps({"text": "x"})))[0] == 403
@@ -173,7 +175,7 @@ def test_leaderboard_only_for_the_owner_with_account_emails(hosted):
     boss, hboss = _user(hosted, "chef@beispiel.de", admin=True)
     a, ha = _user(hosted, "top@beispiel.de")
     b, hb = _user(hosted, "zweiter@beispiel.de")
-    fans = [_user(hosted, f"fan{i}@beispiel.de", plus=False) for i in range(3)]
+    fans = [_user(hosted, f"fan{i}@beispiel.de") for i in range(3)]
     for h in [ha, hb] + [h for _, h in fans]:
         _claim(hosted, h, FP)
     s1 = _publish(hosted, ha, sid="6f1c1c0e-0000-4000-8000-0000000000c1")[1]["solution_id"]

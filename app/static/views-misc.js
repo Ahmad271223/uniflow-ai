@@ -70,6 +70,7 @@ async function viewModule(id, view) {
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
     if ($("#stHost", view)) mountStudipTexts($("#stHost", view), id, api);   // Courseware, Wiki, Forum (Blubber) aus Stud.IP
+    if ($("#stHost", view)) import("./exam-registration.js?v=1").then(X => X.renderModuleBlock($("#stHost", view), { appModuleId: +id, before: true })).catch(() => {});   // "Prüfung anmelden"
     // Fertige Fragen je Lehrwoche (Pro AI, Bibliothek des Dienstes): week-sets.js
     if ($(".ws-host", view)) import("./week-sets.js?v=3").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
   };
@@ -97,7 +98,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=67"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=68"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -171,7 +172,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=67"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=68"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -598,8 +599,23 @@ export async function viewCommunity(_, params, view) {
   }
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
+  // Community ab StudiNow Plus, auch das Lesen (Entscheidung 05.11.2026): ohne Recht nur der Hinweis und die eigenen
+  // Veroeffentlichungen, die sich nach dem Herabstufen weiter zurueckziehen lassen (nichts wird geloescht)
+  if (info.can_read === false && !info.admin) {
+    const mine = await api("/community/mine").catch(() => ({ solutions: [] }));
+    const active = mine.solutions.filter(s => s.status === "active" || s.status === "hidden");
+    view.innerHTML = `<div class="content" style="max-width:860px">${head}
+      <div class="card"><div class="card-head"><h2>${icon("users", 18)} Community ab StudiNow Plus</h2></div>
+        <p class="small" style="margin:0 0 .6rem">Mit Plus siehst du die Lösungen und Fragen deiner Kurse, trittst Communities bei, likst, kommentierst und teilst eigene Lösungen und Karteikarten-Stapel.</p>
+        <a class="btn sm primary" href="#/abo">Tarife ansehen</a></div>
+      ${active.length ? `<div class="card"><div class="card-head"><h2>${icon("layers", 18)} Meine Veröffentlichungen</h2><span class="badge neutral">${active.length}</span></div>
+        <p class="small muted" style="margin:0 0 .5rem">Deine geteilten Lösungen bleiben, bis du sie zurückziehst.</p>
+        <table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${active.map(s => solRow(s, `<button class="btn sm" data-withdraw="${s.solution_id}">${icon("x", 13)} Zurückziehen</button>`)).join("")}</table></div>` : ""}</div>`;
+    $$("[data-withdraw]", view).forEach(b => b.onclick = async () => { if (!confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) return; try { await api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }); toast("Lösung zurückgezogen"); state.route(); } catch (e) { toast(e.message, 4000); } });
+    return;
+  }
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=11")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=12")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -711,6 +727,7 @@ export async function viewSettings(_, params, view) {
         ${state.hosted ? `<label class="small" style="display:flex;gap:.5rem;align-items:flex-start;margin:.4rem 0"><input type="checkbox" id="credConsent" ${cred.consent_at ? "checked" : ""}> <span>Ich stimme zu, dass sich der StudiNow-Dienst mit diesen Zugangsdaten bei meiner Hochschule anmeldet und meine Unterlagen in mein Konto lädt. Ich kann die Zugangsdaten jederzeit löschen (<a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a>).</span></label>` : ""}
         <div class="row wrap"><button class="btn primary sm" id="saveCred">Zugang speichern</button><button class="btn sm" id="testSync">Dateien jetzt holen (ohne KI)</button>${state.hosted && cred.password_set ? `<button class="btn ghost sm danger" id="clearCred">Zugangsdaten löschen</button>` : ""}</div></div>`;
     const looksCard = `<div class="card"><div class="card-head"><h2>${icon("user", 18)} Anzeigename</h2></div><div class="row"><input class="input" id="sName" value="${esc(s.user_name || "")}" placeholder="z. B. Ahmad H." style="max-width:260px"><button class="btn sm" id="sNameOk">Speichern</button></div>
+      <label class="field" style="margin-top:.6rem">Rufname für die Begrüßung <span class="row"><input class="input" id="sRuf" value="${esc(s.rufname || "")}" placeholder="z. B. Ahmad" maxlength="40" style="max-width:260px"><button class="btn sm" id="sRufOk">Speichern</button></span></label><p class="muted tiny" style="margin:.2rem 0 0">Für „Hallo … – lass uns gemeinsam lernen.“ auf der Übersicht.</p>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("sun", 18)} Darstellung</h2></div><div class="seg">${[["auto", "Automatisch"], ["light", "Hell"], ["dark", "Dunkel"]].map(([k, l]) => `<button class="${(document.documentElement.dataset.theme || "auto") === k ? "active" : ""}" data-theme="${k}">${l}</button>`).join("")}</div>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("pen", 18)} Stift & Touch</h2></div><select class="input" id="sPen" style="width:auto"><option value="all" ${s.pen_input === "all" ? "selected" : ""}>Finger darf schreiben (Handballen wird bei Stift ignoriert)</option><option value="pen_only" ${s.pen_input === "pen_only" ? "selected" : ""}>Nur Stift schreibt, Finger navigiert</option></select>
         <div class="card-head" style="margin-top:1rem"><h2>${icon("hand", 18)} Schreibhand</h2></div><div class="seg">${[["right", "Rechtshänder"], ["left", "Linkshänder"]].map(([k, l]) => `<button class="${(s.hand || "right") === k ? "active" : ""}" data-hand="${k}">${l}</button>`).join("")}</div><p class="muted tiny" style="margin-top:.4rem">Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.</p></div>`;
@@ -728,7 +745,8 @@ export async function viewSettings(_, params, view) {
         <div class="card-head" style="margin-top:1rem"><h2>${icon("settings", 18)} Learnweb-Schlüssel</h2>${svc.learnweb?.token_set ? `<span class="badge ok">gesetzt</span>` : `<span class="badge neutral">optional</span>`}</div>
         <p class="muted small">Mit Schlüssel holt die App die Dateien direkt über die Moodle-Schnittstelle, ohne Browser-Anmeldung, und Moodle markiert nichts als angesehen. Erzeugen: im Learnweb Profil → Einstellungen → Sicherheitsschlüssel → „Moodle mobile web service“.</p>
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
-    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
+    const inviteCard = state.gated ? `<div class="card"><div class="card-head"><h2>${icon("users", 18)} Freunde einladen</h2></div><p class="muted small">Einladungslinks mit QR-Code zum Teilen, mit deinem StudiNow-Konto.</p><a class="btn sm" href="#/einladungen">${icon("arrow-right", 14)} Einladungen öffnen</a></div>` : "";   // invites.js (05.11.2026)
+    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content set-page" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
       <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : planTab}</div></div></div>`;
@@ -788,6 +806,7 @@ export async function viewSettings(_, params, view) {
         <div class="card flat" style="background:var(--warn-soft);border-color:transparent"><b>${icon("alert", 14)} Im Uni-WLAN (eduroam)</b> sehen sich Geräte meist nicht. Dann am PC den <b>Mobilen Hotspot</b> einschalten (Windows-Einstellungen → Netzwerk → Mobiler Hotspot) und das iPad damit verbinden. Die Adresse ist dann in der Regel <b>http://192.168.137.1:${net.port}</b>.</div>`;
     }).catch(() => { const b = $("#ipadBody"); if (b) b.textContent = "Netzwerkinfo nicht verfügbar."; });
     $$("[data-hand]", view).forEach(b => b.onclick = async () => { await api("/settings", { method: "PUT", body: { hand: b.dataset.hand } }); s.hand = b.dataset.hand; toast("Schreibhand gespeichert"); render(); });
+    $("#sRufOk")?.addEventListener("click", async () => { await api("/settings", { method: "PUT", body: { rufname: $("#sRuf").value.trim() } }); toast("Gespeichert"); });   // Begruessung (greeting.js)
     $("#sNameOk")?.addEventListener("click", async () => { await api("/settings", { method: "PUT", body: { user_name: $("#sName").value } }); toast("Gespeichert"); location.reload(); });
     $("#diagCopy")?.addEventListener("click", () => { navigator.clipboard?.writeText($("#diagText").textContent).then(() => toast("Diagnose kopiert")); });
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok-text)">${icon("check", 15)} ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`Fehler: ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });

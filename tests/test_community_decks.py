@@ -48,7 +48,8 @@ def test_replace_shared_copy_and_week_counts(hosted):
     assert _call(hosted, "PUT", f"/api/flashcard-stacks/{own_b['id']}/share", headers=hb, status=404)["code"] == "not_shared"
     from app import accounts
     accounts.set_plan(ada["id"], "free")
-    assert _call(hosted, "PUT", f"/api/flashcard-stacks/{w5['id']}/share", headers=ha, status=403)["entitlement"] == "can_use_flashcards"
+    # Community (05.11.2026) und eigene Karteikarten sind beide ab Plus; die Community-Pruefung kommt zuerst
+    assert _call(hosted, "PUT", f"/api/flashcard-stacks/{w5['id']}/share", headers=ha, status=403)["required_plan"] == "plus"
 
 
 def test_daily_limit_and_banned_authors(hosted, monkeypatch):

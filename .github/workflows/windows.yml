@@ -9,6 +9,7 @@ on:
       - "apps/windows/**"
       - "app/**"
       - "requirements.txt"
+      - "packages/shared-contracts/*.json"
       - ".github/workflows/windows.yml"
   workflow_dispatch:
 
@@ -34,8 +35,24 @@ jobs:
           python -m pip install --upgrade pip
           # requirements-dev.txt bringt pytest fuer den naechsten Schritt (ohne es brach jeder Lauf dort ab)
           python -m pip install -r requirements.txt -r requirements-dev.txt pyinstaller
-      - name: Backend-Tests (Starter, CSP, Paketbeschreibung)
-        run: python -m pytest -q tests/test_desktop.py
+      # Blockierend: Starter, CSP, Paketbeschreibung, Fenster-Agent, Paketdaten und ein echter Eintrag in der
+      # Windows-Anmeldeinformationsverwaltung (tests/test_windows_package.py, Dummy-Token mit eigenem Ziel)
+      - name: Backend-Tests (Starter, CSP, Paketbeschreibung, Anmeldeinformationsverwaltung)
+        run: python -m pytest -q tests/test_desktop.py tests/test_desktop_windows.py tests/test_windows_package.py
+      # Hinweis-Stufe: weitere Windows-relevante Tests (Konto-Pflicht, Huelle, OCR, Studienverlauf). Sie liefen bis
+      # 05.11.2026 nie unter Windows; ein Fehler steht in der Zusammenfassung des Laufs, stoppt den Installer aber nicht.
+      # Nach dem ersten gruenen Lauf continue-on-error entfernen (docs/release/WINDOWS-BAU-2026-11-05.md).
+      - name: Windows-relevante Tests (Hinweis, blockiert nicht)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          python -m pytest -q -p no:cacheprovider tests/test_account_mode.py tests/test_web_windows_shell.py tests/test_pageocr.py `
+            tests/test_study_catalog.py tests/test_luh_seed.py tests/test_exam_registration.py tests/test_study_sources_luh.py 2>&1 | Tee-Object -Variable out
+          $code = $LASTEXITCODE
+          $last = ($out | Select-Object -Last 1)
+          "### Windows-relevante Tests: $(if ($code -eq 0) { 'gruen' } else { 'FEHLER (Exitcode ' + $code + ')' })`n`n$last" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          if ($code -ne 0) { ($out | Select-String -Pattern '^(FAILED|ERROR) ') | ForEach-Object { "- $($_.Line)" } | Out-File -Append $env:GITHUB_STEP_SUMMARY }
+          exit $code
       - name: Chromium fuer Playwright (wird neben die exe gelegt)
         run: python -m playwright install chromium
       - name: Backend packen (PyInstaller, Ordner-Paket)
@@ -56,7 +73,10 @@ jobs:
       - name: Tesseract fuer die Texterkennung ins Paket (Pruefsummen fest, Probe-Erkennung)
         shell: pwsh
         run: ./apps/windows/scripts/add-tesseract.ps1 -Target apps/windows/backend/dist/uniflow-backend/tesseract
-      - name: Gepacktes Backend starten und abfragen
+      # Smoke-Test des gepackten Backends: Lebenszeichen (/api/account/info), CSP, Oberflaechen-Dateien, Konto-Pflicht
+      # (401 ohne Anmeldung), Token-Ablage = Anmeldeinformationsverwaltung, Anmeldung im Browser mit Loopback-
+      # Rueckleitung, Studienverlauf-Daten im Paket. Dieselbe Pruefung laeuft nach der stillen Installation erneut.
+      - name: Gepacktes Backend starten und abfragen (Smoke-Test)
         shell: pwsh
         run: ./apps/windows/scripts/check-backend.ps1 -Exe apps/windows/backend/dist/uniflow-backend/uniflow-backend.exe
 
@@ -103,6 +123,12 @@ jobs:
             apps/windows/src-tauri/Cargo.lock
             apps/windows/src-tauri/cargo-audit.json
           retention-days: 14
+      - name: Zusammenfassung (Version und Artefakte)
+        shell: pwsh
+        run: |
+          $v = (Get-Content apps/windows/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $exe = Get-ChildItem apps/windows/src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          "### StudiNow fuer Windows $v`n- Installer: $($exe.Name) ($([math]::Round($exe.Length / 1MB)) MB), Artefakt uniflow-windows`n- MSIX: eigenes Artefakt (Name -msix), falls die MSIX-Schritte gruen sind`n- Commit: $env:GITHUB_SHA" | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
       # Microsoft Store: MSIX aus derselben App (apps/windows/msix/README.md). Erst nach dem Hochladen des Installers,
       # damit ein Fehler hier den NSIS-Installer nicht verhindert.

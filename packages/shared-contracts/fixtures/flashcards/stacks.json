@@ -670,55 +670,16 @@
     }
    },
    {
-    "step": "Liste fuer Mitglieder (auch Free)",
+    "step": "Liste ohne Plus (Community ab Plus, 05.11.2026)",
     "method": "GET",
     "path": "/api/community/card-stacks?module=<community-key>",
     "request": null,
-    "status": 200,
+    "status": 403,
     "response": {
-     "community_key": "<community-key>",
-     "stacks": [
-      {
-       "id": "<geteilt-1>",
-       "community_key": "<community-key>",
-       "name": "Analysis · Woche 3",
-       "kind": "vorlesung",
-       "week": 3,
-       "cards": 2,
-       "pseudonym": "<pseudonym-autor>",
-       "created_at": "<zeit>",
-       "updated_at": null,
-       "status": "active",
-       "mine": false,
-       "reported_by_me": false,
-       "adopted": false,
-       "adopt_count": 0,
-       "likes": 0,
-       "liked_by_me": false
-      },
-      {
-       "id": "<geteilt-2>",
-       "community_key": "<community-key>",
-       "name": "Formeln",
-       "kind": "eigene",
-       "week": null,
-       "cards": 1,
-       "pseudonym": "<pseudonym-autor>",
-       "created_at": "<zeit>",
-       "updated_at": null,
-       "status": "active",
-       "mine": false,
-       "reported_by_me": false,
-       "adopted": false,
-       "adopt_count": 0,
-       "likes": 0,
-       "liked_by_me": false
-      }
-     ],
-     "weeks": {
-      "3": 1,
-      "0": 1
-     }
+     "detail": "Die Community gibt es ab StudiNow Plus.",
+     "code": "plan_required",
+     "entitlement": "can_read_community",
+     "required_plan": "plus"
     }
    },
    {

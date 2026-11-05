@@ -238,7 +238,8 @@ def pseudonym(user_id: str) -> str:
 
 
 def plan_ok(user: dict) -> bool:
-    """Darf Loesungen teilen (Recht can_share_solutions, ab StudiNow Plus). Lesen duerfen alle Konten (Free)."""
+    """Darf Loesungen teilen (Recht can_share_solutions, ab StudiNow Plus). Lesen ebenfalls erst ab Plus
+    (can_read_community, Entscheidung 05.11.2026; Pruefung in community_api._user)."""
     from . import entitlements
     return entitlements.has(user, "can_share_solutions")
 
@@ -1067,11 +1068,16 @@ def leaderboard(user: dict, limit: int = 50) -> list[dict]:
 
 def info(user: dict | None) -> dict:
     return {"enabled": config.is_hosted(), "plan_required": "plus", "plan_ok": bool(user and plan_ok(user)),
-            "can_read": True, "can_share": bool(user and plan_ok(user)),
+            "can_read": bool(user and (user.get("role") == "admin" or _can_read(user))), "can_share": bool(user and plan_ok(user)),
             "reasons": list(REPORT_REASONS), "reports_to_hide": REPORTS_TO_HIDE, "format": FORMAT, "format_version": FORMAT_VERSION,
             "max_package_bytes": MAX_PACKAGE_BYTES, "pseudonym": pseudonym(user["id"]) if user else None,
             "admin": bool(user and user.get("role") == "admin"),
             "can_comment": bool(user and _can_comment(user)), "max_comment": MAX_COMMENT}
+
+
+def _can_read(user: dict) -> bool:
+    from . import entitlements
+    return entitlements.has(user, "can_read_community")
 
 
 def _can_comment(user: dict) -> bool:

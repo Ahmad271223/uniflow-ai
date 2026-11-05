@@ -332,6 +332,9 @@ fn main() {
                 let _ = w.set_focus();
             }
         }))
+        // Erinnerungen an erkannte Fristen als Windows-Mitteilung (app/static/due-reminders.js, 05.11.2026); Rechte nur
+        // fuer die Seite des lokalen Backends (capabilities/notifications.json)
+        .plugin(tauri_plugin_notification::init())
         .manage(Backend(Arc::new(Mutex::new(None))))
         .setup(|app| {
             let window = app.get_webview_window("main").expect("Hauptfenster fehlt");

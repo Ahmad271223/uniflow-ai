@@ -33,10 +33,12 @@ def _err(e: de.DocExplainError) -> HTTPException:
 def _texts(file_id: str, body: dict) -> list[str]:
     from . import scriptsearch
     with db.cursor() as conn:
-        if not db.row(conn, "SELECT 1 AS x FROM files WHERE id=?", (file_id,)):
+        known = bool(db.row(conn, "SELECT 1 AS x FROM files WHERE id=?", (file_id,)))
+        # Windows-App (05.11.2026): die Datei liegt auf dem PC, der Dienst kennt sie nicht; dann zaehlen nur `page_texts`
+        if not known and not (config.is_hosted() and isinstance(body.get("page_texts"), list)):
             raise HTTPException(404, {"detail": "Datei nicht gefunden.", "code": "not_found"})
         try:
-            pages = scriptsearch.page_texts(conn, file_id)
+            pages = scriptsearch.page_texts(conn, file_id) if known else []
         except Exception:  # noqa: BLE001 - ohne Seitentext gilt, was der Browser gelesen hat
             pages = []
     if not pages:
@@ -46,6 +48,22 @@ def _texts(file_id: str, body: dict) -> list[str]:
     if not pages:
         raise HTTPException(404, {"detail": "Kein Seitentext vorhanden.", "code": "no_content"})
     return pages
+
+
+def _forward(step: str, body: dict) -> dict | None:
+    """Windows-App mit StudiNow-KI (app/ai_relay.py, 05.11.2026): Plan und Schritte laufen im Dienst - mit dem Text der
+    Seiten vom PC (`page_texts`), dem gemeinsamen Speicher erklaerter Teile (0 Credits fuer alle Konten), Credits,
+    Kostenzeile und Modellmischung. None = hier rechnen (Dienst selbst, eigenes ChatGPT, Entwickler-Kommandozeile)."""
+    if config.is_hosted():
+        return None
+    from . import ai, ai_relay
+    if ai.source() != "studinow":
+        return None
+    file_id = str(body.get("file_id") or "")
+    if not file_id:
+        raise HTTPException(400, {"detail": "file_id fehlt", "code": "bad_request"})
+    texts = _texts(file_id, {k: v for k, v in body.items() if k != "page_texts"})
+    return ai_relay.service_json("POST", f"/api/ai/document/{step}", {**body, "page_texts": texts[:CLIENT_PAGES_MAX]})
 
 
 def _way() -> str:
@@ -94,6 +112,8 @@ def plan(request: Request, body: dict = Body(...)):
         if not it:
             return {"intent": False}
         body = {**body, "mode": it["mode"], "scope": it["scope"]}
+    if (fwd := _forward("plan", body)) is not None:
+        return fwd
     _guard(request)
     mode, scope, _texts_, p = _build(body)
     conn = de.connect()
@@ -121,6 +141,8 @@ def plan(request: Request, body: dict = Body(...)):
 
 @router.post("/step")
 def step(request: Request, body: dict = Body(...)):
+    if (fwd := _forward("step", body)) is not None:
+        return fwd
     _guard(request)
     mode, scope, texts, p = _build(body)
     sid = str(body.get("step") or "")

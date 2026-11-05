@@ -1,4 +1,4 @@
-# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026)
+# StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026, angeglichen am 05.11.2026)
 
 Drei Tarife, Monatspreise inkl. USt. **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
 `TRIAL`); `tools/gen-plans-fixture.py` schreibt daraus `packages/shared-contracts/fixtures/plans/plans.json`, gegen die
@@ -6,18 +6,23 @@ Swift (`PlanContractTests`) und der Dienst (`tests/test_subscriptions.py`, `test
 Jeder Tarif enthält alles aus dem Tarif darunter. **Keine Einführungsangebote** (weder bei Apple noch bei Stripe,
 Entscheidung vom 04.11.2026): Plus und Pro AI kosten ab dem ersten Tag den Preis oben; getestet wird mit der Probe (unten).
 Ausführlich: `docs/ABO-SYSTEM.md`; Stand des Codes je Funktion:
-`docs/TARIF-MATRIX-2026-11-04.md`; Entscheidungen im Wortlaut: `docs/ENTSCHEIDUNGEN-INHABER-2026-11-04.md`.
+`docs/TARIF-MATRIX-2026-11-04.md`; Entscheidungen im Wortlaut: `docs/ENTSCHEIDUNGEN-INHABER-2026-11-04.md` und
+`docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md` (Free ohne Community und ohne KI-Hilfe, eigenes ChatGPT in jedem Tarif,
+Karteikarten-Stapel von StudiNow für Plus begrenzt).
 
 | | StudiNow Free | StudiNow Plus | StudiNow Pro AI |
 |---|:---:|:---:|:---:|
 | Preis | 0,00 € | 1,99 € | 3,99 € |
 | Apple-Produkt | – | `de.uniflow.plus.monthly` | `de.uniflow.proai.monthly` (erst mit dem StudiNow-Dienst im Store) |
-| PDFs lesen, Kurse, Abgleich mit Stud.IP/Learnweb, Stundenplan, Lernkalender, Community lesen | ✓ | ✓ | ✓ |
+| PDFs lesen, Kurse, Abgleich mit Stud.IP/Learnweb, Stundenplan, Lernkalender | ✓ | ✓ | ✓ |
+| Eigenes ChatGPT verbinden und zu Folien fragen (Verbindung noch in Vorbereitung, nie an den Tarif gekoppelt) | ✓ | ✓ | ✓ |
+| Community lesen, beitreten und mitmachen (`can_read_community`, seit 05.11.2026 ab Plus) | – | ✓ | ✓ |
 | PDF bearbeiten, Stift, Textmarker, Apple Pencil (je Gerät) | – | ✓ | ✓ |
 | **Notizen auf allen Geräten** (Abgleich zwischen iPad, PC und Web, `can_sync_annotations`) | – | – (Plus gilt je Gerät) | ✓ |
 | Eigene Karteikarten mit Wiederholung, Stapel (`can_use_flashcards`; Free: vorhandene Karten lesen) | – | ✓ | ✓ |
 | Karteikarten-Stapel teilen und die anderer übernehmen (je Lernwoche oder „Allgemein“, 0 Credits) | – | ✓ | ✓ |
 | Wochenstapel „Karten für Woche n holen“ übernehmen (fertiger Satz aus dem Pool, 0 Credits) | – | ✓ | ✓ |
+| Karteikarten-Stapel von StudiNow übernehmen (Wochenstapel und geteilte Stapel, `card_stacks_adopted`; derselbe Stapel zählt im Monat einmal) | 0 | 4 / Monat | unbegrenzt (Fair Use 300) |
 | Wochentest erstellen (iPad ohne Dienst: über das eigene ChatGPT) | – | ✓ | ✓ |
 | Lösungen teilen, Community schreiben | – | ✓ | ✓ |
 | Lernstand je Modul | ✓ | ✓ | ✓ |
@@ -107,6 +112,7 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | Teil | Stand |
 | --- | --- |
 | Tarife, Kontingente (Plus 4, Pro AI 20), Notizen-Abgleich erst mit Pro AI | umgestellt in `app/plans.py`, Prüfdaten und iPad (`Plans.swift`, `PlanContractTests`) |
+| Community ab Plus, eigenes ChatGPT in jedem Tarif, Stapel-Kontingent `card_stacks_adopted` (05.11.2026) | umgestellt in `app/plans.py` und Prüfdaten; Dienst, Web/Windows und iPad ziehen nach (`docs/TARIF-MATRIX-2026-11-04.md`, Nachtrag 05.11.2026) |
 | Karteikarten mit Stapeln (Woche, Art), Bearbeiten, geschlossenes Üben | gebaut (iPad, Web, Windows, Dienst); im Dienst nur mit Plus (`can_use_flashcards`, auch neue Karten und Stapel beim Geräte-Abgleich) |
 | Stapel teilen, übernehmen, geteilte Kopie aktualisieren, Moderation | gebaut im Dienst, Web (Seite „Karteikarten“ und Reiter „Karteikarten“ im Community-Kanal) und iPad (CloudKit); Ersetzen und Moderation nur im Dienst |
 | KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ über das eigene ChatGPT) |

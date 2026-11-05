@@ -562,6 +562,12 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
                 try:
                     login(page, user, pw, prof)
                     grades = fetch_grades(page, prof, store)
+                    if prof.get("key") == "luh" and not config.is_hosted():   # "Info über angemeldete Prüfungen" (nur lesend, nur am PC, app/qis_registrations.py)
+                        try:
+                            from . import qis_registrations
+                            log("QIS: " + qis_registrations.run(qis_registrations.page_getter(page), prof["start"])["message"])
+                        except Exception as e:  # noqa: BLE001 - die Noten bleiben
+                            log(f"QIS: angemeldete Pruefungen nicht gelesen: {type(e).__name__}")
                     if with_documents:
                         docs = fetch_documents(page, prof, store)
                     ok = True

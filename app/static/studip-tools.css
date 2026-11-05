@@ -1,0 +1,21 @@
+/* "In Stud.IP abgeben" (studip-submit.js) und Pruefungsanmeldung (exam-registration.js), 05.11.2026. Farben nur aus den
+   Tokens von style.css (hell und dunkel). */
+.sub-warn { background: var(--surface-2); border-radius: var(--r-sm, 8px); padding: .5rem .7rem; }
+.sub-folders { display: flex; flex-direction: column; gap: .3rem; max-height: 260px; overflow: auto; }
+.sub-folder { display: flex; gap: .55rem; align-items: flex-start; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: var(--r-sm, 8px); cursor: pointer; }
+.sub-folder span { display: flex; flex-direction: column; }
+.sub-folder.hw { border-color: var(--accent); background: var(--surface-2); }
+.sub-folder input { margin-top: .2rem; }
+.sub-err { border: 1px solid var(--line-strong); border-radius: var(--r-sm, 8px); padding: .5rem .7rem; margin: .5rem 0; color: var(--bad-text); }
+.sub-err .btn { margin-left: .4rem; }
+.sub-hist ul { margin: .4rem 0 0 1rem; padding: 0; }
+
+.xr-card .xr-row { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem 0; border-top: 1px solid var(--line); }
+.xr-card .xr-row:first-child { border-top: 0; }
+.xr-row .main { flex: 1; min-width: 0; }
+.xr-row .title { font-weight: 600; }
+.xr-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .7rem; }
+.xr-warn { color: var(--bad-text); font-weight: 600; margin: .3rem 0; }
+.xr-banner { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin: 0 0 1rem; padding: .7rem 1rem; border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); border-radius: var(--r-md, 10px); background: var(--surface); }
+.xr-banner .main { flex: 1; min-width: 200px; }
+.xr-module { margin-top: .8rem; }

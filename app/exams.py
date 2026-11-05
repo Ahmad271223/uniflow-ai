@@ -11,7 +11,7 @@ Quellen (Reihenfolge = Vorrang fuer Uhrzeit, Raum und Bezeichnung):
  - Ankuendigungen eines Kurses und Stud.IP-Nachrichten (nur lokal): Tage, deren Satzteil bzw. Satz eine Klausur nennt,
    mit den Regeln von jetzt neu gelesen (`exam_dates`; strenger als die Art "pruefung" der Chips: Anmeldung,
    Einsicht, Probeklausur, Ausfall und alte Termine einer Verlegung zaehlen nicht).
- - Auf dem iPad zusaetzlich erkannte Klausuren aus Dokumenten (DueStore, Tabelle nur auf dem Geraet).
+ - In Dokumenten und Ankuendigungen erkannte Klausuren (DueStore auf dem iPad, app/due_store.py am PC/im Web).
 
 Je Modul (sonst Kurs, sonst Name) und Tag ein Eintrag mit allen Quellen. Der Klausurtermin am Modul wird aus der
 Liste gefuellt, wenn er leer ist (`fill_exam_dates`); ein selbst eingetragener Termin wird nie ueberschrieben. Welche
@@ -214,6 +214,18 @@ def candidates(conn, today: date) -> list[dict]:
             for x in found:
                 out.append(_cand("nachricht", f"aus Nachricht vom {_dmy(posted.isoformat())}", x["date"], time=x["time"],
                                  room=x["room"], module_id=mid, name=r["subject"], word=x["word"], url=r["url"]))
+    # in Dokumenten erkannte Klausuren (app/due_store.py, seit 05.11.2026 auch am PC; ohne Kurz- und Probeklausuren,
+    # ohne ausgeblendete), wie Exams.swift
+    from . import due_store
+    for g in due_store.groups(conn, lo, hi):
+        if g["kind"] != "klausur" or g["hidden"]:
+            continue
+        x = due_store.as_json(g)
+        t = x["title"] or ""
+        if "kurz" in t.lower() or "probe" in t.lower():
+            continue
+        out.append(_cand("erkannt", x["origin"] or "erkannt", g["date"], time=x["time"], module_id=x["module_id"],
+                         course_id=x["course_id"], course_title=x["course_title"], name=x["course_title"] or t, word=word(t)))
     return out
 
 

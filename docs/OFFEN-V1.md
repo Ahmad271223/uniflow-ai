@@ -30,7 +30,8 @@ Zweig `wip/vier-tarife` (27./28.10.2026): **Tarife nach `docs/ABO-SYSTEM.md`, V1
 Pro AI erscheint nur als Karte, wenn der Store das Produkt liefert, sonst als nicht anklickbarer Satz „StudiNow Pro AI
 folgt mit dem StudiNow-Dienst.“ ohne Preis (Pro Connect gibt es nicht mehr); ihre Produkte stehen nur in der Testkonfiguration `UniFlowAlleTarife.storekit`
 (Wechsel-Logik in `PurchaseV2PlanSwitchTests`). Community lesen (finden, laden, ansehen, melden, blockieren,
-Lerngruppen beitreten) ist Free wie `can_read_community`; Veröffentlichen, Teilen als Datei, Pseudonym und Lerngruppen
+Lerngruppen beitreten) ist seit 05.11.2026 Plus wie `can_read_community` (vorher Free,
+`docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`); Veröffentlichen, Teilen als Datei, Pseudonym und Lerngruppen
 anlegen ab Plus (`can_share_solutions`). Was den Online-Dienst braucht, steht unter „in Vorbereitung“. Kaufprüfung nur
 auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/verify` vorbereitet und abgeschaltet
 (`Purchases/BillingServiceLink.swift`, V2). Die App heißt auf dem Gerät und in allen Texten **StudiNow**; Bundle-ID

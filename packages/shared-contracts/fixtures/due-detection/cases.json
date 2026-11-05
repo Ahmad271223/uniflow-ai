@@ -1,0 +1,1229 @@
+{
+ "about": "Erkennung von Abgaben, Tests und Pruefungsterminen ohne KI (docs/FRISTEN-ERKENNUNG-2026-11-05.md). Erwartungen aus den Swift-Tests DueDetectionTests/DueRemindersTests (UniFlowCore) uebernommen; app/due_detection.py (tests/test_due_detection.py) und app/static/due-reminders-logic.js (tests/js/due-reminders.test.mjs) pruefen sich dagegen, der Swift-Kern kann dieselbe Datei lesen. Treffer als 'YYYY-MM-DD[ HH:MM] Art Bezeichnung'; Fenster: laufendes Semester laut Zeitplan der Hochschule (21 Tage vor Vorlesungsbeginn bis zum Tag vor dem naechsten), Bezugstag 'reference' (Aenderung der Datei, Tag der Ankuendigung); 'name_text': erst DueDetection.nameText.",
+ "windows": [
+  {
+   "university": "luh",
+   "today": "2026-10-27",
+   "from": "2026-09-21",
+   "to": "2027-04-04",
+   "semesters": [
+    "WiSe 2026/27"
+   ]
+  },
+  {
+   "university": "hildesheim",
+   "today": "2026-10-27",
+   "from": "2026-09-28",
+   "to": "2027-04-04",
+   "semesters": [
+    "WiSe 2026/27"
+   ]
+  },
+  {
+   "university": "luh",
+   "today": "2027-03-25",
+   "semesters": [
+    "SoSe 2027",
+    "WiSe 2026/27"
+   ]
+  },
+  {
+   "university": "unbekannt",
+   "today": "2026-10-27",
+   "none": true
+  }
+ ],
+ "semesters": [
+  {
+   "text": "Mathematik I – Wintersemester 2020/21",
+   "expect": [
+    "WiSe 2020/21"
+   ]
+  },
+  {
+   "text": "WS 20/21, SoSe 2022, SS22, WiSe 2026/2027",
+   "expect": [
+    "WiSe 2020/21",
+    "SoSe 2022",
+    "WiSe 2026/27"
+   ]
+  },
+  {
+   "text": "Klasse 2022",
+   "expect": []
+  }
+ ],
+ "head_semester": [
+  {
+   "first_page": "Übungsblatt 3\nWintersemester 2020/21",
+   "name": null,
+   "expect": "WiSe 2020/21"
+  },
+  {
+   "first_page": "Übungsblatt 3",
+   "name": "Probeklausur_SoSe22.pdf",
+   "expect": "SoSe 2022"
+  },
+  {
+   "first_page": "Übungsblatt 3",
+   "name": "blatt3.pdf",
+   "expect": null
+  }
+ ],
+ "name_text": [
+  {
+   "name": "Blatt 3 Abgabe 05.11.pdf",
+   "expect": "Blatt 3 Abgabe 05.11."
+  }
+ ],
+ "detect": [
+  {
+   "group": "probe_kurztest",
+   "text": "Für den ersten Probe-Kurztest am 09.11.2026 ist der Stoff bis Kapitel 2 wichtig.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-09 test Probe-Kurztest"
+   ],
+   "snippet_contains": "Probe-Kurztest am 09.11.2026"
+  },
+  {
+   "group": "kurzklausur_weekday",
+   "text": "Kurzklausurtermin – Datum: Fr, 11.12.2026, Anmeldung über Stud.IP",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-11 klausur Kurzklausur"
+   ]
+  },
+  {
+   "group": "keyword_without_date",
+   "text": "Organisatorisches\nEs gibt 3 Kurztestate (je 20 Minuten) im Semester\nBestehensgrenze 50 %",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "keyword_without_date",
+   "text": "Die Abgabe erfolgt über Stud.IP in Zweiergruppen.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "date_without_keyword",
+   "text": "Vorlesung am 02.11.2026 im Raum F102, danach Übung.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "date_without_keyword",
+   "text": "Folie 12 – Stand 26.10.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "semester_plan_table",
+   "text": "Semesterplan\nWoche Datum Thema\n1 19.10. Einführung\n3 02.11. Grundlagen, Kurztestat 1\n5 16.11. Kapitel 3 Kurztestat 2\n7 30.11. Kapitel 5\n9 14.12. Wiederholung Kurztestat 3\n11 11.01. Kapitel 8",
+   "today": "2026-10-27",
+   "reference": "2026-10-15",
+   "university": "luh",
+   "expect": [
+    "2026-11-02 test Kurztestat 1",
+    "2026-11-16 test Kurztestat 2",
+    "2026-12-14 test Kurztestat 3"
+   ]
+  },
+  {
+   "group": "one_cell_per_line",
+   "text": "Termine\n02.11.\nKurztestat 1\n09.11.\nKapitel 3\n16.11.\nKurztestat 2",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-02 test Kurztestat 1",
+    "2026-11-16 test Kurztestat 2"
+   ]
+  },
+  {
+   "group": "old_semester",
+   "text": "Alte Probe-Kurzklausur vom 14.11.2023 mit Lösungsskizze",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "old_semester",
+   "text": "Klausur am 15.02.2026, Nachklausur am 30.03.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "old_semester",
+   "text": "Abgabe bis 03.11.",
+   "today": "2026-10-27",
+   "reference": "2022-10-20",
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "old_semester",
+   "text": "Abgabe bis 03.11.",
+   "today": "2026-10-27",
+   "reference": "2026-10-20",
+   "university": "luh",
+   "expect": [
+    "2026-11-03 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "old_semester",
+   "text": "Abgabe: Do, 09.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "old_semester",
+   "text": "Abgabe: Mo, 09.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-09 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "year_change",
+   "text": "Abgabe bis Fr, 08.01. um 12 Uhr\nDie Klausur findet am 15.02. statt.\nAbgabe Blatt 9: 21.12.",
+   "today": "2026-12-20",
+   "reference": "2026-12-15",
+   "university": "luh",
+   "expect": [
+    "2026-12-21 abgabe Abgabe Blatt 9",
+    "2027-01-08 12:00 abgabe Abgabe",
+    "2027-02-15 klausur Klausur"
+   ]
+  },
+  {
+   "group": "year_change",
+   "text": "Bearbeitungszeit und Abgabe 28.12.–08.01.2027",
+   "today": "2026-12-20",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-01-08 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Abgabe: 05.11.2026, 23:59 Uhr",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-05 23:59 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Abgabe bis 5.11. 12:00",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-05 12:00 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Die Hausarbeit ist bis zum 15. März 2027 einzureichen.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-03-15 abgabe Hausarbeit"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Testat am 2. November",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-02 test Testat"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Deadline 2026-11-20T12:00",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-20 12:00 abgabe Deadline"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Assignment 4 due: November 9, 2026, 11:59 PM",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-09 23:59 abgabe Assignment 4"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Submission deadline: 12 November 2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-12 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Einsendeschluss ist Montag, der 16.11.2026.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-16 abgabe Einsendeschluss"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Einsendeschluss: Montag, 16.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-16 abgabe Einsendeschluss"
+   ]
+  },
+  {
+   "group": "date_forms",
+   "text": "Abgabe 05.11.26 bis 10 Uhr",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-05 10:00 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "numbering",
+   "text": "Abgabe: Aufgabe 3.11. und 3.12. aus dem Skript",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "numbering",
+   "text": "Abgabe Aufgabe 2.1.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "numbering",
+   "text": "Klausurrelevant: Kapitel 2.11. bis 3.4.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Stoff der Klausur: Folien vom 02.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Klausur (Stand: 01.10.2026)",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Die Lösungen zum Kurztestat werden am 10.11. veröffentlicht.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Rückgabe der korrigierten Abgaben am 12.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Die Vorlesung am 02.11.2026 fällt due to illness aus.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "02.11.2026: Prüfung der Voraussetzungen von Satz 3",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Test-Driven Development (09.11.2026)",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Klausur-Vorbereitung am 01.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "blocked",
+   "text": "Kurztestat-Termin: 16.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-16 test Kurztestat"
+   ]
+  },
+  {
+   "group": "kinds",
+   "text": "Anmeldung zur Klausur vom 01.12. bis 15.12.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-15 anmeldung Anmeldung"
+   ]
+  },
+  {
+   "group": "kinds",
+   "text": "Anmeldeschluss: 20.01.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-01-20 anmeldung Anmeldeschluss"
+   ]
+  },
+  {
+   "group": "kinds",
+   "text": "Bitte bis 20.01.2027 im QIS anmelden.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-01-20 anmeldung Anmeldung"
+   ]
+  },
+  {
+   "group": "kinds",
+   "text": "Klausur: 10.02.2027 (Nachklausur: 31.03.2027)",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-02-10 klausur Klausur",
+    "2027-03-31 klausur Nachklausur"
+   ]
+  },
+  {
+   "group": "kinds",
+   "text": "Frist für die Bonuspunkte: 30.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-30 sonstiges Frist"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Die Vorlesung am 03.11. fällt aus. Die Abgabe von Blatt 3 ist am 10.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-10 abgabe Abgabe Blatt 3"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Abgabe bzw. Upload: 12.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-12 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Analysis I – Übungsblatt 2 – Ausgabe: 26.10.2026 – Abgabe: 02.11.2026, 12:00 Uhr",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-02 12:00 abgabe Abgabe Blatt 2"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Due date: Monday, 9 November 2026, 11:59 PM",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-09 23:59 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Testat-Termine: 02.11., 16.11., 30.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-02 test Testat",
+    "2026-11-16 test Testat",
+    "2026-11-30 test Testat"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Prüfungszeitraum: 08.02.–20.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "sentences",
+   "text": "Termin der Nachklausur: Fr, 26.03.2027 10:00 Uhr, Raum F102",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-03-26 10:00 klausur Nachklausur"
+   ]
+  },
+  {
+   "group": "sentences",
+   "text": "Test 3 (online, 45 min): 07.12.2026–11.12.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-07 test Test 3"
+   ]
+  },
+  {
+   "group": "date_list",
+   "text": "Die Kurztestate finden am 02.11., 16.11. und 30.11. in der Übung statt.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-02 test Kurztestat",
+    "2026-11-16 test Kurztestat",
+    "2026-11-30 test Kurztestat"
+   ]
+  },
+  {
+   "group": "line_wrap",
+   "text": "Der Stoff bis hier gehört zum zweiten Probe-\nKurztest am\n16.11.2026 im Hörsaal.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-16 test Probe-Kurztest"
+   ]
+  },
+  {
+   "group": "line_wrap",
+   "text": "Kurztestat\nVorlesung 02.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "file_names",
+   "text": "Blatt 3 Abgabe 05.11.pdf",
+   "today": "2026-10-27",
+   "reference": "2026-10-28",
+   "university": "luh",
+   "name_text": true,
+   "expect": [
+    "2026-11-05 abgabe Abgabe Blatt 3"
+   ]
+  },
+  {
+   "group": "file_names",
+   "text": "Uebung_04_Abgabe_2026-11-12.pdf",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "name_text": true,
+   "expect": [
+    "2026-11-12 abgabe Abgabe Blatt 4"
+   ]
+  },
+  {
+   "group": "file_names",
+   "text": "Vorlesung_05.11.pdf",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "name_text": true,
+   "expect": []
+  },
+  {
+   "group": "sheet_from_head",
+   "text": "Übungsblatt 3\nLineare Algebra I\nAbgabe: bis Mo, 09.11.2026, 12:00 Uhr im Kasten vor F 411",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-09 12:00 abgabe Abgabe Blatt 3"
+   ]
+  },
+  {
+   "group": "announcement_hildesheim",
+   "text": "Klausurtermin\nLiebe Studierende, die Klausur findet am 10.02.2027 um 10 Uhr im Audimax statt. Anmeldung bis 20.01.2027 im LSF.",
+   "today": "2026-10-27",
+   "reference": "2026-10-26",
+   "university": "hildesheim",
+   "expect": [
+    "2027-01-20 anmeldung Anmeldung",
+    "2027-02-10 10:00 klausur Klausur"
+   ]
+  },
+  {
+   "group": "decomposed",
+   "text": "Prüfungstermin: 12.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-02-12 klausur Prüfung"
+   ]
+  },
+  {
+   "group": "decomposed",
+   "text": "Die Abga-\nbe ist am 05.11.2026.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-05 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "heading",
+   "text": "◼ Kurzklausurtermin\n❑ Datum: Do, 03.12.2026,\n❑ Anmeldung über das Prüfungsportal\n❑ Raum + Uhrzeit werden im Portal bekanntgegeben\n◼ Übungsbetrieb\n❑ Beginn in der zweiten Vorlesungswoche",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-03 klausur Kurzklausur"
+   ],
+   "snippet_contains": "Datum: Do, 03.12.2026"
+  },
+  {
+   "group": "heading",
+   "text": "• Abgabetermin\n  ◦ Ausgabe der Aufgabe am 05.11.2026\n  ◦ Termin: Fr, 20.11.2026, 12:00 Uhr\n• Rückfragen im Forum",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-20 12:00 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "heading",
+   "text": "Klausurtermin\n- Datum: 09.02.2027\n- Dauer: 90 Minuten",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-02-09 klausur Klausur"
+   ]
+  },
+  {
+   "group": "heading",
+   "text": "◼ Testattermine\n❑ Termin:\n17.11.2026 in den Tutorien",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-17 test Testat"
+   ]
+  },
+  {
+   "group": "heading_counter",
+   "text": "◼ Klausurtermin\n❑ wird in der Vorlesung bekanntgegeben\n◼ Übungsbetrieb\n❑ Beginn: 02.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "heading_counter",
+   "text": "• Kurzklausur\n• Vorlesungsbeginn: 19.10.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "heading_counter",
+   "text": "◼ Klausurtermine\n❑ Probeklausur am 26.11.2026\n❑ Klausur: Datum folgt",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-26 klausur Probeklausur"
+   ]
+  },
+  {
+   "group": "heading_counter",
+   "text": "◼ Abgabetermin\nDie Vorlesung am 12.11.2026 fällt aus.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "heading_counter",
+   "text": "◼ Klausur\n❑ Einsicht: 03.03.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "heading_counter",
+   "text": "• Abgabe\n  – über das Portal als PDF\n  – Folien vom 02.11. beachten",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "heading_counter",
+   "text": "◼ Klausur\n❑ Stoff: Kapitel 1–6\n❑ Die Vorlesung am 02.11. entfällt",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "testat_column",
+   "text": "Semesterplan Programmierkurs\nNr Datum Thema Tutorien & Testate\n1 23.10. Organisation, Werkzeuge\n3 06.11. Schleifen und Felder (…) T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11.\n5 20.11. Recursion (base cases, accumulators, local helpers, tests), recipe for lists\n7 04.12. Zeiger und Speicher (…) T2: Felder und Zeiger (VL 4-6) - 14.12 - 17.12.\n9 08.01. Dateien und Ströme T3: Speicher (VL 7-8) - 18.01. bis 21.01.\n11 22.01. Wiederholung",
+   "today": "2026-10-27",
+   "reference": "2026-10-15",
+   "university": "luh",
+   "expect": [
+    "2026-11-16 test Testat T1 (bis 19.11.)",
+    "2026-12-14 test Testat T2 (bis 17.12.)",
+    "2027-01-18 test Testat T3 (bis 21.01.)"
+   ],
+   "snippet_contains": "T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11."
+  },
+  {
+   "group": "testat_column",
+   "text": "Semesterplan Programmierkurs\nNr Datum Thema Tutorien & Testate\n1 23.10. Organisation, Werkzeuge\n3 06.11. Schleifen und Felder (…) T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11.\n5 20.11. Recursion (base cases, accumulators, local helpers, tests), recipe for lists\n7 04.12. Zeiger und Speicher (…) T2: Felder und Zeiger (VL 4-6) - 14.12 - 17.12.\n9 08.01. Dateien und Ströme T3: Speicher (VL 7-8) - 18.01. bis 21.01.\n11 22.01. Wiederholung\n\nDas Testat T1 findet vom 16.11. bis 19.11. statt.",
+   "today": "2026-10-27",
+   "reference": "2026-10-15",
+   "university": "luh",
+   "count": 3,
+   "first": "2026-11-16 test Testat T1 (bis 19.11.)"
+  },
+  {
+   "group": "testat_header",
+   "text": "Nr Datum Thema Übungen\n3 06.11. Schleifen T1: Kontrollfluss - 16.11 bis 19.11.",
+   "today": "2026-10-27",
+   "reference": "2026-10-15",
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "testat_header",
+   "text": "Gruppe T1: Raum F102, 16.11. bis 19.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "testat_header",
+   "text": "Woche Datum Thema Testate\n3 06.11. Schleifen T1: Kontrollfluss\n5 20.11. Rekursion",
+   "today": "2026-10-27",
+   "reference": "2026-10-15",
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "testat_header",
+   "text": "Termine der Testate:\n16.11.2026, 14.12.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-16 test Testat",
+    "2026-12-14 test Testat"
+   ]
+  },
+  {
+   "group": "testat_header",
+   "text": "Termine der Testate\nT1: 16.11.2026\nT2: 14.12.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-16 test Testat T1",
+    "2026-12-14 test Testat T2"
+   ]
+  },
+  {
+   "group": "range_start_without_dot",
+   "text": "Testat 14.12 - 17.12.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-14 test Testat"
+   ]
+  },
+  {
+   "group": "range_start_without_dot",
+   "text": "Abgabe 16.11 bis 19.11.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-19 abgabe Abgabe"
+   ]
+  },
+  {
+   "group": "range_start_without_dot",
+   "text": "Abgabe 16.11 im Kasten",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "range_start_without_dot",
+   "text": "Klausurrelevant: Kapitel 2.11 bis 3.4.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "lowercase_test",
+   "text": "Recursion (base cases, accumulators, local helpers, tests), recipe for lists 20.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "lowercase_test",
+   "text": "Write unit tests until 20.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "lowercase_test",
+   "text": "Add tests for the parser by 20.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "lowercase_test",
+   "text": "we run the tests again 20.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "lowercase_test",
+   "text": "The second test on 26.11.2026 covers recursion.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-26 test Test"
+   ]
+  },
+  {
+   "group": "lowercase_test",
+   "text": "Next test: 03.12.2026, 10:00",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-03 10:00 test Test"
+   ]
+  },
+  {
+   "group": "lowercase_test",
+   "text": "As announced for the exam, the test 10.12.2026 is mandatory.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-10 test Test"
+   ]
+  },
+  {
+   "group": "lowercase_test",
+   "text": "Tests am 17.12.2026 in der Übung",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-12-17 test Test"
+   ]
+  },
+  {
+   "group": "plural_exams",
+   "text": "Anmeldung zur Teilklausur\nDie Anmeldung erfolgt nur im Melde- und Rücktrittszeitraum über das Prüfungsportal. Dieser unterscheidet sich von den „regulären“ Klausuren (16.11.-27.11.) und wird in der Vorlesung bekanntgegeben.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-27 anmeldung Anmeldung"
+   ]
+  },
+  {
+   "group": "plural_exams",
+   "text": "Meldezeitraum wie bei allen Prüfungen: 16.11.–27.11.2026",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-27 anmeldung Anmeldung"
+   ]
+  },
+  {
+   "group": "plural_exams",
+   "text": "Wer sich nicht rechtzeitig angemeldet hat, kann nicht teilnehmen. Es gelten die Zeiten wie bei den Prüfungen (16.11.–27.11.).",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-27 anmeldung Anmeldung"
+   ]
+  },
+  {
+   "group": "plural_exams",
+   "text": "Die Kurzklausuren ersetzen nicht die regulären Klausuren (01.02.–12.02.2027).",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "plural_exams",
+   "text": "Die Anmeldung erfolgt online. Der Stoff umfasst alle Kapitel der Vorlesung. Hilfsmittel sind nicht erlaubt. Es gelten die Termine der regulären Klausuren (16.11.-27.11.).",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "plural_exams",
+   "text": "Prüfungsanmeldung: 16.11.–27.11.2026 im Portal\nKlausuren: 01.02.–12.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2026-11-27 anmeldung Anmeldung"
+   ]
+  },
+  {
+   "group": "plural_exams",
+   "text": "Die Prüfungsanmeldung erfolgt im Portal. Prüfungszeitraum: 01.02.–12.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "plural_exams",
+   "text": "Klausur im Prüfungszeitraum 01.02.–12.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": []
+  },
+  {
+   "group": "plural_exams",
+   "text": "Die Klausuren finden am 03.02.2027 statt.",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-02-03 klausur Klausur"
+   ]
+  },
+  {
+   "group": "plural_exams",
+   "text": "Klausur in der Prüfungsphase am 03.02.2027",
+   "today": "2026-10-27",
+   "reference": null,
+   "university": "luh",
+   "expect": [
+    "2027-02-03 klausur Klausur"
+   ]
+  }
+ ],
+ "reminders": {
+  "about": "Erinnerungsplan (DueReminders.swift, due-reminders-logic.js): je Termin 3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 (Berlin), mit Uhrzeit 2 Stunden vorher (nicht vor 6:00; am Morgen nur, wenn '2 Stunden vorher' spaeter als 8:00 liegt); nur kuenftige, frueheste zuerst, hoechstens 60. Kennung prefix + Container + '.' + Termin + '.' + d3|d1|d0|h2. 'local' ist Berliner Ortszeit.",
+  "prefix": "de.uniflow.ai.due.",
+  "limit": 60,
+  "plans": [
+   {
+    "now": "2026-10-27T10:00",
+    "container": "C1",
+    "items": [
+     {
+      "id": "due-a",
+      "title": "Abgabe Blatt 3",
+      "date": "2026-11-05",
+      "time": "23:59",
+      "course": "Lineare Algebra",
+      "origin": "erkannt in Blatt3.pdf, S. 1",
+      "route": "#/doc/f-blatt"
+     },
+     {
+      "id": "due-b",
+      "title": "Kurzklausur",
+      "date": "2026-12-11"
+     }
+    ],
+    "expect": [
+     "de.uniflow.ai.due.C1.due-a.d3 2026-11-02T08:00",
+     "de.uniflow.ai.due.C1.due-a.d1 2026-11-04T08:00",
+     "de.uniflow.ai.due.C1.due-a.d0 2026-11-05T08:00",
+     "de.uniflow.ai.due.C1.due-a.h2 2026-11-05T21:59",
+     "de.uniflow.ai.due.C1.due-b.d3 2026-12-08T08:00",
+     "de.uniflow.ai.due.C1.due-b.d1 2026-12-10T08:00",
+     "de.uniflow.ai.due.C1.due-b.d0 2026-12-11T08:00"
+    ],
+    "titles": [
+     "In 3 Tagen: Abgabe Blatt 3",
+     "Morgen: Abgabe Blatt 3",
+     "Heute: Abgabe Blatt 3",
+     "In 2 Stunden: Abgabe Blatt 3"
+    ],
+    "bodies": {
+     "0": "Lineare Algebra · Do, 05.11. 23:59 · erkannt in Blatt3.pdf, S. 1",
+     "6": "Fr, 11.12."
+    },
+    "utc": {
+     "4": "2026-12-08T07:00:00Z"
+    }
+   },
+   {
+    "now": "2026-10-27T10:00",
+    "container": "C",
+    "items": [
+     {
+      "id": "x",
+      "title": "Testat",
+      "date": "2026-11-10",
+      "time": "09:00"
+     },
+     {
+      "id": "y",
+      "title": "Testat",
+      "date": "2026-11-11",
+      "time": "07:00"
+     }
+    ],
+    "expect": [
+     "de.uniflow.ai.due.C.x.d3 2026-11-07T08:00",
+     "de.uniflow.ai.due.C.y.d3 2026-11-08T08:00",
+     "de.uniflow.ai.due.C.x.d1 2026-11-09T08:00",
+     "de.uniflow.ai.due.C.x.h2 2026-11-10T07:00",
+     "de.uniflow.ai.due.C.y.d1 2026-11-10T08:00"
+    ]
+   },
+   {
+    "now": "2026-10-28T09:00",
+    "container": "C",
+    "items": [
+     {
+      "id": "z",
+      "title": "Abgabe",
+      "date": "2026-10-29",
+      "time": "12:00"
+     }
+    ],
+    "expect": [
+     "de.uniflow.ai.due.C.z.d0 2026-10-29T08:00",
+     "de.uniflow.ai.due.C.z.h2 2026-10-29T10:00"
+    ]
+   },
+   {
+    "now": "2026-10-27T10:00",
+    "container": "C",
+    "items": [
+     {
+      "id": "p",
+      "title": "Alt",
+      "date": "2026-10-01"
+     }
+    ],
+    "expect": []
+   }
+  ],
+  "limit_case": {
+   "now": "2026-10-27T10:00",
+   "container": "C",
+   "first_day": "2026-11-01",
+   "count": 30,
+   "time": "12:00",
+   "expect_count": 60,
+   "expect_first": "2026-10-29T08:00",
+   "missing_item": "i29",
+   "small_limit": 5
+  },
+  "items_from_response": {
+   "response": {
+    "items": [
+     {
+      "id": "due-1",
+      "title": "Kurztestat 1",
+      "date": "2026-11-02",
+      "time": null,
+      "file_id": "f-ue07",
+      "page": 2,
+      "course_title": "Analysis I (Übung)",
+      "origin": "erkannt in Uebung07.pdf, S. 2",
+      "hidden": false
+     },
+     {
+      "id": "due-2",
+      "title": "Kurzklausur",
+      "date": "2026-12-11",
+      "hidden": true
+     },
+     {
+      "id": "lw-ev-77",
+      "title": "Aufgabe 3 hochladen",
+      "date": "2026-11-12",
+      "time": "23:59",
+      "url": "https://learnweb.example.test/a"
+     },
+     {
+      "id": "exam-5",
+      "title": "Klausur Informatik",
+      "date": "2027-02-10",
+      "module_id": 5,
+      "module_name": "Informatik"
+     },
+     {
+      "id": "due-3",
+      "title": "Abgabe",
+      "date": "2026-11-05",
+      "file_id": "f-b",
+      "page": 1
+     }
+    ]
+   },
+   "ids": [
+    "due-1",
+    "lw-ev-77",
+    "exam-5",
+    "due-3"
+   ],
+   "routes": [
+    "#/doc/f-ue07?page=2",
+    "https://learnweb.example.test/a",
+    "#/modules/5",
+    "#/doc/f-b"
+   ],
+   "courses": [
+    "Analysis I (Übung)",
+    null,
+    "Informatik",
+    null
+   ],
+   "times": [
+    null,
+    "23:59",
+    null,
+    null
+   ]
+  },
+  "diff": {
+   "pending": [
+    "de.uniflow.ai.due.C1.due-a.d3",
+    "de.uniflow.ai.due.C1.due-b.d0",
+    "de.uniflow.ai.due.C1.due-b.d1",
+    "de.uniflow.ai.due.C1.due-b.d3",
+    "de.uniflow.ai.sync.files.C1.123",
+    "de.uniflow.ai.due.C2.due-z.d1"
+   ],
+   "planned": [
+    "de.uniflow.ai.due.C1.due-a.d3"
+   ],
+   "remove": [
+    "de.uniflow.ai.due.C1.due-b.d0",
+    "de.uniflow.ai.due.C1.due-b.d1",
+    "de.uniflow.ai.due.C1.due-b.d3",
+    "de.uniflow.ai.due.C2.due-z.d1"
+   ]
+  }
+ }
+}

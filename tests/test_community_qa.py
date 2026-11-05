@@ -126,7 +126,7 @@ def test_paging_limits_reports_and_plan(hosted, monkeypatch):
     _, r2 = _user(app, "r2@example.org")
     _, r3 = _user(app, "r3@example.org")
     assert call(app, "POST", f"/courses/{KEY}/questions", free, {"title": "x"})[1]["code"] == "plan_required"
-    assert call(app, "GET", f"/courses/{KEY}/questions", free)[0] == 200, "lesen geht immer"
+    assert call(app, "GET", f"/courses/{KEY}/questions", free)[1]["code"] == "plan_required", "lesen ab Plus (05.11.2026)"
     ids = []
     for i in range(5):
         st, q = call(app, "POST", f"/courses/{KEY}/questions", a, {"title": f"Frage {i}"})

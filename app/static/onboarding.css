@@ -1,0 +1,20 @@
+/* Erststart (onboarding.js): Vollbild wie OnboardingPage auf dem iPad, Inhalt mittig, hoechstens 520 px breit */
+.ob-overlay { position: fixed; inset: 0; z-index: 900; background: var(--bg); overflow-y: auto; display: flex; justify-content: center; }
+.ob-page { width: min(520px, 100%); padding: 48px 16px; display: flex; flex-direction: column; justify-content: center; min-height: 100%; box-sizing: border-box; }
+.ob-logo { width: 64px; height: 64px; border-radius: 19px; background: var(--accent); color: var(--on-fill, #fff); display: grid; place-items: center; box-shadow: 0 4px 16px rgba(20, 24, 40, .08); }
+.ob-page h1 { font-size: 1.8rem; letter-spacing: -.02em; margin: 1.3rem 0 .4rem; }
+.ob-page .ob-lead { color: var(--text-2); margin: 0 0 1.4rem; }
+.ob-step { color: var(--muted); font-size: .85rem; font-weight: 600; margin: 0 0 .3rem; }
+.ob-dots { display: flex; gap: .35rem; margin-bottom: 1.2rem; }
+.ob-dots i { width: 22px; height: 4px; border-radius: 2px; background: var(--line-strong); }
+.ob-dots i.on { background: var(--accent); }
+.ob-choices { display: grid; gap: .55rem; margin: 0 0 1.2rem; }
+.ob-choice { display: flex; align-items: center; gap: .7rem; padding: .8rem 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; }
+.ob-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.ob-choice input { accent-color: var(--accent); }
+.ob-foot { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: .4rem; }
+.ob-foot .spacer { flex: 1; }
+.ob-note { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1rem; margin: 0 0 1.2rem; }
+.ob-ok { color: var(--ok-text, #166534); font-weight: 600; }
+.ob-later { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: .9rem; padding: .3rem; }
+@media (max-width: 480px) { .ob-page { padding: 32px 16px; } .ob-page h1 { font-size: 1.5rem; } }

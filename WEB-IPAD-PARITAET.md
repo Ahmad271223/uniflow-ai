@@ -21,7 +21,7 @@ Bestandsaufnahmen (vollständige Beschreibung jeder Funktion mit Quelltextstelle
 
 ## Stand auf einen Blick
 
-509 Web-Funktionen und Ansichtselemente aus den Bestandsaufnahmen (`docs/paritaet/web-ansichten.md`, `docs/paritaet/web-editor.md`).
+510 Web-Funktionen und Ansichtselemente aus den Bestandsaufnahmen (`docs/paritaet/web-ansichten.md`, `docs/paritaet/web-editor.md`).
 
 | Bereich | Nicht begonnen | Implementiert | Kompiliert | Getestet | Visuell geprüft | Vollständig gleichwertig |
 |---|---:|---:|---:|---:|---:|---:|
@@ -42,8 +42,8 @@ Bestandsaufnahmen (vollständige Beschreibung jeder Funktion mit Quelltextstelle
 | Einstellungen |  |  | 27 |  |  |  |
 | Globale Zustände | 1 |  | 1 |  |  |  |
 | PDF-Editor: Leisten und Menüs | 52 |  |  |  |  |  |
-| PDF-Editor: Funktionen und Tastenkürzel | 55 |  |  |  |  |  |
-| **Summe** | **140** | **0** | **365** | **4** | **0** | **0** |
+| PDF-Editor: Funktionen und Tastenkürzel | 56 |  |  |  |  |  |
+| **Summe** | **141** | **0** | **365** | **4** | **0** | **0** |
 
 ## Wie es umgesetzt wird
 
@@ -222,7 +222,7 @@ Spalten: **Web** = Ort im Quelltext und API · **iPad heute** = Stand vor dem 1:
 
 | ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
 |---|---|---|---|---|---|---|
-| W.B.1-01 | Begrüßung | „Guten Morgen“ (<11 Uhr), „Guten Tag“ (<18 Uhr), sonst „Guten Abend“. Datumszeile: Wochentag, Datum · „heute N Lernpaket(e)“ oder „heute ist nichts geplant“ · „N Uni-Ter… | app.js:80, 87 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Kompiliert | im Simulator mit Testdaten angezeigt und mit Safari verglichen (Abstände, Höhen, Farben gleich); bekannte Web-Eigenheit: rechte Spalte wird… |
+| W.B.1-01 | Begrüßung | „Hallo Lea – lass uns gemeinsam lernen.“, vor 11 Uhr „Guten Morgen, Lea – …“, ab 18 Uhr „Guten Abend, Lea – …“, ohne Namen „Hallo – …“ (greeting.js, seit 05.11.2026 wie … | app.js:80, 87 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Kompiliert | im Simulator mit Testdaten angezeigt und mit Safari verglichen (Abstände, Höhen, Farben gleich); bekannte Web-Eigenheit: rechte Spalte wird… |
 | W.B.1-02 | Button „Tagesansicht“ | Link `#/plan?view=day&date=<heute>` | app.js:88 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Kompiliert | im Simulator mit Testdaten angezeigt und mit Safari verglichen (Abstände, Höhen, Farben gleich); bekannte Web-Eigenheit: rechte Spalte wird… |
 | W.B.1-03 | Button „Weiterlernen“ (primary) | nur bei offener Aufgabe; führt zu `#/doc/<file>?task=<id>`, ohne Datei zur Tagesansicht | app.js:85, 88 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Kompiliert | im Simulator mit Testdaten angezeigt und mit Safari verglichen (Abstände, Höhen, Farben gleich); bekannte Web-Eigenheit: rechte Spalte wird… |
 | W.B.1-04 | KPI 1 | geplante Minuten heute, dazu „· X frei“ | app.js:89 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Kompiliert | im Simulator mit Testdaten angezeigt und mit Safari verglichen (Abstände, Höhen, Farben gleich); bekannte Web-Eigenheit: rechte Spalte wird… |
@@ -686,6 +686,7 @@ Spalten: **Web** = Ort im Quelltext und API · **iPad heute** = Stand vor dem 1:
 | E.B26 | B26 Aufgabenkontext für die Skriptsuche |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
 | E.B27 | B27 Einbindung `mountDoc` und geteilte Ansicht (views-doc.js) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
 | E.B28 | B28 Render-Performance |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B29 | B29 iPad-Gleichstand vom 05.11.2026 (Windows-Lücken Dokumente/Editor) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
 
 ## Visueller Vergleich
 

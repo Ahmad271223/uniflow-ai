@@ -70,11 +70,14 @@ und gibt das Bild gleich wieder frei. Tesseract bekommt es als PGM (ohne Pillow)
   `apps/windows/scripts/add-tesseract.ps1` legt `dist/uniflow-backend/tesseract/` an: `tesseract.exe`, die DLLs,
   `tessdata/` mit `deu.traineddata` und `eng.traineddata` (tessdata_fast 4.1.0), `tessdata/configs`, `LIZENZEN.txt` und
   `lizenzen/` (Hinweistexte, die der Installer mitbringt). Keine Trainingsprogramme.
-- Quelle des Programms: Installer der UB Mannheim 5.4.0.20240606 (Apache-2.0, 64 Bit), still in einen eigenen Ordner
-  installiert (`/S /D=…`). **Alle drei Downloads sind mit SHA-256 festgelegt** (am 04.11.2026 beim ersten Laden gebildet,
-  nicht gegen eine vom Herausgeber veröffentlichte Prüfsumme abgeglichen); eine geänderte Datei bricht den Lauf ab.
-  Größen: Installer 50 MB, deu 1,5 MB, eng 4,1 MB; der Ordner im Paket ist geschätzt 40–60 MB (der Lauf gibt die echte
-  Größe aus).
+- Quelle des Programms: Installer der UB Mannheim 5.4.0.20240606 (Apache-2.0, 64 Bit), still installiert (`/S`).
+  Der Installer übergeht `/D=…` und landet in `C:\Program Files\Tesseract-OCR` (Ursache des roten Laufs vom 04.11.);
+  das Skript prüft seit 05.11. nur feste Orte (/D-Ordner, Registry, Program Files, bis 120 s), fällt sonst auf
+  7-Zip-Entpacken zurück und nimmt nur ein Programm, das Version 5.4.0 meldet. **Alle drei Downloads sind mit SHA-256
+  festgelegt** (am 04.11.2026 beim ersten Laden gebildet, nicht gegen eine vom Herausgeber veröffentlichte Prüfsumme
+  abgeglichen; 3 Versuche je Download); eine geänderte Datei bricht den Lauf ab.
+  Größen: Installer 48 MB, deu 1,5 MB, eng 4,1 MB; der Ordner im Paket ist 165 MB (Lauf 41993722721; alle DLLs des
+  Builds, auch die von pango/cairo/ICU, die nur die Trainingsprogramme brauchen – Verkleinern ist ein offener Punkt).
 - Probe im Lauf: `--list-langs` muss deu und eng nennen, und ein erzeugtes Graustufenbild (PGM wie in `app/pageocr.py`)
   mit „Übungsblatt Klausur Größe“ muss „Klausur“ ergeben. `check-installer.ps1` prüft im installierten Ordner
   `backend\tesseract\tesseract.exe`, `tessdata\deu.traineddata` und `LIZENZEN.txt`. Das MSIX-Paket übernimmt den

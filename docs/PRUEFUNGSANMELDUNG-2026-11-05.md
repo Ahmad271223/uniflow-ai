@@ -160,9 +160,14 @@ Gebaut nach dem bekannten HIS-QIS-Aufbau (wie Notenspiegel) mit erfundenen Seite
 
 ## Lücken (bewusst)
 
-- **Python/PC und Web**: kein Endpunkt `/api/exam-registration`, keine Karte im Web (`app/static`). Der PC liest die
-  Info-Seite nicht (qis.py liest nur den Notenspiegel); `app/exam_registration.py` hat nur Daten, Zuordnung und Phase
-  (gleiche Fälle wie der Kern), damit ein späterer Web-Teil darauf aufbauen kann. In app-paths.json als „nur lokal“.
+- ~~**Python/PC und Web**~~ **seit 05.11.2026 am PC (Windows-App/Einzelplatz):** `GET /api/exam-registration`
+  (`app/exam_registration_api.py`, gleiche Antwort und Fälle wie der Kern, dazu `reminders`), Leser der Info-Seite
+  (`app/qis_registrations.py`, gleiche Sperrliste, mit den erfundenen Seiten getestet) läuft im normalen QIS-Abruf mit
+  (`app/qis.py`, nur LUH, nie im Dienst); „Angemeldete Prüfungen abrufen“ stößt diesen Abruf an. Web: Karte auf der
+  Übersicht, Abschnitt im Studienverlauf, Block am Modul (Moduldetail und Modulseite), Abzeichen in „Nächste Klausuren“
+  (`app/static/exam-registration.js`). Erinnerungen am ersten Tag, 7 und 2 Tage vor dem Ende als Hinweis in der App;
+  sind in der Windows-App die Erinnerungen an (`due-reminders.js`, Tauri-Plugin), einmal auch als Windows-Mitteilung.
+  Im Dienst `supported=false`. app-paths.json bleibt unverändert (Form gleich). Tests: `tests/test_exam_registration_api.py`.
 - Daten nur für sieben geprüfte Studiengänge; alle anderen zeigen den Link ihrer Terminseite.
 - Module aus anderen Studiengängen können eine andere Variante haben (Hinweis im Text, keine Daten je Modul).
 - Uni Hildesheim: nicht unterstützt (`supported=false`, kein Abschnitt).

@@ -1,0 +1,40 @@
+/* Bildschirm fixieren im Editor (editor-freeze.js, docs/FIXIEREN-ABPAUSEN-2026-11-05.md); von editor-freeze.js geladen */
+
+/* Ansicht fixiert: kein Bildlauf (Mausrad, Bildlaufleiste, Tastatur, mittlere Maustaste), Seite und Zoom bleiben */
+.ed.ed-fixed .ed-scroll { overflow: hidden !important; }
+.ed.ed-fixed .ed-pageinfo [data-act="prev"], .ed.ed-fixed .ed-pageinfo [data-act="next"], .ed.ed-fixed .ed-pageinfo [data-act="zoomin"],
+.ed.ed-fixed .ed-pageinfo [data-act="zoomout"], .ed.ed-fixed .ed-pageinfo [data-act="fit"] { opacity: .35; pointer-events: none; }
+.ed-freeze-badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 8; display: inline-flex; align-items: center; gap: .45rem;
+  padding: .3rem .4rem .3rem .75rem; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--text);
+  border: 1px solid var(--line); box-shadow: var(--sh); font: 600 .82rem var(--font); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.ed-freeze-badge[hidden] { display: none; }
+.ed-freeze-badge svg { width: 15px; height: 15px; color: var(--accent); }
+.ed-freeze-release { border: 0; border-radius: 999px; padding: .25rem .7rem; background: var(--accent); color: #fff; font: 600 .8rem var(--font); cursor: pointer; }
+.ed-freeze-release:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Zum Abpausen eingefroren: Seite fuellt den Bildschirm (Vollbild, sonst fest darueber), keine Leisten, keine Eingabe */
+.ed.ed-tracing { position: fixed; inset: 0; z-index: 2000; width: 100vw; height: 100vh; height: 100dvh; min-height: 0; border: 0; border-radius: 0; }
+.ed.ed-tracing .ed-bar, .ed.ed-tracing .ed-side, .ed.ed-tracing .ed-ai, .ed.ed-tracing .ed-com, .ed.ed-tracing .ed-pageinfo,
+.ed.ed-tracing .ed-zoomwin, .ed.ed-tracing .ed-pop, .ed.ed-tracing .ed-cursor, .ed.ed-tracing .ed-freeze-badge, .ed.ed-tracing .ed-pagelabel { display: none !important; }
+body.ed-tracing-doc { overflow: hidden; }
+body.ed-tracing-doc .mobile-nav, body.ed-tracing-doc .fs-exit { display: none !important; }
+.ed.ed-trace-contrast .ed-scroll { background: #fff !important; }
+.ed.ed-trace-contrast .ed-page { box-shadow: none !important; }
+.ed-freeze-shield { position: absolute; inset: 0; z-index: 2001; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; background: transparent; }
+.ed-freeze-shield[hidden] { display: none; }
+.ed-freeze-lock { position: absolute; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); z-index: 2002; width: 52px; height: 52px;
+  border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(20, 22, 30, .78); color: #fff; opacity: .3; cursor: pointer;
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: opacity .15s ease; }
+.ed-freeze-lock[hidden] { display: none; }
+.ed-freeze-lock > svg { grid-area: 1 / 1; }
+.ed-freeze-lock.holding, .ed-freeze-lock:focus-visible { opacity: 1; }
+.ed-freeze-lock:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.ed-freeze-ring { width: 52px; height: 52px; transform: rotate(-90deg); }
+.ed-freeze-ring circle { fill: none; stroke: #7cf2a8; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 0 100; }
+@media (prefers-reduced-motion: reduce) { .ed-freeze-lock { transition: none; } }
+
+/* Erklaerung beim ersten Mal */
+.ed-freeze-intro .ed-fz-step { margin: .5rem 0; }
+.ed-freeze-intro .ed-fz-step p { margin: .2rem 0 0; }
+.ed-freeze-intro .ed-fz-opt { display: flex; gap: .45rem; align-items: baseline; margin: .6rem 0; }
+.ed-menu [data-fz] svg { width: 16px; height: 16px; }

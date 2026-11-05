@@ -148,7 +148,11 @@ Stud.IP-Fassung, braucht aber einen Test mit einem Hildesheimer Konto.
 
 ## 6. Web und Windows
 
-Lücke, nicht umgesetzt. Der gehostete Dienst ruft Stud.IP nie selbst auf (`docs/IPAD-STUDIP-SYNC.md` §8: keine Cookies
-oder Tokens auf eigenen Servern). Am PC liest `app/studip_sync.py` nur über die Playwright-Sitzung des Abgleichs. Ein
-Hochladen bräuchte dort einen eigenen Knopf mit laufendem Browser. Das ist nicht billig und wurde deshalb nicht gebaut.
-Im Web und unter Windows bleibt es bei „PDF exportieren“ und dem Hochladen im Browser.
+**Windows-App/Einzelplatz seit 05.11.2026 umgesetzt**; im gehosteten Dienst weiterhin nicht (`docs/IPAD-STUDIP-SYNC.md`
+§8: keine Cookies auf eigenen Servern; der Menüpunkt fehlt dort). Im Web-Editor: Export-Menü → „In Stud.IP abgeben …“
+(`app/static/studip-submit.js`). Die PDF baut derselbe Export wie „Exportieren“ (`Editor.exportPdf(…, { bytes: true })`,
+Seitennotizen und Blätter über `side-notes.js`). Server `app/studip_submit.py` (gleiche Regeln wie `StudIPSubmit.swift`)
+mit der gemerkten Stud.IP-Sitzung (`app/studip_live.py`, stille Erneuerung bei 401 genau einmal): `GET /api/studip/submit`,
+`GET /api/studip/submit/folders`, `POST /api/studip/submit`; vor dem Hochladen prüft der Server, dass der Ordner
+gerade beschreibbar ist. Verlauf `studip_submissions` (nur dieser PC). Ohne Abo gesperrt. Tests:
+`tests/test_studip_submit.py`. Echt prüfen: wie Abschnitt 4, in der Windows-App.

@@ -188,7 +188,7 @@ def community() -> dict:
     so = call("Nicht-Mitglied: Stapel", "POST", "/api/flashcard-stacks", {"name": "O", "subject": "Analysis Beispiel"}, ho)
     call("Karte", "POST", "/api/flashcards", {"stack_id": so["id"], "cards": cards[:1]}, ho)
     call("Teilen ohne Mitgliedschaft", "POST", f"/api/flashcard-stacks/{so['id']}/share", None, ho)
-    call("Liste fuer Mitglieder (auch Free)", "GET", f"/api/community/card-stacks?module={key}", None, hf)
+    call("Liste ohne Plus (Community ab Plus, 05.11.2026)", "GET", f"/api/community/card-stacks?module={key}", None, hf)
     call("Liste: nur Woche 3", "GET", f"/api/community/card-stacks?module={key}&week=3", None, hl)
     call("Liste: nur Allgemein", "GET", f"/api/community/card-stacks?module={key}&week=0", None, hl)
     call("Liste ohne Mitgliedschaft", "GET", f"/api/community/card-stacks?module={key}", None, ho)

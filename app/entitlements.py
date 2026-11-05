@@ -57,7 +57,8 @@ def required_plan(entitlement: str) -> str | None:
 
 
 # eigene Meldungen fuer Rechte, deren Sperre der Nutzer an einer bestimmten Stelle sieht (sonst "Diese Funktion ...")
-MESSAGES = {"can_use_flashcards": "Karteikarten gibt es ab StudiNow Plus."}
+MESSAGES = {"can_use_flashcards": "Karteikarten gibt es ab StudiNow Plus.",
+            "can_read_community": "Die Community gibt es ab StudiNow Plus."}
 
 
 def forbidden(entitlement: str) -> HTTPException:
@@ -103,11 +104,13 @@ def require_verified_for_ai(request: Request) -> dict | None:
     return user
 
 
-def consume(request: Request, feature: str, request_id: str) -> billing.ConsumeResult:
+def consume(request: Request, feature: str, request_id: str, once: bool = False) -> billing.ConsumeResult:
     """Ein Element eines Monatskontingents verbrauchen; 429 quota_exhausted, wenn es aufgebraucht ist.
     Die Anfrage-ID gilt je Konto, Monat und Funktion. Eine schon gezaehlte ID wird mit 409 duplicate_request abgewiesen:
     Wiederholt ein Client dieselbe Anfrage (z. B. nach einem Netzfehler), wird nicht ein zweites Mal abgebucht und der
     Aufrufer ruft den Anbieter nicht erneut auf; der Client sendet fuer einen neuen Versuch eine neue ID.
+    `once=True`: dieselbe ID zaehlt im Monat einmal und ist bei Wiederholung kein Fehler (z. B. denselben
+    Karteikarten-Stapel erneut uebernehmen, card_stacks_adopted).
     Lokal (eigener PC) gibt es keine Kontingente."""
     if not config.is_hosted():
         return billing.ConsumeResult(ok=True, used=0, limit=0)
@@ -123,7 +126,7 @@ def consume(request: Request, feature: str, request_id: str) -> billing.ConsumeR
         label = plans.QUOTA_LABELS.get(feature, feature)
         raise HTTPException(429, {"detail": f"{label}: Kontingent für diesen Monat aufgebraucht ({r.used} von {r.limit}).",
                                   "code": "quota_exhausted", "feature": feature, "used": r.used, "limit": r.limit})
-    if r.duplicate:
+    if r.duplicate and not once:
         raise HTTPException(409, {"detail": "Diese Anfrage wurde schon verarbeitet.", "code": "duplicate_request"})
     return r
 

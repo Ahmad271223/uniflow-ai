@@ -6,6 +6,7 @@ und der Browser sind Attrappen. Nichts geht ins Netz, nichts wird bezahlt."""
 import io
 import json
 import os
+import sys
 import time
 import urllib.parse
 import zipfile
@@ -112,7 +113,8 @@ def test_token_store_memory_file_and_fallback(tmp_path):
     f = token_store.FileStore(tmp_path / "t")
     assert f.get() is None
     f.set("abc")
-    assert f.get() == "abc" and oct(os.stat(tmp_path / "t").st_mode & 0o777) == "0o600", "nur fuer den eigenen Benutzer"
+    # Windows kennt keine POSIX-Rechte (st_mode zeigt dort 0o666); dort gilt ohnehin die Anmeldeinformationsverwaltung
+    assert f.get() == "abc" and (sys.platform == "win32" or oct(os.stat(tmp_path / "t").st_mode & 0o777) == "0o600"), "nur fuer den eigenen Benutzer"
     f.delete()
     assert f.get() is None and not (tmp_path / "t").exists()
 
@@ -129,7 +131,8 @@ def test_token_store_memory_file_and_fallback(tmp_path):
     token_store.put("xyz")
     assert token_store.kind() == "memory" and token_store.get() == "xyz", "dann nur im Speicher, nie in einer Datei"
     token_store.use(None)
-    assert token_store.kind() == "file", "ausserhalb von Windows: Datei mit 0600"
+    assert token_store.kind() == ("windows_credential_manager" if sys.platform == "win32" else "file"), \
+        "ausserhalb von Windows: Datei mit 0600, unter Windows die Anmeldeinformationsverwaltung"
 
 
 def test_token_never_in_the_state_file_and_old_files_migrate(svc):

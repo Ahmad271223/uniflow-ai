@@ -109,6 +109,9 @@ def build() -> dict:
     call("Regeln des Dienstes", "GET", "/api/community/info", token=ta)
     call("Veroeffentlichen", "POST", "/api/community/solutions", {"package": pkg, "title": "Blatt 3"}, token=ta)
     call("Veroeffentlichen ohne Plus", "POST", "/api/community/solutions", {"package": pkg}, token=tf)
+    # Community ab Plus, auch das Lesen (Entscheidung 05.11.2026); eigene Beitraege bleiben ohne Plus auflist- und zurueckziehbar
+    call("Suchen ohne Plus", "GET", "/api/community/solutions?fingerprint=" + FP, token=tf)
+    call("Eigene Veroeffentlichungen ohne Plus", "GET", "/api/community/mine", token=tf)
     bad = json.loads(json.dumps(pkg)); bad["header"]["document"]["sha256"] = "b" * 64; bad["header"]["solutionId"] = "6f1c1c0e-0000-4000-8000-000000000002"
     ids[bad["header"]["solutionId"]] = "<solution-id-2>"
     call("Veroeffentlichen fuer eine PDF, die nicht aus dem eigenen Abgleich stammt", "POST", "/api/community/solutions", {"package": bad}, token=ta)
@@ -180,7 +183,9 @@ def build() -> dict:
     ids[group] = "<group-key>"
     call("Geraet meldet seine Kurse", "POST", "/api/community/claims", {"fingerprints": [], "course_keys": [key]}, token=ta)
     call("Community des Kurses beitreten", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=ta)
-    call("Beitreten ohne den Kurs", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tf)
+    _, tk = user("ohnekurs@beispiel.de")                   # Plus, aber ohne den Kurs im eigenen Abgleich
+    call("Beitreten ohne den Kurs", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tk)
+    call("Beitreten ohne Plus", "POST", f"/api/community/communities/{key}/join", {"kind": "course"}, token=tf)
     pkg2 = community.sample_package("d" * 64, solution_id="6f1c1c0e-0000-4000-8000-000000000003", key_material="community-secret")
     ids[pkg2["header"]["solutionId"]] = "<solution-id-3>"
     call("In die Community veroeffentlichen", "POST", "/api/community/solutions", {"package": pkg2, "title": "Blatt 4", "community_key": key}, token=ta)
@@ -262,7 +267,10 @@ def build() -> dict:
     for p in (accounts.db_path(), community.db_path()):
         p.unlink(missing_ok=True)
     return {"_hinweis": "Erzeugt mit tools/gen-community-fixture.py aus der Python-Referenz (app/community.py); nicht von Hand aendern.",
-            "rules": {"plan_required": "plus", "authorization": "Veroeffentlichen, Suchen und Laden nur fuer PDFs aus dem eigenen Hochschul-Abgleich (files.content_sha256 mit download_url)",
+            "rules": {"plan_required": "plus",
+                      "read": "Lesen, Beitreten, Liken, Melden und Kommentieren ab Plus (can_read_community, 05.11.2026); ohne Plus "
+                              "nur eigene Beitraege auflisten (GET mine), zurueckziehen und loeschen, austreten, Sperrliste",
+                      "authorization": "Veroeffentlichen, Suchen und Laden nur fuer PDFs aus dem eigenen Hochschul-Abgleich (files.content_sha256 mit download_url)",
                       "reports_to_hide": community.REPORTS_TO_HIDE, "reasons": list(community.REPORT_REASONS), "format": community.FORMAT,
                       "format_version": community.FORMAT_VERSION, "max_package_bytes": community.MAX_PACKAGE_BYTES,
                       "pseudonym": "Studi-<8 hex>, stabil je Konto, nie Konto-ID oder E-Mail",

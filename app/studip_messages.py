@@ -161,6 +161,8 @@ def message_list(conn, query: str = "") -> dict:
     mark = seen_mark(conn)
     words = q.split()
     shown = [m for m in msgs if matches(m, words)] if words else msgs
+    from . import studip_reply          # Antworten (05.11.2026): Empfaengerzahl, eigene Antworten, Ausweg in Stud.IP
+    studip_reply.annotate(conn, shown)
     st = status(conn)
     return {"messages": shown, "total": len(msgs), "fetched_at": fetched, "q": q, "available": st["available"],
             "seen_up_to": mark, "new_count": st["new_count"]}

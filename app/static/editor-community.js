@@ -15,6 +15,7 @@ import * as C from "./community-corrections.js?v=2";
 import * as U from "./community-corrections-ui.js?v=5";
 import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=6";
 import { ensureCss } from "./community-logic.js?v=2";
+import * as SN from "./side-notes.js?v=1";
 
 const $ =(s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -96,6 +97,8 @@ class Community {
     if (!this.fp) return;
     try {
       this.info ||= await capi("/info");
+      // Community ab StudiNow Plus, auch das Lesen (Entscheidung 05.11.2026): ohne Recht keine Abfrage, nur der Hinweis
+      if (this.info.can_read === false && !this.info.admin) throw Object.assign(new Error("Die Community gibt es ab StudiNow Plus."), { code: "plan_required" });
       this.list = (await capi(`/solutions?fingerprint=${this.fp}`)).solutions;
       this.err = null;
     } catch (e) { this.err = e; this.list = this.list || null; }
@@ -356,6 +359,7 @@ class Community {
     if (e.code === "file_not_owned") return `<p class="small">${icon("info", 14)} Diese PDF stammt nicht aus deinem Hochschul-Abgleich. Lösungen gibt es nur für Dateien aus Stud.IP oder Learnweb, damit nur Kursteilnehmer sie sehen.</p><button class="btn sm" data-c="claims">${icon("sync", 13)} Meine PDFs jetzt melden</button><div class="com-link" style="margin-top:.8rem"></div>`;
     if (e.code === "university_mismatch" || e.code === "service_unreachable") return `<p class="small">${icon("alert", 14)} ${esc(e.message)}</p><button class="btn sm" data-c="reload">Erneut versuchen</button><div class="com-link" style="margin-top:.8rem"></div>`;
     if (e.code === "not_hosted") return `<p class="small muted">Die Community läuft über den StudiNow-Dienst.</p>`;
+    if (e.code === "plan_required") return `<p class="small">${icon("info", 14)} Die Community gibt es ab StudiNow Plus: Lösungen anderer sehen, liken, kommentieren und eigene teilen.</p><a class="btn sm" href="#/abo">Tarife ansehen</a>`;
     return `<p class="small">${icon("alert", 14)} ${esc(e.message)}</p><button class="btn sm" data-c="reload">Erneut versuchen</button>`;
   }
   listBody() {
@@ -400,14 +404,27 @@ class Community {
       <div class="com-threads">${list ? threads || `<p class="small muted">Noch keine Kommentare.${canC ? " Setze den ersten an eine Stelle der Seite." : ""}</p>` : `<p class="small muted">Lade Kommentare …</p>`}</div>
       ${(this.corrs.get(id) || []).length ? `<div class="com-sol-title" style="margin:.7rem 0 .1rem"><b>${C.TEXTS.sectionTitle} (${this.corrs.get(id).length})</b></div><p class="tiny muted" style="margin:0">${C.TEXTS.sectionNotice}</p><div class="cc-inbox">${this.corrs.get(id).map(U.correctionCard).join("")}</div>` : ""}`;
   }
+  // Dokument zum Teilen: Seitennotizen und Blaetter daneben (sideSheets, vom iPad) direkt hinter ihrer Folie (side-notes.js)
+  shareDoc() {
+    const m = this.ed.model;
+    if (this._sheets === undefined) {
+      this._sheets = null;
+      if (SN.sheetFileIDs(m).length) SN.loadSheets(m, async u => { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(s => { this._sheets = s; if (this.shareSel && this.shareNotes !== false) this.shareSel = SN.setShareNotes(this.shareDoc(), this.shareSel, true); this.render(); }).catch(() => { this._sheets = []; });
+      else this._sheets = [];
+    }
+    return SN.interleaved(m, this._sheets || []);
+  }
   shareRows() {
-    return this.ed.model.pageOrder.map((p, i) => {
-      const n = this.ed.model.pages[p.key]?.objects?.length || 0; const ok = S.shareable(p);
-      return { key: p.key, i, n, ok, label: (p.type || "pdf") === "pdf" ? `Seite ${i + 1}` : p.type === "blank" ? `Seite ${i + 1} (eigene Seite)` : `Seite ${i + 1} (eingefügt)` };
+    const doc = this.shareDoc(); const notes = new Set(SN.notePageKeys(doc));
+    return doc.pageOrder.map((p, i) => {
+      const n = doc.pages[p.key]?.objects?.length || 0; const ok = S.shareable(p);
+      return { key: p.key, i, n, ok, note: notes.has(p.key), label: ok ? SN.noteLabel(doc, i) : `Seite ${i + 1} (eingefügt)` };
     });
   }
   shareBody() {
-    const rows = this.shareRows(); this.shareSel ||= new Set(rows.filter(r => r.ok && r.n).map(r => r.key));
+    const rows = this.shareRows(); this.shareSel ||= SN.initialShareSelection(this.shareDoc(), this.shareNotes !== false);
+    const noteRows = rows.filter(r => r.note && r.ok).length;
     const sel = rows.filter(r => this.shareSel.has(r.key) && r.ok); const objs = sel.reduce((a, r) => a + r.n, 0);
     const spaces = (this.spaces || []).filter(s => s.joined); const canShare = this.info?.can_share && spaces.length;
     if (this.spaces === undefined) { this.spaces = null; loadSpaces().then(d => { this.spaces = d.spaces; this.render(); }).catch(() => { this.spaces = []; }); }
@@ -415,6 +432,7 @@ class Community {
       ${spaces.length ? `<label class="small">Community<select class="input" data-f="space">${spaces.map(s => `<option value="${esc(s.key)}" ${s.key === this.spaceKey ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label><p class="tiny muted">Sichtbar für die Mitglieder. Wer dieselbe PDF hat, sieht deine Notizen darüber, alle anderen auf leeren Seiten.</p>` : `<p class="tiny muted">Tritt unter „Community“ dem Kurs bei, dann kannst du hier veröffentlichen.</p>`}
       <label class="small">Titel<input class="input" data-f="title" maxlength="200" value="${esc(this.shareTitle ?? this.ed.name.replace(/\.pdf$/i, ""))}"></label>
       <label class="small">Anzeigename <span class="muted">(leer = nur dein Pseudonym${this.info?.pseudonym ? ` ${esc(this.info.pseudonym)}` : ""})</span><input class="input" data-f="name" maxlength="60" value="${esc(this.shareName || "")}"></label>
+      ${noteRows ? `<label class="small" style="display:flex;gap:.4rem;align-items:center;margin:.3rem 0" title="Seitennotizen und Blätter, die neben einer Folie beschrieben wurden; jede Notizseite bringt ihre Folie mit"><input type="checkbox" data-f="notes" ${this.shareNotes !== false ? "checked" : ""}> Notizen und Blätter mitschicken <span class="muted">· ${noteRows} Notizseite${noteRows === 1 ? "" : "n"}, direkt hinter ihrer Folie</span></label>` : ""}
       <div class="com-pages">${rows.map(r => `<label class="small ${r.ok ? "" : "muted"}" title="${r.ok ? "" : "Eingefügte Bild- oder PDF-Seiten werden nie geteilt"}"><input type="checkbox" data-pg="${esc(r.key)}" ${r.ok ? "" : "disabled"} ${r.ok && this.shareSel.has(r.key) ? "checked" : ""}> ${esc(r.label)} <span class="muted">· ${r.n} Objekt${r.n === 1 ? "" : "e"}</span></label>`).join("")}</div>
       <div class="small"><b>Vorschau</b> <span class="muted">(so sehen andere deine Notizen, ohne Original)</span> · ${sel.length} Seite${sel.length === 1 ? "" : "n"}, ${objs} Objekte</div>
       <div class="com-prev"></div>
@@ -439,23 +457,26 @@ class Community {
     const token = (this._prevTok = (this._prevTok || 0) + 1);
     const rows = this.shareRows().filter(r => r.ok && this.shareSel.has(r.key)).slice(0, 8);
     box.innerHTML = rows.map(r => `<figure data-pv="${esc(r.key)}"><div class="com-pv-img"></div><figcaption class="tiny muted">${esc(r.label)}</figcaption></figure>`).join("") + (this.shareSel.size > 8 ? `<span class="tiny muted">… und ${this.shareSel.size - 8} weitere</span>` : "");
+    const doc = this.shareDoc();
     for (const r of rows) {
-      const entry = this.ed.model.pageOrder[r.i]; const pg = this.ed.pages[r.i]; if (!pg) continue;
+      const entry = doc.pageOrder[r.i]; if (!entry) continue; const pg = this.ed.pages.find(p => p.key === entry.key) || { key: entry.key, w: entry.w || 595, h: entry.h || 842 };
       const W = pg.w, H = pg.h, sc = 132 / Math.max(W, H);
       const holder = document.createElement("div"); const stage = new Konva.Stage({ container: holder, width: Math.round(W * sc), height: Math.round(H * sc) });
       stage.scale({ x: sc, y: sc }); const layer = new Konva.Layer(); stage.add(layer);
       layer.add(new Konva.Rect({ x: 0, y: 0, width: W, height: H, fill: "#fff" }));
-      for (const o of this.ed.model.pages[entry.key]?.objects || []) { try { const n = this.ed.makeNode(pg, safeObj(o), { image: src => src }); if (n) layer.add(n); } catch {} }
+      for (const o of doc.pages[entry.key]?.objects || []) { try { const n = this.ed.makeNode(pg, safeObj(o), { image: src => src }); if (n) layer.add(n); } catch {} }
       await new Promise(res => setTimeout(res, 250)); if (token !== this._prevTok) { stage.destroy(); return; }
       layer.draw(); const url = stage.toDataURL({ pixelRatio: 1.5 }); stage.destroy();
       const f = $(`[data-pv="${CSS.escape(r.key)}"] .com-pv-img`, box); if (f) f.innerHTML = `<img alt="" src="${url}">`;
     }
   }
   async buildPackage() {
-    const keys = this.ed.model.pageOrder.map(p => p.key).filter(k => this.shareSel.has(k));
-    const srcs = S.imageSources(this.ed.model, keys); const images = {};
+    const doc = this.shareDoc();
+    const okSlide = k => { const e = doc.pageOrder.find(x => x.key === k); return !!e && e.index >= 1 && e.index <= this.pdfInfo.pageCount; };
+    const keys = SN.withSlides(doc, doc.pageOrder.map(p => p.key).filter(k => this.shareSel.has(k)), okSlide);   // Notiz nie ohne ihre Folie
+    const srcs = S.imageSources(doc, keys); const images = {};
     for (const src of srcs) { const b = await imageBytes(src); if (b) images[src] = b; }
-    const content = S.buildContent({ model: this.ed.model, selectedKeys: keys, pdfPageCount: this.pdfInfo.pageCount, pdfPage: i => this.pdfInfo.page(i),
+    const content = S.buildContent({ model: doc, selectedKeys: keys, pdfPageCount: this.pdfInfo.pageCount, pdfPage: i => this.pdfInfo.page(i),
                                      images, fingerprint: this.fp, title: this.shareTitle ?? this.ed.name.replace(/\.pdf$/i, ""), displayName: this.shareName || "" });
     return { content, pkg: await S.seal(content, this.pdfBytes()) };
   }
@@ -557,7 +578,8 @@ class Community {
       $$("[data-cview]", el).forEach(b => b.onclick = () => this.viewCorrection(b.dataset.cview));
     }
     // Teilen
-    $$("[data-pg]", el).forEach(c => c.onchange = () => { c.checked ? this.shareSel.add(c.dataset.pg) : this.shareSel.delete(c.dataset.pg); this.render(); });
+    $$("[data-pg]", el).forEach(c => c.onchange = () => { this.shareSel = SN.toggleShare(this.shareDoc(), this.shareSel, c.dataset.pg, c.checked); this.render(); });
+    const nt = $('[data-f="notes"]', el); if (nt) nt.onchange = () => { this.shareNotes = nt.checked; this.shareSel = SN.setShareNotes(this.shareDoc(), this.shareSel, nt.checked); this.render(); };
     const t = $('[data-f="title"]', el); if (t) t.oninput = () => this.shareTitle = t.value;
     const n = $('[data-f="name"]', el); if (n) n.oninput = () => this.shareName = n.value;
   }

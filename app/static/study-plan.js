@@ -25,9 +25,10 @@ export async function viewStudyPlan(parts, params, view) {
   const editable = () => gateState(app.entitlements, app.appAccount) !== "locked";
   view.innerHTML = `<div class="content sp-page" id="spRoot" style="max-width:1480px"><div class="page-head"><div><h1>${L.T.title}</h1>`
     + `<div class="sub">Was wann dran ist, was bestanden ist und was du nachholen musst – aus dem Modulkatalog deiner Hochschule und deinen Noten aus QIS.</div></div><div class="actions" id="spActions"></div></div>`
-    + `<div id="spBody"><div class="sp-status"><span class="sp-spin" aria-hidden="true"></span><span>${L.T.loading}</span></div></div>`
+    + `<div id="xrSection"></div><div id="spBody"><div class="sp-status"><span class="sp-spin" aria-hidden="true"></span><span>${L.T.loading}</span></div></div>`
     + `<div class="sr-only" id="spLive" role="status" aria-live="polite"></div></div>`;
   const root = $("#spRoot", view), body = $("#spBody", root);
+  import("./exam-registration.js?v=1").then(X => X.renderSection($("#xrSection", root))).catch(() => {});   // Pruefungsanmeldung
   const alive = () => root.isConnected && /^#\/(studyplan|studienverlauf)/.test(location.hash);
 
   async function load() {
@@ -558,6 +559,7 @@ export async function viewStudyPlan(parts, params, view) {
       if (cur !== stack[stack.length - 1]) return;
       box.innerHTML = L.detailHtml(cache[cur], icon);
       bindDetail();
+      import("./exam-registration.js?v=1").then(X => X.renderModuleBlock(box, { catalogId: cur })).catch(() => {});   // "Prüfung anmelden"
       // Modultexte werden im Hintergrund geladen: einige Male nachfragen, solange das Fenster dieses Modul zeigt
       if (cache[cur].texts_loading && !cache[cur].texts && tries < 8) {
         tries++;

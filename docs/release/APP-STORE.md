@@ -55,7 +55,7 @@ DOKUMENTE LESEN UND BESCHREIBEN
 
 LERNEN UND GEMEINSAM LERNEN
 • Mit Plus: eigene Karteikarten mit Wiederholung nach dem Leitner-System und „Frei üben“ im eigenen Tempo
-• Lösungen zu Übungsblättern mit anderen vergleichen: als verschlüsselte Datei, die nur öffnen kann, wer dieselbe PDF hat[[; dazu online in der Community deines Kurses nach Lehrwoche, mit Fragen und Antworten, unter Pseudonym, mit Melden und Sperren]]
+• Mit Plus: Lösungen zu Übungsblättern mit anderen vergleichen: als verschlüsselte Datei, die nur öffnen kann, wer dieselbe PDF hat[[; dazu online in der Community deines Kurses nach Lehrwoche, mit Fragen und Antworten, unter Pseudonym, mit Melden und Sperren]]
 
 DEINE DATEN
 • Deine Dateien, Notizen und Pläne liegen auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
@@ -63,7 +63,7 @@ DEINE DATEN
 • Was du mit anderen teilst, liegt verschlüsselt in Apples iCloud – nie mit deinem Namen oder deiner E-Mail-Adresse.
 
 STUDINOW FREE UND PLUS
-StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender, Lernplanung, Zeitmesser und Lösungen anderer in der Community ansehen. Zum Start hast du 7 Tage Probe mit allem – ohne Zahlungsdaten, danach gilt Free. StudiNow Plus (1,99 € pro Monat) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender, Lernplanung und Zeitmesser. Zum Start hast du 7 Tage Probe mit allem – ohne Zahlungsdaten, danach gilt Free. StudiNow Plus (1,99 € pro Monat) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, die Community deines Kurses und das Teilen eigener Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -87,7 +87,7 @@ Stud.IP,Uni,Hochschule,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Übung
 Bei der ersten Version zeigt der App Store dieses Feld nicht an; für 1.0.1 ff. ersetzen.
 
 ```text whats-new
-Erste Version: Dateien und Termine aus Stud.IP, Bibliothek nach Modulen, Stundenplan, Lernkalender mit Lernplanung, Zeitmesser. Mit StudiNow Plus: Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lösungen teilen.
+Erste Version: Dateien und Termine aus Stud.IP, Bibliothek nach Modulen, Stundenplan, Lernkalender mit Lernplanung, Zeitmesser. Mit StudiNow Plus: Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Community und Lösungen teilen.
 ```
 
 ## Weitere Angaben
@@ -186,12 +186,12 @@ Connect zwei automatisch verlängerbare Abos in der Abo-Gruppe „StudiNow“ an
 | Abo-Gruppe / Stufe | StudiNow / Stufe 2 | StudiNow / Stufe 1 (höchste) |
 | Referenzname | StudiNow Plus (monatlich) | StudiNow Pro AI (monatlich) |
 | Anzeigename (max. 30) | StudiNow Plus | StudiNow Pro AI |
-| Beschreibung (max. 45) | Stift, Karteikarten, Lösungen teilen | Alles aus Plus, mehr über den StudiNow-Dienst |
+| Beschreibung (max. 45) | Stift, Karteikarten, Community, Lösungen | Alles aus Plus, mehr über den StudiNow-Dienst |
 | Preis | 1,99 € pro Monat (Preisstufe nach App Store Connect) | 3,99 € pro Monat |
 | Einführungsangebot | keins | keins |
 | Einreichen | **mit der ersten App-Version** | **erst, wenn der StudiNow-Dienst läuft** (vorher nicht anlegen oder nicht zur Prüfung geben) |
 | Prüf-Screenshot | Tarifseite der App (`~/Studora-Builds/appstore-screenshots/iap-tarifseite.png`) | Tarifseite mit der Pro-AI-Karte (erst mit dem Dienst) |
-| Prüfhinweis zum Abo | „Plus schaltet Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen eigener Lösungen frei. Kaufen und Wiederherstellen auf der Tarifseite (Einstellungen → Zugang & Darstellung → Tarif → „Tarif wechseln“).“ | „Pro AI enthält alles aus Plus; die weiteren Funktionen laufen über den StudiNow-Dienst, die App sagt das auf der Karte.“ |
+| Prüfhinweis zum Abo | „Plus schaltet Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, die Community (lesen und schreiben) und das Teilen eigener Lösungen frei; StudiNow Free hat keine Community. Kaufen und Wiederherstellen auf der Tarifseite (Einstellungen → Zugang & Darstellung → Tarif → „Tarif wechseln“).“ | „Pro AI enthält alles aus Plus; die weiteren Funktionen laufen über den StudiNow-Dienst, die App sagt das auf der Karte.“ |
 
 Das Plus-Abo muss **zusammen mit der ersten App-Version** eingereicht werden (Version → In-App-Käufe und Abonnements →
 Produkt auswählen), sonst prüft Apple es nicht mit. Solange Pro AI in App Store Connect fehlt, liefert StoreKit das
@@ -228,11 +228,11 @@ StudiNow is a study app for students of Leibniz Universität Hannover (Germany).
 3. On the following university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all made up by us, no university content). In demo mode the app does not contact the university and asks for no login.
 While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top of every screen. To leave the demo, tap "Beenden" in that bar and confirm: all demo content is removed and the app returns to the university login page. The demo is for review only and offered nowhere else.
 
-Subscriptions: "StudiNow Plus" (monthly, no introductory offer) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, creating weekly tests (with the user's own ChatGPT, see AI below) and sharing own solutions. The plan page lists "StudiNow Pro AI" only when the App Store returns that product; it is submitted later together with our online service, and its card states that it needs that service. The free trial is not an App Store offer: it is the app's own 7-day trial described above. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
+Subscriptions: "StudiNow Plus" (monthly, no introductory offer) can be tested in the sandbox on the plan page ("Einstellungen" → "Zugang & Darstellung" → "Tarif" → "Tarif wechseln"), including "Käufe wiederherstellen". Plus unlocks writing with Apple Pencil, exercise and script side by side, flashcards, creating weekly tests (with the user's own ChatGPT, see AI below), the community and sharing own solutions. The plan page lists "StudiNow Pro AI" only when the App Store returns that product; it is submitted later together with our online service, and its card states that it needs that service. The free trial is not an App Store offer: it is the app's own 7-day trial described above. After Plus ends, all notes stay readable and exportable. Terms: https://studinow.app/nutzungsbedingungen, privacy: https://studinow.app/datenschutz.
 
 Account deletion: "Einstellungen" → "Zugang & Darstellung" → "Konto" → "Konto löschen" deletes all data of the account on the device.
 
-Community (user-generated content, guideline 1.2): students of the same course can share their notes on an exercise sheet, ask questions and comment. Content is stored in our public CloudKit database, encrypted with keys derived from the course or the PDF, and shown under a pseudonym. Every post and solution can be reported ("Melden") and its author blocked ("Blockieren"). We review reports in the CloudKit Dashboard within 24 hours, remove content and ban users. Contact: support@studinow.app. Reading works without an iCloud account; posting requires iCloud.
+Community (user-generated content, guideline 1.2): students of the same course can share their notes on an exercise sheet, ask questions and comment. Content is stored in our public CloudKit database, encrypted with keys derived from the course or the PDF, and shown under a pseudonym. Every post and solution can be reported ("Melden") and its author blocked ("Blockieren"). We review reports in the CloudKit Dashboard within 24 hours, remove content and ban users. Contact: support@studinow.app. It needs Plus (or the trial). Reading works without an iCloud account; posting requires iCloud.
 
 AI (optional, off by default): users who have their own paid ChatGPT plan can connect it under "Einstellungen" → "Erweitert" → "KI über mein ChatGPT" (Sign in with ChatGPT by OpenAI). Before connecting, the app explains what is sent and asks for consent. Requests (page text, selection, question) go directly from the device to OpenAI and count against the user's own ChatGPT plan. StudiNow does not sell AI, runs no AI server and never sees requests or answers. Without a connection the AI area ("KI-Start", "KI-Hilfe" in the editor) explains how to connect, and every other feature works. We cannot provide a ChatGPT account for review.
 

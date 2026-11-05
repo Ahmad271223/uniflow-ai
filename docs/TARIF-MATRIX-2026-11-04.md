@@ -17,6 +17,13 @@ App-Oberfläche (`CardsPage`, `DocumentView`, `FlashcardComposer`, `QuizComposer
 (`can_sync_annotations`) erst ab Pro AI („Plus gilt je Gerät“); neues Recht `can_use_prepared_week_sets` (Pro AI, fertige
 Fragen je Vorlesungswoche, nur Dienst); KI-Karteikarten auf Auftrag (`POST /api/ai/flashcards` mit `module_id`) hängen an
 `can_use_ai_generated_questions`; neue Karten und Stapel im Geräte-Abgleich nur mit `can_use_flashcards`.
+**Nachtrag 05.11.2026 (Angleichung an den Wortlaut des Inhabers, `docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`):**
+Community ab Plus, auch das Lesen (`can_read_community` von `free` auf `plus`; Free sieht „Community ab Plus“, der Dienst
+antwortet mit 403 `plan_required`; eigene Beiträge zurückziehen geht weiter in jedem Tarif). Eigenes ChatGPT in jedem
+Tarif (`chatgpt_connection_premium` von `pro_ai` auf `free`, Integration weiter `disabled`, `plan_gating_allowed`
+False). Neues Kontingent `card_stacks_adopted` (Wochenstapel aus dem Pool und geteilte Stapel übernehmen): Free 0,
+Plus 4 / Monat, Pro AI unbegrenzt (Fair Use 300); derselbe Stapel zählt im Monat einmal. Die Zeilen unten zeigen den
+Soll-Stand nach dieser Angleichung.
 
 Quellen der Gates:
 
@@ -58,6 +65,7 @@ Plus (`UFPlanCard.sameScope(as: .proAI) == .plus`); die Pro-AI-Karte erscheint n
 | Test durchführen, abgeben, Ergebnis | ✓ | ✓ | ✓ | ✓ | `ExamsPage`, kein Gate |
 | KI-Tutor (erklären, zusammenfassen, Begriffe, ähnlich) | ✓ mit ChatGPT | ✓ | ✓ | ✓ᴾ | `AIStartView`/Tutor: nur `ufAIEnabled`; `AICost.line` zeigt für Free/Plus „Braucht dein ChatGPT“ |
 | Lernstand je Modul | ✓ | ✓ | ✓ | ✓ | `LernstandView`, `Mastery` im Kern: kein Gate |
+| Community (CloudKit): lesen, beitreten, Lösungen und Stapel ansehen, schreiben (seit 05.11.2026) | 🔒 Plus („Community ab Plus“) | ✓ | ✓ | ✓ᴾ | `UFFeature.communityRead.minimumPlan = .plus`; eigene Beiträge zurückziehen in jedem Tarif |
 | Lernstatistik des Dienstes, Testbibliothek, KI-Tests von StudiNow | 🔒 „in Vorbereitung“ (kein Tarif schaltet frei) | 🔒 | 🔒 | 🔒 | `UFEntitlement.onDevice = .needsService` → `UFPlanCard.preparing` (Lernstatistik u. a. auf der Pro-AI-Karte) |
 
 ## 2. iPad mit StudiNow-Dienst (Konto verbunden, `session.api` nicht lokal)
@@ -84,9 +92,10 @@ E-Mail-Adresse bestätigen.“, 501 „KI-Funktionen kommen mit dem KI-Update.�
 |---|:---:|:---:|:---:|:---:|---|
 | Karten anlegen, bearbeiten, löschen, Stapel, Wiederholen, Trainer (`POST/PATCH/DELETE /api/flashcards…`, `/api/flashcard-stacks…`) | 🔒 403 „Karteikarten gibt es ab StudiNow Plus.“ | ✓ | ✓ | ✓ᴾ | `app/server.py::_require_flashcards` → `can_use_flashcards` (from `plus`), Meldung `entitlements.MESSAGES` |
 | Karten und Stapel nach der Probe lesen (`GET /api/flashcards`, `GET /api/flashcard-stacks`) | ✓ | ✓ | ✓ | – | ohne Gate (Daten bleiben); Web: `viewCards` im Lesemodus |
-| Wochenstapel holen (`POST /api/flashcard-stacks/week/…`): vorhandenen bzw. fertigen aus dem Pool übernehmen | 🔒 403 Plus | ✓ 0 Credits, ohne bestätigte E-Mail | ✓ | ✓ᴾ | `can_use_flashcards`; `cardshare.obtain(can_generate=False)` übernimmt jede fertige Variante |
+| Wochenstapel holen (`POST /api/flashcard-stacks/week/…`): vorhandenen bzw. fertigen aus dem Pool übernehmen | 🔒 403 Plus | 4/Monat (`card_stacks_adopted`), 0 Credits, ohne bestätigte E-Mail | unbegrenzt (Fair Use 300) | ✓ᴾ | `can_use_flashcards`; `cardshare.obtain(can_generate=False)` übernimmt jede fertige Variante; Kontingent seit 05.11.2026 |
 | Wochenstapel neu erzeugen (Pool leer) | 🔒 | 🔒 403 Pro AI | ✓ Credits, E-Mail bestätigt | ✓ᴾ 25 Credits | `can_use_ai_generated_questions` + `require_verified_for_ai` nur in `generate()` |
-| Stapel teilen, zurückziehen, geteilten Stapel übernehmen (`/api/flashcard-stacks/{id}/share`, `/api/community/card-stacks/{id}/adopt`) | 🔒 403 Plus (Lesen, Liken, Melden wie Community) | ✓ (Teilen mit bestätigter E-Mail wie Lösungen) | ✓ | ✓ᴾ | `community_cards_api._flashcards` |
+| Stapel teilen, zurückziehen, geteilten Stapel übernehmen (`/api/flashcard-stacks/{id}/share`, `/api/community/card-stacks/{id}/adopt`) | 🔒 403 Plus (Lesen, Liken, Melden wie Community: ab Plus; Zurückziehen in jedem Tarif) | ✓ (Teilen mit bestätigter E-Mail wie Lösungen); Übernehmen 4/Monat (`card_stacks_adopted`) | ✓, Übernehmen unbegrenzt (Fair Use 300) | ✓ᴾ | `community_cards_api._flashcards`; Kontingent seit 05.11.2026 |
+| Community lesen, beitreten, liken, melden, Fragen und Kommentare (`/api/community/*`) | 🔒 403 „Die Community gibt es ab StudiNow Plus.“ (seit 05.11.2026) | ✓ | ✓ | ✓ᴾ | `can_read_community` (from `plus`); eigene Beiträge auflisten, zurückziehen und löschen in jedem Tarif |
 | Karten aus KI-Antwort (`POST /api/ai/tutor` `mode=flashcards`) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ 150/Monat | ✓ᴾ 150/Monat, 25 Credits | `TUTOR_ENTITLEMENT["flashcards"] = can_use_ai_generated_questions` (from `pro_ai`), `consume("ai_assist")` |
 | „Karteikarten aus Dokument“ (`POST /api/ai/flashcards`) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ 150/Monat | ✓ᴾ | `server.py:1178` `require(can_use_ai_generated_questions)` + E-Mail bestätigt + `ai_assist` |
 | KI-Karteikarten auf Auftrag (`POST /api/ai/flashcards` mit `module_id`, Woche, 5–50 Karten) | 🔒 403 Pro AI | 🔒 403 Pro AI | ✓ 150/Monat + Credits | ✓ᴾ | `server.py::_ai_flashcards_order` wie oben; nur Doppel/keine Karten: 502, `ai_assist` zurück |
@@ -104,7 +113,7 @@ E-Mail-Adresse bestätigen.“, 501 „KI-Funktionen kommen mit dem KI-Update.�
 | KI-Tutor ähnliche Aufgaben (`similar`) | 🔒 | 🔒 | ✓ | ✓ᴾ | `can_use_ai_generated_questions` |
 | Lernstand je Modul (`mastery` in `GET /api/modules`) | ✓ | ✓ | ✓ | ✓ | `app/mastery.py`: kein Gate |
 | Lernstatistik, Wiederholung, Empfehlungen (`/api/learning/*`) | 🔒 403 „ab StudiNow Pro AI“ | 🔒 403 „ab StudiNow Pro AI“ | ✓ (Endpunkt; Oberfläche „kommt bald“) | ✓ᴾ | `library_api.py:306–340` (`from: pro_ai`, `status: coming_soon`) |
-| Eigenes ChatGPT verbinden | – (Integration `disabled`) | – | – | – | `plans.INTEGRATIONS["chatgpt"]`, nie an den Tarif gekoppelt |
+| Eigenes ChatGPT verbinden (Soll seit 05.11.2026: jeder Tarif, Fragen zu Folien) | – (Integration `disabled`, „in Vorbereitung“) | – | – | – | `chatgpt_connection_premium` (from `free`), `plans.INTEGRATIONS["chatgpt"]`, nie an den Tarif gekoppelt |
 
 Credits (`app/credits.py`, zusätzlich zu den Kontingenten): Pro AI 100/Monat, Probe 25 (Marke `pro_ai:trial`), Free und
 Plus 0 – ein Plus-Konto könnte also selbst bei Rechten keinen StudiNow-KI-Aufruf bezahlen.

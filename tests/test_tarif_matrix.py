@@ -80,10 +80,11 @@ def test_trial_is_pro_ai_in_contract_fixture_and_credits():
     assert fx["order"] == ["free", "plus", "pro_ai"] and "pro_connect" not in fx["plans"], "drei Tarife (04.11.2026), Pro Connect nur noch als alter Schluessel"
     assert plans.LEGACY_PLANS == {"pro_connect": "pro_ai"} and plans.has("pro_connect", "can_use_ai_explanations")
     # Kontingente des Tarifs (app/plans.py QUOTAS, Tabelle des Inhabers 04.11.2026): Free nichts, Plus 4 KI-Tests und
-    # 4 Bibliothekstests, Pro AI 20 KI-Tests, Bibliothek unbegrenzt (Fair Use 300), 150 KI-Aufrufe
-    assert {k: plans.quota_limit("free", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0}
-    assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0}
-    assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150}
+    # 4 Bibliothekstests, Pro AI 20 KI-Tests, Bibliothek unbegrenzt (Fair Use 300), 150 KI-Aufrufe; Karteikarten-Stapel von
+    # StudiNow (05.11.2026): Plus 4, Pro AI unbegrenzt (Fair Use 300)
+    assert {k: plans.quota_limit("free", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0}
+    assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4}
+    assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300}
     # Credits (app/credits.py): Pro AI 100, Probe 25, Free und Plus 0 - die Probe hat also Pro-AI-Rechte und -Kontingente,
     # aber einen kleineren Credit-Rahmen (Entscheidung 04.11.2026, docs/ABO-SYSTEM.md 6a)
     assert credits.allowance("pro_ai", False) == 100 and credits.allowance("pro_ai", True) == 25
@@ -99,18 +100,18 @@ def test_entitlements_and_quotas_per_plan(hosted, kind):
     assert e["trial"]["active"] is (kind == "trial")
     rights = e["entitlements"]
     expect = {
-        "free": {"can_use_flashcards": False, "can_access_shared_tests": False, "can_generate_studora_ai_tests": False, "can_use_ai_generated_questions": False,
+        "free": {"can_read_community": False, "can_use_flashcards": False, "can_access_shared_tests": False, "can_generate_studora_ai_tests": False, "can_use_ai_generated_questions": False,
                  "can_use_ai_explanations": False, "can_use_advanced_analytics": False, "can_use_extended_test_history": False},
-        "plus": {"can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": False,
+        "plus": {"can_read_community": True, "can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": False,
                  "can_use_ai_explanations": False, "can_use_advanced_analytics": False, "can_use_extended_test_history": False},
-        "pro_ai": {"can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": True,
+        "pro_ai": {"can_read_community": True, "can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": True,
                    "can_use_ai_explanations": True, "can_use_advanced_analytics": True, "can_use_extended_test_history": True},
     }[effective_plan(kind)]
     assert {k: rights[k] for k in expect} == expect, kind
     limits = {k: v["limit"] for k, v in e["quotas"].items()}
-    assert limits == {"free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0},
-                      "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0},
-                      "pro_ai": {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150}}[effective_plan(kind)], kind
+    assert limits == {"free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0},
+                      "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4},
+                      "pro_ai": {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300}}[effective_plan(kind)], kind
     assert e["entitlements"]["can_use_flashcards"] is (kind != "free"), "Karteikarten ab Plus, Probe = Pro AI"
 
 
@@ -182,6 +183,9 @@ def test_week_stack_adopt_is_plus_without_email_generate_is_pro_ai(hosted, monke
         st, b = post(hosted, h_plus, f"/api/flashcard-stacks/week/{mp}/5/vorlesung", {})
         assert st == 200 and (b["status"], b["credits"], b["stack"]["cards"], fake.calls) == ("adopted", None, 3, 1), b
         assert ent(hosted, h_plus)["quotas"]["ai_assist"]["used"] == 0
+        # Stapel von StudiNow uebernehmen zaehlt im Kontingent card_stacks_adopted (05.11.2026: Plus 4 je Monat); selbst
+        # erzeugt (Pro AI) zaehlt nicht
+        assert (ent(hosted, h_plus)["quotas"]["card_stacks_adopted"]["used"], ent(hosted, h_pro)["quotas"]["card_stacks_adopted"]["used"]) == (1, 0)
         st, d = post(hosted, h_plus, f"/api/flashcard-stacks/week/{mp}/5/uebung", {})
         assert (st, d["entitlement"], d["detail"]) == (403, "can_use_ai_generated_questions", PLAN_REQUIRED_PRO_AI), d
         _, h_free = user(hosted, "woche-free@beispiel.de")

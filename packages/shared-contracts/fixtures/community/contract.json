@@ -2,6 +2,7 @@
  "_hinweis": "Erzeugt mit tools/gen-community-fixture.py aus der Python-Referenz (app/community.py); nicht von Hand aendern.",
  "rules": {
   "plan_required": "plus",
+  "read": "Lesen, Beitreten, Liken, Melden und Kommentieren ab Plus (can_read_community, 05.11.2026); ohne Plus nur eigene Beitraege auflisten (GET mine), zurueckziehen und loeschen, austreten, Sperrliste",
   "authorization": "Veroeffentlichen, Suchen und Laden nur fuer PDFs aus dem eigenen Hochschul-Abgleich (files.content_sha256 mit download_url)",
   "reports_to_hide": 3,
   "reasons": [
@@ -372,7 +373,7 @@
   },
   "plan_required": {
    "status": 403,
-   "message": "Eigene Lösungen teilen gibt es ab StudiNow Plus."
+   "message": "Die Community gibt es ab StudiNow Plus."
   },
   "solution_exists": {
    "status": 409,
@@ -601,8 +602,35 @@
    },
    "status": 403,
    "response": {
-    "detail": "Eigene Lösungen teilen gibt es ab StudiNow Plus.",
-    "code": "plan_required"
+    "detail": "Die Community gibt es ab StudiNow Plus.",
+    "code": "plan_required",
+    "entitlement": "can_read_community",
+    "required_plan": "plus"
+   }
+  },
+  {
+   "step": "Suchen ohne Plus",
+   "method": "GET",
+   "path": "/api/community/solutions?fingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "auth": true,
+   "request": null,
+   "status": 403,
+   "response": {
+    "detail": "Die Community gibt es ab StudiNow Plus.",
+    "code": "plan_required",
+    "entitlement": "can_read_community",
+    "required_plan": "plus"
+   }
+  },
+  {
+   "step": "Eigene Veroeffentlichungen ohne Plus",
+   "method": "GET",
+   "path": "/api/community/mine",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "solutions": []
    }
   },
   {
@@ -982,8 +1010,10 @@
    },
    "status": 403,
    "response": {
-    "detail": "Kommentieren gibt es ab StudiNow Plus.",
-    "code": "plan_required"
+    "detail": "Die Community gibt es ab StudiNow Plus.",
+    "code": "plan_required",
+    "entitlement": "can_read_community",
+    "required_plan": "plus"
    }
   },
   {
@@ -1248,8 +1278,10 @@
    },
    "status": 403,
    "response": {
-    "detail": "Fragen stellen gibt es ab StudiNow Plus.",
-    "code": "plan_required"
+    "detail": "Die Community gibt es ab StudiNow Plus.",
+    "code": "plan_required",
+    "entitlement": "can_read_community",
+    "required_plan": "plus"
    }
   },
   {
@@ -1620,6 +1652,31 @@
    }
   },
   {
+   "step": "Konto ohnekurs anlegen",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "ohnekurs@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "ohnekurs@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
    "step": "Beitreten ohne den Kurs",
    "method": "POST",
    "path": "/api/community/communities/<course-key>/join",
@@ -1631,6 +1688,22 @@
    "response": {
     "detail": "Diesen Kurs gibt es nicht in deinem Hochschul-Abgleich.",
     "code": "course_not_owned"
+   }
+  },
+  {
+   "step": "Beitreten ohne Plus",
+   "method": "POST",
+   "path": "/api/community/communities/<course-key>/join",
+   "auth": true,
+   "request": {
+    "kind": "course"
+   },
+   "status": 403,
+   "response": {
+    "detail": "Die Community gibt es ab StudiNow Plus.",
+    "code": "plan_required",
+    "entitlement": "can_read_community",
+    "required_plan": "plus"
    }
   },
   {
@@ -2258,8 +2331,10 @@
    },
    "status": 403,
    "response": {
-    "detail": "Eigene Lösungen teilen gibt es ab StudiNow Plus.",
-    "code": "plan_required"
+    "detail": "Die Community gibt es ab StudiNow Plus.",
+    "code": "plan_required",
+    "entitlement": "can_read_community",
+    "required_plan": "plus"
    }
   },
   {

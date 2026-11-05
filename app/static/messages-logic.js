@@ -105,6 +105,7 @@ export function rowLabel(m, fresh, today) {
   if (m.sender) parts.push(`von ${m.sender}`);
   const t = listTime(m.sent_at, today);
   if (t) parts.push(t);
+  if (m.replies?.length) parts.push("Beantwortet");
   return (fresh ? ["Neu", ...parts] : parts).join(", ");
 }
 
@@ -115,7 +116,7 @@ export function listHtml(messages, { selected, mark, today }) {
     const first = chips(m, today)[0];
     return `<button type="button" class="msg-row${on ? " on" : ""}${fresh ? " fresh" : ""}" data-id="${esc(m.id)}" aria-label="${esc(rowLabel(m, fresh, today))}"${on ? ` aria-current="true"` : ""}>
       <span class="msg-dot" aria-hidden="true"></span>
-      <span class="msg-main"><span class="msg-top"><b class="msg-who">${esc(m.sender || "Stud.IP")}</b><span class="msg-time">${esc(listTime(m.sent_at, today))}</span></span>
+      <span class="msg-main"><span class="msg-top"><b class="msg-who">${esc(m.sender || "Stud.IP")}</b><span class="msg-time">${m.replies?.length ? `<span class="msg-replied" aria-hidden="true">✓</span> ` : ""}${esc(listTime(m.sent_at, today))}</span></span>
       <span class="msg-subj">${esc(m.subject || TEXTS.noSubject)}</span>${first ? `<span class="msg-chip-line">${esc(first.label)}</span>` : ""}</span></button>`;
   }).join("");
 }

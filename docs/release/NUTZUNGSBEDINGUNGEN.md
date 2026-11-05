@@ -16,8 +16,8 @@ App Store oder Google Play gelten zusätzlich die Bedingungen von Apple bzw. Goo
 
 StudiNow ist eine Lern-App für Studierende: Sie ruft Dateien, Termine, Fristen und Ankündigungen aus den Systemen
 deiner Hochschule ab, zeigt sie in Bibliothek, Stundenplan und Lernkalender und lässt dich Dokumente lesen und – mit
-Plus – mit dem Stift beschreiben, Karteikarten führen, Wochentests erstellen und Lösungen zu Übungsblättern mit anderen
-teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den StudiNow-Dienst.
+Plus – mit dem Stift beschreiben, Karteikarten führen, Wochentests erstellen, in der Community deines Kurses mitmachen
+und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den StudiNow-Dienst.
 
 | Funktion | Free | Plus | Pro AI |
 |---|:---:|:---:|:---:|
@@ -27,11 +27,12 @@ teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den Studi
 | Fristen und Ankündigungen der Lehrenden, Feiertage und vorlesungsfreie Zeit im Kalender | ✓ | ✓ | ✓ |
 | Lernstand je Modul aus deinen eigenen Tests, Karteikarten und Aufgaben | ✓ | ✓ | ✓ |
 | Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ | ✓ |
+| Dein eigenes ChatGPT verbinden und zu deinen Unterlagen fragen (sobald verfügbar) | ✓ | ✓ | ✓ |
 | Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
 | Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
 | Wochentests aus deinen Unterlagen erstellen (über dein eigenes ChatGPT oder den StudiNow-Dienst, Abschnitt 5a) | – | ✓ | ✓ |
-| Lösungen zu Übungsblättern teilen und vergleichen (Community) | – | ✓ | ✓ |
+| Community deines Kurses: lesen, beitreten, Fragen stellen, Lösungen und Karteikarten-Stapel teilen und vergleichen | – | ✓ | ✓ |
 | Abgleich zwischen eigenen Geräten über den StudiNow-Dienst (sobald verfügbar) | – | ✓ | ✓ |
 | KI von StudiNow ohne eigenes ChatGPT-Konto (Erklärungen, Zusammenfassungen, Karteikarten aus Dokumenten) mit Credits, nur mit dem StudiNow-Dienst | – | – | ✓ |
 
@@ -89,7 +90,8 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
 - Kauf, Zahlung, Rechnung, Rückerstattung und Widerruf wickelt Apple bzw. Google nach deren Bedingungen ab. Mit dem
   Start des Abos verlangst du die sofortige Bereitstellung digitaler Inhalte.
 - Nach dem Ende eines Abos oder der Probe bleiben alle deine Notizen erhalten, lesbar und als PDF exportierbar; nur das
-  Bearbeiten und die anderen Funktionen des Tarifs sind gesperrt, bis du wieder abonnierst.
+  Bearbeiten und die anderen Funktionen des Tarifs sind gesperrt, bis du wieder abonnierst. Eigene Beiträge in der
+  Community kannst du auch ohne Plus zurückziehen; lesen und mitmachen kannst du dort erst wieder mit Plus.
 - Preisänderungen gelten nur für neue Abo-Zeiträume nach vorheriger Ankündigung über den Store; du kannst dann
   kündigen.
 
@@ -101,9 +103,11 @@ Mit StudiNow-Konto gelten im Dienst monatliche Grenzen, die die App anzeigt:
 |---|:---:|:---:|:---:|
 | Neue KI-Tests von StudiNow (Wochentests, Testbibliothek) | – | 4 | 20 |
 | Tests aus der gemeinsamen Testbibliothek | – | 4 | unbegrenzt (Fair Use: 300) |
+| Karteikarten-Stapel von StudiNow übernehmen (fertige Wochenstapel, geteilte Stapel) | – | 4 | unbegrenzt (Fair Use: 300) |
 | Credits für die KI von StudiNow | – | – | 100 |
 
-Ein gemeinsamer Wochentest, den andere schon erstellt haben, zählt nicht. Die Testliste im Dienst zeigt in Free und
+Ein gemeinsamer Wochentest, den andere schon erstellt haben, zählt nicht; derselbe Karteikarten-Stapel zählt im Monat
+nur einmal. Die Testliste im Dienst zeigt in Free und
 Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und zählen weiter für den Lernstand.
 Wochentests über dein eigenes ChatGPT laufen auf deinem Gerät und kosten keine Credits.
 
