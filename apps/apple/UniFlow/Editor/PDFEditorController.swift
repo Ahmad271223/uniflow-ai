@@ -461,6 +461,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schreibt der Finger gerade nicht (ein Finger blaettert)?
     var effectivePencilOnly: Bool { !Self.isMac && pencilOnly }
 
+    /// iPhone (kein Pencil): mit "Bereich an KI" zieht ein Finger den Rahmen bzw. die Schleife, auch im Modus
+    /// "Blättern"; am iPad bleibt es beim Stift (der Finger blaettert wie bisher)
+    var fingerCapturesArea: Bool { UFCompact.isPhone && objects.isActive && objects.tool == .area }
+
+    /// Objektwerkzeug bzw. Objektmodus gewechselt: Finger-Gesten neu einstellen (Bereich an KI auf dem iPhone)
+    func objectInputChanged() { configureScrollGestures() }
+
     /// iPhone (kein Apple Pencil, docs/IPHONE-2026-11-04.md): Im Modus "Blättern" bleibt die Palette weg, sie erscheint
     /// erst mit "Zeichnen". Am iPad immer aus (die Palette bleibt wie bisher).
     var paletteSuppressed = false {
@@ -753,7 +760,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let fingers = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
         scroll.panGestureRecognizer.allowedTouchTypes = fingers
         // Mac: die Maus schreibt, geblaettert wird mit Rad oder Trackpad (keine Ein-Finger-Geste)
-        scroll.panGestureRecognizer.minimumNumberOfTouches = effectivePencilOnly ? 1 : 2
+        // iPhone "Bereich an KI" (auch im Modus "Blättern"): ein Finger zieht den Rahmen, zwei Finger blaettern
+        scroll.panGestureRecognizer.minimumNumberOfTouches = effectivePencilOnly && !fingerCapturesArea ? 1 : 2
         scroll.pinchGestureRecognizer?.allowedTouchTypes = fingers
         scroll.delaysContentTouches = false
         applyFreezeGestures()

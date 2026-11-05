@@ -9,6 +9,8 @@ struct StudoraAccountCard: View {
     @ObservedObject var link: StudoraAccountLink
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.colorScheme) private var scheme
+    /// iPhone: Anmelden und "Mit Apple anmelden" in voller Breite, Abgleich unter dem Stand
+    @Environment(\.ufCompact) private var compact
     @State private var email = ""
     @State private var password = ""
     @State private var deletePassword = ""
@@ -75,28 +77,36 @@ struct StudoraAccountCard: View {
             UFField("Passwort") {
                 UFTextField("Passwort", text: $password, secure: true).textContentType(.password)
             }
-            UFFlexWrap(gap: 9.6) {
-                UFButton(link.busy ? "Melde an …" : "Anmelden", icon: "log-out", kind: .primary, size: .small) {
-                    Task {
-                        await link.login(email: email, password: password)
-                        password = ""                                            // nie im Speicher behalten
+            Group {
+                if compact {
+                    UFWideButton(link.busy ? "Melde an …" : "Anmelden", icon: "log-out", kind: .primary) { login() }
+                } else {
+                    UFFlexWrap(gap: 9.6) {
+                        UFButton(link.busy ? "Melde an …" : "Anmelden", icon: "log-out", kind: .primary, size: .small) { login() }
                     }
                 }
-                .disabled(link.busy || email.isEmpty || password.isEmpty)
-                .accessibilityIdentifier("account.login")
             }
+            .disabled(link.busy || email.isEmpty || password.isEmpty)
+            .accessibilityIdentifier("account.login")
             // "Mit Apple anmelden": Token-Tausch beim Dienst; ein neues Konto bekommt die Hochschule dieses iPads
             SignInWithAppleButton(.signIn, onRequest: { link.prepareAppleRequest($0) }, onCompletion: { result in
                 Task { await link.handleAppleSignIn(result) }
             })
             .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
-            .frame(maxWidth: 320, minHeight: 44, maxHeight: 44)
+            .frame(maxWidth: compact ? .infinity : 320, minHeight: 44, maxHeight: 44)
             .disabled(link.busy)
             .accessibilityIdentifier("account.apple")
             Text("Noch kein Konto? „Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits für die StudiNow-KI). Registrieren mit E-Mail, E-Mail bestätigen und Passwort zurücksetzen auf der Webseite von StudiNow.")
                 .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 8)
+    }
+
+    private func login() {
+        Task {
+            await link.login(email: email, password: password)
+            password = ""                                            // nie im Speicher behalten
+        }
     }
 
     @ViewBuilder private func signedIn(_ u: StudoraAccount.User) -> some View {
@@ -108,11 +118,12 @@ struct StudoraAccountCard: View {
                 resendButton
             }
             SettingsDivider()
-            HStack(spacing: 9.6) {
+            let syncLayout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 9.6))
+            syncLayout {
                 Text(Self.syncText(link.lastSync)).ufFont(12.8).foregroundStyle(link.lastSync?.ok == false ? UF.bad : UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("account.sync")
-                Spacer()
+                if !compact { Spacer() }
                 UFButton(link.syncing ? "Gleiche ab …" : "Jetzt abgleichen", icon: "sync", size: .small) { Task { await link.syncNow(force: true) } }
                     .disabled(link.syncing)
                     .accessibilityIdentifier("account.syncNow")

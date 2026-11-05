@@ -47,7 +47,7 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
         case .qis: return "Danach steht dein Notenspiegel in StudiNow. Meist dieselbe LUH-ID wie bei Stud.IP."
         case .learnweb: return "StudiNow holt danach deine Learnweb-Kurse und -Dateien auf dieses \(UFDevice.name) (UNI-Account)."
         case .lsf: return "Danach kommen Stundenplan und Notenspiegel aus dem LSF. Mit der Learnweb-Anmeldung geht das meist ohne neues Passwort."
-        case .moodle: return "StudiNow holt danach deine Moodle-Kurse, -Dateien und -Fristen auf dieses iPad (SSO-Account)."
+        case .moodle: return "StudiNow holt danach deine Moodle-Kurse, -Dateien und -Fristen auf dieses \(UFDevice.name) (SSO-Account)."
         case .campus: return "Danach kommen Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement. Moodle und Campusmanagement haben keine gemeinsame Anmeldung: derselbe SSO-Account, noch einmal eingeben."
         }
     }

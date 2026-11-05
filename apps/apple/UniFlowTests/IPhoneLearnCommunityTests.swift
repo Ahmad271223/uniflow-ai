@@ -11,6 +11,14 @@ import XCTest
 @MainActor
 final class IPhoneLearnCommunityTests: IPhoneLearnTestCase {
 
+    /// Community ab Plus (Tarife nach Vorgabe des Inhabers 05.11.2026): Free sieht nur die Sperrkarte
+    override func setUp() {
+        super.setUp()
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
+    }
+
     private func solution(_ id: String, _ name: String, title: String, fingerprint: String, week: Int, comments: Int = 0, own: Bool = false) -> CommunitySolutionSummary {
         var s = CommunitySolutionSummary(solutionID: id, fingerprint: fingerprint, displayName: name, createdAt: "2026-10-2\(week % 10)T10:00:00Z",
                                          pageCount: 2, title: title, week: week, ownerRecordName: "owner-\(name)", isOwn: own)

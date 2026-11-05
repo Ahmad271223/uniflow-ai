@@ -1006,12 +1006,20 @@ struct ModuleSemesterHead: View {
     let title: String
     let count: Int
 
+    /// iPhone: Titel bricht um, die Zahl steht darunter (lange Semesternamen werden nicht gekuerzt)
+    @Environment(\.ufCompact) private var compact
+
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        let layout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+        layout {
             Text(title).ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+                .fixedSize(horizontal: false, vertical: true)
             Text("\(count) \(count == 1 ? "Modul" : "Module")").ufFont(13.12).foregroundStyle(UF.muted)
         }
         .padding(.top, 6).padding(.bottom, 11.2)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("module-semester-head")
     }
 }
 
@@ -1021,6 +1029,7 @@ struct OlderModuleSemesters: View {
     let older: [JSONValue]
     @Binding var open: Set<String>
     let select: (JSONValue) -> Void
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1042,8 +1051,8 @@ struct OlderModuleSemesters: View {
                     RoundedRectangle(cornerRadius: 8).fill(UF.surface2).frame(width: 36, height: 36)
                         .overlay(UFIcon("book", size: 18).foregroundStyle(UF.text2))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(label).ufFont(15.2, 650).foregroundStyle(UF.text)
-                        Text(ModuleSemesters.countLabel(g)).ufFont(12.8).foregroundStyle(UF.muted)
+                        Text(label).ufFont(15.2, 650).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                        Text(ModuleSemesters.countLabel(g)).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                 }
@@ -1051,6 +1060,7 @@ struct OlderModuleSemesters: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(label), \(ModuleSemesters.countLabel(g)), \(isOpen ? "aufgeklappt" : "zugeklappt")")
+            .accessibilityIdentifier("module-semester.term")
             if isOpen {
                 VStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.offset) { _, it in
@@ -1071,7 +1081,7 @@ struct OlderModuleSemesters: View {
                         .ufBorderBottom()
                     }
                 }
-                .padding(.top, 6).padding(.leading, 26)
+                .padding(.top, 6).padding(.leading, compact ? 8 : 26)     // iPhone: Platz fuer lange Modulnamen
             }
         }
         .padding(.vertical, 8 + ufB).padding(.horizontal, 14.4 + ufB)

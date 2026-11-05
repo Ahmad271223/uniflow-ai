@@ -52,6 +52,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         didSet {
             if tool != .select { clearSelection() }
             if tool == .area, oldValue != .area { controller?.onHint?(Self.areaHint) }
+            if (tool == .area) != (oldValue == .area) { controller?.objectInputChanged() }
             // Text markieren: die PDF-Ansicht waehlt Text selbst aus (Overlays lassen die Beruehrung durch); im
             // Markup-Modus nimmt sie keine Auswahl an
             controller?.allOverlays.forEach { $0.isUserInteractionEnabled = tool != .markup }
@@ -107,6 +108,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         // "Bereich an KI" schreibt nichts: auch in Free und in alten Fassungen
         if on && !c.writable && tool != .area { return }
         isActive = on
+        c.objectInputChanged()                                  // iPhone: Bereich an KI mit einem Finger
         endTextEditing()
         clearSelection()
         for v in c.allOverlays { v.canvas.isUserInteractionEnabled = !on && c.writable }

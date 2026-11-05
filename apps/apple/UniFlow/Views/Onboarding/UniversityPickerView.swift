@@ -7,6 +7,8 @@ import UniFlowCore
 struct UniversityPickerView: View {
     let onChoose: (UniversityKey) -> Void
     @State private var selection: UniversityKey?
+    /// iPhone: "Weiter" in voller Breite (Daumen)
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         OnboardingPage {
@@ -23,10 +25,16 @@ struct UniversityPickerView: View {
                 }
                 .padding(.top, 22.4)
                 HStack {
-                    Spacer()
-                    UFButton("Weiter", icon: "arrow-right", kind: .primary) { if let selection { onChoose(selection) } }
-                        .disabled(selection == nil)
-                        .accessibilityIdentifier("university.continue")
+                    if compact {
+                        UFWideButton("Weiter", icon: "arrow-right", kind: .primary) { if let selection { onChoose(selection) } }
+                            .disabled(selection == nil)
+                            .accessibilityIdentifier("university.continue")
+                    } else {
+                        Spacer()
+                        UFButton("Weiter", icon: "arrow-right", kind: .primary) { if let selection { onChoose(selection) } }
+                            .disabled(selection == nil)
+                            .accessibilityIdentifier("university.continue")
+                    }
                 }
                 .padding(.top, 22.4)
                 Text(Self.note)
@@ -58,6 +66,7 @@ struct UniversityOption: View {
                 VStack(alignment: .leading, spacing: 3.2) {
                     HStack(spacing: 8) {
                         Text(university.profile.name).ufFont(16, 650).foregroundStyle(UF.text)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                         if current { UFBadge("aktuell", tone: .ok, icon: "check") }
                     }
                     Text(Self.services(university))

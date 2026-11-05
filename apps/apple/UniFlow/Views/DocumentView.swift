@@ -406,6 +406,13 @@ struct DocumentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + TutorPanel.sheetDismissDelay, execute: open)
     }
 
+    /// Abstand des Hinweises ("Rahmen ziehen …") vom unteren Rand: iPad ueber der Objektleiste; iPhone ueber der
+    /// unteren Leiste (und der Objektleiste bzw. der angedockten Palette)
+    private var hintBottom: CGFloat {
+        guard compact else { return bridge.objectMode ? 96 : 28 }
+        return 76 + (bridge.objectMode ? (bridge.objectTool == .area ? 100 : 64) : 0) + bridge.paletteInset
+    }
+
     /// KI-Hilfe oeffnen (kompakt: das Blatt "Seiten" macht vorher Platz)
     private func openTutor() {
         if compact, showSidebar {
@@ -602,7 +609,7 @@ struct DocumentView: View {
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(.regularMaterial, in: Capsule())
-                    .padding(.horizontal, 24).padding(.bottom, bridge.objectMode ? 96 : 28)
+                    .padding(.horizontal, 24).padding(.bottom, hintBottom)
                     .accessibilityIdentifier("doc.hint")
                     .task(id: h.id) {
                         try? await Task.sleep(nanoseconds: 3_500_000_000)
@@ -1800,6 +1807,11 @@ struct DocumentView: View {
                     Button { chooseObjectTool(t) } label: { Label(t.label, systemImage: t.systemImage) }
                 }
             }
+            // "Bereich an KI" (05.11.2026): mit dem Finger Rahmen ziehen oder einkreisen, das Bild geht in die KI-Hilfe
+            Section("KI-Hilfe") {
+                Button { chooseObjectTool(.area) } label: { Label(ObjectEditing.Tool.area.label, systemImage: ObjectEditing.Tool.area.systemImage) }
+                    .accessibilityIdentifier("doc.objectTools.area")
+            }
         } label: {
             Image(systemName: bridge.objectMode ? bridge.objectTool.systemImage : "square.on.circle")
                 .font(.body.weight(.medium))
@@ -2364,18 +2376,31 @@ struct ObjectToolbar: View {
     var body: some View {
         VStack(spacing: 8) {
             if bridge.objectTool == .area {
-                // Bereich an KI: was zu tun ist, und der Weg zurueck (ohne Palette sonst kein Ausweg aus dem Werkzeug)
-                HStack(spacing: 10) {
-                    Image(systemName: "rectangle.dashed").accessibilityHidden(true)
-                    Text("Rahmen ziehen oder Bereich einkreisen").font(.callout)
-                    Button { bridge.controller?.sendVisiblePage() } label: { Label("Ganze Seite", systemImage: "doc.viewfinder") }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("objects.area.page")
-                    Button("Fertig") { bridge.finishObjectTools() }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("objects.area.done")
+                // Bereich an KI: was zu tun ist, und der Weg zurueck (ohne Palette sonst kein Ausweg aus dem Werkzeug);
+                // iPhone: Text ueber den Knoepfen (der Finger zieht, zwei Finger blaettern)
+                let layout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
+                layout {
+                    HStack(spacing: 10) {
+                        Image(systemName: "rectangle.dashed").accessibilityHidden(true)
+                        Text(compact ? "Mit dem Finger Rahmen ziehen oder einkreisen – zwei Finger blättern"
+                                     : "Rahmen ziehen oder Bereich einkreisen").font(.callout)
+                            .fixedSize(horizontal: false, vertical: compact)
+                            .accessibilityIdentifier("objects.area.hint")
+                    }
+                    HStack(spacing: 10) {
+                        Button { bridge.controller?.sendVisiblePage() } label: { Label("Ganze Seite", systemImage: "doc.viewfinder") }
+                            .buttonStyle(.bordered)
+                            .controlSize(compact ? .large : .regular)          // iPhone: Daumen (44 pt)
+                            .accessibilityIdentifier("objects.area.page")
+                        if compact { Spacer(minLength: 0) }
+                        Button("Fertig") { bridge.finishObjectTools() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(compact ? .large : .regular)
+                            .accessibilityIdentifier("objects.area.done")
+                    }
                 }
                 .padding(8)
+                .frame(maxWidth: compact ? .infinity : nil, alignment: .leading)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
             if bridge.objectTool == .markup {

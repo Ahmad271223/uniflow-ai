@@ -933,37 +933,60 @@ struct UFMoreSheet: View {
         }
     }
 
+    /// Kompakt (iPhone): die Bereiche in den Gruppen der Seitenleiste ("Studium", "Lernen", "Alltag", "Gemeinsam") mit
+    /// kleiner Ueberschrift, die Einstellungen danach ohne Gruppe; breit eine Liste wie bisher
+    static func sections(_ items: [UFNavItem], grouped: Bool) -> [(id: String, label: String?, items: [UFNavItem])] {
+        guard grouped else { return [("all", nil, items)] }
+        let areas = items.filter { $0.id != UFNavItem.settings.id }
+        let rest = items.filter { $0.id == UFNavItem.settings.id }
+        return UFNavGroup.groups(areas).map { ($0.id, $0.label, $0.items) } + (rest.isEmpty ? [] : [("settings", nil, rest)])
+    }
+
     private var list: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Mehr").ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
                 .padding(.horizontal, 11.2).padding(.bottom, 4)
                 .accessibilityAddTraits(.isHeader)
-            ForEach(items) { item in
-                let active = UFNavItem.active(item, in: items + UFNavItem.mobile, route: router.route)
-                let badge = router.badge(for: item.id)
-                Button { go(item.route) } label: {
-                    HStack(spacing: 10.4) {
-                        UFIcon(item.icon, size: 18)
-                        Text(item.title).ufFont(14.5, 500).frame(maxWidth: .infinity, alignment: .leading)
-                        if badge > 0 { UFNavBadge(count: badge) }
-                        UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
-                    }
-                    .foregroundStyle(active ? UF.accentText : UF.text)
-                    .padding(.horizontal, 11.2)
-                    .frame(minHeight: 44)
-                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(active ? UF.accentSoft : .clear))
-                    .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+            ForEach(Self.sections(items, grouped: compact), id: \.id) { section in
+                if let label = section.label {
+                    Text(label).ufFont(11.5, 650, em: 0.06).foregroundStyle(UF.muted)
+                        .padding(.horizontal, 11.2).padding(.top, 10).padding(.bottom, 2)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("more.group.\(section.id)")
+                } else if section.id == "settings" {
+                    Divider().padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
-                .accessibilityAddTraits(active ? .isSelected : [])
-                .accessibilityIdentifier("more.\(item.id)")
+                rows(section.items)
             }
         }
         .padding(16)
         .frame(minWidth: 300, alignment: .topLeading)
         .frame(maxHeight: compact ? nil : .infinity, alignment: .top)
         .background(UF.surface)
+    }
+
+    @ViewBuilder private func rows(_ shown: [UFNavItem]) -> some View {
+        ForEach(shown) { item in
+            let active = UFNavItem.active(item, in: items + UFNavItem.mobile, route: router.route)
+            let badge = router.badge(for: item.id)
+            Button { go(item.route) } label: {
+                HStack(spacing: 10.4) {
+                    UFIcon(item.icon, size: 18)
+                    Text(item.title).ufFont(14.5, 500).frame(maxWidth: .infinity, alignment: .leading)
+                    if badge > 0 { UFNavBadge(count: badge) }
+                    UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted)
+                }
+                .foregroundStyle(active ? UF.accentText : UF.text)
+                .padding(.horizontal, 11.2)
+                .frame(minHeight: 44)
+                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(active ? UF.accentSoft : .clear))
+                .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(UFNavItem.accessibilityLabel(title: item.title, key: item.id, badge: badge))
+            .accessibilityAddTraits(active ? .isSelected : [])
+            .accessibilityIdentifier("more.\(item.id)")
+        }
     }
 }
 

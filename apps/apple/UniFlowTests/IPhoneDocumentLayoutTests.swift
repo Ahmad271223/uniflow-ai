@@ -857,6 +857,91 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
     // MARK: - Fixieren (iPhone, docs/FIXIEREN-ABPAUSEN-2026-11-05.md)
 
     /// Eintrag im Abschnitt "Bildschirm fixieren" des Menues "…"
+    // MARK: Bereich an KI (05.11.2026)
+
+    private func areaAction(_ env: HostedEnvironment, _ title: String) -> UIAction? {
+        guard let m = LayoutWidthAuditTests.menu(in: env.window, titled: "KI-Hilfe") else { return nil }
+        return LayoutWidthAuditTests.actions(in: m).first { $0.title == title }
+    }
+
+    /// iPhone, Modus "Blättern": "Bereich an KI …" im Menue "…" waehlt das Werkzeug; ein Finger zieht den Rahmen
+    /// (Blaettern mit zwei Fingern), die Leiste zeigt Hinweis, "Ganze Seite" und "Fertig" untereinander passend. Der
+    /// Ausschnitt geht als Chip (kleines Bild, eine Zeile) in das Blatt der KI-Hilfe. "Fertig" gibt den einen Finger
+    /// dem Blaettern zurueck.
+    func testAreaToAIWithFingerOnPhone() throws {
+        let (env, _) = try host(compact: true)
+        let vc = try XCTUnwrap(editor(env))
+        let scroll = try XCTUnwrap(vc.firstScrollView(in: vc.pdfView))
+        XCTAssertTrue(vc.effectivePencilOnly, "Start: Blättern")
+        XCTAssertEqual(scroll.panGestureRecognizer.minimumNumberOfTouches, 1)
+        XCTAssertTrue(env.wait(timeout: 10) { self.areaAction(env, "Bereich an KI …") != nil }, LayoutWidthAuditTests.barDiagnose(env.window))
+        XCTAssertNotNil(areaAction(env, "Ganze Seite an KI"))
+        try XCTUnwrap(areaAction(env, "Bereich an KI …")).ufRun()
+        XCTAssertTrue(env.wait { vc.objects.isActive && vc.objects.tool == .area }, "Werkzeug gewählt")
+        XCTAssertTrue(vc.fingerCapturesArea)
+        XCTAssertEqual(scroll.panGestureRecognizer.minimumNumberOfTouches, 2, "ein Finger zieht den Rahmen, zwei blättern")
+        XCTAssertTrue(env.wait { self.element(env, id: "objects.area.done") != nil }, dump(env))
+        XCTAssertTrue(element(env, id: "objects.area.hint")?.accessibilityLabel?.contains("Finger") == true, dump(env))
+        let hint = env.window.convert(try XCTUnwrap(element(env, id: "objects.area.hint")).accessibilityFrame, from: nil)
+        let done = env.window.convert(try XCTUnwrap(element(env, id: "objects.area.done")).accessibilityFrame, from: nil)
+        XCTAssertGreaterThan(done.minY, hint.minY + 4, "Knöpfe unter dem Hinweis")
+        XCTAssertGreaterThanOrEqual(done.height, 43, "Daumen")
+        for id in ["objects.area.hint", "objects.area.page", "objects.area.done", "doc.bottomBar"] { assertInside(env, id: id, "Bereich an KI") }
+        assertNoOverflow(env, "Bereich an KI")
+
+        // Rahmen losgelassen (wie `ObjectEditing.panned` am Ende): Ausschnitt mit Bild in die KI-Hilfe als Blatt
+        vc.sendArea(pageIndex: 0, rect: CGRect(x: 60, y: 60, width: 420, height: 160))
+        XCTAssertTrue(env.wait(timeout: 25) { self.element(env, id: "tutor.attachment") != nil }, "Anhang im Blatt\n" + dump(env))
+        let sheet = try XCTUnwrap(presented(env))
+        XCTAssertEqual(Set(sheet.sheetPresentationController?.detents.map(\.identifier) ?? []), [.medium, .large])
+        XCTAssertNotNil(element(env, id: "tutor.attachment.image"), "Bild des Bereichs")
+        let chip = env.window.convert(try XCTUnwrap(element(env, id: "tutor.attachment")).accessibilityFrame, from: nil)
+        XCTAssertLessThan(chip.height, 64, "flacher Chip im halben Blatt: \(chip)")
+        let remove = env.window.convert(try XCTUnwrap(element(env, id: "tutor.attachment.remove")).accessibilityFrame, from: nil)
+        XCTAssertGreaterThanOrEqual(remove.width, 40, "Entfernen mit dem Daumen")
+        assertInside(env, id: "tutor.attachment", "Chip")
+        assertNoOverflow(env, "KI-Hilfe mit Anhang")
+        XCTAssertTrue(tap(env, id: "tutor.attachment.remove"))
+        XCTAssertTrue(env.wait { self.element(env, id: "tutor.attachment") == nil })
+        XCTAssertTrue(tap(env, id: "tutor.close"))
+        XCTAssertTrue(env.wait { self.presented(env) == nil })
+
+        XCTAssertTrue(tap(env, id: "objects.area.done"), dump(env))
+        XCTAssertTrue(env.wait { !vc.objects.isActive })
+        XCTAssertFalse(vc.fingerCapturesArea)
+        XCTAssertEqual(scroll.panGestureRecognizer.minimumNumberOfTouches, 1, "ein Finger blättert wieder")
+    }
+
+    /// iPhone, Modus "Zeichnen": "Bereich an KI" (Werkzeug, Finger zieht wie der Stift), "Ganze Seite" schickt die Seite
+    func testAreaToolInDrawModeAndWholePage() throws {
+        let (env, _) = try host(compact: true)
+        let vc = try XCTUnwrap(editor(env))
+        XCTAssertTrue(tap(env, id: "doc.mode.draw"))
+        XCTAssertTrue(env.wait { vc.drawingPolicy == .anyInput })
+        XCTAssertTrue(env.wait { self.element(env, id: "doc.objectTools") != nil }, "Werkzeuge mit „Bereich an KI“ beim Zeichnen")
+        XCTAssertTrue(env.wait(timeout: 10) { self.areaAction(env, "Bereich an KI …") != nil }, LayoutWidthAuditTests.barDiagnose(env.window))
+        try XCTUnwrap(areaAction(env, "Bereich an KI …")).ufRun()
+        XCTAssertTrue(env.wait { vc.objects.isActive && vc.objects.tool == .area })
+        XCTAssertTrue(vc.fingerCapturesArea)
+        XCTAssertTrue(env.wait { self.element(env, id: "objects.area.page") != nil })
+        XCTAssertTrue(tap(env, id: "objects.area.page"))
+        XCTAssertTrue(env.wait(timeout: 25) { self.element(env, id: "tutor.attachment") != nil }, "ganze Seite im Blatt\n" + dump(env))
+        XCTAssertTrue((element(env, id: "tutor.attachment.title")?.accessibilityLabel ?? "").contains("Seite 1"),
+                      element(env, id: "tutor.attachment.title")?.accessibilityLabel ?? "")
+    }
+
+    /// iPad: "Bereich an KI" bleibt beim Stift, der Finger blaettert weiter mit einem Finger
+    func testAreaToolOnPadKeepsFingerScrolling() throws {
+        let (env, _) = try host(compact: false)
+        let vc = try XCTUnwrap(editor(env))
+        vc.startAreaCapture()
+        XCTAssertTrue(env.wait { vc.objects.isActive && vc.objects.tool == .area })
+        XCTAssertFalse(vc.fingerCapturesArea)
+        let scroll = try XCTUnwrap(vc.firstScrollView(in: vc.pdfView))
+        XCTAssertEqual(scroll.panGestureRecognizer.minimumNumberOfTouches, 1)
+        XCTAssertTrue(element(env, id: "objects.area.hint")?.accessibilityLabel == "Rahmen ziehen oder Bereich einkreisen", dump(env))
+    }
+
     private func freezeAction(_ env: HostedEnvironment, _ title: String) -> UIAction? {
         guard let m = LayoutWidthAuditTests.menu(in: env.window, titled: FreezeTexts.introTitle) else { return nil }
         return LayoutWidthAuditTests.actions(in: m).first { $0.title == title }

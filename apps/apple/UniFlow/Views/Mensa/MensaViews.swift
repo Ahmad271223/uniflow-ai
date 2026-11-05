@@ -211,6 +211,8 @@ enum MensaUI {
 struct MensaPage: View {
     @EnvironmentObject private var session: Session
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// iPhone (docs/IPHONE-2026-11-04.md): Mensa-Wahl und Tage in voller Breite, Filter als Blatt, eine Spalte
+    @Environment(\.ufCompact) private var compact
     @Environment(\.openURL) private var openURL
     @State private var list: JSONValue?
     @State private var menu: JSONValue?
@@ -219,6 +221,8 @@ struct MensaPage: View {
     @State private var prefs = MensaPrefs.load()
     @State private var loading = false
     @State private var detail: MensaMealItem?
+    /// kompakt: Filter, Preisgruppe und Sortierung als Blatt von unten
+    @State private var showFilters = false
 
     private var today: String { UFFmt.todayISO() }
     private var cid: String { list.map { prefs.chosen(in: $0) } ?? prefs.canteen ?? "hauptmensa" }
@@ -229,8 +233,12 @@ struct MensaPage: View {
         UFContent(maxWidth: 1120) {
             UFPageHead("Mensa", sub: subtitle)
             if let list {
-                controls(list)
-                filters(list)
+                if compact {
+                    compactControls(list)
+                } else {
+                    controls(list)
+                    filters(list)
+                }
             }
             if let msg = menu?.s("message") {
                 HStack(spacing: 8) { UFIcon("alert", size: 16); Text(msg).ufFont(14) }
@@ -257,7 +265,13 @@ struct MensaPage: View {
         }
         .task(id: token) { await load() }
         .ufReload { await load() }
-        .sheet(item: $detail) { item in MensaMealDetail(meal: item.meal, canteen: menu?["canteen"]?.s("name"), source: menu?["source"]?.s("attribution")) }
+        .sheet(item: $detail) { item in
+            MensaMealDetail(meal: item.meal, canteen: menu?["canteen"]?.s("name"), source: menu?["source"]?.s("attribution"))
+                .ufHalfSheet(when: compact)                 // iPhone: von unten, halb (Preise, Naehrwerte) und ganz
+        }
+        .sheet(isPresented: $showFilters) {
+            if let list { filterSheet(list).ufHalfSheet(when: compact) }
+        }
         .accessibilityIdentifier("mensa.page")
     }
 
@@ -289,42 +303,10 @@ struct MensaPage: View {
     // MARK: Bedienung
 
     @ViewBuilder private func controls(_ list: JSONValue) -> some View {
-        let fav = prefs.favorites.contains(cid)
         UFFlexWrap(gap: 10) {
-            Menu {
-                ForEach(MensaUI.groups(list, favorites: prefs.favorites), id: \.title) { g in
-                    Section(g.title) {
-                        ForEach(g.items, id: \.self) { c in
-                            Button { update { $0.canteen = c.s("id") } } label: {
-                                if c.s("id") == cid { Label(c.s("name") ?? "", systemImage: "checkmark") } else { Text(c.s("name") ?? "") }
-                            }
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    UFIcon("utensils", size: 16)
-                    Text(list.list("canteens").first { $0.s("id") == cid }?.s("name") ?? "Mensa wählen").ufFont(14.5, 600).lineLimit(2)
-                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold))
-                }
-                .foregroundStyle(UF.text)
-                .padding(.vertical, 9).padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
-                .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.lineStrong, lineWidth: 1))
-                .frame(minHeight: 44)
-            }
-            .accessibilityLabel("Mensa: \(list.list("canteens").first { $0.s("id") == cid }?.s("name") ?? "")")
-            .accessibilityHint("Andere Mensa wählen")
-            .accessibilityIdentifier("mensa.picker")
+            canteenMenu(list)
 
-            Button { update { $0.toggleFavorite(cid) } } label: {
-                Image(systemName: fav ? "star.fill" : "star").font(.system(size: 18)).foregroundStyle(fav ? UF.warn : UF.text2)
-                    .frame(width: 44, height: 44).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(fav ? "Aus den Favoriten entfernen" : "Zu den Favoriten")
-            .accessibilityAddTraits(fav ? .isSelected : [])
-            .accessibilityIdentifier("mensa.favorite")
+            favoriteButton
 
             UFSegmented(options: [(MensaUI.Mode.today, "Heute"), (.tomorrow, "Morgen"), (.week, "Woche")], selection: $mode)
                 .accessibilityIdentifier("mensa.mode")
@@ -346,6 +328,157 @@ struct MensaPage: View {
             .accessibilityIdentifier("mensa.sort")
         }
         .padding(.bottom, 10)
+    }
+
+    /// Mensa waehlen (Favoriten zuerst, dann je Standort); kompakt in voller Breite
+    private func canteenMenu(_ list: JSONValue) -> some View {
+        let name = list.list("canteens").first { $0.s("id") == cid }?.s("name")
+        return Menu {
+            ForEach(MensaUI.groups(list, favorites: prefs.favorites), id: \.title) { g in
+                Section(g.title) {
+                    ForEach(g.items, id: \.self) { c in
+                        Button { update { $0.canteen = c.s("id") } } label: {
+                            if c.s("id") == cid { Label(c.s("name") ?? "", systemImage: "checkmark") } else { Text(c.s("name") ?? "") }
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                UFIcon("utensils", size: 16)
+                let title = Text(name ?? "Mensa wählen").ufFont(14.5, 600).lineLimit(2)
+                if compact { title.frame(maxWidth: .infinity, alignment: .leading) } else { title }
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(UF.text)
+            .padding(.vertical, 9).padding(.horizontal, 12)
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
+            .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(UF.lineStrong, lineWidth: 1))
+            .frame(minHeight: 44)
+        }
+        .accessibilityLabel("Mensa: \(name ?? "")")
+        .accessibilityHint("Andere Mensa wählen")
+        .accessibilityIdentifier("mensa.picker")
+    }
+
+    private var favoriteButton: some View {
+        let fav = prefs.favorites.contains(cid)
+        return Button { update { $0.toggleFavorite(cid) } } label: {
+            Image(systemName: fav ? "star.fill" : "star").font(.system(size: 18)).foregroundStyle(fav ? UF.warn : UF.text2)
+                .frame(width: 44, height: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(fav ? "Aus den Favoriten entfernen" : "Zu den Favoriten")
+        .accessibilityAddTraits(fav ? .isSelected : [])
+        .accessibilityIdentifier("mensa.favorite")
+    }
+
+    // MARK: Bedienung kompakt (iPhone)
+
+    /// iPhone: Mensa-Wahl mit Stern, darunter Heute/Morgen/Woche in voller Breite, dann "Filter" (Blatt) mit Zusammenfassung
+    @ViewBuilder private func compactControls(_ list: JSONValue) -> some View {
+        let names = Dictionary(list.list("allergens").compactMap { a in a.s("key").map { ($0, a.s("name") ?? $0) } }, uniquingKeysWith: { a, _ in a })
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                canteenMenu(list)
+                favoriteButton
+            }
+            dayPicker
+            HStack(spacing: 10) {
+                Button { showFilters = true } label: {
+                    let n = [prefs.vegan, prefs.vegetarian, prefs.noPork].filter { $0 }.count + prefs.allergens.count
+                    HStack(spacing: 6) {
+                        UFIcon("filter", size: 15)
+                        Text(n > 0 ? "Filter (\(n))" : "Filter").ufFont(14, 600)
+                    }
+                    .foregroundStyle(n > 0 ? UF.accentText : UF.text)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(Capsule().fill(n > 0 ? UF.accentSoft : UF.surface))
+                    .overlay(Capsule().strokeBorder(n > 0 ? Color.clear : UF.line, lineWidth: 1))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Filter, Preis und Sortierung")
+                .accessibilityIdentifier("mensa.filters")
+                Text(prefs.filter.isEmpty ? "Preis: \(MensaUI.roles.first { $0.value == prefs.role }?.label ?? "")" : prefs.summary(names: names))
+                    .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("mensa.filters.summary")
+            }
+        }
+        .padding(.bottom, 14)
+    }
+
+    /// Heute / Morgen / Woche: drei gleich breite Felder, mindestens 44 pt hoch
+    private var dayPicker: some View {
+        let options: [(MensaUI.Mode, String)] = [(.today, "Heute"), (.tomorrow, "Morgen"), (.week, "Woche")]
+        return HStack(spacing: 2) {
+            ForEach(options, id: \.0) { m, label in
+                let on = mode == m
+                Button { mode = m } label: {
+                    Text(label).ufFont(14, on ? 650 : 500)
+                        .foregroundStyle(on ? UF.text : UF.text2)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(RoundedRectangle(cornerRadius: UF.rSm - 2).fill(on ? UF.surface : Color.clear))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityIdentifier("mensa.mode.\(m.rawValue)")
+            }
+        }
+        .padding(3)
+        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("mensa.mode")
+    }
+
+    /// Blatt "Filter" (iPhone): Kennzeichen, Allergene, Preisgruppe, Sortierung; wirkt sofort, "Fertig" schliesst
+    private func filterSheet(_ list: JSONValue) -> some View {
+        let sorts = MensaUI.sorts(for: menu?.list("days").flatMap { $0.list("meals") } ?? [])
+        return NavigationStack {
+            Form {
+                Section("Essen") {
+                    Toggle("vegan", isOn: Binding(get: { prefs.vegan }, set: { on in update { $0.vegan = on; if on { $0.vegetarian = false } } }))
+                        .accessibilityIdentifier("mensa.sheet.vegan")
+                    Toggle("vegetarisch", isOn: Binding(get: { prefs.vegetarian }, set: { on in update { $0.vegetarian = on; if on { $0.vegan = false } } }))
+                        .accessibilityIdentifier("mensa.sheet.vegetarian")
+                    Toggle("ohne Schwein", isOn: Binding(get: { prefs.noPork }, set: { on in update { $0.noPork = on } }))
+                        .accessibilityIdentifier("mensa.sheet.nopork")
+                }
+                Section("Preis und Reihenfolge") {
+                    Picker("Preis für", selection: Binding(get: { prefs.role }, set: { r in update { $0.role = r } })) {
+                        ForEach(MensaUI.roles, id: \.value) { Text($0.label).tag($0.value) }
+                    }
+                    .accessibilityIdentifier("mensa.sheet.role")
+                    Picker("Sortieren", selection: Binding(get: { sorts.contains(prefs.sort) ? prefs.sort : "line" }, set: { v in update { $0.sort = v } })) {
+                        ForEach(sorts, id: \.self) { Text(MensaUI.sortLabels[$0] ?? $0).tag($0) }
+                    }
+                    .accessibilityIdentifier("mensa.sheet.sort")
+                }
+                Section("Allergene meiden") {
+                    ForEach(list.list("allergens"), id: \.self) { a in
+                        let k = a.s("key") ?? ""
+                        Toggle(a.s("name") ?? k, isOn: Binding(get: { prefs.allergens.contains(k) }, set: { on in
+                            update { p in p.allergens.removeAll { $0 == k }; if on { p.allergens.append(k) } }
+                        }))
+                    }
+                }
+                if !prefs.filter.isEmpty {
+                    Section {
+                        Button("Filter zurücksetzen", role: .destructive) {
+                            update { $0.vegan = false; $0.vegetarian = false; $0.noPork = false; $0.allergens = [] }
+                        }
+                        .accessibilityIdentifier("mensa.sheet.reset")
+                    }
+                }
+            }
+            .navigationTitle("Filter")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { showFilters = false }.accessibilityIdentifier("mensa.sheet.done") } }
+        }
+        .accessibilityIdentifier("mensa.filterSheet")
     }
 
     @ViewBuilder private func filters(_ list: JSONValue) -> some View {
@@ -425,7 +558,18 @@ struct MensaPage: View {
         }
     }
 
-    private func grid(_ meals: [JSONValue], min: CGFloat) -> some View {
+    @ViewBuilder private func grid(_ meals: [JSONValue], min: CGFloat) -> some View {
+        if compact {
+            // iPhone: eine Spalte, Karten untereinander
+            LazyVStack(alignment: .leading, spacing: 10) {
+                ForEach(meals, id: \.self) { m in MensaMealCard(meal: m, role: prefs.role) { detail = MensaMealItem(meal: m) } }
+            }
+        } else {
+            gridColumns(meals, min: min)
+        }
+    }
+
+    private func gridColumns(_ meals: [JSONValue], min: CGFloat) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: windowWidth < 520 ? 260 : min), spacing: 10, alignment: .top)], alignment: .leading, spacing: 10) {
             ForEach(meals, id: \.self) { m in MensaMealCard(meal: m, role: prefs.role) { detail = MensaMealItem(meal: m) } }
         }
@@ -472,6 +616,12 @@ struct MensaMealCard: View {
     let role: String
     let open: () -> Void
 
+    /// VoiceOver: Gericht, Preis, Kennzeichen, Linie und Kurzangaben
+    private var spoken: String {
+        let short = MensaUI.nutritionShort(meal)
+        return MensaUI.accessibility(meal, role: role) + (short.isEmpty ? "" : ", " + short)
+    }
+
     var body: some View {
         let main = meal["main"]?.bool == true
         Button(action: open) {
@@ -500,9 +650,10 @@ struct MensaMealCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(MensaUI.accessibility(meal, role: role) + (MensaUI.nutritionShort(meal).isEmpty ? "" : ", " + MensaUI.nutritionShort(meal)))
+        .accessibilityLabel(spoken)
         .accessibilityHint("Alle Angaben zeigen")
         .accessibilityAddTraits(.isButton)
+        .accessibilityAction(.default) { open() }          // zusammengefasstes Element: Aktivieren oeffnet das Blatt
         .accessibilityIdentifier("mensa.meal")
     }
 }
@@ -606,6 +757,8 @@ struct MensaTodayCard: View {
     @State private var meals: [JSONValue] = []
     @State private var stale = false
     @EnvironmentObject private var router: UFRouter
+    /// iPhone: "Alle Gerichte" in voller Breite unter den Gerichten statt neben dem Titel
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -613,8 +766,12 @@ struct MensaTodayCard: View {
             if !meals.isEmpty {
                 let role = MensaPrefs.load().role
                 UFCard {
-                    UFCardHead("Heute in der Mensa", icon: "utensils") {
-                        UFButton("Alle Gerichte", size: .small) { router.go(.mensa) }
+                    if compact {
+                        UFCardHead("Heute in der Mensa", icon: "utensils", wrap: true)
+                    } else {
+                        UFCardHead("Heute in der Mensa", icon: "utensils") {
+                            UFButton("Alle Gerichte", size: .small) { router.go(.mensa) }
+                        }
                     }
                     Text(name + (stale ? " · letzter Stand" : "")).ufFont(12.8).foregroundStyle(UF.muted).padding(.bottom, 4)
                     ForEach(meals, id: \.self) { m in
@@ -630,6 +787,11 @@ struct MensaTodayCard: View {
                         .ufBorderBottom(m != meals.last)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(MensaUI.accessibility(m, role: role))
+                    }
+                    if compact {
+                        UFWideButton("Alle Gerichte", icon: "utensils") { router.go(.mensa) }
+                            .padding(.top, 8)
+                            .accessibilityIdentifier("mensa.dashboard.all")
                     }
                 }
                 .accessibilityIdentifier("mensa.dashboard")

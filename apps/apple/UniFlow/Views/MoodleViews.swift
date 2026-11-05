@@ -33,6 +33,9 @@ struct MoodleReplySheet: View {
     @State private var text = ""
     @State private var phase: Phase = .editing
     @Environment(\.dismiss) private var dismiss
+    /// iPhone: Blatt von unten, startet ganz (Tastatur), laesst sich auf halb ziehen (Unterhaltung darunter lesen)
+    @Environment(\.ufCompact) private var compact
+    @State private var detent: PresentationDetent = .large
 
     enum Phase: Equatable { case editing, sending, sent(Date), failed(String) }
 
@@ -70,6 +73,7 @@ struct MoodleReplySheet: View {
             }
             .task { await loadNames() }
         }
+        .modifier(MoodleCompactSheet(compact: compact, detent: $detent))
     }
 
     private var isSent: Bool { if case .sent = phase { return true }; return false }
@@ -161,6 +165,23 @@ final class MoodleSubmitModel: ObservableObject {
     private func fail(_ e: Error) {
         if (e as? MoodleError) == .sessionExpired { onExpired() }
         phase = .failed(MoodleTexts.error(e))
+    }
+}
+
+/// iPhone: Blatt von unten mit "halb" und "ganz" (Griff sichtbar), Hintergrund gesperrt; iPad unveraendert
+struct MoodleCompactSheet: ViewModifier {
+    let compact: Bool
+    @Binding var detent: PresentationDetent
+
+    func body(content: Content) -> some View {
+        if compact {
+            content
+                .presentationDetents([.medium, .large], selection: $detent)
+                .presentationDragIndicator(.visible)
+                .presentationContentInteraction(.resizes)
+        } else {
+            content
+        }
     }
 }
 

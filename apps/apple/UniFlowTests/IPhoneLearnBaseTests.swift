@@ -88,8 +88,9 @@ class IPhoneLearnTestCase: XCTestCase {
         return out
     }
 
+    /// Kennung eines Elements; SwiftUI-Elemente melden sie teils ohne erklaerte Protokoll-Konformitaet
     func identifier(_ o: NSObject) -> String? {
-        let id = (o as? UIAccessibilityIdentification)?.accessibilityIdentifier
+        let id = IPhoneDocumentLayoutTests.ident(o)
         return id?.isEmpty == false ? id : nil
     }
 

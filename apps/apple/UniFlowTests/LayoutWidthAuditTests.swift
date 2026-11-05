@@ -206,6 +206,14 @@ final class LayoutWidthAuditTests: XCTestCase {
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
+    /// Mensa (05.11.2026) auf den drei iPhones hoch und quer: Mensa-Wahl, Tage, Filterknopf, Gerichte in einer Spalte,
+    /// Oeffnungszeiten darunter (erfundener Plan ohne Netz, `MensaDemoHTTP` unter XCTest)
+    func testIPhoneMensa() throws {
+        let env = try host(MainView())
+        let report = audit(env, "mensa", route: .mensa, marker: "Öffnungszeiten", variants: Self.iphone)
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
     /// Seiten von Teil C (Bibliothek, KI-Start, Tests, Karteikarten, Community): Befunde gehen an Teil C
     func testIPhoneLernenUndBibliothek() throws {
         let t = StoreScreenshotTests.Intercept(container.host)
