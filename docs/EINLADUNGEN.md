@@ -124,5 +124,54 @@ Einlösen ein Blatt mit dem Code, „Code kopieren“ und „Bei Apple einlösen
 ## 8. Offene Punkte
 
 - Web und Windows haben noch keine Einladungsseite (die Endpunkte gelten für alle Clients; Belohnungen sind Apple-Codes,
-  für Stripe gäbe es Gutscheine – nicht entschieden).
+  für Stripe gäbe es Gutscheine – nicht entschieden). Warum bewusst nicht gebaut und was eine Dienstfassung braucht:
+  Abschnitt 9.
 - Angebotscodes mit abgelaufener Apple-Laufzeit erkennt der Dienst nicht (Abschnitt 5).
+
+## 9. Web und Windows: warum keine Oberfläche, und der Vorschlag für eine Dienstfassung (05.11.2026, nicht gebaut)
+
+**Stand.** Die Regeln (Abschnitt 1 und 2) laufen schon im Dienst (`app/invites.py`, Endpunkte Abschnitt 4), für jedes
+StudiNow-Konto, auch eines, das nur im Browser arbeitet. Die Oberfläche („Freunde einladen“) gibt es nur auf dem iPad.
+Auf **Web und Windows ist sie bewusst nicht gebaut**:
+
+- Die Belohnung ist ein **Apple-Angebotscode** (Abschnitt 3). Wer nur Web oder Windows hat, kann ihn nicht einlösen
+  (Apples Dialog braucht ein Apple-Gerät mit App Store). Eine Seite, die Belohnungen verspricht, die man nicht bekommt,
+  wäre unehrlich.
+- Die **Windows-App im Einzelplatz** hat kein StudiNow-Konto (`mode: local`), also weder Links noch Einlösungen; Konten
+  gibt es nur im Dienst, und die Windows-Fassung zeigt keine Kaufwege und keine Werbung für Bezahlsysteme
+  (Microsoft-Store-Regeln, `docs/release/MICROSOFT-STORE.md`). Ein Einladungsabschnitt mit Gratis-Monaten wäre dort
+  eine Kaufanreiz-Fläche; die Altersangabe des Stores nennt „keine Kaufanreize“.
+- Der Weg „Link teilen“ klappt auf Web ohnehin: `https://studinow.app/i/<CODE>` führt zur Seite mit den Store-Links;
+  das Konto der eingeladenen Person löst den Code erst auf dem iPad ein (`POST /api/invites/redeem`).
+
+**Was eine Dienstfassung für Web/Windows bräuchte** (Vorschlag, wenn der Inhaber sie will):
+
+1. **Belohnung, die ohne Apple geht:** Stripe-Gutscheine (Coupon/Promotion Code) statt Apple-Codes. Plus gratis wäre ein
+   Gutschein „100 % für n Monate“ (`duration: repeating`, 1/3/12), „Pro AI zum Plus-Preis“ ein Gutschein „2,00 € Rabatt für
+   12 Monate“ auf den Pro-AI-Preis. Der Dienst legt sie **bei Bedarf über die Stripe-API an** (kein Vorrat wie bei Apple,
+   darum entfällt `409 offer_codes_exhausted`); die Einlösung läuft im Stripe-Checkout (`allow_promotion_codes` oder
+   `discounts` fest am Konto). Es bleibt dabei: StudiNow schaltet nie selbst einen Tarif frei, der Tarif entsteht erst
+   durch das Abo bei Stripe (Webhook, `app/stripe_billing.py`).
+2. **Datenmodell:** `invite_rewards` bekommt `channel` (`apple` | `stripe`) und `stripe_promotion_id`; `offer_codes`
+   bleibt für Apple unverändert. Die Wahl in Stufe 20 (Plus gratis oder Pro AI zum Plus-Preis) bleibt dieselbe, nur der
+   Kanal hängt am Konto: hat es ein Stripe-Abo oder noch keins und arbeitet im Web, `stripe`; hat es Apple-Käufe, `apple`.
+   Ein Konto darf nicht beides für dieselbe Stufe holen (heute schon: eine Belohnung je Konto und Stufe).
+3. **Missbrauchsschutz** (heute: Fenster in der Probe, 20 Links, eine Einlösung je Konto, nur neue Konten, Ratenbegrenzung
+   `invite_create_user`): zusätzlich **bestätigte E-Mail-Adresse** des eingeladenen Kontos als Bedingung für „angekommen“
+   (sonst reichen Wegwerf-Adressen für Stufe 5/10/20), Zählung erst nach **echter Nutzung** (z. B. eine Hochschul-Anmeldung
+   oder 1 Tag nach dem Anlegen), Ablehnung bekannter Wegwerf-Domains, höchstens eine Einlösung je Gerät/IP-Bereich und
+   Tag, Belohnung nur an Konten mit bestätigter E-Mail, Gutscheine nur einmal je Stripe-Kunde (`max_redemptions: 1`,
+   `customer`), Obergrenze der vergebenen Gratis-Monate je Monat im Betrieb (Notbremse), Protokoll im Betrieb.
+4. **Kosten:** Plus kostet im Dienst wenig (eigenes ChatGPT, nur 4 neue KI-Tests im Monat): 12 Gratis-Monate sind vor
+   allem entgangene Einnahmen von ca. 1,39 € netto je Monat. **Pro AI zum Plus-Preis** kostet echtes Geld: bis zu 100 Credits (1 €) KI je
+   Monat und der Anteil an der Bibliothek (`docs/PREISLISTE.md`) bei 1,42 € Einnahme nach Apple bzw. 1,39 € nach Stripe;
+   bei 12 Monaten also bis zu 12 € je Belohnung gegen 12 × ca. 1,4 € Einnahme. Darum eine Obergrenze je Monat und
+   Benachrichtigung des Betriebs, bevor ein Gutschein ausgegeben wird, der mehr KI verspricht als bezahlt.
+5. **Oberfläche (erst danach):** Seite „Freunde einladen“ nur im Dienst und nur im Browser (nicht in der Windows-App,
+   siehe oben), Zähler, Links, Teilen (Kopieren, Web-Share), QR; keine Erinnerungen, kein Zwang (wie auf dem iPad).
+6. **Rechtliches:** Nutzungsbedingungen Abschnitt „Einladungen und Belohnungen“ (Wer bekommt was, Ablauf der Links,
+   Missbrauch führt zum Verlust der Belohnung), Datenschutz (Einlösungen enthalten nur Code und Zeitpunkt, Abschnitt 1).
+
+Entscheidung des Inhabers nötig: Soll es Einladungen für Web-Konten überhaupt geben, und darf Pro AI zum Plus-Preis über
+Stripe vergeben werden (Kosten wie in Punkt 4)?
+

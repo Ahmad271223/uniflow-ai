@@ -24,11 +24,11 @@ haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit ec
 Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (Community über CloudKit, siehe unten).
 
 Zweig `wip/vier-tarife` (27./28.10.2026): **Tarife nach `docs/ABO-SYSTEM.md`, V1 verkauft nur StudiNow Free und Plus**
-(Entscheidung des Inhabers vom 28.10.2026). Die Tabelle aller vier Tarife steht in
+(Entscheidung des Inhabers vom 28.10.2026; **Stand 04.11.2026: Free, Plus 1,99 €, Pro AI 3,99 €, Pro Connect entfällt**, siehe `docs/ABO-SYSTEM.md` 3b). Die Tabelle der Tarife steht in
 `apps/apple/UniFlow/Purchases/Plans.swift`, geprüft gegen `packages/shared-contracts/fixtures/plans/plans.json`
-(`PlanContractTests`); was die App anbietet, bestimmt der Schalter `UFPlanCatalog.sellable` (heute `[.free, .plus]`).
-Pro Connect und Pro AI erscheinen nicht als Karte, nur als nicht anklickbarer Satz „Pro-Tarife folgen mit dem
-StudiNow-Dienst.“ ohne Preis; ihre Produkte stehen nur in der Testkonfiguration `UniFlowAlleTarife.storekit`
+(`PlanContractTests`); was die App anbietet, bestimmt der Schalter `UFPlanCatalog.sellable` (seit 04.11.2026 `[.free, .plus, .proAI]`, Pro AI nur mit Produkt aus dem Store).
+Pro AI erscheint nur als Karte, wenn der Store das Produkt liefert, sonst als nicht anklickbarer Satz „StudiNow Pro AI
+folgt mit dem StudiNow-Dienst.“ ohne Preis (Pro Connect gibt es nicht mehr); ihre Produkte stehen nur in der Testkonfiguration `UniFlowAlleTarife.storekit`
 (Wechsel-Logik in `PurchaseV2PlanSwitchTests`). Community lesen (finden, laden, ansehen, melden, blockieren,
 Lerngruppen beitreten) ist Free wie `can_read_community`; Veröffentlichen, Teilen als Datei, Pseudonym und Lerngruppen
 anlegen ab Plus (`can_share_solutions`). Was den Online-Dienst braucht, steht unter „in Vorbereitung“. Kaufprüfung nur
