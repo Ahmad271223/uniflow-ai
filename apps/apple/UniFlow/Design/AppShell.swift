@@ -1016,7 +1016,7 @@ struct UFHeader: View {
                 theme = next.rawValue
                 toast.show("Design: \(next.label)")
             }
-            if !narrow {
+            if !narrow && StudyTimer.isEnabled {
                 UFButton(icon: "clock", kind: .ghost) { timer.toggle() }     // #profileBtn: Zeitmesser
             }
             // .avatar: 34 pt, accent-soft, .78rem fett; ohne Server die Initialen aus dem Apple-Namen, sonst ein Symbol

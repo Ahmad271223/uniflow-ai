@@ -244,7 +244,7 @@ enum DebugLaunch {
                 let hints = UFHint.all(dd)
                 if let h = hints[safe: Int(p[safe: 2] ?? "") ?? 0] { overlay.modal { UFHintDialog(hint: h, events: dd.list("events")) } }
             }
-        case "timer":
+        case "timer" where StudyTimer.isEnabled:
             timer.toggle(true)
             if let m = StudyTimer.Mode(rawValue: p[safe: 1] ?? "") { timer.setMode(m) }
             if p.contains("run") || p.contains("pill") { timer.startPause() }

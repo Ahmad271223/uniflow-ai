@@ -260,7 +260,7 @@ final class PlanContractTests: XCTestCase {
 
     func testPlanCardsListOnlyWhatWorksAndMarkTheRest() {
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
-                       [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer,
+                       [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
                         .viewNotes, .uniGrades, .communityRead].map(\.title))
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
                        [UFFeature.pencilWriting, .shareSolutions, .splitView, .flashcards, .weeklyTests].map(\.title))

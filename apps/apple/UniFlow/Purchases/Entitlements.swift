@@ -175,7 +175,7 @@ enum UFFeatureMatrix {
 
     /// Funktionen, die ein Tarif mehr bietet als der naechstkleinere (Inhalt der Tarifkarten)
     static func added(in plan: UFPlan) -> [UFFeature] {
-        UFFeature.allCases.filter { $0.minimumPlan == plan }
+        UFFeature.allCases.filter { $0.minimumPlan == plan && ($0 != .timer || StudyTimer.isEnabled) }
     }
 
     /// Herabstufen (Abschnitt 4, "Regeln"): Notizen bleiben vollstaendig erhalten, lesbar und exportierbar;
