@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 147,
+ "count": 148,
  "paths": [
   {
    "method": "DELETE",
@@ -975,6 +975,48 @@
      "today"
     ],
     "reason": "nur auf dem Geraet (DueEndpoints)"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/exam-registration",
+   "sources": [
+    "UniFlow/Services/ExamRegistrationReminderScheduler.swift",
+    "UniFlow/Views/Exams/ExamRegistrationViews.swift"
+   ],
+   "request": {
+    "path": "/api/exam-registration"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "supported",
+     "university",
+     "program",
+     "program_name",
+     "source",
+     "term",
+     "window",
+     "vbp_window",
+     "periods",
+     "show_card",
+     "plan_available",
+     "plan_message",
+     "suggestions",
+     "open_count",
+     "registered_count",
+     "registered",
+     "registrations_checked_at",
+     "registrations_ok",
+     "registrations_message",
+     "warnings",
+     "qis_url",
+     "hint",
+     "rules",
+     "disclaimer"
+    ],
+    "reason": "nur auf dem Geraet (ExamRegistrationEndpoints)"
    }
   },
   {

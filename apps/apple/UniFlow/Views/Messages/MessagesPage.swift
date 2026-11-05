@@ -17,7 +17,10 @@ enum MessagesText {
     static let searchPrompt = "Nachrichten durchsuchen"
     static let back = "Nachrichten"
     static let pick = "Wähle links eine Nachricht aus."
-    static let privacy = "Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie in Stud.IP nicht als gelesen."
+    static let privacy = "Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie in Stud.IP nicht als gelesen. Antworten gehen über Stud.IP unter deinem Namen."
+    static let reply = "Antworten"
+    static let replyAll = "Allen antworten"
+    static let ownReply = "Deine Antwort"
 
     static func noHits(_ q: String) -> String { "Keine Treffer für „\(q)“" }
 
@@ -64,11 +67,12 @@ enum MessagesText {
     }
 
     /// VoiceOver je Zeile: "Neu, Tutorium entfällt, von Lehrende, 08:15"
-    static func rowAccessibility(_ m: JSONValue, isNew: Bool, today: String) -> String {
+    static func rowAccessibility(_ m: JSONValue, isNew: Bool, today: String, answered: Bool = false) -> String {
         var parts = [m.s("subject") ?? "(ohne Betreff)"]
         if let s = m.s("sender"), !s.isEmpty { parts.append("von \(s)") }
         let t = NewsRow.time(m.s("sent_at"), today: today)
         if !t.isEmpty { parts.append(t) }
+        if answered { parts.append("Beantwortet") }
         return ((isNew ? ["Neu"] : []) + parts).joined(separator: ", ")
     }
 }
@@ -94,6 +98,17 @@ struct MessagesPage: View {
     /// Marke vor diesem Besuch: Nachrichten danach tragen den Punkt "neu" (bleibt fuer die Dauer des Besuchs)
     @State private var previousMark: String?
     @State private var markTaken = false
+    /// Antwortfenster (docs/NACHRICHTEN-ANTWORTEN-2026-11-05.md)
+    @State private var composing: Composing?
+    /// eigene Antworten dieses Containers (`StudIPReplyLog`)
+    @State private var replies = StudIPReplyLog()
+
+    /// offenes Antwortfenster
+    struct Composing: Identifiable {
+        let original: MessageReplyOriginal
+        let mode: StudIPReplyMode
+        var id: String { original.localID + "|" + mode.rawValue }
+    }
 
     /// `initialQuery`: Suche beim Oeffnen (Tests, Bildvergleich)
     init(today: String = UFFmt.todayISO(), splitOverride: Bool? = nil, initialQuery: String = "") {
@@ -123,6 +138,13 @@ struct MessagesPage: View {
             await load()
         }
         .ufReload { await load() }
+        .sheet(item: $composing, onDismiss: loadReplies) { c in
+            MessageReplyEntry(original: c.original, mode: c.mode)
+        }
+    }
+
+    private func loadReplies() {
+        replies = StudIPReplyLog.load(ActiveContainer.current?.defaults ?? .standard)
     }
 
     // MARK: Kopf
@@ -231,6 +253,7 @@ struct MessagesPage: View {
     private func row(_ m: JSONValue) -> some View {
         let id = m.s("id") ?? ""
         let isNew = MessagesInbox.isNew(m.s("sent_at"), since: previousMark)
+        let answered = replies.answered.contains(id)
         let isSelected = split && id == selectedID
         return Button { select(id) } label: {
             HStack(alignment: .top, spacing: 10) {
@@ -240,6 +263,7 @@ struct MessagesPage: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(m.s("sender") ?? "Stud.IP").ufFont(12.8, 600).foregroundStyle(UF.text2).lineLimit(1)
+                        if answered { UFIcon("check", size: 12).foregroundStyle(UF.okText) }
                         Spacer(minLength: 4)
                         Text(NewsRow.time(m.s("sent_at"), today: today)).ufFont(12.8).foregroundStyle(UF.muted).fixedSize()
                     }
@@ -267,7 +291,7 @@ struct MessagesPage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(MessagesText.rowAccessibility(m, isNew: isNew, today: today))
+        .accessibilityLabel(MessagesText.rowAccessibility(m, isNew: isNew, today: today, answered: answered))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint("Öffnet die Nachricht")
         .accessibilityIdentifier("messages.row.\(id)")
@@ -319,12 +343,8 @@ struct MessagesPage: View {
                 } else {
                     Text("Diese Nachricht hat keinen Text.").ufFont(14.5).foregroundStyle(UF.muted)
                 }
-                if let url = UFDayExtras.safeURL(m.s("url")) {
-                    UFButton(MessagesText.open, icon: "arrow-right") { openURL(url) }
-                        .accessibilityHint("Öffnet den Posteingang in Stud.IP")
-                        .accessibilityIdentifier("messages.open")
-                        .padding(.top, 4)
-                }
+                replyBar(m)
+                ownReplies(m)
                 Text(MessagesText.privacy).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
             .padding(EdgeInsets(top: back ? 8 : 22, leading: 24, bottom: 28, trailing: 24))
@@ -335,6 +355,62 @@ struct MessagesPage: View {
         .accessibilityIdentifier("messages.reader")
     }
 
+    // MARK: Antworten
+
+    /// "Antworten", "Allen antworten" (wenn der Abgleich mehrere Empfaenger kennt), "In Stud.IP öffnen"
+    private func replyBar(_ m: JSONValue) -> some View {
+        let original = MessageReplyOriginal(m)
+        // ohne Sitzung zeigt das Fenster "Stud.IP ist nicht verbunden" (Anmelden in den Einstellungen)
+        let canReply = original != nil && StudIPMessageReply.isReplyable(senderLabel: m.s("sender"))
+        return UFFlexWrap(gap: 8) {
+            if canReply, let original {
+                UFButton(MessagesText.reply, icon: "pen", kind: .primary) { composing = Composing(original: original, mode: .sender) }
+                    .accessibilityHint("Schreibt eine Antwort an den Absender, gesendet über Stud.IP")
+                    .accessibilityIdentifier("messages.reply")
+                if StudIPMessageReply.offersReplyAll(recipients: m.i("recipients")) {
+                    UFButton(MessagesText.replyAll, icon: "users") { composing = Composing(original: original, mode: .all) }
+                        .accessibilityHint("Schreibt eine Antwort an den Absender und alle Empfänger")
+                        .accessibilityIdentifier("messages.replyAll")
+                }
+            }
+            if let url = UFDayExtras.safeURL(m.s("url")) {
+                UFButton(MessagesText.open, icon: "arrow-right") { openURL(url) }
+                    .accessibilityHint("Öffnet den Posteingang in Stud.IP")
+                    .accessibilityIdentifier("messages.open")
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    /// "Beantwortet am …" und der eigene Text (aufklappbar), neueste zuerst
+    @ViewBuilder private func ownReplies(_ m: JSONValue) -> some View {
+        let mine = replies.records(for: m.s("id") ?? "")
+        if let last = mine.first {
+            VStack(alignment: .leading, spacing: 8) {
+                UFBadge(last.line(), tone: .ok, icon: "check")
+                    .accessibilityIdentifier("messages.replied")
+                ForEach(mine) { r in
+                    DisclosureGroup {
+                        Text(r.text + (r.quoted ? "\n\n(mit Zitat)" : ""))
+                            .ufFont(14, lh: 1.5)
+                            .foregroundStyle(UF.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                            .padding(.top, 4)
+                    } label: {
+                        Text(mine.count > 1 ? "\(MessagesText.ownReply) · \(r.line())" : MessagesText.ownReply)
+                            .ufFont(13.5, 600).foregroundStyle(UF.text2)
+                    }
+                    .tint(UF.accentText)
+                    .accessibilityIdentifier("messages.ownReply")
+                }
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.okSoft.opacity(0.5)))
+        }
+    }
+
     // MARK: Laden
 
     private func select(_ id: String) {
@@ -342,6 +418,7 @@ struct MessagesPage: View {
     }
 
     func load() async {
+        loadReplies()
         guard let api = session.api else { loaded = true; return }
         let q = trimmedQuery
         do {

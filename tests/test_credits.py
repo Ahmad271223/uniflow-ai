@@ -355,7 +355,7 @@ def test_admin_costs_view(hosted, monkeypatch):
     assert d["month"]["cost_per_account_eur"] == 0.16 and d["month"]["accounts_exhausted"] == 0 and d["month"]["max_used_credits"] == 16
     day = d["per_day_model"][0]
     assert (day["day"], day["model"], day["requests"], day["credits"], day["input_tokens"], day["output_tokens"]) == (credits.day_of(), "fake", 2, 16, 240, 80)
-    assert d["prices_checked"] == "2026-11-04" and any(p["model"] == "gpt-6-luna" for p in d["prices"])
+    assert d["prices_checked"] == "2026-11-05" and any(p["model"] == "gpt-6-luna" for p in d["prices"])
 
 
 # ---------------------------------------------------------------- Sicherheitspruefung 04.11.2026

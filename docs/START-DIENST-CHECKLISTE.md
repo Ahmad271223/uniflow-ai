@@ -5,7 +5,7 @@ Für den Inhaber. Schritt für Schritt vom leeren Server bis zum laufenden Diens
 PowerShell oder Windows-Terminal; Mac: Terminal) und etwa zwei Stunden plus Wartezeiten bei den Anbietern.
 
 Die Technik ist fertig und geprüft (Abschnitt 15). Du steckst nur noch fünf Dinge ein: **Server, Domain, Mail-Anbieter,
-Stripe-Schlüssel, OpenAI-Schlüssel.** Stripe und OpenAI kannst du auch später nachtragen; der Dienst läuft ohne sie
+Stripe-Schlüssel, KI-Schlüssel (Scaleway, AWS Bedrock, OpenAI; Abschnitt 5.4).** Stripe und die KI kannst du auch später nachtragen; der Dienst läuft ohne sie
 mit Free-Tarif und 7-Tage-Probe.
 
 Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; alle Variablen mit Erklärung in
@@ -20,8 +20,8 @@ Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; 
 | Name und Domain | „StudiNow“ steht in der App; Domain muss dazu passen und frei sein (Plan, Abschnitt 4.4). Prüfen, ob der Name als Marke frei ist. |
 | Dienst darf Uni-Passwörter halten? | Entschieden 30.10.: **ja**, mit Zustimmung je Nutzer in der Oberfläche (ist gebaut). Deshalb gehört Chromium ins Image (Abschnitt 14). |
 | Bezahlen zum Start? | Entschieden 30.10.: **erst Free** mit 7 Tagen Probe; Stripe ist gebaut und wird eingeschaltet, sobald du die Schlüssel einträgst. |
-| KI im Dienst? | Entschieden 30.10.: StudiNow-KI über deinen OpenAI-Schlüssel (Pro AI). Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
-| Passwort-Manager | Für Dienst-Geheimnis, Server-Zugang, Stripe/OpenAI-Schlüssel. Nichts davon in Notizen oder Chats. |
+| KI im Dienst? | Entschieden 30.10.: StudiNow-KI über deine Schlüssel (Pro AI); seit 05.11. als Mischung aus DeepSeek (Scaleway, EU), OpenAI und Claude Sonnet 5.5 (Bedrock, EU), Abschnitt 5.4. Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
+| Passwort-Manager | Für Dienst-Geheimnis, Server-Zugang, Stripe- und KI-Schlüssel. Nichts davon in Notizen oder Chats. |
 
 ---
 
@@ -194,19 +194,54 @@ Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 Erst mit Test-Schlüsseln und Stripe-Testkarte (4242 4242 4242 4242) einen Abschluss durchspielen, dann Live-Schlüssel
 und Live-Preise eintragen und den Webhook im Live-Modus noch einmal anlegen (eigenes `whsec_`).
 
-### 5.4 OpenAI für die StudiNow-KI (optional, jederzeit nachtragbar)
+### 5.4 StudiNow-KI: DeepSeek (EU), OpenAI, Claude Sonnet 5.5 (optional, jederzeit nachtragbar)
 
-Auf platform.openai.com: Konto mit Zahlungsmittel, **API keys → Create new secret key**, dort auch ein monatliches
-Ausgabenlimit setzen.
+Stand 05.11.2026. Die KI mischt drei Anbieter nach Aufgabe (etwa 50 % DeepSeek, 25 % ChatGPT, 25 % Sonnet; schwere
+Fälle an Sonnet). Begründung, Preise und Quellen: `docs/KI-MODELLMISCHUNG-2026-11-05.md`. Jeder Anbieter ist einzeln
+optional; was fehlt, fällt aus der Mischung, die anderen übernehmen. Mit **einem** Anbieter läuft die KI schon.
+Pro AI hat 100 Credits = höchstens 1 € KI-Kosten je Monat. Die Grenze ist hart: Vor jeder Anfrage wird ihre Obergrenze
+reserviert.
+
+**Konten, Schlüssel, Verträge:**
+
+1. **Scaleway** (DeepSeek, Paris):
+   - console.scaleway.com: Organisation und Projekt (Region fr-par) anlegen, **IAM → API keys → Secret Key**.
+   - **Organisation → Verträge**: den AVV herunterladen und ablegen.
+   - Ein Budget-Limit setzen.
+   - DeepSeek **nie** über api.deepseek.com; der Dienst lehnt solche Adressen ab.
+2. **AWS** (Claude Sonnet 5.5 über Bedrock, Frankfurt):
+   - Ein Konto anlegen und in **Bedrock → Model access** (Region eu-central-1) den Zugang zu Claude Sonnet 5.5 anfragen.
+   - Danach einen **Bedrock-API-Schlüssel** anlegen oder einen IAM-Nutzer nur mit `bedrock:InvokeModel*`.
+   - Der DPA gilt über die AWS Service Terms. Einen Budget-Alarm setzen.
+   - In der Konsole prüfen, dass das Modell über den **EU-Endpunkt** läuft (nicht „Global“).
+3. **OpenAI** (platform.openai.com):
+   - Ein Konto mit Zahlungsmittel einrichten: **API keys → Create new secret key** und ein Ausgabenlimit setzen.
+   - Den **Data Processing Addendum** annehmen.
+   - Empfohlen: beim Vertrieb ein Projekt mit **EU-Datenresidenz** beantragen und den Schlüssel aus diesem Projekt
+     nehmen; die Freischaltung braucht ZDR oder eine geänderte Missbrauchsprüfung.
 
 | Variable | Wert |
 |---|---|
+| `LERNAPP_DEEPSEEK_API_KEY` | Secret Key von Scaleway |
+| `LERNAPP_DEEPSEEK_MODEL` | leer = `deepseek-v4.1-flash-1017` (liest Bilder); `deepseek-v4-flash-0731` ist günstiger und liest nur Text |
+| `LERNAPP_ANTHROPIC_API_KEY` | Bedrock-API-Schlüssel (oder `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` setzen) |
+| `LERNAPP_ANTHROPIC_REGION` / `LERNAPP_ANTHROPIC_MODEL` | leer = `eu-central-1` / `anthropic.claude-sonnet-5-5`; nur `eu-*` erlaubt |
 | `LERNAPP_OPENAI_API_KEY` | `sk-…` |
-| `LERNAPP_AI_MODEL` | z. B. `gpt-5-mini` (günstig) oder `gpt-5` |
-| `LERNAPP_AI_PRICE_IN_EUR` / `LERNAPP_AI_PRICE_OUT_EUR` | **Pflicht:** Preise je 1 Mio. Tokens aus der OpenAI-Preisliste, in Euro umgerechnet. Bei 0 oder leer sperrt der Dienst alle KI-Aufrufe (503 `ai_not_configured_prices`), weil die Budgets sonst nichts zählen |
+| `LERNAPP_AI_MODEL` | OpenAI-Modell, z. B. `gpt-6-luna` |
+| `LERNAPP_OPENAI_BASE_URL` | erst nach der Freischaltung der EU-Residenz: `https://eu.api.openai.com/v1` (die Preise rechnet der Dienst dann mit +10 %) |
+| `LERNAPP_AI_DISABLED` | Notschalter, z. B. `deepseek`; danach `docker compose up -d` |
+| `LERNAPP_AI_ROUTES` | leer lassen (Standardwege in `app/ai_router.py`); nur zum Feinjustieren |
+| Preise | aus der Tabelle `app/ai_prices.py` (Stand `CHECKED`). Vor dem Start mit den Preislisten von OpenAI, Scaleway und AWS vergleichen. `LERNAPP_AI_PRICE_IN_EUR` / `_OUT_EUR` **leer lassen**: sie gälten für alle Modelle gleich. Ohne Preis für ein Modell sperrt der Dienst es (fail closed) |
 | `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_USER_BUDGET_EUR` | Monatsgrenze gesamt (Standard 50) und je Konto (Standard 2); erreicht = Sperre bis zum nächsten Monat |
 | `LERNAPP_AI_TRIAL_BUDGET_EUR` | Eigenes Monatsbudget für alle Probekonten zusammen (Standard 5), zusätzlich zum Gesamtbudget: die Probe verbraucht nie das Budget zahlender Konten. StudiNow-KI gibt es nur mit bestätigter E-Mail-Adresse (403 `email_unverified`) |
 | `LERNAPP_AI_LIBRARY_BUDGET_EUR` / `LERNAPP_AI_LIBRARY_PREP_PER_DAY` | Eigenes Monatsbudget der Bibliothek für die fertigen Wochenfragen (Standard 20 €, zusätzlich zum Gesamtbudget; erreicht = 429 `ai_library_budget_exhausted` für neue Wochen) und neue Wochen je Konto und Tag (Standard 10). Siehe `docs/BIBLIOTHEK-WOCHENFRAGEN.md` |
+
+**Nach dem Start prüfen:**
+
+- Eine Frage im Web stellen.
+- Als Inhaber `GET /api/billing/ai-usage` aufrufen. `by_provider` zeigt die Verteilung und die Kosten je Anbieter.
+- Auf Scaleway nachsehen, ob die Nutzung im Strom ankommt: In `/api/billing/ai-costs` müssen die Tokens größer als 0
+  sein. Fehlt die Nutzung, rechnet der Dienst die Reservierung ab.
 
 ### 5.5 Registrierungen je IP (Hochschulnetz)
 
@@ -381,7 +416,7 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
 | KI-Funktionen melden „nicht eingerichtet“ (503) | `LERNAPP_OPENAI_API_KEY` oder `LERNAPP_AI_MODEL` leer; nach dem Eintragen `docker compose up -d`. Bei „Token-Preise fehlen“ (503 `ai_not_configured_prices`): `LERNAPP_AI_PRICE_IN_EUR` und `LERNAPP_AI_PRICE_OUT_EUR` eintragen. Bei „Budget erreicht“: `LERNAPP_AI_BUDGET_EUR` erhöhen oder bis Monatsanfang warten. |
 | Platte voll | `df -h /`, `docker system df`, `docker image prune -f`; Backups außer Haus und `BACKUP_KEEP_DAYS` prüfen. |
 | Löschfristen laufen nicht (keine tägliche Zeile in `retention.log`) | Sie laufen im Container `jobs` (`docker compose ps jobs` muss „healthy“ zeigen). Ohne Compose: `LERNAPP_JOBS` darf im API-Prozess nicht `off` sein, oder `python -m app.jobs` getrennt starten. |
-| Server kaputt / gehackt | Neuer Server, Abschnitte 3–6, dann Wiederherstellung (Abschnitt 9) mit demselben `LERNAPP_SECRET_KEY`. Danach alle Zugangsdaten (SSH, Stripe, OpenAI, Mail) erneuern. |
+| Server kaputt / gehackt | Neuer Server, Abschnitte 3–6, dann Wiederherstellung (Abschnitt 9) mit demselben `LERNAPP_SECRET_KEY`. Danach alle Zugangsdaten (SSH, Stripe, KI-Anbieter, Mail) erneuern. |
 
 ---
 
@@ -392,9 +427,13 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
    Aufsichtsbehörde). `tests/test_release_texts.py` listet, was fehlt. Dann **anwaltlich prüfen lassen** – vor dem
    ersten fremden Nutzer. Der Dienst liefert die Dateien unter `/datenschutz` usw. aus; nach dem Ausfüllen
    `git pull` und `docker compose up -d --build` (oder eigenen Ordner als Volume und `LERNAPP_LEGAL_DIR`).
-2. **Auftragsverarbeitung (AVV)** mit dem Hoster **und** dem Mail-Anbieter abschließen; bei Stripe und OpenAI die
-   jeweiligen Datenschutzvereinbarungen (Stripe: DPA im Dashboard; OpenAI: Data Processing Addendum) akzeptieren und
-   alle vier in der Datenschutzerklärung nennen.
+2. **Auftragsverarbeitung (AVV)** mit dem Hoster **und** dem Mail-Anbieter abschließen.
+   - Bei Stripe den DPA im Dashboard akzeptieren.
+   - Für die StudiNow-KI je einen Vertrag mit den drei KI-Anbietern abschließen (Abschnitt 5.4):
+     - Scaleway: AVV unter Organisation → Verträge;
+     - AWS: DPA über die Service Terms;
+     - OpenAI: Data Processing Addendum.
+   - Alle in der Datenschutzerklärung nennen (Abschnitte 8c, 11, 12).
 3. **Anfrage an LUH und Hildesheim**: Der Dienst meldet sich mit Nutzer-Zugangsdaten bei Stud.IP/Learnweb an. Die
    Entscheidung vom 30.10. verlangt eine parallele Anfrage an die Hochschulen (`docs/ANFRAGE-STUDIP-ZUGANG.md` als
    Entwurf für die LUH, `elearning@uni-hannover.de`; für Hildesheim das Rechenzentrum). Bis zur Antwort: Abgleich
@@ -473,6 +512,6 @@ im Dockerfile und kann auf 2 GB RAM gehen.
 | Mail | 0 € | Resend bis 3.000 Mails/Monat; danach ca. 20 €/Monat |
 | Monitoring | 0 € | UptimeRobot Free |
 | Stripe | 0 € fest | je Zahlung ca. 1,5 % + 0,25 € (EU-Karten); bei 1,99 € also ca. 0,28 € je Abo-Monat |
-| OpenAI (Pro AI) | 0 € ohne Nutzer | nach Verbrauch; `LERNAPP_AI_BUDGET_EUR=50` ist die Obergrenze, die der Dienst selbst einhält |
+| KI (Pro AI: Scaleway, OpenAI, AWS Bedrock) | 0 € ohne Nutzer | nach Verbrauch, typisch etwa 0,5 Cent je Anfrage in der Mischung (`docs/KI-MODELLMISCHUNG-2026-11-05.md`); je Pro-AI-Konto höchstens 1 € (100 Credits, harte Grenze); `LERNAPP_AI_BUDGET_EUR=50` ist die Obergrenze für alle zusammen |
 | Anwalt für Rechtstexte | einmalig | nach Aufwand |
 | **Summe ohne KI und Anwalt** | **rund 10–12 €** | |

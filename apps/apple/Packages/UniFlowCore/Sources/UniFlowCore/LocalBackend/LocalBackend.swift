@@ -27,6 +27,7 @@ public final class LocalBackend: Sendable {
         CardStackEndpoints.self,
         DueEndpoints.self,
         ExamsEndpoints.self,
+        ExamRegistrationEndpoints.self,
         StudIPTextEndpoints.self,
         StudIPBulletinEndpoints.self,
         StudIPBlubberEndpoints.self,

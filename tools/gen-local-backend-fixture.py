@@ -293,6 +293,17 @@ SAMPLES: dict[str, dict] = {
     "GET /api/recent": {"path": "/api/recent?limit=15", "python": False,
                         "expect": {"status": 200, "type": "object", "keys": ["items"],
                                    "reason": "nur auf dem Geraet (RecentEndpoints)"}},
+    # Pruefungsanmeldung (ExamRegistrationEndpoints, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): nur im Kern; der PC liest
+    # "Info über angemeldete Prüfungen" nicht, app/exam_registration.py hat nur Daten, Zuordnung und Phase
+    "GET /api/exam-registration": {"path": "/api/exam-registration", "python": False,
+                                   "expect": {"status": 200, "type": "object",
+                                              "keys": ["supported", "university", "program", "program_name", "source", "term",
+                                                       "window", "vbp_window", "periods", "show_card", "plan_available",
+                                                       "plan_message", "suggestions", "open_count", "registered_count",
+                                                       "registered", "registrations_checked_at", "registrations_ok",
+                                                       "registrations_message", "warnings", "qis_url", "hint", "rules",
+                                                       "disclaimer"],
+                                              "reason": "nur auf dem Geraet (ExamRegistrationEndpoints)"}},
     # Geteilte Wochenstapel und Stapel teilen (CardStackEndpoints, app/server.py + app/community_cards_api.py). Leere
     # Datenbank: kein Modul, kein Stapel -> 404. Teilen und Zurueckziehen gibt es am PC nur im gehosteten Dienst
     # (Einzelplatz 501 not_hosted), auf dem Geraet ueber CloudKit (LocalContext.cardCommunity)

@@ -23,3 +23,8 @@
   gratis (bei 20 auch: Pro AI 12 Monate zum Plus-Preis), bis zu 20 Links in der Probewoche, je 30 Tage gültig, je Person einmal;
   Belohnung nur als Apple-Angebotscode. Web und Windows bekommen **keine** Einladungsseite, solange es für sie keine
   Belohnung gibt (Vorschlag für eine Dienstfassung mit Stripe-Gutscheinen: `docs/EINLADUNGEN.md` Abschnitt 9, nicht entschieden).
+- 05.11.2026: Pro AI bleibt bei 100 Credits = 1 € als harte Obergrenze je Monat (vor jeder Anfrage wird ihre
+  Obergrenze reserviert, nie mehr berechnet; `app/credits.py`, `app/ai_prices.worst_case_microeur`).
+- 05.11.2026: StudiNow-KI mischt drei Modelle nach Aufgabe, etwa 50 % DeepSeek (nur über einen EU-Anbieter, Scaleway
+  Paris), 25 % ChatGPT, 25 % Claude Sonnet 5.5 (Amazon Bedrock Frankfurt) für schwere Fälle
+  (`docs/KI-MODELLMISCHUNG-2026-11-05.md`).

@@ -9,6 +9,8 @@ import UniFlowCore
 // - Lernkalender und Stundenplan: eigener Pin je Klausur (Farbe `UFExam.color`, Symbol), immer zuerst unter den
 //   Hinweisen eines Tages; Hinweise "Prüfung" aus Ankuendigungen desselben Moduls stehen dann nicht noch einmal da
 // - Modulseite: naechste Klausur im Kopf, `ModuleNextExam`
+// - Pruefungsanmeldung (05.11.2026, ExamRegistrationViews.swift): Abzeichen "angemeldet"/"nicht angemeldet" je Klausur
+//   und eine Zeile zum Meldezeitraum mit "Im QIS anmelden" in der Karte "Nächste Klausuren"
 
 enum UFExam {
     /// Farbe der Klausur-Pins (kraeftiges Violett: von Fristen rot, Hinweisen blau und Ferien gruen klar zu trennen)
@@ -78,50 +80,74 @@ struct UpcomingExamsCard: View {
     @EnvironmentObject private var router: UFRouter
     static let limit = 4
 
+    /// Pruefungsanmeldung (05.11.2026): Abzeichen angemeldet/nicht angemeldet je Klausur und Zeile zum Meldezeitraum
+    @State private var registration: ExamRegistrationState?
+
     var body: some View {
-        UpcomingExamsList(items: items) { e in
-            if let m = e.i("module_id") { router.go(.module(m)) } else if let d = e.s("date") { router.go(.plan(view: "day", date: d)) }
+        // immer eine echte Ansicht: an einer leeren (noch keine Klausuren) startet `.task` nie, die Karte blieb leer
+        VStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: 0).accessibilityHidden(true)
+            UpcomingExamsList(items: items, registration: registration) { e in
+                if let m = e.i("module_id") { router.go(.module(m)) } else if let d = e.s("date") { router.go(.plan(view: "day", date: d)) }
+            }
         }
-        .task(id: token) { items = await UFExam.load(api) }
-        .ufReload { items = await UFExam.load(api) }
+        .task(id: token) { await load() }
+        .ufReload { await load() }
+    }
+
+    private func load() async {
+        items = await UFExam.load(api)
+        registration = await ExamRegistrationState.load(api)
     }
 }
 
 /// Inhalt der Karte ohne Laden: ohne Klausuren nichts (kein Platz), sonst die Karte mit Abstand nach unten
 struct UpcomingExamsList: View {
     let items: [JSONValue]
+    /// Pruefungsanmeldung (nil: keine Abzeichen, keine Zeile)
+    var registration: ExamRegistrationState?
     let open: (JSONValue) -> Void
+
+    init(items: [JSONValue], registration: ExamRegistrationState? = nil, open: @escaping (JSONValue) -> Void) {
+        self.items = items
+        self.registration = registration
+        self.open = open
+    }
 
     var body: some View {
         if !items.isEmpty {
-            Self.card(items, open: open).padding(.bottom, 19.2)
+            Self.card(items, registration: registration, open: open).padding(.bottom, 19.2)
         }
     }
 
     static let limit = UpcomingExamsCard.limit
 
-    @ViewBuilder static func card(_ items: [JSONValue], open: @escaping (JSONValue) -> Void) -> some View {
+    @ViewBuilder static func card(_ items: [JSONValue], registration: ExamRegistrationState? = nil,
+                                  open: @escaping (JSONValue) -> Void) -> some View {
         UFCard {
             UFCardHead("Nächste Klausuren", icon: UFExam.icon)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Row.rows(Array(items.prefix(limit)), key: "id")) { row in
                     let e = row.value
-                    Button { open(e) } label: { line(e) }
+                    let reg = registration?.suggestion(exam: e)
+                    Button { open(e) } label: { line(e, registered: reg?.registered) }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(UFExam.accessibility(e))
+                        .accessibilityLabel(UFExam.accessibility(e) + (reg.map { ", " + ExamRegistrationText.status($0) } ?? ""))
                         .accessibilityAddTraits(.isButton)
                         .accessibilityIdentifier("exam.row")
                 }
                 if items.count > limit {
                     Text("und \(items.count - limit) weitere").ufFont(12.8).foregroundStyle(UF.muted)
                 }
+                if let registration { ExamRegistrationExamsFooter(state: registration) }
             }
         }
         .accessibilityIdentifier("exams.card")
     }
 
-    private static func line(_ e: JSONValue) -> some View {
+    /// `registered`: Abzeichen der Pruefungsanmeldung (nil: keins)
+    private static func line(_ e: JSONValue, registered: Bool? = nil) -> some View {
         HStack(alignment: .top, spacing: 12) {
             // Tag als Kachel in der Klausurfarbe
             VStack(spacing: 0) {
@@ -141,6 +167,10 @@ struct UpcomingExamsList: View {
                 if let p = UFExam.placeText(e) { Text(p).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true) }
                 if let s = e.s("source_label"), !s.isEmpty {
                     Text(s).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                if let registered {
+                    UFBadge(registered ? "angemeldet" : "nicht angemeldet", tone: registered ? .ok : .warn).fixedSize()
+                        .accessibilityIdentifier("exam.registration")
                 }
             }
         }

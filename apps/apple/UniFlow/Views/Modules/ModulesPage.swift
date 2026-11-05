@@ -455,6 +455,8 @@ struct ModulePage: View {
                     .ufFont(14.5).foregroundStyle(UF.muted)
                 // naechste Klausur aus allen Quellen mit Countdown, Uhrzeit, Raum und Quelle (04.11.2026, `ModuleNextExam`)
                 ModuleNextExam(api: session.api, moduleID: id).padding(.top, 4)
+                // "Prüfung anmelden" (05.11.2026): nur wenn das Modul in diesem Semester zur Anmeldung vorgeschlagen ist
+                ExamRegistrationModuleBlock(api: session.api, appModuleID: id).padding(.top, 6).frame(maxWidth: 560, alignment: .leading)
             }
         }
     }

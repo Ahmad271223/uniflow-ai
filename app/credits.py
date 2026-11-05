@@ -8,8 +8,10 @@ Regeln:
 - Nicht verbrauchte Credits verfallen am Monatsende. Der Monat ist der Kalendermonat in Europe/Berlin; der neue Monat
   beginnt "faul": die Zeile des Monats entsteht bei der ersten Nutzung (kein naechtlicher Lauf noetig).
 - Der Rahmen eines Monats folgt dem aktuellen Tarif: wer mitten im Monat Pro AI abschliesst, hat sofort 100.
-- Vor jedem Aufruf wird eine Schaetzung reserviert (reserve), danach mit der echten Nutzung abgerechnet (settle) oder
-  bei einem Fehler, fuer den OpenAI nichts berechnet hat, zurueckgegeben (refund). Reicht der Rest nicht fuer die
+- Vor jedem Aufruf wird die Obergrenze der Anfrage reserviert (reserve; app/ai_prices.worst_case_microeur fuer das
+  teuerste Modell der Anbieter-Kette), danach mit der echten Nutzung abgerechnet, nie mehr als reserviert (settle), oder
+  bei einem Fehler, fuer den der Anbieter nichts berechnet hat, zurueckgegeben (refund). Damit ist die Grenze hart: ein
+  Konto verursacht im Monat hoechstens seine Credits, auch mit gleichzeitigen Anfragen und Ersatz-Anbietern. Reicht der Rest nicht fuer die
   Reservierung: 429 credits_exhausted, "Credits für diesen Monat aufgebraucht – am 1. gibt es neue."
 - Jede Anfrage traegt eine request_id (je Konto eindeutig): dieselbe ID wird nie zweimal berechnet. Laeuft sie noch:
   409 duplicate_request; ist sie fertig: die gespeicherte Antwort kommt noch 24 Stunden zurueck (ohne neue Kosten).
@@ -276,7 +278,11 @@ def settle(conn: sqlite3.Connection, user_id: str, request_id: str, cost_microeu
            input_tokens: int = 0, cached_tokens: int = 0, output_tokens: int = 0, images: int = 0, result: str | None = None,
            now: datetime | None = None) -> int:
     """Mit der echten Nutzung abrechnen: Credits = Kosten in Cent, aufgerundet. Die Reservierung wird frei. Eine schon
-    abgerechnete ID bleibt, wie sie ist (liefert ihre Credits). Liefert die berechneten Credits."""
+    abgerechnete ID bleibt, wie sie ist (liefert ihre Credits). Liefert die berechneten Credits.
+
+    Harte Grenze (Inhaber 05.11.2026, Pro AI 100 Credits = hoechstens 1 EUR je Monat): berechnet wird nie mehr als
+    reserviert (die Reservierung ist die Obergrenze aus app/ai_prices.worst_case_microeur), bei einer verfallenen
+    Reservierung nie mehr als der freie Rest des Monats. `cost_microeur` bleibt die echte Zahl (Kostenansicht)."""
     uid, t = str(user_id), _now(now)
     charged = ai_prices.credits_for(cost_microeur)
     conn.execute("BEGIN IMMEDIATE")
@@ -288,6 +294,11 @@ def settle(conn: sqlite3.Connection, user_id: str, request_id: str, cost_microeu
             return old[3] if old else 0
         state, period, reserved = old[0], old[1], old[2]
         held = reserved if state == "reserved" else 0  # eine verfallene Reservierung ist schon freigegeben
+        if state == "reserved":
+            charged = min(charged, reserved)
+        else:
+            m = conn.execute("SELECT allowance, used, reserved FROM credit_months WHERE user_id=? AND period=?", (uid, period)).fetchone()
+            charged = min(charged, max(0, (m[0] - m[1] - m[2]) if m else 0))
         conn.execute("UPDATE credit_months SET reserved=MAX(reserved-?, 0), used=used+?, updated_at=? WHERE user_id=? AND period=?",
                      (held, charged, t.isoformat(), uid, period))
         conn.execute("UPDATE credit_ledger SET state='settled', charged=?, cost_microeur=?, model=COALESCE(?, model), input_tokens=?, "

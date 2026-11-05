@@ -28,7 +28,10 @@ Beobachtungen:
 - Ablauf in der App: Anmeldung in einer Webansicht auf der echten QIS-Seite (Passwort bleibt beim Nutzer), danach den
   Links folgen (Mein Studium → Notenspiegel → Abschluss → Studiengang → Leistungen), Tabellen lesen,
   Bescheinigungen nur auf ausdrücklichen Wunsch erzeugen (jeder `verpublish`-Aufruf erstellt ein Dokument).
-- „Prüfungsanmeldung/-abmeldung“ nicht automatisiert öffnen oder bedienen.
+- „Prüfungsanmeldung/-abmeldung“ nicht automatisiert öffnen oder bedienen: kein Abruf folgt diesem Link, kein Formular
+  wird ausgefüllt oder abgeschickt. Erlaubt (Entscheidung des Inhabers 05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md):
+  der Knopf „Im QIS anmelden“ öffnet „Mein Studium“ im In-App-Browser, dort tippt und bestätigt der Mensch selbst; und
+  „Info über angemeldete Prüfungen“ wird nur lesend abgerufen (wie der Notenspiegel).
 
 ## Stud.IP JSON:API (studip.uni-hannover.de/jsonapi.php/v1)
 

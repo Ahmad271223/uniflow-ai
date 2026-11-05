@@ -1423,10 +1423,14 @@ def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: st
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
                              body.get("own_solution") or "", course, fname, page, sources, ai.tutor_history(body.get("history")), studip,
                              own_notes=notes)
+    # Modellmischung (app/ai_router.py): "Antwort war falsch" -> Zweitmeinung von Sonnet, nie aus dem Zwischenspeicher;
+    # Rechnen und Herleiten erkennt der Router an Frage und Markierung
+    second = bool(body.get("second_opinion"))
     try:
         # eigene Notizen sind persoenlich: dann ohne Zwischenspeicher
-        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=not notes,
-                                   request_id=rid, keep_result=True, fresh=fresh)
+        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=not notes and not second,
+                                   request_id=rid, keep_result=True, fresh=fresh, route_hint="second_opinion" if second else None,
+                                   route_text=" ".join(str(body.get(k) or "") for k in ("selection", "question")))
     except ai_backend.AIUnavailable as e:
         entitlements.refund(request, "ai_assist", rid)
         raise HTTPException(e.status, {"detail": e.message, "code": e.code, **e.extra})
