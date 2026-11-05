@@ -153,7 +153,7 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     assert "Modulkatalogen von über 300 Studiengängen und Fächern" in flat or "Modulkataloge von über 300 Studiengängen und Fächern" in flat
     mensa = flat.split('id="mensa"')[1].split("</section>")[0]
     for s in ("Heute in der Mensa", "Preise", "Nährwerte", "Allergene", "vegan", "vegetarisch", "Studentenwerk Hannover",
-              "Studentenwerk OstNiedersachsen", "ohne Gewähr", "img/mensa-hell.jpg", "img/mensa-dunkel.jpg"):
+              "Studierendenwerk OstNiedersachsen", "ohne Gewähr", "img/mensa-hell.jpg", "img/mensa-dunkel.jpg"):
         assert s in mensa, s
     # Tarife wie app/plans.py, Probe wie docs/PREISLISTE.md
     from app import plans
