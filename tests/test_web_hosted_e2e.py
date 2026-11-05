@@ -180,18 +180,19 @@ def test_register_trial_plans_and_credentials_consent(served_hosted):
             assert st == 200 and me["user"]["email"] == email, me
             # Uebersicht zeigt derzeit keinen Probe-Hinweis (nur #/abo und das Kontomenue nennen den Tarif), siehe Bericht
             # Tarifseite: Probe 7 Tage, Tarif Pro AI, kein Stripe (nur Apple-App)
-            _goto_hash(page, "#/abo", "document.querySelector('#view') && /Dein Tarif/.test(document.querySelector('#view').textContent)")
+            _goto_hash(page, "#/abo", "document.querySelector('#view') && /Probe: alles wie/.test(document.querySelector('#view').textContent)")
             text = page.text_content("#view")
             m = re.search(r"Probe: noch (\d+) Tage?", text)
             assert m, f"kein Probe-Hinweis auf der Tarifseite: {text[:300]}"
             assert m.group(1) == "7" and "7 Tage" in text, m.group(0)
             name = plans.PLANS[plans.TRIAL["plan"]]["name"]
-            assert f"Dein Tarif: {name}" in text, text[:300]
+            assert f"Probe: alles wie {name}" in text, text[:300]       # waehrend der Probe ist kein Tarif "Dein Tarif" (wie auf dem iPad)
             buttons = page.evaluate("[...document.querySelectorAll('#view button')].map(b => b.textContent.trim())")
             assert "Abschließen" not in buttons, f"Stripe-Knoepfe ohne Stripe: {buttons}"
             assert page.evaluate("document.querySelectorAll('#view [data-buy]').length") == 0
             assert buttons.count("In der Apple-App abschließen") >= 1, buttons
-            assert page.evaluate("[...document.querySelectorAll('#view .badge')].some(b => b.textContent.trim() === 'Dein Tarif')")
+            assert page.evaluate("[...document.querySelectorAll('#view .badge')].some(b => b.textContent.trim() === 'Probe läuft')")
+            assert not page.evaluate("[...document.querySelectorAll('#view .badge')].some(b => b.textContent.trim() === 'Dein Tarif')")
             # 2. Einstellungen -> Zugang: ohne Haekchen nichts gespeichert, mit Haekchen gespeichert und "Zugestimmt am"
             _goto_hash(page, "#/settings?tab=account", "!!document.querySelector('#saveCred') && !!document.querySelector('#credConsent')")
             assert not page.is_checked("#credConsent"), "Zustimmung darf nicht vorangekreuzt sein"

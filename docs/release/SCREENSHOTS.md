@@ -50,7 +50,7 @@ Bildunterschriften höchstens zwei Zeilen, kein Versprechen zur KI (Entscheidung
 | 5 | `02-bibliothek-light-portrait.png` | Dokumente & Notizen, Bereich „Neue Dateien“ (die drei Demo-Dokumente als Karten) | Alle Unterlagen nach Modul und Woche – Vorlesungen, Übungen, Altklausuren. |
 | 6 | `06-karteikarten-light-portrait.png` | Karteikarten (Stapel, heute fällig) | Karteikarten je Modul im Leitner-System: richtig = seltener, falsch = morgen wieder. |
 | 7 | `07-community-light-portrait.png` | Community (Community des Demo-Moduls, Pseudonym, Lerngruppen) | Lösungen vergleichen – nur eigene Notizen, verschlüsselt, unter Pseudonym. |
-| 8 | `08-tarife-light-portrait.png` | Tarifseite „Tarif wechseln“ (Free als Stand, Plus 1,99 €/Monat) | Free zum Organisieren, Plus für Handschrift und Karteikarten. 7 Tage kostenlos testen. |
+| 8 | `08-tarife-light-portrait.png` | Tarifseite „Tarif wechseln“ (Free als Stand, Plus 1,99 €/Monat) | Free zum Organisieren, Plus für Handschrift und Karteikarten. 7 Tage Probe mit allem, ohne Zahlungsdaten, danach Free. |
 
 Dunkle und Querformat-Varianten liegen daneben (`-dark-`, `-landscape`); für den Store reicht ein Satz, am besten hell
 und Hochformat.

@@ -2,7 +2,10 @@
 // (Server: /api/billing/plans, /api/entitlements). Die Karten kommen aus contract.order; Pro Connect gibt es nicht mehr.
 // Es wird nur als enthalten gezeigt, was technisch freigeschaltet ist (status "available"); alles andere steht als
 // "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen: Apple-App (App Store) oder, wenn Stripe eingerichtet ist, im Web.
-// Jedes neue Konto hat 7 Tage Probe (plans.TRIAL: alles wie Pro AI, 25 Credits); danach einmal die Aufforderung, einen Tarif zu wählen (planChoicePrompt).
+// Jedes neue Konto hat 7 Tage Probe (plans.TRIAL: alles wie Pro AI, 25 Credits, ohne Zahlungsdaten, kein Einführungsangebot);
+// danach einmal die Aufforderung, einen Tarif zu wählen oder bei Free zu bleiben (planChoicePrompt).
+// Eigener PC / Windows-App (Einzelplatz, me.mode "local"): keine Kaufwege (Microsoft-Store-Regeln, docs/release/MICROSOFT-STORE.md);
+// StudiNow Pro AI braucht den StudiNow-Dienst und steht dort ohne Preis als "kommt mit dem StudiNow-Dienst".
 import { $, $$, api, esc, icon, modal, state, toast } from "./core.js?v=43";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
@@ -51,8 +54,11 @@ export async function viewAbo(_, params, view) {
   const gpt = contract.integrations.chatgpt;
   const web = contract.purchase.web || {}, viaStripe = me.source === "stripe";
   const tr = me.trial || {};
+  // Während der Probe (Quelle "trial") ist kein Tarif "Dein Tarif": die Karte, die sie ausmacht, trägt "Probe läuft" und
+  // bleibt kaufbar (wie auf dem iPad: aktuell ist nur, was gekauft ist, nie die Probe)
+  const onTrial = !local && me.source === "trial";
   const trial = local || !tr.granted ? "" : tr.active
-    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Probe: alles wie ${esc(contract.plans[tr.plan]?.name || "StudiNow Pro AI")}, mit ${contract.trial?.credits ?? 25} Credits für die StudiNow-KI, bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")}. Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen, Karten und Tests bleiben.</p></div></div>`
+    ? `<div class="abo-note">${icon("sparkles", 18)}<div><b>Probe: noch ${tr.days_left} Tag${tr.days_left === 1 ? "" : "e"} alles frei</b><p>Probe: alles wie ${esc(contract.plans[tr.plan]?.name || "StudiNow Pro AI")}, mit ${contract.trial?.credits ?? 25} Credits für die StudiNow-KI, bis ${new Date(tr.ends_at).toLocaleDateString("de-DE")} – ohne Zahlungsdaten. Danach wählst du einen Tarif oder bleibst bei Free; es wird nie von selbst kostenpflichtig, deine Notizen, Karten und Tests bleiben.</p></div></div>`
     : me.needs_plan_choice
       ? `<div class="abo-note warn">${icon("alert", 18)}<div><b>Deine Probe ist vorbei</b><p>Wähle unten einen Tarif oder bleib bei Free. Deine Notizen bleiben erhalten und lesbar.</p></div><button class="btn sm" id="aboStayFree">Bei Free bleiben</button></div>`
       : "";
@@ -60,11 +66,11 @@ export async function viewAbo(_, params, view) {
     ? `<p class="abo-flash ok">${icon("check", 14)} Zahlung abgeschlossen. Dein Tarif erscheint hier, sobald Stripe die Bestätigung geschickt hat (meist sofort).</p>`
     : params.checkout === "cancel" ? `<p class="abo-flash">Abschluss abgebrochen, nichts wurde berechnet.</p>` : "";
   const term = local
-    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Claude-Zugang. Tarife gelten für StudiNow-Konten im Dienst und in der Apple-App.</p>`
+    ? `<p class="abo-term">Auf deinem eigenen PC gibt es keine Tarife: alle Funktionen sind frei, die KI läuft über deinen eigenen Zugang (Claude oder ChatGPT). Tarife gelten für StudiNow-Konten im Dienst und in der Apple-App.</p>`
     : `<p class="abo-term">${me.expires_at ? `${me.will_renew ? "Verlängert sich am" : "Läuft aus am"} <b>${new Date(me.expires_at).toLocaleDateString("de-DE")}</b>` : current === "free" ? "Kostenlos, ohne Laufzeit." : "Ohne Ablaufdatum."}${me.pending_plan ? ` · Ab der nächsten Verlängerung: <b>${esc(contract.plans[me.pending_plan]?.name || me.pending_plan)}</b>` : ""}</p>`;
   const quotas = local ? "" : [quotaBar(labels.ai_tests_new, me.quotas.ai_tests_new), quotaBar(labels.library_tests, me.quotas.library_tests), quotaBar(labels.ai_assist, me.quotas.ai_assist)].join("");
   const cards = contract.order.map(key => {
-    const p = contract.plans[key], isCur = key === current;
+    const p = contract.plans[key], isCur = key === current && !onTrial;
     const q = p.quotas;
     const facts = [
       p.entitlements.can_annotate_pdf ? `${icon("pen", 13)} PDF-Bearbeitung und Apple Pencil` : `${icon("book", 13)} PDFs lesen, keine Bearbeitung`,
@@ -72,14 +78,16 @@ export async function viewAbo(_, params, view) {
       ...[QUOTA_TXT(q, "ai_tests_new", labels), QUOTA_TXT(q, "library_tests", labels), QUOTA_TXT(q, "ai_assist", labels)]
         .map(t => t && !contract.studora_ai_configured && !t.startsWith(labels.library_tests) ? `${t} (sobald die StudiNow-KI eingerichtet ist)` : t),
     ].filter(Boolean).map(t => `<div>${t}</div>`).join("");
-    const action = local ? "" : isCur ? `<span class="badge ok">Dein Tarif</span>${viaStripe ? ` <button class="btn sm" id="aboPortal">Abo verwalten</button>` : ""}`
+    const soon = local && key === "pro_ai";      // Einzelplatz: Pro AI gibt es erst mit dem Dienst, ohne Preis und ohne Knopf
+    const action = soon ? `<span class="plan-hint">Braucht den StudiNow-Dienst.</span>` : local ? "" : isCur ? `<span class="badge ok">Dein Tarif</span>${viaStripe ? ` <button class="btn sm" id="aboPortal">Abo verwalten</button>` : ""}`
       : key === "free" ? `<span class="plan-hint">${viaStripe ? "Zurück zu Free: im Kundenportal kündigen (Abo verwalten)" : me.source === "app_store" ? "Zurück zu Free: Abo im App Store kündigen" : "Kostenlos, ohne Laufzeit"}</span>`
-      : web.available && (web.plans || []).includes(key) && !viaStripe ? `<button class="btn sm primary" data-buy="${key}">Abschließen</button>`
+      : (onTrial && key === current ? `<span class="badge info">Probe läuft</span> ` : "") + (web.available && (web.plans || []).includes(key) && !viaStripe ? `<button class="btn sm primary" data-buy="${key}">Abschließen</button>`
       : viaStripe ? `<button class="btn sm" data-portal="1">Wechseln (Abo verwalten)</button>`
-      : `<button class="btn sm" disabled title="${esc(web.note || "")}">In der Apple-App abschließen</button>`;
+      : `<button class="btn sm" disabled title="${esc(web.note || "")}">In der Apple-App abschließen</button>`);
     return `<article class="plan${isCur ? " is-current" : ""}${key === "pro_ai" ? " is-top" : ""}">
       <header><h2>${esc(p.name)}</h2></header>
-      <div class="plan-price"><b>${euro(p.price_cents)}</b><span> / Monat</span></div>
+      ${soon ? `<div class="plan-price"><b class="plan-soon" style="font-size:1.1rem;line-height:1.4">kommt mit dem StudiNow-Dienst</b></div>`
+        : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span> / Monat</span></div>`}
       ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">ohne eigenes ChatGPT</span></div>` : ""}
       ${action ? `<div class="plan-act">${action}</div>` : ""}
       <p class="plan-pos">${esc(POSITION[key] || p.tagline)}</p>
@@ -87,7 +95,7 @@ export async function viewAbo(_, params, view) {
       <ul class="plan-list">${featureRows(contract, key)}</ul></article>`;
   }).join("");
   view.innerHTML = `<div class="content abo" style="max-width:1180px">
-    <div class="page-head"><div><h1>Abo & Tarife</h1><div class="sub">${local ? "Eigener PC" : `Dein Tarif: ${esc(me.plan_name)}`}</div></div></div>
+    <div class="page-head"><div><h1>Abo & Tarife</h1><div class="sub">${local ? "Eigener PC" : onTrial ? `Probe: alles wie ${esc(me.plan_name)}` : `Dein Tarif: ${esc(me.plan_name)}`}</div></div></div>
     <section class="abo-now" aria-label="Aktueller Stand">${trial}${afterCheckout}${term}${quotas ? `<div class="abo-quotas">${quotas}</div>` : ""}</section>
     <h2 class="abo-h">Tarif wählen</h2>
     <div class="plans">${cards}</div>
@@ -96,9 +104,11 @@ export async function viewAbo(_, params, view) {
         <p>${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></section>`
       : `<section class="abo-info"><header><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></header>
         <p>${esc(gpt.reason || "")} Sobald OpenAI StudiNow freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen StudiNow-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></section>`}
-      <section class="abo-info"><header><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></header>
+      ${local ? `<section class="abo-info"><header><h2>${icon("info", 18)} Tarife</h2></header>
+        <p>Auf diesem PC kannst du nichts kaufen, und es gibt hier keinen Link zu einem Bezahlsystem: alle Funktionen sind frei. Tarife gelten für StudiNow-Konten im Dienst; StudiNow Plus gibt es schon in der Apple-App, StudiNow Pro AI kommt mit dem StudiNow-Dienst. Jedes neue Konto im Dienst startet mit 7 Tagen Probe mit allem, ohne Zahlungsdaten, danach gilt Free.</p></section>`
+      : `<section class="abo-info"><header><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></header>
         <p>${esc(contract.purchase.apple.note)} ${esc(contract.purchase.web.note)}</p>
-        <p>Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></section>
+        <p>Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></section>`}
     </div></div>`;
   if (state.hosted) state.entitlements = me;
   if (params.checkout === "success" && me.source !== "stripe" && !viewAbo._retried) { viewAbo._retried = true; setTimeout(() => { if (location.hash.startsWith("#/abo")) state.route(); }, 4000); }

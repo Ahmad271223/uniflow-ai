@@ -38,7 +38,7 @@ Einreichung die Testfassung (`…-test.msix`, Anleitung im `msix/README.md`) auf
 Testen, danach öffentlich.
 
 **Kauf in der App:** In dieser Fassung gibt es auf Windows **keinen Kauf in der App** und keinen Link zu einem Bezahlsystem.
-Das Abo (Plus, später Pro AI) läuft über den Online-Dienst, den es noch nicht gibt. Sobald es einen Kauf auf Windows gibt,
+Das Abo (Plus, später Pro AI) läuft über den Online-Dienst, den es noch nicht gibt. Die Tarifseite der App zeigt Free, Plus und Pro AI ohne Knopf und ohne Link zu einem Bezahlsystem; StudiNow Pro AI steht ohne Preis als „kommt mit dem StudiNow-Dienst“ (`app/static/views-abo.js`, `tests/test_web_abo.py`). Sobald es einen Kauf auf Windows gibt,
 müssen die Store-Regeln für Zahlungen geprüft werden (die Bedingungen von Microsoft ändern sich; nicht geprüft).
 
 **Eigenschaften:** Kategorie **Bildung** (Unterkategorie je nach Auswahl); Datenschutzerklärung: dein Link; Webseite und

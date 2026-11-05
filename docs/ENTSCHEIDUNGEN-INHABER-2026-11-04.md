@@ -13,3 +13,13 @@
   - Plus gilt je Gerät: kein Notizen-Abgleich zwischen Geräten (Recht `can_sync_annotations` erst ab Pro AI).
   - **Pro Connect entfällt**: nur noch Free, Plus und Pro AI. Seine Rechte gehören zu Pro AI; ein alter Eintrag
     `pro_connect` zählt als Pro AI (`plans.LEGACY_PLANS`, `billing.normalize_plan`). Stripe kennt nur noch `plus` und `pro_ai`.
+- **Keine Einführungsangebote** (Mac-Sitzung, 04.11.2026, `docs/ABO-SYSTEM.md` 3b): Plus 1,99 € und Pro AI 3,99 € ohne
+  „1 Woche gratis“ bei Apple, Stripe oder Google. Stattdessen **7 Tage Probe für jede Person, alles wie Pro AI**, ohne
+  Zahlungsdaten, einmal je Konto bzw. Apple-ID, danach automatisch Free, Daten bleiben. Preisliste, Web- und
+  Windows-Texte angeglichen (05.11.2026, `tests/test_tarife_texte.py`).
+- **Windows-App (Einzelplatz):** Tarifseite mit den drei Karten, aber **kein Kaufweg** (Microsoft-Store-Regeln, `docs/release/MICROSOFT-STORE.md`).
+  Pro AI steht dort ohne Preis und ohne Knopf als „kommt mit dem StudiNow-Dienst“. Im Dienst (Web) kaufen über Stripe, nur Plus und Pro AI.
+- **Einladungen** (Mac-Sitzung, 04.11.2026, `docs/EINLADUNGEN.md`): Stufen 5/10/20 angekommene Personen = Plus 1/3/12 Monate
+  gratis (bei 20 auch: Pro AI 12 Monate zum Plus-Preis), bis zu 20 Links in der Probewoche, je 30 Tage gültig, je Person einmal;
+  Belohnung nur als Apple-Angebotscode. Web und Windows bekommen **keine** Einladungsseite, solange es für sie keine
+  Belohnung gibt (Vorschlag für eine Dienstfassung mit Stripe-Gutscheinen: `docs/EINLADUNGEN.md` Abschnitt 9, nicht entschieden).
