@@ -1,7 +1,7 @@
 """tools/rechtstexte-fuellen.py: fuellt die Platzhalter der Rechts- und Store-Texte aus einer JSON; --check meldet offene
 Stellen (Exit 1); leere Werte und unbekannte Platzhalter sind Fehler; nach dem Fuellen bleibt kein [[ und kein TODO.
 Stand 03.11.2026: docs/release/*.md sind mit den Angaben des Inhabers (docs/release/angaben.json) an Ort und Stelle
-gefuellt; offen sind nur Hoster, Serverstandort, Mail-Anbieter (Datenschutz 11), Telefon (Play Store) und die Schalter
+gefuellt; offen sind nur Hoster, Serverstandort (Datenschutz 11; Mail-Anbieter STRATO seit 05.11.2026), Telefon (Play Store) und die Schalter
 und Pruefhinweise der Store-Texte."""
 import datetime as dt
 import json
@@ -21,7 +21,7 @@ ANGABEN = REL / "angaben.json"
 FILES = ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md", "APP-STORE.md", "PLAY-STORE.md")
 LEGAL = ("IMPRESSUM.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md")
 TODAY = dt.date.today().strftime("%d.%m.%Y")
-OPEN_KEYS = ("hoster", "hoster_ort", "mail_anbieter", "telefon")       # in angaben.json noch leer
+OPEN_KEYS = ("hoster", "hoster_ort", "telefon")       # in angaben.json noch leer
 COMPANY = "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)"
 
 
@@ -95,7 +95,7 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
         assert "support@studinow.app" in text and "Entwurf" in text and "26.10.2026" in text, name
         assert "[[Name]]" not in text and "[[E-Mail]]" not in text and "[[Domain]]" not in text and "[[Datum]]" not in text, name
     ds = (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8")
-    assert set(re.findall(r"\[\[([^\]]+)\]\]", ds)) == {"Hoster", "Serverstandort", "Mail-Anbieter"}
+    assert set(re.findall(r"\[\[([^\]]+)\]\]", ds)) == {"Hoster", "Serverstandort"}
     for name in ("IMPRESSUM.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
         assert "[[" not in (REL / name).read_text(encoding="utf-8"), name
     im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
@@ -112,8 +112,8 @@ def test_check_with_owner_values_lists_only_what_is_open_and_exits_1():
     assert code == 1
     for name in ("IMPRESSUM.md", "NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md"):
         assert f"{name}: keine offenen Platzhalter" in log, name
-    assert "DATENSCHUTZ.md: 3 offen" in log
-    assert "[[Hoster]]  -> hoster" in log and "[[Serverstandort]]  -> hoster_ort" in log and "[[Mail-Anbieter]]  -> mail_anbieter" in log
+    assert "DATENSCHUTZ.md: 2 offen" in log
+    assert "[[Hoster]]  -> hoster" in log and "[[Serverstandort]]  -> hoster_ort" in log
     assert "[[Telefon]]  -> telefon" in log
     assert "[[ UND DER UNIVERSITÄT HILDESHEIM]]  -> funktionen.ipad_hildesheim (faellt weg)" in log
     assert "mit Apple-Dokumentation zum Zeitpunkt der Einreichung abgleichen]]  -> Pruefhinweis, wird entfernt" in log
@@ -143,7 +143,7 @@ def test_fill_into_out_dir_leaves_sources_untouched_and_no_placeholders(filled):
 def test_hosting_and_phone_values_are_inserted_and_owner_data_stays(filled):
     out, _ = filled
     ds = (out / "DATENSCHUTZ.md").read_text(encoding="utf-8")
-    assert "läuft bei Beispiel-Hosting GmbH, Serverstandort Beispielstadt, Deutschland" in ds and "versendet\nBeispiel-Mail GmbH, Deutschland" in ds
+    assert "läuft bei Beispiel-Hosting GmbH, Serverstandort Beispielstadt, Deutschland" in ds and "versendet\nSTRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland)" in ds
     assert "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Baldurstraße 5, 30657 Hannover, Deutschland,\nE-Mail: support@studinow.app" in ds
     assert "Behörde: Die Landesbeauftragte für den\nDatenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover." in ds
     assert "gibt es nicht, weil die\ngesetzlichen Voraussetzungen dafür nicht vorliegen." in ds and "Falls doch benannt" not in ds

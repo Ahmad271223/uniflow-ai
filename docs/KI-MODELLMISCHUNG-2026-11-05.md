@@ -1,4 +1,34 @@
-# KI-Modellmischung: DeepSeek (EU), ChatGPT, Claude Sonnet 5.5, Stand 05.11.2026
+# KI-Modellmischung: ChatGPT und Claude Sonnet 5.5 (DeepSeek aus), Stand 05.11.2026
+
+## 0. Neue Entscheidung: ChatGPT statt DeepSeek (05.11.2026, gilt)
+
+Der Inhaber hat am 05.11.2026 nach dem Kostenvergleich (Abschnitt 4: DeepSeek bei Scaleway kostet je Anfrage fast
+fünfmal so viel wie `gpt-6-luna`) entschieden: **„also nein dann benutz gpt eher als deepseek“**.
+
+- **Standard jetzt:** kein DeepSeek in den Wegen. Der frühere DeepSeek-Anteil geht an ChatGPT (OpenAI `gpt-6-luna`).
+  Sonnet 5.5 (Bedrock Frankfurt) behält die schweren Fälle.
+- **Neue Verteilung** bei der typischen Nutzung (`TYPICAL_MIX`, `ai_router.expected_share()`): **OpenAI 75 %,
+  Sonnet 25 %, DeepSeek 0 %** (vorher 49/26/25).
+- **Kosten je typischer Anfrage** (3.000 Tokens Eingabe, 600 Ausgabe, ohne Cache): 0,75 × 0,066 Cent + 0,25 × 1,32 Cent
+  ≈ **0,38 Cent** (mit OpenAI über die USA 0,375 Cent; vorher ≈ 0,49 Cent).
+- **Pro AI (100 Credits = 1 €, harte Grenze unverändert):** ChatGPT-Anfrage 1 Credit, Sonnet-Anfrage 2 Credits, im Mittel
+  1,25 Credits. Das reicht für rund **80 typische Anfragen** im Monat (wie vorher, weil auch DeepSeek 1 Credit kostete).
+  Echte Kosten eines voll genutzten Kontos: etwa 80 × 0,38 Cent ≈ **0,30 €** (vorher ≈ 0,40 €), höchstens 1 €.
+- **DeepSeek bleibt im Code, ist aber aus:** Adapter `OpenAICompatProvider` (app/ai_providers.py), Sperre für Adressen in
+  China und der Scaleway-Preis in app/ai_prices.py bleiben. `ai_router.OPT_IN`: DeepSeek zählt nur als eingerichtet, wenn
+  `LERNAPP_DEEPSEEK_API_KEY` gesetzt ist **und** `LERNAPP_AI_ROUTES` ihn nennt (oder `LERNAPP_AI_PROVIDER=deepseek`).
+  Ein Schlüssel allein schickt nie Daten an Scaleway, auch nicht als Ersatz. Die alte Mischung steht als
+  `ai_router.DEEPSEEK_ROUTES_EXAMPLE` und als auskommentierte Zeile in `deploy/.env.example`; wer sie einschaltet, muss
+  vorher den AVV mit Scaleway abschließen und Scaleway wieder in die Datenschutzerklärung (8c, 11, 12) aufnehmen.
+- **Datenschutzerklärung:** Scaleway ist kein Auftragsverarbeiter mehr; genannt sind OpenAI und Amazon Web Services
+  (Bedrock Frankfurt). Mail-Anbieter ist STRATO (Abschnitt 11).
+- **Der Inhaber braucht jetzt nur:** OpenAI (Projekt mit EU-Datenresidenz beantragen, DPA annehmen) und AWS (Bedrock,
+  Sonnet 5.5 in eu-central-1). Kein Scaleway-Konto.
+
+Die Abschnitte 1 bis 8 unten beschreiben die Recherche und die erste Mischung vom selben Tag; wo sie vom Stand oben
+abweichen, gilt Abschnitt 0.
+
+## Erste Entscheidung (05.11.2026, ersetzt durch Abschnitt 0)
 
 Entscheidung des Inhabers (05.11.2026): Die StudiNow-KI im Dienst soll mehrere Modelle mischen. Zuerst waren 40 % DeepSeek,
 30 % ChatGPT und 30 % Claude Sonnet 5.5 gewünscht, dann **„oder mach 50 deepseek“**: etwa **50 % DeepSeek, 25 % ChatGPT,
@@ -66,7 +96,7 @@ Quellen (gelesen 05.11.2026):
 
 ## 2. Empfehlung je Anbieter
 
-- **DeepSeek:** Scaleway mit `deepseek-v4.1-flash-1017`. Das ist das einzige gefundene EU-Unternehmen mit
+- **DeepSeek (seit Abschnitt 0 aus, nur noch zum Wiedereinschalten):** Scaleway mit `deepseek-v4.1-flash-1017`. Das ist das einzige gefundene EU-Unternehmen mit
   EU-Garantie, Speicherung null als Standard und einem AVV zum Selbst-Herunterladen; es liest auch Bilder.
   Achtung: Je Anfrage ist es **teurer als `gpt-6-luna`** (siehe Abschnitt 4).
 - **Claude Sonnet 5.5:** Amazon Bedrock in eu-central-1 über den EU-Endpunkt. Der Preis steht in einer offiziellen
@@ -81,10 +111,10 @@ Quellen (gelesen 05.11.2026):
 Je Anfrage wählt der Router aus `request_id` und Zweck ein Modell nach Gewicht. Das geschieht per Hash, ohne Zufall:
 Eine Wiederholung derselben `request_id` landet beim selben Modell.
 
-| Weg | Zwecke | Gewichte |
+| Weg | Zwecke | Gewichte (Stand Abschnitt 0; vorher in Klammern) |
 |---|---|---|
-| einfach (`default`) | Erklären, Zusammenfassen, Begriffe, Hinweise, Karteikarten, Dokument-Index, Vorlesung im ganzen Dokument | DeepSeek 65 · OpenAI 35 |
-| mittel | eigene Frage (`tutor:ask`), ähnliche Aufgabe, Wochentests, Testfragen | DeepSeek 50 · OpenAI 25 · Sonnet 25 |
+| einfach (`default`) | Erklären, Zusammenfassen, Begriffe, Hinweise, Karteikarten, Dokument-Index, Vorlesung im ganzen Dokument | OpenAI 100 (DeepSeek 65 · OpenAI 35) |
+| mittel | eigene Frage (`tutor:ask`), ähnliche Aufgabe, Wochentests, Testfragen | OpenAI 75 · Sonnet 25 (DeepSeek 50 · OpenAI 25 · Sonnet 25) |
 | **schwer** | Schritt für Schritt (`tutor:steps`), Lösung prüfen/bewerten (`tutor:check`), „Erkläre alle Aufgaben“ (`tutor:doc_tasks`), Rechnen oder Herleiten in Frage oder Markierung, **„Antwort war falsch“** (`second_opinion: true` bei `/api/ai/tutor` und `/api/ai/document/step`: neu erzeugt, nie aus dem Zwischenspeicher) | Sonnet 100 |
 
 Weitere Regeln:
@@ -95,14 +125,14 @@ Weitere Regeln:
 - **Ersatz:** Hinter dem gewählten Modell stehen die anderen. Gewechselt wird nur, wenn der Anbieter nichts berechnet
   hat: 5xx, 429, 401/403, keine Verbindung oder Zeitüberschreitung vor der Antwort. Bricht eine schon angenommene
   Antwort ab, gibt es keinen Wechsel; abgerechnet wird genau einmal.
-- **Notschalter:** `LERNAPP_AI_DISABLED=deepseek` schaltet einen Anbieter ab (oder mehrere, mit Komma). Fehlt einem
+- **Notschalter:** `LERNAPP_AI_DISABLED=anthropic` schaltet einen Anbieter ab (oder mehrere, mit Komma). Fehlt einem
   Anbieter der Schlüssel, ist er ebenfalls raus; die anderen des Weges übernehmen seinen Anteil.
 - **Einstellen:** `LERNAPP_AI_ROUTES` (JSON) legt Wege je Zweck, den schweren Weg, die schweren Zwecke und die
   Rechen-Regel fest.
 
 **Ergebnis für eine typische Nutzung** (Annahme `TYPICAL_MIX`, nicht gemessen; je 100 Anfragen: 60 einfach, 20 mittel,
-20 schwer, davon 7 durch Rechnen oder Zweitmeinung): **DeepSeek 49 %, OpenAI 26 %, Sonnet 25 %**
-(`ai_router.expected_share()`, im Test auf ±3 Prozentpunkte geprüft). Die echte Verteilung zeigt
+20 schwer, davon 7 durch Rechnen oder Zweitmeinung): **OpenAI 75 %, Sonnet 25 %, DeepSeek 0 %** (erste Mischung:
+DeepSeek 49 %, OpenAI 26 %, Sonnet 25 %; `ai_router.expected_share()`, im Test auf ±3 Prozentpunkte geprüft). Die echte Verteilung zeigt
 `GET /api/billing/ai-usage` unter `by_provider` (nur Inhaber).
 
 ## 4. Kosten
@@ -114,12 +144,14 @@ Typische Anfrage mit 3.000 Tokens Eingabe und 600 Tokens Ausgabe, ohne Cache:
 | DeepSeek V4.1-Flash (Scaleway) | 3.000 × 0,60 € + 600 × 1,80 € | 0,288 Cent |
 | gpt-6-luna (EU, +10 %) | 3.000 × 0,11 $ + 600 × 0,55 $ | 0,066 Cent (USA: 0,060) |
 | Sonnet 5.5 (Bedrock EU) | 3.000 × 2,20 $ + 600 × 11,00 $ | 1,32 Cent |
-| **Mischung 49/26/25** | | **≈ 0,49 Cent je Anfrage** |
+| erste Mischung 49/26/25 (DeepSeek/OpenAI/Sonnet) | | ≈ 0,49 Cent je Anfrage |
+| **Mischung 75/25 (OpenAI/Sonnet), gilt** | 0,75 × 0,066 + 0,25 × 1,32 | **≈ 0,38 Cent je Anfrage** (USA: 0,375) |
 
-Die Mischung ist damit etwa **7-mal so teuer wie nur `gpt-6-luna`**. Für Studierende zählt aber die Rundung: Jede Anfrage
-kostet mindestens 1 Credit. Eine typische Anfrage über DeepSeek oder OpenAI kostet 1 Credit, über Sonnet 2 Credits. Im
-Mittel sind das etwa 1,25 Credits; mit 100 Credits reicht Pro AI also für rund 80 typische Anfragen statt 100. Die echten
-Kosten eines voll genutzten Pro-AI-Kontos liegen bei etwa 0,40 €, höchstens 1 €.
+Die Mischung ist etwa **6-mal so teuer wie nur `gpt-6-luna`**; fast alles davon ist Sonnet für die schweren Fälle. Für
+Studierende zählt die Rundung: Jede Anfrage kostet mindestens 1 Credit. Eine typische Anfrage über OpenAI kostet
+1 Credit, über Sonnet 2 Credits. Im Mittel sind das etwa 1,25 Credits; mit 100 Credits reicht Pro AI also für rund
+80 typische Anfragen statt 100. Die echten Kosten eines voll genutzten Pro-AI-Kontos liegen bei etwa 0,30 € (erste
+Mischung: 0,40 €), höchstens 1 €.
 
 ## 5. Harte Grenze je Konto (100 Credits = 1 €)
 
@@ -151,7 +183,9 @@ Kosten eines voll genutzten Pro-AI-Kontos liegen bei etwa 0,40 €, höchstens 1
 
 ## 7. Was der Inhaber anlegen und unterschreiben muss
 
-1. **Scaleway:**
+Seit Abschnitt 0 nur noch **AWS** (2.) und **OpenAI** (3.); Scaleway (1.) entfällt, solange DeepSeek aus ist.
+
+1. **Scaleway (entfällt, nur falls DeepSeek wieder eingeschaltet wird):**
    - Konto mit Organisation und Projekt in fr-par anlegen.
    - Unter IAM einen API-Schlüssel erzeugen und als `LERNAPP_DEEPSEEK_API_KEY` eintragen.
    - Unter Organisation → Verträge den AVV herunterladen und ablegen.
@@ -166,12 +200,13 @@ Kosten eines voll genutzten Pro-AI-Kontos liegen bei etwa 0,40 €, höchstens 1
    - Das bestehende Konto behalten und den DPA annehmen (platform.openai.com → Settings).
    - Beim Vertrieb ein Projekt mit EU-Datenresidenz beantragen. Danach einen Schlüssel aus diesem Projekt nehmen und
      `LERNAPP_OPENAI_BASE_URL` setzen.
-4. **Datenschutzerklärung:** Abschnitt 8c nennt die drei Auftragsverarbeiter. Vor der Veröffentlichung rechtlich
+4. **Datenschutzerklärung:** Abschnitt 8c nennt die zwei Auftragsverarbeiter (OpenAI, AWS). Vor der Veröffentlichung rechtlich
    prüfen lassen.
 
 ## 8. Dateien
 
-- `app/ai_router.py` (neu): Wege, Gewichte, schwere Fälle, Ersatz-Reihenfolge, `expected_share`.
+- `app/ai_router.py` (neu): Wege, Gewichte, schwere Fälle, Ersatz-Reihenfolge, `expected_share`; seit Abschnitt 0
+  `OPT_IN` und `DEEPSEEK_ROUTES_EXAMPLE` (`app/ai_backend.configured_providers` prüft beides).
 - `app/ai_providers.py` (neu): DeepSeek in der EU (OpenAI-kompatibel), Claude über das SDK (Bedrock oder direkt),
   Sperre für Adressen in China.
 - `app/ai_backend.py`: Kette, Reservierung für die Obergrenze, Verkleinern, Ersatz, Cache ohne Modell, `by_provider`.
@@ -181,5 +216,5 @@ Kosten eines voll genutzten Pro-AI-Kontos liegen bei etwa 0,40 €, höchstens 1
 - `app/week_library.py`: Kosten mit dem Modell der Antwort.
 - `requirements.txt`: `anthropic[bedrock]==2.1.0`.
 - Konfiguration und Rechtstexte: `deploy/.env.example`, `docs/START-DIENST-CHECKLISTE.md`,
-  `docs/release/DATENSCHUTZ.md`.
+  `docs/release/DATENSCHUTZ.md` (seit Abschnitt 0 ohne Scaleway), `site/datenschutz.html` (`tools/gen-site.py`).
 - Tests: `tests/test_ai_routing.py`.

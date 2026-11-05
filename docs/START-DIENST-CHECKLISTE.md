@@ -4,8 +4,8 @@ Für den Inhaber. Schritt für Schritt vom leeren Server bis zum laufenden Diens
 (`docs/PLAN-WEB-ZUERST-2026-10-30.md`, Stufe A). Du brauchst keine Programmierkenntnisse, nur ein Terminal (Windows:
 PowerShell oder Windows-Terminal; Mac: Terminal) und etwa zwei Stunden plus Wartezeiten bei den Anbietern.
 
-Die Technik ist fertig und geprüft (Abschnitt 15). Du steckst nur noch fünf Dinge ein: **Server, Domain, Mail-Anbieter,
-Stripe-Schlüssel, KI-Schlüssel (Scaleway, AWS Bedrock, OpenAI; Abschnitt 5.4).** Stripe und die KI kannst du auch später nachtragen; der Dienst läuft ohne sie
+Die Technik ist fertig und geprüft (Abschnitt 15). Du steckst nur noch fünf Dinge ein: **Server, Domain, Mail (dein
+STRATO-Postfach, Abschnitt 5.2), Stripe-Schlüssel, KI-Schlüssel (OpenAI und AWS Bedrock; Abschnitt 5.4).** Stripe und die KI kannst du auch später nachtragen; der Dienst läuft ohne sie
 mit Free-Tarif und 7-Tage-Probe.
 
 Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; alle Variablen mit Erklärung in
@@ -20,7 +20,7 @@ Ausführliche Erklärungen zu jedem Befehl stehen in `docs/release/BETRIEB.md`; 
 | Name und Domain | „StudiNow“ steht in der App; Domain muss dazu passen und frei sein (Plan, Abschnitt 4.4). Prüfen, ob der Name als Marke frei ist. |
 | Dienst darf Uni-Passwörter halten? | Entschieden 30.10.: **ja**, mit Zustimmung je Nutzer in der Oberfläche (ist gebaut). Deshalb gehört Chromium ins Image (Abschnitt 14). |
 | Bezahlen zum Start? | Entschieden 30.10.: **erst Free** mit 7 Tagen Probe; Stripe ist gebaut und wird eingeschaltet, sobald du die Schlüssel einträgst. |
-| KI im Dienst? | Entschieden 30.10.: StudiNow-KI über deine Schlüssel (Pro AI); seit 05.11. als Mischung aus DeepSeek (Scaleway, EU), OpenAI und Claude Sonnet 5.5 (Bedrock, EU), Abschnitt 5.4. Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
+| KI im Dienst? | Entschieden 30.10.: StudiNow-KI über deine Schlüssel (Pro AI); seit 05.11. als Mischung aus OpenAI (ChatGPT, etwa 75 %) und Claude Sonnet 5.5 (Bedrock Frankfurt, etwa 25 %); DeepSeek ist aus. Abschnitt 5.4. Ohne Schlüssel bleiben die KI-Funktionen sauber aus (503). |
 | Passwort-Manager | Für Dienst-Geheimnis, Server-Zugang, Stripe- und KI-Schlüssel. Nichts davon in Notizen oder Chats. |
 
 ---
@@ -78,7 +78,9 @@ dig +short app.studinow.app         # muss die Server-IP liefern
 **Erst weitermachen, wenn das stimmt.** Caddy holt beim ersten Start ein Zertifikat von Let's Encrypt; zeigt der Name
 noch nicht auf den Server, scheitert das, und Let's Encrypt zählt Fehlversuche (nach 5 pro Stunde Sperre).
 
-Für die Mails (Abschnitt 5.4) legt dein Mail-Anbieter später noch SPF/DKIM-Einträge an, ebenfalls im DNS.
+Für die Mails (Abschnitt 5.2): Liegt die Domain bei STRATO, setzt STRATO die Mail-Einträge (MX, SPF) selbst; liegt sie
+woanders, die Einträge aus dem STRATO-Kunden-Login dort eintragen. Bei Resend (Alternative) kommen dessen SPF/DKIM-Einträge
+dazu.
 
 ---
 
@@ -154,24 +156,42 @@ richtig in der Vorlage – nicht ändern.
 
 ### 5.2 Mail (für den Start nötig)
 
-Ohne Mail können Nutzer ihre Adresse nicht bestätigen und kein Passwort zurücksetzen. Anbieter mit SMTP, zum Beispiel
-**Resend** (bis 3.000 Mails/Monat kostenlos), Brevo, Postmark oder Mailgun:
+Ohne Mail können Nutzer ihre Adresse nicht bestätigen und kein Passwort zurücksetzen.
 
-1. Konto beim Anbieter anlegen, Domain `studinow.app` dort hinzufügen.
-2. Der Anbieter zeigt DNS-Einträge (SPF, DKIM, meist 2–3 TXT/CNAME) – beim Domain-Anbieter eintragen, dann beim
-   Mail-Anbieter „Verify“ drücken.
-3. SMTP-Zugangsdaten erzeugen (bei Resend: API-Schlüssel; Nutzer ist `resend`, Passwort der Schlüssel).
-4. In `.env`:
+**Standard (05.11.2026): dein Postfach bei STRATO.** Du hast `support@studinow.app` bei STRATO angelegt; STRATO steht
+schon als Mail-Anbieter in der Datenschutzerklärung (Abschnitt 11). Die Werte stammen aus der STRATO-Hilfe
+„E-Mail-Adresse mit externen E-Mail-Clients nutzen“
+(<https://www.strato.de/faq/mail/externes-e-mail-programm-mit-strato-e-mail-adresse-nutzen/>) und „E-Mails über SSL/TLS
+senden + empfangen“
+(<https://www.strato.de/faq/article/118/Wie-kann-ich-meine-E-Mails-ueber-eine-gesicherte-Verbindung-SSL-oder-TLS-versenden-und-empfangen.html>),
+beide gelesen am 05.11.2026: Postausgang `smtp.strato.de`, **Port 465 mit SSL/TLS**, Anmeldung mit der **vollständigen
+E-Mail-Adresse** und dem Passwort des Postfachs. Port 587 mit STARTTLS nennt STRATO nur für Smarthost/Relay; für
+Programme wie den Dienst empfiehlt STRATO 465. Der Dienst kann 465 (SSL von Anfang an, Zertifikat wird geprüft,
+`app/mail.py`).
+
+1. Im STRATO-Kunden-Login → **E-Mail-Verwaltung** → `support@studinow.app` → **Postfach bearbeiten** → „Weitere Namen
+   (Aliase) zum Postfach anlegen“: `no-reply@studinow.app` anlegen und speichern. Der Absender muss das Postfach selbst
+   oder ein Alias davon sein. [ungeprüft: ob STRATO einen fremden Absender ablehnt; mit Alias stellt sich die Frage nicht]
+2. Besser: ein eigenes Passwort nur für den Dienst. Dafür entweder ein zweites Postfach (z. B. `no-reply@studinow.app`
+   als eigenes Postfach statt Alias) oder das Passwort von `support@` nur im Passwort-Manager und in `.env` halten.
+3. In `.env` (die Vorlage hat Host, Port und Absender schon so):
 
 | Variable | Wert |
 |---|---|
-| `LERNAPP_SMTP_HOST` | vom Anbieter, z. B. `smtp.resend.com` |
-| `LERNAPP_SMTP_PORT` | `587` (oder `465`, wenn der Anbieter nur das anbietet) |
-| `LERNAPP_SMTP_USER` / `LERNAPP_SMTP_PASSWORD` | vom Anbieter |
-| `LERNAPP_MAIL_FROM` | `StudiNow <no-reply@studinow.app>` (Domain muss beim Anbieter verifiziert sein) |
+| `LERNAPP_SMTP_HOST` | `smtp.strato.de` |
+| `LERNAPP_SMTP_PORT` | `465` (SSL/TLS) |
+| `LERNAPP_SMTP_USER` | die volle Adresse des Postfachs, z. B. `support@studinow.app` |
+| `LERNAPP_SMTP_PASSWORD` | Passwort dieses Postfachs |
+| `LERNAPP_MAIL_FROM` | `StudiNow <no-reply@studinow.app>` (Alias aus Schritt 1) |
 | `LERNAPP_MAIL` | leer lassen (= `smtp`, sobald der Host gesetzt ist) |
 
-Der Mail-Anbieter kommt in die Datenschutzerklärung (Abschnitt 11) und braucht einen AVV (Abschnitt 13).
+Danach einmal „Passwort vergessen“ testen (Abschnitt 7) und den Eingang auf Spam prüfen.
+
+**Alternative: Resend** (bis 3.000 Mails/Monat kostenlos): Konto anlegen, Domain `studinow.app` hinzufügen, die
+angezeigten SPF/DKIM-Einträge im DNS eintragen und „Verify“ drücken, API-Schlüssel erzeugen. Dann
+`LERNAPP_SMTP_HOST=smtp.resend.com`, Port `465` oder `587`, Nutzer `resend`, Passwort der API-Schlüssel. Resend braucht
+dann einen AVV (Abschnitt 13) und ersetzt STRATO in der Datenschutzerklärung (Abschnitt 11, `docs/release/angaben.json`
+`mail_anbieter`).
 
 ### 5.3 Stripe (optional, jederzeit nachtragbar)
 
@@ -194,44 +214,43 @@ Im Stripe-Dashboard (stripe.com), zuerst im **Testmodus**:
 Erst mit Test-Schlüsseln und Stripe-Testkarte (4242 4242 4242 4242) einen Abschluss durchspielen, dann Live-Schlüssel
 und Live-Preise eintragen und den Webhook im Live-Modus noch einmal anlegen (eigenes `whsec_`).
 
-### 5.4 StudiNow-KI: DeepSeek (EU), OpenAI, Claude Sonnet 5.5 (optional, jederzeit nachtragbar)
+### 5.4 StudiNow-KI: OpenAI und Claude Sonnet 5.5 (optional, jederzeit nachtragbar)
 
-Stand 05.11.2026. Die KI mischt drei Anbieter nach Aufgabe (etwa 50 % DeepSeek, 25 % ChatGPT, 25 % Sonnet; schwere
-Fälle an Sonnet). Begründung, Preise und Quellen: `docs/KI-MODELLMISCHUNG-2026-11-05.md`. Jeder Anbieter ist einzeln
-optional; was fehlt, fällt aus der Mischung, die anderen übernehmen. Mit **einem** Anbieter läuft die KI schon.
-Pro AI hat 100 Credits = höchstens 1 € KI-Kosten je Monat. Die Grenze ist hart: Vor jeder Anfrage wird ihre Obergrenze
-reserviert.
+Stand 05.11.2026 (Inhaber: „also nein dann benutz gpt eher als deepseek“). Die KI mischt **zwei** Anbieter nach Aufgabe:
+etwa **75 % ChatGPT** (OpenAI `gpt-6-luna`) und **25 % Claude Sonnet 5.5** (Amazon Bedrock Frankfurt) für die schweren
+Fälle (Bewerten, „Erkläre alle Aufgaben“, Rechnen und Herleiten, „Antwort war falsch“). Begründung, Preise und Quellen:
+`docs/KI-MODELLMISCHUNG-2026-11-05.md`. Jeder Anbieter ist einzeln optional; was fehlt, fällt aus der Mischung, der
+andere übernimmt. Mit **einem** Anbieter läuft die KI schon. Pro AI hat 100 Credits = höchstens 1 € KI-Kosten je
+Monat. Die Grenze ist hart: Vor jeder Anfrage wird ihre Obergrenze reserviert.
 
-**Konten, Schlüssel, Verträge:**
+**DeepSeek (Scaleway, Paris) ist aus.** Der Code bleibt, ein Konto bei Scaleway brauchst du **nicht**. Selbst ein
+eingetragener `LERNAPP_DEEPSEEK_API_KEY` schaltet DeepSeek nicht ein; dafür müsste zusätzlich `LERNAPP_AI_ROUTES` ihn
+nennen (Beispielzeile in `deploy/.env.example`), und Scaleway müsste mit AVV in die Datenschutzerklärung.
 
-1. **Scaleway** (DeepSeek, Paris):
-   - console.scaleway.com: Organisation und Projekt (Region fr-par) anlegen, **IAM → API keys → Secret Key**.
-   - **Organisation → Verträge**: den AVV herunterladen und ablegen.
-   - Ein Budget-Limit setzen.
-   - DeepSeek **nie** über api.deepseek.com; der Dienst lehnt solche Adressen ab.
+**Konten, Schlüssel, Verträge (nur diese zwei):**
+
+1. **OpenAI** (platform.openai.com):
+   - Ein Konto mit Zahlungsmittel einrichten: **API keys → Create new secret key** und ein Ausgabenlimit setzen.
+   - Den **Data Processing Addendum** annehmen.
+   - Beim Vertrieb ein Projekt mit **EU-Datenresidenz** beantragen und den Schlüssel aus diesem Projekt nehmen; die
+     Freischaltung braucht ZDR oder eine geänderte Missbrauchsprüfung. Bis dahin läuft OpenAI über die USA.
 2. **AWS** (Claude Sonnet 5.5 über Bedrock, Frankfurt):
    - Ein Konto anlegen und in **Bedrock → Model access** (Region eu-central-1) den Zugang zu Claude Sonnet 5.5 anfragen.
    - Danach einen **Bedrock-API-Schlüssel** anlegen oder einen IAM-Nutzer nur mit `bedrock:InvokeModel*`.
    - Der DPA gilt über die AWS Service Terms. Einen Budget-Alarm setzen.
    - In der Konsole prüfen, dass das Modell über den **EU-Endpunkt** läuft (nicht „Global“).
-3. **OpenAI** (platform.openai.com):
-   - Ein Konto mit Zahlungsmittel einrichten: **API keys → Create new secret key** und ein Ausgabenlimit setzen.
-   - Den **Data Processing Addendum** annehmen.
-   - Empfohlen: beim Vertrieb ein Projekt mit **EU-Datenresidenz** beantragen und den Schlüssel aus diesem Projekt
-     nehmen; die Freischaltung braucht ZDR oder eine geänderte Missbrauchsprüfung.
 
 | Variable | Wert |
 |---|---|
-| `LERNAPP_DEEPSEEK_API_KEY` | Secret Key von Scaleway |
-| `LERNAPP_DEEPSEEK_MODEL` | leer = `deepseek-v4.1-flash-1017` (liest Bilder); `deepseek-v4-flash-0731` ist günstiger und liest nur Text |
-| `LERNAPP_ANTHROPIC_API_KEY` | Bedrock-API-Schlüssel (oder `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` setzen) |
-| `LERNAPP_ANTHROPIC_REGION` / `LERNAPP_ANTHROPIC_MODEL` | leer = `eu-central-1` / `anthropic.claude-sonnet-5-5`; nur `eu-*` erlaubt |
 | `LERNAPP_OPENAI_API_KEY` | `sk-…` |
 | `LERNAPP_AI_MODEL` | OpenAI-Modell, z. B. `gpt-6-luna` |
 | `LERNAPP_OPENAI_BASE_URL` | erst nach der Freischaltung der EU-Residenz: `https://eu.api.openai.com/v1` (die Preise rechnet der Dienst dann mit +10 %) |
-| `LERNAPP_AI_DISABLED` | Notschalter, z. B. `deepseek`; danach `docker compose up -d` |
+| `LERNAPP_ANTHROPIC_API_KEY` | Bedrock-API-Schlüssel (oder `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` setzen) |
+| `LERNAPP_ANTHROPIC_REGION` / `LERNAPP_ANTHROPIC_MODEL` | leer = `eu-central-1` / `anthropic.claude-sonnet-5-5`; nur `eu-*` erlaubt |
+| `LERNAPP_DEEPSEEK_*` | **leer lassen** (DeepSeek aus) |
+| `LERNAPP_AI_DISABLED` | Notschalter, z. B. `anthropic`; danach `docker compose up -d` |
 | `LERNAPP_AI_ROUTES` | leer lassen (Standardwege in `app/ai_router.py`); nur zum Feinjustieren |
-| Preise | aus der Tabelle `app/ai_prices.py` (Stand `CHECKED`). Vor dem Start mit den Preislisten von OpenAI, Scaleway und AWS vergleichen. `LERNAPP_AI_PRICE_IN_EUR` / `_OUT_EUR` **leer lassen**: sie gälten für alle Modelle gleich. Ohne Preis für ein Modell sperrt der Dienst es (fail closed) |
+| Preise | aus der Tabelle `app/ai_prices.py` (Stand `CHECKED`). Vor dem Start mit den Preislisten von OpenAI und AWS vergleichen. `LERNAPP_AI_PRICE_IN_EUR` / `_OUT_EUR` **leer lassen**: sie gälten für alle Modelle gleich. Ohne Preis für ein Modell sperrt der Dienst es (fail closed) |
 | `LERNAPP_AI_BUDGET_EUR` / `LERNAPP_AI_USER_BUDGET_EUR` | Monatsgrenze gesamt (Standard 50) und je Konto (Standard 2); erreicht = Sperre bis zum nächsten Monat |
 | `LERNAPP_AI_TRIAL_BUDGET_EUR` | Eigenes Monatsbudget für alle Probekonten zusammen (Standard 5), zusätzlich zum Gesamtbudget: die Probe verbraucht nie das Budget zahlender Konten. StudiNow-KI gibt es nur mit bestätigter E-Mail-Adresse (403 `email_unverified`) |
 | `LERNAPP_AI_LIBRARY_BUDGET_EUR` / `LERNAPP_AI_LIBRARY_PREP_PER_DAY` | Eigenes Monatsbudget der Bibliothek für die fertigen Wochenfragen (Standard 20 €, zusätzlich zum Gesamtbudget; erreicht = 429 `ai_library_budget_exhausted` für neue Wochen) und neue Wochen je Konto und Tag (Standard 10). Siehe `docs/BIBLIOTHEK-WOCHENFRAGEN.md` |
@@ -239,9 +258,10 @@ reserviert.
 **Nach dem Start prüfen:**
 
 - Eine Frage im Web stellen.
-- Als Inhaber `GET /api/billing/ai-usage` aufrufen. `by_provider` zeigt die Verteilung und die Kosten je Anbieter.
-- Auf Scaleway nachsehen, ob die Nutzung im Strom ankommt: In `/api/billing/ai-costs` müssen die Tokens größer als 0
-  sein. Fehlt die Nutzung, rechnet der Dienst die Reservierung ab.
+- Als Inhaber `GET /api/billing/ai-usage` aufrufen. `by_provider` zeigt die Verteilung und die Kosten je Anbieter
+  (erwartet etwa 75 % `openai`, 25 % `anthropic`, 0 % `deepseek`).
+- In `/api/billing/ai-costs` müssen die Tokens größer als 0 sein. Fehlt die Nutzung, rechnet der Dienst die
+  Reservierung ab.
 
 ### 5.5 Registrierungen je IP (Hochschulnetz)
 
@@ -429,10 +449,11 @@ vorübergehend im `Caddyfile` `output discard` durch `output stderr` ersetzen un
    `git pull` und `docker compose up -d --build` (oder eigenen Ordner als Volume und `LERNAPP_LEGAL_DIR`).
 2. **Auftragsverarbeitung (AVV)** mit dem Hoster **und** dem Mail-Anbieter abschließen.
    - Bei Stripe den DPA im Dashboard akzeptieren.
-   - Für die StudiNow-KI je einen Vertrag mit den drei KI-Anbietern abschließen (Abschnitt 5.4):
-     - Scaleway: AVV unter Organisation → Verträge;
-     - AWS: DPA über die Service Terms;
-     - OpenAI: Data Processing Addendum.
+   - Mail: STRATO bietet einen AVV im Kunden-Login an [ungeprüft: genauer Menüpunkt]; abschließen und ablegen.
+   - Für die StudiNow-KI je einen Vertrag mit den zwei KI-Anbietern abschließen (Abschnitt 5.4):
+     - OpenAI: Data Processing Addendum;
+     - AWS: DPA über die Service Terms.
+     - Scaleway nur, falls DeepSeek später wieder eingeschaltet wird (AVV unter Organisation → Verträge).
    - Alle in der Datenschutzerklärung nennen (Abschnitte 8c, 11, 12).
 3. **Anfrage an LUH und Hildesheim**: Der Dienst meldet sich mit Nutzer-Zugangsdaten bei Stud.IP/Learnweb an. Die
    Entscheidung vom 30.10. verlangt eine parallele Anfrage an die Hochschulen (`docs/ANFRAGE-STUDIP-ZUGANG.md` als
@@ -509,9 +530,9 @@ im Dockerfile und kann auf 2 GB RAM gehen.
 | Server 2 vCPU / 4 GB | 5–6 € | Hetzner CX23 o. ä.; 4 vCPU / 8 GB ca. 12–15 € |
 | Domain | 1–2 € | Jahrespreis umgerechnet |
 | Backup außer Haus | 3–4 € | Hetzner Storage Box 1 TB |
-| Mail | 0 € | Resend bis 3.000 Mails/Monat; danach ca. 20 €/Monat |
+| Mail | 0 € extra | STRATO-Postfach (schon vorhanden); Alternative Resend bis 3.000 Mails/Monat frei, danach ca. 20 €/Monat |
 | Monitoring | 0 € | UptimeRobot Free |
 | Stripe | 0 € fest | je Zahlung ca. 1,5 % + 0,25 € (EU-Karten); bei 1,99 € also ca. 0,28 € je Abo-Monat |
-| KI (Pro AI: Scaleway, OpenAI, AWS Bedrock) | 0 € ohne Nutzer | nach Verbrauch, typisch etwa 0,5 Cent je Anfrage in der Mischung (`docs/KI-MODELLMISCHUNG-2026-11-05.md`); je Pro-AI-Konto höchstens 1 € (100 Credits, harte Grenze); `LERNAPP_AI_BUDGET_EUR=50` ist die Obergrenze für alle zusammen |
+| KI (Pro AI: OpenAI, AWS Bedrock) | 0 € ohne Nutzer | nach Verbrauch, typisch etwa 0,38 Cent je Anfrage in der Mischung 75/25 (`docs/KI-MODELLMISCHUNG-2026-11-05.md`); je Pro-AI-Konto höchstens 1 € (100 Credits, harte Grenze); `LERNAPP_AI_BUDGET_EUR=50` ist die Obergrenze für alle zusammen |
 | Anwalt für Rechtstexte | einmalig | nach Aufwand |
 | **Summe ohne KI und Anwalt** | **rund 10–12 €** | |

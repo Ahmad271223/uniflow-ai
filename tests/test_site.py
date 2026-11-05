@@ -20,7 +20,7 @@ FILES = PAGES + ("style.css", "icon.svg")
 NESTED = ("i/index.html", ".well-known/apple-app-site-association")
 TEAM_ID = re.compile(r"(?:\b[A-Z0-9]{10}|\[\[TEAMID\]\])\.de\.uniflow\.ai\b")
 COMPANY = ("IT solutions by Ahmad Fakih", "Ahmad Fakih", "Baldurstraße 5", "30657 Hannover", "support@studinow.app")
-OPEN_ALLOWED = {"Hoster", "Serverstandort", "Mail-Anbieter"}      # Hosting des Dienstes ist nicht entschieden
+OPEN_ALLOWED = {"Hoster", "Serverstandort"}      # Hosting des Dienstes ist nicht entschieden
 PLACEHOLDER = re.compile(r"\[\[([^\]]+)\]\]")
 
 
@@ -30,7 +30,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert "10 Dateien" in p.stdout and "datenschutz.html: 3 Platzhalter offen" in p.stdout
+    assert "10 Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
     return out
 
 
@@ -71,7 +71,7 @@ def test_only_the_hoster_placeholders_are_open():
         assert found <= OPEN_ALLOWED, (name, found - OPEN_ALLOWED)
         if name == "datenschutz.html":
             assert found == OPEN_ALLOWED
-            assert html.count('<mark class="todo"') == 3, "offene Stellen sichtbar markiert"
+            assert html.count('<mark class="todo"') == 2, "offene Stellen sichtbar markiert"
         else:
             assert not found and "todo" not in html
 

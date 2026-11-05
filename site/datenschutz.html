@@ -37,7 +37,7 @@ eingeschaltet hast.</p>
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:</li>
 <li>Du verbindest <strong>dein eigenes ChatGPT</strong> (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.</li>
 <li>Du nutzt im Tarif <strong>Pro AI</strong> die <strong>StudiNow-KI</strong> (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
-    von drei Auftragsverarbeitern weiter: Scaleway (Paris), Amazon Web Services (Frankfurt) oder OpenAI.</li>
+    von zwei Auftragsverarbeitern weiter: OpenAI oder Amazon Web Services (Frankfurt).</li>
 </ul>
 <h2>2. Verantwortlicher</h2>
 <p>IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih), Baldurstraße 5, 30657 Hannover, Deutschland,
@@ -329,22 +329,20 @@ ohne sie funktioniert StudiNow genauso.</p>
 </ul>
 <p>Nie gesendet werden dein Name, deine E-Mail-Adresse, Zugangsdaten, Hochschul-Sitzungen und Noten. OpenAI erhält zur
   Missbrauchserkennung eine nicht umkehrbare Kennung deines Kontos, nicht die Konto-ID.
-- <strong>Wohin:</strong> Der Dienst gibt jede Anfrage an <strong>einen</strong> von drei Auftragsverarbeitern weiter. Welcher es ist, hängt von
-  der Aufgabe ab (einfache Aufgaben an günstige Modelle, schwere an Claude), bei einer Störung auch vom Ersatz:
-  - <strong>Scaleway SAS</strong> (Paris, Frankreich): Modell „DeepSeek“ in einem Rechenzentrum in Paris. Laut Scaleway werden
-    Anfragen nicht gespeichert und nicht zum Training verwendet; bei Fehlern oder Verdacht auf Missbrauch bis zu zwei
-    Wochen. Die Firma DeepSeek und ihre Server in China erhalten <strong>keine</strong> Daten.
-  - <strong>Amazon Web Services EMEA SARL</strong> (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
-    Modell „Claude Sonnet“ von Anthropic.
+- <strong>Wohin:</strong> Der Dienst gibt jede Anfrage an <strong>einen</strong> von zwei Auftragsverarbeitern weiter. Welcher es ist, hängt von
+  der Aufgabe ab (die meisten Aufgaben an ChatGPT, schwere wie Rechnen, Herleiten oder das Prüfen einer Lösung an
+  Claude), bei einer Störung auch vom Ersatz:
   - <strong>OpenAI</strong>: ChatGPT-Modelle. Die Verarbeitung findet in den USA statt (siehe Abschnitt 12), bis unser Projekt mit
     Datenresidenz in der EU freigeschaltet ist; dann ändern wir diesen Satz.
+  - <strong>Amazon Web Services EMEA SARL</strong> (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
+    Modell „Claude Sonnet“ von Anthropic.
 - <strong>Was StudiNow speichert:</strong>
   - je Anfrage Zeitpunkt, Zweck, Modell, Anzahl der Tokens und Kosten (für Credits und Budget);
   - die Antwort 24 Stunden lang, damit eine wiederholte Anfrage nicht doppelt kostet;
   - Antworten ohne eigene Notizen bis zu 30 Tage ohne Bezug zu deinem Konto, damit eine gleiche Anfrage sofort
     beantwortet wird;
   - Erklärungen ganzer Dokumente ohne Namen, für alle mit derselben Datei.
-- <strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. b DSGVO, weil du die KI-Funktion deines Tarifs nutzt. Mit allen drei
+- <strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. b DSGVO, weil du die KI-Funktion deines Tarifs nutzt. Mit beiden
   Anbietern besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO; sie dürfen die Daten nur für uns
   verarbeiten.</p>
 <h2>9. Käufe und Abos</h2>
@@ -372,9 +370,9 @@ Art. 6 Abs. 1 lit. b DSGVO.</p>
 <h2>11. Hosting, E-Mail-Versand und Auftragsverarbeiter</h2>
 <p>Der Dienst läuft bei <mark class="todo" title="noch auszufüllen">[[Hoster]]</mark>, Serverstandort <mark class="todo" title="noch auszufüllen">[[Serverstandort]]</mark>, auf Grundlage eines Vertrags zur
 Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetzen, Bestätigungen) versendet
-<mark class="todo" title="noch auszufüllen">[[Mail-Anbieter]]</mark> in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind <strong>Scaleway SAS</strong> (Paris, Frankreich),
-<strong>Amazon Web Services EMEA SARL</strong> (Amazon Bedrock, Region Frankfurt) und <strong>OpenAI</strong> Auftragsverarbeiter, jeweils mit
-einem Vertrag nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.</p>
+STRATO GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin (Deutschland) in unserem Auftrag. Für die StudiNow-KI (Abschnitt 8c) sind <strong>OpenAI</strong> und
+<strong>Amazon Web Services EMEA SARL</strong> (Amazon Bedrock, Region Frankfurt) Auftragsverarbeiter, jeweils mit einem Vertrag
+nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.</p>
 <h2>12. Empfänger und Übermittlung in Drittländer</h2>
 <ul>
 <li><strong>Apple</strong> (App Store, „Mit Apple anmelden“, Abo) und <strong>Google</strong> (Google Play, „Mit Google anmelden“, Abo) sind
@@ -389,7 +387,7 @@ einem Vertrag nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.</p>
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
   OpenAI.</li>
 <li><strong>StudiNow-KI (Abschnitt 8c):</strong></li>
-<li>Scaleway und Amazon Web Services verarbeiten in der EU.</li>
+<li>Amazon Web Services verarbeitet in der EU (Frankfurt).</li>
 <li>OpenAI verarbeitet als unser Auftragsverarbeiter in den USA. Die Übermittlung stützt sich auf das EU-US Data
     Privacy Framework bzw. die Standardvertragsklauseln im Vertrag mit OpenAI.</li>
 <li>Sonst geben wir keine Daten weiter – nicht an Werbenetzwerke, nicht an Analyse-Dienste, nicht an Dritte zum

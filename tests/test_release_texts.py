@@ -93,7 +93,7 @@ def test_placeholders_use_one_syntax_and_are_listed():
         text = (REL / f).read_text(encoding="utf-8")
         assert "TODO" not in text and "TBD" not in text and "XXX" not in text, f
         seen |= set(re.findall(r"\[\[([^\]]+)\]\]", text))
-    for must in ("Hoster", "Serverstandort", "Mail-Anbieter", "Telefon"):
+    for must in ("Hoster", "Serverstandort", "Telefon"):
         assert must in seen and f"[[{must}]]" in readme, must
 
 
@@ -112,7 +112,7 @@ def test_legal_texts_carry_the_owner_data_and_only_hosting_is_open():
     im = (REL / "IMPRESSUM.md").read_text(encoding="utf-8")
     assert "USt-IdNr. nach § 27a UStG: DE462836430" in im and "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV" in im
     assert "Ahmad Fakih, Anschrift wie oben" in im and "[[" not in im and "Variante" not in im
-    assert set(re.findall(r"\[\[([^\]]+)\]\]", (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8"))) == {"Hoster", "Serverstandort", "Mail-Anbieter"}
+    assert set(re.findall(r"\[\[([^\]]+)\]\]", (REL / "DATENSCHUTZ.md").read_text(encoding="utf-8"))) == {"Hoster", "Serverstandort"}
     for f in ("NUTZUNGSBEDINGUNGEN.md", "KONTO-LOESCHEN.md", "SUPPORT.md", "STARTSEITE.md"):
         text = (REL / f).read_text(encoding="utf-8")
         assert "[[" not in text and "support@studinow.app" in text, f

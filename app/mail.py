@@ -6,8 +6,8 @@ Betriebsart ueber LERNAPP_MAIL:
         Dienst ohne SMTP-Host; so laesst sich der Reset-Link im Betrieb aus der Datei holen)
   smtp  Versand ueber smtplib (Standard im gehosteten Modus, sobald LERNAPP_SMTP_HOST gesetzt ist)
 
-SMTP: LERNAPP_SMTP_HOST, LERNAPP_SMTP_PORT (587 = STARTTLS, Standard; 465 = SSL von Anfang an; alles andere: STARTTLS
-wenn der Server es anbietet), LERNAPP_SMTP_USER / LERNAPP_SMTP_PASSWORD (leer = ohne Anmeldung), LERNAPP_MAIL_FROM
+SMTP: LERNAPP_SMTP_HOST, LERNAPP_SMTP_PORT (587 = STARTTLS, Standard; 465 = SSL von Anfang an, z. B. STRATO
+smtp.strato.de; alles andere: STARTTLS wenn der Server es anbietet; Zertifikat und Hostname werden immer geprueft), LERNAPP_SMTP_USER / LERNAPP_SMTP_PASSWORD (leer = ohne Anmeldung), LERNAPP_MAIL_FROM
 (Absender, Standard der SMTP-Nutzer bzw. no-reply@<Host der oeffentlichen URL>). LERNAPP_PUBLIC_URL ist die Basis
 aller Links in Mails (z. B. https://uniflow.example); die Anmeldeseite nimmt den Reset-Token als /login?reset=<token>.
 
@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import smtplib
 import socket
+import ssl
 import sys
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -127,14 +128,16 @@ def _send_smtp(msg: EmailMessage) -> None:
     s = smtp_settings()
     if not s["host"]:
         raise RuntimeError("LERNAPP_SMTP_HOST ist nicht gesetzt")
+    # Zertifikat und Hostname pruefen (smtplib prueft ohne eigenen Kontext NICHT; das Passwort des Postfachs geht hier durch)
+    ctx = ssl.create_default_context()
     if s["port"] == 465:
-        client = smtplib.SMTP_SSL(s["host"], s["port"], timeout=SMTP_TIMEOUT)
+        client = smtplib.SMTP_SSL(s["host"], s["port"], timeout=SMTP_TIMEOUT, context=ctx)
     else:
         client = smtplib.SMTP(s["host"], s["port"], timeout=SMTP_TIMEOUT)
     try:
         client.ehlo()
         if s["port"] != 465 and (s["port"] == 587 or client.has_extn("starttls")):
-            client.starttls()
+            client.starttls(context=ctx)
             client.ehlo()
         if s["user"]:
             client.login(s["user"], s["password"])

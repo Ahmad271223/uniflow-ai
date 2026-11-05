@@ -4,7 +4,7 @@ Die App ruft nie selbst einen KI-Anbieter mit einem StudiNow-Schluessel auf: all
 Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt nur auf dem Server.
 
     LERNAPP_AI_PROVIDER        leer/mix = Modellmischung aller eingerichteten Anbieter (app/ai_router.py) | openai |
-                               deepseek | anthropic = nur dieser | none = aus
+                               deepseek | anthropic = nur dieser | none = aus (DeepSeek nur auf Wunsch, ai_router.OPT_IN)
     LERNAPP_OPENAI_API_KEY     Schluessel des StudiNow-Kontos bei OpenAI (nie in der App, nie im Repo, nie im Protokoll);
                                ersatzweise OPENAI_API_KEY
     LERNAPP_OPENAI_BASE_URL    Standard https://api.openai.com/v1; EU-Datenresidenz: https://eu.api.openai.com/v1 (Projekt
@@ -40,12 +40,12 @@ Kostenkontrolle (Tabellen in accounts.db):
 - `ai_inflight`: Sperre je Generierungsschluessel (z. B. Fach+Thema+Schwierigkeit). Eine zweite gleiche Generierung
   wartet auf die erste und nutzt deren Ergebnis, statt doppelt zu bezahlen.
 - `ai_cache`: Antworten fuer gleiche Anfragen (gleicher Zweck, gleicher Text), 30 Tage; das Modell gehoert nicht zum
-  Schluessel (eine Antwort von DeepSeek gilt auch fuer den naechsten, den der Router zu OpenAI schicken wuerde), es wird
+  Schluessel (eine Antwort von OpenAI gilt auch fuer den naechsten, den der Router zu Sonnet schicken wuerde), es wird
   aber mit gespeichert (`model`).
 
 Modellmischung (05.11.2026, app/ai_router.py, docs/KI-MODELLMISCHUNG-2026-11-05.md): je Anfrage waehlt der Router
-deterministisch aus request_id und Zweck einen Anbieter (DeepSeek in der EU, OpenAI, Claude Sonnet 5.5), schwere Faelle
-gehen an Sonnet. Vor dem Aufruf wird die harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das TEUERSTE Modell
+deterministisch aus request_id und Zweck einen Anbieter (Standard: OpenAI gpt-6-luna etwa 75 %, Claude Sonnet 5.5 ueber
+Bedrock Frankfurt etwa 25 % fuer schwere Faelle; DeepSeek in der EU nur auf Wunsch). Vor dem Aufruf wird die harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das TEUERSTE Modell
 der Kette reserviert; reicht der Rest der Credits nicht, wird die Ausgabegrenze verkleinert oder abgelehnt. Faellt der
 gewaehlte Anbieter aus, ohne etwas zu berechnen (5xx, 429, keine Verbindung), uebernimmt der naechste innerhalb derselben
 Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr als seine Credits (Pro AI 100 = 1 EUR).
@@ -183,18 +183,20 @@ def openai_base_url() -> str:
 
 
 def configured_providers(ignore_choice: bool = False) -> set[str]:
-    """Anbieter mit Schluessel (und Modell); LERNAPP_AI_PROVIDER=openai|deepseek|anthropic laesst nur diesen, none keinen."""
-    from . import ai_providers
+    """Anbieter mit Schluessel (und Modell); LERNAPP_AI_PROVIDER=openai|deepseek|anthropic laesst nur diesen, none keinen.
+    DeepSeek ist standardmaessig aus (ai_router.OPT_IN, Inhaber 05.11.2026): er zaehlt nur mit Schluessel UND wenn
+    LERNAPP_AI_ROUTES ihn nennt oder LERNAPP_AI_PROVIDER=deepseek gilt."""
+    from . import ai_providers, ai_router
     out = set()
+    choice = (os.environ.get("LERNAPP_AI_PROVIDER") or "").strip().lower()
     if api_key() and model():
         out.add("openai")
-    if ai_providers.deepseek_configured():
+    if ai_providers.deepseek_configured() and (choice == "deepseek" or ai_router.named_in_config("deepseek")):
         out.add("deepseek")
     if ai_providers.anthropic_configured():
         out.add("anthropic")
     if ignore_choice:
         return out
-    choice = (os.environ.get("LERNAPP_AI_PROVIDER") or "").strip().lower()
     if choice in ("", "mix"):
         return out
     return out & {choice}

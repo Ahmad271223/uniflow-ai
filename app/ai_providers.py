@@ -9,7 +9,9 @@ Fehler tragen zwei Merkmale fuer app/ai_backend.complete:
   Wechsel; abgerechnet wird die Reservierung (die Obergrenze), damit die Grenze je Konto hart bleibt.
 
 Umgebung (deploy/.env):
-    LERNAPP_DEEPSEEK_API_KEY     Schluessel beim EU-Anbieter (Scaleway: IAM-Secret-Key); ohne ihn ist DeepSeek aus
+    LERNAPP_DEEPSEEK_API_KEY     Schluessel beim EU-Anbieter (Scaleway: IAM-Secret-Key); ohne ihn ist DeepSeek aus.
+                                 Seit 05.11.2026 (Inhaber: ChatGPT statt DeepSeek) ist DeepSeek auch MIT Schluessel aus,
+                                 bis LERNAPP_AI_ROUTES ihn nennt (app/ai_router.OPT_IN, DEEPSEEK_ROUTES_EXAMPLE)
     LERNAPP_DEEPSEEK_BASE_URL    OpenAI-kompatible Adresse (Standard https://api.scaleway.ai/v1). Adressen von DeepSeek
                                  selbst (deepseek.com, China) werden abgelehnt.
     LERNAPP_DEEPSEEK_MODEL       Standard deepseek-v4.1-flash-1017 (braucht einen Preis in app/ai_prices.py)

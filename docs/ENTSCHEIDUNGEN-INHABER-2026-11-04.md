@@ -17,4 +17,15 @@
   Obergrenze reserviert, nie mehr berechnet; `app/credits.py`, `app/ai_prices.worst_case_microeur`).
 - 05.11.2026: StudiNow-KI mischt drei Modelle nach Aufgabe, etwa 50 % DeepSeek (nur über einen EU-Anbieter, Scaleway
   Paris), 25 % ChatGPT, 25 % Claude Sonnet 5.5 (Amazon Bedrock Frankfurt) für schwere Fälle
-  (`docs/KI-MODELLMISCHUNG-2026-11-05.md`).
+  (`docs/KI-MODELLMISCHUNG-2026-11-05.md`). **Ersetzt durch den nächsten Punkt.**
+- 05.11.2026 (später am Tag): **ChatGPT statt DeepSeek** („also nein dann benutz gpt eher als deepseek“). Standard ohne
+  DeepSeek: etwa **75 % ChatGPT** (OpenAI `gpt-6-luna`), **25 % Claude Sonnet 5.5** (Bedrock Frankfurt) für die schweren
+  Fälle. Typische Anfrage (3.000 Tokens ein, 600 aus) im Mittel ≈ 0,38 Cent statt 0,49 Cent; Pro AI (100 Credits = 1 €,
+  harte Grenze unverändert) reicht für rund 80 typische Anfragen, echte Kosten eines voll genutzten Kontos ≈ 0,30 €.
+  DeepSeek-Code und Scaleway-Preis bleiben, sind aber aus (`ai_router.OPT_IN`: nur mit Schlüssel **und** Nennung in
+  `LERNAPP_AI_ROUTES`). Scaleway ist kein Auftragsverarbeiter mehr (Datenschutz 8c, 11, 12); nötig sind nur OpenAI
+  (EU-Projekt, DPA) und AWS Bedrock (`docs/KI-MODELLMISCHUNG-2026-11-05.md`, Abschnitt 0).
+- 05.11.2026: Mail des Dienstes (Bestätigung, Passwort zurücksetzen) über das STRATO-Postfach des Inhabers
+  (`smtp.strato.de`, Port 465 SSL/TLS, Nutzer = volle Postfachadresse, Absender Alias `no-reply@studinow.app`); STRATO
+  steht als Mail-Anbieter in der Datenschutzerklärung (Abschnitt 11). Resend bleibt Alternative
+  (`docs/START-DIENST-CHECKLISTE.md`, Abschnitt 5.2).
