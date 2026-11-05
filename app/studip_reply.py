@@ -348,7 +348,150 @@ def annotate(conn, messages: list[dict]) -> list[dict]:
         m["replyable"] = is_replyable(m.get("sender"))
         m["replies"] = [{**r, "line": replied_line(r.get("at") or "")} for r in log if r.get("message_id") == mid]
         m["reply_url"] = reply_web_url(base, mid) if mid.startswith(LOCAL_PREFIX) else None
+        if mid.startswith("lw-msg-"):                     # Learnweb (Uni Hildesheim): Antwort in der Unterhaltung
+            m["reply_url"] = m.get("url")
+            m["source"] = "learnweb"
+        elif mid.startswith("moodle-"):                   # Moodle (HsH, app/moodle.py): Antwort in der Unterhaltung
+            m["reply_url"] = m.get("url")
+            m["source"] = "moodle"
+            m["replyable"] = True
     return messages
+
+
+# ---------------------------------------------------------------------------- Learnweb (Uni Hildesheim)
+
+def _learnweb_session():
+    """Sitzung des Learnwebs (gemerkte Cookies wie filestream); ohne: nicht verbunden"""
+    from . import filestream, hildesheim, learnweb_messages as lm
+    base = hildesheim.learnweb_base()
+    return lm.LiveSession(base, filestream.cookie_header("LEARNWEB_COOKIES", base))
+
+
+def _learnweb_fail(e: Exception, m: dict):
+    from . import learnweb_messages as lm
+    web = m.get("url")
+    if isinstance(e, lm.MessageError):
+        status = 409 if e.code in ("login", "self", "not_allowed") else 404 if e.code == "not_found" else 502
+        code = "learnweb_login" if e.code == "login" else f"reply_{e.code}"
+        raise HTTPException(status, {"detail": e.message, "code": code, "web_url": web})
+    if isinstance(e, (urllib.error.URLError, OSError, TimeoutError)):
+        raise HTTPException(503, {"detail": lm.ERRORS["offline"], "code": "reply_offline", "web_url": web})
+    raise e
+
+
+def learnweb_context(message_id: str, session=None) -> dict:
+    from . import learnweb_messages as lm
+    with db.cursor() as conn:
+        m = _stored(conn, message_id)
+        draft = draft_for(conn, message_id)
+    try:
+        s = session or _learnweb_session()
+        ctx = lm.live_context(s, lm.conversation_of(message_id))
+    except Exception as e:  # noqa: BLE001
+        _learnweb_fail(e, m)
+    if not ctx["replyable"]:
+        _learnweb_fail(lm.MessageError(ctx.get("reason") or "not_allowed"), m)
+    first = ctx["recipients"][0]
+    return {"message_id": message_id, "source": "learnweb", "subject": m.get("subject") or "", "reply_subject": "",
+            "no_subject": True, "group": ctx["group"], "member_count": ctx["member_count"],
+            "sender": {"id": str(first["id"]), "name": ctx["name"] or first["name"]},
+            "others": [{"id": str(r["id"]), "name": r["name"]} for r in ctx["recipients"][1:]] if ctx["group"] else [],
+            "other_count": max(0, len(ctx["recipients"]) - 1), "recipients_known": True, "allows_reply_all": False,
+            "is_circular": False, "quote": quote(m.get("text") or "", ctx["name"] or first["name"], m.get("sent_at")),
+            "draft": draft, "notice": lm.NOTICE, "web_url": m.get("url"), "outbox_url": (m.get("url") or "").split("?")[0] or None}
+
+
+def learnweb_send(message_id: str, b: dict, session=None) -> dict:
+    from . import learnweb_messages as lm
+    text = str(b.get("text") or "")
+    if not text.strip():
+        raise HTTPException(400, {"detail": "Bitte einen Text schreiben.", "code": "reply_empty"})
+    if len(text) > lm.MAX_TEXT:
+        raise HTTPException(400, {"detail": "Der Text ist zu lang.", "code": "reply_too_long"})
+    with db.cursor() as conn:
+        m = _stored(conn, message_id)
+    conv = lm.conversation_of(message_id)
+    try:
+        s = session or _learnweb_session()
+        ctx = lm.live_context(s, conv)                     # Empfaenger nur aus dem Learnweb, nie vom Browser
+        if not ctx["replyable"]:
+            raise lm.MessageError(ctx.get("reason") or "not_allowed")
+        name = ctx["name"] or (ctx["recipients"][0]["name"] if ctx["recipients"] else "")
+        q = quote(m.get("text") or "", name, m.get("sent_at")) if b.get("quote") else None
+        new_id = lm.live_send(s, conv, body(text, q))
+    except Exception as e:  # noqa: BLE001
+        _learnweb_fail(e, m)
+    at = now_iso()
+    record = {"message_id": message_id, "at": at, "subject": "", "text": text.strip(), "quoted": bool(q), "mode": "sender",
+              "recipients": len(ctx["recipients"]), "sent_id": str(new_id) if new_id is not None else None}
+    with db.cursor() as conn:
+        add_reply(conn, record)
+        remove_draft(conn, message_id)
+    return {"sent": True, "record": {**record, "line": replied_line(at)}, "outbox_url": m.get("url")}
+
+
+# ---------------------------------------------------------------------------- Moodle (Hochschule Hannover)
+
+def _moodle_fail(e: Exception, m: dict):
+    from . import moodle
+    web = m.get("url")
+    if isinstance(e, moodle.MoodleError):
+        if e.code == "login":
+            raise HTTPException(409, {"detail": e.message, "code": "moodle_login", "web_url": web})
+        if e.code == "offline":
+            raise HTTPException(503, {"detail": "Keine Verbindung zu Moodle. Dein Text bleibt als Entwurf.", "code": "reply_offline", "web_url": web})
+        raise HTTPException(502, {"detail": e.message, "code": f"reply_{e.code}", "web_url": web})
+    raise e
+
+
+def moodle_context(message_id: str, web=None) -> dict:
+    """Antwortfenster fuer eine Moodle-Nachricht: Namen live aus der Unterhaltung (nie gespeichert)"""
+    from . import moodle
+    with db.cursor() as conn:
+        m = _stored(conn, message_id)
+        draft = draft_for(conn, message_id)
+    try:
+        w = web or moodle.live()
+        names = moodle.member_names(w, moodle.conversation_id(message_id))
+    except Exception as e:  # noqa: BLE001
+        _moodle_fail(e, m)
+    group = m.get("sender") not in (moodle.SENDER,)
+    first = names[0] if names else "Moodle"
+    return {"message_id": message_id, "source": "moodle", "subject": m.get("subject") or "", "reply_subject": "",
+            "no_subject": True, "group": group, "member_count": len(names) + 1,
+            "sender": {"id": "", "name": m.get("sender") if group else first},
+            "others": [{"id": "", "name": n} for n in names[1:]] if group else [],
+            "other_count": max(0, len(names) - 1), "recipients_known": True, "allows_reply_all": False,
+            "is_circular": False, "quote": quote(m.get("text") or "", first, m.get("sent_at")),
+            "draft": draft, "notice": moodle.NOTICE, "web_url": m.get("url"), "outbox_url": m.get("url")}
+
+
+def moodle_send(message_id: str, b: dict, web=None) -> dict:
+    """Antwort in die Unterhaltung, genau ein Versuch, nur auf Knopfdruck"""
+    from . import moodle
+    text = str(b.get("text") or "")
+    if not text.strip():
+        raise HTTPException(400, {"detail": "Bitte einen Text schreiben.", "code": "reply_empty"})
+    if len(text) > moodle.MAX_TEXT:
+        raise HTTPException(400, {"detail": "Der Text ist zu lang.", "code": "reply_too_long"})
+    with db.cursor() as conn:
+        m = _stored(conn, message_id)
+    try:
+        w = web or moodle.live()
+        q = None
+        if b.get("quote"):
+            names = moodle.member_names(w, moodle.conversation_id(message_id))
+            q = quote(m.get("text") or "", names[0] if names else "Moodle", m.get("sent_at"))
+        new_id = moodle.reply(w, moodle.conversation_id(message_id), body(text, q))
+    except Exception as e:  # noqa: BLE001
+        _moodle_fail(e, m)
+    at = now_iso()
+    record = {"message_id": message_id, "at": at, "subject": "", "text": text.strip(), "quoted": bool(q), "mode": "sender",
+              "recipients": None, "sent_id": str(new_id) if new_id is not None else None}
+    with db.cursor() as conn:
+        add_reply(conn, record)
+        remove_draft(conn, message_id)
+    return {"sent": True, "record": {**record, "line": replied_line(at)}, "outbox_url": m.get("url")}
 
 
 # ---------------------------------------------------------------------------- Live (Stud.IP)
@@ -441,6 +584,13 @@ def _fail(e: Exception, message_id: str):
     raise e
 
 
+def _check_learnweb():
+    """Antworten im Learnweb nur am PC/in der Windows-App (im Dienst liegen keine Nachrichten)"""
+    from . import studip_extras
+    if not studip_extras.messages_allowed():
+        raise HTTPException(404, {"detail": "Antworten gibt es nur in der Windows-App.", "code": "not_available"})
+
+
 def _check_local():
     if not studip_live.available():
         raise HTTPException(404, {"detail": "Antworten gibt es nur in der Windows-App mit Stud.IP.", "code": "not_available"})
@@ -448,6 +598,12 @@ def _check_local():
 
 @router.get("/{message_id}/reply")
 def api_reply_context(message_id: str, all: int = Query(default=0, ge=0, le=1)):
+    if message_id.startswith("lw-msg-"):
+        _check_learnweb()
+        return learnweb_context(message_id)
+    if message_id.startswith("moodle-"):
+        _check_learnweb()
+        return moodle_context(message_id)
     _check_local()
     with db.cursor() as conn:
         m = _stored(conn, message_id)
@@ -470,6 +626,12 @@ def api_reply_context(message_id: str, all: int = Query(default=0, ge=0, le=1)):
 
 @router.post("/{message_id}/reply")
 def api_reply_send(message_id: str, b: dict = Body(...)):
+    if message_id.startswith("lw-msg-"):
+        _check_learnweb()
+        return learnweb_send(message_id, b)
+    if message_id.startswith("moodle-"):
+        _check_learnweb()
+        return moodle_send(message_id, b)
     _check_local()
     text = str(b.get("text") or "")
     if not text.strip():
@@ -502,7 +664,7 @@ def api_reply_send(message_id: str, b: dict = Body(...)):
 
 @router.put("/{message_id}/draft")
 def api_draft_put(message_id: str, b: dict = Body(...)):
-    _check_local()
+    _check_learnweb() if message_id.startswith(("lw-msg-", "moodle-")) else _check_local()
     with db.cursor() as conn:
         _stored(conn, message_id)
         return {"draft": put_draft(conn, message_id, b)}
@@ -510,7 +672,7 @@ def api_draft_put(message_id: str, b: dict = Body(...)):
 
 @router.delete("/{message_id}/draft")
 def api_draft_delete(message_id: str):
-    _check_local()
+    _check_learnweb() if message_id.startswith(("lw-msg-", "moodle-")) else _check_local()
     with db.cursor() as conn:
         remove_draft(conn, message_id)
     return {"draft": None}

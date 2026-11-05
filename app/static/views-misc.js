@@ -1,15 +1,17 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
-import { renderWeeklyBox } from "./views-weekly.js?v=14";
-import { installCard, bindInstallBanner } from "./pwa.js?v=15";
+import { renderWeeklyBox } from "./views-weekly.js?v=15";
+import { installCard, bindInstallBanner } from "./pwa.js?v=16";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=44";
+import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=45";
 import * as FC from "./flashcards.js?v=7";
 // KI-Karteikarten auf Auftrag (Pro AI, 04.11.2026): Dialog in flashcard-stacks-ui.js
-import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=3";
-import { mountBulletin } from "./bulletin.js?v=5";
-import { mountStudipTexts } from "./studip-texts.js?v=5";
-import { settingHtml } from "./older-semesters.js?v=2";
-import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=4";
+import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=4";
+import { mountBulletin } from "./bulletin.js?v=6";
+import { mountStudipTexts } from "./studip-texts.js?v=6";
+import { settingHtml } from "./older-semesters.js?v=4";
+// Module je Semester und Hinweis "Aktuelles Semester ist da · ältere Semester …" (module-semesters.js)
+import * as MS from "./module-semesters.js?v=2";
+import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=6";
 // Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
 import { masteryHtml, masteryTile } from "./mastery.js?v=2";
 // Testergebnis wie auf dem iPad: Ring, Einordnung und "Frag die KI zu Aufgabe n" (test-result.js)
@@ -35,12 +37,28 @@ export function modCard(m) {
 }
 export async function viewModules(parts, _, view) {
   if (parts[0]) return viewModule(+parts[0], view);
-  const mods = await api("/modules");
+  // Module je Semester (05.11.2026, module-semesters.js): aktuelles Semester zuerst, dann naechstes, dann fruehere zugeklappt
+  const [mods, sem] = await Promise.all([api("/modules"), api("/module-semesters").catch(() => null)]);
+  const split = MS.splitModules(mods, sem), cur = split.current;
+  const listHtml = ms => `<div class="card pad-0 lib-list mod2-list">${ms.map(m => `<a class="lib-row" href="#/modules/${m.id}" style="color:inherit"><div class="mini folder" style="--fc:${m.color}">${initial(m.name)}</div><div><b>${esc(m.name)}</b><div class="muted tiny">${esc((m.topics || []).join(", ")) || `${m.courses} Veranstaltungen`}</div></div><span class="small">${m.progress}% bearbeitet<br>${masteryHtml(m.mastery, "sm")}</span><span class="small muted">${m.file_count} Dateien · ${m.new_count} neu</span><span class="small muted">${m.next_event ? `${fmtShort(m.next_event.date)} ${m.next_event.start}` : "–"}</span><span>${icon("chevron-right", 16)}</span></a>`).join("")}</div>`;
+  const block = ms => (modMode === "cards" ? `<div class="mod2-grid">${ms.map(modCard).join("")}</div>` : listHtml(ms));
   view.innerHTML = `<div class="content" style="max-width:1480px"><div class="page-head"><div><h1>Meine Module</h1><div class="sub">Alle Module deines Studiums – Vorlesungen, Übungen, Materialien und Tests an einem Ort.</div></div>
       <div class="actions"><div class="seg pill"><button class="${modMode === "cards" ? "active" : ""}" data-mm="cards">Karten</button><button class="${modMode === "list" ? "active" : ""}" data-mm="list">Liste</button></div><a class="btn" href="#/settings?tab=modules">${icon("settings", 15)} Module & Wochentests</a></div></div>
-    ${mods.length ? (modMode === "cards" ? `<div class="mod2-grid">${mods.map(modCard).join("")}</div>` : `<div class="card pad-0 lib-list mod2-list">${mods.map(m => `<a class="lib-row" href="#/modules/${m.id}" style="color:inherit"><div class="mini folder" style="--fc:${m.color}">${initial(m.name)}</div><div><b>${esc(m.name)}</b><div class="muted tiny">${esc((m.topics || []).join(", ")) || `${m.courses} Veranstaltungen`}</div></div><span class="small">${m.progress}% bearbeitet<br>${masteryHtml(m.mastery, "sm")}</span><span class="small muted">${m.file_count} Dateien · ${m.new_count} neu</span><span class="small muted">${m.next_event ? `${fmtShort(m.next_event.date)} ${m.next_event.start}` : "–"}</span><span>${icon("chevron-right", 16)}</span></a>`).join("")}</div>`) : `<div class="card empty">Noch keine Module. Erst synchronisieren.</div>`}</div>`;
+    <div id="semHint">${MS.hintHtml(sem?.status)}</div>
+    ${MS.currentHeadHtml(split)}
+    ${cur.length ? block(cur) : mods.length ? `<div class="card empty">Im aktuellen Semester noch keine Module.</div>` : `<div class="card empty">Noch keine Module. Erst synchronisieren.</div>`}
+    ${MS.upcomingHtml(split.upcoming, modCard)}
+    <div id="semOlder"></div></div>`;
   $$("[data-mm]", view).forEach(b => b.onclick = () => { modMode = b.dataset.mm; try { localStorage.setItem("mod-mode", modMode); } catch {} state.route(); });
   staggerOnce($(".mod2-grid", view), "modules");                          // Kacheln beim ersten Oeffnen leicht gestaffelt
+  const open = new Set(), olderHost = $("#semOlder", view);
+  const drawOlder = () => { olderHost.innerHTML = MS.olderHtml(split.older, open); $$("[data-sem-toggle]", olderHost).forEach(b => b.onclick = () => { const l = split.older[+b.dataset.semToggle].label; open.has(l) ? open.delete(l) : open.add(l); drawOlder(); }); };
+  drawOlder();
+  // Stand der Stufen nachfuehren, solange etwas laedt; ist es fertig, zeichnet die Seite einmal neu (neue Module, Dateien)
+  if (MS.stillLoading(sem?.status)) {
+    const tick = async () => { if (!view.isConnected || !$("#semHint", view)) return; try { const st = await api("/sync-order"); $("#semHint", view).innerHTML = MS.hintHtml(st); if (MS.stillLoading(st)) setTimeout(tick, 5000); else state.route(); } catch { /* nur Anzeige */ } };
+    setTimeout(tick, 5000);
+  }
 }
 async function viewModule(id, view) {
   const d = await api(`/modules/${id}`); const m = d.module; let tab = "overview", mode = "list";
@@ -70,9 +88,9 @@ async function viewModule(id, view) {
     $("#modEdit").onclick = () => editModule(m, () => viewModule(id, view));
     if ($("#wtBox", view)) renderWeeklyBox($("#wtBox", view), m);
     if ($("#stHost", view)) mountStudipTexts($("#stHost", view), id, api);   // Courseware, Wiki, Forum (Blubber) aus Stud.IP
-    if ($("#stHost", view)) import("./exam-registration.js?v=1").then(X => X.renderModuleBlock($("#stHost", view), { appModuleId: +id, before: true })).catch(() => {});   // "Prüfung anmelden"
+    if ($("#stHost", view)) import("./exam-registration.js?v=2").then(X => X.renderModuleBlock($("#stHost", view), { appModuleId: +id, before: true })).catch(() => {});   // "Prüfung anmelden"
     // Fertige Fragen je Lehrwoche (Pro AI, Bibliothek des Dienstes): week-sets.js
-    if ($(".ws-host", view)) import("./week-sets.js?v=3").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
+    if ($(".ws-host", view)) import("./week-sets.js?v=4").then(M => M.mountWeekSets($$(".ws-host", view), id, curWeek?.week)).catch(e => console.warn("Fertige Fragen", e));
   };
   render();
 }
@@ -98,7 +116,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=68"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=70"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -172,7 +190,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=68"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=70"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -527,7 +545,7 @@ export async function viewCards(_, params, view) {
 
 // ================================================================ UNI & NOTEN (Dienste, QIS-Notenspiegel, Zugänge)
 const CRED_LIST = [["studip", "Stud.IP / WebSSO"], ["qis", "QIS (Prüfungsverwaltung)"], ["idm", "IDM Account-Manager"], ["ilias", "ILIAS"], ["mail", "E-Mail (LUIS)"], ["matrix", "Matrix-Chat"], ["luhki", "LUHKI"], ["gitlab", "GitLab"], ["hildesheim", "UNI-Account Hildesheim (CAS)"]];
-const credListFor = uni => CRED_LIST.filter(([k]) => uni === "hildesheim" ? k === "hildesheim" : k !== "hildesheim");
+const credListFor = uni => uni === "hsh" ? [] : CRED_LIST.filter(([k]) => uni === "hildesheim" ? k === "hildesheim" : k !== "hildesheim");   // HsH: nur Sitzung, keine Zugangsdaten
 const CRED_NAME = Object.fromEntries(CRED_LIST);
 function credDialog(key, cur) {
   const mode = cur.own ? "own" : cur.same_as ? "same" : "none";
@@ -556,14 +574,14 @@ export async function viewServices(parts, params, view) {
       <div class="card kpi"><b>${String(g.credits || 0).replace(".", ",")} LP</b><span>aus ${g.passed} bestandenen ${g.basis === "module" ? "Modulen" : "Leistungen"}${g.failed_attempts ? ` · ${g.failed_attempts} nicht bestandene Versuche` : ""}</span></div>
       <div class="card kpi"><b>${g.last_run ? new Date(g.last_run.finished_at).toLocaleDateString("de-DE") : "–"}</b><span>${g.last_run ? (g.last_run.ok ? "zuletzt abgerufen" : "letzter Abruf fehlgeschlagen") : "noch nicht abgerufen"}</span></div></div>
     <div class="grid cols-3">
-      <div class="card span-2"><div class="card-head"><h2>${icon("exam", 18)} Notenspiegel (${esc(svc.university?.grades_source || "QIS")})</h2><div class="actions"><button class="btn sm" id="qisCred">${icon("log-out", 14)} Zugang</button><button class="btn primary sm" id="qisSync">${icon("sync", 14)} ${svc.university?.key === "hildesheim" ? "Noten abrufen" : "Noten & Bescheinigungen abrufen"}</button></div></div>
-        ${svc.university?.key === "hildesheim" ? (svc.qis.configured ? "" : `<div class="card flat" style="background:var(--accent-soft);border-color:transparent;margin-bottom:.8rem"><b>${icon("log-out", 14)} UNI-Account hinterlegen</b><div class="small muted" style="margin:.2rem 0 .5rem">Die Noten kommen aus dem LSF. Trage dafür einmal deinen UNI-Account unter Einstellungen → Zugang ein.</div><a class="btn sm primary" href="#/settings?tab=account">Zum Zugang</a></div>`) : !(svc.credentials?.qis?.own) ? `<div class="card flat" style="background:var(--accent-soft);border-color:transparent;margin-bottom:.8rem"><b>${icon("log-out", 14)} QIS-Zugang hinterlegen</b><div class="small muted" style="margin:.2rem 0 .5rem">QIS hat meist ein eigenes Passwort (nicht das WebSSO-Passwort). Einmal eintragen, danach holt die App Noten und Bescheinigungen selbst – ohne dass du dich einloggen musst.${svc.credentials?.qis?.same_as ? ` Aktuell: wie ${esc(svc.credentials.qis.same_as)}.` : ""}</div><div class="row wrap"><input class="input" id="qInlineU" placeholder="Benutzername (z. B. LUH-ID)" autocomplete="username" style="max-width:220px"><input class="input" type="password" id="qInlineP" placeholder="QIS-Passwort" autocomplete="current-password" style="max-width:220px"><button class="btn primary sm" id="qInlineOk">${icon("check", 14)} Speichern & abrufen</button></div></div>` : `<div class="small muted" style="margin-bottom:.6rem">Zugang gespeichert (${esc(svc.credentials.qis.user || "")}). Die App meldet sich selbst an und holt Notenspiegel, Bescheinigungen und Transcript of Records.</div>`}
+      <div class="card span-2"><div class="card-head"><h2>${icon("exam", 18)} Notenspiegel (${esc(svc.university?.grades_source || "QIS")})</h2><div class="actions"><button class="btn sm" id="qisCred">${icon("log-out", 14)} Zugang</button><button class="btn primary sm" id="qisSync">${icon("sync", 14)} ${["hildesheim", "hsh"].includes(svc.university?.key) ? "Noten abrufen" : "Noten & Bescheinigungen abrufen"}</button></div></div>
+        ${svc.university?.key === "hsh" ? (svc.qis.configured ? "" : `<div class="card flat" style="background:var(--accent-soft);border-color:transparent;margin-bottom:.8rem"><b>${icon("log-out", 14)} Im Campusmanagement anmelden</b><div class="small muted" style="margin:.2rem 0 .5rem">Die Leistungen kommen aus dem Campusmanagement (HISinOne, bei manchen Fakultäten noch aus dem alten QIS). Melde dich dafür einmal im Anmeldefenster an (Einstellungen → Zugang).</div><a class="btn sm primary" href="#/settings?tab=account">Zum Zugang</a></div>`) : svc.university?.key === "hildesheim" ? (svc.qis.configured ? "" : `<div class="card flat" style="background:var(--accent-soft);border-color:transparent;margin-bottom:.8rem"><b>${icon("log-out", 14)} UNI-Account hinterlegen</b><div class="small muted" style="margin:.2rem 0 .5rem">Die Noten kommen aus dem LSF. Trage dafür einmal deinen UNI-Account unter Einstellungen → Zugang ein.</div><a class="btn sm primary" href="#/settings?tab=account">Zum Zugang</a></div>`) : !(svc.credentials?.qis?.own) ? `<div class="card flat" style="background:var(--accent-soft);border-color:transparent;margin-bottom:.8rem"><b>${icon("log-out", 14)} QIS-Zugang hinterlegen</b><div class="small muted" style="margin:.2rem 0 .5rem">QIS hat meist ein eigenes Passwort (nicht das WebSSO-Passwort). Einmal eintragen, danach holt die App Noten und Bescheinigungen selbst – ohne dass du dich einloggen musst.${svc.credentials?.qis?.same_as ? ` Aktuell: wie ${esc(svc.credentials.qis.same_as)}.` : ""}</div><div class="row wrap"><input class="input" id="qInlineU" placeholder="Benutzername (z. B. LUH-ID)" autocomplete="username" style="max-width:220px"><input class="input" type="password" id="qInlineP" placeholder="QIS-Passwort" autocomplete="current-password" style="max-width:220px"><button class="btn primary sm" id="qInlineOk">${icon("check", 14)} Speichern & abrufen</button></div></div>` : `<div class="small muted" style="margin-bottom:.6rem">Zugang gespeichert (${esc(svc.credentials.qis.user || "")}). Die App meldet sich selbst an und holt Notenspiegel, Bescheinigungen und Transcript of Records.</div>`}
         ${g.last_run && !g.last_run.ok ? `<div class="card flat" style="background:var(--bad-soft);border-color:transparent;margin-bottom:.6rem"><b>${icon("alert", 14)} ${esc(g.last_run.message)}</b><div class="muted small">Ein Screenshot der Seite liegt unter logs/qis-fehler.png. Mit „Noten abrufen (sichtbar)“ kannst du den Ablauf im Browserfenster verfolgen.</div><button class="btn sm" id="qisShow" style="margin-top:.4rem">Noten abrufen (sichtbar)</button></div>` : ""}
         ${g.bereiche?.length ? `<div class="row wrap" style="gap:.4rem;margin-bottom:.6rem">${g.bereiche.map(b => `<span class="chip" title="Bereich laut Notenspiegel">${esc(b.text)}${b.note ? ` · <b>${esc(b.note)}</b>` : ""}${b.credits ? ` · ${esc(b.credits)} LP` : ""}</span>`).join("")}</div>` : ""}
         ${g.grades.some(r => r.level === "pruefung") && g.grades.some(r => r.level === "modul") ? `<div class="seg" style="margin-bottom:.6rem"><button class="${state.gradesAll ? "" : "active"}" data-gview="mod">Module</button><button class="${state.gradesAll ? "active" : ""}" data-gview="all">Alle Prüfungen und Versuche</button></div>` : ""}
         ${g.grades.length ? `<table class="tbl"><tr><th>${state.gradesAll ? "Prüfung" : "Modul"}</th><th>Semester</th><th>Note</th><th>LP</th><th>Status</th><th>Versuch</th></tr>${g.grades.filter(r => r.level !== "bereich" && (state.gradesAll || r.level === "modul" || !g.grades.some(x => x.level === "modul"))).map(r => `<tr class="${r.level === "pruefung" ? "muted" : ""}"><td><b>${esc(r.text)}</b>${r.pruefungsnr || r.art ? `<div class="muted tiny">${esc([r.pruefungsnr, r.art].filter(Boolean).join(" · "))}</div>` : ""}</td><td class="small">${esc(r.semester_norm || r.semester || "")}</td><td><b>${esc(r.note || "–")}</b></td><td class="small">${esc(r.credits || "")}</td><td><span class="badge ${(r.status || "").toLowerCase().startsWith("be") ? "ok" : (r.status || "").toLowerCase().startsWith("ni") ? "bad" : "neutral"}">${esc(r.status || "–")}</span></td><td class="small">${esc(r.versuch || "")}</td></tr>`).join("")}</table>` : `<div class="empty small">${icon("exam", 30)}<div>Noch keine Noten geladen. Nach dem ersten Abruf erscheinen hier alle Prüfungsleistungen aus dem ${esc(svc.university?.grades_source || "QIS")}-Notenspiegel.</div></div>`}
         ${g.documents?.length ? `<h3 style="margin-top:1rem">Bescheinigungen & Transcript of Records</h3><div class="list">${g.documents.map(d => `<a class="item" href="/api/qis/documents/${d.id}" target="_blank">${icon("file-text", 16)}<div class="main"><div class="title">${esc(d.title)}</div><div class="sub">${fmtDate(d.fetched_at)}</div></div></a>`).join("")}</div>` : ""}
-        <p class="muted tiny" style="margin-top:.8rem">${svc.university?.key === "hildesheim" ? "Die Noten werden mit deinem UNI-Account direkt aus dem LSF gelesen (Meine Funktionen → Notenspiegel)" : "Die Noten werden mit deinen Zugangsdaten direkt aus dem QIS-Portal gelesen (Prüfungsverwaltung → Notenspiegel)"} und nur lokal gespeichert. Prüfungsanmeldungen bleiben im Portal selbst.</p></div>
+        <p class="muted tiny" style="margin-top:.8rem">${svc.university?.key === "hsh" ? "Die Leistungen werden mit deiner gemerkten Sitzung aus dem Campusmanagement gelesen (Mein Studium → Leistungen, sonst Prüfungen und Studium → Notenspiegel)" : svc.university?.key === "hildesheim" ? "Die Noten werden mit deinem UNI-Account direkt aus dem LSF gelesen (Meine Funktionen → Notenspiegel)" : "Die Noten werden mit deinen Zugangsdaten direkt aus dem QIS-Portal gelesen (Prüfungsverwaltung → Notenspiegel)"} und nur lokal gespeichert. Prüfungsanmeldungen bleiben im Portal selbst.</p></div>
       <div class="stack">
         <div class="card"><div class="card-head"><h2>${icon("clock", 18)} Stundenplan</h2></div><p class="small">${tt ? `Vorlesungen und eindeutige Termine werden bei jedem Sync automatisch übernommen${tt.personal?.length ? `, dazu ${tt.personal.length} persönliche Einträge aus deinem Stud.IP-Stundenplan` : ""}.` : ""}</p>${tt?.pending_groups ? `<div class="card flat" style="background:var(--warn-soft);border-color:transparent"><b>${tt.courses.length} ${tt.courses.length === 1 ? "Fach" : "Fächer"} mit parallelen Übungsgruppen</b><div class="small muted">${tt.courses.map(esc).join(", ")}</div><div class="small" style="margin-top:.3rem">Trage deine Gruppe im Stud.IP-Stundenplan ein oder wähle sie hier unter Stundenplan → Importieren.</div></div>` : `<div class="small muted">Keine offenen Gruppenentscheidungen.</div>`}<a class="btn sm" style="margin-top:.5rem" href="#/timetable">${icon("calendar", 14)} Stundenplan öffnen</a></div>
         <div class="card"><div class="card-head"><h2>${icon("log-out", 18)} Zugänge</h2></div><div class="small">${credListFor(svc.university?.key).map(([k, n]) => { const c = svc.credentials?.[k] || {}; const st = k === "studip" || k === "hildesheim" ? (c.configured ? ["ok", k === "hildesheim" ? `gespeichert${c.user ? " · " + esc(c.user) : ""}` : "LUH-ID gespeichert"] : ["warn", "fehlt"]) : c.own ? ["ok", `eigener Zugang${c.user ? " · " + esc(c.user) : ""}`] : c.same_as ? ["info", `wie ${CRED_NAME[c.same_as] || c.same_as}`] : ["neutral", "nicht gesetzt"]; return `<div class="row between" style="padding:.35rem 0;border-bottom:1px solid var(--line)"><span>${n}</span><span class="row" style="gap:.35rem"><span class="badge ${st[0]}">${st[1]}</span>${k === "studip" || k === "hildesheim" ? `<a class="btn ghost icon sm" href="#/settings?tab=account" title="Bearbeiten">${icon("pencil", 13)}</a>` : `<button class="btn ghost icon sm" data-cred="${k}" title="Bearbeiten">${icon("pencil", 13)}</button>`}</span></div>`; }).join("")}</div><p class="muted tiny" style="margin-top:.6rem">${svc.university?.key === "hildesheim" ? "" : "Jeder Dienst kann ein eigenes Passwort haben oder auf einen anderen verweisen (z. B. IDM „wie QIS“). "}Alles liegt nur in der lokalen .env auf deinem PC. ${svc.university?.key === "hildesheim" ? "Genutzt werden Learnweb (Dateien) und LSF (Stundenplan, Noten), beide über den UNI-Account." : "Genutzt werden Stud.IP (Sync) und QIS (Noten); die übrigen merkst du dir hier als Übersicht."}</p></div>
@@ -577,7 +595,7 @@ export async function viewServices(parts, params, view) {
   $("#qisSync").onclick = () => sync(false);
   $("#qInlineOk")?.addEventListener("click", async () => { const u = $("#qInlineU").value.trim(), p = $("#qInlineP").value; if (!u || !p) return toast("Benutzername und Passwort eingeben"); try { await api("/credentials/qis", { method: "PUT", body: { user: u, password: p } }); toast("QIS-Zugang gespeichert"); await sync(false); state.route(); } catch (e) { toast(e.message, 4000); } }); $("#qisShow")?.addEventListener("click", () => sync(true));
   $$("[data-cred]", view).forEach(b => b.onclick = () => credDialog(b.dataset.cred, svc.credentials?.[b.dataset.cred] || {}));
-  $("#qisCred").onclick = () => svc.university?.key === "hildesheim" ? (location.hash = "#/settings?tab=account") : credDialog("qis", svc.credentials?.qis || {});
+  $("#qisCred").onclick = () => ["hildesheim", "hsh"].includes(svc.university?.key) ? (location.hash = "#/settings?tab=account") : credDialog("qis", svc.credentials?.qis || {});
 }
 
 // ================================================================ COMMUNITY
@@ -593,7 +611,7 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=8");
+    const { renderLinkCard } = await import("./studora-link.js?v=9");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
@@ -615,7 +633,7 @@ export async function viewCommunity(_, params, view) {
     return;
   }
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=12")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=14")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -623,7 +641,7 @@ export async function viewCommunity(_, params, view) {
   if (tab !== "overview") {
     view.innerHTML = `<div class="content" style="max-width:960px">${head}${tabs}<div class="card" id="qaPanel"></div></div>`;
     bindTabs();
-    const q = await import("./views-qa.js?v=8"); const el = $("#qaPanel", view);
+    const q = await import("./views-qa.js?v=9"); const el = $("#qaPanel", view);
     if (tab === "questions") q.renderQuestions(el); else if (tab === "bookmarks") q.renderBookmarks(el); else q.renderNotifications(el, n => window.updateBell?.(n));
     return;
   }
@@ -647,9 +665,9 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  import("./community-spaces.js?v=19").then(m => m.renderSpaces($("#spacesCard", view)));
-  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=5")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=8").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  import("./community-spaces.js?v=20").then(m => m.renderSpaces($("#spacesCard", view)));
+  Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=6")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=9").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });
@@ -716,8 +734,8 @@ export async function viewSettings(_, params, view) {
         <div class="set-actions"><button class="btn sm" id="openCfg">${icon("settings", 14)} Lernkombination</button><button class="btn sm" id="openAvail">${icon("clock", 14)} Verfügbarkeit & Sperrzeiten</button></div></div>`;
     const modulesTab = `<div class="set2"><div class="set2-main">${modulesCard}</div><div class="set2-side">${semesterCard}${lernCard(false)}</div></div>`;
     const planTab = `<div class="set2 set2-single">${lernCard(true)}</div>`;
-    const loginCard = state.hosted ? "" : `<div class="card"><div class="card-head"><h2>${icon("log-out", 18)} ${uniKey === "hildesheim" ? "Learnweb-Anmeldung" : "Stud.IP-Anmeldung"}</h2>${sess?.session ? `<span class="badge ok">Sitzung gemerkt</span>` : `<span class="badge warn">nicht angemeldet</span>`}</div>
-        <p class="muted small">Du meldest dich im Browserfenster selbst an${uniKey === "hildesheim" ? " (UNI-Account über das CAS)" : " (LUH-ID über das WebSSO)"}. Das Passwort merkt sich der Browser, wenn du das dort erlaubst – die App speichert nur die Sitzung und holt damit Dateien und Termine, bis die Hochschule sie beendet. Dann einfach erneut anmelden.${sess?.saved_at ? ` Zuletzt angemeldet: ${new Date(sess.saved_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}.` : ""}</p>
+    const loginCard = state.hosted ? "" : `<div class="card"><div class="card-head"><h2>${icon("log-out", 18)} ${uniKey === "hildesheim" ? "Learnweb-Anmeldung" : uniKey === "hsh" ? "Moodle- und Campusmanagement-Anmeldung" : "Stud.IP-Anmeldung"}</h2>${sess?.session ? `<span class="badge ok">Sitzung gemerkt</span>` : `<span class="badge warn">nicht angemeldet</span>`}</div>
+        <p class="muted small">Du meldest dich im Browserfenster selbst an${uniKey === "hildesheim" ? " (UNI-Account über das CAS)" : uniKey === "hsh" ? " (SSO-Account: erst Moodle, dann im selben Fenster das Campusmanagement)" : " (LUH-ID über das WebSSO)"}. Das Passwort merkt sich der Browser, wenn du das dort erlaubst – die App speichert nur die Sitzung und holt damit Dateien und Termine, bis die Hochschule sie beendet. Dann einfach erneut anmelden.${sess?.saved_at ? ` Zuletzt angemeldet: ${new Date(sess.saved_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}.` : ""}</p>
         <div class="row"><button class="btn primary sm" id="uniLogin">${icon("log-out", 14)} Im Browser anmelden</button>${sess?.session ? `<button class="btn ghost sm" id="uniForget">Sitzung vergessen</button>` : ""}<button class="btn sm" id="testSync2">Dateien jetzt holen (ohne KI)</button><span class="spacer"></span><button class="btn ghost sm danger" id="uniReset" title="Alles von diesem Account auf diesem PC löschen, damit sich ein anderer Account anmelden kann">${icon("trash-2", 14)} Konto entfernen</button></div></div>`;
     const credText = state.hosted
       ? `Mit deinen Zugangsdaten meldet sich <b>der StudiNow-Dienst</b> um 8 und 15 Uhr bei deiner Hochschule an und lädt neue Unterlagen in dein Konto – auch wenn du nicht angemeldet bist. Die Zugangsdaten liegen verschlüsselt in deinem Konto, nie in der App; du kannst sie jederzeit löschen. Ohne Zugangsdaten lädst du deine Unterlagen selbst hoch.${cred.consent_at ? ` Zugestimmt am ${new Date(cred.consent_at).toLocaleDateString("de-DE")}.` : ""}`
@@ -736,7 +754,7 @@ export async function viewSettings(_, params, view) {
     const hi = svc.credentials?.hildesheim || {};
     const uniCard = `<div class="card span-2"><div class="card-head"><h2>${icon("book", 18)} Hochschule</h2><span class="badge neutral">${esc(svc.university?.files_source || "")} + ${esc(svc.university?.grades_source || "")}</span></div>
         <div class="row wrap"><select class="input" id="uniSel" style="width:auto">${(svc.universities || []).map(u => `<option value="${u.key}" ${u.key === (svc.university_next || uniKey) ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select>
-        <span class="muted small" style="flex:1">${uniKey === "hildesheim" ? "Dateien aus dem Learnweb, Stundenplan und Noten aus dem LSF, Anmeldung über den UNI-Account (CAS)." : "Dateien und Termine aus Stud.IP, Noten aus dem QIS, Anmeldung über das WebSSO."}</span></div>
+        <span class="muted small" style="flex:1">${uniKey === "hildesheim" ? "Dateien aus dem Learnweb, Stundenplan und Noten aus dem LSF, Anmeldung über den UNI-Account (CAS)." : uniKey === "hsh" ? "Dateien und Fristen aus Moodle, Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement (HISinOne), Anmeldung mit dem SSO-Account." : "Dateien und Termine aus Stud.IP, Noten aus dem QIS, Anmeldung über das WebSSO."}</span></div>
         ${svc.university_next && svc.university_next !== uniKey ? `<div class="card flat" style="background:var(--warn-soft, var(--accent-soft));border-color:transparent;margin-top:.6rem"><b>${icon("info", 14)} Neustart nötig</b><div class="small">Vorgemerkt: ${esc((svc.universities || []).find(u => u.key === svc.university_next)?.name || svc.university_next)}. Nach einem Neustart der App sind deren Daten aktiv.</div></div>` : ""}
         <p class="muted tiny" style="margin-top:.5rem">Jede Hochschule hat einen eigenen Datenordner: Kurse, Dateien, Noten und Anmeldungen werden nie gemischt.</p></div>`;
     const hiCard = `<div class="card"><div class="card-head"><h2>${icon("log-out", 18)} UNI-Account (optional)</h2>${hi.configured ? `<span class="badge ok">gespeichert</span>` : `<span class="badge neutral">leer</span>`}</div><p class="muted small">Nur nötig, wenn der Abgleich um 8 und 15 Uhr auch nach Ablauf der Sitzung ohne Nachfrage laufen soll (Learnweb und LSF über das CAS). Liegt nur in der lokalen .env – lass es leer, wenn die App dein Passwort nicht kennen soll.</p>
@@ -746,7 +764,7 @@ export async function viewSettings(_, params, view) {
         <p class="muted small">Mit Schlüssel holt die App die Dateien direkt über die Moodle-Schnittstelle, ohne Browser-Anmeldung, und Moodle markiert nichts als angesehen. Erzeugen: im Learnweb Profil → Einstellungen → Sicherheitsschlüssel → „Moodle mobile web service“.</p>
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
     const inviteCard = state.gated ? `<div class="card"><div class="card-head"><h2>${icon("users", 18)} Freunde einladen</h2></div><p class="muted small">Einladungslinks mit QR-Code zum Teilen, mit deinem StudiNow-Konto.</p><a class="btn sm" href="#/einladungen">${icon("arrow-right", 14)} Einladungen öffnen</a></div>` : "";   // invites.js (05.11.2026)
-    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
+    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : uniKey === "hsh" ? "" : credCard}${looksCard}${inviteCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content set-page" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
       <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : planTab}</div></div></div>`;
@@ -810,8 +828,8 @@ export async function viewSettings(_, params, view) {
     $("#sNameOk")?.addEventListener("click", async () => { await api("/settings", { method: "PUT", body: { user_name: $("#sName").value } }); toast("Gespeichert"); location.reload(); });
     $("#diagCopy")?.addEventListener("click", () => { navigator.clipboard?.writeText($("#diagText").textContent).then(() => toast("Diagnose kopiert")); });
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok-text)">${icon("check", 15)} ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`Fehler: ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
-    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=48")).configDialog(() => state.route()));
-    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=48")).availabilityDialog());
+    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=49")).configDialog(() => state.route()));
+    $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=49")).availabilityDialog());
   };
   render();
 }

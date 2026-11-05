@@ -78,5 +78,64 @@ def test_parser_reads_termine_page_and_skips_dates_without_year():
 
 def test_swift_copy_is_the_data_file():
     swift = (ROOT / "apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/ExamRegistration/ExamRegistrationData.swift").read_text(encoding="utf-8")
-    body = swift.split('#"""\n', 1)[1].rsplit('\n"""#', 1)[0]
-    assert json.loads(body) == er.load_data()
+    bodies = [b.split('\n"""#', 1)[0] for b in swift.split('#"""\n')[1:]]
+    assert len(bodies) == 3
+    assert json.loads(bodies[0]) == er.load_data()
+    assert json.loads(bodies[1]) == er.for_university("hildesheim")
+    assert json.loads(bodies[2]) == er.for_university("hsh")
+
+
+# ---------------------------------------------------------------- Uni Hildesheim (gelesen am 05.11.2026)
+
+def test_hildesheim_data_has_sources_and_no_guessed_end():
+    d = er.for_university("hildesheim")
+    assert _gen().check_data(d, "hildesheim") == []
+    assert d["system"] == "LSF" and d["qis_menu"] == "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0"
+    assert all(s["url"].startswith("https://www.uni-hildesheim.de/") and s["checked_at"] == "2026-11-05" for s in d["sources"])
+    periods = [p for t in d["tables"].values() for term in t["terms"] for p in term["periods"]]
+    assert periods == [{"kind": "meldung", "n": 1, "label": "POS-Anmeldung im LSF (Fristen je Prüfung im LSF)", "start": "2026-11-11",
+                        "end": "2027-03-31", "open_end": True,
+                        "source": "https://www.uni-hildesheim.de/studium/studierende/pruefungsamt/pruefungsamt-2/fragen-zu-pruefungs-studienleistungen/"}]
+    assert "Verbindliche Anmeldung" in {r["form"] for r in d["rules"]}
+    assert not any(r["withdraw_days_before"] for r in d["rules"]), "keine erfundenen Ruecktrittsfristen"
+    assert sum(1 for p in d["programs"] if p.get("default")) == 1
+    assert len(d["programs"]) >= 60
+    assert er.for_university("tu-berlin") is None
+
+
+def test_hildesheim_programs_and_open_end_window():
+    d = er.for_university("hildesheim")
+    ai = er.find_program(d, "Angewandte Informatik (PO-Version 2019)", "B.Sc.")
+    assert ai["slug"] == "angewandte-informatik-bsc" and ai["url"].endswith("/pruefungsamt-4/")
+    assert er.find_program(d, "Kochkunst", "B.Sc.") is None
+    assert er.resolve_program(d, "Kochkunst", "B.Sc.")["slug"] == "alle-bachelor-und-masterstudiengaenge"
+    wb = er.find_program(d, "Weiterbildungsprogramm Inklusive Bildung, Inklusive Pädagogik und Kommunikation", "M.A.")
+    assert wb is not None and wb["table"] is None, "Weiterbildungsmaster: nur Link"
+    w = er.window_state(d, ai, "2026-11-05")
+    assert (w["phase"], w["start"], w["days_until"], w["open_end"]) == ("soon", "2026-11-11", 6, True)
+    assert er.window_state(d, ai, "2026-12-01")["phase"] == "open"
+    assert er.window_state(d, ai, "2027-04-01") is None, "SoSe 27 noch nicht veroeffentlicht -> nur Link"
+    luh = er.window_state(er.load_data(), er.find_program(er.load_data(), "Informatik", "B.Sc."), "2026-11-05")
+    assert luh["open_end"] is False
+
+
+def test_hildesheim_zustaendigkeiten_parser():
+    g = _gen()
+    assert g.hildesheim_degrees("Erziehungswissenschaft (B. A. und M. A.)") == ("Erziehungswissenschaft", ["ba", "ma"])
+    assert g.hildesheim_degrees("Polyvalenter Zwei-Fächer-Bachelor Studiengang (B. A./B. Sc.) - mit Lehramtsoption") == (
+        "Polyvalenter Zwei-Fächer-Bachelor Studiengang mit Lehramtsoption", ["ba", "bsc"])
+    assert g.hildesheim_degrees("Angewandte Informatik (Studienvariante im Studiengang X) (B. Sc. und M. Sc.)") == (
+        "Angewandte Informatik (Studienvariante im Studiengang X)", ["bsc", "msc"])
+    assert g.hildesheim_degrees("Austauschstudierende") == ("Austauschstudierende", [])
+    html = """<details><summary><span>Fachbereich IV: Informatik</span></summary><div>
+      <a href="/studium/studierende/pruefungsamt/pruefungsamt-4/">Angewandte Informatik (B. Sc. und M. Sc.)</a>
+      <a href="https://www.uni-hildesheim.de/dez3/pruefungsamt/pruefungsamt-1/">A (M.A.), B (M.A.))</a>
+      <a href="/studium/studierende/pruefungsamt/pruefungsamt-1/">Weiterbildungsprogramm X (M.A. berufsbegleitend)</a>
+      <a href="/anderes/">Ohne Pruefungsamt (B. A.)</a></div></details>"""
+    progs = g.hildesheim_programs(html, "2026-11-05")
+    assert [(p["slug"], p["table"]) for p in progs] == [
+        ("angewandte-informatik-bsc", "hildesheim-pos"), ("angewandte-informatik-msc", "hildesheim-pos"),
+        ("a-ma", "hildesheim-pos"), ("b-ma", "hildesheim-pos"), ("weiterbildungsprogramm-x-ma", None),
+        ("alle-bachelor-und-masterstudiengaenge", "hildesheim-pos")]
+    assert progs[0]["url"] == "https://www.uni-hildesheim.de/studium/studierende/pruefungsamt/pruefungsamt-4/"
+    assert progs[0]["faculty"] == "Fachbereich IV: Informatik" and progs[-1]["default"] is True

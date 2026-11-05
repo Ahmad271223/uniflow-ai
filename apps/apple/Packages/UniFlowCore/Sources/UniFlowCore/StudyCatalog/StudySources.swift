@@ -48,10 +48,32 @@ public struct StudySources: Sendable {
         (#"\bmaster\b|\bm\.?\s?sc\b|\bm\.?\s?a\b|\bm\.?\s?eng\b"#, "M"),
     ]
 
+    /// LSF Hildesheim: "Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2022"
+    /// (`_his_abschluss`); Abschlussart aus der Abkuerzung vor dem Namen, sonst aus dem Abschluss
+    static func hisAbschluss(_ text: String, po: String?) -> Abschluss? {
+        guard let m = CatalogRx.match(#"^\s*Abschluss:\s*(?:\[[^\]]*\]\s*)?(.*?)\s*Studiengang:\s*(?:\[[^\]]*\]\s*)?(.*)$"#,
+                                      text.replacingOccurrences(of: "\n", with: " "), ignoreCase: true) else { return nil }
+        var rest = CatalogRx.sub(#"PO[- ]?Version:?\s*[0-9]{4}.*$"#, " ", m[2] ?? "", ignoreCase: true)
+        var degree: String?
+        if let d = CatalogRx.match(#"^\s*([BM])\s?\.?\s?(?:A|Sc|Ed|Eng|Mus)\b\.?"#, rest, ignoreCase: true), let whole = d[0] {
+            degree = (d[1] ?? "").uppercased()
+            rest = String(rest.dropFirst(whole.count))
+        }
+        if degree == nil {
+            for (rx, d) in degreeHints where CatalogRx.search(rx, m[1] ?? "", ignoreCase: true) != nil {
+                degree = d
+                break
+            }
+        }
+        let name = StudyCatalogText.strip(CatalogRx.sub(#"\s+"#, " ", rest), " ,;:-.")
+        return Abschluss(name: name, po: po, degree: degree)
+    }
+
     /// "Technische Informatik (PO-Version 2017)" -> Name, PO, Abschlussart (`parse_abschluss`)
     public static func parseAbschluss(_ label: String) -> Abschluss {
         let text = label.trimmingCharacters(in: .whitespacesAndNewlines)
         let po = CatalogRx.search(#"PO[- ]?Version:?\s*([0-9]{4})"#, text, ignoreCase: true)?[1] ?? nil
+        if let his = hisAbschluss(text, po: po) { return his }
         var name = CatalogRx.sub(#"\(\s*PO[- ]?Version[^)]*\)"#, " ", text, ignoreCase: true)
         name = CatalogRx.sub(#"PO[- ]?Version:?\s*[0-9]{4}"#, " ", name, ignoreCase: true)
         name = CatalogRx.sub(#"^Abschluss:\s*"#, "", name, ignoreCase: true)

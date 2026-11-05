@@ -97,6 +97,11 @@ public actor LearnwebAPI {
     private let transport: UniTransport
     private let retry: UniRetry
     private var sesskey: String?
+    /// eigene Moodle-Kennung aus der Seite, die den sesskey lieferte (Nachrichten, `LearnwebMessages`)
+    var pageUserID: Int?
+    /// eigene Moodle-Kennung aus core_webservice_get_site_info (Schluessel); einmal je Lauf gefragt, die Nachrichten
+    /// nutzen sie mit, statt Learnweb ein zweites Mal zu fragen
+    var siteUserID: Int?
 
     private static let embeddedRE = HText.regex(#"(https?://[^"'<>\s]+/pluginfile\.php/\d+/mod_resource/content/\d+/[^"'<>\s]+)"#)
 
@@ -116,6 +121,7 @@ public actor LearnwebAPI {
         case .token:
             let site = try await rest("core_webservice_get_site_info", [:])
             guard let uid = site["userid"]?.int else { throw HildesheimError.badResponse("keine userid") }
+            siteUserID = uid
             return (try await rest("core_enrol_get_users_courses", ["userid": String(uid)]).array ?? []).compactMap(Learnweb.course)
         case .session:
             let data = try await ajax("core_course_get_enrolled_courses_by_timeline_classification",
@@ -163,7 +169,7 @@ public actor LearnwebAPI {
     // MARK: Fristen und Ankuendigungen (learnweb.TokenClient/SessionClient.deadlines, .announcements)
 
     /// `call(fn, args)` fuer `fetch_deadline_events`: REST mit Schluessel, sonst AJAX mit der Sitzung
-    private func call(_ function: String, _ args: [(String, JSONValue)]) async throws -> JSONValue {
+    func call(_ function: String, _ args: [(String, JSONValue)]) async throws -> JSONValue {
         switch mode {
         case .token:
             var params: [String: String] = [:]
@@ -235,7 +241,7 @@ public actor LearnwebAPI {
     }
 
     /// Eine Seite der angemeldeten Sitzung (Forumsseiten); eine Anmeldeseite heisst: Sitzung abgelaufen
-    private func page(_ url: URL) async throws -> String {
+    func page(_ url: URL) async throws -> String {
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: HText.withoutQuery(url.absoluteString)) }
@@ -244,7 +250,7 @@ public actor LearnwebAPI {
 
     // MARK: REST
 
-    private func rest(_ function: String, _ params: [String: String]) async throws -> JSONValue {
+    func rest(_ function: String, _ params: [String: String], retry once: UniRetry? = nil) async throws -> JSONValue {
         guard case .token(let token) = mode, let url = URL(string: "\(base)/webservice/rest/server.php") else {
             throw HildesheimError.badResponse("REST ohne Schluessel")
         }
@@ -252,7 +258,7 @@ public actor LearnwebAPI {
         for (k, v) in params { form[k] = v }
         let r = UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/x-www-form-urlencoded"],
                            body: HText.form(form.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }))
-        let resp = try await transport.fetch(r, retry: retry)
+        let resp = try await transport.fetch(r, retry: once ?? retry)
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: "\(base)/webservice/rest/server.php") }
         guard let j = try? JSONValue.parse(resp.body) else { throw HildesheimError.badResponse(function) }
         // Fehlertexte von Moodle koennen Eingaben enthalten: nur Funktion und Fehlercode weitergeben
@@ -266,28 +272,29 @@ public actor LearnwebAPI {
 
     // MARK: Sitzung
 
-    private func isLogin(_ url: String) -> Bool {
+    func isLogin(_ url: String) -> Bool {
         HildesheimCAS.isCASPage(url) || url.contains("/login/index.php")
     }
 
-    private func currentSesskey() async throws -> String {
+    func currentSesskey() async throws -> String {
         if let s = sesskey { return s }
         guard let url = URL(string: "\(base)/my/courses.php") else { throw HildesheimError.badResponse(base) }
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard let key = Learnweb.sesskey(fromPage: resp.text) else { throw HildesheimError.sessionExpired("Learnweb") }
         sesskey = key
+        pageUserID = LearnwebMessages.userID(fromPage: resp.text)
         return key
     }
 
-    private func ajax(_ function: String, _ args: JSONValue) async throws -> JSONValue {
+    func ajax(_ function: String, _ args: JSONValue, retry once: UniRetry? = nil) async throws -> JSONValue {
         let key = try await currentSesskey()
         guard let url = URL(string: "\(base)/lib/ajax/service.php?sesskey=\(key)&info=\(function)") else {
             throw HildesheimError.badResponse(function)
         }
         let payload = JSONValue.array([.object(["index": .number(0), "methodname": .string(function), "args": args])])
         let r = UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/json"], body: payload.serialized())
-        let resp = try await transport.fetch(r, retry: retry)
+        let resp = try await transport.fetch(r, retry: once ?? retry)
         if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard resp.status == 200, let first = (try? JSONValue.parse(resp.body))?.array?.first else {
             // Webseite statt JSON: Sitzung beendet (Anmeldeseite)
@@ -383,7 +390,7 @@ public actor LSFClient {
     public static let startURL = UniversityProfile.hildesheimLSFStart.absoluteString
     public static let planURL = "\(HildesheimCAS.lsfBase)/qisserver/rds?state=wplan&act=show&show=plan&P.subc=plan&week=-2"
 
-    private let transport: UniTransport
+    let transport: UniTransport
     private let retry: UniRetry
 
     public init(transport: UniTransport, retry: UniRetry = UniRetry()) {
@@ -412,8 +419,24 @@ public actor LSFClient {
         if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("LSF") }
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: urlString) }
         let html = resp.text
+        if let n = Self.maintenanceNotice(html: html) { notice = n }
         if !Self.isLoggedIn(html: html, url: resp.finalURL ?? url) { throw HildesheimError.sessionExpired("LSF") }
         return html
+    }
+
+    /// Wartungshinweis der zuletzt gelesenen LSF-Seite ("+++ Wegen Wartungsarbeiten steht PLuS/LSF/POS am … +++"), nil ohne
+    public private(set) var notice: String?
+
+    private static let noticeRE = HText.regex(#"\+\+\+\s*([^+<>]{5,400}?)\s*\+\+\+"#)
+
+    /// Wartungshinweis im Kopf der LSF-Seite wie `lsf.maintenance_notice` (Befund 05.11.2026, Struktur der echten Seiten):
+    /// Text zwischen "+++" und "+++", Leerraum zusammengefasst; der versteckte Text "… noch nicht das neue Layout geladen"
+    /// zaehlt nie
+    public static func maintenanceNotice(html: String) -> String? {
+        let text = Announcements.htmlToText(html)
+        guard let g = HText.match(noticeRE, text)?.groups[1] else { return nil }
+        let n = g.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return n.isEmpty || n.lowercased().contains("neue layout") ? nil : n
     }
 
     /// Serien des persoenlichen Stundenplans; nil, wenn der Plan leer ist (kein Export-Link). Ein Kalender ohne einen

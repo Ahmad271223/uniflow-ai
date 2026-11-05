@@ -2,10 +2,10 @@
 // Karte auf der Uebersicht (im Meldezeitraum und 7 Tage davor), Abschnitt im Studienverlauf, Block "Prüfung anmelden" am
 // Modul (Studienverlauf und Modulseite), Abzeichen angemeldet/nicht angemeldet in "Nächste Klausuren". Erinnerungen an
 // denselben Tagen wie auf dem iPad (erster Tag, 7 und 2 Tage vor dem Ende): als Hinweis in der App und, wenn in der
-// Windows-App die Erinnerungen eingeschaltet und erlaubt sind (due-reminders.js), einmal als Windows-Mitteilung. StudiNow meldet nie selbst an; "Im QIS anmelden" oeffnet nur QIS.
+// Windows-App die Erinnerungen eingeschaltet und erlaubt sind (due-reminders.js), einmal als Windows-Mitteilung. StudiNow meldet nie selbst an; "Im QIS/LSF anmelden" oeffnet nur QIS bzw. LSF.
 // Regeln und Texte: exam-registration-logic.js; Daten: GET /api/exam-registration (app/exam_registration_api.py).
-import { $, $$, api, icon, toast, todayISO } from "./core.js?v=44";
-import * as L from "./exam-registration-logic.js?v=1";
+import { $, $$, api, icon, toast, todayISO } from "./core.js?v=45";
+import * as L from "./exam-registration-logic.js?v=2";
 
 const DISMISS_KEY = "xr-dismissed";
 let cache = null;
@@ -34,7 +34,7 @@ function dismiss(id) {
 async function fetchRegistrations(btn, rerender) {
   const before = cache?.data?.registrations_checked_at || null;
   btn.disabled = true;
-  try { await api("/grades/sync", { method: "POST" }); toast("QIS-Abruf gestartet – Noten und angemeldete Prüfungen", 4000); window.pollBg?.(); }
+  try { await api("/grades/sync", { method: "POST" }); toast(`${L.systemOf(cache?.data)}-Abruf gestartet – Noten und angemeldete Prüfungen`, 4000); window.pollBg?.(); }
   catch (e) { toast(e.message, 5000); btn.disabled = false; return; }
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 5000));

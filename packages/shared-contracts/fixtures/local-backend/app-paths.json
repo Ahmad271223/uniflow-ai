@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 148,
+ "count": 151,
  "paths": [
   {
    "method": "DELETE",
@@ -1014,7 +1014,10 @@
      "qis_url",
      "hint",
      "rules",
-     "disclaimer"
+     "disclaimer",
+     "system",
+     "open_label",
+     "period_note"
     ],
     "reason": "nur auf dem Geraet (ExamRegistrationEndpoints)"
    }
@@ -1394,6 +1397,177 @@
   },
   {
    "method": "GET",
+   "shape": "/api/mensa/canteens",
+   "sources": [
+    "UniFlow/Views/Mensa/MensaViews.swift"
+   ],
+   "request": {
+    "path": "/api/mensa/canteens"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "allergens": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "key": {
+          "type": "string"
+         },
+         "name": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "canteens": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "address": {
+          "type": "string"
+         },
+         "hours": {
+          "type": "array",
+          "item": {
+           "type": "object",
+           "keys": {
+            "label": {
+             "type": "string"
+            },
+            "lines": {
+             "type": "array",
+             "item": {
+              "type": "string"
+             }
+            }
+           }
+          }
+         },
+         "id": {
+          "type": "string"
+         },
+         "name": {
+          "type": "string"
+         },
+         "own": {
+          "type": "bool"
+         },
+         "region": {
+          "type": "string"
+         },
+         "source": {
+          "type": "string"
+         },
+         "source_name": {
+          "type": "string"
+         },
+         "universities": {
+          "type": "array",
+          "item": {
+           "type": "string"
+          }
+         },
+         "url": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "default": {
+       "type": "string"
+      },
+      "labels": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "key": {
+          "type": "string"
+         },
+         "name": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "region": {
+       "type": "string"
+      },
+      "roles": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "key": {
+          "type": "string"
+         },
+         "name": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "university": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/mensa/menu",
+   "sources": [
+    "UniFlow/Views/Mensa/MensaViews.swift"
+   ],
+   "request": {
+    "path": "/api/mensa/menu?canteen=hauptmensa"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "canteen",
+     "days",
+     "fetched_at",
+     "message",
+     "source",
+     "stale"
+    ],
+    "reason": "Abruf beim Studentenwerk (Netz); Faelle in tests/test_mensa.py und MensaTests"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/module-semesters",
+   "sources": [
+    "UniFlow/Views/Modules/ModulesPage.swift"
+   ],
+   "request": {
+    "path": "/api/module-semesters"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "current",
+     "older",
+     "status",
+     "upcoming"
+    ],
+    "reason": "gleiche Form am PC (tests/test_sync_order.py)"
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/modules",
    "sources": [
     "UniFlow/Views/AI/AIStartView.swift",
@@ -1521,6 +1695,8 @@
     "keys": [
      "choice",
      "current",
+     "mode",
+     "progress",
      "semesters"
     ],
     "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"
@@ -1796,7 +1972,7 @@
       {
        "key": "mensa",
        "name": "Mensa (Studentenwerk)",
-       "url": "https://www.studentenwerk-hannover.de/essen/speiseplaene",
+       "url": "https://www.studentenwerk-hannover.de/essen/mensen-und-cafes",
        "desc": "Speisepläne der Mensen",
        "login": "–",
        "icon": "sun"
@@ -4216,24 +4392,25 @@
   },
   {
    "method": "POST",
-   "shape": "/api/older-semesters/choice",
+   "shape": "/api/older-semesters/mode",
    "sources": [
     "UniFlow/Views/Library/OlderSemestersViews.swift",
     "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
-    "path": "/api/older-semesters/choice",
+    "path": "/api/older-semesters/mode",
     "body": {
-     "choice": "current"
+     "mode": "wifi"
     }
    },
    "expect": {
     "status": 200,
     "type": "object",
     "keys": [
-     "choice"
+     "mode",
+     "started"
     ],
-    "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"
+    "reason": "Ältere Semester laden (05.11.2026); Laden startet der Abgleich der App"
    }
   },
   {

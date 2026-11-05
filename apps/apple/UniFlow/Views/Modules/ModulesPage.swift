@@ -3,6 +3,10 @@ import UniFlowCore
 
 /// Meine Module 1:1 nach viewModules()/modCard() in app/static/views-misc.js: Karten (.mod2) oder Liste (.lib-row),
 /// Umschalter in localStorage "mod-mode", Link zu den Moduleinstellungen. Daten: GET /api/modules.
+/// Module je Semester (Wunsch des Inhabers 05.11.2026, `SyncOrder`, module-semesters.js): aktuelles Semester zuerst
+/// (aufgeklappt), dann das naechste, dann "Frühere Semester" je Semester zugeklappt mit Zahl der Module und Dateien,
+/// fuer alle Portale; darueber der Hinweis zum Abgleich ("Aktuelles Semester ist da · ältere Semester … (3 von 6)").
+/// Daten: GET /api/module-semesters.
 /// Lokal ordnet der Abgleich die Stud.IP-Kurse nach Fach in Module (classify und ensure_modules wie am PC, S4). Gibt
 /// es dabei kein einziges Modul (z. B. nur eine Begruessung, Art "sonstiges"), stehen hier die Kurse ohne Modul
 /// (GET /api/courses); ein Kurs oeffnet seinen Ordner in Dokumente & Notizen (`LibraryCourses`).
@@ -17,6 +21,10 @@ struct ModulesPage: View {
     /// lokal ohne ein einziges Modul: Stud.IP-Kurse ohne Modul
     @State private var courses: [JSONValue] = []
     @State private var error: String?
+    /// Module je Semester (nil: Server ohne diese Route, dann alles wie bisher)
+    @State private var semesters: JSONValue?
+    /// aufgeklappte fruehere Semester (Beschriftung)
+    @State private var openTerms: Set<String> = []
 
     var body: some View {
         Group {
@@ -41,6 +49,7 @@ struct ModulesPage: View {
         do {
             let list = try await api.value("/api/modules").items
             courses = api.isLocal && list.isEmpty ? LibraryCourses.unassigned((try? await api.value("/api/courses"))?.items ?? []) : []
+            semesters = try? await api.value("/api/module-semesters")
             mods = list
             error = nil
         } catch {
@@ -49,7 +58,9 @@ struct ModulesPage: View {
         }
     }
 
-    @ViewBuilder private func content(_ mods: [JSONValue]) -> some View {
+    @ViewBuilder private func content(_ all: [JSONValue]) -> some View {
+        let split = ModuleSemesters.split(all, semesters)
+        let mods = split.current
         UFContent(maxWidth: 1480) {
             UFPageHead("Meine Module", sub: "Alle Module deines Studiums – Vorlesungen, Übungen, Materialien und Tests an einem Ort.") {
                 UFSegPill(options: [("cards", "Karten", nil), ("list", "Liste", nil)], selection: mode) { mode = $0 }
@@ -58,8 +69,12 @@ struct ModulesPage: View {
                     router.go(.settings(tab: "modules"))
                 }
             }
-            if mods.isEmpty, !courses.isEmpty {
+            if let hint = ModuleSemesters.hint(semesters) { ModuleSemesterHint(text: hint, busy: ModuleSemesters.stillLoading(semesters)) }
+            if let head = ModuleSemesters.currentHead(split) { ModuleSemesterHead(title: head, count: mods.count) }
+            if all.isEmpty, !courses.isEmpty {
                 LocalCoursesCard(courses: courses) { router.go(.files(path: LibraryCourses.path($0))) }
+            } else if mods.isEmpty, !all.isEmpty {
+                UFCard { UFEmpty(icon: "book", text: "Im aktuellen Semester noch keine Module.") }
             } else if mods.isEmpty {
                 UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Nach dem ersten Abgleich mit \(studip.university.profile.filesSource) erscheinen sie hier.") }
             } else if mode == "cards" {
@@ -78,6 +93,20 @@ struct ModulesPage: View {
                 .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
                 .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: UF.r))
+            }
+            // naechstes Semester (Karten wie das aktuelle), dann fruehere Semester zugeklappt
+            ForEach(Array(split.upcoming.enumerated()), id: \.offset) { _, g in
+                ModuleSemesterHead(title: "Nächstes Semester · \(g.label)", count: g.mods.count)
+                UFAutoGrid(min: typeSize.isAccessibilitySize ? 520 : 300, spacing: 19.2) {
+                    ForEach(Row.rows(g.mods)) { row in ModuleCard(m: row.value) { router.go(.module(row.value.i("id") ?? 0)) } }
+                }
+            }
+            if !split.older.isEmpty {
+                OlderModuleSemesters(older: split.older, open: $openTerms) { item in
+                    if let id = item.i("module_id") { router.go(.module(id)) }
+                    else if let course = item["course_ids"]?.array?.first?.string { router.go(.files(path: LibraryCourses.path(course))) }
+                }
+                .padding(.top, 22.4)
             }
             // Opencast-Aufzeichnungen aus Kursen ohne Modul (lokal; die uebrigen stehen im Moduldetail)
             if session.api?.isLocal == true { RecordingsUnassignedSection().padding(.top, 24) }
@@ -875,5 +904,168 @@ extension Color {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
         return String(format: "#%02x%02x%02x", Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
+    }
+}
+
+// MARK: - Module je Semester
+
+/// Verteilung und Texte fuer Module je Semester, gleich wie app/static/module-semesters.js (splitModules, countLabel,
+/// hintText); `sem` = GET /api/module-semesters (`SyncOrder.modulesBySemester`)
+enum ModuleSemesters {
+    struct Split {
+        var current: [JSONValue]
+        var upcoming: [(label: String, mods: [JSONValue])]
+        var older: [JSONValue]
+        var label: String
+    }
+
+    /// Module, die keinem anderen Semester zugeordnet sind (auch selbst angelegte), gehoeren zum aktuellen
+    static func split(_ mods: [JSONValue], _ sem: JSONValue?) -> Split {
+        guard let sem, sem["current"] != nil else { return Split(current: mods, upcoming: [], older: [], label: "") }
+        var elsewhere = Set<Int>()
+        let byID = Dictionary(mods.compactMap { m in m.i("id").map { ($0, m) } }, uniquingKeysWith: { a, _ in a })
+        let upcoming: [(label: String, mods: [JSONValue])] = (sem["upcoming"]?.array ?? []).map { g in
+            let ids = (g["module_ids"]?.array ?? []).compactMap(\.int)
+            elsewhere.formUnion(ids)
+            return (g.s("label") ?? "", ids.compactMap { byID[$0] })
+        }
+        let older = sem["older"]?.array ?? []
+        for g in older { for it in g["items"]?.array ?? [] { if let id = it.i("module_id") { elsewhere.insert(id) } } }
+        return Split(current: mods.filter { !elsewhere.contains($0.i("id") ?? -1) }, upcoming: upcoming.filter { !$0.mods.isEmpty },
+                     older: older, label: sem["current"]?.s("label") ?? "")
+    }
+
+    /// Ueberschrift des aktuellen Semesters, nur wenn es andere Semester gibt
+    static func currentHead(_ s: Split) -> String? {
+        s.label.isEmpty || (s.upcoming.isEmpty && s.older.isEmpty) ? nil : "Aktuelles Semester · \(s.label)"
+    }
+
+    /// Hinweis zum Stand der Stufen ("Aktuelles Semester ist da · ältere Semester … (3 von 6)")
+    static func hint(_ sem: JSONValue?) -> String? {
+        guard let h = sem?["status"]?["hint"]?.string, !h.isEmpty else { return nil }
+        return h
+    }
+
+    /// Laeuft noch etwas (erster Abgleich oder fruehere Semester im Hintergrund)?
+    static func stillLoading(_ sem: JSONValue?) -> Bool {
+        guard let st = sem?["status"] else { return false }
+        return st["current"]?["ready"]?.bool == false || st["older"]?["running"]?.bool == true
+    }
+
+    /// "3 Module · 12 Dateien", "2 Module · 4 von 10 Dateien geladen", "1 Modul · Dateien noch nicht geladen"
+    static func countLabel(_ g: JSONValue) -> String {
+        let n = g.i("count") ?? (g["items"]?.array?.count ?? 0), files = g.i("files") ?? 0, done = g.i("downloaded") ?? 0
+        var t = "\(n) \(n == 1 ? "Modul" : "Module")"
+        if files > 0 { t += done >= files ? " · \(files) \(files == 1 ? "Datei" : "Dateien")" : " · \(done) von \(files) Dateien geladen" }
+        else if g["loaded"]?.bool != true { t += " · Dateien noch nicht geladen" }
+        return t
+    }
+
+    /// "2 Veranstaltungen · 5 Dateien"
+    static func itemStatus(_ it: JSONValue) -> String {
+        let n = it.i("courses") ?? 0, files = it.i("files") ?? 0, done = it.i("downloaded") ?? 0
+        let first = "\(n) \(n == 1 ? "Veranstaltung" : "Veranstaltungen")"
+        if files == 0 { return first + (it["loaded"]?.bool == true ? " · keine Dateien" : " · Dateien noch nicht geladen") }
+        return first + (done >= files ? " · \(files) \(files == 1 ? "Datei" : "Dateien")" : " · \(done) von \(files) Dateien geladen")
+    }
+}
+
+/// Hinweisleiste ueber den Modulen (wie .sem-hint)
+struct ModuleSemesterHint: View {
+    let text: String
+    var busy = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            UFIcon(busy ? "refresh" : "clock", size: 15).foregroundStyle(UF.text2)
+            Text(text).ufFont(13.6).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 8.8).padding(.horizontal, 12.8)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface2))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+        .padding(.bottom, 16)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("module-semester-hint")
+    }
+}
+
+/// Ueberschrift eines Semesters (wie .sem-head)
+struct ModuleSemesterHead: View {
+    let title: String
+    let count: Int
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title).ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+            Text("\(count) \(count == 1 ? "Modul" : "Module")").ufFont(13.12).foregroundStyle(UF.muted)
+        }
+        .padding(.top, 6).padding(.bottom, 11.2)
+    }
+}
+
+/// "Frühere Semester": je Semester zugeklappt mit Zahlen; aufgeklappt die Module (echte Module oeffnen das Modul,
+/// erkannte Faecher ohne Modul den Kursordner in "Dokumente & Notizen")
+struct OlderModuleSemesters: View {
+    let older: [JSONValue]
+    @Binding var open: Set<String>
+    let select: (JSONValue) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Frühere Semester").ufFont(16.32, 700).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
+            ForEach(Array(older.enumerated()), id: \.offset) { _, g in term(g) }
+        }
+    }
+
+    private func term(_ g: JSONValue) -> some View {
+        let label = g.s("label") ?? "Früheres Semester"
+        let isOpen = open.contains(label)
+        let items = g["items"]?.array ?? []
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                if isOpen { open.remove(label) } else { open.insert(label) }
+            } label: {
+                HStack(spacing: 10) {
+                    UFIcon(isOpen ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.text2)
+                    RoundedRectangle(cornerRadius: 8).fill(UF.surface2).frame(width: 36, height: 36)
+                        .overlay(UFIcon("book", size: 18).foregroundStyle(UF.text2))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(label).ufFont(15.2, 650).foregroundStyle(UF.text)
+                        Text(ModuleSemesters.countLabel(g)).ufFont(12.8).foregroundStyle(UF.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(minHeight: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(label), \(ModuleSemesters.countLabel(g)), \(isOpen ? "aufgeklappt" : "zugeklappt")")
+            if isOpen {
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { _, it in
+                        Button { select(it) } label: {
+                            HStack(spacing: 9.6) {
+                                if it.s("color") != nil { Circle().fill(Color(hex: it.s("color"))).frame(width: 9.6, height: 9.6) }
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(it.s("name") ?? "").ufFont(14.5, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                    Text(ModuleSemesters.itemStatus(it)).ufFont(12.48).foregroundStyle(UF.muted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                UFIcon("chevron-right", size: 16).foregroundStyle(UF.muted).frame(width: 28)
+                            }
+                            .padding(.vertical, 8).padding(.horizontal, 8)
+                            .frame(minHeight: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(ModuleRowPressStyle())
+                        .ufBorderBottom()
+                    }
+                }
+                .padding(.top, 6).padding(.leading, 26)
+            }
+        }
+        .padding(.vertical, 8 + ufB).padding(.horizontal, 14.4 + ufB)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
     }
 }

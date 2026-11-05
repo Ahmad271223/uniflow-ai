@@ -1,0 +1,2541 @@
+{
+ "announcements": [],
+ "meals": [
+  {
+   "id": 167516,
+   "date": "2026-11-05",
+   "name": "Winterliches Dinkel Risotto | Obst",
+   "name_en": "Winterly spelt risotto | Fruits",
+   "price": {
+    "student": "2.50",
+    "employee": "6.85",
+    "guest": "7.85"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "388 kJ (93 kcal)",
+     "fat": "2,7 g",
+     "saturated_fatty_acids": "0,2 g",
+     "carbohydrates": "12,6 g",
+     "sugar": "2,0 g",
+     "roughage": "0,0 g",
+     "protein": "3,3 g",
+     "salt": "0,6 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 10,
+    "name": "Essen 1",
+    "name_en": "Dish 1"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     },
+     {
+      "id": "NM",
+      "name": "Niedersachsen Menü",
+      "name_en": "Niedersachsen Menü"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "GL5",
+      "name": "GL enthält Dinkel (eine Weizenart)",
+      "name_en": "containing spelt (a type of wheat)"
+     }
+    ],
+    "additives": [
+     {
+      "id": "7",
+      "name": "gewachst",
+      "name_en": "waxed"
+     }
+    ],
+    "special": [
+     {
+      "id": "62",
+      "name": "konserviert mit Thiabendazol und Imazalil",
+      "name_en": "preserved with Thiabendazole und Imazalil"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166004,
+   "date": "2026-11-05",
+   "name": "Afrikanischer Pfeffertopf mit Couscous",
+   "name_en": "African pepper stew with couscous",
+   "price": {
+    "student": "2.95",
+    "employee": "4.90",
+    "guest": "5.90"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "135 kJ (32 kcal)",
+     "fat": "0,8 g",
+     "saturated_fatty_acids": "0,1 g",
+     "carbohydrates": "4,5 g",
+     "sugar": "1,3 g",
+     "roughage": "0,4 g",
+     "protein": "1,4 g",
+     "salt": "0,5 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 200,
+    "name": "Essen 1",
+    "name_en": "Dish 1"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "GEFL",
+      "name": "Geflügel",
+      "name_en": "poultry"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "EN",
+      "name": "enthält Erdnüsse und Erdnusserzeugnisse",
+      "name_en": "containing peanuts and peanut products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "2",
+      "name": "mit Konservierungsstoff",
+      "name_en": "with preservative"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166002,
+   "date": "2026-11-05",
+   "name": "Überbackene Serviettenknödel | Champignonrahmsauce",
+   "name_en": "Gratinated sliced bread dumplings | Mushroom cream sauce",
+   "price": {
+    "student": "3.00",
+    "employee": "4.95",
+    "guest": "5.95"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "615 kJ (147 kcal)",
+     "fat": "6,8 g",
+     "saturated_fatty_acids": "3,7 g",
+     "carbohydrates": "14,5 g",
+     "sugar": "2,4 g",
+     "roughage": "1,1 g",
+     "protein": "6,4 g",
+     "salt": "1,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 20,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "EI",
+      "name": "enthält Eier und Eierzeugnisse",
+      "name_en": "containing eggs and egg products"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "1",
+      "name": "mit Farbstoff",
+      "name_en": "with colouring agent"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166006,
+   "date": "2026-11-05",
+   "name": "Schweinegulasch \"Puzsta Art\"",
+   "name_en": "Pork goulash \"Puzsta style\"",
+   "price": {
+    "student": "4.20",
+    "employee": "5.75",
+    "guest": "6.75"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "220 kJ (52 kcal)",
+     "fat": "1,7 g",
+     "saturated_fatty_acids": "0,7 g",
+     "carbohydrates": "2,7 g",
+     "sugar": "1,7 g",
+     "roughage": "0,3 g",
+     "protein": "6,2 g",
+     "salt": "0,4 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 20,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "SCHW",
+      "name": "Schwein",
+      "name_en": "pork"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "SL",
+      "name": "enthält Sellerie und Sellerieerzeugnisse",
+      "name_en": "containing celery and celery products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "9",
+      "name": "mit Süßungsmittel",
+      "name_en": "with sweetener(s)"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166008,
+   "date": "2026-11-05",
+   "name": "Gemüsepfanne mit Erdnusssauce | Vollkornreis | Tagessalat",
+   "name_en": "Vegetable stir fry with peanut sauce | whole wheat rice | Salad of the day",
+   "price": {
+    "student": "2.50",
+    "employee": "6.85",
+    "guest": "7.85"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "472 kJ (113 kcal)",
+     "fat": "3,1 g",
+     "saturated_fatty_acids": "1,4 g",
+     "carbohydrates": "16,6 g",
+     "sugar": "2,0 g",
+     "roughage": "0,9 g",
+     "protein": "3,7 g",
+     "salt": "0,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 210,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     },
+     {
+      "id": "NM",
+      "name": "Niedersachsen Menü",
+      "name_en": "Niedersachsen Menü"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "EN",
+      "name": "enthält Erdnüsse und Erdnusserzeugnisse",
+      "name_en": "containing peanuts and peanut products"
+     },
+     {
+      "id": "SO",
+      "name": "enthält Soja(bohnen)u daraus gewonnene Erzeugnisse",
+      "name_en": "containing soy(beans) and products there of"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166014,
+   "date": "2026-11-05",
+   "name": "Mexico Bowl: Reis | Tortilla-Chips | Avocado",
+   "name_en": "Mexico bowl: rice | tortilla chips | avocado",
+   "price": {
+    "student": "3.60",
+    "employee": "5.55",
+    "guest": "6.55"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "416 kJ (99 kcal)",
+     "fat": "3,8 g",
+     "saturated_fatty_acids": "1,8 g",
+     "carbohydrates": "13,2 g",
+     "sugar": "2,8 g",
+     "roughage": "1,1 g",
+     "protein": "2,2 g",
+     "salt": "0,3 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 30,
+    "name": "Essen 3",
+    "name_en": "Dish 3"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [
+     {
+      "id": "1",
+      "name": "mit Farbstoff",
+      "name_en": "with colouring agent"
+     },
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166015,
+   "date": "2026-11-05",
+   "name": "Burger mit Mac-&-Cheese-Patty | BBQ-Sauce",
+   "name_en": "Burger with Mac-&-Cheese patty | BBQ sauce",
+   "price": {
+    "student": "5.50",
+    "employee": "7.45",
+    "guest": "8.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "1193 kJ (285 kcal)",
+     "fat": "14,1 g",
+     "saturated_fatty_acids": "4,3 g",
+     "carbohydrates": "32,3 g",
+     "sugar": "9,4 g",
+     "roughage": "0,0 g",
+     "protein": "6,2 g",
+     "salt": "1,7 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 220,
+    "name": "Essen 3",
+    "name_en": "Dish 3"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "EI",
+      "name": "enthält Eier und Eierzeugnisse",
+      "name_en": "containing eggs and egg products"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "1",
+      "name": "mit Farbstoff",
+      "name_en": "with colouring agent"
+     },
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     },
+     {
+      "id": "10",
+      "name": "enthält eine Phenylalaninquelle",
+      "name_en": "contains a source of phenylalanine"
+     }
+    ],
+    "special": [
+     {
+      "id": "60",
+      "name": "mit einer Zuckerart und Süßungsmitteln",
+      "name_en": "with sugar and sweetener(s)"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166865,
+   "date": "2026-11-05",
+   "name": "Hausgemachte Pizza \"Spinaci\": Spinat | Mozzarella | Balkankäse",
+   "name_en": "Homemade pizza \"spinaci\": Spinach | Mozzarella | Balkan cheese",
+   "price": {
+    "student": "4.95",
+    "employee": "6.90",
+    "guest": "7.90"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "848 kJ (203 kcal)",
+     "fat": "7,4 g",
+     "saturated_fatty_acids": "3,6 g",
+     "carbohydrates": "24,1 g",
+     "sugar": "2,3 g",
+     "roughage": "1,2 g",
+     "protein": "8,8 g",
+     "salt": "1,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 40,
+    "name": "Essen 4",
+    "name_en": "Dish 4"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166001,
+   "date": "2026-11-05",
+   "name": "Mexico Bowl: Reis | Tortilla-Chips | Avocado",
+   "name_en": "Mexico bowl: rice | tortilla chips | avocado",
+   "price": {
+    "student": "3.60",
+    "employee": "5.55",
+    "guest": "6.55"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "414 kJ (99 kcal)",
+     "fat": "3,7 g",
+     "saturated_fatty_acids": "1,8 g",
+     "carbohydrates": "13,1 g",
+     "sugar": "2,8 g",
+     "roughage": "1,1 g",
+     "protein": "2,2 g",
+     "salt": "0,3 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 230,
+    "name": "Essen 4",
+    "name_en": "Dish 4"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [
+     {
+      "id": "1",
+      "name": "mit Farbstoff",
+      "name_en": "with colouring agent"
+     },
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166003,
+   "date": "2026-11-05",
+   "name": "Currywurst aus Erbsenprotein | Pikante Currysauce",
+   "name_en": "Currywurst on pea protein basis | Spicy curry sauce",
+   "price": {
+    "student": "3.90",
+    "employee": "5.45",
+    "guest": "6.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "783 kJ (187 kcal)",
+     "fat": "11,3 g",
+     "saturated_fatty_acids": "0,7 g",
+     "carbohydrates": "12,9 g",
+     "sugar": "8,5 g",
+     "roughage": "0,0 g",
+     "protein": "9,8 g",
+     "salt": "2,0 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 240,
+    "name": "Essen 5",
+    "name_en": "Dish 5"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": [
+     {
+      "id": "60",
+      "name": "mit einer Zuckerart und Süßungsmitteln",
+      "name_en": "with sugar and sweetener(s)"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 168376,
+   "date": "2026-11-05",
+   "name": "Currywurst | Pikante Currysauce",
+   "name_en": "Curry sausage | Spicy curry sauce",
+   "price": {
+    "student": "3.90",
+    "employee": "5.45",
+    "guest": "6.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "786 kJ (188 kcal)",
+     "fat": "14,2 g",
+     "saturated_fatty_acids": "4,3 g",
+     "carbohydrates": "8,7 g",
+     "sugar": "6,5 g",
+     "roughage": "0,4 g",
+     "protein": "6,0 g",
+     "salt": "2,3 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 240,
+    "name": "Essen 5",
+    "name_en": "Dish 5"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "SCHW",
+      "name": "Schwein",
+      "name_en": "pork"
+     },
+     {
+      "id": "RIND",
+      "name": "Rind",
+      "name_en": "beef"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "SL",
+      "name": "enthält Sellerie und Sellerieerzeugnisse",
+      "name_en": "containing celery and celery products"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     }
+    ],
+    "additives": [
+     {
+      "id": "2",
+      "name": "mit Konservierungsstoff",
+      "name_en": "with preservative"
+     },
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     },
+     {
+      "id": "9",
+      "name": "mit Süßungsmittel",
+      "name_en": "with sweetener(s)"
+     }
+    ],
+    "special": [
+     {
+      "id": "60",
+      "name": "mit einer Zuckerart und Süßungsmitteln",
+      "name_en": "with sugar and sweetener(s)"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166009,
+   "date": "2026-11-05",
+   "name": "Pommes frites",
+   "name_en": "French fries",
+   "price": {
+    "student": "1.00",
+    "employee": "1.40",
+    "guest": "1.40"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "865 kJ (207 kcal)",
+     "fat": "13,2 g",
+     "saturated_fatty_acids": "2,6 g",
+     "carbohydrates": "19,1 g",
+     "sugar": "0,5 g",
+     "roughage": null,
+     "protein": "2,3 g",
+     "salt": "0,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 250,
+    "name": "Essen 6",
+    "name_en": "Dish 6"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166012,
+   "date": "2026-11-05",
+   "name": "Rosenkohl",
+   "name_en": "Brussels sprouts",
+   "price": {
+    "student": "0.90",
+    "employee": "1.30",
+    "guest": "1.30"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "322 kJ (77 kcal)",
+     "fat": "4,6 g",
+     "saturated_fatty_acids": "0,4 g",
+     "carbohydrates": "4,4 g",
+     "sugar": "2,9 g",
+     "roughage": "0,0 g",
+     "protein": "1,0 g",
+     "salt": "0,4 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 110,
+    "name": "Gemüse",
+    "name_en": "Vegetable"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166010,
+   "date": "2026-11-05",
+   "name": "Kartoffelkroketten",
+   "name_en": "Potato croquettes",
+   "price": {
+    "student": "1.00",
+    "employee": "1.40",
+    "guest": "1.40"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "796 kJ (190 kcal)",
+     "fat": "9,3 g",
+     "saturated_fatty_acids": "0,7 g",
+     "carbohydrates": "23,6 g",
+     "sugar": "0,2 g",
+     "roughage": "2,5 g",
+     "protein": "2,3 g",
+     "salt": "0,7 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 160,
+    "name": "Beilage",
+    "name_en": "Side dish"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166011,
+   "date": "2026-11-05",
+   "name": "Schwenkkartoffeln",
+   "name_en": "Tossed potatoes",
+   "price": {
+    "student": "0.65",
+    "employee": "1.05",
+    "guest": "1.05"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "517 kJ (124 kcal)",
+     "fat": "6,5 g",
+     "saturated_fatty_acids": "0,6 g",
+     "carbohydrates": "13,9 g",
+     "sugar": "1,8 g",
+     "roughage": "1,4 g",
+     "protein": "1,9 g",
+     "salt": "0,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 160,
+    "name": "Beilage",
+    "name_en": "Side dish"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 168293,
+   "date": "2026-11-05",
+   "name": "Pflaumenkuchen im Glas",
+   "name_en": "Plum cake in a glass",
+   "price": {
+    "student": "1.90",
+    "employee": "1.90",
+    "guest": "1.90"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "70 kJ (17 kcal)",
+     "fat": "0,7 g",
+     "saturated_fatty_acids": "0,4 g",
+     "carbohydrates": "2,0 g",
+     "sugar": "1,0 g",
+     "roughage": "0,0 g",
+     "protein": "0,5 g",
+     "salt": "0,0 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 90,
+    "name": "Dessert",
+    "name_en": "Dessert"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "GL5",
+      "name": "GL enthält Dinkel (eine Weizenart)",
+      "name_en": "containing spelt (a type of wheat)"
+     }
+    ],
+    "additives": [
+     {
+      "id": "1",
+      "name": "mit Farbstoff",
+      "name_en": "with colouring agent"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166005,
+   "date": "2026-11-05",
+   "name": "Weiße Schokoladen-Mousse",
+   "name_en": "White chocolate mousse",
+   "price": {
+    "student": "1.90",
+    "employee": "1.90",
+    "guest": "1.90"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "704 kJ (168 kcal)",
+     "fat": "7,5 g",
+     "saturated_fatty_acids": "5,5 g",
+     "carbohydrates": "20,3 g",
+     "sugar": "17,2 g",
+     "roughage": null,
+     "protein": "4,5 g",
+     "salt": "0,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 90,
+    "name": "Dessert",
+    "name_en": "Dessert"
+   },
+   "tags": {
+    "categories": [],
+    "allergens": [
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     }
+    ],
+    "additives": [],
+    "special": [
+     {
+      "id": "53",
+      "name": "enthält Erzeugnisse tierischen Ursprungs",
+      "name_en": "containing products of animal origin"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166013,
+   "date": "2026-11-05",
+   "name": "Kirschquarkspeise",
+   "name_en": "Cherry quark dish",
+   "price": {
+    "student": "0.95",
+    "employee": "1.35",
+    "guest": "1.35"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "427 kJ (102 kcal)",
+     "fat": "3,1 g",
+     "saturated_fatty_acids": "2,1 g",
+     "carbohydrates": "8,9 g",
+     "sugar": "8,9 g",
+     "roughage": "0,0 g",
+     "protein": "9,1 g",
+     "salt": "0,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 90,
+    "name": "Dessert",
+    "name_en": "Dessert"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166016,
+   "date": "2026-11-06",
+   "name": "Rote Bete Farfalle | Rucola | Walnuss",
+   "name_en": "Beetroot farfalle | Rocket | Walnuts",
+   "price": {
+    "student": "2.50",
+    "employee": "6.85",
+    "guest": "7.85"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "652 kJ (156 kcal)",
+     "fat": "4,6 g",
+     "saturated_fatty_acids": "0,5 g",
+     "carbohydrates": "23,3 g",
+     "sugar": "2,5 g",
+     "roughage": "0,9 g",
+     "protein": "4,4 g",
+     "salt": "0,3 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 10,
+    "name": "Essen 1",
+    "name_en": "Dish 1"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     },
+     {
+      "id": "NM",
+      "name": "Niedersachsen Menü",
+      "name_en": "Niedersachsen Menü"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "NU",
+      "name": "enthält Schalenfrüchte u daraus hergest. Erzeug.",
+      "name_en": "containing edible nuts and products there of"
+     },
+     {
+      "id": "SL",
+      "name": "enthält Sellerie und Sellerieerzeugnisse",
+      "name_en": "containing celery and celery products"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     },
+     {
+      "id": "GL4",
+      "name": "GL enthält Hafer",
+      "name_en": "containing oat"
+     },
+     {
+      "id": "NU3",
+      "name": "NU enthält Walnüsse",
+      "name_en": "containing walnuts"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166017,
+   "date": "2026-11-06",
+   "name": "Paniertes Rotbarschfilet | Grüne Sauce",
+   "name_en": "Breaded redfish fillet | Green sour cream with herbs",
+   "price": {
+    "student": "3.90",
+    "employee": "5.45",
+    "guest": "6.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "956 kJ (228 kcal)",
+     "fat": "18,0 g",
+     "saturated_fatty_acids": "3,6 g",
+     "carbohydrates": "10,3 g",
+     "sugar": "1,7 g",
+     "roughage": "0,1 g",
+     "protein": "6,4 g",
+     "salt": "0,9 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 20,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "FISH",
+      "name": "Fisch",
+      "name_en": "fish"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "EI",
+      "name": "enthält Eier und Eierzeugnisse",
+      "name_en": "containing eggs and egg products"
+     },
+     {
+      "id": "FI",
+      "name": "enthält Fisch und Fischerzeugnisse",
+      "name_en": "containing fish and fish products"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166021,
+   "date": "2026-11-06",
+   "name": "2 Weißwürste | Laugenbrezel | süßer Senf",
+   "name_en": "2 Bavarian sausages | Pretzel | Sweet mustard",
+   "price": {
+    "student": "4.10",
+    "employee": "6.05",
+    "guest": "7.05"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "1152 kJ (275 kcal)",
+     "fat": "14,9 g",
+     "saturated_fatty_acids": "4,9 g",
+     "carbohydrates": "24,3 g",
+     "sugar": "5,7 g",
+     "roughage": "0,1 g",
+     "protein": "10,0 g",
+     "salt": "4,5 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 20,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "SCHW",
+      "name": "Schwein",
+      "name_en": "pork"
+     },
+     {
+      "id": "RIND",
+      "name": "Rind",
+      "name_en": "beef"
+     },
+     {
+      "id": "AKT",
+      "name": "Aktion",
+      "name_en": "Special"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     },
+     {
+      "id": "GL3",
+      "name": "GL enthält Gerste",
+      "name_en": "containing barley"
+     }
+    ],
+    "additives": [
+     {
+      "id": "8",
+      "name": "mit Phosphat",
+      "name_en": "with phosphate"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166018,
+   "date": "2026-11-06",
+   "name": "Blattspinat",
+   "name_en": "Spinach",
+   "price": {
+    "student": "1.10",
+    "employee": "1.50",
+    "guest": "1.50"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "91 kJ (22 kcal)",
+     "fat": "0,4 g",
+     "saturated_fatty_acids": "0,1 g",
+     "carbohydrates": "0,6 g",
+     "sugar": "0,2 g",
+     "roughage": null,
+     "protein": "2,8 g",
+     "salt": "0,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 110,
+    "name": "Gemüse",
+    "name_en": "Vegetable"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166019,
+   "date": "2026-11-06",
+   "name": "Kartoffeln",
+   "name_en": "Potatoes",
+   "price": {
+    "student": "0.65",
+    "employee": "1.05",
+    "guest": "1.05"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "294 kJ (70 kcal)",
+     "fat": "0,1 g",
+     "saturated_fatty_acids": "0,1 g",
+     "carbohydrates": "14,8 g",
+     "sugar": "1,7 g",
+     "roughage": "1,5 g",
+     "protein": "2,0 g",
+     "salt": "0,7 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 160,
+    "name": "Beilage",
+    "name_en": "Side dish"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 166020,
+   "date": "2026-11-06",
+   "name": "Bratkartoffeln",
+   "name_en": "Fried potatoes",
+   "price": {
+    "student": "1.00",
+    "employee": "1.40",
+    "guest": "1.40"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "286 kJ (68 kcal)",
+     "fat": "0,3 g",
+     "saturated_fatty_acids": "0,1 g",
+     "carbohydrates": "14,0 g",
+     "sugar": "1,9 g",
+     "roughage": "1,4 g",
+     "protein": "2,0 g",
+     "salt": "0,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 160,
+    "name": "Beilage",
+    "name_en": "Side dish"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167406,
+   "date": "2026-11-09",
+   "name": "Gebratene Vollkornpasta | Buntes Gemüse | Tomatenpesto Tagessalat",
+   "name_en": "Fried whole wheat Pasta | Mixed vegetables | Tomato pesto Salad of the day",
+   "price": {
+    "student": "2.50",
+    "employee": "6.85",
+    "guest": "7.85"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "515 kJ (123 kcal)",
+     "fat": "4,8 g",
+     "saturated_fatty_acids": "0,8 g",
+     "carbohydrates": "15,7 g",
+     "sugar": "2,3 g",
+     "roughage": "1,2 g",
+     "protein": "3,7 g",
+     "salt": "0,8 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 10,
+    "name": "Essen 1",
+    "name_en": "Dish 1"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     },
+     {
+      "id": "NM",
+      "name": "Niedersachsen Menü",
+      "name_en": "Niedersachsen Menü"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167408,
+   "date": "2026-11-09",
+   "name": "Rote Linsensuppe",
+   "name_en": "Red lentil soup",
+   "price": {
+    "student": "2.50",
+    "employee": "4.45",
+    "guest": "5.55"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "382 kJ (91 kcal)",
+     "fat": "2,1 g",
+     "saturated_fatty_acids": "0,2 g",
+     "carbohydrates": "11,2 g",
+     "sugar": "1,8 g",
+     "roughage": "0,1 g",
+     "protein": "5,4 g",
+     "salt": "1,5 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 200,
+    "name": "Essen 1",
+    "name_en": "Dish 1"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167401,
+   "date": "2026-11-09",
+   "name": "Zwiebelsahnehähnchen im Ofen gebacken | Weiße Sauce",
+   "name_en": "Chicken breast in onion cream sauce | White sauce",
+   "price": {
+    "student": "3.90",
+    "employee": "5.45",
+    "guest": "6.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "598 kJ (143 kcal)",
+     "fat": "10,7 g",
+     "saturated_fatty_acids": "6,8 g",
+     "carbohydrates": "2,7 g",
+     "sugar": "1,5 g",
+     "roughage": "0,0 g",
+     "protein": "9,0 g",
+     "salt": "1,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 20,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "GEFL",
+      "name": "Geflügel",
+      "name_en": "poultry"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     },
+     {
+      "id": "GL3",
+      "name": "GL enthält Gerste",
+      "name_en": "containing barley"
+     }
+    ],
+    "additives": [],
+    "special": [
+     {
+      "id": "19",
+      "name": "mit Flüssigwürze",
+      "name_en": "with liquid seasoning"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167409,
+   "date": "2026-11-09",
+   "name": "Kartoffel-Gemüse-Curry indischer Art | Reis | Tagessalat",
+   "name_en": "Potato and vegetable curry \"Indian style\" | Rice | Salad of the day",
+   "price": {
+    "student": "2.50",
+    "employee": "6.85",
+    "guest": "7.85"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "387 kJ (92 kcal)",
+     "fat": "1,5 g",
+     "saturated_fatty_acids": "0,2 g",
+     "carbohydrates": "16,5 g",
+     "sugar": "2,0 g",
+     "roughage": "0,3 g",
+     "protein": "2,3 g",
+     "salt": "0,5 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 210,
+    "name": "Essen 2",
+    "name_en": "Dish 2"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     },
+     {
+      "id": "NM",
+      "name": "Niedersachsen Menü",
+      "name_en": "Niedersachsen Menü"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "SO",
+      "name": "enthält Soja(bohnen)u daraus gewonnene Erzeugnisse",
+      "name_en": "containing soy(beans) and products there of"
+     }
+    ],
+    "additives": [
+     {
+      "id": "2",
+      "name": "mit Konservierungsstoff",
+      "name_en": "with preservative"
+     },
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167555,
+   "date": "2026-11-09",
+   "name": "Hausgemachte Pizza \"Texas BBQ\": Pulled Pork | Chili | Mais | rote Zwiebeln",
+   "name_en": "Homemade pizza \"Texas BBQ\": Pulled pork | Chilli | Corn | Onions",
+   "price": {
+    "student": "5.50",
+    "employee": "7.45",
+    "guest": "8.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "764 kJ (182 kcal)",
+     "fat": "5,8 g",
+     "saturated_fatty_acids": "2,5 g",
+     "carbohydrates": "23,5 g",
+     "sugar": "3,5 g",
+     "roughage": "1,1 g",
+     "protein": "8,2 g",
+     "salt": "1,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 220,
+    "name": "Essen 3",
+    "name_en": "Dish 3"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "SCHW",
+      "name": "Schwein",
+      "name_en": "pork"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "2",
+      "name": "mit Konservierungsstoff",
+      "name_en": "with preservative"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167541,
+   "date": "2026-11-09",
+   "name": "Mezze Bowl: Reis | gegrilltes Gemüse | Hummus",
+   "name_en": "Mezze bowl: rice | grilled vegetables | hummus",
+   "price": {
+    "student": "3.60",
+    "employee": "5.55",
+    "guest": "6.55"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "451 kJ (108 kcal)",
+     "fat": "5,6 g",
+     "saturated_fatty_acids": "0,6 g",
+     "carbohydrates": "11,0 g",
+     "sugar": "2,2 g",
+     "roughage": "0,0 g",
+     "protein": "2,7 g",
+     "salt": "0,4 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 40,
+    "name": "Essen 4",
+    "name_en": "Dish 4"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "SE",
+      "name": "enthält Sesamsamen und Sesamsamenerzeugnisse",
+      "name_en": "containing sesame seed and sesame seed products"
+     },
+     {
+      "id": "SW",
+      "name": "enthält Schwefeldioxid u Sulfite(>10mg/kg o.mg/l )",
+      "name_en": "containing sulphur dioxide and sulphites (>10mg/l)"
+     }
+    ],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167414,
+   "date": "2026-11-09",
+   "name": "Hausgemachte Pizza \"Texas BBQ\": Pulled Pork | Chili | Mais | rote Zwiebeln",
+   "name_en": "Homemade pizza \"Texas BBQ\": Pulled pork | Chilli | Corn | Onions",
+   "price": {
+    "student": "5.50",
+    "employee": "7.45",
+    "guest": "8.45"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "764 kJ (182 kcal)",
+     "fat": "5,8 g",
+     "saturated_fatty_acids": "2,5 g",
+     "carbohydrates": "23,5 g",
+     "sugar": "3,5 g",
+     "roughage": "1,1 g",
+     "protein": "8,2 g",
+     "salt": "1,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 40,
+    "name": "Essen 4",
+    "name_en": "Dish 4"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "SCHW",
+      "name": "Schwein",
+      "name_en": "pork"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "SF",
+      "name": "enthält Senf und Senferzeugnisse",
+      "name_en": "containing mustard and mustard products"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "2",
+      "name": "mit Konservierungsstoff",
+      "name_en": "with preservative"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167407,
+   "date": "2026-11-09",
+   "name": "Mezze Bowl: Reis | gegrilltes Gemüse | Hummus",
+   "name_en": "Mezze bowl: rice | grilled vegetables | hummus",
+   "price": {
+    "student": "3.60",
+    "employee": "5.55",
+    "guest": "6.55"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "451 kJ (108 kcal)",
+     "fat": "5,6 g",
+     "saturated_fatty_acids": "0,6 g",
+     "carbohydrates": "11,0 g",
+     "sugar": "2,2 g",
+     "roughage": "0,0 g",
+     "protein": "2,7 g",
+     "salt": "0,4 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 230,
+    "name": "Essen 4",
+    "name_en": "Dish 4"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "SE",
+      "name": "enthält Sesamsamen und Sesamsamenerzeugnisse",
+      "name_en": "containing sesame seed and sesame seed products"
+     },
+     {
+      "id": "SW",
+      "name": "enthält Schwefeldioxid u Sulfite(>10mg/kg o.mg/l )",
+      "name_en": "containing sulphur dioxide and sulphites (>10mg/l)"
+     }
+    ],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167412,
+   "date": "2026-11-09",
+   "name": "Hähnchenschnitzel | Paprikarahmsauce",
+   "name_en": "Chicken schnitzel | Bell pepper cream sauce",
+   "price": {
+    "student": "3.75",
+    "employee": "5.30",
+    "guest": "6.30"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "595 kJ (142 kcal)",
+     "fat": "6,3 g",
+     "saturated_fatty_acids": "1,1 g",
+     "carbohydrates": "12,3 g",
+     "sugar": "5,1 g",
+     "roughage": "0,0 g",
+     "protein": "8,5 g",
+     "salt": "1,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 240,
+    "name": "Essen 5",
+    "name_en": "Dish 5"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "GEFL",
+      "name": "Geflügel",
+      "name_en": "poultry"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": [
+     {
+      "id": "19",
+      "name": "mit Flüssigwürze",
+      "name_en": "with liquid seasoning"
+     },
+     {
+      "id": "60",
+      "name": "mit einer Zuckerart und Süßungsmitteln",
+      "name_en": "with sugar and sweetener(s)"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167411,
+   "date": "2026-11-09",
+   "name": "Pommes frites",
+   "name_en": "French fries",
+   "price": {
+    "student": "1.00",
+    "employee": "1.40",
+    "guest": "1.40"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "865 kJ (207 kcal)",
+     "fat": "13,2 g",
+     "saturated_fatty_acids": "2,6 g",
+     "carbohydrates": "19,1 g",
+     "sugar": "0,5 g",
+     "roughage": null,
+     "protein": "2,3 g",
+     "salt": "0,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "evening",
+   "lane": {
+    "id": 250,
+    "name": "Essen 6",
+    "name_en": "Dish 6"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167402,
+   "date": "2026-11-09",
+   "name": "Steckrüben- Karottengemüse",
+   "name_en": "Turnips and carrots",
+   "price": {
+    "student": "0.90",
+    "employee": "1.30",
+    "guest": "1.30"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "235 kJ (56 kcal)",
+     "fat": "2,8 g",
+     "saturated_fatty_acids": "1,6 g",
+     "carbohydrates": "5,6 g",
+     "sugar": "5,0 g",
+     "roughage": "1,2 g",
+     "protein": "1,0 g",
+     "salt": "0,3 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 110,
+    "name": "Gemüse",
+    "name_en": "Vegetable"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167404,
+   "date": "2026-11-09",
+   "name": "Gitterkartoffeln",
+   "name_en": "Grid potatoes",
+   "price": {
+    "student": "1.00",
+    "employee": "1.40",
+    "guest": "1.40"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "782 kJ (187 kcal)",
+     "fat": "10,0 g",
+     "saturated_fatty_acids": "1,2 g",
+     "carbohydrates": "20,9 g",
+     "sugar": "0,6 g",
+     "roughage": "2,3 g",
+     "protein": "2,4 g",
+     "salt": "0,9 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 160,
+    "name": "Beilage",
+    "name_en": "Side dish"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "GL",
+      "name": "enthält glutenhaltiges Getreide",
+      "name_en": "containing cereal with gluten"
+     },
+     {
+      "id": "GL1",
+      "name": "GL enthält Weizen",
+      "name_en": "containing wheat"
+     }
+    ],
+    "additives": [
+     {
+      "id": "3",
+      "name": "mit Antioxidationsmittel",
+      "name_en": "with antioxidant"
+     }
+    ],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167405,
+   "date": "2026-11-09",
+   "name": "Kartoffeln",
+   "name_en": "Potatoes",
+   "price": {
+    "student": "0.65",
+    "employee": "1.05",
+    "guest": "1.05"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "294 kJ (70 kcal)",
+     "fat": "0,1 g",
+     "saturated_fatty_acids": "0,1 g",
+     "carbohydrates": "14,8 g",
+     "sugar": "1,7 g",
+     "roughage": "1,5 g",
+     "protein": "2,0 g",
+     "salt": "0,7 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 160,
+    "name": "Beilage",
+    "name_en": "Side dish"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGA",
+      "name": "Vegan",
+      "name_en": "vegan"
+     }
+    ],
+    "allergens": [],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167403,
+   "date": "2026-11-09",
+   "name": "Solero - Quarktraum",
+   "name_en": "Solero- quark dessert",
+   "price": {
+    "student": "1.90",
+    "employee": "1.90",
+    "guest": "1.90"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "424 kJ (101 kcal)",
+     "fat": "1,2 g",
+     "saturated_fatty_acids": "0,7 g",
+     "carbohydrates": "17,7 g",
+     "sugar": "15,4 g",
+     "roughage": null,
+     "protein": "4,8 g",
+     "salt": "0,1 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 90,
+    "name": "Dessert",
+    "name_en": "Dessert"
+   },
+   "tags": {
+    "categories": [
+     {
+      "id": "VEGT",
+      "name": "Vegetarisch",
+      "name_en": "vegetarian"
+     }
+    ],
+    "allergens": [
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     }
+    ],
+    "additives": [],
+    "special": []
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  },
+  {
+   "id": 167413,
+   "date": "2026-11-09",
+   "name": "Mousse mit Walnussgeschmack",
+   "name_en": "Mousse walnut flavour",
+   "price": {
+    "student": "0.95",
+    "employee": "1.35",
+    "guest": "1.35"
+   },
+   "nutritional_values": {
+    "per_100_grams": {
+     "caloric_value": "652 kJ (156 kcal)",
+     "fat": "5,8 g",
+     "saturated_fatty_acids": "4,2 g",
+     "carbohydrates": "21,3 g",
+     "sugar": "15,8 g",
+     "roughage": null,
+     "protein": "4,4 g",
+     "salt": "0,2 g"
+    }
+   },
+   "location": {
+    "id": 150,
+    "name": "Mensa Uni Hildesheim"
+   },
+   "time": "noon",
+   "lane": {
+    "id": 90,
+    "name": "Dessert",
+    "name_en": "Dessert"
+   },
+   "tags": {
+    "categories": [],
+    "allergens": [
+     {
+      "id": "ML",
+      "name": "enthält Milch u Milcherzeugnisse(inkl. Laktose)",
+      "name_en": "containing milk and milk products (incl. lactose)"
+     },
+     {
+      "id": "NU",
+      "name": "enthält Schalenfrüchte u daraus hergest. Erzeug.",
+      "name_en": "containing edible nuts and products there of"
+     },
+     {
+      "id": "NU3",
+      "name": "NU enthält Walnüsse",
+      "name_en": "containing walnuts"
+     }
+    ],
+    "additives": [],
+    "special": [
+     {
+      "id": "53",
+      "name": "enthält Erzeugnisse tierischen Ursprungs",
+      "name_en": "containing products of animal origin"
+     }
+    ]
+   },
+   "special_tags": [
+    "Deprecated. Use tags→special instead."
+   ]
+  }
+ ]
+}

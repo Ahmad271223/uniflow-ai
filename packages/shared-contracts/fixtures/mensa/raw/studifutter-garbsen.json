@@ -1,0 +1,3529 @@
+{
+ "data": [
+  {
+   "id": "6e29f2ed-e0a2-4c84-ba6a-59832be8a597",
+   "date": "2026-11-05",
+   "alias": "Brechbohnensalat",
+   "price_student": 0.75,
+   "price_employee": 1,
+   "price_guest": 1.2,
+   "foodoffer_category": {
+    "alias": "QUERBEET",
+    "sort": null
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 3.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 2.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 8.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 1.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 0.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 93,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 43,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 21.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 72,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 3.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    }
+   ],
+   "foodoffer_components": []
+  },
+  {
+   "id": "a412fe02-b41e-4e4f-8dcc-dc9a5da6f9c8",
+   "date": "2026-11-09",
+   "alias": "Zitronenquarkspeise mit Schokosplitter",
+   "price_student": 0.9,
+   "price_employee": 1.3,
+   "price_guest": 1.7,
+   "foodoffer_category": {
+    "alias": "SÜSSE ECKE",
+    "sort": 6
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "v"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 0.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 20.01,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 24,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 31.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 612,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 31.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 20.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 10.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 6.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 305,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    }
+   ],
+   "foodoffer_components": []
+  },
+  {
+   "id": "b603292d-a058-4c22-994e-320435a63cc4",
+   "date": "2026-11-06",
+   "alias": "Apfelpudding mit Dessertsauce Vanillegeschmack und Schokoraspel",
+   "price_student": 0.9,
+   "price_employee": 1.3,
+   "price_guest": 1.7,
+   "foodoffer_category": {
+    "alias": "SÜSSE ECKE",
+    "sort": 6
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "20D"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 0.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 252,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 50.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 37.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 1.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 3.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 49,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 3.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 275,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    }
+   ],
+   "foodoffer_components": []
+  },
+  {
+   "id": "5c2e7366-da46-4005-bc0c-be60fae91a46",
+   "date": "2026-11-09",
+   "alias": "Gemischte Blattsalate, hausgemachtes Joghurt-Dressing",
+   "price_student": 0.75,
+   "price_employee": 1,
+   "price_guest": 1.2,
+   "foodoffer_category": {
+    "alias": "QUERBEET",
+    "sort": null
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "31"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "v"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 3.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 97,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 1.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 0.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 1.85,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 1.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 49,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 8.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 102,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Gemischte Blattsalate"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "hausgemachtes Joghurt-Dressing"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ad2f2fd9-ea0e-4b0e-bf25-7dc3e5d0d4d7",
+   "date": "2026-11-06",
+   "alias": "Barbecue Pulled Pork Burger, Barbecuesauce, Amerikanischer Krautsalat, Kartoffeltwister",
+   "price_student": 4.6,
+   "price_employee": 7,
+   "price_guest": 8.6,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "1"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "22"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "25"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "31"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "s"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 10.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": -16,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 34,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 58.14,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 2675,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 6.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 1180,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 60.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 112.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 38.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Barbecue Pulled Pork Burger"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Barbecuesauce"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Amerikanischer Krautsalat"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Kartoffeltwister"
+     }
+    }
+   ]
+  },
+  {
+   "id": "0394b037-50cd-40e7-90b5-bebccc756f09",
+   "date": "2026-11-05",
+   "alias": "Gemüse-Kichererbsen-Curry, Salzkartoffeln",
+   "price_student": 2.5,
+   "price_employee": 6.3,
+   "price_guest": 7.9,
+   "foodoffer_category": {
+    "alias": "VEGGIE & VEGAN",
+    "sort": 3
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "q"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "m"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 16.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 13.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 58.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 467,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 4.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 48.99,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 360,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 67,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 11.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 8.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Gemüse-Kichererbsen-Curry"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Salzkartoffeln"
+     }
+    }
+   ]
+  },
+  {
+   "id": "f3d9975d-fff5-46fd-9425-8b5c0f0928d4",
+   "date": "2026-11-05",
+   "alias": "Tortellini Tricolore, Geflügelschinken-Sahne-Sauce",
+   "price_student": 2,
+   "price_employee": 4.5,
+   "price_guest": 6.4,
+   "foodoffer_category": {
+    "alias": "PASTA & FRIENDS",
+    "sort": 1
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "2"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "8"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "22"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "g"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 10.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 764,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 834,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 42,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 24.57,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 37.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 18,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 107.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 12.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Tortellini Tricolore"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Geflügelschinken-Sahne-Sauce"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e60c86e4-3c35-4599-9f57-4cc06a32f6cd",
+   "date": "2026-11-06",
+   "alias": "Gemischte Blattsalate, hausgemachtes Mangodressing",
+   "price_student": 0.75,
+   "price_employee": 1,
+   "price_guest": 1.2,
+   "foodoffer_category": {
+    "alias": "QUERBEET",
+    "sort": null
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "31"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 1.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 65,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 0.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 77,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 5.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 131,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 0.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 11.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 25.01,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 5.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Gemischte Blattsalate"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "hausgemachtes Mangodressing"
+     }
+    }
+   ]
+  },
+  {
+   "id": "38673fed-0b3c-442c-9ea8-65d4c59a827d",
+   "date": "2026-11-09",
+   "alias": "Rotes Auberginen Linsen Curry, pflanzlicher-Minz-Dip, Naanbrot",
+   "price_student": 2.5,
+   "price_employee": 6.3,
+   "price_guest": 7.9,
+   "foodoffer_category": {
+    "alias": "VEGGIE & VEGAN",
+    "sort": 3
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "q"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20D"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "27J"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "30"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "m"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 23.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 13,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 3.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 434,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 31.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 20.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 726,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 90.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 79.85,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 70,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Rotes Auberginen Linsen Curry"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "pflanzlicher-Minz-Dip"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Naanbrot"
+     }
+    }
+   ]
+  },
+  {
+   "id": "28f90f5d-0a5c-4cda-acb1-b798558d6597",
+   "date": "2026-11-09",
+   "alias": "Vegane Currywurst, Curryketchup, Pommes frites",
+   "price_student": 4.6,
+   "price_employee": 6.2,
+   "price_guest": 6.9,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "2"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "28"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 76,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 13.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 941,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 21.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 9.21,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 455,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 63.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 4.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 76.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 10.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Vegane Currywurst"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Curryketchup"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  },
+  {
+   "id": "aa6f6b0c-6a7f-4f4c-bc13-435ed1c3fe47",
+   "date": "2026-11-09",
+   "alias": "Hausgemachte Pasta, cremige Erdnusssauce mit Hähnchen",
+   "price_student": 2,
+   "price_employee": 4.5,
+   "price_guest": 6.4,
+   "foodoffer_category": {
+    "alias": "PASTA & FRIENDS",
+    "sort": 1
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "24"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "30"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "g"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 51.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 31.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 50.48,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 11.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 733,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 62,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 1.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 9.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 1023,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 130.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Hausgemachte Pasta"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "cremige Erdnusssauce mit Hähnchen"
+     }
+    }
+   ]
+  },
+  {
+   "id": "27bba039-4e0e-46a0-b29f-dd5cf50f1fbc",
+   "date": "2026-11-09",
+   "alias": "Geflügelcurrywurst, Curryketchup, Pommes frites",
+   "price_student": 4,
+   "price_employee": 4.8,
+   "price_guest": 5.5,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "2"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "8"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "12"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "28"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "g"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 27.41,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 23.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 21.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 1118,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 44,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 1116,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 79.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 75.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 11.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Geflügelcurrywurst"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Curryketchup"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  },
+  {
+   "id": "81649371-869b-4998-84fb-784800e40ed0",
+   "date": "2026-11-06",
+   "alias": "Seelachs im Kartoffelmantel, Rahmlauch, Kartoffel-Senfpüree",
+   "price_student": 3.8,
+   "price_employee": 6.5,
+   "price_guest": 8.1,
+   "foodoffer_category": {
+    "alias": "FLEISCH & MEER",
+    "sort": 2
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "23"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "28"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 26.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 11.94,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 12.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 35.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 28,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 78.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 737,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 992,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 10.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 8.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Seelachs im Kartoffelmantel"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Rahmlauch"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Kartoffel-Senfpüree"
+     }
+    }
+   ]
+  },
+  {
+   "id": "c5bf0ff2-e8ed-490d-9bac-30c3b12d2ef4",
+   "date": "2026-11-09",
+   "alias": "Kalbsragout Marengo mit Champignons, Rosenkohl, Semmelknödel",
+   "price_student": 3.8,
+   "price_employee": 6.5,
+   "price_guest": 8.1,
+   "foodoffer_category": {
+    "alias": "FLEISCH & MEER",
+    "sort": 2
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "22"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "31"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "r"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "a"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 648,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 68.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 18,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 47.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 13,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": -147,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 3471,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 4.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 5.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 21.54,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Kalbsragout Marengo mit Champignons"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Rosenkohl"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Semmelknödel"
+     }
+    }
+   ]
+  },
+  {
+   "id": "5b8df227-ed0d-428b-aebb-b0429354757a",
+   "date": "2026-11-06",
+   "alias": "Hausgemachte Pasta, Kürbisragout",
+   "price_student": 2,
+   "price_employee": 4.5,
+   "price_guest": 6.4,
+   "foodoffer_category": {
+    "alias": "PASTA & FRIENDS",
+    "sort": 1
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20D"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 1.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 1.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 136.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 740,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 6.99,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 12.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 75,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 25.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 9.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 289,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Hausgemachte Pasta"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Kürbisragout"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d01e3ff0-e643-45e9-8f64-24dcd8f87dfc",
+   "date": "2026-11-09",
+   "alias": "Strohschwein-Currywurst, Curryketchup, Pommes frites",
+   "price_student": 4,
+   "price_employee": 4.8,
+   "price_guest": 5.5,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "2"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "8"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "28"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "s"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 1285,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 69.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 20.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 29.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 21.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 75.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 31.21,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 1053,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 51,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Strohschwein-Currywurst"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Curryketchup"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  },
+  {
+   "id": "fff0be3e-1f81-4f0c-b207-b35af6481104",
+   "date": "2026-11-06",
+   "alias": "Salatteller, Mini-Camembert und Preiselbeeren, hausgemachtes Walnussdressing, Weizenbaguette",
+   "price_student": 2.5,
+   "price_employee": 6.3,
+   "price_guest": 7.9,
+   "foodoffer_category": {
+    "alias": "VEGGIE & VEGAN",
+    "sort": 3
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "q"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20B"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "27L"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "29"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "31"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "v"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 42.84,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 934,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 49,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 75.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 31.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 58.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 23.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 14.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 798,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Salatteller"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Mini-Camembert und Preiselbeeren"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "hausgemachtes Walnussdressing"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Weizenbaguette"
+     }
+    }
+   ]
+  },
+  {
+   "id": "124a98e6-bc64-4e4d-95af-9af78a75ad31",
+   "date": "2026-11-05",
+   "alias": "Schlemmerjoghurt, Himbeersauce",
+   "price_student": 0.9,
+   "price_employee": 1.3,
+   "price_guest": 1.7,
+   "foodoffer_category": {
+    "alias": "SÜSSE ECKE",
+    "sort": 6
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "v"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 213,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 0.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 6.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 25,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 11.57,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 29.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 341,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": 27,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 9.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Schlemmerjoghurt"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Himbeersauce"
+     }
+    }
+   ]
+  },
+  {
+   "id": "1dca4eea-2494-4e7f-a708-90cff94f4d8c",
+   "date": "2026-11-05",
+   "alias": "Frisches Putenschnitzel, Chili-Hollandaise, Pommes frites",
+   "price_student": 4.8,
+   "price_employee": 6,
+   "price_guest": 7.8,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "22"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "28"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "g"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 26,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 27.39,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 32.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 2.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": 72.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 1322,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 4.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 102.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 41,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 1635,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Frisches Putenschnitzel"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Chili-Hollandaise"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  },
+  {
+   "id": "14f1c3f1-832b-42c9-b399-688a0969d75b",
+   "date": "2026-11-05",
+   "alias": "Chili con Carne, Fladenbrot, wahlweise mit Schmand",
+   "price_student": 3.8,
+   "price_employee": 6.5,
+   "price_guest": 8.1,
+   "foodoffer_category": {
+    "alias": "FLEISCH & MEER",
+    "sort": 2
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "17"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "k"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "30"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "r"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 5.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 53.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 62.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": -18,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 15.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 29.48,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 2174,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 811,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 35.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 12.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Chili con Carne"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Fladenbrot"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "wahlweise mit Schmand"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d83287e0-95ac-422b-a121-9bfe90ab5a3f",
+   "date": "2026-11-05",
+   "alias": "Veganes Schnitzel, cremige Pilzsauce, Pommes frites",
+   "price_student": 4,
+   "price_employee": 5.6,
+   "price_guest": 6.9,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20D"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 13.2,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 24.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 1193,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 73,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 84.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 1.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 8.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 3.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 639,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 82.6,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Veganes Schnitzel"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "cremige Pilzsauce"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7a12d3a6-14e3-4e8f-bde9-8fe7e021ae8d",
+   "date": "2026-11-05",
+   "alias": "Veganes Schnitzel, vegane Chili-Hollandaise, Pommes frites",
+   "price_student": 4,
+   "price_employee": 5.6,
+   "price_guest": 6.9,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "x"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 16.7,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 79,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": 3.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 9.78,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 83.1,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 2.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 1513,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": 121.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": 21,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 588,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Veganes Schnitzel"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "vegane Chili-Hollandaise"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d0e51bce-d07f-4763-8ca1-41a6f21a9171",
+   "date": "2026-11-05",
+   "alias": "Frisches Schweineschnitzel, Chili-Hollandaise, Pommes frites",
+   "price_student": 4.8,
+   "price_employee": 6,
+   "price_guest": 7.8,
+   "foodoffer_category": {
+    "alias": "EVERGREENS",
+    "sort": 4
+   },
+   "markings": [
+    {
+     "markings_id": {
+      "external_identifier": "3"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "20A"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "22"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "26"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "28"
+     }
+    },
+    {
+     "markings_id": {
+      "external_identifier": "s"
+     }
+    }
+   ],
+   "attribute_values": [
+    {
+     "number_value": 105.4,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "fat_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "animal_welfare"
+     }
+    },
+    {
+     "number_value": 1.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "sugar_g"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "water_rating"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "co2_rating"
+     }
+    },
+    {
+     "number_value": 3.5,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "salt_g"
+     }
+    },
+    {
+     "number_value": 42.8,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "protein_g"
+     }
+    },
+    {
+     "number_value": 12,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_saving_percentage"
+     }
+    },
+    {
+     "number_value": null,
+     "string_value": "",
+     "food_attribute": {
+      "external_identifier": "rainforest"
+     }
+    },
+    {
+     "number_value": 26.9,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "saturated_fat_g"
+     }
+    },
+    {
+     "number_value": 1353,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "calories_kcal"
+     }
+    },
+    {
+     "number_value": 58.3,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "carbohydrate_g"
+     }
+    },
+    {
+     "number_value": 14.44,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "water_usage"
+     }
+    },
+    {
+     "number_value": 2464,
+     "string_value": null,
+     "food_attribute": {
+      "external_identifier": "co2_g"
+     }
+    }
+   ],
+   "foodoffer_components": [
+    {
+     "component_foodoffers_id": {
+      "alias": "Frisches Schweineschnitzel"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Chili-Hollandaise"
+     }
+    },
+    {
+     "component_foodoffers_id": {
+      "alias": "Pommes frites"
+     }
+    }
+   ]
+  }
+ ]
+}

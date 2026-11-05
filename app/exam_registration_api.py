@@ -3,7 +3,9 @@
 (app/exam_registration.py), "Diese Prüfungen solltest du anmelden" aus dem persoenlichen Studienverlauf
 (app/study_plan.py), Klausurtermine aus allen Quellen (app/exams.py), QIS-Noten (bestanden -> nicht gelistet, Vermerk
 AN -> angemeldet) und die gelesenen Zeilen von "Info über angemeldete Prüfungen" (app/qis_registrations.py, im normalen
-QIS-Abruf). Rechnet nur; angemeldet wird nie von der App.
+QIS-Abruf). Rechnet nur; angemeldet wird nie von der App. Hochschule aus settings.university: LUH (QIS) und Uni
+Hildesheim (LSF, Start der POS-Anmeldung ohne einheitliche Frist: `open_end`, keine Warnung "endet in", Karte nur kurz
+vor und in den ersten OPEN_END_CARD_DAYS Tagen; gelesene Zeilen aus "Meine POS-Anmeldungen").
 
 Erinnerungen: Die Windows-App hat (noch) keine Systemmitteilungen; statt "7 und 2 Tage vor Ende, erster Tag" um 9:00
 zeigt die Oberflaeche an diesen Tagen einen Hinweis in der App (exam-registration.js). `reminders` liefert dieselben
@@ -24,6 +26,7 @@ HINT = ("Tippe im QIS auf „Prüfungsanmeldung/-abmeldung“, wähle die Prüfu
 DISCLAIMER = ("Verbindlich sind die Fristen im QIS und auf den Seiten des Prüfungsamts. Module aus anderen Studiengängen "
               "können andere Zeiträume haben.")
 WARN_DAYS = 3
+OPEN_END_CARD_DAYS = 14
 SUGGEST_STATUSES = {"offen", "geplant", "nicht_bestanden", "angemeldet"}
 WD = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
@@ -78,13 +81,18 @@ def _university(conn) -> str:
         return "luh"
 
 
+def open_label(system: str) -> str:
+    return f"Im {system} anmelden"
+
+
 def response(conn, today: str, data: dict | None = None, source=None) -> dict:
-    data = data or periods.load_data()
     university = _university(conn)
-    rules = [r for r in data.get("rules") or [] if isinstance(r, dict)]
-    if university != data.get("university", "luh"):
+    data = data or periods.for_university(university)
+    if data is None or university != data.get("university", "luh"):
         return {"supported": False, "university": university, "show_card": False, "suggestions": [], "registered": [],
                 "warnings": [], "periods": [], "qis_url": None, "hint": HINT, "disclaimer": DISCLAIMER}
+    rules = [r for r in data.get("rules") or [] if isinstance(r, dict)]
+    system = periods.system(data)
     day = date.fromisoformat(today)
 
     settings, grades = study_plan.load_settings(conn), study_plan.grade_rows(conn)
@@ -94,7 +102,7 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
 
     name = (cat or {}).get("program") or study_plan.program_of(grades)
     degree = (cat or {}).get("degree")
-    program = periods.find_program(data, name, degree)
+    program = periods.resolve_program(data, name, degree)
     window = periods.window_state(data, program, today, "meldung")
     term_name = window["term"] if window else study_plan.term_name(study_plan.current_term(today))
     vw = periods.window_state(data, program, today, "vbp_meldung")
@@ -126,7 +134,7 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
         o["exam_date"] = d
         o["exam_time"] = t or None
         o["exam_room"] = (e or {}).get("room") if e else (reg or {}).get("room")
-        o["exam_source"] = (e or {}).get("source_label") if e else ("aus QIS (angemeldet)" if d and reg else None)
+        o["exam_source"] = (e or {}).get("source_label") if e else (f"aus {'dem ' if system == 'LSF' else ''}{system} (angemeldet)" if d and reg else None)
         until = (reg or {}).get("iso_withdraw")
         rule = None
         w = withdraw_days(exam, rules)
@@ -188,12 +196,13 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
             seen.add(key)
             reg = registration(None, key)
             via_qis = any(s.get("kind") == "qis" for s in e.get("sources") or [])
+            via_info = any(s.get("kind") == "anmeldung" for s in e.get("sources") or [])   # gelesene Anmeldung mit Termin
             eid = e.get("id") or f"exam-{i}"
             o = {"id": eid, "title": title, "lp": None, "exam": None, "kind": None, "code": None, "status": None,
                  "fachsemester": None, "period": "meldung", "last_attempt": False,
                  "app_module_ids": [e["module_id"]] if isinstance(e.get("module_id"), int) else [],
-                 "reason_kind": "klausur", "reason": "Klausurtermin bekannt", "registered": via_qis or reg is not None,
-                 "registered_via": "notenspiegel" if via_qis else ("qis_info" if reg is not None else None)}
+                 "reason_kind": "klausur", "reason": "Klausurtermin bekannt", "registered": via_qis or via_info or reg is not None,
+                 "registered_via": "notenspiegel" if via_qis else ("qis_info" if (reg is not None or via_info) else None)}
             exam_fields(key, None, reg, o)
             order[eid] = i
             suggestions.append(o)
@@ -209,26 +218,33 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
         return "1 geplante Prüfung ist" if n == 1 else f"{n} geplante Prüfungen sind"
 
     warnings = []
-    if window and window["phase"] == "open" and window["days_left"] <= WARN_DAYS and open_main:
+    # ohne bekanntes Ende (Uni Hildesheim) kein "endet in": die Frist steht je Pruefung im LSF
+    if window and window["phase"] == "open" and not window.get("open_end") and window["days_left"] <= WARN_DAYS and open_main:
         warnings.append({"kind": "ende", "tone": "bad",
                          "text": f"Die Anmeldung endet {end_text(window)}. {plural(len(open_main))} noch nicht angemeldet."})
-    if vbp_window and vbp_window["phase"] == "open" and vbp_window["days_left"] <= WARN_DAYS and open_vbp:
+    if vbp_window and vbp_window["phase"] == "open" and not vbp_window.get("open_end") and vbp_window["days_left"] <= WARN_DAYS and open_vbp:
         warnings.append({"kind": "vbp_ende", "tone": "bad",
                          "text": f"Die Anmeldung für VbP endet {end_text(vbp_window)}. {plural(len(open_vbp))} noch nicht angemeldet."})
 
     run = qis_registrations.last_run(conn) or {}
-    show_card = bool(window and window["phase"] in ("open", "soon")) or bool(vbp_window and vbp_window["phase"] == "open" and open_vbp)
+    def card_for(w: dict | None) -> bool:
+        if not w or w["phase"] not in ("open", "soon"):
+            return False
+        # ohne Ende: nur die ersten Tage ab dem Start (sonst stuende die Karte das ganze Semester da)
+        return w["phase"] == "soon" or not w.get("open_end") or (day - date.fromisoformat(w["start"])).days <= OPEN_END_CARD_DAYS
+    show_card = card_for(window) or bool(vbp_window and vbp_window["phase"] == "open" and open_vbp)
     general = (data.get("general") or {}).get("url")
     pname = periods.program_name(name) if name else None
     out = {
         "supported": True, "university": university,
         "program": {"name": pname, "degree": degree, "slug": program["slug"], "url": program["url"],
-                    "verified": program.get("table") is not None, "variant": program.get("variant")} if program else None,
+                    "verified": program.get("table") is not None, "variant": program.get("variant"),
+                    "all_programs": bool(program.get("default"))} if program else None,
         "program_name": pname,
         "source": {"url": program["url"] if program else general, "general_url": general,
                    "checked_at": (program or {}).get("checked_at") or data.get("checked_at")},
         "term": term_name, "window": window, "vbp_window": vbp_window,
-        "periods": [{k: p.get(k) for k in ("kind", "n", "label", "start", "end")}
+        "periods": [{**{k: p.get(k) for k in ("kind", "n", "label", "start", "end")}, "open_end": bool(p.get("open_end"))}
                     for p in periods.term_periods(data, program, window["term"] if window else None)],
         "show_card": show_card, "plan_available": full is not None, "plan_message": plan_message,
         "suggestions": suggestions, "open_count": len(open_), "registered_count": len(suggestions) - len(open_),
@@ -238,8 +254,9 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
                         "form": r.get("form")} for r in regs],
         "registrations_checked_at": run.get("at"), "registrations_ok": run.get("ok"),
         "registrations_message": run.get("message"),
-        "warnings": warnings, "qis_url": data.get("qis_menu"), "hint": HINT,
-        "rules": [r.get("text") for r in rules], "disclaimer": DISCLAIMER,
+        "warnings": warnings, "qis_url": data.get("qis_menu"), "hint": data.get("hint") or HINT,
+        "rules": [r.get("text") for r in rules], "disclaimer": data.get("disclaimer") or DISCLAIMER,
+        "system": system, "open_label": open_label(system), "period_note": data.get("period_note"),
     }
     out["reminders"] = reminders(out)
     return out
@@ -268,16 +285,21 @@ def reminders(resp: dict) -> list[dict]:
         what = "Prüfungsanmeldung (VbP)" if period == "vbp" else "Prüfungsanmeldung"
         count = "" if missing == 0 else (" · 1 Prüfung laut Plan noch nicht angemeldet" if missing == 1
                                          else f" · {missing} Prüfungen laut Plan noch nicht angemeldet")
-        body = f"{w['term']}: bis {_when(w['end'])}{count}"
+        open_end = bool(w.get("open_end"))
+        body = (f"{w['term']}: Anmeldung im {resp.get('system') or 'QIS'} freigeschaltet, Fristen je Prüfung" if open_end
+                else f"{w['term']}: bis {_when(w['end'])}") + count
         start, end = date.fromisoformat(w["start"]), date.fromisoformat(w["end"])
         slots = [("start", start, f"{what} beginnt heute")]
-        if end - timedelta(days=7) > start:
+        # ohne Ende (Uni Hildesheim) nur am ersten Tag
+        if not open_end and end - timedelta(days=7) > start:
             slots.append(("d7", end - timedelta(days=7), f"{what}: noch 7 Tage"))
-        if end - timedelta(days=2) > start:
+        if not open_end and end - timedelta(days=2) > start:
             slots.append(("d2", end - timedelta(days=2), f"{what} endet übermorgen"))
         base = f"examreg.{periods.slugify(w['term'])}.{'vbp' if period == 'vbp' else 'meldung'}{w.get('n', 1)}."
         for tag, d, title in slots:
-            out.append({"id": base + tag, "day": d.isoformat(), "time": "09:00", "until": w["end"], "title": title,
+            # Hinweis in der App bis zum Ende, ohne Ende nur so lange wie die Karte
+            until = (start + timedelta(days=OPEN_END_CARD_DAYS)).isoformat() if open_end else w["end"]
+            out.append({"id": base + tag, "day": d.isoformat(), "time": "09:00", "until": until, "title": title,
                         "body": body, "route": "#/studyplan"})
     out.sort(key=lambda r: (r["day"], r["id"]))
     return out

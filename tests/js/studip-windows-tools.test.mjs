@@ -100,6 +100,28 @@ test("Pruefungsanmeldung: Phase, Karte, Block am Modul, nie selbst anmelden", ()
   assert.equal(X.examStatus(RESP, { module_id: 9, title: "x" }), null);
 });
 
+test("Pruefungsanmeldung Uni Hildesheim: LSF statt QIS, Start ohne Ende, Hinweis statt 'nicht sicher'", () => {
+  const HI = {
+    ...RESP, system: "LSF", open_label: "Im LSF anmelden", qis_url: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0",
+    hint: "Im LSF: Meine Funktionen → POS-Management …", warnings: [],
+    period_note: "Die Uni Hildesheim hat keine einheitliche Anmeldefrist.",
+    window: { term: "WiSe 26/27", kind: "meldung", n: 1, start: "2026-11-11", end: "2027-03-31", phase: "soon", days_left: 146, days_until: 6, open_end: true },
+  };
+  assert.equal(X.systemOf(HI), "LSF"); assert.equal(X.systemOf(RESP), "QIS");
+  assert.equal(X.openLabel(HI), "Im LSF anmelden"); assert.equal(X.openLabel(RESP), "Im QIS anmelden");
+  assert.equal(X.phaseText(HI.window, "LSF"), "Anmeldung im LSF WiSe 26/27 beginnt am Mi, 11.11. (in 6 Tagen) – Fristen je Prüfung");
+  assert.equal(X.phaseText({ ...HI.window, phase: "open", days_left: 1 }, "LSF"), "Anmeldung im LSF seit Mi, 11.11. – Fristen je Prüfung im LSF",
+    "kein 'endet morgen' ohne bekanntes Ende");
+  assert.equal(X.phaseText({ ...HI.window, phase: "later" }, "LSF"), "Nächste Anmeldung im LSF: ab 11.11.2026 (WiSe 26/27)");
+  const card = X.cardHtml(HI);
+  assert.match(card, /Im LSF anmelden/); assert.doesNotMatch(card, /Im QIS/);
+  assert.match(card, /lsf\.uni-hildesheim\.de/); assert.match(card, /keine einheitliche Anmeldefrist/);
+  assert.doesNotMatch(card, /kennt StudiNow nicht sicher/);
+  assert.match(X.cardHtml({ ...HI, window: null }), /keine einheitliche Anmeldefrist/);
+  assert.match(X.moduleBlockHtml(HI, HI.suggestions[0]), /Anmeldung im LSF/);
+  assert.match(X.cardHtml({ ...RESP, window: null }), /kennt StudiNow nicht sicher/, "LUH unveraendert");
+});
+
 test("Pruefungsanmeldung: Hinweis in der App an den Erinnerungstagen (statt Systemmitteilung)", () => {
   assert.equal(X.dueReminder(RESP, "2026-11-08"), null, "vor dem ersten Tag nichts");
   assert.equal(X.dueReminder(RESP, "2026-11-10").id, "examreg.wise-26-27.meldung1.start");

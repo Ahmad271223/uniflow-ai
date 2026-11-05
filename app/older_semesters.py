@@ -4,8 +4,10 @@ Der Abgleich laedt nur die Dateien des aktuellen Semesters (Kurse mit active=1, 
 Semester bleiben als Kurs bekannt (courses, inaktiv; die Community prueft daran "hat oder hatte das Modul"). Ihre Dateien
 laedt der Abgleich nur auf Wunsch:
 
-- Wahl je Datenbank (`older_semester_choice`): None = noch nicht gefragt, `current` = nur aktuelles Semester (Vorgabe),
-  `all` = Dateien aller frueheren Semester mitladen.
+- Wahl je Datenbank (`older_semester_choice`): seit 05.11.2026 (app/sync_order.py, "zuerst das aktuelle Semester") die
+  Einstellung "Ältere Semester laden": `auto` (Automatisch), `wifi` (Nur WLAN, Vorgabe), `off` (Aus). Fruehere Werte
+  gelten weiter: `all` = Automatisch, `current` = Aus; None = noch nicht gefragt (dann gilt die Vorgabe). Geladen
+  wird in Stufe (d) des Abgleichs im Hintergrund, neuestes Semester zuerst, nie vor dem aktuellen Semester.
 - Einzelne Kurse ("Dateien laden" in der Bibliothek): `older_semester_courses` mit requested_at; nach einem Lauf, der
   Dateiliste und alle Downloads eines Kurses geschafft hat, loaded_at. Alte Semester aendern sich kaum, darum fragt ein
   spaeterer Abgleich einen schon geladenen Kurs nicht erneut ab (erneut "Dateien laden" schon).
@@ -26,6 +28,8 @@ from datetime import date
 from . import config, semesters
 
 CHOICES = ("current", "all")
+MODES = ("auto", "wifi", "off")
+DEFAULT_MODE = "wifi"
 
 TABLES = """
 CREATE TABLE IF NOT EXISTS older_semester_choice (
@@ -52,19 +56,38 @@ def _today() -> date:
 
 # --- Wahl ---------------------------------------------------------------------------------------------------------
 
-def choice(conn) -> str | None:
-    """Gespeicherte Wahl (`current`/`all`); None = noch nicht gefragt."""
+def _raw(conn) -> str | None:
     if not _exists(conn, "older_semester_choice"):
         return None
     r = conn.execute("SELECT choice FROM older_semester_choice WHERE id=1").fetchone()
-    return r[0] if r and r[0] in CHOICES else None
+    return r[0] if r and r[0] in CHOICES + MODES else None
+
+
+def choice(conn) -> str | None:
+    """Gespeicherte Wahl in der frueheren Form (`current` = Aus, `all` = laden); None = noch nicht gefragt."""
+    raw = _raw(conn)
+    if raw is None:
+        return None
+    return "current" if raw in ("current", "off") else "all"
 
 
 def set_choice(conn, value: str, now: str) -> None:
-    if value not in CHOICES:
+    if value not in CHOICES + MODES:
         raise ValueError("choice: current oder all")
     conn.executescript(TABLES)
     conn.execute("INSERT OR REPLACE INTO older_semester_choice(id, choice, decided_at) VALUES (1, ?, ?)", (value, now))
+
+
+def mode(conn) -> str:
+    """"Ältere Semester laden": `auto`, `wifi` (Vorgabe, auch solange nie gefragt) oder `off`."""
+    raw = _raw(conn)
+    return {"all": "auto", "current": "off", None: DEFAULT_MODE}.get(raw, raw)
+
+
+def set_mode(conn, value: str, now: str) -> None:
+    if value not in MODES:
+        raise ValueError("mode: auto, wifi oder off")
+    set_choice(conn, value, now)
 
 
 # --- Kurse --------------------------------------------------------------------------------------------------------
@@ -100,9 +123,10 @@ def courses(conn, today: date | None = None) -> list[dict]:
 
 
 def pending(conn, today: date | None = None) -> set[str]:
-    """Kurse frueherer Semester, deren Dateien der naechste Abgleich holen soll: bei der Wahl `all` alle noch nicht
-    geladenen, sonst nur die angeforderten ("Dateien laden")."""
-    everything = choice(conn) == "all"
+    """Kurse frueherer Semester, deren Dateien Stufe (d) holen soll: ausser bei "Aus" alle noch nicht geladenen, sonst
+    nur die angeforderten ("Dateien laden")."""
+    # Dienst: nur Vorgemerktes (je Konto ein Arbeiter; Dateien reicht er ohnehin bei Bedarf durch)
+    everything = mode(conn) != "off" and not config.is_hosted()
     return {c["id"] for c in courses(conn, today) if not c["loaded"] and (everything or c["requested"])}
 
 
@@ -169,7 +193,9 @@ def groups(conn, today: date | None = None) -> list[dict]:
 def overview(conn, today: date | None = None) -> dict:
     """`GET /api/older-semesters`: Wahl, aktuelles Semester und die frueheren mit ihren Kursen."""
     d = today or _today()
-    return {"choice": choice(conn), "current": semesters.label(semesters.current(d)),
+    from . import sync_order
+    return {"choice": choice(conn), "mode": mode(conn), "current": semesters.label(sync_order.current_term(d)),
+            "progress": sync_order.status(conn, d),
             "semesters": [{"label": g["label"], "courses": [
                 {k: c[k] for k in ("id", "title", "files", "downloaded", "requested", "loaded")} for c in g["courses"]]}
                 for g in groups(conn, d)]}

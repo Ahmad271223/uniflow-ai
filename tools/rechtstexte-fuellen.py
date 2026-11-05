@@ -52,7 +52,7 @@ REQUIRED = ("name", "strasse", "plz_ort", "email", "telefon", "domain", "hoster"
 OPTIONAL = ("email_datenschutz", "ustid", "datenschutzbeauftragter", "datum")
 COMPANY = ("firma", "rechtsform", "vertreten_durch", "registergericht", "registernummer")   # nur juristische Person
 FEATURE_KEYS = ("ipad_hildesheim", "ipad_fristen", "ipad_skriptsuche", "ipad_community_online",
-                "android_karteikarten", "android_community")
+                "android_karteikarten", "android_community", "ipad_hsh")
 
 # Platzhalter (Text in den Klammern, Leerraum normalisiert) -> Schluessel der JSON; "@..." = abgeleitet
 VALUES = {
@@ -85,6 +85,9 @@ VALUES = {
 FEATURES = {
     " UND DER UNIVERSITÄT HILDESHEIM": ("ipad_hildesheim",),
     " bzw. Learnweb": ("ipad_hildesheim",),
+    # vorbereitet 05.11.2026 (docs/HILDESHEIM-STAND-2026-11-05.md), erscheint erst mit dem Schalter nach dem Test des Inhabers
+    "• Universität Hildesheim: Kurse, Dateien, Fristen und Nachrichten aus dem Learnweb, Stundenplan und Noten aus dem LSF, Studienverlauf mit den Modulen deines Studiengangs":
+        ("ipad_hildesheim",),
     ", Abgabefristen und Ankündigungen der Lehrenden": ("ipad_fristen",),
     "• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick": ("ipad_fristen",),
     " mit Fristen und Feiertagen": ("ipad_fristen",),

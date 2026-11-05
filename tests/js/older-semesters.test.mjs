@@ -26,7 +26,7 @@ test("die Frage kommt nur ohne Wahl und mit Kursen frueherer Semester", () => {
 });
 
 test("Text der Frage", () => {
-  assert.equal(O.questionText("WiSe 2026/27", 1), "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.");
+  assert.equal(O.questionText("WiSe 2026/27", 1), "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.");
   assert.match(O.questionText("", 3), /^StudiNow hat die Dateien deines aktuellen Semesters geladen\. Dazu gibt es 3 Kurse aus/);
 });
 
@@ -59,7 +59,8 @@ test("Kursordner in der Bibliothek", () => {
 });
 
 test("Bereich Fruehere Semester: zugeklappt, aufgeklappt, beschaeftigt", () => {
-  const closed = O.semestersHtml(overview());
+  const closed = O.semestersHtml(overview({ choice: "current" }));
+  assert.match(O.semestersHtml(overview()), /StudiNow lädt die Dateien früherer Semester mit\./, "nie gefragt: Vorgabe Nur WLAN laedt mit");
   assert.match(closed, /Frühere Semester<\/h2>/);
   assert.match(closed, /StudiNow lädt nur Dateien des aktuellen Semesters\. Frühere Semester kannst du hier je Semester oder je Kurs laden\./);
   assert.match(closed, /SoSe 2026<\/b><span class="muted small">2 Kurse · 3 von 6 Dateien geladen/);
@@ -114,13 +115,18 @@ test("Kopf im Kursordner", () => {
   assert.match(O.courseHeaderHtml([f("<x>.pdf", 0)]), /&lt;x&gt;\.pdf/);
 });
 
-test("Einstellung: nur wenn es etwas zu waehlen gibt", () => {
+test("Einstellung \"Ältere Semester laden\": nur wenn es etwas zu waehlen gibt", () => {
   assert.equal(O.settingHtml(null), "");
   assert.equal(O.settingHtml(overview({ semesters: [] })), "", "nichts gewaehlt und nichts da");
-  assert.ok(O.settingHtml(overview({ semesters: [], choice: "current" })).includes('id="sOlderAll"'), "schon gewaehlt: Schalter bleibt");
-  assert.ok(!/checked/.test(O.settingHtml(overview({ choice: "current" }))));
-  assert.match(O.settingHtml(overview({ choice: "all" })), /id="sOlderAll" checked> Dateien früherer Semester mitladen/);
+  assert.ok(O.settingHtml(overview({ semesters: [], choice: "current" })).includes('id="sOlderMode"'), "schon gewaehlt: Auswahl bleibt");
+  const sel = h => (h.match(/<option value="(\w+)" selected>/) || [])[1];
+  assert.equal(sel(O.settingHtml(overview())), "wifi", "nie gefragt: Vorgabe Nur WLAN (05.11.2026)");
+  assert.equal(sel(O.settingHtml(overview({ choice: "current" }))), "off", "fruehere Wahl 'nur aktuelles Semester' = Aus");
+  assert.equal(sel(O.settingHtml(overview({ choice: "all" }))), "auto", "fruehere Wahl 'alle' = Automatisch");
+  assert.equal(sel(O.settingHtml(overview({ choice: "all", mode: "wifi" }))), "wifi", "die neue Wahl gilt vor der alten");
+  assert.match(O.settingHtml(overview()), /Ältere Semester laden <select[^>]*>.*>Automatisch<.*>Nur WLAN<.*>Aus</s);
   assert.match(O.settingHtml(overview()), /Aus: StudiNow lädt nur Dateien des aktuellen Semesters\. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs\./);
+  assert.match(O.settingHtml(overview()), /zuerst das aktuelle Semester samt Stundenplan/);
 });
 
 test("die Texte sind dieselben wie auf dem iPad", () => {
@@ -131,8 +137,11 @@ test("die Texte sind dieselben wie auf dem iPad", () => {
     "StudiNow lädt die Dateien früherer Semester mit. Einzelne Kurse kannst du hier erneut laden.",
     "StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester kannst du hier je Semester oder je Kurs laden.",
     "Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs."]) assert.ok(views.includes(t), `Swift: ${t}`);
-  assert.ok(settings.includes("Dateien früherer Semester mitladen"));
-  assert.ok(settings.includes("lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."), "Hinweis unter dem Schalter");
+  assert.ok(settings.includes("Ältere Semester laden"), "Swift: Ältere Semester laden");
+  const core = read("apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/LocalBackend/Study/OlderSemesters.swift");
+  for (const [, t] of O.OLDER_MODES) assert.ok(core.includes(`"${t}"`), `Swift: ${t}`);
+  assert.ok(read("apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Sync/SyncOrder.swift").includes(O.OLDER_FILES_HINT), "Hinweis gleich auf dem iPad");
+  assert.ok(views.includes("StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. "), "Frage gleich auf dem iPad");
   assert.ok(O.OLDER_FILES_HINT.endsWith("lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."));
   assert.ok(read("apps/apple/UniFlow/Services/StudIPSync.swift").includes(O.NOTE_QUEUED));
 });

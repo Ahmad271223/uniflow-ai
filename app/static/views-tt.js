@@ -1,7 +1,7 @@
 // Stundenplan: Wochenraster nur mit Hochschulterminen, Termin-Panel mit Teilnahme, Import-Vorschau. Alles zu Lernslots
 // (Verfügbarkeit, freie Fenster, Sperrzeiten, Konflikte, Neu legen) steht im Lernkalender (views-plan.js).
-import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=44";
-import { useFreeWindow } from "./views-plan.js?v=48";
+import { holClass, holChips, dlChips, noteChips, cancelMark, cancelUnsure, cancelSource, cancelLabel, topicLine, safeUrl, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=45";
+import { useFreeWindow } from "./views-plan.js?v=49";
 import * as SQ from "./studip-questions.js?v=1";   // Rückfragen zum Stud.IP-Kalender, Ausfälle laut Stud.IP (05.11.2026)
 
 let ttDate = todayISO(); let ttShowCx = false;

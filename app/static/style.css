@@ -1289,3 +1289,10 @@ button.sp-chip:hover { border-color: var(--line-strong); } .sp-chip:focus-visibl
 }
 @media (max-width: 600px) { .sp-tools { flex-direction: column; align-items: stretch; } .sp-tools .seg { align-self: flex-start; } }
 @media (prefers-reduced-motion: reduce) { .sp-ghost { box-shadow: none; } }
+
+/* Module je Semester (app/static/module-semesters.js, 05.11.2026): Hinweis zum Abgleich und Semester-Ueberschriften */
+.sem-hint { display: flex; align-items: center; gap: .5rem; margin: 0 0 1rem; padding: .55rem .8rem; border-radius: var(--r, 14px);
+  background: var(--surface2, var(--surface)); border: 1px solid var(--line); color: var(--text2, var(--text)); font-size: .9rem; }
+.sem-hint svg { flex: none; }
+.sem-head { font-size: 1.02rem; margin: 1.2rem 0 .7rem; display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+.mod-older .older-ct .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; vertical-align: middle; }

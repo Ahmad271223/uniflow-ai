@@ -51,8 +51,9 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
 ## 4. Systeme deiner Hochschule
 
 - StudiNow greift mit **deinen** Zugangsdaten auf die Systeme deiner Hochschule zu (z. B. Stud.IP, QIS, Learnweb,
-  LSF) und liest dort nur; es schreibt nichts. Du entscheidest, ob und wo die Zugangsdaten gespeichert werden
-  (Gerät oder Konto), und kannst sie jederzeit löschen.
+  LSF) und liest dort. Geschrieben wird nur auf deine ausdrückliche Aktion hin, etwa eine Antwort auf eine
+  Nachricht oder eine Abgabe mit „Jetzt abgeben“; für so gesendete Inhalte bist du selbst verantwortlich. Du
+  entscheidest, ob und wo die Zugangsdaten gespeichert werden (Gerät oder Konto), und kannst sie jederzeit löschen.
 - Du bist dafür verantwortlich, dass du zur Nutzung dieser Systeme berechtigt bist und ihre Nutzungsregeln den
   Abruf durch eine App erlauben. Nutze keine fremden Zugangsdaten.
 - Die Hochschulsysteme gehören den Hochschulen; sie können sich ändern oder ausfallen. Wir garantieren nicht, dass der

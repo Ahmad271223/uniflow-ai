@@ -4,6 +4,8 @@ Weder Stud.IP noch Learnweb/LSF liefern eine Ferienliste (geprueft 26.10.2026). 
  - Gesetzliche Feiertage in Niedersachsen (beide Hochschulen liegen dort) werden berechnet.
  - Vorlesungszeiten und Unterbrechungen stammen aus den offiziellen Zeitplaenen der Hochschulen:
    LUH:        https://www.uni-hannover.de/studium/semestertermine (abgerufen 26.10.2026)
+   HsH:        https://www.hs-hannover.de/ueber-uns/organisation/akademische-angelegenheiten/studierende/wichtige-termine-fristen
+               (abgerufen 05.11.2026; Vorlesungszeiten ohne die abweichenden Termine der Fakultaet V)
    Hildesheim: https://www.uni-hildesheim.de/termine-fristen/ (Zeitplan-PDFs bis SoSe 2030, abgerufen 26.10.2026;
                im PDF SoSe 2028 steht als Beginn der Projektwoche "06.06.2027", gemeint ist 2028)
    Die Hochschulen geben die Angaben ohne Gewaehr an; neue Semester werden hier nachgetragen.
@@ -33,6 +35,16 @@ SEMESTERS: dict[str, list[tuple[str, str, str, list[tuple[str, str, str]]]]] = {
         ("SoSe 2029", "2029-04-09", "2029-07-20", [("2029-05-22", "2029-05-25", "Exkursions- und Projektwoche")]),
         ("WiSe 2029/30", "2029-10-08", "2030-02-01", [("2029-12-21", "2030-01-04", "Weihnachtspause")]),
         ("SoSe 2030", "2030-04-15", "2030-07-26", [("2030-06-11", "2030-06-14", "Exkursions- und Projektwoche")]),
+    ],
+    "hsh": [
+        ("WiSe 2026/27", "2026-09-21", "2027-01-31", [("2026-12-23", "2027-01-02", "Weihnachten")]),
+        ("SoSe 2027", "2027-03-01", "2027-07-10", [("2027-03-25", "2027-03-30", "Ostern"), ("2027-05-15", "2027-05-18", "Pfingsten")]),
+        ("WiSe 2027/28", "2027-09-20", "2028-01-29", [("2027-12-23", "2028-01-02", "Weihnachten")]),
+        ("SoSe 2028", "2028-03-01", "2028-07-08", [("2028-04-18", "2028-04-23", "Ostern"), ("2028-06-03", "2028-06-06", "Pfingsten")]),
+        ("WiSe 2028/29", "2028-09-20", "2029-01-31", [("2028-12-23", "2029-01-02", "Weihnachten")]),
+        ("SoSe 2029", "2029-03-01", "2029-07-10", [("2029-03-29", "2029-04-03", "Ostern"), ("2029-05-19", "2029-05-22", "Pfingsten")]),
+        ("WiSe 2029/30", "2029-09-20", "2030-01-31", [("2029-12-23", "2030-01-02", "Weihnachten")]),
+        ("SoSe 2030", "2030-03-04", "2030-07-10", [("2030-04-18", "2030-04-23", "Ostern"), ("2030-06-08", "2030-06-11", "Pfingsten")]),
     ],
 }
 

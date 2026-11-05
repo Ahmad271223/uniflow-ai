@@ -145,6 +145,61 @@ final class ExamRegistrationAppTests: XCTestCase {
         XCTAssertEqual(UniLinks.route(url, university: .luh), .inApp(url))
     }
 
+    // MARK: Uni Hildesheim (LSF, POS-Anmeldung ohne einheitliche Frist)
+
+    /// Lokales Backend der Uni Hildesheim mit einer gelesenen Zeile aus "Meine POS-Anmeldungen" (erfunden)
+    private func hildesheimAPI(now: String) async throws -> APIClient {
+        let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: now)!,
+                                    university: .hildesheim)
+        try await host.backend().context.database.transaction { c in
+            try QISRegistrationsSync.store(c, [QISRegistration(pruefungsnr: "4711", text: "Grundlagen der Informatik (Klausur)",
+                                                               semester: "WiSe 26/27", datum: "15.02.2027", time: "10:00", room: "Forum HS 1",
+                                                               status: "zugelassen", raw: "")], now: "t")
+        }
+        return APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
+    }
+
+    func testHildesheimTextsSayLSFAndLinkOpensLSFInApp() throws {
+        let st = try awaiting { await ExamRegistrationState.load(try await self.hildesheimAPI(now: "2026-11-05T10:00:00")) }
+        let s = try XCTUnwrap(st)
+        XCTAssertEqual(s.system, "LSF")
+        XCTAssertEqual(s.openLabel, "Im LSF anmelden")
+        XCTAssertTrue(s.showCard, "POS-Anmeldung beginnt in 6 Tagen")
+        XCTAssertTrue(s.warnings.isEmpty)
+        let w = try XCTUnwrap(s.window)
+        XCTAssertTrue(w.openEnd)
+        XCTAssertEqual(ExamRegistrationText.windowLine(w, system: s.system), "Anmeldung im LSF ab Mi, 11.11. (WiSe 26/27) · Fristen je Prüfung")
+        XCTAssertEqual(s.periods.map(ExamRegistrationText.periodRange), ["ab 11.11.2026"])
+        XCTAssertTrue(s.periodNote?.hasPrefix("Die Uni Hildesheim hat keine einheitliche Anmeldefrist") == true)
+        XCTAssertEqual(ExamRegistrationText.infoPage(s.system), "Meine POS-Anmeldungen")
+        XCTAssertTrue(ExamRegistrationText.checked(s).contains("als angemeldet führt"))
+        XCTAssertFalse(s.hint.contains("QIS"), s.hint)
+        XCTAssertFalse(s.disclaimer.contains("QIS"), s.disclaimer)
+        XCTAssertFalse(s.rules.contains { $0.contains("QIS") })
+        // "Im LSF anmelden": Startseite des LSF im In-App-Browser der Uni Hildesheim
+        let url = try XCTUnwrap(s.qisURL)
+        XCTAssertEqual(url, UniversityProfile.hildesheimLSFStart)
+        XCTAssertEqual(UniLinks.route(url, university: .hildesheim), .inApp(url))
+    }
+
+    func testHildesheimSectionShowsLSFButtonAndNote() throws {
+        let api = try awaiting { try await self.hildesheimAPI(now: "2026-11-12T10:00:00") }
+        var opened: [URL] = []
+        let view = ScrollView { ExamRegistrationSection(api: api) }
+            .environment(\.openURL, OpenURLAction { u in opened.append(u); return .handled })
+        let env = try hostWithEnvironment(view, api: api)
+        XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Anmeldung im LSF seit Mi, 11.11.") } }, env.labels().joined(separator: " | "))
+        let labels = env.labels()
+        XCTAssertTrue(labels.contains { $0.hasPrefix("Die Uni Hildesheim hat keine einheitliche Anmeldefrist") }, labels.joined(separator: " | "))
+        XCTAssertFalse(labels.contains { $0.hasPrefix("Die Zeiträume für") }, "kein 'nicht sicher' fuer die Uni Hildesheim")
+        XCTAssertTrue(labels.contains("Im LSF angemeldet"), labels.joined(separator: " | "))
+        XCTAssertFalse(labels.contains { $0.contains("Im QIS") }, labels.joined(separator: " | "))
+        let button = try XCTUnwrap(element(env.view, label: "Im LSF anmelden"))
+        XCTAssertTrue(button.accessibilityActivate())
+        env.pump()
+        XCTAssertEqual(opened, [UniversityProfile.hildesheimLSFStart])
+    }
+
     // MARK: Karte, Abschnitt, Modul
 
     func testCardInPeriodWithWarningAndQISButton() throws {

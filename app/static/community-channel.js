@@ -4,19 +4,19 @@
 // dazu Notizen geteilt hat; Tippen auf eine Person zeigt ihre Notizen, mit Pfeilen geht es zur naechsten bzw. vorherigen.
 // Dort "Korrektur vorschlagen", Likes und Kommentare. Reiter "Karteikarten": geteilte Stapel je Lehrwoche (community-decks-ui.js).
 // Aufruf: #/community?space=<schluessel>&tab=discussion|docs|cards&layout=weeks|list
-import { icon } from "./icons.js?v=32";
-import { $, $$, api, toast, modal } from "./core.js?v=44";
+import { icon } from "./icons.js?v=33";
+import { $, $$, api, toast, modal } from "./core.js?v=45";
 import * as S from "./solutions.js?v=6";
 import { pageTitle } from "./solution-labels.js?v=1";
 import * as L from "./community-logic.js?v=2";
 import * as C from "./community-corrections.js?v=2";
-import * as U from "./community-corrections-ui.js?v=5";
-import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=19";
-import { capi, openQuestion } from "./views-qa.js?v=7";
-import { renderDecksPanel } from "./community-decks-ui.js?v=3";
+import * as U from "./community-corrections-ui.js?v=6";
+import { loadSpaces, openWithSpaces, decodeImages } from "./community-spaces.js?v=20";
+import { capi, openQuestion } from "./views-qa.js?v=8";
+import { renderDecksPanel } from "./community-decks-ui.js?v=4";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
+const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim", hsh: "Hochschule Hannover" };
 const REASONS = { offensive: "anstößig", spam: "Spam", foreignMaterial: "Fremdmaterial", gradedSubmission: "benotete Abgabe", other: "Sonstiges" };
 const when = iso => { try { return new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return ""; } };
 const nl = t => esc(t).replace(/\n/g, "<br>");
@@ -114,7 +114,7 @@ export async function renderSpacePage(view, params, info) {
         if (!en.isIntersecting) continue; observer.unobserve(en.target);
         const id = en.target.dataset.fid; if (!id || en.target.querySelector("img")) continue;
         try {
-          const ed = await import("./editor.js?v=68");
+          const ed = await import("./editor.js?v=70");
           const data = await ed.renderThumbnail(id, `/api/files/${id}/content`, en.target.dataset.ver, 220);
           if (data) { const img = new Image(); img.alt = ""; img.src = data; en.target.prepend(img); $(".cc-sheet", en.target)?.remove(); }
         } catch { /* Platzhalter bleibt */ }

@@ -26,6 +26,7 @@ from typing import Callable
 
 SEM_RE = re.compile(r"^\s*((?:SoSe|SS|WiSe|WS)\s*\d{2,4}(?:/\d{2,4})?)\s*:\s*", re.I)
 NUM_RE = re.compile(r"^(\d{3,5})\s+")
+COMMA_SEM_RE = re.compile(r"^(.+?),\s*((?:SoSe|SS|WiSe|WS)\s*\d{2,4}(?:/\d{2,4})?)\s*(?:,.*)?$", re.I)
 PLUGINFILE_RE = re.compile(r"/pluginfile\.php/\d+/mod_(resource|folder)/content/(\d+)/(.+)$")
 EMBEDDED_RE = re.compile(r"""(https?://[^"'<>\s]+/pluginfile\.php/\d+/mod_resource/content/\d+/[^"'<>\s]+)""")
 FOLDER_LINK_RE = re.compile(r'href="([^"]*/pluginfile\.php/\d+/mod_folder/content/\d+/[^"]+)"')
@@ -48,6 +49,10 @@ def parse_course_title(fullname: str) -> dict:
     if m:
         sem = re.sub(r"\s+", " ", m.group(1)).strip()
         t = t[m.end():]
+    elif m := COMMA_SEM_RE.match(t):
+        # Moodle der Hochschule Hannover: "<Titel>, WiSe 2026/27, <Lehrende>" (docs/HSH-2026-11-05.md)
+        sem = re.sub(r"\s+", " ", m.group(2)).strip()
+        t = m.group(1).strip()
     m = NUM_RE.match(t)
     return {"semester": sem, "number": m.group(1) if m else None, "title": t}
 

@@ -135,6 +135,87 @@ def test_empty_direct_missing_and_expired():
     assert not any("prfAnm" in u for u in calls)
 
 
+# ---------------------------------------------------------------- LSF Uni Hildesheim ("Meine POS-Anmeldungen", erfundene Seiten)
+
+LSF_START = "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0"
+
+
+def lsf(overview="anmeldungen", expired=False):
+    """LSF mit festen Seiten: Start -> POS-Management -> Meine POS-Anmeldungen; An-/Abmeldung waere VERBOTEN"""
+    pages = {k: _page(f"lsf-{k}.html") for k in ("start", "pos", "anmeldungen", "anmeldungen-empty")}
+    calls = []
+
+    def get(u):
+        calls.append(u)
+        if expired:
+            return 200, LOGIN, "https://www.uni-hildesheim.de/sso/login?service=x"
+        if u == LSF_START:
+            return 200, pages["start"], u
+        if "subitem=posManagement" in u:
+            return 200, pages["pos"], u
+        if "moduleParameter=myPOSAnmeldungen" in u:
+            return 200, pages[overview], u
+        return 200, "<html><body>VERBOTEN</body></html>", u
+    return get, calls
+
+
+def test_lsf_walk_reads_pos_overview_and_never_registers():
+    from app import qis_registrations as Q
+    get, calls = lsf()
+    r = Q.walk(get, LSF_START, profile="hildesheim")
+    regs = [Q.row_view(x) for x in r["registrations"]]
+    assert [x["text"] for x in regs] == ["Grundlagen der Informatik (Klausur)", "Seminar Medienpädagogik", "Statistik I"]
+    assert [x["registered"] for x in regs] == [True, True, False], "zugelassen, AN, storniert"
+    assert (regs[0]["pruefungsnr"], regs[0]["iso_date"], regs[0]["clock"], regs[0]["room"]) == ("4711", "2027-02-15", "10:00", "Forum HS 1")
+    assert regs[0]["abschluss"].startswith("Abschluss: [82] Bachelor") and regs[0]["abschluss"].endswith("PO-Version: 2019")
+    assert regs[1]["pruefer"].startswith("vgl. Lehrkr")
+    assert r["pages"] == 3 and r["tables"] == 1
+    assert len(calls) == 3, calls
+    assert not any(k in u for u in calls for k in ("studyPOSAnmeldung", "prfAnm", "storno", "belegen", "type=4")), calls
+    assert Q.walk(lsf("anmeldungen-empty")[0], LSF_START, profile="hildesheim")["registrations"] == []
+    with pytest.raises(Q.SessionExpired):
+        Q.walk(lsf(expired=True)[0], LSF_START, profile="hildesheim")
+    with pytest.raises(Q.POSOverviewNotFound):
+        Q.walk(lambda u: (200, _page("lsf-start.html"), u) if u == LSF_START else (200, _page("lsf-start.html"), u),
+               LSF_START, profile="hildesheim")
+    # das LUH-Profil kennt "POS-Management" nicht
+    with pytest.raises(Q.InfoNotFound):
+        Q.walk(lsf()[0], LSF_START)
+
+
+def test_lsf_links_overview_allowed_registration_never():
+    from app import qis_registrations as Q
+
+    def link(text, query):
+        return Q.Link(text, "https://lsf.uni-hildesheim.de/qisserver/rds?" + query)
+    assert Q.is_info(link("Meine POS-Anmeldungen", "state=posAnmeldungen&next=list.vm"))
+    assert Q.is_pos_menu(link("POS-Management", "state=user&type=8&subitem=posManagement"))
+    for text, q in [("An-/Abmeldung zu Studien-/Prüfungsleistungen", "state=change&moduleParameter=studyPOSAnmeldung"),
+                    ("Zur Anmeldung", "state=x"), ("Zur Stornierung der Anmeldung", "state=posAnmeldungen&storno=1"),
+                    ("Meine POS-Anmeldungen", "state=prfAnmStudent"), ("Meine POS-Anmeldungen", "state=posAnmeldungen&stornieren=1"),
+                    ("Belegen/Abmelden", "state=wplan&act=belegen"), ("Weiter", "state=x&moduleParameter=posAnmeldung")]:
+        assert Q.is_forbidden(link(text, q)), text + " " + q
+        assert not Q.is_info(link(text, q))
+    for st in ("storniert", "Storniert am 01.12.2026", "abgelehnt", "nicht zugelassen"):
+        assert not Q.is_registered(st), st
+    assert Q.is_registered("zugelassen")
+
+
+def test_lsf_run_message_says_lsf(monkeypatch, tmp_path):
+    from app import db, qis_registrations as Q
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "pruefungsanmeldung.db")
+    db.init_db()
+    assert Q.run(lsf("anmeldungen-empty")[0], LSF_START, profile="hildesheim")["message"] == "Im LSF sind keine Prüfungen angemeldet."
+    rep = Q.run(lsf()[0], LSF_START, profile="hildesheim")
+    assert rep["count"] == 2 and rep["message"] == "2 angemeldete Prüfungen gelesen."
+    with db.cursor() as conn:
+        dump = json.dumps([dict(r) for r in conn.execute("SELECT * FROM exam_registrations")], ensure_ascii=False)
+    for secret in ("Erika", "7654321", "Beispielweg"):
+        assert secret not in dump, secret
+    expired = Q.run(lsf(expired=True)[0], LSF_START, profile="hildesheim")
+    assert expired["needs_login"] and expired["message"] == "Bitte im LSF anmelden."
+
+
 def test_run_stores_rows_without_secrets(monkeypatch, tmp_path):
     from app import db, qis_registrations as Q
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "pruefungsanmeldung.db")
@@ -248,8 +329,11 @@ def test_card_only_around_the_period_and_fallback_without_plan(plan_db):
     no_plan = _resp("2026-11-20", study_plan.MemoryCatalogSource([]))
     assert no_plan["plan_available"] is False and no_plan["program"] is None and no_plan["window"] is None
     assert no_plan["source"]["url"].endswith("/pruefungsanmeldung")
-    assert [x["title"] for x in no_plan["suggestions"]] == ["Algorithmen und Datenstrukturen"]
+    assert [x["title"] for x in no_plan["suggestions"]] == ["Algorithmen und Datenstrukturen", "Prüfung Rechnernetze"]
     assert no_plan["suggestions"][0]["reason_kind"] == "klausur"
+    # Termin aus der gelesenen Anmeldung ("Nächste Klausuren"): abgehakt ueber die Info-Seite
+    rn = no_plan["suggestions"][1]
+    assert (rn["registered"], rn["registered_via"], rn["exam_date"], rn["exam_time"]) == (True, "qis_info", "2027-03-01", "09:00")
 
 
 def test_reminders_like_the_ipad_plan(plan_db):
@@ -264,7 +348,7 @@ def test_reminders_like_the_ipad_plan(plan_db):
     assert r[0]["route"] == "#/studyplan"
 
 
-def test_route_answers_and_hildesheim_is_unsupported(app, plan_db, monkeypatch):
+def test_route_answers_luh_hildesheim_and_others_unsupported(app, plan_db, monkeypatch):
     from app import db, study, study_plan
     monkeypatch.setattr(study, "today", lambda: date(2026, 11, 20))
     monkeypatch.setattr(study_plan, "DbCatalogSource", lambda conn: plan_db)
@@ -279,4 +363,43 @@ def test_route_answers_and_hildesheim_is_unsupported(app, plan_db, monkeypatch):
         conn.execute("UPDATE settings SET value='hildesheim' WHERE key='university'")
     st, _, b = asgi_call(app, "GET", "/api/exam-registration")
     hi = json.loads(b)
-    assert hi["supported"] is False and hi["show_card"] is False
+    assert hi["supported"] is True and hi["system"] == "LSF" and hi["open_label"] == "Im LSF anmelden"
+    assert hi["qis_url"] == "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0"
+    with db.cursor() as conn:
+        conn.execute("UPDATE settings SET value='tu-berlin' WHERE key='university'")
+    st, _, b = asgi_call(app, "GET", "/api/exam-registration")
+    other = json.loads(b)
+    assert other["supported"] is False and other["show_card"] is False
+
+
+def test_hildesheim_pos_start_without_deadline(plan_db):
+    """Uni Hildesheim: Start der POS-Anmeldung 11.11.2026 fuer alle Bachelor/Master, kein Ende -> keine Warnung "endet in",
+    Karte nur bis 14 Tage nach dem Start, Erinnerung nur am ersten Tag, Texte mit LSF"""
+    from app import db, qis_registrations
+    with db.cursor() as conn:
+        conn.execute("UPDATE settings SET value='hildesheim' WHERE key='university'")
+        qis_registrations.store(conn, [{"pruefungsnr": "4711", "text": "Rechnernetze", "semester": "WiSe 26/27", "datum": "01.03.2027",
+                                        "time": "09:00", "status": "zugelassen", "raw": ""}], "t")
+    v = _resp("2026-11-05", plan_db)
+    assert v["supported"] is True and v["system"] == "LSF" and v["open_label"] == "Im LSF anmelden"
+    assert v["program"]["slug"] == "alle-bachelor-und-masterstudiengaenge" and v["program"]["all_programs"] is True
+    assert v["source"]["url"].startswith("https://www.uni-hildesheim.de/") and v["source"]["checked_at"] == "2026-11-05"
+    w = v["window"]
+    assert (w["phase"], w["start"], w["days_until"], w["open_end"]) == ("soon", "2026-11-11", 6, True)
+    assert v["show_card"] is True and v["warnings"] == []
+    assert v["period_note"].startswith("Die Uni Hildesheim hat keine einheitliche Anmeldefrist")
+    assert "LSF" in v["hint"] and "POS-Management" in v["hint"]
+    assert v["periods"][0]["open_end"] is True
+    assert all(s["withdraw_until"] is None for s in v["suggestions"] if s["id"] != "rechnernetze"), "keine erfundene Ruecktrittsfrist"
+    rn = next(s for s in v["suggestions"] if s["id"] == "rechnernetze")
+    assert rn["registered_via"] == "qis_info" and rn["exam_source"] == "aus deinen angemeldeten Prüfungen"
+    r = v["reminders"]
+    assert [x["id"] for x in r] == ["examreg.wise-26-27.meldung1.start"] and r[0]["day"] == "2026-11-11"
+    assert r[0]["until"] == "2026-11-25" and r[0]["body"].startswith("WiSe 26/27: Anmeldung im LSF freigeschaltet, Fristen je Prüfung")
+    late = _resp("2027-03-30", plan_db)
+    assert late["window"]["phase"] == "open" and late["window"]["days_left"] == 1
+    assert late["warnings"] == [], "ohne Ende kein 'endet morgen'"
+    assert late["show_card"] is False, "nur die ersten 14 Tage"
+    assert _resp("2026-11-25", plan_db)["show_card"] is True
+    assert _resp("2026-11-26", plan_db)["show_card"] is False
+    assert _resp("2027-04-02", plan_db)["window"] is None, "SoSe 27 noch nicht bekannt -> nur Link"

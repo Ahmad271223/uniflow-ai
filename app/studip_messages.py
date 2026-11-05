@@ -140,6 +140,50 @@ def stud_ip_connected() -> bool:
         return False
 
 
+def learnweb_offered() -> bool:
+    """Uni Hildesheim: Nachrichten aus dem Learnweb (Moodle-Unterhaltungen, app/learnweb_messages.py, 05.11.2026)"""
+    from . import universities
+    try:
+        return universities.current_key() == "hildesheim"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def learnweb_connected() -> bool:
+    """Learnweb verbunden: gemerkte Sitzung, Learnweb-Schluessel oder freiwillig hinterlegte Zugangsdaten"""
+    from . import unilogin
+    try:
+        if unilogin.saved_cookies("LEARNWEB_COOKIES") or config.secret("LEARNWEB_TOKEN"):
+            return True
+        user, pw = config.own_credentials("HILDESHEIM")
+        return bool(user and pw)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def moodle_offered() -> bool:
+    """Hochschule Hannover: Nachrichten aus Moodle (app/moodle.py, Kennung "moodle-…", wie MoodleMessages auf dem iPad)"""
+    from . import universities
+    try:
+        return universities.current_key() == "hsh"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def moodle_connected() -> bool:
+    """HsH-Moodle verbunden: gemerkte Sitzung oder selbst erzeugter Moodle-Schluessel"""
+    from . import unilogin
+    try:
+        return bool(unilogin.saved_cookies("HSH_COOKIES") or config.secret("HSH_MOODLE_TOKEN"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def source_key() -> str:
+    """Quelle der Nachrichten: "learnweb" (Uni Hildesheim), "moodle" (HsH), sonst "studip" """
+    return "learnweb" if learnweb_offered() else "moodle" if moodle_offered() else "studip"
+
+
 def shows_nav_item(local: bool, offered: bool, connected: bool, stored: int) -> bool:
     """Menuepunkt zeigen? Nur lokal; dort mit verbundenem Stud.IP (die Hochschule hat Stud.IP und es ist verbunden) oder
     schon gespeicherten Nachrichten. Wie `MessagesInbox.showsNavItem`."""
@@ -150,7 +194,13 @@ def status(conn) -> dict:
     msgs, _ = stored_messages(conn)
     mark = seen_mark(conn)
     local = studip_extras.messages_allowed()
-    return {"available": shows_nav_item(local, stud_ip_offered(), stud_ip_connected() if local else False, len(msgs)),
+    if learnweb_offered():
+        offered, connected = True, learnweb_connected() if local else False
+    elif moodle_offered():
+        offered, connected = True, moodle_connected() if local else False
+    else:
+        offered, connected = stud_ip_offered(), stud_ip_connected() if local else False
+    return {"available": shows_nav_item(local, offered, connected, len(msgs)),
             "stored": len(msgs), "new_count": sum(1 for m in msgs if is_new(m["sent_at"], mark))}
 
 
@@ -165,6 +215,7 @@ def message_list(conn, query: str = "") -> dict:
     studip_reply.annotate(conn, shown)
     st = status(conn)
     return {"messages": shown, "total": len(msgs), "fetched_at": fetched, "q": q, "available": st["available"],
+            "source": source_key(),
             "seen_up_to": mark, "new_count": st["new_count"]}
 
 

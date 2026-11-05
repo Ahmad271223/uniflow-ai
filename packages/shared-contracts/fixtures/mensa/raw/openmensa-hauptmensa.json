@@ -1,0 +1,191 @@
+[
+ {
+  "date": "2026-11-05",
+  "closed": false,
+  "meals": [
+   {
+    "id": 29249999,
+    "name": "Tortellini Tricolore, Geflügelschinken-Sahne-Sauce",
+    "category": "FRIENDS",
+    "prices": {
+     "students": 2.0,
+     "employees": 4.5,
+     "pupils": null,
+     "others": 6.4
+    },
+    "notes": [
+     "enthält Geflügelfleisch",
+     "mit Konservierungsstoff",
+     "mit Antioxidationsmittel",
+     "mit Phosphat",
+     "enthält Eier und Eiererzeugnisse",
+     "enthält Milch und Milcherzeugnisse"
+    ]
+   },
+   {
+    "id": 29250000,
+    "name": "Chili con Carne, Fladenbrot, wahlweise mit Schmand",
+    "category": "MEER",
+    "prices": {
+     "students": 3.8,
+     "employees": 6.5,
+     "pupils": null,
+     "others": 8.1
+    },
+    "notes": [
+     "enthält Rindfleisch",
+     "mit Knoblauch",
+     "mit Gelatine",
+     "enthält Milch und Milcherzeugnisse",
+     "enthält Sesamsamen"
+    ]
+   },
+   {
+    "id": 29250001,
+    "name": "Gemüse-Kichererbsen-Curry, Salzkartoffeln",
+    "category": "VEGAN",
+    "prices": {
+     "students": 3.6,
+     "employees": 6.3,
+     "pupils": null,
+     "others": 7.9
+    },
+    "notes": [
+     "vegan",
+     "Gesund",
+     "mit Knoblauch",
+     "Niedersachsen"
+    ]
+   },
+   {
+    "id": 29250002,
+    "name": "Frisches Putenschnitzel, Chili-Hollandaise, Pommes frites",
+    "category": "EVERGREENS",
+    "prices": {
+     "students": 4.8,
+     "employees": 6.0,
+     "pupils": null,
+     "others": 7.8
+    },
+    "notes": [
+     "enthält Geflügelfleisch",
+     "mit Antioxidationsmittel",
+     "enthält Eier und Eiererzeugnisse",
+     "enthält Milch und Milcherzeugnisse",
+     "enthält Sellerie und Sellerieerzeugnisse"
+    ]
+   },
+   {
+    "id": 29250003,
+    "name": "Frisches Schweineschnitzel, Chili-Hollandaise, Pommes frites",
+    "category": "EVERGREENS",
+    "prices": {
+     "students": 4.8,
+     "employees": 6.0,
+     "pupils": null,
+     "others": 7.8
+    },
+    "notes": [
+     "enthält Schweinefleisch",
+     "mit Antioxidationsmittel",
+     "enthält Eier und Eiererzeugnisse",
+     "enthält Milch und Milcherzeugnisse",
+     "enthält Sellerie und Sellerieerzeugnisse"
+    ]
+   },
+   {
+    "id": 29250004,
+    "name": "Veganes Schnitzel, cremige Pilzsauce, Pommes frites",
+    "category": "EVERGREENS",
+    "prices": {
+     "students": 4.0,
+     "employees": 5.6,
+     "pupils": null,
+     "others": 6.9
+    },
+    "notes": [
+     "vegan",
+     "mit Antioxidationsmittel"
+    ]
+   },
+   {
+    "id": 29250005,
+    "name": "Veganes Schnitzel, vegane Chili-Hollandaise, Pommes frites",
+    "category": "EVERGREENS",
+    "prices": {
+     "students": 4.0,
+     "employees": 5.6,
+     "pupils": null,
+     "others": 6.9
+    },
+    "notes": [
+     "vegan",
+     "mit Antioxidationsmittel"
+    ]
+   },
+   {
+    "id": 29250006,
+    "name": "Schlemmerjoghurt, Himbeersauce",
+    "category": "SÜSSE ECKE",
+    "prices": {
+     "students": 0.9,
+     "employees": 1.3,
+     "pupils": null,
+     "others": 1.7
+    },
+    "notes": [
+     "ohne Fleisch",
+     "enthält Milch und Milcherzeugnisse"
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-06",
+  "closed": false,
+  "meals": [
+   {
+    "id": 29249999,
+    "name": "Tortellini Tricolore, Geflügelschinken-Sahne-Sauce",
+    "category": "FRIENDS",
+    "prices": {
+     "students": 2.0,
+     "employees": 4.5,
+     "pupils": null,
+     "others": 6.4
+    },
+    "notes": [
+     "enthält Geflügelfleisch",
+     "mit Konservierungsstoff",
+     "mit Antioxidationsmittel",
+     "mit Phosphat",
+     "enthält Eier und Eiererzeugnisse",
+     "enthält Milch und Milcherzeugnisse"
+    ]
+   },
+   {
+    "id": 29250000,
+    "name": "Chili con Carne, Fladenbrot, wahlweise mit Schmand",
+    "category": "MEER",
+    "prices": {
+     "students": 3.8,
+     "employees": 6.5,
+     "pupils": null,
+     "others": 8.1
+    },
+    "notes": [
+     "enthält Rindfleisch",
+     "mit Knoblauch",
+     "mit Gelatine",
+     "enthält Milch und Milcherzeugnisse",
+     "enthält Sesamsamen"
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-07",
+  "closed": true,
+  "meals": []
+ }
+]

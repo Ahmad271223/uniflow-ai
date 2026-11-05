@@ -1,7 +1,9 @@
 // Pruefungsanmeldung im Web/Windows (05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): reine Regeln und Texte ohne DOM
 // (laeuft unter node, tests/js/exam-registration.test.mjs), nach ExamRegistrationViews.swift der iPad-App. Daten von
 // GET /api/exam-registration (app/exam_registration_api.py). StudiNow meldet nie selbst an: "Im QIS anmelden" oeffnet
-// nur die QIS-Seite "Mein Studium" im App-Fenster; der Mensch waehlt und bestaetigt selbst.
+// nur die QIS-Seite "Mein Studium" im App-Fenster; der Mensch waehlt und bestaetigt selbst. Uni Hildesheim (`system`
+// "LSF"): "Im LSF anmelden" oeffnet die Startseite des LSF; das Fenster hat kein Ende (`open_end`: Start der
+// POS-Anmeldung, Fristen je Pruefung im LSF), dazu `period_note` statt "nicht sicher".
 
 export const TEXTS = {
   title: "Prüfungsanmeldung",
@@ -36,9 +38,23 @@ export function dayFull(iso) {
   return p ? `${String(p[2]).padStart(2, "0")}.${String(p[1]).padStart(2, "0")}.${p[0]}` : "";
 }
 
-/** Zeile zur Phase des Meldezeitraums */
-export function phaseText(w) {
+/** "QIS" (LUH) oder "LSF" (Uni Hildesheim) */
+export const systemOf = r => (r && r.system) || "QIS";
+
+/** "Im QIS anmelden" / "Im LSF anmelden" */
+export const openLabel = r => (r && r.open_label) || `Im ${systemOf(r)} anmelden`;
+
+/** Zeile zur Phase des Meldezeitraums; ohne Ende (Uni Hildesheim) mit dem Pruefungssystem */
+export function phaseText(w, system = "QIS") {
   if (!w) return "";
+  if (w.open_end) {
+    if (w.phase === "open") return `Anmeldung im ${system} seit ${dayShort(w.start)} – Fristen je Prüfung im ${system}`;
+    if (w.phase === "soon") {
+      const until = w.days_until === 0 ? "heute" : w.days_until === 1 ? "morgen" : `in ${w.days_until} Tagen`;
+      return `Anmeldung im ${system} ${w.term} beginnt am ${dayShort(w.start)} (${until}) – Fristen je Prüfung`;
+    }
+    return `Nächste Anmeldung im ${system}: ab ${dayFull(w.start)} (${w.term})`;
+  }
   const vbp = w.kind === "vbp_meldung" ? " (VbP)" : "";
   if (w.phase === "open") {
     const left = w.days_left === 0 ? "endet heute" : w.days_left === 1 ? "endet morgen" : `noch ${w.days_left} Tage`;
@@ -79,9 +95,9 @@ export function rowHtml(s) {
     + `</div>${badge(s)}</div>`;
 }
 
-/** Knoepfe: QIS im App-Fenster, Abruf der Info-Seite */
+/** Knoepfe: QIS bzw. LSF im App-Fenster, Abruf der Info-Seite */
 export function actionsHtml(r, icon = () => "") {
-  return `<div class="xr-actions">${r.qis_url ? `<a class="btn primary sm" href="${esc(r.qis_url)}" target="_blank" rel="noopener">${icon("log-out", 14)} ${esc(TEXTS.openQIS)}</a>` : ""}`
+  return `<div class="xr-actions">${r.qis_url ? `<a class="btn primary sm" href="${esc(r.qis_url)}" target="_blank" rel="noopener">${icon("log-out", 14)} ${esc(openLabel(r))}</a>` : ""}`
     + `<button type="button" class="btn sm" data-xr-fetch>${icon("refresh", 14)} ${esc(TEXTS.fetch)}</button></div>`
     + `<p class="tiny muted">${esc(r.hint || "")}</p>`;
 }
@@ -99,7 +115,10 @@ export function cardHtml(r, { icon = () => "", limit = Infinity, section = false
   if (!r?.supported) return "";
   const w = r.window, vw = r.vbp_window;
   const src = r.source?.url ? `<a href="${esc(r.source.url)}" target="_blank" rel="noopener">${esc(TEXTS.source)}</a>${r.source.checked_at ? ` <span class="muted">(Stand ${esc(dayFull(r.source.checked_at))})</span>` : ""}` : "";
-  const phase = w ? `<p>${esc(phaseText(w))}</p>${vw && vw.phase === "open" ? `<p class="small">${esc(phaseText(vw))}</p>` : ""}` : `<p class="small muted">${esc(TEXTS.noPeriod)}</p>`;
+  const sys = systemOf(r);
+  const note = r.period_note ? `<p class="small muted">${esc(r.period_note)}</p>` : "";
+  const phase = (w ? `<p>${esc(phaseText(w, sys))}</p>${vw && vw.phase === "open" ? `<p class="small">${esc(phaseText(vw, sys))}</p>` : ""}`
+    : (note ? "" : `<p class="small muted">${esc(TEXTS.noPeriod)}</p>`)) + note;
   const warns = (r.warnings || []).map(x => `<p class="xr-warn" role="alert">${icon("alert", 14)} ${esc(x.text)}</p>`).join("");
   const list = r.suggestions || [];
   const shown = list.slice(0, limit);
@@ -126,7 +145,7 @@ export function moduleBlockHtml(r, s, icon = () => "") {
   if (!s) return "";
   const w = s.period === "vbp" ? r.vbp_window : r.window;
   return `<div class="card xr-module" aria-label="${esc(TEXTS.moduleBlock)}"><div class="card-head"><h3>${icon("exam", 16)} ${esc(TEXTS.moduleBlock)}</h3>${badge(s)}</div>`
-    + (w ? `<p class="small">${esc(phaseText(w))}</p>` : "")
+    + (w ? `<p class="small">${esc(phaseText(w, systemOf(r)))}</p>` : "")
     + rowHtml(s)
     + actionsHtml(r, icon) + `</div>`;
 }

@@ -23,6 +23,19 @@ export const T = {
   backlogSub: "Diese Module sind noch offen. StudiNow hat sie in das nächste Semester gelegt, in dem sie angeboten werden.",
 };
 
+/** Quelle des Notenspiegels je Hochschule (wie grades_source in app/universities.py): LUH QIS, Uni Hildesheim LSF,
+ *  HsH Campusmanagement (HISinOne). study-plan.js setzt die Hochschule aus den Einstellungen; ohne Angabe gilt LUH. */
+export const SOURCES = {
+  luh: { name: "QIS", aus: "aus QIS", wie: "in QIS", verbinde: "Verbinde QIS" },
+  hildesheim: { name: "LSF", aus: "aus dem LSF", wie: "im LSF", verbinde: "Verbinde das LSF" },
+  hsh: { name: "Campusmanagement", aus: "aus dem Campusmanagement", wie: "im Campusmanagement", verbinde: "Melde dich im Campusmanagement an" },
+};
+let uniKey = "luh";
+export function setUniversity(k) { uniKey = SOURCES[k] ? k : "luh"; }
+export const source = () => SOURCES[uniKey];
+export const noQisTitle = () => uniKey === "luh" ? T.noQIS : `${source().verbinde}, damit StudiNow deinen Studiengang kennt`;
+export const customHint = () => `Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie ${source().wie}, übernimmt StudiNow Stand und Note.`;
+
 /** Richtwert je Semester 30 LP; ueber 36 LP warnt die Spalte (wie die Regel im Backend) */
 export const LP_LIMIT = 36;
 
@@ -260,7 +273,7 @@ export function moduleCardHtml(m, ic, opts = null) {
   const menu = opts.edit && menuItems(m, opts.plan).length > 1;
   return `<div class="sp-card${drag ? " can-drag" : ""}${s === "passed" ? " locked" : ""}" data-card="${esc(m.id)}"${drag ? ` draggable="true" data-drag="${esc(m.id)}"` : ""}>${card}`
     + (menu ? `<button type="button" class="sp-more" data-menu="${esc(m.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Aktionen für ${m.title}`)}" title="Verschieben, nicht belegen …">${ic ? ic("more", 16) : "…"}</button>` : "")
-    + (s === "passed" && opts.edit ? `<span class="sp-lock" title="Bestanden – bleibt im Semester aus QIS" aria-hidden="true">${ic ? ic("check", 11) : ""}</span>` : "")
+    + (s === "passed" && opts.edit ? `<span class="sp-lock" title="Bestanden – bleibt im Semester ${source().aus}" aria-hidden="true">${ic ? ic("check", 11) : ""}</span>` : "")
     + `</div>`;
 }
 
@@ -325,7 +338,7 @@ export function boardHtml(plan, filter, ic, opts = null) {
 /** Pruefungsordnung bestaetigen: erscheint, solange die PO nur vorgeschlagen ist */
 export function poCardHtml(plan, ic) {
   if (!plan.suggested_po || plan.po_confirmed) return "";
-  const q = plan.qis_program ? `QIS nennt „${plan.qis_program}“. Der passende aktuelle Katalog gehört zur PO ${plan.suggested_po} – stimmt das?` : "StudiNow hat die passende Ordnung vorgeschlagen. Bestätige sie oder wähle eine andere.";
+  const q = plan.qis_program ? `${source().name} nennt „${plan.qis_program}“. Der passende aktuelle Katalog gehört zur PO ${plan.suggested_po} – stimmt das?` : "StudiNow hat die passende Ordnung vorgeschlagen. Bestätige sie oder wähle eine andere.";
   return `<div class="card sp-po" id="spPo"><div class="sp-po-t">${ic ? ic("file-text", 18) : ""}<div><b>Deine Prüfungsordnung: PO ${esc(plan.suggested_po)}?</b><div class="muted small">${esc(q)}</div></div></div>`
     + `<div class="row wrap"><button type="button" class="btn primary sm" id="spPoYes">${ic ? ic("check", 14) : ""} Ja, PO ${esc(plan.suggested_po)}</button><button type="button" class="btn sm" id="spPoChange">Ändern</button></div>`
     + `<div class="sp-err small" id="spPoErr" hidden></div></div>`;
@@ -337,7 +350,7 @@ const notice = (icon, title, text, actions, ic, tone = "") =>
   `<div class="card sp-notice ${tone}"><div class="sp-notice-ic">${ic ? ic(icon, 20) : ""}</div><div class="sp-notice-t"><h3>${esc(title)}</h3>${text ? `<p class="muted">${esc(text)}</p>` : ""}${actions || ""}</div></div>`;
 
 export function noQisHtml(ic) {
-  return notice("graduation", T.noQIS, T.noQISSub, `<div class="row wrap"><a class="btn primary" href="#/services">${ic ? ic("arrow-right", 15) : ""} Zu Uni &amp; Noten</a><button type="button" class="btn" id="spPick">${ic ? ic("list", 15) : ""} Studiengang wählen</button></div>`, ic);
+  return notice("graduation", noQisTitle(), T.noQISSub, `<div class="row wrap"><a class="btn primary" href="#/services">${ic ? ic("arrow-right", 15) : ""} Zu Uni &amp; Noten</a><button type="button" class="btn" id="spPick">${ic ? ic("list", 15) : ""} Studiengang wählen</button></div>`, ic);
 }
 
 export function loadingHtml(plan, st, ic) {
@@ -489,8 +502,8 @@ export function settingsHtml(s, st, ic, extra = "") {
     + (pos.length ? `<select class="input" id="spSetPo" aria-label="Prüfungsordnung"><option value="">Automatisch</option>${pos.map(p => `<option value="${esc(p)}"${p === st.po ? " selected" : ""}>PO ${esc(poLabel(s, p))}</option>`).join("")}</select>` : `<p class="muted small">Für deinen Studiengang ist nur eine Ordnung bekannt.</p>`)
     + `<p class="muted small">Bestimmt den Modulkatalog und den Verlaufsplan. Verbindlich ist die Ordnung, nach der du eingeschrieben bist.</p>`
     + `<button type="button" class="btn sm" id="spSetPick">${ic ? ic("list", 14) : ""} Anderen Studiengang wählen</button></div></div>`
-    + `<div class="sp-sec"><h4>${ic ? ic("calendar", 14) : ""} Studienbeginn</h4><div class="card flat"><select class="input" id="spSetStart" aria-label="Studienbeginn"><option value="">Aus QIS übernehmen${s.suggested_start_term ? ` (${esc(s.suggested_start_term)})` : ""}</option>${terms.map(t => `<option value="${esc(t)}"${t === st.start ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`
-    + `<p class="muted small">Ab hier zählen die Fachsemester. StudiNow schlägt das früheste Semester aus QIS vor.</p></div></div>`
+    + `<div class="sp-sec"><h4>${ic ? ic("calendar", 14) : ""} Studienbeginn</h4><div class="card flat"><select class="input" id="spSetStart" aria-label="Studienbeginn"><option value="">${source().name === "QIS" ? "Aus QIS" : "Aus dem " + source().name} übernehmen${s.suggested_start_term ? ` (${esc(s.suggested_start_term)})` : ""}</option>${terms.map(t => `<option value="${esc(t)}"${t === st.start ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`
+    + `<p class="muted small">Ab hier zählen die Fachsemester. StudiNow schlägt das früheste Semester ${source().aus} vor.</p></div></div>`
     + `<div class="sp-sec"><h4>${ic ? ic("layers", 14) : ""} Wahlpflicht</h4><div class="card flat">`
     + (opts.length ? `<div class="sp-count"><b id="spCount" class="${req && lp >= req ? "ok" : ""}">${esc(counterText(lp, req))}</b><span class="muted small">${[...st.chosen].filter(id => opts.some(o => o.id === id)).length} von ${opts.length} Modulen</span></div>`
       + (req ? `<div class="progress${lp >= req ? " ok" : ""}"><i id="spCountBar" style="width:${Math.min(100, (lp / req) * 100).toFixed(0)}%"></i></div>` : "")
@@ -762,7 +775,7 @@ export function areasHtml(plan, ic, edit) {
   if (!hasAreasBox(plan)) return "";
   const groups = (plan.groups || []).map(g => {
     const name = area(plan, g.chosen)?.name;
-    const text = name ? `${g.label}: ${name}${g.auto ? " (aus QIS)" : ""}` : `${g.label}: noch nicht gewählt`;
+    const text = name ? `${g.label}: ${name}${g.auto ? ` (${source().aus})` : ""}` : `${g.label}: noch nicht gewählt`;
     return `<div class="sp-group${name ? "" : " open"}"><b>${esc(text)}</b>${edit ? `<button type="button" class="btn sm" data-track="${esc(g.id)}" aria-label="${esc(`${g.label} ${name ? "ändern" : "wählen"}`)}">${name ? "Ändern" : "Wählen"}</button>` : ""}</div>`;
   }).join("");
   const rows = shownAreas(plan).map(a => {
@@ -814,9 +827,9 @@ export function chooserHeadHtml(plan, slot, target) {
   return `<label class="sp-field"><span>Semester</span><select class="input" id="spChTerm">${moveTerms(plan).map(t => { const f = fachsemesterOf(plan, t); return `<option value="${esc(t)}"${t === target ? " selected" : ""}>${esc(t)}${f != null ? ` · ${f}. Fachsemester` : ""}</option>`; }).join("")}</select></label>`;
 }
 
-export const CUSTOM_HINT = "Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie in QIS, übernimmt StudiNow Stand und Note.";
+export const CUSTOM_HINT = "Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie in QIS, übernimmt StudiNow Stand und Note.";      // LUH; sonst customHint()
 export function customBlockHtml(ic) {
-  return `<div class="sp-custom" role="group" aria-labelledby="spCustH"><h3 id="spCustH">Eigener Eintrag</h3><p class="muted small">${esc(CUSTOM_HINT)}</p>`
+  return `<div class="sp-custom" role="group" aria-labelledby="spCustH"><h3 id="spCustH">Eigener Eintrag</h3><p class="muted small">${esc(customHint())}</p>`
     + `<div class="sp-custom-row"><input class="input" id="spCustTitle" placeholder="Titel" aria-label="Titel des eigenen Eintrags" maxlength="200"><input class="input sp-lp-in" id="spCustLp" value="5" inputmode="decimal" aria-label="Leistungspunkte des eigenen Eintrags"><button type="button" class="btn sm" id="spCustAdd" disabled>${ic ? ic("plus", 14) : ""} Hinzufügen</button></div></div>`;
 }
 
@@ -956,7 +969,7 @@ export function settingsExtraHtml(plan, ui, ic) {
   const groups = plan.groups || [];
   const tracks = groups.length ? `<div class="sp-sec"><h4>${ic ? ic("layers", 14) : ""} Schwerpunkt</h4><div class="card flat">${groups.map(g => {
     const cur = ui.tracks[g.id] || "", rule = area(plan, cur)?.rule;
-    return `<label class="sp-field"><span>${esc(g.label)}</span><select class="input" data-set-track="${esc(g.id)}"><option value="">${g.auto && g.chosen ? `Automatisch aus QIS (${esc(area(plan, g.chosen)?.name || g.chosen)})` : "Noch offen"}</option>${(g.options || []).map(id => `<option value="${esc(id)}"${id === cur ? " selected" : ""}>${esc(area(plan, id)?.name || id)}</option>`).join("")}</select></label>${rule ? `<p class="muted small">${esc(shorten(rule, 300))}</p>` : ""}`;
+    return `<label class="sp-field"><span>${esc(g.label)}</span><select class="input" data-set-track="${esc(g.id)}"><option value="">${g.auto && g.chosen ? `Automatisch ${source().aus} (${esc(area(plan, g.chosen)?.name || g.chosen)})` : "Noch offen"}</option>${(g.options || []).map(id => `<option value="${esc(id)}"${id === cur ? " selected" : ""}>${esc(area(plan, id)?.name || id)}</option>`).join("")}</select></label>${rule ? `<p class="muted small">${esc(shorten(rule, 300))}</p>` : ""}`;
   }).join("")}</div></div>` : "";
   const list = customModules(plan).filter(m => !ui.removed.has(m.id));
   const custom = customModules(plan).length ? `<div class="sp-sec"><h4>${ic ? ic("pen", 14) : ""} Eigene Einträge</h4><div class="card flat">${list.length ? `<ul class="sp-custom-list">${list.map(m =>

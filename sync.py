@@ -32,6 +32,12 @@ def main(argv: list[str]) -> int:
     if only_sync:
         return 0 if res["ok"] else 1
 
+    # Stufe (b) direkt nach dem aktuellen Semester: Noten (LUH: QIS mit Bescheinigungen, Hildesheim: LSF) nur mit
+    # eigenem Zugang, hoechstens einmal pro 20 Stunden (app/sync_order.py). Fruehere Semester (Stufe d) laedt nur die
+    # offene App (server._full_sync), nicht dieser geplante Lauf.
+    from app import sync_order
+    sync_order.run_grades_if_due(log=log, force="--qis" in argv)
+
     with db.cursor() as conn:
         settings = db.get_settings(conn)
 
@@ -59,18 +65,6 @@ def main(argv: list[str]) -> int:
             scriptsearch.index_all(conn, log=log)
     except Exception as e:  # noqa: BLE001
         log(f"Skriptsuche-Index-Fehler: {e}")
-
-    # Notenspiegel (LUH: QIS mit Bescheinigungen, Hildesheim: LSF) nur mit eigenem Zugang, hoechstens einmal pro 20 Stunden
-    try:
-        from app import qis
-        if qis.configured():
-            from datetime import datetime, timedelta
-            with db.cursor() as conn:
-                last = db.row(conn, "SELECT finished_at FROM qis_runs WHERE ok=1 ORDER BY id DESC LIMIT 1")
-            if "--qis" in argv or not last or datetime.fromisoformat(last["finished_at"]) < datetime.now() - timedelta(hours=20):
-                log(f"QIS: {qis.run()['message']}")
-    except Exception as e:  # noqa: BLE001
-        log(f"QIS-Fehler: {e}")
 
     try:
         if settings["auto_tests"] and (force_tests or date.today().weekday() in (0, 1) or res["new_files"]):

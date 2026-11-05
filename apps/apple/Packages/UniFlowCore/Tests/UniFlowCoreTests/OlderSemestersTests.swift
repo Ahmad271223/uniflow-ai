@@ -58,12 +58,15 @@ final class OlderSemestersTests: XCTestCase {
         let b = try await backend()
         let db = b.context.database
         let today = self.today
+        // seit 05.11.2026 (`SyncOrder`): Vorgabe "Nur WLAN", Stufe (d) holt alle frueheren Semester im Hintergrund
         var pending = try await db.withConnection { try OlderSemesters.pending($0, today: today) }
-        XCTAssertEqual(pending, [], "Vorgabe: nur das aktuelle Semester")
+        XCTAssertEqual(pending, ["s26a", "s26b", "w25"], "Vorgabe: fruehere Semester im Hintergrund")
         var ask = try await db.withConnection { try OlderSemesters.needsQuestion($0, today: today) }
         XCTAssertTrue(ask)
 
         _ = try await json(b, "/api/older-semesters/choice", method: "POST", body: ["choice": "current"])
+        pending = try await db.withConnection { try OlderSemesters.pending($0, today: today) }
+        XCTAssertEqual(pending, [], "nur aktuelles Semester (= Aus): nichts im Hintergrund")
         ask = try await db.withConnection { try OlderSemesters.needsQuestion($0, today: today) }
         XCTAssertFalse(ask, "einmal gefragt")
         let bad = await b.handle(LocalRequest(method: "POST", path: "/api/older-semesters/choice", body: Data(#"{"choice":"x"}"#.utf8)))

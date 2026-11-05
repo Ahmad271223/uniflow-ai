@@ -70,8 +70,10 @@ wird dabei nichts übertragen, deine Apple-Kennung bleibt auf dem iPad.
 StudiNow liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
 QIS; Universität Hildesheim: Learnweb, LSF und CAS-Anmeldung. Die App (oder bei eingeschaltetem Abgleich unser
 Dienst in deinem Auftrag) meldet sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,
-Fristen, Ankündigungen und – nur wenn du „Noten abrufen“ wählst – deinen Notenspiegel und Bescheinigungen ab. Es
-wird ausschließlich gelesen; StudiNow schreibt nichts in die Hochschulsysteme.
+Fristen, Ankündigungen und – nur wenn du „Noten abrufen“ wählst – deinen Notenspiegel und Bescheinigungen ab.
+Geschrieben wird nur, wenn du es ausdrücklich auslöst: Antwortest du in der App auf eine Nachricht oder gibst du mit
+„Jetzt abgeben“ eine Datei ab, sendet StudiNow genau diese Antwort bzw. Datei mit deinem Zugang an das System deiner
+Hochschule. Darüber hinaus schreibt StudiNow nichts in die Hochschulsysteme.
 
 Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschutzhinweise und Nutzungsregeln. Sie
 sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). StudiNow ist kein

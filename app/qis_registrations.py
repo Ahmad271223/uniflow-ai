@@ -5,6 +5,11 @@ Studiengang) aufklappen, hoechstens MAX_PAGES Seiten. Laeuft im normalen QIS-Abr
 angemeldete Browsersitzung wie der Notenspiegel); getestet mit den erfundenen Seiten
 packages/shared-contracts/fixtures/exam-registration/qis-*.html.
 
+Uni Hildesheim (`profile="hildesheim"`, dieselbe HIS-Software im LSF, app/qis.py Profil hildesheim): Startseite des
+LSF ("Meine Funktionen") -> "POS-Management" -> "Meine POS-Anmeldungen" (Weg laut Schnellanleitung der Uni; die Seite
+selbst ist NICHT GESEHEN, erfundene Seiten fixtures/exam-registration/lsf-*.html). Tabellen wie im Hildesheimer
+Notenspiegel ("Abschluss: ..." vor der Kopfzeile); Status auch zugelassen/storniert/nicht zugelassen.
+
 NICHT AM ECHTEN KONTO GESEHEN (wie auf dem iPad). Sicherheit: nie einem Link zur Pruefungsanmeldung/-abmeldung folgen
 (`is_forbidden`: Text oder Parameter mit Anmeldung, Abmeldung, Ruecktritt), nie ein Formular abschicken (nur GET der
 gefundenen Links), nie eine Bescheinigung oeffnen; asi und Stammdaten werden nie gespeichert. Die App meldet nie
@@ -40,6 +45,11 @@ class SessionExpired(Exception):
 class InfoNotFound(Exception):
     def __str__(self) -> str:
         return "Die Seite „Info über angemeldete Prüfungen“ wurde im QIS nicht gefunden."
+
+
+class POSOverviewNotFound(InfoNotFound):
+    def __str__(self) -> str:
+        return "Die Seite „Meine POS-Anmeldungen“ wurde im LSF nicht gefunden."
 
 
 # ---------------------------------------------------------------------------- Texte
@@ -79,7 +89,8 @@ HEADERS = {
     "note": "note", "bewertung": "note",
 }
 NON_WORD_RE = re.compile(r"[^\wäöüß]+")
-NEGATIVE = {"amd", "abgemeldet", "rt", "rte", "rtu", "rücktritt", "ruecktritt", "zurückgetreten", "be", "bestanden", "nb",
+NEGATIVE = {"storniert", "abgelehnt", "nicht zugelassen",
+            "amd", "abgemeldet", "rt", "rte", "rtu", "rücktritt", "ruecktritt", "zurückgetreten", "be", "bestanden", "nb",
             "nicht bestanden", "en", "endgültig nicht bestanden", "ab"}
 STAMMDATEN = ("matrikelnummer", "matrikelnr", "geburtsdatum", "geburtsort", "anschrift")
 DMY_RE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
@@ -112,6 +123,9 @@ def is_stammdaten_row(cells: list[str]) -> bool:
 def is_registered(status) -> bool:
     """Leer gilt als angemeldet (die Seite listet nur Anmeldungen); abgemeldet, Ruecktritt und bewertet nicht"""
     s = str(status or "").strip().lower()
+    # LSF Hildesheim: stornierte, abgelehnte und nicht zugelassene POS-Anmeldungen
+    if s.startswith(("storn", "abgelehnt", "nicht zugelassen")):
+        return False
     if not s or s == "an" or ("angemeldet" in s and "abgemeldet" not in s) or "zugelassen" in s:
         return True
     if s in NEGATIVE or s.startswith(("abgemeldet", "rücktritt", "nicht bestanden", "endgültig", "bestanden")):
@@ -160,11 +174,21 @@ def row_view(r: dict) -> dict:
             "clock": clock(r.get("time")) or clock(r.get("datum")), "iso_withdraw": iso_date(r.get("withdraw"))}
 
 
+ABSCHLUSS_RE = re.compile(r"^(Abschluss:.*?PO-Version:\s*\d+)", re.I)
+
+
 def parse_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
     out, mapped = [], None
     for raw in rows:
         cells = [clean(c) for c in raw]
         if is_stammdaten_row(cells):
+            continue
+        # LSF Hildesheim: "Abschluss: ..." vor der Kopfzeile (wie qis.parse_grade_rows)
+        joined = " ".join(c for c in cells if c)
+        if joined.lower().startswith("abschluss:"):
+            m = ABSCHLUSS_RE.match(joined)
+            abschluss = (m.group(1) if m else joined)[:160]
+            mapped = None
             continue
         hm = header_map(cells)
         if is_header(hm):
@@ -382,20 +406,34 @@ class Page:
 PROGRAM_RE = re.compile(r"(?:prüfungen|pruefungen|leistungen)\s+f(?:ü|ue)r\s+(.+?)\s+anzeigen\s*$", re.I)
 
 
+def is_pos_overview(l: Link) -> bool:
+    """"Meine POS-Anmeldungen" (LSF Hildesheim): reine Uebersicht, nur ueber den Text erkannt"""
+    return fold(clean(l.text)).replace("-", " ") in ("meine pos anmeldungen", "meine anmeldungen")
+
+
+def is_pos_menu(l: Link) -> bool:
+    """"POS-Management" (LSF Hildesheim, Untermenue von "Meine Funktionen")"""
+    return fold(clean(l.text)).replace("-", " ") == "pos management" and not is_forbidden(l)
+
+
 def is_forbidden(l: Link) -> bool:
-    """Nie folgen: Pruefungsanmeldung/-abmeldung, Ruecktritt, Bescheinigungen, PDF, Abmelden (Logout)"""
+    """Nie folgen: Pruefungsanmeldung/-abmeldung, Ruecktritt, Stornierung, Bescheinigungen, PDF, Abmelden (Logout).
+    "Meine POS-Anmeldungen" ist eine Uebersicht und darf "Anmeldungen" nennen (Text und Parameter)."""
     t = fold(clean(l.text))
-    if any(k in t for k in ("abmeld", "ruecktritt", "zuruecktreten", "anmelden", "abmelden", "logout")):
+    if any(k in t for k in ("abmeld", "ruecktritt", "zuruecktreten", "anmelden", "abmelden", "logout", "storn", "zur anmeldung")):
         return True
-    if "anmeldung" in t and "angemeldet" not in t:
+    overview = is_pos_overview(l)
+    if "anmeldung" in t and "angemeldet" not in t and not overview:
         return True
     p = l.parameters
     for key in ("state", "next", "moduleparameter", "menuid", "navigationposition", "breadcrumb", "subitem"):
         v = fold(p.get(key, ""))
-        if any(k in v for k in ("anmeld", "abmeld", "prfanm", "pruefungsan", "ruecktritt", "rucktritt", "logout")):
+        if any(k in v for k in ("abmeld", "prfanm", "pruefungsan", "ruecktritt", "rucktritt", "logout", "storn")):
+            return True
+        if "anmeld" in v and not (overview and "anmeldungen" in v):
             return True
     a = l.address.lower()
-    if p.get("state", "").lower() == "verpublish" or ".pdf" in a or "logout" in a or t.startswith("pdf"):
+    if p.get("state", "").lower() == "verpublish" or ".pdf" in a or "logout" in a or "storn" in a or t.startswith("pdf"):
         return True
     if p.get("state") == "user" and p.get("type") == "4":
         return True
@@ -406,7 +444,8 @@ def is_info(l: Link) -> bool:
     if is_forbidden(l):
         return False
     t = fold(clean(l.text))
-    return "angemeldete pruefungen" in t or "angemeldeten pruefungen" in t or "angemeldete leistungen" in t
+    return ("angemeldete pruefungen" in t or "angemeldeten pruefungen" in t or "angemeldete leistungen" in t
+            or is_pos_overview(l))
 
 
 def studiengang(l: Link) -> str | None:
@@ -446,12 +485,21 @@ def info_tables(p: Page) -> list[list[list[str]]]:
     return [t for t in p.tables if any(is_header(header_map(r)) for r in t)]
 
 
-def walk(get, start: str, max_pages: int = MAX_PAGES) -> dict:
-    """`get(url) -> (status, html, final_url)`; nur GET. Liefert {registrations, pages, tables}."""
+def _is_cas(url: str) -> bool:
+    from . import cas, universities
+    return cas.is_cas_page(url, universities.HILDESHEIM_CAS)
+
+
+def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> dict:
+    """`get(url) -> (status, html, final_url)`; nur GET. Liefert {registrations, pages, tables}. `profile`
+    "hildesheim": LSF der Uni Hildesheim (Zwischenschritt "POS-Management", Ziel "Meine POS-Anmeldungen")."""
     def page(url: str) -> Page:
         status, html, final = get(url)
+        # LSF Hildesheim: abgelaufene Sitzung leitet zur CAS-Anmeldung
+        if profile == "hildesheim" and _is_cas(final or ""):
+            raise SessionExpired("LSF-Sitzung abgelaufen")
         if status != 200:
-            raise RuntimeError(f"QIS antwortet mit HTTP {status}")
+            raise RuntimeError(f"{'LSF' if profile == 'hildesheim' else 'QIS'} antwortet mit HTTP {status}")
         p = Page(html, final or url)
         if p.has_login_form or not p.is_logged_in:
             raise SessionExpired("QIS-Sitzung abgelaufen")
@@ -461,13 +509,17 @@ def walk(get, start: str, max_pages: int = MAX_PAGES) -> dict:
     pages, src = 1, first
     info = next((l for l in first.links if is_info(l)), None)
     if info is None:
-        st = first.mein_studium()
+        if profile == "hildesheim":
+            host = (urlsplit(first.address).hostname or "").lower()
+            st = next((l for l in first.links if l.host == host and is_pos_menu(l)), None)
+        else:
+            st = first.mein_studium()
         if st is not None and not is_forbidden(st):
             src = page(first.url_for(st))
             pages += 1
             info = next((l for l in src.links if is_info(l)), None)
     if info is None:
-        raise InfoNotFound()
+        raise POSOverviewNotFound() if profile == "hildesheim" else InfoNotFound()
     visited = {first.address, src.address}
     rows, n_tables = [], 0
     pending = [(info, src)]
@@ -489,8 +541,8 @@ def walk(get, start: str, max_pages: int = MAX_PAGES) -> dict:
 
 # ---------------------------------------------------------------------------- Speicher (nur dieser PC)
 
-def message(count: int) -> str:
-    return "Im QIS sind keine Prüfungen angemeldet." if count == 0 else \
+def message(count: int, system: str = "QIS") -> str:
+    return f"Im {system} sind keine Prüfungen angemeldet." if count == 0 else \
         "1 angemeldete Prüfung gelesen." if count == 1 else f"{count} angemeldete Prüfungen gelesen."
 
 
@@ -529,20 +581,21 @@ def save_run(conn, at: str, ok: bool, count: int, msg: str) -> None:
                  (RUN_KEY, json.dumps({"at": at, "ok": ok, "count": count, "message": msg}, ensure_ascii=False)))
 
 
-def run(get, start: str, now: str | None = None) -> dict:
+def run(get, start: str, now: str | None = None, profile: str = "luh") -> dict:
     """Abruf und Speichern; bei einem Fehler bleiben die Zeilen, nur der Stand merkt sich die Meldung."""
     at = now or db.now_iso()
+    system = "LSF" if profile == "hildesheim" else "QIS"
     try:
-        r = walk(get, start)
+        r = walk(get, start, profile=profile)
     except Exception as e:  # noqa: BLE001
-        msg = str(e) if isinstance(e, InfoNotFound) else ("Bitte im QIS anmelden." if isinstance(e, SessionExpired)
+        msg = str(e) if isinstance(e, InfoNotFound) else (f"Bitte im {system} anmelden." if isinstance(e, SessionExpired)
                                                           else f"Angemeldete Prüfungen nicht gelesen: {e}")
         with db.cursor() as conn:
             save_run(conn, at, False, 0, msg)
         return {"ok": False, "count": None, "message": msg, "needs_login": isinstance(e, SessionExpired)}
     regs = r["registrations"]
     n = sum(1 for x in regs if is_registered(x.get("status")))
-    msg = message(n)
+    msg = message(n, system)
     with db.cursor() as conn:
         store(conn, regs, at)
         save_run(conn, at, True, n, msg)

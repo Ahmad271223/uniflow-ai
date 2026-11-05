@@ -170,7 +170,7 @@ Gebaut nach dem bekannten HIS-QIS-Aufbau (wie Notenspiegel) mit erfundenen Seite
   Im Dienst `supported=false`. app-paths.json bleibt unverändert (Form gleich). Tests: `tests/test_exam_registration_api.py`.
 - Daten nur für sieben geprüfte Studiengänge; alle anderen zeigen den Link ihrer Terminseite.
 - Module aus anderen Studiengängen können eine andere Variante haben (Hinweis im Text, keine Daten je Modul).
-- Uni Hildesheim: nicht unterstützt (`supported=false`, kein Abschnitt).
+- ~~Uni Hildesheim: nicht unterstützt~~ **seit 05.11.2026 unterstützt**, siehe „Uni Hildesheim“ unten.
 
 ## Umsetzung (05.11.2026)
 
@@ -188,3 +188,79 @@ Gebaut nach dem bekannten HIS-QIS-Aufbau (wie Notenspiegel) mit erfundenen Seite
   zeigt die Liste nichts, also startete das Laden nie); jetzt hängt das Laden an einem festen Behälter.
 - Tests: Kern `ExamRegistrationTests` (11), App `ExamRegistrationAppTests` (6), Python `tests/test_exam_registration.py`
   (6); `app-paths.json` kennt `GET /api/exam-registration` als „nur auf dem Gerät“.
+
+## Uni Hildesheim (05.11.2026)
+
+Gleiche Hilfe wie bei der LUH, mit den Eigenheiten der Uni Hildesheim. Anmelden und abmelden tut immer der Mensch
+selbst im LSF; StudiNow öffnet nie „An-/Abmeldung zu Studien-/Prüfungsleistungen“, „Zur Anmeldung“ oder „Zur
+Stornierung“.
+
+### Was die öffentlichen Seiten sagen (gelesen am 05.11.2026, ohne Anmeldung)
+
+robots.txt von www.uni-hildesheim.de erlaubt die Seiten für alle Programme (gesperrt nur /intranet/, /personal/, /wiki/
+u. a.; **`ClaudeBot` ist dort ganz ausgeschlossen** – die Abrufe liefen als nutzergesteuerte Einzelabrufe mit
+eigener Kennung, nicht als Crawler). Zehn Abrufe nacheinander im Abstand von ≥ 3 s, abgelegt unter
+`~/Studora-Builds/hildesheim/pruefungsanmeldung/` (nicht im Repository). Learnweb, LSF und CAS wurden nicht angefragt.
+
+| Seite | Inhalt |
+|---|---|
+| [Prüfungsamt 2: Fragen zu Prüfungs-/Studienleistungen](https://www.uni-hildesheim.de/studium/studierende/pruefungsamt/pruefungsamt-2/fragen-zu-pruefungs-studienleistungen/) | „Ab dem 11. November 2026 ist im LSF die POS-Anmeldung … für das Wintersemester 26/27 für alle Bachelor- und Masterstudiengänge freigeschaltet (mit Ausnahme einiger Weiterbildungsmaster).“ Abmeldung unverbindlicher Anmeldungen im selben Semester, ausnahmsweise bis 3 Semester rückwirkend; ältere werden NB. |
+| [LSF-Termine (IT-Abteilung)](https://www.uni-hildesheim.de/dez3/it-abteilung/lsf-vergabe/lsf-termine/) | 11.11.2026 „Beginn der POS Anmeldephase“ |
+| [Häufige Fragen zur POS-Anmeldung](https://www.uni-hildesheim.de/posanmeldung/haeufige-fragen-zur-online-anmeldung-zu-studien-pruefungsleistungen/) | **Keine universitätsweit einheitlichen Fristen**; Anmeldungen mit Frist sind verbindlich (das LSF zeigt, bis wann man sich abmelden kann), ohne Frist unverbindlich und jederzeit stornierbar. Nachklausuren im Semester der ursprünglichen Veranstaltung anmelden. Freischaltung „typischerweise in der dritten Woche der Vorlesungszeit“. Übersicht: Meine Funktionen → POS-Management → **Meine POS-Anmeldungen** (bei Klausuren mit Ort und Zeit). Das LSF schickt wenige Tage vor Ablauf befristeter Anmeldungen Erinnerungs-E-Mails. |
+| [Schnellanleitung](https://www.uni-hildesheim.de/posanmeldung/howto-schnellanleitung-zur-online-pruefungsanmeldung/) | LSF → Meine Funktionen → POS-Management → „An-/Abmeldung zu Studien-/Prüfungsleistungen“ → Hinweise bestätigen → Semester, Modul/Teilmodul, Veranstaltung → „Zur Anmeldung“ bzw. „Zur Stornierung der Anmeldung“ → bestätigen. |
+| [Semesterzeiten](https://www.uni-hildesheim.de/termine-fristen/semesterzeiten-in-reintext-zum-barrierefreien-aufruf/) | WiSe 2026/27: 01.10.2026 – 31.03.2027 (Ende des Fensters, keine Anmeldefrist) |
+| [Zuständigkeiten nach Studiengängen](https://www.uni-hildesheim.de/studium/studierende/pruefungsamt/zustaendigkeiten-nach-studiengaengen/) | Prüfungsamt je Studiengang (Link je Eintrag) |
+| [Institut für Technik: Wissenswertes zu Prüfungen](https://www.uni-hildesheim.de/fb4/institute/institut-fuer-technik/studium-lehre/wissenswertes-zu-pruefungen/) | Nur dieses Institut: Klausuranmeldung bis 2 Wochen vor dem Prüfungszeitraum; Daten auf der Seite sind von 2025 → **nicht übernommen** |
+
+Ergebnis: **ein** bekannter Termin (Start der POS-Anmeldung WiSe 26/27 am 11.11.2026, alle Bachelor/Master), **kein
+Ende** (Fristen je Prüfung im LSF). SoSe 27 ist noch nicht veröffentlicht („typischerweise Ende April“ ist kein Datum)
+→ ab 01.04.2027 nur der Link. 71 Studiengang-Einträge aus den Zuständigkeiten (63 mit POS-Start, 8 nur Link:
+Weiterbildung, Diplom/Magister ausgelaufen, Zugangsprüfung, Austausch, Staatliche Anerkennung) plus ein Eintrag
+`default` „Alle Bachelor- und Masterstudiengänge“ für alle anderen.
+
+### Daten (`exam-registration-hildesheim.json`)
+
+Gleiches Format wie die LUH-Datei, dazu: `system: "LSF"`, `hint`, `disclaimer`, `period_note` (Texte der Uni),
+`sources[]` (`url`, `title`, `says`, `checked_at`), je Zeitraum `open_end: true` und `source`, je Studiengang `name`,
+`faculty`, `url` = Seite des Prüfungsamts, und ein Eintrag mit `default: true`. Regeln ohne `withdraw_days_before`
+(nie eine Rücktrittsfrist erfinden). Erzeuger: `.venv/bin/python tools/gen-exam-registration-fixture.py
+--from-cache-hildesheim ~/Studora-Builds/hildesheim/pruefungsanmeldung` (liest die gespeicherte Zuständigkeiten-Seite;
+Zeiträume, Regeln und Texte stehen im Erzeuger als `HILDESHEIM_*`), danach ohne Schalter bzw. `--check`. Kern:
+`ExamRegistrationData.luh` / `.hildesheim`, `ExamRegistrationPeriods.for(university:)`, `resolve(name:degree:)`;
+Python `exam_registration.for_university`, `resolve_program`.
+
+### Verhalten
+
+- Antwort mit `system: "LSF"`, `open_label: "Im LSF anmelden"`, `period_note`; `qis_url` = LSF-Startseite
+  (`UniversityProfile.hildesheimLSFStart`, im In-App-Browser). Fenster `open_end`: keine Warnung „endet in“, Karte auf der
+  Übersicht nur 7 Tage vor bis 14 Tage nach dem Start (`ExamRegistrationAPI.openEndCardDays`), Erinnerung nur am ersten
+  Tag (11.11.2026, 9:00), der Hinweis in der Web-App bis 14 Tage danach. Rücktritt: nur, was das LSF in „Meine
+  POS-Anmeldungen“ zeigt (`withdraw_until` aus der Zeile), sonst nichts.
+- Abhaken: Notenspiegel-Status „angemeldet“ (wie im Live-Test-Fixture) und **„Meine POS-Anmeldungen“** – im Kern im
+  Notenspiegel-Schritt von `HildesheimSync` (nach dem Notenspiegel, Fehler ändern den LSF-Stand nicht), Knopf
+  „Angemeldete Prüfungen abrufen“ (`HildesheimConnection.fetchRegistrations`), am PC in `qis.run` (Profil hildesheim).
+  Weg: Start → Link „POS-Management“ → Link „Meine POS-Anmeldungen“ (nur über den Text; die Ausnahme in der Sperrliste
+  gilt nur für genau diesen Text, Parameter mit „abmeld“, „storn“, „prfanm“ bleiben gesperrt). Tabelle wie im
+  Notenspiegel („Abschluss: …“-Zeile, „Prüfungsnr.“, „Bezeichnung der Leistung …“); Status zugelassen/AN → angemeldet,
+  storniert/abgelehnt/nicht zugelassen → nicht. Erfundene Seiten `fixtures/exam-registration/lsf-*.html`.
+- Klausurtermine („Nächste Klausuren“, `Exams`/`app/exams.py`): neue Quelle `anmeldung` – gelesene Anmeldungen mit
+  Termin (Uhrzeit, Raum) aus „Meine POS-Anmeldungen“ bzw. „Info über angemeldete Prüfungen“ (gilt auch für die LUH).
+  Für Hildesheim zählen außerdem: Klausurtermin am Modul, Learnweb-Fristen mit „Klausur“/„Prüfung“ im Namen (auch
+  `test_ende`/`test_beginn`), Learnweb-Ankündigungen eines Kurses, in Dateien erkannte Klausuren. **Nur LUH:**
+  Stud.IP-Termine mit Art „Klausur“, Stud.IP-Nachrichten, Notenspiegel-Zeilen „AN“ mit Datum (der Hildesheimer
+  Notenspiegel hat keine Datumsspalte). Nicht genutzt: Klausurtermine im LSF-Stundenplan (iCal) – die Serien landen im
+  Stundenplan, nicht in „Nächste Klausuren“.
+
+### Was der Inhaber einmal am echten Hildesheimer Konto prüfen muss
+
+1. LSF verbinden (selbst anmelden), Abgleich laufen lassen; Statusleiste: „n angemeldete Prüfungen gelesen.“ oder
+   „Angemeldete Prüfungen: Die Seite „Meine POS-Anmeldungen“ wurde im LSF nicht gefunden.“ Im zweiten Fall im
+   In-App-Browser selbst Meine Funktionen → POS-Management → Meine POS-Anmeldungen öffnen und notieren (ohne
+   persönliche Daten): genauer Linktext beider Links, Parameter `state`/`moduleParameter`/`next` in der Adresse,
+   Spaltenköpfe, Text der Statusspalte (zugelassen? AN?), Text ohne Anmeldung, ob die Seite einen Baum je Semester hat.
+2. Notenspiegel: Steht eine angemeldete, noch nicht bewertete Prüfung mit Status „angemeldet“ (oder „AN“) darin?
+3. „Im LSF anmelden“: Erwartung Startseite des LSF (Meine Funktionen); weiter über POS-Management selbst.
+4. Ab 11.11.2026: Karte „Prüfungsanmeldung“ auf der Übersicht, Mitteilung um 9:00 Uhr; nach dem 25.11. keine Karte mehr,
+   der Abschnitt im Studienverlauf bleibt.
+5. Neu lesen vor dem SoSe 27: FAQ von Prüfungsamt 2 und LSF-Termine (Start der POS-Anmeldung), dann
+   `HILDESHEIM_TABLES` im Erzeuger ergänzen.

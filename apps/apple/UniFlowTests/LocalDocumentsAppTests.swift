@@ -977,7 +977,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertTrue(LibraryPage.isOlderCourse("c-alt", older: overview))
         XCTAssertFalse(LibraryPage.isOlderCourse("c1", older: overview))
         XCTAssertEqual(OlderSemestersQuestion.text(current: "WiSe 2026/27", courses: 1),
-                       "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.")
+                       "StudiNow hat die Dateien deines aktuellen Semesters (WiSe 2026/27) geladen. Dazu gibt es 1 Kurs aus früheren Semestern. StudiNow lädt sie im Hintergrund nach, neuestes Semester zuerst und nur im WLAN. Du kannst ihre Dateien jederzeit später in der Bibliothek laden, je Semester oder je Kurs.")
 
         // beim Zeigen gilt "Nur aktuelles Semester" (wie der Host es tut): danach nie wieder gefragt, auch nach Abgleichen
         _ = try await dev.api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "current"])
@@ -1027,13 +1027,17 @@ final class LocalDocumentsAppTests: XCTestCase {
         await sync.run(client: client(stud))
         XCTAssertFalse(stud.requested[n...].contains { $0.contains("/courses/c-alt/") }, "fertig geladen: nicht erneut abgefragt")
 
-        // Wahl "alle": ein neu vorgemerkter Kurs (hier erneut c-alt) kommt mit dem normalen Abgleich
+        // Wahl "alle" (seit 05.11.2026 "Automatisch", `SyncOrder`): der volle Abgleich bleibt beim aktuellen Semester;
+        // ein neu vorgemerkter Kurs (hier erneut c-alt) kommt in Stufe (d) danach (`olderOnly`)
         _ = try await dev.api.value("/api/older-semesters/choice", method: "POST", body: ["choice": "all"])
         _ = try await dev.api.value("/api/older-semesters/request", method: "POST", body: ["course_ids": ["c-alt"]])
         let m = stud.requested.count
         await sync.run(client: client(stud))
-        XCTAssertTrue(stud.requested[m...].contains { $0.contains("/courses/c-alt/folders") })
+        XCTAssertFalse(stud.requested[m...].contains { $0.contains("/courses/c-alt/folders") }, "voller Lauf: nur das aktuelle Semester")
         XCTAssertTrue(stud.requested[m...].contains { $0.contains("/courses/c1/folders") })
+        let k = stud.requested.count
+        await sync.run(client: client(stud), olderOnly: true)
+        XCTAssertTrue(stud.requested[k...].contains { $0.contains("/courses/c-alt/folders") }, "Stufe (d) holt ihn")
         XCTAssertEqual(StudIPSync.olderFilesNote(courses: 0, loaded: 0, failed: 0, unreadable: 0), "Keine Dateien früherer Semester zu laden.")
         XCTAssertEqual(OlderSemesterLoad.status(["files": 3, "downloaded": 0, "loaded": false, "requested": false]), "3 Dateien bekannt, nicht geladen")
     }

@@ -65,10 +65,18 @@ export function draftRestored(savedAt) {
 export const sentLine = names => `${TEXTS.sent} an ${names.join(", ")}`;
 
 /** Fehler mit Ausweg "In Stud.IP antworten" (alles ausser Netz, Anmeldung und nicht verbunden) */
-export const offersWebFallback = code => !!code && !["reply_offline", "studip_login", "studip_not_connected", "reply_empty"].includes(code);
+export const offersWebFallback = code => !!code && !["reply_offline", "studip_login", "studip_not_connected", "reply_empty", "learnweb_login", "moodle_login"].includes(code);
 
-/** Anmeldung noetig */
-export const needsLogin = code => code === "studip_login" || code === "studip_not_connected";
+/** Anmeldung noetig (Stud.IP, Learnweb der Uni Hildesheim bzw. Moodle der HsH) */
+export const needsLogin = code => code === "studip_login" || code === "studip_not_connected" || code === "learnweb_login" || code === "moodle_login";
+
+/** Ausweg im Browser: "In Stud.IP antworten", "Im Learnweb antworten" (Kennung "lw-msg-…") bzw. "In Moodle antworten" ("moodle-…") */
+export const webFallbackLabel = id => String(id || "").startsWith("lw-msg-") ? "Im Learnweb antworten"
+  : String(id || "").startsWith("moodle-") ? "In Moodle antworten" : TEXTS.openStudIP;
+
+/** Satz im Leser: ueber welches System die Antwort geht */
+export const replyChannel = id => String(id || "").startsWith("lw-msg-") ? "Antworten gehen über das Learnweb unter deinem Namen."
+  : String(id || "").startsWith("moodle-") ? "Antworten gehen über Moodle unter deinem Namen." : TEXTS.privacyExtra;
 
 /** Leser: Knoepfe, "Beantwortet am …" und die eigene Antwort (aufklappbar) */
 export function readerReplyHtml(m, { icon = () => "" } = {}) {

@@ -163,9 +163,16 @@ public actor HildesheimSync {
         public var failedCourses: [String] = []
         public var plan: UniStore.PlanResult?
         public var grades: Int?
+        /// "Meine POS-Anmeldungen" (Pruefungsanmeldung, nur lesend nach dem Notenspiegel): angemeldete Pruefungen, nil
+        /// ohne Abruf oder bei einem Fehler (Meldung in `messages`, Stand in settings.exam_registration_run)
+        public var registrations: Int?
         /// Learnweb-Fristen und Ankuendigungen (nach den Dateien; ein Fehler dort stoppt den Lauf nicht)
         public var deadlines: Announcements.StoreResult?
         public var announcements: Announcements.StoreResult?
+        /// Wartungshinweis des LSF ("+++ … +++"), nil ohne
+        public var notice: String?
+        /// Learnweb-Nachrichten (Unterhaltungen mit einer fremden Nachricht), nil ohne Abruf oder bei einem Fehler
+        public var learnwebMessages: Int?
         /// verstaendliche Meldungen fuer die Statusleiste
         public var messages: [String] = []
         /// Neu anmelden noetig (Learnweb oder LSF)
@@ -202,20 +209,33 @@ public actor HildesheimSync {
         }
     }
 
+    /// Namen der Quellen in Meldungen und `needsLogin` (Hildesheim: Learnweb/LSF, Hochschule Hannover:
+    /// Moodle/Campusmanagement, docs/HSH-2026-11-05.md). `Report.Part` bleibt fuer beide gleich.
+    public struct SourceNames: Sendable, Equatable {
+        public let university: UniversityKey
+        public let files: String
+        public let campus: String
+        public static let hildesheim = SourceNames(university: .hildesheim, files: "Learnweb", campus: "LSF")
+        public static let hsh = SourceNames(university: .hsh, files: "Moodle", campus: "Campusmanagement")
+    }
+
     private let db: SQLiteDatabase
+    private let names: SourceNames
     /// Container der Hochschule (`DataContainerLayout`); Dateien unter `Learnweb/`
     private let container: DataContainerLayout
     private let learnweb: LearnwebAPI?
-    private let lsf: LSFClient?
+    private let lsf: (any UniCampusClient)?
     private let transport: UniTransport
     private let clock: UniFlowClock
     private let retry: UniRetry
     /// Seitentexte geladener PDFs fuer Suche und Seitenzuordnung einer neuen Fassung (S7; App: PDFKit, ohne: keine)
     private let tools: LocalDocumentTools
 
-    public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
-                clock: UniFlowClock = .system, retry: UniRetry = UniRetry(), tools: LocalDocumentTools = NoDocumentTools()) {
+    public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: (any UniCampusClient)?, transport: UniTransport,
+                clock: UniFlowClock = .system, retry: UniRetry = UniRetry(), tools: LocalDocumentTools = NoDocumentTools(),
+                names: SourceNames = .hildesheim) {
         self.db = db
+        self.names = names
         self.container = container
         self.learnweb = learnweb
         self.lsf = lsf
@@ -255,19 +275,41 @@ public actor HildesheimSync {
             return report
         }
         let started = clock.nowISO
-        if let learnweb {
+        // Reihenfolge (`SyncOrder`, Wunsch des Inhabers 05.11.2026): (a) Stundenplan (LSF/Campusmanagement) vor den
+        // Dateien, dann Dateien, Fristen und Ankuendigungen des aktuellen Semesters; (b) Noten. Fruehere Semester
+        // laedt der volle Lauf nicht mehr mit: sie kommen danach in Stufe (d) (`olderOnly`), neuestes Semester zuerst
+        if let lsf, !olderOnly, !report.cancelled, !Task.isCancelled {
+            await syncPlan(lsf, into: &report)
+        }
+        if let learnweb, !report.cancelled, !Task.isCancelled {
             let courses = await syncLearnweb(learnweb, filter: semesterFilter, loadFiles: downloads, olderOnly: olderOnly, into: &report)
             // wie run_sync am PC: Fristen und Ankuendigungen nach den Dateien; ein Fehler dort stoppt den Lauf nicht,
             // nach abgelaufener Anmeldung oder Abbruch wird nichts mehr gefragt
-            if let courses, !olderOnly, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains("Learnweb") {
+            if let courses, !olderOnly, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains(names.files) {
                 await syncDeadlines(learnweb, into: &report)
                 if !report.cancelled, !Task.isCancelled { await syncAnnouncements(learnweb, courses: courses, into: &report) }
+                // Learnweb-Nachrichten (Moodle-Unterhaltungen, nur lesend, 05.11.2026); nur Uni Hildesheim, die HsH
+                // entscheidet selbst
+                if names.university == .hildesheim, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains(names.files) {
+                    await syncMessages(learnweb, into: &report)
+                }
             }
         }
-        if let lsf, !olderOnly, !report.cancelled, !Task.isCancelled {
-            await syncPlan(lsf, into: &report)
-            if includeGrades { await syncGrades(lsf, into: &report) }
+        if !olderOnly, !report.cancelled, !Task.isCancelled {
+            let now = clock.nowISO
+            _ = try? await db.transaction { try SyncOrder.markCurrentReady($0, now: now) }
         }
+        if let lsf, !olderOnly, includeGrades, !report.cancelled, !Task.isCancelled {
+            await syncGrades(lsf, into: &report)
+        }
+        // Wartungshinweis des LSF ("+++ … +++") als Hinweis in der Statusleiste (05.11.2026)
+        if let campus = lsf as? LSFClient, let n = await campus.notice {
+            report.notice = n
+            report.messages.append("LSF-Hinweis: \(n)")
+        }
+        // Stand je Teil in fester Reihenfolge (Statusleiste), unabhaengig von der Reihenfolge des Abrufs
+        let partOrder = [Report.Part.learnweb, Report.Part.plan, Report.Part.grades]
+        report.completed.sort { (partOrder.firstIndex(of: $0) ?? partOrder.count) < (partOrder.firstIndex(of: $1) ?? partOrder.count) }
         if Task.isCancelled { report.cancelled = true }
         let message = report.messages.joined(separator: ", ")
         let finished = clock.nowISO, ok = report.ok, newFiles = report.newFiles.count
@@ -280,8 +322,8 @@ public actor HildesheimSync {
     /// Nur der Container der Uni Hildesheim mit seiner Kennzeichnung (streng: ohne Kennzeichnung nicht) und eine
     /// Datenbank dieser Hochschule (`settings.university`) werden beschrieben; sonst die Meldung, warum nicht.
     private func refusal() async -> String? {
-        let want = UniversityKey.hildesheim.rawValue
-        guard container.university == .hildesheim else {
+        let want = names.university.rawValue
+        guard container.university == names.university else {
             return UniversityMismatch(stored: container.university.rawValue, expected: want).description
         }
         do {
@@ -305,7 +347,7 @@ public actor HildesheimSync {
         let current: [Learnweb.Course]
         /// Kurse frueherer Semester, deren Dateien gewuenscht sind (`OlderSemesters.pending`); sonst bleiben sie ohne
         let older: [Learnweb.Course]
-        let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
+        let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: names.files)
         defer { downloads.end() }
         do {
             courses = try await api.courses().filter { c in
@@ -320,8 +362,12 @@ public actor HildesheimSync {
                 return (Set(try conn.rows("SELECT id FROM courses WHERE active=0").compactMap { $0["id"]?.string }),
                         try OlderSemesters.pending(conn, today: today))
             }
-            current = olderOnly ? [] : courses.filter { !off.contains($0.id) }
-            older = courses.filter { off.contains($0.id) && wanted.contains($0.id) }
+            // aktuelle Kurse zuerst, dann das naechste Semester (`SyncOrder.stage`); fruehere nur in Stufe (d)
+            let term = SyncOrder.currentTerm(today: today, university: names.university)
+            current = olderOnly ? [] : courses.filter { !off.contains($0.id) }.enumerated()
+                .sorted { (SyncOrder.stage(active: true, semester: $0.element.semester, current: term), $0.offset)
+                    < (SyncOrder.stage(active: true, semester: $1.element.semester, current: term), $1.offset) }.map(\.element)
+            older = olderOnly ? SyncOrder.newestFirst(courses.filter { off.contains($0.id) && wanted.contains($0.id) }, semester: \.semester) : []
             report.olderCourses = courses.filter { off.contains($0.id) && !wanted.contains($0.id) }.map(\.id)
             try downloads.begin()
         } catch {
@@ -329,8 +375,8 @@ public actor HildesheimSync {
                 report.cancelled = true
                 return nil
             }
-            if Self.isLoginError(error) { report.needsLogin.append("Learnweb") }
-            report.messages.append("Learnweb: \(Self.describe(error))")
+            if Self.isLoginError(error) { report.needsLogin.append(names.files) }
+            report.messages.append("\(names.files): \(Self.describe(error))")
             return nil
         }
         report.courses = courses.count
@@ -344,7 +390,7 @@ public actor HildesheimSync {
                 if Self.isCancellation(error) {
                     report.cancelled = true
                 } else if Self.isLoginError(error) {
-                    if !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
+                    if !report.needsLogin.contains(names.files) { report.needsLogin.append(names.files) }
                 } else {
                     return false
                 }
@@ -391,7 +437,7 @@ public actor HildesheimSync {
             }
         }
         if report.cancelled {
-            report.messages.append("Learnweb abgebrochen")
+            report.messages.append("\(names.files) abgebrochen")
             return nil
         }
         // kein einziger Kurs lesbar (Learnweb gestoert): Fehler statt "Learnweb: 16:30 ok" (wie beim Stud.IP-Abgleich);
@@ -400,7 +446,7 @@ public actor HildesheimSync {
         if report.notAttempted.isEmpty, !allUnreadable { report.completed.append(Report.Part.learnweb) }
         report.messages.append(Self.learnwebMessage(courses: all.count, newFiles: report.newFiles.count,
                                                     failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count,
-                                                    waiting: report.waiting, older: report.olderCourses.count))
+                                                    waiting: report.waiting, older: report.olderCourses.count, source: names.files))
         // Learnweb gestoert: keine weiteren Anfragen (Fristen, Ankuendigungen) in diesem Lauf; Ankuendigungen wie am
         // PC nur fuer aktive Kurse
         return allUnreadable ? nil : current
@@ -419,8 +465,8 @@ public actor HildesheimSync {
             report.messages.append("Fristen: \(r.total) (\(r.new) neu, \(r.removed) entfernt)")
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }
-            if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
-            report.messages.append("Learnweb-Fristen: \(Self.describe(error))")
+            if Self.isLoginError(error), !report.needsLogin.contains(names.files) { report.needsLogin.append(names.files) }
+            report.messages.append("\(names.files)-Fristen: \(Self.describe(error))")
         }
     }
 
@@ -449,19 +495,38 @@ public actor HildesheimSync {
             report.messages.append("Ankündigungen: \(r.new) neu (\(withDates) mit Termin), \(gone) entfernt")
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }
-            if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
-            report.messages.append("Learnweb-Ankündigungen: \(Self.describe(error))")
+            if Self.isLoginError(error), !report.needsLogin.contains(names.files) { report.needsLogin.append(names.files) }
+            report.messages.append("\(names.files)-Ankündigungen: \(Self.describe(error))")
+        }
+    }
+
+    /// Learnweb-Nachrichten in die Liste "Nachrichten" (Tabelle studip_messages, `LearnwebMessages`); im Learnweb wird
+    /// nichts als gelesen markiert. Erfolg ohne eigene Zeile in der Statusleiste (Zahl in `report.learnwebMessages`),
+    /// ein Fehler meldet sich und stoppt den Lauf nicht.
+    private func syncMessages(_ api: LearnwebAPI, into report: inout Report) async {
+        do {
+            let today = BerlinClock.parseISODate(clock.today) ?? 0
+            let items = try await api.messages(today: today)
+            let fetched = clock.nowISO
+            try await db.transaction { try StudIPExtras.storeMessages($0, items, fetchedAt: fetched) }
+            report.learnwebMessages = items.count
+        } catch {
+            if Self.isCancellation(error) { report.cancelled = true; return }
+            if Self.isLoginError(error), !report.needsLogin.contains(names.files) { report.needsLogin.append(names.files) }
+            let text = (error as? LearnwebMessageError)?.errorDescription ?? Self.describe(error)
+            report.messages.append("\(names.files)-Nachrichten: \(text)")
         }
     }
 
     /// Meldung des Learnweb-Teils fuer die Statusleiste
-    static func learnwebMessage(courses: Int, newFiles: Int, failedFiles: Int, failedCourses: Int, waiting: Int = 0, older: Int = 0) -> String {
+    static func learnwebMessage(courses: Int, newFiles: Int, failedFiles: Int, failedCourses: Int, waiting: Int = 0, older: Int = 0,
+                                source: String = "Learnweb") -> String {
         if courses > 0, failedCourses == courses {
-            return "Learnweb: kein Kurs lesbar (\(courses) \(courses == 1 ? "Kurs" : "Kurse")), später erneut"
+            return "\(source): kein Kurs lesbar (\(courses) \(courses == 1 ? "Kurs" : "Kurse")), später erneut"
         }
-        var text = "\(newFiles) neue/geänderte Dateien aus \(courses) Learnweb-Kursen"
+        var text = "\(newFiles) neue/geänderte Dateien aus \(courses) \(source)-Kursen"
         if failedFiles > 0 { text += ", \(failedFiles) Dateien später erneut" }
-        if failedCourses > 0 { text += ", \(failedCourses) Learnweb-\(failedCourses == 1 ? "Kurs" : "Kurse") nicht lesbar" }
+        if failedCourses > 0 { text += ", \(failedCourses) \(source)-\(failedCourses == 1 ? "Kurs" : "Kurse") nicht lesbar" }
         if waiting > 0 { text += ", \(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download" }
         // wie der Hinweis beim Stud.IP-Abgleich: alte Kurse sind bekannt, bekommen aber keine Dateien mehr
         if older > 0 { text += ", \(older) \(older == 1 ? "Kurs" : "Kurse") aus früheren Semestern ohne Dateien (Einstellungen → Module)" }
@@ -483,11 +548,11 @@ public actor HildesheimSync {
         }
     }
 
-    private func syncPlan(_ lsf: LSFClient, into report: inout Report) async {
+    private func syncPlan(_ lsf: any UniCampusClient, into report: inout Report) async {
         do {
             guard let entries = try await lsf.planEntries() else {
                 report.completed.append(Report.Part.plan)
-                report.messages.append("LSF-Stundenplan ist leer")
+                report.messages.append("\(names.campus)-Stundenplan ist leer")
                 return
             }
             let clock = self.clock
@@ -497,12 +562,23 @@ public actor HildesheimSync {
             report.messages.append("Stundenplan: \(r.new) neu, \(r.kept) unverändert, \(r.removed) entfernt")
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }
-            if Self.isLoginError(error) { report.needsLogin.append("LSF") }
-            report.messages.append("LSF-Stundenplan: \(Self.describe(error))")
+            if Self.isLoginError(error) { report.needsLogin.append(names.campus) }
+            report.messages.append("\(names.campus)-Stundenplan: \(Self.describe(error))")
         }
     }
 
-    private func syncGrades(_ lsf: LSFClient, into report: inout Report) async {
+    /// Pruefungsanmeldung (docs/PRUEFUNGSANMELDUNG-2026-11-05.md): nach dem Notenspiegel "Meine POS-Anmeldungen" im LSF
+    /// nur lesend (`QISRegistrationsSync` mit `layout: .hildesheim`, dieselbe Sitzung). Nie "An-/Abmeldung zu
+    /// Studien-/Prüfungsleistungen". Ein Fehler dort aendert den Stand von Notenspiegel und LSF nicht.
+    private func syncRegistrations(into report: inout Report) async {
+        guard !report.cancelled, !Task.isCancelled else { return }
+        let r = await QISRegistrationsSync.run(db: db, transport: transport, clock: clock, retry: retry, layout: .hildesheim)
+        if r.cancelled { report.cancelled = true; return }
+        report.registrations = r.count
+        report.messages.append(r.ok ? r.message : "Angemeldete Prüfungen: \(r.message)")
+    }
+
+    private func syncGrades(_ lsf: any UniCampusClient, into report: inout Report) async {
         guard !report.cancelled else { return }
         let started = clock.nowISO
         do {
@@ -516,9 +592,11 @@ public actor HildesheimSync {
             report.grades = grades.count
             report.completed.append(Report.Part.grades)
             report.messages.append("Notenspiegel: \(grades.count) Leistungen")
+            // nur das LSF Hildesheim; die HsH liest angemeldete Pruefungen selbst (`HISinOneClient.registrations`)
+            if names.university == .hildesheim { await syncRegistrations(into: &report) }
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }
-            if Self.isLoginError(error), !report.needsLogin.contains("LSF") { report.needsLogin.append("LSF") }
+            if Self.isLoginError(error), !report.needsLogin.contains(names.campus) { report.needsLogin.append(names.campus) }
             let msg = Self.describe(error)
             _ = try? await db.execute("INSERT INTO qis_runs(started_at, finished_at, ok, message, grades, documents) VALUES (?,?,0,?,0,0)",
                                       [.text(started), .text(clock.nowISO), .text("FEHLER: \(msg)")])

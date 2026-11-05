@@ -4,8 +4,8 @@
 // Entwurf bei jeder Aenderung (PUT …/draft, nur dieser PC), beim naechsten Oeffnen "Entwurf vom … wiederhergestellt".
 // Fehler mit Ausweg "In Stud.IP antworten" (Schreibfenster mit answer_to im App-Fenster) bzw. Anmeldung bei der
 // Hochschule. Gesendet wird nur auf "Senden" (POST …/reply), nie still wiederholt. Regeln: message-reply-logic.js.
-import { $, api, icon, modal, toast, debounce } from "./core.js?v=44";
-import * as R from "./message-reply-logic.js?v=1";
+import { $, api, icon, modal, toast, debounce } from "./core.js?v=45";
+import * as R from "./message-reply-logic.js?v=3";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const path = id => `/studip/messages/${encodeURIComponent(id)}`;
@@ -15,7 +15,7 @@ export function decorateReader(box, m, { onSent } = {}) {
   const html = R.readerReplyHtml(m, { icon });
   const note = box.querySelector("p.muted.tiny:last-of-type");
   if (note) {
-    if (R.isReplyable(m)) note.textContent = `${note.textContent} ${R.TEXTS.privacyExtra}`;
+    if (R.isReplyable(m)) note.textContent = `${note.textContent} ${R.replyChannel(m.id)}`;
     if (html) note.insertAdjacentHTML("beforebegin", html);
   }
   box.querySelectorAll("[data-reply]").forEach(b => b.onclick = () => openReply(m, b.dataset.reply, { onSent }));
@@ -25,7 +25,7 @@ function errorHtml(e, m) {
   const web = e.webUrl || m.reply_url;
   return `<div class="msg-reply-err" role="alert"><p>${icon("alert", 15)} ${esc(e.message)}</p><div class="row wrap">`
     + (R.needsLogin(e.code) ? `<button type="button" class="btn sm primary" data-login>${icon("log-out", 14)} ${esc(R.TEXTS.login)}</button>` : "")
-    + (R.offersWebFallback(e.code) && web ? `<a class="btn sm" href="${esc(web)}" target="_blank" rel="noopener">${esc(R.TEXTS.openStudIP)} ${icon("arrow-right", 14)}</a>` : "")
+    + (R.offersWebFallback(e.code) && web ? `<a class="btn sm" href="${esc(web)}" target="_blank" rel="noopener">${esc(R.webFallbackLabel(m?.id))} ${icon("arrow-right", 14)}</a>` : "")
     + `</div></div>`;
 }
 
@@ -60,7 +60,7 @@ export async function openReply(m, mode = "sender", { onSent } = {}) {
     ? `<div class="seg" role="group" aria-label="Empfänger"><button type="button" data-mode="sender">${esc(R.TEXTS.onlySender)}</button><button type="button" data-mode="all">${esc(R.allLabel(others.length + 1))}</button></div>` : "";
   body.innerHTML = `${d ? `<p class="small muted">${esc(R.draftRestored(d.saved_at))}</p>` : ""}
     <div class="field"><span>An</span><div class="row wrap" style="gap:.5rem"><b id="rpTo"></b>${toggle}</div>${ctx.is_circular ? `<p class="small muted">${esc(R.circularNote(ctx.other_count + 1))}</p>` : ""}</div>
-    <label class="field"><span>Betreff</span><input class="input" id="rpSubject" maxlength="250" value="${esc(cur.subject)}"></label>
+    ${ctx.no_subject ? "" : `<label class="field"><span>Betreff</span><input class="input" id="rpSubject" maxlength="250" value="${esc(cur.subject)}"></label>`}
     <label class="field"><span>Text</span><textarea class="input" id="rpText" rows="7" maxlength="20000" aria-required="true">${esc(cur.text)}</textarea></label>
     <label class="row small" style="gap:.4rem"><input type="checkbox" id="rpQuote" ${cur.quote ? "checked" : ""}> ${esc(R.TEXTS.quote)}</label>
     <pre class="msg-quote muted small" id="rpQuoteText" ${cur.quote ? "" : "hidden"}>${esc(ctx.quote)}</pre>
@@ -78,7 +78,8 @@ export async function openReply(m, mode = "sender", { onSent } = {}) {
     api(`${path(m.id)}/draft`, { method: "PUT", body: cur }).catch(() => {});
   }, 500);
   box.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { cur.mode = b.dataset.mode; paint(); save(); });
-  $("#rpSubject", box).oninput = e => { cur.subject = e.target.value; save(); };
+  const subj = $("#rpSubject", box);          // Learnweb (Uni Hildesheim): Unterhaltungen ohne Betreff
+  if (subj) subj.oninput = e => { cur.subject = e.target.value; save(); };
   text.oninput = e => { cur.text = e.target.value; paint(); save(); };
   $("#rpQuote", box).onchange = e => { cur.quote = e.target.checked; $("#rpQuoteText", box).hidden = !cur.quote; save(); };
   const disc = $("#rpDiscard", box);
@@ -90,7 +91,7 @@ export async function openReply(m, mode = "sender", { onSent } = {}) {
       const r = await call(`${path(m.id)}/reply`, { method: "POST", body: cur });
       const names = [ctx.sender?.name || "Absender", ...(cur.mode === "all" ? others.map(o => o.name) : [])];
       body.innerHTML = `<div class="msg-sent"><p><span class="badge ok">${icon("check", 13)} ${esc(R.TEXTS.sent)}</span></p><p>${esc(R.sentLine(names))}</p><p class="small muted">${esc(r.record?.line || "")}</p>
-        ${r.outbox_url ? `<p><a href="${esc(r.outbox_url)}" target="_blank" rel="noopener">In Stud.IP unter „Gesendet“ ansehen</a></p>` : ""}</div>
+        ${r.outbox_url ? `<p><a href="${esc(r.outbox_url)}" target="_blank" rel="noopener">${ctx.source === "learnweb" ? "Unterhaltung im Learnweb ansehen" : ctx.source === "moodle" ? "Unterhaltung in Moodle ansehen" : "In Stud.IP unter „Gesendet“ ansehen"}</a></p>` : ""}</div>
         <div class="modal-foot"><button class="btn primary" data-close>${esc(R.TEXTS.done)}</button></div>`;
       wire();
       onSent?.(r.record);

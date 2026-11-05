@@ -148,7 +148,7 @@ def test_services_follow_university(app, uni, tmp_env):
     assert d["university"]["files_source"] == "Learnweb" and d["university"]["grades_source"] == "LSF"
     assert {s["key"] for s in d["services"]} >= {"learnweb", "lsf"}
     assert d["credentials"]["hildesheim"]["configured"] is False and d["learnweb"]["token_set"] is False
-    assert {u["key"] for u in d["universities"]} == {"luh", "hildesheim"}
+    assert {u["key"] for u in d["universities"]} == {"luh", "hildesheim", "hsh"}
 
 
 def test_hildesheim_credentials_endpoint(app, tmp_env):

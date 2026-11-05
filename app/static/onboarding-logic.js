@@ -25,6 +25,9 @@ export const isDone = s => s?.onboarding_done === true || s?.onboarding_done ===
 /** Schritt "An der Hochschule anmelden" je Hochschule und Ort (PC: Anmeldefenster; Dienst: Zugangsdaten) */
 export function loginStep(uni, hosted) {
   const hi = uni === "hildesheim";
+  if (uni === "hsh") return hosted
+    ? { title: "Hochschul-Zugang verbinden", intro: "An der Hochschule Hannover meldest du dich in der StudiNow-App auf dem iPad bei Moodle und im Campusmanagement an (SSO-Account); StudiNow merkt sich nur die Sitzung, nie dein Passwort. Ohne Anmeldung lädst du deine Unterlagen selbst hoch.", action: "Weiter" }
+    : { title: "Bei Moodle und im Campusmanagement anmelden", intro: "StudiNow holt danach deine Moodle-Kurse und -Dateien sowie Stundenplan, Leistungen und angemeldete Prüfungen aus dem Campusmanagement auf diesen PC. Du meldest dich im Anmeldefenster selbst an (SSO-Account, erst Moodle, dann das Campusmanagement im selben Fenster); StudiNow merkt sich nur die Sitzung.", action: "Anmeldefenster öffnen" };
   if (hosted) return {
     title: "Hochschul-Zugang hinterlegen",
     intro: `Damit StudiNow deine ${hi ? "Learnweb-Kurse" : "Stud.IP-Kurse"}, Dateien und den Stundenplan holen kann, hinterlegst du deinen ${hi ? "UNI-Account" : "LUH-ID-Zugang"} in den Einstellungen – verschlüsselt in deinem Konto. Ohne Zugang lädst du deine Unterlagen selbst hoch.`,

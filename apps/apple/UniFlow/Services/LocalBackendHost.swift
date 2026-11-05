@@ -125,6 +125,9 @@ final class LocalBackendHost: @unchecked Sendable {
         // (PageExplainCloudKit.swift); ohne iCloud-Container nur lokal
         backend.context.docIndex.configure(cloud: DocIndexCloudFactory.make(), cipher: SolutionSharing.cipher,
                                            makeAI: { DocIndexCloudFactory.makeAI($0) }, explainCloud: PageExplainCloudFactory.make())
+        // Mensa (05.11.2026): oeffentliche Speiseplaene direkt beim Studentenwerk; unter XCTest nie ins Netz, sondern
+        // ein erfundener Plan (`MensaDemoHTTP`) ohne Cache auf der Platte
+        if StudIPSync.isUnderTest() { backend.context.mensa.configure(http: MensaDemoHTTP(clock: clock), folder: nil) }
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
     }

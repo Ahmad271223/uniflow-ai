@@ -1,7 +1,7 @@
 // Frühere Semester: Anbindung an Seite, Dialog und Abgleich (Texte und HTML-Teile: older-semesters.js).
 // Geladen wird nicht hier, sondern vom Abgleich der Hochschule; die Routen stehen in app/older_semesters_api.py.
-import { $, $$, api, toast, modal, esc, icon, state } from "./core.js?v=44";
-import { questionText, shouldAsk, courseCount, semestersHtml, courseHeaderHtml, NOTE_QUEUED } from "./older-semesters.js?v=2";
+import { $, $$, api, toast, modal, esc, icon, state } from "./core.js?v=45";
+import { questionText, shouldAsk, courseCount, semestersHtml, courseHeaderHtml, NOTE_QUEUED } from "./older-semesters.js?v=4";
 
 /** Abgleich fuer die vorgemerkten Kurse anzeigen: Fortschritt oben, danach laedt die Seite neu (window.pollBg in app.js) */
 function watchLoading(note) {
@@ -44,8 +44,9 @@ export function bindCourseHeader(host, courseId, files, reload) {
 let asking = false;
 /**
  * Die einmalige Frage "Auch frühere Semester laden?": nach einem Abgleich (und beim Oeffnen), wenn noch nie entschieden
- * wurde und es Kurse frueherer Semester gibt. Schon beim Zeigen gilt "Nur aktuelles Semester" als Wahl, die Frage kommt
- * also nie wieder; "Frühere Semester auch laden" aendert sie.
+ * wurde und es Kurse frueherer Semester gibt. Schon beim Zeigen gilt die Vorgabe "Nur WLAN" (05.11.2026: fruehere
+ * Semester kommen im Hintergrund, app/sync_order.py) als Wahl, die Frage kommt also nie wieder; "Nur aktuelles Semester"
+ * stellt auf Aus.
  */
 export async function askOlderSemesters() {
   if (asking) return;
@@ -55,30 +56,30 @@ export async function askOlderSemesters() {
     if (bg?.running) return;
     const o = await api("/older-semesters").catch(() => null);
     if (!shouldAsk(o)) return;
-    await api("/older-semesters/choice", { method: "POST", body: { choice: "current" } });   // als gefragt merken, bevor die Frage erscheint
+    await api("/older-semesters/mode", { method: "POST", body: { mode: "wifi" } });   // als gefragt merken, bevor die Frage erscheint
     const m = modal(`<h3>${icon("folder", 18)} Auch frühere Semester laden?</h3><p>${esc(questionText(o.current, courseCount(o)))}</p>
-      <div class="modal-foot"><button class="btn primary" data-close>Nur aktuelles Semester</button><button class="btn" id="olderAll">Frühere Semester auch laden</button></div>`);
-    $("#olderAll", m).onclick = async () => {
+      <div class="modal-foot"><button class="btn" id="olderOff">Nur aktuelles Semester</button><button class="btn primary" data-close>Frühere Semester auch laden</button></div>`);
+    $("#olderOff", m).onclick = async () => {
       m.remove();
       try {
-        await api("/older-semesters/choice", { method: "POST", body: { choice: "all" } });
-        watchLoading((await api("/older-semesters/load", { method: "POST" })).note);
-        if (location.hash.startsWith("#/files")) state.route();
-      } catch (e) { toast(`Frühere Semester laden: ${e.message}`, 4000); }
+        await api("/older-semesters/mode", { method: "POST", body: { mode: "off" } });
+        if (location.hash.startsWith("#/files") || location.hash.startsWith("#/modules")) state.route();
+      } catch (e) { toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); }
     };
   } catch { /* die Frage ist eine Zugabe: kein Fehler in der Oberflaeche */ } finally { asking = false; }
 }
 
-/** Kontrollkaestchen in Einstellungen → Module: Wahl aendern; eingeschaltet laedt der Abgleich die Dateien gleich */
+/** "Ältere Semester laden" in Einstellungen → Module: Wahl aendern; nicht "Aus" startet das Laden im Hintergrund gleich */
 export function bindSetting(root) {
-  const box = $("#sOlderAll", root);
-  if (!box) return;
-  box.addEventListener("change", async () => {
-    const on = box.checked;
+  const sel = $("#sOlderMode", root);
+  if (!sel) return;
+  let was = sel.value;
+  sel.addEventListener("change", async () => {
+    const mode = sel.value;
     try {
-      await api("/older-semesters/choice", { method: "POST", body: { choice: on ? "all" : "current" } });
-      toast("Gespeichert");
-      if (on) watchLoading((await api("/older-semesters/load", { method: "POST" })).note);
-    } catch (e) { box.checked = !on; toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); }
+      const r = await api("/older-semesters/mode", { method: "POST", body: { mode } });
+      was = mode;
+      toast(r.started ? "Gespeichert · frühere Semester werden im Hintergrund geladen" : "Gespeichert");
+    } catch (e) { sel.value = was; toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); }
   });
 }

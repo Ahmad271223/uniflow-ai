@@ -1,7 +1,7 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=44";
-import { PdfEditor } from "./editor.js?v=68";
-import { setupLectureMarker } from "./views-weekly.js?v=14";
+import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=45";
+import { PdfEditor } from "./editor.js?v=70";
+import { setupLectureMarker } from "./views-weekly.js?v=15";
 import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
 import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
 

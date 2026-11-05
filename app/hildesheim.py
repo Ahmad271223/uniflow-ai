@@ -102,17 +102,25 @@ def sync_learnweb(page, client, courses: list[dict], token: str, started: str, n
         for c in courses:
             upsert_course(conn, c, started)
         conn.commit()
+    from . import sync_order
     kept = active_courses(courses)
     with db.cursor() as conn:
         wanted = older_semesters.pending(conn)
     keep_ids = {c["id"] for c in kept}
-    older = [c for c in courses if c["id"] in wanted and c["id"] not in keep_ids]
+    # Reihenfolge (app/sync_order.py, 05.11.2026): der volle Lauf holt nur aktuelle (und naechste) Kurse, aktuelle
+    # zuerst; fruehere Semester kommen danach in Stufe (d) (`older_only`), neuestes Semester zuerst, gedrosselt
+    staged = sync_order.split(kept, keep_ids)
+    kept = staged["current"] + staged["upcoming"]
+    older = sync_order.newest_first([c for c in courses if c["id"] in wanted and c["id"] not in keep_ids]) if older_only else []
     if len(kept) < len(courses) and not older_only:
-        log(f"Learnweb: {len(courses) - len(kept) - len(older)} Kurse aus frueheren Semestern uebersprungen.")
+        log(f"Learnweb: {len(courses) - len(kept)} Kurse aus frueheren Semestern: Dateien kommen danach im Hintergrund.")
     complete: set[str] = set()
     with db.cursor() as conn:
         # Jeder Kurs wird einzeln gespeichert: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
-        for c in ([] if older_only else kept) + older:
+        for i, c in enumerate(([] if older_only else kept) + older):
+            if older_only and i > 0 and not sync_order.older_continue():
+                log("Frühere Semester: angehalten, der nächste Lauf macht weiter.")
+                break
             try:
                 files = client.files(c["moodle_id"])
                 folders = {f["id"]: f["folder"] for f in files if f.get("folder")}
@@ -169,14 +177,36 @@ def sync_announcements(client, courses: list[dict]) -> str:
     return f"Ankuendigungen: {r['new']} neu ({n_dates} mit Termin), {gone} entfernt"
 
 
+def sync_messages(client, page, used_token: bool) -> str:
+    """Learnweb-Nachrichten (Unterhaltungen) nur lesend in die Liste "Nachrichten" (app/learnweb_messages.py); markiert
+    im Learnweb nichts als gelesen."""
+    from . import learnweb_messages as lm
+    if used_token:
+        me, call = lm.token_user(client), lm.token_call(client)
+    else:
+        me, call = lm.session_user(page), client.ajax
+    if not me:
+        return "Learnweb-Nachrichten: eigene Kennung unbekannt, uebersprungen"
+    items = lm.fetch(call, me, client.base)
+    with db.cursor() as conn:
+        lm.store(conn, items, db.now_iso())
+    return f"Nachrichten: {len(items)}"
+
+
 def sync_lsf_plan(page, user: str, pw: str) -> str:
     lsf.login(page, user, pw, log)
     ics = lsf.fetch_plan_ics(page)
+    notice = None
+    try:
+        notice = lsf.maintenance_notice(page.content())       # "+++ Wartungsarbeiten ... +++" als Hinweis (05.11.2026)
+    except Exception:  # noqa: BLE001
+        pass
+    hint = f", LSF-Hinweis: {notice}" if notice else ""
     if not ics:
-        return "LSF-Stundenplan ist leer"
+        return "LSF-Stundenplan ist leer" + hint
     with db.cursor() as conn:
         r = lsf.import_plan(conn, lsf.plan_entries(ics))
-    return f"Stundenplan: {r['new']} neu, {r['kept']} unveraendert, {r['removed']} entfernt"
+    return f"Stundenplan: {r['new']} neu, {r['kept']} unveraendert, {r['removed']} entfernt" + hint
 
 
 def run_sync(show_browser: bool = False, older_only: bool = False) -> dict:
@@ -211,6 +241,14 @@ def run_sync(show_browser: bool = False, older_only: bool = False) -> dict:
                         filestream.save_cookies("LEARNWEB_COOKIES", ctx.cookies())   # Dienst: CAS-Sitzung fuer das Durchreichen
                     except Exception as e:  # noqa: BLE001
                         log(f"Learnweb-Sitzung nicht gemerkt: {e}")
+                # Stundenplan (LSF) vor den Dateien: das aktuelle Semester samt Woche zuerst (app/sync_order.py)
+                lsf_ok = (user and pw) or (session and not used_token)
+                if not older_only and lsf_ok:
+                    try:        # mit Sitzung: klappt, solange die CAS-Anmeldung aus dem Fenster noch gilt
+                        parts.append(sync_lsf_plan(page, user, pw))
+                    except Exception as e:  # noqa: BLE001
+                        parts.append(f"LSF-Stundenplan: FEHLER {e}")
+                        log(f"LSF-Stundenplan: {e}")
                 n = sync_learnweb(page, client, courses, used_token, started, new_files, **({"older_only": True} if older_only else {}))
                 parts.append(f"{len(new_files)} neue/geaenderte Dateien aus {n} Learnweb-Kursen"
                              + (" früherer Semester" if older_only else ""))
@@ -225,14 +263,16 @@ def run_sync(show_browser: bool = False, older_only: bool = False) -> dict:
                     except Exception as e:  # noqa: BLE001 - ebenso Ergaenzung
                         parts.append(f"Learnweb-Ankuendigungen: FEHLER {e}")
                         log(f"Learnweb-Ankuendigungen: {e}")
-                    if (user and pw) or (session and not used_token):
-                        try:        # mit Sitzung: klappt, solange die CAS-Anmeldung aus dem Fenster noch gilt
-                            parts.append(sync_lsf_plan(page, user, pw))
-                        except Exception as e:  # noqa: BLE001
-                            parts.append(f"LSF-Stundenplan: FEHLER {e}")
-                            log(f"LSF-Stundenplan: {e}")
-                    else:
+                    try:
+                        parts.append(sync_messages(client, page, used_token))
+                    except Exception as e:  # noqa: BLE001 - Nachrichten sind eine Ergaenzung, der Sync laeuft weiter
+                        parts.append(f"Learnweb-Nachrichten: FEHLER {e}")
+                        log(f"Learnweb-Nachrichten: {e}")
+                    if not lsf_ok:
                         parts.append("LSF-Stundenplan uebersprungen (kein UNI-Account hinterlegt)")
+                    from . import sync_order
+                    with db.cursor() as conn:
+                        sync_order.mark_current_ready(conn, db.now_iso())
             finally:
                 ctx.close()
         ok = True

@@ -265,11 +265,15 @@ SAMPLES: dict[str, dict] = {
     # (app/older_semesters_api.py, tests/test_older_semesters.py), laeuft hier aber nicht mit: der Abgleich der Hochschule
     # startet im Hintergrund. Auf leerer Datenbank: kein frueheres Semester, kein Kurs
     "GET /api/older-semesters": {"path": "/api/older-semesters", "python": False,
-                                 "expect": {"status": 200, "type": "object", "keys": ["choice", "current", "semesters"],
+                                 "expect": {"status": 200, "type": "object", "keys": ["choice", "current", "mode", "progress", "semesters"],
                                             "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
-    "POST /api/older-semesters/choice": {"path": "/api/older-semesters/choice", "body": {"choice": "current"}, "python": False,
-                                         "expect": {"status": 200, "type": "object", "keys": ["choice"],
-                                                    "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
+    "POST /api/older-semesters/mode": {"path": "/api/older-semesters/mode", "body": {"mode": "wifi"}, "python": False,
+                                       "expect": {"status": 200, "type": "object", "keys": ["mode", "started"],
+                                                  "reason": "Ältere Semester laden (05.11.2026); Laden startet der Abgleich der App"}},
+    # Module je Semester und Stand der Stufen (app/sync_order.py, SyncOrderEndpoints, docs/SYNC-REIHENFOLGE-2026-11-05.md)
+    "GET /api/module-semesters": {"path": "/api/module-semesters", "python": False,
+                                  "expect": {"status": 200, "type": "object", "keys": ["current", "older", "status", "upcoming"],
+                                             "reason": "gleiche Form am PC (tests/test_sync_order.py)"}},
     "POST /api/older-semesters/request": {"path": "/api/older-semesters/request", "body": {"course_ids": []}, "python": False,
                                           "expect": {"status": 200, "type": "object", "keys": ["requested"],
                                                      "reason": "nur auf dem Geraet (OlderSemesterEndpoints)"}},
@@ -292,6 +296,13 @@ SAMPLES: dict[str, dict] = {
     # auf leerer Datenbank leer
     "GET /api/recent": {"path": "/api/recent?limit=15",
                         "expect": {"status": 200, "type": "object", "keys": ["items"]}},
+    # Mensa (MensaEndpoints, app/mensa_api.py, docs/MENSA-2026-11-05.md): Liste ohne Netz gleich; der Speiseplan
+    # kaeme aus dem Netz (Studentenwerk), hier nur die Form
+    "GET /api/mensa/canteens": {"path": "/api/mensa/canteens"},
+    "GET /api/mensa/menu": {"path": "/api/mensa/menu?canteen=hauptmensa", "python": False,
+                            "expect": {"status": 200, "type": "object",
+                                       "keys": ["canteen", "days", "fetched_at", "message", "source", "stale"],
+                                       "reason": "Abruf beim Studentenwerk (Netz); Faelle in tests/test_mensa.py und MensaTests"}},
     # Pruefungsanmeldung (ExamRegistrationEndpoints, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): nur im Kern; der PC liest
     # "Info über angemeldete Prüfungen" nicht, app/exam_registration.py hat nur Daten, Zuordnung und Phase
     "GET /api/exam-registration": {"path": "/api/exam-registration", "python": False,
@@ -301,7 +312,7 @@ SAMPLES: dict[str, dict] = {
                                                        "plan_message", "suggestions", "open_count", "registered_count",
                                                        "registered", "registrations_checked_at", "registrations_ok",
                                                        "registrations_message", "warnings", "qis_url", "hint", "rules",
-                                                       "disclaimer"],
+                                                       "disclaimer", "system", "open_label", "period_note"],
                                               "reason": "nur auf dem Geraet (ExamRegistrationEndpoints)"}},
     # Geteilte Wochenstapel und Stapel teilen (CardStackEndpoints, app/server.py + app/community_cards_api.py). Leere
     # Datenbank: kein Modul, kein Stapel -> 404. Teilen und Zurueckziehen gibt es am PC nur im gehosteten Dienst

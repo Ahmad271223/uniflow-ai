@@ -77,13 +77,15 @@ public enum QISGradeLayout: String, Sendable, Hashable, Codable {
     case luh
     /// LSF Hildesheim (`LSFClient.grades` mit `GradeRows`, qis.parse_grade_rows)
     case hildesheim
+    /// Hochschule Hannover: Leistungen in HISinOne (`HISinOne.grades`), sonst das alte QIS (icms) wie die LUH
+    case hisinone
 
     /// Bescheinigungs-Links (verpublish) sammeln wie `qis.PROFILES[<uni>]["documents"]`: LUH ja, Hildesheim nein
     /// (der PC speichert dort keine Bescheinigungen und kein Transcript).
     public var collectsDocuments: Bool {
         switch self {
         case .luh: return true
-        case .hildesheim: return false
+        case .hildesheim, .hisinone: return false
         }
     }
 }

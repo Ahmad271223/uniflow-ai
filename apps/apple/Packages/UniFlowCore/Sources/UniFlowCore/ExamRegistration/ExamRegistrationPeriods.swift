@@ -1,10 +1,13 @@
 import Foundation
 
-// Pruefungsanmeldung (Entscheidung des Inhabers 05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): Meldezeitraeume der
-// LUH je Studiengang aus der Datendatei (packages/shared-contracts/exam-registration-luh.json, eingebettet als
-// `ExamRegistrationData`), Zuordnung Studiengang -> Terminseite des Pruefungsamts und Phase des Fensters je Tag.
-// Dieselben Regeln wie app/exam_registration.py (Faelle fixtures/exam-registration/period-cases.json). Ohne sichere
-// Daten (Studiengang nicht geprueft, Daten zu alt) gibt es kein Fenster, nur den Link - es wird nie geraten.
+// Pruefungsanmeldung (Entscheidung des Inhabers 05.11.2026, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): Meldezeitraeume je
+// Hochschule und Studiengang aus den Datendateien (packages/shared-contracts/exam-registration-luh.json und
+// exam-registration-hildesheim.json, eingebettet als `ExamRegistrationData`), Zuordnung Studiengang -> Terminseite des
+// Pruefungsamts und Phase des Fensters je Tag. Dieselben Regeln wie app/exam_registration.py (Faelle
+// fixtures/exam-registration/period-cases.json). Ohne sichere Daten (Studiengang nicht geprueft, Daten zu alt) gibt es
+// kein Fenster, nur den Link - es wird nie geraten.
+// Uni Hildesheim: keine einheitliche Frist, nur der Start der POS-Anmeldung im LSF (`openEnd`: Ende = Semesterende,
+// keine Anmeldefrist); Studiengaenge ohne eigenen Eintrag nehmen den Eintrag `default` (alle Bachelor/Master).
 
 /// Ein Zeitraum einer Terminseite ("Meldezeitraum für alle anderen Prüfungsformen" vom ... bis ...)
 public struct ExamRegistrationPeriod: Sendable, Equatable {
@@ -16,9 +19,12 @@ public struct ExamRegistrationPeriod: Sendable, Equatable {
     /// "YYYY-MM-DD"
     public let start: String
     public let end: String
+    /// Kein Ende der Anmeldung bekannt (Uni Hildesheim: Fristen je Pruefung im LSF); `end` ist dann das Semesterende
+    public var openEnd: Bool = false
 
     var json: JSONValue {
-        ["kind": .string(kind), "n": .number(Double(n)), "label": .string(label), "start": .string(start), "end": .string(end)]
+        ["kind": .string(kind), "n": .number(Double(n)), "label": .string(label), "start": .string(start), "end": .string(end),
+         "open_end": .bool(openEnd)]
     }
 }
 
@@ -29,6 +35,8 @@ public struct ExamRegistrationProgram: Sendable, Equatable {
     public let table: String?
     public let variant: String?
     public let checkedAt: String?
+    /// Eintrag fuer alle Studiengaenge ohne eigenen (Uni Hildesheim)
+    public var isDefault: Bool = false
 }
 
 /// Fenster der Art `kind`, das heute laeuft, sonst das naechste (`window_state` in Python)
@@ -45,11 +53,11 @@ public struct ExamRegistrationWindow: Sendable, Equatable {
     public var json: JSONValue {
         ["term": .string(term), "kind": .string(period.kind), "n": .number(Double(period.n)), "label": .string(period.label),
          "start": .string(period.start), "end": .string(period.end), "phase": .string(phase.rawValue),
-         "days_left": .number(Double(daysLeft)), "days_until": .number(Double(daysUntil))]
+         "days_left": .number(Double(daysLeft)), "days_until": .number(Double(daysUntil)), "open_end": .bool(period.openEnd)]
     }
 }
 
-/// Die Daten der LUH (Terminseiten, Regeln, QIS-Menue)
+/// Die Daten einer Hochschule (Terminseiten, Regeln, Menue des QIS bzw. LSF)
 public struct ExamRegistrationPeriods: Sendable {
     /// Fenster, das in hoechstens so vielen Tagen beginnt, ist "soon" (Karte auf der Uebersicht)
     public static let soonDays = 7
@@ -63,12 +71,38 @@ public struct ExamRegistrationPeriods: Sendable {
     public let rules: [(form: String, days: Int?, text: String)]
     public let programs: [ExamRegistrationProgram]
     let tables: [String: [(term: String, periods: [ExamRegistrationPeriod])]]
+    /// Name des Pruefungssystems in den Texten: "QIS" (LUH) oder "LSF" (Uni Hildesheim)
+    public var system = "QIS"
+    /// Hinweis unter dem Knopf, Abschlusstext und Hinweis zu den Zeitraeumen aus der Datei (nil: Vorgabe der API)
+    public var hint: String?
+    public var disclaimer: String?
+    public var periodNote: String?
 
     /// Eingebettete Daten der LUH (einmal gelesen)
     public static let luh: ExamRegistrationPeriods = {
         // die Datei prueft der Erzeuger; scheitert das Lesen trotzdem, gibt es nur Links
-        (try? ExamRegistrationPeriods(json: JSONValue.parse(ExamRegistrationData.json))) ?? ExamRegistrationPeriods.empty
+        (try? ExamRegistrationPeriods(json: JSONValue.parse(ExamRegistrationData.luh))) ?? ExamRegistrationPeriods.empty
     }()
+
+    /// Eingebettete Daten der Uni Hildesheim (einmal gelesen); ohne lesbare Datei nicht unterstuetzt
+    public static let hildesheim: ExamRegistrationPeriods? = {
+        try? ExamRegistrationPeriods(json: JSONValue.parse(ExamRegistrationData.hildesheim))
+    }()
+
+    /// Eingebettete Daten der Hochschule Hannover (Meldezeitraeume je Abteilung, HISinOne); ohne lesbare Datei nil
+    public static let hsh: ExamRegistrationPeriods? = {
+        try? ExamRegistrationPeriods(json: JSONValue.parse(ExamRegistrationData.hsh))
+    }()
+
+    /// Daten der Hochschule (`settings.university`: "luh" | "hildesheim" | "hsh"), nil fuer andere (nicht unterstuetzt)
+    public static func `for`(university: String?) -> ExamRegistrationPeriods? {
+        switch university {
+        case "luh": return luh
+        case "hildesheim": return hildesheim
+        case "hsh": return hsh
+        default: return nil
+        }
+    }
 
     static let empty = ExamRegistrationPeriods(university: "luh", checkedAt: nil,
                                                generalURL: "https://www.uni-hannover.de/studium/im-studium/pruefungsinfos-fachberatung/pruefungsanmeldung",
@@ -96,7 +130,8 @@ public struct ExamRegistrationPeriods: Sendable {
                 let periods = (term["periods"]?.array ?? []).compactMap { p -> ExamRegistrationPeriod? in
                     guard let kind = p["kind"]?.string, let s = p["start"]?.string, let e = p["end"]?.string,
                           BerlinClock.parseISODate(s) != nil, BerlinClock.parseISODate(e) != nil else { return nil }
-                    return ExamRegistrationPeriod(kind: kind, n: p["n"]?.int ?? 1, label: p["label"]?.string ?? "", start: s, end: e)
+                    return ExamRegistrationPeriod(kind: kind, n: p["n"]?.int ?? 1, label: p["label"]?.string ?? "", start: s, end: e,
+                                                  openEnd: p["open_end"]?.bool ?? false)
                 }
                 return (name, periods)
             }
@@ -109,9 +144,13 @@ public struct ExamRegistrationPeriods: Sendable {
                   programs: (d["programs"]?.array ?? []).compactMap { p in
                       guard let slug = p["slug"]?.string, let url = p["url"]?.string else { return nil }
                       return ExamRegistrationProgram(slug: slug, url: url, table: p["table"]?.string, variant: p["variant"]?.string,
-                                                     checkedAt: p["checked_at"]?.string)
+                                                     checkedAt: p["checked_at"]?.string, isDefault: p["default"]?.bool ?? false)
                   },
                   tables: tables)
+        system = d["system"]?.string ?? "QIS"
+        hint = d["hint"]?.string
+        disclaimer = d["disclaimer"]?.string
+        periodNote = d["period_note"]?.string
     }
 
     // MARK: Studiengang -> Terminseite
@@ -153,9 +192,10 @@ public struct ExamRegistrationPeriods: Sendable {
         return cut.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static let degreeSlugs: Set<String> = ["bsc", "msc", "ba", "ma", "med", "bed", "llb", "llm"]
-    static let bachelor = ["bsc", "ba", "bed"]
-    static let master = ["msc", "ma", "med"]
+    // B.Eng./M.Eng./MBA: Hochschule Hannover (wie DEGREE_SLUGS in app/exam_registration.py)
+    static let degreeSlugs: Set<String> = ["bsc", "msc", "ba", "ma", "med", "bed", "llb", "llm", "beng", "meng", "mba"]
+    static let bachelor = ["bsc", "ba", "bed", "beng"]
+    static let master = ["msc", "ma", "med", "meng", "mba"]
 
     /// "B.Sc." -> ["bsc"]; ohne Angabe "Bachelor"/"Master" im Text -> alle passenden; sonst []
     public static func degreeSlugs(_ degree: String?, text: String = "") -> [String] {
@@ -174,8 +214,16 @@ public struct ExamRegistrationPeriods: Sendable {
         var cands = Self.degreeSlugs(degree, text: name ?? "")
         if cands.isEmpty { cands = Self.degreeSlugs.sorted() }
         let wanted = Set(cands.map { base + "-" + $0 })
-        let hits = programs.filter { wanted.contains($0.slug) }
+        let hits = programs.filter { !$0.isDefault && wanted.contains($0.slug) }
         return hits.count == 1 ? hits[0] : nil
+    }
+
+    /// Eintrag fuer alle Studiengaenge ohne eigenen (Uni Hildesheim), sonst nil
+    public var defaultProgram: ExamRegistrationProgram? { programs.first(where: \.isDefault) }
+
+    /// `program(name:degree:)`, sonst der Eintrag fuer alle Studiengaenge (`resolve_program`)
+    public func resolve(name: String?, degree: String?) -> ExamRegistrationProgram? {
+        program(name: name, degree: degree) ?? defaultProgram
     }
 
     // MARK: Fenster

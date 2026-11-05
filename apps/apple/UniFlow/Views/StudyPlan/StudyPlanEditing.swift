@@ -89,6 +89,8 @@ struct StudyPlanSlotCard: View {
 // MARK: - Wahlbereiche (Stand je Bereich)
 
 struct StudyPlanAreasCard: View {
+    @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     let plan: StudyPlan
     let chooseTrack: (StudyPlanSlot) -> Void
     let restore: (StudyPlanOption) -> Void
@@ -133,7 +135,7 @@ struct StudyPlanAreasCard: View {
 
     private func groupRow(_ g: StudyPlanGroup) -> some View {
         let name = plan.area(g.chosen)?.name
-        let text = name.map { "\(g.label): \($0)" + (g.auto ? " (aus QIS)" : "") } ?? "\(g.label): noch nicht gewählt"
+        let text = name.map { "\(g.label): \($0)" + (g.auto ? " (\(StudyPlanText.gradeSourceFrom(hildesheim: hildesheim != nil, hsh: hsh != nil)))" : "") } ?? "\(g.label): noch nicht gewählt"
         let slot = StudyPlanSlot(["id": .string("gruppe-\(g.id)"), "kind": "track", "title": .string("\(g.label) wählen"),
                                   "group": .string(g.id), "areas": .array(g.options.map(JSONValue.string))], term: "")
         return HStack(spacing: 8) {
@@ -268,6 +270,8 @@ struct StudyPlanMoveSheet: View {
 // MARK: - Modul waehlen (Platz, Hinzufuegen, Schwerpunkt)
 
 struct StudyPlanChooserSheet: View {
+    @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
     let plan: StudyPlan
     /// Platz, aus dem gewaehlt wird; nil: beliebiges Modul aus dem Katalog in ein Semester legen
     let slot: StudyPlanSlot?
@@ -452,7 +456,7 @@ struct StudyPlanChooserSheet: View {
     private var customBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Eigener Eintrag").ufFont(13.6, 650).foregroundStyle(UF.text).accessibilityAddTraits(.isHeader)
-            Text("Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie in QIS, übernimmt StudiNow Stand und Note.")
+            Text("Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie \(StudyPlanText.gradeSourceIn(hildesheim: hildesheim != nil, hsh: hsh != nil)), übernimmt StudiNow Stand und Note.")
                 .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) { customTitleField.frame(minWidth: 240); customLPField.frame(width: 90); customButton }

@@ -74,6 +74,7 @@ struct UniFlowApp: App {
                     .modifier(UFAIAccessProvider(chatgpt: containers.chatgpt, account: containers.account))
                     .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                     .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
+                    .environment(\.hsh, containers.hsh)                        // Moodle und Campusmanagement (nur HsH)
                     .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
                     .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"
                     .environment(\.ufShowHitAreas, UFHit.debugOverlay)        // nur Debug: Trefferflaechen sichtbar
@@ -168,6 +169,7 @@ struct UniFlowApp: App {
                 containers.studip.runIfDue()
                 containers.hildesheim?.runIfDue()
                 containers.qis?.runIfDue()
+                containers.hsh?.runIfDue()
                 weeklyTicker.resume()
                 askForLoginIfDue()
                 Task {

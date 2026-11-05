@@ -1,0 +1,49 @@
+{
+ "description": "Wahlbereiche je HsH-Katalog (Kuerzel wie im Grundstock), von Hand aus dem Modulhandbuch gelesen (05.11.2026), eingemischt von tools/build-hsh-seed.py. Aufbau wie study-area-rules-luh.json: areas = Felder je Bereichs-id (lp_required, lp_max, modules_required, semester, group, type, kind, rule). Nur Angaben, die im Handbuch ausdruecklich stehen; alles andere bleibt aus dem Leser. Verbindlich bleibt die Pruefungsordnung.",
+ "catalogs": {
+  "lebensmittelverpackungstechnologie|b.eng.|lmv|2011": {
+   "source": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/LMV_20102.pdf (Inhaltsverzeichnis: 'Wahlpflichtmodule (5. Sem., 30 Credits)')",
+   "areas": {
+    "wahlpflichtmodule": {
+     "lp_required": 30,
+     "lp_max": null,
+     "semester": 5,
+     "rule": "Wahlpflichtmodule im 5. Semester mit zusammen 30 Credits (auch Auswärtiges Studium)."
+    }
+   }
+  },
+  "milchwirtschaftliche-lebensmitteltechnologie|b.eng.|bml|2011": {
+   "source": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/BML_20102.pdf (Inhaltsverzeichnis: 'Wahlpflichtmodule (5. Sem., 30 Credits)')",
+   "areas": {
+    "wahlpflichtmodule": {
+     "lp_required": 30,
+     "lp_max": null,
+     "semester": 5,
+     "rule": "Wahlpflichtmodule im 5. Semester mit zusammen 30 Credits (auch Auswärtiges Studium)."
+    }
+   }
+  },
+  "technologie-nachwachsender-rohstoffe|b.eng.|tnr|2011": {
+   "source": "https://f2.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_II/Modulhandbuecher/TNR_20102.pdf (Inhaltsverzeichnis: 'Wahlpflichtmodule (5. Sem., 30 Credits)')",
+   "areas": {
+    "wahlpflichtmodule": {
+     "lp_required": 30,
+     "lp_max": null,
+     "semester": 5,
+     "rule": "Wahlpflichtmodule im 5. Semester mit zusammen 30 Credits (auch Auswärtiges Studium)."
+    }
+   }
+  },
+  "pflege|b.a.|bdp": {
+   "source": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Master/MEP/Modulhandbuecher/07.3-BDP-Modulhandbuch_BA_Pflege_Stand-2025_10_06_01.pdf (Studienverlaufsplan: 3.1 Einführungsmodul 10 Cr, 3.2 Praxismodul 10 Cr, 3.3 Vertiefungsmodul 5 Cr)",
+   "areas": {
+    "wahlpflichtmodule": {
+     "lp_required": 25,
+     "lp_max": null,
+     "semester": 5,
+     "rule": "Ein Schwerpunkt (a, b oder c): Einführungsmodul (10 Cr, 5. Sem.), Praxismodul (10 Cr, 6. Sem.) und Vertiefungsmodul (5 Cr, 7. Sem.)."
+    }
+   }
+  }
+ }
+}

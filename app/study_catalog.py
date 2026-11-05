@@ -44,6 +44,14 @@ REGISTRY_PATH = ROOT / "packages" / "shared-contracts" / "study-sources.json"
 # Breite Erhebung aller LUH-Studiengaenge (tools/luh-programs.py) und das daraus gemischte Register, das Python und der
 # Swift-Kern (StudySourcesData.swift) fuer die QIS-Zuordnung nutzen (tools/gen-study-catalog-fixture.py schreibt beide)
 LUH_REGISTRY_PATH = ROOT / "packages" / "shared-contracts" / "study-sources-luh.json"
+# dasselbe fuer die Universitaet Hildesheim (tools/hildesheim-programs.py, docs/STUDIENGAENGE-HILDESHEIM-2026-11-05.md)
+HILDESHEIM_REGISTRY_PATH = ROOT / "packages" / "shared-contracts" / "study-sources-hildesheim.json"
+# dasselbe fuer die Hochschule Hannover (tools/hsh-programs.py, docs/STUDIENGAENGE-HSH-2026-11-05.md)
+HSH_REGISTRY_PATH = ROOT / "packages" / "shared-contracts" / "study-sources-hsh.json"
+# breite Erhebungen je Hochschule, in dieser Reihenfolge ins gemischte Register (LUH zuerst)
+WIDE_REGISTRY_PATHS = (LUH_REGISTRY_PATH, HILDESHEIM_REGISTRY_PATH, HSH_REGISTRY_PATH)
+UNIVERSITY_NAMES = {"luh": "Leibniz Universität Hannover", "hildesheim": "Universität Hildesheim",
+                    "hsh": "Hochschule Hannover"}
 FULL_REGISTRY_PATH = ROOT / "packages" / "shared-contracts" / "study-sources-all.json"
 
 KINDS = ("pflicht", "wahlpflicht", "wahl", "abschluss")
@@ -220,6 +228,31 @@ def luh_catalogs(entry: dict) -> list[dict]:
     return out
 
 
+def grundstock_source(university: str) -> str:
+    """Quelle "nur aus dem Grundstock" einer Hochschule im gemischten Register ('luh-grundstock', 'hildesheim-grundstock')"""
+    return GRUNDSTOCK_SOURCE if university == "luh" else f"{university}-grundstock"
+
+
+def merge_wide_registries(curated: dict, wides: list[dict]) -> dict:
+    """Gepflegtes Register + breite Erhebungen mehrerer Hochschulen (je wie `merge_luh_registry`), in dieser
+    Reihenfolge"""
+    out = curated
+    for w in wides:
+        out = merge_luh_registry(out, w)
+    return out
+
+
+def load_wide_registries() -> list[dict]:
+    """Breite Erhebungen, die es gibt (study-sources-luh.json, study-sources-hildesheim.json)"""
+    out = []
+    for p in WIDE_REGISTRY_PATHS:
+        try:
+            out.append(json.loads(p.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
 def merge_luh_registry(curated: dict, luh: dict) -> dict:
     """Gepflegtes Register (study-sources.json) + breite Erhebung (study-sources-luh.json) -> ein Register fuer die
     QIS-Zuordnung. Gepflegte Eintraege bleiben vorn und unveraendert; jeder LUH-Eintrag wird ein Studiengang
@@ -233,13 +266,16 @@ def merge_luh_registry(curated: dict, luh: dict) -> dict:
     uid = luh.get("university") or "luh"
     uni = next((u for u in out.get("universities") or [] if u.get("id") == uid), None)
     if uni is None:
-        uni = {"id": uid, "name": uid, "sources": [], "programs": []}
+        uni = {"id": uid, "name": UNIVERSITY_NAMES.get(uid, uid), "sources": [], "programs": []}
         out.setdefault("universities", []).append(uni)
-    if not any(s.get("id") == GRUNDSTOCK_SOURCE for s in uni.get("sources") or []):
+    src_id = grundstock_source(uid)
+    if not any(s.get("id") == src_id for s in uni.get("sources") or []):
         uni.setdefault("sources", []).append({
-            "id": GRUNDSTOCK_SOURCE, "format": "grundstock",
-            "note": "Kataloge ausserhalb von modkat: nur aus dem StudiNow-Grundstock (App-Ressource StudyCatalogSeed), "
-                    "auf dem Geraet wird nichts geladen (tools/build-luh-seed.py)",
+            "id": src_id, "format": "grundstock",
+            "note": ("Kataloge ausserhalb von modkat: nur aus dem StudiNow-Grundstock (App-Ressource StudyCatalogSeed), "
+                     "auf dem Geraet wird nichts geladen (tools/build-luh-seed.py)") if uid == "luh" else
+                    ("Kataloge nur aus dem StudiNow-Grundstock (App-Ressource StudyCatalogSeed), auf dem Geraet wird "
+                     f"nichts geladen (tools/build-{uid}-seed.py)"),
             "probe_current_term": False})
     if "grundstock" not in (out.get("formats") or []):
         out.setdefault("formats", []).append("grundstock")
@@ -265,7 +301,7 @@ def merge_luh_registry(curated: dict, luh: dict) -> dict:
                 continue                                 # gepflegter Eintrag gilt
             fei = c.get("format") == "modkat-FEI" and modkat_parts(c["url"]) is not None
             term = c.get("term") if term_number(c.get("term")) else (modkat_parts(c["url"]) or (None, None))[1]
-            po = {"po": str(e.get("po") or "unbekannt"), "code": code, "source": FEI_SOURCE if fei else GRUNDSTOCK_SOURCE,
+            po = {"po": str(e.get("po") or "unbekannt"), "code": code, "source": FEI_SOURCE if fei else src_id,
                   "catalog_terms": [term] if term else [], "study_plan": None, "key": e.get("key"),
                   "format": c.get("format")}
             if c.get("label"):
@@ -300,12 +336,42 @@ DEGREE_HINTS = (
 )
 
 
+# HIS-LSF (Hildesheim): "Abschluss: [82] Bachelor Studiengang: [052] B.A. Erziehungswissenschaft PO-Version: 2022"
+HIS_RE = re.compile(r"^\s*Abschluss:\s*(?:\[[^\]]*\]\s*)?(.*?)\s*Studiengang:\s*(?:\[[^\]]*\]\s*)?(.*)$", re.I | re.S)
+HIS_DEGREE_RE = re.compile(r"^\s*([BM])\s?\.?\s?(?:A|Sc|Ed|Eng|Mus)\b\.?", re.I)
+
+
+def _his_abschluss(text: str, po: str | None) -> dict | None:
+    """Zeile 'Abschluss: [nr] <Abschluss> Studiengang: [nr] <Abk.> <Name> PO-Version: <Jahr>' (LSF Hildesheim) ->
+    {name, po, degree}; Abschlussart aus der Abkuerzung vor dem Namen, sonst aus dem Abschluss (Bachelor/Master)"""
+    m = HIS_RE.match(text)
+    if not m:
+        return None
+    rest = re.sub(r"PO[- ]?Version:?\s*[0-9]{4}.*$", " ", m.group(2), flags=re.I | re.S)
+    degree = None
+    d = HIS_DEGREE_RE.match(rest)
+    if d:
+        degree = d.group(1).upper()
+        rest = rest[d.end():]
+    if degree is None:
+        for rx, dc in DEGREE_HINTS:
+            if rx.search(m.group(1)):
+                degree = dc
+                break
+    name = re.sub(r"\s+", " ", rest).strip(" ,;:-.")
+    return {"name": name, "po": po, "degree": degree}
+
+
 def parse_abschluss(label: str) -> dict:
     """QIS `abschluss` -> {name, po, degree}: 'Technische Informatik (PO-Version 2017)' -> name 'Technische
-    Informatik', po '2017', degree None"""
+    Informatik', po '2017', degree None; LSF Hildesheim 'Abschluss: [82] Bachelor Studiengang: [052] B.A.
+    Erziehungswissenschaft PO-Version: 2022' -> 'Erziehungswissenschaft', '2022', 'B'"""
     text = (label or "").strip()
     m = PO_NUMBER_RE.search(text)
     po = m.group(1) if m else None
+    his = _his_abschluss(text, po)
+    if his is not None:
+        return his
     name = PO_RE.sub(" ", text)
     name = re.sub(r"PO[- ]?Version:?\s*[0-9]{4}", " ", name, flags=re.I)
     name = ABSCHLUSS_PREFIX_RE.sub("", name)
@@ -1643,11 +1709,28 @@ def _ensure_plan(conn, key: str, registry: dict, university: str, code: str, fet
 SEED_DIR = ROOT / "apps" / "apple" / "UniFlow" / "Resources" / "StudyCatalogSeed"
 
 
+SEED_UNIVERSITIES = ("luh", "hildesheim", "hsh")
+
+
+def current_university(conn) -> str:
+    """Hochschule des Abgleichs: settings.university, sonst die der laufenden App (UNIVERSITY in der .env), sonst luh"""
+    v = (db.row(conn, "SELECT value FROM settings WHERE key='university'") or {}).get("value")
+    if v:
+        return v
+    try:
+        from . import universities
+        return universities.current_key()
+    except Exception:  # noqa: BLE001
+        return "luh"
+
+
 def load_seed(directory: Path | None = None) -> dict:
-    """Grundstock der App (tools/build-luh-seed.py): {Bibliotheksschluessel: Katalog}; leer ohne Ressource"""
+    """Grundstock der App (tools/build-luh-seed.py, tools/build-hildesheim-seed.py): {Bibliotheksschluessel: Katalog}
+    aller Hochschulen (Schluessel enthalten die Hochschule); leer ohne Ressource"""
     import gzip
     out: dict = {}
-    for f in sorted((directory or SEED_DIR).glob("luh*.json.gz")):
+    files = sorted({f for u in SEED_UNIVERSITIES for f in (directory or SEED_DIR).glob(f"{u}*.json.gz")})
+    for f in files:
         try:
             data = json.loads(gzip.decompress(f.read_bytes()))
         except (OSError, ValueError):
@@ -1671,7 +1754,7 @@ def run_sync(conn, fetch=urllib_fetch, now: datetime | None = None, university: 
     Ergebnis ist der neue Stand (auch in study_catalog_state 'status')."""
     now = now or datetime.now(timezone.utc)
     reg = registry or load_registry()
-    uni = university or (db.row(conn, "SELECT value FROM settings WHERE key='university'") or {}).get("value") or "luh"
+    uni = university or current_university(conn)
     settings = plan_settings(conn)
     label = qis_label(conn)
     base = {"checked_at": _iso(now), "qis_label": label, "inputs": inputs(conn)}
@@ -2162,7 +2245,9 @@ def api_sync(body: dict | None = None):
 @router.get("/programs")
 def api_programs(q: str = ""):
     """Studiengaenge des Registers zum Waehlen (Web); `q` filtert nach Name"""
-    items = programs(seed=seed_cached())
+    with db.cursor() as conn:
+        uni = current_university(conn)
+    items = programs(university=uni, seed=seed_cached())
     key = name_key(q) if q.strip() else ""
     if key:
         items = [e for e in items if key in name_key(e["program"] or "")]

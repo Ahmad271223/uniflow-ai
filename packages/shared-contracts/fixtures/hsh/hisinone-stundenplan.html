@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- NACHGEBAUT (keine echte Seite, erfundene Abo-Adresse): Stundenplan der HsH in HISinOne. Das Popup
+     "Daten für iCalendar (ics) exportieren" steht schon im DOM (textarea ...:ical:cal_add). -->
+<html lang="de"><head><title>Stundenplan</title></head><body>
+<a href="/qisserver/rds?state=user&amp;type=3&amp;category=auth.logout">Abmelden</a>
+<h1>Stundenplan für Erika Beispiel</h1>
+<form id="plan" action="/qisserver/pages/plan/individualTimetable.xhtml" method="post">
+<p>Anzeige der 46. Kalenderwoche vom 09.11.2026 bis 15.11.2026</p>
+<button id="plan:scheduleConfiguration:anzeigeoptionen:ical:showPopup" type="button" data-popupbutton="true">Daten für iCalendar (ics) exportieren</button>
+<div class="popup" style="display:none">
+<textarea id="plan:scheduleConfiguration:anzeigeoptionen:ical:cal_add" readonly="readonly">https://campusmanagement.hs-hannover.de:443/qisserver/pages/cm/exa/timetable/individualTimetableCalendarExport.faces?user=ERFUNDEN0000000000000000000000000000000000000000000000000000000000000000&amp;hash=00000000000000000000000000000000&amp;termgroup=</textarea>
+<a class="link_new_window" href="#" onclick="Permalink.openInNewWindow(); return false;">iCal-Datei öffnen</a>
+</div>
+<table class="schedule"><tr><th>Mo., 09.11.2026</th><th>Di., 10.11.2026</th></tr></table>
+<input type="hidden" name="javax.faces.ViewState" value="ERFUNDEN"/>
+</form>
+<div id="sessionTimeoutDialog" style="display:none" aria-hidden="true"><p>Ihre Sitzung ist aus Sicherheitsgründen abgelaufen.</p><form id="loginForm" action="/qisserver/rds?state=user&amp;type=1&amp;category=auth.login" method="post"><label for="asdf">Benutzerkennung</label><input type="text" id="asdf" name="asdf"/><label for="fdsa">Passwort</label><input type="password" id="fdsa" name="fdsa"/><button type="submit">Anmelden</button></form></div>
+</body></html>

@@ -255,9 +255,10 @@ private struct ModulesTab: View {
     @EnvironmentObject private var router: UFRouter
     @State private var openMod: Int?
     @State private var autoTests = false
-    /// lokal: Dateien frueherer Semester mitladen (`OlderSemesters`, Frage nach dem ersten Abgleich); nil = unbekannt
-    @State private var olderAll: Bool?
+    /// lokal: "Ältere Semester laden" (`OlderSemesters.Mode`, `SyncOrder` Stufe d); nil = nichts zu waehlen
+    @State private var olderMode: OlderSemesters.Mode?
     @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var containers: ContainerManager
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -294,10 +295,15 @@ private struct ModulesTab: View {
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
             }
 
-            if let all = olderAll {
-                UFCheckbox("Dateien früherer Semester mitladen", isOn: Binding(get: { all }, set: { v in setOlder(v) }))
-                    .frame(minHeight: 44, alignment: .leading)
-                Text(Self.olderFilesHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            if let mode = olderMode {
+                // "Ältere Semester laden: Automatisch / Nur WLAN / Aus" (Wunsch des Inhabers 05.11.2026)
+                UFFlexWrap(gap: 9.6) {
+                    Text("Ältere Semester laden").ufFont(13.6).foregroundStyle(UF.text2)
+                    UFSegmented(options: OlderSemesters.Mode.allCases.map { ($0, $0.label) },
+                                selection: Binding(get: { mode }, set: { v in setOlder(v) }))
+                }
+                .frame(minHeight: 44, alignment: .leading)
+                Text(SyncOrder.olderFilesHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 9.6)
             }
 
@@ -340,18 +346,21 @@ private struct ModulesTab: View {
         .task {
             // nur lokal (die PC-Fassung kennt fruehere Semester nicht) und nur, wenn es welche gibt oder schon gewaehlt
             guard let api = session.api, api.isLocal, let o = try? await api.value("/api/older-semesters") else { return }
-            if !(o["choice"]?.isNull ?? true) || !(o["semesters"]?.array ?? []).isEmpty { olderAll = o.s("choice") == "all" }
+            if !(o["choice"]?.isNull ?? true) || !(o["semesters"]?.array ?? []).isEmpty {
+                olderMode = o.s("mode").flatMap(OlderSemesters.Mode.init(rawValue:)) ?? OlderSemesters.defaultMode
+            }
         }
     }
 
-    /// Wahl aendern; eingeschaltet laedt der Abgleich der Hochschule die Dateien gleich (nur die frueheren Semester)
-    private func setOlder(_ on: Bool) {
-        olderAll = on
+    /// Wahl aendern; nicht "Aus": Stufe (d) laedt die frueheren Semester gleich im Hintergrund (`OlderSemesterLoader`,
+    /// nach Stromsparmodus und WLAN), neuestes zuerst
+    private func setOlder(_ mode: OlderSemesters.Mode) {
+        olderMode = mode
         Task {
             guard let api = session.api, await toast.attempt("Speichern", {
-                _ = try await api.value("/api/older-semesters/choice", method: "POST", body: ["choice": .string(on ? "all" : "current")])
+                _ = try await api.value("/api/older-semesters/mode", method: "POST", body: ["mode": .string(mode.rawValue)])
             }) else { return }
-            if on, let note = try? await OlderSemesterLoad.start(studip: studip, hildesheim: hildesheim) { toast.show(note, seconds: 4) }
+            if mode != .off { OlderSemesterLoader.shared.kick(containers) }
         }
     }
 
@@ -430,7 +439,7 @@ private struct ModulesTab: View {
     /// Hinweis wie in der Web-App (c0721da): Semesterregel `Semesters`, Schalter je Kurs in der Kurstabelle
     static let olderSemesters = "Kurse aus früheren Semestern erkennt die App am Semester in Stud.IP und plant sie nicht ein; ihre Unterlagen bleiben in der Bibliothek."
     /// Hinweis unter "Dateien früherer Semester mitladen"
-    static let olderFilesHint = "Aus: StudiNow lädt nur Dateien des aktuellen Semesters. Frühere Semester lädst du jederzeit in der Bibliothek, je Semester oder je Kurs."
+    static let olderFilesHint = SyncOrder.olderFilesHint
 
     /// Kurs eingeplant ja/nein: PATCH active, das lokale Backend merkt sich die eigene Entscheidung (active_custom)
     private func setActive(_ c: JSONValue, _ on: Bool) {
@@ -1011,6 +1020,7 @@ private struct LocalAccountTab: View {
                         LUHSourcesCard()                                     // Stud.IP und QIS der LUH (Views/QISViews.swift)
                     } else {
                         HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
+                        HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH
                     }
                     if let term { UFCard { SemesterFields(term: term, reload: reload) } }
                     DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen

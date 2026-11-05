@@ -146,7 +146,9 @@ def build(check: bool) -> int:
             request = Req()
 
         out["fetch_courses"] = {"request": "users/{id}/courses?page[limit]=100&include=start-semester,end-semester",
-                                "response": API_RESPONSE, "courses": studip_sync.fetch_courses(Page())}
+                                "response": API_RESPONSE,
+                                # ohne `term` (Semesterliste fuer app/sync_order.py; die App liest sie aus semesterTitle/-Start)
+                                "courses": [{k: v for k, v in c.items() if k != "term"} for c in studip_sync.fetch_courses(Page())]}
 
         merged = timetable.merge_weekly([
             {"title": "Testmesstechnik I", "course_id": cid, "weekday": 2, "start_time": "10:00", "end_time": "10:45", "date_from": d}

@@ -25,6 +25,23 @@ public enum OlderSemesters {
         case all
     }
 
+    /// "Ältere Semester laden" (seit 05.11.2026, `SyncOrder`, app/older_semesters.py `mode`): im selben Feld wie die
+    /// Wahl gespeichert; fruehere Werte gelten weiter (`all` = Automatisch, `current` = Aus, nie gefragt = Nur WLAN)
+    public enum Mode: String, Sendable, Equatable, CaseIterable {
+        case auto, wifi, off
+
+        public var label: String {
+            switch self {
+            case .auto: return "Automatisch"
+            case .wifi: return "Nur WLAN"
+            case .off: return "Aus"
+            }
+        }
+    }
+
+    /// Vorgabe, solange nie gefragt
+    public static let defaultMode = Mode.wifi
+
     static let tables = """
         CREATE TABLE IF NOT EXISTS older_semester_choice (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -44,15 +61,39 @@ public enum OlderSemesters {
 
     // MARK: Wahl
 
-    /// Gespeicherte Wahl; nil = noch nicht gefragt
-    public static func choice(_ c: SQLiteConnection) throws -> Choice? {
+    private static func raw(_ c: SQLiteConnection) throws -> String? {
         guard try exists(c, "older_semester_choice") else { return nil }
-        return try c.queryOne("SELECT choice FROM older_semester_choice WHERE id=1")?["choice"]?.string.flatMap(Choice.init(rawValue:))
+        let v = try c.queryOne("SELECT choice FROM older_semester_choice WHERE id=1")?["choice"]?.string
+        return v.flatMap { Choice(rawValue: $0) != nil || Mode(rawValue: $0) != nil ? $0 : nil }
+    }
+
+    /// Gespeicherte Wahl in der frueheren Form (`current` = Aus, `all` = laden); nil = noch nicht gefragt
+    public static func choice(_ c: SQLiteConnection) throws -> Choice? {
+        guard let v = try raw(c) else { return nil }
+        return v == Choice.current.rawValue || v == Mode.off.rawValue ? .current : .all
     }
 
     public static func setChoice(_ c: SQLiteConnection, _ choice: Choice, now: String) throws {
+        try store(c, choice.rawValue, now: now)
+    }
+
+    /// "Ältere Semester laden": Automatisch, Nur WLAN (Vorgabe, auch solange nie gefragt) oder Aus
+    public static func mode(_ c: SQLiteConnection) throws -> Mode {
+        switch try raw(c) {
+        case nil: return defaultMode
+        case Choice.all.rawValue: return .auto
+        case Choice.current.rawValue: return .off
+        case let v?: return Mode(rawValue: v) ?? defaultMode
+        }
+    }
+
+    public static func setMode(_ c: SQLiteConnection, _ mode: Mode, now: String) throws {
+        try store(c, mode.rawValue, now: now)
+    }
+
+    private static func store(_ c: SQLiteConnection, _ value: String, now: String) throws {
         try c.executeScript(tables)
-        try c.execute("INSERT OR REPLACE INTO older_semester_choice(id, choice, decided_at) VALUES (1, ?, ?)", [.text(choice.rawValue), .text(now)])
+        try c.execute("INSERT OR REPLACE INTO older_semester_choice(id, choice, decided_at) VALUES (1, ?, ?)", [.text(value), .text(now)])
     }
 
     // MARK: Kurse
@@ -107,10 +148,10 @@ public enum OlderSemesters {
         }
     }
 
-    /// Kurse frueherer Semester, deren Dateien der naechste Abgleich holen soll: bei der Wahl `all` alle noch nicht
+    /// Kurse frueherer Semester, deren Dateien Stufe (d) holen soll (`SyncOrder`): ausser bei "Aus" alle noch nicht
     /// geladenen, sonst nur die angeforderten ("Dateien laden")
     public static func pending(_ c: SQLiteConnection, today: String) throws -> Set<String> {
-        let all = try choice(c) == .all
+        let all = try mode(c) != .off
         return Set(try courses(c, today: today).filter { !$0.loaded && (all || $0.requested) }.map(\.id))
     }
 
@@ -174,7 +215,9 @@ public enum OlderSemesters {
         let choice = try choice(c)
         return [
             "choice": choice.map { .string($0.rawValue) } ?? .null,
-            "current": .string(Semesters.label(Semesters.current(today))),
+            "mode": .string(try mode(c).rawValue),
+            "current": .string(Semesters.label(SyncOrder.currentTerm(today: today, university: try SyncOrder.university(c)))),
+            "progress": try SyncOrder.status(c, today: today),
             "semesters": .array(groups.map { g in
                 ["label": .string(g.label), "courses": .array(g.courses.map { k in
                     ["id": .string(k.id), "title": .string(k.title), "files": .number(Double(k.files)),
@@ -217,6 +260,16 @@ enum OlderSemesterEndpoints: LocalEndpointModule {
             let now = ctx.clock.nowISO
             try await ctx.database.transaction { try OlderSemesters.setChoice($0, choice, now: now) }
             return .json(["choice": .string(choice.rawValue)])
+        }
+
+        router.post("/api/older-semesters/mode") { req, ctx in
+            guard let raw = try req.jsonBody()["mode"]?.string, let mode = OlderSemesters.Mode(rawValue: raw) else {
+                throw LocalHTTPError(status: 422, message: "mode: auto, wifi oder off")
+            }
+            let now = ctx.clock.nowISO
+            try await ctx.database.transaction { try OlderSemesters.setMode($0, mode, now: now) }
+            // geladen wird nicht hier, sondern vom Abgleich der App (`OlderSemesterLoader`), der auf die Aenderung hoert
+            return .json(["mode": .string(mode.rawValue), "started": .bool(false)])
         }
 
         router.post("/api/older-semesters/request") { req, ctx in

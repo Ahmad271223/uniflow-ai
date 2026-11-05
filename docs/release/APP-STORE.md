@@ -12,6 +12,7 @@ Fassung einfügen.
 | Aussage im Text | Schalter | Stand 04.11.2026 | Gilt nur, wenn |
 |---|---|---|---|
 | Universität Hildesheim (Learnweb, LSF) | `ipad_hildesheim` | gebaut, nur mit erfundenen Antworten geprüft | Inhaber hat mit einem echten Hildesheim-Konto am Gerät geprüft und die Erlaubnis der Uni; sonst nur die LUH nennen |
+| Hochschule Hannover (Moodle, Campusmanagement) | `ipad_hsh` | gebaut (05.11.2026), nur mit nachgebauten Seiten geprüft (`docs/HSH-2026-11-05.md`) | Inhaber bzw. eine HsH-Studentin hat die Testliste in `docs/HSH-2026-11-05.md` mit einem echten Konto durchgespielt; bis dahin die HsH nicht nennen |
 | Abgabefristen, Ankündigungen der Lehrenden, Feiertage im Kalender | `ipad_fristen` | gebaut (Fristen, Ankündigungen, Feiertage auf dem iPad) | mit echten LUH-Daten am Gerät gesehen |
 | Skriptsuche zur Aufgabe | `ipad_skriptsuche` | gebaut (Kandidatenseiten ohne KI, Plus) | am Gerät mit einem echten Übungsblatt geprüft |
 | Community online (Kanal nach Lehrwoche, Fragen und Antworten) | `ipad_community_online` | gebaut (CloudKit, Container `iCloud.de.uniflow.ai`) | neue Datensatztypen in Production deployt (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`) und mit zwei iCloud-Konten durchgespielt |
@@ -38,13 +39,14 @@ Skripte und Übungsblätter aus Stud.IP, Lernkalender und Stundenplan, Handschri
 StudiNow bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender, deine Karteikarten und deine handschriftlichen Notizen – auf dem iPad, mit dem Apple Pencil.
 
 FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER[[ UND DER UNIVERSITÄT HILDESHEIM]]
-Melde dich wie gewohnt bei Stud.IP[[ bzw. Learnweb]] an. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und Lehrwochen und übernimmt deine Vorlesungs- und Übungstermine[[, Abgabefristen und Ankündigungen der Lehrenden]]. Deine Zugangsdaten bleiben bei dir; die App liest nur und schreibt nichts in die Hochschulsysteme.
+Melde dich wie gewohnt bei Stud.IP[[ bzw. Learnweb]] an. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und Lehrwochen und übernimmt deine Vorlesungs- und Übungstermine[[, Abgabefristen und Ankündigungen der Lehrenden]]. Deine Zugangsdaten bleiben bei dir; in die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst – etwa eine Antwort auf eine Nachricht oder eine Abgabe.
 
 ÜBERSICHT UND LERNKALENDER
 • Die Übersicht zeigt, was heute ansteht: Lernpakete, Termine an der Uni und neue Dateien
 • Wochenraster mit deinen Vorlesungen und Übungen aus Stud.IP
 • Lernkalender mit Lernpaketen je Modul und Lehrwoche in deinen freien Zeitfenstern: Vorlesung nacharbeiten, Übungen, Nachholen, „Woche retten“
 [[• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick]]
+[[• Universität Hildesheim: Kurse, Dateien, Fristen und Nachrichten aus dem Learnweb, Stundenplan und Noten aus dem LSF, Studienverlauf mit den Modulen deines Studiengangs]]
 • Aufgaben abhaken, Zeitmesser mit Stoppuhr, Countdown und Pomodoro
 
 DOKUMENTE LESEN UND BESCHREIBEN
@@ -236,7 +238,7 @@ Community (user-generated content, guideline 1.2): students of the same course c
 
 AI (optional, off by default): users who have their own paid ChatGPT plan can connect it under "Einstellungen" → "Erweitert" → "KI über mein ChatGPT" (Sign in with ChatGPT by OpenAI). Before connecting, the app explains what is sent and asks for consent. Requests (page text, selection, question) go directly from the device to OpenAI and count against the user's own ChatGPT plan. StudiNow does not sell AI, runs no AI server and never sees requests or answers. Without a connection the AI area ("KI-Start", "KI-Hilfe" in the editor) explains how to connect, and every other feature works. We cannot provide a ChatGPT account for review.
 
-No tracking, no ads, no third-party analytics or SDKs. The universities have not endorsed the app; it only reads data the student can see anyway.
+No tracking, no ads, no third-party analytics or SDKs. Not endorsed by universities; it writes to them only on explicit user action (reply, submission).
 ```
 
 ## Bildschirmfotos (iPad Pro 13", 2064 × 2752)

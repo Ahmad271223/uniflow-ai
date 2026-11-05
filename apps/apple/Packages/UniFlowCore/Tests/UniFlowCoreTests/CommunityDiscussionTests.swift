@@ -32,7 +32,8 @@ final class CommunityDiscussionTests: XCTestCase {
         let body = CommunityDiscussion.Body(text: "Aufgabe 2b: Vorzeichen prüfen", pseudonym: "Lea", pageKey: "p3", anchor: .init(x: 0.25, y: 0.75))
         let payload = try CommunityDiscussion.seal(body, commentID: "c-1", solutionID: "SOL-1", communitySecret: secret, cipher: cipher)
         let raw = try XCTUnwrap(Data(base64Encoded: payload))
-        for plain in ["Vorzeichen", "Lea", "p3"] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
+        // kurze Klartexte mit Anfuehrungszeichen wie im JSON: zwei zufaellige Bytes "p3" im Chiffrat kommen vor (wackelte)
+        for plain in ["Vorzeichen", "\"Lea\"", "\"p3\""] { XCTAssertNil(raw.range(of: Data(plain.utf8)), plain) }
         // Loesungs-ID ohne Ruecksicht auf Gross- und Kleinschreibung (der Dienst speichert sie klein)
         XCTAssertEqual(try CommunityDiscussion.open(payload, commentID: "c-1", solutionID: "sol-1", communitySecret: secret, cipher: cipher), body)
         // jedes Mal neues Salz und neue Nonce

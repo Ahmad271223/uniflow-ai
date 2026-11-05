@@ -27,6 +27,23 @@
    "file_host": "www.uni-hildesheim.de",
    "learnweb_base": "https://www.uni-hildesheim.de/learnweb2026",
    "cas_base": "https://www.uni-hildesheim.de/sso"
+  },
+  "hsh": {
+   "name": "Hochschule Hannover",
+   "login_url": "https://moodle.hs-hannover.de/login/index.php",
+   "logged_in_check_url": "https://moodle.hs-hannover.de/my/",
+   "session_cookie": "MoodleSession",
+   "hosts": [
+    "moodle.hs-hannover.de",
+    "campusmanagement.hs-hannover.de",
+    "idp.hs-hannover.de",
+    "icms.hs-hannover.de"
+   ],
+   "file_host": "moodle.hs-hannover.de",
+   "learnweb_base": "https://moodle.hs-hannover.de",
+   "cas_base": null,
+   "campus_login_url": "https://campusmanagement.hs-hannover.de/qisserver/api/identityprovider/redirect/4/login",
+   "campus_start_url": "https://campusmanagement.hs-hannover.de/qisserver/pages/cs/sys/portal/hisinoneStartPage.faces"
   }
  },
  "launch": {

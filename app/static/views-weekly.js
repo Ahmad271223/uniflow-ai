@@ -1,5 +1,5 @@
 // Vorlesungs-Seitenmarker ("Vorlesung bis hier"), Lernfortschritt & Wochentests, Testdetails, Probeklausur
-import { $, $$, api, esc, icon, toast, modal, fmtDate } from "./core.js?v=44";
+import { $, $$, api, esc, icon, toast, modal, fmtDate } from "./core.js?v=45";
 
 const SRC = { hoersaaluebung: "Hörsaalübung", gruppenuebung: "Gruppenübung", uebungsblatt: "Übungsblatt", zusatz: "Zusatzübung", tutorium: "Tutorium", altklausur: "Altklausur", loesung: "Musterlösung" };
 const when = s => s ? new Date(s).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–";

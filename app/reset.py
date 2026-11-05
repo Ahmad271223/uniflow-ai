@@ -98,7 +98,8 @@ def wipe(clear_webview: bool = True) -> dict:
         out["chatgpt"] = True
     except Exception:  # noqa: BLE001 - z. B. Datei nicht lesbar: der Rest soll trotzdem laufen
         out["chatgpt"] = False
-    out["browser_profiles"] = sum(_remove_tree(p) for p in {studip_sync._profile_dir(), hildesheim._profile_dir()})
+    from . import hsh
+    out["browser_profiles"] = sum(_remove_tree(p) for p in {studip_sync._profile_dir(), hildesheim._profile_dir(), hsh._profile_dir()})
     out["db_objects"] = wipe_db()
     data = config.data_dir()
     out["files"] = _clear_dir(config.files_dir())

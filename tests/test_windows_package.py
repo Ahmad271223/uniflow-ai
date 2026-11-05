@@ -14,7 +14,9 @@ CHAIN = re.compile(r'\bROOT((?:\s*/\s*"[^"]+")+)')
 # Pfade unter ROOT, die nicht ins Paket gehoeren: eigene Einstellungen, Daten und Protokolle des Nutzers (am PC per
 # Umgebung in den Datenordner umgelenkt, app/desktop.py prepare_environment) und Quellen, die nur tools/ liest
 NOT_BUNDLED = {(".env",), ("logs",), ("data",),
-               ("packages", "shared-contracts", "study-sources-luh.json")}   # nur tools/build-luh-seed.py, gen-study-catalog-fixture.py
+               ("packages", "shared-contracts", "study-sources-luh.json"),   # nur tools/build-luh-seed.py, gen-study-catalog-fixture.py
+               ("packages", "shared-contracts", "study-sources-hildesheim.json"),   # nur tools/build-hildesheim-seed.py, gen-...
+               ("packages", "shared-contracts", "study-sources-hsh.json")}   # nur tools/build-hsh-seed.py, gen-...
 
 
 def _chains(text: str) -> set[tuple[str, ...]]:
@@ -43,14 +45,18 @@ def test_spec_bundles_every_repo_file_the_backend_reads():
             missing.append("/".join(r))
     assert not missing, f"Im Windows-Paket fehlen (apps/windows/backend/uniflow-backend.spec): {missing}"
     for need in (("packages", "shared-contracts", "exam-registration-luh.json"),
-                 ("apps", "apple", "UniFlow", "Resources", "StudyCatalogSeed", "luh.json.gz")):
+                 ("packages", "shared-contracts", "exam-registration-hildesheim.json"),
+                 ("apps", "apple", "UniFlow", "Resources", "StudyCatalogSeed", "luh.json.gz"),
+                 ("apps", "apple", "UniFlow", "Resources", "StudyCatalogSeed", "hildesheim.json.gz"),
+                 ("apps", "apple", "UniFlow", "Resources", "StudyCatalogSeed", "hsh.json.gz")):
         assert need in bundled, "/".join(need)
 
 
 def test_smoke_test_covers_account_login_and_package_data():
     ps = (WIN / "scripts" / "check-backend.ps1").read_text(encoding="utf-8")
     for needle in ("api/app-account/status", "windows_credential_manager", "account_required", "api/app-account/browser-login",
-                   '"open_browser":false', "konto/rueckkehr", "exam-registration-luh.json", "luh.json.gz", "study-plan.js",
+                   '"open_browser":false', "konto/rueckkehr", "exam-registration-luh.json", "exam-registration-hildesheim.json",
+                   "luh.json.gz", "study-plan.js",
                    "SkipHttpErrorCheck"):
         assert needle in ps, needle
     # was check-backend.ps1 als Paketdatei verlangt, steht auch in der Beschreibung

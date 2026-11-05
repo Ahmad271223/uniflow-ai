@@ -17,6 +17,11 @@ FORMATS["wiwi-modulhandbuch"] = "app.catalog_formats.wiwi_modulhandbuch:parse"
 FORMATS["fbg-modulhandbuch"] = "app.catalog_formats.fbg_modulhandbuch:parse"
 FORMATS["phil-kv-tabelle"] = "app.catalog_formats.phil_kv_tabelle:parse"
 FORMATS["maphy-katalog"] = "app.catalog_formats.maphy_katalog:parse"
+# Universitaet Hildesheim (tools/build-hildesheim-seed.py, docs/STUDIENGAENGE-HILDESHEIM-2026-11-05.md)
+FORMATS["hildesheim-modulbeschreibung"] = "app.catalog_formats.hildesheim:parse_modulbeschreibung"
+FORMATS["hildesheim-it-modulhandbuch"] = "app.catalog_formats.hildesheim:parse_it"
+# Seitentexte im Layout-Modus (app.catalog_formats.hildesheim.layout_pages), nicht pdf_pages
+FORMATS["hildesheim-modultabelle"] = "app.catalog_formats.hildesheim:parse_modultabelle"
 
 
 def get_parser(name: str):

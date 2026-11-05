@@ -9,6 +9,13 @@ import Foundation
 // (fixtures/exam-registration/qis-*.html) und absichtlich tolerant (Spaltenkoepfe ueber das erste Wort, Link ueber den
 // Text). Was der Inhaber pruefen muss, steht im Dokument.
 //
+// Uni Hildesheim (`QISGradeLayout.hildesheim`, dieselbe HIS-Software im LSF): Startseite des LSF ("Meine Funktionen")
+// -> "POS-Management" -> "Meine POS-Anmeldungen" (Weg laut Schnellanleitung der Uni, Seite selbst NICHT GESEHEN; Fixture
+// fixtures/exam-registration/lsf-*.html ist erfunden). Tabellen wie im Hildesheimer Notenspiegel: Zeile "Abschluss: ..."
+// vor der Kopfzeile, "Prüfungsnr." und "Bezeichnung der Leistung / der Lehrveranstaltung"; Status auch "zugelassen",
+// "storniert", "nicht zugelassen". "An-/Abmeldung zu Studien-/Prüfungsleistungen" und "Zur Anmeldung"/"Zur Stornierung"
+// werden nie aufgerufen.
+//
 // Sicherheit: Es wird nie einem Link zur Pruefungsanmeldung/-abmeldung gefolgt (`QISRegistrationLinks.isForbidden`:
 // Text oder Parameter mit Anmeldung, Abmeldung, Ruecktritt), nie ein Formular abgeschickt (nur GET der gefundenen
 // Links), nie eine Bescheinigung geoeffnet. asi und Stammdaten wie beim Notenspiegel: nie gespeichert.
@@ -30,6 +37,15 @@ public struct QISRegistration: Sendable, Hashable, Codable {
     public var form: String?
     public var abschluss: String?
     public var raw: String
+
+    /// Oeffentlich fuer App-Tests (Zeilen wie aus "Meine POS-Anmeldungen" bzw. "Info ueber angemeldete Pruefungen")
+    public init(pruefungsnr: String? = nil, text: String, semester: String? = nil, datum: String? = nil, time: String? = nil,
+                room: String? = nil, pruefer: String? = nil, versuch: String? = nil, status: String? = nil,
+                withdraw: String? = nil, form: String? = nil, abschluss: String? = nil, raw: String = "") {
+        self.pruefungsnr = pruefungsnr; self.text = text; self.semester = semester; self.datum = datum; self.time = time
+        self.room = room; self.pruefer = pruefer; self.versuch = versuch; self.status = status; self.withdraw = withdraw
+        self.form = form; self.abschluss = abschluss; self.raw = raw
+    }
 
     /// angemeldet (leer, AN, angemeldet, zugelassen ...); abgemeldet, Ruecktritt und bewertete Zeilen nicht
     public var registered: Bool { RegistrationRows.isRegistered(status) }
@@ -84,11 +100,14 @@ public enum RegistrationRows {
     }
 
     static let negative: Set<String> = ["amd", "abgemeldet", "rt", "rte", "rtu", "rücktritt", "ruecktritt", "zurückgetreten",
-                                        "be", "bestanden", "nb", "nicht bestanden", "en", "endgültig nicht bestanden", "ab"]
+                                        "be", "bestanden", "nb", "nicht bestanden", "en", "endgültig nicht bestanden", "ab",
+                                        "storniert", "abgelehnt", "nicht zugelassen"]
 
     /// Status einer Zeile -> angemeldet? Leer gilt als angemeldet (die Seite listet nur Anmeldungen)
     public static func isRegistered(_ status: String?) -> Bool {
         let s = (status ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // LSF Hildesheim: stornierte, abgelehnte und nicht zugelassene POS-Anmeldungen
+        if s.hasPrefix("storn") || s.hasPrefix("abgelehnt") || s.hasPrefix("nicht zugelassen") { return false }
         if s.isEmpty || s == "an" || s.contains("angemeldet") && !s.contains("abgemeldet") || s.contains("zugelassen") { return true }
         if negative.contains(s) || s.hasPrefix("abgemeldet") || s.hasPrefix("rücktritt") || s.hasPrefix("nicht bestanden")
             || s.hasPrefix("endgültig") || s.hasPrefix("bestanden") { return false }
@@ -123,12 +142,22 @@ public enum RegistrationRows {
         return BerlinClock.pad(h, 2) + ":" + BerlinClock.pad(mi, 2)
     }
 
+    private static let abschlussRE = HText.regex("^(Abschluss:.*?PO-Version:\\s*\\d+)", [.caseInsensitive])
+
     public static func parse(rows: [[String]], abschluss: String = "") -> [QISRegistration] {
         var out: [QISRegistration] = []
         var mapped: [String?]?
+        var abschluss = abschluss
         for rawCells in rows {
             let cells = rawCells.map { HText.collapse($0) }
             guard !GradeRows.isStammdatenRow(cells) else { continue }
+            // LSF Hildesheim: "Abschluss: ..." vor der Kopfzeile (wie `GradeRows`)
+            let joined = cells.filter { !$0.isEmpty }.joined(separator: " ")
+            if joined.lowercased().hasPrefix("abschluss:") {
+                abschluss = String(((HText.match(abschlussRE, joined)?.groups[1] ?? nil) ?? joined).prefix(160))
+                mapped = nil
+                continue
+            }
             let hm = headerMap(cells)
             if isHeader(hm) { mapped = hm; continue }
             if hm.contains("note") && hm.contains("text") { mapped = nil; continue }        // Notenspiegel-Kopf: nicht hier
@@ -160,11 +189,25 @@ public enum RegistrationRows {
 public enum QISRegistrationLinks {
     static func folded(_ s: String) -> String { ExamRegistrationPeriods.fold(QISParser.clean(s)) }
 
-    /// Link "Info über angemeldete Prüfungen" (auch "angemeldete Prüfungen anzeigen", Bild-alt/title)
+    /// Link "Info über angemeldete Prüfungen" (auch "angemeldete Prüfungen anzeigen", Bild-alt/title) bzw. im LSF der
+    /// Uni Hildesheim "Meine POS-Anmeldungen"
     public static func isInfo(_ l: QISLink) -> Bool {
         guard !isForbidden(l) else { return false }
         let t = folded(l.text)
         return t.contains("angemeldete pruefungen") || t.contains("angemeldeten pruefungen") || t.contains("angemeldete leistungen")
+            || isPOSOverview(l)
+    }
+
+    /// "Meine POS-Anmeldungen" (LSF Hildesheim): reine Uebersicht, nur ueber den Text erkannt
+    static func isPOSOverview(_ l: QISLink) -> Bool {
+        let t = folded(l.text).replacingOccurrences(of: "-", with: " ")
+        return t == "meine pos anmeldungen" || t == "meine anmeldungen"
+    }
+
+    /// "POS-Management" (LSF Hildesheim, Untermenue von "Meine Funktionen"): Weg zur Uebersicht
+    static func isPOSMenu(_ l: QISLink) -> Bool {
+        let t = folded(l.text).replacingOccurrences(of: "-", with: " ")
+        return t == "pos management" && !isForbidden(l)
     }
 
     private static let programRE = HText.regex(#"(?:prüfungen|pruefungen|leistungen)\s+f(?:ü|ue)r\s+(.+?)\s+anzeigen\s*$"#, [.caseInsensitive])
@@ -180,15 +223,22 @@ public enum QISRegistrationLinks {
     /// Nie folgen: Pruefungsanmeldung/-abmeldung, Ruecktritt, Bescheinigungen, PDF, Abmelden (Logout)
     public static func isForbidden(_ l: QISLink) -> Bool {
         let t = folded(l.text)
-        if ["abmeld", "ruecktritt", "zuruecktreten", "anmelden", "abmelden", "logout"].contains(where: { t.contains($0) }) { return true }
-        if t.contains("anmeldung") && !t.contains("angemeldet") { return true }
+        if ["abmeld", "ruecktritt", "zuruecktreten", "anmelden", "abmelden", "logout", "storn", "zur anmeldung"].contains(where: { t.contains($0) }) {
+            return true
+        }
+        // "Meine POS-Anmeldungen" (LSF Hildesheim) ist eine Uebersicht: der Text darf "Anmeldungen" nennen, die Parameter
+        // duerfen "anmeldungen" enthalten; Abmelden, Stornieren und der Anmeldeablauf (prfanm) bleiben gesperrt
+        let overview = isPOSOverview(l)
+        if t.contains("anmeldung") && !t.contains("angemeldet") && !overview { return true }
         let p = l.parameters
         for key in ["state", "next", "moduleparameter", "menuid", "navigationposition", "breadcrumb", "subitem"] {
             let v = ExamRegistrationPeriods.fold(p[key] ?? "")
-            if ["anmeld", "abmeld", "prfanm", "pruefungsan", "ruecktritt", "rucktritt", "logout"].contains(where: { v.contains($0) }) { return true }
+            if ["abmeld", "prfanm", "pruefungsan", "ruecktritt", "rucktritt", "logout", "storn"].contains(where: { v.contains($0) }) { return true }
+            if v.contains("anmeld") && !(overview && v.contains("anmeldungen")) { return true }
         }
         let a = l.address.lowercased()
-        if (p["state"] ?? "").lowercased() == "verpublish" || a.contains(".pdf") || a.contains("logout") || t.hasPrefix("pdf") { return true }
+        if (p["state"] ?? "").lowercased() == "verpublish" || a.contains(".pdf") || a.contains("logout") || a.contains("storn")
+            || t.hasPrefix("pdf") { return true }
         if p["state"] == "user", p["type"] == "4" { return true }
         return false
     }
@@ -217,10 +267,13 @@ public enum QISRegistrationLinks {
 public enum QISRegistrationError: Error, Equatable, CustomStringConvertible, LocalizedError {
     /// weder auf der Startseite noch unter "Mein Studium" ein Link "Info über angemeldete Prüfungen"
     case infoNotFound
+    /// LSF Hildesheim: weder auf "Meine Funktionen" noch unter "POS-Management" ein Link "Meine POS-Anmeldungen"
+    case posOverviewNotFound
 
     public var description: String {
         switch self {
         case .infoNotFound: return "Die Seite „Info über angemeldete Prüfungen“ wurde im QIS nicht gefunden."
+        case .posOverviewNotFound: return "Die Seite „Meine POS-Anmeldungen“ wurde im LSF nicht gefunden."
         }
     }
 
@@ -241,21 +294,37 @@ public actor QISRegistrationClient {
     private let retry: UniRetry
     private let start: URL
     private let maxPages: Int
+    private let layout: QISGradeLayout
 
-    public init(transport: UniTransport, retry: UniRetry = UniRetry(), start: URL = QISClient.startURL,
-                maxPages: Int = QISRegistrationClient.defaultMaxPages) {
+    /// `layout: .hildesheim`: LSF der Uni Hildesheim (Start `UniversityProfile.hildesheimLSFStart`, Weg ueber
+    /// "POS-Management" zu "Meine POS-Anmeldungen")
+    public init(transport: UniTransport, retry: UniRetry = UniRetry(), start: URL? = nil,
+                maxPages: Int = QISRegistrationClient.defaultMaxPages, layout: QISGradeLayout = .luh) {
         self.transport = transport
         self.retry = retry
-        self.start = start
+        self.start = start ?? (layout == .hildesheim ? UniversityProfile.hildesheimLSFStart : QISClient.startURL)
         self.maxPages = maxPages
+        self.layout = layout
     }
 
     private func page(_ url: URL) async throws -> QISPage {
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
+        // LSF Hildesheim: abgelaufene Sitzung leitet zur CAS-Anmeldung
+        if layout == .hildesheim, HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw QISError.sessionExpired }
         guard resp.status == 200 else { throw QISError.http(status: resp.status) }
         let p = QISPage.parse(html: resp.text, url: resp.finalURL ?? url)
         if p.hasLoginForm || !p.isLoggedIn { throw QISError.sessionExpired }
         return p
+    }
+
+    /// Zwischenschritt zur Info-Seite: "Mein Studium" (LUH) bzw. "POS-Management" (LSF Hildesheim)
+    private func menu(on p: QISPage) -> QISLink? {
+        switch layout {
+        case .luh, .hisinone: return p.link(.meinStudium)          // HsH: altes QIS icms (gleiche HIS-QIS-Technik)
+        case .hildesheim:
+            let host = URL(string: p.address)?.host?.lowercased()
+            return p.links.first { $0.host == host && QISRegistrationLinks.isPOSMenu($0) }
+        }
     }
 
     static func tables(_ p: QISPage) -> [HTMLTable] {
@@ -267,12 +336,12 @@ public actor QISRegistrationClient {
         var pages = 1
         var from = first
         var info = first.links.first(where: QISRegistrationLinks.isInfo)
-        if info == nil, let studium = first.link(.meinStudium), !QISRegistrationLinks.isForbidden(studium), let url = first.url(for: studium) {
+        if info == nil, let studium = menu(on: first), !QISRegistrationLinks.isForbidden(studium), let url = first.url(for: studium) {
             from = try await page(url)
             pages += 1
             info = from.links.first(where: QISRegistrationLinks.isInfo)
         }
-        guard let info else { throw QISRegistrationError.infoNotFound }
+        guard let info else { throw layout == .hildesheim ? QISRegistrationError.posOverviewNotFound : QISRegistrationError.infoNotFound }
         var visited = Set<String>([first.address, from.address])
         var rows: [QISRegistration] = []
         var tableCount = 0
@@ -326,9 +395,9 @@ public enum QISRegistrationsSync {
         }
     }
 
-    static func message(count: Int) -> String {
+    static func message(count: Int, system: String = "QIS") -> String {
         switch count {
-        case 0: return "Im QIS sind keine Prüfungen angemeldet."
+        case 0: return "Im \(system) sind keine Prüfungen angemeldet."
         case 1: return "1 angemeldete Prüfung gelesen."
         default: return "\(count) angemeldete Prüfungen gelesen."
         }
@@ -376,12 +445,13 @@ public enum QISRegistrationsSync {
         ]))
     }
 
+    /// `layout: .hildesheim`: "Meine POS-Anmeldungen" im LSF (HildesheimSync nach dem Notenspiegel)
     public static func run(db: SQLiteDatabase, transport: UniTransport, clock: UniFlowClock = .system, retry: UniRetry = UniRetry(),
-                           maxPages: Int = QISRegistrationClient.defaultMaxPages) async -> Report {
+                           maxPages: Int = QISRegistrationClient.defaultMaxPages, layout: QISGradeLayout = .luh) async -> Report {
         do {
-            let r = try await QISRegistrationClient(transport: transport, retry: retry, maxPages: maxPages).fetch()
+            let r = try await QISRegistrationClient(transport: transport, retry: retry, maxPages: maxPages, layout: layout).fetch()
             let now = clock.nowISO
-            let text = message(count: r.registrations.filter(\.registered).count)
+            let text = message(count: r.registrations.filter(\.registered).count, system: layout == .hildesheim ? "LSF" : "QIS")
             let rows = r.registrations
             try await db.transaction { c in
                 try store(c, rows, now: now)

@@ -74,7 +74,7 @@ def test_registry_cases_and_schema_file():
     reg = sc.load_registry()
     cases = _j("registry-cases.json")
     for c in cases["matches"]:
-        assert sc.match_program(c["label"], "luh", reg, c["po"]) == c["result"], c["label"]
+        assert sc.match_program(c["label"], c.get("university") or "luh", reg, c["po"]) == c["result"], c["label"]
     for c in cases["keys"]:
         assert sc.library_key(c["university"], c["code"], c["term"]) == c["key"]
     for c in cases["urls"]:

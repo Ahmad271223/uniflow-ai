@@ -178,6 +178,9 @@ def fetch_courses(page: Page) -> list[dict]:
                 "semester": sems.get(sem_id, {}).get("title", ""),
                 "semester_end": end.get("title", "") if end else ("unbegrenzt" if end_rel and end_rel.get("data") is None else None),
                 "semester_ends_at": end.get("end") if end else None,
+                # Startsemester mit Beginn und Ende: Semesterliste des Portals fuer das aktuelle Semester (app/sync_order.py)
+                "term": {"title": sems.get(sem_id, {}).get("title", ""), "start": sems.get(sem_id, {}).get("start"),
+                         "end": sems.get(sem_id, {}).get("end")} if sem_id in sems else None,
                 # Annahme (Stud.IP 6.x, Kurs-Ressource): `description` und `miscellaneous` als HTML oder Text; fehlt ein
                 # Feld, bleibt der gespeicherte Text (None)
                 **course_texts(a),
@@ -832,38 +835,45 @@ def sync_older_files(page: Page, conn, courses: list[dict], started: str, new_fi
     der Bibliothek, Einstellung unter Module): nur Dateiliste, Ordner und Downloads, keine Termine und Ankuendigungen.
     Ein Kurs gilt erst als geladen, wenn Liste, Ordner und alle Dateien da sind; sonst versucht es der naechste Abgleich
     erneut. Rueckgabe: Zahl der Kurse, deren Dateien abgefragt wurden."""
-    from . import older_semesters
+    from . import older_semesters, sync_order
     wanted = older_semesters.pending(conn)
     active = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=1")}
-    older = [c for c in courses if c["id"] in wanted and c["id"] not in active]
+    # Stufe (d) (app/sync_order.py): neuestes Semester zuerst, Kurs fuer Kurs fertig (Liste, Ordner, Dateien) und
+    # gemerkt, mit Pause dazwischen; haelt an, sobald ein voller Abgleich wartet, und macht beim naechsten Mal weiter
+    older = sync_order.newest_first([c for c in courses if c["id"] in wanted and c["id"] not in active])
     if not older:
         return 0
-    listed: list[tuple[dict, list[dict], dict[str, str]]] = []
-    complete: set[str] = set()
+    asked = 0
     for i, c in enumerate(older, 1):
+        if i > 1 and not sync_order.older_continue():
+            log("Frühere Semester: angehalten, der nächste Lauf macht weiter.")
+            break
         progress.report(f"Frühere Semester, Kurs {i} von {len(older)}: Dateiliste – {c['title'][:50]}")
         try:
             files = fetch_files(page, c["id"])
         except Exception as e:  # noqa: BLE001
             log(f"Fehler bei Dateiliste {c['title']}: {e}")
             continue
+        asked += 1
+        complete = True
         try:
             folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
-            complete.add(c["id"])
         except Exception as e:  # noqa: BLE001
             log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
-        listed.append((c, files, folder_paths))
-    total = sum(pending_downloads(conn, files) for _, files, _ in listed)
-    done = {"n": 0}
-    for c, files, folder_paths in listed:
-        def fetch_one(url, target, size, c=c):
+            complete = False
+        total = pending_downloads(conn, files)
+        done = {"n": 0}
+
+        def fetch_one(url, target, size, c=c, total=total, done=done):
             done["n"] += 1
-            progress.report(f"Frühere Semester, Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
+            progress.report(f"Frühere Semester ({c.get('semester') or 'ohne Angabe'}), Datei {done['n']} von {total} – {c['title'][:50]}")
             download(page, url, target, size)
         store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
-    older_semesters.finish(conn, [c["id"] for c, _, _ in listed if c["id"] in complete], db.now_iso())
-    log(f"Frühere Semester: Dateien von {len(listed)} von {len(older)} Kursen abgefragt.")
-    return len(listed)
+        if complete:
+            older_semesters.finish(conn, [c["id"]], db.now_iso())
+        conn.commit()                                   # fortsetzbar: jeder fertige Kurs bleibt gemerkt
+    log(f"Frühere Semester: Dateien von {asked} von {len(older)} Kursen abgefragt.")
+    return asked
 
 
 def run_studip_older_files(show_browser: bool = False) -> dict:
@@ -913,11 +923,19 @@ def run_studip_older_files(show_browser: bool = False) -> dict:
 def run_sync(show_browser: bool = False, older_only: bool = False) -> dict:
     """Dateien, Kurse und Termine der gewaehlten Uni holen (LUH: Stud.IP, Hildesheim: Learnweb + LSF).
     `older_only`: nur die Dateien gewuenschter Kurse frueherer Semester (app/older_semesters.py)."""
-    from . import universities
+    from . import sync_order, universities
     db.init_db()
+    if not older_only:
+        # ein voller Abgleich geht vor: Stufe (d) haelt an (dasselbe Browserprofil) und macht danach weiter
+        sync_order.stop_older()
+    elif not sync_order.older_active():
+        sync_order.throttle_reset()                     # "Dateien laden" nach einem Anhalten: wieder frei
     if universities.current_key() == "hildesheim":
         from . import hildesheim
         res = hildesheim.run_sync(show_browser=show_browser, **({"older_only": True} if older_only else {}))
+    elif universities.current_key() == "hsh":
+        from . import hsh
+        res = hsh.run_sync(show_browser=show_browser, older_only=older_only)
     elif older_only:
         res = run_studip_older_files(show_browser=show_browser)
     else:
@@ -935,6 +953,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
     new_files: list[str] = []
     message = ""
     ok = False
+    tt: dict = {"new": 0}
     try:
         with sync_playwright() as p:
             ctx: BrowserContext = p.chromium.launch_persistent_context(
@@ -971,41 +990,61 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                 for c in courses:
                     upsert_course(conn, c, started)
                     store_course_texts(conn, c)
-                # Termine, Ankuendigungen und Dateien nur fuer aktuelle Kurse (app/semesters.py); alte Semester bleiben
-                # als Kurs bekannt, kosten aber keinen Abruf, keinen Download und keine KI-Analyse mehr
-                all_courses = courses
+                conn.commit()                                   # Kurse gleich sichtbar, nicht erst am Ende des Laufs
+                # Reihenfolge (app/sync_order.py, Wunsch des Inhabers 05.11.2026): (a) aktuelles Semester mit Stundenplan,
+                # Terminen, Ankuendigungen und Dateien, dann (c) das naechste Semester. Fruehere Semester (aus nach der
+                # Semesterregel, app/semesters.py) kosten in diesem Lauf keinen Abruf: ihre Dateien holt Stufe (d)
+                # danach im Hintergrund (sync_order.start_older_background), neuestes Semester zuerst
+                from . import sync_order
                 active_ids = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=1")}
-                skipped = [c for c in courses if c["id"] not in active_ids]
-                if skipped:
-                    log(f"{len(skipped)} Kurse aus frueheren Semestern uebersprungen.")
-                courses = [c for c in courses if c["id"] in active_ids]
+                stages = sync_order.split(courses, active_ids, terms=sync_order.portal_terms(courses), university="luh")
+                if stages["older"]:
+                    log(f"{len(stages['older'])} Kurse aus frueheren Semestern: Dateien kommen danach im Hintergrund.")
+                current, upcoming = stages["current"], stages["upcoming"]
+                courses = current + upcoming
 
-                # Erst alle Listen (Termine, Ankuendigungen, Dateien), dann die Downloads: so steht vorher fest, wie
-                # viele Dateien kommen, und die Anzeige kann "Datei x von y" zeigen
-                listed: list[tuple[dict, list[dict], dict[str, str]]] = []
-                for i, c in enumerate(courses, 1):
-                    progress.report(f"Kurs {i} von {len(courses)}: Termine und Dateiliste – {c['title'][:50]}")
-                    try:
-                        store_events(conn, fetch_events(page, c["id"]))
-                    except Exception as e:  # noqa: BLE001
-                        log(f"Fehler bei Terminen {c['title']}: {e}")
-                    try:
-                        news = fetch_news(page, c["id"])
-                        if news is not None:
-                            from . import announcements
-                            announcements.store(conn, news, "studip", db.now_iso(), course_ids=[c["id"]])
-                    except Exception as e:  # noqa: BLE001 - Ankuendigungen sind eine Ergaenzung
-                        log(f"Ankuendigungen nicht gelesen ({c['title']}): {e}")
-                    try:
-                        files = fetch_files(page, c["id"])
-                    except Exception as e:  # noqa: BLE001
-                        log(f"Fehler bei Dateiliste {c['title']}: {e}")
-                        continue
-                    try:
-                        folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
-                    except Exception as e:  # noqa: BLE001
-                        log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
-                    listed.append((c, files, folder_paths))
+                def list_courses(chosen: list[dict], label: str) -> list[tuple[dict, list[dict], dict[str, str]]]:
+                    """Termine, Ankuendigungen und Dateiliste je Kurs; erst alle Listen, dann die Downloads: so steht
+                    vorher fest, wie viele Dateien kommen ("Datei x von y")."""
+                    out: list[tuple[dict, list[dict], dict[str, str]]] = []
+                    for i, c in enumerate(chosen, 1):
+                        progress.report(f"{label}, Kurs {i} von {len(chosen)}: Termine und Dateiliste – {c['title'][:50]}")
+                        try:
+                            store_events(conn, fetch_events(page, c["id"]))
+                        except Exception as e:  # noqa: BLE001
+                            log(f"Fehler bei Terminen {c['title']}: {e}")
+                        try:
+                            news = fetch_news(page, c["id"])
+                            if news is not None:
+                                from . import announcements
+                                announcements.store(conn, news, "studip", db.now_iso(), course_ids=[c["id"]])
+                        except Exception as e:  # noqa: BLE001 - Ankuendigungen sind eine Ergaenzung
+                            log(f"Ankuendigungen nicht gelesen ({c['title']}): {e}")
+                        try:
+                            files = fetch_files(page, c["id"])
+                        except Exception as e:  # noqa: BLE001
+                            log(f"Fehler bei Dateiliste {c['title']}: {e}")
+                            continue
+                        try:
+                            folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
+                        except Exception as e:  # noqa: BLE001
+                            log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
+                        out.append((c, files, folder_paths))
+                    return out
+
+                def download_listed(listed: list[tuple[dict, list[dict], dict[str, str]]], label: str) -> None:
+                    total = sum(pending_downloads(conn, files) for _, files, _ in listed)
+                    done = {"n": 0}
+                    for c, files, folder_paths in listed:
+                        def fetch_one(url, target, size, c=c):
+                            done["n"] += 1
+                            progress.report(f"{label}: Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
+                            download(page, url, target, size)
+                        store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
+                        conn.commit()                           # Datei fuer Datei sichtbar
+
+                # --- (a) aktuelles Semester -----------------------------------------------------------------------
+                listed = list_courses(current, "Aktuelles Semester")
 
                 # Eigener Stud.IP-Kalender: welche Termine (Gruppen, Kurse) Stud.IP dem Nutzer selbst zeigt
                 progress.report("Eigenen Stud.IP-Kalender lesen …")
@@ -1018,6 +1057,22 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         log(f"Stud.IP-Kalender nicht gelesen: {e}")
                 if not calendar_ok:
                     log("Stud.IP-Kalender nicht gelesen: eigene Uebungsgruppen nicht sicher bekannt")
+                # Stundenplan gleich nach den Listen, vor den Downloads: wer die App oeffnet, sieht seine Woche sofort
+                progress.report("Stundenplan übernehmen …")
+                try:
+                    from . import timetable
+                    tt = timetable.auto_import(conn)
+                    if tt["new"]:
+                        log(f"Stundenplan: {tt['new']} Termine automatisch uebernommen")
+                    if tt.get("removed"):
+                        log(f"Stundenplan: {tt['removed']} Serien entfernt (nicht im eigenen Stud.IP-Kalender)")
+                except Exception as e:  # noqa: BLE001
+                    log(f"Stundenplan-Autoimport: {e}")
+                    tt = {"new": 0}
+                conn.commit()
+
+                download_listed(listed, "Aktuelles Semester")
+
                 # Semester, Stud.IP-weite Ankuendigungen, Nachrichten, Aenderungen, Sprechstunden (app/studip_extras.py)
                 if uid:
                     try:
@@ -1045,34 +1100,19 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                     log(f"Stud.IP-Lerntexte: {r['texts']} neu/geaendert, {r['deadlines']} Courseware-Fristen, {r['requests']} Anfragen")
                 except Exception as e:  # noqa: BLE001
                     log(f"Courseware/Wiki/Forum nicht gelesen: {e}")
+                sync_order.mark_current_ready(conn, db.now_iso())
+                conn.commit()
 
-                total = sum(pending_downloads(conn, files) for _, files, _ in listed)
-                done = {"n": 0}
-                for c, files, folder_paths in listed:
-                    def fetch_one(url, target, size, c=c):
-                        done["n"] += 1
-                        progress.report(f"Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
-                        download(page, url, target, size)
-                    store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
-                # Dateien frueherer Semester nur auf Wunsch (Frage nach dem ersten Abgleich, Bibliothek, Einstellung)
-                sync_older_files(page, conn, all_courses, started, new_files)
+                # --- (c) naechstes Semester, falls Stud.IP es schon zeigt -----------------------------------------
+                if upcoming:
+                    download_listed(list_courses(upcoming, "Nächstes Semester"), "Nächstes Semester")
             ctx.close()
         ok = True
         message = f"{len(new_files)} neue/geaenderte Dateien"
-        progress.report("Stundenplan übernehmen …")
-        # Stundenplan automatisch ergaenzen (Vorlesungen, eindeutige Termine, persoenliche Stud.IP-Eintraege)
-        try:
-            from . import timetable
-            with db.cursor() as conn:
-                r = timetable.auto_import(conn)
-            if r["new"]:
-                log(f"Stundenplan: {r['new']} Termine automatisch uebernommen")
-                message += f", {r['new']} Stundenplan-Termine"
-            if r.get("removed"):
-                log(f"Stundenplan: {r['removed']} Serien entfernt (nicht im eigenen Stud.IP-Kalender)")
-                message += f", {r['removed']} Serien entfernt (nicht in deinem Stud.IP-Kalender)"
-        except Exception as e:  # noqa: BLE001
-            log(f"Stundenplan-Autoimport: {e}")
+        if tt.get("new"):
+            message += f", {tt['new']} Stundenplan-Termine"
+        if tt.get("removed"):
+            message += f", {tt['removed']} Serien entfernt (nicht in deinem Stud.IP-Kalender)"
     except Exception as e:  # noqa: BLE001
         message = f"FEHLER: {e}"
         log(message)

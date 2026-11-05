@@ -217,6 +217,12 @@ def run_job(job: dict) -> dict:
             ok, message, new_files = bool(res.get("ok")), res.get("message") or "", len(res.get("new_files") or [])
             if ok:
                 message = _with_weekly(user, message)          # wie _full_sync am PC: nach dem Abgleich die Wochentests
+                # Stufe (d) (app/sync_order.py): im Dienst nur vorgemerkte Kurse frueherer Semester ("Dateien laden"),
+                # nach dem aktuellen Semester und den Wochentests
+                from . import sync_order
+                older = sync_order.run_older_now()
+                if older and older.get("message"):
+                    message += f" · {older['message']}"
         elif job["kind"] == "weekly":
             ok, message = True, weekly_summary(run_weekly(user))
         else:

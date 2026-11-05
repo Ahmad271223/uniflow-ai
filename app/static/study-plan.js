@@ -7,9 +7,9 @@
 // Der Plan kommt fertig vom Backend (GET /api/study-plan); Aenderungen gehen als Teil-Einstellung an POST
 // /api/study-plan/settings. Ohne aktives Abo (Web/Windows, account-gate.js) nur lesen. Noten aus QIS bleiben auf diesem Geraet.
 // Regeln und HTML stehen in study-plan-logic.js (laeuft auch unter node: tests/js/study-plan*.test.mjs).
-import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=44";
+import { $, $$, api, icon, modal, toast, showError, state as app } from "./core.js?v=45";
 import { gateState } from "./account-gate.js?v=1";
-import * as L from "./study-plan-logic.js?v=2";
+import * as L from "./study-plan-logic.js?v=3";
 
 const POLL_MS = 2000;
 const OV_KEY = "studyplan.overview";
@@ -18,17 +18,21 @@ const LONG_PRESS_MS = 350;
 const readOverview = () => { try { return localStorage.getItem(OV_KEY) === "1"; } catch { return false; } };
 const writeOverview = on => { try { localStorage.setItem(OV_KEY, on ? "1" : "0"); } catch { /* privates Fenster */ } };
 
+const subText = () => `Was wann dran ist, was bestanden ist und was du nachholen musst – aus dem Modulkatalog deiner Hochschule und deinen Noten ${L.source().aus}.`;
+
 export async function viewStudyPlan(parts, params, view) {
   const st = { plan: null, catalog: null, filter: "all", focus: params?.module || null, focusDone: false, timer: null, failed: null,
     overview: readOverview(), editError: null, refocus: null };
   /** Bearbeiten erlaubt: am eigenen PC ohne Pflicht, in der Probe und mit Abo; gesperrt (ohne Abo) nur lesen */
   const editable = () => gateState(app.entitlements, app.appAccount) !== "locked";
   view.innerHTML = `<div class="content sp-page" id="spRoot" style="max-width:1480px"><div class="page-head"><div><h1>${L.T.title}</h1>`
-    + `<div class="sub">Was wann dran ist, was bestanden ist und was du nachholen musst – aus dem Modulkatalog deiner Hochschule und deinen Noten aus QIS.</div></div><div class="actions" id="spActions"></div></div>`
+    + `<div class="sub" id="spSub">${subText()}</div></div><div class="actions" id="spActions"></div></div>`
     + `<div id="xrSection"></div><div id="spBody"><div class="sp-status"><span class="sp-spin" aria-hidden="true"></span><span>${L.T.loading}</span></div></div>`
     + `<div class="sr-only" id="spLive" role="status" aria-live="polite"></div></div>`;
   const root = $("#spRoot", view), body = $("#spBody", root);
-  import("./exam-registration.js?v=1").then(X => X.renderSection($("#xrSection", root))).catch(() => {});   // Pruefungsanmeldung
+  // Hochschule fuer die Quellen-Texte (QIS, LSF, Campusmanagement); scheitert das Lesen, bleibt LUH
+  const uniReady = api("/settings").then(s => { L.setUniversity(s?.university); const sub = $("#spSub", root); if (sub) sub.textContent = subText(); }).catch(() => {});
+  import("./exam-registration.js?v=2").then(X => X.renderSection($("#xrSection", root))).catch(() => {});   // Pruefungsanmeldung
   const alive = () => root.isConnected && /^#\/(studyplan|studienverlauf)/.test(location.hash);
 
   async function load() {
@@ -40,6 +44,7 @@ export async function viewStudyPlan(parts, params, view) {
       if (st.plan) return;                                   // letzter Stand bleibt
       st.failed = e.message || "Unbekannter Fehler";
     }
+    await uniReady;
     render();
     schedulePoll();
   }
@@ -559,7 +564,7 @@ export async function viewStudyPlan(parts, params, view) {
       if (cur !== stack[stack.length - 1]) return;
       box.innerHTML = L.detailHtml(cache[cur], icon);
       bindDetail();
-      import("./exam-registration.js?v=1").then(X => X.renderModuleBlock(box, { catalogId: cur })).catch(() => {});   // "Prüfung anmelden"
+      import("./exam-registration.js?v=2").then(X => X.renderModuleBlock(box, { catalogId: cur })).catch(() => {});   // "Prüfung anmelden"
       // Modultexte werden im Hintergrund geladen: einige Male nachfragen, solange das Fenster dieses Modul zeigt
       if (cache[cur].texts_loading && !cache[cur].texts && tries < 8) {
         tries++;

@@ -319,6 +319,7 @@ final class BackgroundSyncController: ObservableObject {
         self.notifier = notifier ?? SystemBackgroundNotifier()
         target = { [weak containers] c in
             guard let containers, containers.active === c else { return nil }
+            if c.key.university == .hsh { return containers.hsh }
             return c.key.university == .hildesheim ? containers.hildesheim : (containers.studip.offersStudIP ? containers.studip : nil)
         }
     }
@@ -532,6 +533,11 @@ final class BackgroundSyncController: ObservableObject {
         }
         // nach dem Abgleich (der volle Abgleich hat selbst schon getaktet): faellige Wochentests, solange Zeit ist
         if weekly, !report.cancelled { await runWeekly(c, expired: expired) }
+        // Stufe (d) (`SyncOrder`): fruehere Semester nur im langen Lauf, nach dem aktuellen Semester, nach Wahl,
+        // Stromsparmodus und WLAN (`OlderSemesterLoader`), solange iOS Zeit gibt; nie unter XCTest
+        if kind == .processing, allowed(), report.skipped == nil, !report.cancelled, !expired(), containers.active === c {
+            await OlderSemesterLoader.shared.run(containers, expired: expired)
+        }
         revision += 1
         return report.skipped != nil || (!report.cancelled && report.failure == nil)
     }

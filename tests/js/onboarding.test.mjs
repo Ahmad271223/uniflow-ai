@@ -27,6 +27,13 @@ test("Anmeldung je Hochschule und Ort", () => {
   assert.match(O.loginStep("hildesheim", true).intro, /UNI-Account/);
 });
 
+test("Hochschule Hannover: Moodle und Campusmanagement, nie Zugangsdaten", () => {
+  assert.equal(O.loginStep("hsh", false).title, "Bei Moodle und im Campusmanagement anmelden");
+  assert.match(O.loginStep("hsh", false).intro, /SSO-Account/);
+  assert.doesNotMatch(O.loginStep("hsh", true).intro, /hinterlegst/);
+  assert.match(O.loginStep("hsh", true).intro, /nie dein Passwort/);
+});
+
 test("Tarif-Schritt und Hochschulwechsel", () => {
   assert.equal(O.planInfo("trial", { access: { trial_days_left: 6 } }).title, "Probe: noch 6 Tage");
   assert.equal(O.planInfo("trial", { access: { trial_days_left: 1 } }).title, "Probe: noch 1 Tag");

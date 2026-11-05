@@ -1,0 +1,485 @@
+{
+  "description": "Wahlbereiche je Katalog der Universitaet Hildesheim, von Hand aus Studienordnung (Anlage 1 'Beschreibung der Studienvarianten') und Pruefungsordnung (§ 3-5) gelesen (05.11.2026), eingemischt von tools/build-hildesheim-seed.py. Aufbau wie study-area-rules-luh.json (areas: Felder je Bereichs-id; add_areas; modules: Felder je Modul-id). Verbindlich bleibt die Pruefungsordnung bzw. Studienordnung. area_patterns: [{match: Regex auf den Bereichsnamen, set: Felder}] fuer Kataloge mit einem Bereich je Gebiet (FB 4).",
+  "catalogs": {
+    "biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5269 (Studienordnung Biologie 2025, Anlage 1 B.1-B.13)",
+      "areas": {
+        "basismodule": {
+          "semester": 1,
+          "rule": "Lehramtsoptionen, Hauptfach, EAL, SGL, Wirtschaft plus: BM 1-4; Ergänzungs-, Wahlpflicht- und drittes Fach: BM 5; Umweltsicherung: BM 1-3."
+        },
+        "aufbaumodule": {
+          "kind": "wahlpflicht",
+          "semester": 4,
+          "rule": "BioUs, BioAH, EAL, SGL, Wi+: zwei aus AM 1-3 (BioUs zusätzlich AM 4); BioUp: AM 4; BioAHE/BioAHW: AM 1-3 und ein Teil von AM 4 (3 LP); Umweltsicherung: AM 1 und eins aus AM 2-3."
+        },
+        "vertiefungsmodule": {
+          "kind": "wahlpflicht",
+          "semester": 4,
+          "rule": "BioUs: eins aus VM 1-3 und VM 5; BioAH, SGL, Wi+: zwei aus VM 1-3 und VM 5; EAL: zwei aus VM 1-4 und VM 5; BioAHE: VM 1-3 und VM 5; BioAHW: VM 1-5; Umweltsicherung: zwei aus VM 1-3, VM 4 und VM 5."
+        },
+        "module-des-faches-biologie": {
+          "name": "Bachelorarbeit",
+          "kind": "abschluss",
+          "semester": 6
+        }
+      },
+      "modules": {
+        "aufbaumodul-am-2-physiologie-morphologie": {
+          "kind": "wahlpflicht"
+        },
+        "aufbaumodul-am-3-verhaltensbiologie-evolution": {
+          "kind": "wahlpflicht"
+        },
+        "vertiefungsmodul-vm-1-ausgewaehlte-tier-und-pflanzengruppen-und-ihre-lebensraeum": {
+          "kind": "wahlpflicht"
+        },
+        "vertiefungsmodul-vm-2-biologie-und-gesellschaft": {
+          "kind": "wahlpflicht"
+        },
+        "vertiefungsmodul-vm-3-angewandte-biologie-und-ihre-randgebiete": {
+          "kind": "wahlpflicht"
+        },
+        "bachelormodul-bachelorarbeit-im-fach-biologie": {
+          "semester": 6
+        }
+      }
+    },
+    "angewandte-informatik|b.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc. 2023, § 5 Abs. 1 Satz 3 und Abs. 2)",
+      "area_patterns": [
+        {
+          "match": "^Wahlbereich Bachelor – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Wahlmodule aus Gebieten der Informatik: mindestens 22 LP, davon mindestens 4 LP Seminar und 6 LP Praktikum, in einem Gebiet mindestens 16 LP."
+          }
+        },
+        {
+          "match": "^Wahlbereich Bachelor – Weitere|Soft Skills",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Weitere Wahlmodule bis 180 LP: mindestens 4 LP Seminar, in einem Gebiet mindestens 16 LP, höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ]
+    },
+    "informationsmanagement-und-informationstechnologie|b.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc., Variante IMIT, § 5 Abs. 1 Satz 4)",
+      "area_patterns": [
+        {
+          "match": "^Wahlbereich Bachelor – Betriebswirtschaft",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Aus Gebieten der Betriebswirtschaft oder Informationswissenschaft mindestens 14 LP, davon mindestens 4 LP Seminar; in einem Gebiet mindestens 10 LP."
+          }
+        },
+        {
+          "match": "^Wahlbereich Bachelor – (Theoretische )?Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Aus Gebieten der Informatik mindestens 16 LP, davon mindestens 4 LP Seminar und 6 LP Praktikum; in einem Gebiet mindestens 12 LP."
+          }
+        },
+        {
+          "match": "Weitere Wahlmodule|Soft Skills",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Die weiteren Wahlmodule in einem beliebigen Bereich; höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ]
+    },
+    "umweltinformatik|b.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076 (PO Angewandte Informatik B.Sc., Variante UINF, § 5 Abs. 1 Satz 7)",
+      "area_patterns": [
+        {
+          "match": "Weitere Wahlfächer – Gebiet Umwelt|Gebiet Umweltwissenschaft",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Wahlmodule aus Gebieten der Umweltwissenschaften: mindestens 10 LP."
+          }
+        },
+        {
+          "match": "^Wahlbereich im Bachelor – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 4,
+            "rule": "Wahlmodule aus Gebieten der Informatik: 16 LP, davon mindestens 4 LP Seminar und 6 LP Praktikum; in einem Gebiet mindestens 12 LP."
+          }
+        },
+        {
+          "match": "Soft Skills|Weitere Wahlfächer – Gebiet (?!Umwelt)",
+          "set": {
+            "kind": "wahl",
+            "semester": 5,
+            "rule": "Weitere Wahlmodule; höchstens 6 LP als Softskills ausgewiesene Module."
+          }
+        }
+      ]
+    },
+    "angewandte-informatik|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO Angewandte Informatik M.Sc. 2023, § 5 Abs. 1 Satz 3)",
+      "area_patterns": [
+        {
+          "match": "^Wahlmodule im Master – Forschungsmethodik",
+          "set": {
+            "kind": "pflicht",
+            "semester": 1,
+            "rule": "Pflicht-Modul Forschungsmethoden der Informatik; Wahlpflicht-Module AINF (Tabelle 1 im Anhang der PO) mindestens 12 LP."
+          }
+        },
+        {
+          "match": "^Wahlmodule im Master – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 1,
+            "rule": "Wahl-Module aus Gebieten der Informatik: mindestens 36 LP, mindestens zwei Gebiete, davon mindestens 18 LP aus einem Gebiet; insgesamt mindestens 12 LP Vorlesung und Übung, 4 LP Seminar und 6 LP Praktikum."
+          }
+        },
+        {
+          "match": "^Wahlmodule im Master – (Weitere|Umwelt|Mathematische|Soft)",
+          "set": {
+            "kind": "wahl",
+            "semester": 2,
+            "rule": "Wahl-Module aus dem Wahlbereich: mindestens 18 LP, davon mindestens 12 LP aus einem Gebiet, mindestens 10 LP Vorlesung und Übung, höchstens 6 LP Softskills."
+          }
+        }
+      ]
+    },
+    "informationsmanagement-und-informationstechnologie|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO Angewandte Informatik M.Sc. 2023, Variante IMIT, § 5 Abs. 1 Satz 4)",
+      "area_patterns": [
+        {
+          "match": "^Wahlmodule im Master – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 1,
+            "rule": "Wahl-Module aus Gebieten der Informatik: mindestens 36 LP, mindestens zwei Gebiete, davon mindestens 18 LP aus einem Gebiet; insgesamt mindestens 12 LP Vorlesung und Übung, 4 LP Seminar und 6 LP Praktikum."
+          }
+        },
+        {
+          "match": "^Wahlmodule im Master – Betriebswirtschaft",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 1,
+            "rule": "Wahl-Module aus Gebieten der Betriebswirtschaft und Informationswissenschaft: mindestens 25 LP, mindestens zwei Gebiete, aus einem Gebiet mindestens 10 LP; insgesamt mindestens 12 LP Vorlesung und Übung."
+          }
+        },
+        {
+          "match": "^Wahlmodule im Master – (Weitere|Soft)",
+          "set": {
+            "kind": "wahl",
+            "semester": 2,
+            "rule": "Wahl-Module aus dem Wahlbereich: mindestens 18 LP, davon mindestens 12 LP aus einem Gebiet, mindestens 10 LP Vorlesung und Übung, höchstens 6 LP Softskills."
+          }
+        }
+      ]
+    },
+    "umweltinformatik|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO Angewandte Informatik M.Sc. 2023, Variante UINF, § 5 Abs. 1 Satz 5)",
+      "area_patterns": [
+        {
+          "match": "Umweltwissenschaften",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 1,
+            "rule": "Pflicht-Module UINF (Tabelle 2 im Anhang der PO); Wahl-Module aus den Gebieten der Umweltwissenschaften mindestens 12 LP."
+          }
+        },
+        {
+          "match": "^Weitere Module je Bereich – Informatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 1,
+            "rule": "Wahl-Module aus Gebieten der Informatik: mindestens 36 LP, mindestens zwei Gebiete, davon mindestens 18 LP aus einem Gebiet; insgesamt mindestens 12 LP Vorlesung und Übung, 4 LP Seminar und 6 LP Praktikum."
+          }
+        },
+        {
+          "match": "Weitere Wahlmodule|Soft Skills",
+          "set": {
+            "kind": "wahl",
+            "semester": 2,
+            "rule": "Weitere Wahl-Module aus dem Wahlbereich; höchstens 6 LP Softskills."
+          }
+        }
+      ]
+    },
+    "software-engineering|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO International Master in Software Engineering 2023, § 5 Abs. 1 Satz 6)",
+      "area_patterns": [
+        {
+          "match": "Methodological Specialization",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 18,
+            "semester": 1,
+            "rule": "Wahl-Module aus dem Bereich Methodische Spezialisierung: 18 LP."
+          }
+        },
+        {
+          "match": "Machine Learning|Business Administration|Information Retrieval|Natural Language|Environmental|Psychology|Soft Skills",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 2,
+            "rule": "Wahl-Module aus einem Anwendungsbereich: 12 LP."
+          }
+        }
+      ]
+    },
+    "data-analytics|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO International Master in Data Analytics 2023, § 5 Abs. 1, Variante DA Fundamental Track)",
+      "area_patterns": [
+        {
+          "match": "Methodological Specialization",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 6,
+            "semester": 1,
+            "rule": "Wahl-Module aus dem Bereich Methodische Spezialisierung: 6 LP."
+          }
+        },
+        {
+          "match": "Computer Science|Business Administration|Information Retrieval|Natural Language|Environmental|Psychology|Soft Skills",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 2,
+            "rule": "Wahl-Module aus einem Anwendungsbereich: 12 LP."
+          }
+        }
+      ]
+    },
+    "data-analytics-advanced-track|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO International Master in Data Analytics 2023, § 5 Abs. 1, Variante DA Advanced Track)",
+      "area_patterns": [
+        {
+          "match": "Methodological Specialization",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 21,
+            "semester": 1,
+            "rule": "Wahl-Module aus dem Bereich Methodische Spezialisierung: 21 LP."
+          }
+        },
+        {
+          "match": "Computer Science|Business Administration|Information Retrieval|Natural Language|Environmental|Psychology|Soft Skills",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 2,
+            "rule": "Wahl-Module aus einem Anwendungsbereich: 12 LP."
+          }
+        }
+      ]
+    },
+    "data-analytics-cognitive-systems|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5114 (PO International Master in Data Analytics 2023, § 5 Abs. 1, Variante CogSys)",
+      "area_patterns": [
+        {
+          "match": "Methodological Specialization",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 24,
+            "semester": 1,
+            "rule": "Wahl-Module aus dem Bereich Methodische Spezialisierung: 24 LP."
+          }
+        }
+      ]
+    },
+    "wirtschaftsinformatik|b.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5068 (PO Wirtschaftsinformatik B.Sc., § 4 Abs. 1)",
+      "area_patterns": [
+        {
+          "match": "Vertiefung Wirtschaftsinformatik",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 12,
+            "semester": 4,
+            "rule": "Module aus dem Gebiet „Vertiefung Wirtschaftsinformatik/Informatik“: mindestens 12 LP."
+          }
+        },
+        {
+          "match": "Vertiefung Betriebswirtschaftslehre",
+          "set": {
+            "kind": "wahlpflicht",
+            "lp_required": 12,
+            "semester": 4,
+            "rule": "Module aus dem Gebiet „Vertiefung Betriebswirtschaftslehre/Volkswirtschaftslehre“: 12 LP."
+          }
+        },
+        {
+          "match": "^Wahlbereich",
+          "set": {
+            "kind": "wahl",
+            "lp_max": 12,
+            "semester": 5,
+            "rule": "Module aus dem Wahlbereich: höchstens 12 LP, davon höchstens 6 LP aus dem Modul „Studium Generale“."
+          }
+        }
+      ]
+    },
+    "wirtschaftsinformatik|m.sc.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5073 (PO Wirtschaftsinformatik M.Sc., § 4 Abs. 1)",
+      "area_patterns": [
+        {
+          "match": "^(Spezialisierungs- und Vertiefungsmodule|Kernmodule) – (?!Forschung)",
+          "set": {
+            "kind": "wahlpflicht",
+            "semester": 1,
+            "rule": "Spezialisierungs- und Vertiefungsbereich: mindestens 51 LP aus drei Gebieten, je Gebiet mindestens 13 LP und mindestens ein Kernmodul; in mindestens zwei Gebieten je ein Seminar (4 LP)."
+          }
+        },
+        {
+          "match": "^Wahlbereich",
+          "set": {
+            "kind": "wahl",
+            "lp_max": 18,
+            "semester": 3,
+            "rule": "Module aus dem Wahlbereich: höchstens 18 LP, davon höchstens 6 LP aus dem Modul „Studium Generale“."
+          }
+        }
+      ],
+      "add_areas": [
+        {
+          "id": "forschungsmethodik",
+          "name": "Forschungsmethodik",
+          "kind": "pflicht",
+          "lp_required": 21,
+          "semester": 1,
+          "rule": "Module aus dem Bereich Forschungsmethodik: mindestens 21 LP, davon mindestens ein Kernmodul der Forschungsmethodik und ein IT-Studienprojekt M.Sc. WI."
+        }
+      ]
+    },
+    "polyvalenter-zwei-faecher-bachelor-studiengang|b.a.|2026": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318 (PO Polyvalenter Zwei-Fächer-Bachelor B.A. 2026, § 3 Abs. 5)",
+      "add_areas": [
+        {
+          "id": "professionalisierungsbereich",
+          "name": "Professionalisierungsbereich",
+          "kind": "wahlpflicht",
+          "type": "praktikum",
+          "lp_required": 57,
+          "semester": 3,
+          "rule": "57 LP: 15 LP berufsrelevante Praktika, 6 bis 15 LP berufsspezifische Schlüsselkompetenzen, die restlichen 27 bis 36 LP je nach Studienvariante für ein oder zwei weitere Fächer oder zur Vertiefung des Erstfachs. Dazu Erstfach (mindestens 57 LP), Zweitfach (57 LP) und Bachelorarbeit (9 LP)."
+        }
+      ]
+    },
+    "polyvalenter-zwei-faecher-bachelor-studiengang|b.sc.|2026": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5319 (PO Polyvalenter Zwei-Fächer-Bachelor B.Sc. 2026, § 3 Abs. 5)",
+      "add_areas": [
+        {
+          "id": "professionalisierungsbereich",
+          "name": "Professionalisierungsbereich",
+          "kind": "wahlpflicht",
+          "type": "praktikum",
+          "lp_required": 57,
+          "semester": 3,
+          "rule": "57 LP: 15 LP berufsrelevante Praktika, 6 bis 15 LP berufsspezifische Schlüsselkompetenzen, die restlichen 27 bis 36 LP je nach Studienvariante für ein oder zwei weitere Fächer oder zur Vertiefung des Erstfachs. Dazu Erstfach (mindestens 57 LP), Zweitfach (57 LP) und Bachelorarbeit (9 LP)."
+        }
+      ]
+    },
+    "lehramt-an-haupt-und-realschulen|m.ed.|2026": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323 (PO Master Lehramt an Haupt- und Realschulen 2026, § 3)",
+      "add_areas": [
+        {
+          "id": "wahlpflichtfach",
+          "name": "Wahlpflichtfach",
+          "kind": "wahlpflicht",
+          "lp_required": 4,
+          "semester": 2,
+          "rule": "Wahlpflichtfach: 4 LP."
+        },
+        {
+          "id": "optionalbereich",
+          "name": "Optionalbereich",
+          "kind": "wahl",
+          "lp_required": 5,
+          "semester": 3,
+          "rule": "Optionalbereich: 5 LP, Profilierungsbereich Inklusion oder individueller Profilierungsbereich."
+        }
+      ]
+    },
+    "lehramt-an-grundschulen|m.ed.|2026": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321 (PO Master Lehramt an Grundschulen 2026, § 3)",
+      "add_areas": [
+        {
+          "id": "wahlpflichtfach",
+          "name": "Wahlpflichtfach",
+          "kind": "wahlpflicht",
+          "lp_required": 4,
+          "semester": 2,
+          "rule": "Wahlpflichtfach: 4 LP (PO § 3)."
+        },
+        {
+          "id": "optionalbereich",
+          "name": "Optionalbereich",
+          "kind": "wahl",
+          "lp_required": 5,
+          "semester": 3,
+          "rule": "Optionalbereich: 5 LP (PO § 3)."
+        }
+      ]
+    },
+    "internationales-informationsmanagement-informationswissenschaft|m.a.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5153 (PO IIM-IW, Anlage Nebenfächer)",
+      "add_areas": [
+        {
+          "id": "nebenfach",
+          "name": "Nebenfach",
+          "kind": "wahl",
+          "type": "nebenfach",
+          "lp_required": 30,
+          "semester": 1,
+          "rule": "Ein Nebenfach im Umfang von 30 LP; die Module regeln die Studienordnungen der Nebenfächer."
+        }
+      ]
+    },
+    "internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5213 (PO IIM-SWIKK, § 5 Abs. 2)",
+      "add_areas": [
+        {
+          "id": "nebenfach",
+          "name": "Nebenfach",
+          "kind": "wahl",
+          "type": "nebenfach",
+          "lp_required": 30,
+          "semester": 1,
+          "rule": "Ein Nebenfach im Umfang von 30 LP; die Module regeln die Studienordnungen der Nebenfächer."
+        }
+      ]
+    },
+    "internationale-kommunikation-und-uebersetzen|b.a.|2024": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5108 (PO IKÜ 2024, Anlage 8)",
+      "add_areas": [
+        {
+          "id": "nebenfach",
+          "name": "Nebenfach",
+          "kind": "wahl",
+          "type": "nebenfach",
+          "lp_required": 15,
+          "semester": 3,
+          "rule": "Studienvariante A: Nebenfach 15 LP; Studienvariante B: 30 LP, ein langes Nebenfach (30 LP) oder zwei kurze (je 15 LP).",
+          "lp_max": 30
+        }
+      ]
+    },
+    "barrierefreie-kommunikation|m.a.|2019": {
+      "source": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669 (PO Barrierefreie Kommunikation, § 22)",
+      "area_patterns": [
+        {
+          "match": "Profil",
+          "set": {
+            "kind": "wahl",
+            "lp_required": 10,
+            "rule": "Profilmodul (Forschung oder Praxis): 10 LP."
+          }
+        }
+      ]
+    }
+  }
+}

@@ -363,7 +363,15 @@ final class HardeningSolutionRoundTripTests: XCTestCase {
             let layer = load.layers[0]
             XCTAssertEqual(layer.id, entry.solutionID)
             XCTAssertEqual(layer.displayName, content.displayName)
-            XCTAssertEqual(layer.pages.map(\.key), c.expectedKeys, "Dokument \(i): Seitenauswahl")
+            // gewaehlte Notizseiten bringen ihre Folie mit (05.11.2026, docs/NOTIZEN-MITSCHICKEN-2026-11-05.md), nur
+            // Folien ohne Pruefproblem - wie SolutionSharing.content
+            let infos = source.pageInfos
+            let withSlides = SolutionBuilder.withSlides(c.doc, keys: c.expectedKeys) { slide in
+                SolutionBuilder.pageProblems(c.doc, keys: [slide], pdfPageCount: source.pdfPageCount, pdfPage: { infos[$0] }).isEmpty
+            }
+            let chosen = Set(withSlides)                    // in der Reihenfolge des Dokuments
+            let inOrder = c.doc.pageOrder.compactMap { $0["key"]?.string }.filter { chosen.contains($0) }
+            XCTAssertEqual(layer.pages.map(\.key), inOrder, "Dokument \(i): Seitenauswahl")
 
             // jede Anmerkung exakt gleich: Werte (==) und Bytes der kanonischen Form (auch NFC/NFD und -0); Striche wie
             // Formatversion 2 sie uebertraegt (Punkte auf 0,1 Punkt, Breiten auf 0,01 Punkt)

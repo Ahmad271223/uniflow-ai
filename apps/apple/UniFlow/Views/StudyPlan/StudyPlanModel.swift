@@ -716,6 +716,16 @@ enum StudyPlanText {
     static let title = "Studienverlauf"
     static let disclaimer = "Verbindlich ist die Prüfungsordnung deiner Hochschule."
     static let noQIS = "Verbinde QIS, damit StudiNow deinen Studiengang kennt"
+    /// Quelle des Notenspiegels: "LSF" an der Uni Hildesheim, "Campusmanagement" (HISinOne) an der HsH, sonst "QIS" (LUH)
+    static func gradeSource(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "Campusmanagement" : hildesheim ? "LSF" : "QIS" }
+    /// "in QIS", "im LSF", "im Campusmanagement"
+    static func gradeSourceIn(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "im Campusmanagement" : hildesheim ? "im LSF" : "in QIS" }
+    /// "aus QIS", "aus dem LSF", "aus dem Campusmanagement"
+    static func gradeSourceFrom(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "aus dem Campusmanagement" : hildesheim ? "aus dem LSF" : "aus QIS" }
+    static func noQIS(hildesheim: Bool, hsh: Bool = false) -> String {
+        hsh ? "Melde dich im Campusmanagement an, damit StudiNow deinen Studiengang kennt"
+            : hildesheim ? "Verbinde das LSF, damit StudiNow deinen Studiengang kennt" : noQIS
+    }
     static let noQISSub = "Aus deinem Notenspiegel liest StudiNow Studiengang und Prüfungsordnung. Deine Noten bleiben auf diesem Gerät."
     static let noCatalog = "Noch kein Katalog für deinen Studiengang"
     static let noCatalogSub = "Für deinen Studiengang kennt StudiNow noch keinen Modulkatalog. Hast du einen Link zum Modulhandbuch (PDF)? Dann lädt StudiNow ihn wie ein Browser."

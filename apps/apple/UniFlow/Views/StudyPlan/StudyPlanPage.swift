@@ -20,6 +20,9 @@ struct StudyPlanPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Uni Hildesheim: Notenspiegel aus dem LSF statt QIS (nur fuer die Texte)
+    @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.hsh) private var hsh
 
     /// Modul (id oder Titel), das beim Oeffnen gezeigt wird ("Im Studienverlauf zeigen" auf der Modulseite)
     var focus: String?
@@ -237,7 +240,7 @@ struct StudyPlanPage: View {
 
     private func poSub(_ p: StudyPlan, suggested: String) -> String {
         if let q = p.qisProgram, !q.isEmpty {
-            return "QIS nennt „\(q)“. Der passende aktuelle Katalog gehört zur PO \(suggested) – stimmt das?"
+            return "\(StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil)) nennt „\(q)“. Der passende aktuelle Katalog gehört zur PO \(suggested) – stimmt das?"
         }
         return "StudiNow hat die passende Ordnung vorgeschlagen. Bestätige sie oder wähle eine andere."
     }
@@ -322,7 +325,7 @@ struct StudyPlanPage: View {
     @ViewBuilder private func gapCard(_ p: StudyPlan) -> some View {
         switch p.gap ?? .other("") {
         case .noQIS:
-            StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: StudyPlanText.noQIS, text: StudyPlanText.noQISSub) {
+            StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: StudyPlanText.noQIS(hildesheim: hildesheim != nil, hsh: hsh != nil), text: StudyPlanText.noQISSub) {
                 UFButton("Zu Uni & Noten", icon: "arrow-right", kind: .primary) { router.go(.services) }
                     .accessibilityIdentifier("studyplan.qis")
             }

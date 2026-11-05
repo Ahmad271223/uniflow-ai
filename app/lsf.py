@@ -35,6 +35,20 @@ def login(page, user: str, password: str, log: Callable[[str], None] = print) ->
     cas.login(page, SSO_ENTRY, HILDESHEIM_CAS, user, password, lambda: "lsf." in page.url and is_logged_in(page), log)
 
 
+NOTICE_RE = re.compile(r"\+\+\+\s*([^+<>]{5,400}?)\s*\+\+\+")
+
+
+def maintenance_notice(html_text: str) -> str | None:
+    """Wartungshinweis im Kopf der LSF-Seite ("+++ Wegen Wartungsarbeiten steht PLuS/LSF/POS am ... +++", Befund
+    05.11.2026); der versteckte Text "... noch nicht das neue Layout geladen" zaehlt nie. Wie LSFClient.maintenanceNotice."""
+    from . import announcements
+    m = NOTICE_RE.search(announcements.html_to_text(html_text or ""))
+    if not m:
+        return None
+    n = " ".join(m.group(1).split())
+    return None if not n or "neue layout" in n.lower() else n
+
+
 def plan_ics_link(html_text: str) -> str | None:
     """iCal-Link des ganzen Stundenplans aus der Stundenplan-Seite."""
     m = re.search(r'href="([^"]*moduleCall=iCalendarPlan[^"]*)"', html_text or "")

@@ -25,7 +25,9 @@ public enum Exams {
     static let qisRegisteredRE = HText.regex(#"^\s*an\s*$|angemeldet"#, [.caseInsensitive])
     static let qisDateRE = HText.regex(#"^\s*(\d{1,2})\.(\d{1,2})\.(\d{4})|^\s*(\d{4})-(\d{2})-(\d{2})"#)
     /// Vorrang der Quellen; ein automatisch uebernommener Modultermin kommt nur dazu, wenn keine andere Quelle den Tag nennt
-    static let order: [String: Int] = ["studip": 0, "modul": 1, "qis": 2, "frist": 3, "ankuendigung": 4, "nachricht": 5, "erkannt": 6, "modul_auto": 9]
+    /// Quelle der gelesenen Anmeldungen (QIS-Info-Seite bzw. "Meine POS-Anmeldungen")
+    static let registrationLabel = "aus deinen angemeldeten Prüfungen"
+    static let order: [String: Int] = ["studip": 0, "modul": 1, "qis": 2, "anmeldung": 2, "frist": 3, "ankuendigung": 4, "nachricht": 5, "erkannt": 6, "modul_auto": 9]
     static let deadlineSources = ["learnweb": "aus dem Learnweb-Kalender", "studip": "aus Stud.IP Courseware", "demo": "aus den Demo-Inhalten"]
 
     // MARK: Texte
@@ -202,6 +204,13 @@ public enum Exams {
             let text = r["text"]?.string
             out.append(Candidate(kind: "qis", label: "aus QIS (angemeldet)", date: iso, moduleID: try ModuleGuess.guessModule(c, title: text)?.int,
                                  name: text, titleName: text, word: "Prüfung"))
+        }
+        // gelesene Anmeldungen mit Termin ("Info über angemeldete Prüfungen" im QIS der LUH bzw. "Meine POS-Anmeldungen" im
+        // LSF der Uni Hildesheim, `QISRegistrationsSync`), mit Uhrzeit und Raum; nur angemeldete; Vorrang wie QIS
+        for r in try QISRegistrationsSync.rows(c) where r.registered {
+            guard let iso = r.isoDate, inWindow(iso) else { continue }
+            out.append(Candidate(kind: "anmeldung", label: registrationLabel, date: iso, time: r.clock, room: nonEmpty(r.room),
+                                 moduleID: try ModuleGuess.guessModule(c, title: r.text)?.int, name: r.text, titleName: r.text, word: "Prüfung"))
         }
         // Fristen mit Klausur im Namen (Learnweb-Test "E-Klausur", Courseware)
         for r in try c.rows("""

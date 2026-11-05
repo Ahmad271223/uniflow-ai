@@ -54,6 +54,7 @@ enum UFIconNames {
         "grid",
         "list",
         "star",
+        "utensils",
         "clock",
         "alert",
         "play",
@@ -85,5 +86,13 @@ enum UFIconNames {
         "log-out",
         "user",
         "graduation",
+        "heart",
+        "message",
+        "share",
+        "eye",
+        "eye-off",
+        "map-pin",
+        "reply",
+        "upload",
     ]
 }

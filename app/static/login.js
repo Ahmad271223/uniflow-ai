@@ -9,7 +9,7 @@ import { serviceError } from "./service-errors.js?v=1";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
+const UNI = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim", hsh: "Hochschule Hannover" };
 const post = async (path, body) => {
   const r = await fetch("/api/account" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   let d = null; try { d = await r.json(); } catch {}

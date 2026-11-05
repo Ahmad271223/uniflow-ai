@@ -33,6 +33,7 @@ public final class LocalBackend: Sendable {
         StudIPBlubberEndpoints.self,
         StudIPMessagesEndpoints.self,
         OlderSemesterEndpoints.self,
+        SyncOrderEndpoints.self,
         DemoEndpoints.self,
         PendingOverviewEndpoints.self,
         PendingServicesEndpoints.self,
@@ -41,6 +42,7 @@ public final class LocalBackend: Sendable {
         RecentEndpoints.self,
         StudyPlanEndpoints.self,
         StudyCatalogEndpoints.self,
+        MensaEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

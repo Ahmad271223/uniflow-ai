@@ -1,7 +1,7 @@
 // Erststart in Web und Windows (05.11.2026, wie OnboardingFlow/FirstLoginFlow auf dem iPad): nach der Anmeldung mit dem
 // StudiNow-Konto einmal je Hochschule Willkommen (Rufname), Hochschule waehlen, an der Hochschule anmelden, Tarif.
 // Regeln und Texte: onboarding-logic.js. Gespeichert wird nur in den Einstellungen (rufname, onboarding_done).
-import * as O from "./onboarding-logic.js?v=1";
+import * as O from "./onboarding-logic.js?v=2";
 import { gateState } from "./account-gate.js?v=1";
 
 const PENDING = "uniflow.rufname.pending";      // Rufname ueber einen Neustart (Hochschulwechsel am PC) hinweg

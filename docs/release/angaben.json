@@ -54,6 +54,7 @@
     "ipad_skriptsuche": false,
     "ipad_community_online": false,
     "android_karteikarten": false,
-    "android_community": false
+    "android_community": false,
+    "ipad_hsh": false
   }
 }

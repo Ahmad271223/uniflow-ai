@@ -53,6 +53,8 @@ app.include_router(library_api.router)
 app.include_router(doc_index.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
+from . import sync_order_api  # noqa: E402 - Stufen des Abgleichs und Module je Semester (05.11.2026)
+app.include_router(sync_order_api.router)
 from . import invites_api  # noqa: E402 - Einladungen mit Angebotscodes (Routen /api/invites, /api/billing/offer-codes)
 app.include_router(invites_api.router)
 from . import page_explain_api  # noqa: E402 - Erklaerungsspeicher (Routen /api/explain, app/page_explain.py)
@@ -82,6 +84,10 @@ app.include_router(account_mode_api.router)     # Windows-App: Anmelden, Abo, Ex
 app.include_router(app_login_api.router)        # Dienst: Anmeldung der Windows-App ueber den Browser (/api/app-login)
 from . import ai_relay  # noqa: E402 - StudiNow-KI am PC ueber das Konto (/api/ai/relay im Dienst, /api/ai/source)
 app.include_router(ai_relay.router)
+from . import mensa_api  # noqa: E402 - Mensa: Speiseplaene LUH/HsH/Hildesheim, frei in jedem Tarif (/api/mensa, docs/MENSA-2026-11-05.md)
+app.include_router(mensa_api.router)
+from . import moodle_api  # noqa: E402 - Abgeben in Moodle am PC (HsH, Learnweb Hildesheim; app/moodle.py)
+app.include_router(moodle_api.router)
 db.init_db()
 
 
@@ -696,6 +702,7 @@ def _full_sync():
         # Der eigentliche Fehler (z. B. "Anmeldung bei Stud.IP noetig") soll in der Oberflaeche stehen, nicht ein
         # Folgefehler des Planers wie "Keine Kurse vorhanden" (Befund 27.10.2026)
         raise RuntimeError(res.get("message") or "Abgleich fehlgeschlagen")
+    _after_current()
     n = planner.analyze_pending()
     with db.cursor() as conn:
         s = db.get_settings(conn)
@@ -709,6 +716,21 @@ def _full_sync():
         except Exception as e:  # noqa: BLE001
             print(f"Wochentest-Takt: {e}")
     return f"{len(res['new_files'])} neue Dateien, {n} analysiert"
+
+
+def _after_current() -> None:
+    """Nach dem aktuellen Semester (Stufe a und c im Abgleich der Hochschule, app/sync_order.py): (b) Noten, wenn
+    faellig, dann (d) fruehere Semester in einem eigenen Hintergrundfaden, solange die App offen ist."""
+    from . import sync_order
+    sync_order.run_grades_if_due(log=print)
+    sync_order.start_older_background(log=print)
+
+
+def _sync_without_ai():
+    res = run_sync()
+    if res.get("ok"):
+        _after_current()
+    return res["message"]
 
 
 # ----------------------------------------------------------------------------
@@ -749,7 +771,7 @@ def sync_now(ai: bool = True):
             raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
         j = jobs.enqueue(uid, "sync", "manual")
         return {"started": "Sync", "job_id": j["id"], "status": j["status"], "already": j["already"]}
-    return _run_bg("Sync", _full_sync if ai else lambda: run_sync()["message"])
+    return _run_bg("Sync", _full_sync if ai else _sync_without_ai)
 
 
 @app.get("/api/sync/changes")
@@ -3246,7 +3268,7 @@ SERVICES = [
     {"key": "luhki", "name": "LUHKI", "url": "https://www.luis.uni-hannover.de/de/services/anwendungen/luhki-2", "desc": "KI-Plattform der LUH", "login": "LUH-ID", "icon": "sparkles"},
     {"key": "gitlab", "name": "GitLab (LUIS)", "url": "https://www.luis.uni-hannover.de/de/services/anwendungen/versionsverwaltung-von-software-projekten-gitlab", "desc": "Versionsverwaltung für Programmieren-Projekte", "login": "LUH-ID", "icon": "file-text"},
     {"key": "tib", "name": "TIB Bibliothek", "url": "https://www.tib.eu/", "desc": "Literatur, Lernplätze, Ausleihe", "login": "Bibliotheksausweis", "icon": "book"},
-    {"key": "mensa", "name": "Mensa (Studentenwerk)", "url": "https://www.studentenwerk-hannover.de/essen/speiseplaene", "desc": "Speisepläne der Mensen", "login": "–", "icon": "sun"},
+    {"key": "mensa", "name": "Mensa (Studentenwerk)", "url": "https://www.studentenwerk-hannover.de/essen/mensen-und-cafes", "desc": "Speisepläne der Mensen", "login": "–", "icon": "sun"},
     {"key": "servicecenter", "name": "ServiceCenter", "url": "https://www.uni-hannover.de/de/studium/beratung-hilfe/servicecenter", "desc": "Immatrikulation, Rückmeldung, Beratung", "login": "–", "icon": "info"},
     {"key": "luis", "name": "LUIS IT-Support", "url": "https://www.luis.uni-hannover.de/de/services/kurse-beratung-und-support/it-support", "desc": "WLAN, VPN, Software, Zugänge", "login": "–", "icon": "settings"},
 ]
@@ -3280,12 +3302,12 @@ def api_services():
     creds["hildesheim"] = _hildesheim_creds()
     q = creds["qis"]
     hi = uni["key"] == "hildesheim"
-    return {"services": universities.HILDESHEIM_SERVICES if hi else SERVICES, "credentials": creds,
+    return {"services": universities.services(uni["key"]) or SERVICES, "credentials": creds,
             "university": {k: uni[k] for k in ("key", "name", "short", "files_source", "grades_source", "login", "user_label")},
             "universities": [{"key": k, "name": v["name"]} for k, v in universities.PROFILES.items()],
             "university_next": config.configured_university(),
             "learnweb": {"token_set": bool(config.secret("LEARNWEB_TOKEN"))},
-            "qis": {"configured": creds["hildesheim"]["configured"] if hi else q["configured"],
+            "qis": {"configured": qis.configured("hsh") if uni["key"] == "hsh" else (creds["hildesheim"]["configured"] if hi else q["configured"]),
                     "same_as_studip": False if hi else (q.get("same_as") == "studip" or (not q["configured"])), "last_run": s["last_run"]},
             "studip": {"configured": creds["studip"]["configured"]}}
 
@@ -3305,6 +3327,9 @@ def put_learnweb_token(body: dict = Body(...)):
 
 # Weitere Hosts der LUH-Anmeldung (WebSSO/Shibboleth), die das Geraet in seiner Anmeldeansicht zulassen muss
 _LUH_SSO_HOSTS = ("sso.idm.uni-hannover.de", "login.uni-hannover.de")
+# HsH: SAML-Anmeldung von HISinOne (/qisserver/api/identityprovider/redirect/4/login) beim IdP der Hochschule
+# (SimpleSAMLphp, /simplesaml/module.php/saml/idp/singleSignOnService) und das alte QIS icms.hs-hannover.de (Iframe)
+_HSH_SSO_HOSTS = ("idp.hs-hannover.de", "icms.hs-hannover.de")   # IdP (SimpleSAMLphp) und altes QIS
 
 
 def university_profile(key: str) -> dict:
@@ -3322,6 +3347,12 @@ def university_profile(key: str) -> dict:
         out.update({"login_url": f"{lw}/login/index.php?authCAS=CAS", "logged_in_check_url": f"{lw}/my/", "session_cookie": "MoodleSession",
                     "hosts": [host, urlsplit(universities.LSF_BASE).hostname or ""], "file_host": host,
                     "learnweb_base": lw, "cas_base": universities.HILDESHEIM_CAS})
+    elif key == "hsh":
+        from . import hisinone, hsh
+        host = urlsplit(hsh.moodle_base()).hostname or ""
+        out.update({"login_url": hsh.login_url(), "logged_in_check_url": f"{hsh.moodle_base()}/my/", "session_cookie": "MoodleSession",
+                    "hosts": [host, hisinone.HOST, *_HSH_SSO_HOSTS], "file_host": host, "learnweb_base": hsh.moodle_base(), "cas_base": None,
+                    "campus_login_url": hisinone.SSO_LOGIN_URL, "campus_start_url": hisinone.START_URL})
     else:
         host = urlsplit(studip_sync.STUDIP_BASE).hostname or ""
         out.update({"login_url": studip_sync.LOGIN_URL, "logged_in_check_url": f"{studip_sync.STUDIP_BASE}/jsonapi.php/v1/users/me",

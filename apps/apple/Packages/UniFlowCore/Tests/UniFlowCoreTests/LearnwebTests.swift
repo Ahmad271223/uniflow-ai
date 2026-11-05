@@ -464,14 +464,19 @@ final class LearnwebTests: XCTestCase {
             let (r, net) = try await cancelledSync(at: at, throwing: error)
             XCTAssertTrue(r.cancelled, at)
             XCTAssertFalse(r.ok, at)
-            XCTAssertTrue(r.needsLogin.isEmpty, at)
+            // seit 05.11.2026 (`SyncOrder`) kommt der LSF-Stundenplan vor Learnweb (hier ohne LSF-Sitzung); Learnweb
+            // selbst meldet keinen Anmeldefehler
+            XCTAssertFalse(r.needsLogin.contains("Learnweb"), at)
             XCTAssertEqual(r.notAttempted, expected, at)
             XCTAssertEqual(r.completed, [], at)
             XCTAssertTrue(r.failedCourses.isEmpty, "Abbruch ist kein Fehler der Kurse: \(r.failedCourses)")
             let contents = net.requests.compactMap { self.form($0)["wsfunction"] == "core_course_get_contents" ? self.form($0)["courseid"] : nil }
             XCTAssertEqual(contents.last, at, "nach dem Abbruch keine weiteren Anfragen")
             XCTAssertEqual(contents.filter { $0 == at }.count, 1, "abgebrochene Anfrage wird nicht wiederholt")
-            XCTAssertEqual(net.count(LSFClient.planURL), 0, "nach dem Abbruch auch kein LSF")
+            XCTAssertEqual(net.count(LSFClient.planURL), 1, "Stundenplan einmal vor den Dateien, nach dem Abbruch kein LSF mehr")
+            let lastLSF = net.requests.lastIndex { $0.url.absoluteString.hasPrefix(HildesheimCAS.lsfBase) } ?? -1
+            let cancelled = net.requests.firstIndex { self.form($0)["courseid"] == at } ?? -1
+            XCTAssertLessThan(lastLSF, cancelled, "nach dem Abbruch keine LSF-Anfrage (Noten)")
         }
     }
 

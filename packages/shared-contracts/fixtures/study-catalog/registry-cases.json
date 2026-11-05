@@ -3,6 +3,7 @@
   {
    "label": "Technische Informatik (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -18,6 +19,7 @@
   {
    "label": "Technische Informatik (PO-Version 2022)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -33,6 +35,7 @@
   {
    "label": "Technische Informatik (PO-Version 2017)",
    "po": "TIBSc22",
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -48,6 +51,7 @@
   {
    "label": "Technische Informatik (PO-Version 2017)",
    "po": "TIBSc25",
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -63,6 +67,7 @@
   {
    "label": "Technische Informatik (PO-Version 2025)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -78,6 +83,7 @@
   {
    "label": "Technische Informatik (PO-Version 2017)",
    "po": "2022",
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -93,6 +99,7 @@
   {
    "label": "  technische   informatik  ",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -108,6 +115,7 @@
   {
    "label": "Informatik (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "informatik-bsc",
@@ -123,6 +131,7 @@
   {
    "label": "Informatik Bachelor (PO-Version 2022)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "informatik-bsc",
@@ -138,6 +147,7 @@
   {
    "label": "Informatik Master (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "informatik-m-sc",
@@ -153,6 +163,7 @@
   {
    "label": "Abschluss: Bachelor Informatik PO-Version: 2017",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "informatik-bsc",
@@ -168,6 +179,7 @@
   {
    "label": "Elektrotechnik und Informationstechnik (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "elektrotechnik-und-informationstechnik-b-sc",
@@ -183,11 +195,13 @@
   {
    "label": "Musterfach (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": null
   },
   {
    "label": "Elektrotechnik und Informationstechnik (PO-Version 2025)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "elektrotechnik-und-informationstechnik-b-sc",
@@ -203,6 +217,7 @@
   {
    "label": "Technische Informatik Master (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-m-sc",
@@ -218,6 +233,7 @@
   {
    "label": "Maschinenbau (PO-Version 2017)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "maschinenbau-b-sc",
@@ -233,6 +249,7 @@
   {
    "label": "Mathematik (PO-Version 2020)",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "mathematik-b-sc",
@@ -248,6 +265,7 @@
   {
    "label": "Physik Bachelor",
    "po": null,
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "physik-b-sc",
@@ -263,6 +281,7 @@
   {
    "label": "Technische Informatik (PO-Version 2017)",
    "po": "ETBSc25",
+   "university": "luh",
    "result": {
     "university": "luh",
     "program_id": "technische-informatik-bsc",
@@ -278,6 +297,131 @@
   {
    "label": "",
    "po": null,
+   "university": "luh",
+   "result": null
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [079] B.Sc. Angewandte Informatik PO-Version: 2024",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "angewandte-informatik-b-sc",
+    "program": "Angewandte Informatik",
+    "degree": "B.Sc.",
+    "po": "2024",
+    "code": "angewandte-informatik|b.sc.|2024",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [079] B.Sc. Angewandte Informatik PO-Version: 2024",
+    "qis_po": "2024",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [88] Master Studiengang: [079] M.Sc. Angewandte Informatik PO-Version: 2024",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "angewandte-informatik-m-sc",
+    "program": "Angewandte Informatik",
+    "degree": "M.Sc.",
+    "po": "2024",
+    "code": "angewandte-informatik|m.sc.|2024",
+    "qis_label": "Abschluss: [88] Master Studiengang: [079] M.Sc. Angewandte Informatik PO-Version: 2024",
+    "qis_po": "2024",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [277] B.Sc. Wirtschaftsinformatik PO-Version: 2019",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "wirtschaftsinformatik-b-sc",
+    "program": "Wirtschaftsinformatik",
+    "degree": "B.Sc.",
+    "po": "2024",
+    "code": "wirtschaftsinformatik|b.sc.|2024",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [277] B.Sc. Wirtschaftsinformatik PO-Version: 2019",
+    "qis_po": "2019",
+    "needs_confirmation": true
+   }
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [026] B.A. Biologie PO-Version: 2025",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "biologie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+    "program": "Biologie im Polyvalenten Zwei-Fächer-Bachelor",
+    "degree": "B.A./B.Sc.",
+    "po": "2025",
+    "code": "biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [026] B.A. Biologie PO-Version: 2025",
+    "qis_po": "2025",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [Ed] Master of Education Studiengang: [026] M.Ed. Biologie PO-Version: 2026",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "biologie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+    "program": "Biologie im Master Lehramt an Haupt- und Realschulen",
+    "degree": "M.Ed.",
+    "po": "2026",
+    "code": "biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+    "qis_label": "Abschluss: [Ed] Master of Education Studiengang: [026] M.Ed. Biologie PO-Version: 2026",
+    "qis_po": "2026",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [132] B.Sc. Psychologie PO-Version: 2021",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "psychologie-b-sc",
+    "program": "Psychologie",
+    "degree": "B.Sc.",
+    "po": "2021",
+    "code": "psychologie|b.sc.|2021",
+    "qis_label": "Abschluss: [82] Bachelor Studiengang: [132] B.Sc. Psychologie PO-Version: 2021",
+    "qis_po": "2021",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Psychologie (PO-Version 2021)",
+   "po": null,
+   "university": "hildesheim",
+   "result": {
+    "university": "hildesheim",
+    "program_id": "psychologie-b-sc",
+    "program": "Psychologie",
+    "degree": "B.Sc.",
+    "po": "2021",
+    "code": "psychologie|b.sc.|2021",
+    "qis_label": "Psychologie (PO-Version 2021)",
+    "qis_po": "2021",
+    "needs_confirmation": false
+   }
+  },
+  {
+   "label": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022",
+   "po": null,
+   "university": "hildesheim",
+   "result": null
+  },
+  {
+   "label": "Abschluss: [82] Bachelor",
+   "po": null,
+   "university": "hildesheim",
    "result": null
   }
  ],

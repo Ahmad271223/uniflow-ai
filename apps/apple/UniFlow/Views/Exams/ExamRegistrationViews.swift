@@ -12,6 +12,9 @@ import UniFlowCore
 // - Moduldetails im Studienverlauf und Modulseite: Block "Prüfung anmelden" (`ExamRegistrationModuleBlock`)
 // "Im QIS anmelden" oeffnet nur "Mein Studium" im In-App-Browser (`openURL` -> `UniWebBrowser`, gleiche Cookies wie
 // der Notenabruf); anmelden und bestaetigen tut der Mensch dort selbst. Die App fuellt nichts aus und schickt nichts ab.
+// Uni Hildesheim (`system` "LSF"): "Im LSF anmelden" oeffnet die Startseite des LSF (`UniversityProfile.hildesheimLSFStart`),
+// der Meldezeitraum hat kein Ende (`openEnd`: Start der POS-Anmeldung, Fristen je Pruefung im LSF), "Angemeldete Prüfungen
+// abrufen" liest "Meine POS-Anmeldungen" (`HildesheimConnection.fetchRegistrations`).
 
 /// Antwort von GET /api/exam-registration
 struct ExamRegistrationState: Equatable {
@@ -24,6 +27,8 @@ struct ExamRegistrationState: Equatable {
         let phase: String
         let daysLeft: Int
         let daysUntil: Int
+        /// kein Ende bekannt (Uni Hildesheim: Fristen je Pruefung im LSF); `end` ist dann das Semesterende
+        let openEnd: Bool
 
         init?(_ v: JSONValue?) {
             guard let v, let term = v.s("term"), let start = v.s("start"), let end = v.s("end") else { return nil }
@@ -35,6 +40,7 @@ struct ExamRegistrationState: Equatable {
             phase = v.s("phase") ?? "later"
             daysLeft = v.i("days_left") ?? 0
             daysUntil = v.i("days_until") ?? 0
+            openEnd = v["open_end"]?.bool ?? false
         }
 
         var isOpen: Bool { phase == "open" }
@@ -45,6 +51,7 @@ struct ExamRegistrationState: Equatable {
         let label: String
         let start: String
         let end: String
+        var openEnd = false
         var id: String { kind + start + end }
     }
 
@@ -117,6 +124,12 @@ struct ExamRegistrationState: Equatable {
     let hint: String
     let rules: [String]
     let disclaimer: String
+    /// "QIS" (LUH) oder "LSF" (Uni Hildesheim)
+    let system: String
+    /// "Im QIS anmelden" / "Im LSF anmelden"
+    let openLabel: String
+    /// Hinweis statt der Zeitraeume (Uni Hildesheim: keine einheitliche Frist)
+    let periodNote: String?
 
     init(_ v: JSONValue) {
         supported = v["supported"]?.bool ?? false
@@ -127,7 +140,10 @@ struct ExamRegistrationState: Equatable {
         term = v.s("term")
         window = Window(v["window"])
         vbpWindow = Window(v["vbp_window"])
-        periods = v.list("periods").map { Period(kind: $0.s("kind") ?? "", label: $0.s("label") ?? "", start: $0.s("start") ?? "", end: $0.s("end") ?? "") }
+        periods = v.list("periods").map {
+            Period(kind: $0.s("kind") ?? "", label: $0.s("label") ?? "", start: $0.s("start") ?? "", end: $0.s("end") ?? "",
+                   openEnd: $0["open_end"]?.bool ?? false)
+        }
         showCard = v["show_card"]?.bool ?? false
         planAvailable = v["plan_available"]?.bool ?? false
         planMessage = v.s("plan_message")
@@ -145,6 +161,9 @@ struct ExamRegistrationState: Equatable {
         hint = v.s("hint") ?? ExamRegistrationAPI.hint
         rules = v.list("rules").compactMap { $0.string }
         disclaimer = v.s("disclaimer") ?? ExamRegistrationAPI.disclaimer
+        system = v.s("system") ?? "QIS"
+        openLabel = v.s("open_label") ?? ExamRegistrationAPI.openLabel(system)
+        periodNote = v.s("period_note")
     }
 
     static func == (a: Self, b: Self) -> Bool {
@@ -184,9 +203,17 @@ enum ExamRegistrationText {
         start == end ? UFFmt.date(end) : "\(UFFmt.date(start).prefix(6))–\(UFFmt.date(end))"
     }
 
-    /// Zeile zum Fenster: "Meldezeitraum 09.11.–22.11.2026 · noch 13 Tage", "Anmeldung ab Mo, 09.11. (bis So, 22.11.)"
-    static func windowLine(_ w: ExamRegistrationState.Window) -> String {
+    /// Zeile zum Fenster: "Meldezeitraum 09.11.–22.11.2026 · noch 13 Tage", "Anmeldung ab Mo, 09.11. (bis So, 22.11.)";
+    /// ohne Ende (Uni Hildesheim): "Anmeldung im LSF seit Mi, 11.11. · Fristen je Prüfung im LSF"
+    static func windowLine(_ w: ExamRegistrationState.Window, system: String = "QIS") -> String {
         let what = w.kind == "vbp_meldung" ? "Meldezeitraum VbP" : "Meldezeitraum"
+        if w.openEnd {
+            switch w.phase {
+            case "open": return "Anmeldung im \(system) seit \(dayShort(w.start)) · Fristen je Prüfung im \(system)"
+            case "soon": return "Anmeldung im \(system) ab \(dayShort(w.start)) (\(w.term)) · Fristen je Prüfung"
+            default: return "Nächste Anmeldung im \(system): ab \(UFFmt.date(w.start)) (\(w.term))"
+            }
+        }
         switch w.phase {
         case "open":
             let left: String
@@ -220,19 +247,31 @@ enum ExamRegistrationText {
             .filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
+    /// Name der Seite mit den angemeldeten Pruefungen: QIS "Info über angemeldete Prüfungen", LSF "Meine POS-Anmeldungen"
+    static func infoPage(_ system: String) -> String {
+        system == "LSF" ? "Meine POS-Anmeldungen" : "Info über angemeldete Prüfungen"
+    }
+
     /// "Abgehakt über den Notenspiegel (AN)" / "aus „Info über angemeldete Prüfungen“"
-    static func via(_ s: ExamRegistrationState.Suggestion) -> String? {
+    static func via(_ s: ExamRegistrationState.Suggestion, system: String = "QIS") -> String? {
         switch s.registeredVia {
-        case "notenspiegel": return "im Notenspiegel als angemeldet (AN) geführt"
-        case "qis_info": return "laut „Info über angemeldete Prüfungen“"
+        case "notenspiegel": return system == "LSF" ? "im Notenspiegel als angemeldet geführt" : "im Notenspiegel als angemeldet (AN) geführt"
+        case "qis_info": return "laut „\(infoPage(system))“"
         default: return nil
         }
+    }
+
+    /// "09.11.–22.11.2026", ohne Ende "ab 11.11.2026"
+    static func periodRange(_ p: ExamRegistrationState.Period) -> String {
+        p.openEnd ? "ab \(UFFmt.date(p.start))" : range(p.start, p.end)
     }
 
     /// Stand des letzten Abrufs der Info-Seite
     static func checked(_ st: ExamRegistrationState) -> String {
         guard let at = st.registrationsCheckedAt else {
-            return "Angemeldete Prüfungen noch nicht abgerufen. Abgehakt wird schon, was der Notenspiegel als „AN“ führt."
+            return st.system == "LSF"
+                ? "Angemeldete Prüfungen noch nicht abgerufen. Abgehakt wird schon, was der Notenspiegel als angemeldet führt."
+                : "Angemeldete Prüfungen noch nicht abgerufen. Abgehakt wird schon, was der Notenspiegel als „AN“ führt."
         }
         let when = "\(UFFmt.date(String(at.prefix(10)))) \(at.dropFirst(11).prefix(5)) Uhr"
         return "Zuletzt abgerufen \(when)" + (st.registrationsMessage.map { ": \($0)" } ?? "")
@@ -241,29 +280,57 @@ enum ExamRegistrationText {
 
 // MARK: - Knoepfe
 
-/// "Im QIS anmelden": oeffnet "Mein Studium" im In-App-Browser der Hochschule (`openURL` -> `UniWebBrowser`)
+/// "Im QIS anmelden": oeffnet "Mein Studium" im In-App-Browser der Hochschule (`openURL` -> `UniWebBrowser`); Uni
+/// Hildesheim "Im LSF anmelden": Startseite des LSF
 struct ExamRegistrationQISButton: View {
     let url: URL?
+    var system: String = "QIS"
     var size: UFButtonSize = .regular
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         if let url {
-            UFButton("Im QIS anmelden", icon: "arrow-right", kind: .primary, size: size) { openURL(url) }
+            UFButton(ExamRegistrationAPI.openLabel(system), icon: "arrow-right", kind: .primary, size: size) { openURL(url) }
                 .fixedSize()
-                .accessibilityHint("Öffnet das QIS. Anmelden und bestätigen tust du dort selbst.")
+                .accessibilityHint("Öffnet das \(system). Anmelden und bestätigen tust du dort selbst.")
                 .accessibilityIdentifier("examreg.qis")
         }
     }
 }
 
-/// "Angemeldete Prüfungen abrufen" (nur lesend) bzw. "QIS verbinden"
+/// "Angemeldete Prüfungen abrufen" (nur lesend) bzw. "QIS verbinden"; Uni Hildesheim: "Meine POS-Anmeldungen" im LSF
 struct ExamRegistrationFetchButton: View {
     let reload: () async -> Void
     @Environment(\.qis) private var qis
+    @Environment(\.hildesheim) private var hildesheim
 
     var body: some View {
-        if let qis { Inner(connection: qis, reload: reload) }
+        if let qis {
+            Inner(connection: qis, reload: reload)
+        } else if let hildesheim {
+            LSFInner(connection: hildesheim, reload: reload)
+        }
+    }
+
+    /// LSF der Uni Hildesheim: nur mit verbundenem LSF (Verbinden in Dienste/Einstellungen wie beim Notenspiegel)
+    private struct LSFInner: View {
+        @ObservedObject var connection: HildesheimConnection
+        let reload: () async -> Void
+
+        var body: some View {
+            if connection.isConnected(.lsf) && connection.lsf != .needsLogin {
+                UFButton(connection.registrationsRunning ? "Ruft ab …" : "Angemeldete Prüfungen abrufen", icon: "sync", size: .small) {
+                    Task {
+                        await connection.fetchRegistrations()
+                        await reload()
+                    }
+                }
+                .disabled(connection.registrationsRunning || connection.isRunning)
+                .fixedSize()
+                .accessibilityHint("Liest „Meine POS-Anmeldungen“ im LSF, nur lesend.")
+                .accessibilityIdentifier("examreg.fetch")
+            }
+        }
     }
 
     private struct Inner: View {
@@ -380,6 +447,7 @@ private struct ExamRegistrationLoader<Content: View>: View {
     var token: String = ""
     @ViewBuilder let content: (ExamRegistrationState?, @escaping () async -> Void) -> Content
     @Environment(\.qis) private var qis
+    @Environment(\.hildesheim) private var hildesheim
     @State private var state: ExamRegistrationState?
 
     var body: some View {
@@ -394,7 +462,9 @@ private struct ExamRegistrationLoader<Content: View>: View {
     }
 
     private var qisRuns: AnyPublisher<Int, Never> {
-        qis.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()
+        // QIS (LUH) bzw. Abgleich und Abruf im LSF (Uni Hildesheim)
+        qis.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() }
+            ?? hildesheim.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()
     }
 
     private func load() async {
@@ -422,11 +492,11 @@ struct ExamRegistrationCard: View {
         let missing = st.suggestions.filter { !$0.registered }
         UFCard {
             UFCardHead("Prüfungsanmeldung", icon: "exam", wrap: true) {
-                ExamRegistrationQISButton(url: st.qisURL, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small)
             }
             VStack(alignment: .leading, spacing: 10) {
                 if let w = st.window {
-                    Text(ExamRegistrationText.windowLine(w)).ufFont(13.6, 650).foregroundStyle(w.isOpen ? UF.accentText : UF.text2)
+                    Text(ExamRegistrationText.windowLine(w, system: st.system)).ufFont(13.6, 650).foregroundStyle(w.isOpen ? UF.accentText : UF.text2)
                         .accessibilityIdentifier("examreg.window")
                 }
                 ExamRegistrationWarnings(warnings: st.warnings)
@@ -466,7 +536,7 @@ struct ExamRegistrationSection: View {
     @ViewBuilder static func section(_ st: ExamRegistrationState, reload: @escaping () async -> Void) -> some View {
         UFCard {
             UFCardHead("Prüfungsanmeldung" + (st.term.map { " · \($0)" } ?? ""), icon: "exam", wrap: true) {
-                ExamRegistrationQISButton(url: st.qisURL, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small)
             }
             VStack(alignment: .leading, spacing: 12) {
                 periodsBlock(st)
@@ -495,29 +565,35 @@ struct ExamRegistrationSection: View {
     @ViewBuilder private static func periodsBlock(_ st: ExamRegistrationState) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if let w = st.window {
-                Text(ExamRegistrationText.windowLine(w)).ufFont(13.6, 650).foregroundStyle(w.isOpen ? UF.accentText : UF.text)
+                Text(ExamRegistrationText.windowLine(w, system: st.system)).ufFont(13.6, 650).foregroundStyle(w.isOpen ? UF.accentText : UF.text)
                     .accessibilityIdentifier("examreg.window")
             }
             if let w = st.vbpWindow, w.phase != "later" {
-                Text(ExamRegistrationText.windowLine(w)).ufFont(12.8, 600).foregroundStyle(UF.text2)
+                Text(ExamRegistrationText.windowLine(w, system: st.system)).ufFont(12.8, 600).foregroundStyle(UF.text2)
             }
             if !st.periods.isEmpty {
                 ForEach(st.periods.filter { $0.kind.hasSuffix("meldung") || $0.kind.hasSuffix("pruefung") }) { p in
                     HStack(spacing: 8) {
                         Text(p.label).ufFont(12.48).foregroundStyle(UF.text2).frame(maxWidth: .infinity, alignment: .leading)
-                        Text(ExamRegistrationText.range(p.start, p.end)).ufFont(12.48, 600).monospacedDigit().foregroundStyle(UF.text)
+                        Text(ExamRegistrationText.periodRange(p)).ufFont(12.48, 600).monospacedDigit().foregroundStyle(UF.text)
                     }
                     .accessibilityElement(children: .combine)
                 }
             }
-            if !st.verified || st.window == nil {
+            if let note = st.periodNote {
+                // Uni Hildesheim: keine einheitliche Frist, Hinweis statt "nicht sicher"
+                Text(note).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("examreg.periodnote")
+            }
+            if !st.verified || (st.window == nil && st.periodNote == nil) {
                 Text("Die Zeiträume für \(st.programName ?? "deinen Studiengang") kennt StudiNow nicht sicher. Sieh auf der Terminseite des Prüfungsamts nach.")
                     .ufFont(12.8).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("examreg.unverified")
             }
             if let u = st.sourceURL {
                 Link(destination: u) {
-                    Text("Quelle: Terminseite des Prüfungsamts" + (st.checkedAt.map { " (gelesen am \(UFFmt.date($0)))" } ?? ""))
+                    Text((st.system == "LSF" ? "Quelle: Seite des Prüfungsamts" : "Quelle: Terminseite des Prüfungsamts")
+                         + (st.checkedAt.map { " (gelesen am \(UFFmt.date($0)))" } ?? ""))
                         .ufFont(11.84, 600).foregroundStyle(UF.accentText)
                 }
                 .accessibilityIdentifier("examreg.source")
@@ -531,7 +607,7 @@ struct ExamRegistrationSection: View {
                 .accessibilityIdentifier("examreg.checked")
             let regs = st.registered.filter(\.registered)
             if !regs.isEmpty {
-                Text("Im QIS angemeldet").ufFont(12.8, 650).foregroundStyle(UF.text)
+                Text("Im \(st.system) angemeldet").ufFont(12.8, 650).foregroundStyle(UF.text)
                 ForEach(regs) { r in
                     HStack(spacing: 6) {
                         UFIcon("check", size: 13).foregroundStyle(UF.ok)
@@ -574,13 +650,13 @@ struct ExamRegistrationModuleBlock: View {
                 UFBadge(ExamRegistrationText.status(s), tone: s.registered ? .ok : .warn).fixedSize()
             }
             .foregroundStyle(UF.text)
-            Text(([s.reason] + [ExamRegistrationText.examLine(s), ExamRegistrationText.via(s)].compactMap { $0 }).joined(separator: " · "))
+            Text(([s.reason] + [ExamRegistrationText.examLine(s), ExamRegistrationText.via(s, system: st.system)].compactMap { $0 }).joined(separator: " · "))
                 .ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             if let w = s.period == "vbp" ? st.vbpWindow : st.window {
-                Text(ExamRegistrationText.windowLine(w)).ufFont(12.8, 600).foregroundStyle(UF.accentText)
+                Text(ExamRegistrationText.windowLine(w, system: st.system)).ufFont(12.8, 600).foregroundStyle(UF.accentText)
             }
             if !s.registered {
-                ExamRegistrationQISButton(url: st.qisURL, size: .small)
+                ExamRegistrationQISButton(url: st.qisURL, system: st.system, size: .small)
                 ExamRegistrationHint(text: st.hint)
             }
         }
@@ -600,9 +676,9 @@ struct ExamRegistrationExamsFooter: View {
     var body: some View {
         if let w = state.window, w.phase != "later" {
             UFFlexWrap(gap: 8) {
-                Text("Prüfungsanmeldung: " + ExamRegistrationText.windowLine(w)).ufFont(12.8, 600).foregroundStyle(UF.text2)
+                Text("Prüfungsanmeldung: " + ExamRegistrationText.windowLine(w, system: state.system)).ufFont(12.8, 600).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
-                ExamRegistrationQISButton(url: state.qisURL, size: .small)
+                ExamRegistrationQISButton(url: state.qisURL, system: state.system, size: .small)
             }
             .padding(.top, 6)
             .accessibilityIdentifier("exams.registration")

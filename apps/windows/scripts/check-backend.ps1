@@ -22,8 +22,10 @@ $exeDir = Split-Path -Parent (Resolve-Path $Exe)
 $dataRoot = if (Test-Path (Join-Path $exeDir "_internal")) { Join-Path $exeDir "_internal" } else { $exeDir }
 foreach ($f in @("app\static\index.html", "app\static\study-plan.js", "app\static\study-plan-logic.js",
                  "packages\shared-contracts\study-sources.json", "packages\shared-contracts\study-sources-all.json",
-                 "packages\shared-contracts\exam-registration-luh.json",
-                 "apps\apple\UniFlow\Resources\StudyCatalogSeed\luh.json.gz")) {
+                 "packages\shared-contracts\exam-registration-luh.json", "packages\shared-contracts\exam-registration-hildesheim.json",
+                 "apps\apple\UniFlow\Resources\StudyCatalogSeed\luh.json.gz",
+                 "apps\apple\UniFlow\Resources\StudyCatalogSeed\hildesheim.json.gz",
+                 "apps\apple\UniFlow\Resources\StudyCatalogSeed\hsh.json.gz")) {
     if (-not (Test-Path (Join-Path $dataRoot $f))) { throw "Im Paket fehlt $f (unter $dataRoot) - uniflow-backend.spec pruefen" }
 }
 Write-Host "Paketdaten OK ($dataRoot)"

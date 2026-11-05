@@ -136,7 +136,7 @@ final class AuditApp20261103Tests: XCTestCase {
     func testMoreListsRemainingAreasWithBadges() {
         let visible = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: false)
         let more = UFNavItem.more(visible: visible)
-        XCTAssertEqual(more.map(\.title), ["Stundenplan", "Studienverlauf", "Karteikarten", "Uni & Noten", "Community", "Einstellungen"])
+        XCTAssertEqual(more.map(\.title), ["Stundenplan", "Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Community", "Einstellungen"])
         XCTAssertEqual(UFNavItem.mobile.last?.title, "Mehr")
         XCTAssertTrue(UFMobileNav.moreActive(.timetable(), items: more))
         XCTAssertTrue(UFMobileNav.moreActive(.settings(), items: more))
@@ -170,7 +170,10 @@ final class AuditApp20261103Tests: XCTestCase {
         XCTAssertTrue(UFNavItem.active(UFNavItem.cards, in: items, route: .exams))
         let withAI = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true)
         XCTAssertFalse(UFNavItem.active(UFNavItem.cards, in: withAI, route: .exams), "mit KI: \"Tests & Wiederholung\" markiert")
-        XCTAssertTrue(UFNoServerContent.examsText.contains("nur mit verbundenem ChatGPT"))
+        // ChatGPT verbinden ist vorerst aus (0ad0319, "bald verfuegbar"): dann nennt der Text die StudiNow-KI in Pro AI
+        XCTAssertTrue(UFNoServerContent.examsText.contains(ChatGPTLink.isEnabled ? "nur mit verbundenem ChatGPT" : "StudiNow-KI in StudiNow Pro AI"),
+                      UFNoServerContent.examsText)
+        XCTAssertTrue(UFNoServerContent.examsText.contains("eigenen Karteikarten"))
         // beide im Menue, Karteikarten angetippt: nur die Karteikarten leuchten (Rueckmeldung 04.11.2026)
         let exams = try XCTUnwrap(withAI.first { $0.id == "exams" })
         XCTAssertTrue(UFNavItem.active(UFNavItem.cards, in: withAI, route: .cards))

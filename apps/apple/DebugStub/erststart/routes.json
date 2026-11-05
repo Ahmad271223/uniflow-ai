@@ -169,6 +169,12 @@
   "contentType": "application/json"
  },
  {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "wsfunction=core_message_get_conversations",
+  "body": "{\"conversations\": [{\"id\": 701, \"type\": 1, \"name\": \"\", \"membercount\": 2, \"unreadcount\": 1, \"members\": [{\"id\": 9001, \"fullname\": \"Erfundene Dozentin\"}], \"messages\": [{\"id\": 7001, \"useridfrom\": 9001, \"text\": \"<p>Liebe Studierende, die Sprechstunde am 12.11. um 14 Uhr fällt aus. (erfundene Nachricht)</p>\", \"timecreated\": 1793786400}]}]}",
+  "contentType": "application/json"
+ },
+ {
   "match": "learnweb2026/webservice/pluginfile.php/501/",
   "file": "lw-ew-plan.pdf"
  },

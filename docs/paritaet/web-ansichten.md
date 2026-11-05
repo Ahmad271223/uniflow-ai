@@ -873,3 +873,13 @@ Abo-Fehlern der Knopf „Tarif ansehen“. Tests `tests/js/ai-start.test.mjs`, `
   KI-Hilfe samt Gespräch (`#/doc/<id>?page=N&ki=1`); wer das Dokument in der App verlässt, startet auf der Übersicht.
 - `#/einladungen` (auch `#/invites`): Freunde einladen mit Links, Teilen, QR-Code (`invites.js`, `qr.js`), ohne Belohnungen.
 - Erststart nach der Konto-Anmeldung: `onboarding.js` (Vollbild, vier Schritte), Einstellung `onboarding_done`.
+
+## Mensa `#/mensa` (Stand 05.11.2026)
+
+`mensa.js` mit Regeln in `mensa-logic.js` (wie `MensaViews.swift`): Mensa-Auswahl in Gruppen (Favoriten, deine
+Hochschule, weitere in der Nähe, andere Orte), Stern für Favoriten, Heute/Morgen/Woche, Preis für
+Studierende/Bedienstete/Gäste, Filter-Chips (vegan, vegetarisch, ohne Schwein) und „Allergene meiden“, Sortierung
+(Menülinie, Preis, Kalorien, Eiweiß), Gerichtkarten mit kcal; Antippen öffnet alle Angaben (Preise, Bestandteile,
+Nährwerte, Kennzeichnungen, Allergene, Zusatzstoffe), Öffnungszeiten und Quelle; Einstellungen im Browser (`mensa-prefs`).
+Karte „Heute in der Mensa“ auf der Übersicht. Daten `GET /api/mensa/canteens`, `GET /api/mensa/menu` (`app/mensa_api.py`),
+Quellen und Bedingungen in docs/MENSA-2026-11-05.md. Tests `tests/js/mensa.test.mjs`, `tests/test_mensa.py`.

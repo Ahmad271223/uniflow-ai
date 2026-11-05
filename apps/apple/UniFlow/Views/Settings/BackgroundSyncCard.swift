@@ -29,7 +29,7 @@ struct BackgroundSyncCard: View {
 
     /// Erklaerung unter "Benachrichtigen" mit der Quelle der Hochschule
     static func notifyText(_ university: UniversityKey?) -> String {
-        let files = university == .hildesheim ? "Learnweb" : "Stud.IP"
+        let files = university == .hildesheim ? "Learnweb" : university == .hsh ? "Moodle" : "Stud.IP"
         let login = BackgroundNotice.loginNeeded([files])?.title ?? ""
         return "Die Mitteilung nennt nur die Zahl, nie Dateinamen („3 neue Dateien aus \(files)“). Läuft die Anmeldung ab, kommt einmal „\(login)“ – im Hintergrund meldet sich StudiNow nie selbst an und benutzt keine gemerkten Zugangsdaten."
     }

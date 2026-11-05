@@ -198,6 +198,10 @@ struct DocumentView: View {
     @State private var pendingExport: ShareScope?
     /// Blatt "In Stud.IP abgeben" (docs/ABGEBEN-STUDIP-2026-11-05.md)
     @State private var submittingToStudIP = false
+    /// Hochschule Hannover: Abgabe in einer Moodle-Aufgabe
+    @State private var submittingToMoodle = false
+    @Environment(\.hsh) private var hshConnection
+    @Environment(\.hildesheim) private var hildesheimConnection
     @State private var solutionSheet: SolutionSheet?
     @State private var importingSolution = false
     /// "Meine Notizen" sichtbar; ausgeblendet = nur ansehen
@@ -550,6 +554,7 @@ struct DocumentView: View {
         }
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .sheet(isPresented: $submittingToStudIP) { StudIPSubmitEntry(store: store, api: api) }
+        .sheet(isPresented: $submittingToMoodle) { MoodleSubmitEntry(store: store, api: api) }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
@@ -985,6 +990,20 @@ struct DocumentView: View {
                             } icon: { Image(systemName: "tray.and.arrow.up") }
                         }
                         .accessibilityIdentifier("doc.submitStudIP")
+                    }
+                }
+                // Hochschule Hannover: in einer Moodle-Aufgabe abgeben (Entwurf, dann ausdruecklich "Jetzt abgeben")
+                if MoodleSubmitEntry.offered(api: api, readOnly: readOnly || store.isOldVersion, hsh: hshConnection) {
+                    Section("Abgeben") {
+                        Button { submittingToMoodle = true } label: { Label("In Moodle abgeben …", systemImage: "tray.and.arrow.up") }
+                            .accessibilityIdentifier("doc.submitMoodle")
+                    }
+                }
+                // Uni Hildesheim: in einer Learnweb-Aufgabe abgeben (dasselbe Blatt, Sitzung des Learnwebs, 05.11.2026)
+                if MoodleSubmitEntry.offeredLearnweb(api: api, readOnly: readOnly || store.isOldVersion, hildesheim: hildesheimConnection) {
+                    Section("Abgeben") {
+                        Button { submittingToMoodle = true } label: { Label("Im Learnweb abgeben …", systemImage: "tray.and.arrow.up") }
+                            .accessibilityIdentifier("doc.submitLearnweb")
                     }
                 }
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }

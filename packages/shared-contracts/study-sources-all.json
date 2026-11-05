@@ -1,6 +1,6 @@
 {
  "v": 1,
- "note": "ERZEUGT von tools/gen-study-catalog-fixture.py aus study-sources.json (gepflegt, vorn) und study-sources-luh.json (alle LUH-Studiengaenge; Quelle luh-grundstock = nur aus dem Grundstock der App) - nicht von Hand aendern. Register der Modulkatalog-Quellen (docs/STUDIENVERLAUF-2026-11-04.md). Nur oeffentliche Kataloge ohne Anmeldung. Die breite Erhebung aller LUH-Studiengaenge steht in study-sources-luh.json (tools/luh-programs.py); hier stehen nur Quellen, deren Format der Parser liest. study_plan je PO (null = keiner bekannt): Studienverlaufsplan der Fakultaet (format luh-fei-verlaufsplan, eine PDF-Seite, Semester als Zeilen); page_url = Seite des Studiengangs, auf der der aktuelle Plan verlinkt ist.",
+ "note": "ERZEUGT von tools/gen-study-catalog-fixture.py aus study-sources.json (gepflegt, vorn), study-sources-luh.json (alle LUH-Studiengaenge; Quelle luh-grundstock = nur aus dem Grundstock der App), study-sources-hildesheim.json (Universitaet Hildesheim; Quelle hildesheim-grundstock) und study-sources-hsh.json (Hochschule Hannover; Quelle hsh-grundstock) - nicht von Hand aendern. Register der Modulkatalog-Quellen (docs/STUDIENVERLAUF-2026-11-04.md). Nur oeffentliche Kataloge ohne Anmeldung. Die breite Erhebung aller LUH-Studiengaenge steht in study-sources-luh.json (tools/luh-programs.py); hier stehen nur Quellen, deren Format der Parser liest. study_plan je PO (null = keiner bekannt): Studienverlaufsplan der Fakultaet (format luh-fei-verlaufsplan, eine PDF-Seite, Semester als Zeilen); page_url = Seite des Studiengangs, auf der der aktuelle Plan verlinkt ist.",
  "formats": [
   "luh-modkat",
   "luh-fei-verlaufsplan",
@@ -5097,6 +5097,5169 @@
        "study_plan": null,
        "key": "luh|werte-und-normen-im-masterstudiengang-lehramt-an-gymnasien|m.ed.|2016",
        "format": "luh-modulbeschreibung"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "hildesheim",
+   "name": "Universität Hildesheim",
+   "sources": [
+    {
+     "id": "hildesheim-grundstock",
+     "format": "grundstock",
+     "note": "Kataloge nur aus dem StudiNow-Grundstock (App-Ressource StudyCatalogSeed), auf dem Geraet wird nichts geladen (tools/build-hildesheim-seed.py)",
+     "probe_current_term": false
+    }
+   ],
+   "programs": [
+    {
+     "id": "angewandte-informatik-b-sc",
+     "program": "Angewandte Informatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Angewandte Informatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "angewandte-informatik|b.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|angewandte-informatik|b.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "angewandte-informatik-m-sc",
+     "program": "Angewandte Informatik",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Angewandte Informatik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5132",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "angewandte-informatik|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|angewandte-informatik|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "barrierefreie-kommunikation-m-a",
+     "program": "Barrierefreie Kommunikation",
+     "degree": "M.A.",
+     "qis_names": [
+      "Barrierefreie Kommunikation"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4669",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2019",
+       "code": "barrierefreie-kommunikation|m.a.|2019",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2024"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|barrierefreie-kommunikation|m.a.|2019",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "data-analytics-m-sc",
+     "program": "Data Analytics",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Data Analytics"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5132",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "data-analytics|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|data-analytics|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "deutsch-als-zweitsprache-deutsch-als-fremdsprache-m-a",
+     "program": "Deutsch als Zweitsprache/Deutsch als Fremdsprache",
+     "degree": "M.A.",
+     "qis_names": [
+      "Deutsch als Zweitsprache/Deutsch als Fremdsprache"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4646",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|deutsch-als-zweitsprache-deutsch-als-fremdsprache|m.a.|2018",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "deutsch-franzoesischer-doppel-master-kulturvermittlung-mediation-culturelle-de-l-art-m-a",
+     "program": "Deutsch-Französischer Doppel-Master Kulturvermittlung/Médiation Culturelle de l'Art",
+     "degree": "M.A.",
+     "qis_names": [
+      "Deutsch-Französischer Doppel- Kulturvermittlung/Médiation Culturelle de l'Art"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": null,
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": []
+    },
+    {
+     "id": "erziehungswissenschaft-mit-den-schwerpunkten-kindheitspaedagogik-diversitaet-m-a",
+     "program": "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität",
+     "degree": "M.A.",
+     "qis_names": [
+      "Erziehungswissenschaft mit den Schwerpunkten Kindheitspädagogik/Diversität"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5091",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": []
+    },
+    {
+     "id": "erziehungswissenschaft-b-a",
+     "program": "Erziehungswissenschaft",
+     "degree": "B.A.",
+     "qis_names": [
+      "Erziehungswissenschaft"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5090",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2023",
+       "code": "erziehungswissenschaft|b.a.|2023",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|erziehungswissenschaft|b.a.|2023",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "future-analytics-ai-audio-worlds-m-sc",
+     "program": "Future Analytics: AI & Audio Worlds",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Future Analytics: AI & Audio Worlds"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": null,
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": []
+    },
+    {
+     "id": "informationsmanagement-und-informationstechnologie-b-sc",
+     "program": "Informationsmanagement und Informationstechnologie",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Informationsmanagement und Informationstechnologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5067",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "informationsmanagement-und-informationstechnologie|b.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informationsmanagement-und-informationstechnologie|b.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "informationsmanagement-und-informationstechnologie-m-sc",
+     "program": "Informationsmanagement und Informationstechnologie",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Informationsmanagement und Informationstechnologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5067",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "informationsmanagement-und-informationstechnologie|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|informationsmanagement-und-informationstechnologie|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "inklusive-paedagogik-und-kommunikation-m-a",
+     "program": "Inklusive Pädagogik und Kommunikation",
+     "degree": "M.A.",
+     "qis_names": [
+      "Inklusive Pädagogik und Kommunikation"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": null,
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2020"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|inklusive-paedagogik-und-kommunikation|m.a.|unbekannt",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationale-fachkommunikation-sprachen-und-technik-m-a",
+     "program": "Internationale Fachkommunikation - Sprachen und Technik",
+     "degree": "M.A.",
+     "qis_names": [
+      "Internationale Fachkommunikation - Sprachen und Technik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4784",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2020",
+       "code": "internationale-fachkommunikation-sprachen-und-technik|m.a.|2020",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2020/21"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationale-fachkommunikation-sprachen-und-technik|m.a.|2020",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationale-kommunikation-und-uebersetzen-b-a",
+     "program": "Internationale Kommunikation und Übersetzen",
+     "degree": "B.A.",
+     "qis_names": [
+      "Internationale Kommunikation und Übersetzen"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5108",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationale-kommunikation-und-uebersetzen|b.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationale-kommunikation-und-uebersetzen|b.a.|2024",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-digitale-sozialwissenschaften-b-a",
+     "program": "Internationales Informationsmanagement - Digitale Sozialwissenschaften",
+     "degree": "B.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement - Digitale Sozialwissenschaften"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5210",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement-digitale-sozialwissenschaften|b.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation-b-a",
+     "program": "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation",
+     "degree": "B.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement – Informationswissenschaft und interkulturelle Kommunikation"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5210",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement-informationswissenschaft-und-interkulturelle-kommunikation|b.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-informationswissenschaft-m-a",
+     "program": "Internationales Informationsmanagement – Informationswissenschaft",
+     "degree": "M.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement – Informationswissenschaft"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5153",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement-informationswissenschaft|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2024"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement-informationswissenschaft|m.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-interkulturelle-sprachwissenschaft-b-a",
+     "program": "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft",
+     "degree": "B.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement - Interkulturelle Sprachwissenschaft"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5210",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement-interkulturelle-sprachwissenschaft|b.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-linguistik-b-a",
+     "program": "Internationales Informationsmanagement – Linguistik",
+     "degree": "B.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement – Linguistik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5210",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement-linguistik|b.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement-linguistik|b.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation-m-a",
+     "program": "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation",
+     "degree": "M.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement – Sprachwissenschaft und Interkulturelle Kommunikation"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5213",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement-sprachwissenschaft-und-interkulturelle-kommunikation|m.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "internationales-informationsmanagement-b-a",
+     "program": "Internationales Informationsmanagement",
+     "degree": "B.A.",
+     "qis_names": [
+      "Internationales Informationsmanagement"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5210",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "internationales-informationsmanagement|b.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|internationales-informationsmanagement|b.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "kuenste-und-gegenwartskulturen-transdisziplinaer-m-a",
+     "program": "Künste und Gegenwartskulturen transdisziplinär",
+     "degree": "M.A.",
+     "qis_names": [
+      "Künste und Gegenwartskulturen transdisziplinär",
+      "Inszenierung der Künste und Medien"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5150",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2023"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|kuenste-und-gegenwartskulturen-transdisziplinaer|m.a.|2024",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste-m-a",
+     "program": "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste",
+     "degree": "M.A.",
+     "qis_names": [
+      "Kulturvermittlung, Kulturpolitik und Transformation im Kontext der Künste",
+      "Kulturvermittlung"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5150",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2023"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|kulturvermittlung-kulturpolitik-und-transformation-im-kontext-der-kuenste|m.a.|2024",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "kulturwissenschaften-und-kuenstlerische-praxis-b-a",
+     "program": "Kulturwissenschaften und künstlerische Praxis",
+     "degree": "B.A.",
+     "qis_names": [
+      "Kulturwissenschaften und künstlerische Praxis",
+      "Kulturwissenschaften und ästhetische Praxis"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4935",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "kulturwissenschaften-und-kuenstlerische-praxis|b.a.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|kulturwissenschaften-und-kuenstlerische-praxis|b.a.|2022",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "lehramt-an-grund-haupt-und-realschulen-staatsexamen",
+     "program": "Lehramt an Grund-, Haupt- und Realschulen",
+     "degree": "Staatsexamen",
+     "qis_names": [
+      "Lehramt an Grund-, Haupt- und Realschulen"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": []
+    },
+    {
+     "id": "lehramt-an-grund-und-hauptschulen-m-ed",
+     "program": "Lehramt an Grund- und Hauptschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Lehramt an Grund- und Hauptschulen"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=2380",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": []
+    },
+    {
+     "id": "lehramt-an-grundschulen-m-ed",
+     "program": "Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Lehramt an Grundschulen"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "lehramt-an-haupt-und-realschulen-quereinstieg-fuer-fachbachelor-m-ed",
+     "program": "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor)",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Lehramt an Haupt- und Realschulen (Quereinstieg für Fachbachelor)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": []
+    },
+    {
+     "id": "lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Lehramt an Haupt- und Realschulen"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "lehramt-an-realschulen-m-ed",
+     "program": "Lehramt an Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Lehramt an Realschulen"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=2381",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": []
+    },
+    {
+     "id": "literarisches-schreiben-und-kulturjournalismus-b-a",
+     "program": "Literarisches Schreiben und Kulturjournalismus",
+     "degree": "B.A.",
+     "qis_names": [
+      "Literarisches Schreiben und Kulturjournalismus",
+      "Kreatives Schreiben und Kulturjournalismus"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4935",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "literarisches-schreiben-und-kulturjournalismus|b.a.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2022/23"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|literarisches-schreiben-und-kulturjournalismus|b.a.|2022",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "literarisches-schreiben-und-lektorieren-m-a",
+     "program": "Literarisches Schreiben und Lektorieren",
+     "degree": "M.A.",
+     "qis_names": [
+      "Literarisches Schreiben und Lektorieren"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5150",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "literarisches-schreiben-und-lektorieren|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2023"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|literarisches-schreiben-und-lektorieren|m.a.|2024",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "medieninformatik-b-sc",
+     "program": "Medieninformatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Medieninformatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": []
+    },
+    {
+     "id": "medientext-und-medienuebersetzung-m-a",
+     "program": "Medientext und Medienübersetzung",
+     "degree": "M.A.",
+     "qis_names": [
+      "Medientext und Medienübersetzung"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5197",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "medientext-und-medienuebersetzung|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|medientext-und-medienuebersetzung|m.a.|2024",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "musik-welt-kulturelle-diversitaet-in-der-musikalischen-bildung-m-a",
+     "program": "musik.welt -- Kulturelle Diversität in der musikalischen Bildung",
+     "degree": "M.A.",
+     "qis_names": [
+      "musik.welt -- Kulturelle Diversität in der musikalischen Bildung"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4610",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "musik-welt-kulturelle-diversitaet-in-der-musikalischen-bildung|m.a.|2018",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2017/18"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|musik-welt-kulturelle-diversitaet-in-der-musikalischen-bildung|m.a.|2018",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "organization-studies-m-a",
+     "program": "Organization Studies",
+     "degree": "M.A.",
+     "qis_names": [
+      "Organization Studies"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4567",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": []
+    },
+    {
+     "id": "philosophie-kuenste-medien-b-a",
+     "program": "Philosophie – Künste – Medien",
+     "degree": "B.A.",
+     "qis_names": [
+      "Philosophie – Künste – Medien"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4935",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "philosophie-kuenste-medien|b.a.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2026/27"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|philosophie-kuenste-medien|b.a.|2022",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "philosophie-und-kuenste-interkulturell-m-a",
+     "program": "Philosophie und Künste interkulturell",
+     "degree": "M.A.",
+     "qis_names": [
+      "Philosophie und Künste interkulturell"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5150",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "philosophie-und-kuenste-interkulturell|m.a.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2020"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|philosophie-und-kuenste-interkulturell|m.a.|2024",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "polyvalenter-zwei-faecher-bachelor-studiengang-b-a",
+     "program": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
+     "degree": "B.A.",
+     "qis_names": [
+      "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
+      "Polyvalenter Zwei-Fächer- -Studiengang"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "polyvalenter-zwei-faecher-bachelor-studiengang|b.a.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|polyvalenter-zwei-faecher-bachelor-studiengang|b.a.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "polyvalenter-zwei-faecher-bachelor-studiengang-b-sc",
+     "program": "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Polyvalenter Zwei-Fächer-Bachelor-Studiengang",
+      "Polyvalenter Zwei-Fächer- -Studiengang"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5319",
+     "faculty": "fachbereichsübergreifend (Lehrerbildung)",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "polyvalenter-zwei-faecher-bachelor-studiengang|b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|polyvalenter-zwei-faecher-bachelor-studiengang|b.sc.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie-m-sc",
+     "program": "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Psychologie mit dem Schwerpunkt Klinische Psychologie und Psychotherapie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4844",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie|m.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|psychologie-mit-dem-schwerpunkt-klinische-psychologie-und-psychotherapie|m.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "psychologie-mit-schwerpunkt-paedagogische-psychologie-b-sc",
+     "program": "Psychologie mit Schwerpunkt Pädagogische Psychologie",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Psychologie mit Schwerpunkt Pädagogische Psychologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4019",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": []
+    },
+    {
+     "id": "psychologie-b-sc",
+     "program": "Psychologie",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Psychologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4825",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "psychologie|b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|psychologie|b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "psychologie-m-sc",
+     "program": "Psychologie",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Psychologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4843",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "psychologie|m.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|psychologie|m.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "rechtspsychologie-m-sc",
+     "program": "Rechtspsychologie",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Rechtspsychologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4982",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": []
+    },
+    {
+     "id": "software-engineering-m-sc",
+     "program": "Software Engineering",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Software Engineering"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5132",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "software-engineering|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|software-engineering|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "sozial-und-organisationspaedagogik-m-a",
+     "program": "Sozial- und Organisationspädagogik",
+     "degree": "M.A.",
+     "qis_names": [
+      "Sozial- und Organisationspädagogik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5274",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "sozial-und-organisationspaedagogik|m.a.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sozial-und-organisationspaedagogik|m.a.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "soziale-dienste-m-a",
+     "program": "Soziale Dienste",
+     "degree": "M.A.",
+     "qis_names": [
+      "Soziale Dienste"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5276",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "soziale-dienste|m.a.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|soziale-dienste|m.a.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sozialpaedagogik-b-a",
+     "program": "Sozialpädagogik",
+     "degree": "B.A.",
+     "qis_names": [
+      "Sozialpädagogik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5272",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "sozialpaedagogik|b.a.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sozialpaedagogik|b.a.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne-m-sc",
+     "program": "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Sportwissenschaft mit dem Schwerpunkt Sport, Gesundheit und Leistung in der Lebensspanne"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4856",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sportwissenschaft-mit-dem-schwerpunkt-sport-gesundheit-und-leistung-in-der-lebensspanne|m.sc.|2021",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "szenische-kuenste-b-a",
+     "program": "Szenische Künste",
+     "degree": "B.A.",
+     "qis_names": [
+      "Szenische Künste"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4935",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "szenische-kuenste|b.a.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2022/23"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|szenische-kuenste|b.a.|2022",
+       "format": "hildesheim-modultabelle"
+      }
+     ]
+    },
+    {
+     "id": "umwelt-naturschutz-und-nachhaltigkeit-m-sc",
+     "program": "Umwelt, Naturschutz und Nachhaltigkeit",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Umwelt, Naturschutz und Nachhaltigkeit"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=4862",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|umwelt-naturschutz-und-nachhaltigkeit|m.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "umweltinformatik-b-sc",
+     "program": "Umweltinformatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Umweltinformatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5076",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "umweltinformatik|b.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|umweltinformatik|b.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "umweltinformatik-m-sc",
+     "program": "Umweltinformatik",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Umweltinformatik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5132",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "umweltinformatik|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|umweltinformatik|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "umweltwissenschaft-und-naturschutz-m-sc",
+     "program": "Umweltwissenschaft und Naturschutz",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Umweltwissenschaft und Naturschutz"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=3908",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2011",
+       "code": "umweltwissenschaft-und-naturschutz|m.sc.|2011",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2011"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|umweltwissenschaft-und-naturschutz|m.sc.|2011",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsinformatik-b-sc",
+     "program": "Wirtschaftsinformatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Wirtschaftsinformatik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5068",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "wirtschaftsinformatik|b.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|wirtschaftsinformatik|b.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsinformatik-m-sc",
+     "program": "Wirtschaftsinformatik",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Wirtschaftsinformatik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5073",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "wirtschaftsinformatik|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|wirtschaftsinformatik|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "data-analytics-advanced-track-m-sc",
+     "program": "Data Analytics (Advanced Track)",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Data Analytics (Advanced Track)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5132",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "data-analytics-advanced-track|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|data-analytics-advanced-track|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "data-analytics-cognitive-systems-m-sc",
+     "program": "Data Analytics (Cognitive Systems)",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Data Analytics (Cognitive Systems)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5132",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "data-analytics-cognitive-systems|m.sc.|2024",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|data-analytics-cognitive-systems|m.sc.|2024",
+       "format": "hildesheim-it-modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "english-applied-linguistics-b-a",
+     "program": "English Applied Linguistics",
+     "degree": "B.A.",
+     "qis_names": [
+      "English Applied Linguistics"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "english-applied-linguistics|b.a.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|english-applied-linguistics|b.a.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sport-gesundheit-und-leistung-b-a",
+     "program": "Sport, Gesundheit und Leistung",
+     "degree": "B.A.",
+     "qis_names": [
+      "Sport, Gesundheit und Leistung"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "sport-gesundheit-und-leistung|b.a.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sport-gesundheit-und-leistung|b.a.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "umweltsicherung-b-sc",
+     "program": "Umweltsicherung",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Umweltsicherung"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5319",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "umweltsicherung|b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|umweltsicherung|b.sc.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaft-plus-b-sc",
+     "program": "Wirtschaft Plus",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Wirtschaft Plus"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5319",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "wirtschaft-plus|b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2019"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|wirtschaft-plus|b.sc.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "biologie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Biologie im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Biologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|biologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "biologie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Biologie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Biologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|biologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "chemie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Chemie im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Chemie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|chemie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "chemie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Chemie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Chemie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|chemie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "deutsch-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Deutsch im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Deutsch"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "deutsch-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|deutsch-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "deutsch-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Deutsch im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Deutsch"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|deutsch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "deutsch-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Deutsch im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Deutsch"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|deutsch-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "englisch-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Englisch im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Englisch"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "englisch-im-master-lehramt-an-grundschulen|m.ed.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|englisch-im-master-lehramt-an-grundschulen|m.ed.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "englisch-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Englisch im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Englisch"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 3 – Sprach- und Informationswissenschaften",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|englisch-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "evangelische-theologie-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Evangelische Theologie im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Evangelische Theologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Evangelische Theologie im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Evangelische Theologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|evangelische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Evangelische Theologie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Evangelische Theologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|evangelische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "geographie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Geographie im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Geographie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2017",
+       "code": "geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+       "format": "hildesheim-modulbeschreibung"
+      },
+      {
+       "po": "2026",
+       "code": "geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|geographie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "geographie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Geographie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Geographie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|geographie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "geschichte-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Geschichte im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Geschichte"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|geschichte-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "geschichte-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Geschichte im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Geschichte"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|geschichte-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "katholische-theologie-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Katholische Theologie im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Katholische Theologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "katholische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|katholische-theologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "katholische-theologie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Katholische Theologie im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Katholische Theologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|katholische-theologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "katholische-theologie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Katholische Theologie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Katholische Theologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|katholische-theologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "kunst-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Kunst im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Kunst"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "kunst-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|kunst-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "kunst-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Kunst im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Kunst"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|kunst-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "kunst-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Kunst im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Kunst"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2022/23"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|kunst-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "mathematik-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Mathematik im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Mathematik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "mathematik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|mathematik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "mathematik-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Mathematik im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Mathematik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|mathematik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "mathematik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Mathematik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Mathematik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2014",
+       "code": "mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2014"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "format": "hildesheim-modulbeschreibung"
+      },
+      {
+       "po": "2025",
+       "code": "mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|mathematik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2025",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "musik-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Musik im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Musik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "musik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|musik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "musik-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Musik im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Musik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|musik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "musik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Musik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Musik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2014",
+       "code": "musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2014"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|musik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "paedagogik-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Pädagogik im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Pädagogik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "paedagogik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|paedagogik-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "paedagogik-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Pädagogik im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Pädagogik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "paedagogik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|paedagogik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "paedagogik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Pädagogik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Pädagogik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|paedagogik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "philosophie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Philosophie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Philosophie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 2 – Kulturwissenschaften und Ästhetische Kommunikation",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|philosophie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "physik-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Physik im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Physik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2017",
+       "code": "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2017",
+       "format": "hildesheim-modulbeschreibung"
+      },
+      {
+       "po": "2026",
+       "code": "physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|physik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "physik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Physik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Physik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "WS 2022/23"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|physik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Politikwissenschaft im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Politikwissenschaft"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|politikwissenschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Politikwissenschaft im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Politikwissenschaft"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|politikwissenschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "psychologie-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Psychologie im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Psychologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "psychologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|psychologie-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "psychologie-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Psychologie im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Psychologie"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "psychologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|psychologie-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "psychologie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Psychologie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Psychologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|psychologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sachunterricht-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Sachunterricht im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Sachunterricht"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "sachunterricht-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sachunterricht-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sachunterricht-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Sachunterricht im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Sachunterricht"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sachunterricht-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "soziologie-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Soziologie im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Soziologie"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|soziologie-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sport-im-master-lehramt-an-grundschulen-m-ed",
+     "program": "Sport im Master Lehramt an Grundschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Sport"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5321",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "sport-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sport-im-master-lehramt-an-grundschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sport-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Sport im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Sport"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sport-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "sport-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Sport im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Sport"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 1 – Erziehungs- und Sozialwissenschaften",
+     "pos": [
+      {
+       "po": "2014",
+       "code": "sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2014"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "format": "hildesheim-modulbeschreibung"
+      },
+      {
+       "po": "2022",
+       "code": "sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2022"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|sport-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2022",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "technik-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Technik im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Technik"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|technik-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "technik-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Technik im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Technik"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2021",
+       "code": "technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|technik-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2021",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaft-im-master-lehramt-an-haupt-und-realschulen-m-ed",
+     "program": "Wirtschaft im Master Lehramt an Haupt- und Realschulen",
+     "degree": "M.Ed.",
+     "qis_names": [
+      "Wirtschaft"
+     ],
+     "regular_semesters": 4,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5323",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2026",
+       "code": "wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|wirtschaft-im-master-lehramt-an-haupt-und-realschulen|m.ed.|2026",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaft-im-polyvalenten-zwei-faecher-bachelor-b-a-b-sc",
+     "program": "Wirtschaft im Polyvalenten Zwei-Fächer-Bachelor",
+     "degree": "B.A./B.Sc.",
+     "qis_names": [
+      "Wirtschaft"
+     ],
+     "regular_semesters": 6,
+     "total_lp": null,
+     "po_document_url": "https://www.uni-hildesheim.de/qm/processmanagement/download.php?fileID=5318",
+     "faculty": "Fachbereich 4 – Mathematik, Naturwissenschaften, Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2014",
+       "code": "wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "source": "hildesheim-grundstock",
+       "catalog_terms": [
+        "SS 2014"
+       ],
+       "study_plan": null,
+       "key": "hildesheim|wirtschaft-im-polyvalenten-zwei-faecher-bachelor|b.a.-b.sc.|2014",
+       "format": "hildesheim-modulbeschreibung"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "hsh",
+   "name": "Hochschule Hannover",
+   "sources": [
+    {
+     "id": "hsh-grundstock",
+     "format": "grundstock",
+     "note": "Kataloge nur aus dem StudiNow-Grundstock (App-Ressource StudyCatalogSeed), auf dem Geraet wird nichts geladen (tools/build-hsh-seed.py)",
+     "probe_current_term": false
+    }
+   ],
+   "programs": [
+    {
+     "id": "angewandte-informatik-b-sc",
+     "program": "Angewandte Informatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Angewandte Informatik",
+      "Angewandte Informatik ( .)",
+      "Angewandte Informatik (BIN)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/Informatik/Ordnungen/04_FIV_ATPO_2025_mit_Anhang_VB.pdf",
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2019",
+       "code": "angewandte-informatik|b.sc.|bin|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|angewandte-informatik|b.sc.|bin|2019",
+       "format": "hsh-modul-code",
+       "label": "Modulverzeichnis (Stand 29.04.2024 für Prüfungsordnung 2019-WS)"
+      }
+     ]
+    },
+    {
+     "id": "angewandte-informatik-m-sc",
+     "program": "Angewandte Informatik",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Angewandte Informatik",
+      "Angewandte Informatik ( .)",
+      "Angewandte Informatik (MIN)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/Informatik/Ordnungen/04_FIV_ATPO_2025_mit_Anhang_VB.pdf",
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2020",
+       "code": "angewandte-informatik|m.sc.|min|2020",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|angewandte-informatik|m.sc.|min|2020",
+       "format": "hsh-modul-code",
+       "label": "Modulverzeichnis (Stand 29.04.2024 für Prüfungsordnung 2020-WS)"
+      }
+     ]
+    },
+    {
+     "id": "angewandte-mathematik-und-data-science-b-sc",
+     "program": "Angewandte Mathematik und Data Science",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Angewandte Mathematik und Data Science",
+      "Angewandte Mathematik und Data Science ( .)",
+      "Angewandte Mathematik und Data Science (MAT)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/10_Bachelorstdg/MAT/Studienablauf_MAT_ab_WiSe2026.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": []
+    },
+    {
+     "id": "bank-und-versicherungswesen-b-a",
+     "program": "Bank- und Versicherungswesen",
+     "degree": "B.A.",
+     "qis_names": [
+      "Bank- und Versicherungswesen",
+      "Bank- und Versicherungswesen ( .)",
+      "Bank- und Versicherungswesen (BBI)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": null,
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": []
+    },
+    {
+     "id": "betriebswirtschaftslehre-b-sc",
+     "program": "Betriebswirtschaftslehre",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Betriebswirtschaftslehre",
+      "Betriebswirtschaftslehre ( .)",
+      "Betriebswirtschaftslehre (BBA)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "betriebswirtschaftslehre|b.sc.|bba|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|betriebswirtschaftslehre|b.sc.|bba|2018",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch (PO 2018)"
+      }
+     ]
+    },
+    {
+     "id": "bildungswissenschaften-fuer-pflege-und-gesundheitsberufe-m-a",
+     "program": "Bildungswissenschaften für Pflege- und Gesundheitsberufe",
+     "degree": "M.A.",
+     "qis_names": [
+      "Bildungswissenschaften für Pflege- und Gesundheitsberufe",
+      "Bildungswissenschaften für Pflege- und Gesundheitsberufe ( .)",
+      "Bildungswissenschaften für Pflege- und Gesundheitsberufe (MBG)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "bildungswissenschaften-fuer-pflege-und-gesundheitsberufe|m.a.|mbg",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|bildungswissenschaften-fuer-pflege-und-gesundheitsberufe|m.a.|mbg",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "biotechnologie-und-umwelttechnik-b-eng",
+     "program": "Biotechnologie und Umwelttechnik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Biotechnologie und Umwelttechnik",
+      "Biotechnologie und Umwelttechnik ( .)",
+      "Biotechnologie und Umwelttechnik (BIU)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Studiengaenge/12_F_II_BV_BIU_BTPO_BA.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "biotechnologie-und-umwelttechnik|b.eng.|biu",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|biotechnologie-und-umwelttechnik|b.eng.|biu",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch BIU"
+      }
+     ]
+    },
+    {
+     "id": "design-und-medien-m-a",
+     "program": "Design und Medien",
+     "degree": "M.A.",
+     "qis_names": [
+      "Design und Medien",
+      "Design und Medien ( .)",
+      "Design und Medien (MDM)"
+     ],
+     "regular_semesters": 2,
+     "total_lp": 60,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "design-und-medien|m.a.|mdm|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|design-und-medien|m.a.|mdm|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Master-Studiengang Design und Medien"
+      }
+     ]
+    },
+    {
+     "id": "digitale-transformation-m-sc",
+     "program": "Digitale Transformation",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Digitale Transformation",
+      "Digitale Transformation ( .)",
+      "Digitale Transformation (MDT)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/01-Aenderung_in_Paragraph_1_BTPO-250710.pdf",
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "digitale-transformation|m.sc.|mdt|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|digitale-transformation|m.sc.|mdt|2018",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch PO 2018"
+      },
+      {
+       "po": "2021",
+       "code": "digitale-transformation|m.sc.|mdt|2021",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|digitale-transformation|m.sc.|mdt|2021",
+       "format": "hsh-modul-code",
+       "label": "Studien- und Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "dual-studieren-in-der-elektro-und-informationstechnik-b-eng",
+     "program": "Dual Studieren in der Elektro- und Informationstechnik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Dual Studieren in der Elektro- und Informationstechnik",
+      "Dual Studieren in der Elektro- und Informationstechnik ( .)"
+     ],
+     "regular_semesters": 1,
+     "total_lp": 30,
+     "po_document_url": null,
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": []
+    },
+    {
+     "id": "elektrische-energiesysteme-und-elektromobilitaet-m-eng",
+     "program": "Elektrische Energiesysteme und Elektromobilität",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Elektrische Energiesysteme und Elektromobilität",
+      "Elektrische Energiesysteme und Elektromobilität ( .)",
+      "Elektrische Energiesysteme und Elektromobilität (EEE)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/20_Masterstdg/EEE/BPO_EEEverk29.09.2023.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": []
+    },
+    {
+     "id": "erweiterte-pflegepraxis-advanced-nursing-practice-anp-community-health-nursing-chn-m-sc",
+     "program": "Erweiterte Pflegepraxis – Advanced Nursing Practice [ANP]/ Community Health Nursing [CHN]",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Erweiterte Pflegepraxis – Advanced Nursing Practice [ANP]/ Community Health Nursing [CHN]",
+      "Erweiterte Pflegepraxis – Advanced Nursing Practice [ANP]/ Community Health Nursing [CHN] ( .)",
+      "Erweiterte Pflegepraxis – Advanced Nursing Practice [ANP]/ Community Health Nursing [CHN] (MEP)"
+     ],
+     "regular_semesters": 5,
+     "total_lp": 150,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "erweiterte-pflegepraxis-advanced-nursing-practice-anp-community-health-nursing-chn|m.sc.|mep",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2026/27"
+       ],
+       "study_plan": null,
+       "key": "hsh|erweiterte-pflegepraxis-advanced-nursing-practice-anp-community-health-nursing-chn|m.sc.|mep",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "fernsehjournalismus-und-dokumentarfilm-m-a",
+     "program": "Fernsehjournalismus und Dokumentarfilm",
+     "degree": "M.A.",
+     "qis_names": [
+      "Fernsehjournalismus und Dokumentarfilm",
+      "Fernsehjournalismus und Dokumentarfilm ( .)",
+      "Fernsehjournalismus und Dokumentarfilm (MTV)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/01_hsh_nr_04_2023_2_PO_MTV.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "fernsehjournalismus-und-dokumentarfilm|m.a.|mtv|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|fernsehjournalismus-und-dokumentarfilm|m.a.|mtv|2022",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "forschung-und-professionalisierung-sozialer-arbeit-m-a",
+     "program": "Forschung und Professionalisierung Sozialer Arbeit",
+     "degree": "M.A.",
+     "qis_names": [
+      "Forschung und Professionalisierung Sozialer Arbeit",
+      "Forschung und Professionalisierung Sozialer Arbeit ( .)",
+      "Forschung und Professionalisierung Sozialer Arbeit (MSW)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": []
+    },
+    {
+     "id": "future-food-systems-b-eng",
+     "program": "Future Food Systems",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Future Food Systems",
+      "Future Food Systems ( .)",
+      "Future Food Systems (LVT)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Studiengaenge/13_F_II_BV_LVT_BTPO_BA.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "future-food-systems|b.eng.|lvt",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|future-food-systems|b.eng.|lvt",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch LVT"
+      }
+     ]
+    },
+    {
+     "id": "future-food-systems-m-eng",
+     "program": "Future Food Systems",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Future Food Systems",
+      "Future Food Systems ( .)",
+      "Future Food Systems (MLV)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Service/Ordnungen/01_F2_BV_BTPO_MA_MLV.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "future-food-systems|m.eng.|mlv|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|future-food-systems|m.eng.|mlv|2025",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhanbuch: Future Food Systems - Lebensmitteltechnologie und Verpackungstechnologie (LVT) (PO 2025)"
+      }
+     ]
+    },
+    {
+     "id": "green-engineering-nachhaltige-energie-und-verfahrenstechnik-fuer-die-biooekonomie-m-eng",
+     "program": "Green Engineering - Nachhaltige Energie- und Verfahrenstechnik für die Bioökonomie",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Green Engineering - Nachhaltige Energie- und Verfahrenstechnik für die Bioökonomie",
+      "Green Engineering - Nachhaltige Energie- und Verfahrenstechnik für die Bioökonomie ( .)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": []
+    },
+    {
+     "id": "green-engineering-energietechnik-und-verfahrenstechnik-b-eng",
+     "program": "Green Engineering – Energietechnik und Verfahrenstechnik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Green Engineering – Energietechnik und Verfahrenstechnik",
+      "Green Engineering – Energietechnik und Verfahrenstechnik ( .)",
+      "Green Engineering – Energietechnik und Verfahrenstechnik (GEV)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/GEV/F2_BA_GEV_BTPO_2025-07-15.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "green-engineering-energietechnik-und-verfahrenstechnik|b.eng.|gev",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|green-engineering-energietechnik-und-verfahrenstechnik|b.eng.|gev",
+       "format": "hsh-wpf-tabelle",
+       "label": "Entwurf Modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "heilpaedagogik-inklusive-bildung-und-begleitung-berufsbegleitend-b-a",
+     "program": "Heilpädagogik - Inklusive Bildung und Begleitung - berufsbegleitend",
+     "degree": "B.A.",
+     "qis_names": [
+      "Heilpädagogik - Inklusive Bildung und Begleitung - berufsbegleitend",
+      "Heilpädagogik - Inklusive Bildung und Begleitung - berufsbegleitend ( .)",
+      "Heilpädagogik - Inklusive Bildung und Begleitung - berufsbegleitend (HBI)"
+     ],
+     "regular_semesters": 5,
+     "total_lp": 150,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "heilpaedagogik-inklusive-bildung-und-begleitung-berufsbegleitend|b.a.|hbi",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2023"
+       ],
+       "study_plan": null,
+       "key": "hsh|heilpaedagogik-inklusive-bildung-und-begleitung-berufsbegleitend|b.a.|hbi",
+       "format": "hsh-modul-code",
+       "label": "Studienbeginn 2021-2023"
+      }
+     ]
+    },
+    {
+     "id": "heilpaedagogik-inklusive-bildung-und-begleitung-b-a",
+     "program": "Heilpädagogik - Inklusive Bildung und Begleitung",
+     "degree": "B.A.",
+     "qis_names": [
+      "Heilpädagogik - Inklusive Bildung und Begleitung",
+      "Heilpädagogik - Inklusive Bildung und Begleitung ( .)",
+      "Heilpädagogik - Inklusive Bildung und Begleitung (BAH)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Heilpaedagogik__BAH_/2023_BAH_UEbersicht_Abb.PO20211.pdf",
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": []
+    },
+    {
+     "id": "informationsmanagement-b-a",
+     "program": "Informationsmanagement",
+     "degree": "B.A.",
+     "qis_names": [
+      "Informationsmanagement",
+      "Informationsmanagement ( .)",
+      "Informationsmanagement (BIM)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_BA_BIM_2026.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "informationsmanagement|b.a.|bim|2024",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|informationsmanagement|b.a.|bim|2024",
+       "format": "hsh-code-kopf",
+       "label": "ab WiSe 2024/25"
+      },
+      {
+       "po": "2026",
+       "code": "informationsmanagement|b.a.|bim|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|informationsmanagement|b.a.|bim|2026",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch ab WiSe 26/27"
+      }
+     ]
+    },
+    {
+     "id": "informationsmanagement-berufsbegleitend-b-a",
+     "program": "Informationsmanagement berufsbegleitend",
+     "degree": "B.A.",
+     "qis_names": [
+      "Informationsmanagement berufsbegleitend",
+      "Informationsmanagement berufsbegleitend ( .)",
+      "Informationsmanagement berufsbegleitend (BIB)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_BIB_20242.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "informationsmanagement-berufsbegleitend|b.a.|bib|2024",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|informationsmanagement-berufsbegleitend|b.a.|bib|2024",
+       "format": "hsh-code-kopf",
+       "label": "ab WiSe 2024/25"
+      },
+      {
+       "po": "2026",
+       "code": "informationsmanagement-berufsbegleitend|b.a.|bib|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|informationsmanagement-berufsbegleitend|b.a.|bib|2026",
+       "format": "hsh-code-kopf",
+       "label": "ab WiSe 26/27"
+      }
+     ]
+    },
+    {
+     "id": "ingenieurinformatik-maschinenbau-b-eng",
+     "program": "Ingenieurinformatik Maschinenbau",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Ingenieurinformatik Maschinenbau",
+      "Ingenieurinformatik Maschinenbau ( .)",
+      "Ingenieurinformatik Maschinenbau (IIM)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/IIM/F2_BA_IIM_BTPO_2025-07-15.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2019",
+       "code": "ingenieurinformatik-maschinenbau|b.eng.|iim|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|ingenieurinformatik-maschinenbau|b.eng.|iim|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Ingenieurinformatik Maschinenbau IIM (PO ab WS2019)"
+      }
+     ]
+    },
+    {
+     "id": "sensor-und-automatisierungstechnik-m-eng",
+     "program": "Sensor- und Automatisierungstechnik",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Sensor- und Automatisierungstechnik",
+      "Sensor- und Automatisierungstechnik ( .)",
+      "Sensor- und Automatisierungstechnik (ESA)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/20_Masterstdg/ESA/Zielematrix_ESA-2025.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "sensor-und-automatisierungstechnik|m.eng.|esa|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|sensor-und-automatisierungstechnik|m.eng.|esa|2025",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch ESA, PO 2025/26"
+      }
+     ]
+    },
+    {
+     "id": "mechatronik-b-eng",
+     "program": "Mechatronik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Mechatronik",
+      "Mechatronik ( .)",
+      "Mechatronik (MEC)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/10_Bachelorstdg/MEC/FI_BTPO_BA_MEC_15.05.2026.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": [
+      {
+       "po": "2023",
+       "code": "mechatronik|b.eng.|mec|2023",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2023/24"
+       ],
+       "study_plan": null,
+       "key": "hsh|mechatronik|b.eng.|mec|2023",
+       "format": "hsh-modul-code",
+       "label": "Online-Modulhandbuch"
+      },
+      {
+       "po": "2026",
+       "code": "mechatronik|b.eng.|mec|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2026/27"
+       ],
+       "study_plan": null,
+       "key": "hsh|mechatronik|b.eng.|mec|2026",
+       "format": "hsh-modul-code",
+       "label": "Online-Modulhanbuch"
+      }
+     ]
+    },
+    {
+     "id": "technisches-informationsdesign-und-technische-redaktion-b-sc",
+     "program": "Technisches Informationsdesign und Technische Redaktion",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Technisches Informationsdesign und Technische Redaktion",
+      "Technisches Informationsdesign und Technische Redaktion ( .)",
+      "Technisches Informationsdesign und Technische Redaktion (ITR)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/10_Bachelorstdg/ITR/verk_2025_05_F_I__ITR_BTPO.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "technisches-informationsdesign-und-technische-redaktion|b.sc.|itr|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|technisches-informationsdesign-und-technische-redaktion|b.sc.|itr|2025",
+       "format": "hsh-modul-code",
+       "label": "Modulkatalog"
+      }
+     ]
+    },
+    {
+     "id": "nachhaltige-elektrische-energieversorgung-b-eng",
+     "program": "Nachhaltige Elektrische Energieversorgung",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Nachhaltige Elektrische Energieversorgung",
+      "Nachhaltige Elektrische Energieversorgung ( .)",
+      "Nachhaltige Elektrische Energieversorgung (NEV)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/10_Bachelorstdg/Vorpraktikumsordnung_F1_verkuendet_2025.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "nachhaltige-elektrische-energieversorgung|b.eng.|nev|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|nachhaltige-elektrische-energieversorgung|b.eng.|nev|2025",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch NEV"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsingenieur-elektrotechnik-b-eng",
+     "program": "Wirtschaftsingenieur Elektrotechnik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Wirtschaftsingenieur Elektrotechnik",
+      "Wirtschaftsingenieur Elektrotechnik ( .)",
+      "Wirtschaftsingenieur Elektrotechnik (EWI)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/10_Bachelorstdg/EWI/Qualifikationsziele_EWI_fuer_Webseite.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "wirtschaftsingenieur-elektrotechnik|b.eng.|ewi|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2018/19"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieur-elektrotechnik|b.eng.|ewi|2018",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch EWI"
+      },
+      {
+       "po": "2025",
+       "code": "wirtschaftsingenieur-elektrotechnik|b.eng.|ewi|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieur-elektrotechnik|b.eng.|ewi|2025",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch EWI (PO WS 2025/26)"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsingenieurwesen-maschinenbau-b-eng",
+     "program": "Wirtschaftsingenieurwesen Maschinenbau",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Wirtschaftsingenieurwesen Maschinenbau",
+      "Wirtschaftsingenieurwesen Maschinenbau ( .)",
+      "Wirtschaftsingenieurwesen Maschinenbau (WIM)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/WIM/F2_BA_WIM_BTPO_2025-07-15.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2010",
+       "code": "wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2010",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2010/11"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2010",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Wirtschaftsingenieur Maschinenbau WIM (PO ab WS2010)"
+      },
+      {
+       "po": "2016",
+       "code": "wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2016",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2016",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Wirtschaftsingenieur Maschinenbau WIM (PO ab WS2016)"
+      },
+      {
+       "po": "2019",
+       "code": "wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieurwesen-maschinenbau|b.eng.|wim|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Wirtschaftsingenieur Maschinenbau WIM (PO ab WS2019)"
+      }
+     ]
+    },
+    {
+     "id": "maschinenbau-entwicklung-m-eng",
+     "program": "Maschinenbau – Entwicklung",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Maschinenbau – Entwicklung",
+      "Maschinenbau – Entwicklung ( .)",
+      "Maschinenbau – Entwicklung (MED)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2010",
+       "code": "maschinenbau-entwicklung|m.eng.|med|2010",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2010/11"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau-entwicklung|m.eng.|med|2010",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Maschinenbau-Entwicklung MED (PO ab WS2010)"
+      }
+     ]
+    },
+    {
+     "id": "milch-und-verpackungswirtschaft-m-eng",
+     "program": "Milch- und Verpackungswirtschaft",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Milch- und Verpackungswirtschaft",
+      "Milch- und Verpackungswirtschaft ( .)",
+      "Milch- und Verpackungswirtschaft (MMV)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2011",
+       "code": "milch-und-verpackungswirtschaft|m.eng.|mmv|2011",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|milch-und-verpackungswirtschaft|m.eng.|mmv|2011",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch: Milch- und Verpackungswirtschaft MMV (PO ab WS2011)"
+      }
+     ]
+    },
+    {
+     "id": "lebensmittelverpackungstechnologie-b-eng",
+     "program": "Lebensmittelverpackungstechnologie",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Lebensmittelverpackungstechnologie",
+      "Lebensmittelverpackungstechnologie ( .)",
+      "Lebensmittelverpackungstechnologie (LMV)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2011",
+       "code": "lebensmittelverpackungstechnologie|b.eng.|lmv|2011",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|lebensmittelverpackungstechnologie|b.eng.|lmv|2011",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch: Lebensmittelverpackungstechnologie LMV (PO ab WS2011)"
+      }
+     ]
+    },
+    {
+     "id": "milchwirtschaftliche-lebensmitteltechnologie-b-eng",
+     "program": "Milchwirtschaftliche Lebensmitteltechnologie",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Milchwirtschaftliche Lebensmitteltechnologie",
+      "Milchwirtschaftliche Lebensmitteltechnologie ( .)",
+      "Milchwirtschaftliche Lebensmitteltechnologie (BML)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2011",
+       "code": "milchwirtschaftliche-lebensmitteltechnologie|b.eng.|bml|2011",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|milchwirtschaftliche-lebensmitteltechnologie|b.eng.|bml|2011",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch: Milchwirtschaftliche Lebensmitteltechnologie BML (PO ab WS2011)"
+      }
+     ]
+    },
+    {
+     "id": "technologie-nachwachsender-rohstoffe-b-eng",
+     "program": "Technologie Nachwachsender Rohstoffe",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Technologie Nachwachsender Rohstoffe",
+      "Technologie Nachwachsender Rohstoffe ( .)",
+      "Technologie Nachwachsender Rohstoffe (TNR)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2011",
+       "code": "technologie-nachwachsender-rohstoffe|b.eng.|tnr|2011",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|technologie-nachwachsender-rohstoffe|b.eng.|tnr|2011",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch: Technologie Nachwachsender Rohstoffe TNR (PO ab WS2011)"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsingenieur-in-technischer-vertrieb-dual-b-eng",
+     "program": "Wirtschaftsingenieur/in (Technischer Vertrieb) dual",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Wirtschaftsingenieur/in (Technischer Vertrieb) dual",
+      "Wirtschaftsingenieur/in (Technischer Vertrieb) dual ( .)",
+      "Wirtschaftsingenieur/in (Technischer Vertrieb) dual (WTD)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/WTD/WTD_PO_mit_Anlagen_2019.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2012",
+       "code": "wirtschaftsingenieur-in-technischer-vertrieb-dual|b.eng.|wtd|2012",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2012/13"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieur-in-technischer-vertrieb-dual|b.eng.|wtd|2012",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Wirtschaftsingenieur/in (Technischer Vertrieb) WTD (dual, PO ab WiSe 2012)"
+      },
+      {
+       "po": "2019",
+       "code": "wirtschaftsingenieur-in-technischer-vertrieb-dual|b.eng.|wtd|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieur-in-technischer-vertrieb-dual|b.eng.|wtd|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - WTD"
+      }
+     ]
+    },
+    {
+     "id": "intelligente-produktion-m-eng",
+     "program": "Intelligente Produktion",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Intelligente Produktion",
+      "Intelligente Produktion ( .)",
+      "Intelligente Produktion (InPro)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Sonstiges/BTPO_Module_InPro.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": []
+    },
+    {
+     "id": "produktionstechnik-dual-b-eng",
+     "program": "Produktionstechnik dual",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Produktionstechnik dual",
+      "Produktionstechnik dual ( .)",
+      "Produktionstechnik dual (PTD)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/PTD/F2_dual_BA_PTD_BTPO-2025-07-25.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2012",
+       "code": "produktionstechnik-dual|b.eng.|ptd|2012",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2012/13"
+       ],
+       "study_plan": null,
+       "key": "hsh|produktionstechnik-dual|b.eng.|ptd|2012",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Produktionstechnik PTD (dual, PO ab WS2012)"
+      },
+      {
+       "po": "2019",
+       "code": "produktionstechnik-dual|b.eng.|ptd|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|produktionstechnik-dual|b.eng.|ptd|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Produktionstechnik PTD (dual, PO ab WS2019)"
+      },
+      {
+       "po": "2025",
+       "code": "produktionstechnik-dual|b.eng.|ptd|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|produktionstechnik-dual|b.eng.|ptd|2025",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch: Produktionstechnik PTD (dual, PO ab WiSe 2025)"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsingenieurwesen-maschinenbau-dual-b-eng",
+     "program": "Wirtschaftsingenieurwesen Maschinenbau dual",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Wirtschaftsingenieurwesen Maschinenbau dual",
+      "Wirtschaftsingenieurwesen Maschinenbau dual ( .)",
+      "Wirtschaftsingenieurwesen Maschinenbau dual (WID)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/WID/F2_dual_BA_WID_BTPO_2025-07-25.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "wirtschaftsingenieurwesen-maschinenbau-dual|b.eng.|wid|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsingenieurwesen-maschinenbau-dual|b.eng.|wid|2025",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch: Wirtschaftsingenieurwesen WID (dual, PO ab WiSe 2025)"
+      }
+     ]
+    },
+    {
+     "id": "ingenieurinformatik-maschinenbau-dual-b-eng",
+     "program": "Ingenieurinformatik Maschinenbau dual",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Ingenieurinformatik Maschinenbau dual",
+      "Ingenieurinformatik Maschinenbau dual ( .)",
+      "Ingenieurinformatik Maschinenbau dual (IID)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/IID/F2_dual_BA_IID_BTPO_2025-07-25.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "ingenieurinformatik-maschinenbau-dual|b.eng.|iid|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2022/23"
+       ],
+       "study_plan": null,
+       "key": "hsh|ingenieurinformatik-maschinenbau-dual|b.eng.|iid|2022",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Ingenieurinformatik Maschinenbau IID (dual, PO ab WiSe 2022)"
+      },
+      {
+       "po": "2025",
+       "code": "ingenieurinformatik-maschinenbau-dual|b.eng.|iid|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|ingenieurinformatik-maschinenbau-dual|b.eng.|iid|2025",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch: Ingenieurinformatik Maschinenbau IID (dual, PO ab WiSe 2025)"
+      }
+     ]
+    },
+    {
+     "id": "technische-produktentwicklung-m-eng",
+     "program": "Technische Produktentwicklung",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Technische Produktentwicklung",
+      "Technische Produktentwicklung ( .)",
+      "Technische Produktentwicklung (TPE)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Service/Ordnungen/12_F2_MA_TPE_VB_EBU.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": []
+    },
+    {
+     "id": "maschinenbau-produktionssysteme-dual-m-eng",
+     "program": "Maschinenbau - Produktionssysteme dual",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Maschinenbau - Produktionssysteme dual",
+      "Maschinenbau - Produktionssysteme dual ( .)",
+      "Maschinenbau - Produktionssysteme dual (MPD)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Service/Ordnungen/11_F2_dual_MA_MPD_PO_VB_EBU.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": []
+    },
+    {
+     "id": "mechatronik-dual-b-eng",
+     "program": "Mechatronik dual",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Mechatronik dual",
+      "Mechatronik dual ( .)",
+      "Mechatronik dual (MTD)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/MTD/F2_dual_BA_MTD_BTPO_2025-07-25.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2012",
+       "code": "mechatronik-dual|b.eng.|mtd|2012",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2012/13"
+       ],
+       "study_plan": null,
+       "key": "hsh|mechatronik-dual|b.eng.|mtd|2012",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2012)"
+      },
+      {
+       "po": "2017",
+       "code": "mechatronik-dual|b.eng.|mtd|2017",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2017/18"
+       ],
+       "study_plan": null,
+       "key": "hsh|mechatronik-dual|b.eng.|mtd|2017",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2017)"
+      },
+      {
+       "po": "2019",
+       "code": "mechatronik-dual|b.eng.|mtd|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|mechatronik-dual|b.eng.|mtd|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2019)"
+      },
+      {
+       "po": "2025",
+       "code": "mechatronik-dual|b.eng.|mtd|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|mechatronik-dual|b.eng.|mtd|2025",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch: Mechatronik MTD (dual, PO ab WiSe 2025)"
+      }
+     ]
+    },
+    {
+     "id": "konstruktionstechnik-dual-b-eng",
+     "program": "Konstruktionstechnik dual",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Konstruktionstechnik dual",
+      "Konstruktionstechnik dual ( .)",
+      "Konstruktionstechnik dual (KTD)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/KTD/F2_dual_BA_KTD_BTPO_2025-07-25.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2012",
+       "code": "konstruktionstechnik-dual|b.eng.|ktd|2012",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2012/13"
+       ],
+       "study_plan": null,
+       "key": "hsh|konstruktionstechnik-dual|b.eng.|ktd|2012",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Konstruktionstechnik KTD (dual, PO ab WiSe 2012)"
+      },
+      {
+       "po": "2019",
+       "code": "konstruktionstechnik-dual|b.eng.|ktd|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|konstruktionstechnik-dual|b.eng.|ktd|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Konstruktionstechnik KTD (dual, PO ab WiSe 2019)"
+      },
+      {
+       "po": "2025",
+       "code": "konstruktionstechnik-dual|b.eng.|ktd|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|konstruktionstechnik-dual|b.eng.|ktd|2025",
+       "format": "hsh-wpf-tabelle",
+       "label": "Modulhandbuch: Konstruktionstechnik KTD (dual, PO ab WiSe 2025)"
+      }
+     ]
+    },
+    {
+     "id": "prozess-engineering-und-produktionsmanagement-m-eng",
+     "program": "Prozess-Engineering und Produktionsmanagement",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Prozess-Engineering und Produktionsmanagement",
+      "Prozess-Engineering und Produktionsmanagement ( .)",
+      "Prozess-Engineering und Produktionsmanagement (PEP)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_BV/Service/Ordnungen/10_F2_MA_PEP_VB_EBU.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2019",
+       "code": "prozess-engineering-und-produktionsmanagement|m.eng.|pep|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|prozess-engineering-und-produktionsmanagement|m.eng.|pep|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Prozess-Engineering und Produktionsmanagement PEP (PO ab WS2019)"
+      }
+     ]
+    },
+    {
+     "id": "visual-journalism-and-documentary-photography-b-a",
+     "program": "Visual Journalism and Documentary Photography",
+     "degree": "B.A.",
+     "qis_names": [
+      "Visual Journalism and Documentary Photography",
+      "Visual Journalism and Documentary Photography ( .)",
+      "Visual Journalism and Documentary Photography (BFO)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": []
+    },
+    {
+     "id": "mode-konzept-design-kommunikation-b-a",
+     "program": "MODE: konzept. design. kommunikation.",
+     "degree": "B.A.",
+     "qis_names": [
+      "MODE: konzept. design. kommunikation.",
+      "MODE: konzept. design. kommunikation. ( .)",
+      "MODE: konzept. design. kommunikation. (BMO)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "mode-konzept-design-kommunikation|b.a.|bmo|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|mode-konzept-design-kommunikation|b.a.|bmo|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Bachelor-Studiengang Modedesign"
+      }
+     ]
+    },
+    {
+     "id": "visuelle-kommunikation-b-a",
+     "program": "Visuelle Kommunikation",
+     "degree": "B.A.",
+     "qis_names": [
+      "Visuelle Kommunikation",
+      "Visuelle Kommunikation ( .)",
+      "Visuelle Kommunikation (BVK)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "visuelle-kommunikation|b.a.|bvk|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|visuelle-kommunikation|b.a.|bvk|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Bachelor-Studiengang Visuelle Kommunikation"
+      }
+     ]
+    },
+    {
+     "id": "mediendesign-b-a",
+     "program": "Mediendesign",
+     "degree": "B.A.",
+     "qis_names": [
+      "Mediendesign",
+      "Mediendesign ( .)",
+      "Mediendesign (BME)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "mediendesign|b.a.|bme|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|mediendesign|b.a.|bme|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Bachelor-Studiengang Mediendesign"
+      }
+     ]
+    },
+    {
+     "id": "medizinisches-informationsmanagement-m-sc",
+     "program": "Medizinisches Informationsmanagement",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Medizinisches Informationsmanagement",
+      "Medizinisches Informationsmanagement ( .)",
+      "Medizinisches Informationsmanagement (MMI)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_MMI_01_F_III_20261.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2020",
+       "code": "medizinisches-informationsmanagement|m.sc.|mmi|2020",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|medizinisches-informationsmanagement|m.sc.|mmi|2020",
+       "format": "hsh-code-kopf",
+       "label": "Medizinisches Informationsmanagement ab SoSe 2020"
+      }
+     ]
+    },
+    {
+     "id": "journalistik-b-a",
+     "program": "Journalistik",
+     "degree": "B.A.",
+     "qis_names": [
+      "Journalistik",
+      "Journalistik ( .)",
+      "Journalistik (BJO)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_BJO_20222.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "journalistik|b.a.|bjo|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2021/22"
+       ],
+       "study_plan": null,
+       "key": "hsh|journalistik|b.a.|bjo|2022",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "innenarchitektur-b-a",
+     "program": "Innenarchitektur",
+     "degree": "B.A.",
+     "qis_names": [
+      "Innenarchitektur",
+      "Innenarchitektur ( .)",
+      "Innenarchitektur (BIA)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "innenarchitektur|b.a.|bia|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|innenarchitektur|b.a.|bia|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Bachelor-Studiengang Innenarchitektur"
+      }
+     ]
+    },
+    {
+     "id": "integrated-media-communication-imc-dual-b-a",
+     "program": "Integrated Media & Communication (IMC) Dual",
+     "degree": "B.A.",
+     "qis_names": [
+      "Integrated Media & Communication (IMC) Dual",
+      "Integrated Media & Communication (IMC) Dual ( .)",
+      "Integrated Media & Communication (IMC) Dual (DUAL)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/05_PO_IMC_2021.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2019",
+       "code": "integrated-media-communication-imc-dual|b.a.|dual|2019",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|integrated-media-communication-imc-dual|b.a.|dual|2019",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "medizinisches-informationsmanagement-b-sc",
+     "program": "Medizinisches Informationsmanagement",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Medizinisches Informationsmanagement",
+      "Medizinisches Informationsmanagement ( .)",
+      "Medizinisches Informationsmanagement (BMI)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_BMI_20242.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2024",
+       "code": "medizinisches-informationsmanagement|b.sc.|bmi|2024",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2024/25"
+       ],
+       "study_plan": null,
+       "key": "hsh|medizinisches-informationsmanagement|b.sc.|bmi|2024",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch ab WiSe 24/25"
+      }
+     ]
+    },
+    {
+     "id": "produktdesign-b-a",
+     "program": "Produktdesign",
+     "degree": "B.A.",
+     "qis_names": [
+      "Produktdesign",
+      "Produktdesign ( .)",
+      "Produktdesign (BPD)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "produktdesign|b.a.|bpd|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|produktdesign|b.a.|bpd|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Bachelor-Studiengang Produktdesign"
+      }
+     ]
+    },
+    {
+     "id": "public-relations-b-a",
+     "program": "Public Relations",
+     "degree": "B.A.",
+     "qis_names": [
+      "Public Relations",
+      "Public Relations ( .)",
+      "Public Relations (BPR)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_BPR_20222.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "public-relations|b.a.|bpr|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|public-relations|b.a.|bpr|2022",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "szenografie-kostuem-experimentelle-gestaltung-b-a",
+     "program": "Szenografie – Kostüm – Experimentelle Gestaltung",
+     "degree": "B.A.",
+     "qis_names": [
+      "Szenografie – Kostüm – Experimentelle Gestaltung",
+      "Szenografie – Kostüm – Experimentelle Gestaltung ( .)",
+      "Szenografie – Kostüm – Experimentelle Gestaltung (SKE)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "szenografie-kostuem-experimentelle-gestaltung|b.a.|ske|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|szenografie-kostuem-experimentelle-gestaltung|b.a.|ske|2022",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch Bachelor-Studiengang Szenografie-Kostüm-Experimentelle Gestaltung"
+      }
+     ]
+    },
+    {
+     "id": "veranstaltungsmanagement-b-a",
+     "program": "Veranstaltungsmanagement",
+     "degree": "B.A.",
+     "qis_names": [
+      "Veranstaltungsmanagement",
+      "Veranstaltungsmanagement ( .)",
+      "Veranstaltungsmanagement (BVM)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_BA_BVM_2026.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2015",
+       "code": "veranstaltungsmanagement|b.a.|bvm|2015",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2015/16"
+       ],
+       "study_plan": null,
+       "key": "hsh|veranstaltungsmanagement|b.a.|bvm|2015",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - ab Studienbeginn 2015"
+      },
+      {
+       "po": "2018",
+       "code": "veranstaltungsmanagement|b.a.|bvm|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2018/19"
+       ],
+       "study_plan": null,
+       "key": "hsh|veranstaltungsmanagement|b.a.|bvm|2018",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - ab Studienbeginn 2018"
+      },
+      {
+       "po": "2022",
+       "code": "veranstaltungsmanagement|b.a.|bvm|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2022/23"
+       ],
+       "study_plan": null,
+       "key": "hsh|veranstaltungsmanagement|b.a.|bvm|2022",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - ab Studienbeginn 2022"
+      }
+     ]
+    },
+    {
+     "id": "kommunikationsmanagement-m-a",
+     "program": "Kommunikationsmanagement",
+     "degree": "M.A.",
+     "qis_names": [
+      "Kommunikationsmanagement",
+      "Kommunikationsmanagement ( .)",
+      "Kommunikationsmanagement (MKO)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": "https://f3.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_III/Ordnungen_IK/PO_MKO_20222.pdf",
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2022",
+       "code": "kommunikationsmanagement|m.a.|mko|2022",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2021/22"
+       ],
+       "study_plan": null,
+       "key": "hsh|kommunikationsmanagement|m.a.|mko|2022",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "mediendesigninformatik-b-sc",
+     "program": "Mediendesigninformatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Mediendesigninformatik",
+      "Mediendesigninformatik ( .)",
+      "Mediendesigninformatik (MDI)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät III – Medien, Information und Design",
+     "pos": [
+      {
+       "po": "2023",
+       "code": "mediendesigninformatik|b.sc.|mdi|2023",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|mediendesigninformatik|b.sc.|mdi|2023",
+       "format": "hsh-modul-code",
+       "label": "Modulverzeichnis (Stand 29.04.2024 für Prüfungsordnung 2023-WS)"
+      }
+     ]
+    },
+    {
+     "id": "verwaltungsinformatik-b-sc",
+     "program": "Verwaltungsinformatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Verwaltungsinformatik",
+      "Verwaltungsinformatik ( .)",
+      "Verwaltungsinformatik (VIF)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/01-VIF-PO2026-26-06-16.pdf",
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2020",
+       "code": "verwaltungsinformatik|b.sc.|vif|2020",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|verwaltungsinformatik|b.sc.|vif|2020",
+       "format": "hsh-modul-code",
+       "label": "Studien- und Modulhandbuch PO 2020"
+      },
+      {
+       "po": "2025",
+       "code": "verwaltungsinformatik|b.sc.|vif|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|verwaltungsinformatik|b.sc.|vif|2025",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch - PO 2025 Polizei"
+      },
+      {
+       "po": "2026",
+       "code": "verwaltungsinformatik|b.sc.|vif|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|verwaltungsinformatik|b.sc.|vif|2026",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch PO 2026"
+      }
+     ]
+    },
+    {
+     "id": "wirtschaftsinformatik-b-sc",
+     "program": "Wirtschaftsinformatik",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "Wirtschaftsinformatik",
+      "Wirtschaftsinformatik ( .)",
+      "Wirtschaftsinformatik (BIS)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/WI/Ordnungen/01-BIS-PO2026-30.07.2026_Verkuendungsblatt.pdf",
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2016",
+       "code": "wirtschaftsinformatik|b.sc.|bis|2016",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsinformatik|b.sc.|bis|2016",
+       "format": "hsh-modul-code",
+       "label": "Studien- und Modulhandbuch PO 2016"
+      },
+      {
+       "po": "2018",
+       "code": "wirtschaftsinformatik|b.sc.|bis|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsinformatik|b.sc.|bis|2018",
+       "format": "hsh-modul-code",
+       "label": "Studien-Modulhandbuch PO 2018"
+      },
+      {
+       "po": "2026",
+       "code": "wirtschaftsinformatik|b.sc.|bis|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|wirtschaftsinformatik|b.sc.|bis|2026",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch BIS PO 2026"
+      }
+     ]
+    },
+    {
+     "id": "international-business-studies-b-sc",
+     "program": "International Business Studies",
+     "degree": "B.Sc.",
+     "qis_names": [
+      "International Business Studies",
+      "International Business Studies ( .)",
+      "International Business Studies (IBS)"
+     ],
+     "regular_semesters": 8,
+     "total_lp": 240,
+     "po_document_url": "https://f4.hs-hannover.de/fileadmin/HsH/Forms/Fakultaet_IV/StudServ/OFI/BWL/IBS/IBS_Curriculum_RGU_PO_2018.pdf",
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "international-business-studies|b.sc.|ibs|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hsh|international-business-studies|b.sc.|ibs|2018",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch (PO 2018)"
+      }
+     ]
+    },
+    {
+     "id": "unternehmensentwicklung-m-sc",
+     "program": "Unternehmensentwicklung",
+     "degree": "M.Sc.",
+     "qis_names": [
+      "Unternehmensentwicklung",
+      "Unternehmensentwicklung ( .)",
+      "Unternehmensentwicklung (MBD)"
+     ],
+     "regular_semesters": 3,
+     "total_lp": 90,
+     "po_document_url": null,
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "unternehmensentwicklung|m.sc.|mbd|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2023"
+       ],
+       "study_plan": null,
+       "key": "hsh|unternehmensentwicklung|m.sc.|mbd|2018",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch MBD (PO 2018)"
+      }
+     ]
+    },
+    {
+     "id": "mittelstaendische-unternehmensfuehrung-in-entrepreneurship-mba",
+     "program": "Mittelständische Unternehmensführung in Entrepreneurship",
+     "degree": "MBA",
+     "qis_names": [
+      "Mittelständische Unternehmensführung in Entrepreneurship",
+      "Mittelständische Unternehmensführung in Entrepreneurship (MBA)",
+      "MasterBachelorA Mittelständische Unternehmensführung in Entrepreneurship",
+      "Mittelständische Unternehmensführung in Entrepreneurship (MMU)"
+     ],
+     "regular_semesters": 5,
+     "total_lp": 150,
+     "po_document_url": null,
+     "faculty": "Fakultät IV – Wirtschaft und Informatik",
+     "pos": []
+    },
+    {
+     "id": "pflege-b-a",
+     "program": "Pflege",
+     "degree": "B.A.",
+     "qis_names": [
+      "Pflege",
+      "Pflege ( .)",
+      "Pflege (BDP)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "pflege|b.a.|bdp",
+       "source": "hsh-grundstock",
+       "catalog_terms": [],
+       "study_plan": null,
+       "key": "hsh|pflege|b.a.|bdp",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch BA Pflege"
+      }
+     ]
+    },
+    {
+     "id": "soziale-arbeit-grundstaendig-b-a",
+     "program": "Soziale Arbeit - grundständig",
+     "degree": "B.A.",
+     "qis_names": [
+      "Soziale Arbeit - grundständig",
+      "Soziale Arbeit - grundständig ( .)",
+      "Soziale Arbeit - grundständig (BSW)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Soziale_Arbeit_grundstaendig/Vorlesungsverzeichnis/VV-SoSe-2026/VV-BSW-PO-2026-SoSe-2026-klein.pdf",
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "2020",
+       "code": "soziale-arbeit-grundstaendig|b.a.|bsw|2020",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2021"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-grundstaendig|b.a.|bsw|2020",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch WiSe 2020 & SoSe 2021"
+      },
+      {
+       "po": "2021",
+       "code": "soziale-arbeit-grundstaendig|b.a.|bsw|2021",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-grundstaendig|b.a.|bsw|2021",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch WiSe 2025/26"
+      },
+      {
+       "po": "2026",
+       "code": "soziale-arbeit-grundstaendig|b.a.|bsw|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-grundstaendig|b.a.|bsw|2026",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch SoSe 2026"
+      }
+     ]
+    },
+    {
+     "id": "religionspaedagogik-und-soziale-arbeit-b-a",
+     "program": "Religionspädagogik und Soziale Arbeit",
+     "degree": "B.A.",
+     "qis_names": [
+      "Religionspädagogik und Soziale Arbeit",
+      "Religionspädagogik und Soziale Arbeit ( .)",
+      "Religionspädagogik und Soziale Arbeit (BRS)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f5.hs-hannover.de/fileadmin/HsH/Fakultaet_V/Bilder_Datein/Studium/Bachelor/Relpaed/Vorlesungsverzeichnis/VV_SoSe-2026/VV-BRS-PO-2021-SoSe-2026-klein.pdf",
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "2018",
+       "code": "religionspaedagogik-und-soziale-arbeit|b.a.|brs|2018",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2018",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch"
+      },
+      {
+       "po": "2020",
+       "code": "religionspaedagogik-und-soziale-arbeit|b.a.|brs|2020",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2020/21"
+       ],
+       "study_plan": null,
+       "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2020",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch"
+      },
+      {
+       "po": "2021",
+       "code": "religionspaedagogik-und-soziale-arbeit|b.a.|brs|2021",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2021",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch"
+      },
+      {
+       "po": "2026",
+       "code": "religionspaedagogik-und-soziale-arbeit|b.a.|brs|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2026/27"
+       ],
+       "study_plan": null,
+       "key": "hsh|religionspaedagogik-und-soziale-arbeit|b.a.|brs|2026",
+       "format": "hsh-modul-nummer",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "therapeutische-arbeit-mit-kindern-und-jugendlichen-m-a",
+     "program": "Therapeutische Arbeit mit Kindern und Jugendlichen",
+     "degree": "M.A.",
+     "qis_names": [
+      "Therapeutische Arbeit mit Kindern und Jugendlichen",
+      "Therapeutische Arbeit mit Kindern und Jugendlichen ( .)",
+      "Therapeutische Arbeit mit Kindern und Jugendlichen (MTA)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": []
+    },
+    {
+     "id": "management-fuer-pflege-und-gesundheitsberufe-m-a",
+     "program": "Management für Pflege- und Gesundheitsberufe",
+     "degree": "M.A.",
+     "qis_names": [
+      "Management für Pflege- und Gesundheitsberufe",
+      "Management für Pflege- und Gesundheitsberufe ( .)",
+      "Management für Pflege- und Gesundheitsberufe (MMG)"
+     ],
+     "regular_semesters": 6,
+     "total_lp": 180,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "management-fuer-pflege-und-gesundheitsberufe|m.a.|mmg",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|management-fuer-pflege-und-gesundheitsberufe|m.a.|mmg",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch"
+      }
+     ]
+    },
+    {
+     "id": "lbs-sprint-berufliche-fachrichtung-pflege-master",
+     "program": "LBS-Sprint - berufliche Fachrichtung Pflege",
+     "degree": "Master",
+     "qis_names": [
+      "LBS-Sprint - berufliche Fachrichtung Pflege",
+      "LBS-Sprint - berufliche Fachrichtung Pflege ( )",
+      "Masteraster LBS-Sprint - berufliche Fachrichtung Pflege",
+      "LBS-Sprint - berufliche Fachrichtung Pflege (MLP)"
+     ],
+     "regular_semesters": 4,
+     "total_lp": 120,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "unbekannt",
+       "code": "lbs-sprint-berufliche-fachrichtung-pflege|master|mlp",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2024"
+       ],
+       "study_plan": null,
+       "key": "hsh|lbs-sprint-berufliche-fachrichtung-pflege|master|mlp",
+       "format": "hsh-modultitel",
+       "label": "Modulbeschreibung"
+      }
+     ]
+    },
+    {
+     "id": "soziale-arbeit-berufsbegleitend-b-a",
+     "program": "Soziale Arbeit - berufsbegleitend",
+     "degree": "B.A.",
+     "qis_names": [
+      "Soziale Arbeit - berufsbegleitend",
+      "Soziale Arbeit - berufsbegleitend ( .)",
+      "Soziale Arbeit - berufsbegleitend (SBW)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": null,
+     "faculty": "Fakultät V – Diakonie, Gesundheit und Soziales",
+     "pos": [
+      {
+       "po": "2017",
+       "code": "soziale-arbeit-berufsbegleitend|b.a.|sbw|2017",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2017"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2017",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn SoSe 2017 bis SoSe 2020)"
+      },
+      {
+       "po": "2024",
+       "code": "soziale-arbeit-berufsbegleitend|b.a.|sbw|2024",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2024"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2024",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn SoSe 2021 bis SoSe 2023)"
+      },
+      {
+       "po": "2025",
+       "code": "soziale-arbeit-berufsbegleitend|b.a.|sbw|2025",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2025"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2025",
+       "format": "hsh-code-kopf",
+       "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn seit SoSe 2025)"
+      },
+      {
+       "po": "2026",
+       "code": "soziale-arbeit-berufsbegleitend|b.a.|sbw|2026",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "SS 2026"
+       ],
+       "study_plan": null,
+       "key": "hsh|soziale-arbeit-berufsbegleitend|b.a.|sbw|2026",
+       "format": "hsh-modul-code",
+       "label": "Modulhandbuch (gültig für Studierende mit Studienbeginn seit SoSe 2026)"
+      }
+     ]
+    },
+    {
+     "id": "elektrotechnik-und-informationstechnik-b-eng",
+     "program": "Elektrotechnik und Informationstechnik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Elektrotechnik und Informationstechnik",
+      "Elektrotechnik und Informationstechnik ( .)",
+      "Elektrotechnik und Informationstechnik (EIT)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f1.hs-hannover.de/fileadmin/HsH/Fakultaet_I/20_Dokumente/10_Ordnungen/10_Pruefungsordnungen/10_Bachelorstdg/EIT/BPO-EIT_2011-12-12.pdf",
+     "faculty": "Fakultät I – Elektro- und Informationstechnik",
+     "pos": [
+      {
+       "po": "2025",
+       "code": "elektrotechnik-und-informationstechnik|b.eng.|eit|2025-adt",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-adt",
+       "format": "hsh-modul-code",
+       "label": "Vertiefung ADT"
+      },
+      {
+       "po": "2025",
+       "code": "elektrotechnik-und-informationstechnik|b.eng.|eit|2025-eae",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-eae",
+       "format": "hsh-modul-code",
+       "label": "Vertiefung EAE"
+      },
+      {
+       "po": "2025",
+       "code": "elektrotechnik-und-informationstechnik|b.eng.|eit|2025-sel",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-sel",
+       "format": "hsh-modul-code",
+       "label": "Vertiefung SEL"
+      },
+      {
+       "po": "2025",
+       "code": "elektrotechnik-und-informationstechnik|b.eng.|eit|2025-ski",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2025/26"
+       ],
+       "study_plan": null,
+       "key": "hsh|elektrotechnik-und-informationstechnik|b.eng.|eit|2025-ski",
+       "format": "hsh-modul-code",
+       "label": "Vertiefung SKI"
+      }
+     ]
+    },
+    {
+     "id": "verfahrenstechnik-energietechnik-und-umwelttechnik-b-eng",
+     "program": "Verfahrenstechnik, Energietechnik und Umwelttechnik",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Verfahrenstechnik, Energietechnik und Umwelttechnik",
+      "Verfahrenstechnik, Energietechnik und Umwelttechnik ( .)",
+      "Verfahrenstechnik, Energietechnik und Umwelttechnik (VEU)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/VEU/PO-VEU-2019-Verkuendungsblatt_Nr._04.2019_vom_31.08.2019.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2010",
+       "code": "verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2010-et",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2010/11"
+       ],
+       "study_plan": null,
+       "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2010-et",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Energietechnik VEU-ET (PO ab WS2010)"
+      },
+      {
+       "po": "2010",
+       "code": "verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2010-vu",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2010/11"
+       ],
+       "study_plan": null,
+       "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2010-vu",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Verfahrens- und Umwelttechnik VEU-VU (PO ab WS2010)"
+      },
+      {
+       "po": "2016",
+       "code": "verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2016-et",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2016-et",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Energietechnik VEU-ET (PO ab WS2016)"
+      },
+      {
+       "po": "2016",
+       "code": "verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2016-vu",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2016-vu",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Verfahrens- und Umwelttechnik VEU-VU (PO ab WS2016)"
+      },
+      {
+       "po": "2019",
+       "code": "verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2019-et",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2019-et",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - VEU - ET"
+      },
+      {
+       "po": "2019",
+       "code": "verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2019-vu",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|verfahrenstechnik-energietechnik-und-umwelttechnik|b.eng.|veu|2019-vu",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - VEU - VU"
+      }
+     ]
+    },
+    {
+     "id": "wertschoepfungsmanagement-im-maschinenbau-dual-m-eng",
+     "program": "Wertschöpfungsmanagement im Maschinenbau dual",
+     "degree": "M.Eng.",
+     "qis_names": [
+      "Wertschöpfungsmanagement im Maschinenbau dual",
+      "Wertschöpfungsmanagement im Maschinenbau dual ( .)",
+      "Wertschöpfungsmanagement im Maschinenbau dual (WMM)"
+     ],
+     "regular_semesters": null,
+     "total_lp": null,
+     "po_document_url": "https://f2.hs-hannover.de/fileadmin/HsH/Fakultaet_II/Abt_M/Dokumente/Ordnungen/WMM/WMM_PO_mit_Anlage_2019.pdf",
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2012",
+       "code": "wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2012-bo",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2012/13"
+       ],
+       "study_plan": null,
+       "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2012-bo",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: WMM - Betriebsorganisation WMM-BO (dual, PO ab WS2012)"
+      },
+      {
+       "po": "2012",
+       "code": "wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2012-pe",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2012/13"
+       ],
+       "study_plan": null,
+       "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2012-pe",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: WMM - Produktentwicklung WMM-PE (dual, PO abWS2012)"
+      },
+      {
+       "po": "2019",
+       "code": "wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2019-bo",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2019-bo",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - WMM BO"
+      },
+      {
+       "po": "2019",
+       "code": "wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2019-pe",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|wertschoepfungsmanagement-im-maschinenbau-dual|m.eng.|wmm|2019-pe",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch - WMM PE"
+      }
+     ]
+    },
+    {
+     "id": "maschinenbau-b-eng",
+     "program": "Maschinenbau",
+     "degree": "B.Eng.",
+     "qis_names": [
+      "Maschinenbau",
+      "Maschinenbau ( .)",
+      "Maschinenbau (MAB)"
+     ],
+     "regular_semesters": 7,
+     "total_lp": 210,
+     "po_document_url": null,
+     "faculty": "Fakultät II – Maschinenbau und Bioverfahrenstechnik",
+     "pos": [
+      {
+       "po": "2010",
+       "code": "maschinenbau|b.eng.|mab|2010-am",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2010/11"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau|b.eng.|mab|2010-am",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Allgemeiner Maschinenbau MAB-AM (PO ab WS2010)"
+      },
+      {
+       "po": "2010",
+       "code": "maschinenbau|b.eng.|mab|2010-ps",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2010/11"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau|b.eng.|mab|2010-ps",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Produktionssysteme MAB-PS (PO ab WS2010)"
+      },
+      {
+       "po": "2016",
+       "code": "maschinenbau|b.eng.|mab|2016-am",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau|b.eng.|mab|2016-am",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Allgemeiner Maschinenbau MAB-AM (PO ab WS2016)"
+      },
+      {
+       "po": "2016",
+       "code": "maschinenbau|b.eng.|mab|2016-ps",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2016/17"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau|b.eng.|mab|2016-ps",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Produktionssysteme MAB-PS (PO ab WS2016)"
+      },
+      {
+       "po": "2019",
+       "code": "maschinenbau|b.eng.|mab|2019-am",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau|b.eng.|mab|2019-am",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Allgemeiner Maschinenbau MAB-AM (PO ab WS2019)"
+      },
+      {
+       "po": "2019",
+       "code": "maschinenbau|b.eng.|mab|2019-ps",
+       "source": "hsh-grundstock",
+       "catalog_terms": [
+        "WS 2019/20"
+       ],
+       "study_plan": null,
+       "key": "hsh|maschinenbau|b.eng.|mab|2019-ps",
+       "format": "hsh-modultitel",
+       "label": "Modulhandbuch: Produktionssysteme MAB-PS (PO ab WS2019)"
       }
      ]
     }

@@ -51,6 +51,12 @@ enum UniLinks {
                 if h.hasPrefix("www.") { out.append(Scope(host: String(h.dropFirst(4)), pathPrefix: "/" + stem)) }
             }
         }
+        if u == .hsh {
+            // Hochschule Hannover: ganzes Moodle und Campusmanagement, das alte QIS (Iframe) nur unter /qisserver/
+            whole(UniversityProfile.hshMoodle)
+            whole(UniversityProfile.hshCampus)
+            out.append(Scope(host: "icms.hs-hannover.de", pathPrefix: "/qisserver/"))
+        }
         var unique: [Scope] = []
         for s in out where !unique.contains(s) { unique.append(s) }
         return unique

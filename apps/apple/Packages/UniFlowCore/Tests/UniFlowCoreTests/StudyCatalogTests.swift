@@ -46,7 +46,7 @@ final class StudyCatalogTextTests: XCTestCase {
         let cases = try json("registry-cases.json")
         let src = StudySources.bundled
         for c in cases["matches"]?.array ?? [] {
-            let got = src.match(label: c["label"]?.string ?? "", university: "luh", po: c["po"]?.string)
+            let got = src.match(label: c["label"]?.string ?? "", university: c["university"]?.string ?? "luh", po: c["po"]?.string)
             XCTAssertEqual(got?.json ?? .null, c["result"], c["label"]?.string ?? "")
         }
         for c in cases["keys"]?.array ?? [] {
