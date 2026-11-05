@@ -1,32 +1,32 @@
 import Foundation
 import StoreKit
 
-// Verknuepfung des Abos mit dem StudiNow-Dienst (docs/ABO-SYSTEM.md, Abschnitt 3) – VORBEREITET, IN V1 ABGESCHALTET.
+// Verknuepfung des Abos mit dem StudiNow-Dienst (docs/ABO-SYSTEM.md, Abschnitte 3 und 6b) – EINGESCHALTET seit 05.11.2026
+// (Entscheidung des Inhabers: KI in 1.0 ueber Pro AI, dafuer muss der Dienst den Tarif kennen).
 //
-// Das iPad laeuft in V1 ohne Konto beim Dienst. Der Tarif entsteht nur auf dem Geraet aus
-// Transaction.currentEntitlements (Entitlements.refresh); diese Schicht ruft nichts auf, schickt nichts und setzt beim
-// Kauf keine Kennung. Sie haelt nur die Form fest, die der Dienst erwartet (app/billing_api.py, app/apple_store.py),
-// damit V2 sie einschalten kann, ohne den Kaufweg umzubauen.
-//
-// TODO(V2, Konto beim Dienst): `isEnabled` erst einschalten, wenn die App angemeldet ist, dann
-//   1. `apple_account_token` aus GET /api/entitlements lesen und beim Kauf als appAccountToken mitgeben
-//      (`purchaseOptions(accountToken:)`, PurchaseStore.purchase);
-//   2. nach Kauf, Verlaengerung (Transaction.updates) und Wiederherstellen Transaction.jwsRepresentation und die
-//      JWS der RenewalInfo an POST /api/billing/apple/verify schicken (`verifyRequest`, ueber den API-Client der App,
-//      als `Entitlements.verifyOnServer`); Antworten 409 subscription_owned_by_other_account und 503
-//      apple_not_configured verstaendlich zeigen;
-//   3. danach den Stand aus GET /api/entitlements zeigen (der Dienst ist dann die Quelle, auch fuer Web/Windows), und
-//      die "in Vorbereitung"-Zeilen (UFEntitlement.onDevice == .needsService) nach dem Stand des Dienstes freigeben.
+// Der Tarif auf dem iPad entsteht weiter aus Transaction.currentEntitlements (Entitlements.refresh); ein Fehler des
+// Dienstes sperrt nie einen Kauf. Mit angemeldetem StudiNow-Konto zusaetzlich:
+//   1. beim Kauf `appAccountToken` = UniFlow-ID als UUID (`apple_account_token` aus GET /api/entitlements,
+//      `accountToken`, gesetzt von StudoraAccountLink), damit der Dienst den Kauf genau einem Konto zuordnet;
+//   2. nach Kauf, Verlaengerung (Transaction.updates) und einmal je Anmeldung (Wiederherstellen) geht
+//      Transaction.jwsRepresentation an POST /api/billing/apple/verify (`StudoraAccount.verifyApple`, als
+//      `Entitlements.verifyOnServer`); 409 subscription_owned_by_other_account zeigt die Kontokarte, 503
+//      apple_not_configured bleibt still (naechster Start versucht es erneut);
+//   3. danach zeigt die App den Stand aus GET /api/entitlements (Credits, Probe des Kontos).
+// Ohne Anmeldung: keine Anfrage, kein appAccountToken.
 enum UFBillingServiceLink {
-    /// V1: aus. Kein Konto beim Dienst, keine Anfrage, kein appAccountToken.
-    static let isEnabled = false
+    /// Verknuepfung eingeschaltet (Kaufoption nur mit Konto-Token, Meldung nur mit Anmeldung)
+    static let isEnabled = true
+
+    /// `apple_account_token` des angemeldeten Kontos (nil ohne Anmeldung)
+    @MainActor static var accountToken: String?
 
     /// Pfad der Server-Pruefung im Dienst
     static let verifyPath = "/api/billing/apple/verify"
 
-    /// Kaufoptionen fuer `Product.purchase(options:)`. In V1 leer. Mit Konto (V2): appAccountToken = UniFlow-ID als
-    /// UUID (`apple_account_token` aus GET /api/entitlements), damit der Dienst den Kauf genau einem Konto zuordnet.
-    /// `enabled` nur fuer Tests.
+    /// Kaufoptionen fuer `Product.purchase(options:)`: mit Konto appAccountToken = UniFlow-ID als UUID
+    /// (`apple_account_token` aus GET /api/entitlements), damit der Dienst den Kauf genau einem Konto zuordnet; ohne
+    /// Konto leer. `enabled` nur fuer Tests.
     static func purchaseOptions(accountToken: String?, enabled: Bool = isEnabled) -> Set<Product.PurchaseOption> {
         guard enabled, let token = accountToken.flatMap(UUID.init(uuidString:)) else { return [] }
         return [.appAccountToken(token)]
@@ -43,8 +43,8 @@ enum UFBillingServiceLink {
         }
     }
 
-    /// Anfrage fuer die Server-Pruefung. In V1 nil: es wird nichts gebaut und nichts geschickt. Abschicken (mit
-    /// Sitzung) uebernimmt in V2 der API-Client der App. `enabled` nur fuer Tests.
+    /// Form der Anfrage fuer die Server-Pruefung (Vertrag mit app/billing_api.py). Abgeschickt wird sie ueber
+    /// `StudoraAccount.verifyApple` mit dem Sitzungs-Token. `enabled` nur fuer Tests.
     static func verifyRequest(base: URL, signedTransaction: String, signedRenewal: String? = nil,
                               enabled: Bool = isEnabled) -> URLRequest? {
         guard enabled, !signedTransaction.isEmpty,

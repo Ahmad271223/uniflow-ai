@@ -2,6 +2,7 @@ import PDFKit
 import PencilKit
 import UIKit
 import UniFlowCore
+import Vision
 
 /// Unsichtbarer Erstantwortgeber fuer die Werkzeugpalette. Die Palette haengt damit nicht an einer Seiten-Canvas,
 /// die beim Scrollen verschwindet (sonst schliesst sich die Palette, sobald die erste Seite aus dem Bild ist).
@@ -300,8 +301,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private(set) lazy var toolsInPalette = EditorPalette.hasCustomItems(toolPicker)
     /// Objektmodus an/aus oder anderes Objektwerkzeug (auch ueber die Palette); fuer die Leisten in SwiftUI
     var onObjectModeChange: ((Bool, ObjectEditing.Tool) -> Void)?
-    /// "KI fragen" am Rand der Palette (Schritt F, ab iPadOS 18): oeffnet die KI-Hilfe zur aktuellen Seite
-    var onAskAI: (() -> Void)?
+    /// "KI fragen" am Rand der Palette (Schritt F, ab iPadOS 18), "In KI-Hilfe einfügen" im Bearbeitungsmenue und
+    /// "Bereich an KI" (05.11.2026): oeffnet die KI-Hilfe; mit Anhang (markierter Text, Ausschnitt als Bild) steht er
+    /// dort im Eingabefeld, ohne Anhang nur die KI-Hilfe zur aktuellen Seite
+    var onAskAI: ((TutorAttachment?) -> Void)?
+    /// Kurzer Hinweis unten im Editor (z. B. was "Auswählen" greift, wie "Bereich an KI" geht)
+    var onHint: ((String) -> Void)?
     /// KI verbunden (`ufAIEnabled`): nur dann traegt die Palette "KI fragen", wie der Knopf "KI-Hilfe" in der Leiste
     /// seine KI-Teile nur mit Verbindung zeigt
     var aiAvailable = false {
@@ -1650,15 +1655,48 @@ extension PDFEditorController {
         }
     }
 
-    /// "KI fragen" angetippt: die KI-Hilfe oeffnen (ueber die Bruecke in SwiftUI)
-    func askAIFromPalette() { onAskAI?() }
+    /// "KI fragen" angetippt: die KI-Hilfe oeffnen (ueber die Bruecke in SwiftUI); markierter PDF-Text geht als Anhang
+    /// mit (vorher las die KI-Hilfe die Auswahl erst beim Senden, da war sie oft schon weg und nie zu sehen)
+    func askAIFromPalette() { onAskAI?(selectionAttachment()) }
 
-    /// Bearbeitungsmenue der PDF-Textauswahl (langes Druecken auf Text): hinter Kopieren und Nachschlagen steht
-    /// "Als Karteikarte" (nur mit Auswahl; nicht in alten Fassungen, dort gibt es keine Notizen)
+    /// Markierter PDF-Text mit seiner PDF-Seite als Anhang fuer die KI-Hilfe; nil ohne Auswahl
+    func selectionAttachment() -> TutorAttachment? {
+        guard let sel = pdfView.currentSelection, let text = Self.tutorText(sel.string) else { return nil }
+        var page: Int?
+        if let p = sel.pages.first, let doc = pdfView.document { page = store.entry(forPageIndex: doc.index(for: p))?.pdfIndex }
+        return TutorAttachment(kind: .selection, text: text, page: page)
+    }
+
+    /// "In KI-Hilfe einfügen" angetippt: Auswahl als Anhang in die KI-Hilfe
+    func tutorFromSelection() {
+        guard let a = selectionAttachment() else { return }
+        onAskAI?(a)
+    }
+
+    static let tutorTitle = "In KI-Hilfe einfügen"
+
+    /// Text fuer die KI: ohne Leerraum aussen, hoechstens `TutorAttachment.maxText` Zeichen; nil, wenn leer
+    nonisolated static func tutorText(_ s: String?) -> String? {
+        let t = (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : String(t.prefix(TutorAttachment.maxText))
+    }
+
+    /// Menuepunkt "In KI-Hilfe einfügen" zum markierten Text; nil ohne Auswahl oder ohne Empfaenger
+    func tutorAction() -> UIAction? {
+        guard Self.tutorText(pdfView.currentSelection?.string) != nil, onAskAI != nil else { return nil }
+        return UIAction(title: Self.tutorTitle, image: UIImage(systemName: "sparkles")) { [weak self] _ in self?.tutorFromSelection() }
+    }
+
+    /// Eintraege fuer das Bearbeitungsmenue der Textauswahl, in dieser Reihenfolge
+    func selectionMenuActions() -> [UIAction] { [tutorAction(), flashcardAction()].compactMap { $0 } }
+
+    /// Bearbeitungsmenue der PDF-Textauswahl (langes Druecken auf Text): hinter Kopieren und Nachschlagen stehen
+    /// "In KI-Hilfe einfügen" und "Als Karteikarte" (nur mit Auswahl; Karteikarte nicht in alten Fassungen)
     override func buildMenu(with builder: UIMenuBuilder) {
         super.buildMenu(with: builder)
-        guard builder.system == .context, let action = flashcardAction() else { return }
-        let menu = UIMenu(options: .displayInline, children: [action])
+        let actions = selectionMenuActions()
+        guard builder.system == .context, !actions.isEmpty else { return }
+        let menu = UIMenu(options: .displayInline, children: actions)
         if builder.menu(for: .standardEdit) != nil { builder.insertSibling(menu, afterMenu: .standardEdit) }
         else if builder.menu(for: .lookup) != nil { builder.insertSibling(menu, afterMenu: .lookup) }
         else { builder.insertChild(menu, atEndOfMenu: .root) }
@@ -1686,6 +1724,129 @@ extension PDFEditorController {
             .replacingOccurrences(of: "  ", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
         return t.isEmpty ? nil : t
     }
+}
+
+// MARK: - "Bereich an KI" (05.11.2026)
+
+/// Text oder Ausschnitt fuer die KI-Hilfe: markierter PDF-Text, ein eingekreister Bereich der Seite als Bild (PDF, Tinte,
+/// Textfelder) mit erkanntem Text, oder die ganze Seite. Steht in der KI-Hilfe als Anhang im Eingabefeld (entfernbar)
+/// und geht beim Senden als `selection` (Text) und `image` (JPEG, Base64) mit.
+struct TutorAttachment: Equatable, Identifiable {
+    enum Kind: String { case selection, area, page }
+    let id = UUID()
+    let kind: Kind
+    var text: String
+    /// PDF-Seite (1-basiert); nil auf eingefuegten Seiten
+    let page: Int?
+    /// Ausschnitt als JPEG (Bereich, ganze Seite)
+    var image: Data? = nil
+
+    /// so viel Text geht hoechstens mit (der Prompt kuerzt die Markierung ebenso)
+    static let maxText = 4000
+
+    /// Ueberschrift im Eingabefeld: "Markierter Text · Seite 3", "Bereich · Seite 3"
+    var title: String {
+        let what: String
+        switch kind {
+        case .selection: what = "Markierter Text"
+        case .area: what = "Bereich"
+        case .page: what = "Ganze Seite"
+        }
+        return what + (page.map { " · Seite \($0)" } ?? "")
+    }
+}
+
+extension PDFEditorController {
+    /// Laengste Bildseite des Ausschnitts in Pixeln (genug fuer die KI, klein genug fuer die Anfrage)
+    static let areaMaxPixels: CGFloat = 1600
+    /// Hoechstens so stark vergroessern (kleine Bereiche bleiben scharf)
+    static let areaMaxScale: CGFloat = 4
+    static let areaJPEGQuality: CGFloat = 0.8
+
+    /// Faktor Seitenpunkte -> Pixel: mindestens 2 (wenn die Grenze es zulaesst), hoechstens `areaMaxScale`, laengste
+    /// Seite hoechstens `areaMaxPixels`
+    nonisolated static func areaScale(_ size: CGSize) -> CGFloat {
+        let long = max(size.width, size.height, 1)
+        return min(areaMaxScale, areaMaxPixels / long)
+    }
+
+    /// Bereich einer angezeigten Seite als Bild: Original-PDF bzw. Leerseite, Vorlage, Notizobjekte (Handschrift,
+    /// Formen, Textfelder) wie im Export (`PageRenderer`), weisser Grund. `rect` in Punkten der angezeigten (gedrehten)
+    /// Seite, Ursprung oben links, wird auf die Seite begrenzt.
+    static func renderArea(page: PDFPage, entry: DisplayLayout.Entry, objects: [JSONValue], rect: CGRect) -> UIImage? {
+        let full = CGRect(origin: .zero, size: PageRenderer.size(of: page))
+        let area = rect.standardized.intersection(full)
+        guard !area.isNull, area.width >= 1, area.height >= 1 else { return nil }
+        let scale = areaScale(area.size)
+        let px = CGSize(width: (area.width * scale).rounded(), height: (area.height * scale).rounded())
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: px, format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: px))
+            let cg = ctx.cgContext
+            cg.scaleBy(x: scale, y: scale)
+            cg.translateBy(x: -area.minX, y: -area.minY)
+            cg.clip(to: area)
+            PageRenderer.draw(page: page, entry: entry, objects: objects, images: [:], in: cg)
+        }
+    }
+
+    /// Text im Bild mit Vision (Deutsch, Englisch; auch Handschrift), Zeilen von oben nach unten
+    nonisolated static func recognizeText(_ image: CGImage) async -> String {
+        let box = AreaImageBox(image)
+        return await Task.detached(priority: .userInitiated) { () -> String in
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+            request.recognitionLanguages = VisionPageOCR.languages
+            do { try VNImageRequestHandler(cgImage: box.image, options: [:]).perform([request]) } catch { return "" }
+            return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+        }.value
+    }
+
+    /// Ausschnitt einer Seite als Anhang: Bild (JPEG) und erkannter Text; offene Striche werden vorher gesichert
+    func captureArea(pageIndex: Int, rect: CGRect?, kind: TutorAttachment.Kind = .area) async -> TutorAttachment? {
+        guard let layout = shownLayout ?? store.layout, let page = layout.pdf.page(at: pageIndex),
+              let entry = layout.entry(at: pageIndex) else { return nil }
+        let doc = await store.pageStructureDocument()               // wartet auf ausstehende Striche
+        let objects = doc.objects(page: entry.key)
+        let r = rect ?? CGRect(origin: .zero, size: PageRenderer.size(of: page))
+        guard let image = Self.renderArea(page: page, entry: entry, objects: objects, rect: r), let cg = image.cgImage,
+              let jpeg = image.jpegData(compressionQuality: Self.areaJPEGQuality) else { return nil }
+        let text = await Self.recognizeText(cg)
+        return TutorAttachment(kind: kind, text: String(text.prefix(TutorAttachment.maxText)), page: entry.pdfIndex, image: jpeg)
+    }
+
+    /// "Bereich an KI": Rahmen bzw. Schleife auf einer Seite losgelassen -> Ausschnitt in die KI-Hilfe
+    func sendArea(pageIndex: Int, rect: CGRect) {
+        Task {
+            guard let a = await captureArea(pageIndex: pageIndex, rect: rect) else { return }
+            onAskAI?(a)
+        }
+    }
+
+    /// "Bereich an KI" aus dem Menue (auch ohne Palette, auch ohne Schreiben im Tarif): Werkzeug waehlen
+    func startAreaCapture() {
+        if objects.isActive { setObjectTool(.area); return }
+        objects.tool = .area
+        setObjectMode(true)
+    }
+
+    /// "Ganze Seite an KI" (auch fuer VoiceOver und Schaltersteuerung statt Einkreisen): die angezeigte Seite
+    func sendVisiblePage() {
+        let i = currentPageIndex
+        Task {
+            guard let a = await captureArea(pageIndex: i, rect: nil, kind: .page) else { return }
+            onAskAI?(a)
+        }
+    }
+}
+
+private struct AreaImageBox: @unchecked Sendable {
+    let image: CGImage
+    init(_ image: CGImage) { self.image = image }
 }
 
 extension PDFEditorController {

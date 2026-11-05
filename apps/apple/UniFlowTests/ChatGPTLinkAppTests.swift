@@ -39,11 +39,12 @@ final class ChatGPTLinkAppTests: XCTestCase {
         }
         XCTAssertEqual(TutorConnectState.reason(nil), .notConnected)
         XCTAssertEqual(TutorConnectState.reason(st(false)), .notConnected)
-        XCTAssertEqual(TutorConnectState.reason(st(reauth: true)), .reauth)
-        XCTAssertEqual(TutorConnectState.reason(st(sharing: false)), .noSharing)
-        XCTAssertEqual(TutorConnectState.reason(st(use: false)), .switchedOff)
-        XCTAssertEqual(TutorConnectState.reason(st(model: "")), .noModel)
-        XCTAssertEqual(TutorConnectState.reason(st()), .ready)
+        XCTAssertEqual(TutorConnectState.reason(st()), .notConnected, "Schalter aus: nie bereit, nie Neu verbinden")
+        XCTAssertEqual(TutorConnectState.reason(st(reauth: true), enabled: true), .reauth)
+        XCTAssertEqual(TutorConnectState.reason(st(sharing: false), enabled: true), .noSharing)
+        XCTAssertEqual(TutorConnectState.reason(st(use: false), enabled: true), .switchedOff)
+        XCTAssertEqual(TutorConnectState.reason(st(model: ""), enabled: true), .noModel)
+        XCTAssertEqual(TutorConnectState.reason(st(), enabled: true), .ready)
         // KI-Fehler des Endpunkts ({"detail": {"detail", "code"}}): der Text von ChatGPT, nicht "Service Unavailable"
         let nested = APIError(status: 503, body: Data(#"{"detail": {"detail": "ChatGPT antwortete mit Fehler 404: model_not_found", "code": "ai_provider_error"}}"#.utf8))
         XCTAssertEqual(nested.errorDescription, "ChatGPT antwortete mit Fehler 404: model_not_found")
@@ -184,5 +185,45 @@ final class ChatGPTLinkAppTests: XCTestCase {
         let problem = await m.deleteAllData(userID: bed.user)
         XCTAssertNil(problem)
         XCTAssertNil(store.load(), "Konto loeschen entfernt die ChatGPT-Verbindung")
+    }
+
+    // MARK: Schalter (05.11.2026): Sign in with ChatGPT fuer StudiNow noch nicht freigegeben
+
+    func testSwitchOffOffersNoLoginAnywhere() async throws {
+        XCTAssertFalse(ChatGPTLink.isEnabled, "bis zur Freigabe durch OpenAI aus (app/plans.py INTEGRATIONS chatgpt disabled)")
+        XCTAssertEqual(ChatGPTLink.soonText, "Eigenes ChatGPT verbinden – bald verfügbar")
+        XCTAssertEqual(ChatGPTLink.settingsTab, "account", "die KI-Stellen fuehren zu den Tarifen, nicht zur Anmeldung")
+        // KI-Hilfe, KI-Start, Dialoge: Tarif-Hinweis und "Tarife ansehen" statt "ChatGPT verbinden"
+        XCTAssertEqual(TutorConnectState.Content.text(.notConnected).info, ChatGPTLink.planHint)
+        XCTAssertEqual(TutorConnectState.Content.buttonTitle(.notConnected), "Tarife ansehen")
+        XCTAssertFalse(UFNoServerContent.examsText.contains("ChatGPT"))
+        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 5), "Kommt mit StudiNow Pro AI")
+
+        // eine frueher gespeicherte Verbindung wird nicht benutzt und bietet kein "Neu verbinden"
+        let bed = try ContainerTestBed(name: "chatgpt-off", clock: .fixed(berlin: "2026-11-05T09:00:00")!)
+        let store = ChatGPTKeychainStore(userScope: DataContainerKey.userScope(bed.user))
+        defer { ChatGPTKeychainStore.remove(userScope: store.userScope) }
+        var s = ChatGPTState.new()
+        s.clientID = "oaiapp_alt"
+        try store.save(s)
+        let m = bed.manager()
+        let c = try bed.open(m, bed.account(.luh))
+        await m.chatgpt.refresh()
+        XCTAssertFalse(m.chatgpt.enabled)
+        XCTAssertEqual(TutorConnectState.reason(m.chatgpt.status), .notConnected)
+        let backend = try await c.host.backend()
+        XCTAssertNil(backend.context.ai.provider, "das Backend bekommt keine KI ueber ChatGPT")
+        // Verbinden startet keine Anmeldung (sie hinge nach der Kontowahl), nur der Hinweis
+        await m.chatgpt.connect()
+        XCTAssertFalse(m.chatgpt.connecting)
+        XCTAssertEqual(m.chatgpt.message, ChatGPTLink.soonText + ".")
+    }
+
+    func testSettingsShowSoonCardWithoutConnectButton() throws {
+        let was = HostedEnvironment.accessibilityAutomation(true)
+        defer { _ = HostedEnvironment.accessibilityAutomation(was) }
+        let env = try hostWithEnvironment(ChatGPTSoonCard())
+        XCTAssertTrue(env.wait { env.labels().contains { $0.contains("bald verfügbar") } }, env.labels().joined(separator: " | "))
+        XCTAssertFalse(env.labels().contains { $0 == "ChatGPT verbinden" })
     }
 }

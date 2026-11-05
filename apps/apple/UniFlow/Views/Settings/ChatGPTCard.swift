@@ -22,7 +22,8 @@ struct ChatGPTCard: View {
             if let s = link.status, s.connected {
                 connected(s)
             } else {
-                UFButton(link.connecting ? "Verbinde …" : "ChatGPT verbinden", icon: "log-out", kind: .primary, size: .small) {
+                // "sparkles" statt "log-out": der Pfeil aus dem Kasten las sich wie Abmelden (05.11.2026)
+                UFButton(link.connecting ? "Verbinde …" : "ChatGPT verbinden", icon: "sparkles", kind: .primary, size: .small) {
                     Task {
                         guard await overlay.confirm("KI über ChatGPT verbinden?\n\n" + Self.consentText) else { return }
                         await link.connect()
@@ -90,7 +91,7 @@ struct ChatGPTCard: View {
                 UFButton("Nutzung verwalten", icon: "layers", size: .small) {
                     if let u = URL(string: ChatGPTConstants.usageHelpURL) { openURL(u) }
                 }
-                UFButton("Anderes Konto verbinden", icon: "log-out", size: .small) {
+                UFButton("Anderes Konto verbinden", icon: "user", size: .small) {
                     Task {
                         guard await overlay.confirm("Anderes ChatGPT-Konto verbinden?\n\nDie bisherige Verbindung wird gelöscht und StudiNow registriert sich bei OpenAI neu.") else { return }
                         await link.connect(newAccount: true)
@@ -109,5 +110,22 @@ struct ChatGPTCard: View {
         }
         .padding(.top, 8)
         .task { if link.models.isEmpty, !s.needsReauth { await link.loadModels() } }
+    }
+}
+
+/// Einstellungen → Erweitert, solange `ChatGPTLink.isEnabled` aus ist: dieselbe Ueberschrift, "bald verfuegbar", kein
+/// Knopf und keine Anmeldung (Sign in with ChatGPT ist fuer StudiNow noch nicht freigegeben)
+struct ChatGPTSoonCard: View {
+    var body: some View {
+        UFCard {
+            UFCardHead("KI über mein ChatGPT", icon: "sparkles") { UFBadge("bald", tone: .info, icon: "clock") }
+            Text(ChatGPTLink.soonText).ufFont(14.5, 550).foregroundStyle(UF.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("chatgpt.soon")
+            Text("Sobald OpenAI die Anmeldung für StudiNow freigibt, kannst du hier dein ChatGPT-Abo (Plus oder Pro) verbinden. Bis dahin kommt die KI mit der StudiNow-KI in StudiNow Pro AI.")
+                .ufFont(13.12).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
+        }
     }
 }

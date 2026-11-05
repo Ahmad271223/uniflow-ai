@@ -70,7 +70,8 @@ struct UniFlowApp: App {
                     .environmentObject(containers.studip)                     // Abgleich des offenen Containers
                     .environment(\.ufChatGPTLink, containers.chatgpt)          // KI ueber das ChatGPT-Abo des Nutzers
                     .environment(\.ufStudoraAccount, containers.account)       // StudiNow-Konto (mit Dienst-Adresse)
-                    .modifier(UFAIEnabledProvider(link: containers.chatgpt))
+                    // Weg der KI: eigenes ChatGPT, sonst StudiNow-KI des Kontos (Pro AI, Probe), sonst Anmeldung bzw. Tarif
+                    .modifier(UFAIAccessProvider(chatgpt: containers.chatgpt, account: containers.account))
                     .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                     .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                     .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
@@ -107,11 +108,15 @@ struct UniFlowApp: App {
                             }
                             return
                         }
-                        // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (Lesen, auch in Free; nur mit
-                        // Container). Anlegen braucht Plus (CommunitySettingsCard).
+                        // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (Community ab Plus seit
+                        // 05.11.2026; nur mit Container). Anlegen braucht Plus (CommunitySettingsCard).
                         if let code = CommunityJoinLink.code(from: url) {
-                            guard containers.active != nil, Entitlements.shared.allows(.communityRead) else {
+                            guard containers.active != nil else {
                                 toast.show("Lerngruppen gibt es nach Anmeldung und Hochschulwahl.", seconds: 4)
+                                return
+                            }
+                            guard Entitlements.shared.allows(.communityRead) else {
+                                toast.show(CommunityTexts.communityPlusHint, seconds: 4)
                                 return
                             }
                             Task {

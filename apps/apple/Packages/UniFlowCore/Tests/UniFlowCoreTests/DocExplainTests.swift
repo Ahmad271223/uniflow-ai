@@ -307,4 +307,36 @@ final class DocExplainTests: XCTestCase {
         _ = try await post(b, "/api/ai/document/step", ["file_id": "f-blatt", "mode": "lecture", "scope": ["kind": "page"], "page": 2, "step": "1:full:2-2"],
                            status: 404)
     }
+
+    /// StudiNow-KI (05.11.2026): Plan und neue Schritte rechnet der Dienst mit den Seitentexten des iPads (`page_texts`,
+    /// wie die Windows-App); ein schon erklaerter Schritt kommt aus dem eigenen Speicher, ohne Anfrage und mit 0 Credits
+    func testWithStudiNowAIPlanAndStepGoToTheServiceWithPageTexts() async throws {
+        let sheet = ["Übungsblatt 3\nAufgabe 1 (4 Punkte)\nBerechne die Determinante.", "Aufgabe 2\nLöse das LGS."]
+        let (b, _) = try await seeded([("f-blatt", "Blatt 3.pdf", sheet)])
+        let fake = FakeService()
+        b.context.ai.setService(StudiNowAI(base: "https://dienst.example", http: fake, tokens: MemoryTokenStore("tok")))
+        b.context.docIndex.configure(cloud: nil, cipher: cipher, explainCloud: FakeExplainCloud())
+        await fake.on("POST", "/api/ai/document/plan", 200, ["intent": true, "mode": "tasks", "steps": [["id": "1:tasks:1-2"]],
+                                                             "message": "Kostet etwa 2 Credits, du hast 37.", "estimate": ["way": "credits", "credits": 2]])
+        let plan = try await post(b, "/api/ai/document/plan", ["file_id": "f-blatt", "question": "Löse alle Aufgaben"])
+        XCTAssertEqual(plan["message"]?.string, "Kostet etwa 2 Credits, du hast 37.", "Plan des Dienstes unveraendert")
+        let sentPlan = await fake.last("/api/ai/document/plan")
+        let pb = try JSONValue.parse(try XCTUnwrap(sentPlan?.body))
+        XCTAssertEqual(pb["page_texts"]?.array?.compactMap(\.string), sheet)
+        XCTAssertEqual(pb["mode"], "tasks", "Absicht schon auf dem iPad erkannt")
+        XCTAssertEqual(sentPlan?.headers["Authorization"], "Bearer tok")
+
+        await fake.on("POST", "/api/ai/document/step", 200, ["step": "1:tasks:1-2", "blocks": [["title": "Aufgabe 1"]],
+                                                             "stored": ["stored": false], "credits": ["remaining": 35, "charged": 2]])
+        let step = try await post(b, "/api/ai/document/step", ["file_id": "f-blatt", "mode": "tasks", "scope": ["kind": "all"], "step": "1:tasks:1-2"])
+        XCTAssertEqual(step["credits"]?["charged"], 2)
+        let sentStep = await fake.last("/api/ai/document/step")
+        XCTAssertEqual(try JSONValue.parse(try XCTUnwrap(sentStep?.body))["page_texts"]?.array?.count, 2)
+
+        // Fehler des Dienstes mit Code (Credits aufgebraucht)
+        await fake.on("POST", "/api/ai/document/step", 429, ["detail": ["detail": "Credits aufgebraucht", "code": "credits_exhausted"]])
+        let none = try await post(b, "/api/ai/document/step", ["file_id": "f-blatt", "mode": "tasks", "scope": ["kind": "all"], "step": "1:tasks:1-2"],
+                                  status: 429)
+        XCTAssertEqual(none["detail"]?["code"], "credits_exhausted")
+    }
 }

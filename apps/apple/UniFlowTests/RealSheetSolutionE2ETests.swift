@@ -93,7 +93,7 @@ private final class E2EUser {
         try layout.prepare(clock: clock)
         host = LocalBackendHost(directory: layout.databaseDirectory, clock: clock, files: .container(layout), university: .luh)
         api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
-        // Tarif Plus ueber den Testsetzer (kein StoreKit): Schreiben und Loesungen teilen (ansehen geht in jedem Tarif)
+        // Tarif Plus ueber den Testsetzer (kein StoreKit): Schreiben, Loesungen teilen und ansehen (Community ab Plus)
         entitlements = Entitlements(observe: false, plan: .free)
         entitlements.setPlanForTesting(.plus)
         solutions = SolutionLibrary(root: layout.solutions)
@@ -477,7 +477,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         let editor = try XCTUnwrap(s.editorB)
         let window = try XCTUnwrap(s.windowB)
         let packageURL = try XCTUnwrap(s.packageURL)
-        XCTAssertTrue(b.entitlements.allows(.communityRead), "Lösungen ansehen erlaubt (jeder Tarif)")
+        XCTAssertTrue(b.entitlements.allows(.communityRead), "Lösungen ansehen erlaubt (ab Plus, 05.11.2026)")
         // Zwischenstaende der eigenen Notizen (ohne Sichern), um eine Abweichung einem Schritt zuordnen zu koennen
         let notesBefore = try XCTUnwrap(s.beforeImport).notes
         var unchanged: [String: Bool] = [:]

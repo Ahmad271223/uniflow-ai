@@ -11,6 +11,8 @@ import UniFlowCore
 final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDelegate {
     enum Tool: String, CaseIterable {
         case select, text, sticky, rect, ellipse, line, arrow, lasso, markup
+        /// "Bereich an KI" (05.11.2026): Rahmen ziehen oder Bereich einkreisen, der Ausschnitt geht als Bild an die KI-Hilfe
+        case area
 
         var label: String {
             switch self {
@@ -23,11 +25,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .arrow: return "Pfeil"
             case .lasso: return "Lasso"
             case .markup: return "Text markieren"
+            case .area: return "Bereich an KI"
             }
         }
         var systemImage: String {
             switch self {
-            case .select: return "cursorarrow"
+            // kein Mauszeiger mehr (05.11.2026: am iPad des Inhabers "der komische Pfeil", dessen Sinn unklar blieb)
+            case .select: return "rectangle.and.hand.point.up.left"
             case .text: return "textformat"
             case .sticky: return "note.text"
             case .rect: return "rectangle"
@@ -36,6 +40,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .arrow: return "arrow.up.right"
             case .lasso: return "lasso"
             case .markup: return "highlighter"
+            case .area: return "rectangle.dashed"
             }
         }
         var shapeKind: String? { [.rect: "rect", .ellipse: "ellipse", .line: "line", .arrow: "arrow"][self] }
@@ -46,6 +51,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     var tool: Tool = .select {
         didSet {
             if tool != .select { clearSelection() }
+            if tool == .area, oldValue != .area { controller?.onHint?(Self.areaHint) }
             // Text markieren: die PDF-Ansicht waehlt Text selbst aus (Overlays lassen die Beruehrung durch); im
             // Markup-Modus nimmt sie keine Auswahl an
             controller?.allOverlays.forEach { $0.isUserInteractionEnabled = tool != .markup }
@@ -98,7 +104,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     func setActive(_ on: Bool) {
         guard let c = controller, on != isActive else { return }
-        if on && !c.writable { return }
+        // "Bereich an KI" schreibt nichts: auch in Free und in alten Fassungen
+        if on && !c.writable && tool != .area { return }
         isActive = on
         endTextEditing()
         clearSelection()
@@ -190,11 +197,30 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     // MARK: Gesten
 
+    /// Hinweise unten im Editor
+    static let areaHint = "Rahmen ziehen oder Bereich einkreisen – er geht als Bild an die KI-Hilfe."
+    static let selectMissHint = "„Auswählen“ greift Textfelder, Haftnotizen und Formen. Handschrift wählst du mit dem Lasso aus."
+
+    /// "Bereich an KI": Rahmen aus erstem und letztem Punkt; kehrt der Strich zum Anfang zurueck (eingekreist), die
+    /// umschliessende Box aller Punkte. `loop` sagt, welches von beiden.
+    nonisolated static func areaShape(_ pts: [CGPoint]) -> (rect: CGRect, loop: Bool) {
+        guard let first = pts.first, let last = pts.last else { return (.null, false) }
+        let xs = pts.map(\.x), ys = pts.map(\.y)
+        let box = CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+        let gap = hypot(last.x - first.x, last.y - first.y)
+        let loop = pts.count >= 8 && gap <= max(24, 0.3 * hypot(box.width, box.height))
+        if loop { return (box, true) }
+        return (CGRect(x: min(first.x, last.x), y: min(first.y, last.y), width: abs(last.x - first.x), height: abs(last.y - first.y)), false)
+    }
+
+    /// Kleinster Bereich, der an die KI geht (Seitenpunkte); kleiner gilt als Antippen
+    static let areaMinimum: CGFloat = 12
+
     func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
         guard isActive, tool != .markup else { return false }
         if g === pan {
-            // Ziehen mit Form- oder Lassowerkzeug, oder auf der Auswahl; sonst scrollt die Ansicht
-            if tool.shapeKind != nil || tool == .lasso { return true }
+            // Ziehen mit Form-, Lasso- oder Bereichswerkzeug, oder auf der Auswahl; sonst scrollt die Ansicht
+            if tool.shapeKind != nil || tool == .lasso || tool == .area { return true }
             guard let sel = selection, let (v, p) = locate(g), v.pageKey == sel.key else { return false }
             return selectionLayer.path?.boundingBoxOfPath.insetBy(dx: -12, dy: -12).contains(p) == true
         }
@@ -211,6 +237,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         endTextEditing()
         let key = v.pageKey
         switch tool {
+        case .area:
+            controller?.onHint?(Self.areaHint)                // Antippen allein waehlt keinen Bereich
         case .text, .sticky:
             let kind = tool
             Task {
@@ -237,6 +265,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 if let id = PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight) {
                     select(key: key, ids: [id], in: list)
                 } else {
+                    // nichts getroffen (oft Handschrift): sagen, was "Auswählen" greift, statt still nichts zu tun
+                    if selection == nil, tool == .select { controller?.onHint?(Self.selectMissHint) }
                     clearSelection()
                 }
             }
@@ -259,7 +289,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             guard let (v, p) = locate(g) else { g.state = .cancelled; return }
             panStart = (v, p)
             lassoPoints = [p]
-            if tool.shapeKind != nil || tool == .lasso { v.content.layer.addSublayer(draftLayer) }
+            if tool.shapeKind != nil || tool == .lasso || tool == .area { v.content.layer.addSublayer(draftLayer) }
         case .changed:
             guard let start = panStart else { return }
             let p = g.location(in: start.overlay.content)
@@ -273,6 +303,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 lassoPoints.append(p)
                 let path = CGMutablePath()
                 path.addLines(between: lassoPoints)
+                draftLayer.path = path
+            } else if tool == .area {
+                lassoPoints.append(p)
+                let shape = Self.areaShape(lassoPoints)
+                let path = CGMutablePath()
+                if shape.loop { path.addLines(between: lassoPoints) }
+                if !shape.rect.isNull { path.addRect(shape.rect) }
                 draftLayer.path = path
             } else {
                 let d = g.translation(in: start.overlay.content)
@@ -291,6 +328,14 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                       let o = PageObjectEdit.shape(id: PageOrder.uid(), kind: kind, from: (Double(start.point.x), Double(start.point.y)),
                                                    to: (Double(p.x), Double(p.y)), color: color, width: lineWidth) else { return }
                 Task { await commit(key) { $0 + [o] } }
+            } else if tool == .area {
+                let rect = Self.areaShape(lassoPoints + [p]).rect.intersection(start.overlay.content.bounds)
+                lassoPoints = []
+                guard !rect.isNull, rect.width >= Self.areaMinimum, rect.height >= Self.areaMinimum else {
+                    controller?.onHint?(Self.areaHint)
+                    return
+                }
+                controller?.sendArea(pageIndex: start.overlay.pageIndex, rect: rect)
             } else if tool == .lasso {
                 let poly = lassoPoints.map { (x: Double($0.x), y: Double($0.y)) }
                 lassoPoints = []

@@ -450,6 +450,7 @@ struct CommunitySpacePage: View {
 
     /// Eine Seite fuer jede Antwort: Community, Wochen des eigenen Moduls (Kanal), Loesungen nur fuer Mitglieder
     func load() async {
+        guard Entitlements.shared.allows(.communityRead) else { return }          // Community ab Plus (05.11.2026)
         if space == nil {
             do {
                 space = try await service.communities().first { $0.key == key }

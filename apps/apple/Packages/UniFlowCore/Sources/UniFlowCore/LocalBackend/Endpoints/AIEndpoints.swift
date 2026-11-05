@@ -1,7 +1,7 @@
 import Foundation
 
-/// KI-Endpunkte mit der KI des Nutzers (`LocalContext.ai`, auf dem iPad sein ChatGPT-Abo), wie app/server.py am eigenen
-/// PC. Ohne verbundene KI wie bisher 404 "KI-Funktionen gibt es in dieser Version nicht" (`DroppedEndpoints.noAI`).
+/// KI-Endpunkte mit der KI des Nutzers (`LocalContext.ai`: eigenes ChatGPT, sonst die StudiNow-KI des Kontos ueber
+/// `POST /api/ai/relay`, StudiNowAI.swift), wie app/server.py am eigenen PC. Ohne verbundene KI wie bisher 404 "KI-Funktionen gibt es in dieser Version nicht" (`DroppedEndpoints.noAI`).
 /// Gesendet wird nur, was der Endpunkt fuer den Prompt braucht (Seitentext, Markierung, Frage, Quellen der Skriptsuche).
 enum AIEndpoints: LocalEndpointModule {
     static let name = "KI (ChatGPT des Nutzers)"
@@ -45,9 +45,12 @@ enum AIEndpoints: LocalEndpointModule {
             // `force` ("Neu erklaeren lassen") fragt live und belegt den naechsten freien Platz. Eigene Fragen bekommen die
             // Einordnung der Seite aus der Bibliothek als Zusatz (kleiner Prompt statt Suche).
             let force = AIPrompts.truthy(body.value("force"))
+            // "Bereich an KI" (05.11.2026): Ausschnitt der Seite als JPEG (Base64, `image`); persoenlich, also nie aus
+            // dem geteilten Speicher und nie hinein
+            let imageJPEG = tutorImage(text("image"))
             // eigene Notizen zur Seite (5.11.2026) sind persoenlich: dann nie aus dem geteilten Speicher und nie hinein
             let ownNotes = text("own_notes")
-            let shareable = fileID != nil && PyText.strip(ownNotes).isEmpty
+            let shareable = fileID != nil && PyText.strip(ownNotes).isEmpty && imageJPEG == nil
                 && PageExplain.isShareable(mode: mode, selection: text("selection"), question: text("question"))
             var explainKey: PageExplainBuilder.Key?
             if let fileID, shareable || mode == "ask" {
@@ -67,13 +70,29 @@ enum AIEndpoints: LocalEndpointModule {
             let studip = fileID == nil ? "" : ((try? await ctx.database.withConnection { try CourseContext.forFile($0, fileID: fileID, today: today) }) ?? "")
             let sources = mode == "flashcards" ? [] : try await tutorSources(fileID: fileID, fileName: fileName, page: page, text: pageText,
                                                                               selection: text("selection"), question: text("question"), ctx: ctx)
-            let prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
+            var prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
                                          ownSolution: text("own_solution"), course: course, fileName: fileName, page: .int(String(page)),
                                          sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")),
                                          studip: studip, pageIndex: pageIndex, ownNotes: ownNotes)
+            if imageJPEG != nil { prompt += "\n\n" + AIPrompts.tutorImageNote }
             let answer: String
+            // StudiNow-KI (StudiNowAI.swift): Aufgabe `tutor:<modus>`; Zwischenspeicher des Dienstes nur fuer geteilte ganze
+            // Seiten (wie app/ai.py), "Neu erklaeren lassen" = `fresh`; das Bild geht als `image` mit (nur tutor:*)
+            let routeText = [text("selection"), text("question")].filter { !$0.isEmpty }.joined(separator: " ")
+            let task = AIRelayTask(AIRelayTask.tutor(mode), cache: shareable && !force, fresh: force,
+                                   routeText: routeText.isEmpty ? nil : routeText, image: imageJPEG)
+            var credits: JSONValue = .null
             do {
-                answer = try await ai.answer(system: AIPromptTexts.tutorSystem, prompt: prompt)
+                let finalPrompt = prompt
+                let r = try await AIRelayTask.run(task) {
+                    if let imageJPEG, let vision = ctx.docIndex.ai(from: ai) {
+                        // Bild und Text in einer Anfrage (`ChatGPTVisionAI`); eine KI ohne Bilder antwortet auf den Text
+                        return try await vision.index(system: AIPromptTexts.tutorSystem, prompt: finalPrompt, imageJPEG: imageJPEG, schema: .null, small: false)
+                    }
+                    return try await ai.answer(system: AIPromptTexts.tutorSystem, prompt: finalPrompt)
+                }
+                answer = r.value
+                credits = r.credits
             } catch let e as AIError {
                 throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
             }
@@ -90,7 +109,8 @@ enum AIEndpoints: LocalEndpointModule {
                 explain = await PageExplainBuilder.store(answer: answer, key: key, mode: mode, model: nil, ctx: ctx, cloud: ctx.docIndex.explainCloud,
                                                          cipher: ctx.docIndex.cipher).json
             }
-            return .json(["answer": .string(answer), "cards": cards, "sources": .array(withCited), "explain": explain])
+            // `credits`: Stand mit `charged`/`replay` der StudiNow-KI (null mit eigenem ChatGPT), fuer die Kostenzeile
+            return .json(["answer": .string(answer), "cards": cards, "sources": .array(withCited), "explain": explain, "credits": credits])
         }
 
         router.post("/api/files/{file_id}/analyze") { req, ctx in
@@ -132,8 +152,13 @@ enum AIEndpoints: LocalEndpointModule {
             let prompt = AIPrompts.flashcards(course: f["course_title"]?.string ?? "", fileName: f["name"]?.string ?? "",
                                               pages: pages, text: text, count: count, topic: topic)
             let answer: String
+            var credits: JSONValue = .null
             do {
-                answer = try await ai.answer(system: AIPromptTexts.system, prompt: prompt, schema: AIPrompts.flashcardsSchema)
+                let r = try await AIRelayTask.run(AIRelayTask("flashcards")) {
+                    try await ai.answer(system: AIPromptTexts.system, prompt: prompt, schema: AIPrompts.flashcardsSchema)
+                }
+                answer = r.value
+                credits = r.credits
             } catch let e as AIError {
                 throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
             }
@@ -142,7 +167,7 @@ enum AIEndpoints: LocalEndpointModule {
                 throw LocalHTTPError(status: 502, detail: ["detail": "Die KI hat keine Karteikarten geliefert. Bitte erneut versuchen.", "code": "ai_no_cards"])
             }
             return .json(["cards": .array(cards.map(\.json)), "pages": .array(pages.map { .number(Double($0)) }),
-                          "count": .number(Double(count))])
+                          "count": .number(Double(count)), "credits": credits])
         }
     }
 
@@ -196,6 +221,19 @@ enum AIEndpoints: LocalEndpointModule {
     /// startet der Pfad `analyze_pending` fuer bis zu 200 Dateien; das verbraeuchte hier unbemerkt das ChatGPT-Kontingent)
     /// und gleich antworten. Gespeichert wie `planner._store_analysis`; die feste Einordnung aus Ordner und Dateiname
     /// (`StudyClassify`) bleibt vorrangig, die Analyse fuellt nur Luecken.
+    /// Groesstes Bild fuer "Bereich an KI" (dekodiert); die App schickt hoechstens 1600 px lange Seite als JPEG
+    static let tutorImageMaxBytes = 3_000_000
+
+    /// `image` der Anfrage: Base64 (auch als data-URL) zu JPEG-Daten; nil, wenn leer, kaputt oder zu gross
+    static func tutorImage(_ raw: String) -> Data? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("data:"), let comma = s.firstIndex(of: ",") { s = String(s[s.index(after: comma)...]) }
+        guard !s.isEmpty, s.count <= tutorImageMaxBytes * 4 / 3 + 4,
+              let data = Data(base64Encoded: s, options: .ignoreUnknownCharacters), !data.isEmpty,
+              data.count <= tutorImageMaxBytes else { return nil }
+        return data
+    }
+
     static func analyze(fileID: String, ai: AIProvider, ctx: LocalContext) async throws -> JSONValue {
         guard let f = try await ctx.database.queryOne(
             "SELECT f.name, c.title AS course_title FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", [.text(fileID)]) else {

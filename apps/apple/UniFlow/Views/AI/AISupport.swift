@@ -119,7 +119,7 @@ enum AICost {
         if adopted { return "0 Credits (gemeinsamer Test)" }
         if chatgpt { return calls == 1 ? "1 Anfrage über dein ChatGPT" : "\(calls) Anfragen über dein ChatGPT" }
         if plan == .proAI { return "≈ \(credits) Credits" }
-        return "Braucht dein ChatGPT (Einstellungen → Erweitert)"
+        return ChatGPTLink.isEnabled ? "Braucht dein ChatGPT (Einstellungen → Erweitert)" : "Kommt mit StudiNow Pro AI"
     }
 
     /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)
@@ -134,7 +134,7 @@ enum AICost {
         }
         if chatgpt { return "\(count) · über dein ChatGPT\(m)" }
         if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
-        return "Noch kein ChatGPT verbunden · \(count)"
+        return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · " : "KI kommt mit StudiNow Pro AI · ") + count
     }
 
     // MARK: Echter Stand vom Dienst (Credits, docs/ABO-SYSTEM.md Abschnitt 6a)

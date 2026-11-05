@@ -1186,7 +1186,8 @@ struct ConnectView: View {
 
 // MARK: - Erweitert
 
-/// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`) mit dem Schalter
+/// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`, verbinden nur mit
+/// `ChatGPTLink.isEnabled`, sonst "bald verfügbar") mit dem Schalter
 /// "Vorab einordnen" (Erklaerungsspeicher); keine Demo-Inhalte (nur fuer Pruefer, Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
     @Environment(\.ufChatGPTLink) private var chatgpt
@@ -1194,7 +1195,8 @@ private struct LocalAdvancedTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if ChatGPTLink.available, let chatgpt {
-                ChatGPTCard(link: chatgpt)
+                // Verbinden erst nach der Freigabe durch OpenAI (`ChatGPTLink.isEnabled`); bis dahin "bald verfügbar"
+                if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) } else { ChatGPTSoonCard() }
                 DocIndexPrewarmCard()
             }
         }

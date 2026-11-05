@@ -360,7 +360,7 @@ final class EditorStepEFHKTests: XCTestCase {
         editor.loadViewIfNeeded()
         XCTAssertNil(picker.accessoryItem, "ohne KI kein Knopf")
         let bridge = EditorBridge()
-        editor.onAskAI = { bridge.askAIRequested += 1 }
+        editor.onAskAI = { bridge.attachToTutor($0) }
         editor.aiAvailable = true
         let accessory = try XCTUnwrap(picker.accessoryItem, "mit KI: 'KI fragen'")
         XCTAssertEqual(accessory.title, "KI fragen")
@@ -421,5 +421,162 @@ final class EditorStepEFHKTests: XCTestCase {
         XCTAssertEqual(bridge.flashcardRequest?.question, "Pythagoras", "Leiste 'Text markieren' ebenso")
         bridge.makeFlashcard("aus dem Menü")
         XCTAssertEqual(bridge.flashcardRequest?.question, "aus dem Menü")
+    }
+
+    // MARK: Text und Bereich an die KI-Hilfe (05.11.2026, Geraetetest des Inhabers)
+
+    /// Markierter PDF-Text kommt als sichtbarer Anhang mit PDF-Seite in die KI-Hilfe: Menuepunkt "In KI-Hilfe einfügen"
+    /// vor "Als Karteikarte", "KI fragen" an der Palette nimmt die Auswahl mit; ohne Auswahl oeffnen "KI fragen" und
+    /// "KI erklärt" nur die KI-Hilfe (vorher geschah bei "KI erklärt" ohne Auswahl nichts)
+    func testSelectionGoesIntoTheTutorWithItsPage() async throws {
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        let bridge = EditorBridge()
+        bridge.controller = editor
+        editor.onAskAI = { bridge.attachToTutor($0) }
+        editor.onFlashcardFromSelection = { _ in }
+        XCTAssertNil(editor.tutorAction(), "ohne Auswahl kein Menuepunkt")
+        XCTAssertTrue(editor.selectionMenuActions().isEmpty)
+        editor.askAIFromPalette()
+        XCTAssertEqual(bridge.askAIRequested, 1)
+        XCTAssertNil(bridge.tutorAttachment)
+        bridge.askTutor("explain")
+        XCTAssertEqual(bridge.askAIRequested, 2, "KI erklärt ohne Auswahl oeffnet die KI-Hilfe")
+
+        let doc = try XCTUnwrap(editor.pdfView.document)
+        let hit = try XCTUnwrap(doc.findString("Pythagoras", withOptions: []).last)      // letzte Seite
+        editor.pdfView.currentSelection = hit
+        XCTAssertEqual(editor.selectionMenuActions().map(\.title), ["In KI-Hilfe einfügen", "Als Karteikarte"])
+        editor.tutorFromSelection()                                      // was der Menuepunkt ausloest
+        let a = try XCTUnwrap(bridge.tutorAttachment)
+        XCTAssertEqual(a.kind, .selection)
+        XCTAssertEqual(a.text, "Pythagoras")
+        XCTAssertEqual(a.page, doc.pageCount, "Seite der Auswahl, nicht die angezeigte")
+        XCTAssertEqual(a.title, "Markierter Text · Seite \(doc.pageCount)")
+        bridge.tutorAttachment = nil
+        editor.askAIFromPalette()
+        XCTAssertEqual(bridge.tutorAttachment?.text, "Pythagoras", "KI fragen nimmt die Auswahl mit")
+        XCTAssertEqual(bridge.askAIRequested, 2)
+        XCTAssertEqual(PDFEditorController.tutorText(String(repeating: "x", count: 5000))?.count, TutorAttachment.maxText)
+    }
+
+    /// Rahmen ziehen oder einkreisen: erster/letzter Punkt bzw. umschliessende Box
+    func testAreaShapeRectangleOrLoop() {
+        let drag = [CGPoint(x: 100, y: 100), CGPoint(x: 150, y: 140), CGPoint(x: 220, y: 180)]
+        let r = ObjectEditing.areaShape(drag)
+        XCTAssertFalse(r.loop)
+        XCTAssertEqual(r.rect, CGRect(x: 100, y: 100, width: 120, height: 80))
+        // Kreis um (300, 300) mit Radius 50, endet nahe am Anfang
+        let circle = (0...20).map { i -> CGPoint in
+            let t = Double(i) / 20 * 2 * .pi * 0.96
+            return CGPoint(x: 300 + 50 * cos(t), y: 300 + 50 * sin(t))
+        }
+        let c = ObjectEditing.areaShape(circle)
+        XCTAssertTrue(c.loop)
+        XCTAssertEqual(c.rect.midX, 300, accuracy: 3)
+        XCTAssertEqual(c.rect.width, 100, accuracy: 3)
+        XCTAssertTrue(ObjectEditing.areaShape([]).rect.isNull)
+    }
+
+    /// Ausschnitt: Groesse = Bereich mal Faktor (hoechstens 4, laengste Seite hoechstens 1600 px), Inhalt aus PDF,
+    /// Handschrift und Notizobjekten, Texterkennung; ganze Seite und gedrehte Seite ebenso
+    func testAreaCaptureCropSizeContentAndText() async throws {
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        XCTAssertEqual(PDFEditorController.areaScale(CGSize(width: 300, height: 60)), 4)
+        XCTAssertEqual(PDFEditorController.areaScale(CGSize(width: 595, height: 842)), 1600 / 842, accuracy: 0.0001)
+
+        // Text "Satz des Pythagoras 1" steht bei (100, 200) in 20 pt
+        let rect = CGRect(x: 80, y: 190, width: 320, height: 45)
+        let a = try await XCTUnwrapAsync(await editor.captureArea(pageIndex: 0, rect: rect))
+        XCTAssertEqual(a.kind, .area)
+        XCTAssertEqual(a.page, 1)
+        XCTAssertEqual(a.title, "Bereich · Seite 1")
+        let img = try XCTUnwrap(a.image.flatMap(UIImage.init(data:)))
+        XCTAssertEqual(img.size.width * img.scale, 1280, accuracy: 1, "320 pt mal 4")
+        XCTAssertEqual(img.size.height * img.scale, 180, accuracy: 1)
+        XCTAssertTrue(a.text.contains("Pythagoras"), "Texterkennung: \(a.text)")
+
+        // ganze Seite: laengste Seite 1600 px
+        let page = try await XCTUnwrapAsync(await editor.captureArea(pageIndex: 0, rect: nil, kind: .page))
+        let full = try XCTUnwrap(page.image.flatMap(UIImage.init(data:)))
+        XCTAssertEqual(full.size.height * full.scale, 1600, accuracy: 1)
+        XCTAssertEqual(page.title, "Ganze Seite · Seite 1")
+
+        // Notizobjekte gehoeren dazu (rote Form im Bereich) und Bereiche ausserhalb der Seite werden begrenzt
+        let layout = try XCTUnwrap(store.layout)
+        let pdfPage = try XCTUnwrap(layout.pdf.page(at: 0)), entry = try XCTUnwrap(layout.entry(at: 0))
+        let shape = try XCTUnwrap(PageObjectEdit.shape(id: "s1", kind: "rect", from: (20, 20), to: (60, 60), color: "#e5322d", width: 6))
+        let red = try XCTUnwrap(PDFEditorController.renderArea(page: pdfPage, entry: entry, objects: [shape], rect: CGRect(x: -40, y: -40, width: 100, height: 100)))
+        XCTAssertEqual(red.size.width * red.scale, 240, accuracy: 1, "auf die Seite begrenzt: 60 pt mal 4")
+        XCTAssertTrue(Self.hasReddish(red), "die Form ist im Bild")
+
+        // gedrehte Seite: Breite und Hoehe getauscht
+        let key = try XCTUnwrap(layout.key(at: 0))
+        await store.rotatePage(key: key)
+        try await wait("gedreht") { store.layout.map { PageRenderer.size(of: $0.pdf.page(at: 0)!).width > 800 } == true }
+        editor.showLayout()
+        let turned = try await XCTUnwrapAsync(await editor.captureArea(pageIndex: 0, rect: nil, kind: .page))
+        let t = try XCTUnwrap(turned.image.flatMap(UIImage.init(data:)))
+        XCTAssertEqual(t.size.width * t.scale, 1600, accuracy: 1, "quer: Breite ist die lange Seite")
+        XCTAssertLessThan(t.size.height * t.scale, 1200)
+    }
+
+    private static func hasReddish(_ image: UIImage) -> Bool {
+        guard let cg = image.cgImage, let data = cg.dataProvider?.data, let p = CFDataGetBytePtr(data) else { return false }
+        let bpp = cg.bitsPerPixel / 8, row = cg.bytesPerRow
+        for y in stride(from: 0, to: cg.height, by: 2) {
+            for x in stride(from: 0, to: cg.width, by: 2) {
+                let o = y * row + x * bpp
+                let (r, g, b) = cg.bitmapInfo.contains(.byteOrder32Little) ? (p[o + 2], p[o + 1], p[o]) : (p[o], p[o + 1], p[o + 2])
+                if r > 180, g < 90, b < 90 { return true }
+            }
+        }
+        return false
+    }
+
+    private func XCTUnwrapAsync<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) async throws -> T {
+        try XCTUnwrap(value, file: file, line: line)
+    }
+
+    /// Palette: "Bereich an KI" vorn unter unseren Eintraegen, "Auswählen" ohne Mauszeiger
+    func testPaletteAreaItemAndClearSelectItem() {
+        XCTAssertEqual(EditorPalette.customIDs.first, EditorPalette.areaID)
+        XCTAssertEqual(EditorPalette.objectTool(for: EditorPalette.areaID), .area)
+        XCTAssertEqual(EditorPalette.identifier(for: .area), EditorPalette.areaID)
+        XCTAssertEqual(ObjectEditing.Tool.area.label, "Bereich an KI")
+        XCTAssertNotEqual(ObjectEditing.Tool.select.systemImage, "cursorarrow", "kein Mauszeiger-Pfeil")
+        XCTAssertNotNil(UIImage(systemName: ObjectEditing.Tool.select.systemImage))
+        XCTAssertNotNil(UIImage(systemName: ObjectEditing.Tool.area.systemImage))
+        guard #available(iOS 18.0, *) else { return }
+        let items = EditorPalette.customItems()
+        XCTAssertEqual(items.map(\.identifier), EditorPalette.customIDs)
+        XCTAssertEqual(items.first { $0.identifier == EditorPalette.selectID }?.configuration.name, "Auswählen")
+        XCTAssertEqual(items.first { $0.identifier == EditorPalette.areaID }?.configuration.name, "Bereich an KI")
+    }
+
+    /// "Bereich an KI" aus dem Menue geht auch ohne Schreiben im Tarif, ein Rahmen schickt den Ausschnitt in die Bruecke
+    func testAreaToolWorksWithoutWritingAndSendsTheArea() async throws {
+        let store = try await openStore()
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        let bridge = EditorBridge()
+        bridge.controller = editor
+        editor.onAskAI = { bridge.attachToTutor($0) }
+        var hints: [String] = []
+        editor.onHint = { hints.append($0) }
+        editor.canEdit = false
+        editor.startAreaCapture()
+        XCTAssertTrue(editor.objects.isActive, "auch ohne Schreiben")
+        XCTAssertEqual(editor.objects.tool, .area)
+        XCTAssertEqual(hints.last, ObjectEditing.areaHint)
+        editor.sendArea(pageIndex: 0, rect: CGRect(x: 80, y: 190, width: 320, height: 45))
+        try await wait("Anhang in der Bruecke") { bridge.tutorAttachment != nil }
+        XCTAssertEqual(bridge.tutorAttachment?.kind, .area)
+        XCTAssertNotNil(bridge.tutorAttachment?.image)
+        editor.finishObjectTools()
+        XCTAssertFalse(editor.objects.isActive)
     }
 }

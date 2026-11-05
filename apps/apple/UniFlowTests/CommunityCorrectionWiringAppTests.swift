@@ -458,8 +458,13 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
 
     // MARK: Werkzeuge (wie CommunityChannelAppTests)
 
+    private var planBefore: UFPlan = .free
+
     override func setUp() async throws {
         try await super.setUp()
+        // Community ab Plus (05.11.2026): die Seiten pruefen den Tarif ueber Entitlements.shared
+        planBefore = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
         CorrectionLaunch.shared.pending.keys.forEach { _ = CorrectionLaunch.shared.take(fileID: $0) }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
     }
@@ -467,6 +472,7 @@ final class CommunityCorrectionWiringAppTests: XCTestCase {
     override func tearDown() async throws {
         CorrectionLaunch.shared.pending.keys.forEach { _ = CorrectionLaunch.shared.take(fileID: $0) }
         Self.accessibilityAutomation(false)
+        Entitlements.shared.setPlanForTesting(planBefore)
         try await super.tearDown()
     }
 

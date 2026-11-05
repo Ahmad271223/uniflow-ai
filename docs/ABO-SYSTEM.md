@@ -379,6 +379,64 @@ Konto **Credits**; 1 Credit = 1 Cent echter OpenAI-Kosten (Preistabelle je Model
   `ki_credits` und `ki_credits_anfragen`; beim endgültigen Löschen wird `credit_months` gelöscht und `credit_ledger`
   ohne Konto und ohne gespeicherte Antworten behalten (Kostenrechnung). Tests: `tests/test_credits.py`.
 
+## 6b. StudiNow-KI auf dem iPad (05.11.2026)
+
+Entscheidung des Inhabers: Die KI kommt in 1.0 über **Pro AI** (StudiNow-KI mit 100 Credits, harte Grenze 1 €,
+Modellmischung im Dienst), weil „Eigenes ChatGPT verbinden“ ohne Freigabe durch OpenAI aus ist (`ChatGPTLink.isEnabled`).
+
+**Weg von Kauf bis Antwort:**
+1. Kauf im App Store (Pro AI) oder die 7-Tage-Probe auf dem iPad (Abschnitt 3b) → `Entitlements.plan == .proAI`.
+2. Anmelden beim StudiNow-Konto (Einstellungen → Konto & Tarif): „Mit Apple anmelden“ nativ
+   (`SignInWithAppleButton`, Nonce: Rohwert an den Dienst, SHA-256 an Apple) → `POST /api/account/login/apple`
+   `{identity_token, nonce, university, email?, device_id, device_name}`; oder E-Mail und Passwort. Neue Konten bekommen
+   beim Dienst die Probe (`accounts.grant_trial`, 25 Credits). Gespeichert wird nur das Sitzungs-Token im Schlüsselbund
+   je Apple-Nutzer (`StudoraAccountKeychain`, nie synchronisiert, „Konto löschen“ in der App entfernt es).
+3. Abo beim Dienst: einmal je Anmeldung alle gültigen Transaktionen (`Transaction.currentEntitlements`) und danach jede
+   neue (Kauf, Verlängerung, `Entitlements.verifyOnServer`) an `POST /api/billing/apple/verify`; beim Kauf mit Konto
+   `appAccountToken` = `apple_account_token` (`UFBillingServiceLink`, jetzt eingeschaltet). 409
+   `subscription_owned_by_other_account` zeigt die Kontokarte; 503 `apple_not_configured` und Netzfehler bleiben still
+   (der Kauf gilt auf dem iPad immer, der nächste Start meldet erneut).
+4. Weg der KI (`StudiNowAIAccess.decide`, UniFlowCore/AI/StudiNowAI.swift): angemeldet **und** (Pro AI auf dem iPad
+   oder `plan == pro_ai` beim Dienst oder laufende Probe des Kontos) → `ready`, die App hängt `StudiNowAI` ins lokale
+   Backend (`LocalAI.setService`). Pro AI/Probe ohne Anmeldung → `signInRequired` (Hinweis „Melde dich … an“ mit
+   „Mit StudiNow-Konto anmelden“). Free/Plus → `planRequired` (Tarif-Hinweis, „Tarife ansehen“). Ohne `ready` geht
+   keine Anfrage an den Dienst.
+5. Anfrage: Das lokale Backend baut den Prompt wie für das eigene ChatGPT (das iPad hat Dateien und Seitentexte, der
+   Dienst nicht) und schickt ihn mit Aufgabe an `POST /api/ai/relay` (wie die Windows-App, app/ai_relay.py):
+   `tutor:<modus>` (KI-Hilfe, KI-Start; `cache` nur für geteilte ganze Seiten, `fresh` bei „Neu erklären lassen“,
+   `image` beim „Bereich an KI“, höchstens 3 MB, Bild-Tokens zählen in die Credits), `flashcards` (Karten aus
+   Dokument, Wochenstapel), `week_test` (mit `options`, `exam`), `grade`, `weekly`. „Ganzes Dokument“ geht an
+   `POST /api/ai/document/{plan,step}` mit `page_texts` (wie `doc_explain_api._forward`). Die Antwort trägt `credits`
+   (mit `charged`); die Kostenzeile in KI-Hilfe und KI-Start zeigt „StudiNow-KI · – 3 Credits (37 übrig)“, beim Öffnen
+   den Stand aus `GET /api/entitlements`.
+6. Reihenfolge der Bezahlung: eigener Erklärungsspeicher und geteilte Erklärungen (0 Credits) → eigenes ChatGPT, wenn
+   verbunden (`LocalAI.provider` nimmt es zuerst) → StudiNow-KI mit Credits. Im Hintergrund (Vorab einordnen,
+   Erklärungen vorab, Dokument-Index) nie die StudiNow-KI (`LocalAI.backgroundProvider`, `LocalDocIndex.ai(from:)`);
+   ohne Aufgabe beim Dienst (Einordnen einer Datei) antwortet sie nicht (`ai_task_unsupported`).
+
+**Fehler** (Status und Code bleiben, Text aus `StudiNowAIText`): 402 `subscription_required` und 403
+`plan_required` → Text zu Pro AI mit „Tarif ansehen“; 429 `credits_exhausted` (Text des Dienstes, Stand übernommen),
+`quota_exhausted` → „Tarif ansehen“; 429 `rate_limited` mit Retry-After; 401 → Token weg, „Mit StudiNow-Konto
+anmelden“; nicht erreichbar → 503 `service_unreachable` „Der StudiNow-Dienst ist gerade nicht erreichbar …“.
+
+**Dienst-Adresse:** Standard `https://app.studinow.app` (`StudoraAccountLink.defaultServiceURL`); anders mit
+Info.plist-Eintrag `StudoraServiceURL` (leer = aus) oder dem Startargument `-StudoraServiceURL https://…`; nur https.
+Damit ist die Kontokarte jetzt in jedem Build sichtbar (vorher erst mit Eintrag).
+
+**Probe iPad ↔ Dienst:** Die Probe auf dem iPad (je Apple-ID ab dem ersten Start) und die Probe des Kontos (je Konto ab
+dem Anlegen, 25 Credits) sind zwei Uhren. Credits gibt es nur beim Dienst. Wer in der iPad-Probe ein neues Konto mit
+Apple anlegt, bekommt die Konto-Probe dazu; die KI läuft dann bis zum Ende der **Konto**-Probe bzw. bis die 25 Credits
+verbraucht sind. Ist das Konto älter (Probe vorbei, kein Abo), antwortet der Dienst trotz laufender iPad-Probe mit 402/403
+→ Tarif-Hinweis. Der Dienst entscheidet immer; die App sendet nur bei `ready`.
+
+**Muss am laufenden Dienst geprüft werden:** `LERNAPP_APPLE_CLIENT_IDS` enthält die Bundle-ID der App (sonst 501
+`provider_not_configured` bzw. 401 `token_invalid` beim nativen Token); `LERNAPP_APPLE_ROOT_CERTS` für
+`/api/billing/apple/verify`; Relay-Antworten mit echten Modellen (gpt-6-luna, Claude Sonnet über Bedrock) und echte
+Credits; Antwortzeit eines Schritts „Ganzes Dokument“ (die App wartet bis 180 s).
+
+Tests: `UniFlowCoreTests/StudiNowAITests.swift`, `DocExplainTests` (Weiterleitung), `UniFlowTests/StudiNowAIAppTests.swift`
+(URLProtocol-Attrappe), angepasst `StudoraAccountAppTests`, `PlanContractTests`.
+
 ## 7. Tests
 
 `tests/test_subscriptions.py` (Testfälle 1–14 des Auftrags und mehr) und `tests/test_billing.py`; Apple-Signaturen
@@ -392,7 +450,8 @@ mit einer selbst erzeugten Zertifikatskette, KI mit einer Attrappe. Gesamtlauf: 
   API-Schlüssel und Modellwahl für Pro AI; Interessenformular „Sign in with ChatGPT“ mit der Frage nach der
   Tarif-Kopplung; Datenschutzerklärung (KI über das Backend, Weitergabe an OpenAI) und Preise in den Rechtstexten.
 - **Mac-Sitzung:** Swift-Tarife auf `fixtures/plans/plans.json` umstellen (`UFPlan`, `UFFeature`,
-  `PurchaseStore.productIDs`), `appAccountToken` setzen, Transaktionen an `/api/billing/apple/verify` melden,
+  `PurchaseStore.productIDs`), (erledigt 05.11.2026, Abschnitt 6b: `appAccountToken` setzen, Transaktionen an
+  `/api/billing/apple/verify` melden),
   Abo-Seite mit drei Tarifen, PencilKit nur mit `can_use_pencilkit`. Siehe Nachtrag in `docs/STAND-MAC-SITZUNG.md`.
 - **Noch nicht gebaut:** Zahlung im Web/Windows, Community-Kommentare, die ChatGPT-Verbindung selbst,
   Einbettungen für die Themenerkennung. Den KI-Wochenplan (`/api/plan/generate`) gibt es seit dem 30.10.2026 nicht

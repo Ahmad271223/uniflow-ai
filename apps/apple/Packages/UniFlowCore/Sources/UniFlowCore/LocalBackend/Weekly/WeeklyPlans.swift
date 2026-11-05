@@ -598,7 +598,10 @@ extension Weekly {
         guard let ai = ctx.ai.provider else { throw Failure("Keine KI verbunden (Einstellungen → Erweitert → KI über mein ChatGPT).") }
         try _Concurrency.Task.checkCancellation()                                 // abgebrochen (iOS): keine Anfrage mehr
         do {
-            return try AIAnswers.parseJSON(try await ai.answer(system: system, prompt: prompt))
+            // StudiNow-KI: Aufgabe `weekly` (ohne Credits, nur mit einem Tarif mit Wochentests)
+            return try AIAnswers.parseJSON(try await AIRelayTask.run(AIRelayTask("weekly")) {
+                try await ai.answer(system: system, prompt: prompt)
+            }.value)
         } catch {
             // die Anbindung verpackt einen abgebrochenen Transport als AIError: im abgebrochenen Task zaehlt das nicht als Fehler
             if _Concurrency.Task.isCancelled { throw CancellationError() }

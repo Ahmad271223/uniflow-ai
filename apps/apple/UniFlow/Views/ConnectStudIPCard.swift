@@ -120,7 +120,10 @@ struct UFNoServerContent: Equatable {
 
     /// Tests ohne KI: was sie brauchen (verbundenes ChatGPT) und der Weg zu den Karteikarten - kein Versprechen, dass es
     /// Tests schon gibt, kein "bald"
-    static let examsText = "Tests gibt es nur mit verbundenem ChatGPT. Ohne ChatGPT wiederholst du mit deinen eigenen Karteikarten."
+    static var examsText: String {
+        ChatGPTLink.isEnabled ? "Tests gibt es nur mit verbundenem ChatGPT. Ohne ChatGPT wiederholst du mit deinen eigenen Karteikarten."
+                              : "Tests gibt es mit der StudiNow-KI in StudiNow Pro AI. Bis dahin wiederholst du mit deinen eigenen Karteikarten."
+    }
 
     private static func text(_ kind: UFNoServerPage.Kind) -> String {
         switch kind {
@@ -308,7 +311,7 @@ struct UFNoServerBody: View {
         UFFlexWrap(gap: 8, justify: .center) {
             UFButton("Zu den Karteikarten", icon: "cards", kind: .primary, size: .small) { router.go(.cards) }
                 .accessibilityIdentifier("exams.toCards")
-            if ChatGPTLink.available {
+            if ChatGPTLink.isEnabled {                          // erst nach der Freigabe durch OpenAI (05.11.2026)
                 UFButton("ChatGPT verbinden", icon: "sparkles", size: .small) { router.go(.settings(tab: "advanced")) }
                     .accessibilityIdentifier("exams.connectChatGPT")
             }
@@ -382,7 +385,7 @@ extension UFNoServerPage.Spec {
     static let examsWithAI = Self(title: "Tests & Wiederholung", sub: "Wochentests deiner Module, erstellt mit deinem ChatGPT.", kind: .exams)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     /// KI-Start (03.11.2026): lokal immer echt; ohne verbundene KI zeigt die Seite selbst den Weg dorthin
-    static let aiStart = Self(title: "KI-Start", sub: "Fragen, Karteikarten, Erklären und Wochentests mit deinem ChatGPT.", kind: .exams, maxWidth: 960)
+    static let aiStart = Self(title: "KI-Start", sub: ChatGPTLink.isEnabled ? "Fragen, Karteikarten, Erklären und Wochentests mit deinem ChatGPT." : "Fragen, Karteikarten, Erklären und Wochentests zu deinen Unterlagen.", kind: .exams, maxWidth: 960)
     // Notenspiegel auf dem Geraet an beiden Hochschulen: LUH aus dem QIS (QISConnection), Uni Hildesheim aus dem LSF
     // (HildesheimSync); die Seite ist lokal immer echt
     static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",

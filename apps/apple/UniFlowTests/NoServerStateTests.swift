@@ -65,7 +65,7 @@ final class NoServerStateTests: XCTestCase {
         // Audit 03.11.2026: statt der Sackgasse "Noch keine Tests." sagt der Text, was Tests brauchen, und verweist auf
         // die Karteikarten (die Seite bietet dazu "Zu den Karteikarten" und "ChatGPT verbinden")
         XCTAssertEqual(c.text, UFNoServerContent.examsText)
-        XCTAssertTrue(c.text.contains("nur mit verbundenem ChatGPT"))
+        XCTAssertTrue(c.text.contains("StudiNow Pro AI"), "ChatGPT ausgeschaltet: der Tarif-Hinweis")
         XCTAssertTrue(c.text.contains("Karteikarten"))
     }
 
@@ -88,7 +88,7 @@ final class NoServerStateTests: XCTestCase {
             // ohne KI: Tests werden nicht als vorhanden angekuendigt, nur was sie brauchen (ChatGPT verbinden)
             let exams = content(.exams, mode)
             XCTAssertEqual(exams.text, UFNoServerContent.examsText)
-            XCTAssertTrue(exams.text.contains("nur mit verbundenem ChatGPT"), "Bedingung klar genannt")
+            XCTAssertTrue(exams.text.contains("StudiNow Pro AI"), "Bedingung klar genannt")
             XCTAssertFalse(exams.text.localizedCaseInsensitiveContains("Wochentest"), "keine Wochentests versprochen")
             XCTAssertFalse(exams.text.localizedCaseInsensitiveContains("bald"))
             XCTAssertFalse(exams.soon)

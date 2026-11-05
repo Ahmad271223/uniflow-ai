@@ -28,9 +28,10 @@ public final class LocalDocIndex: @unchecked Sendable {
         }
     }
 
-    /// Index-KI aus der KI des Backends (nil ohne verbundene KI: lesen geht trotzdem)
+    /// Index-KI aus der KI des Backends (nil ohne verbundene KI: lesen geht trotzdem). Die StudiNow-KI baut keinen Index
+    /// (keine Aufgabe dafuer beim Dienst, kostete Credits ohne Antippen): dann nil, gelesen wird weiter aus der Bibliothek.
     public func ai(from provider: AIProvider?) -> DocIndexAI? {
-        guard let provider else { return nil }
+        guard let provider, !provider.isMetered else { return nil }
         if let direct = provider as? DocIndexAI { return direct }
         return lock.withLock { _makeAI }(provider)
     }

@@ -304,8 +304,8 @@ Anmeldung kann also nicht abschließen.
 - **Wieder einschalten** nach der Freigabe: `isEnabled = true`; alle Wege (Karte, Neu verbinden, Freigabe nachholen)
   sind unverändert vorhanden. Tests: `ChatGPTLinkAppTests.testSwitchOffOffersNoLoginAnywhere`,
   `testSettingsShowSoonCardWithoutConnectButton`.
-- Auf dem iPad gibt es damit bis zum StudiNow-Dienst (Pro AI) keine KI-Antworten; die KI-Hilfe zeigt Anhänge,
-  Dokument-Index („Schon erklärt“) und den Hinweis.
+- Auf dem iPad gab es damit zunächst keine KI-Antworten; seit dem 5.11.2026 antwortet die **StudiNow-KI über Pro AI**
+  (Abschnitt 12).
 
 ### Bild in der KI-Hilfe („Bereich an KI“, 5.11.2026)
 
@@ -314,3 +314,23 @@ Anmeldung kann also nicht abschließen.
 (`ai.tutor_image`, `_tutor_hosted` → `ai_backend.complete(image=…)`, Bild-Tokens in Schätzung und Abrechnung über
 `ai_prices`), Windows über die Relay-Aufgabe `tutor:*` (andere Aufgaben: 400 `image_not_allowed`). Mit Bild nie aus
 einem Speicher und nie hinein (persönlich). Kaputtes oder zu großes Bild: 400/413 `image_invalid`.
+
+## 12. Stand 5.11.2026: KI auf dem iPad über die StudiNow-KI (Pro AI)
+
+Entscheidung des Inhabers: Die KI muss in 1.0 kommen, also über Pro AI statt über das eigene ChatGPT. Einzelheiten
+(Kauf, Anmeldung, Weg der KI, Fehler, Probe) in `docs/ABO-SYSTEM.md`, Abschnitt 6b.
+
+- **Anbieter** `StudiNowAI: AIProvider` (UniFlowCore/AI/StudiNowAI.swift): nimmt den im lokalen Backend gebauten
+  Prompt und schickt ihn mit Aufgabe (`AIRelayTask`, Kontextvariable wie `ai.for_task`) und Sitzungs-Token an
+  `POST /api/ai/relay`; System-Text, Schema, Modell (gpt-6-luna oder Claude Sonnet über Bedrock, `app/ai_router.py`),
+  Recht, Kontingent und Credits bestimmt der Dienst. Ohne Aufgabe wird nichts gesendet.
+- **Reihenfolge** in `LocalAI`: eigenes ChatGPT (`set`, solange `ChatGPTLink.isEnabled` aus ist nie gesetzt) vor der
+  StudiNow-KI (`setService`). Gespeichertes und Geteiltes kommt in den Endpunkten vorher (0 Credits).
+- **Aufgaben:** KI-Hilfe und KI-Start `tutor:<modus>` (mit Bild beim „Bereich an KI“), Karteikarten `flashcards`,
+  Wochentest `week_test`, Bewerten `grade`, Wochentests mit Seitenmarkern `weekly`; „Ganzes Dokument“ rechnet im Dienst
+  (`/api/ai/document/plan|step` mit `page_texts`). Dokument-Index, „Vorab einordnen“ und das Einordnen einer Datei laufen
+  nicht über die StudiNow-KI (keine Aufgabe, kein Hintergrund mit Credits).
+- **Oberfläche:** `ufAIAccess`/`ufStudiNowAI` (`UFAIAccessProvider`): bereit → KI-Stellen fragen, Kostenzeile
+  „StudiNow-KI · – 3 Credits (37 übrig)“; Pro AI ohne Anmeldung → „Mit StudiNow-Konto anmelden“; Free/Plus → wie in
+  Abschnitt 11 der Tarif-Hinweis.
+

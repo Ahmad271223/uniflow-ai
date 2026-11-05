@@ -318,13 +318,19 @@ final class CommunityChannelAppTests: XCTestCase {
 
     // MARK: Werkzeuge (wie AuditRunde0910AppTests)
 
+    private var planBefore: UFPlan = .free
+
     override func setUp() async throws {
         try await super.setUp()
+        // Community ab Plus (05.11.2026): die Seiten pruefen den Tarif ueber Entitlements.shared
+        planBefore = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
     }
 
     override func tearDown() async throws {
         Self.accessibilityAutomation(false)
+        Entitlements.shared.setPlanForTesting(planBefore)
         try await super.tearDown()
     }
 

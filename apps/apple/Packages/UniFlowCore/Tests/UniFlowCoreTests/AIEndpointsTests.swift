@@ -109,6 +109,47 @@ final class AIEndpointsTests: XCTestCase {
                                                                  page: .int("1")))
     }
 
+    /// Index-KI mit Bild (wie `ChatGPTVisionAI`): merkt sich Bild und Schema
+    final class VisionFake: DocIndexAI, @unchecked Sendable {
+        private let lock = NSLock()
+        private var seen: [(prompt: String, image: Data?, schema: JSONValue)] = []
+        var calls: [(prompt: String, image: Data?, schema: JSONValue)] { lock.withLock { seen } }
+        func index(system: String, prompt: String, imageJPEG: Data?, schema: JSONValue, small: Bool) async throws -> String {
+            lock.withLock { seen.append((prompt, imageJPEG, schema)) }
+            return "Im Bild steht eine Formel."
+        }
+        var modelName: String { get async { "" } }
+    }
+
+    /// "Bereich an KI" (05.11.2026): `image` (Base64, auch data-URL) geht mit dem Prompt an die Bild-KI, ohne Schema;
+    /// ohne Bild bleibt es beim Text-Weg; kaputtes Bild wird ignoriert
+    func testTutorImageGoesToTheVisionAI() async throws {
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0] + Array(repeating: 0, count: 32))
+        XCTAssertEqual(AIEndpoints.tutorImage(jpeg.base64EncodedString()), jpeg)
+        XCTAssertEqual(AIEndpoints.tutorImage("data:image/jpeg;base64," + jpeg.base64EncodedString()), jpeg)
+        XCTAssertNil(AIEndpoints.tutorImage(""))
+        XCTAssertNil(AIEndpoints.tutorImage(String(repeating: "A", count: AIEndpoints.tutorImageMaxBytes * 2)))
+        let b = try await backend()
+        let ai = FakeAI("nur Text")
+        b.context.ai.set(ai)
+        let vision = VisionFake()
+        b.context.docIndex.configure(cloud: nil, cipher: nil, makeAI: { _ in vision })
+        let r = await post(b, "/api/ai/tutor", ["mode": "explain", "page_text": "Fourier", "selection": "x(t)",
+                                                 "image": .string(jpeg.base64EncodedString())])
+        XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
+        XCTAssertEqual(r.json?["answer"], "Im Bild steht eine Formel.")
+        XCTAssertEqual(r.json?["explain"], .null, "mit Bild nie im Erklaerungsspeicher")
+        let call = try XCTUnwrap(vision.calls.first)
+        XCTAssertEqual(call.image, jpeg)
+        XCTAssertTrue(call.schema.isNull, "freie Antwort ohne Schema")
+        XCTAssertTrue(call.prompt.hasSuffix(AIPrompts.tutorImageNote))
+        XCTAssertTrue(ai.prompts.isEmpty)
+        // ohne Bild: wie bisher ueber die Text-KI
+        let plain = await post(b, "/api/ai/tutor", ["mode": "ask", "page_text": "Fourier", "question": "Was?"])
+        XCTAssertEqual(plain.json?["answer"], "nur Text")
+        XCTAssertEqual(vision.calls.count, 1)
+    }
+
     func testFileUsesStoredPageAndSourcesFromTheModule() async throws {
         let b = try await backend()
         try await seed(b)

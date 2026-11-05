@@ -115,6 +115,9 @@ public enum AIPrompts {
     /// eigenen Fragen; leer laesst den Prompt byte-gleich mit app/ai.py
     /// `ownNotes` (5.11.2026, docs/NOTIZEN-MITSCHICKEN-2026-11-05.md): Seitennotizen und Blatt daneben dieser Seite
     /// (Textfelder und erkannte Handschrift), wie `own_notes` in app/ai.py; leer = kein Block
+    /// Zusatz im Prompt, wenn ein Ausschnitt der Seite als Bild mitgeht ("Bereich an KI", 05.11.2026)
+    public static let tutorImageNote = "ANGEHAENGTES BILD: Ausschnitt der Seite, den ich eingekreist habe (PDF, meine Handschrift und Notizen). Beziehe dich vor allem darauf; der markierte Text oben ist die Texterkennung dieses Ausschnitts und kann Fehler enthalten."
+
     public static func tutor(mode: String, pageText: String, selection: String = "", question: String = "", ownSolution: String = "",
                              course: String = "", fileName: String = "", page: PyJSON? = nil, sources: [PyJSON]? = nil,
                              history: [(role: String, text: String)] = [], studip: String = "", pageIndex: String = "",

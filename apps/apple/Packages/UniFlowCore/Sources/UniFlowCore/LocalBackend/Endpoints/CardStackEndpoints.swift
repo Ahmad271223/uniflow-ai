@@ -61,7 +61,10 @@ enum CardStackEndpoints: LocalEndpointModule {
             let generate: @Sendable () async throws -> [AIAnswers.Flashcard] = {
                 let answer: String
                 do {
-                    answer = try await ai.answer(system: AIPromptTexts.system, prompt: prompt, schema: AIPrompts.flashcardsSchema)
+                    // StudiNow-KI: Aufgabe `flashcards` (Credits beim Dienst, Stand ueber `StudiNowAI.onCredits`)
+                    answer = try await AIRelayTask.run(AIRelayTask("flashcards")) {
+                        try await ai.answer(system: AIPromptTexts.system, prompt: prompt, schema: AIPrompts.flashcardsSchema)
+                    }.value
                 } catch let e as AIError {
                     throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
                 }

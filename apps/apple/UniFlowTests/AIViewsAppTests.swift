@@ -190,9 +190,10 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertEqual(AICost.line(chatgpt: true, plan: .free, credits: 10, calls: 2), "2 Anfragen über dein ChatGPT")
         XCTAssertEqual(AICost.line(chatgpt: false, plan: .proAI, credits: 10), "≈ 10 Credits")
         XCTAssertEqual(AICost.line(chatgpt: true, plan: .proAI, credits: 10, adopted: true), "0 Credits (gemeinsamer Test)")
-        XCTAssertTrue(AICost.line(chatgpt: false, plan: .plus, credits: 10).contains("ChatGPT"))
+        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 10), "Kommt mit StudiNow Pro AI", "ChatGPT ausgeschaltet")
         XCTAssertEqual(AICost.status(chatgpt: true, model: "gpt-x", plan: .plus, requestsThisMonth: 1), "1 Anfrage diesen Monat · über dein ChatGPT · gpt-x")
-        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0), "Noch kein ChatGPT verbunden · 0 Anfragen diesen Monat")
+        // ChatGPT ausgeschaltet (`ChatGPTLink.isEnabled`, 05.11.2026): kein "Noch kein ChatGPT verbunden", der Tarif-Hinweis
+        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0), "KI kommt mit StudiNow Pro AI · 0 Anfragen diesen Monat")
         XCTAssertEqual(AICost.status(chatgpt: true, model: nil, plan: .proAI, requestsThisMonth: 3, usage: (87, 100)), "87 von 100 Credits")
         // Zuletzt: hoechstens drei, neueste zuerst, je Container, Anfragen des Monats gezaehlt
         let d = try suite()
@@ -274,7 +275,8 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(shows(env.view, "Konvergente Folge"))
         XCTAssertTrue(shows(env.view, "Im Regal: Leibniz Universität Hannover › Allgemein › WiSe 2026/27 › Testmathematik I › Woche 3 (26.10.–01.11.) › Vorlesung"),
                       texts(env.view).joined(separator: "\n"))
-        XCTAssertTrue(shows(env.view, "Verbinde dein ChatGPT"), "der Weg zur KI bleibt")
+        XCTAssertTrue(shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI"), "der Weg zur KI bleibt (Tarif-Hinweis)")
+        XCTAssertNil(button("ChatGPT verbinden", in: env.view), "keine Anmeldung bei ChatGPT angeboten")
         XCTAssertFalse(shows(env.view, "Neu erklären lassen"), "ohne KI kein Neubau")
         XCTAssertEqual(t.count("POST", "/api/index/file/f-1/page/3"), 0, "lesen kostet nichts und fragt keine KI")
     }
@@ -424,6 +426,66 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertEqual(t.count("GET", "/api/files/\(id)/content"), 1)
     }
 
+    /// Editor des gehosteten Dokuments (fuer "Bereich an KI" ohne Gesten)
+    private func editor(in env: HostedEnvironment) -> PDFEditorController? {
+        func find(_ vc: UIViewController?) -> PDFEditorController? {
+            guard let vc else { return nil }
+            if let e = vc as? PDFEditorController { return e }
+            for c in vc.children { if let e = find(c) { return e } }
+            return find(vc.presentedViewController)
+        }
+        return find(env.window.rootViewController)
+    }
+
+    /// "Bereich an KI" (05.11.2026): Ausschnitt der Seite -> KI-Hilfe geht auf, Bild und erkannter Text stehen als Anhang
+    /// im Eingabefeld (mit Seite), "Senden" ohne Frage erklaert ihn, die Anfrage traegt `image` (JPEG, Base64) und
+    /// `selection`; danach ist der Anhang weg
+    func testAreaLandsInTheTutorAndTheRequestCarriesTheImage() throws {
+        let t = transport()
+        let id = "f-area-\(UUID().uuidString.prefix(8))"
+        let file = try document(t, id: id)
+        t.answer("/api/ai/tutor", ["answer": "Das ist die Überschrift der Seite.", "cards": .null, "sources": [], "explain": .null])
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t)) }.environment(\.ufAIEnabled, true), api: api(t))
+        XCTAssertTrue(env.wait(timeout: 20) { self.shows(env.view, "Seite 1 / 2") }, texts(env.view).joined(separator: "\n"))
+        let vc = try XCTUnwrap(editor(in: env))
+        XCTAssertNil(button("KI-Hilfe schließen", in: env.view), "KI-Hilfe noch zu")
+        vc.sendArea(pageIndex: 0, rect: CGRect(x: 60, y: 60, width: 300, height: 50))
+        XCTAssertTrue(env.wait(timeout: 20) { self.button("Anhang entfernen", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("KI-Hilfe schließen", in: env.view), "KI-Hilfe von selbst offen")
+        XCTAssertTrue(shows(env.view, "Bereich · Seite 1"))
+        XCTAssertTrue(shows(env.view, "Vorschau des Bereichs"))
+        XCTAssertEqual(enabled("Senden", in: env.view), true, "mit Anhang sofort sendbar")
+        XCTAssertTrue(tap("Senden", in: env.view))
+        XCTAssertTrue(env.wait(timeout: 10) { t.count("POST", "/api/ai/tutor") == 1 })
+        let body = try XCTUnwrap(t.bodies("/api/ai/tutor").last)
+        XCTAssertEqual(body.s("mode"), "explain")
+        XCTAssertEqual(body["page"]?.double, 1)
+        let image = try XCTUnwrap(body.s("image").flatMap { Data(base64Encoded: $0) })
+        XCTAssertEqual(Array(image.prefix(3)), [0xFF, 0xD8, 0xFF], "JPEG")
+        let ui = try XCTUnwrap(UIImage(data: image))
+        XCTAssertEqual(ui.size.width * ui.scale, 1200, accuracy: 1, "300 pt mal 4")
+        XCTAssertTrue((body.s("selection") ?? "").contains("Folgen"), "erkannter Text geht als Markierung mit: \(body.s("selection") ?? "-")")
+        XCTAssertTrue(env.wait { self.shows(env.view, "Das ist die Überschrift der Seite.") })
+        XCTAssertNil(button("Anhang entfernen", in: env.view), "Anhang ist mit der Frage weg")
+    }
+
+    /// Ohne KI (ChatGPT ausgeschaltet, kein Pro AI): der markierte Text landet trotzdem sichtbar in der KI-Hilfe, darunter
+    /// der Tarif-Hinweis statt "ChatGPT verbinden"; nichts geht an den Server
+    func testAttachmentWithoutAIShowsTextAndPlanHint() throws {
+        let t = transport()
+        let id = "f-noai-\(UUID().uuidString.prefix(8))"
+        let file = try document(t, id: id)
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t)) }, api: api(t))
+        XCTAssertTrue(env.wait(timeout: 20) { self.shows(env.view, "Seite 1 / 2") }, texts(env.view).joined(separator: "\n"))
+        let vc = try XCTUnwrap(editor(in: env))
+        vc.onAskAI?(TutorAttachment(kind: .selection, text: "Konvergenz einer Folge", page: 2))
+        XCTAssertTrue(env.wait(timeout: 10) { self.shows(env.view, "Markierter Text · Seite 2") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(shows(env.view, "Konvergenz einer Folge"))
+        XCTAssertTrue(shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI"))
+        XCTAssertNil(button("ChatGPT verbinden", in: env.view))
+        XCTAssertEqual(t.count("POST", "/api/ai/tutor"), 0)
+    }
+
     /// Ein Wunsch fuer eine andere Datei oeffnet die KI-Hilfe nicht und bleibt fuer jene Datei stehen
     func testTutorStaysClosedForAnotherFile() throws {
         let t = transport()
@@ -440,9 +502,10 @@ final class AIViewsAppTests: XCTestCase {
     func testStartPageWithoutAIShowsTheWayAndDisablesAsking() throws {
         let t = transport()
         let env = try hostWithEnvironment(AIStartView(entitlements: plan(.free), recents: AIRecents(defaults: try suite(), scope: "x")), api: api(t))
-        XCTAssertTrue(env.wait { self.shows(env.view, "Verbinde dein ChatGPT") }, texts(env.view).joined(separator: "\n"))
-        XCTAssertTrue(shows(env.view, "ChatGPT verbinden"))
-        XCTAssertTrue(shows(env.view, "Noch kein ChatGPT verbunden"))
+        XCTAssertTrue(env.wait { self.shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertNotNil(button("Tarife ansehen", in: env.view), "statt ChatGPT verbinden")
+        XCTAssertNil(button("ChatGPT verbinden", in: env.view))
+        XCTAssertTrue(shows(env.view, "KI kommt mit StudiNow Pro AI"))
         XCTAssertEqual(enabled("Frage senden", in: env.view), false, "Senden ohne KI gesperrt")
         XCTAssertNotNil(button("Karteikarten.", in: env.view, exact: false), "die Aktionen bleiben sichtbar")
         // Wochentest-Pille oeffnet den Dialog, der ebenfalls den Weg zur KI zeigt
@@ -660,7 +723,7 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertNil(button("Karten erstellen", in: locked.view))
         XCTAssertNil(button("Übernehmen", in: locked.view, exact: false))
         let noAI = try hostWithEnvironment(FlashcardComposer(moduleID: 1, fileID: "f-1", entitlements: plan(.plus)), api: api(t))
-        XCTAssertTrue(noAI.wait { self.shows(noAI.view, "Verbinde dein ChatGPT") })
+        XCTAssertTrue(noAI.wait { self.shows(noAI.view, "Die KI-Hilfe kommt mit der StudiNow-KI") })
         XCTAssertNil(button("Karten erstellen", in: noAI.view))
         XCTAssertEqual(t.count("POST", "/api/ai/flashcards"), 0)
     }

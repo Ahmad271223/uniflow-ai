@@ -20,6 +20,16 @@ final class EditorBridge: ObservableObject {
     @Published var textSelected = false
     /// Markierter PDF-Text soll an die KI-Hilfe (Leiste "Text markieren": "KI erklärt", "KI löst")
     @Published var tutorRequest: TutorRequest?
+    /// Anhang fuer das Eingabefeld der KI-Hilfe (05.11.2026): markierter Text ("In KI-Hilfe einfügen", "KI fragen")
+    /// oder ein Ausschnitt als Bild ("Bereich an KI", "Ganze Seite an KI"); oeffnet die KI-Hilfe
+    @Published var tutorAttachment: TutorAttachment?
+    /// Kurzer Hinweis unten im Editor (verschwindet von selbst)
+    @Published var hint: Hint?
+
+    struct Hint: Equatable {
+        let id = UUID()
+        let text: String
+    }
     /// Die Palette traegt unsere Objektwerkzeuge (iPadOS 18 mit eigenen Eintraegen); sonst Objektleiste und
     /// "Tinte/Objekte" wie unter iPadOS 17
     @Published var toolsInPalette = false
@@ -40,11 +50,17 @@ final class EditorBridge: ObservableObject {
         let question: String
     }
 
-    /// Markierten Text an die KI-Hilfe geben (oeffnet sie und fragt sofort)
+    /// Markierten Text an die KI-Hilfe geben (oeffnet sie und fragt sofort); ohne Auswahl nur die KI-Hilfe oeffnen
+    /// (vorher geschah dann gar nichts)
     func askTutor(_ mode: String) {
         let text = controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else { askAIRequested += 1; return }
         tutorRequest = TutorRequest(mode: mode, selection: text)
+    }
+
+    /// Vom Editor: Anhang in die KI-Hilfe, ohne Anhang nur die KI-Hilfe oeffnen
+    func attachToTutor(_ a: TutorAttachment?) {
+        if let a { tutorAttachment = a } else { askAIRequested += 1 }
     }
 
     /// Markierten Text als Vorderseite einer neuen Karteikarte anbieten (Leiste "Text markieren" und Bearbeitungsmenue)
@@ -376,12 +392,21 @@ struct DocumentView: View {
                    page: { store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex) },
                    selection: { bridge.controller?.pdfView.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
                    open: { id, page in if id == store.file.id { bridge.controller?.goToPage(page - 1) } },
-                   close: { showTutor = false }, request: $bridge.tutorRequest,
+                   close: { showTutor = false }, request: $bridge.tutorRequest, attachment: $bridge.tutorAttachment,
                    moduleID: store.file.module_id,                       // "Wochentest erstellen" waehlt das Modul des Dokuments vor
                    // Seitennotizen und Blatt daneben dieser Folie gehen als Kontext mit (05.11.2026)
                    ownNotes: { [store, bridge, api, companionStore] in
                        await AttachedNotes.text(for: store, pageKey: bridge.pageKey, api: api, open: companionStore)
                    })
+    }
+
+    /// "Bereich an KI" (05.11.2026): Rahmen ziehen bzw. einkreisen (Werkzeug wie in der Palette) oder ohne Gesten die
+    /// ganze angezeigte Seite
+    @ViewBuilder private var areaMenuItems: some View {
+        Button { bridge.controller?.startAreaCapture() } label: { Label("Bereich an KI …", systemImage: "rectangle.dashed") }
+            .accessibilityIdentifier("doc.areaAI.pick")
+        Button { bridge.controller?.sendVisiblePage() } label: { Label("Ganze Seite an KI", systemImage: "doc.viewfinder") }
+            .accessibilityIdentifier("doc.areaAI.page")
     }
 
     private var isExercise: Bool {
@@ -471,6 +496,22 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         .onChange(of: bridge.tutorRequest) { _, r in if r != nil { showTutor = true } }
+        // Anhang (markierter Text, Bereich als Bild): KI-Hilfe auf, der Anhang steht im Eingabefeld
+        .onChange(of: bridge.tutorAttachment) { _, a in if a != nil, !tracing { showTutor = true } }
+        .overlay(alignment: .bottom) {
+            if let h = bridge.hint, !tracing {
+                Text(h.text).ufFont(13.6, 550, lh: 1.35).foregroundStyle(UF.text)
+                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.horizontal, 24).padding(.bottom, bridge.objectMode ? 96 : 28)
+                    .accessibilityIdentifier("doc.hint")
+                    .task(id: h.id) {
+                        try? await Task.sleep(nanoseconds: 3_500_000_000)
+                        if bridge.hint?.id == h.id { bridge.hint = nil }
+                    }
+            }
+        }
         // "KI fragen" am Rand der Palette (Schritt F): dieselbe KI-Hilfe wie der Knopf oben
         .onChange(of: bridge.askAIRequested) { _, _ in showTutor = true }
         // "Als Karteikarte" (Schritt K): Blatt "Karte anlegen" mit dem markierten Text als Vorderseite
@@ -883,8 +924,13 @@ struct DocumentView: View {
                 .accessibilityIdentifier("doc.lectureMarker")
             }
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
-            Button { showTutor.toggle() } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
+            Button {
+                // markierter Text geht als Anhang mit (sichtbar im Eingabefeld), statt erst beim Senden gelesen zu werden
+                if !showTutor, let a = bridge.controller?.selectionAttachment() { bridge.tutorAttachment = a }
+                showTutor.toggle()
+            } label: { Label(showTutor ? "KI-Hilfe schließen" : "KI-Hilfe", systemImage: "sparkles") }
                 .accessibilityIdentifier("doc.tutor")
+                .contextMenu { areaMenuItems }
             Button {
                 if hasSidePane { companion = nil; solutionSide = nil }
                 else if entitlements.allows(.splitView) { choosingCompanion = true }
@@ -944,6 +990,8 @@ struct DocumentView: View {
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
+                // "Bereich an KI" auch ohne Palette und ohne Schreiben im Tarif (05.11.2026)
+                Section("KI-Hilfe") { areaMenuItems }
                 if !planAllowsWriting && !readOnly {
                     // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
                     Button { lockedFeature = .pencilWriting } label: {
@@ -1948,6 +1996,21 @@ struct ObjectToolbar: View {
 
     var body: some View {
         VStack(spacing: 8) {
+            if bridge.objectTool == .area {
+                // Bereich an KI: was zu tun ist, und der Weg zurueck (ohne Palette sonst kein Ausweg aus dem Werkzeug)
+                HStack(spacing: 10) {
+                    Image(systemName: "rectangle.dashed").accessibilityHidden(true)
+                    Text("Rahmen ziehen oder Bereich einkreisen").font(.callout)
+                    Button { bridge.controller?.sendVisiblePage() } label: { Label("Ganze Seite", systemImage: "doc.viewfinder") }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("objects.area.page")
+                    Button("Fertig") { bridge.finishObjectTools() }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("objects.area.done")
+                }
+                .padding(8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
             if bridge.objectTool == .markup {
                 HStack(spacing: 8) {
                     if bridge.textSelected {
@@ -2235,7 +2298,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.objects.onTextSelection = { [weak bridge] on in bridge?.textSelected = on }
         // "KI fragen" an der Palette und "Als Karteikarte" im Bearbeitungsmenue melden sich ueber die Bruecke
         vc.aiAvailable = aiAvailable
-        vc.onAskAI = { [weak bridge] in bridge?.askAIRequested += 1 }
+        vc.onAskAI = { [weak bridge] a in bridge?.attachToTutor(a) }
+        vc.onHint = { [weak bridge] text in bridge?.hint = EditorBridge.Hint(text: text) }
         vc.onFlashcardFromSelection = { [weak bridge] text in bridge?.makeFlashcard(text) }
         vc.traceContrast = traceContrast
         vc.freezeMode = freezeMode

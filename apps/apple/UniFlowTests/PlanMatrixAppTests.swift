@@ -166,7 +166,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertEqual(UFFlashcardAccess.readOnlyHint, "Mit Plus übst und bearbeitest du deine Karten wieder.")
         XCTAssertEqual(UFFeature.allCases.map(\.rawValue),
                        ["studipSync", "readDocuments", "modulesTimetable", "studyCalendar", "studyPlanning", "timer", "viewNotes", "uniGrades",
-                        "communityRead", "pencilWriting", "shareSolutions", "splitView", "flashcards", "weeklyTests", "uniflowEditor", "deviceSync"],
+                        "pencilWriting", "communityRead", "shareSolutions", "splitView", "flashcards", "weeklyTests", "uniflowEditor", "deviceSync"],
                        "keine Funktion fuer Testlauf, Lernstand oder KI-Hilfe: auf dem Geraet ohne Schloss")
         for e: UFEntitlement in [.canAccessSharedTests, .canGenerateStudoraAITests, .canUseAIExplanations, .canUseAIGeneratedQuestions,
                                  .canUseAISummaries, .canUseAdvancedAnalytics, .canUseExtendedTestHistory] {
@@ -200,10 +200,10 @@ final class PlanMatrixAppTests: XCTestCase {
         }
         XCTAssertEqual(AICost.line(chatgpt: false, plan: .proAI, credits: 10), "≈ 10 Credits")
         for p: UFPlan in [.free, .plus] {
-            XCTAssertEqual(AICost.line(chatgpt: false, plan: p, credits: 10), "Braucht dein ChatGPT (Einstellungen → Erweitert)", p.rawValue)
+            XCTAssertEqual(AICost.line(chatgpt: false, plan: p, credits: 10), "Kommt mit StudiNow Pro AI", p.rawValue)
         }
         XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI (Pro AI)")
-        XCTAssertTrue(AICost.status(chatgpt: false, model: nil, plan: .free, requestsThisMonth: 0).hasPrefix("Noch kein ChatGPT verbunden"))
+        XCTAssertTrue(AICost.status(chatgpt: false, model: nil, plan: .free, requestsThisMonth: 0).hasPrefix("KI kommt mit StudiNow Pro AI"))
     }
 
     // MARK: - Seiten
@@ -242,6 +242,30 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertTrue(remoteFree.wait { tRemote.count("GET", "/api/flashcards") >= 1 }, "mit Dienst: kein Schloss der App, der Dienst entscheidet")
         XCTAssertFalse(shows(remoteFree, "freischalten"))
         XCTAssertTrue(remoteFree.wait { self.shows(remoteFree, "Tests") }, "Weg zurueck zu den Tests nur mit Dienst")
+    }
+
+    /// Entscheidung 05.11.2026: Community ab Plus (Free: Hinweis "Community ab Plus", keine Abfrage geteilter Stapel ohne
+    /// Dienst), eigene Beitraege bleiben zurueckziehbar; eigenes ChatGPT in jedem Tarif (Verbindung noch aus)
+    @MainActor
+    func testCommunityIsPlusOnTheDevice() async throws {
+        XCTAssertEqual(UFFeatureMatrix.access(.communityRead, plan: .free), .locked(.plus))
+        XCTAssertFalse(trial(active: false).allows(.communityRead), "nach der Probe: Free ohne Community")
+        XCTAssertTrue(trial(active: true).allows(.communityRead), "Probe wie Pro AI")
+        XCTAssertTrue(plan(.plus).allows(.communityRead))
+        XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.from, .free)
+        XCTAssertTrue(UFLockedCard.message(.communityRead, access: .locked(.plus)).hasPrefix("Community ab StudiNow Plus:"))
+        XCTAssertTrue(CommunityPage.ownPostsHint.contains("zurückziehen"))
+
+        for (p, calls) in [(UFPlan.free, 0), (.plus, 1)] {
+            let t = transport()
+            t.answer("/api/library", ["files": [], "modules": [["id": 1, "name": "Testmathematik I"]], "folders": [], "trash": []])
+            t.answer("/api/community/card-stacks", ["stacks": [], "weeks": [:]])
+            let deck = FlashcardDeck(api: local(t))
+            deck.entitlements = plan(p)
+            try await deck.load()
+            await deck.loadShared()
+            XCTAssertEqual(t.count("GET", "/api/community/card-stacks"), calls, p.rawValue)
+        }
     }
 
     /// ein Stapel "Folgen" mit einer Karte (wie nach der Probe gespeichert)
@@ -299,7 +323,7 @@ final class PlanMatrixAppTests: XCTestCase {
 
         // ohne ChatGPT (und ohne Pro-AI-Dienst) zeigt Plus den Weg zur Verbindung, keine Tarifsperre
         let noAI = try hostWithEnvironment(FlashcardComposer(moduleID: 1, fileID: "f-1", entitlements: plan(.plus)), api: local(transport()))
-        XCTAssertTrue(noAI.wait { self.shows(noAI, "Verbinde dein ChatGPT") })
+        XCTAssertTrue(noAI.wait { self.shows(noAI, "Die KI-Hilfe kommt mit der StudiNow-KI") })
         XCTAssertFalse(shows(noAI, "freischalten"))
     }
 
@@ -330,7 +354,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertFalse(shows(remoteFree, "freischalten"))
         // Plus ohne ChatGPT: der Weg zur Verbindung, keine Tarifsperre
         let noAI = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: plan(.plus), generation: TestGenerationState()), api: local(transport()))
-        XCTAssertTrue(noAI.wait { self.shows(noAI, "Verbinde dein ChatGPT") }, noAI.labels().joined(separator: " | "))
+        XCTAssertTrue(noAI.wait { self.shows(noAI, "Die KI-Hilfe kommt mit der StudiNow-KI") }, noAI.labels().joined(separator: " | "))
         XCTAssertFalse(shows(noAI, "freischalten"))
     }
 

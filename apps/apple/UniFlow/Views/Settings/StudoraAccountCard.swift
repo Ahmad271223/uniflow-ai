@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import UniFlowCore
 
@@ -7,6 +8,7 @@ import UniFlowCore
 struct StudoraAccountCard: View {
     @ObservedObject var link: StudoraAccountLink
     @EnvironmentObject private var overlay: UFOverlay
+    @Environment(\.colorScheme) private var scheme
     @State private var email = ""
     @State private var password = ""
     @State private var deletePassword = ""
@@ -17,8 +19,13 @@ struct StudoraAccountCard: View {
             UFCardHead("StudiNow-Konto", icon: "user") {
                 UFBadge(link.user == nil ? "nicht angemeldet" : "angemeldet", tone: link.user == nil ? .neutral : .ok)
             }
-            Text("Dasselbe Konto wie auf Windows und im Web. Module, Stundenplan, Lernplan, Karteikarten und Einstellungen gleichen sich zwischen deinen Geräten ab; Notizen ab Plus. Hochschuldateien lädt jedes Gerät selbst.")
+            Text("Dasselbe Konto wie auf Windows und im Web. Module, Stundenplan, Lernplan, Karteikarten und Einstellungen gleichen sich zwischen deinen Geräten ab; Notizen ab Plus. Hochschuldateien lädt jedes Gerät selbst. Mit StudiNow Pro AI antwortet über das Konto die StudiNow-KI.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            if let line = Self.aiLine(link.aiAccess, credits: link.credits, trial: link.planStatus?.trialActive ?? false) {
+                Text(line).ufFont(13.12, 600).foregroundStyle(link.aiAccess == .ready ? UF.text2 : UF.warn)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("account.ai")
+            }
             if let u = link.user { signedIn(u) } else { signIn }
             if let m = link.message {
                 Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
@@ -33,6 +40,18 @@ struct StudoraAccountCard: View {
         }
         .task { await link.refresh() }
         .sheet(item: Binding(get: { exportURL.map(ExportItem.init) }, set: { exportURL = $0?.url })) { item in ActivityView(items: [item.url]) }
+    }
+
+    /// Zeile zur StudiNow-KI: bereit mit Credits-Stand, bzw. was fehlt (Anmeldung); nil ohne Pro AI und ohne Probe
+    static func aiLine(_ access: StudiNowAIAccess, credits: StudoraCredits?, trial: Bool) -> String? {
+        switch access {
+        case .ready:
+            return "StudiNow-KI bereit" + (AICost.balanceLine(credits, trial: trial, labelled: false).map { " · \($0)" } ?? "")
+        case .signInRequired:
+            return "Du hast StudiNow Pro AI: melde dich hier an, dann antwortet die StudiNow-KI."
+        case .planRequired, .unavailable:
+            return nil
+        }
     }
 
     /// Stand des Geraete-Abgleichs in einem Satz
@@ -66,7 +85,15 @@ struct StudoraAccountCard: View {
                 .disabled(link.busy || email.isEmpty || password.isEmpty)
                 .accessibilityIdentifier("account.login")
             }
-            Text("Noch kein Konto? Registrieren, E-Mail bestätigen und Passwort zurücksetzen auf der Webseite von StudiNow. „Mit Apple anmelden“ folgt, sobald die App im App Store ist.")
+            // "Mit Apple anmelden": Token-Tausch beim Dienst; ein neues Konto bekommt die Hochschule dieses iPads
+            SignInWithAppleButton(.signIn, onRequest: { link.prepareAppleRequest($0) }, onCompletion: { result in
+                Task { await link.handleAppleSignIn(result) }
+            })
+            .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+            .frame(maxWidth: 320, minHeight: 44, maxHeight: 44)
+            .disabled(link.busy)
+            .accessibilityIdentifier("account.apple")
+            Text("Noch kein Konto? „Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits für die StudiNow-KI). Registrieren mit E-Mail, E-Mail bestätigen und Passwort zurücksetzen auf der Webseite von StudiNow.")
                 .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 8)

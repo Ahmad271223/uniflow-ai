@@ -17,6 +17,7 @@ struct FlashcardComposer: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
     @Environment(\.ufAIEnabled) private var aiEnabled
+    @Environment(\.ufAIAccess) private var aiAccess
     @Environment(\.ufChatGPTLink) private var chatgpt
     @Environment(\.ufWindowWidth) private var windowWidth
     @State private var modules: [JSONValue] = []
@@ -135,9 +136,9 @@ struct FlashcardComposer: View {
 
     @ViewBuilder private var connect: some View {
         if let chatgpt {
-            TutorConnectState(link: chatgpt) { close(); router.go(.settings(tab: "advanced")) }.padding(-16)
+            TutorConnectState(link: chatgpt) { close(); router.go(.settings(tab: ChatGPTLink.settingsTab)) }.padding(-16)
         } else {
-            TutorConnectState.Content(reason: .notConnected, message: nil, busy: false, fix: nil) { close(); router.go(.settings(tab: "advanced")) }
+            TutorConnectState.Content(reason: TutorConnectState.reason(nil, access: aiAccess), message: nil, busy: false, fix: nil) { close(); router.go(.settings(tab: ChatGPTLink.settingsTab)) }
                 .padding(-16)
         }
     }
