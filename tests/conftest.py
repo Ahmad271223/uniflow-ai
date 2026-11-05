@@ -91,3 +91,13 @@ def _no_leaked_job_runner():
     for t in leaked:
         t.join(30)
     pytest.fail(f"Job-Runner nach dem Test noch aktiv (angehalten): {sorted(t.name for t in leaked)}")
+
+
+@pytest.fixture(autouse=True)
+def _token_store_in_memory():
+    """Sitzungs-Token des StudiNow-Kontos (app/token_store.py) je Test nur im Speicher: nie in einer Datei des
+    Testordners, die der naechste Test faende, und nie in einer echten Anmeldeinformationsverwaltung."""
+    from app import token_store
+    token_store.use(token_store.MemoryStore())
+    yield
+    token_store.use(token_store.MemoryStore())

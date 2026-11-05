@@ -1,9 +1,12 @@
 """Serverseitige Pruefung der Rechte und Kontingente fuer die Endpunkte (gehosteter Dienst).
 
 Jeder Endpunkt mit einer Bezahlfunktion ruft `require(request, "can_...")`. Der Tarif kommt immer aus der Datenbank
-(app/billing.py), nie aus der Anfrage: ein manipulierter Client kann sich nichts freischalten. Im Einzelplatzmodus
-(eigener PC, Windows-App) gibt es keine Konten und keine Tarife – dort ist alles erlaubt, ausser Integrationen, die
-global ausgeschaltet sind (ChatGPT).
+(app/billing.py), nie aus der Anfrage: ein manipulierter Client kann sich nichts freischalten.
+
+Windows-App (seit 05.11.2026 mit Konto-Pflicht, app/account_mode.py): der Tarif kommt aus dem StudiNow-Konto (Quelle
+"account": zuletzt beim Dienst abgerufener Stand mit Kulanzzeit ohne Netz); gesperrt gilt Free. Einzelplatz ohne
+Konto-Pflicht (serve.py in der Entwicklung, Tests): keine Konten und keine Tarife, alles erlaubt, ausser Integrationen,
+die global ausgeschaltet sind (ChatGPT).
 """
 from __future__ import annotations
 
@@ -16,9 +19,15 @@ def _legacy(user: dict) -> dict:
     return {"plan": user.get("plan"), "plan_until": user.get("plan_until")}
 
 
+def _account_mode():
+    from . import account_mode
+    return account_mode if account_mode.required() else None
+
+
 def plan_of(user: dict | None) -> str:
     if not config.is_hosted():
-        return billing.LOCAL_PLAN
+        am = _account_mode()
+        return am.effective_plan() if am else billing.LOCAL_PLAN
     if not user:
         return "free"
     conn = billing.connect()
@@ -33,7 +42,8 @@ def has(user: dict | None, entitlement: str) -> bool:
         # Produktregel nur fuer die Anzeige; solange die Integration aus ist, bewirbt sie niemand als verfuegbar
         return False
     if not config.is_hosted():
-        return True
+        am = _account_mode()
+        return plans.has(am.effective_plan(), entitlement) if am else True
     return plans.has(plan_of(user), entitlement)
 
 
@@ -134,7 +144,8 @@ def refund(request: Request, feature: str, request_id: str) -> None:
 
 def status(request: Request) -> dict:
     if not config.is_hosted():
-        return billing.local_status()
+        am = _account_mode()
+        return am.entitlements_status() if am else billing.local_status()
     user = user_of(request)
     conn = billing.connect()
     try:

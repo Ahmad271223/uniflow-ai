@@ -5,7 +5,7 @@
 // Stud.IP verbunden ist oder schon Nachrichten gespeichert sind (GET /api/studip/messages/status); die Zahl daran zählt die
 // neuen. Regeln und Texte: messages-logic.js; Daten: app/studip_messages.py (nur Liste, nie die Einzelansicht, nichts wird in
 // Stud.IP als gelesen markiert, nie im gehosteten Dienst, nie im Offline-Speicher, nie an die KI).
-import { $, $$, api, icon, toast, todayISO, debounce } from "./core.js?v=43";
+import { $, $$, api, icon, toast, todayISO, debounce } from "./core.js?v=44";
 import * as L from "./messages-logic.js?v=1";
 
 const { esc } = L;

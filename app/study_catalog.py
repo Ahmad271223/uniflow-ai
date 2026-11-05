@@ -825,6 +825,50 @@ def parse_luh_modkat(pages: list[str], meta: dict) -> tuple[dict, dict]:
     return catalog, texts
 
 
+MODULE_COUNT_RE = re.compile(r"\b([0-9]+|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn) (?:weitere )?(?:Wahlpflicht|Wahl|Pflicht)?[Mm]odule\b", re.I)
+COUNT_WORDS = {"zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "sechs": 6, "sieben": 7, "acht": 8,
+               "neun": 9, "zehn": 10}
+MAX_RULE = 400
+
+
+def modkat_area_extras(pages: list[str], catalog: dict) -> dict:
+    """Wahlbereiche (05.11.2026), nur fuer den Grundstock (tools/build-luh-seed.py): je Bereich der neueren
+    modkat-Form die Regel unter "Information zum Kompetenzbereich" ("Der Studienschwerpunkt ist absolviert, wenn
+    mindestens vier Module ...") und alle Module der Bereichstabelle (ein Modul steht oft in mehreren Bereichen, der
+    Katalog fuehrt es nur im ersten). Ergebnis {Bereichs-id: {rule, modules, modules_required}}; der Leser selbst
+    (parse_luh_modkat, gleich im Swift-Kern) bleibt unveraendert."""
+    clean = clean_pages(pages)
+    toc = _toc(clean)
+    n_pages = len(clean)
+    starts = sorted({e["page"] for e in toc})
+    by_name = {a["name"]: a["id"] for a in catalog.get("areas") or []}
+    titles = [(m["id"], m["title"]) for m in catalog.get("modules") or []]
+    out: dict = {}
+    for e in toc:
+        if e["kind"] != "area" or e["title"] not in by_name or not 1 <= e["page"] <= n_pages:
+            continue
+        nxt = next((p for p in starts if p > e["page"]), n_pages + 1)
+        lines = [l for p in range(e["page"], max(e["page"] + 1, nxt)) if 1 <= p <= n_pages for l in clean[p - 1]]
+        info = next((i for i, l in enumerate(lines) if AREA_INFO_RE.match(l)), None)
+        head = next((i for i, l in enumerate(lines) if TABLE_HEAD_RE.match(l) or l.startswith("Modul Modul LP SWS")), None)
+        if info is None or head is None:
+            continue
+        rule = " ".join(lines[info + 1:head]).strip(" ")
+        rule = re.sub(r" {2,}", " ", rule)
+        if len(rule) > MAX_RULE:
+            cut = rule[:MAX_RULE].rsplit(". ", 1)[0]
+            rule = cut + "." if len(cut) > 40 else rule[:MAX_RULE - 1] + "…"
+        table = _plan_join(lines[head:])
+        mods = [mid for mid, t in titles if re.search(r"(?:^| )" + re.escape(t) + r" [0-9]", table)]
+        count = None
+        m = MODULE_COUNT_RE.search(rule)
+        if m:
+            w = m.group(1).lower()
+            count = int(w) if w.isdigit() else COUNT_WORDS.get(w)
+        out[by_name[e["title"]]] = {"rule": rule or None, "modules": mods, "modules_required": count}
+    return out
+
+
 def dumps(value) -> str:
     """Kanonische Form fuer Vergleiche mit dem Swift-Kern (PyJSON.dumps(ensureASCII: false))"""
     return json.dumps(value, ensure_ascii=False)

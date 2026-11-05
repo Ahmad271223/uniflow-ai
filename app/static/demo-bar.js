@@ -2,7 +2,7 @@
 // und der kleine Link "Ohne Hochschulkonto ansehen (Demo)" auf der ersten Seite ohne Hochschulverbindung. Regeln, Texte und
 // Entscheidung: demo-logic.js; Inhalt der Demo und rückstandsloses Entfernen: app/demo.py (GET/POST /api/demo).
 // Nur im Einzelplatz (Windows-App/PC), nie im gehosteten Dienst.
-import { $, api, icon, toast, modal, state } from "./core.js?v=43";
+import { $, api, icon, toast, modal, state } from "./core.js?v=44";
 import * as D from "./demo-logic.js?v=1";
 
 let active = false;

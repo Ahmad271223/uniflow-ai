@@ -1,20 +1,21 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=43";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=44";
 import { viewDashboard as viewHome } from "./views-home.js?v=19";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=65";
 import { viewFiles } from "./views-lib.js?v=64";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
 import { viewTimetable, openEvent } from "./views-tt.js?v=46";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=83";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=47";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=48";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=4";
 import { chipState } from "./sync-chip.js?v=1";
-import { trialHintHtml } from "./trial-hint.js?v=1";
+import { trialHintHtml } from "./trial-hint.js?v=2";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
-import { navHtml, accountHtml } from "./shell-nav.js?v=2";
+import { navHtml, accountHtml } from "./shell-nav.js?v=3";
 import { viewStudyPlan } from "./study-plan.js?v=1";   // Studienverlauf (05.11.2026)
 import { viewAiStart } from "./views-ai.js?v=2";                       // KI-Start (#/ki), Paket B 05.11.2026
+import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
 
 // ---------------------------------------------------------------- Shell
 // Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
@@ -97,8 +98,8 @@ function accountMenu() {
 // Klick auf den Namen: im Dienst das Kontomenue, am eigenen PC die Einstellungen
 function renderAccount() {
   const box = $("#sideAcct"); if (!box) return;
-  box.innerHTML = accountHtml({ name: state.userName, email: state.account?.email, ent: state.entitlements, hosted: state.hosted, arrow: icon("arrow-right", 15), person: icon("user", 16) });
-  $("#sideAcctBtn", box).onclick = () => { if (state.hosted && state.account) accountMenu(); else location.hash = "#/settings"; };
+  box.innerHTML = accountHtml({ name: state.userName, email: state.account?.email ?? state.appAccount?.user?.email, ent: state.entitlements, hosted: state.gated, arrow: icon("arrow-right", 15), person: icon("user", 16) });
+  $("#sideAcctBtn", box).onclick = () => { if (state.hosted && state.account) accountMenu(); else if (state.appAccount) location.hash = "#/abo"; else location.hash = "#/settings"; };
 }
 window.renderAccount = renderAccount;
 
@@ -148,6 +149,32 @@ async function viewDashboard(p, q, v) {
   } catch { /* Community nicht verfuegbar */ }
 }
 
+// ---------------------------------------------------------------- Konto- und Abo-Pflicht (05.11.2026, account-gate.js)
+// Web und Windows: ohne Abo nur die Abo-Seite und die eigenen Daten (nur lesen), in der Probe eine Leiste mit den
+// Resttagen. Windows fragt den Stand beim Dienst beim Start, alle 15 Minuten und beim Zurueckkehren ins Fenster neu
+// ab (app/account_mode.py); aendert er sich, laedt die Seite neu.
+function renderGateBar() {
+  $("#gateBar")?.remove();
+  const html = gateBarHtml(state.entitlements, state.appAccount, { icon, esc });
+  if (!html) return;
+  const box = document.createElement("div"); box.id = "gateBar"; box.innerHTML = html;
+  $("#view").before(box);
+  $("#gateRecheck", box)?.addEventListener("click", () => refreshAppAccount(true));
+}
+let gateCheckedAt = 0;
+async function refreshAppAccount(force, quiet) {
+  if (!state.appAccount || (!force && Date.now() - gateCheckedAt < 60000)) return;
+  gateCheckedAt = Date.now();
+  try {
+    const n = await fetch("/api/app-account/status?refresh=1").then(r => r.ok ? r.json() : null);
+    if (!n) return;
+    const o = state.appAccount;
+    if (n.state !== o.state || n.plan !== o.plan || n.signed_in !== o.signed_in || n.apple_subscription !== o.apple_subscription) location.reload();
+    else if (force && !quiet) toast(n.offline ? (n.last_error || "Der StudiNow-Dienst ist nicht erreichbar.") : "Abo geprüft – keine Änderung.", 4000);
+  } catch {}
+}
+window.refreshAppAccount = refreshAppAccount;
+
 // ---------------------------------------------------------------- Start
 async function start() {
   // Gehosteter Dienst: ohne gueltige Sitzung zur Anmeldeseite, sonst Konto hinter dem Avatar (Abmelden)
@@ -157,9 +184,27 @@ async function start() {
     if (r.status === 401) { location.replace("/login"); return; }
     try { state.entitlements = await fetch("/api/entitlements").then(x => x.ok ? x.json() : null); } catch {}
     if (r.ok) { state.account = (await r.json()).user; const av = $("#avatar"); av.textContent = state.account.email.slice(0, 2).toUpperCase(); av.title = `${state.account.email} – Konto und Abmelden`; av.style.cursor = "pointer"; av.onclick = accountMenu; }
+  } else {
+    // Windows-App: Anmeldung mit dem StudiNow-Konto ist Pflicht (app/account_mode.py); ohne Anmeldung nur der Anmeldebildschirm
+    const acc = await fetch("/api/app-account/status").then(r => r.ok ? r.json() : null).catch(() => null);
+    if (acc?.required) {
+      state.appAccount = acc;
+      if (gateState(null, acc) === "login") { mountLogin(document.body, acc, { icon, esc }); return; }
+      try { state.entitlements = await fetch("/api/entitlements").then(x => x.ok ? x.json() : null); } catch {}
+      refreshAppAccount(true, true).catch(() => {});
+      setInterval(() => { if (!document.hidden) refreshAppAccount(false); }, 15 * 60 * 1000);
+      window.addEventListener("focus", () => refreshAppAccount(false));
+    }
   }
-  keepCacheForAccount(state.hosted ? state.account?.id ?? state.account?.email : "local");
+  state.gated = state.hosted || !!state.appAccount;
+  // ohne Abo zuerst die Abo-Seite; "Meine Daten ansehen" dort erlaubt das Lesen (nur in dieser Sitzung)
+  if (gateState(state.entitlements, state.appAccount) === "locked" && !location.hash.startsWith("#/abo")) {
+    let browse = false; try { browse = sessionStorage.getItem("gate-browse") === "1"; } catch {}
+    if (!browse) location.hash = "#/abo";
+  }
+  keepCacheForAccount(state.hosted ? state.account?.id ?? state.account?.email : state.appAccount ? state.appAccount.user?.id ?? "local" : "local");
   buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());
+  renderGateBar();
   initPWA();
   window.__app = { route, api, state };
   renderAccount();
@@ -167,7 +212,8 @@ async function start() {
   route(); pollBg(); updateSyncChip();
   // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
   if (!state.hosted) { import("./demo-bar.js?v=1").then(m => m.init()).catch(() => {}); import("./messages.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
-  if (state.hosted && state.entitlements?.needs_plan_choice && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
+  // Aufforderung "Tarif waehlen oder bei Free bleiben" nur ohne Abo-Pflicht; mit Pflicht (Web) zeigt die Leiste den Stand
+  if (state.hosted && state.entitlements?.needs_plan_choice && !state.entitlements?.access?.account_required && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie
   // der lokale Dienst im Standardbrowser (/api/desktop/open, nur http/https)
   api("/desktop").then(d => {

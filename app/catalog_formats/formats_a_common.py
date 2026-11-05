@@ -209,6 +209,12 @@ def build_catalog(meta: dict, raw: list[dict], area_specs: dict | None = None,
         key = (title.lower(), r.get("lp"))
         if key in seen_titles:
             prev = seen_titles[key]
+            # dasselbe Modul in einem weiteren Bereich (z. B. je Vertiefung): dort ebenfalls waehlbar (05.11.2026)
+            other = _norm_title(r.get("area") or "")
+            if other and other.lower() != _norm_title(prev.get("area") or "").lower():
+                prev.setdefault("_more_areas", [])
+                if other.lower() not in [x.lower() for x in prev["_more_areas"]]:
+                    prev["_more_areas"].append(other)
             # fehlende Fakten aus der zweiten Beschreibung ergaenzen
             for k in ("exam", "coursework", "language", "workload_h", "semester", "code"):
                 if prev.get(k) is None and r.get(k) is not None:
@@ -225,7 +231,7 @@ def build_catalog(meta: dict, raw: list[dict], area_specs: dict | None = None,
     areas: list[dict] = []
     area_by_name: dict = {}
     area_ids: set = set()
-    for name in list(area_specs.keys()) + [m.get("area") for m in mods]:
+    for name in list(area_specs.keys()) + [m.get("area") for m in mods] + [x for m in mods for x in m.get("_more_areas") or []]:
         name = _norm_title(name or "")
         if not name or name.lower() in area_by_name:
             continue
@@ -274,6 +280,7 @@ def build_catalog(meta: dict, raw: list[dict], area_specs: dict | None = None,
             "workload_h": wl,
             "source_page": page if isinstance(page, int) and page >= 1 else None,
             "_prereq": r.get("prereq") or "",
+            "_more": [area_by_name[x.lower()]["id"] for x in r.get("_more_areas") or [] if x.lower() in area_by_name],
         })
         t = {k: (r.get(k) or None) for k in ("content", "goals", "literature")}
         if any(t.values()):
@@ -301,6 +308,13 @@ def build_catalog(meta: dict, raw: list[dict], area_specs: dict | None = None,
     for m in modules:
         text = m.pop("_prereq")
         m["prerequisites"] = _prereq_ids(text, m, modules)
+    # weitere Bereiche je Modul als areas[].modules (nur wo es sie gibt)
+    for a in areas:
+        more = [m["id"] for m in modules if a["id"] in m["_more"]]
+        if more:
+            a["modules"] = more
+    for m in modules:
+        m.pop("_more")
 
     src = meta.get("source") or {}
     catalog = {
@@ -370,5 +384,9 @@ def merge_catalogs(base: dict, base_texts: dict, extra: dict, extra_texts: dict)
             texts[nid] = extra_texts[m["id"]]
     for m in added:
         m["prerequisites"] = [id_map[p] for p in m["prerequisites"] if p in id_map and id_map[p] != m["id"]]
+    extra_ids = set(area_map.values())
+    for a in out["areas"]:
+        if a["id"] in extra_ids and isinstance(a.get("modules"), list) and a not in base["areas"]:
+            a["modules"] = [id_map[x] for x in a["modules"] if x in id_map]
     out["modules"].extend(added)
     return out, texts

@@ -586,6 +586,10 @@ def run(force: bool = False) -> dict:
         return {"ok": False, "error": "Nicht mit einem StudiNow-Konto verbunden."}
     if (msg := service_link.university_mismatch(st)):
         return {"ok": False, "error": msg}
+    from . import account_mode
+    if account_mode.locked():
+        # Windows-App ohne aktives Abo (05.11.2026): nur lesen, also auch kein Abgleich; die Daten bleiben
+        return {"ok": False, "error": "Ohne aktives Abo gleicht StudiNow nicht ab; deine Daten bleiben lesbar."}
     if not _lock.acquire(blocking=False):
         return {"ok": False, "error": "Abgleich läuft schon.", "running": True}
     started = time.time()

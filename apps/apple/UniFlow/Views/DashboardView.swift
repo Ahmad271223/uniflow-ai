@@ -187,7 +187,10 @@ struct DashboardView: View {
     private func dateLine(pk: [JSONValue], evs: [JSONValue]) -> String {
         var s = UFFmt.longToday() + " · "
         s += pk.isEmpty ? "heute ist nichts geplant" : "heute \(pk.count) Lernpaket\(pk.count > 1 ? "e" : "")"
-        if !evs.isEmpty { s += " · \(evs.filter { $0.s("status") == "teilnahme" }.count) Uni-Termine" }
+        if !evs.isEmpty {
+            let n = evs.filter { $0.s("status") == "teilnahme" }.count
+            s += " · \(n) Uni-Termin\(n == 1 ? "" : "e")"                  // "1 Uni-Termin" (Store-Bilder 05.11.2026)
+        }
         return s
     }
 

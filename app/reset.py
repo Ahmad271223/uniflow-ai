@@ -13,6 +13,8 @@ Zustand einer frischen Installation (Hochschule und App-Einstellungen in der .en
 - Sicherungen der Windows-App (%LOCALAPPDATA%\\UniFlow-Sicherungen) – sonst liesse sich alles zurueckholen
 - Windows-App: Cookies und Speicher des WebView2-Profils (WebSSO-, Stud.IP-, OpenAI-Sitzungen der Anmeldefenster)
   ueber den Fenster-Agenten (Auftrag `clear`, apps/windows/src-tauri/src/main.rs)
+- Anmeldung am StudiNow-Konto (seit 05.11.2026): Token in der Windows-Anmeldeinformationsverwaltung und der
+  zwischengespeicherte Abo-Stand (app/account_mode.py); die Windows-App zeigt danach den Anmeldebildschirm
 
 Im gehosteten Dienst gibt es das nicht: dort loescht man das Konto (account_api), der Datenordner wird stillgelegt.
 """
@@ -103,6 +105,12 @@ def wipe(clear_webview: bool = True) -> dict:
     out["ai_tmp"] = _clear_dir(data / "ai-tmp", recreate=False)
     out["logs"] = _clear_dir(config.log_dir())
     out["backups"] = _remove_tree(backup_dir())
+    try:
+        from . import account_mode
+        account_mode.logout()
+        out["studinow_account"] = True
+    except Exception:  # noqa: BLE001 - offline oder Ablage gesperrt: der Rest soll trotzdem laufen
+        out["studinow_account"] = False
     out["webview"] = False
     if clear_webview and desktop_windows.agent_connected():
         w = desktop_windows.enqueue("clear", "about:blank", "StudiNow")

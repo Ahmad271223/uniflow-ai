@@ -19,6 +19,8 @@
   Windows-Texte angeglichen (05.11.2026, `tests/test_tarife_texte.py`).
 - **Windows-App (Einzelplatz):** Tarifseite mit den drei Karten, aber **kein Kaufweg** (Microsoft-Store-Regeln, `docs/release/MICROSOFT-STORE.md`).
   Pro AI steht dort ohne Preis und ohne Knopf als „kommt mit dem StudiNow-Dienst“. Im Dienst (Web) kaufen über Stripe, nur Plus und Pro AI.
+  **Für die Windows-App ersetzt am 05.11.2026 (Konto- und Abo-Pflicht, letzter Punkt);** gilt nur noch für den
+  Einzelplatz ohne Konto-Pflicht (`serve.py` in der Entwicklung).
 - **Einladungen** (Mac-Sitzung, 04.11.2026, `docs/EINLADUNGEN.md`): Stufen 5/10/20 angekommene Personen = Plus 1/3/12 Monate
   gratis (bei 20 auch: Pro AI 12 Monate zum Plus-Preis), bis zu 20 Links in der Probewoche, je 30 Tage gültig, je Person einmal;
   Belohnung nur als Apple-Angebotscode. Web und Windows bekommen **keine** Einladungsseite, solange es für sie keine
@@ -39,3 +41,25 @@
   (`smtp.strato.de`, Port 465 SSL/TLS, Nutzer = volle Postfachadresse, Absender Alias `no-reply@studinow.app`); STRATO
   steht als Mail-Anbieter in der Datenschutzerklärung (Abschnitt 11). Resend bleibt Alternative
   (`docs/START-DIENST-CHECKLISTE.md`, Abschnitt 5.2).
+- **05.11.2026: Konto- und Abo-Pflicht für Windows und Web.** Wortlaut des Inhabers (nachdem der Koordinator
+  kontobasierte Tarife für Windows mit Stripe auf der Webseite vorgeschlagen hatte): „anmelden immer muss ohne abo geht
+  nichts baue das ein“. **Auslegung des Koordinators:**
+  - In der **Windows-App** und in der **Web-App des Dienstes** (dieselbe Oberfläche) ist die Anmeldung mit dem
+    StudiNow-Konto **immer** Pflicht. Ohne Anmeldung zeigt Windows nur den Anmeldebildschirm, das Web nur `/login`.
+  - Neue Konten haben wie bisher die **7-Tage-Probe** (alles wie Pro AI, 25 Credits, ohne Zahlungsdaten).
+  - Nach der Probe **ohne Plus oder Pro AI geht nichts**: nur die Abo-Seite („Abo wählen“) und die **eigenen Daten zum
+    Ansehen und Exportieren** (nur lesen). Daten werden nie gelöscht (frühere Entscheidung „Daten bleiben“). Ein
+    „Bei Free bleiben“ gibt es in Web und Windows nicht mehr.
+  - Kaufen unter Windows: „Abschließen“ öffnet die Stripe-Bezahlseite des Dienstes im Systembrowser; ein Abo aus der
+    Apple-App gilt automatisch, ein zweites Abo über Stripe ist dann gesperrt (auch serverseitig). Kündigen und
+    Wechseln: Stripe-Kundenportal.
+  - Die **iPad-App behält ihren Free-Tarif unverändert** (keine Swift-Änderung). Die Pflicht gilt je Client: Browser
+    (Sitzungs-Cookie) und Windows (`X-StudiNow-Client: windows`) ja, iPad/Android (Bearer ohne diese Angabe) nein.
+    Wer sich als iPad ausgibt, bekommt nur die Free-Rechte des iPads, nie mehr.
+  - Konten mit Rolle `admin` (Betrieb, Moderation) sind ausgenommen. Ohne Internet gilt unter Windows der zuletzt
+    geprüfte Stand 7 Tage (`LERNAPP_OFFLINE_GRACE_DAYS`).
+  - Umsetzung: `app/access.py`, `app/account_mode.py`, `app/app_login_api.py`, `app/token_store.py`,
+    `app/static/account-gate.js`; Beschreibung `docs/ABO-SYSTEM.md` Abschnitt 3d; Handtest auf echtem Windows
+    `docs/WINDOWS-LUECKEN-2026-11-05.md` (Abschnitt „Handtest Konto- und Abo-Pflicht“). **Offen (Inhaber):** Stripe-Schlüssel
+    und Preise im Dienst einrichten, sonst kann unter Windows niemand abschließen; Microsoft-Store-Regeln für den
+    Zahlungsweg vor der Einreichung prüfen; Prüfkonto für die Store-Prüfung anlegen.

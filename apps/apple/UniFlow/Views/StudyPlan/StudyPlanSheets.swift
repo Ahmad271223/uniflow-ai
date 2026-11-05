@@ -63,6 +63,9 @@ struct StudyModuleSheet: View {
     let api: APIClient?
     /// Titel je Modul-id aus dem Plan (Voraussetzungen, wenn der Kern nur ids nennt)
     var titles: [String: String] = [:]
+    /// Modul im Plan (eigene Lage, verschiebbar) und Aenderungen daran (05.11.2026); nil: nur lesen
+    var planModule: StudyPlanModule?
+    var manage: ((String, StudyPlanModuleAction) -> Void)?
     /// Unterlage oeffnen: Blatt zu, Seite wechseln
     let open: (UFRoute) -> Void
 
@@ -109,12 +112,42 @@ struct StudyModuleSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             titleBlock(d)
             ownBlock(d)
+            manageBlock
             // "Prüfung anmelden" (05.11.2026): nur wenn der Studienverlauf das Modul in diesem Semester vorschlaegt
             ExamRegistrationModuleBlock(api: api, catalogID: currentID)
             factsBlock(d)
             if !d.sections.isEmpty { textsBlock(d) } else if d.textsLoading { textsLoadingBlock }
             materialsBlock(d)
             sourceBlock(d)
+        }
+    }
+
+    /// Im Plan: verschieben, nicht belegen, zurueck ins empfohlene Semester (nur fuer das Modul, mit dem das Blatt
+    /// geoeffnet wurde)
+    @ViewBuilder private var manageBlock: some View {
+        if let m = planModule, m.movable, let manage, currentID == startID {
+            UFFlexWrap(gap: 8) {
+                UFButton("Verschieben nach …", icon: "move", size: .small) { manage(m.id, .move) }
+                    .accessibilityIdentifier("studyplan.detail.move")
+                if m.placed {
+                    UFButton("Ins empfohlene Semester", icon: "undo", size: .small) { manage(m.id, .resetPlacement) }
+                        .accessibilityIdentifier("studyplan.detail.reset")
+                }
+                if m.replaceable {
+                    UFButton("Anderes Modul wählen", icon: "refresh", size: .small) { manage(m.id, .replace) }
+                        .accessibilityIdentifier("studyplan.detail.replace")
+                }
+                UFButton("Nicht belegen", icon: "x", size: .small) { manage(m.id, .drop) }
+                    .accessibilityIdentifier("studyplan.detail.drop")
+            }
+            if !m.hints.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(m.hints, id: \.self) { h in
+                        Label { Text(h) } icon: { UFIcon("alert", size: 12) }
+                            .ufFont(12.8, lh: 1.4).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
         }
     }
 
@@ -400,6 +433,8 @@ struct StudyPlanSection<Content: View>: View {
 
 struct StudyPlanSettingsSheet: View {
     let api: APIClient?
+    /// gelesener Plan: Schwerpunkt-Gruppen und eigene Eintraege (05.11.2026); nil: ohne diese Abschnitte
+    var plan: StudyPlan? = nil
     /// nach dem Speichern: Plan neu lesen
     let saved: () async -> Void
     /// Tests: "heute" fuer die Liste der Semester
@@ -412,6 +447,9 @@ struct StudyPlanSettingsSheet: View {
     @State private var chosen: Set<String> = []
     @State private var error: String?
     @State private var saving = false
+    /// Schwerpunkt je Gruppe ("" = noch offen) und entfernte eigene Eintraege
+    @State private var tracks: [String: String] = [:]
+    @State private var removedCustom: Set<String> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -484,7 +522,57 @@ struct StudyPlanSettingsSheet: View {
                         .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
             }
+            tracksSection
             electives(s)
+            customSection
+        }
+    }
+
+    @ViewBuilder private var tracksSection: some View {
+        if let plan, !plan.groups.isEmpty {
+            StudyPlanSection(title: "Schwerpunkt", icon: "layers") {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(plan.groups) { g in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(g.label).ufFont(13.12, 650).foregroundStyle(UF.text2)
+                            UFSelect(options: [("", "Noch offen")] + g.options.map { ($0, plan.area($0)?.name ?? $0) },
+                                     selection: Binding(get: { tracks[g.id] ?? "" }, set: { tracks[g.id] = $0 }))
+                                .accessibilityLabel(g.label)
+                                .accessibilityValue(plan.area(tracks[g.id])?.name ?? "Noch offen")
+                                .accessibilityIdentifier("studyplan.settings.track.\(g.id)")
+                            if let r = plan.area(tracks[g.id])?.rule {
+                                Text(r).ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var customSection: some View {
+        if let plan, !plan.customModules.isEmpty {
+            StudyPlanSection(title: "Eigene Einträge", icon: "pen") {
+                VStack(alignment: .leading, spacing: 0) {
+                    let list = plan.customModules.filter { !removedCustom.contains($0.id) }
+                    ForEach(Array(list.enumerated()), id: \.element.id) { i, m in
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(m.title).ufFont(14.5, 550, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                Text([StudyPlanText.lp(m.lp), plan.area(m.area)?.name, StudyPlanText.status(m)].compactMap { $0 }.joined(separator: " · "))
+                                    .ufFont(12.48).foregroundStyle(UF.muted)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            UFButton(icon: "trash", size: .small) { removedCustom.insert(m.id) }
+                                .accessibilityLabel("\(m.title) entfernen")
+                                .accessibilityIdentifier("studyplan.settings.custom.remove.\(m.id)")
+                        }
+                        .padding(.vertical, 8)
+                        .ufBorderBottom(i < list.count - 1)
+                    }
+                    if list.isEmpty { Text("Alle eigenen Einträge werden entfernt.").ufFont(13.12).foregroundStyle(UF.muted) }
+                }
+            }
         }
     }
 
@@ -566,6 +654,9 @@ struct StudyPlanSettingsSheet: View {
             po = s.po ?? s.poOptions.first ?? ""
             start = s.startTerm ?? s.termOptions.first ?? ""
             chosen = Set(s.electives)
+            var t: [String: String] = [:]
+            for g in plan?.groups ?? [] { t[g.id] = g.auto ? "" : (g.chosen ?? "") }
+            tracks = t
             settings = s
             error = nil
         } catch {
@@ -578,8 +669,19 @@ struct StudyPlanSettingsSheet: View {
         saving = true
         defer { saving = false }
         do {
-            _ = try await api.value("/api/study-plan/settings", method: "POST",
-                                    body: s.body(po: po.isEmpty ? nil : po, startTerm: start.isEmpty ? nil : start, electives: chosen))
+            var body = s.body(po: po.isEmpty ? nil : po, startTerm: start.isEmpty ? nil : start, electives: chosen)
+            if let plan {
+                // Schwerpunkt und eigene Eintraege nur, wenn geaendert (der Kern speichert teilweise)
+                var before: [String: String] = [:]
+                for g in plan.groups { before[g.id] = g.auto ? "" : (g.chosen ?? "") }
+                if tracks != before {
+                    body["tracks"] = .object(tracks.filter { !$0.value.isEmpty }.mapValues(JSONValue.string))
+                }
+                if !removedCustom.isEmpty {
+                    body["custom"] = .array(plan.customModules.filter { !removedCustom.contains($0.id) }.map { StudyPlanEdit.customJSON($0, plan: plan) })
+                }
+            }
+            _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
             error = nil
             await saved()
             dismiss()

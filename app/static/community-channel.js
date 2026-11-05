@@ -5,7 +5,7 @@
 // Dort "Korrektur vorschlagen", Likes und Kommentare. Reiter "Karteikarten": geteilte Stapel je Lehrwoche (community-decks-ui.js).
 // Aufruf: #/community?space=<schluessel>&tab=discussion|docs|cards&layout=weeks|list
 import { icon } from "./icons.js?v=32";
-import { $, $$, api, toast, modal } from "./core.js?v=43";
+import { $, $$, api, toast, modal } from "./core.js?v=44";
 import * as S from "./solutions.js?v=6";
 import { pageTitle } from "./solution-labels.js?v=1";
 import * as L from "./community-logic.js?v=2";

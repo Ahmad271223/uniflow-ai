@@ -17,8 +17,9 @@ darunter der Python-Server `app/*.py` auf dem PC).
   Die StudiNow-KI mit Credits (Pro AI), die das iPad über das Konto nutzt, erreicht Windows nicht.
 - **Die neuen iPad-Funktionen vom 03./04.11. fehlen fast alle in Web/Windows:** Studienverlauf, Nachrichten, KI-Start,
   Erklärungsspeicher, Dokument-Index, Weitermachen, Vorlesung aufnehmen mit Mitschrift, Videos & Links, Einladungen.
-- **Bezahlen gibt es unter Windows nicht.** Am eigenen PC ist alles frei („Eigener PC“). Ob das so bleibt, ist eine
-  Entscheidung des Inhabers.
+- ~~**Bezahlen gibt es unter Windows nicht.**~~ **Erledigt 05.11.2026:** Entscheidung „anmelden immer muss ohne abo geht
+  nichts“: Anmeldung mit dem StudiNow-Konto ist Pflicht, nach der 7-Tage-Probe braucht es Plus oder Pro AI (Stripe im
+  Systembrowser, Apple-Abo zählt), ohne Abo nur ansehen und exportieren (`docs/ABO-SYSTEM.md` 3d, Handtest unten).
 - **Veröffentlichen:** MSIX für den Store ist gebaut, aber ohne echte Partner-Center-Werte. Der NSIS-Installer ist
   unsigniert und hat keine Update-Funktion.
 
@@ -119,7 +120,7 @@ Alles andere, was es „nur im Dienst“ gibt, antwortet am PC mit 501 `not_host
 | Bereich | iPad | Windows / Web | Status | Beleg | Aufwand |
 | --- | --- | --- | --- | --- | --- |
 | Lösungen, Korrekturen, Fragen je Kurs, Kanal nach Lehrwoche | CloudKit oder Dienst | über den Dienst (Weiterleitung) | vorhanden (braucht Konto und laufenden Dienst) | `community-channel.js`, `community-corrections*.js`, `server.py` `community_link` | – |
-| StudiNow-Konto am PC | Anmelden, Registrieren | nur Anmelden; **Dienstadresse muss man eintippen** (kein Standard, nur `LERNAPP_SERVICE_URL`); kein Registrieren, kein „Passwort vergessen“ | teilweise | `studora-link.js:67`, `service_link.normalize_url` | S |
+| StudiNow-Konto am PC | Anmelden, Registrieren | **erledigt 05.11.2026:** Anmeldung beim Start ist Pflicht (Anmeldebildschirm), Dienstadresse fest `https://app.studinow.app`, E-Mail/Passwort oder „Mit Apple/Google anmelden“, „Konto anlegen“, „Passwort vergessen?“ im Systembrowser; Token in der Windows-Anmeldeinformationsverwaltung | vorhanden | `app/account_mode.py`, `app/static/account-gate.js` | – |
 
 **Wie iPad und Windows zusammenhängen:** Ein iPad **ohne** StudiNow-Konto nutzt CloudKit. Ein iPad **mit** Konto derselben
 Hochschule schaltet auf `ServiceCommunityService` um (`StudoraAccountLink.swift:134`) und sieht dieselbe Community wie
@@ -130,8 +131,8 @@ Katalog-Bibliothek. Diese vier sieht Windows nie, solange der Dienst sie nicht s
 
 | Bereich | iPad | Windows / Web | Status | Beleg | Aufwand |
 | --- | --- | --- | --- | --- | --- |
-| Tarife und 7-Tage-Probe | Free / Plus / Pro AI über StoreKit, Probe je Apple-ID | am eigenen PC keine Tarife: alles frei, Seitenleiste „Eigener PC“, kein „Plus holen“ | anders gebaut (Entscheidung) | `shell-nav.js` `planLabel`, `billing.LOCAL_PLAN`, `docs/TARIF-MATRIX-2026-11-04.md` §3 | – |
-| Kaufen unter Windows | App Store | **kein Zahlungsweg**: Stripe ist nur für das gehostete Web gebaut, Microsoft-Store-Kauf nicht gebaut | **fehlt** | `docs/ABO-SYSTEM.md` Z. 83, 123; `app/stripe_billing.py` | M (Stripe über Konto) bis L (Store-Kauf) |
+| Tarife und 7-Tage-Probe | Free / Plus / Pro AI über StoreKit, Probe je Apple-ID | **erledigt 05.11.2026:** Tarif und Probe aus dem StudiNow-Konto (Quelle „account“, 7 Tage Kulanz ohne Netz), Leiste „Probe: noch N Tage“; ohne Abo nur lesen und exportieren (kein Free am PC) | vorhanden | `app/account_mode.py`, `app/access.py`, `docs/ABO-SYSTEM.md` 3d | – |
+| Kaufen unter Windows | App Store | **erledigt 05.11.2026:** Stripe-Checkout des Dienstes im Systembrowser, Kundenportal zum Kündigen; mit Apple-Abo kein zweiter Kauf (auch im Dienst gesperrt). Microsoft-Store-Kauf bewusst nicht | vorhanden (Stripe-Schlüssel im Dienst fehlen noch) | `app/account_mode.py`, `app/stripe_billing.py` | – |
 | Einladungen (Links, Stufen, Belohnung) | ja (Apple-Angebotscodes) | Endpunkte `/api/invites` da, keine Seite; Belohnung für Stripe nicht entschieden | **fehlt** | `docs/EINLADUNGEN.md` Z. 126 | M |
 | Demo für die Store-Prüfung | Link auf der Anmeldeseite | Einstellungen → Erweitert → Demo-Inhalte | vorhanden | `app/demo.py`, `msix/README.md` | – |
 | Konto entfernen (PC weitergeben) | ja | ja | vorhanden | `app/reset.py` | – |
@@ -171,10 +172,10 @@ Katalog-Bibliothek. Diese vier sieht Windows nie, solange der Dienst sie nicht s
    Endnutzer unbrauchbar. **L** (Weiterleitung von `/api/ai/*` mit Kontext-Texten, Credits-Anzeige, Fehlertexte)
 4. **Veröffentlichungsweg festlegen und fertig machen:** Store (Partner-Center-Werte, Screenshots, Datenschutz-URL) oder
    Direkt-Download (Zertifikat + Update-Funktion). **S** (Store) bzw. **M** (Direkt)
-5. **Konto-Verbindung ohne Tipparbeit:** Dienstadresse fest eintragen (`https://app.studinow.app`), Link „Konto anlegen“
-   und „Passwort vergessen“ ins Web. **S**
-6. **Tarif-Frage für Windows entscheiden und umsetzen** (siehe Entscheidungen): sonst bekommt jeder Windows-Nutzer Plus
-   gratis. **S** (bleibt frei) bis **M** (Tarif über Konto + Stripe)
+5. ~~**Konto-Verbindung ohne Tipparbeit**~~ **erledigt 05.11.2026** (feste Dienstadresse, Konto anlegen und Passwort
+   vergessen im Browser).
+6. ~~**Tarif-Frage für Windows entscheiden und umsetzen**~~ **erledigt 05.11.2026** (Konto- und Abo-Pflicht, Stripe;
+   Handtest unten). Offen beim Inhaber: Stripe-Schlüssel und Preise im Dienst.
 
 ### Sollte (iPad-Gleichstand bei sichtbaren Funktionen)
 
@@ -205,8 +206,8 @@ Katalog-Bibliothek. Diese vier sieht Windows nie, solange der Dienst sie nicht s
 
 | # | Frage | Optionen | Folgen |
 | --- | --- | --- | --- |
-| 1 | **Kostet Windows etwas?** | a) PC bleibt frei (heute so), Geld nur über Pro AI im Konto · b) Tarif kommt aus dem verbundenen Konto (Plus/Pro AI wie auf dem iPad) | a) kein Bau nötig, aber Plus-Funktionen am PC gratis. b) Sperren in der Web-Oberfläche am PC, Konto wird Pflicht für Plus |
-| 2 | **Wie bezahlt man unter Windows?** | Stripe im Web (Konto) · Kauf im Microsoft Store | Stripe ist gebaut, braucht Schlüssel und Preise im Stripe-Konto. Store-Kauf müsste neu gebaut werden (Windows.Services.Store). Laut Microsoft-Richtlinie dürfen Nicht-Spiele-Apps seit 2021 eigene Zahlungswege nutzen – vor der Einreichung prüfen |
+| 1 | **Kostet Windows etwas?** – **entschieden 05.11.2026:** Konto und Abo Pflicht (b, strenger: ohne Abo nur lesen) | a) PC bleibt frei (heute so), Geld nur über Pro AI im Konto · b) Tarif kommt aus dem verbundenen Konto (Plus/Pro AI wie auf dem iPad) | a) kein Bau nötig, aber Plus-Funktionen am PC gratis. b) Sperren in der Web-Oberfläche am PC, Konto wird Pflicht für Plus |
+| 2 | **Wie bezahlt man unter Windows?** – **gebaut 05.11.2026:** Stripe im Systembrowser; Store-Regeln vor der Einreichung prüfen | Stripe im Web (Konto) · Kauf im Microsoft Store | Stripe ist gebaut, braucht Schlüssel und Preise im Stripe-Konto. Store-Kauf müsste neu gebaut werden (Windows.Services.Store). Laut Microsoft-Richtlinie dürfen Nicht-Spiele-Apps seit 2021 eigene Zahlungswege nutzen – vor der Einreichung prüfen |
 | 3 | **Store oder Direkt-Download?** | Microsoft Store (MSIX) · eigener Download (NSIS) · beides | Store: signiert und aktualisiert selbst, braucht Partner-Center-Konto. Direkt: Code-Signing-Zertifikat (jährliche Kosten), feste HTTPS-Adresse, Update-Funktion bauen |
 | 4 | **Code-Signing-Zertifikat** | kaufen (OV/EV) · Cloud-Signierdienst · keins (nur Store) | ohne Zertifikat warnt SmartScreen bei jedem Direkt-Download |
 | 5 | **KI am PC** | StudiNow-KI über das Konto weiterleiten · nur eigenes ChatGPT · beides wie auf dem iPad | bestimmt Aufwand Punkt 3 und ob Credits am PC gelten |
@@ -221,3 +222,44 @@ Katalog-Bibliothek. Diese vier sieht Windows nie, solange der Dienst sie nicht s
 - Nichts davon wurde auf echtem Windows geprüft.
 - Der Dienst (`app.studinow.app`) muss laufen, damit Konto, Community und Geräte-Abgleich unter Windows überhaupt
   funktionieren (`docs/START-DIENST-CHECKLISTE.md`).
+
+## Handtest Konto- und Abo-Pflicht (05.11.2026, auf einem echten Windows-PC)
+
+Im Repo nur mit Attrappen geprüft (`tests/test_account_mode.py`): kein echtes Windows, keine echte
+Anmeldeinformationsverwaltung, kein echter Systembrowser, kein echtes Stripe. Vorbereitung: Dienst läuft unter
+`https://app.studinow.app` (oder `LERNAPP_SERVICE_URL` in `%LOCALAPPDATA%\de.uniflow.desktop\.env`), Stripe im
+Testmodus eingerichtet (`LERNAPP_STRIPE_SECRET_KEY=sk_test_…`, Preise, Webhook), drei Testkonten: neu (Probe), Probe
+beendet (`python -m app.accounts …` bzw. `billing.end_trial`), mit Apple-Abo (aus der iPad-App, Sandbox).
+
+1. **Erster Start ohne Anmeldung:** Installieren, starten → nur der Anmeldebildschirm „Bei StudiNow anmelden“, keine
+   Seitenleiste. Link „Meine Daten exportieren“ lädt eine ZIP-Datei.
+2. **E-Mail und Passwort:** neues Konto anmelden → App öffnet sich, oben die Leiste „Probe: noch 7 Tage alles wie
+   StudiNow Pro AI“; Notizen schreiben, Karteikarten anlegen geht.
+3. **Token in der Anmeldeinformationsverwaltung:** Systemsteuerung → Anmeldeinformationsverwaltung →
+   Windows-Anmeldeinformationen → Generische Anmeldeinformationen: Eintrag `StudiNow/dienst-sitzung` vorhanden. In
+   `%LOCALAPPDATA%\de.uniflow.desktop\data\service-account.json` steht **kein** `token` und nirgends das Passwort.
+4. **Neustart:** App schließen und neu starten → ohne erneute Anmeldung angemeldet.
+5. **Mit Apple anmelden / Mit Google anmelden:** Abmelden (Abo-Seite → Konto bzw. Einstellungen), dann „Mit Apple
+   anmelden“ → Standardbrowser (nicht das App-Fenster) öffnet `app.studinow.app/login?app=windows…`; dort anmelden →
+   Browser zeigt „Angemeldet … Du kannst dieses Fenster schließen“, die App wechselt nach wenigen Sekunden selbst.
+   Dasselbe mit Google. War der Browser schon angemeldet: Frage „Weiter / Anderes Konto“ erscheint.
+6. **Konto anlegen / Passwort vergessen** auf dem Anmeldebildschirm öffnen die passenden Reiter im Browser; nach dem
+   Registrieren geht es in der App weiter.
+7. **Probe vorbei:** mit dem Konto „Probe beendet“ anmelden → Start auf „Abo & Tarife“ mit „Kein aktives Abo“, Leiste
+   „Kein aktives Abo · Nur lesen“. „Meine Daten ansehen“ → Übersicht, Dokumente, Notizen lesbar; Schreiben im Editor
+   aus; „Sync“ und Speichern zeigen „Dafür brauchst du ein aktives Abo …“. „Meine Daten exportieren“ lädt die ZIP.
+8. **Kaufen:** „Abschließen“ bei Plus → Stripe-Checkout öffnet im Standardbrowser (Testkarte 4242 4242 4242 4242) →
+   Seite „Danke! … zu StudiNow zurückkehren“; die App zeigt innerhalb von etwa 5–10 Sekunden Plus, Leiste weg.
+9. **Verwalten/Kündigen:** „Abo verwalten“ öffnet das Stripe-Kundenportal im Browser; Kündigen → Abo läuft bis zum
+   Periodenende, danach (Stripe-Testuhr oder Webhook) zurück auf „Kein aktives Abo“.
+10. **Apple-Abo:** mit dem Apple-Abo-Konto anmelden → Tarif aus der Apple-App aktiv, auf der Abo-Seite „Du hast schon
+    ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones“, kein „Abschließen“-Knopf.
+11. **Offline:** WLAN aus, App neu starten → arbeitet mit dem letzten Stand weiter (Plus bleibt Plus). Optional:
+    `LERNAPP_OFFLINE_GRACE_DAYS=0` in die `.env`, Neustart offline → „Abo konnte nicht geprüft werden“, nur lesen;
+    WLAN an, „Erneut prüfen“ → wieder frei.
+12. **Sitzung widerrufen:** am iPad oder im Web „Andere Geräte abmelden“ → in der App beim nächsten Prüfen (Fenster
+    verlassen und zurückkehren) der Anmeldebildschirm.
+13. **PC weitergeben:** Einstellungen → „Hochschul-Konto entfernen“ → auch das StudiNow-Konto ist abgemeldet, der
+    Eintrag in der Anmeldeinformationsverwaltung ist weg.
+14. **Web gegenprüfen:** dasselbe Konto „Probe beendet“ im Browser auf `app.studinow.app` → ebenfalls „Kein aktives
+    Abo“, nur lesen, Export geht; in der iPad-App bleibt Free nutzbar.

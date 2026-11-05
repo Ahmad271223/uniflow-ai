@@ -67,6 +67,9 @@ from . import study_catalog  # noqa: E402 - Modulkatalog: Stand der Suche (Route
 app.include_router(study_catalog.router)
 from . import week_library_api  # noqa: E402 - Fertige Fragen je Vorlesungswoche (Pro AI, /api/library/week-sets)
 app.include_router(week_library_api.router)
+from . import access, account_mode, account_mode_api, app_login_api  # noqa: E402 - Konto- und Abo-Pflicht (05.11.2026)
+app.include_router(account_mode_api.router)     # Windows-App: Anmelden, Abo, Export (/api/app-account, /konto/rueckkehr)
+app.include_router(app_login_api.router)        # Dienst: Anmeldung der Windows-App ueber den Browser (/api/app-login)
 db.init_db()
 
 
@@ -187,14 +190,15 @@ async def hosted_guard(request, call_next):
         # eingebaute Schnittstellenbeschreibung (Routenkarte, auch der Verwaltungs- und Agentenpfade): im Dienst aus
         return JSONResponse({"detail": "Nicht gefunden."}, status_code=404)
     if path in ("/", "/index.html", "/login"):
-        # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin
+        # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin - ausser die Windows-App holt
+        # sich ueber die Anmeldeseite eine Anmeldung (/login?app=windows, app/app_login_api.py)
         user = accounts.authenticate(account_api.token_of(request))
-        if path == "/login" and user:
+        if path == "/login" and user and request.query_params.get("app") != "windows":
             return RedirectResponse("/", status_code=302)
         if path != "/login" and not user:
             return RedirectResponse("/login", status_code=302)
         return await call_next(request)
-    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC:
+    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC or path in app_login_api.PUBLIC:
         return await call_next(request)
     why = hosted_unavailable(request.method, path)
     if why:
@@ -207,6 +211,15 @@ async def hosted_guard(request, call_next):
         return JSONResponse({"detail": "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten.", "code": "rate_limited"},
                             status_code=429, headers={"Retry-After": str(wait)})
     request.state.user = user
+    # Abo-Pflicht in Web und Windows (05.11.2026, app/access.py): ohne Probe und ohne Abo nur lesen; Konto und Abo
+    # bleiben bedienbar. iPad/Android (Bearer ohne Client-Kopfzeile) wie bisher.
+    client = access.client_type(request)
+    request.state.client = client
+    if client in access.GATED_CLIENTS and not access.write_allowed_when_locked(request.method, path):
+        acc = access.for_user(user, client)
+        if acc["locked"]:
+            status, body = access.blocked(acc["state"])
+            return JSONResponse(body, status_code=status)
     ctx = config.set_user_context(user["id"], user["university"])
     try:
         key = (user["id"], user["university"])
@@ -216,6 +229,25 @@ async def hosted_guard(request, call_next):
         return await call_next(request)
     finally:
         config.reset_user_context(ctx)
+
+
+@app.middleware("http")
+async def account_gate(request, call_next):
+    """Windows-App (app/account_mode.py): ohne Anmeldung nur Anmelden (401 account_required), ohne aktives Abo nur
+    lesen (402 subscription_required bzw. subscription_unverified); Oberflaeche und Rueckleitung bleiben erreichbar."""
+    if config.is_hosted() or not account_mode.required():
+        return await call_next(request)
+    path = request.url.path
+    if not path.startswith("/api/") or path.startswith(account_mode.ALWAYS_OPEN):
+        return await call_next(request)
+    from starlette.concurrency import run_in_threadpool
+    st = await run_in_threadpool(account_mode.state)
+    if not st["locked"]:
+        return await call_next(request)
+    if st["state"] != "signed_out" and access.write_allowed_when_locked(request.method, path, account_mode.LOCKED_WRITE_EXTRA):
+        return await call_next(request)
+    status, body = access.blocked(st["state"])
+    return JSONResponse(body, status_code=status)
 
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
@@ -374,6 +406,23 @@ def login_page():
     if not config.is_hosted():
         return RedirectResponse("/", status_code=302)
     return FileResponse(STATIC_DIR / "login.html", media_type="text/html")
+
+
+ABO_DONE_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>StudiNow – Abo</title>
+<style>body{{font:16px/1.5 system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}}main{{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(420px,92vw)}}h1{{font-size:1.2rem;margin:0 0 .4rem}}p{{margin:0;color:#4a5068}}</style></head>
+<body><main><h1>{title}</h1><p>{text}</p></main></body></html>"""
+
+
+@app.get("/abo-fertig", include_in_schema=False)
+def abo_done(checkout: str = "", portal: str = ""):
+    """Rueckseite nach Stripe-Checkout bzw. Kundenportal fuer die Windows-App (ohne Anmeldung, ohne Daten)."""
+    if checkout == "success":
+        title, text = "Danke!", "Die Zahlung ist abgeschlossen. Du kannst dieses Fenster schließen und zu StudiNow zurückkehren; dein Abo erscheint dort in wenigen Sekunden."
+    elif checkout == "cancel":
+        title, text = "Abgebrochen", "Es wurde nichts berechnet. Du kannst dieses Fenster schließen und zu StudiNow zurückkehren."
+    else:
+        title, text = "Fertig", "Du kannst dieses Fenster schließen und zu StudiNow zurückkehren."
+    return HTMLResponse(ABO_DONE_PAGE.format(title=title, text=text), headers={"Cache-Control": "no-store"})
 
 
 def _legal_page(page: str):

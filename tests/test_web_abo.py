@@ -1,10 +1,13 @@
 """Tarifseite im echten Browser (05.11.2026, Paket D "Tarife, Probe, Einladungen"): drei Karten Free / Plus / Pro AI nach
 der Entscheidung des Inhabers vom 04.11.2026.
 
-- Eigener PC / Windows-App (Einzelplatz): keine Kaufwege; StudiNow Pro AI steht ohne Preis und ohne Knopf als "kommt mit
-  dem StudiNow-Dienst" da (Microsoft-Store-Regeln, docs/release/MICROSOFT-STORE.md).
+- Eigener PC ohne Konto-Pflicht (Einzelplatz, serve.py in der Entwicklung; die Windows-App hat seit 05.11.2026 die
+  Konto-Pflicht, tests/test_account_mode.py): keine Kaufwege; StudiNow Pro AI steht ohne Preis und ohne Knopf als
+  "kommt mit dem StudiNow-Dienst" da.
 - Dienst mit Stripe: Kaufknoepfe nur an Plus und Pro AI, nie an Free; waehrend der Probe ist kein Tarif "Dein Tarif",
-  die Karte "Pro AI" traegt "Probe läuft" und bleibt kaufbar; nach der Probe "Deine Probe ist vorbei" und Free als Stand.
+  die Karte "Pro AI" traegt "Probe läuft" und bleibt kaufbar. Nach der Probe gilt seit 05.11.2026 die Abo-Pflicht im
+  Web (Entscheidung des Inhabers, app/access.py): "Kein aktives Abo", nur ansehen und exportieren, kein "Bei Free
+  bleiben" mehr (bewusst geaendert, vorher war Free dort "Dein Tarif").
 - Nirgends Pro Connect, "1 Woche gratis" oder ein Einfuehrungsangebot.
 Ohne Chromium wird uebersprungen (wie tests/test_pwa.py)."""
 import re
@@ -26,7 +29,7 @@ def _cards(page):
 
 
 def test_local_pro_ai_card_has_no_price_and_no_buy_path(served):  # noqa: F811
-    """Einzelplatz (Windows-App): Pro AI "kommt mit dem StudiNow-Dienst", ohne 3,99 EUR und ohne Knopf; nirgends ein
+    """Einzelplatz ohne Konto-Pflicht: Pro AI "kommt mit dem StudiNow-Dienst", ohne 3,99 EUR und ohne Knopf; nirgends ein
     Kaufknopf, Stripe oder Link zu einem Bezahlsystem; Plus zeigt seinen Preis, aber auch keinen Knopf."""
     with _playwright() as p:
         browser = _browser(p)
@@ -65,7 +68,8 @@ def with_stripe(monkeypatch):
 
 def test_hosted_trial_then_free_cards_and_buy_buttons(served_hosted, with_stripe):  # noqa: F811
     """Dienst mit Stripe: Probe-Konto sieht "Probe läuft" statt "Dein Tarif" und kann Plus UND Pro AI abschliessen
-    (Pro Connect nie); nach der Probe ist Free "Dein Tarif", die Aufforderung steht da, die Knoepfe bleiben."""
+    (Pro Connect nie); nach der Probe (Abo-Pflicht im Web, 05.11.2026) "Kein aktives Abo" mit "Meine Daten ansehen"
+    und "Meine Daten exportieren", kein "Bei Free bleiben", die Kaufknoepfe bleiben."""
     from app import accounts
     base = served_hosted
     st, d = _http(base, "POST", "/api/account/register", {"email": "probe@example.org", "password": PASSWORD, "university": "luh"})
@@ -95,7 +99,7 @@ def test_hosted_trial_then_free_cards_and_buy_buttons(served_hosted, with_stripe
             assert not VERBOTEN.search(view), view[:400]
             ctx.close()
 
-            # Probe vorbei, nichts gewaehlt: Free ist der Stand, die Aufforderung steht da
+            # Probe vorbei, nichts gewaehlt: Abo-Pflicht im Web - nur ansehen, exportieren und ein Abo waehlen
             accounts.mark_email_verified(probe_user["id"])
             assert accounts.end_trial(probe_user["id"])
             ctx = browser.new_context(bypass_csp=True)
@@ -106,9 +110,11 @@ def test_hosted_trial_then_free_cards_and_buy_buttons(served_hosted, with_stripe
             page.wait_for_function("document.querySelectorAll('#view .plans .plan').length === 3", timeout=T)
             cards = _cards(page)
             free, plus, pro = cards
-            assert "Dein Tarif" in free["badges"] and plus["buy"] == 1 and pro["buy"] == 1 and free["buy"] == 0
+            assert "Dein Tarif" not in free["badges"] and plus["buy"] == 1 and pro["buy"] == 1 and free["buy"] == 0
             view = page.inner_text("#view")
-            assert "Dein Tarif: StudiNow Free" in view and "Deine Probe ist vorbei" in view and "Bei Free bleiben" in view
+            assert "Kein aktives Abo" in view and "Meine Daten ansehen" in view and "Meine Daten exportieren" in view
+            assert "Bei Free bleiben" not in view and "Dein Tarif: StudiNow Free" not in view
+            assert page.evaluate("document.querySelector('#gateBar') && document.querySelector('#gateBar').textContent.includes('Nur lesen')")
             assert not VERBOTEN.search(view), view[:400]
             assert not errors, errors
         finally:

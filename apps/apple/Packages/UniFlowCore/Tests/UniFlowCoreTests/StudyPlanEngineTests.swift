@@ -94,6 +94,45 @@ final class StudyPlanEngineTests: XCTestCase {
         XCTAssertNil(jsonDiff(after, fx["tables_after"]), jsonDiff(after, fx["tables_after"]) ?? "")
     }
 
+    /// Eigene Lage (05.11.2026): verschieben/vorziehen, Bestandenes bleibt, Nachholen folgt der Lage, Turnus- und
+    /// Voraussetzungshinweise, LP-Summen je Semester; Wahlbereiche: Plaetze und Schwerpunkt
+    func testPlacementsLockingHintsAndSlots() throws {
+        let fx = try studyPlanFixture("engine.json")
+        let cat = try XCTUnwrap(fx["catalogs"]?["TIBSc22"])
+        func g(_ text: String, _ sem: String, _ status: String, _ note: String = "2,0", _ v: String = "") -> [String: JSONValue] {
+            ["text": .string(text), "semester": .string(sem), "status": .string(status), "note": .string(note), "versuch": .string(v),
+             "pruefungsnr": "", "credits": "", "datum": "", "abschluss": "Technische Informatik (PO-Version 2017)"]
+        }
+        func where_(_ p: JSONValue) -> [String: (String, JSONValue)] {
+            var out: [String: (String, JSONValue)] = [:]
+            for s in p["semesters"]?.array ?? [] { for m in s["modules"]?.array ?? [] { out[m["id"]!.string!] = (s["term"]!.string!, m) } }
+            return out
+        }
+        let moved = StudyPlanEngine.buildPlan(catalog: cat, grades: [], settings: [
+            "start_term": "WiSe 26/27", "placements": ["rechnernetze": "WiSe 26/27", "mathematik-3": "SoSe 29"]], today: "2026-11-04")
+        let rn = try XCTUnwrap(where_(moved)["rechnernetze"])
+        XCTAssertEqual(rn.0, "WiSe 26/27")
+        XCTAssertEqual(rn.1["placed"], true)
+        XCTAssertEqual(rn.1["hints"]?.array?.first?.string, "Laut Katalog nur im Sommersemester angeboten")
+        XCTAssertEqual(where_(moved)["mathematik-3"]?.0, "SoSe 29")
+        for s in moved["semesters"]?.array ?? [] {
+            XCTAssertEqual(s["lp"]?.double, (s["modules"]?.array ?? []).reduce(0.0) { $0 + ($1["lp"]?.double ?? 0) })
+        }
+        let grades = [g("Programmieren I", "WiSe 25/26", "bestanden"), g("Mathematik I", "WiSe 25/26", "nicht bestanden", "5,0", "1")]
+        let locked = StudyPlanEngine.buildPlan(catalog: cat, grades: grades, settings: [
+            "placements": ["programmieren-1": "SoSe 27", "mathematik-1": "WiSe 27/28"]], today: "2026-11-04")
+        XCTAssertEqual(where_(locked)["programmieren-1"]?.0, "WiSe 25/26", "Bestandenes bleibt im QIS-Semester")
+        XCTAssertEqual(where_(locked)["mathematik-1"]?.0, "WiSe 27/28", "Nachholen folgt der eigenen Lage")
+        // Wahlbereiche: Plaetze ohne Wahl, mit Schwerpunkt keiner fuer die Gruppe
+        let areas = try XCTUnwrap(fx["catalogs"]?["ETBSc25"])
+        let open = StudyPlanEngine.buildPlan(catalog: areas, grades: [], settings: [:], today: "2026-11-04")
+        let slots = (open["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }
+        XCTAssertEqual(slots.map { $0["title"]?.string ?? "" }, ["Seminare", "Studium Generale", "Schwerpunkt wählen"])
+        let chosen = StudyPlanEngine.buildPlan(catalog: areas, grades: [], settings: ["tracks": ["schwerpunkt": "schwerpunkt-daten"]],
+                                               today: "2026-11-04")
+        XCTAssertFalse((chosen["semesters"]?.array ?? []).flatMap { $0["slots"]?.array ?? [] }.contains { $0["kind"] == "track" })
+    }
+
     /// Katalog aus dem Speicher statt aus der Tabelle (Quelle austauschbar, solange der Katalog-Abruf fehlt)
     func testMemoryCatalogSource() async throws {
         let fx = try studyPlanFixture("engine.json")

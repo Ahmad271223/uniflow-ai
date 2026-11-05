@@ -2155,6 +2155,10 @@
     "shape": {
      "type": "object",
      "keys": {
+      "areas": {
+       "type": "array",
+       "item": null
+      },
       "available": {
        "type": "bool"
       },
@@ -2180,6 +2184,14 @@
        "type": "array",
        "item": null
       },
+      "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "groups": {
+       "type": "array",
+       "item": null
+      },
       "lp_done": {
        "type": "number"
       },
@@ -2195,6 +2207,10 @@
       "notes": {
        "type": "array",
        "item": null
+      },
+      "placements": {
+       "type": "object",
+       "keys": {}
       },
       "po": {
        "type": "null"
@@ -2239,6 +2255,7 @@
    "method": "GET",
    "shape": "/api/study-plan/module/{}",
    "sources": [
+    "UniFlow/Views/StudyPlan/StudyPlanEditing.swift",
     "UniFlow/Views/StudyPlan/StudyPlanSheets.swift"
    ],
    "request": {
@@ -2281,6 +2298,10 @@
        "type": "array",
        "item": null
       },
+      "custom": {
+       "type": "array",
+       "item": null
+      },
       "elective_lp_required": {
        "type": "null"
       },
@@ -2291,6 +2312,14 @@
       "electives": {
        "type": "array",
        "item": null
+      },
+      "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "placements": {
+       "type": "object",
+       "keys": {}
       },
       "po": {
        "type": "null"
@@ -2313,6 +2342,10 @@
        "item": {
         "type": "string"
        }
+      },
+      "tracks": {
+       "type": "object",
+       "keys": {}
       }
      }
     }
@@ -4384,6 +4417,10 @@
        "type": "array",
        "item": null
       },
+      "custom": {
+       "type": "array",
+       "item": null
+      },
       "elective_lp_required": {
        "type": "null"
       },
@@ -4394,6 +4431,14 @@
       "electives": {
        "type": "array",
        "item": null
+      },
+      "excluded": {
+       "type": "array",
+       "item": null
+      },
+      "placements": {
+       "type": "object",
+       "keys": {}
       },
       "po": {
        "type": "null"
@@ -4416,6 +4461,10 @@
        "item": {
         "type": "string"
        }
+      },
+      "tracks": {
+       "type": "object",
+       "keys": {}
       }
      }
     }

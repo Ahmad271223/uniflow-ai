@@ -50,7 +50,13 @@
         "name": {"type": "string", "minLength": 1, "maxLength": 500},
         "lp_required": {"type": ["number", "null"], "minimum": 0},
         "lp_max": {"type": ["number", "null"], "minimum": 0, "description": "Obergrenze bei Spannen wie '10 - 15 LP' (lp_required = 10), sonst null"},
-        "kind": {"$ref": "#/$defs/kind"}
+        "kind": {"$ref": "#/$defs/kind"},
+        "modules": {"type": "array", "items": {"type": "string"}, "description": "optional (05.11.2026): alle in diesem Bereich waehlbaren Modul-ids, auch Module, deren module.area ein anderer Bereich ist (z. B. dasselbe Modul in mehreren Schwerpunkten)"},
+        "rule": {"type": ["string", "null"], "maxLength": 500, "description": "optional: Regel aus Katalog/PO, z. B. 'Der Studienschwerpunkt ist absolviert, wenn mindestens vier Module ...'"},
+        "modules_required": {"type": ["integer", "null"], "minimum": 1, "description": "optional: Zahl der zu waehlenden Module"},
+        "group": {"type": ["string", "null"], "description": "optional: Bereiche mit gleicher Gruppe sind Alternativen (eins waehlen), z. B. schwerpunkt, nebenfach, vertiefungsrichtung"},
+        "type": {"type": ["string", "null"], "description": "optional: Typ fuer die Anzeige (studium_generale, schluessel, seminar, labor, projekt, praktikum, schwerpunkt, nebenfach, vertiefung, pflicht, wahlpflicht, wahl, abschluss); ohne Angabe aus dem Namen"},
+        "semester": {"type": ["integer", "null"], "minimum": 1, "maximum": 20, "description": "optional: empfohlenes Fachsemester fuer offene Plaetze dieses Bereichs"}
       }
     },
     "slot": {

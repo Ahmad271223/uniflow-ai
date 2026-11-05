@@ -3,7 +3,7 @@
 // darunter eine schlichte Zahlenzeile ohne Rahmen und Karten nur, wenn sie etwas zeigen. Alle Daten kommen aus
 // GET /api/dashboard (study.dashboard); dazu Ergaenzungen, deren Fehler die Seite nicht anhalten: Neuigkeiten, Schwarzes
 // Brett und die Karte "Nächste Klausuren" (GET /api/exams/upcoming, exams.js; nur wenn es welche gibt).
-import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=43";
+import { $, $$, api, esc, safeUrl, noteChips, cancelMark, chipRef, icon, fmtShort, fmtMin, iso, parseISO, todayISO, shortName, DAYS, TYPE_ICON, state } from "./core.js?v=44";
 import { openPackage, suggestFlow, generatePlan } from "./views-plan.js?v=48";
 import { openEvent } from "./views-tt.js?v=46";
 import { installBanner, bindInstallBanner } from "./pwa.js?v=15";

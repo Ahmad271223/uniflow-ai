@@ -387,7 +387,8 @@ public enum DemoContent {
 
 /// Zusaetzliche Demo-Inhalte nur fuer die Store-Bilder (`StoreScreenshotTests`, `IPhoneStoreScreenshotTests`): ein
 /// erfundener Studienverlauf (Katalog "Informatik B.Sc.", Studienbeginn WiSe 25/26, Leistungen der ersten beiden
-/// Semester, daraus die Karte "Prüfungsanmeldung") und Nachrichten im Posteingang. `install` legt nichts davon an; die
+/// Semester, daraus die Karte "Prüfungsanmeldung"), Nachrichten im Posteingang und ein Lernpaket fuer heute (fruehere
+/// Pakete der Woche erledigt). `install` legt nichts davon an; die
 /// App ruft `installStoreExtras` nie auf (keine Wirkung auf die Demo der Pruefer oder den normalen Betrieb). Alle Namen
 /// sind Rollen oder erfunden, keine echte Person, kein Hochschul-Logo.
 extension DemoContent {
@@ -425,14 +426,14 @@ extension DemoContent {
         ("bachelorarbeit", "Bachelorarbeit", 6, 15, "abschluss", "Abschlussarbeit"),
     ]
 
-    /// Leistungen: Modul, Semester, Note, Status (bestanden, nicht bestanden, AN = angemeldet)
+    /// Leistungen: Modul, Semester, Note, Status (bestanden, AN = angemeldet)
     static let storeGrades: [(id: String, semester: String, note: String?, status: String)] = [
         ("programmieren-1", "WiSe 25/26", "1,7", "bestanden"),
         ("mathe-1", "WiSe 25/26", "2,3", "bestanden"),
         ("logik", "WiSe 25/26", "2,0", "bestanden"),
         ("rechnerarchitektur", "WiSe 25/26", "1,3", "bestanden"),
         ("programmieren-2", "SoSe 26", "1,7", "bestanden"),
-        ("mathe-2", "SoSe 26", "5,0", "nicht bestanden"),
+        ("mathe-2", "SoSe 26", "2,7", "bestanden"),
         ("algorithmen", "SoSe 26", "2,0", "bestanden"),
         ("technische-informatik", "SoSe 26", "2,7", "bestanden"),
         ("datenbanken", "WiSe 26/27", nil, "AN"),
@@ -497,6 +498,32 @@ extension DemoContent {
             return QISGrade(pruefungsnr: "demo-\(g.id)", text: title, semester: g.semester, note: g.note, status: g.status,
                             credits: g.status == "bestanden" ? String(lp) : nil, versuch: "1", abschluss: storeAbschluss)
         }, now: now)
+        // Lernpakete: was vor heute lag, ist erledigt (kein "nachholen" im Bild); heute ein Paket, wenn keins da ist
+        let todayISO = BerlinClock.isoDate(today)
+        if let moduleID = try moduleIDs(c).first {
+            try c.execute("""
+                UPDATE study_tasks SET status='erledigt', done_at=?, actual_minutes=est_minutes
+                WHERE package_id IN (SELECT id FROM study_packages WHERE module_id=? AND date < ?)
+                """, [.text(now), .integer(moduleID), .text(todayISO)])
+            try c.execute("UPDATE study_packages SET status='erledigt' WHERE module_id=? AND date < ?", [.integer(moduleID), .text(todayISO)])
+            let hasToday = try c.scalar("SELECT COUNT(*) FROM study_packages WHERE module_id=? AND date=?",
+                                        [.integer(moduleID), .text(todayISO)])?.int ?? 0
+            if hasToday == 0 {
+                let tasks: [(type: String, file: String, title: String, minutes: Int)] = [
+                    ("uebung", "demo-blatt", "Aufgabe 3 und 4 rechnen", 40), ("vorlesung", "demo-skript", "Zweierkomplement nachlesen", 20),
+                ]
+                try c.execute("""
+                    INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at)
+                    VALUES (?,?,?,?,1,?,'geplant',9,0,?)
+                    """, [.text(todayISO), .integer(moduleID), .text(subject), .text("Übungsblatt 1 abschließen"),
+                          .integer(Int64(tasks.reduce(0) { $0 + $1.minutes })), .text(now)])
+                let packageID = c.lastInsertRowID
+                for (j, t) in tasks.enumerated() {
+                    try c.execute("INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,'geplant',?)",
+                                  [.integer(packageID), .text(t.type), .text(t.file), .text(t.title), .integer(Int64(j)), .integer(Int64(t.minutes)), .text(now)])
+                }
+            }
+        }
         try c.executeScript(StudIPExtras.messagesTable)
         for m in storeMessages {
             var dates: [JSONValue] = []

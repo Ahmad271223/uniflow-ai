@@ -2,7 +2,7 @@
 import { renderWeeklyBox } from "./views-weekly.js?v=14";
 import { installCard, bindInstallBanner } from "./pwa.js?v=15";
 import { staggerOnce, countUp, reveal } from "./motion.js?v=2";
-import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=43";
+import { $, $$, api, can, esc, icon, toast, modal, drawer, showError, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=44";
 import * as FC from "./flashcards.js?v=7";
 // KI-Karteikarten auf Auftrag (Pro AI, 04.11.2026): Dialog in flashcard-stacks-ui.js
 import { openAiDialog, lockIcon } from "./flashcard-stacks-ui.js?v=3";

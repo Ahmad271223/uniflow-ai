@@ -181,7 +181,7 @@ final class StoreScreenshotTests: XCTestCase {
     }
 
     /// Text der Antwort im Bild (erfunden)
-    static let replyText = "Danke! Ich bringe meinen Ansatz zu Aufgabe 3 mit: Das Zweierkomplement von −37 mit 8 Bit ist bei mir 1101 1011 – stimmt das?"
+    static let replyText = "Danke! Ich bringe meinen Ansatz zu Aufgabe 3 mit."
 
     /// Abgabe-Blatt mit der Nachbildung: Demo-Uebung vorausgewaehlt, Abgabeordner vorgeschlagen, PDF des Demo-Blatts
     static func submitModel(defaults: UserDefaults) -> StudIPSubmitModel {
@@ -191,7 +191,11 @@ final class StoreScreenshotTests: XCTestCase {
             documentID: "demo-blatt", documentTitle: "Übungsblatt 1 – Zahlensysteme", documentCourseID: "demo-uebung", moduleID: nil,
             dependencies: .init(connected: { true }, ensureSession: { _ in .ready }, client: { DemoStudIP.client() },
                                 courses: { DemoContent.courses.map { .init(id: $0.id, title: $0.title, moduleID: nil, kind: $0.kind) } },
-                                makePDF: { _ in .init(data: data, pages: blatt.pages.count) },
+                                // Groesse wie ein Blatt mit Handschrift (die kleine Demo-PDF zeigte "0,0 MB"); hochgeladen wird nichts
+                                makePDF: { withNotes in
+                                    .init(data: data + Data(repeating: 0x20, count: (withNotes ? 1_250_000 : 400_000) - data.count),
+                                          pages: blatt.pages.count)
+                                },
                                 defaults: defaults))
     }
 
@@ -310,35 +314,60 @@ final class StoreScreenshotTests: XCTestCase {
 
     /// Hell und dunkel, hoch und quer (Fensterrahmen umstellen, Hauptschleife laufen lassen); Pixelgroessen geprueft.
     /// `ink`: Zeichnungen der PencilKit-Canvas nachzeichnen (`drawHierarchy` nimmt ihre Kacheln nicht mit).
-    /// `reserve`: Varianten und Reserve (nicht im Store-Satz) unter `reserve/`.
-    private func shoot(_ env: HostedEnvironment, _ name: String, reserve: Bool = false, ink: Bool = false, settle: Double = 1.0) {
+    /// `reserve`: Varianten und Reserve (nicht im Store-Satz) unter `reserve/`. `sheet`: Blatt ueber der Seite.
+    private func shoot(_ env: HostedEnvironment, _ name: String, reserve: Bool = false, ink: Bool = false, settle: Double = 1.0,
+                       sheet: SheetSwitch? = nil, sheetReady: @escaping () -> Bool = { true }) {
         guard let outDir else { return }
         let folder = reserve ? outDir.appendingPathComponent("reserve", isDirectory: true) : outDir
-        Self.shoot(env, name, folder: folder, sizes: [(Self.portrait, "portrait"), (Self.landscape, "landscape")], scale: 2, ink: ink, settle: settle)
+        Self.shoot(env, name, folder: folder, sizes: [(Self.portrait, "portrait"), (Self.landscape, "landscape")], scale: 2, ink: ink,
+                   settle: settle, present: sheet.map { s in { s.shown = true } }, sheetReady: sheetReady)
     }
 
-    /// Fotografiert das ganze Fenster (auch Blaetter darueber) je Groesse hell und dunkel; danach wieder die erste Groesse
+    /// Fotografiert das Fenster je Groesse hell und dunkel; danach wieder die erste Groesse. Mit Blatt (`present` oeffnet
+    /// es): zuerst alle Seiten ohne Blatt, dann das Blatt darueber (nach einer Praesentation zeichnet `drawHierarchy` die
+    /// Seite nur noch schwarz), zusammengesetzt mit der Abdunklung wie in der App. `cornerRadius`: Ecken des Blatts.
     static func shoot(_ env: HostedEnvironment, _ name: String, folder: URL, sizes: [(CGSize, String)], scale: CGFloat, ink: Bool,
-                      settle: Double) {
-        for (size, orientation) in sizes {
-            env.window.frame = CGRect(origin: .zero, size: size)
+                      settle: Double, present: (() -> Void)? = nil, sheetReady: @escaping () -> Bool = { true },
+                      cornerRadius: CGFloat = 26, statusBar: Bool = false) {
+        let variants: [(size: CGSize, orientation: String, style: UIUserInterfaceStyle, tone: String)] = sizes.flatMap { size, o in
+            [(size, o, UIUserInterfaceStyle.light, "light"), (size, o, .dark, "dark")]
+        }
+        func apply(_ v: (size: CGSize, orientation: String, style: UIUserInterfaceStyle, tone: String)) {
+            env.window.overrideUserInterfaceStyle = v.style
+            env.window.frame = CGRect(origin: .zero, size: v.size)
             env.view.frame = env.window.bounds
             env.pump(settle)
-            for (style, tone) in [(UIUserInterfaceStyle.light, "light"), (.dark, "dark")] {
-                env.window.overrideUserInterfaceStyle = style
-                env.pump(settle)
-                let data = png(env, scale: scale, ink: ink)
-                let file = folder.appendingPathComponent("\(name)-\(tone)-\(orientation).png")
-                do { try data.write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
-                if let cg = UIImage(data: data)?.cgImage {
-                    XCTAssertEqual(CGSize(width: cg.width, height: cg.height), CGSize(width: size.width * scale, height: size.height * scale),
-                                   file.lastPathComponent)
-                } else {
-                    XCTFail("\(file.lastPathComponent): kein Bild")
-                }
-            }
-            env.window.overrideUserInterfaceStyle = .unspecified
         }
+        var bases: [UIImage] = []
+        for v in variants {
+            apply(v)
+            bases.append(pageImage(env, scale: scale, ink: ink))
+        }
+        if let present {
+            present()
+            XCTAssertTrue(env.wait(timeout: 10) { env.hosting.presentedViewController != nil && sheetReady() }, "\(name): Blatt nicht bereit")
+        }
+        for (i, v) in variants.enumerated() {
+            var data = bases[i].pngData() ?? Data()
+            if present != nil {
+                apply(v)
+                _ = env.wait(timeout: 5) { sheetReady() }
+                env.pump(settle)
+                data = composite(env, base: bases[i], scale: scale, cornerRadius: cornerRadius)
+            }
+            if statusBar, let image = UIImage(data: data) {
+                data = withStatusBar(image, bounds: env.window.bounds, scale: scale, dark: v.style == .dark)
+            }
+            let file = folder.appendingPathComponent("\(name)-\(v.tone)-\(v.orientation).png")
+            do { try data.write(to: file) } catch { XCTFail("\(file.lastPathComponent): \(error)") }
+            if let cg = UIImage(data: data)?.cgImage {
+                XCTAssertEqual(CGSize(width: cg.width, height: cg.height), CGSize(width: v.size.width * scale, height: v.size.height * scale),
+                               file.lastPathComponent)
+            } else {
+                XCTFail("\(file.lastPathComponent): kein Bild")
+            }
+        }
+        env.window.overrideUserInterfaceStyle = .unspecified
         if let first = sizes.first {
             env.window.frame = CGRect(origin: .zero, size: first.0)
             env.view.frame = env.window.bounds
@@ -346,19 +375,81 @@ final class StoreScreenshotTests: XCTestCase {
         }
     }
 
-    /// Das Fenster Ebene fuer Ebene: zuerst die Seite (mit der Handschrift der Canvas darauf), dann Blaetter darueber
-    static func png(_ env: HostedEnvironment, scale: CGFloat, ink: Bool) -> Data {
+    private static func format(_ scale: CGFloat) -> UIGraphicsImageRendererFormat {
+        let f = UIGraphicsImageRendererFormat()
+        f.scale = scale
+        f.opaque = true
+        return f
+    }
+
+    /// Die Seite (gehostete Ansicht) mit der Handschrift der Canvas darauf
+    static func pageImage(_ env: HostedEnvironment, scale: CGFloat, ink: Bool) -> UIImage {
+        let window = env.window, page = env.view
+        window.layoutIfNeeded()
+        return UIGraphicsImageRenderer(bounds: window.bounds, format: format(scale)).image { ctx in
+            _ = page.drawHierarchy(in: page.convert(page.bounds, to: window), afterScreenUpdates: true)
+            if ink { for canvas in canvases(in: page) { drawInk(canvas, of: window, scale: scale, in: ctx.cgContext) } }
+        }
+    }
+
+    /// Seite, Abdunklung (nicht bei einem Blatt, das die Seite bei halber Hoehe bedienbar laesst), dann das praesentierte
+    /// Blatt an seiner Stelle mit runden Ecken
+    static func composite(_ env: HostedEnvironment, base: UIImage, scale: CGFloat, cornerRadius: CGFloat) -> Data {
         let window = env.window
         window.layoutIfNeeded()
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = scale
-        format.opaque = true
-        return UIGraphicsImageRenderer(bounds: window.bounds, format: format).pngData { ctx in
-            for layer in window.subviews where !layer.isHidden && layer.alpha > 0 {
-                _ = layer.drawHierarchy(in: layer.frame, afterScreenUpdates: true)
-                if ink, env.view.isDescendant(of: layer) {
-                    for canvas in canvases(in: env.view) { drawInk(canvas, of: window, scale: scale, in: ctx.cgContext) }
-                }
+        let sheetView = env.hosting.presentedViewController?.view
+        var radius: CGFloat = 0
+        var v = sheetView
+        while let x = v, x !== window {
+            if x.layer.cornerRadius > 0 { radius = x.layer.cornerRadius; break }
+            v = x.superview
+        }
+        if radius == 0 { radius = cornerRadius }               // Ecken des Blatts (iOS 26 setzt sie nicht ueber cornerRadius)
+        let dark = window.traitCollection.userInterfaceStyle == .dark
+        let spc = env.hosting.presentedViewController?.sheetPresentationController
+        let undimmed = spc?.largestUndimmedDetentIdentifier != nil && (spc?.selectedDetentIdentifier ?? .medium) == .medium
+        return UIGraphicsImageRenderer(bounds: window.bounds, format: format(scale)).pngData { ctx in
+            base.draw(in: window.bounds)
+            if !undimmed {
+                ctx.cgContext.setFillColor(UIColor.black.withAlphaComponent(dark ? 0.45 : 0.25).cgColor)
+                ctx.cgContext.fill(window.bounds)                // nicht ctx.fill: das kopiert und macht alles schwarz
+            }
+            guard let sheetView else { return }
+            let rect = sheetView.convert(sheetView.bounds, to: window)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: radius)
+            ctx.cgContext.saveGState()
+            ctx.cgContext.setShadow(offset: CGSize(width: 0, height: 8), blur: 40, color: UIColor.black.withAlphaComponent(0.25).cgColor)
+            (dark ? UIColor.black : UIColor.white).setFill()
+            path.fill()
+            ctx.cgContext.restoreGState()
+            ctx.cgContext.saveGState()
+            path.addClip()
+            _ = sheetView.drawHierarchy(in: rect, afterScreenUpdates: true)
+            ctx.cgContext.restoreGState()
+        }
+    }
+
+    /// Statuszeile wie auf dem Geraet (9:41, Netz, WLAN, Akku) in den oberen sicheren Bereich (iPhone; der Testaufbau
+    /// hat keine eigene, der Streifen bliebe leer)
+    static func withStatusBar(_ image: UIImage, bounds: CGRect, scale: CGFloat, dark: Bool) -> Data {
+        UIGraphicsImageRenderer(bounds: bounds, format: format(scale)).pngData { _ in
+            image.draw(in: bounds)
+            let color = dark ? UIColor.white : UIColor.black
+            let time = NSAttributedString(string: "9:41", attributes: [.font: UIFont.systemFont(ofSize: 17, weight: .semibold),
+                                                                       .foregroundColor: color])
+            let ts = time.size()
+            let midY: CGFloat = 31
+            time.draw(at: CGPoint(x: 78 - ts.width / 2, y: midY - ts.height / 2))
+            var x = bounds.width - 40
+            for (name, size) in [("battery.100percent", CGFloat(25)), ("wifi", CGFloat(17)), ("cellularbars", CGFloat(17))] {
+                let config = UIImage.SymbolConfiguration(pointSize: size, weight: .semibold)
+                guard let symbol = UIImage(systemName: name, withConfiguration: config)?.withTintColor(color, renderingMode: .alwaysOriginal)
+                else { continue }
+                let w = symbol.size.width * (name.hasPrefix("battery") ? 1 : 0.85)
+                let h = symbol.size.height * (w / symbol.size.width)
+                x -= w
+                symbol.draw(in: CGRect(x: x, y: midY - h / 2, width: w, height: h))
+                x -= 6
             }
         }
     }
@@ -380,6 +471,10 @@ final class StoreScreenshotTests: XCTestCase {
             image = canvas.drawing.image(from: page.bounds, scale: max(1, scale * zoom))
         }
         cg.saveGState()
+        // nur im sichtbaren Bereich des Dokuments (quer verschoben laege die Zeichnung sonst ueber der Werkzeugleiste)
+        var clip: UIView? = canvas.superview
+        while let v = clip, !(v is UIScrollView) { clip = v.superview }
+        if let scroll = clip { cg.clip(to: scroll.convert(scroll.bounds, to: root)) }
         cg.concatenate(t)
         image.draw(in: page.bounds, blendMode: .multiply, alpha: 1)      // Marker lässt den Text durch, wie auf der Canvas
         cg.restoreGState()
@@ -469,7 +564,7 @@ final class StoreScreenshotTests: XCTestCase {
         await store.load()
         XCTAssertNil(store.errorMessage, store.errorMessage ?? "")
         let key = try XCTUnwrap(store.pageKey(forPageIndex: 0), "Seite 1 von \(fileID)")
-        store.canvasChanged(pageKey: key, drawing: handwriting())
+        store.canvasChanged(pageKey: key, drawing: fileID == "demo-blatt" ? sheetHandwriting() : handwriting())
         await store.flush()
         await store.close()
     }
@@ -502,6 +597,28 @@ final class StoreScreenshotTests: XCTestCase {
                    ink: pen, width: 3, t: 790_000_040),
         ]
         return PKDrawing(strokes: strokes)
+    }
+
+    /// Uebungsblatt (Titel bei y 72, Aufgaben bei 112, 134, 156): Titel unterstrichen, Aufgabe 1 markiert, Haken vor
+    /// Aufgabe 1 und 2 (erledigt), Aufgabe 3 noch offen
+    static func sheetHandwriting() -> PKDrawing {
+        let pen = PKInk(.pen, color: UIColor(red: 0.13, green: 0.33, blue: 0.86, alpha: 1))
+        let marker = PKInk(.marker, color: UIColor(red: 1.0, green: 0.88, blue: 0.25, alpha: 0.6))
+        func line(_ from: CGPoint, _ to: CGPoint, _ n: Int = 24, wobble: CGFloat = 0) -> [CGPoint] {
+            (0...n).map { i in
+                let f = CGFloat(i) / CGFloat(n)
+                return CGPoint(x: from.x + (to.x - from.x) * f, y: from.y + (to.y - from.y) * f + sin(f * 7) * wobble)
+            }
+        }
+        func check(_ x: CGFloat, _ y: CGFloat) -> [CGPoint] {
+            line(CGPoint(x: x, y: y - 6), CGPoint(x: x + 8, y: y + 3), 8) + line(CGPoint(x: x + 8, y: y + 3), CGPoint(x: x + 22, y: y - 16), 10)
+        }
+        return PKDrawing(strokes: [
+            stroke(line(CGPoint(x: 58, y: 80), CGPoint(x: 196, y: 81), 30, wobble: 1.2), ink: pen, width: 3, t: 790_000_100),
+            stroke(line(CGPoint(x: 112, y: 108), CGPoint(x: 268, y: 107)), ink: marker, width: 16, t: 790_000_110),
+            stroke(check(30, 112), ink: pen, width: 3, t: 790_000_120),
+            stroke(check(30, 134), ink: pen, width: 3, t: 790_000_130),
+        ])
     }
 
     static func stroke(_ points: [CGPoint], ink: PKInk, width: CGFloat, t: Double) -> PKStroke {
@@ -592,12 +709,16 @@ final class StoreScreenshotTests: XCTestCase {
             XCTAssertTrue(tap("Neu, Fragen zu Übungsblatt 1", in: env, exact: false) || tap("Fragen zu Übungsblatt 1", in: env, exact: false), dump(env))
         }
         expect(env, "Bringt eure Lösungsansätze mit")
-        toggle.shown = true
-        XCTAssertTrue(env.wait(timeout: 10) { model.phase == .ready }, "Antwortfenster bereit: \(model.phase)")
-        model.text = Self.replyText
-        expect(env, "An Tutorium Grundlagen der Informatik")
+        let ready = { () -> Bool in
+            guard model.phase == .ready else { return false }
+            if model.text != Self.replyText { model.text = Self.replyText }
+            return true
+        }
         env.pump(1.0)
-        shoot(env, "06-nachrichten")
+        shoot(env, "06-nachrichten", sheet: toggle, sheetReady: ready)
+        toggle.shown = true
+        XCTAssertTrue(env.wait(timeout: 10) { ready() }, "Antwortfenster bereit: \(model.phase)")
+        expect(env, "An Tutorium Grundlagen der Informatik")
     }
 
     /// Uebungsblatt mit Handschrift, darueber "In Stud.IP abgeben": Kurs, Abgabeordner, Dateiname, Notizen mitschicken
@@ -608,12 +729,12 @@ final class StoreScreenshotTests: XCTestCase {
         let env = try host(WithSheet(base: MainView(), toggle: toggle) { StudIPSubmitSheet(model: model) })
         env.router.go(.doc("demo-blatt"))
         waitForInk(env)
-        toggle.shown = true
-        XCTAssertTrue(env.wait(timeout: 10) { model.phase == .ready && model.folderState == .loaded && model.prepared != nil },
-                      "Abgabe bereit: \(model.phase) \(model.folderState)")
-        expect(env, "Abgabe Übungsblatt 1")
+        let ready = { model.phase == .ready && model.folderState == .loaded && model.prepared != nil }
         env.pump(1.0)
-        shoot(env, "07-abgeben", ink: true)
+        shoot(env, "07-abgeben", ink: true, sheet: toggle, sheetReady: ready)
+        toggle.shown = true
+        XCTAssertTrue(env.wait(timeout: 10) { ready() }, "Abgabe bereit: \(model.phase) \(model.folderState)")
+        expect(env, "Abgabe Übungsblatt 1")
     }
 
     func test08Community() throws {

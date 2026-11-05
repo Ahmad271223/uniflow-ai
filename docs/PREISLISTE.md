@@ -45,6 +45,13 @@ nie automatisch kostenpflichtig; es gibt keine „1 Woche gratis“ bei Plus. Te
 Credits …“), iPad `UFTrialTexts.offerProAI` bzw. `runningTextService` (nur mit Dienst; ohne Dienst nennt das iPad Pro AI
 nicht, weil es die Karte nicht gibt).
 
+**Free gilt nur noch in der iPad-App (Entscheidung vom 05.11.2026, „anmelden immer muss ohne abo geht nichts“):** In
+der Web-App des Dienstes und in der Windows-App ist die Anmeldung mit dem StudiNow-Konto Pflicht; nach der Probe geht
+dort ohne Plus oder Pro AI nichts außer der Abo-Seite und den eigenen Daten zum Ansehen und Exportieren (nur lesen,
+Daten bleiben). Ein Abo gilt auf allen Geräten desselben Kontos (Apple-Abo vom iPad auch im Web und unter Windows).
+Abschluss im Web und unter Windows über Stripe (unter Windows im Systembrowser), auf dem iPad über den App Store; ein
+zweites Abo über Stripe neben einem Apple-Abo ist gesperrt. Ausführlich: `docs/ABO-SYSTEM.md` Abschnitt 3d.
+
 **Testliste:** Free und Plus sehen im Dienst die letzten 10 Tests (`app/server.py`, `HISTORY_BASIC`); ältere Tests
 bleiben gespeichert und zählen weiter für den Lernstand. Entschieden am 04.11.2026: die Grenze bleibt und steht in den
 Nutzungsbedingungen (Abschnitt 5a) und als Zeile „Vollständige Testliste (Free und Plus: die letzten 10)“ auf der
@@ -105,6 +112,7 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ über das eigene ChatGPT) |
 | Fertige Wochenfragen mit Erklärungen | gebaut im Dienst und Web/Windows (`docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad: nur im Vertrag („in Vorbereitung“) |
 | Pro AI im App Store | erst mit dem Online-Dienst; bis dahin auf der Tarifseite „kommt mit dem StudiNow-Dienst“, ohne Kaufknopf |
-| Tarifseite Web (Dienst) | drei Karten aus `GET /api/billing/plans`; „Abschließen“ (Stripe) nur an Plus und Pro AI, nie an Free; in der Probe trägt Pro AI „Probe läuft“ statt „Dein Tarif“ und bleibt kaufbar (`app/static/views-abo.js`, `tests/test_web_abo.py`) |
-| Tarifseite Windows-App (Einzelplatz) | drei Karten ohne jeden Kaufweg (Microsoft-Store-Regeln, `docs/release/MICROSOFT-STORE.md`); Pro AI ohne Preis als „kommt mit dem StudiNow-Dienst“ |
+| Tarifseite Web (Dienst) | drei Karten aus `GET /api/billing/plans`; „Abschließen“ (Stripe) nur an Plus und Pro AI, nie an Free; in der Probe trägt Pro AI „Probe läuft“ statt „Dein Tarif“ und bleibt kaufbar; nach der Probe ohne Abo „Kein aktives Abo“ mit „Meine Daten ansehen“ und „Meine Daten exportieren“, kein „Bei Free bleiben“ (`app/static/views-abo.js`, `tests/test_web_abo.py`) |
+| Tarifseite Windows-App (seit 05.11.2026 mit Konto-Pflicht) | wie im Web: drei Karten, „Abschließen“ öffnet die Stripe-Bezahlseite des Dienstes im Systembrowser, „Abo verwalten“ das Kundenportal; mit Apple-Abo am Konto kein Kaufknopf, sondern „Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones“ (`app/account_mode.py`, `app/static/views-abo.js`) |
+| Tarifseite Einzelplatz ohne Konto-Pflicht (`serve.py`, Entwicklung) | drei Karten ohne jeden Kaufweg; Pro AI ohne Preis als „kommt mit dem StudiNow-Dienst“ |
 | Einladungen („Freunde einladen“) | Dienst gebaut (`app/invites.py`, `docs/EINLADUNGEN.md`), Belohnung als Apple-Angebotscode: Plus 1/3/12 Monate gratis oder Pro AI 12 Monate zum Plus-Preis; Oberfläche nur auf dem iPad, Web/Windows bewusst nicht (`docs/EINLADUNGEN.md` Abschnitt 9) |

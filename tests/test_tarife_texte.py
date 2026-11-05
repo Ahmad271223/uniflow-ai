@@ -41,6 +41,8 @@ def test_web_plan_texts_match_trial_free_and_service_wording():
     abo = (STATIC / "views-abo.js").read_text(encoding="utf-8")
     assert "ohne Zahlungsdaten" in abo and "bleibst bei Free" in abo and "nie von selbst kostenpflichtig" in abo
     assert "kommt mit dem StudiNow-Dienst" in abo and "Auf diesem PC kannst du nichts kaufen" in abo
+    # Abo-Pflicht in Web und Windows (05.11.2026): nach der Probe kein "Bei Free bleiben", sondern ansehen und exportieren
+    assert "ohne Abo kannst du deine Daten weiter ansehen und exportieren" in abo and "GATE_TEXTS.lockedText" in abo
     # Plus gilt je Geraet: der Hinweis beim Abgleich nennt Pro AI, nicht Plus
     link = (STATIC / "studora-link.js").read_text(encoding="utf-8")
     assert "erst mit StudiNow Pro AI zwischen deinen Geräten" in link and "gleichen ab StudiNow Plus ab" not in link

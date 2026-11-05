@@ -1,0 +1,49 @@
+{
+  "description": "Wahlbereiche je Katalog, von Hand aus Pruefungsordnung (Anlage 1) und Modulkatalog gelesen (05.11.2026), eingemischt von tools/build-luh-seed.py. areas: Felder je Bereichs-id (lp_required, lp_max, modules_required, semester = empfohlenes Fachsemester fuer offene Plaetze, group = eins waehlen, type, kind, rule); add_areas: neue Bereiche (ohne Module: Platz mit eigenem Eintrag); modules: Felder je Modul-id (semester, area, kind). Verbindlich bleibt die Pruefungsordnung.",
+  "catalogs": {
+    "maschinenbau|b.sc.|2026": {
+      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_maschbau_bpo26_PO26.pdf (§ 21 Abs. 8, Anlage 1.6-1.9); Modulkatalog PO 2026 S. 11",
+      "areas": {
+        "ingenieurkompetenz-im-gesellschaftlichen-und-methodischen-kontext": {"lp_required": 29, "lp_max": null, "semester": 6,
+          "rule": "Bachelorprojekt, Tutorien oder Studium Generale, Praxisprojekt (14 LP) und Berufsqualifizierung (15 LP): Fachpraktikum (12 Wochen) oder drei Wahlpflichtmodule."},
+        "entwicklung-und-konstruktion": {"group": "vertiefungsrichtung", "lp_required": 10, "lp_max": 25, "semester": 5,
+          "rule": "5 LP aus dem Pflichtmodul und mindestens 5 LP aus Wahlpflichtmodulen (Fachpraktikum im Master: 20 LP). Im Zeugnis ab 5 + 20 LP."},
+        "produktionstechnik": {"group": "vertiefungsrichtung", "lp_required": 10, "lp_max": 25, "semester": 5,
+          "rule": "5 LP aus dem Pflichtmodul und mindestens 5 LP aus Wahlpflichtmodulen (Fachpraktikum im Master: 20 LP). Im Zeugnis ab 5 + 20 LP."},
+        "energie-und-verfahrenstechnik": {"group": "vertiefungsrichtung", "lp_required": 10, "lp_max": 25, "semester": 5,
+          "rule": "5 LP aus dem Pflichtmodul und mindestens 5 LP aus Wahlpflichtmodulen (Fachpraktikum im Master: 20 LP). Im Zeugnis ab 5 + 20 LP."}
+      }
+    },
+    "mathematik|b.sc.|2020": {
+      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_mathe_bpo2026.pdf (Anlage 1.1-1.3)",
+      "areas": {
+        "wahlpflichtmodule-bachelor": {"lp_required": 40, "modules_required": 4, "semester": 4,
+          "rule": "40 LP aus Grundlagen- und Spezialisierungsmodulen, mindestens 4 Module; aus einem Bereich Grundlagen- und Spezialisierungsmodul; mindestens ein Modul aus A-C und eins aus D/E."}
+      },
+      "add_areas": [
+        {"id": "schluesselkompetenzen", "name": "Schlüsselkompetenzen", "kind": "wahl", "type": "schluessel", "lp_required": 5, "lp_max": null, "semester": 1,
+         "rule": "Eines von drei Modulen: Einführendes Computerpraktikum, Schlüsselkompetenzen (Leibniz Language Centre, LUIS, ZfSK) oder Berufsfeldpraktikum (ab 3. Semester)."},
+        {"id": "anwendungsfach", "name": "Anwendungsfach", "kind": "wahl", "type": "nebenfach", "lp_required": 18, "lp_max": null, "semester": 3,
+         "rule": "Ein Anwendungsfach wählen (z. B. Betriebswirtschaft, Informatik, Physik), darin mindestens 18 LP. Die Module stehen in den Katalogen der anderen Fakultäten."}
+      ],
+      "modules": {
+        "analysis-1": {"semester": 1}, "lineare-algebra-1": {"semester": 1}, "analysis-2": {"semester": 2},
+        "lineare-algebra-2": {"semester": 2}, "algorthmisches-programmieren": {"semester": 2}, "proseminar": {"semester": 2},
+        "analysis-3": {"semester": 3}, "algebra-1": {"semester": 3}, "numerische-mathematik-1": {"semester": 3},
+        "stochastische-methoden": {"semester": 4}, "seminar": {"semester": 5}, "bachelorarbeit": {"semester": 6},
+        "einfuehrendes-computerpraktikum-fuer-mathematikstudierende": {"area": "schluesselkompetenzen", "kind": "wahl", "semester": 1}
+      }
+    },
+    "wirtschaftswissenschaft|b.sc.|2017": {
+      "source": "https://www.uni-hannover.de/fileadmin/luh/studium/ordnungen/stpo/f_wiwi_bpo26.pdf (Anlage 1.1.c, 1.2.c, 1.7.c)",
+      "areas": {
+        "betriebswirtschaftslehre": {"lp_required": 62, "semester": 5,
+          "rule": "Pflichtmodule (42 LP) und mindestens 20 LP Wahlmodule im 5. und 6. Semester; genau 5 LP davon als Seminarleistung."},
+        "volkswirtschaftslehre": {"lp_required": 58, "semester": 5,
+          "rule": "Pflichtmodule (38 LP) und mindestens 20 LP Wahlmodule im 5. und 6. Semester; genau 5 LP davon als Seminarleistung."},
+        "schluesselkompetenzen-studium-generale": {"lp_required": 5, "lp_max": 8, "semester": 5,
+          "rule": "Mindestens 5 LP Schlüsselkompetenzen/Studium Generale, auch Veranstaltungen anderer Fakultäten."}
+      }
+    }
+  }
+}

@@ -166,11 +166,10 @@ struct TutorDocControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("Umfang", selection: $scope) {
-                ForEach(TutorDocScope.allCases) { s in Text(s.title).tag(s) }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("tutor.scope")
+            // Segmente nach Inhalt breit (Store-Bilder 05.11.2026: im iPad-Hochformat ist die Leiste 330 pt schmal, gleich
+            // breite Segmente kuerzten "Ganzes Dokument" auf "Ganzes Doku…")
+            TutorScopeSegments(scope: $scope)
+                .accessibilityIdentifier("tutor.scope")
             if scope == .range {
                 HStack(spacing: 6) {
                     Text("Seiten").ufFont(12.8).foregroundStyle(UF.muted)
@@ -198,6 +197,45 @@ struct TutorDocControls: View {
             .padding(.vertical, 5)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(UF.line, lineWidth: 1))
             .accessibilityIdentifier(id)
+    }
+}
+
+/// Umfang als Segmente wie `Picker(.segmented)`, aber je Segment so breit wie sein Titel
+/// (`apportionsSegmentWidthsByContent`); der Rest der Breite verteilt sich anteilig
+struct TutorScopeSegments: UIViewRepresentable {
+    @Binding var scope: TutorDocScope
+
+    func makeUIView(context: Context) -> UISegmentedControl {
+        let control = UISegmentedControl(items: TutorDocScope.allCases.map(\.title))
+        control.apportionsSegmentWidthsByContent = true
+        control.accessibilityLabel = "Umfang"
+        control.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
+        return control
+    }
+
+    func updateUIView(_ control: UISegmentedControl, context: Context) {
+        context.coordinator.scope = $scope
+        let i = TutorDocScope.allCases.firstIndex(of: scope) ?? 0
+        if control.selectedSegmentIndex != i { control.selectedSegmentIndex = i }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UISegmentedControl, context: Context) -> CGSize? {
+        let ideal = uiView.intrinsicContentSize
+        return CGSize(width: proposal.width ?? ideal.width, height: ideal.height)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(scope: $scope) }
+
+    final class Coordinator: NSObject {
+        var scope: Binding<TutorDocScope>
+        init(scope: Binding<TutorDocScope>) { self.scope = scope }
+
+        @objc func changed(_ control: UISegmentedControl) {
+            let all = TutorDocScope.allCases
+            guard all.indices.contains(control.selectedSegmentIndex) else { return }
+            scope.wrappedValue = all[control.selectedSegmentIndex]
+        }
     }
 }
 

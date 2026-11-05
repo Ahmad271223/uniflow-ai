@@ -27,7 +27,9 @@ export function trialHintHtml(ent, hosted, icon, esc) {
       + `<div class="small muted">${ends ? `Bis ${esc(ends)} hast du alle Funktionen. ` : ""}Danach wählst du einen Tarif; ohne Wahl geht es mit Free weiter, deine Notizen bleiben.</div></div>`
       + `<a class="btn sm" href="#/abo">${esc(TRIAL_TEXTS.plans)}</a></div></div>`;
   }
-  if (ent?.needs_plan_choice) {
+  // Mit Abo-Pflicht (Web, Windows; 05.11.2026) gibt es kein "Bei Free bleiben": die Leiste aus account-gate.js zeigt
+  // dort "Kein aktives Abo" mit "Abo wählen"
+  if (ent?.needs_plan_choice && !ent?.access?.account_required) {
     return `<div class="card pwa-hint" style="border-color:var(--warn)"><div class="row wrap" style="align-items:center;gap:.6rem">${icon("alert", 18)}<div style="flex:1"><b>${esc(TRIAL_TEXTS.over)}</b>`
       + `<div class="small muted">${esc(TRIAL_TEXTS.overText)}</div></div>`
       + `<a class="btn primary sm" href="#/abo">${esc(TRIAL_TEXTS.plans)}</a><button type="button" class="btn sm" id="trialFree">${esc(TRIAL_TEXTS.stayFree)}</button></div></div>`;

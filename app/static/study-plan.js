@@ -5,7 +5,7 @@
 // (GET /api/study-plan); Noten aus QIS bleiben auf diesem Geraet. Ohne Plan: QIS verbinden, Studiengang aus dem Register
 // waehlen, Katalogsuche mit Fortschritt (GET /api/study-catalog/status, fragt alle 2 s nach) oder Link zum Modulhandbuch.
 // Die Regeln und das HTML stehen in study-plan-logic.js (laeuft auch unter node: tests/js/study-plan.test.mjs).
-import { $, $$, api, icon, modal, toast, showError } from "./core.js?v=43";
+import { $, $$, api, icon, modal, toast, showError } from "./core.js?v=44";
 import * as L from "./study-plan-logic.js?v=1";
 
 const POLL_MS = 2000;

@@ -373,7 +373,26 @@ def status(conn: sqlite3.Connection, user: dict, now: datetime | None = None) ->
         "integrations": plans.contract()["integrations"], "mode": "hosted",
         "trial": trial_info(conn, user["id"], t), "plan_choice": plan_choice(conn, user["id"]),
         "needs_plan_choice": needs_plan_choice(conn, user["id"], plan, t),
+        # Abo-Pflicht in Web und Windows (05.11.2026, app/access.py): bezahlter Tarif ohne die Probe und welche
+        # Quellen gerade ein aktives Abo tragen (Windows zeigt bei einem Apple-Abo keinen zweiten Kauf)
+        "paid_plan": _paid_plan(rows, legacy, t),
+        "subscriptions": {s: any(r["source"] == s and normalize_plan(r["plan"]) and _row_active(r["status"], r["expires_at"], t.isoformat())
+                                 for r in rows) for s in ("app_store", "stripe")},
     }
+
+
+def _paid_plan(rows: list[dict], legacy: dict, t: datetime) -> str:
+    """Hoechster aktiver Tarif ohne die Probe (App Store, Stripe, Betrieb, Feld users.plan); sonst free."""
+    best = "free"
+    for r in rows:
+        p = normalize_plan(r["plan"])
+        if r["source"] != "trial" and p and _row_active(r["status"], r["expires_at"], t.isoformat()) and plans.rank(p) > plans.rank(best):
+            best = p
+    p = normalize_plan(legacy.get("plan"))
+    until = legacy.get("plan_until")
+    if p and (not until or str(until)[:10] >= t.isoformat()[:10]) and plans.rank(p) > plans.rank(best):
+        best = p
+    return best
 
 
 def local_status() -> dict:

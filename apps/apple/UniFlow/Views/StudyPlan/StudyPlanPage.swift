@@ -43,12 +43,24 @@ struct StudyPlanPage: View {
     @State private var linkBusy = false
     @State private var poBusy = false
     @State private var poError: String?
+    /// Bearbeiten (05.11.2026): offenes Blatt, nach dem Detail zu oeffnendes Blatt, Rueckmeldung, Rueckfrage
+    @State private var edit: StudyPlanEditRef?
+    @State private var pendingEdit: StudyPlanEditRef?
+    @State private var toast: String?
+    @State private var confirmReset = false
+    @State private var editError: String?
+    /// Gesamtansicht (alle Semester ohne Rollen) statt Board; gemerkt je Geraet
+    @AppStorage("studyplan.overview") private var overview = false
+    /// Ziehen und Ablegen auf dem Board (Tests loesen das Ablegen hierueber aus)
+    let dropHub: StudyPlanDropHub
 
     /// `initialLink`: vorbelegter Link zum Modulhandbuch (Tests, Bildvergleich)
-    init(focus: String? = nil, layoutOverride: StudyPlanLayout? = nil, pollInterval: Double = 2, initialLink: String = "") {
+    init(focus: String? = nil, layoutOverride: StudyPlanLayout? = nil, pollInterval: Double = 2, initialLink: String = "",
+         dropHub: StudyPlanDropHub = StudyPlanDropHub()) {
         self.focus = focus
         self.layoutOverride = layoutOverride
         self.pollInterval = pollInterval
+        self.dropHub = dropHub
         _linkText = State(initialValue: initialLink)
     }
 
@@ -62,7 +74,7 @@ struct StudyPlanPage: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         UFPageHead(StudyPlanText.title) { headActions }
-                        content(layout: layout, pad: pad)
+                        content(layout: layout, pad: pad, size: g.size)
                     }
                     .padding(EdgeInsets(top: 22.4, leading: pad, bottom: 48, trailing: pad))
                     .frame(maxWidth: 1480, alignment: .leading)
@@ -72,19 +84,40 @@ struct StudyPlanPage: View {
                 .onChange(of: plan) { _, p in scrollToStart(p, proxy: proxy) }
                 .onAppear { scrollToStart(plan, proxy: proxy) }
             }
+            .overlay(alignment: .bottom) {
+                if let toast {
+                    StudyPlanToast(text: toast).padding(.horizontal, pad).padding(.bottom, 18)
+                        .transition(.opacity)
+                }
+            }
+            .sheet(item: $edit) { ref in editSheet(ref) }
         }
         .background(UF.bg)
+        .onAppear { dropHub.perform = { ids, term in await drop(ids, on: term) } }
+        .alert("Plan zurücksetzen?", isPresented: $confirmReset) {
+            Button("Zurücksetzen", role: .destructive) { Task { await apply(StudyPlanEdit.reset, message: { _ in "Plan zurückgesetzt – alle Module liegen wieder im empfohlenen Semester." }) } }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Eigene Verschiebungen und „Nicht belegen“ werden entfernt. Gewählte Module, Schwerpunkt und eigene Einträge bleiben.")
+        }
         .task { await load() }
         .task(id: pollKey) { await poll() }
         .ufReload { await load() }
-        .sheet(item: $detail) { ref in
-            StudyModuleSheet(startID: ref.id, api: session.api, titles: plan?.titles ?? [:]) { route in
+        .sheet(item: $detail, onDismiss: {
+            if let p = pendingEdit { pendingEdit = nil; edit = p }
+        }) { ref in
+            StudyModuleSheet(startID: ref.id, api: session.api, titles: plan?.titles ?? [:],
+                             planModule: plan?.modules.first { $0.id == ref.id },
+                             manage: { id, action in
+                                 detail = nil
+                                 handle(id, action, viaDetail: true)
+                             }) { route in
                 detail = nil
                 router.go(route)
             }
         }
         .sheet(isPresented: $showSettings) {
-            StudyPlanSettingsSheet(api: session.api) { await load() }
+            StudyPlanSettingsSheet(api: session.api, plan: plan) { await load() }
         }
         .accessibilityIdentifier("studyplan.page")
     }
@@ -93,12 +126,20 @@ struct StudyPlanPage: View {
 
     @ViewBuilder private var headActions: some View {
         if let p = plan, p.gap != .noQIS {
+            if p.available {
+                UFButton("Modul hinzufügen", icon: "plus") { edit = .choose(nil) }
+                    .accessibilityIdentifier("studyplan.add")
+                if !p.placements.isEmpty || !p.excluded.isEmpty {
+                    UFButton("Plan zurücksetzen", icon: "undo") { confirmReset = true }
+                        .accessibilityIdentifier("studyplan.reset")
+                }
+            }
             UFButton("Einstellungen", icon: "settings") { showSettings = true }
                 .accessibilityIdentifier("studyplan.settings")
         }
     }
 
-    @ViewBuilder private func content(layout: StudyPlanLayout, pad: CGFloat) -> some View {
+    @ViewBuilder private func content(layout: StudyPlanLayout, pad: CGFloat, size: CGSize) -> some View {
         switch phase {
         case .loading:
             HStack(spacing: 10) {
@@ -112,13 +153,43 @@ struct StudyPlanPage: View {
                 UFButton("Erneut laden", icon: "refresh") { Task { await load() } }
             }
         case .loaded(let p):
-            if p.available {
+            if p.available && overview {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        viewToggle
+                        Text(StudyPlanText.progress(p.lpDone, p.lpTotal)).ufFont(13.12, 600).foregroundStyle(UF.okText)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        Spacer(minLength: 0)
+                    }
+                    if let editError {
+                        Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                    }
+                    // Hoehe: Fenster minus Seitenkopf (ca. 70 pt), Umschalter (44 pt) und Raender
+                    StudyPlanOverview(plan: p, semesters: p.semesters,
+                                      size: CGSize(width: max(200, size.width - 2 * pad), height: max(260, size.height - 22.4 - 48 - 70 - 54)),
+                                      actions: cardActions, openSlot: { edit = .choose($0) }, dropHub: dropHub) {
+                        detail = StudyPlanDetailRef(id: $0.id)
+                    }
+                }
+            } else if p.available {
                 VStack(alignment: .leading, spacing: 16) {
                     if let s = p.suggestedPO, !p.poConfirmed { poCard(p, suggested: s) }
                     StudyPlanHeaderCard(plan: p)
+                    if let editError {
+                        Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("studyplan.edit.error")
+                    }
+                    if !p.groups.isEmpty || p.areas.contains(where: \.choice) || !p.excluded.isEmpty {
+                        StudyPlanAreasCard(plan: p, chooseTrack: { edit = .choose($0) },
+                                           restore: { o in Task { await apply(StudyPlanEdit.choose(p, option: o, term: nil),
+                                                                              message: { _ in "\(o.title) ist wieder im Plan." }) } })
+                    }
                     // Pruefungsanmeldung (05.11.2026, ExamRegistrationViews.swift): Zeitraum, Vorschlaege, Haken
                     ExamRegistrationSection(api: session.api)
-                    filterRow(p)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 10) { filterRow(p); Spacer(minLength: 0); viewToggle }
+                        VStack(alignment: .leading, spacing: 10) { filterRow(p); viewToggle }
+                    }
                     board(p, layout: layout, pad: pad)
                 }
             } else {
@@ -171,6 +242,15 @@ struct StudyPlanPage: View {
         return "StudiNow hat die passende Ordnung vorgeschlagen. Bestätige sie oder wähle eine andere."
     }
 
+    // MARK: Ansicht
+
+    /// Umschalter Semester (Board/Liste) / Gesamtansicht
+    private var viewToggle: some View {
+        UFSegmented(options: [(false, "Semester"), (true, "Gesamtansicht")], selection: $overview)
+            .fixedSize()
+            .accessibilityIdentifier("studyplan.view")
+    }
+
     // MARK: Filter
 
     private func filterRow(_ p: StudyPlan) -> some View {
@@ -205,7 +285,8 @@ struct StudyPlanPage: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(semesters) { s in
-                        StudyPlanSemesterView(semester: s, style: .column) { detail = StudyPlanDetailRef(id: $0.id) }
+                        StudyPlanSemesterView(semester: s, style: .column, plan: p, actions: cardActions,
+                                              openSlot: { edit = .choose($0) }, dropHub: dropHub) { detail = StudyPlanDetailRef(id: $0.id) }
                             .frame(width: width)
                             .id(s.term)
                     }
@@ -222,7 +303,8 @@ struct StudyPlanPage: View {
         } else {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(semesters) { s in
-                    StudyPlanSemesterView(semester: s, style: .section) { detail = StudyPlanDetailRef(id: $0.id) }
+                    StudyPlanSemesterView(semester: s, style: .section, plan: p, actions: cardActions,
+                                          openSlot: { edit = .choose($0) }) { detail = StudyPlanDetailRef(id: $0.id) }
                         .id("sem-\(s.term)")
                 }
             }
@@ -437,6 +519,118 @@ struct StudyPlanPage: View {
         }
     }
 
+    // MARK: Bearbeiten (05.11.2026)
+
+    private var cardActions: (StudyPlanModule, StudyPlanModuleAction) -> Void {
+        { m, action in handle(m.id, action, viaDetail: false) }
+    }
+
+    private func handle(_ id: String, _ action: StudyPlanModuleAction, viaDetail: Bool) {
+        guard let p = plan, let m = p.modules.first(where: { $0.id == id }) else { return }
+        switch action {
+        case .move:
+            if viaDetail { pendingEdit = .move(id) } else { edit = .move(id) }
+        case .drop:
+            Task {
+                await apply(StudyPlanEdit.drop(p, module: m), message: { _ in "\(m.title) wird nicht belegt – „Zurück in den Plan“ holt es wieder." })
+            }
+        case .resetPlacement:
+            Task { await apply(StudyPlanEdit.resetPlacement(p, id: id), message: { _ in "\(m.title) liegt wieder im empfohlenen Semester." }) }
+        case .replace:
+            if viaDetail { pendingEdit = .replace(id) } else { edit = .replace(id) }
+        }
+    }
+
+    /// Platz fuer den Tausch: Bereiche des gewaehlten Moduls, Semester, in dem es liegt
+    private func replaceSlot(_ p: StudyPlan, _ m: StudyPlanModule) -> StudyPlanSlot {
+        let areas = p.options.first { $0.id == m.id }?.areas ?? (m.area.map { [$0] } ?? [])
+        return StudyPlanSlot(["id": .string("tausch-\(m.id)"), "kind": "slot", "title": .string("Statt \(m.title)"),
+                              "area": m.area.map(JSONValue.string) ?? .null, "areas": .array(areas.map(JSONValue.string)),
+                              "area_kind": .string(m.kind), "lp": .number(m.lp)], term: p.semester(of: m.id)?.term ?? "")
+    }
+
+    @ViewBuilder private func editSheet(_ ref: StudyPlanEditRef) -> some View {
+        if let p = plan {
+            switch ref {
+            case .move(let id):
+                if let m = p.modules.first(where: { $0.id == id }) {
+                    StudyPlanMoveSheet(module: m, plan: p, pick: { term in Task { await move(id, to: term) } },
+                                       resetPlacement: { handle(id, .resetPlacement, viaDetail: false) })
+                }
+            case .choose(let slot):
+                StudyPlanChooserSheet(
+                    plan: p, slot: slot, api: session.api,
+                    choose: { o, term in
+                        Task { await apply(StudyPlanEdit.choose(p, option: o, term: term),
+                                           message: { _ in "\(o.title) eingeplant" + (term.map { " in \($0)" } ?? "") + "." }) }
+                    },
+                    addCustom: { title, lp, area, fach in
+                        Task { await apply(StudyPlanEdit.addCustom(p, title: title, lp: lp, area: area, fachsemester: fach),
+                                           message: { _ in "„\(title.trimmingCharacters(in: .whitespaces))“ eingetragen." }) }
+                    },
+                    chooseTrack: { group, area in
+                        Task { await apply(StudyPlanEdit.track(p, group: group, area: area),
+                                           message: { after in "\(after.area(area)?.name ?? area) gewählt." }) }
+                    })
+            case .replace(let id):
+                if let m = p.modules.first(where: { $0.id == id }) {
+                    StudyPlanChooserSheet(
+                        plan: p, slot: replaceSlot(p, m), api: session.api,
+                        choose: { o, term in
+                            Task { await apply(StudyPlanEdit.replace(p, old: id, option: o, term: term),
+                                               message: { _ in "\(o.title) statt \(m.title) gewählt." }) }
+                        },
+                        addCustom: { title, lp, area, fach in
+                            Task { await apply(StudyPlanEdit.addCustom(p, title: title, lp: lp, area: area, fachsemester: fach),
+                                               message: { _ in "„\(title.trimmingCharacters(in: .whitespaces))“ eingetragen." }) }
+                        },
+                        chooseTrack: { _, _ in })
+                }
+            case .areas:
+                EmptyView()
+            }
+        }
+    }
+
+    /// Ablegen auf einer Spalte des Boards: das erste verschiebbare Modul wandert in dieses Semester
+    func drop(_ ids: [String], on term: String) async -> Bool {
+        guard let p = plan, let id = ids.first(where: { i in p.modules.contains { $0.id == i && $0.movable } }) else { return false }
+        guard p.semester(of: id)?.term != term else { return false }
+        await move(id, to: term)
+        return true
+    }
+
+    func move(_ id: String, to term: String) async {
+        guard let p = plan, let m = p.modules.first(where: { $0.id == id }), m.movable else { return }
+        let from = p.semester(of: id)
+        guard from?.term != term else { return }
+        await apply(StudyPlanEdit.move(p, id: id, to: term)) { after in
+            StudyPlanText.moveMessage(title: m.title, from: from, to: term, after: after)
+        }
+    }
+
+    /// Aenderung senden, Plan neu lesen, Rueckmeldung zeigen (VoiceOver liest sie vor)
+    func apply(_ body: JSONValue, message: ((StudyPlan) -> String)?) async {
+        guard let api = session.api else { return }
+        do {
+            _ = try await api.value("/api/study-plan/settings", method: "POST", body: body)
+            editError = nil
+            await load()
+            if let p = plan, let message {
+                let text = message(p)
+                UFMotion.toggle { toast = text }
+                UIAccessibility.post(notification: .announcement, argument: text)
+                let shown = text
+                Task {
+                    try? await Task.sleep(nanoseconds: 6_000_000_000)
+                    if toast == shown { UFMotion.toggle { toast = nil } }
+                }
+            }
+        } catch {
+            editError = "Ändern fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+
     /// Board quer: liegt das aktuelle Semester (bzw. das aus `focus`) hinter der dritten Spalte (am iPad 10,9" quer
     /// passen drei ganz), beginnt das Board beim Semester davor, damit es als zweite Spalte mit dem vorigen als Bezug
     /// erscheint; sonst bleibt es am Anfang (nil)
@@ -526,7 +720,13 @@ struct StudyPlanSemesterView: View {
     enum Style { case column, section }
     let semester: StudyPlanSemester
     let style: Style
+    /// Plan fuer die Plaetze (Texte), Aktionen je Karte, Platz antippen, Ablegen (nur Board)
+    var plan: StudyPlan?
+    var actions: ((StudyPlanModule, StudyPlanModuleAction) -> Void)?
+    var openSlot: ((StudyPlanSlot) -> Void)?
+    var dropHub: StudyPlanDropHub?
     let open: (StudyPlanModule) -> Void
+    @State private var targeted = false
 
     /// Semester mit gefilterten Modulen (LP-Summe bleibt die des ganzen Semesters)
     static func filtered(_ s: StudyPlanSemester, modules: [StudyPlanModule]) -> StudyPlanSemester {
@@ -538,25 +738,44 @@ struct StudyPlanSemesterView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             head
-            if semester.modules.isEmpty {
+            if semester.modules.isEmpty && slotsShown.isEmpty {
                 Text("Keine Module geplant").ufFont(12.8).foregroundStyle(UF.muted).padding(.vertical, 6)
             } else if style == .column {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(semester.modules) { m in StudyPlanModuleCard(module: m) { open(m) } }
+                    ForEach(semester.modules) { m in card(m, fills: false) }
+                    ForEach(slotsShown) { sl in slotCard(sl) }
                 }
             } else {
                 UFGridLayout(spacing: 10, minWidth: gridMin) {
-                    ForEach(semester.modules) { m in StudyPlanModuleCard(module: m, fills: true) { open(m) } }
+                    ForEach(semester.modules) { m in card(m, fills: true) }
+                    ForEach(slotsShown) { sl in slotCard(sl) }
                 }
             }
         }
         .padding(style == .column ? 10 : 14)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 14).fill(semester.current ? Color.mix(UF.accent, 0.07, UF.bg) : Color.mix(UF.surface2, 0.7, UF.bg)))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(semester.current ? Color.mix(UF.accent, 0.55, UF.line) : UF.line,
-                                                                 lineWidth: semester.current ? 1.5 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(targeted ? UF.accentFill : (semester.current ? Color.mix(UF.accent, 0.55, UF.line) : UF.line),
+                                                                 lineWidth: targeted ? 2 : (semester.current ? 1.5 : 1)))
+        .modifier(StudyPlanDropTarget(hub: dropHub, term: semester.term, targeted: $targeted))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("studyplan.semester.\(semester.term)")
+    }
+
+    /// Plaetze nur ohne Filter auf "Bestanden" (der Kern liefert sie ohnehin nur fuer offene Wahl)
+    private var slotsShown: [StudyPlanSlot] { plan == nil ? [] : semester.slots }
+
+    @ViewBuilder private func slotCard(_ sl: StudyPlanSlot) -> some View {
+        if let plan { StudyPlanSlotCard(slot: sl, plan: plan) { openSlot?(sl) } }
+    }
+
+    @ViewBuilder private func card(_ m: StudyPlanModule, fills: Bool) -> some View {
+        let base = StudyPlanModuleCard(module: m, fills: fills, actions: actions) { open(m) }
+        if dropHub != nil && m.movable {
+            base.draggable(m.id)
+        } else {
+            base
+        }
     }
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -576,8 +795,13 @@ struct StudyPlanSemesterView: View {
                 }
             }
             Spacer(minLength: 4)
-            UFBadge(StudyPlanText.lp(semester.lp), tone: semester.overloaded ? .warn : .neutral, icon: semester.overloaded ? "alert" : nil)
-                .fixedSize()
+            VStack(alignment: .trailing, spacing: 3) {
+                UFBadge(StudyPlanText.lp(semester.lp), tone: semester.overloaded ? .warn : .neutral, icon: semester.overloaded ? "alert" : nil)
+                    .fixedSize()
+                if semester.lpSlots > 0 {
+                    Text("+ \(StudyPlanText.number(semester.lpSlots)) LP offen").ufFont(11.52, 600).foregroundStyle(UF.muted).fixedSize()
+                }
+            }
         }
         .padding(.horizontal, 2)
         .accessibilityElement(children: .ignore)
@@ -592,6 +816,8 @@ struct StudyPlanModuleCard: View {
     let module: StudyPlanModule
     /// im Raster: Karte fuellt die Zeilenhoehe
     var fills = false
+    /// Verschieben, Nicht belegen, ins empfohlene Semester (Menue und VoiceOver); nil: nur Detail
+    var actions: ((StudyPlanModule, StudyPlanModuleAction) -> Void)?
     let action: () -> Void
 
     var body: some View {
@@ -608,6 +834,8 @@ struct StudyPlanModuleCard: View {
                 UFFlexWrap(gap: 5, rowGap: 5) {
                     StudyPlanTag(text: StudyPlanText.kind(m.kind), pair: StudyPlanText.kindPair(m.kind))
                     if let t = StudyPlanText.turnus(m.turnus) { StudyPlanTag(text: t, pair: nil) }
+                    if m.placed { StudyPlanTag(text: "Selbst eingeplant", pair: CommunityPalette.sky) }
+                    if m.custom { StudyPlanTag(text: "Eigener Eintrag", pair: nil) }
                 }
                 StudyPlanStatusPill(text: StudyPlanText.status(m), status: m.status)
                 if let r = StudyPlanText.reasonLine(m) {
@@ -622,6 +850,13 @@ struct StudyPlanModuleCard: View {
                     }
                     .foregroundStyle(UF.badText)
                 }
+                ForEach(m.hints, id: \.self) { h in
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        UFIcon("alert", size: 11)
+                        Text(h).ufFont(11.52, 550, lh: 1.3).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(UF.warnText)
+                }
             }
             .padding(.vertical, 10)
             .padding(.leading, 13)
@@ -634,9 +869,84 @@ struct StudyPlanModuleCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(StudyPlanPressStyle())
+        .contextMenu {
+            if let actions, m.movable {
+                Button { actions(m, .move) } label: { Label("Verschieben nach …", systemImage: "arrow.left.arrow.right") }
+                if m.placed {
+                    Button { actions(m, .resetPlacement) } label: { Label("Ins empfohlene Semester", systemImage: "arrow.uturn.backward") }
+                }
+                if m.replaceable {
+                    Button { actions(m, .replace) } label: { Label("Anderes Modul wählen", systemImage: "arrow.triangle.2.circlepath") }
+                }
+                Button(role: .destructive) { actions(m, .drop) } label: { Label("Nicht belegen", systemImage: "minus.circle") }
+            }
+        }
         .accessibilityLabel(StudyPlanText.accessibility(m))
         .accessibilityHint("Zeigt Details zum Modul")
+        .modifier(StudyPlanCardActions(module: m, actions: actions))
         .accessibilityIdentifier("studyplan.module.\(m.id)")
+    }
+}
+
+/// VoiceOver-Aktionen je Karte (wie das Menue)
+struct StudyPlanCardActions: ViewModifier {
+    let module: StudyPlanModule
+    let actions: ((StudyPlanModule, StudyPlanModuleAction) -> Void)?
+
+    func body(content: Content) -> some View {
+        if let actions, module.movable {
+            content
+                .accessibilityAction(named: "Verschieben nach …") { actions(module, .move) }
+                .accessibilityAction(named: "Nicht belegen") { actions(module, .drop) }
+                .modifier(StudyPlanResetAction(module: module, actions: actions))
+                .modifier(StudyPlanReplaceAction(module: module, actions: actions))
+        } else {
+            content
+        }
+    }
+}
+
+private struct StudyPlanResetAction: ViewModifier {
+    let module: StudyPlanModule
+    let actions: (StudyPlanModule, StudyPlanModuleAction) -> Void
+
+    func body(content: Content) -> some View {
+        if module.placed {
+            content.accessibilityAction(named: "Ins empfohlene Semester") { actions(module, .resetPlacement) }
+        } else {
+            content
+        }
+    }
+}
+
+private struct StudyPlanReplaceAction: ViewModifier {
+    let module: StudyPlanModule
+    let actions: (StudyPlanModule, StudyPlanModuleAction) -> Void
+
+    func body(content: Content) -> some View {
+        if module.replaceable {
+            content.accessibilityAction(named: "Anderes Modul wählen") { actions(module, .replace) }
+        } else {
+            content
+        }
+    }
+}
+
+/// Spalte als Ablageziel fuer gezogene Module (nur Board)
+struct StudyPlanDropTarget: ViewModifier {
+    let hub: StudyPlanDropHub?
+    let term: String
+    @Binding var targeted: Bool
+
+    func body(content: Content) -> some View {
+        if let hub {
+            content.dropDestination(for: String.self) { items, _ in
+                Task { await hub.drop(items, on: term) }
+                return !items.isEmpty
+            } isTargeted: { targeted = $0 }
+        } else {
+            content
+        }
     }
 }
 

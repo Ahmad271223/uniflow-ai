@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 03.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 05.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -9,9 +9,10 @@ eingeschaltet hast.
 
 ## 1. Das Wichtigste in Kürze
 
-- **Ohne StudiNow-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts – außer dem, was du
-  auf dem iPad bewusst mit anderen teilst: Community-Beiträge, gemeinsame Wochentests und Einträge der Bibliothek liegen
-  verschlüsselt in Apples iCloud (Abschnitt 8b).
+- **Ohne StudiNow-Konto** (iPad-App) bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts – außer
+  dem, was du auf dem iPad bewusst mit anderen teilst: Community-Beiträge, gemeinsame Wochentests und Einträge der
+  Bibliothek liegen verschlüsselt in Apples iCloud (Abschnitt 8b). Die Web-Oberfläche und die Windows-App brauchen
+  seit dem 05.11.2026 immer ein StudiNow-Konto (Abschnitt 5).
 - **Mit StudiNow-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
   und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
   schaltest du einzeln ein (Abschnitte 6–8).
@@ -93,7 +94,17 @@ Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von StudiNow); für die Schutzmaßnahmen gegen
 Missbrauch Art. 6 Abs. 1 lit. f DSGVO (unser Interesse an einem sicheren Dienst). Ohne diese Daten können wir kein
-Konto führen. Du kannst StudiNow auch ohne Konto nutzen (Abschnitt 3).
+Konto führen. In der iPad-App kannst du StudiNow auch ohne Konto nutzen (Abschnitt 3). Die Web-Oberfläche und die
+Windows-App brauchen immer ein StudiNow-Konto; ohne aktives Abo (nach der Probe) kannst du dort deine Daten nur
+ansehen und exportieren, gelöscht wird dadurch nichts.
+
+**Windows-App:** Du meldest dich mit E-Mail und Passwort deines StudiNow-Kontos an oder über deinen Browser („Mit
+Apple anmelden“, „Mit Google anmelden“, Konto anlegen; die Anmeldung läuft dann auf der Anmeldeseite des Dienstes und
+wird mit einem Einmal-Code an die App auf deinem PC übergeben). Dein Passwort geht dabei nur einmal verschlüsselt an den
+Dienst und wird auf dem PC nicht gespeichert. Auf dem PC liegen nur ein Sitzungsschlüssel in der
+Windows-Anmeldeinformationsverwaltung (du löschst ihn mit „Abmelden“) und der zuletzt abgerufene Abo-Stand (Tarif,
+Probe, Ablauf), damit die App bis zu 7 Tage ohne Internet weiter funktioniert. Beim Abruf erfährt der Dienst, dass die
+Anfrage von der Windows-App kommt.
 
 ## 6. Hochschul-Zugangsdaten im Konto und automatischer Abgleich
 
@@ -146,7 +157,7 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
   Module, Stundenplan-Anpassungen, Lernkalender, Karteikarten und Einstellungen mit deinem Konto im Dienst ab (wie
   in Abschnitt 7 beschrieben). Hochschuldateien selbst lädt jedes Gerät von der Hochschule; zu Notizen speichert der
   Dienst nur Name und Kurs der Datei. Abschalten: Community → StudiNow-Konto → „Mit dem iPad abgleichen“.
-- **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem StudiNow-Konto an. Dein
+- **Windows-App:** Die Windows-App ist immer mit deinem StudiNow-Konto angemeldet (Abschnitt 5). Dein
   StudiNow-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
   Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs
   aus deinem Hochschul-Abgleich, nie die Dateien. Lösungen werden auf deinem PC ver- und entschlüsselt.
@@ -292,6 +303,14 @@ erhalten keine Zahlungsdaten, sondern nur die Information, dass und wie lange ei
 Produktkennung), um Plus freizuschalten. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
 
+**Web und Windows (Entwurf, vor Veröffentlichung rechtlich prüfen):** Dort schließt du ein Abo – sobald wir den
+Abschluss eingerichtet haben – über den Zahlungsdienstleister Stripe ab (Stripe Payments Europe, Ltd., Irland; eigener
+Verantwortlicher für die Zahlungsabwicklung). Die Windows-App öffnet dafür die Bezahlseite von Stripe in deinem
+Browser. Wir übermitteln Stripe deine E-Mail-Adresse, eine Kundenkennung und den gewählten Tarif; Zahlungsdaten gibst
+du nur bei Stripe ein, wir erhalten sie nicht. Von Stripe erhalten wir Kunden- und Abo-Kennung, Tarif, Status und
+Laufzeit, um das Abo freizuschalten; Kündigen und Wechseln geht im Kundenportal von Stripe. Hast du schon ein Abo über
+Apple, bietet die App keinen zweiten Kauf an.
+
 ## 10. Web-Oberfläche, Cookies und Server-Protokolle
 
 - **Cookie `uniflow_session`**: hält dich in der Web-Oberfläche angemeldet (HttpOnly, 30 Tage, verlängert sich bei
@@ -325,6 +344,9 @@ nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
   Einträge der Bibliothek der iPad-App (Abschnitt 8b), verschlüsselt und nur mit der CloudKit-Nutzerkennung; die
   Datenbank stellt Apple im Rahmen des Apple Developer Program bereit (Rechenzentren auch in den USA, EU-US Data
   Privacy Framework bzw. Standardvertragsklauseln).
+- **Stripe** (Abschnitt 9) erhält beim Abschluss im Web oder unter Windows E-Mail-Adresse, Kundenkennung und Tarif;
+  eigener Verantwortlicher für die Zahlung. Eine Übermittlung in die USA durch Stripe stützt sich auf das EU-US Data
+  Privacy Framework bzw. die Standardvertragsklauseln von Stripe.
 - **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4).
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von

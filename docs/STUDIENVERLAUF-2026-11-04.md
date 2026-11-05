@@ -287,3 +287,144 @@ eigenen PC nachgeladen (`texts_loading`), im Dienst nie. Grundstock und Register
 (`uniflow-backend.spec`) und im Docker-Image (`deploy/Dockerfile`, `.dockerignore`).
 Offen: Der Grundstock enthält in Prüfungs-/Studienleistung und Bereichsnamen bei etwa 35 Katalogen Literaturlisten und
 Beschreibungstexte (`tests/test_study_web.py`, xfail); die Oberfläche kürzt solche Felder auf 180 Zeichen.
+
+## Wahlbereiche (05.11.2026)
+
+Auftrag des Inhabers: Vertiefungsfächer, Seminare und Studium generale fehlten im Semesterplan; der Modulkatalog weiß,
+was man wählen kann oder muss.
+
+**Daten.** Optionale Bereichsfelder im Katalog (`study-catalog.schema.json`, `v` bleibt 1, ältere Datensätze gültig):
+`areas[].modules` (alle in dem Bereich wählbaren Module, auch wenn `module.area` ein anderer Bereich ist), `rule`
+(Regeltext, ≤ 500 Zeichen), `modules_required`, `group` (Bereiche einer Gruppe sind Alternativen: eins wählen),
+`type`, `semester` (empfohlenes Fachsemester für offene Plätze). Woher:
+- modkat (FEI, neuere Form): `modkat_area_extras` in `app/study_catalog.py` liest je Kompetenzbereich die Regel unter
+  „Information zum Kompetenzbereich“ („Der Studienschwerpunkt ist absolviert, wenn mindestens vier Module …“ →
+  `modules_required` 4) und alle Module der Bereichstabelle, auch zweistufige Tabellen „Modul Modul LP SWS“ (bisher
+  verloren: MechBSc25 hatte keinem Modul einen Bereich gegeben, ETBSc25 alle Schwerpunkt-Module im Bereich
+  Schlüsselkompetenzen). Nur im Grundstock (`tools/build-luh-seed.py`); der Leser selbst und sein Swift-Gegenstück
+  bleiben gleich, ein vom Gerät selbst geladener Katalog hat diese Felder nicht (Typ und Gruppen leitet der Kern dann aus
+  den Namen ab).
+- „Schwerpunkt …“-Bereiche bilden die Gruppe `schwerpunkt`; „Allgemeine …“ mit derselben Spanne („0 - 25 LP“) gehört als
+  Wahl ohne Schwerpunkt dazu (ET, Mechatronik). „Nebenfach …“/„Anwendungsfach …“ → Gruppe `nebenfach`.
+- Formate A/B (`formats_a_common.build_catalog`): dasselbe Modul in mehreren Bereichen (z. B. je Vertiefungsrichtung im
+  Maschinenbau) steht weiter einmal im Katalog, die weiteren Bereiche jetzt in `areas[].modules`.
+- Von Hand aus Prüfungsordnung (Anlage 1) und Modulkatalog: `packages/shared-contracts/study-area-rules-luh.json`
+  (Maschinenbau B.Sc. PO 2026: drei Vertiefungsrichtungen als Gruppe, je 5 LP Pflicht + mindestens 5 LP Wahlpflicht,
+  Berufsqualifizierung; Mathematik B.Sc.: 40 LP / mindestens 4 Wahlpflichtmodule, Schlüsselkompetenzen 5 LP,
+  Anwendungsfach 18 LP, Fachsemester der Pflichtmodule; Wirtschaftswissenschaft B.Sc.: je 20 LP Wahlmodule BWL/VWL im
+  5./6. Semester, Schlüsselkompetenzen/Studium Generale 5–8 LP). Die drei POs liegen in `~/Studora-Builds/luh-po/`
+  (3 Abrufe, ≥ 3 s Abstand).
+
+**Kern** (`compute` in `app/study_plan.py`, gleich in `StudyPlanEngine.swift`, Fixture-Fälle `wahlbereiche_offen`,
+`schwerpunkt_gewaehlt`, `schwerpunkt_aus_qis`, `wahlbereich_ohne_lp*`, `selbst_verschoben`): je Bereich Typ (aus dem Namen:
+studium_generale, schluessel, seminar, labor, projekt, praktikum, schwerpunkt, nebenfach, vertiefung; sonst die Art),
+Art aus den Modulen (Pflicht / Wahlpflicht / Wahl), Ziel-LP (`lp_required`, bei gewähltem Schwerpunkt `lp_max`), Stand
+(bestanden, geplant, offen; jedes Modul zählt einmal, im eigenen Bereich, sonst im ersten aktiven mit Platz). Gruppe:
+Einstellung `tracks`, sonst der Bereich mit den meisten LP bestandener/angemeldeter Module (`auto`); Pflichtmodule eines
+nicht gewählten Schwerpunkts fehlen im Plan. Plätze je Semester (`semesters[].slots`, `lp_slots`): freie Plätze des
+Studienverlaufsplans (erst Bereiche mit offenen LP, dann Spannen bis zur Obergrenze); Bereiche ohne Plan-Platz aus den
+offenen LP (Median-LP der Module je Platz; Module unter 3 LP: ein Platz), aus der Zahl der Module, oder – ohne Angabe –
+ein Platz, solange nichts gewählt ist (höchstens vier je Plan); Semester: `areas[].semester`, sonst Median der
+empfohlenen Semester der Module, sonst (Studium generale, Schlüsselkompetenzen, Seminar) die Mitte, sonst das vorletzte
+Fachsemester, jeweils das mit der geringsten Last ab jetzt; Gruppe ohne Wahl: ein Platz „Schwerpunkt wählen“.
+Eigene Einträge (`custom`: Titel, LP, Bereich, Fachsemester, ids `eigen-<n>`) zählen im Bereich; eine nicht
+zugeordnete QIS-Zeile mit gleichem Namen liefert Stand und Note. Neue Felder im Plan: `areas`, `groups`, `excluded`,
+`placements`, je Modul `placed`, `hints`, `custom`, je Wahlmodul `areas`, `turnus`, `excluded`.
+
+**iPad** (`StudyPlanEditing.swift`, `StudyPlanPage.swift`, `StudyPlanSheets.swift`): gestrichelte Platz-Karten in den
+Semesterspalten („Seminare (5 LP)“, „Studium Generale (4 LP)“, „Schwerpunkt wählen (25 LP)“ mit „1 von 3 Modulen
+gewählt“ / „noch 10 von 15 LP offen“, Etikett Pflicht/Wahlpflicht/Wahl und Typ); Tippen öffnet die Auswahl mit den
+erlaubten Modulen (LP, Art, Turnus, empfohlenes Semester, Bereich; aufgeklappt Prüfung und Kurztext aus dem Detail,
+Turnus-Warnung, „In WiSe 27/28 wählen“) und dem eigenen Eintrag. Kasten „Bereiche und Wahl“: Gruppe (gewählt / aus QIS /
+noch nicht gewählt) und je Bereich Fortschritt LP bestanden/geplant/Ziel, Zahl der Module; „Nicht belegt“ mit „Zurück
+in den Plan“. Einstellungen: Abschnitte „Schwerpunkt“ und „Eigene Einträge“.
+
+**Abdeckung im Grundstock (152 Kataloge):** Wahlbereiche erkannt in 106, offene Plätze im Plan in 102 (324 Plätze),
+Schwerpunkt-/Nebenfach-/Vertiefungsgruppen in 11 (ET, Mechatronik, Informatik B.Sc./M.Sc., Maschinenbau …), Vertiefung/
+Schwerpunkt/Nebenfach als Bereich in 30, Studium generale/Schlüsselkompetenzen in 28, Seminar/Labor/Projekt/Praktikum in
+18, Ziel-LP für Wahlbereiche in 21, Regeltext in 18, Mehrfach-Zugehörigkeit in 28, Zahl der Module in 4, Plätze aus dem
+Studienverlaufsplan in 2 (TI, Informatik). Beispiele: Informatik B.Sc. 9 Plätze (Proseminar, Vertiefung, Wahl(pflicht)
+SG/Inf/PI/M/N) und „Nebenfach wählen“ (10 Nebenfächer); ET B.Sc. 6 Plätze, Gruppe Schwerpunkt mit 6 Optionen inkl.
+Allgemeine ET. Grenzen: viele Kataloge außerhalb der FEI nennen keine LP je Wahlbereich (dann ein Platz „N Module zur
+Wahl“); Anwendungsfächer (Mathematik) stehen in fremden Katalogen (eigener Eintrag); die Regel „Allgemeine ET höchstens
+5 LP bei gewähltem Schwerpunkt“ steht nur als Text da; Web (`study-plan.js`) zeigt Plätze, Bereiche und Verschieben noch
+nicht (Python-Dienst liefert die Felder bereits).
+
+## Eigene Lage: verschieben, vorziehen, nicht belegen (05.11.2026)
+
+Auftrag: „kann man im studienverlaufsplan auch module selber anwählen und verschieben und in ein anderes semester packen
+… dann weiß man okay man hat 3 vorgezogen und hat im dritten zeit für andere“.
+
+**Einstellungen** (`settings.study_plan`, gleich in Python und Swift, teilweise speicherbar, nur nicht leer gespeichert):
+`placements: {Modul-id: "WiSe 27/28"}`, `excluded: [ids]` („Nicht belegen“), `tracks: {Gruppe: Bereich}`, `custom: [...]`.
+400 bei falschem Typ oder unlesbarem Semester. Regeln im Kern: die eigene Lage gilt für Pflicht-, Wahlpflicht- und
+gewählte Wahlmodule, ohne Verschieben nach Turnus, Voraussetzung oder 36-LP-Ausgleich (der Ausgleich verschiebt nur
+nicht selbst gelegte Wahlmodule); Bestandenes bleibt im Semester aus QIS; ein nicht bestandenes Modul folgt der eigenen
+Lage, wenn sie frühestens beim nächsten möglichen Versuch liegt (sonst wie bisher nächstes passendes Semester); eine Lage
+in der Vergangenheit wird „Noch nicht abgelegt – nachholen“. Hinweise je Modul (`hints`): „Laut Katalog nur im
+Wintersemester angeboten“, „Voraussetzung … liegt nicht davor“ / „… ist nicht im Plan“. Die Prüfungsanmeldung
+(`ExamRegistration`, gleicher `compute`) schlägt Module im Semester ihrer eigenen Lage vor.
+
+**iPad:** Board quer: Karten ziehen und auf einer Semesterspalte ablegen (`StudyPlanDropHub`); überall (Liste hochkant,
+große Schrift, VoiceOver-Aktionen der Karte, Kontextmenü, Moduldetail): „Verschieben nach …“ mit allen Semestern ab
+jetzt bis vier nach dem letzten im Plan (auch nach der Regelstudienzeit; je Zeile LP danach und Turnus-Warnung), „Ins
+empfohlene Semester“, „Nicht belegen“; „Modul hinzufügen“ (beliebiges Katalogmodul in ein gewähltes Semester, auch
+vorziehen), „Plan zurücksetzen“ mit Rückfrage (eigene Lage und „Nicht belegen“ weg). Karte: „Selbst eingeplant“,
+Hinweise; Spaltenkopf mit LP-Summe, Warnung über 36 LP, „+ n LP offen“. Rückmeldung nach jeder Änderung (auch
+vorgelesen), z. B. „3 Module vorgezogen – im 3. Semester sind jetzt 12 LP frei“.
+
+Tests: `tests/test_study_plan_choices.py`, `StudyPlanEngineTests.testPlacementsLockingHintsAndSlots` und die
+Fixture-Fälle (Kern, exakt gegen Python), `StudyPlanChoiceAppTests` (Plätze, Auswahl, Schwerpunkt, eigener Eintrag,
+Verschieben über Menü/VoiceOver und durch Ablegen auf dem Board, Nicht belegen / Zurück / Zurücksetzen, Detail,
+Breitenprüfung 1180 × 820 und 820 × 1180 auch mit großer Schrift).
+
+## Wählen, tauschen, Gesamtansicht (05.11.2026)
+
+Inhaber: „wahlpflichtmodule wenn es sowas gibt auch erkennen dann kann man klicken und sich was davon auswählen dann wird
+das eingefügt und mach dass man alles auf einmal sehen kann“. Wahlpflichtbereiche werden wie oben erkannt (Art aus den
+Modulen, Spanne, Name); ein Platz öffnet die Auswahl, „In WiSe 27/28 wählen“ fügt das Modul in genau dieses Semester ein
+(`electives` + `placements`), der Platz zählt mit („1 von 3 Modulen gewählt“, „noch 5 von 15 LP offen“) und verschwindet,
+wenn der Bereich voll ist. Ändern: „Anderes Modul wählen“ (Menü, VoiceOver, Detail; nur nicht bestandene, nicht
+angemeldete Wahlmodule) zeigt die Module derselben Bereiche und tauscht im selben Semester; Entfernen: „Nicht belegen“.
+**Gesamtansicht** (Umschalter „Semester | Gesamtansicht“ über dem Board, gemerkt in `@AppStorage("studyplan.overview")`):
+alle Semester als Spalten ohne Rollen (quer eine Reihe, hochkant ab fünf Semestern zwei), je Modul ein Chip mit Kurzname
+(`StudyPlanText.abbreviation`), LP, Statusfarbe und Warnzeichen bei Hinweisen; Chip-Höhe 14–30 pt je nach Platz;
+Tippen → Detail, Ziehen auf eine Spalte, Menü und VoiceOver-Aktionen wie auf dem Board; Plätze als gestrichelte Chips.
+Test: `StudyPlanChoiceAppTests.testOverviewShowsEverythingAtOnceAndKeepsMoving` (alle Chips im Fenster bei 1180 × 820
+und 820 × 1180), `testReplaceChosenElectiveWithAnotherOfItsArea`.
+
+## Für Web und iPhone
+
+Alles kommt fertig aus dem Kern; Web/Windows (Python-Dienst, `app/study_plan.py`) und iPad/iPhone (lokales Backend,
+`StudyPlanEngine.swift`) liefern exakt dasselbe JSON (Fixture `fixtures/study-plan-engine/`). Eine Oberfläche rechnet
+nichts selbst, sie zeigt an und schickt Änderungen.
+
+**`GET /api/study-plan`** (zusätzlich zu den Feldern oben):
+- `semesters[]`: `term`, `fachsemester`, `current`, `lp` (Module inkl. eigener Einträge), `modules[]`, `slots[]`,
+  `lp_slots`. Modul: `id, title, code, kind (pflicht|wahlpflicht|wahl|abschluss), area, lp, semester (empfohlen),
+  turnus, status (bestanden|angemeldet|nicht_bestanden|offen|geplant), attempt, grade, moved_from, reason,
+  last_attempt, placed (selbst gelegt), hints [Texte], custom (eigener Eintrag, id "eigen-<n>")`.
+  Platz: `id ("platz-<n>"), kind (slot = Verlaufsplan | area = aus offenen LP | track = Gruppe wählen), title, area,
+  areas [erlaubte Bereiche], group, type, area_kind, lp, lp_max, fachsemester`.
+- `areas[]`: `id, name, type, kind, group, active, choice, lp_required, lp_max, target, modules_required, lp_done,
+  lp_planned, lp_open, count, count_done, options, chosen [ids], slots, rule`.
+- `groups[]`: `id, label, options [Bereichs-ids], chosen, auto (aus QIS geschlossen)`.
+- `electives[]` (alle Wahl(pflicht)module): `id, title, kind, area, areas, lp, semester, turnus, chosen, included,
+  status, excluded` – die Auswahl eines Platzes sind `electives` mit `!included` und einem Bereich aus `slot.areas`
+  (leer = alle Wahlbereiche), dazu `excluded[]` (`id, title, kind, lp, semester`).
+- `placements`: `{Modul-id: "WiSe 27/28"}` (nur wirksame).
+**`GET /api/study-plan/module/{id}`**: Fakten, Texte (`texts.content` für den Kurztext), eigener Stand.
+**`POST /api/study-plan/settings`** speichert nur die genannten Schlüssel (400 bei falschem Typ):
+- Verschieben/Vorziehen: `{"placements": {…alle bisherigen…, "<id>": "SoSe 27"}}`; zurück ins empfohlene Semester: den
+  Schlüssel weglassen. Bestandenes bleibt im QIS-Semester (Lage wird ignoriert).
+- Wählen in einen Platz: `{"electives": [...bisher..., "<id>"], "placements": {..., "<id>": "<Semester des Platzes>"}}`;
+  Pflichtmodul zurückholen: `{"excluded": [...ohne id...]}`.
+- Tauschen: `electives` ohne alte, mit neuer id; `placements` alte weg, neue ins Semester der alten.
+- Nicht belegen: Wahlmodul aus `electives` nehmen, sonst `{"excluded": [...,"<id>"]}`; seine Lage aus `placements`.
+- Schwerpunkt/Nebenfach: `{"tracks": {"<group>": "<area-id>"}}`.
+- Eigener Eintrag: `{"custom": [...bisherige {id,title,lp,area,semester}..., {"title", "lp", "area", "semester"}]}`.
+- Plan zurücksetzen: `{"placements": null, "excluded": null}`.
+Rückmeldung nach dem Verschieben wie am iPad: „<Titel> vorgezogen nach <Semester> – im <n>. Semester sind jetzt <x> LP
+frei“ (bei mehreren vorgezogenen Modulen „<n> Module vorgezogen – …“), frei = 30 − LP des Ausgangssemesters.
+Gesamtansicht: Spalten aus `semesters`, Chips aus `modules` + `slots`; Statusfarben wie `StudyPlanStatus.tone`
+(bestanden grün, angemeldet blau, nicht bestanden rot, verschoben gelb, sonst Farbe des Bereichs).

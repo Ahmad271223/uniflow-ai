@@ -331,7 +331,7 @@ class Community {
   bumpCount(id) { const s = this.list?.find(x => x.solution_id === id); if (s) s.comments = (this.comments.get(id) || []).filter(c => !c.deleted).length; }
 
   // ---------------------------------------------------------------- Oberflaeche
-  toast(msg, err) { if (err?.action) import("./core.js?v=43").then(c => c.showError(err)); const t = $(".com-toast", this.el); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(this._tt); this._tt = setTimeout(() => t.hidden = true, 6000); }
+  toast(msg, err) { if (err?.action) import("./core.js?v=44").then(c => c.showError(err)); const t = $(".com-toast", this.el); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(this._tt); this._tt = setTimeout(() => t.hidden = true, 6000); }
   async render() {
     if (this.el.hidden) return;
     const head = `<div class="com-head"><strong>${icon("users", 16)} Community</strong><span class="spacer"></span><button class="btn ghost icon sm" data-c="reload" title="Neu laden">${icon("refresh", 15)}</button><button class="btn ghost icon sm" data-c="close" title="Schließen">${icon("x", 16)}</button></div>`;

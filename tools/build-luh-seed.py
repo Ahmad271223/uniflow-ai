@@ -61,13 +61,16 @@ PLAN_FILES = {
 CATALOG_KEYS = ("v", "university", "program", "degree", "po", "catalog_term", "code", "regular_semesters", "total_lp",
                 "source", "areas", "modules", "study_plan", "plan_slots")
 SOURCE_KEYS = ("url", "fetched_at", "sha256")
-AREA_KEYS = ("id", "name", "lp_required", "lp_max", "kind")
+AREA_KEYS = ("id", "name", "lp_required", "lp_max", "kind", "type", "group", "modules", "modules_required", "semester", "rule")
 MODULE_KEYS = ("id", "title", "code", "area", "kind", "lp", "semester", "turnus", "exam", "coursework", "prerequisites",
                "language", "workload_h", "source_page")
 SLOT_KEYS = ("semester", "title", "areas", "lp", "lp_max")
 
-# Bereiche, deren Module nie Pflicht sind (Name gefaltet: klein, Umlaute ausgeschrieben)
+# Bereiche, deren Module nie Pflicht sind (Name gefaltet: klein, Umlaute ausgeschrieben); "... - Pflichtmodule" bleibt
 CHOICE_AREA_RE = re.compile(r"nebenfach|schluesselkompetenz|wahlbereich|wahlpflicht|studium generale")
+PFLICHT_AREA_RE = re.compile(r"(?<!wahl)pflichtmodul")
+# Wahlbereiche von Hand aus PO/Modulkatalog (05.11.2026)
+AREA_RULES = ROOT / "packages" / "shared-contracts" / "study-area-rules-luh.json"
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -185,7 +188,9 @@ def build_fei(out_dir: Path, crawl: Path, plan_dirs: list[Path], log=print) -> l
         if meta is None:
             rows.append({"code": code, "term": term, "error": "nicht im Register"})
             continue
-        catalog, _texts = sc.parse_luh_modkat(sc.pdf_pages(data), meta)
+        pages = sc.pdf_pages(data)
+        catalog, _texts = sc.parse_luh_modkat(pages, meta)
+        apply_modkat_extras(catalog, sc.modkat_area_extras(pages, catalog))
         fix_choice_kinds(catalog)
         plan_info = None
         plan_src = sc.study_plan_source(full, UNIVERSITY, code)
@@ -277,7 +282,89 @@ def collect(seed_dir: Path) -> tuple[list[dict], list[str]]:
 # --------------------------------------------------------------------------------------------------------------------
 
 def is_choice_area(name) -> bool:
-    return isinstance(name, str) and CHOICE_AREA_RE.search(sc._fold(name)) is not None
+    return isinstance(name, str) and CHOICE_AREA_RE.search(sc._fold(name)) is not None \
+        and PFLICHT_AREA_RE.search(sc._fold(name)) is None
+
+
+def apply_modkat_extras(catalog: dict, extras: dict) -> int:
+    """Wahlbereiche (05.11.2026) aus sc.modkat_area_extras: Regeltext, Zahl der Module, alle waehlbaren Module je
+    Bereich (`modules` nur, wenn mehr als die eigenen); Module ohne Bereich (Tabelle "Modul Modul LP ...") bekommen den
+    ersten, Art wie im Leser (Spanne -> wahlpflicht). Ergebnis: Zahl der Bereiche mit Angaben"""
+    areas = {a["id"]: a for a in catalog.get("areas") or []}
+    n = 0
+    for aid, ex in extras.items():
+        a = areas.get(aid)
+        if a is None:
+            continue
+        n += 1
+        if ex.get("rule"):
+            a["rule"] = ex["rule"]
+        if ex.get("modules_required"):
+            a["modules_required"] = ex["modules_required"]
+        own = {m["id"] for m in catalog["modules"] if m.get("area") == aid}
+        if set(ex.get("modules") or []) - own:
+            a["modules"] = list(ex["modules"])
+    for m in catalog["modules"]:
+        if m.get("area") is not None:
+            continue
+        aid = next((x for x, ex in extras.items() if m["id"] in (ex.get("modules") or []) and x in areas), None)
+        if aid is None:
+            continue
+        m["area"] = aid
+        a = areas[aid]
+        if a.get("kind") == "abschluss" or sc.FINAL_RE.search(m["title"]):
+            m["kind"] = "abschluss"
+        elif m.get("kind") == "pflicht" and a.get("lp_max") is not None:
+            m["kind"] = "wahlpflicht"
+    # eigene Module stehen nicht doppelt in `modules`; leere Liste weg
+    for a in areas.values():
+        if "modules" in a:
+            own = {m["id"] for m in catalog["modules"] if m.get("area") == a["id"]}
+            if not set(a["modules"]) - own:
+                del a["modules"]
+    return n
+
+
+def group_alternatives(catalog: dict) -> None:
+    """Schwerpunkte als Gruppe (eins waehlen); "Allgemeine ..." mit derselben Spanne ("0 - 25 LP") ist die Wahl ohne
+    Schwerpunkt und gehoert dazu (ET, Mechatronik)"""
+    areas = catalog.get("areas") or []
+    sp = [a for a in areas if sc._fold(a.get("name") or "").startswith("schwerpunkt ") and not a.get("group")]
+    if len(sp) < 2:
+        return
+    for a in sp:
+        a["group"] = "schwerpunkt"
+    spans = {a.get("lp_max") for a in sp}
+    for a in areas:
+        if sc._fold(a.get("name") or "").startswith("allgemeine ") and not a.get("group") \
+                and not a.get("lp_required") and a.get("lp_max") in spans:
+            a["group"] = "schwerpunkt"
+
+
+def load_area_rules(path: Path = AREA_RULES) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("catalogs") or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def apply_area_rules(catalog: dict, rules: dict) -> bool:
+    """Handangaben je Kuerzel (study-area-rules-luh.json) einmischen; True, wenn es welche gab"""
+    r = rules.get(catalog.get("code"))
+    if not r:
+        return False
+    areas = {a["id"]: a for a in catalog.get("areas") or []}
+    for aid, fields in (r.get("areas") or {}).items():
+        if aid in areas:
+            areas[aid].update(fields)
+    for a in r.get("add_areas") or []:
+        if a["id"] not in areas:
+            catalog["areas"].append(dict(a))
+    mods = {m["id"]: m for m in catalog.get("modules") or []}
+    for mid, fields in (r.get("modules") or {}).items():
+        if mid in mods:
+            mods[mid].update(fields)
+    return True
 
 
 def fix_choice_kinds(catalog: dict) -> int:
@@ -332,7 +419,9 @@ def postprocess(found: list[dict], luh: dict, full: dict) -> tuple[list[dict], l
     """-> (Kataloge [{catalog, registry_keys, origin, faculty, format}], Probleme, Zahlen)"""
     by_url = entries_by_url(luh)
     problems: list[str] = []
-    stats = {"kinds_fixed": 0, "dropped_invalid": 0, "dropped_duplicate": 0, "dropped_unmapped": 0, "dropped_modules": 0}
+    stats = {"kinds_fixed": 0, "dropped_invalid": 0, "dropped_duplicate": 0, "dropped_unmapped": 0, "dropped_modules": 0,
+             "area_rules": 0}
+    rules = load_area_rules()
     candidates: dict[str, list[dict]] = {}
     for item in found:
         cat = copy.deepcopy(item["catalog"])
@@ -363,6 +452,9 @@ def postprocess(found: list[dict], luh: dict, full: dict) -> tuple[list[dict], l
         cat["v"] = 1
         n_before = len(cat.get("modules") or [])
         stats["kinds_fixed"] += fix_choice_kinds(cat)
+        group_alternatives(cat)
+        if apply_area_rules(cat, rules):
+            stats["area_rules"] += 1
         cat = facts_only(cat)
         stats["dropped_modules"] += n_before - len(cat["modules"])
         errors = sc.validate(cat)

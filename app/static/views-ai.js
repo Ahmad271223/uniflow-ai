@@ -2,7 +2,7 @@
 // Frage-Feld mit Modul und Dokument), nach der ersten Frage ein Gespräch mit Antworten als Markdown und der Eingabe
 // unten. Regeln in ai-start-logic.js (tests/js/ai-start.test.mjs); Fragen gehen an POST /api/ai/tutor wie die KI-Hilfe
 // im Editor. Erreichbar über das Raster-Symbol in der KI-Hilfe und den Knopf "KI-Start" bei Tests & Wiederholung.
-import { $, $$, api, esc, icon, toast, state } from "./core.js?v=43";
+import { $, $$, api, esc, icon, toast, state } from "./core.js?v=44";
 import * as L from "./ai-start-logic.js?v=1";
 import { followUps, MODE_LABELS } from "./ai-panel.js?v=1";
 
