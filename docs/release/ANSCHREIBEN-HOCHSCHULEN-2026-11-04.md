@@ -41,7 +41,9 @@ selbst in einem sichtbaren Browserfenster an; die App behält nur die Sitzung.
 - Nie gelesen: Teilnehmendenlisten, Personenprofile, Blubber (bewusst abgeschaltet, weil `GET blubber-threads` in Stud.IP
   leere Threads aufräumt und das kein reines Lesen ist). Forenbeiträge werden ohne Autorennamen gespeichert.
 - QIS: nur wenn die Studierenden „Noten abrufen“ einrichten, liest die App nach eigener Anmeldung den Notenspiegel
-  (Mein Studium → Notenspiegel → Leistungen); Stammdaten werden verworfen, Bescheinigungen nie aufgerufen.
+  (Mein Studium → Notenspiegel → Leistungen) und, ebenfalls nur lesend, „Info über angemeldete Prüfungen“; Stammdaten
+  werden verworfen, Bescheinigungen nie aufgerufen. Prüfungsanmeldungen bleiben im QIS: Die App öffnet auf Wunsch nur
+  „Mein Studium“ im eingebetteten Browser, anmelden und abmelden tun die Studierenden dort selbst.
 
 **Wie oft.** Ein Abgleich läuft beim Öffnen der App höchstens alle 30 Minuten, dazu im Hintergrund frühestens um 8, 15
 und 20 Uhr (ob überhaupt, entscheidet iOS); Noten höchstens alle 20 Stunden. Die Anfragen laufen nacheinander mit

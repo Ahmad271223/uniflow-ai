@@ -214,13 +214,18 @@ final class DueNotificationDelegate: NSObject, UNUserNotificationCenterDelegate,
 
     /// Ziel aus einer Erinnerung (nur eigene Kennungen)
     static func route(identifier: String, userInfo: [AnyHashable: Any]) -> String? {
-        guard identifier.hasPrefix(DueReminders.prefix), let r = userInfo["route"] as? String, !r.isEmpty else { return nil }
+        guard isOwn(identifier), let r = userInfo["route"] as? String, !r.isEmpty else { return nil }
         return r
+    }
+
+    /// Erinnerungen an Abgaben/Pruefungen und an die Pruefungsanmeldung (`ExamRegistrationReminders`)
+    static func isOwn(_ identifier: String) -> Bool {
+        identifier.hasPrefix(DueReminders.prefix) || identifier.hasPrefix(ExamRegistrationReminders.prefix)
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler(notification.request.identifier.hasPrefix(DueReminders.prefix) ? [.banner, .list, .sound] : [])
+        completionHandler(Self.isOwn(notification.request.identifier) ? [.banner, .list, .sound] : [])
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
@@ -247,13 +252,17 @@ struct DueReminderHost: ViewModifier {
             .onAppear {
                 guard !StudIPSync.isUnderTest() else { return }
                 scheduler.attach(containers)
+                ExamRegistrationReminderScheduler.shared.attach(containers)      // Meldezeitraum (05.11.2026)
                 if let r = scheduler.pendingRoute { open(r) }
             }
             .onChange(of: scheduler.pendingRoute) { _, r in if let r { open(r) } }
             .onChange(of: scheduler.revision) { _, _ in router.reload() }
             .onChange(of: scenePhase) { _, p in
                 // auch nach einem Abgleich im Hintergrund (S8): neue Seitentexte erkennen, Erinnerungen ersetzen
-                if p == .active, !StudIPSync.isUnderTest() { scheduler.schedule(recompute: true) }
+                if p == .active, !StudIPSync.isUnderTest() {
+                    scheduler.schedule(recompute: true)
+                    Task { await ExamRegistrationReminderScheduler.shared.refresh() }
+                }
             }
     }
 

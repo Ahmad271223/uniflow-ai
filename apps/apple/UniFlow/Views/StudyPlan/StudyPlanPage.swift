@@ -116,11 +116,16 @@ struct StudyPlanPage: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if let s = p.suggestedPO, !p.poConfirmed { poCard(p, suggested: s) }
                     StudyPlanHeaderCard(plan: p)
+                    // Pruefungsanmeldung (05.11.2026, ExamRegistrationViews.swift): Zeitraum, Vorschlaege, Haken
+                    ExamRegistrationSection(api: session.api)
                     filterRow(p)
                     board(p, layout: layout, pad: pad)
                 }
             } else {
-                gapCard(p)
+                VStack(alignment: .leading, spacing: 16) {
+                    gapCard(p)
+                    ExamRegistrationSection(api: session.api)
+                }
             }
         }
     }

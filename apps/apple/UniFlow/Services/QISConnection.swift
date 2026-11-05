@@ -31,6 +31,10 @@ final class QISConnection: ObservableObject {
     @Published private(set) var lastCount: Int?
     /// Zahl der beendeten Abrufe; offene Seiten laden danach neu (`ufReload`)
     @Published private(set) var finishedRuns = 0
+    /// "Angemeldete Prüfungen abrufen" laeuft (Pruefungsanmeldung, nur lesend)
+    @Published private(set) var registrationsRunning = false
+    /// Meldung des letzten Abrufs der angemeldeten Pruefungen ("2 angemeldete Prüfungen gelesen.", Fehler)
+    @Published private(set) var registrationsMessage: String?
 
     typealias TransportFactory = @MainActor (WKWebsiteDataStore) async -> UniTransport
 
@@ -194,10 +198,40 @@ final class QISConnection: ObservableObject {
         let transport = await makeTransport(websiteDataStore)
         do {
             let db = try await host.backend().context.database
-            return await QISGradesSync.run(db: db, transport: transport, clock: clock, retry: retry)
+            let report = await QISGradesSync.run(db: db, transport: transport, clock: clock, retry: retry)
+            // Pruefungsanmeldung: im selben Abruf auch "Info über angemeldete Prüfungen" lesen (nur lesend; ein Fehler
+            // dort aendert den Stand der Noten nicht, er steht in settings.exam_registration_run)
+            if report.ok, !Task.isCancelled {
+                let r = await QISRegistrationsSync.run(db: db, transport: transport, clock: clock, retry: retry)
+                if !r.cancelled { registrationsMessage = r.message }
+            }
+            return report
         } catch {
             return QISGradesSync.Report(message: LocalBackendHost.message(for: error))
         }
+    }
+
+    /// Knopf "Angemeldete Prüfungen abrufen" (Pruefungsanmeldung): liest nur "Info über angemeldete Prüfungen" mit der
+    /// Sitzung der Webansicht. Meldet nie an oder ab. nil ohne Verbindung, waehrend eines Abrufs oder mit Demo-Inhalten
+    @discardableResult
+    func fetchRegistrations() async -> QISRegistrationsSync.Report? {
+        guard isConnected, !stopped, !isRunning, !registrationsRunning else { return nil }
+        if await host.demoActive() { return nil }
+        guard isConnected, !stopped, !registrationsRunning else { return nil }
+        registrationsRunning = true
+        defer { registrationsRunning = false }
+        let transport = await makeTransport(websiteDataStore)
+        let r: QISRegistrationsSync.Report
+        do {
+            let db = try await host.backend().context.database
+            r = await QISRegistrationsSync.run(db: db, transport: transport, clock: clock, retry: retry)
+        } catch {
+            r = QISRegistrationsSync.Report(message: LocalBackendHost.message(for: error))
+        }
+        if !r.cancelled { registrationsMessage = r.message }
+        if r.needsLogin { set(.needsLogin) }
+        finishedRuns += 1                                       // offene Seiten laden neu (Haken)
+        return r
     }
 
     private func apply(_ r: QISGradesSync.Report?, before: State) {

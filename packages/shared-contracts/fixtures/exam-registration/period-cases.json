@@ -1,0 +1,2153 @@
+{
+ "generator": "tools/gen-exam-registration-fixture.py",
+ "soon_days": 7,
+ "programs": [
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "slug": "technische-informatik-bsc",
+   "has_table": true
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "slug": "technische-informatik-msc",
+   "has_table": true
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "slug": "informatik-bsc",
+   "has_table": true
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "slug": "mathematik-bsc",
+   "has_table": true
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "slug": "elektrotechnik-und-informationstechnik-bsc",
+   "has_table": true
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "slug": "architektur-bsc",
+   "has_table": false
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": null,
+   "slug": null,
+   "has_table": false
+  },
+  {
+   "name": "Geodäsie und Geoinformatik",
+   "degree": "M.Sc.",
+   "slug": "geodaesie-und-geoinformatik-msc",
+   "has_table": false
+  },
+  {
+   "name": "Kochkunst",
+   "degree": "B.Sc.",
+   "slug": null,
+   "has_table": false
+  },
+  {
+   "name": "",
+   "degree": "B.Sc.",
+   "slug": null,
+   "has_table": false
+  }
+ ],
+ "phases": [
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "later",
+    "days_left": 33,
+    "days_until": 20
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2026-10-19",
+    "end": "2026-11-01",
+    "phase": "open",
+    "days_left": 12,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "soon",
+    "days_left": 17,
+    "days_until": 4
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 171,
+    "days_until": 158
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 13,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 167,
+    "days_until": 154
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 7,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 161,
+    "days_until": 148
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 0,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 154,
+    "days_until": 141
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 174,
+    "days_until": 161
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 153,
+    "days_until": 140
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 78,
+    "days_until": 65
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 57,
+    "days_until": 44
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 76,
+    "days_until": 63
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 55,
+    "days_until": 42
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 69,
+    "days_until": 56
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 48,
+    "days_until": 35
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "soon",
+    "days_left": 16,
+    "days_until": 3
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Technische Informatik (PO-Version 2017)",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-10-20",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "later",
+    "days_left": 33,
+    "days_until": 20
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-10-20",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2026-10-19",
+    "end": "2026-11-01",
+    "phase": "open",
+    "days_left": 12,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-05",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "soon",
+    "days_left": 17,
+    "days_until": 4
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-05",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 171,
+    "days_until": 158
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-09",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 13,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-09",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 167,
+    "days_until": 154
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-15",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 7,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-15",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 161,
+    "days_until": 148
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-22",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 0,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-22",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 154,
+    "days_until": 141
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-23",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 174,
+    "days_until": 161
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2026-11-23",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 153,
+    "days_until": 140
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-02-27",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 78,
+    "days_until": 65
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-02-27",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 57,
+    "days_until": 44
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-03-01",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 76,
+    "days_until": 63
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-03-01",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 55,
+    "days_until": 42
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-03-08",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 69,
+    "days_until": 56
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-03-08",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 48,
+    "days_until": 35
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-04-30",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "soon",
+    "days_left": 16,
+    "days_until": 3
+   },
+   "periods": 6
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-04-30",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-10-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Technische Informatik",
+   "degree": "M.Sc.",
+   "today": "2027-10-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-10-20",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "later",
+    "days_left": 33,
+    "days_until": 20
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-10-20",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2026-10-19",
+    "end": "2026-11-01",
+    "phase": "open",
+    "days_left": 12,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-05",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "soon",
+    "days_left": 17,
+    "days_until": 4
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-05",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 171,
+    "days_until": 158
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-09",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 13,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-09",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 167,
+    "days_until": 154
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-15",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 7,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-15",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 161,
+    "days_until": 148
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-22",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 0,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-22",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 154,
+    "days_until": 141
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-23",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 174,
+    "days_until": 161
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2026-11-23",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 153,
+    "days_until": 140
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-02-27",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 78,
+    "days_until": 65
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-02-27",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 57,
+    "days_until": 44
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-03-01",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 76,
+    "days_until": 63
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-03-01",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 55,
+    "days_until": 42
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-03-08",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 69,
+    "days_until": 56
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-03-08",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 48,
+    "days_until": 35
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-04-30",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "soon",
+    "days_left": 16,
+    "days_until": 3
+   },
+   "periods": 6
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-04-30",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-10-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Informatik",
+   "degree": "Bachelor of Science",
+   "today": "2027-10-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "later",
+    "days_left": 33,
+    "days_until": 20
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2026-10-19",
+    "end": "2026-11-01",
+    "phase": "open",
+    "days_left": 12,
+    "days_until": 0
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "soon",
+    "days_left": 17,
+    "days_until": 4
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 171,
+    "days_until": 158
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 13,
+    "days_until": 0
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 167,
+    "days_until": 154
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 7,
+    "days_until": 0
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 161,
+    "days_until": 148
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 0,
+    "days_until": 0
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 154,
+    "days_until": 141
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 2,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-03-01",
+    "end": "2027-03-07",
+    "phase": "later",
+    "days_left": 104,
+    "days_until": 98
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 153,
+    "days_until": 140
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 2,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-03-01",
+    "end": "2027-03-07",
+    "phase": "soon",
+    "days_left": 8,
+    "days_until": 2
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 57,
+    "days_until": 44
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 2,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-03-01",
+    "end": "2027-03-07",
+    "phase": "open",
+    "days_left": 6,
+    "days_until": 0
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 55,
+    "days_until": 42
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 69,
+    "days_until": 56
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 48,
+    "days_until": 35
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "soon",
+    "days_left": 16,
+    "days_until": 3
+   },
+   "periods": 9
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Mathematik",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "later",
+    "days_left": 33,
+    "days_until": 20
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2026-10-19",
+    "end": "2026-11-01",
+    "phase": "open",
+    "days_left": 12,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "soon",
+    "days_left": 17,
+    "days_until": 4
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 171,
+    "days_until": 158
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 13,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 167,
+    "days_until": 154
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 7,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 161,
+    "days_until": 148
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "meldung",
+   "window": {
+    "term": "WiSe 26/27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2026-11-09",
+    "end": "2026-11-22",
+    "phase": "open",
+    "days_left": 0,
+    "days_until": 0
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 154,
+    "days_until": 141
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 174,
+    "days_until": 161
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 153,
+    "days_until": 140
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 78,
+    "days_until": 65
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 57,
+    "days_until": 44
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 76,
+    "days_until": 63
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 55,
+    "days_until": 42
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "later",
+    "days_left": 69,
+    "days_until": 56
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "vbp_meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "vbp_meldung",
+    "n": 1,
+    "label": "Meldezeitraum für VbP",
+    "start": "2027-04-12",
+    "end": "2027-04-25",
+    "phase": "later",
+    "days_left": 48,
+    "days_until": 35
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "meldung",
+   "window": {
+    "term": "SoSe 27",
+    "kind": "meldung",
+    "n": 1,
+    "label": "Meldezeitraum für alle anderen Prüfungsformen",
+    "start": "2027-05-03",
+    "end": "2027-05-16",
+    "phase": "soon",
+    "days_left": 16,
+    "days_until": 3
+   },
+   "periods": 6
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Elektrotechnik und Informationstechnik",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-10-20",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-05",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-09",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-15",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-22",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2026-11-23",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-02-27",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-03-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-03-08",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-04-30",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "meldung",
+   "window": null,
+   "periods": 0
+  },
+  {
+   "name": "Architektur",
+   "degree": "B.Sc.",
+   "today": "2027-10-01",
+   "kind": "vbp_meldung",
+   "window": null,
+   "periods": 0
+  }
+ ],
+ "slugs": [
+  {
+   "text": "Technische Informatik (PO-Version 2017)",
+   "slug": "technische-informatik"
+  },
+  {
+   "text": "Geodäsie und Geoinformatik",
+   "slug": "geodaesie-und-geoinformatik"
+  },
+  {
+   "text": "Landschaftsarchitektur und Umweltplanung",
+   "slug": "landschaftsarchitektur-und-umweltplanung"
+  },
+  {
+   "text": "Lehramt an berufsbildenden Schulen",
+   "slug": "lehramt-an-berufsbildenden-schulen"
+  },
+  {
+   "text": "  Wirtschafts-Wissenschaften  ",
+   "slug": "wirtschafts-wissenschaften"
+  },
+  {
+   "text": "Größe & Maß",
+   "slug": "groesse-mass"
+  }
+ ],
+ "degrees": [
+  {
+   "degree": "B.Sc.",
+   "text": "",
+   "slugs": [
+    "bsc"
+   ]
+  },
+  {
+   "degree": "M. Sc.",
+   "text": "",
+   "slugs": [
+    "msc"
+   ]
+  },
+  {
+   "degree": "B.A.",
+   "text": "",
+   "slugs": [
+    "ba"
+   ]
+  },
+  {
+   "degree": "M.Ed.",
+   "text": "",
+   "slugs": [
+    "med"
+   ]
+  },
+  {
+   "degree": null,
+   "text": "Bachelor of Arts",
+   "slugs": [
+    "bsc",
+    "ba",
+    "bed"
+   ]
+  },
+  {
+   "degree": "Master",
+   "text": "",
+   "slugs": [
+    "msc",
+    "ma",
+    "med"
+   ]
+  },
+  {
+   "degree": null,
+   "text": "",
+   "slugs": []
+  }
+ ]
+}

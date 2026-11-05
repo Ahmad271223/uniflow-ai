@@ -529,7 +529,7 @@ class _Meter:
         self.calls += 1
         self.input_tokens += c.input_tokens
         self.output_tokens += c.output_tokens
-        self.cost += ai_backend.cost_microeur(c.input_tokens, c.output_tokens)
+        self.cost += ai_backend.cost_microeur(c.input_tokens, c.output_tokens, c.model, c.cached_tokens)
         data = ai.parse_json(c.text)
         return data if isinstance(data, dict) else {}
 

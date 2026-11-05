@@ -11,3 +11,6 @@ markdown==3.11.2
 # Seiten als Bild rendern fuer die Texterkennung (app/pageocr.py, docs/OCR-WINDOWS.md); BSD-3/Apache-2.0, kein Copyleft. Nur gebraucht,
 # wenn LERNAPP_OCR an ist; ohne das Paket oder ohne Tesseract bleibt alles wie bisher.
 pypdfium2==5.14.0
+# Claude Sonnet 5.5 fuer die StudiNow-KI (app/ai_providers.py, offizielles SDK; Extra "bedrock" fuer Amazon Bedrock in der EU,
+# bringt boto3/botocore mit). Ohne das Paket faellt Claude aus der Modellmischung, alles andere laeuft.
+anthropic[bedrock]==2.1.0
