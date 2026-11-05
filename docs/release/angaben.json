@@ -48,13 +48,13 @@
   },
 
   "funktionen": {
-    "_hinweis": "Optionale Satzteile der Store-Texte: true = Satz bleibt, false = faellt weg. Entscheidung des Inhabers vor der Einreichung; bis dahin stehen die Satzteile als [[...]] in APP-STORE.md und PLAY-STORE.md.",
-    "ipad_hildesheim": false,
+    "_hinweis": "Optionale Satzteile der Store-Texte: true = Satz bleibt, false = faellt weg. Entscheidung des Inhabers vor der Einreichung; bis dahin stehen die Satzteile als [[...]] in APP-STORE.md und PLAY-STORE.md. 05.11.2026: ipad_hildesheim und ipad_hsh an (Wunsch des Inhabers, alle angebundenen Hochschulen bewerben; Pruefung mit echtem Konto vor dem Einreichen, APP-STORE.md).",
+    "ipad_hildesheim": true,
     "ipad_fristen": false,
     "ipad_skriptsuche": false,
     "ipad_community_online": false,
     "android_karteikarten": false,
     "android_community": false,
-    "ipad_hsh": false
+    "ipad_hsh": true
   }
 }

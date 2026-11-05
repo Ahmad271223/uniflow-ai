@@ -11,8 +11,9 @@ Fassung einfügen.
 
 | Aussage im Text | Schalter | Stand 04.11.2026 | Gilt nur, wenn |
 |---|---|---|---|
-| Universität Hildesheim (Learnweb, LSF) | `ipad_hildesheim` | gebaut, nur mit erfundenen Antworten geprüft | Inhaber hat mit einem echten Hildesheim-Konto am Gerät geprüft und die Erlaubnis der Uni; sonst nur die LUH nennen |
-| Hochschule Hannover (Moodle, Campusmanagement) | `ipad_hsh` | gebaut (05.11.2026), nur mit nachgebauten Seiten geprüft (`docs/HSH-2026-11-05.md`) | Inhaber bzw. eine HsH-Studentin hat die Testliste in `docs/HSH-2026-11-05.md` mit einem echten Konto durchgespielt; bis dahin die HsH nicht nennen |
+| Universität Hildesheim (Learnweb, LSF) | `ipad_hildesheim` | **Schalter an** (Wunsch des Inhabers 05.11.2026: alle angebundenen Hochschulen bewerben); gebaut, bisher nur mit erfundenen Antworten geprüft | vor dem Einreichen mit einem echten Hildesheim-Konto am Gerät durchgespielt (`docs/HILDESHEIM-STAND-2026-11-05.md`); klappt das nicht, Schalter wieder aus und nur die übrigen Hochschulen nennen |
+| Hochschule Hannover (Moodle, HISinOne) | `ipad_hsh` | **Schalter an** (Wunsch des Inhabers 05.11.2026); gebaut, bisher nur mit nachgebauten Seiten geprüft (`docs/HSH-2026-11-05.md`) | vor dem Einreichen hat der Inhaber bzw. eine HsH-Studentin die Testliste in `docs/HSH-2026-11-05.md` mit einem echten Konto durchgespielt; klappt das nicht, Schalter wieder aus |
+| Mensa (Speiseplan, Karte „Heute in der Mensa“) | – | gebaut (05.11.2026, `docs/MENSA-2026-11-05.md`), frei in jedem Tarif | Pläne der Studentenwerke Hannover und OstNiedersachsen; „ohne Gewähr“ steht in der App unter jedem Plan |
 | Abgabefristen, Ankündigungen der Lehrenden, Feiertage im Kalender | `ipad_fristen` | gebaut (Fristen, Ankündigungen, Feiertage auf dem iPad) | mit echten LUH-Daten am Gerät gesehen |
 | Skriptsuche zur Aufgabe | `ipad_skriptsuche` | gebaut (Kandidatenseiten ohne KI, Plus) | am Gerät mit einem echten Übungsblatt geprüft |
 | Community online (Kanal nach Lehrwoche, Fragen und Antworten) | `ipad_community_online` | gebaut (CloudKit, Container `iCloud.de.uniflow.ai`) | neue Datensatztypen in Production deployt (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`) und mit zwei iCloud-Konten durchgespielt |
@@ -38,8 +39,8 @@ Skripte und Übungsblätter aus Stud.IP, Lernkalender und Stundenplan, Handschri
 ```text description
 StudiNow bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender, deine Karteikarten und deine handschriftlichen Notizen – auf dem iPad, mit dem Apple Pencil.
 
-FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER[[ UND DER UNIVERSITÄT HILDESHEIM]]
-Melde dich wie gewohnt bei Stud.IP[[ bzw. Learnweb]] an. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und Lehrwochen und übernimmt deine Vorlesungs- und Übungstermine[[, Abgabefristen und Ankündigungen der Lehrenden]]. Deine Zugangsdaten bleiben bei dir; in die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst – etwa eine Antwort auf eine Nachricht oder eine Abgabe.
+FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER[[, DER HOCHSCHULE HANNOVER]][[ UND DER UNIVERSITÄT HILDESHEIM]]
+Melde dich wie gewohnt bei Stud.IP[[, Moodle]][[ bzw. Learnweb]] an. StudiNow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und Lehrwochen und übernimmt deine Vorlesungs- und Übungstermine[[, Abgabefristen und Ankündigungen der Lehrenden]]. Deine Zugangsdaten bleiben bei dir; in die Hochschulsysteme schreibt die App nur, wenn du es ausdrücklich auslöst – etwa eine Antwort auf eine Nachricht oder eine Abgabe.
 
 ÜBERSICHT UND LERNKALENDER
 • Die Übersicht zeigt, was heute ansteht: Lernpakete, Termine an der Uni und neue Dateien
@@ -47,6 +48,8 @@ Melde dich wie gewohnt bei Stud.IP[[ bzw. Learnweb]] an. StudiNow holt neue Skri
 • Lernkalender mit Lernpaketen je Modul und Lehrwoche in deinen freien Zeitfenstern: Vorlesung nacharbeiten, Übungen, Nachholen, „Woche retten“
 [[• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick]]
 [[• Universität Hildesheim: Kurse, Dateien, Fristen und Nachrichten aus dem Learnweb, Stundenplan und Noten aus dem LSF, Studienverlauf mit den Modulen deines Studiengangs]]
+[[• Hochschule Hannover: Kurse, Dateien, Nachrichten und Abgaben in Moodle, Stundenplan und Leistungen aus HISinOne, Studienverlauf mit den Modulen deines Studiengangs]]
+• Speiseplan deiner Mensa mit Preisen, Nährwerten, Allergenen und Filtern (Angaben der Studentenwerke, ohne Gewähr)
 • Aufgaben abhaken, Zeitmesser mit Stoppuhr, Countdown und Pomodoro
 
 DOKUMENTE LESEN UND BESCHREIBEN
@@ -77,11 +80,12 @@ StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. 
 
 Wörter aus Name und Untertitel (StudiNow, Studium, Notizen, Skripte, Handschrift, Lernplan) indiziert Apple ohnehin;
 sie stehen hier nicht noch einmal. Keine fremden Marken (z. B. ChatGPT) in Name, Untertitel oder Schlüsselwörtern
-(Richtlinie 2.3.7). „Learnweb“ und „Hildesheim“ erst mit dem Schalter `ipad_hildesheim` ergänzen (dafür „PDF“ und
-„Hochschule“ streichen).
+(Richtlinie 2.3.7). Seit 05.11.2026 mit „Mensa“ und „Hildesheim“ (Schalter `ipad_hildesheim` an; dafür „PDF“ und
+„Hochschule“ gestrichen, „Hannover“ deckt LUH und HsH); geht der Schalter wieder aus, „Hildesheim“ durch „Hochschule“
+ersetzen.
 
 ```text keywords
-Stud.IP,Uni,Hochschule,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Übungsblatt,PDF,Hannover
+Stud.IP,Uni,Apple Pencil,Stundenplan,Lernkalender,Karteikarten,Übungsblatt,Mensa,Hannover,Hildesheim
 ```
 
 ## Neue Funktionen in dieser Version (1.0)

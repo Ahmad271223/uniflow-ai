@@ -88,6 +88,11 @@ FEATURES = {
     # vorbereitet 05.11.2026 (docs/HILDESHEIM-STAND-2026-11-05.md), erscheint erst mit dem Schalter nach dem Test des Inhabers
     "• Universität Hildesheim: Kurse, Dateien, Fristen und Nachrichten aus dem Learnweb, Stundenplan und Noten aus dem LSF, Studienverlauf mit den Modulen deines Studiengangs":
         ("ipad_hildesheim",),
+    # Hochschule Hannover (05.11.2026, docs/HSH-2026-11-05.md), Schalter seit 05.11.2026 an (Wunsch des Inhabers)
+    ", DER HOCHSCHULE HANNOVER": ("ipad_hsh",),
+    ", Moodle": ("ipad_hsh",),
+    "• Hochschule Hannover: Kurse, Dateien, Nachrichten und Abgaben in Moodle, Stundenplan und Leistungen aus HISinOne, Studienverlauf mit den Modulen deines Studiengangs":
+        ("ipad_hsh",),
     ", Abgabefristen und Ankündigungen der Lehrenden": ("ipad_fristen",),
     "• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick": ("ipad_fristen",),
     " mit Fristen und Feiertagen": ("ipad_fristen",),

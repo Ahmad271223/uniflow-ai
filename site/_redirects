@@ -1,4 +1,5 @@
 https://studinow.ai/* https://studinow.app/:splat 301!
 https://www.studinow.ai/* https://studinow.app/:splat 301!
 https://www.studinow.app/* https://studinow.app/:splat 301!
+/.well-known/apple-app-site-association /apple-app-site-association 200
 /i/* /i/index.html 200

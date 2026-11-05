@@ -2,14 +2,24 @@
      Aufbau wie eine Lernplattform-Startseite (Auftrag des Inhabers vom 05.11.2026): Einstieg, Vertrauensleiste, Uni-Anbindung,
      Funktionen mit Bildschirmfotos (Demo-Inhalte, docs/release/website-img/), drei Schritte, Tarife, Fragen, Abschluss.
      Nur Inhalte, die es in der App wirklich gibt; keine Zahlen über Nutzer, keine Stimmen, keine Hochschul-Logos.
+     Seit 05.11.2026 (Wunsch des Inhabers): für Studierende in ganz Deutschland, aber ehrlich – angebunden sind heute nur
+     LUH, Hochschule Hannover und Universität Hildesheim (nie "alle Hochschulen", Richtlinie 2.3); Abschnitt Mensa.
+     Zahlen im Studienverlauf aus apps/apple/UniFlow/Resources/StudyCatalogSeed/*-index.json (306 Studiengänge und Fächer,
+     12 894 Module; docs/STUDIENGAENGE-*.md).
+     Bilder in website-img/: Querformat der Store-Bilder (docs/release/SCREENSHOTS.md), sips -Z 1400 -s format jpeg
+     -s formatOptions 70 (1400 x 1050).
      :i-name: setzt ein Symbol ein (ICONS in tools/gen-site.py). -->
 
 <section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
 <div class="hero-text">
+<p class="eyebrow">Für Studierende in ganz Deutschland</p>
 <h1 id="hero-title">Dein Studium an einem Ort.</h1>
-<p class="lead">StudiNow holt Skripte, Übungsblätter, Termine und Nachrichten aus Stud.IP und QIS auf dein iPad. Du schreibst
-mit dem Apple Pencil, lässt dir ganze Vorlesungen erklären und übst mit Wochentests und Karteikarten.</p>
+<p class="lead">StudiNow holt Skripte, Übungsblätter, Termine und Nachrichten aus den Systemen deiner Hochschule auf dein
+iPad. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen erklären und übst mit Wochentests und Karteikarten.</p>
+<p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong>, <strong>Hochschule
+Hannover</strong> und <strong>Universität Hildesheim</strong>. Weitere Hochschulen folgen. Deine fehlt?
+<a href="mailto:support@studinow.app">Schreib uns</a>.</span></p>
 <div class="cta" id="laden">
 <a class="btn btn-store" href="#" aria-describedby="store-note">:i-download: Im App Store laden</a>
 <a class="btn btn-ghost" href="#funktionen">Funktionen ansehen</a>
@@ -19,9 +29,9 @@ testen, ohne Zahlungsdaten.</p>
 </div>
 <figure class="hero-shot">
 <div class="device">
-<picture><source media="(prefers-color-scheme: dark)" srcset="img/uebersicht-dunkel.jpg"><img src="img/uebersicht-hell.jpg" width="1400" height="1050" alt="StudiNow auf dem iPad: Übersicht mit der Prüfungsanmeldung, dem Lernplan für heute und den nächsten Terminen (Demo-Inhalte)"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/uebersicht-dunkel.jpg"><img src="img/uebersicht-hell.jpg" width="1400" height="1050" alt="StudiNow auf dem iPad: Übersicht mit Begrüßung, der Prüfungsanmeldung, der Karte Heute in der Mensa und dem Lernplan für heute (Demo-Inhalte)"></picture>
 </div>
-<figcaption><svg class="scribble" viewBox="0 0 64 40" aria-hidden="true" focusable="false"><path d="M4 34c14 0 30-6 42-18 4-4 7-8 9-12M55 4l-11 2M55 4l1 11"/></svg>Deine Übersicht: Prüfungen, Lernplan und Termine</figcaption>
+<figcaption><svg class="scribble" viewBox="0 0 64 40" aria-hidden="true" focusable="false"><path d="M4 34c14 0 30-6 42-18 4-4 7-8 9-12M55 4l-11 2M55 4l1 11"/></svg>Deine Übersicht: Prüfungen, Mensa und Lernplan</figcaption>
 </figure>
 </div>
 </section>
@@ -31,7 +41,7 @@ testen, ohne Zahlungsdaten.</p>
 <li>:i-lock: <span><strong>Kein Uni-Passwort gespeichert.</strong> Du meldest dich bei deiner Hochschule an, nicht bei uns.</span></li>
 <li>:i-tablet: <span><strong>Deine Daten auf deinem iPad.</strong> Unterlagen, Notizen und Termine liegen lokal.</span></li>
 <li>:i-eye-off: <span><strong>Kein Tracking, keine Werbung.</strong> Keine Analyse-Werkzeuge Dritter.</span></li>
-<li>:i-cap: <span><strong>Zuerst für die Leibniz Universität Hannover.</strong> Weitere Hochschulen folgen.</span></li>
+<li>:i-cap: <span><strong>Heute für LUH, Hochschule Hannover und Uni Hildesheim.</strong> Weitere Hochschulen in Deutschland folgen.</span></li>
 </ul>
 </section>
 
@@ -39,13 +49,14 @@ testen, ohne Zahlungsdaten.</p>
 <div class="wrap">
 <div class="section-head">
 <h2 id="uni-title">Alles aus der Uni, ohne fünf Tabs</h2>
-<p>Melde dich einmal wie gewohnt an. StudiNow gleicht deine Kurse ab und ordnet alles nach Modulen.</p>
-<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li></ul>
+<p>Melde dich einmal wie gewohnt an. StudiNow gleicht deine Kurse ab und ordnet alles nach Modulen, das aktuelle
+Semester zuerst.</p>
+<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Moodle</li><li>HISinOne</li><li>LSF</li></ul>
 </div>
 <ul class="tiles">
-<li>:i-folder: <h3>Unterlagen kommen von selbst</h3><p>Neue Skripte, Folien und Übungsblätter aus deinen Kursen landen im richtigen Modulordner.</p></li>
-<li>:i-mail: <h3>Stud.IP-Nachrichten</h3><p>Nachrichten lesen und direkt aus der App antworten.</p></li>
-<li>:i-upload: <h3>Abgeben in Stud.IP</h3><p>Deine bearbeitete Übung als PDF dort abgeben, wo der Kurs sie erwartet.</p></li>
+<li>:i-folder: <h3>Unterlagen kommen von selbst</h3><p>Neue Skripte, Folien und Übungsblätter landen im richtigen Modulordner. Erst das aktuelle Semester, ältere folgen im Hintergrund.</p></li>
+<li>:i-mail: <h3>Nachrichten beantworten</h3><p>Nachrichten aus Stud.IP und Moodle lesen und direkt aus der App antworten.</p></li>
+<li>:i-upload: <h3>Abgeben in Stud.IP und Moodle</h3><p>Deine bearbeitete Übung als PDF dort abgeben, wo der Kurs sie erwartet. Abgeschickt wird erst, wenn du es bestätigst.</p></li>
 <li>:i-clock: <h3>Stundenplan und Lernkalender</h3><p>Vorlesungen und Übungen im Wochenraster, Lernpakete in deinen freien Zeitfenstern.</p></li>
 </ul>
 </div>
@@ -76,18 +87,19 @@ offenen Seite oder nimm das ganze Dokument, zum Beispiel „Erkläre die ganze V
 <div class="wrap feature-grid">
 <div class="feature-text">
 <h2 id="f-verlauf">Studienverlauf und Prüfungsanmeldung im Blick</h2>
-<p>StudiNow kennt die Modulkataloge aller Studiengänge der LUH. Du siehst deine Leistungspunkte, was in deinem Plan als
+<p>StudiNow bringt die Modulkataloge von über 300 Studiengängen und Fächern mit: an der Leibniz Universität Hannover,
+der Hochschule Hannover und der Universität Hildesheim. Du siehst deine Leistungspunkte, was in deinem Plan als
 Nächstes kommt und welche Prüfungen du im Meldezeitraum anmelden solltest.</p>
 <ul class="checks">
 <li>Leistungspunkte und Semesterplan aus deinem Modulkatalog</li>
 <li>Melde- und Prüfungszeiträume mit Erinnerung, Klausurtermine im Kalender</li>
-<li>Ein Tipp öffnet die Anmeldung im QIS, bestätigen tust du dort selbst</li>
+<li>Ein Tipp öffnet die Anmeldung im Prüfungssystem deiner Hochschule, bestätigen tust du dort selbst</li>
 </ul>
 <p class="fine">Verbindlich sind immer die Prüfungsordnung und die Systeme deiner Hochschule.</p>
 </div>
 <figure class="shot">
 <div class="device">
-<picture><source media="(prefers-color-scheme: dark)" srcset="img/studienverlauf-dunkel.jpg"><img src="img/studienverlauf-hell.jpg" width="1400" height="1050" loading="lazy" decoding="async" alt="Studienverlauf Informatik B.Sc. mit 49 von 180 Leistungspunkten und der Karte Prüfungsanmeldung mit Meldezeiträumen und vier Prüfungen (Demo-Inhalte)"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/studienverlauf-dunkel.jpg"><img src="img/studienverlauf-hell.jpg" width="1400" height="1050" loading="lazy" decoding="async" alt="Studienverlauf Informatik B.Sc. mit 59 von 180 Leistungspunkten und der Karte Prüfungsanmeldung mit Meldezeiträumen und vier Prüfungen (Demo-Inhalte)"></picture>
 </div>
 </figure>
 </div>
@@ -108,6 +120,28 @@ StudiNow fragt fällige Karten zuerst ab: richtig heißt seltener, falsch heißt
 <figure class="shot">
 <div class="device">
 <picture><source media="(prefers-color-scheme: dark)" srcset="img/wochentest-dunkel.jpg"><img src="img/wochentest-hell.jpg" width="1400" height="1050" loading="lazy" decoding="async" alt="Ergebnis eines Wochentests zu Zahlensystemen: 75 Prozent, drei von vier Aufgaben richtig, mit Erklärung zur Lösung (Demo-Inhalte)"></picture>
+</div>
+</figure>
+</div>
+</section>
+
+<section class="section feature alt" id="mensa" aria-labelledby="f-mensa">
+<div class="wrap feature-grid">
+<div class="feature-text">
+<h2 id="f-mensa">Was gibt’s heute in der Mensa?</h2>
+<p>Der Speiseplan deiner Mensa steht in StudiNow, mit den Preisen für deine Gruppe: Studierende, Bedienstete oder Gäste.
+Auf der Übersicht zeigt dir die Karte „Heute in der Mensa“ die Hauptgerichte des Tages.</p>
+<ul class="checks">
+<li>Heute, morgen oder die ganze Woche, Mensa wechseln und Favoriten merken</li>
+<li>Nährwerte, Allergene und Kennzeichen zu jedem Gericht</li>
+<li>Filter für vegan, vegetarisch und ohne bestimmte Allergene</li>
+</ul>
+<p class="fine">Speisepläne vom Studentenwerk Hannover und vom Studierendenwerk OstNiedersachsen, für die Mensen in Hannover und
+Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem Tarif frei.</p>
+</div>
+<figure class="shot">
+<div class="device">
+<picture><source media="(prefers-color-scheme: dark)" srcset="img/mensa-dunkel.jpg"><img src="img/mensa-hell.jpg" width="1400" height="1050" loading="lazy" decoding="async" alt="Mensa-Seite mit dem Speiseplan von heute: Gerichte mit Preis für Studierende, Kennzeichen wie vegan und Nährwerten (Demo-Inhalte)"></picture>
 </div>
 </figure>
 </div>
@@ -138,7 +172,8 @@ StudiNow fragt fällige Karten zuerst ab: richtig heißt seltener, falsch heißt
 <p class="price"><span class="amount">0 €</span></p>
 <p class="tagline">Studium organisieren und Unterlagen lesen</p>
 <ul class="checks">
-<li>Abgleich mit Stud.IP und QIS</li>
+<li>Abgleich mit deiner Hochschule</li>
+<li>Speiseplan deiner Mensa</li>
 <li>PDFs lesen, durchsuchen, Lesezeichen</li>
 <li>Stundenplan, Lernkalender und Lernplanung</li>
 <li>Lernstand je Modul</li>
@@ -202,8 +237,11 @@ du angelegt hast, bleibt da.</p>
 </details>
 <details>
 <summary>Für welche Hochschulen ist StudiNow?</summary>
-<p>Zuerst für die Leibniz Universität Hannover mit Stud.IP und QIS, inklusive der Modulkataloge aller Studiengänge.
-StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und
+<p>StudiNow ist für Studierende in ganz Deutschland gedacht. Angebunden sind heute drei Hochschulen: die Leibniz
+Universität Hannover (Stud.IP, QIS), die Hochschule Hannover (Moodle, HISinOne, QIS) und die Universität Hildesheim
+(Learnweb, LSF), jeweils mit den Modulkatalogen der Studiengänge und dem Speiseplan der Mensen. Weitere Hochschulen
+folgen. Deine fehlt? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
+<p>StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und
 Noten sind immer die Systeme deiner Hochschule.</p>
 </details>
 <details>

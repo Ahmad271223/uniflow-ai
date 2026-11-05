@@ -9,7 +9,8 @@ import XCTest
 /// App-Store-Bildschirmfotos fuer das iPad Pro 13" (2064 x 2752 hoch, 2752 x 2064 quer): die echten Ansichten der App
 /// in einem Fenster von 1032 x 1376 Punkten bei Massstab 2, mit den Demo-Inhalten (`DemoContent`: erfundenes Modul
 /// "Demo: Grundlagen der Informatik", kein echter Name, kein Hochschul-Logo) und den Zusaetzen nur fuer die Store-Bilder
-/// (`DemoContent.installStoreExtras`: Studienverlauf mit Pruefungsanmeldung, Nachrichten). Mit UF_SCREENSHOT_DIR
+/// (`DemoContent.installStoreExtras`: Studienverlauf mit Pruefungsanmeldung, Nachrichten) und dem erfundenen Speiseplan
+/// (`MensaDemoHTTP`, unter XCTest im lokalen Backend). Mit UF_SCREENSHOT_DIR
 /// (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) schreibt der Test die PNGs dorthin, je Ansicht hell und dunkel, hoch und
 /// quer: der Store-Satz (01-10) direkt in den Ordner, Varianten und Reserve unter `reserve/`. Reihenfolge, Dateinamen
 /// und Bildunterschriften: docs/release/SCREENSHOTS.md. Ohne UF_SCREENSHOT_DIR prueft der Test nur, dass jede Ansicht
@@ -20,7 +21,7 @@ import XCTest
 /// (`DemoStudIP`), die Community aus einer leeren Wolke im Speicher (so erscheint die Seite wie im Build mit
 /// iCloud-Container, mit den Communities der Demo-Kurse). Tarif Plus ueber `setPlanForTesting`, damit Notizen und
 /// Karteikarten frei sind; die Tarifseite zeigt Free als gekauften Stand. Die Begruessung nennt den erfundenen Rufnamen
-/// "Mia" (`Rufname` des Test-Containers).
+/// "Tobi" (`Rufname` des Test-Containers, Wunsch des Inhabers 05.11.2026).
 @MainActor
 final class StoreScreenshotTests: XCTestCase {
 
@@ -28,7 +29,7 @@ final class StoreScreenshotTests: XCTestCase {
     private static let portrait = CGSize(width: 1032, height: 1376)
     private static let landscape = CGSize(width: 1376, height: 1032)
     /// erfundener Rufname der Begruessung
-    static let demoName = "Mia"
+    static let demoName = "Tobi"
 
     private var bed: ContainerTestBed!
     private var manager: ContainerManager!
@@ -141,7 +142,7 @@ final class StoreScreenshotTests: XCTestCase {
                 HTTPReply(status: 200, contentType: "application/vnd.api+json", finalURL: url, body: Data(s.utf8))
             }
             if p.contains("/users/me") {
-                return json(#"{"data":{"type":"users","id":"u-demo","attributes":{"family-name":"Muster","given-name":"Mia","formatted-name":"Mia Muster"}}}"#)
+                return json(#"{"data":{"type":"users","id":"u-demo","attributes":{"family-name":"Muster","given-name":"Tobi","formatted-name":"Tobi Muster"}}}"#)
             }
             if p.contains("/users/\(Self.me)/inbox") {
                 return json("""
@@ -753,12 +754,17 @@ final class StoreScreenshotTests: XCTestCase {
         shoot(env, "09-lernkalender")
     }
 
-    func test10Stundenplan() throws {
+    /// Mensa (05.11.2026, ersetzt den Stundenplan im Store-Satz): Speiseplan heute mit Preisen fuer Studierende,
+    /// Kennzeichen und Naehrwerten aus dem erfundenen Plan (`MensaDemoHTTP`, kein Netz); an Wochenenden zeigt die Seite
+    /// "Geschlossen", darum an einem Werktag aufnehmen
+    func test10Mensa() throws {
         let env = try host(MainView())
-        env.router.go(.timetable())
-        expect(env, "Stundenplan")
-        expect(env, "Grundlagen der Informatik")
-        shoot(env, "10-stundenplan")
+        env.router.go(.mensa)
+        expect(env, "Gemüse-Kichererbsen-Curry mit Reis")
+        expect(env, "Hähnchenbrust mit Kräuterkartoffeln")
+        XCTAssertFalse(shows(env, "Geschlossen"), "Werktag mit Speiseplan:\n" + dump(env))
+        env.pump(1.0)
+        shoot(env, "10-mensa")
     }
 
     // MARK: - Reserve (nicht im Store-Satz)
@@ -841,5 +847,14 @@ final class StoreScreenshotTests: XCTestCase {
             expect(env, "Zahlensysteme in Kürze")
         }
         shoot(env, "15-ki-start", reserve: true)
+    }
+
+    /// Stundenplan (bis 05.11.2026 Bild 10 im Store-Satz, jetzt Reserve)
+    func test16Stundenplan() throws {
+        let env = try host(MainView())
+        env.router.go(.timetable())
+        expect(env, "Stundenplan")
+        expect(env, "Grundlagen der Informatik")
+        shoot(env, "16-stundenplan", reserve: true)
     }
 }
