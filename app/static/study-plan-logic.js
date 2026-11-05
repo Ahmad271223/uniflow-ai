@@ -116,6 +116,9 @@ export function moduleLabel(m) {
   if (moduleStatus(m) !== "moved" && m.moved_from) parts.push(`aus ${m.moved_from}`);
   if (m.reason) parts.push(m.reason);
   if (m.last_attempt) parts.push("letzter Versuch");
+  if (m.placed) parts.push("selbst eingeplant");
+  if (m.custom) parts.push("eigener Eintrag");
+  parts.push(...(m.hints || []).filter(Boolean));
   return parts.join(", ");
 }
 
@@ -238,25 +241,41 @@ export const sourceLabel = page => page ? `Im Modulkatalog ansehen (S. ${page})`
 
 const pill = (text, tone, icon, ic) => `<span class="sp-pill ${tone}">${ic ? ic(icon, 12) : ""}<span>${esc(text)}</span></span>`;
 
-/** Karte eines Moduls */
-export function moduleCardHtml(m, ic) {
+/** Karte eines Moduls; mit `opts.edit` (Bearbeiten erlaubt) zusaetzlich Ziehen und Menue "Aktionen" (Verschieben nach …,
+    Nicht belegen …), Etiketten "Selbst eingeplant" / "Eigener Eintrag" und Hinweise des Kerns */
+export function moduleCardHtml(m, ic, opts = null) {
   const s = moduleStatus(m), st = STATUS[s], reason = reasonLine(m), color = areaColor(m.area);
-  return `<button type="button" class="sp-mod${s === "failed" ? " failed" : ""}${s === "passed" ? " passed" : ""}" data-module="${esc(m.id)}" style="${color ? `--ac:${color}` : ""}" aria-label="${esc(moduleLabel(m))}" title="Details zum Modul">`
+  const hints = (m.hints || []).filter(Boolean);
+  const card = `<button type="button" class="sp-mod${s === "failed" ? " failed" : ""}${s === "passed" ? " passed" : ""}" data-module="${esc(m.id)}" style="${color ? `--ac:${color}` : ""}" aria-label="${esc(moduleLabel(m))}" title="Details zum Modul">`
     + `<span class="sp-mod-top"><b class="sp-mod-title">${esc(m.title)}</b><span class="sp-lp">${esc(lpText(m.lp))}</span></span>`
-    + `<span class="sp-tags"><span class="sp-tag ${kindClass(m.kind)}">${esc(kindText(m.kind))}</span>${turnusShort(m.turnus) ? `<span class="sp-tag line">${esc(turnusShort(m.turnus))}</span>` : ""}</span>`
+    + `<span class="sp-tags"><span class="sp-tag ${kindClass(m.kind)}">${esc(kindText(m.kind))}</span>${turnusShort(m.turnus) ? `<span class="sp-tag line">${esc(turnusShort(m.turnus))}</span>` : ""}`
+    + (m.placed ? `<span class="sp-tag sky">Selbst eingeplant</span>` : "") + (m.custom ? `<span class="sp-tag line">Eigener Eintrag</span>` : "") + `</span>`
     + pill(statusText(m), st.tone, st.icon, ic)
     + (reason ? `<span class="sp-reason">${esc(reason)}</span>` : "")
+    + hints.map(h => `<span class="sp-hint">${ic ? ic("alert", 12) : ""}<span>${esc(h)}</span></span>`).join("")
     + (m.last_attempt ? `<span class="sp-last">${ic ? ic("alert", 12) : ""}<b>Letzter Versuch</b></span>` : "")
     + `</button>`;
+  if (!opts) return card;
+  const drag = opts.edit && movable(m);
+  const menu = opts.edit && menuItems(m, opts.plan).length > 1;
+  return `<div class="sp-card${drag ? " can-drag" : ""}${s === "passed" ? " locked" : ""}" data-card="${esc(m.id)}"${drag ? ` draggable="true" data-drag="${esc(m.id)}"` : ""}>${card}`
+    + (menu ? `<button type="button" class="sp-more" data-menu="${esc(m.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Aktionen für ${m.title}`)}" title="Verschieben, nicht belegen …">${ic ? ic("more", 16) : "…"}</button>` : "")
+    + (s === "passed" && opts.edit ? `<span class="sp-lock" title="Bestanden – bleibt im Semester aus QIS" aria-hidden="true">${ic ? ic("check", 11) : ""}</span>` : "")
+    + `</div>`;
 }
 
-/** Spalte bzw. Abschnitt eines Semesters */
-export function semesterHtml(s, ic) {
+/** Spalte bzw. Abschnitt eines Semesters; mit `opts` (Plan, edit) auch offene Plaetze, "+ n LP offen" und Ablageziel */
+export function semesterHtml(s, ic, opts = null) {
   const over = Number(s.lp) > LP_LIMIT + 0.01;
-  return `<section class="sp-sem${s.current ? " current" : ""}" data-term="${esc(s.term)}" aria-label="${esc([s.term, fach(s.fachsemester), `${number(s.lp)} Leistungspunkte${over ? ", mehr als der Richtwert" : ""}`, s.current ? "aktuelles Semester" : null].filter(Boolean).join(", "))}">`
+  const slots = opts ? (s.slots || []) : [];
+  const lpSlots = Number(s.lp_slots) || 0;
+  const label = [s.term, fach(s.fachsemester), `${number(s.lp)} Leistungspunkte${over ? ", mehr als der Richtwert" : ""}`,
+    opts && lpSlots > 0 ? `dazu ${number(lpSlots)} Leistungspunkte offene Wahl` : null, s.current ? "aktuelles Semester" : null].filter(Boolean).join(", ");
+  const mods = s.modules || [];
+  return `<section class="sp-sem${s.current ? " current" : ""}${over ? " over" : ""}" data-term="${esc(s.term)}"${opts?.edit ? ` data-drop="${esc(s.term)}"` : ""} aria-label="${esc(label)}">`
     + `<header class="sp-sem-head"><div><b>${esc(s.term)}</b>${s.current ? ` <span class="badge">Aktuell</span>` : ""}${fach(s.fachsemester) ? `<small>${esc(fach(s.fachsemester))}</small>` : ""}</div>`
-    + `<span class="badge ${over ? "warn" : "neutral"}">${over && ic ? ic("alert", 12) : ""}${esc(lpText(s.lp))}</span></header>`
-    + ((s.modules || []).length ? `<div class="sp-mods">${s.modules.map(m => moduleCardHtml(m, ic)).join("")}</div>` : `<p class="sp-none">Keine Module geplant</p>`)
+    + `<div class="sp-sem-lp"><span class="badge ${over ? "warn" : "neutral"}">${over && ic ? ic("alert", 12) : ""}${esc(lpText(s.lp))}</span>${opts && lpSlots > 0 ? `<small>+ ${esc(number(lpSlots))} LP offen</small>` : ""}</div></header>`
+    + (mods.length || slots.length ? `<div class="sp-mods">${mods.map(m => moduleCardHtml(m, ic, opts)).join("")}${slots.map(sl => slotCardHtml(sl, opts.plan, ic, opts.edit, s.term)).join("")}</div>` : `<p class="sp-none">Keine Module geplant</p>`)
     + `</section>`;
 }
 
@@ -293,12 +312,14 @@ export function backlogHtml(plan, ic) {
 }
 
 /** Board (Semester-Spalten) oder Hinweis, wenn der Filter nichts uebrig laesst */
-export function boardHtml(plan, filter, ic) {
+export function boardHtml(plan, filter, ic, opts = null) {
   const sems = visibleSemesters(plan, filter);
   if (!sems.length) {
     return `<div class="card flat"><div class="empty">${ic ? `<div class="ic">${ic(filter === "passed" ? "check" : "calendar", 28)}</div>` : ""}${filter === "passed" ? "Noch kein Modul bestanden." : "Alles bestanden – nichts mehr offen."}</div></div>`;
   }
-  return `<div class="sp-board" id="spBoard">${sems.map(s => semesterHtml(s, ic)).join("")}</div>`;
+  // Plaetze nur ohne Filter "Bestanden" (der Kern liefert sie ohnehin nur fuer offene Wahl)
+  const o = opts ? { ...opts, plan } : null;
+  return `<div class="sp-board" id="spBoard">${sems.map(s => semesterHtml(filter === "passed" ? { ...s, slots: [] } : s, ic, o)).join("")}</div>`;
 }
 
 /** Pruefungsordnung bestaetigen: erscheint, solange die PO nur vorgeschlagen ist */
@@ -456,7 +477,7 @@ export function counterText(lp, req) { return req ? `${number(lp)} von ${number(
 /** Beschriftung einer Ordnung: ein Kuerzel aus dem Register ("TIBSc22") heisst im Katalog "2022" */
 export const poLabel = (s, po) => String((s.catalogs || []).find(c => c.code === po)?.po ?? po);
 
-export function settingsHtml(s, st, ic) {
+export function settingsHtml(s, st, ic, extra = "") {
   const pos = [...(s.po_options || [])];
   if (s.po && !pos.includes(s.po)) pos.push(s.po);
   const terms = [...(s.term_options || [])];
@@ -475,5 +496,470 @@ export function settingsHtml(s, st, ic) {
       + (req ? `<div class="progress${lp >= req ? " ok" : ""}"><i id="spCountBar" style="width:${Math.min(100, (lp / req) * 100).toFixed(0)}%"></i></div>` : "")
       + `<div class="sp-electives">${opts.map(e => `<label class="sp-el"><input type="checkbox" data-el="${esc(e.id)}"${st.chosen.has(e.id) ? " checked" : ""}><span><b>${esc(e.title)}</b><small>${esc([lpText(e.lp), e.area_name || e.area].filter(Boolean).join(" · "))}</small></span></label>`).join("")}</div>`
       : `<p class="muted small">Dein Studiengang hat keine Wahlpflichtmodule zum Auswählen.</p>`) + `</div></div>`
-    + `<div class="sp-err small" id="spSetErr" hidden></div></div>`;
+    + extra + `<div class="sp-err small" id="spSetErr" hidden></div></div>`;
+}
+
+// ================================================================ Selbst gestalten (05.11.2026)
+// Wie auf dem iPad (StudyPlanEditing.swift, StudyPlanModel.swift "StudyPlanEdit"): offene Plaetze je Semester, Auswahl der
+// erlaubten Module, Tauschen, "Nicht belegen", "Zurück in den Plan", eigene Eintraege, Verschieben (Ziehen und Menue),
+// "Plan zurücksetzen", Kasten "Bereiche und Wahl" und die Gesamtansicht. Hier entstehen nur Texte, HTML und die Rumpfe fuer
+// POST /api/study-plan/settings (der Kern speichert teilweise); gerechnet wird im Backend (docs/STUDIENVERLAUF-2026-11-04.md,
+// Abschnitt "Für Web und iPhone").
+
+/** Richtwert je Semester; "im 3. Semester sind jetzt 12 LP frei" zaehlt bis hierher */
+export const LP_TARGET = 30;
+
+const TERM_RE = /^\s*(WiSe|SoSe|Wintersemester|Sommersemester|WS|SS)\s*(\d{2,4})(?:\s*\/\s*(\d{2,4}))?\s*$/i;
+const two = n => String(n % 100).padStart(2, "0");
+/** "WiSe 25/26" -> Jahr * 2 + 1, "SoSe 26" -> Jahr * 2 (wie parse_term in app/study_plan.py) */
+export function parseTerm(t) {
+  const m = TERM_RE.exec(String(t ?? ""));
+  if (!m) return null;
+  let y = Number(m[2]);
+  if (y < 100) y += 2000;
+  return y * 2 + (/^(wi|ws)/i.test(m[1]) ? 1 : 0);
+}
+export const termName = n => n % 2 ? `WiSe ${two(Math.floor(n / 2))}/${two(Math.floor(n / 2) + 1)}` : `SoSe ${two(Math.floor(n / 2))}`;
+
+export const currentTerm = plan => plan?.current_term || (plan?.semesters || []).find(s => s.current)?.term || null;
+
+/** Semester fuer "Verschieben nach …": vom aktuellen (bzw. ersten) bis vier Semester nach dem letzten im Plan */
+export function moveTerms(plan) {
+  const sems = plan?.semesters || [];
+  const known = sems.map(s => parseTerm(s.term)).filter(n => n != null);
+  if (!known.length) return sems.map(s => s.term);
+  const from = parseTerm(currentTerm(plan)) ?? Math.min(...known);
+  const last = Math.max(...known), out = [];
+  for (let t = from; t <= Math.max(from, last + 4); t++) out.push(termName(t));
+  return out;
+}
+
+/** Fachsemester eines Semesternamens (auch nach dem letzten Semester im Plan) */
+export function fachsemesterOf(plan, term) {
+  const sems = plan?.semesters || [];
+  const s = sems.find(x => x.term === term);
+  if (s) return s.fachsemester ?? null;
+  const t = parseTerm(term), first = sems[0], t0 = parseTerm(first?.term);
+  return t == null || t0 == null || first?.fachsemester == null ? null : t - t0 + Number(first.fachsemester);
+}
+
+export const lpFree = s => Math.max(0, LP_TARGET - (Number(s?.lp) || 0));
+export const overloaded = s => (Number(s?.lp) || 0) > LP_LIMIT + 0.01;
+
+/** Wahl(pflicht)modul? */
+export const isElective = m => ["wahlpflicht", "wahl"].includes(key(m?.kind));
+/** verschiebbar: alles ausser Bestandenem (liegt im Semester aus QIS) und eigenen Eintraegen */
+export const movable = m => !!m && moduleStatus(m) !== "passed" && !m.custom;
+/** gewaehltes Wahlmodul, das sich tauschen laesst (nicht bestanden, nicht angemeldet) */
+export const replaceable = m => isElective(m) && movable(m) && !["registered", "failed"].includes(moduleStatus(m));
+
+/** Eintraege des Menues "Aktionen" einer Modulkarte: [Aktion, Text, Symbol] */
+export function menuItems(m, plan) {
+  const out = [["detail", "Details ansehen", "eye"]];
+  if (movable(m)) {
+    out.push(["move", "Verschieben nach …", "move"]);
+    if (m.placed) out.push(["reset", "Ins empfohlene Semester", "undo"]);
+    if (replaceable(m) && (plan?.electives || []).some(o => o.id === m.id)) out.push(["replace", "Anderes Modul wählen", "refresh"]);
+    out.push(["drop", "Nicht belegen", "x"]);
+  }
+  if (m?.custom) out.push(["remove", "Eigenen Eintrag entfernen", "trash"]);
+  return out;
+}
+
+/** Hinweis beim Ziel: Turnus passt nicht */
+export function turnusWarning(turnus, term) {
+  const t = parseTerm(term);
+  if (t == null) return null;
+  const winter = t % 2 === 1, k = turnusShort(turnus);
+  if (k === "WiSe" && !winter) return "Laut Katalog nur im Wintersemester angeboten";
+  if (k === "SoSe" && winter) return "Laut Katalog nur im Sommersemester angeboten";
+  return null;
+}
+
+// ---------------------------------------------------------------- Aenderungen (Rumpf fuer POST /api/study-plan/settings)
+
+const placementsOf = plan => ({ ...(plan?.placements || {}) });
+const chosenIds = plan => (plan?.electives || []).filter(o => o.chosen).map(o => o.id);
+const excludedIds = plan => (plan?.excluded || []).map(o => o.id);
+const without = (obj, id) => { const o = { ...obj }; delete o[id]; return o; };
+
+export const editMove = (plan, id, term) => ({ placements: { ...placementsOf(plan), [id]: term } });
+export const editResetPlacement = (plan, id) => ({ placements: without(placementsOf(plan), id) });
+
+/** Modul aus dem Katalog in den Plan nehmen (Platz, "Zurück in den Plan", "Modul hinzufügen"), optional in ein Semester */
+export function editChoose(plan, option, term) {
+  const o = {};
+  if (option.excluded) o.excluded = excludedIds(plan).filter(id => id !== option.id);
+  if (isElective(option)) { const c = chosenIds(plan); if (!c.includes(option.id)) c.push(option.id); o.electives = c; }
+  if (term) o.placements = { ...placementsOf(plan), [option.id]: term };
+  return o;
+}
+
+/** gewaehltes Wahlmodul tauschen: altes ab, neues dazu, neues ins Semester des alten */
+export function editReplace(plan, old, option, term) {
+  const c = chosenIds(plan).filter(id => id !== old);
+  if (!c.includes(option.id)) c.push(option.id);
+  const p = without(placementsOf(plan), old);
+  if (term) p[option.id] = term;
+  return { electives: c, placements: p };
+}
+
+/** "Nicht belegen": gewaehltes Wahlmodul abwaehlen, sonst ausschliessen; die eigene Lage faellt weg */
+export function editDrop(plan, m) {
+  const o = {};
+  if (isElective(m) && (plan?.electives || []).some(e => e.id === m.id && e.chosen)) o.electives = chosenIds(plan).filter(id => id !== m.id);
+  else o.excluded = [...excludedIds(plan), m.id];
+  if (plan?.placements && m.id in plan.placements) o.placements = without(placementsOf(plan), m.id);
+  return o;
+}
+
+/** "Plan zurücksetzen": eigene Lage und "Nicht belegen" weg (Wahl, Schwerpunkt, eigene Eintraege bleiben) */
+export const EDIT_RESET = Object.freeze({ placements: null, excluded: null });
+
+/** Schwerpunkt/Nebenfach (Bereich) einer Gruppe waehlen; aus QIS geschlossene Gruppen bleiben automatisch */
+export function editTrack(plan, group, area) {
+  const t = {};
+  for (const g of plan?.groups || []) if (!g.auto && g.chosen) t[g.id] = g.chosen;
+  if (area) t[group] = area; else delete t[group];
+  return { tracks: t };
+}
+
+export const customModules = plan => allModules(plan).filter(m => m.custom);
+export function customJSON(m, plan) {
+  const f = semesterOf(plan, m.id)?.fachsemester;
+  return { id: m.id, title: m.title, lp: Number(m.lp) || 0, area: m.area ?? null, semester: m.semester ?? f ?? null };
+}
+/** eingegebene LP: Komma oder Punkt, 0 bis 60 */
+export function parseLp(text) {
+  const n = Number(String(text ?? "").replace(",", ".").trim());
+  return Number.isFinite(n) ? Math.max(0, Math.min(60, n)) : 0;
+}
+export function editAddCustom(plan, title, lp, area, fachsemester) {
+  return { custom: [...customModules(plan).map(m => customJSON(m, plan)), { title: String(title).trim(), lp, area: area ?? null, semester: fachsemester ?? null }] };
+}
+export const editRemoveCustom = (plan, id) => ({ custom: customModules(plan).filter(m => m.id !== id).map(m => customJSON(m, plan)) });
+
+// ---------------------------------------------------------------- Rueckmeldung
+
+/** "Rechnernetze vorgezogen nach SoSe 26 – im 4. Semester sind jetzt 10 LP frei"; mehrere vorgezogen:
+    "3 Module vorgezogen – …"; spaeter: "… verschoben nach …" (frei = 30 − LP des Ausgangssemesters danach) */
+export function moveMessage(title, from, to, after) {
+  const src = from ? (after?.semesters || []).find(s => s.term === from.term) : null;
+  const free = src ? `im ${src.fachsemester != null ? `${src.fachsemester}. Semester` : src.term} sind jetzt ${number(lpFree(src))} LP frei` : null;
+  const f = parseTerm(from?.term), t = parseTerm(to);
+  let head;
+  if (f != null && t != null && t < f) {
+    const pulled = allModules(after).filter(m => {
+      const fs = semesterOf(after, m.id)?.fachsemester;
+      return m.placed && m.semester != null && fs != null && fs < m.semester;
+    }).length;
+    head = pulled >= 2 ? `${pulled} Module vorgezogen` : `${title} vorgezogen nach ${to}`;
+  } else head = `${title} verschoben nach ${to}`;
+  return free ? `${head} – ${free}` : head;
+}
+
+// ---------------------------------------------------------------- Plaetze, Bereiche, Auswahl
+
+export const area = (plan, id) => id ? (plan?.areas || []).find(a => a.id === id) || null : null;
+export const isTrack = slot => slot?.kind === "track";
+
+/** Titel des Platzes mit LP: "Seminar (5 LP)" */
+export const slotTitle = slot => Number(slot?.lp) > 0 ? `${slot.title} (${number(slot.lp)} LP)` : String(slot?.title ?? "Wahlmodul");
+
+/** Zeile unter dem Platz: "1 von 3 Modulen gewählt", "noch 10 von 15 LP offen", "Eine von 5 Richtungen wählen" */
+export function slotLine(slot, plan) {
+  if (isTrack(slot)) {
+    const n = ((plan?.groups || []).find(g => g.id === slot.group)?.options || []).length;
+    return n > 0 ? `Eine von ${n} Richtungen wählen` : "Eine Richtung wählen";
+  }
+  const a = area(plan, slot?.area);
+  if (!a) return "Modul wählen";
+  if (a.modules_required != null) return `${Math.min(Number(a.count) || 0, a.modules_required)} von ${a.modules_required} Modulen gewählt`;
+  if (a.target != null && a.lp_open != null) return `noch ${number(a.lp_open)} von ${number(a.target)} LP offen`;
+  return `${Number(a.options) || 0} Module zur Wahl`;
+}
+
+/** Kurzform des Bereichstyps fuer das Etikett am Platz */
+export const typeLabel = t => ({ studium_generale: "Studium generale", schluessel: "Schlüsselkompetenzen", seminar: "Seminar", labor: "Labor", projekt: "Projekt", praktikum: "Praktikum", schwerpunkt: "Schwerpunkt", nebenfach: "Nebenfach", vertiefung: "Vertiefung" }[t] || null);
+
+/** Vorlesetext je Platz: "Offener Platz, Seminare (5 Leistungspunkte), Wahlpflicht, 0 von 1 Modulen gewählt" */
+export function slotLabel(slot, plan) {
+  const parts = ["Offener Platz", slotTitle(slot).replace(" LP)", " Leistungspunkte)")];
+  if (!isTrack(slot)) parts.push(kindText(slot.area_kind || "wahlpflicht"));
+  parts.push(slotLine(slot, plan));
+  return parts.join(", ");
+}
+
+/** gestrichelte Karte "Platz" im Semester; ohne Bearbeiten nur Anzeige */
+export function slotCardHtml(slot, plan, ic, edit, term) {
+  const tag = edit ? "button" : "div";
+  const t = typeLabel(slot.type);
+  return `<${tag}${edit ? ` type="button"` : ""} class="sp-slot${isTrack(slot) ? " track" : ""}" data-slot="${esc(slot.id)}" data-term="${esc(term || "")}" ${edit ? "" : `role="group" `}aria-label="${esc(slotLabel(slot, plan))}"${edit ? ` title="${isTrack(slot) ? "Richtung wählen" : "Module zeigen, die du hier wählen kannst"}"` : ""}>`
+    + `<span class="sp-slot-ic" aria-hidden="true">${ic ? ic(isTrack(slot) ? "layers" : "plus", 15) : "+"}</span>`
+    + `<span class="sp-slot-t"><b>${esc(slotTitle(slot))}</b><span class="sp-tags">${isTrack(slot) ? "" : `<span class="sp-tag ${kindClass(slot.area_kind || "wahlpflicht")}">${esc(kindText(slot.area_kind || "wahlpflicht"))}</span>`}${t ? `<span class="sp-tag line">${esc(t)}</span>` : ""}</span>`
+    + `<small>${esc(slotLine(slot, plan))}</small></span></${tag}>`;
+}
+
+/** alle Plaetze des Plans mit ihrem Semester */
+export const allSlots = plan => (plan?.semesters || []).flatMap(s => (s.slots || []).map(sl => ({ ...sl, term: s.term })));
+export const findSlot = (plan, id) => allSlots(plan).find(s => s.id === id) || null;
+
+/** Waehlbare Module: `electives` ohne die schon im Plan, dazu die nicht belegten */
+export function allOptions(plan) {
+  return [...(plan?.electives || []).filter(o => !o.included && !o.excluded), ...(plan?.excluded || []).map(o => ({ ...o, excluded: true }))];
+}
+
+/** Auswahl fuer einen Platz (Bereiche des Platzes; leer = alle Wahlbereiche), gefiltert nach Suche, sortiert nach
+    empfohlenem Semester und Titel */
+export function choices(plan, slot, query = "") {
+  let list = allOptions(plan);
+  const areas = slot?.areas || [];
+  if (slot && areas.length) list = list.filter(o => (o.areas || []).some(a => areas.includes(a)) || (o.area != null && areas.includes(o.area)));
+  const q = normalized(query);
+  if (q) list = list.filter(o => normalized(o.title).includes(q));
+  return list.sort((a, b) => ((a.semester ?? 99) - (b.semester ?? 99)) || String(a.title).localeCompare(String(b.title), "de"));
+}
+
+/** Platz fuer das Tauschen: Bereiche des gewaehlten Moduls, Semester, in dem es liegt */
+export function replaceSlot(plan, m) {
+  const o = (plan?.electives || []).find(e => e.id === m.id);
+  return { id: `tausch-${m.id}`, kind: "slot", title: `Statt ${m.title}`, area: m.area ?? null, areas: o?.areas?.length ? o.areas : (m.area ? [m.area] : []),
+    area_kind: key(m.kind), lp: m.lp, term: semesterOf(plan, m.id)?.term || "" };
+}
+
+/** Bereiche im Kasten: aktiv, kein Abschluss, mit Ziel oder Stand; Wahlbereiche zuerst */
+export function shownAreas(plan) {
+  return (plan?.areas || []).filter(a => a.active !== false && a.type !== "abschluss" && (a.target != null || (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0) > 0))
+    .map((a, i) => [a, i]).sort((x, y) => ((x[0].choice ? 0 : 1) - (y[0].choice ? 0 : 1)) || x[1] - y[1]).map(x => x[0]);
+}
+export const hasAreasBox = plan => (plan?.groups || []).length > 0 || (plan?.areas || []).some(a => a.choice) || (plan?.excluded || []).length > 0;
+
+/** "10 von 15 LP · 5 bestanden · 2 von 3 Modulen" */
+export function areaLine(a) {
+  const have = (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0), parts = [];
+  parts.push(a.target != null ? `${number(have)} von ${number(a.target)} LP` : `${number(have)} LP`);
+  if (Number(a.lp_done) > 0) parts.push(`${number(a.lp_done)} bestanden`);
+  if (a.modules_required != null) parts.push(`${Math.min(Number(a.count) || 0, a.modules_required)} von ${a.modules_required} Modulen`);
+  return parts.join(" · ");
+}
+
+/** Kasten "Bereiche und Wahl": Gruppen (Schwerpunkt, Nebenfach), Stand je Bereich, "Nicht belegt" mit "Zurück in den Plan" */
+export function areasHtml(plan, ic, edit) {
+  if (!hasAreasBox(plan)) return "";
+  const groups = (plan.groups || []).map(g => {
+    const name = area(plan, g.chosen)?.name;
+    const text = name ? `${g.label}: ${name}${g.auto ? " (aus QIS)" : ""}` : `${g.label}: noch nicht gewählt`;
+    return `<div class="sp-group${name ? "" : " open"}"><b>${esc(text)}</b>${edit ? `<button type="button" class="btn sm" data-track="${esc(g.id)}" aria-label="${esc(`${g.label} ${name ? "ändern" : "wählen"}`)}">${name ? "Ändern" : "Wählen"}</button>` : ""}</div>`;
+  }).join("");
+  const rows = shownAreas(plan).map(a => {
+    const have = (Number(a.lp_done) || 0) + (Number(a.lp_planned) || 0), t = Number(a.target) || 0;
+    const p = t > 0 ? Math.min(100, (have / t) * 100) : null, done = t > 0 && Number(a.lp_done) >= t;
+    return `<div class="sp-area" role="group" aria-label="${esc(`${a.name}, ${kindText(a.kind)}, ${areaLine(a)}`)}"><div class="sp-area-h"><b>${esc(a.name)}</b><span class="sp-tag ${kindClass(a.kind)}">${esc(kindText(a.kind))}</span></div>`
+      + (p != null ? `<div class="progress${done ? " ok" : ""}" aria-hidden="true"><i style="width:${p.toFixed(0)}%"></i></div>` : "")
+      + `<small>${esc(areaLine(a))}</small>${a.rule ? `<details class="sp-rule"><summary>Regel</summary><p>${esc(shorten(a.rule, 500))}</p></details>` : ""}</div>`;
+  }).join("");
+  const ex = (plan.excluded || []);
+  const exHtml = ex.length ? `<div class="sp-excl"><h3>Nicht belegt</h3><ul>${ex.map(o => `<li><span>${esc(o.title)} · ${esc(lpText(o.lp))}</span>${edit ? `<button type="button" class="btn sm" data-restore="${esc(o.id)}" aria-label="${esc(`${o.title} zurück in den Plan`)}">${ic ? ic("undo", 14) : ""} Zurück in den Plan</button>` : ""}</li>`).join("")}</ul></div>` : "";
+  return `<section class="card sp-areas" aria-labelledby="spAreasH"><div class="card-head"><h2 id="spAreasH">${ic ? ic("layers", 16) : ""} Bereiche und Wahl</h2></div>`
+    + (groups ? `<div class="sp-groups">${groups}</div>` : "") + (rows ? `<div class="sp-area-grid">${rows}</div>` : "") + exHtml + `</section>`;
+}
+
+// ---------------------------------------------------------------- Fenster: Auswahl, Richtung, Verschieben
+
+/** eine Zeile der Auswahl; aufgeklappt mit Pruefung, Kurztext (aus dem Moduldetail), Turnus-Warnung und "In … wählen" */
+export function optionRowHtml(plan, o, { open, detail, target }, ic) {
+  const warn = target ? turnusWarning(o.turnus, target) : null;
+  const areaName = area(plan, o.area)?.name;
+  const label = [o.title, `${number(o.lp)} Leistungspunkte`, kindText(o.kind), turnusShort(o.turnus) ? turnusLong(o.turnus) : null, o.semester != null ? `empfohlen im ${o.semester}. Semester` : null, o.excluded ? "nicht belegt" : null].filter(Boolean).join(", ");
+  const content = String(detail?.texts?.content ?? "").trim();
+  return `<li class="sp-opt${open ? " open" : ""}"><button type="button" class="sp-opt-h" data-opt="${esc(o.id)}" aria-expanded="${open ? "true" : "false"}" aria-controls="spOpt-${esc(o.id)}" aria-label="${esc(label)}">`
+    + `<span class="sp-opt-t"><b>${esc(o.title)}</b><span class="sp-tags"><span class="sp-tag ${kindClass(o.kind)}">${esc(kindText(o.kind))}</span>${turnusShort(o.turnus) ? `<span class="sp-tag line">${esc(turnusShort(o.turnus))}</span>` : ""}${o.semester != null ? `<span class="sp-tag line">${esc(o.semester)}. Semester</span>` : ""}${o.excluded ? `<span class="sp-tag line">nicht belegt</span>` : ""}</span>${areaName ? `<small>${esc(areaName)}</small>` : ""}</span>`
+    + `<span class="sp-lp">${esc(lpText(o.lp))}</span><span class="sp-chev" aria-hidden="true">${ic ? ic(open ? "chevron-down" : "chevron-right", 14) : ""}</span></button>`
+    + (open ? `<div class="sp-opt-b" id="spOpt-${esc(o.id)}">`
+      + (detail ? (detail.exam ? `<p>Prüfung: ${esc(shorten(detail.exam))}</p>` : "") + (content ? `<p>${esc(shorten(content, 240))}</p>` : "")
+        : `<div class="sp-status"><span class="sp-spin" aria-hidden="true"></span><span>Lädt …</span></div>`)
+      + (warn ? `<p class="sp-hint">${ic ? ic("alert", 12) : ""}<span>${esc(warn)}</span></p>` : "")
+      + `<button type="button" class="btn primary sm" data-choose="${esc(o.id)}">${ic ? ic("plus", 14) : ""} ${target ? `In ${esc(target)} wählen` : "Wählen"}</button></div>` : "")
+    + `</li>`;
+}
+
+/** Liste der Auswahl (hoechstens 150 Zeilen) oder Hinweis */
+export function chooserListHtml(plan, slot, query, ui, ic) {
+  const list = choices(plan, slot, query);
+  if (!list.length) return `<p class="muted">${slot ? "Für diesen Platz gibt es im Katalog keine weiteren Module – trag unten einen eigenen ein." : "Alle Module des Katalogs sind schon im Plan."}</p>`;
+  const shown = list.slice(0, 150);
+  return `<ul class="sp-opts" aria-label="Module zur Wahl">${shown.map(o => optionRowHtml(plan, o, { open: ui.expanded === o.id, detail: ui.details?.[o.id], target: ui.target }, ic)).join("")}</ul>`
+    + (list.length > shown.length ? `<p class="muted small">${list.length - shown.length} weitere – such nach dem Namen.</p>` : "");
+}
+
+/** Kopf der Auswahl: Platz mit Regel, oder (Modul hinzufuegen) das Semester */
+export function chooserHeadHtml(plan, slot, target) {
+  if (slot) {
+    const rule = area(plan, slot.area)?.rule;
+    return `<p class="sp-ch-line"><b>${esc(slotTitle(slot))}</b> · ${esc(slot.id?.startsWith("tausch-") ? `tauscht im ${slot.term}` : slotLine(slot, plan))}</p>${rule ? `<p class="muted small">${esc(shorten(rule, 500))}</p>` : ""}`;
+  }
+  return `<label class="sp-field"><span>Semester</span><select class="input" id="spChTerm">${moveTerms(plan).map(t => { const f = fachsemesterOf(plan, t); return `<option value="${esc(t)}"${t === target ? " selected" : ""}>${esc(t)}${f != null ? ` · ${f}. Fachsemester` : ""}</option>`; }).join("")}</select></label>`;
+}
+
+export const CUSTOM_HINT = "Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie in QIS, übernimmt StudiNow Stand und Note.";
+export function customBlockHtml(ic) {
+  return `<div class="sp-custom" role="group" aria-labelledby="spCustH"><h3 id="spCustH">Eigener Eintrag</h3><p class="muted small">${esc(CUSTOM_HINT)}</p>`
+    + `<div class="sp-custom-row"><input class="input" id="spCustTitle" placeholder="Titel" aria-label="Titel des eigenen Eintrags" maxlength="200"><input class="input sp-lp-in" id="spCustLp" value="5" inputmode="decimal" aria-label="Leistungspunkte des eigenen Eintrags"><button type="button" class="btn sm" id="spCustAdd" disabled>${ic ? ic("plus", 14) : ""} Hinzufügen</button></div></div>`;
+}
+
+/** Auswahl einer Richtung (Schwerpunkt, Nebenfach) */
+export function tracksHtml(plan, slot, ic) {
+  const g = (plan?.groups || []).find(x => x.id === slot.group);
+  return `<p class="muted">Wähle eine Richtung. Ihre Module erscheinen danach als Plätze im Plan.</p><div class="sp-tracks">${(slot.areas || []).map(id => {
+    const a = area(plan, id), on = g?.chosen === id;
+    const sub = [a ? `${Number(a.options) || 0} Module` : null, (a?.lp_max ?? a?.lp_required) != null ? `bis ${lpText(a.lp_max ?? a.lp_required)}` : null].filter(Boolean).join(" · ");
+    return `<button type="button" class="sp-track${on ? " on" : ""}" data-pick-track="${esc(id)}" aria-pressed="${on ? "true" : "false"}"><span><b>${esc(a?.name || id)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}${a?.rule ? `<small class="sp-rule-t">${esc(shorten(a.rule, 220))}</small>` : ""}</span>${on && ic ? ic("check", 15) : ""}</button>`;
+  }).join("")}</div>`;
+}
+
+/** Zeilen "Verschieben nach …": Semester ab jetzt mit Fachsemester, LP danach und Turnus-Warnung */
+export function moveRows(plan, m) {
+  const here = semesterOf(plan, m.id)?.term;
+  return moveTerms(plan).map(term => {
+    const sem = (plan.semesters || []).find(s => s.term === term), current = term === here;
+    const lp = (Number(sem?.lp) || 0) + (current ? 0 : Number(m.lp) || 0);
+    return { term, fach: fachsemesterOf(plan, term), current, lp, over: !current && lp > LP_LIMIT + 0.01, warn: current ? null : turnusWarning(m.turnus, term) };
+  });
+}
+
+export function moveHtml(plan, m, ic) {
+  const rows = moveRows(plan, m);
+  const sub = [lpText(m.lp), turnusLong(m.turnus), m.semester != null ? `empfohlen im ${m.semester}. Fachsemester` : null].filter(Boolean).join(" · ");
+  return `<h3 class="sp-mv-t">${esc(m.title)}</h3><p class="muted small">${esc(sub)}</p><ul class="sp-moves" aria-label="Semester">${rows.map(r =>
+    `<li><button type="button" class="sp-move${r.current ? " here" : ""}" data-to="${esc(r.term)}"${r.current ? ` aria-current="true"` : ""} aria-label="${esc([r.term, r.fach != null ? `${r.fach}. Fachsemester` : null, r.current ? "aktuelle Lage" : `danach ${number(r.lp)} Leistungspunkte`, r.warn].filter(Boolean).join(", "))}">`
+    + `<span><b>${esc(r.term)}${r.fach != null ? ` · ${r.fach}. Fachsemester` : ""}</b><small class="${r.over ? "sp-warn" : ""}">${r.current ? "Hier liegt das Modul jetzt" : `danach ${esc(lpText(r.lp))} in diesem Semester`}</small>${r.warn ? `<small class="sp-hint">${ic ? ic("alert", 12) : ""}<span>${esc(r.warn)}</span></small>` : ""}</span>`
+    + `${r.current && ic ? ic("check", 15) : ""}</button></li>`).join("")}</ul>`
+    + (m.placed ? `<button type="button" class="btn" data-reset-one="${esc(m.id)}">${ic ? ic("undo", 14) : ""} Ins empfohlene Semester</button>` : "");
+}
+
+/** Menue "Aktionen" einer Karte bzw. eines Chips */
+export function menuHtml(m, plan, ic) {
+  return `<div class="sp-menu" role="menu" aria-label="${esc(`Aktionen für ${m.title}`)}">${menuItems(m, plan).map(([a, t, i]) =>
+    `<button type="button" role="menuitem" tabindex="-1" class="${a === "drop" || a === "remove" ? "danger" : ""}" data-act="${a}">${ic ? ic(i, 14) : ""}<span>${esc(t)}</span></button>`).join("")}</div>`;
+}
+
+/** Hinweis ohne aktives Abo (Web/Windows): ansehen ja, aendern nein */
+export function readOnlyHtml(ic) {
+  return `<div class="card sp-ro" role="note">${ic ? ic("info", 16) : ""}<span><b>Nur lesen.</b> Ohne aktives Abo kannst du deinen Studienverlauf ansehen, aber nicht ändern. Mit StudiNow Plus oder Pro AI wählst, verschiebst und planst du wieder selbst.</span><a class="btn sm primary" href="#/abo">Abo wählen</a></div>`;
+}
+
+// ---------------------------------------------------------------- Gesamtansicht (alles auf einmal)
+
+/** Kurzname fuer die Gesamtansicht: passt der Titel nicht in die Breite, Fuellwoerter weg und lange Woerter gekuerzt
+    ("Grundlagen der Rechnernetze" -> "Grundl. Rechnernetze" -> "Grun. Rech."), zuletzt Anfangsbuchstaben */
+export function abbreviation(title, width, font) {
+  const t = String(title ?? "");
+  const fits = s => s.length * font * 0.56 <= Math.max(20, width);
+  if (fits(t)) return t;
+  const filler = new Set(["der", "die", "das", "und", "für", "in", "im", "zur", "zum", "von", "des", "den", "mit", "an", "&", "-", "–"]);
+  const words = t.split(/\s+/).filter(w => w && !filler.has(w.toLowerCase()));
+  for (const keep of [7, 5, 4, 3]) {
+    const s = words.map(w => /^[IVX0-9:]+$/.test(w) || [...w].length <= keep + 1 ? w : [...w].slice(0, keep).join("") + ".").join(" ");
+    if (fits(s)) return s;
+  }
+  return words.map(w => /^[IVX0-9]+$/.test(w) ? " " + w : [...w][0]).join("");
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+/** geschaetzte Breite eines Chips (Punkt, Text, LP, Raender) */
+export const chipWidth = (chars, font) => chars * font * 0.56 + font * 1.4 + 22;
+
+/**
+ * Masse der Gesamtansicht fuer die verfuegbare Flaeche. Breit (ab 600 px): Spalten ohne Rollen, quer eine Reihe, hoch
+ * oder sehr schmal zwei; Chip-Hoehe 14–30 px je nach Platz (wie StudyPlanOverview auf dem iPad). Schmal (Telefon):
+ * Semester untereinander, Chips brechen um; die groesste Schrift, bei der alles in die Hoehe passt.
+ * semesters: [{ titles: [...], slots: n }] (Titel der Module und Plaetze).
+ */
+export function overviewLayout({ width, height, semesters, gap = 6 }) {
+  const n = Math.max(1, semesters.length);
+  const counts = semesters.map(s => (s.titles || []).length);
+  if (width < 600) {
+    // Masse wie im CSS (.sp-ov.stack): Rahmen 2, oben 4, Kopf 16, Abstand 3, unten 5; Chips umbrechend mit 4 px Abstand
+    const inner = width - 14;
+    for (let font = 12.5; font >= 9.5; font -= 0.5) {
+      const chip = Math.round(font * 1.9), max = Math.floor((inner - 4) / 2);
+      let total = 0;
+      for (const s of semesters) {
+        let lines = 0, x = 0;
+        for (const t of s.titles || []) {
+          const w = Math.min(max, chipWidth(String(t).length, font));
+          if (lines === 0) { lines = 1; x = w; } else if (x + 4 + w > inner) { lines++; x = w; } else x += 4 + w;
+        }
+        total += 30 + lines * chip + Math.max(0, lines - 1) * 4;
+      }
+      total += gap * (n - 1);
+      if (total <= height || font <= 9.5) return { mode: "stack", font, chip, chipMax: max, fits: total <= height, total };
+    }
+  }
+  let rows = width >= height || n <= 4 ? 1 : 2;
+  let perRow = Math.ceil(n / rows);
+  let colWidth = (width - gap * (perRow - 1)) / perRow;
+  if (rows === 1 && n > 4 && colWidth < 110) { rows = 2; perRow = Math.ceil(n / 2); colWidth = (width - gap * (perRow - 1)) / perRow; }
+  const rowHeight = Math.max(120, (height - gap * (rows - 1)) / rows);
+  const most = Math.max(1, ...counts);
+  const raw = (rowHeight - 34 - most * 3) / most;
+  const chip = clamp(raw, 14, 30), font = clamp(chip * 0.45, 9.5, 12.5);
+  return { mode: "cols", rows, perRow, colWidth: Math.floor(colWidth), rowHeight: Math.floor(rowHeight), chip: Math.floor(chip), font: Math.round(font * 2) / 2, fits: raw >= 14 };
+}
+
+/** Eingabe fuer overviewLayout aus dem Plan */
+export const overviewInput = plan => (plan?.semesters || []).map(s => ({ titles: [...(s.modules || []).map(m => m.title), ...(s.slots || []).map(sl => sl.title)] }));
+
+/** Ton des Chips wie StudyPlanStatus.tone: bestanden gruen, angemeldet blau, nicht bestanden rot, verschoben gelb */
+export const chipTone = m => ({ passed: "ok", registered: "info", failed: "bad", moved: "warn" }[moduleStatus(m)] || "neutral");
+
+export function overviewHtml(plan, lay, ic, edit) {
+  const stack = lay.mode === "stack";
+  const textW = stack ? lay.chipMax - (lay.font * 1.4 + 22) : lay.colWidth - 8 - (lay.font * 1.4 + 22);
+  const col = s => {
+    const over = overloaded(s);
+    const head = `<header class="sp-ov-h" aria-label="${esc([s.term, fach(s.fachsemester), `${number(s.lp)} Leistungspunkte${over ? ", mehr als der Richtwert" : ""}`, s.current ? "aktuelles Semester" : null].filter(Boolean).join(", "))}">`
+      + `<span class="sp-ov-f" aria-hidden="true">${s.fachsemester != null ? `${esc(s.fachsemester)}.` : ""}</span><b aria-hidden="true">${esc(s.term)}</b><span class="sp-ov-lp${over ? " over" : ""}" aria-hidden="true">${esc(number(s.lp))}${Number(s.lp_slots) > 0 ? `<small>+${esc(number(s.lp_slots))}</small>` : ""}</span></header>`;
+    const chips = (s.modules || []).map(m => {
+      const drag = edit && movable(m), tone = chipTone(m), color = areaColor(m.area);
+      return `<button type="button" class="sp-chip t-${tone}${moduleStatus(m) === "passed" ? " passed" : ""}" data-module="${esc(m.id)}"${drag ? ` draggable="true" data-drag="${esc(m.id)}"` : ""}${edit && menuItems(m, plan).length > 1 ? ` data-ctx="${esc(m.id)}" aria-haspopup="menu"` : ""} style="${color ? `--ac:${color}` : ""}" title="${esc(`${m.title} · ${lpText(m.lp)} · ${statusText(m)}`)}" aria-label="${esc(moduleLabel(m))}">`
+        + `<i class="dot" aria-hidden="true"></i><span class="t">${esc(abbreviation(m.title, textW, lay.font))}</span><span class="n">${esc(number(m.lp))}</span>${(m.hints || []).length && ic ? `<span class="w">${ic("alert", Math.round(lay.font))}</span>` : ""}</button>`;
+    }).join("") + (s.slots || []).map(sl =>
+      `<${edit ? "button" : "span"}${edit ? ` type="button"` : ""} class="sp-chip slot" data-slot="${esc(sl.id)}" data-term="${esc(s.term)}" title="${esc(slotTitle(sl))}" aria-label="${esc(slotLabel(sl, plan))}">${ic ? ic(isTrack(sl) ? "layers" : "plus", Math.round(lay.font)) : "+"}<span class="t">${esc(abbreviation(sl.title, textW, lay.font))}</span>${Number(sl.lp) > 0 ? `<span class="n">${esc(number(sl.lp))}</span>` : ""}</${edit ? "button" : "span"}>`).join("");
+    return `<section class="sp-ov-col${s.current ? " current" : ""}${over ? " over" : ""}" data-term="${esc(s.term)}"${edit ? ` data-drop="${esc(s.term)}"` : ""} aria-label="${esc(`${s.term}${s.fachsemester != null ? `, ${s.fachsemester}. Fachsemester` : ""}`)}">${head}<div class="sp-ov-chips">${chips}</div></section>`;
+  };
+  const style = stack ? `--chip:${lay.chip}px;--cf:${lay.font}px;--cmax:${lay.chipMax}px`
+    : `--cols:${lay.perRow};--rowh:${lay.rowHeight}px;--chip:${lay.chip}px;--cf:${lay.font}px`;
+  return `<div class="sp-ov ${stack ? "stack" : "cols"}" id="spOverview" style="${style}">${(plan.semesters || []).map(col).join("")}</div>`;
+}
+
+// ---------------------------------------------------------------- Einstellungen: Schwerpunkt und eigene Eintraege
+
+/** Ausgangsstand der Einstellung "Schwerpunkt": je Gruppe der gewaehlte Bereich ("" = offen bzw. automatisch aus QIS) */
+export const tracksBefore = plan => Object.fromEntries((plan?.groups || []).map(g => [g.id, g.auto ? "" : (g.chosen || "")]));
+
+export function settingsExtraHtml(plan, ui, ic) {
+  if (!plan?.available) return "";
+  const groups = plan.groups || [];
+  const tracks = groups.length ? `<div class="sp-sec"><h4>${ic ? ic("layers", 14) : ""} Schwerpunkt</h4><div class="card flat">${groups.map(g => {
+    const cur = ui.tracks[g.id] || "", rule = area(plan, cur)?.rule;
+    return `<label class="sp-field"><span>${esc(g.label)}</span><select class="input" data-set-track="${esc(g.id)}"><option value="">${g.auto && g.chosen ? `Automatisch aus QIS (${esc(area(plan, g.chosen)?.name || g.chosen)})` : "Noch offen"}</option>${(g.options || []).map(id => `<option value="${esc(id)}"${id === cur ? " selected" : ""}>${esc(area(plan, id)?.name || id)}</option>`).join("")}</select></label>${rule ? `<p class="muted small">${esc(shorten(rule, 300))}</p>` : ""}`;
+  }).join("")}</div></div>` : "";
+  const list = customModules(plan).filter(m => !ui.removed.has(m.id));
+  const custom = customModules(plan).length ? `<div class="sp-sec"><h4>${ic ? ic("pen", 14) : ""} Eigene Einträge</h4><div class="card flat">${list.length ? `<ul class="sp-custom-list">${list.map(m =>
+    `<li><span><b>${esc(m.title)}</b><small>${esc([lpText(m.lp), area(plan, m.area)?.name, statusText(m)].filter(Boolean).join(" · "))}</small></span><button type="button" class="btn ghost icon" data-rm-custom="${esc(m.id)}" aria-label="${esc(`${m.title} entfernen`)}" title="Entfernen">${ic ? ic("trash", 15) : "×"}</button></li>`).join("")}</ul>`
+    : `<p class="muted small">Alle eigenen Einträge werden entfernt.</p>`}</div></div>` : "";
+  return tracks + custom;
+}
+
+/** Zusatz zum Rumpf der Einstellungen: Schwerpunkt und eigene Eintraege nur, wenn geaendert (der Kern speichert teilweise) */
+export function settingsExtraBody(plan, ui) {
+  const out = {};
+  if (!plan?.available) return out;
+  const before = tracksBefore(plan);
+  if (Object.keys({ ...before, ...ui.tracks }).some(k => (before[k] || "") !== (ui.tracks[k] || ""))) {
+    out.tracks = Object.fromEntries(Object.entries(ui.tracks).filter(([, v]) => v));
+  }
+  if (ui.removed.size) out.custom = customModules(plan).filter(m => !ui.removed.has(m.id)).map(m => customJSON(m, plan));
+  return out;
 }

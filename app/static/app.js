@@ -13,7 +13,7 @@ import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=2";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
 import { navHtml, accountHtml } from "./shell-nav.js?v=3";
-import { viewStudyPlan } from "./study-plan.js?v=1";   // Studienverlauf (05.11.2026)
+import { viewStudyPlan } from "./study-plan.js?v=2";   // Studienverlauf (05.11.2026)
 import { viewAiStart } from "./views-ai.js?v=2";                       // KI-Start (#/ki), Paket B 05.11.2026
 import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
 

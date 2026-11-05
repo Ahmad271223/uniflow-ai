@@ -347,8 +347,8 @@ Studienverlaufsplan in 2 (TI, Informatik). Beispiele: Informatik B.Sc. 9 Plätze
 SG/Inf/PI/M/N) und „Nebenfach wählen“ (10 Nebenfächer); ET B.Sc. 6 Plätze, Gruppe Schwerpunkt mit 6 Optionen inkl.
 Allgemeine ET. Grenzen: viele Kataloge außerhalb der FEI nennen keine LP je Wahlbereich (dann ein Platz „N Module zur
 Wahl“); Anwendungsfächer (Mathematik) stehen in fremden Katalogen (eigener Eintrag); die Regel „Allgemeine ET höchstens
-5 LP bei gewähltem Schwerpunkt“ steht nur als Text da; Web (`study-plan.js`) zeigt Plätze, Bereiche und Verschieben noch
-nicht (Python-Dienst liefert die Felder bereits).
+5 LP bei gewähltem Schwerpunkt“ steht nur als Text da. Web/Windows zeigen Plätze, Bereiche und Verschieben seit
+05.11.2026 (Abschnitt „Web: selbst gestalten“).
 
 ## Eigene Lage: verschieben, vorziehen, nicht belegen (05.11.2026)
 
@@ -428,3 +428,27 @@ Rückmeldung nach dem Verschieben wie am iPad: „<Titel> vorgezogen nach <Semes
 frei“ (bei mehreren vorgezogenen Modulen „<n> Module vorgezogen – …“), frei = 30 − LP des Ausgangssemesters.
 Gesamtansicht: Spalten aus `semesters`, Chips aus `modules` + `slots`; Statusfarben wie `StudyPlanStatus.tone`
 (bestanden grün, angemeldet blau, nicht bestanden rot, verschoben gelb, sonst Farbe des Bereichs).
+
+## Web: selbst gestalten (05.11.2026)
+
+`app/static/study-plan.js` (Seite) und `study-plan-logic.js` (Texte, HTML, Rümpfe; `tests/js/study-plan-edit.test.mjs`) setzen
+„Für Web und iPhone“ um, ohne selbst zu rechnen: Plätze als gestrichelte Karten in den Spalten (Auswahl mit LP, Art, Turnus,
+Semester, Bereich, aufgeklappt Prüfung, Kurztext aus `GET /api/study-plan/module/{id}` und Turnus-Warnung, „In … wählen“,
+eigener Eintrag), Richtung wählen, Kasten „Bereiche und Wahl“ (Gruppe, Fortschritt je Bereich, „Nicht belegt“ mit „Zurück in
+den Plan“), Menü „Aktionen“ je Karte (Knopf „…“, Rechtsklick, Umschalt+F10; Pfeiltasten, Escape): Details, „Verschieben
+nach …“ (Semester ab jetzt bis vier nach dem letzten, LP danach, Warnung über 36 LP, Turnus), „Ins empfohlene Semester“,
+„Anderes Modul wählen“, „Nicht belegen“, „Eigenen Eintrag entfernen“; dieselben Aktionen unten im Moduldetail. Ziehen: Maus
+mit HTML5 Drag and Drop, Finger und Stift mit langem Drücken (350 ms, Pointer Events, Bild der Karte folgt dem Finger).
+Bestandenes und eigene Einträge lassen sich nicht ziehen. Rückmeldung als Hinweis und vorgelesen (`role=status`), Fokus
+kehrt auf die Karte zurück. „Plan zurücksetzen“ mit Rückfrage. Einstellungen zusätzlich mit „Schwerpunkt“ und „Eigene Einträge“.
+**Gesamtansicht** (Umschalter „Semester | Gesamtansicht“, `localStorage` `studyplan.overview`): `overviewLayout` rechnet aus
+Breite und freier Höhe (abzüglich Leiste unten am Telefon) breit Spalten in einer Reihe (hoch/zu schmal zwei) mit Chip-Höhe
+14–30 px, schmal (< 600 px) Semester untereinander mit umbrechenden Chips und der größten Schrift (12,5–9,5 px), bei der alles
+passt; Kurznamen wie `StudyPlanText.abbreviation`. Geprüft mit erfundenen Daten (Informatik B.Sc. PO 2022 aus dem Grundstock,
+ohne Netz) bei 1440 × 900 und 390 × 844, hell und dunkel: alle 33 Chips ohne Rollen sichtbar
+(`~/Studora-Builds/web-studienverlauf/`). **Abo:** am iPad ist der Studienverlauf Free; in Web/Windows gilt die Konto- und
+Abo-Pflicht (Probe oder Plus/Pro AI). Ohne Abo (`gateState` = `locked`) nur lesen: Hinweis mit „Abo wählen“, keine
+Knöpfe zum Ändern, nichts zum Ziehen (der Server lehnt Schreiben ohnehin ab). Prüfungsanmeldung gibt es im Web nicht
+(keine Python-Route). Fund: Ein Platz aus dem Studienverlaufsplan (`kind: slot`, z. B. „Proseminar“ in INFBSc22) bleibt
+stehen, auch wenn sein Bereich mit einem gewählten Modul voll ist („noch 0 von 5 LP offen“); das liefert der Kern so, auch
+am iPad.

@@ -15,7 +15,7 @@ darunter der Python-Server `app/*.py` auf dem PC).
   Tesseract-Schritt ab. Version 0.5.0 ist nie als Installer entstanden.
 - **Die größte Lücke ist die KI.** Am PC läuft KI nur über das eigene ChatGPT-Abo oder die Claude-Code-Kommandozeile.
   Die StudiNow-KI mit Credits (Pro AI), die das iPad über das Konto nutzt, erreicht Windows nicht.
-- **Die neuen iPad-Funktionen vom 03./04.11. fehlen fast alle in Web/Windows:** Studienverlauf, Nachrichten, KI-Start,
+- **Die neuen iPad-Funktionen vom 03./04.11. fehlen fast alle in Web/Windows:** ~~Studienverlauf~~ (erledigt 05.11.), Nachrichten, KI-Start,
   Erklärungsspeicher, Dokument-Index, Weitermachen, Vorlesung aufnehmen mit Mitschrift, Videos & Links, Einladungen.
 - ~~**Bezahlen gibt es unter Windows nicht.**~~ **Erledigt 05.11.2026:** Entscheidung „anmelden immer muss ohne abo geht
   nichts“: Anmeldung mit dem StudiNow-Konto ist Pflicht, nach der 7-Tage-Probe braucht es Plus oder Pro AI (Stripe im
@@ -71,7 +71,7 @@ Alles andere, was es „nur im Dienst“ gibt, antwortet am PC mit 501 `not_host
 | Module, Lernstand je Modul | ja | ja | vorhanden | `app/mastery.py`, `mastery.js` | – |
 | Klausurtermine | aus allen Quellen, Karte, Kalender-Pins, Modulkopf, auch aus Dokumenten erkannt | Karte „Nächste Klausuren“ aus Stud.IP, Ankündigungen, QIS, Fristen; ohne Erkennung in Dokumenten | teilweise | `app/exams.py`, `exams.js`; `Exams.swift:248` „nur auf dem Gerät“ | S–M |
 | Fristen aus Dateien erkennen, Erinnerungen | Erkennung + lokale Mitteilungen | fehlt; Windows hat gar keine Mitteilungen (kein Tauri-Plugin) | **fehlt** | `DueDetection.swift`, `DueReminderScheduler.swift`; `Cargo.toml` nur `single-instance` | M |
-| **Studienverlauf** (Semester-Spalten, Moduldetail, Wahlpflicht, Nachholen) | Seite + Eintrag in der Seitenleiste + Knopf im Modul | Python-Routen `/api/study-plan*` da, aber: keine Seite, Katalogsuche (`study_catalog.run_sync`) wird nirgends aufgerufen, Grundstock liegt unter `apps/apple/...` und ist nicht im Windows-Paket, Register-JSON auch nicht | **fehlt** | `app.js` ohne Route `studyplan`; `study_catalog.py` `SEED_DIR`; `uniflow-backend.spec` `datas` | L |
+| **Studienverlauf** (Semester-Spalten, Moduldetail, Wahlpflicht, Nachholen, Wahlbereiche, eigene Lage, Gesamtansicht) | Seite + Eintrag in der Seitenleiste + Knopf im Modul | **Erledigt 05.11.2026:** Seite `#/studyplan` (auch `#/studienverlauf`), Eintrag „Studienverlauf“ unter „Meine Module“, Knopf „Im Studienverlauf“; Studiengang aus dem Register, Studienbeginn, Katalogsuche über den Status, Link zum Modulhandbuch; Plätze mit Auswahl, Tauschen, „Nicht belegen“, eigene Einträge, Schwerpunkt, „Plan zurücksetzen“, Verschieben per Ziehen (auch Finger) und Menü, Kasten „Bereiche und Wahl“, Gesamtansicht (1440 px eine Reihe, 390 px untereinander, ohne Rollen); ohne Abo nur lesen. Grundstock und Register im Windows-Paket. Prüfungsanmeldung bleibt iPad-only (keine Python-Route) | vorhanden | `study-plan.js`, `study-plan-logic.js`, `tests/js/study-plan*.test.mjs`, Fotos `~/Studora-Builds/web-studienverlauf/` | – |
 | Katalog-Bibliothek (geteilte Kataloge) | CloudKit `StudyCatalog` | nichts | fehlt | `StudyCatalogCloudKit.swift` | M (Entscheidung: Dienst?) |
 
 ## 3. Dokumente und Editor
@@ -181,7 +181,8 @@ Katalog-Bibliothek. Diese vier sieht Windows nie, solange der Dienst sie nicht s
 
 7. **Angemeldet bleiben:** stille Erneuerung über das WebView2-Fenster, Benutzername vorausfüllen,
    `IsPasswordAutosaveEnabled`. **M**
-8. **Studienverlauf:** Seite im Web, Katalogsuche anstoßen, Grundstock und Register ins Windows-Paket. **L**
+8. ~~**Studienverlauf:** Seite im Web, Katalogsuche anstoßen, Grundstock und Register ins Windows-Paket.~~ **erledigt 05.11.2026**
+   (Seite mit Wahlbereichen, Auswahl, Verschieben per Ziehen und Menü, Gesamtansicht; ohne Abo nur lesen; siehe Abschnitt 2).
 9. **Nachrichten aus Stud.IP:** Python-Abruf + Seite. **M**
 10. **KI-Start** und KI-Hilfe mit drei Reitern und Markdown. **M**
 11. **Wochentest-Optionen** im Web-Dialog (Python kann es schon). **S**
