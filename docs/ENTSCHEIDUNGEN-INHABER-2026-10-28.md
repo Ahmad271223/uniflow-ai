@@ -9,7 +9,7 @@ kommt in einer späteren Version, iPhone ebenfalls nicht in V1.
 
 | Frage | Entscheidung | Folge |
 |---|---|---|
-| Tarife | **bleiben die vier** (Free, Plus 1,99 €, Pro Connect 2,99 €, Pro AI 3,99 €, `app/plans.py`) | Preisangaben der anderen KI („0,99 / 3,99“) gelten nicht |
+| Tarife | **bleiben die vier** (Free, Plus 1,99 €, Pro Connect 2,99 €, Pro AI 3,99 €, `app/plans.py`) – *ersetzt am 04.11.2026: nur noch Free, Plus, Pro AI, siehe `docs/ENTSCHEIDUNGEN-INHABER-2026-11-04.md`* | Preisangaben der anderen KI („0,99 / 3,99“) gelten nicht |
 | Start | **in 5 Tagen** (um den 2.11.2026) | Abschnitt 3: was bis dahin realistisch ist |
 | iPhone | **nicht in V1** | iPad bleibt `TARGETED_DEVICE_FAMILY: "2"` |
 | Mac | gehört zu Apple (Inhaber: „Windows und Apple, also iPad und Mac“) | Empfehlung an die Mac-Sitzung: die iPad-App auf Apple-Silicon-Macs freigeben („Designed for iPad“), kein eigener Mac-Build in V1 |

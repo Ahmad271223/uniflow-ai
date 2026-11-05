@@ -90,18 +90,21 @@ def _login(page: Page) -> None:
         log("Sitzung ist bereits angemeldet.")
         return
 
-    user, password = config.credentials()
-    if not user or not password:
-        from .unilogin import LoginRequired
-        raise LoginRequired("Anmeldung bei Stud.IP noetig: Einstellungen > Zugang > 'Im Browser anmelden' "
-                            "(oder Zugangsdaten fuer den Abgleich ohne Nachfrage eintragen).")
-
-    # Direkt zum WebSSO der Uni Hannover (statt Uni-Auswahl auf der Loginseite)
+    # Direkt zum WebSSO der Uni Hannover (statt Uni-Auswahl auf der Loginseite). Das passiert auch OHNE hinterlegte
+    # Zugangsdaten: kennt das WebSSO die gemerkte Sitzung noch (Cookie shib_idp_session, vom Anmeldefenster gemerkt und
+    # per unilogin.restore eingesetzt), stellt es eine neue Stud.IP-Sitzung aus - stille Erneuerung ohne Passwort
+    # (Angemeldet bleiben, 05.11.2026, wie UniSessionKeeper auf dem iPad).
     page.goto(SHIB_LOGIN_URL, wait_until="domcontentloaded")
     page.wait_for_timeout(1500)
     if _is_logged_in(page):
         log("SSO-Sitzung war noch gueltig, angemeldet.")
         return
+
+    user, password = config.credentials()
+    if not user or not password:
+        from .unilogin import LoginRequired
+        raise LoginRequired("Anmeldung bei Stud.IP noetig: Einstellungen > Zugang > 'Im Browser anmelden' "
+                            "(oder Zugangsdaten fuer den Abgleich ohne Nachfrage eintragen).")
 
     # Auf das sichtbare SSO-Formular warten (LUH WebSSO: Felder 'loginname' und 'password')
     pass_field = page.locator("input[type='password']:visible").first

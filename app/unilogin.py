@@ -30,6 +30,7 @@ from pathlib import Path
 from . import config
 
 SESSION_FILE = "university-session.json"
+LUH_SSO_URL = "https://sso.idm.uni-hannover.de/idp/"        # WebSSO der LUH (Anmeldeseite, Sitzungs-Cookie shib_idp_session)
 COOKIE_KEYS = ("name", "value", "domain", "path", "expires", "httpOnly", "secure", "sameSite")
 TIMEOUT_S = int(os.getenv("LERNAPP_UNILOGIN_TIMEOUT", "300"))      # so lange bleibt das Fenster offen
 POLL_S = 1.0
@@ -62,11 +63,26 @@ def _write_file(data: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    try:
+        os.chmod(tmp, 0o600)            # die Sitzung ist wie ein Schluessel: nur der Nutzer liest sie (unter Windows ohne Wirkung)
+    except OSError:
+        pass
     os.replace(tmp, p)
 
 
+# Cookies, deren Name nach einem Passwort aussieht, merkt die App nie (Schutz; die Hochschulen setzen solche Cookies nicht).
+# Wie UniCookiePolicy.looksLikeSecretField der iPad-App.
+SECRET_NAME_PARTS = ("password", "passwort", "passwd", "pwd", "kennwort")
+
+
+def looks_like_secret(name: str) -> bool:
+    n = str(name or "").lower()
+    return any(p in n for p in SECRET_NAME_PARTS)
+
+
 def _trim(cookies: list[dict]) -> list[dict]:
-    return [{k: c.get(k) for k in COOKIE_KEYS if c.get(k) is not None} for c in cookies if isinstance(c, dict) and c.get("name")]
+    return [{k: c.get(k) for k in COOKIE_KEYS if c.get(k) is not None} for c in cookies
+            if isinstance(c, dict) and c.get("name") and not looks_like_secret(c["name"])]
 
 
 def saved_cookies(name: str) -> list[dict]:
@@ -184,11 +200,16 @@ def check_cookies(key: str, cookies: list[dict]) -> bool:
 
 
 def _cookie_urls(key: str) -> list[str]:
+    """Adressen, deren Cookies das Anmeldefenster der Windows-App zurueckmeldet und die App merkt: nicht nur der Dienst
+    selbst, auch die Anmeldeseite der Hochschule (WebSSO bzw. CAS) - deren Sitzungs-Cookie (shib_idp_session, TGC) macht
+    die stille Erneuerung beim naechsten Abgleich ohne Passwort moeglich (Angemeldet bleiben, 05.11.2026, wie die Cookies
+    der Hochschul-Domains auf dem iPad)."""
     if key == "hildesheim":
         from . import hildesheim
-        return [hildesheim.learnweb_base()]
+        from .universities import HILDESHEIM_CAS, LSF_BASE
+        return [hildesheim.learnweb_base(), HILDESHEIM_CAS + "/", LSF_BASE]
     from .config import STUDIP_BASE
-    return [STUDIP_BASE]
+    return [STUDIP_BASE, LUH_SSO_URL]
 
 
 def _target(university: str | None) -> tuple[str, str, str, object, Path]:

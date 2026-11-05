@@ -563,6 +563,9 @@ def test_ai_not_configured_is_honest(hosted, monkeypatch):
     ai_backend.set_provider(None)
     monkeypatch.delenv("LERNAPP_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("LERNAPP_AI_PROVIDER", raising=False)
+    # auch die Schluessel der Modellmischung (DeepSeek, Claude ueber Bedrock/AWS): auf Entwicklerrechnern oft gesetzt
+    for name in ("LERNAPP_DEEPSEEK_API_KEY", "LERNAPP_ANTHROPIC_API_KEY", "AWS_ACCESS_KEY_ID", "AWS_BEARER_TOKEN_BEDROCK"):
+        monkeypatch.delenv(name, raising=False)
     _, h = user(hosted, "ohne@beispiel.de", plan="pro_ai")
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({"mode": "explain"})))
     assert (st, d["code"]) == (503, "ai_not_configured")
@@ -678,7 +681,9 @@ def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_
     assert ent(hosted, ha)["quotas"]["ai_assist"]["used"] == 1 and ent(hosted, hb)["quotas"]["ai_assist"]["used"] == 1
     # B ist erschöpft: die ID von A hilft nicht
     _prefill(ub["id"], "ai_assist", 149, "b", "pro_ai")
-    assert _tutor(hosted, hb, "a2")[1]["code"] == "quota_exhausted"
+    # (anderer Seitentext: eine schon erklaerte Seite kommt aus dem Erklaerungsspeicher, 0 Credits, ohne Kontingent;
+    # tests/test_explain_local.py)
+    assert _tutor(hosted, hb, "a2", "Vektorräume")[1]["code"] == "quota_exhausted"
     # fehlschlagender Anbieter bei C mit der ID von A und B: nur C bucht zurück
     ai_backend.set_provider(Failing())
     _, hc = user(hosted, "scope-c@beispiel.de", plan="pro_ai")

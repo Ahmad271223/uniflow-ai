@@ -687,17 +687,28 @@ def module_response(conn, module_id: str, today: str, source=None) -> dict:
         files = db.rows(conn, f"SELECT id, name, course_id, mime FROM files WHERE course_id IN ({','.join('?' * len(ids))}) "
                               "ORDER BY name, id LIMIT 200", ids)
     src = cat.get("source") if isinstance(cat.get("source"), dict) else {}
-    return {
+    texts = source.module_text(cat, module_id)
+    loading = False
+    if texts is None and isinstance(source, DbCatalogSource):
+        # Katalog aus Grundstock ohne lokale Texte: im Hintergrund nachladen (einmal je Katalog, nur am eigenen PC)
+        from . import study_catalog as sc
+        key = sc.catalog_key(cat)
+        if sc.AUTO_SYNC and sc.texts_wanted(conn, key):
+            loading = sc.start_texts(key)
+    out = {
         "available": True, "id": module_id, "title": text_of(m.get("title")), "code": m.get("code"),
         "area": m.get("area"), "area_name": area.get("name") if area else None,
         "kind": m.get("kind"), "lp": lp_of(m), "semester": num(m.get("semester")), "turnus": m.get("turnus"),
         "exam": m.get("exam"), "coursework": m.get("coursework"), "language": m.get("language"),
         "workload_h": num(m.get("workload_h")), "prerequisites": pre, "required_for": required_for,
-        "texts": source.module_text(cat, module_id), "own": own, "app_modules": app_modules, "courses": courses,
+        "texts": texts, "own": own, "app_modules": app_modules, "courses": courses,
         "files": files, "source": {"url": src.get("url"), "page": num(m.get("source_page"))},
         "program": cat.get("program"), "po": cat.get("po"), "catalog_term": cat.get("catalog_term"),
         "disclaimer": DISCLAIMER,
     }
+    if loading:
+        out["texts_loading"] = True
+    return out
 
 
 def py_str(v) -> str:

@@ -1,18 +1,20 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=43";
 import { viewDashboard as viewHome } from "./views-home.js?v=19";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=64";
-import { viewFiles } from "./views-lib.js?v=63";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=65";
+import { viewFiles } from "./views-lib.js?v=64";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=48";
 import { viewTimetable, openEvent } from "./views-tt.js?v=46";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=82";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=46";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=83";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=47";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=4";
 import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=1";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=15";
-import { navHtml, accountHtml } from "./shell-nav.js?v=1";
+import { navHtml, accountHtml } from "./shell-nav.js?v=2";
+import { viewStudyPlan } from "./study-plan.js?v=1";   // Studienverlauf (05.11.2026)
+import { viewAiStart } from "./views-ai.js?v=2";                       // KI-Start (#/ki), Paket B 05.11.2026
 
 // ---------------------------------------------------------------- Shell
 // Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
@@ -83,7 +85,7 @@ function accountMenu() {
     <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   const devs = $("#accDevs", m);
-  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=7");
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=8");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
@@ -101,7 +103,8 @@ function renderAccount() {
 window.renderAccount = renderAccount;
 
 // ---------------------------------------------------------------- Router
-const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=1").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+routes.ki = viewAiStart;
 async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
@@ -133,6 +136,8 @@ document.addEventListener("click", async e => {
 // Übersicht (Startseite): views-home.js; die Hinweiskarte der Probe (Dienst) kommt von hier
 async function viewDashboard(p, q, v) {
   await viewHome(p, q, v, trialHint);
+  // Erste Seite ohne Hochschulverbindung (nur Einzelplatz): Hinweis und der kleine Demo-Link fuer die Store-Pruefung (demo-bar.js)
+  import("./demo-bar.js?v=1").then(m => m.firstStart(v)).catch(() => {});
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
     const U = await import("./community-corrections-ui.js?v=5"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
@@ -160,6 +165,8 @@ async function start() {
   renderAccount();
   api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); state.userName = n; renderAccount(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
+  // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
+  if (!state.hosted) { import("./demo-bar.js?v=1").then(m => m.init()).catch(() => {}); import("./messages.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
   if (state.hosted && state.entitlements?.needs_plan_choice && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie
   // der lokale Dienst im Standardbrowser (/api/desktop/open, nur http/https)

@@ -183,7 +183,7 @@ def test_store_texts_drop_optional_sentences_when_switches_are_false(filled):
     pl = (out / "PLAY-STORE.md").read_text(encoding="utf-8")
     full = pl.split("```text full")[1].split("```")[0]
     assert "Karteikarten" not in full and "STUDINOW FREE UND PLUS" in full and "UNIFLOW" not in full
-    assert "Geräten frei. Das Abo" in pl and "der eingereicht wird.\n" in pl and "Google-Dokumentation" not in pl
+    assert "mit dem Stift frei. Das Abo" in pl and "Abgleich zwischen deinen Geräten" not in pl and "erste Woche gratis" not in pl and "der eingereicht wird.\n" in pl and "Google-Dokumentation" not in pl
     # Feldlaengen bleiben innerhalb der Store-Grenzen (Schalter koennen den Text nur kuerzen)
     assert len(desc) <= 4000 and "[[" not in desc
 

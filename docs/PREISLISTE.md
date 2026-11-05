@@ -3,7 +3,9 @@
 Drei Tarife, Monatspreise inkl. USt. **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
 `TRIAL`); `tools/gen-plans-fixture.py` schreibt daraus `packages/shared-contracts/fixtures/plans/plans.json`, gegen die
 Swift (`PlanContractTests`) und der Dienst (`tests/test_subscriptions.py`, `tests/test_tarif_matrix.py`) prüfen.
-Jeder Tarif enthält alles aus dem Tarif darunter. Ausführlich: `docs/ABO-SYSTEM.md`; Stand des Codes je Funktion:
+Jeder Tarif enthält alles aus dem Tarif darunter. **Keine Einführungsangebote** (weder bei Apple noch bei Stripe,
+Entscheidung vom 04.11.2026): Plus und Pro AI kosten ab dem ersten Tag den Preis oben; getestet wird mit der Probe (unten).
+Ausführlich: `docs/ABO-SYSTEM.md`; Stand des Codes je Funktion:
 `docs/TARIF-MATRIX-2026-11-04.md`; Entscheidungen im Wortlaut: `docs/ENTSCHEIDUNGEN-INHABER-2026-11-04.md`.
 
 | | StudiNow Free | StudiNow Plus | StudiNow Pro AI |
@@ -39,7 +41,7 @@ sie in jedem Browser, in dem er angemeldet ist.
 
 **Probe:** jedes neue Konto bzw. jede Apple-ID einmal 7 Tage, alles wie Pro AI, mit 25 Credits (nur mit
 StudiNow-Konto; auf dem iPad ohne Dienst heißt „wie Pro AI“ heute der Umfang von Plus). Danach Free, Daten bleiben;
-nie automatisch kostenpflichtig. Texte: Web `app/static/views-abo.js` („Probe: alles wie StudiNow Pro AI, mit 25
+nie automatisch kostenpflichtig; es gibt keine „1 Woche gratis“ bei Plus. Texte: Web `app/static/views-abo.js` („Probe: alles wie StudiNow Pro AI, mit 25
 Credits …“), iPad `UFTrialTexts.offerProAI` bzw. `runningTextService` (nur mit Dienst; ohne Dienst nennt das iPad Pro AI
 nicht, weil es die Karte nicht gibt).
 
@@ -103,3 +105,6 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 | KI-Karteikarten auf Auftrag (Modul, Woche, Anzahl) | gebaut im Dienst und Web/Windows (`POST /api/ai/flashcards` mit `module_id`); iPad: noch nicht (dort „Karteikarten aus Dokument“ über das eigene ChatGPT) |
 | Fertige Wochenfragen mit Erklärungen | gebaut im Dienst und Web/Windows (`docs/BIBLIOTHEK-WOCHENFRAGEN.md`); iPad: nur im Vertrag („in Vorbereitung“) |
 | Pro AI im App Store | erst mit dem Online-Dienst; bis dahin auf der Tarifseite „kommt mit dem StudiNow-Dienst“, ohne Kaufknopf |
+| Tarifseite Web (Dienst) | drei Karten aus `GET /api/billing/plans`; „Abschließen“ (Stripe) nur an Plus und Pro AI, nie an Free; in der Probe trägt Pro AI „Probe läuft“ statt „Dein Tarif“ und bleibt kaufbar (`app/static/views-abo.js`, `tests/test_web_abo.py`) |
+| Tarifseite Windows-App (Einzelplatz) | drei Karten ohne jeden Kaufweg (Microsoft-Store-Regeln, `docs/release/MICROSOFT-STORE.md`); Pro AI ohne Preis als „kommt mit dem StudiNow-Dienst“ |
+| Einladungen („Freunde einladen“) | Dienst gebaut (`app/invites.py`, `docs/EINLADUNGEN.md`), Belohnung als Apple-Angebotscode: Plus 1/3/12 Monate gratis oder Pro AI 12 Monate zum Plus-Preis; Oberfläche nur auf dem iPad, Web/Windows bewusst nicht (`docs/EINLADUNGEN.md` Abschnitt 9) |

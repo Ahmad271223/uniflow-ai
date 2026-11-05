@@ -12,7 +12,7 @@ jedem Umsetzungsschritt fortgeschrieben (Abschnitt 2 und 7).
 
 ## 1. Tarife (Entscheidung vom 25.10.2026)
 
-| | Free (0 €) | Plus (1,99 €/Monat, 1 Woche gratis) |
+| | Free (0 €) | Plus (1,99 €/Monat; seit 04.11.2026 ohne Einführungsangebot, dafür 7 Tage Probe mit allem für jede Person, `docs/ABO-SYSTEM.md` 3b) |
 |---|---|---|
 | Stud.IP verbinden und abgleichen, Dokumente öffnen und durchsuchen | ✓ | ✓ |
 | Fächer und Module geordnet, Stundenplan | ✓ | ✓ |

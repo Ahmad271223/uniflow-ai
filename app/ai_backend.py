@@ -888,7 +888,7 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
              cache: bool = False, now: datetime | None = None, *, image: bytes | None = None, model_name: str | None = None,
              max_output_tokens: int | None = None, request_id: str | None = None, credits: bool | None = None,
              rate_limit: bool = True, on_delta=None, keep_result: bool = False, budget_reserve: int | None = None,
-             library: bool = False, route_hint: str | None = None, route_text: str | None = None) -> Completion:
+             library: bool = False, route_hint: str | None = None, route_text: str | None = None, fresh: bool = False) -> Completion:
     """Eine StudiNow-KI-Anfrage mit Budget, Rate-Limit, Credits (app/credits.py), Protokoll und optionalem Cache.
 
     Modellmischung (app/ai_router.py): der Router waehlt aus request_id und Zweck einen Anbieter, schwere Faelle
@@ -900,7 +900,8 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
     der naechste Anbieter der Kette uebernimmt, wenn der erste nichts berechnet hat. Dieselbe request_id wird nie zweimal
     berechnet (`keep_result`: die Antwort bleibt 24 h fuer eine Wiederholung). image: Seite als PNG/JPEG.
     `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits; `user_id` wird dann
-    nicht gespeichert)."""
+    nicht gespeichert). `fresh=True` ("Neu erklaeren lassen"): den Zwischenspeicher nicht lesen, die neue Antwort ersetzt
+    die gespeicherte."""
     from . import credits as ledger
     if library:
         user_id = None
@@ -931,7 +932,7 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
         if cache and not image:
             # ohne Modell im Schluessel: dieselbe Antwort gilt fuer jedes Modell der Mischung (gespeichert wird, wer sie schrieb)
             key = "c2:" + hashlib.sha256(json.dumps([purpose, system, prompt, schema], sort_keys=True).encode()).hexdigest()
-            hit = conn.execute("SELECT result, created_at, model FROM ai_cache WHERE key=?", (key,)).fetchone()
+            hit = None if fresh else conn.execute("SELECT result, created_at, model FROM ai_cache WHERE key=?", (key,)).fetchone()
             if hit and hit[1] >= (_now(now) - timedelta(days=CACHE_DAYS)).isoformat():
                 return Completion(hit[0], 0, 0, "cache", source_model=hit[2] or "")
         held = None

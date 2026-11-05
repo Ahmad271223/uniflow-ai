@@ -43,7 +43,7 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       const when = l?.at ? new Date(l.at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : null;
       syncBox.innerHTML = `<label class="row" style="gap:.4rem;align-items:center"><input type="checkbox" data-sl="auto" ${s.enabled ? "checked" : ""}> <b>Mit dem iPad abgleichen</b> <span class="muted">(Notizen, Module, Stundenplan-Änderungen, Lernkalender, Karteikarten, Einstellungen)</span></label>
         <div class="muted">${s.running ? "Gleicht gerade ab …" : when ? `Zuletzt ${when}: ${l.ok ? `${l.applied || 0} übernommen, ${l.pushed || 0} gesendet${l.deleted ? `, ${l.deleted} gelöscht` : ""}${l.conflicts ? `, ${l.conflicts} zusammengeführt` : ""}${l.pending ? `, ${l.pending} warten auf Dateien dieses PCs` : ""}` : `Fehler: ${esc(l.error || "")}`}` : "Noch nicht abgeglichen."}</div>
-        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen ab StudiNow Plus ab; Pläne und Module schon jetzt.</div>` : ""}`;
+        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen erst mit StudiNow Pro AI zwischen deinen Geräten ab (Plus gilt je Gerät); Pläne und Module schon jetzt.</div>` : ""}`;
       const auto = $('[data-sl="auto"]', syncBox); if (auto) auto.onchange = async () => { await fetch("/api/studora/sync/enabled", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: auto.checked }) }); showSync(); };
     };
     showSync();

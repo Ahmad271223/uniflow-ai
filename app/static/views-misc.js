@@ -13,7 +13,9 @@ import { bindSetting as bindOlderSetting } from "./older-semesters-ui.js?v=4";
 // Lernstand je Modul (docs/LERNSTAND-2026-11-04.md): Ring, Zahl und Begruendung aus dem Feld `mastery`
 import { masteryHtml, masteryTile } from "./mastery.js?v=2";
 // Testergebnis wie auf dem iPad: Ring, Einordnung und "Frag die KI zu Aufgabe n" (test-result.js)
-import * as TR from "./test-result.js?v=1";
+import * as TR from "./test-result.js?v=2";
+// Dialog "Wochentest erstellen" mit Aufgabenzahl, Schwierigkeit und Aufgabenarten (week-test-dialog.js, wie QuizComposer.swift)
+import { openWeekTestDialog, wantsDialog } from "./week-test-dialog.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -53,7 +55,7 @@ async function viewModule(id, view) {
       : `<div class="card">${docList(byType({ lectures: "vorlesung", exercises: "uebung", solutions: "loesung", scripts: "skript", exams: "klausur" }[tab]))}</div>`;
     view.innerHTML = `<div class="content${switched ? " no-enter" : ""}">
       <div class="page-head"><div class="mod-head"><div class="color" style="background:${m.color}">${initial(m.name)}</div><div><h1>${esc(m.name)}</h1><div class="sub">${d.courses.length} Veranstaltungen: ${d.courses.map(c => KIND_TXT[c.kind] || c.kind).join(", ")}${m.exam_date ? ` · Klausur ${fmtDate(m.exam_date)}` : ""}</div></div></div>
-        <div class="actions"><button class="btn sm" id="modEdit">${icon("settings", 14)} Modul</button><div class="seg"><button class="${mode === "list" ? "active" : ""}" data-mode="list">${icon("list", 15)}</button><button class="${mode === "cards" ? "active" : ""}" data-mode="cards">${icon("grid", 15)}</button></div></div></div>
+        <div class="actions"><a class="btn sm" id="modStudyPlan" href="#/studyplan?module=${encodeURIComponent(m.name)}">${icon("columns", 14)} Im Studienverlauf</a><button class="btn sm" id="modEdit">${icon("settings", 14)} Modul</button><div class="seg"><button class="${mode === "list" ? "active" : ""}" data-mode="list">${icon("list", 15)}</button><button class="${mode === "cards" ? "active" : ""}" data-mode="cards">${icon("grid", 15)}</button></div></div></div>
       <div class="mod-ls" style="--mc:${m.color || "var(--accent)"}">${masteryTile(d.mastery, "lg")}</div>
       <div class="grid cols-3" style="margin-bottom:1rem"><div class="card kpi"><b>${d.progress}%</b><span>Lernfortschritt</span><div class="progress" style="margin-top:.4rem"><i style="width:${d.progress}%"></i></div></div><div class="card kpi"><b>${curWeek ? curWeek.label.split("·")[0].trim() : "–"}</b><span>Aktuelle Lehrwoche${curWeek?.topic ? ` · ${esc(curWeek.topic)}` : ""}</span></div><div class="card kpi"><b>${d.next_package ? fmtShort(d.next_package.date) : "–"}</b><span>${d.next_package ? esc(d.next_package.title) : "Kein Lernblock geplant"}${d.next_package ? ` · <a href="#/plan?view=day&date=${d.next_package.date}">öffnen</a>` : ""}</span></div></div>
       <div class="tabs">${[["overview", "Übersicht"], ["lectures", "Vorlesungen"], ["exercises", "Übungen"], ["solutions", "Lösungen"], ["scripts", "Skripte"], ["exams", "Klausuren"], ["notes", "Notizen"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
@@ -95,7 +97,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted"><span class="uf-shimmer">Die KI liest die Vorlesungsfolien dieser Woche…</span></div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=66"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=67"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -110,10 +112,20 @@ export async function viewExams(parts, params, view) {
       ${pct !== null ? `<div class="progress ${pct >= 60 ? "ok" : ""}" style="margin:.5rem 0 .3rem"><i style="width:${pct}%;${pct < 60 ? "background:var(--bad)" : ""}"></i></div><div class="row between small"><span>${Math.round(t.score)}/${Math.round(t.max_score)} Punkte (${pct} %)</span><a class="btn test-go" href="#/exams/${t.id}">Ansehen</a></div>` : `<div class="row between small" style="margin-top:.5rem"><span class="muted">${t.started_at ? "begonnen" : "noch nicht gestartet"}</span><a class="btn primary test-go" href="#/exams/${t.id}">${icon("play", 15)} ${t.started_at ? "Fortsetzen" : "Starten"}</a></div>`}
 </div>`; }).join("")).join("") : `<div class="card empty">${icon("exam", 36)}<div>Noch keine Wochentests. Sie entstehen automatisch pro Modul und Lehrwoche, sobald neue Inhalte da sind, oder manuell unten.</div></div>`;
   view.innerHTML = `<div class="content"><div class="page-head"><div><h1>Tests & Wiederholung</h1><div class="sub">Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.</div></div>
-      <div class="actions"><select class="input" id="exSubj" style="width:auto">${mods.map(s => `<option value="${s.id}">${esc(shortName(s.name))}</option>`).join("")}</select><select class="input" id="exDur" style="width:auto">${[15, 30, 45, 60, 90].map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${n} min</option>`).join("")}</select><button class="btn sm" id="exGen">${icon("plus", 14)} Zusatztest</button><button class="btn primary sm" id="exWeek">${icon("sparkles", 14)} Wochentests erstellen</button></div></div>
+      <div class="actions"><a class="btn sm" href="#/ki" id="exAi">${icon("sparkles", 14)} KI-Start</a><button class="btn sm" id="exWeek" title="Erstellt alle Wochentests, die noch fehlen">${icon("refresh", 14)} Fehlende Wochentests</button><button class="btn primary sm" id="exGen">${icon("plus", 14)} Wochentest erstellen</button></div></div>
     <div class="statbar"><span><b>${tests.filter(t => !t.submitted_at).length}</b> offene Tests</span><span><b>${tests.filter(t => t.submitted_at).length}</b> abgeschlossen${tests.some(t => t.submitted_at) ? ` · Ø ${Math.round(tests.filter(t => t.submitted_at).reduce((a, t) => a + 100 * t.score / t.max_score, 0) / tests.filter(t => t.submitted_at).length)} %` : ""}</span><a href="#/cards"><b>${cards.length}</b> Karteikarten fällig →</a></div>
     <div class="test-grid">${cardsHtml}</div></div>`;
-  $("#exGen").onclick = async () => { try { await api("/tests/generate", { method: "POST", body: { module_id: +$("#exSubj").value, duration_min: +$("#exDur").value } }); toast("Zusatztest wird erstellt (ca. 1 Minute)…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
+  // Platzhalterkarte mit dem Stand des Auftrags (wie auf dem iPad): "Gemeinsamer Test wird gesucht …", "Aufgaben werden erstellt … 15 Aufgaben";
+  // der Text kommt aus /api/bg (planner.create_test meldet die Phasen), beim Fertigwerden zeichnet app.js die Seite neu
+  const placeholder = info => {
+    const g = $(".test-grid", view); if (!g || $("#exPh", view)) return;
+    g.insertAdjacentHTML("afterbegin", `<div class="card test-card" id="exPh" aria-live="polite"><div class="row">${icon("sparkles", 16)} <b class="uf-shimmer">Wochentest wird erstellt …</b></div><div class="small" id="exPhLine" style="margin:.4rem 0">${info.shared ? "Gemeinsamer Test wird gesucht …" : `Aufgaben werden erstellt … ${info.count} Aufgaben`}</div><div class="small muted">${info.shared ? "Gibt es für dieses Modul schon einen gemeinsamen Test, bekommst du eine Variante ohne neue KI-Anfrage." : "Eigener Test, nicht geteilt. "}Das dauert etwa eine Minute; du kannst die Seite derweil verlassen.</div></div>`);
+    const tick = async () => { if (!view.isConnected || !$("#exPh", view)) return; try { const bg = await api("/bg"); const line = $("#exPhLine", view); if (line && bg.running && bg.message) line.textContent = bg.message.replace(/^[^:]+:\s*/, ""); if (bg.running) setTimeout(tick, 2000); } catch { /* nur Anzeige */ } };
+    setTimeout(tick, 1200);
+  };
+  const newTest = (moduleId = 0) => openWeekTestDialog({ api, modal, icon, toast, modules: mods, moduleId, onStarted: info => { window.pollBg?.(); placeholder(info); } });
+  $("#exGen").onclick = () => newTest();
+  const want = wantsDialog(params); if (want) newTest(want.moduleId);                   // #/exams?neu=<Modul> (KI-Start, KI-Hilfe)
   $("#exWeek").onclick = async () => { try { await api("/tests/generate-week", { method: "POST" }); toast("Fehlende Wochentests werden erstellt…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
   // eigene Rueckfrage statt confirm(): gross genug fuer den Finger, auch in der iPad-App zuverlaessig
   $$("[data-del]", view).forEach(b => b.onclick = () => {
@@ -133,12 +145,12 @@ async function runTest(id, params, view) {
         <div class="tr-num"><div><b class="tr-pct">${r.pct} %</b> <span class="muted">${r.total} / ${r.max} Punkte</span></div><div><b>${r.right}/${r.n} richtig</b>${r.redo ? `<span class="muted"> · ${r.redo} zum Nacharbeiten</span>` : ""}</div><span class="tr-status">${icon(r.tone === "ok" ? "check" : "alert", 14)} ${esc(r.status)}</span></div></div>
         ${t.feedback.summary ? `<p class="tr-sum">${esc(t.feedback.summary)}</p>` : ""}${t.feedback.weak_topics?.length ? `<div class="tr-weak"><b class="small">Nochmal anschauen:</b>${t.feedback.weak_topics.map(w => `<span class="tr-topic">${esc(w)}</span>`).join("")}</div>` : ""}</section>`; })() : ""}
       <div class="row wrap" style="gap:.3rem;margin-bottom:.8rem">${t.questions.map((qq, i) => `<button class="chip ${i === cur ? "on" : ""}" data-q="${i}" style="${fb[String(qq.nr)] ? `border-color:${fb[String(qq.nr)].points >= fb[String(qq.nr)].max * .6 ? "var(--ok)" : "var(--bad)"}` : answers[String(qq.nr)] ? "border-color:var(--accent)" : ""}">${qq.nr}</button>`).join("")}</div>
-      <div class="q ${f ? (f.points >= f.max * .6 ? "good" : "bad") : ""}"><div class="qh"><span>Aufgabe ${q.nr} von ${t.questions.length} · ${q.type === "mc" ? "Multiple Choice" : q.type === "calc" ? "Rechnen / Programmieren" : "Kurzantwort"}</span><span>${q.points} P.${f ? ` → ${f.points}` : ""}</span></div>
+      <div class="q ${f ? (f.points >= f.max * .6 ? "good" : "bad") : ""}"><div class="qh"><span>Aufgabe ${q.nr} von ${t.questions.length} · ${esc(TR.kindLabel(q.type))}</span><span>${q.points} P.${f ? ` → ${f.points}` : ""}</span></div>
         <div style="font-size:1.02rem;margin-bottom:.7rem">${esc(q.question).replace(/\n/g, "<br>")}</div>
-        ${q.type === "mc" ? (q.options || []).map(o => `<label class="opt"><input type="radio" name="q" value="${esc(o)}" ${ans === o ? "checked" : ""} ${t.submitted_at ? "disabled" : ""}> ${esc(o)}</label>`).join("") : `<textarea class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="Deine Antwort / Rechenweg">${esc(ans)}</textarea>`}
-        ${f ? `<div class="fb"><b>Feedback:</b> ${esc(f.feedback)}<br><b>Musterlösung:</b> ${esc(q.answer)}</div><button class="btn primary tr-ask" id="qAsk">${icon("sparkles", 16)} ${esc(TR.askLabel(q.nr))}</button>` : ""}</div>
+        ${TR.isChoice(q) ? `<div class="${TR.isTwoWay(q) ? "opt-two" : ""}">${TR.choices(q).map(o => `<label class="opt${TR.isTwoWay(q) ? " big" : ""}"><input type="radio" name="q" value="${esc(o)}" ${ans === o ? "checked" : ""} ${t.submitted_at ? "disabled" : ""}> ${esc(o)}</label>`).join("")}</div>` : q.type === "cloze" ? `<input class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="Lücke ausfüllen" aria-label="Lücke zu Aufgabe ${q.nr}" value="${esc(ans)}">` : `<textarea class="input" id="qa" ${t.submitted_at ? "disabled" : ""} placeholder="${q.type === "calc" ? "Deine Antwort / Rechenweg" : "Deine Antwort"}">${esc(ans)}</textarea>`}
+        ${f ? `<div class="fb"><b>Feedback:</b> ${esc(f.feedback)}<br><b>Musterlösung:</b> ${esc(TR.correctAnswer(q))}${TR.explanationOf(q, f) ? `<br><b>Erklärung:</b> ${esc(TR.explanationOf(q, f))}` : ""}</div><button class="btn primary tr-ask" id="qAsk">${icon("sparkles", 16)} ${esc(TR.askLabel(q.nr))}</button>` : ""}</div>
       <div class="row between"><button class="btn" id="qPrev" ${cur === 0 ? "disabled" : ""}>${icon("chevron-left", 14)} Zurück</button>${cur < t.questions.length - 1 ? `<button class="btn primary" id="qNext">Weiter ${icon("chevron-right", 14)}</button>` : (t.submitted_at ? "" : `<button class="btn ok" id="qSubmit">${icon("check", 14)} Abgeben & bewerten</button>`)}</div></div>`;
-    const save = () => { const q = t.questions[cur]; const el = q.type === "mc" ? $("input[name=q]:checked", view) : $("#qa", view); answers[String(q.nr)] = el ? el.value : ""; };
+    const save = () => { const q = t.questions[cur]; const el = TR.isChoice(q) ? $("input[name=q]:checked", view) : $("#qa", view); answers[String(q.nr)] = el ? el.value : ""; };
     $$("[data-q]", view).forEach(b => b.onclick = () => { save(); cur = +b.dataset.q; render(); });
     $("#qPrev").onclick = () => { save(); cur--; render(); }; $("#qNext")?.addEventListener("click", () => { save(); cur++; render(); });
     $("#qSubmit")?.addEventListener("click", async () => { save(); const open = t.questions.filter(q => !answers[String(q.nr)]).length; if (!confirm(`Test abgeben?${open ? ` ${open} Aufgaben sind unbeantwortet.` : ""} Die KI bewertet deine Antworten.`)) return; $("#qSubmit").disabled = true; $("#qSubmit").textContent = "Wird bewertet…"; clearInterval(timerInt); try { await api(`/tests/${id}/submit`, { method: "POST", body: { answers } }); if (params.task) await api(`/tasks/${params.task}/status`, { method: "POST", body: { status: "erledigt" } }); runTest(id, params, view); } catch (e) { toast("Bewertung fehlgeschlagen: " + e.message, 5000); $("#qSubmit").disabled = false; } });
@@ -159,7 +171,7 @@ async function runTest(id, params, view) {
       log.insertAdjacentHTML("beforeend", `<div class="tr-ai-me">${esc(question)}</div>`);
       const wait = document.createElement("div"); wait.className = "tr-ai-bot muted"; wait.innerHTML = `<span class="uf-shimmer">Die KI denkt nach …</span>`; log.append(wait); log.scrollTop = log.scrollHeight;
       try { const r = await api("/ai/tutor", { method: "POST", body: { mode: "explain", page_text: TR.tutorContext(q, ans, f), question, history: history.slice() } });
-        const { md } = await import("./editor.js?v=66"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
+        const { md } = await import("./editor.js?v=67"); wait.classList.remove("muted"); wait.innerHTML = md(r.answer || "");
         history.push({ role: "user", text: question }, { role: "assistant", text: r.answer || "" }); }
       catch (e) { wait.classList.remove("muted"); wait.textContent = `Die KI-Hilfe ist gerade nicht erreichbar: ${e.message}`; }
       busy = false; form.querySelector("button").disabled = false; log.scrollTop = log.scrollHeight; };
@@ -181,7 +193,7 @@ let cardsStack = null;                                                        //
 let cardsWeek = null;                                                         // Wochenfilter der Stapelliste (null = alle)
 // Tarif (04.11.2026): ohne `can_use_flashcards` (Free im Dienst, z. B. nach der Probe) nur lesen – Stapel und Karten
 // bleiben sichtbar, statt der Knoepfe zum Anlegen, Bearbeiten, Ueben, Teilen und Uebernehmen steht der Hinweis auf Plus.
-export async function viewCards(_, __, view) {
+export async function viewCards(_, params, view) {
   let [dueAll, all, stacks, modules] = await Promise.all([api("/flashcards?due=true"), api("/flashcards"), api("/flashcard-stacks"), api("/modules")]);
   let i = 0, shown = false, editing = null;
   const ro = FC.readOnly(state.hosted, state.entitlements);
@@ -508,6 +520,7 @@ export async function viewCards(_, __, view) {
   };
   document.addEventListener("keydown", cardKeys);
   render();
+  if (params?.ki) $("#aiOrder", view)?.click();                                // KI-Start -> "Karteikarten": KI-Auftrag gleich offen
   loadShared().then(() => { if (view.isConnected && !trainer.active && shareAvail) render(); }).catch(() => {});
 }
 
@@ -579,14 +592,14 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} StudiNow-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=7");
+    const { renderLinkCard } = await import("./studora-link.js?v=8");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
   if (!r.ok) { view.innerHTML = `<div class="content"><div class="card"><span class="badge bad">Community nicht erreichbar (${r.status})</span></div></div>`; return; }
   const info = await r.json();
   // Seite einer Community (03.11.2026): Kanal nach Lehrwoche, Diskussion, Dokumente (app/static/community-channel.js)
-  if (params?.space) return (await import("./community-channel.js?v=10")).renderSpacePage(view, params, info);
+  if (params?.space) return (await import("./community-channel.js?v=11")).renderSpacePage(view, params, info);
   // Reiter (28.10.2026): Uebersicht, Fragen je Kurs, Gemerkt, Mitteilungen (app/static/views-qa.js)
   const tab = params?.tab || "overview";
   const tabs = `<div class="seg qa-tabs" role="tablist">${[["overview", "Übersicht"], ["questions", "Fragen"], ["bookmarks", "Gemerkt"], ["notify", "Mitteilungen"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "active" : ""}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -620,7 +633,7 @@ export async function viewCommunity(_, params, view) {
   bindTabs();
   import("./community-spaces.js?v=19").then(m => m.renderSpaces($("#spacesCard", view)));
   Promise.all([import("./community-logic.js?v=2"), import("./community-corrections-ui.js?v=5")]).then(([L, U]) => { L.ensureCss(); U.renderInbox($("#ccInboxAll", view), { toast, onChange: () => state.route() }); });
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=7").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=8").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });
@@ -630,7 +643,6 @@ export async function viewCommunity(_, params, view) {
 function diagTab() {
   const errs = state.errors || []; const info = [`Browser: ${navigator.userAgent}`, `Fenster: ${innerWidth}×${innerHeight}, Pixelverhältnis ${devicePixelRatio}`, `Design: ${document.documentElement.dataset.theme || "auto"}`, `Adresse: ${location.origin}`, `Module-Version: v=29`, `Fehler in dieser Sitzung: ${errs.length}`];
   return `<div class="card"><div class="card-head"><h2>${icon("info", 18)} Diagnose</h2><button class="btn sm" id="diagCopy">${icon("copy", 14)} Kopieren</button></div><pre id="diagText" class="small" style="white-space:pre-wrap;background:var(--surface-2);padding:.7rem;border-radius:var(--r-sm)">${esc(info.join("\n"))}${errs.length ? "\n\n" + esc(errs.map(e => `${e.t.slice(11, 19)} ${e.src ? "[" + e.src + "] " : ""}${e.msg}`).join("\n")) : ""}</pre>
-    <div class="card-head" style="margin-top:1rem"><h2>${icon("book", 18)} Demo-Inhalte</h2><button class="btn sm" id="demoToggle">…</button></div><p class="muted small" id="demoText">Ein Demo-Modul mit drei PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung – zum Ausprobieren ohne Hochschulkonto und für die App-Prüfung. Lässt sich jederzeit wieder entfernen.</p>
     <div class="card-head" style="margin-top:1rem"><h2>${icon("file-text", 18)} PDF-Anzeige testen</h2><button class="btn sm primary" id="diagTest">Test starten</button></div><p class="muted small">Lädt eine PDF aus deiner Bibliothek, liest sie mit pdf.js und zeichnet Seite 1 – genau wie der Editor. Wenn hier ein Bild erscheint, funktioniert die Anzeige in diesem Browser.</p><div id="diagOut" class="small"></div></div>`;
 }
 
@@ -778,12 +790,6 @@ export async function viewSettings(_, params, view) {
     $$("[data-hand]", view).forEach(b => b.onclick = async () => { await api("/settings", { method: "PUT", body: { hand: b.dataset.hand } }); s.hand = b.dataset.hand; toast("Schreibhand gespeichert"); render(); });
     $("#sNameOk")?.addEventListener("click", async () => { await api("/settings", { method: "PUT", body: { user_name: $("#sName").value } }); toast("Gespeichert"); location.reload(); });
     $("#diagCopy")?.addEventListener("click", () => { navigator.clipboard?.writeText($("#diagText").textContent).then(() => toast("Diagnose kopiert")); });
-    const demoBtn = $("#demoToggle");
-    if (demoBtn) {
-      const showDemo = d => { demoBtn.textContent = d.enabled ? "Demo-Inhalte entfernen" : "Demo-Inhalte anlegen"; demoBtn.dataset.on = d.enabled ? "1" : "0"; };
-      api("/demo").then(showDemo).catch(() => { demoBtn.disabled = true; });
-      demoBtn.onclick = async () => { demoBtn.disabled = true; try { const d = await api("/demo", { method: "POST", body: { enabled: demoBtn.dataset.on !== "1" } }); showDemo(d); toast(d.enabled ? `Demo angelegt: ${d.files} PDFs, ${d.events} Termine, ${d.packages} Lernpakete` : "Demo-Inhalte entfernt"); } catch (e) { toast(e.message, 4000); } demoBtn.disabled = false; };
-    }
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok-text)">${icon("check", 15)} ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`Fehler: ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
     $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=48")).configDialog(() => state.route()));
     $("#openAvail")?.addEventListener("click", async () => (await import("./views-plan.js?v=48")).availabilityDialog());

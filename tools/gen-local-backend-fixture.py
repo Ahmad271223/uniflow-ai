@@ -1625,6 +1625,8 @@ def main() -> int:
     try:
         from app import server                           # nach SchemaSource: DB_PATH liegt im Temp-Ordner
         app = server.app
+        from app import study_catalog
+        study_catalog.AUTO_SYNC = False                  # GET /api/study-catalog/status stoesst am PC die Suche an (Thread, Zeitstempel): hier nicht
         cov = coverage(src, app, server)
         st = settings_terms(src, app)
         tf = timetable_free(src, app)

@@ -164,6 +164,24 @@ Zahlungsdaten, einmal je Apple-ID, danach automatisch Free – nur dass das iPad
   Personal Team oder im Simulator zählt nur der Schlüsselbund).
 - **Offen (Inhaber):** Produkte in App Store Connect ohne Einführungsangebot, Pro AI erst mit dem Dienst.
 
+## 3c. Tarifseite in Web und Windows (05.11.2026)
+
+Angleichung an das iPad (3b), nur Oberfläche und Texte (`app/static/views-abo.js`, Tests `tests/test_web_abo.py`,
+`tests/test_tarife_texte.py`); die Rechte kommen weiter aus `app/plans.py`.
+
+- **Drei Karten** Free, Plus, Pro AI aus `GET /api/billing/plans` (`contract.order`); Pro Connect erscheint nirgends.
+  Kein Einführungsangebot, kein „1 Woche gratis“; die Probe heißt „alles wie Pro AI, ohne Zahlungsdaten, danach Free,
+  Daten bleiben“.
+- **Dienst (Web):** „Abschließen“ über Stripe nur an Plus und Pro AI (`purchase.web.plans`), nie an Free; ohne Stripe der
+  Hinweis auf die Apple-App. **Während der Probe** ist kein Tarif „Dein Tarif“ (wie `purchasedPlan` auf dem iPad): die Karte
+  Pro AI trägt „Probe läuft“ und bleibt kaufbar, Kopf „Probe: alles wie StudiNow Pro AI“. Nach der Probe ist Free der Stand,
+  dazu „Deine Probe ist vorbei“ mit „Bei Free bleiben“.
+- **Windows-App / eigener PC (Einzelplatz, `mode: local`):** keine Kaufwege und kein Link zu einem Bezahlsystem
+  (Microsoft-Store-Regeln, `docs/release/MICROSOFT-STORE.md`). Pro AI steht ohne Preis als „kommt mit dem StudiNow-Dienst“,
+  ohne Knopf; Plus zeigt seinen Preis ohne Knopf; der Abschnitt „Tarife“ erklärt, dass alle Funktionen auf dem PC frei sind.
+- Hinweis beim Geräte-Abgleich der Windows-App (`studora-link.js`): Notizen gleichen erst mit Pro AI zwischen den Geräten ab
+  (Plus gilt je Gerät), vorher stand dort „ab Plus“.
+
 ## 4. ChatGPT-Verbindung
 
 `chatgpt_connection_premium` (ab Pro AI, vorher Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle
