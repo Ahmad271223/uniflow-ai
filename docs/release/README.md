@@ -29,15 +29,14 @@ beliebigen statischen Host legen (z. B. Cloudflare Pages, Netlify, GitHub Pages;
 
 Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 
-- **Keine KI-Versprechen in öffentlichen Texten.** Die öffentlichen Store-Felder (Name, Untertitel, Werbetext,
-  Beschreibung, Schlüsselwörter, Neuigkeiten) nennen weder „KI“ noch „automatisch erstellte Tests“ noch
-  Zusammenfassungen (`tests/test_release_texts.py`). Stand 04.11.2026: Die iPad-App enthält die freiwillige KI über das
-  **eigene ChatGPT** des Nutzers; die Datenschutzerklärung beschreibt sie (Abschnitt 8a), die Hinweise für die
-  App-Prüfung ebenfalls (nicht öffentlich, Richtlinie 2.3.1). Ob 1.0 sie bewirbt, entscheidet der Inhaber
-  (`APP-STORE.md`, „Offene Entscheidung KI“); dann zuerst diesen Absatz und den Test ändern.
+- **KI nur dort, wo man sie kaufen kann.** Entschieden (05./06.11.2026): Die StudiNow-KI gibt es nur in StudiNow Pro AI
+  über den Dienst `app.studinow.app`; „eigenes ChatGPT verbinden“ ist im Build aus („bald verfügbar“). Darum hat
+  `APP-STORE.md` zwei Fassungen: ohne Pro AI nennen die öffentlichen Felder weder „KI“ noch „automatisch erstellte
+  Tests“ noch Zusammenfassungen; die Fassung mit Pro AI (`description-proai`) beschreibt die KI, nennt aber nie fremde
+  Marken (ChatGPT, OpenAI). Die Hinweise für die App-Prüfung beschreiben die KI in beiden Fassungen (nicht öffentlich,
+  Richtlinie 2.3.1). Geprüft von `tests/test_release_texts.py`.
   **Website (Wunsch des Inhabers vom 05.11.2026):** Die Startseite `studinow.app` nennt die KI-Hilfe (auch für das ganze
-  Dokument) und den Tarif StudiNow Pro AI; `tests/test_site.py` prüft das. Die Store-Felder bleiben bis zur Entscheidung
-  oben ohne KI.
+  Dokument) und den Tarif StudiNow Pro AI; `tests/test_site.py` prüft das.
 - **Nur, was wirklich funktioniert.** Uni & Noten auf dem iPad und die Online-Community gelten erst als Funktion,
   wenn sie am Gerät laufen („bald“ ist kein Store-Text). Fristen, Termine und Noten sind Abbilder der
   Hochschulsysteme; verbindlich bleibt immer die Hochschule – das steht in jedem Text.
@@ -59,9 +58,11 @@ das Einzelunternehmen). Offen bleiben:
 - `[[Telefon]]` in `PLAY-STORE.md` – keine Telefonnummer genannt; Apple verlangt sie für die Händlerangaben (DSA),
   Google für die Kontaktdaten. Das Impressum nennt nur die E-Mail-Adresse (anwaltlich prüfen, ob ein zweiter
   Kontaktweg nach § 5 Abs. 1 Nr. 2 DDG nötig ist).
-- In den Store-Texten die optionalen Satzteile wie `[[ UND DER UNIVERSITÄT HILDESHEIM]]` (nur übernehmen, wenn die
-  Funktion läuft; Schalter `funktionen.*` in `angaben.json`) und die Prüfhinweise `[[mit Apple-Dokumentation …]]`,
-  `[[Mit der Google-Dokumentation …]]`.
+- In `PLAY-STORE.md` die optionalen Satzteile wie `[[• Eigene Karteikarten mit Wiederholung (Plus)]]` (nur übernehmen,
+  wenn die Funktion läuft; Schalter `funktionen.android_*` in `angaben.json`) und der Prüfhinweis
+  `[[Mit der Google-Dokumentation …]]`. `APP-STORE.md` ist seit 06.11.2026 ohne Platzhalter und fertig zum Einfügen;
+  die Schalter `funktionen.ipad_*` wirken dort nicht mehr (Hochschulen, die nicht laufen, streicht man von Hand, siehe
+  Tabelle oben in `APP-STORE.md`).
 
 ## Platzhalter ausfüllen: `tools/rechtstexte-fuellen.py`
 

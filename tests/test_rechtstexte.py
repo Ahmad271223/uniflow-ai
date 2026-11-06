@@ -2,7 +2,7 @@
 Stellen (Exit 1); leere Werte und unbekannte Platzhalter sind Fehler; nach dem Fuellen bleibt kein [[ und kein TODO.
 Stand 03.11.2026: docs/release/*.md sind mit den Angaben des Inhabers (docs/release/angaben.json) an Ort und Stelle
 gefuellt; offen sind nur Hoster, Serverstandort (Datenschutz 11; Mail-Anbieter STRATO seit 05.11.2026), Telefon (Play Store) und die Schalter
-und Pruefhinweise der Store-Texte."""
+und Pruefhinweise des Play Store. APP-STORE.md ist seit 06.11.2026 ohne Platzhalter (fertig zum Einfuegen)."""
 import datetime as dt
 import json
 import re
@@ -104,7 +104,8 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     assert "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV" in im and "Variante" not in im
     # Nutzungsbedingungen 04.11.2026: drei Tarife, Probe wie Pro AI, Grenzen je Tarif (Abschnitt 5a)
     # 05.11.2026: Konto- und Abo-Pflicht in Web und Windows, Abschluss ueber Stripe (Datenschutz 5, 9, 12; Bedingungen 5)
-    assert "Stand 05.11.2026 (26.10.2026)" in ds and "Stand 05.11.2026 (26.10.2026)" in (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
+    # 06.11.2026: Datenschutz passend zu Build 10 (StudiNow-Konto auf dem iPad, Kaufmeldung an den Dienst, HsH-Systeme)
+    assert "Stand 06.11.2026 (26.10.2026)" in ds and "Stand 05.11.2026 (26.10.2026)" in (REL / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl
 
@@ -117,9 +118,10 @@ def test_check_with_owner_values_lists_only_what_is_open_and_exits_1():
     assert "DATENSCHUTZ.md: 2 offen" in log
     assert "[[Hoster]]  -> hoster" in log and "[[Serverstandort]]  -> hoster_ort" in log
     assert "[[Telefon]]  -> telefon" in log
-    assert "[[ UND DER UNIVERSITÄT HILDESHEIM]]  -> funktionen.ipad_hildesheim (bleibt)" in log
-    assert "[[, DER HOCHSCHULE HANNOVER]]  -> funktionen.ipad_hsh (bleibt)" in log
-    assert "mit Apple-Dokumentation zum Zeitpunkt der Einreichung abgleichen]]  -> Pruefhinweis, wird entfernt" in log
+    # APP-STORE.md ist seit 06.11.2026 fertig zum Einfuegen (keine Schalter, keine Pruefhinweise mehr)
+    assert "APP-STORE.md: keine offenen Platzhalter" in log
+    assert "[[• Eigene Karteikarten mit Wiederholung (Plus)]]  -> funktionen.android_karteikarten (faellt weg)" in log
+    assert "Google-Dokumentation zum Zeitpunkt der Einreichung abgleichen, ob die Sitzungs-Cookies anzugeben sind.]]  -> Pruefhinweis, wird entfernt" in log
     assert "[[Name]]" not in log and "[[E-Mail]]" not in log and "[[Domain]]" not in log and "[[Datum]]" not in log
     assert "UNBEKANNT" not in log, "jeder Platzhalter in docs/release ist dem Werkzeug bekannt"
     for k in OPEN_KEYS:
@@ -186,17 +188,15 @@ def test_store_texts_drop_optional_sentences_when_switches_are_false(tmp_path):
     out = tmp_path / "out"
     code, log = run(write_json(tmp_path, angaben(funktionen={k: False for k in FEATURE_SWITCHES})), "--out", out)
     assert code == 0, log
+    # APP-STORE.md hat seit 06.11.2026 keine Schalter mehr: das Werkzeug laesst die Datei unveraendert, auch mit allen
+    # Schaltern aus (Hochschulen, die nicht laufen, streicht der Inhaber von Hand, Tabelle in APP-STORE.md)
     ap = (out / "APP-STORE.md").read_text(encoding="utf-8")
-    desc = ap.split("```text description")[1].split("```")[0]
-    assert "FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER\n" in ap and "HILDESHEIM\n" not in desc
-    assert "Hochschule Hannover" not in desc and "HOCHSCHULE HANNOVER" not in desc and "Moodle" not in desc
-    assert "• Speiseplan deiner Mensa" in desc, "Mensa gilt fuer jede Hochschule (kein Schalter)"
-    assert "bei Stud.IP an." in ap and "Übungstermine. Deine Zugangsdaten" in ap
-    assert "Quiz-Termine" not in ap and "Skriptsuche zur Aufgabe" not in desc
-    assert "nebeneinander\n" in ap and "dieselbe PDF hat\n" in ap
+    assert ap == (REL / "APP-STORE.md").read_text(encoding="utf-8")
+    desc = ap.split("```text description\n")[1].split("```")[0]
+    assert "Hochschule Hannover (Moodle, HISinOne, QIS) und Universität Hildesheim (Learnweb, LSF, PLuS)" in desc
+    assert "• Speiseplan deiner Mensa" in desc
     assert "Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen" in ap and "Datenschutz: https://studinow.app/datenschutz" in ap
     assert "© 2026 IT solutions by Ahmad Fakih" in ap and "`https://studinow.app/support` (Kontakt per E-Mail support@studinow.app)" in ap
-    assert "gespeichert werden.\n" in ap and "Apple-Dokumentation" not in ap
     assert "STUDINOW FREE UND PLUS" in ap and "STUDORA" not in ap
     pl = (out / "PLAY-STORE.md").read_text(encoding="utf-8")
     full = pl.split("```text full")[1].split("```")[0]
@@ -213,12 +213,7 @@ def test_switches_true_keep_the_optional_sentences(tmp_path):
     code, log = run(write_json(tmp_path, data), "--out", out)
     assert code == 0, log
     ap = (out / "APP-STORE.md").read_text(encoding="utf-8")
-    assert "LEIBNIZ UNIVERSITÄT HANNOVER, DER HOCHSCHULE HANNOVER UND DER UNIVERSITÄT HILDESHEIM\n" in ap
-    assert "Stud.IP, Moodle bzw. Learnweb an" in ap
-    assert "\n• Hochschule Hannover: Kurse, Dateien, Nachrichten und Abgaben in Moodle, Stundenplan und Leistungen aus HISinOne" in ap
-    assert len(ap.split("```text description")[1].split("```")[0]) <= 4000
-    assert "• Abgabefristen, Quiz-Termine, Feiertage und vorlesungsfreie Zeit auf einen Blick\n" in ap
-    assert "nebeneinander, mit Skriptsuche zur Aufgabe" in ap and "; dazu online in der Community deines Kurses nach Lehrwoche, mit Fragen und Antworten, unter Pseudonym" in ap
+    assert ap == (REL / "APP-STORE.md").read_text(encoding="utf-8"), "APP-STORE.md hat keine Schalter mehr (06.11.2026)"
     pl = (out / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "• Eigene Karteikarten mit Wiederholung (Plus)\n" in pl and "frei, dazu Karteikarten und das Teilen von Lösungen." in pl
     assert "[[" not in ap and "[[" not in pl

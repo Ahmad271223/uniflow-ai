@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Entwurf, Stand 05.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
+**Entwurf, Stand 06.11.2026 (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -23,6 +23,7 @@ eingeschaltet hast.
 - **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** KI gibt es nur für
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:
   - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
+    Diese Verbindung ist in den Apps noch ausgeschaltet („bald verfügbar“).
   - Du nutzt im Tarif **Pro AI** die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
     von zwei Auftragsverarbeitern weiter: OpenAI oder Amazon Web Services (Frankfurt).
 
@@ -60,15 +61,19 @@ Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls r
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.
 Wir speichern auf deinem Gerät nur, was für die Funktion nötig ist oder was du selbst einstellst (§ 25 Abs. 2 TDDDG).
 
-Für **Version 1 der iPad-App** gelten dieser Abschnitt, Abschnitt 4 (Hochschule) und – nur wenn du die Funktionen
-nutzt – die Abschnitte 8a (KI über dein ChatGPT) und 8b (Community, gemeinsame Wochentests und Bibliothek über Apple
-iCloud). Sie läuft ohne StudiNow-Dienst. „Mit Apple anmelden“ und das Abo laufen allein über Apple (Abschnitt 9); an uns
-wird dabei nichts übertragen, deine Apple-Kennung bleibt auf dem iPad.
+Für die **iPad-App ohne StudiNow-Konto** gelten dieser Abschnitt, Abschnitt 4 (Hochschule) und – nur wenn du die
+Funktionen nutzt – Abschnitt 8b (Community, gemeinsame Wochentests und Bibliothek über Apple iCloud). „Mit Apple
+anmelden“ beim Start und das Abo laufen dann allein über Apple (Abschnitt 9); an uns wird dabei nichts übertragen,
+deine Apple-Kennung bleibt auf dem iPad. Meldest du dich auf dem iPad freiwillig bei deinem **StudiNow-Konto** an
+(Einstellungen → Zugang & Darstellung → StudiNow-Konto, z. B. für die StudiNow-KI in Pro AI), gelten zusätzlich die
+Abschnitte 5, 7, 8, 8c und 9: Der Sitzungsschlüssel liegt nur im Schlüsselbund dieses iPads, die App gleicht mit
+deinem Konto ab und meldet deine App-Store-Käufe an den Dienst. „Abmelden“ beendet das.
 
 ## 4. Systeme deiner Hochschule
 
 StudiNow liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
-QIS; Universität Hildesheim: Learnweb, LSF und CAS-Anmeldung. Die App auf deinem Gerät (nie unser Dienst) meldet
+QIS; Hochschule Hannover: Moodle, HISinOne (Campusmanagement), QIS und deren Anmeldung (SSO); Universität Hildesheim:
+Learnweb, LSF, PLuS (HISinOne) und CAS-Anmeldung. Die App auf deinem Gerät (nie unser Dienst) meldet
 sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,
 Fristen, Ankündigungen und – nur wenn du „Noten abrufen“ wählst – deinen Notenspiegel und Bescheinigungen ab.
 Geschrieben wird nur, wenn du es ausdrücklich auslöst: Antwortest du in der App auf eine Nachricht oder gibst du mit
@@ -138,7 +143,7 @@ Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
 | Sitzungen: Token nur als Hash, Gerätename (oder Browser-Kennung), Zeitpunkt der Anmeldung und letzten Nutzung | angemeldet bleiben (30 Tage, verlängert sich bei Nutzung), andere Geräte abmelden | bis Abmeldung oder Ablauf |
 | Fehlgeschlagene Anmeldeversuche je Konto und Adresse | Schutz vor Passwortraten (Sperre nach 8 Versuchen für 10 Minuten) | 10 Minuten |
 | Token für „Passwort vergessen“ (nur als Hash) | Passwort zurücksetzen | 30 Minuten oder bis zur Nutzung |
-| Tarif (Free/Plus) und Rolle | Funktionen freischalten, Moderation | wie das Konto |
+| Tarif (Free, Plus, Pro AI) und Rolle | Funktionen freischalten, Moderation | wie das Konto |
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von StudiNow); für die Schutzmaßnahmen gegen
 Missbrauch Art. 6 Abs. 1 lit. f DSGVO (unser Interesse an einem sicheren Dienst). Ohne diese Daten können wir kein
@@ -153,6 +158,11 @@ Dienst und wird auf dem PC nicht gespeichert. Auf dem PC liegen nur ein Sitzungs
 Windows-Anmeldeinformationsverwaltung (du löschst ihn mit „Abmelden“) und der zuletzt abgerufene Abo-Stand (Tarif,
 Probe, Ablauf), damit die App bis zu 7 Tage ohne Internet weiter funktioniert. Beim Abruf erfährt der Dienst, dass die
 Anfrage von der Windows-App kommt.
+
+**iPad-App:** Das Konto ist auf dem iPad freiwillig. Du meldest dich in den Einstellungen mit Apple an (Apple übergibt
+dem Dienst ein Identitäts-Token mit deiner Apple-Kennung und – beim ersten Mal, wenn du zustimmst – deiner E-Mail-Adresse;
+der Dienst legt damit ein Konto an oder meldet dich an) oder mit E-Mail und Passwort. Auf dem iPad liegt danach nur ein
+Sitzungsschlüssel im Schlüsselbund dieses Geräts (nicht in iCloud); „Abmelden“ und „Konto löschen“ entfernen ihn.
 
 ## 6. Keine Hochschul-Zugangsdaten auf unseren Servern
 
@@ -176,8 +186,8 @@ Bitte prüfe, ob die Nutzungsregeln deiner Hochschule den Abruf durch eine App m
 Mit Konto speichert der Dienst in einem eigenen, von anderen Konten getrennten Datenbereich: die abgerufenen Kurse,
 die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – nicht die Dateien, siehe Abschnitt 6),
 Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
-Geräteabgleich (Plus) außerdem Notizen, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und
-Einstellungen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
+Geräteabgleich außerdem Module, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und Einstellungen,
+ab Pro AI auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
 Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelöscht wird mit dem Konto, spätestens
 30 Tage nach dessen Löschung. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -241,7 +251,8 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 
 ## 8b. iPad: Community, gemeinsame Wochentests und Bibliothek über Apple iCloud (CloudKit)
 
-Ergänzt am 04.11.2026. Die iPad-App (Version 1, ohne StudiNow-Dienst und ohne StudiNow-Konto) speichert alles, was du
+Ergänzt am 04.11.2026. Die iPad-App (ohne angemeldetes StudiNow-Konto; mit Konto derselben Hochschule läuft die
+Community über den Dienst, Abschnitt 8) speichert alles, was du
 mit anderen Studierenden teilst, in der **öffentlichen Datenbank von Apple CloudKit** im iCloud-Container von StudiNow
 (`iCloud.de.uniflow.ai`). Die Rechenzentren betreibt Apple; für die Inhalte dieser Datenbank sind wir verantwortlich
 (Abschnitt 2). Es gibt drei Funktionen:
@@ -341,10 +352,12 @@ ohne sie funktioniert StudiNow genauso.
 
 ## 9. Käufe und Abos
 
-Das Abo StudiNow Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
-Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren Datenschutzbestimmungen. Wir
-erhalten keine Zahlungsdaten, sondern nur die Information, dass und wie lange ein Abo besteht (Transaktions- und
-Produktkennung), um Plus freizuschalten. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
+Die Abos StudiNow Plus und StudiNow Pro AI kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und
+Zahlungsabwicklung, Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren
+Datenschutzbestimmungen. Wir erhalten keine Zahlungsdaten. Ohne StudiNow-Konto prüft die iPad-App den Kauf nur auf
+dem Gerät; an uns geht nichts. Bist du in der App mit deinem StudiNow-Konto angemeldet, schickt sie uns die von Apple
+signierte Kaufbestätigung (Transaktions- und Produktkennung, Laufzeit), damit wir den Tarif deinem Konto zuordnen
+(z. B. die Credits der StudiNow-KI in Pro AI). Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
 
 **Web und Windows (Entwurf, vor Veröffentlichung rechtlich prüfen):** Dort schließt du ein Abo – sobald wir den
