@@ -18,7 +18,7 @@ final class StudiNowAITests: XCTestCase {
 
     private func make(token: String? = "tok", credits: CreditsBox? = nil, signedOut: CreditsBox? = nil) -> (StudiNowAI, FakeService, MemoryTokenStore) {
         let fake = FakeService(), store = MemoryTokenStore(token)
-        let ai = StudiNowAI(base: base + "/", http: fake, tokens: store,
+        let ai = StudiNowAI(base: base + "/", http: fake, tokens: store, consent: FixedConsent(true),
                             onCredits: { c in credits?.add(c) }, onSignedOut: { signedOut?.add(.null) })
         return (ai, fake, store)
     }

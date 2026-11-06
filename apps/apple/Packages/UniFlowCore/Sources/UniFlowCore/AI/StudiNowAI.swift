@@ -186,6 +186,8 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     public let base: String
     let http: ServiceHTTPTransport
     let tokens: AccountTokenStore
+    /// Einwilligung vor jeder Anfrage (App Store 5.1.2(i), AIConsent.swift): ohne sie geht nichts an den Dienst
+    let consent: AIConsentGate
     /// neuer Credits-Stand nach einer Antwort (App: Kostenzeile in KI-Hilfe und KI-Start)
     private let onCredits: (@Sendable (JSONValue) -> Void)?
     /// Sitzung beim Dienst abgelaufen (401): App meldet das Konto ab
@@ -194,11 +196,13 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     /// Groesstes Bild fuer `tutor:*` (wie `ai.TUTOR_IMAGE_MAX_BYTES`)
     public static let imageMaxBytes = AIEndpoints.tutorImageMaxBytes
 
-    public init(base: String, http: ServiceHTTPTransport, tokens: AccountTokenStore,
+    /// `consent` ist Pflicht (kein Standardwert): jede StudiNow-KI fragt vor der ersten Anfrage nach der Einwilligung
+    public init(base: String, http: ServiceHTTPTransport, tokens: AccountTokenStore, consent: AIConsentGate,
                 onCredits: (@Sendable (JSONValue) -> Void)? = nil, onSignedOut: (@Sendable () -> Void)? = nil) {
         self.base = base.hasSuffix("/") ? String(base.dropLast()) : base
         self.http = http
         self.tokens = tokens
+        self.consent = consent
         self.onCredits = onCredits
         self.onSignedOut = onSignedOut
     }
@@ -244,11 +248,16 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     }
 
     /// JSON-Anfrage an den Dienst mit dem Token des Kontos (wie `ai_relay.service_json`); Fehler als `LocalHTTPError`
-    /// mit Status, Code, Zusatzfeldern und Text aus `StudiNowAIText`. Ohne Token wird nichts gesendet.
+    /// mit Status, Code, Zusatzfeldern und Text aus `StudiNowAIText`. Ohne Token und ohne Einwilligung
+    /// (`AIConsentGate`, 403 `ai_consent_required`) wird nichts gesendet.
     public func json(_ method: String, _ path: String, body: JSONValue? = nil) async throws -> JSONValue {
         guard let token = tokens.load(), !token.isEmpty else {
             throw Self.error(401, "account_required", StudiNowAIText.accountRequired)
         }
+        guard await consent.ensureConsent() else {
+            throw Self.error(403, AIConsentText.code, AIConsentText.declined)
+        }
+        try Task.checkCancellation()
         var headers = ["Accept": "application/json", "Authorization": "Bearer \(token)"]
         if body != nil { headers["Content-Type"] = "application/json" }
         let r: ServiceHTTPResponse

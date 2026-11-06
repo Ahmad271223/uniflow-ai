@@ -5,7 +5,8 @@ import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=70";
 import { viewFiles } from "./views-lib.js?v=69";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=50";
 import { viewTimetable, openEvent } from "./views-tt.js?v=49";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=90";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=91";
+import { installConsentFetch } from "./ai-consent.js?v=1";   // Einwilligung vor der StudiNow-KI (06.11.2026)
 import { viewAbo, planChoicePrompt } from "./views-abo.js?v=51";
 import { resendNote } from "./service-errors.js?v=1";
 import { askOlderSemesters } from "./older-semesters-ui.js?v=7";
@@ -209,6 +210,7 @@ window.refreshAppAccount = refreshAppAccount;
 
 // ---------------------------------------------------------------- Start
 async function start() {
+  installConsentFetch();   // jede KI-Anfrage: erst "KI-Hilfe: Was wird gesendet?", dann einmal neu (ai-consent.js)
   // Gehosteter Dienst: ohne gueltige Sitzung zur Anmeldeseite, sonst Konto hinter dem Avatar (Abmelden)
   try { state.hosted = !!(await fetch("/api/account/info").then(r => r.json())).hosted; } catch {}
   if (state.hosted) {

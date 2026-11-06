@@ -277,6 +277,10 @@ def service_json(method: str, path: str, body: dict | None = None, *, query: str
     st = service_link.load_state()
     if not st.get("token"):
         raise RelayError(401, "account_required", "Bitte melde dich mit deinem StudiNow-Konto an. " + NO_AI)
+    if path.startswith("/api/ai/"):
+        # KI des Dienstes erst nach der Einwilligung "KI-Hilfe: Was wird gesendet?" (app/ai_consent.py, 428)
+        from . import ai_consent
+        ai_consent.require_for_relay()
     raw = json.dumps(body).encode() if body is not None else None
     try:
         status, _, data = service_link.call(method, path, raw, query=query, st=st,

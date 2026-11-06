@@ -84,6 +84,14 @@ def _community_legacy_publish(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _ai_consent_off(monkeypatch):
+    """Einwilligung vor der StudiNow-KI (app/ai_consent.py) gilt in den uebrigen Tests als erteilt; die Pflicht selbst
+    prueft tests/test_ai_consent.py."""
+    from app import ai_consent
+    monkeypatch.setattr(ai_consent, "ENFORCE", False)
+
+
+@pytest.fixture(autouse=True)
 def _ai_prices(monkeypatch):
     """Im Dienst sperrt ai_backend.complete ohne Token-Preise (fail closed); die Tests setzen winzige Preise (Kosten
     runden auf 0), einzelne Tests ueberschreiben sie."""

@@ -911,7 +911,9 @@ def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema
     `library=True`: Vorarbeit der Bibliothek (eigenes Monatsbudget, ohne Konto und ohne Credits; `user_id` wird dann
     nicht gespeichert). `fresh=True` ("Neu erklaeren lassen"): den Zwischenspeicher nicht lesen, die neue Antwort ersetzt
     die gespeicherte."""
-    from . import credits as ledger
+    from . import ai_consent, credits as ledger
+    # Web-Oberflaeche des Dienstes: kein Anbieter ohne Einwilligung des Kontos (428 ai_consent_required)
+    ai_consent.require_hosted(library)
     if library:
         user_id = None
     rid = request_id or ("auto:" + uuid.uuid4().hex)

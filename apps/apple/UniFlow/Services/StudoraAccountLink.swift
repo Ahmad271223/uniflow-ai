@@ -223,12 +223,32 @@ final class StudoraAccountLink: ObservableObject {
     /// `aiAccess == .ready` ins Backend.
     func attachAI(base: String, http: ServiceHTTPTransport, tokens: AccountTokenStore) {
         tokenStore = tokens
-        studinowAI = StudiNowAI(base: base, http: http, tokens: tokens, onCredits: { [weak self] c in
+        // Einwilligung vor der ersten Anfrage (App Store 5.1.2(i)): zentral in der StudiNow-KI, je Konto
+        let gate = AppAIConsentGate(center: consentCenter) { [weak self] in self?.aiConsentAccount ?? "" }
+        studinowAI = StudiNowAI(base: base, http: http, tokens: tokens, consent: gate, onCredits: { [weak self] c in
             Task { @MainActor in self?.noteAIResponse(["credits": c]) }
         }, onSignedOut: { [weak self] in
             Task { @MainActor in self?.signedOutByService() }
         })
         updateAI()
+    }
+
+    /// Wo die Einwilligung zur StudiNow-KI liegt (Tests geben eine eigene)
+    var consentCenter: AIConsentCenter = .shared
+
+    /// Konto der Einwilligung: das StudiNow-Konto, solange es noch nicht geladen ist der Apple-Nutzer dieses Geraets
+    var aiConsentAccount: String {
+        if let id = user?.id { return "konto:" + id }
+        return "geraet:" + (scope ?? "ohne")
+    }
+
+    /// Zeitpunkt der Einwilligung fuer dieses Konto; nil = (noch) nicht zugestimmt
+    var aiConsentGrantedAt: Date? { consentCenter.grantedAt(aiConsentAccount) }
+
+    /// "KI-Einwilligung widerrufen": die naechste Anfrage an die StudiNow-KI fragt erneut
+    func revokeAIConsent() {
+        consentCenter.revoke(aiConsentAccount)
+        objectWillChange.send()
     }
 
     /// Weg zur KI neu bestimmen und die StudiNow-KI ins Backend haengen bzw. herausnehmen. Ohne passenden Tarif oder
@@ -505,7 +525,9 @@ final class StudoraAccountLink: ObservableObject {
 
     func delete(password: String?) async -> Bool {
         var ok = false
+        let consentAccount = aiConsentAccount
         await run { a in _ = try await a.delete(password: password); ok = true }
+        if ok { consentCenter.revoke(consentAccount) }
         if ok { user = nil; sessions = []; planStatus = nil; clearCredits(); entitlements.verifyOnServer = nil; updateAI() }
         return ok
     }
