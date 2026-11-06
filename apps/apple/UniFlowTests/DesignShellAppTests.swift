@@ -33,7 +33,7 @@ final class DesignShellAppTests: XCTestCase {
         let groups = UFNavGroup.groups(UFNavItem.visible(local: false, gradesOnDevice: false, community: false))
         XCTAssertEqual(groups.map(\.id), ["study", "learn", "everyday", "together"])
         XCTAssertEqual(groups.map(\.label), ["STUDIUM", "LERNEN", "ALLTAG", "GEMEINSAM"])
-        XCTAssertEqual(ids(groups)["everyday"], ["mensa"], "Mensa unter Alltag")
+        XCTAssertEqual(ids(groups)["everyday"], ["mensa", "rooms"], "Mensa und Raumfinder unter Alltag")
         XCTAssertEqual(ids(groups)["study"], ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services"],
                        "Uni & Noten gehoert zum Studium")
         XCTAssertEqual(ids(groups)["learn"], ["exams"])

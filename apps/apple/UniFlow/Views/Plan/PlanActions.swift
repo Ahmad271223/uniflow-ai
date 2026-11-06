@@ -700,8 +700,24 @@ struct DatedEventDialog: View {
     let e: JSONValue
     let date: String
     @Environment(\.ufClose) private var close
+    /// iPhone (Blatt von unten): Quelle als Abzeichen ueber dem Text, "Schließen" in voller Breite
+    @Environment(\.ufCompact) private var compact
+
+    /// Abzeichen der Quelle (Uni-Kalender, Sprechstunde, Stud.IP-Kalender)
+    static func sourceLabel(_ source: String?) -> String {
+        switch source {
+        case SOGo.source: return "Uni-Kalender"
+        case "studip-sprechstunde": return "Sprechstunde"
+        default: return "Stud.IP-Kalender"
+        }
+    }
 
     static func text(_ date: String, source: String? = nil, cancelled: Bool = false) -> String {
+        if source == SOGo.source {                                   // Uni-Kalender (SOGo der LUH), nur lesend
+            return cancelled
+                ? "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))), dort abgesagt: die Zeit ist frei für deinen Lernplan."
+                : "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))). Ändern kannst du ihn nur im Uni-Kalender (SOGo); er zählt als belegte Zeit."
+        }
         if source == "studip-sprechstunde" {                         // eigene Buchung (StudIPExtras), nur lesend
             return "Deine gebuchte Sprechstunde aus Stud.IP (\(UFFmt.date(date))). Ändern oder absagen kannst du sie nur in Stud.IP; sie zählt als belegte Zeit."
         }
@@ -713,14 +729,19 @@ struct DatedEventDialog: View {
     var body: some View {
         UFDialog("\(e.s("title") ?? "Termin") \(e.s("start") ?? "")–\(e.s("end") ?? "")") {
             VStack(alignment: .leading, spacing: 6.4) {
-                if let room = e.s("room"), !room.isEmpty { Text(room).ufFont(13.12).foregroundStyle(UF.text2) }
+                if compact {
+                    UFBadge(Self.sourceLabel(e.s("source")), tone: e.s("source") == SOGo.source ? .info : .neutral).fixedSize()
+                        .accessibilityIdentifier("event.source")
+                }
+                // Raumfinder (05.11.2026): Raum antippen -> Ort mit Google-Maps-Link
+                if let room = e.s("room"), !room.isEmpty { UFRoomLink(text: room) }
                 UFSessionTopic(e: e)
                 // Absage aus einer Ankuendigung oder in Stud.IP: nur Hinweis mit Quelle (ohne Serie keine Ausnahme fuer den Tag)
                 UFCancelHintBox(e: e, decide: nil)
                 Text(Self.text(date, source: e.s("source"), cancelled: e.s("status") == "ausfall")).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         } foot: {
-            UFButton("Schließen") { close() }
+            if compact { UFWideButton("Schließen") { close() } } else { UFButton("Schließen") { close() } }
         }
     }
 }

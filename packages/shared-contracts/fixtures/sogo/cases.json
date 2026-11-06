@@ -1,0 +1,1680 @@
+{
+ "user": "erika.muster@stud.uni-hannover.de",
+ "css": [
+  {
+   "in": "INBOX",
+   "css": "INBOX",
+   "path": "folderINBOX",
+   "id": "0/folderINBOX",
+   "move": "/0/folderINBOX"
+  },
+  {
+   "in": "INBOX/Archiv 2026",
+   "css": "INBOX/Archiv_SP_2026",
+   "path": "folderINBOX/folderArchiv_SP_2026",
+   "id": "0/folderINBOX/folderArchiv_SP_2026",
+   "move": "/0/folderINBOX/folderArchiv_SP_2026"
+  },
+  {
+   "in": "Sent Items",
+   "css": "Sent_SP_Items",
+   "path": "folderSent_SP_Items",
+   "id": "0/folderSent_SP_Items",
+   "move": "/0/folderSent_SP_Items"
+  },
+  {
+   "in": "a.b_c#d@e*f:g,h'i&j+k",
+   "css": "a_D_b_U_c_H_d_A_e_S_f_C_g_CO_h_SQ_i_AM_j_P_k",
+   "path": "foldera_D_b_U_c_H_d_A_e_S_f_C_g_CO_h_SQ_i_AM_j_P_k",
+   "id": "0/foldera_D_b_U_c_H_d_A_e_S_f_C_g_CO_h_SQ_i_AM_j_P_k",
+   "move": "/0/foldera_D_b_U_c_H_d_A_e_S_f_C_g_CO_h_SQ_i_AM_j_P_k"
+  },
+  {
+   "in": "2026",
+   "css": "_2026",
+   "path": "folder_2026",
+   "id": "0/folder_2026",
+   "move": "/0/folder_2026"
+  },
+  {
+   "in": "Übungen",
+   "css": "bungen",
+   "path": "folderbungen",
+   "id": "0/folderbungen",
+   "move": "/0/folderbungen"
+  },
+  {
+   "in": "",
+   "css": "",
+   "path": null,
+   "id": null,
+   "move": null
+  }
+ ],
+ "user_from_url": [
+  {
+   "url": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Calendar/view",
+   "user": "erika.muster@stud.uni-hannover.de"
+  },
+  {
+   "url": "https://kalender.uni-hannover.de/SOGo/so/erika.muster%40stud.uni-hannover.de/Mail/view",
+   "user": "erika.muster@stud.uni-hannover.de"
+  },
+  {
+   "url": "https://kalender.uni-hannover.de/SOGo/so/",
+   "user": null
+  },
+  {
+   "url": "https://kalender.uni-hannover.de/SOGo/",
+   "user": null
+  },
+  {
+   "url": "http://kalender.uni-hannover.de/SOGo/so/x/Mail",
+   "user": null
+  },
+  {
+   "url": "https://evil.example/SOGo/so/x/Mail",
+   "user": null
+  },
+  {
+   "url": "https://kalender.uni-hannover.de:8443/SOGo/so/x/Mail",
+   "user": null
+  },
+  {
+   "url": "https://kalender.uni-hannover.de/SOGo/so/../Mail",
+   "user": null
+  },
+  {
+   "url": "https://kalender.uni-hannover.de/other/so/x/Mail",
+   "user": null
+  },
+  {
+   "url": "https://Kalender.Uni-Hannover.DE:443/SOGo/so/x%2Fy/Mail",
+   "user": null
+  },
+  {
+   "url": "https://kalender.uni-hannover.de/SOGo/so/x/Mail?a=1#f",
+   "user": "x"
+  },
+  {
+   "url": "",
+   "user": null
+  }
+ ],
+ "login_page": true,
+ "expired": [
+  {
+   "status": 200,
+   "final": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/view",
+   "body": "{}",
+   "expired": false
+  },
+  {
+   "status": 401,
+   "final": null,
+   "body": "",
+   "expired": true
+  },
+  {
+   "status": 403,
+   "final": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/view",
+   "body": "",
+   "expired": true
+  },
+  {
+   "status": 200,
+   "final": "https://kalender.uni-hannover.de/SOGo/",
+   "body": "<html></html>",
+   "expired": true
+  },
+  {
+   "status": 200,
+   "final": null,
+   "body": "<!DOCTYPE html><html><body ng-app=\"SOGo.MainUI\"><div id=\"loginContent\"><div id=\"login\" class=\"sg-login-content md-padding\">\n<form name=\"loginForm\" layout=\"column\"><input autocorrect=\"off\" type=\"text\" ng-model=\"app.creds.username\" />\n<input id=\"passwordField\" type=\"password\" ng-model=\"app.creds.password\"/></form></div></div></body></html>\n",
+   "expired": true
+  },
+  {
+   "status": 200,
+   "final": null,
+   "body": "<p>ok</p>",
+   "expired": false
+  },
+  {
+   "status": 404,
+   "final": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/mailboxes",
+   "body": "not found",
+   "expired": false
+  }
+ ],
+ "truthy": [
+  {
+   "in": true,
+   "out": true
+  },
+  {
+   "in": false,
+   "out": false
+  },
+  {
+   "in": null,
+   "out": false
+  },
+  {
+   "in": 0,
+   "out": false
+  },
+  {
+   "in": 1,
+   "out": true
+  },
+  {
+   "in": 2.0,
+   "out": true
+  },
+  {
+   "in": "1",
+   "out": true
+  },
+  {
+   "in": "true",
+   "out": true
+  },
+  {
+   "in": "YES",
+   "out": true
+  },
+  {
+   "in": "0",
+   "out": false
+  },
+  {
+   "in": "",
+   "out": false
+  },
+  {
+   "in": [],
+   "out": false
+  },
+  {
+   "in": {},
+   "out": false
+  }
+ ],
+ "recipients": [
+  {
+   "in": "a@b.de",
+   "out": {
+    "valid": [
+     "a@b.de"
+    ],
+    "invalid": []
+   },
+   "email": [
+    "a@b.de"
+   ]
+  },
+  {
+   "in": "Max Beispiel <max@example.uni-hannover.de>, tutor@example.uni-hannover.de",
+   "out": {
+    "valid": [
+     "Max Beispiel <max@example.uni-hannover.de>",
+     "tutor@example.uni-hannover.de"
+    ],
+    "invalid": []
+   },
+   "email": [
+    "max@example.uni-hannover.de",
+    "tutor@example.uni-hannover.de"
+   ]
+  },
+  {
+   "in": "\"Beispiel, Max\" <max@example.uni-hannover.de>; kaputt; x@y",
+   "out": {
+    "valid": [
+     "\"Beispiel, Max\" <max@example.uni-hannover.de>"
+    ],
+    "invalid": [
+     "kaputt",
+     "x@y"
+    ]
+   },
+   "email": [
+    null,
+    "max@example.uni-hannover.de"
+   ]
+  },
+  {
+   "in": "  \n , ;",
+   "out": {
+    "valid": [],
+    "invalid": []
+   },
+   "email": [
+    null,
+    null
+   ]
+  },
+  {
+   "in": "a@b.de\nc@d.de",
+   "out": {
+    "valid": [
+     "a@b.de",
+     "c@d.de"
+    ],
+    "invalid": []
+   },
+   "email": [
+    null
+   ]
+  },
+  {
+   "in": "Name <a@b.de> extra",
+   "out": {
+    "valid": [
+     "Name <a@b.de> extra"
+    ],
+    "invalid": []
+   },
+   "email": [
+    "a@b.de"
+   ]
+  },
+  {
+   "in": "<a@b.de>",
+   "out": {
+    "valid": [
+     "<a@b.de>"
+    ],
+    "invalid": []
+   },
+   "email": [
+    "a@b.de"
+   ]
+  },
+  {
+   "in": "a b@c.de",
+   "out": {
+    "valid": [],
+    "invalid": [
+     "a b@c.de"
+    ]
+   },
+   "email": [
+    null
+   ]
+  }
+ ],
+ "sanitize": [
+  {
+   "in": "<p>Hallo <b>Welt</b></p>",
+   "out": {
+    "html": "<p>Hallo <b>Welt</b></p>",
+    "remote_blocked": false
+   }
+  },
+  {
+   "in": "<a href='javascript:alert(1)' onmouseover=\"x()\">Link</a><a href=\"https://www.uni-hannover.de\">LUH</a>",
+   "out": {
+    "html": "<a href=\"#\">Link</a><a href=\"https://www.uni-hannover.de\">LUH</a>",
+    "remote_blocked": false
+   }
+  },
+  {
+   "in": "<img src=\"cid:123\"><img src='//cdn.example/x.png'><img SRC = \"HTTPS://x.example/y.png\" srcset=\"https://a 1x\">",
+   "out": {
+    "html": "<img src=\"cid:123\"><img data-blocked-src='//cdn.example/x.png'><img data-blocked-src=\"HTTPS://x.example/y.png\" data-blocked-srcset=\"https://a 1x\">",
+    "remote_blocked": true
+   }
+  },
+  {
+   "in": "<div style=\"background-image: URL( 'https://x' )\">x</div><table background=\"http://x/bg.gif\"><tr><td>1</td></tr></table>",
+   "out": {
+    "html": "<div style=\"background-image: blocked( 'https://x' )\">x</div><table data-blocked-background=\"http://x/bg.gif\"><tr><td>1</td></tr></table>",
+    "remote_blocked": true
+   }
+  },
+  {
+   "in": "<SCRIPT type=\"text/javascript\">evil()</SCRIPT><Style>.a{}</Style><meta http-equiv=\"refresh\" content=\"0\"><base href=\"https://x\">ok",
+   "out": {
+    "html": "ok",
+    "remote_blocked": false
+   }
+  },
+  {
+   "in": "<svg onload=alert(1)><circle/></svg><math>1</math>text<object data=\"x\"></object><embed src=\"x\">",
+   "out": {
+    "html": "text",
+    "remote_blocked": false
+   }
+  },
+  {
+   "in": "<a href=\"data:text/html;base64,PHNjcmlwdD4=\">d</a><img src=\"data:image/png;base64,AAAA\">",
+   "out": {
+    "html": "<a href=\"#\">d</a><img src=\"#\">",
+    "remote_blocked": false
+   }
+  },
+  {
+   "in": "",
+   "out": {
+    "html": "",
+    "remote_blocked": false
+   }
+  }
+ ],
+ "text": [
+  {
+   "in": "<p>Absatz 1</p><p>Absatz 2</p>",
+   "out": "Absatz 1\nAbsatz 2"
+  },
+  {
+   "in": "Zeile<br>Zeile<br/>Zeile<BR />",
+   "out": "Zeile\nZeile\nZeile"
+  },
+  {
+   "in": "<ul><li>eins</li><li>zwei</li></ul>",
+   "out": "• eins\n• zwei"
+  },
+  {
+   "in": "&lt;tag&gt; &amp;amp; &quot;x&quot; &#39;y&#39; &#x41;&#66; &#0; &#xD800; &nbsp;&euro;",
+   "out": "<tag> &amp; \"x\" 'y' AB &#0; &#xD800;  &euro;"
+  },
+  {
+   "in": "<p>Am Montag schrieb A:</p><blockquote type=\"cite\"><p>erste</p><p>zweite</p><blockquote>dritte<br>vierte</blockquote>wieder eins</blockquote><p>danach</p>",
+   "out": "Am Montag schrieb A:\n\n> erste\n> zweite\n>\n> > dritte\n> > vierte\n> wieder eins\ndanach"
+  },
+  {
+   "in": "\n\n\n<div>a</div>\n\n\n\n<div>b</div>   \n\t",
+   "out": "a\n\nb"
+  },
+  {
+   "in": "<style>x{}</style><!-- c -->sichtbar<script>y()</script>",
+   "out": "sichtbar"
+  },
+  {
+   "in": "",
+   "out": ""
+  }
+ ],
+ "mailboxes": {
+  "raw": "mailboxes.json",
+  "out": [
+   {
+    "path": "INBOX",
+    "name": "Posteingang",
+    "type": "inbox",
+    "id": "0/folderINBOX",
+    "level": 0
+   },
+   {
+    "path": "Drafts",
+    "name": "Entwürfe",
+    "type": "draft",
+    "id": "0/folderDrafts",
+    "level": 0
+   },
+   {
+    "path": "Sent",
+    "name": "Gesendet",
+    "type": "sent",
+    "id": "0/folderSent",
+    "level": 0
+   },
+   {
+    "path": "Trash",
+    "name": "Papierkorb",
+    "type": "trash",
+    "id": "0/folderTrash",
+    "level": 0
+   },
+   {
+    "path": "Junk",
+    "name": "Spam",
+    "type": "junk",
+    "id": "0/folderJunk",
+    "level": 0
+   },
+   {
+    "path": "Templates",
+    "name": "Vorlagen",
+    "type": "templates",
+    "id": "0/folderTemplates",
+    "level": 0
+   },
+   {
+    "path": "INBOX/Archiv 2026",
+    "name": "Archiv 2026",
+    "type": "folder",
+    "id": "0/folderINBOX/folderArchiv_SP_2026",
+    "level": 1
+   },
+   {
+    "path": "INBOX/&ANw-bungen",
+    "name": "Übungen",
+    "type": "folder",
+    "id": "0/folderINBOX/folder_AM_ANw-bungen",
+    "level": 1
+   },
+   {
+    "path": "Shared/Fachschaft",
+    "name": "Fachschaft",
+    "type": "folder",
+    "id": "0/folderShared/folderFachschaft",
+    "level": 1
+   }
+  ],
+  "trash": "Trash",
+  "missing": "Trash"
+ },
+ "folder_request": [
+  {
+   "q": "",
+   "body": {
+    "sortingAttributes": {
+     "sort": "arrival",
+     "asc": 0
+    }
+   }
+  },
+  {
+   "q": "  Klausur   Analysis ",
+   "body": {
+    "sortingAttributes": {
+     "sort": "arrival",
+     "asc": 0,
+     "match": "OR"
+    },
+    "filters": [
+     {
+      "searchBy": "subject",
+      "searchInput": "Klausur Analysis"
+     },
+     {
+      "searchBy": "from",
+      "searchInput": "Klausur Analysis"
+     }
+    ]
+   }
+  },
+  {
+   "q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "body": {
+    "sortingAttributes": {
+     "sort": "arrival",
+     "asc": 0,
+     "match": "OR"
+    },
+    "filters": [
+     {
+      "searchBy": "subject",
+      "searchInput": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     {
+      "searchBy": "from",
+      "searchInput": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     }
+    ]
+   }
+  }
+ ],
+ "folder": {
+  "raw": "folder-inbox.json",
+  "out": {
+   "folder": "INBOX",
+   "uids": [
+    128,
+    127,
+    126,
+    125,
+    124,
+    123,
+    122,
+    121,
+    120,
+    119,
+    118,
+    117,
+    116,
+    115,
+    114,
+    113,
+    112,
+    111,
+    110,
+    109,
+    108,
+    107,
+    106,
+    105,
+    104,
+    103,
+    102,
+    101,
+    100,
+    99,
+    98,
+    97,
+    96,
+    95,
+    94,
+    93,
+    92,
+    91,
+    90,
+    89,
+    88,
+    87,
+    86,
+    85,
+    84,
+    83,
+    82,
+    81,
+    80,
+    79,
+    78,
+    77,
+    76,
+    75,
+    74,
+    73,
+    72,
+    71,
+    70,
+    69,
+    68,
+    67,
+    66,
+    65
+   ],
+   "total": 64,
+   "page": 0,
+   "pages": 2,
+   "messages": [
+    {
+     "uid": 128,
+     "subject": "Übungsblatt 3 – Abgabe verschoben",
+     "from": [
+      {
+       "name": "Prof. Dr. Max Beispiel",
+       "email": "max.beispiel@example.uni-hannover.de"
+      }
+     ],
+     "to": [
+      {
+       "name": "Erika Muster",
+       "email": "erika.muster@stud.uni-hannover.de"
+      }
+     ],
+     "sender": "Prof. Dr. Max Beispiel",
+     "date": "10:42",
+     "size": "24 KB",
+     "read": false,
+     "flagged": false,
+     "answered": false,
+     "forwarded": false,
+     "attachment": true,
+     "labels": [
+      "$label1"
+     ]
+    },
+    {
+     "uid": 127,
+     "subject": "Re: Frage zur Klausur",
+     "from": [
+      {
+       "name": "",
+       "email": "tutor@example.uni-hannover.de"
+      }
+     ],
+     "to": [
+      {
+       "name": "Erika Muster",
+       "email": "erika.muster@stud.uni-hannover.de"
+      }
+     ],
+     "sender": "tutor@example.uni-hannover.de",
+     "date": "Gestern",
+     "size": "3 KB",
+     "read": true,
+     "flagged": true,
+     "answered": true,
+     "forwarded": false,
+     "attachment": false,
+     "labels": []
+    },
+    {
+     "uid": 126,
+     "subject": "Rückmeldung zum Wintersemester",
+     "from": [
+      {
+       "name": "Studierendenservice",
+       "email": "studierendenservice@example.uni-hannover.de"
+      }
+     ],
+     "to": [
+      {
+       "name": "Erika Muster",
+       "email": "erika.muster@stud.uni-hannover.de"
+      }
+     ],
+     "sender": "Studierendenservice",
+     "date": "04.11.2026",
+     "size": "12 KB",
+     "read": true,
+     "flagged": false,
+     "answered": false,
+     "forwarded": true,
+     "attachment": false,
+     "labels": []
+    },
+    {
+     "uid": 125,
+     "subject": "",
+     "from": [],
+     "to": [
+      {
+       "name": "Erika Muster",
+       "email": "erika.muster@stud.uni-hannover.de"
+      }
+     ],
+     "sender": "",
+     "date": "03.11.2026",
+     "size": "1 KB",
+     "read": true,
+     "flagged": false,
+     "answered": false,
+     "forwarded": false,
+     "attachment": false,
+     "labels": []
+    }
+   ],
+   "unseen": 2,
+   "sync_token": "1730800000"
+  },
+  "page1": [
+   78,
+   77,
+   76,
+   75,
+   74,
+   73,
+   72,
+   71,
+   70,
+   69,
+   68,
+   67,
+   66,
+   65
+  ],
+  "page9": [],
+  "empty": {
+   "folder": "Sent",
+   "uids": [],
+   "total": 0,
+   "page": 0,
+   "pages": 0,
+   "messages": [],
+   "unseen": null,
+   "sync_token": null
+  }
+ },
+ "headers": {
+  "raw": "headers-page2.json",
+  "out": [
+   {
+    "uid": 79,
+    "subject": "Seite 2: Folien",
+    "from": [
+     {
+      "name": "Sekretariat",
+      "email": "sekretariat@example.uni-hannover.de"
+     }
+    ],
+    "to": [
+     {
+      "name": "Erika Muster",
+      "email": "erika.muster@stud.uni-hannover.de"
+     }
+    ],
+    "sender": "Sekretariat",
+    "date": "19.10.2026",
+    "size": "800 KB",
+    "read": false,
+    "flagged": false,
+    "answered": false,
+    "forwarded": false,
+    "attachment": true,
+    "labels": []
+   },
+   {
+    "uid": 78,
+    "subject": "Seite 2: Termin Sprechstunde",
+    "from": [
+     {
+      "name": "Sekretariat",
+      "email": "sekretariat@example.uni-hannover.de"
+     }
+    ],
+    "to": [
+     {
+      "name": "Erika Muster",
+      "email": "erika.muster@stud.uni-hannover.de"
+     }
+    ],
+    "sender": "Sekretariat",
+    "date": "20.10.2026",
+    "size": "2 KB",
+    "read": true,
+    "flagged": false,
+    "answered": false,
+    "forwarded": false,
+    "attachment": false,
+    "labels": []
+   }
+  ]
+ },
+ "flatten": [
+  {
+   "in": [
+    1,
+    [
+     2,
+     3
+    ],
+    [
+     [
+      4
+     ]
+    ]
+   ],
+   "out": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "in": [
+    5,
+    5,
+    "6",
+    "x",
+    0,
+    -1,
+    true,
+    7.0
+   ],
+   "out": [
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "in": "8",
+   "out": [
+    8
+   ]
+  },
+  {
+   "in": null,
+   "out": []
+  }
+ ],
+ "message_html": {
+  "raw": "message-html.json",
+  "out": {
+   "folder": "INBOX",
+   "uid": 128,
+   "subject": "Übungsblatt 3 – Abgabe verschoben",
+   "date": "05.11.2026 10:42",
+   "from": [
+    {
+     "name": "Prof. Dr. Max Beispiel",
+     "email": "max.beispiel@example.uni-hannover.de"
+    }
+   ],
+   "to": [
+    {
+     "name": "Erika Muster",
+     "email": "erika.muster@stud.uni-hannover.de"
+    }
+   ],
+   "cc": [
+    {
+     "name": "",
+     "email": "tutor@example.uni-hannover.de"
+    }
+   ],
+   "reply_to": [
+    {
+     "name": "Lehrstuhl",
+     "email": "lehrstuhl@example.uni-hannover.de"
+    }
+   ],
+   "read": true,
+   "draft": false,
+   "html": "<p>Liebe Studierende,</p><p>die Abgabe von <b>Blatt&nbsp;3</b> ist jetzt am <a href=\"#\">Freitag</a> &amp; nicht Donnerstag.</p><img data-blocked-src=\"https://tracker.example.com/p.gif\" width=\"1\"><img><ul><li>Raum F102</li><li>ab 10:15</li></ul><blockquote type=\"cite\">Alte Nachricht<br>Zeile 2<blockquote>tiefer</blockquote></blockquote><div style=\"background:blocked(https://example.com/bg.png)\">Gruß &#8211; M. B.</div>",
+   "remote_blocked": true,
+   "text": "Liebe Studierende,\ndie Abgabe von Blatt 3 ist jetzt am Freitag & nicht Donnerstag.\n\n• Raum F102\n• ab 10:15\n\n> Alte Nachricht\n> Zeile 2\n> > tiefer\nGruß – M. B.",
+   "attachments": [
+    {
+     "index": 0,
+     "name": "Blatt3.pdf",
+     "size": "120 KB",
+     "type": "application/pdf",
+     "path": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/2/asAttachment/Blatt3.pdf"
+    },
+    {
+     "index": 1,
+     "name": "Skizze.png",
+     "size": "8 KB",
+     "type": "image/png",
+     "path": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/3/asAttachment/Skizze.png"
+    },
+    {
+     "index": 2,
+     "name": "Anhang",
+     "size": "",
+     "type": "application/octet-stream",
+     "path": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/4/asAttachment/4"
+    }
+   ]
+  }
+ },
+ "message_text": {
+  "raw": "message-text.json",
+  "out": {
+   "folder": "INBOX/Übungen",
+   "uid": 3,
+   "subject": "Kurz",
+   "date": "03.11.2026 08:00",
+   "from": [
+    {
+     "name": "",
+     "email": "tutor@example.uni-hannover.de"
+    }
+   ],
+   "to": [
+    {
+     "name": "Erika Muster",
+     "email": "erika.muster@stud.uni-hannover.de"
+    }
+   ],
+   "cc": [],
+   "reply_to": [],
+   "read": true,
+   "draft": false,
+   "html": "<div class=\"mailer_plaincontent\">Zeile 1<br />Zeile 2 &lt;wichtig&gt;<br /><br /><br /><br />Ende   </div>",
+   "remote_blocked": false,
+   "text": "Zeile 1\nZeile 2 <wichtig>\n\nEnde",
+   "attachments": []
+  }
+ },
+ "attachment_path": [
+  {
+   "in": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf",
+   "out": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf"
+  },
+  {
+   "in": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf?x=1",
+   "out": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/2/asAttachment/a.pdf?x=1"
+  },
+  {
+   "in": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/3/asAttachment/Blatt 3 (neu).pdf",
+   "out": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/3/asAttachment/Blatt 3 (neu).pdf"
+  },
+  {
+   "in": "https://kalender.uni-hannover.de:abc/SOGo/so/x/a",
+   "out": null
+  },
+  {
+   "in": "https://evil.example/SOGo/so/x/a",
+   "out": null
+  },
+  {
+   "in": "/SOGo/x",
+   "out": null
+  },
+  {
+   "in": "",
+   "out": null
+  },
+  {
+   "in": null,
+   "out": null
+  }
+ ],
+ "quote_path": [
+  {
+   "in": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/3/asAttachment/Blatt 3 (neu).pdf",
+   "out": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/1/3/asAttachment/Blatt%203%20(neu).pdf"
+  },
+  {
+   "in": "/SOGo/so/x/a%20b?x=1&y=ä",
+   "out": "/SOGo/so/x/a%20b?x=1&y=%C3%A4"
+  },
+  {
+   "in": "",
+   "out": ""
+  }
+ ],
+ "created_bad": "bad",
+ "draft_reply": {
+  "created": "created-reply.json",
+  "edit": "edit-reply-html.json",
+  "out": {
+   "account": "0",
+   "mailbox_path": "Drafts",
+   "draft_id": "newDraft1730800001-1",
+   "action": "reply",
+   "source": {
+    "folder": "INBOX",
+    "uid": 128
+   },
+   "from": "Erika Muster <erika.muster@stud.uni-hannover.de>",
+   "reply_to": "",
+   "to": [
+    "Prof. Dr. Max Beispiel <max.beispiel@example.uni-hannover.de>"
+   ],
+   "cc": [
+    "tutor@example.uni-hannover.de"
+   ],
+   "bcc": [],
+   "subject": "Re: Übungsblatt 3 – Abgabe verschoben",
+   "text": "Am 05.11.2026 um 10:42 schrieb Prof. Dr. Max Beispiel:\n\n> Liebe Studierende,\n> die Abgabe ist am Freitag.",
+   "was_html": true,
+   "attachments": []
+  }
+ },
+ "draft_compose": {
+  "created": "created-compose.json",
+  "edit": "edit-compose.json",
+  "out": {
+   "account": "0",
+   "mailbox_path": "INBOX/Drafts",
+   "draft_id": "newDraft1730800002-2",
+   "action": "compose",
+   "source": null,
+   "from": "Erika Muster <erika.muster@stud.uni-hannover.de>",
+   "reply_to": "",
+   "to": [],
+   "cc": [],
+   "bcc": [],
+   "subject": "",
+   "text": "\n\n-- \nErika Muster",
+   "was_html": false,
+   "attachments": []
+  }
+ },
+ "draft_forward": {
+  "created": "created-reply.json",
+  "edit": "edit-forward.json",
+  "out": {
+   "account": "0",
+   "mailbox_path": "Drafts",
+   "draft_id": "newDraft1730800001-1",
+   "action": "forward",
+   "source": {
+    "folder": "INBOX",
+    "uid": 125
+   },
+   "from": "Erika Muster <erika.muster@stud.uni-hannover.de>",
+   "reply_to": "",
+   "to": [],
+   "cc": [],
+   "bcc": [],
+   "subject": "Fwd: Kurz",
+   "text": "\n\n-------- Ursprüngliche Nachricht --------\nBetreff: Kurz\nZeile 1",
+   "was_html": false,
+   "attachments": [
+    {
+     "name": "Blatt3.pdf",
+     "size": "120 KB"
+    }
+   ]
+  }
+ },
+ "payload": [
+  {
+   "draft": "reply",
+   "to": "Prof. Dr. Max Beispiel <max.beispiel@example.uni-hannover.de>",
+   "cc": "tutor@example.uni-hannover.de; ",
+   "bcc": "",
+   "subject": "Re: Übungsblatt 3 – Abgabe verschoben",
+   "text": "Danke!\r\n\r\nAm 05.11.2026 um 10:42 schrieb Prof. Dr. Max Beispiel:\n\n> Liebe Studierende,\n> die Abgabe ist am Freitag.",
+   "out": {
+    "from": "Erika Muster <erika.muster@stud.uni-hannover.de>",
+    "to": [
+     "Prof. Dr. Max Beispiel <max.beispiel@example.uni-hannover.de>"
+    ],
+    "cc": [
+     "tutor@example.uni-hannover.de"
+    ],
+    "bcc": [],
+    "subject": "Re: Übungsblatt 3 – Abgabe verschoben",
+    "text": "Danke!\n\nAm 05.11.2026 um 10:42 schrieb Prof. Dr. Max Beispiel:\n\n> Liebe Studierende,\n> die Abgabe ist am Freitag.",
+    "isHTML": false
+   }
+  },
+  {
+   "draft": "compose",
+   "to": [
+    "a@b.de",
+    "  ",
+    "Name  <c@d.de>"
+   ],
+   "cc": [],
+   "bcc": [
+    "x@y.de"
+   ],
+   "subject": "Frage",
+   "text": "Hallo",
+   "out": {
+    "from": "Erika Muster <erika.muster@stud.uni-hannover.de>",
+    "to": [
+     "a@b.de",
+     "Name <c@d.de>"
+    ],
+    "cc": [],
+    "bcc": [
+     "x@y.de"
+    ],
+    "subject": "Frage",
+    "text": "Hallo",
+    "isHTML": false,
+    "replyTo": "antwort@example.uni-hannover.de"
+   }
+  }
+ ],
+ "check_send": [
+  {
+   "in": {
+    "from": "a@b.de",
+    "to": [
+     "x@y.de"
+    ],
+    "cc": [],
+    "bcc": []
+   },
+   "out": null
+  },
+  {
+   "in": {
+    "from": "a@b.de",
+    "to": [],
+    "cc": [],
+    "bcc": [
+     "x@y.de"
+    ]
+   },
+   "out": null
+  },
+  {
+   "in": {
+    "from": "a@b.de",
+    "to": [],
+    "cc": [],
+    "bcc": []
+   },
+   "out": "Bitte mindestens einen Empfänger angeben."
+  },
+  {
+   "in": {
+    "from": "a@b.de",
+    "to": [
+     "kaputt",
+     "Name <x@y.de>"
+    ],
+    "cc": [],
+    "bcc": []
+   },
+   "out": "Diese Empfänger sind keine gültige E-Mail-Adresse: kaputt"
+  },
+  {
+   "in": {
+    "from": "",
+    "to": [
+     "x@y.de"
+    ],
+    "cc": [],
+    "bcc": []
+   },
+   "out": "Absender fehlt (Entwurf neu öffnen)."
+  }
+ ],
+ "send_result": [
+  {
+   "status": 200,
+   "raw": "send-ok.json",
+   "out": {
+    "ok": true,
+    "message": "Gesendet."
+   }
+  },
+  {
+   "status": 405,
+   "raw": "send-fail.json",
+   "out": {
+    "ok": false,
+    "message": "Tried to send too many mails. Please wait."
+   }
+  },
+  {
+   "status": 500,
+   "raw": null,
+   "out": {
+    "ok": false,
+    "message": "SOGo hat das Senden abgelehnt (HTTP 500)."
+   }
+  }
+ ],
+ "unseen": {
+  "raw": "unseen.json",
+  "inbox": 7,
+  "sent": 0,
+  "missing": null
+ },
+ "new_since": [
+  {
+   "uids": [
+    130,
+    129,
+    128,
+    120
+   ],
+   "last": 128,
+   "out": [
+    130,
+    129
+   ]
+  },
+  {
+   "uids": [
+    130,
+    129
+   ],
+   "last": null,
+   "out": []
+  }
+ ],
+ "events": {
+  "raw": "events.json",
+  "out": [
+   {
+    "uid": "personal/a1.ics",
+    "id": "sogo-db72ea481579b619",
+    "calendar": "Persönlicher Kalender",
+    "title": "Tutorium Analysis",
+    "location": "1101 - F102",
+    "start": "2026-11-09T10:15",
+    "end": "2026-11-09T11:45",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/b2.ics",
+    "id": "sogo-8d58bc06f26abfcb",
+    "calendar": "Persönlicher Kalender",
+    "title": "Sprechstunde Prof. Beispiel",
+    "location": "Raum A003, Gebäude 3403",
+    "start": "2026-11-10T14:00",
+    "end": "2026-11-10T14:30",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/c3.ics",
+    "id": "sogo-ed8c2b530a6b579a",
+    "calendar": "Persönlicher Kalender",
+    "title": "Exkursion",
+    "location": "",
+    "start": "2026-11-11T00:00",
+    "end": "2026-11-12T23:59",
+    "all_day": true,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/d4.ics",
+    "id": "sogo-3363b296b7bbbb82",
+    "calendar": "Persönlicher Kalender",
+    "title": "Lerngruppe",
+    "location": "Online (Zoom)",
+    "start": "2026-11-12T18:00",
+    "end": "2026-11-13T01:00",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/e5.ics@1794556800",
+    "id": "sogo-e376e0f529e2f9ba",
+    "calendar": "Persönlicher Kalender",
+    "title": "Wöchentliches Treffen",
+    "location": "Conti-Campus",
+    "start": "2026-11-13T09:00",
+    "end": "2026-11-13T10:00",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/f6.ics",
+    "id": "sogo-4868ab7a6e71e674",
+    "calendar": "Persönlicher Kalender",
+    "title": "Abgesagt: Seminar",
+    "location": "F303",
+    "start": "2026-11-14T12:00",
+    "end": "2026-11-14T13:00",
+    "all_day": false,
+    "cancelled": true
+   },
+   {
+    "uid": "personal/e5.ics@1795161600",
+    "id": "sogo-2cd3e676303043cd",
+    "calendar": "Persönlicher Kalender",
+    "title": "Wöchentliches Treffen",
+    "location": "Conti-Campus",
+    "start": "2026-11-20T09:00",
+    "end": "2026-11-20T10:00",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/g7.ics",
+    "id": "sogo-8e0b81da659efc65",
+    "calendar": "Persönlicher Kalender",
+    "title": "Termin",
+    "location": "",
+    "start": "2027-03-28T03:30",
+    "end": "2027-03-28T04:00",
+    "all_day": false,
+    "cancelled": false
+   }
+  ]
+ },
+ "events_query": [
+  {
+   "day": "2026-11-09",
+   "days": 7,
+   "out": {
+    "asc": "1",
+    "day": "20261109",
+    "filterpopup": "view_next7",
+    "search": "title_Category_Location",
+    "sort": "start",
+    "value": ""
+   }
+  },
+  {
+   "day": "2026-11-09",
+   "days": 14,
+   "out": {
+    "asc": "1",
+    "day": "20261109",
+    "filterpopup": "view_next14",
+    "search": "title_Category_Location",
+    "sort": "start",
+    "value": ""
+   }
+  },
+  {
+   "day": "2026-11-09",
+   "days": 30,
+   "out": {
+    "asc": "1",
+    "day": "20261109",
+    "filterpopup": "view_next31",
+    "search": "title_Category_Location",
+    "sort": "start",
+    "value": ""
+   }
+  }
+ ],
+ "calendars": {
+  "raw": "calendars.json",
+  "out": [
+   {
+    "id": "personal",
+    "name": "Persönlicher Kalender",
+    "color": "#AAAAAA",
+    "active": true
+   },
+   {
+    "id": "abc-123",
+    "name": "Fachschaft",
+    "color": "#0e7490",
+    "active": false
+   }
+  ]
+ },
+ "multipart": {
+  "name": "Blatt 3/Lösung \"final\".pdf",
+  "mime": "application/pdf",
+  "data": "%PDF-1.4 x",
+  "out": "------StudiNowSOGo7d1f\r\nContent-Disposition: form-data; name=\"attachments\"; filename=\"Blatt 3_Lösung 'final'.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.4 x\r\n------StudiNowSOGo7d1f--\r\n",
+  "type": "multipart/form-data; boundary=----StudiNowSOGo7d1f"
+ },
+ "calendar": {
+  "stored_first": 8,
+  "stored_second": 3,
+  "occurrences": [
+   {
+    "event_id": null,
+    "studip_id": "sogo-db72ea481579b619",
+    "date": "2026-11-09",
+    "start": "10:15",
+    "end": "11:45",
+    "title": "Tutorium Analysis",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "1101 - F102",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-8d58bc06f26abfcb",
+    "date": "2026-11-10",
+    "start": "14:00",
+    "end": "14:30",
+    "title": "Sprechstunde Prof. Beispiel",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "Raum A003, Gebäude 3403",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-3363b296b7bbbb82",
+    "date": "2026-11-12",
+    "start": "18:00",
+    "end": "23:59",
+    "title": "Lerngruppe",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "Online (Zoom)",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-e376e0f529e2f9ba",
+    "date": "2026-11-13",
+    "start": "09:00",
+    "end": "10:00",
+    "title": "Wöchentliches Treffen",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "Conti-Campus",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-4868ab7a6e71e674",
+    "date": "2026-11-14",
+    "start": "12:00",
+    "end": "13:00",
+    "title": "Abgesagt: Seminar",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "F303",
+    "lecturer": null,
+    "course_id": null,
+    "status": "ausfall",
+    "permanent_skip": false,
+    "exception": "cancelled",
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   }
+  ],
+  "merged": [
+   {
+    "event_id": 1,
+    "date": "2026-11-09",
+    "start": "08:15",
+    "end": "09:45",
+    "title": "Analysis",
+    "status": "teilnahme"
+   },
+   {
+    "event_id": 2,
+    "date": "2026-11-09",
+    "start": "10:15",
+    "end": "11:45",
+    "title": "tutorium  analysis",
+    "status": "teilnahme"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-8d58bc06f26abfcb",
+    "date": "2026-11-10",
+    "start": "14:00",
+    "end": "14:30",
+    "title": "Sprechstunde Prof. Beispiel",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "Raum A003, Gebäude 3403",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": 3,
+    "date": "2026-11-10",
+    "start": "16:00",
+    "end": "17:00",
+    "title": "Seminar",
+    "status": "teilnahme"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-3363b296b7bbbb82",
+    "date": "2026-11-12",
+    "start": "18:00",
+    "end": "23:59",
+    "title": "Lerngruppe",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "Online (Zoom)",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-e376e0f529e2f9ba",
+    "date": "2026-11-13",
+    "start": "09:00",
+    "end": "10:00",
+    "title": "Wöchentliches Treffen",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "Conti-Campus",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "sogo-4868ab7a6e71e674",
+    "date": "2026-11-14",
+    "start": "12:00",
+    "end": "13:00",
+    "title": "Abgesagt: Seminar",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#0e7490",
+    "room": "F303",
+    "lecturer": null,
+    "course_id": null,
+    "status": "ausfall",
+    "permanent_skip": false,
+    "exception": "cancelled",
+    "source": "uni-kalender",
+    "calendar": "Persönlicher Kalender"
+   }
+  ],
+  "stored": [
+   {
+    "uid": "personal/a1.ics",
+    "id": "sogo-db72ea481579b619",
+    "calendar": "Persönlicher Kalender",
+    "title": "Tutorium Analysis",
+    "location": "1101 - F102",
+    "start": "2026-11-09T10:15",
+    "end": "2026-11-09T11:45",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/b2.ics",
+    "id": "sogo-8d58bc06f26abfcb",
+    "calendar": "Persönlicher Kalender",
+    "title": "Sprechstunde Prof. Beispiel",
+    "location": "Raum A003, Gebäude 3403",
+    "start": "2026-11-10T14:00",
+    "end": "2026-11-10T14:30",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/c3.ics",
+    "id": "sogo-ed8c2b530a6b579a",
+    "calendar": "Persönlicher Kalender",
+    "title": "Exkursion",
+    "location": "",
+    "start": "2026-11-11T00:00",
+    "end": "2026-11-12T23:59",
+    "all_day": true,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/d4.ics",
+    "id": "sogo-3363b296b7bbbb82",
+    "calendar": "Persönlicher Kalender",
+    "title": "Lerngruppe",
+    "location": "Online (Zoom)",
+    "start": "2026-11-12T18:00",
+    "end": "2026-11-13T01:00",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/e5.ics@1794556800",
+    "id": "sogo-e376e0f529e2f9ba",
+    "calendar": "Persönlicher Kalender",
+    "title": "Wöchentliches Treffen",
+    "location": "Conti-Campus",
+    "start": "2026-11-13T09:00",
+    "end": "2026-11-13T10:00",
+    "all_day": false,
+    "cancelled": false
+   },
+   {
+    "uid": "personal/f6.ics",
+    "id": "sogo-4868ab7a6e71e674",
+    "calendar": "Persönlicher Kalender",
+    "title": "Abgesagt: Seminar",
+    "location": "F303",
+    "start": "2026-11-14T12:00",
+    "end": "2026-11-14T13:00",
+    "all_day": false,
+    "cancelled": true
+   },
+   {
+    "uid": "personal/e5.ics@1795161600",
+    "id": "sogo-2cd3e676303043cd",
+    "calendar": "Persönlicher Kalender",
+    "title": "Wöchentliches Treffen",
+    "location": "Conti-Campus",
+    "start": "2026-11-20T09:00",
+    "end": "2026-11-20T10:00",
+    "all_day": false,
+    "cancelled": false
+   }
+  ],
+  "no_table": [
+   {
+    "event_id": 1,
+    "date": "2026-11-09",
+    "start": "08:15",
+    "end": "09:45",
+    "title": "Analysis",
+    "status": "teilnahme"
+   },
+   {
+    "event_id": 2,
+    "date": "2026-11-09",
+    "start": "10:15",
+    "end": "11:45",
+    "title": "tutorium  analysis",
+    "status": "teilnahme"
+   },
+   {
+    "event_id": 3,
+    "date": "2026-11-10",
+    "start": "16:00",
+    "end": "17:00",
+    "title": "Seminar",
+    "status": "teilnahme"
+   }
+  ],
+  "range": [
+   "2026-11-09",
+   "2026-11-15"
+  ]
+ }
+}

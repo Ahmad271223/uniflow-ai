@@ -67,7 +67,7 @@ test("Einstellungen: Mensa, Favoriten, Gruppe, Filter; kaputte Werte werden erse
 });
 
 test("Mensa steht in der Seitenleiste unter Alltag", () => {
-  assert.deepEqual(NAV_GROUPS.find(g => g.id === "alltag").items.map(x => x[0]), ["mensa"]);
+  assert.deepEqual(NAV_GROUPS.find(g => g.id === "alltag").items.map(x => x[0]), ["mensa", "raumfinder"]);
   const app = fs.readFileSync(new URL("../../app/static/app.js", import.meta.url), "utf8");
   assert.match(app, /routes\.mensa = /);
   const home = fs.readFileSync(new URL("../../app/static/views-home.js", import.meta.url), "utf8");

@@ -17,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "gen-site.py"
 SITE = ROOT / "site"
 PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.html", "impressum.html", "konto-loeschen.html")
-FILES = PAGES + ("style.css", "icon.svg", "_redirects", "_headers")
+# Kopie der Apple-Datei an der Wurzel: Drag-and-drop aus dem Finder laesst den versteckten Ordner .well-known weg (05.11.2026)
+AASA_ROOT = "apple-app-site-association"
+FILES = PAGES + ("style.css", "icon.svg", "logo.png", "favicon.png", "apple-touch-icon.png", "_redirects", "_headers", AASA_ROOT)
 IMG_SRC = ROOT / "docs" / "release" / "website-img"
 IMAGES = tuple(f"img/{p.name}" for p in sorted(IMG_SRC.glob("*.jpg")))
 # ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE>, Bilder der Startseite und Universal Links
@@ -35,7 +37,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert f"{12 + len(IMAGES)} Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
+    assert f"{16 + len(IMAGES)} Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
     return out
 
 
@@ -48,17 +50,20 @@ def test_site_matches_the_generator_output(generated):
     assert sorted(p.name for p in SITE.iterdir() if p.is_file()) == sorted(FILES)
     assert sorted(p.relative_to(SITE).as_posix() for p in SITE.rglob("*") if p.is_file()) == sorted(FILES + NESTED)
     for name in FILES + NESTED[:-1]:
+        if name == AASA_ROOT:
+            continue
         assert (SITE / name).read_bytes() == (generated / name).read_bytes(), f"{name}: tools/gen-site.py ausfuehren"
     # die Team-ID kommt aus der nicht eingecheckten Team.xcconfig: ohne sie steht der Platzhalter im Erzeugten
-    aasa = AASA
-    assert TEAM_ID.sub("TEAM.de.uniflow.ai", page(aasa)) == TEAM_ID.sub("TEAM.de.uniflow.ai", (generated / aasa).read_text(encoding="utf-8"))
+    for aasa in (AASA, AASA_ROOT):
+        assert TEAM_ID.sub("TEAM.de.uniflow.ai", page(aasa)) == TEAM_ID.sub("TEAM.de.uniflow.ai", (generated / aasa).read_text(encoding="utf-8"))
+    assert page(AASA_ROOT) == page(AASA), "Kopie an der Wurzel gleich der Datei in .well-known"
 
 
 @pytest.mark.parametrize("name", PAGES)
 def test_pages_are_german_self_contained_and_without_scripts(name):
     html = page(name)
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and '<meta charset="utf-8">' in html
-    assert 'name="viewport"' in html and '<link rel="stylesheet" href="style.css">' in html and 'href="icon.svg"' in html
+    assert 'name="viewport"' in html and '<link rel="stylesheet" href="style.css">' in html and 'href="favicon.png"' in html and 'src="logo.png"' in html
     assert "<script" not in html, "kein Skript"
     assert not re.search(r'<(link|script|img|iframe)[^>]*(src|href)="(https?:)?//', html), "keine fremden Ressourcen"
     assert "– StudiNow</title>" in html or "<title>StudiNow" in html
@@ -128,10 +133,28 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     for anchor in ("laden", "uni", "funktionen", "so-gehts", "preise", "fragen"):
         assert f'id="{anchor}"' in html, anchor
     for s in ("Stud.IP", "QIS", "Apple Pencil", "„Erkläre die ganze Vorlesung“", "„Erkläre alle Aufgaben“",
-              "Wochentest", "Karteikarten", "Stapel", "Studienverlauf", "Prüfungsanmeldung", "Abgeben in Stud.IP",
-              "Stud.IP-Nachrichten", "Kein Uni-Passwort gespeichert", "Kein Tracking", "nicht mit den Hochschulen verbunden",
-              "Leibniz Universität Hannover", "support@studinow.app"):
+              "Wochentest", "Karteikarten", "Stapel", "Studienverlauf", "Prüfungsanmeldung", "Abgeben in Stud.IP und Moodle",
+              "Nachrichten beantworten", "Kein Uni-Passwort gespeichert", "Kein Tracking", "nicht mit den Hochschulen verbunden",
+              "Leibniz Universität Hannover", "support@studinow.app", "das aktuelle Semester zuerst"):
         assert s in flat, s
+    # Wunsch des Inhabers 05.11.2026: ganz Deutschland ansprechen, aber ehrlich nur die drei angebundenen Hochschulen
+    # nennen (Richtlinie 2.3, keine irrefuehrende Werbung); Systeme als Chips; Mensa mit Quellen und "ohne Gewähr"
+    assert '<p class="eyebrow">Für Studierende in ganz Deutschland</p>' in html
+    assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>, <strong>Hochschule Hannover</strong> und "
+                     r"<strong>Universität Hildesheim</strong>\. Weitere Hochschulen folgen\.", flat)
+    assert "Deine fehlt?" in flat and 'href="mailto:support@studinow.app">Schreib uns</a>' in flat
+    assert not re.search(r"alle(n)? (deutschen )?Hochschulen|jede(r)? Hochschule|alle(n)? Unis", flat), "nicht alle Hochschulen angebunden"
+    assert "Zuerst für die Leibniz Universität Hannover" not in flat
+    assert '<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Moodle</li><li>HISinOne</li><li>LSF</li></ul>' in html
+    faq = flat.split("Für welche Hochschulen ist StudiNow?")[1].split("</details>")[0]
+    for s in ("ganz Deutschland", "Leibniz Universität Hannover", "Hochschule Hannover", "Universität Hildesheim",
+              "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
+        assert s in faq, s
+    assert "Modulkatalogen von über 300 Studiengängen und Fächern" in flat or "Modulkataloge von über 300 Studiengängen und Fächern" in flat
+    mensa = flat.split('id="mensa"')[1].split("</section>")[0]
+    for s in ("Heute in der Mensa", "Preise", "Nährwerte", "Allergene", "vegan", "vegetarisch", "Studentenwerk Hannover",
+              "Studierendenwerk OstNiedersachsen", "ohne Gewähr", "img/mensa-hell.jpg", "img/mensa-dunkel.jpg"):
+        assert s in mensa, s
     # Tarife wie app/plans.py, Probe wie docs/PREISLISTE.md
     from app import plans
     for key, price in (("free", "0 €"), ("plus", "1,99 €"), ("pro_ai", "3,99 €")):
@@ -169,7 +192,7 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
     in app/invites.py, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
     html = page("i/index.html")
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and "<script" not in html
-    assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../icon.svg"' in html and 'href="../index.html"' in html
+    assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../favicon.png"' in html and 'href="../index.html"' in html
     assert '<main id="inhalt" class="doc invite">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
     assert 'class="btn btn-store"' in html and "Im App Store laden" in html and "Bald verfügbar" in html
     for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
@@ -177,7 +200,7 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
               "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):
         assert s in html, s
     assert 'href="../support.html"' in html and 'href="../datenschutz.html"' in html and "aria-current" not in html
-    assert 'src="../icon.svg"' in html and 'href="../index.html#preise"' in html
+    assert 'src="../logo.png"' in html and 'href="../index.html#preise"' in html
     assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf oeffentlichen Seiten (docs/release/README.md)"
     assert not PLACEHOLDER.findall(html)
 
@@ -234,5 +257,9 @@ def test_pages_are_served_by_a_plain_static_server():
 def test_netlify_files_route_invites_and_serve_the_apple_file_as_json():
     red = (SITE / "_redirects").read_text(encoding="utf-8")
     assert "/i/* /i/index.html 200" in red and "https://studinow.ai/* https://studinow.app/:splat 301!" in red
+    # fehlt .well-known nach dem Hochladen, liefert Netlify die Kopie an der Wurzel unter der Apple-Adresse aus
+    assert "/.well-known/apple-app-site-association /apple-app-site-association 200\n" in red
     hdr = (SITE / "_headers").read_text(encoding="utf-8")
     assert "/.well-known/apple-app-site-association\n  Content-Type: application/json" in hdr
+    assert "\n/apple-app-site-association\n  Content-Type: application/json" in hdr
+    assert (SITE / AASA_ROOT).read_bytes() == (SITE / AASA).read_bytes()

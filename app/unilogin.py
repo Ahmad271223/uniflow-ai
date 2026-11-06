@@ -122,7 +122,7 @@ def save_session(name: str, cookies: list[dict]) -> None:
 
 
 def forget(name: str | None = None) -> None:
-    names = [name] if name else ["STUDIP_COOKIES", "LEARNWEB_COOKIES", "HSH_COOKIES"]
+    names = [name] if name else ["STUDIP_COOKIES", "LEARNWEB_COOKIES", "HSH_COOKIES", "SOGO_COOKIES"]
     if config.is_hosted():
         config.set_env({n: None for n in names})
         return
@@ -198,6 +198,10 @@ def check_cookies(key: str, cookies: list[dict]) -> bool:
         from . import hsh
         html = _get_with_cookies(hsh.moodle_base() + "/my/", cookies)
         return bool(html) and "sesskey" in html and "notloggedin" not in html
+    if key == "sogo":
+        # Uni-Mail/Uni-Kalender der LUH (eigenes Formular): angemeldet leitet /SOGo/so/ auf /SOGo/so/<benutzer>/ weiter
+        from . import sogo
+        return sogo.discover_user(cookies) is not None
     from .config import STUDIP_BASE
     text = _get_with_cookies(f"{STUDIP_BASE}/jsonapi.php/v1/users/me", cookies, accept="application/vnd.api+json")
     return bool(text) and '"username"' in text
@@ -215,6 +219,9 @@ def _cookie_urls(key: str) -> list[str]:
     if key == "hsh":
         from . import hisinone, hsh
         return [hsh.moodle_base(), hisinone.HSH_CM_BASE, "https://idp.hs-hannover.de/"]
+    if key == "sogo":
+        from . import sogo
+        return [sogo.BASE + "/"]
     from .config import STUDIP_BASE
     return [STUDIP_BASE, LUH_SSO_URL]
 
@@ -231,6 +238,11 @@ def _target(university: str | None) -> tuple[str, str, str, object, Path]:
     if key == "hsh":
         from . import hsh
         return key, hsh.SESSION, hsh.login_url(), hsh_window_check(), hsh._profile_dir()
+    if key == "sogo":
+        # Uni-Mail (SOGo der LUH): eigenes Formular, fertig auf /SOGo/so/<benutzer>/... (docs/UNI-MAIL-2026-11-05.md)
+        from . import sogo
+        profile = config.data_dir() / "browser-profile-sogo"
+        return key, sogo.SESSION, sogo.BASE + "/", lambda page: sogo.user_from_url(page.url) is not None, profile
     from . import studip_sync
     return key, "STUDIP_COOKIES", studip_sync.SHIB_LOGIN_URL, studip_sync._is_logged_in, studip_sync._profile_dir()
 

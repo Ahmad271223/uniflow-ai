@@ -490,6 +490,9 @@ def _output_text(d: dict) -> str:
                    for c in item.get("content") or [] if isinstance(c, dict) and c.get("type") == "output_text")
 
 
+TRUNCATED_NOTE = "\n\n*(Die Antwort wurde hier gekürzt. Frag nach dem Rest, z. B. „Erkläre ab Aufgabe 5“.)*"
+
+
 def _consume(events, on_delta=None, who: str = "ChatGPT", model: str = "", images: int = 0) -> tuple[str, dict]:
     """Ereignisse der Responses API auswerten (siehe stream_text). `on_delta` bekommt jedes Textstueck beim Eintreffen.
     Bricht die Antwort ab (failed, incomplete), traegt der Fehler die schon berechnete Nutzung (`billed`)."""
@@ -520,7 +523,13 @@ def _consume(events, on_delta=None, who: str = "ChatGPT", model: str = "", image
             raise _stream_error(j.get("code"), j.get("message"), who)
         elif t == "response.incomplete":
             why = ((resp or {}).get("incomplete_details") or {}).get("reason") or "unvollständig"
-            billed = Completion.from_usage("".join(deltas), resp, model, images) if resp and resp.get("usage") else None
+            text = "".join(deltas)
+            # Ausgabegrenze erreicht (Test 06.11.2026: "Alle Aufgaben" auf 12 Seiten brauchte 4 360 Tokens): der Nutzer hat
+            # den Text bezahlt, also bekommt er ihn mit einem Hinweis statt eines Fehlers. JSON-Antworten scheitern weiter
+            # beim Auslesen, freier Text ist auch gekuerzt brauchbar.
+            if why == "max_output_tokens" and text.strip() and resp is not None:
+                return text + TRUNCATED_NOTE, {**resp, "truncated": True}
+            billed = Completion.from_usage(text, resp, model, images) if resp and resp.get("usage") else None
             raise AIUnavailable("ai_provider_error", f"{who} hat die Antwort nicht beendet ({str(why)[:80]}).", 502, billed=billed)
     if completed is None:
         raise AIUnavailable("ai_provider_error", f"{who} hat die Antwort nicht beendet (kein response.completed)." if saw

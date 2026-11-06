@@ -25,7 +25,7 @@ final class GreetingAppTests: XCTestCase {
         XCTAssertEqual(UFGreeting.text(name: "", hour: 14), "Hallo – lass uns gemeinsam lernen.")
         XCTAssertEqual(UFGreeting.text(name: "  \n ", hour: 14), "Hallo – lass uns gemeinsam lernen.")
         XCTAssertEqual(UFGreeting.text(name: nil, hour: 8), "Guten Morgen – lass uns gemeinsam lernen.")
-        XCTAssertEqual(UFGreeting.text(name: "  Mia ", hour: 14), "Hallo Mia – lass uns gemeinsam lernen.")
+        XCTAssertEqual(UFGreeting.text(name: "  Tobi ", hour: 14), "Hallo Tobi – lass uns gemeinsam lernen.")
     }
 
     func testTruncateAt24() {

@@ -3,7 +3,7 @@
 // Filter (vegan, vegetarisch, ohne Schwein, Allergene meiden), Oeffnungszeiten und Quelle; Karte "Heute in der Mensa" auf
 // der Uebersicht (drei Hauptgerichte, am Wochenende und an geschlossenen Tagen ausgeblendet). Frei in jedem Tarif.
 // Daten: GET /api/mensa/canteens, GET /api/mensa/menu (app/mensa_api.py); Regeln: mensa-logic.js.
-import { $, $$, api, esc, icon, modal, todayISO } from "./core.js?v=45";
+import { $, $$, api, esc, icon, modal, todayISO } from "./core.js?v=46";
 import * as L from "./mensa-logic.js?v=2";
 
 let listCache = null;

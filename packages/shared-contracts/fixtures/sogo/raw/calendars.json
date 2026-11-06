@@ -1,0 +1,21 @@
+{
+ "calendars": [
+  {
+   "id": "personal",
+   "name": "Persönlicher Kalender",
+   "color": "#AAAAAA",
+   "active": 1,
+   "owner": "erika.muster@stud.uni-hannover.de"
+  },
+  {
+   "id": "abc-123",
+   "name": "Fachschaft",
+   "color": "#0e7490",
+   "active": 0,
+   "owner": "fachschaft"
+  },
+  {
+   "name": "ohne id"
+  }
+ ]
+}

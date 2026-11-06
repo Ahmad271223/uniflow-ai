@@ -31,13 +31,13 @@ final class IPhoneNavigationTests: XCTestCase {
     func testMoreListsEveryOtherVisibleAreaPerPlatformAndPlan() {
         let cases: [(name: String, visible: [UFNavItem], more: [String])] = [
             ("iPhone ohne KI", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true),
-             ["timetable", "studyplan", "cards", "services", "mensa", "community", "settings"]),
+             ["timetable", "studyplan", "cards", "services", "mensa", "rooms", "community", "settings"]),
             ("iPhone mit KI und Nachrichten", UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true, messages: true),
-             ["messages", "timetable", "studyplan", "exams", "cards", "services", "mensa", "community", "settings"]),
+             ["messages", "timetable", "studyplan", "exams", "cards", "services", "mensa", "rooms", "community", "settings"]),
             ("ohne iCloud", UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: true),
-             ["timetable", "studyplan", "cards", "services", "mensa", "settings"]),
+             ["timetable", "studyplan", "cards", "services", "mensa", "rooms", "settings"]),
             ("eigener Server", UFNavItem.visible(local: false, gradesOnDevice: true, community: true),
-             ["timetable", "studyplan", "exams", "services", "mensa", "community", "settings"]),
+             ["timetable", "studyplan", "exams", "services", "mensa", "rooms", "community", "settings"]),
         ]
         for c in cases {
             let more = UFNavItem.more(visible: c.visible)

@@ -34,7 +34,8 @@ struct UniFlowApp: App {
         DueNotificationDelegate.install()                                 // Antippen einer Erinnerung oeffnet die Quelle; fragt nichts
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
-        let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory)
+        let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory,
+                                 uniMailTransport: DebugUniStub.transportFactory)
         c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen
         let s = Session(local: c.active?.api ?? .local(.unavailable))
         c.onChange = { [weak s] container in s?.useLocal(container?.api ?? .local(.unavailable)) }
@@ -75,6 +76,7 @@ struct UniFlowApp: App {
                     .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                     .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                     .environment(\.hsh, containers.hsh)                        // Moodle und Campusmanagement (nur HsH)
+                    .environment(\.uniMail, containers.uniMail)               // Uni-Mail und Uni-Kalender (SOGo, nur LUH)
                     .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
                     .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"
                     .environment(\.ufShowHitAreas, UFHit.debugOverlay)        // nur Debug: Trefferflaechen sichtbar
@@ -170,6 +172,7 @@ struct UniFlowApp: App {
                 containers.hildesheim?.runIfDue()
                 containers.qis?.runIfDue()
                 containers.hsh?.runIfDue()
+                containers.uniMail?.runIfDue()                             // Uni-Mail: Posteingang, ungelesene
                 weeklyTicker.resume()
                 askForLoginIfDue()
                 Task {

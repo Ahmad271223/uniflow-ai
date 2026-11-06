@@ -1,0 +1,83 @@
+{
+ "shouldAskReceipt": 0,
+ "isDraft": false,
+ "isTemplate": false,
+ "date": "05.11.2026 10:42",
+ "subject": "Übungsblatt 3 – Abgabe verschoben",
+ "from": [
+  {
+   "name": "Prof. Dr. Max Beispiel",
+   "email": "max.beispiel@example.uni-hannover.de"
+  }
+ ],
+ "to": [
+  {
+   "name": "Erika Muster",
+   "email": "erika.muster@stud.uni-hannover.de"
+  }
+ ],
+ "cc": [
+  {
+   "email": "tutor@example.uni-hannover.de"
+  }
+ ],
+ "reply-to": [
+  {
+   "name": "Lehrstuhl",
+   "email": "lehrstuhl@example.uni-hannover.de"
+  }
+ ],
+ "isRead": 1,
+ "parts": {
+  "type": "UIxMailPartMixedViewer",
+  "contentType": "multipart/mixed",
+  "content": [
+   {
+    "type": "UIxMailPartAlternativeViewer",
+    "preferredPart": "text/html",
+    "content": [
+     {
+      "type": "UIxMailPartTextViewer",
+      "contentType": "text/plain",
+      "content": "<div class=\"mailer_plaincontent\">Hallo,<br />nur Text.</div>"
+     },
+     {
+      "type": "UIxMailPartHTMLViewer",
+      "contentType": "text/html",
+      "content": "<html><head><style>p{color:red}</style><title>x</title></head><body><p onclick=\"alert(1)\">Liebe Studierende,</p><p>die Abgabe von <b>Blatt&nbsp;3</b> ist jetzt am <a href=\"javascript:alert(2)\">Freitag</a> &amp; nicht Donnerstag.</p><script>alert(3)</script><img src=\"https://tracker.example.com/p.gif\" width=\"1\"><img unsafe-src=\"http://example.com/x.png\"><ul><li>Raum F102</li><li>ab 10:15</li></ul><blockquote type=\"cite\">Alte Nachricht<br>Zeile 2<blockquote>tiefer</blockquote></blockquote><div style=\"background:url(https://example.com/bg.png)\">Gruß &#8211; M. B.</div><!-- Kommentar --><form action=\"https://evil.example\"><input name=\"x\"></form><iframe src=\"https://evil.example\"></iframe></body></html>"
+     }
+    ]
+   },
+   {
+    "type": "UIxMailPartLinkViewer",
+    "contentType": "application/pdf",
+    "filename": "Blatt3.pdf",
+    "size": "120 KB",
+    "downloadURL": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/2/asAttachment/Blatt3.pdf",
+    "viewURL": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/2/Blatt3.pdf"
+   },
+   {
+    "type": "UIxMailPartImageViewer",
+    "contentType": "image/png",
+    "filename": "Skizze.png",
+    "size": "8 KB",
+    "downloadURL": "https://kalender.uni-hannover.de/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/3/asAttachment/Skizze.png",
+    "content": ""
+   },
+   {
+    "type": "UIxMailPartLinkViewer",
+    "contentType": "application/zip",
+    "filename": "fremd.zip",
+    "size": "1 KB",
+    "downloadURL": "https://evil.example/SOGo/so/x/a.zip"
+   },
+   {
+    "type": "UIxMailPartLinkViewer",
+    "contentType": "application/octet-stream",
+    "filename": "",
+    "size": "",
+    "downloadURL": "/SOGo/so/erika.muster@stud.uni-hannover.de/Mail/0/folderINBOX/128/4/asAttachment/4"
+   }
+  ]
+ }
+}

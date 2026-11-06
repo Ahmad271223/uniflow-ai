@@ -32,6 +32,10 @@ enum UFRoute: Hashable {
     case settings(tab: String? = nil)
     /// Mensa (05.11.2026, Views/Mensa/MensaViews.swift): Speiseplaene der Studentenwerke, frei in jedem Tarif
     case mensa
+    /// Raumfinder (05.11.2026, Views/Rooms/RoomFinderViews.swift): Standortfinder der LUH mit Google-Maps-Link, frei
+    case rooms
+    /// Uni-Mail und Uni-Kalender der LUH (SOGo, 05.11.2026, Views/UniMail/UniMailViews.swift), nur auf dem iPad
+    case uniMail
 
     /// Menuepunkt, der markiert wird (Dokument -> "Dokumente & Notizen", wie route() in app.js)
     var navKey: String {
@@ -48,6 +52,8 @@ enum UFRoute: Hashable {
         case .community, .communitySpace: return "community"
         case .settings: return "settings"
         case .mensa: return "mensa"
+        case .rooms: return "rooms"
+        case .uniMail: return "unimail"
         }
     }
 
@@ -79,6 +85,8 @@ enum UFRoute: Hashable {
         case .communitySpace(let key): return "#/community/\(key)"
         case .settings(let t): return "#/settings" + q([("tab", t)])
         case .mensa: return "#/mensa"
+        case .rooms: return "#/raumfinder"
+        case .uniMail: return "#/unimail"
         }
     }
 
@@ -114,6 +122,8 @@ enum UFRoute: Hashable {
         case "community": self = second.map { .communitySpace($0) } ?? .community
         case "settings": self = .settings(tab: q["tab"])
         case "mensa": self = .mensa
+        case "raumfinder", "rooms": self = .rooms
+        case "unimail", "uni-mail": self = .uniMail
         default: self = .dashboard
         }
     }
@@ -146,6 +156,9 @@ final class UFRouter: ObservableObject {
     /// wiederherstellen
     let resume = ResumeTracker()
 
+    /// `start`: erste Seite ohne Verlauf (sonst die Startseite; Tests fuer "Zurück ohne Verlauf")
+    init(start: UFRoute = .dashboard) { route = start }
+
     func reload() { reloadToken += 1 }
 
     /// Abzeichen eines Menuepunkts setzen (Lieferanten rufen das vom Hauptthread; gleicher Wert loest nichts aus)
@@ -161,6 +174,7 @@ final class UFRouter: ObservableObject {
         guard r != route else { return }
         history.append(route)
         if history.count > 50 { history.removeFirst() }
+        localBack = nil
         route = r
         drawerOpen = false
         fullscreenDoc = false            // route() entfernt exam-focus, fullscreen-doc, doc-open
@@ -171,11 +185,62 @@ final class UFRouter: ObservableObject {
     func go(hash: String) { go(UFRoute(hash: hash)) }
 
     func back() {
-        if let r = history.popLast() { route = r; resume.noteRoute(r) }
+        if let r = history.popLast() { show(r) }
     }
 
     /// Es gibt eine vorige Seite (sonst fuehrt "Zurück" auf die uebergeordnete Seite)
     var canGoBack: Bool { !history.isEmpty }
+
+    // MARK: Zurueck-Pfeil (Wunsch des Inhabers 06.11.2026: "ueberall ein Zurueck-Pfeil ausser auf der Startseite")
+
+    /// Die Startseite ("Übersicht") hat keinen Pfeil, jede andere Seite genau einen
+    var showsBackArrow: Bool { Self.showsBackArrow(on: route) }
+    static func showsBackArrow(on r: UFRoute) -> Bool { r != .dashboard }
+
+    /// iPhone (kompakt, docs/IPHONE-2026-11-04.md): die Bereiche der unteren Leiste (Start, Kalender, Module,
+    /// Dokumente) sind Wurzeln wie die Tabs des Systems und tragen keinen Pfeil (Dokumente hat in Ordnern das eigene
+    /// "‹ Ordner"); jede andere Seite (aus "Mehr", ein Modul, eine Community) genau einen in der Kopfzeile, ebenso
+    /// jede Wurzel, solange in ihr etwas offen ist (`localBack`). Blaetter mit NavigationStack haben das Zurueck des
+    /// Systems, das Dokument das seiner Werkzeugleiste (Kopfzeile aus).
+    var showsCompactBackArrow: Bool { Self.showsCompactBackArrow(on: route, local: hasLocalBack) }
+    static func showsCompactBackArrow(on r: UFRoute, local: Bool) -> Bool {
+        if local { return true }
+        switch r {
+        case .dashboard, .plan, .modules, .files: return false
+        default: return true
+        }
+    }
+
+    /// Zurueck innerhalb einer Seite (z. B. offene Nachricht in schmaler Ansicht, Notizen einer Person in der
+    /// Community): solange gesetzt, schliesst der Pfeil zuerst das, statt die Seite zu wechseln (wie das Zurueck eines
+    /// NavigationStack). Die Seite setzt und loescht es selbst (`ufLocalBack`); ein Seitenwechsel loescht es immer.
+    private(set) var localBack: (id: String, action: () -> Void)? {
+        didSet { if hasLocalBack != (localBack != nil) { hasLocalBack = localBack != nil } }
+    }
+    /// Es gibt ein Zurueck innerhalb der Seite (die kompakte Kopfzeile zeigt dann auch auf einer Wurzel den Pfeil)
+    @Published private(set) var hasLocalBack = false
+
+    func setLocalBack(id: String, _ action: (() -> Void)?) {
+        if let action { localBack = (id, action) } else if localBack?.id == id { localBack = nil }
+    }
+
+    /// Der Pfeil: erst das Zurueck der Seite, sonst die vorige Seite aus dem Verlauf, ohne Verlauf die Startseite
+    func goBack() {
+        if let local = localBack { localBack = nil; local.action(); return }
+        if let r = history.popLast() { show(r); return }
+        guard route != .dashboard else { return }
+        show(.dashboard)
+    }
+
+    /// Seite zeigen, ohne den Verlauf zu verlaengern (Zurueck)
+    private func show(_ r: UFRoute) {
+        localBack = nil
+        route = r
+        drawerOpen = false
+        fullscreenDoc = false
+        examFocus = false
+        resume.noteRoute(r)
+    }
 
     /// Der Editor fragt beim Laden: soll die KI-Hilfe fuer diese Datei gleich offen sein? (einmalig)
     func takeTutorOpenRequest(for fileID: String) -> Bool {
@@ -203,12 +268,17 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "exams", title: "Tests & Wiederholung", icon: "exam", route: .exams),
         UFNavItem(id: "services", title: "Uni & Noten", icon: "graduation", route: .services),
         UFNavItem(id: "mensa", title: "Mensa", icon: "utensils", route: .mensa),
+        UFNavItem(id: "rooms", title: "Raumfinder", icon: "map-pin", route: .rooms),
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
     /// Stud.IP-Nachrichten (04.11.2026): direkt nach "Übersicht", nur wenn `visible(messages:)` es erlaubt
     /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten)
     static let messages = UFNavItem(id: "messages", title: "Nachrichten", icon: "mail", route: .messages)
+
+    /// Uni-Mail (SOGo der LUH, 05.11.2026): nach "Nachrichten" in "Studium", nur an der LUH auf dem iPad
+    /// (`uniMail`: Verbindung des Containers vorhanden und lokales Backend)
+    static let uniMail = UFNavItem(id: "unimail", title: "Uni-Mail", icon: "mail", route: .uniMail)
 
     /// Eigene Karteikarten ohne PC: Eintrag an Stelle von "Tests & Wiederholung"
     static let cards = UFNavItem(id: "cards", title: "Karteikarten", icon: "cards", route: .cards)
@@ -224,7 +294,8 @@ struct UFNavItem: Identifiable {
     /// `messages`: "Nachrichten" direkt nach "Übersicht" (Stud.IP-Posteingang nur auf dem Geraet; der Aufrufer
     /// entscheidet mit `MessagesInbox.showsNavItem`, am eigenen Server und in Hildesheim ohne Nachrichten nie)
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
-                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false) -> [UFNavItem] {
+                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false,
+                        uniMail: Bool = false) -> [UFNavItem] {
         let base: [UFNavItem] = local ? main.flatMap { item -> [UFNavItem] in
             switch item.id {
             case "exams": return (ai ? [item] : []) + (flashcards ? [cards] : [])
@@ -233,8 +304,9 @@ struct UFNavItem: Identifiable {
             default: return [item]
             }
         } : main
-        guard messages else { return base }
-        return base.flatMap { $0.id == "dashboard" ? [$0, Self.messages] : [$0] }
+        let extra = (messages ? [Self.messages] : []) + (uniMail && local ? [Self.uniMail] : [])
+        guard !extra.isEmpty else { return base }
+        return base.flatMap { $0.id == "dashboard" ? [$0] + extra : [$0] }
     }
 
     /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
@@ -260,6 +332,7 @@ struct UFNavItem: Identifiable {
         switch key {
         case "community": return count == 1 ? "1 neuer Hinweis" : "\(count) neue Hinweise"
         case "messages": return count == 1 ? "1 neue Nachricht" : "\(count) neue Nachrichten"
+        case "unimail": return count == 1 ? "1 ungelesene E-Mail" : "\(count) ungelesene E-Mails"
         default: return "\(count) neu"
         }
     }
@@ -323,10 +396,11 @@ struct UFNavGroup: Identifiable, Equatable {
     /// Reihenfolge je Gruppe (Schluessel = `UFNavItem.id`); "aiStart" stuende in "Lernen", sobald der KI-Start ein
     /// eigener Menuepunkt wird
     static let layout: [(id: String, title: String, members: [String])] = [
-        ("study", "Studium", ["dashboard", "messages", "plan", "timetable", "modules", "studyplan", "files", "services"]),
+        ("study", "Studium", ["dashboard", "messages", "unimail", "plan", "timetable", "modules", "studyplan", "files", "services"]),
         ("learn", "Lernen", ["aiStart", "exams", "cards"]),
         // Mensa (05.11.2026): Alltag neben dem Studium, auf jedem Geraet und in jedem Tarif
-        ("everyday", "Alltag", ["mensa"]),
+        // Raumfinder (05.11.2026) neben der Mensa
+        ("everyday", "Alltag", ["mensa", "rooms"]),
         ("together", "Gemeinsam", ["community"]),
     ]
 
@@ -411,6 +485,7 @@ struct AppShell<Content: View>: View {
     @Environment(\.ufDemoBarHidden) private var demoBarHidden
     /// Stud.IP-Nachrichten: ob der Eintrag erscheint (`MessagesInbox.showsNavItem`)
     @ObservedObject private var inbox = MessagesInbox.shared
+    @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     /// iPhone-Fassung (docs/IPHONE-2026-11-04.md): nach Platz, nicht nach Geraet (`UFLayout.isCompact`)
     @Environment(\.horizontalSizeClass) private var hSize
@@ -497,8 +572,9 @@ struct AppShell<Content: View>: View {
             .environment(\.ufLogoMenu, UFLogoMenuTargets(
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                          community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                         messages: inbox.showsNavItem(api: session.api, studip: studip)).map { ($0.title, $0.route) },
+                                         messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil).map { ($0.title, $0.route) },
                 go: { [router] r in router.go(r) }))
+            .environment(\.ufBack, { [router] in router.goBack() })
         }
     }
 }
@@ -532,6 +608,103 @@ struct UFLogoMenu: View {
     }
 }
 
+/// Zurueck-Pfeil (06.11.2026), auf jeder Seite ausser der Startseite genau einer: oben links in der Kopfzeile
+/// (`UFHeader`), im Editor und in den Vollbild-Lesern vorn in der Werkzeugleiste. Ohne eigene `action` geht er wie
+/// `UFRouter.goBack` (Zurueck der Seite, sonst vorige Seite, sonst Startseite; gesetzt von `AppShell` ueber `\.ufBack`).
+/// Chevron und "Zurück" (in schmalen Fenstern nur der Chevron), 44 pt antippbar, VoiceOver "Zurück".
+struct UFBackButton: View {
+    enum Style { case header, toolbar }
+    var style: Style = .header
+    /// nur der Chevron (schmale Kopfzeile)
+    var compact = false
+    var action: (() -> Void)?
+    @Environment(\.ufBack) private var envBack
+    @Environment(\.ufWindowWidth) private var windowWidth
+
+    static let title = "Zurück"
+
+    init(style: Style = .header, compact: Bool = false, action: (() -> Void)? = nil) {
+        self.style = style
+        self.compact = compact
+        self.action = action
+    }
+
+    var body: some View {
+        if let go = action ?? envBack {
+            switch style {
+            case .header:
+                Button(action: go) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
+                        if !compact { Text(Self.title).ufFont(14.5, 550).lineLimit(1).fixedSize() }
+                    }
+                    .foregroundStyle(UF.accentText)
+                    .padding(.horizontal, compact ? 0 : 4)
+                    .frame(minWidth: 34, minHeight: 34)
+                    .contentShape(Rectangle())
+                    .ufHitArea()                                            // 44 pt antippbar
+                }
+                .buttonStyle(UFPressStyle())
+                .accessibilityLabel(Self.title)
+                .accessibilityIdentifier("nav.back")
+                .help(Self.title)
+            case .toolbar:
+                Button(action: go) {
+                    Label(Self.title, systemImage: "chevron.left")
+                        .labelStyle(BackLabelStyle(showsTitle: !compact && windowWidth > 900))
+                }
+                .accessibilityLabel(Self.title)
+                .accessibilityIdentifier("nav.back")
+                .help(Self.title)
+            }
+        }
+    }
+
+    private struct BackLabelStyle: LabelStyle {
+        let showsTitle: Bool
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 4) {
+                configuration.icon.fontWeight(.semibold)
+                if showsTitle { configuration.title }
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+    }
+}
+
+private struct UFBackKey: EnvironmentKey { static let defaultValue: (() -> Void)? = nil }
+
+extension EnvironmentValues {
+    /// Pfeil der App-Huelle (`UFRouter.goBack`); nil ausserhalb der Huelle (Tests, Vorschau): dann kein Pfeil
+    var ufBack: (() -> Void)? {
+        get { self[UFBackKey.self] }
+        set { self[UFBackKey.self] = newValue }
+    }
+}
+
+/// Zurueck innerhalb einer Seite an den Pfeil haengen (`UFRouter.setLocalBack`): solange `active`, schliesst der Pfeil
+/// das Offene (Nachricht, Notizen einer Person) statt die Seite zu verlassen
+struct UFLocalBack: ViewModifier {
+    let id: String
+    let active: Bool
+    let action: () -> Void
+    @EnvironmentObject private var router: UFRouter
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { router.setLocalBack(id: id, active ? action : nil) }
+            .onChange(of: active) { _, on in router.setLocalBack(id: id, on ? action : nil) }
+            .onDisappear { router.setLocalBack(id: id, nil) }
+    }
+}
+
+extension View {
+    func ufLocalBack(id: String, active: Bool, action: @escaping () -> Void) -> some View {
+        modifier(UFLocalBack(id: id, active: active, action: action))
+    }
+}
+
 struct UFLogoMenuTargets {
     var items: [(title: String, route: UFRoute)]
     var go: (UFRoute) -> Void
@@ -561,6 +734,7 @@ struct UFSidebar: View {
     @EnvironmentObject private var studip: StudIPSync
     @ObservedObject private var ent = Entitlements.shared
     @ObservedObject private var inbox = MessagesInbox.shared
+    @Environment(\.uniMail) private var uniMail
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
@@ -570,7 +744,7 @@ struct UFSidebar: View {
         // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
         let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                       community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                      messages: inbox.showsNavItem(api: session.api, studip: studip))
+                                      messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil)
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 9.6) {                                       // .brand
@@ -829,12 +1003,13 @@ struct UFMobileNav: View {
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufAIEnabled) private var aiEnabled
     @ObservedObject private var inbox = MessagesInbox.shared
+    @Environment(\.uniMail) private var uniMail
     @State private var showMore = false
 
     private var moreItems: [UFNavItem] {
         let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                         community: SolutionSharing.community.isConnected, ai: aiEnabled,
-                                        messages: inbox.showsNavItem(api: session.api, studip: studip))
+                                        messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil)
         return UFNavItem.more(visible: visible)
     }
 
@@ -1145,6 +1320,8 @@ struct UFHeader: View {
     /// Kopfzeile auf dem iPhone: Logo und Name, dann Suche, Sync und Profil als Symbole mit 44 pt Trefferflaeche
     private var compactBar: some View {
         HStack(spacing: 2) {
+            // Zurueck (06.11.2026) nur, wo die untere Leiste nicht schon dorthin fuehrt (`showsCompactBackArrow`)
+            if router.showsCompactBackArrow { UFBackButton(style: .header, compact: true).padding(.trailing, 4) }
             Button { router.go(.dashboard) } label: {
                 HStack(spacing: 8) {
                     RoundedRectangle(cornerRadius: 8).fill(UF.logoGradient)
@@ -1201,6 +1378,8 @@ struct UFHeader: View {
 
     private var regularBar: some View {
         HStack(spacing: 9.6) {
+            // Zurueck oben links auf jeder Seite ausser der Startseite (06.11.2026); schmal nur der Chevron
+            if router.showsBackArrow { UFBackButton(style: .header, compact: narrow) }
             if narrow {
                 // Schublade mit allen Bereichen; Abzeichen der Bereiche, die nicht in der unteren Leiste stehen
                 let drawerBadge = UFMobileNav.drawerBadge(router.badges)

@@ -61,15 +61,15 @@ final class AbnahmeV1AppTests: XCTestCase {
     @MainActor
     func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() throws {
         let without = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
-        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "mensa"], "Mensa immer, ohne Tarif")
+        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "mensa", "rooms"], "Mensa und Raumfinder immer, ohne Tarif")
         let both = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
-        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "mensa"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
+        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "mensa", "rooms"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
         // Community nur mit CloudKit-Dienst im Build (iCloud-Container)
         let withCloud = UFNavItem.visible(local: true, gradesOnDevice: true, community: true).map(\.id)
-        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "mensa", "community"])
+        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "cards", "services", "mensa", "rooms", "community"])
         // eigene Karteikarten an Stelle der Wochentests (KI), ohne Funktion auf dem Geraet kein Eintrag
         XCTAssertEqual(UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: false).map(\.id),
-                       ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services", "mensa"])
+                       ["dashboard", "plan", "timetable", "modules", "studyplan", "files", "services", "mensa", "rooms"])
         XCTAssertFalse(UFNavItem.visible(local: true, gradesOnDevice: true, community: true).contains { $0.id == "exams" })
         XCTAssertEqual(UFNavItem.cards.title, "Karteikarten")
         XCTAssertTrue(UFNavItem.cards.isActive(.cards))

@@ -174,9 +174,9 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     events = db.rows(conn, "SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
     dated = studip_dated(conn, start, end)
     if not events:
-        from . import announcements, studip_extras
-        return studip_extras.with_consultations(conn, announcements.mark_cancellations(
-            conn, [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"]), start, end)   # + Sprechstunden
+        from . import announcements, sogo, studip_extras
+        return sogo.with_calendar(conn, studip_extras.with_consultations(conn, announcements.mark_cancellations(
+            conn, [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"]), start, end), start, end)   # + Sprechstunden, Uni-Kalender
     ids = [e["id"] for e in events]
     exc = defaultdict(dict)
     for x in db.rows(conn, f"SELECT * FROM event_exceptions WHERE event_id IN ({','.join('?' * len(ids))})", ids):
@@ -233,9 +233,10 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     out = _merge_dated(conn, out, dated)
     if not include_skipped:
         out = [o for o in out if o["status"] != "nicht_teilnahme"]
-    from . import announcements, studip_extras
+    from . import announcements, sogo, studip_extras
     out = announcements.mark_cancellations(conn, out)           # Absagen aus Ankuendigungen als Hinweis am Termin
-    return studip_extras.with_consultations(conn, out, start, end)   # eigene Sprechstunden aus Stud.IP (nur lesend)
+    out = studip_extras.with_consultations(conn, out, start, end)   # eigene Sprechstunden aus Stud.IP (nur lesend)
+    return sogo.with_calendar(conn, out, start, end)            # Termine des Uni-Kalenders (SOGo, nur lesend)
 
 
 def _matches(e: dict, d: date, t: dict) -> bool:

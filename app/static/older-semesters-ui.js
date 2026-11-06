@@ -1,6 +1,6 @@
 // Frühere Semester: Anbindung an Seite, Dialog und Abgleich (Texte und HTML-Teile: older-semesters.js).
 // Geladen wird nicht hier, sondern vom Abgleich der Hochschule; die Routen stehen in app/older_semesters_api.py.
-import { $, $$, api, toast, modal, esc, icon, state } from "./core.js?v=45";
+import { $, $$, api, toast, modal, esc, icon, state } from "./core.js?v=46";
 import { questionText, shouldAsk, courseCount, semestersHtml, courseHeaderHtml, NOTE_QUEUED } from "./older-semesters.js?v=4";
 
 /** Abgleich fuer die vorgemerkten Kurse anzeigen: Fortschritt oben, danach laedt die Seite neu (window.pollBg in app.js) */

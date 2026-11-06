@@ -353,6 +353,28 @@ final class IPhoneDocumentLayoutTests: XCTestCase {
 
     // MARK: - iPad unveraendert (1180x820)
 
+    /// Zurueck-Pfeil (develop 06.11.2026) kompakt: genau einer oben links (das System-Zurueck des Stapels ist aus);
+    /// in der alten Fassung (Vollbild, nur lesen) ebenso, er schliesst sie (`onBack`)
+    func testCompactExactlyOneBackArrowAlsoInOldVersion() throws {
+        func arrows(_ env: HostedEnvironment) -> Set<String> {
+            Set(all(env).filter { $0.accessibilityLabel == UFBackButton.title && $0.accessibilityFrame.width > 0 }
+                .map { "\(Int($0.accessibilityFrame.midX.rounded())),\(Int($0.accessibilityFrame.midY.rounded()))" })
+        }
+        let (env, _) = try host(compact: true)
+        XCTAssertTrue(env.wait { self.element(env, id: "doc.bottomBar") != nil }, dump(env))
+        XCTAssertEqual(arrows(env).count, 1, "genau ein Pfeil: " + dump(env))
+
+        let (t, file) = try document()
+        var closed = false
+        let old = try hostWithEnvironment(NavigationStack { DocumentView(file: file, api: api(t), readOnly: true, onBack: { closed = true }) },
+                                          api: api(t), size: Self.phone)
+        old.hosting.traitOverrides.horizontalSizeClass = .compact
+        old.hosting.traitOverrides.verticalSizeClass = .regular
+        XCTAssertTrue(old.wait(timeout: 20) { arrows(old).count == 1 }, "alte Fassung: genau ein Pfeil: " + dump(old))
+        XCTAssertTrue(tap(old, label: UFBackButton.title))
+        XCTAssertTrue(old.wait { closed }, "Pfeil schliesst die alte Fassung")
+    }
+
     func testIPadKeepsPencilOnlyAndToolbar() throws {
         let stored = UserDefaults.standard.object(forKey: "uniflow.pencilOnly")
         addTeardownBlock { UserDefaults.standard.set(stored, forKey: "uniflow.pencilOnly") }

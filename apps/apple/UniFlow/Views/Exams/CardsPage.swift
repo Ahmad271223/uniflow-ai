@@ -934,7 +934,7 @@ struct CardsPage: View {
 
     private var pageHead: some View {
             UFPageHead("Karteikarten", sub: practising ? nil : "Deine Stapel je Modul · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
-                if !needsPlus { UFButton("Tests", icon: "arrow-left", size: .small) { router.go(.exams) } }
+                if !needsPlus { UFButton("Tests", icon: "exam", size: .small) { router.go(.exams) } }      // Pfeil nur oben links
                 if deck.loaded {
                     if deck.selected != nil && !(trainer.active && canEdit) {
                         UFButton("Alle Stapel", icon: "layers", size: .small) { deck.select(nil) }

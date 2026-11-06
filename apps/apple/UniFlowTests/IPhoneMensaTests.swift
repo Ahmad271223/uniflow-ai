@@ -158,7 +158,7 @@ final class IPhoneMensaTests: IPhoneLearnTestCase {
         XCTAssertTrue(labels.contains("ALLTAG"), "\(labels)")
         let order = ["STUDIUM", "LERNEN", "ALLTAG", "GEMEINSAM"]
         XCTAssertEqual(labels, order.filter(labels.contains), "Reihenfolge der Seitenleiste")
-        XCTAssertEqual(grouped.first { $0.id == "everyday" }?.items.map(\.id), ["mensa"])
+        XCTAssertEqual(grouped.first { $0.id == "everyday" }?.items.map(\.id), ["mensa", "rooms"], "Raumfinder neben der Mensa")
         XCTAssertEqual(grouped.last?.items.map(\.id), ["settings"], "Einstellungen zuletzt, ohne Gruppe")
         XCTAssertNil(grouped.last?.label)
         XCTAssertEqual(grouped.flatMap(\.items).map(\.id).sorted(), more.map(\.id).sorted(), "nichts verloren")

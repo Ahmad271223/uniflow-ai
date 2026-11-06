@@ -210,6 +210,8 @@ struct DocumentView: View {
     @State private var submittingToStudIP = false
     /// Hochschule Hannover: Abgabe in einer Moodle-Aufgabe
     @State private var submittingToMoodle = false
+    @State private var mailingDocument = false
+    @Environment(\.uniMail) private var uniMailConnection
     @Environment(\.hsh) private var hshConnection
     @Environment(\.hildesheim) private var hildesheimConnection
     @State private var solutionSheet: SolutionSheet?
@@ -276,7 +278,13 @@ struct DocumentView: View {
     @State private var freezeIntroFor: EditorFreeze.Mode?
     @Environment(\.scenePhase) private var scenePhase
 
-    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil) {
+    /// Zurueck-Pfeil mit eigener Aufgabe (Vollbild einer frueheren Fassung: schliessen); nil = Pfeil der App-Huelle
+    /// (`\.ufBack`; im Vollbild darf der Pfeil nicht die Seite darunter wechseln, darum ausdruecklich)
+    private let onBack: (() -> Void)?
+
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil,
+         onBack: (() -> Void)? = nil) {
+        self.onBack = onBack
         self.api = api
         self.readOnly = readOnly
         self.initialPDFPage = initialPDFPage
@@ -550,7 +558,7 @@ struct DocumentView: View {
         }
         .toolbar(removing: .sidebarToggle)                  // eigener Knopf "Seiten"; zwei gleiche Symbole verwirrten
         // kompakt: eigenes Zurueck (Route davor bzw. Bibliothek) statt des Zurueck der zusammengeklappten Spaltenansicht
-        .navigationBarBackButtonHidden(compact && !readOnly)
+        .navigationBarBackButtonHidden(compact && (!readOnly || onBack != nil))
         .overlay(alignment: .bottom) {
             // Abpausen: keine Leiste, auch nicht die untere des iPhones
             if tracing {
@@ -656,13 +664,18 @@ struct DocumentView: View {
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .sheet(isPresented: $submittingToStudIP) { Self.submitSheet(store: store, api: api, compact: compact) }
         .sheet(isPresented: $submittingToMoodle) { Self.moodleSubmitSheet(store: store, api: api, compact: compact) }
+        .sheet(isPresented: $mailingDocument) {
+            // Uni-Mail (LUH): Entwurf mit dem PDF als Anhang; kompakt als ganzes Blatt (Empfaenger, Text, Tastatur)
+            if let uniMailConnection {
+                UniMailDocumentEntry(store: store, api: api, connection: uniMailConnection)
+                    .ufFullSheet(when: compact)
+            }
+        }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
-                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Schließen") { openedVersion = nil } }
-                    }
+                // Vollbild einer frueheren Fassung: derselbe Zurueck-Pfeil wie im Editor schliesst sie (vorher "Schließen")
+                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true, onBack: { openedVersion = nil })
             }
         }
         .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in
@@ -1003,6 +1016,8 @@ struct DocumentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
+            // Zurueck (06.11.2026): schliesst das Dokument dorthin, wo es geoeffnet wurde (vorige Seite, sonst Startseite)
+            UFBackButton(style: .toolbar, action: onBack)
             UFLogoMenu()                                       // die App-Leiste ist im Editor aus (mehr Platz zum Schreiben)
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
                 Label("Seiten", systemImage: "rectangle.stack")
@@ -1135,6 +1150,13 @@ struct DocumentView: View {
                     .accessibilityIdentifier("doc.submitLearnweb")
             }
         }
+        // LUH: als PDF mit Notizen an eine neue Uni-Mail (SOGo), gesendet erst mit "Senden"
+        if UniMailDocumentEntry.offered(api: api, connection: uniMailConnection) {
+            Section("Per E-Mail") {
+                Button { present { mailingDocument = true } } label: { Label("Per Uni-Mail senden …", systemImage: "envelope") }
+                    .accessibilityIdentifier("doc.uniMail")
+            }
+        }
     }
 
     /// Menue "Mehr": Bereich an KI, Schreiben, Seiten, Navigation, Loesungen, Fassungen, Information, Vollbild
@@ -1239,7 +1261,8 @@ struct DocumentView: View {
     /// "Geteilt" ("Daneben öffnen") gibt es kompakt nicht.
     @ToolbarContentBuilder
     private var compactToolbar: some ToolbarContent {
-        if !readOnly {
+        // genau ein Pfeil: unserer (das System-Zurueck ist kompakt aus); auch in der alten Fassung (Vollbild, `onBack`)
+        if !readOnly || onBack != nil {
             ToolbarItem(placement: .topBarLeading) { compactBackButton }
         }
         UFPlainToolbarItem {
@@ -1254,9 +1277,9 @@ struct DocumentView: View {
     /// Zurueck zur vorigen Seite der App (sonst zur Bibliothek); gedrueckt halten: alle Bereiche wie das Logo am iPad
     private var compactBackButton: some View {
         Button {
-            if router.canGoBack { router.back() } else { router.go(.files()) }
+            if let onBack { onBack() } else if router.canGoBack { router.back() } else { router.go(.files()) }
         } label: {
-            Label("Zurück", systemImage: "chevron.backward")
+            Label(UFBackButton.title, systemImage: "chevron.backward")
         }
         .contextMenu {
             if let logoMenu {

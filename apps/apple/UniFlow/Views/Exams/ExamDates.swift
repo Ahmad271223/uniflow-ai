@@ -50,11 +50,11 @@ enum UFExam {
         "\(UFFmt.weekdayShort(e.s("date")))., \(UFFmt.date(e.s("date")))"
     }
 
-    /// "09:00–11:00 · Hörsaal F 303" (nur was bekannt ist)
-    static func placeText(_ e: JSONValue) -> String? {
+    /// "09:00–11:00 · Hörsaal F 303" (nur was bekannt ist); `room: false` ohne Raum (der steht dann als `UFRoomLink` daneben)
+    static func placeText(_ e: JSONValue, room: Bool = true) -> String? {
         var parts: [String] = []
         if let t = e.s("time"), !t.isEmpty { parts.append(e.s("end").map { $0.isEmpty ? "\(t) Uhr" : "\(t)–\($0) Uhr" } ?? "\(t) Uhr") }
-        if let r = e.s("room"), !r.isEmpty { parts.append(r) }
+        if room, let r = e.s("room"), !r.isEmpty { parts.append(r) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -130,12 +130,15 @@ struct UpcomingExamsList: View {
                 ForEach(Row.rows(Array(items.prefix(limit)), key: "id")) { row in
                     let e = row.value
                     let reg = registration?.suggestion(exam: e)
-                    Button { open(e) } label: { line(e, registered: reg?.registered) }
+                    let room = e.s("room").flatMap { Rooms.mayLink($0) ? $0 : nil }
+                    Button { open(e) } label: { line(e, registered: reg?.registered, roomAside: room != nil) }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(UFExam.accessibility(e) + (reg.map { ", " + ExamRegistrationText.status($0) } ?? ""))
                         .accessibilityAddTraits(.isButton)
                         .accessibilityIdentifier("exam.row")
+                    // Raumfinder (05.11.2026): Raum antippen -> Ort mit Google-Maps-Link
+                    if let room { UFRoomLink(text: room, size: 12.8).padding(.leading, 70).padding(.top, -4) }
                 }
                 if items.count > limit {
                     Text("und \(items.count - limit) weitere").ufFont(12.8).foregroundStyle(UF.muted)
@@ -147,7 +150,7 @@ struct UpcomingExamsList: View {
     }
 
     /// `registered`: Abzeichen der Pruefungsanmeldung (nil: keins)
-    private static func line(_ e: JSONValue, registered: Bool? = nil) -> some View {
+    private static func line(_ e: JSONValue, registered: Bool? = nil, roomAside: Bool = false) -> some View {
         HStack(alignment: .top, spacing: 12) {
             // Tag als Kachel in der Klausurfarbe
             VStack(spacing: 0) {
@@ -164,7 +167,7 @@ struct UpcomingExamsList: View {
                     Spacer(minLength: 4)
                     Text(UFExam.countdown(e)).ufFont(12.8, 650).foregroundStyle(UFExam.color).fixedSize()
                 }
-                if let p = UFExam.placeText(e) { Text(p).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true) }
+                if let p = UFExam.placeText(e, room: !roomAside) { Text(p).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true) }
                 if let s = e.s("source_label"), !s.isEmpty {
                     Text(s).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
@@ -187,22 +190,29 @@ struct ModuleNextExam: View {
 
     var body: some View {
         Group {
-            if let e = next { Self.label(e) }
+            if let e = next {
+                let room = e.s("room").flatMap { Rooms.mayLink($0) ? $0 : nil }
+                VStack(alignment: .leading, spacing: 4) {
+                    Self.label(e, room: room == nil)
+                    // Raumfinder (05.11.2026): Raum der Klausur mit Ort und Google-Maps-Link
+                    if let room { UFRoomLink(text: room, size: 12.8, color: UFExam.color) }
+                }
+            }
         }
         .task(id: moduleID) { next = await UFExam.load(api, module: moduleID).first }
     }
 
-    static func text(_ e: JSONValue) -> String {
+    static func text(_ e: JSONValue, room: Bool = true) -> String {
         var s = "\(e.s("kind_label") ?? "Klausur"): \(UFExam.dateText(e)) · \(UFExam.countdown(e))"
-        if let p = UFExam.placeText(e) { s += " · \(p)" }
+        if let p = UFExam.placeText(e, room: room) { s += " · \(p)" }
         return s
     }
 
-    static func label(_ e: JSONValue) -> some View {
+    static func label(_ e: JSONValue, room: Bool = true) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             UFIcon(UFExam.icon, size: 14)
             VStack(alignment: .leading, spacing: 1) {
-                Text(text(e)).ufFont(13.6, 650).fixedSize(horizontal: false, vertical: true)
+                Text(text(e, room: room)).ufFont(13.6, 650).fixedSize(horizontal: false, vertical: true)
                 if let s = e.s("source_label"), !s.isEmpty { Text(s).ufFont(12).foregroundStyle(UF.muted) }
             }
         }

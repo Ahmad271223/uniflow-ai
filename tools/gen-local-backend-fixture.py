@@ -303,6 +303,11 @@ SAMPLES: dict[str, dict] = {
                             "expect": {"status": 200, "type": "object",
                                        "keys": ["canteen", "days", "fetched_at", "message", "source", "stale"],
                                        "reason": "Abruf beim Studentenwerk (Netz); Faelle in tests/test_mensa.py und MensaTests"}},
+    # Raumfinder (RoomsEndpoints, app/rooms_api.py, docs/RAUMFINDER-2026-11-05.md): ohne Suchtext bzw. ohne Raumnummer
+    # keine Anfrage beim Standortfinder, darum ohne Netz gleich; Faelle mit Treffern in tests/test_rooms.py und RoomsTests
+    "GET /api/rooms/search": {"path": "/api/rooms/search"},
+    "GET /api/rooms/resolve": {"path": "/api/rooms/resolve?text=Seminarraum&university=luh"},
+    "GET /api/rooms/campuses": {"path": "/api/rooms/campuses?university=hsh"},
     # Pruefungsanmeldung (ExamRegistrationEndpoints, docs/PRUEFUNGSANMELDUNG-2026-11-05.md): nur im Kern; der PC liest
     # "Info über angemeldete Prüfungen" nicht, app/exam_registration.py hat nur Daten, Zuordnung und Phase
     "GET /api/exam-registration": {"path": "/api/exam-registration", "python": False,

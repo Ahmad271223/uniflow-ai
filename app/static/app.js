@@ -1,21 +1,22 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=45";
-import { viewDashboard as viewHome } from "./views-home.js?v=20";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=68";
-import { viewFiles } from "./views-lib.js?v=68";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=49";
-import { viewTimetable, openEvent } from "./views-tt.js?v=47";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=87";
-import { viewAbo, planChoicePrompt } from "./views-abo.js?v=50";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=46";
+import { viewDashboard as viewHome } from "./views-home.js?v=21";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=70";
+import { viewFiles } from "./views-lib.js?v=69";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=50";
+import { viewTimetable, openEvent } from "./views-tt.js?v=48";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=88";
+import { viewAbo, planChoicePrompt } from "./views-abo.js?v=51";
 import { resendNote } from "./service-errors.js?v=1";
-import { askOlderSemesters } from "./older-semesters-ui.js?v=6";
+import { askOlderSemesters } from "./older-semesters-ui.js?v=7";
 import { chipState } from "./sync-chip.js?v=1";
 import { trialHintHtml } from "./trial-hint.js?v=2";
-import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=16";
-import { navHtml, accountHtml } from "./shell-nav.js?v=4";
-import { viewStudyPlan } from "./study-plan.js?v=4";   // Studienverlauf (05.11.2026)
-import { viewAiStart } from "./views-ai.js?v=5";                       // KI-Start (#/ki), Paket B 05.11.2026
+import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=17";
+import { navHtml, accountHtml } from "./shell-nav.js?v=5";
+import { viewStudyPlan } from "./study-plan.js?v=5";   // Studienverlauf (05.11.2026)
+import { viewAiStart } from "./views-ai.js?v=7";                       // KI-Start (#/ki), Paket B 05.11.2026
 import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
+import { createBackNav, backButtonHtml, showsBack } from "./back-nav.js?v=1";   // Zurueck-Pfeil (06.11.2026)
 
 // ---------------------------------------------------------------- Shell
 // Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
@@ -24,6 +25,7 @@ function buildShell() {
   $("#nav").innerHTML = navHtml(icon);
   $("#navSettings").innerHTML = `${icon("settings", 18)}<span>Einstellungen</span>`; $("#navSettings").dataset.route = "settings"; $("#navSettings").className = "";
   $("#collapseBtn").innerHTML = `${icon("panel-left", 18)}<span> Einklappen</span>`;
+  $("#backBtn").innerHTML = backButtonHtml(icon); $("#backBtn").onclick = () => goBack();
   $("#menuBtn").innerHTML = icon("menu", 20); $("#themeBtn").innerHTML = icon("sun", 18); $("#profileBtn").innerHTML = icon("clock", 18); $("#profileBtn").title = "Zeitmesser";
   $("#syncBtn").innerHTML = `${icon("sync", 15)} Sync`;
   $("#mobileNav").innerHTML = [["dashboard", "Start", "home"], ["plan", "Kalender", "calendar"], ["modules", "Module", "book"], ["files", "Dokumente", "folder"], ["settings", "Mehr", "settings"]].map(([r, t, i]) => `<a href="#/${r}" data-route="${r}">${icon(i, 20)}${t}</a>`).join("");
@@ -70,12 +72,12 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 // Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit StudiNow-Konto), alle 2 Minuten
 window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
   b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
-async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=9"); window.updateBell(await unreadCount()); } catch {} }
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=10"); window.updateBell(await unreadCount()); } catch {} }
 setTimeout(askOlderSemesters, 6000);   // einmalige Frage "Auch frühere Semester laden?" (older-semesters-ui.js)
 setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
 document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
 // Abzeichen mit der Zahl offener Korrekturhinweise am Menuepunkt "Community" (03.11.2026, wie auf dem iPad), sparsam geholt
-import("./community-corrections-ui.js?v=6").then(m => m.startBadgePolling()).catch(() => {});
+import("./community-corrections-ui.js?v=7").then(m => m.startBadgePolling()).catch(() => {});
 
 function accountMenu() {
   const a = state.account;
@@ -103,17 +105,39 @@ function renderAccount() {
 }
 window.renderAccount = renderAccount;
 
+// ---------------------------------------------------------------- Zurueck (06.11.2026, back-nav.js)
+// Pfeil oben links auf jeder Seite ausser der Startseite: erst das Zurueck der Seite (state.backNav.setLocal), dann die
+// vorige Seite dieser Sitzung (history.back()), sonst die Startseite bzw. `fallback` (Dokument: Modul oder Dokumente)
+const backNav = createBackNav();
+state.backNav = backNav;
+function goBack(fallback = "#/") {
+  const r = backNav.back(fallback);
+  if (r.local) r.local(); else if (r.history) history.back(); else location.hash = r.hash;
+}
+window.goBack = goBack;
+
 // ---------------------------------------------------------------- Router
-const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=5").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=6").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
 routes.ki = viewAiStart;
 // Freunde einladen (Links, Teilen, QR-Code; invites.js, 05.11.2026)
-routes.einladungen = routes.invites = (p, q, v) => import("./invites.js?v=2").then(m => m.viewInvites(p, q, v));
+routes.einladungen = routes.invites = (p, q, v) => import("./invites.js?v=3").then(m => m.viewInvites(p, q, v));
 // Mensa: Speiseplaene LUH, Hochschule Hannover, Uni Hildesheim (mensa.js, 05.11.2026)
-routes.mensa = (p, q, v) => import("./mensa.js?v=3").then(m => m.viewMensa(p, q, v));
+routes.mensa = (p, q, v) => import("./mensa.js?v=4").then(m => m.viewMensa(p, q, v));
+// Uni-Mail und Uni-Kalender der LUH (SOGo, uni-mail.js, 05.11.2026): nur am PC, nie im Dienst
+routes.unimail = (p, q, v) => import("./uni-mail.js?v=1").then(m => m.viewUniMail(p, q, v));
+// Raumfinder: Standortfinder der LUH mit Google-Maps-Link (rooms.js, 05.11.2026); Raum-Links ueberall (.room-link)
+routes.raumfinder = routes.rooms = (p, q, v) => import("./rooms.js?v=2").then(m => m.viewRooms(p, q, v));
+document.addEventListener("click", e => {
+  const b = e.target.closest?.(".room-link[data-room]");
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  import("./rooms.js?v=2").then(m => m.openRoom(b.dataset.room));
+}, true);
 async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === name || (name === "doc" && a.dataset.route === "files")));
+  backNav.visit(location.hash); const bb = $("#backBtn"); if (bb) bb.hidden = !showsBack(location.hash);
   $("#sidebar").classList.remove("open"); toggleBackdrop(false); $("#drawerEl")?.remove(); $("#drawerBd")?.remove(); $$("#overlay .modal").forEach(m => m.remove());
   document.body.classList.remove("exam-focus", "fullscreen-doc", "doc-open");
   for (const ed of state.editors) { try { if (ed.tabId) docTabs.state[ed.tabId] = ed.getState(); await ed.destroy(); } catch {} } state.editors = [];
@@ -142,10 +166,10 @@ document.addEventListener("click", async e => {
 async function viewDashboard(p, q, v) {
   await viewHome(p, q, v, trialHint);
   // Erste Seite ohne Hochschulverbindung (nur Einzelplatz): Hinweis und der kleine Demo-Link fuer die Store-Pruefung (demo-bar.js)
-  import("./demo-bar.js?v=2").then(m => m.firstStart(v)).catch(() => {});
+  import("./demo-bar.js?v=3").then(m => m.firstStart(v)).catch(() => {});
   // Korrekturhinweise zu eigenen geteilten Loesungen (Oeffnen / Ignorieren) oben auf der Uebersicht, nur wenn welche offen sind
   try {
-    const U = await import("./community-corrections-ui.js?v=6"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
+    const U = await import("./community-corrections-ui.js?v=7"); const n = await U.inboxCount(); if (!n || !v.isConnected) return;
     (await import("./community-logic.js?v=2")).ensureCss();
     const box = document.createElement("div"); box.className = "card"; v.querySelector(".content")?.prepend(box);
     await U.renderInbox(box, { toast, onChange: () => route() });
@@ -220,7 +244,7 @@ async function start() {
   // Erinnerungen an erkannte Fristen (Windows-Mitteilung, Browser oder Hinweis in der App; due-reminders.js, 05.11.2026)
   import("./due-reminders.js?v=1").then(m => m.init({ api, toast, icon, esc, state })).catch(() => {});
   // Einzelplatz: Demo-Leiste (nur waehrend der Demo, demo-bar.js) und Menuepunkt "Nachrichten" mit Zaehler (messages.js)
-  if (!state.hosted) { import("./demo-bar.js?v=2").then(m => m.init()).catch(() => {}); import("./messages.js?v=5").then(m => m.startNavItem()).catch(() => {}); }
+  if (!state.hosted) { import("./demo-bar.js?v=3").then(m => m.init()).catch(() => {}); import("./messages.js?v=6").then(m => m.startNavItem()).catch(() => {}); import("./uni-mail.js?v=1").then(m => m.startNavItem()).catch(() => {}); }
   // Aufforderung "Tarif waehlen oder bei Free bleiben" nur ohne Abo-Pflicht; mit Pflicht (Web) zeigt die Leiste den Stand
   if (state.hosted && state.entitlements?.needs_plan_choice && !state.entitlements?.access?.account_required && !location.hash.startsWith("#/abo")) planChoicePrompt(state.entitlements);
   // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie

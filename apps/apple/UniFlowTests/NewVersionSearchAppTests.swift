@@ -417,6 +417,8 @@ final class NewVersionSearchAppTests: XCTestCase {
     private func tap(_ label: String, in view: UIView) -> Bool {
         for e in elements(in: view) where e.accessibilityLabel == label && e.accessibilityTraits.contains(.button) {
             if e.accessibilityActivate() { return true }
+            // Knopf der Werkzeugleiste nur mit Symbol (Zurueck-Pfeil): UIKit meldet die Aktivierung nicht, also tippen
+            if let c = e as? UIControl { c.sendActions(for: .touchUpInside); return true }
         }
         return false
     }
@@ -452,7 +454,8 @@ final class NewVersionSearchAppTests: XCTestCase {
 
         XCTAssertTrue(tap("Alte Fassung", in: win), texts(win).joined(separator: "\n"))
         XCTAssertTrue(pump { self.shows(win, "Alte Fassung – nur ansehen") && self.shows(win, "Seite 1 / 3") }, texts(win).joined(separator: "\n"))
-        XCTAssertTrue(tap("Schließen", in: win), texts(win).joined(separator: "\n"))
+        // derselbe Zurueck-Pfeil wie im Editor schliesst die alte Fassung (06.11.2026, vorher "Schließen")
+        XCTAssertTrue(tap("Zurück", in: win), texts(win).joined(separator: "\n"))
         XCTAssertTrue(pump { !self.shows(win, "Alte Fassung – nur ansehen") })
 
         XCTAssertTrue(tap("OK", in: win), texts(win).joined(separator: "\n"))

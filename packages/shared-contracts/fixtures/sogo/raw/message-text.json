@@ -1,0 +1,22 @@
+{
+ "isDraft": 0,
+ "date": "03.11.2026 08:00",
+ "subject": "Kurz",
+ "from": [
+  {
+   "email": "tutor@example.uni-hannover.de"
+  }
+ ],
+ "to": [
+  {
+   "name": "Erika Muster",
+   "email": "erika.muster@stud.uni-hannover.de"
+  }
+ ],
+ "isRead": true,
+ "parts": {
+  "type": "UIxMailPartTextViewer",
+  "contentType": "text/plain",
+  "content": "<div class=\"mailer_plaincontent\">Zeile 1<br />Zeile 2 &lt;wichtig&gt;<br /><br /><br /><br />Ende   </div>"
+ }
+}

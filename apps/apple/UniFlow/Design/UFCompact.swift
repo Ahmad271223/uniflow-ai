@@ -44,4 +44,14 @@ extension View {
     @ViewBuilder func ufHalfSheet(when compact: Bool, interactiveBackground: Bool = false) -> some View {
         if compact { ufHalfSheet(interactiveBackground: interactiveBackground) } else { self }
     }
+
+    /// Nur kompakt ein ganzes Blatt von unten (Schreiben mit Tastatur, z. B. neue Uni-Mail): sofort volle Hoehe, Griff
+    /// sichtbar, Wischen nach unten schliesst es nicht versehentlich (ein Entwurf ginge sonst verloren); breit unveraendert
+    @ViewBuilder func ufFullSheet(when compact: Bool) -> some View {
+        if compact {
+            presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled()
+        } else { self }
+    }
 }

@@ -114,3 +114,9 @@ Dateien bleiben an Kurs und Modul. Adapter muessen dafuer nur `courses.semester`
 - Kern: `SyncOrderTests` (Learnweb-/LSF-Stub mit 7 Semestern, Stufen, Wahl, Semestererkennung).
 - App: `SyncOrderAppTests` (Stud.IP-Stub mit 7 Semestern, Stufe (d) mit Pause, Seite Module).
 - Web: `tests/js/module-semesters.test.mjs`, `tests/js/older-semesters.test.mjs`.
+
+## Uni-Mail (SOGo der LUH, 05.11.2026)
+
+Der Hintergrundlauf des iPads (`BackgroundSyncController.runUniMail`) liest **vor allem anderen** die erste Seite des
+Posteingangs (`POST Mail/0/folderINBOX/view`) und die Zahl der ungelesenen, danach erst den Stud.IP-Abgleich; im langen
+Lauf erneuert er übernommene Termine des Uni-Kalenders (höchstens alle 20 h). docs/UNI-MAIL-2026-11-05.md.

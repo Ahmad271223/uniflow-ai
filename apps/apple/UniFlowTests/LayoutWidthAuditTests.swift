@@ -162,6 +162,10 @@ final class LayoutWidthAuditTests: XCTestCase {
         report += audit(env, "community", route: .community, marker: "Deine Communities")
         // Mensa (05.11.2026): erfundener Plan ohne Netz (`MensaDemoHTTP` unter XCTest), Oeffnungszeiten immer da
         report += audit(env, "mensa", route: .mensa, marker: "Öffnungszeiten")
+        // Raumfinder (05.11.2026): Suche und Standorte der LUH (Demo-Treffer unter XCTest, kein Netz)
+        report += audit(env, "raumfinder", route: .rooms, marker: "Hauptgebäude (Welfengarten)")
+        // Uni-Mail (05.11.2026, SOGo der LUH): nicht verbunden, Karte "Uni-Mail verbinden" (kein Netz)
+        report += audit(env, "uni-mail", route: .uniMail, marker: "Uni-Mail verbinden")
         report += audit(env, "einstellungen-zugang", route: .settings(tab: "account"), marker: "Zugang & Darstellung")
         report += audit(env, "einstellungen-module", route: .settings(tab: "modules"), marker: "Grundlagen der Informatik")
         report += audit(env, "einstellungen-lernzeit", route: .settings(tab: "plan"), marker: "Lernzeit")
@@ -211,6 +215,17 @@ final class LayoutWidthAuditTests: XCTestCase {
     func testIPhoneMensa() throws {
         let env = try host(MainView())
         let report = audit(env, "mensa", route: .mensa, marker: "Öffnungszeiten", variants: Self.iphone)
+        XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
+    }
+
+    /// Raumfinder und Uni-Mail (neu aus develop 05.11.2026) auf den drei iPhones hoch und quer: Suche und "Suchen" in
+    /// voller Breite, Standorte mit Karten-Knoepfen untereinander; Uni-Mail nicht verbunden mit "Bei Uni-Mail anmelden"
+    /// in voller Breite (kein Netz)
+    func testIPhoneRaumfinderUndUniMail() throws {
+        let env = try host(MainView())
+        var report: [String] = []
+        report += audit(env, "raumfinder", route: .rooms, marker: "Hauptgebäude (Welfengarten)", variants: Self.iphone)
+        report += audit(env, "uni-mail", route: .uniMail, marker: "Uni-Mail verbinden", variants: Self.iphone)
         XCTAssertTrue(report.isEmpty, "\n" + report.joined(separator: "\n\n"))
     }
 
@@ -501,6 +516,7 @@ final class LayoutWidthAuditTests: XCTestCase {
             .environment(\.ufDemoActive, true)
             .environment(\.ufAIEnabled, ai)
             .environment(\.qis, qis)
+            .environment(\.uniMail, manager.uniMail)
             // wie UniFlowApp: ChatGPT (Erweitert), StudiNow-Konto (Zugang), Abgleich im Hintergrund
             .environment(\.ufChatGPTLink, manager.chatgpt)
             .environment(\.ufStudoraAccount, manager.account)

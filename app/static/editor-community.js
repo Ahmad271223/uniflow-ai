@@ -9,11 +9,11 @@
 import { icon } from "./icons.js?v=33";
 import { responseError } from "./service-errors.js?v=1";
 import * as S from "./solutions.js?v=6";
-import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=20";
+import { loadSpaces, openWithSpaces } from "./community-spaces.js?v=21";
 import { renderLinkCard } from "./studora-link.js?v=9";
 import * as C from "./community-corrections.js?v=2";
-import * as U from "./community-corrections-ui.js?v=6";
-import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=7";
+import * as U from "./community-corrections-ui.js?v=7";
+import { CorrectionMode, SolutionSide, fits } from "./community-editor-tools.js?v=8";
 import { ensureCss } from "./community-logic.js?v=2";
 import * as SN from "./side-notes.js?v=1";
 
@@ -334,7 +334,7 @@ class Community {
   bumpCount(id) { const s = this.list?.find(x => x.solution_id === id); if (s) s.comments = (this.comments.get(id) || []).filter(c => !c.deleted).length; }
 
   // ---------------------------------------------------------------- Oberflaeche
-  toast(msg, err) { if (err?.action) import("./core.js?v=45").then(c => c.showError(err)); const t = $(".com-toast", this.el); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(this._tt); this._tt = setTimeout(() => t.hidden = true, 6000); }
+  toast(msg, err) { if (err?.action) import("./core.js?v=46").then(c => c.showError(err)); const t = $(".com-toast", this.el); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(this._tt); this._tt = setTimeout(() => t.hidden = true, 6000); }
   async render() {
     if (this.el.hidden) return;
     const head = `<div class="com-head"><strong>${icon("users", 16)} Community</strong><span class="spacer"></span><button class="btn ghost icon sm" data-c="reload" title="Neu laden">${icon("refresh", 15)}</button><button class="btn ghost icon sm" data-c="close" title="Schließen">${icon("x", 16)}</button></div>`;
@@ -445,7 +445,7 @@ class Community {
     const box = $(".com-qa", this.el); if (!box) return;
     try {
       const f = await (await fetch(`/api/files/${encodeURIComponent(this.ed.fileId)}`)).json();
-      const q = await import("./views-qa.js?v=9");
+      const q = await import("./views-qa.js?v=10");
       const courses = await q.courseKeys(); const c = courses.find(x => x.course_id === f.course_id);
       if (!c) { box.textContent = "Diese Datei gehört zu keinem deiner Kurse; Fragen gibt es je Kurs."; return; }
       const pg = this.ed.pages[this.ed.currentPage];

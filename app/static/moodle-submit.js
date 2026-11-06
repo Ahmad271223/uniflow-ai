@@ -3,9 +3,9 @@
 // Aufgabe aus den Moodle-Fristen, Stand live, PDF aus derselben Funktion wie "Exportieren" (studip-submit.js buildPdf),
 // "Als Entwurf hochladen" (noch keine Abgabe), danach "Jetzt abgeben" mit der verlangten Erklaerung. Jeder Schritt genau
 // einmal und nur auf Knopfdruck (app/moodle_api.py).
-import { $, api, icon, modal, toast } from "./core.js?v=45";
+import { $, api, icon, modal, toast } from "./core.js?v=46";
 import * as L from "./moodle-submit-logic.js?v=1";
-import { buildPdf } from "./studip-submit.js?v=2";
+import { buildPdf } from "./studip-submit.js?v=3";
 
 const { esc } = L;
 

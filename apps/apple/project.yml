@@ -15,7 +15,7 @@ settings:
     # App Store 1.0 (Einreichung November 2026). Build-Nummer: eine fortlaufende ganze Zahl ueber alle Uploads hinweg,
     # je Upload +1, nie zurueck (0.2.0 hatte Build 2). Neue Version (1.0.1, 1.1) -> MARKETING_VERSION, Build weiterzaehlen.
     MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "6"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
   UniFlow:
@@ -151,6 +151,10 @@ targets:
         # Teilen-Menues bieten "Bild sichern" an (QR-Code der Einladung, Downloads im In-App-Browser); ohne diesen Text
         # beendet iOS die App beim Antippen (Generalprobe 04.11.2026). Nur Hinzufuegen, nie Lesen der Fotos.
         NSPhotoLibraryAddUsageDescription: StudiNow sichert ein Bild, das du im Teilen-Menü mit „Bild sichern“ auswählst, in deinen Fotos.
+        # Raumfinder (05.11.2026, docs/RAUMFINDER-2026-11-05.md): "In Google Maps öffnen" nimmt die Google-Maps-App, wenn
+        # installiert (canOpenURL braucht den Eintrag), sonst die Webadresse; nichts geht an Google ohne Antippen
+        LSApplicationQueriesSchemes:
+          - comgooglemaps
         # Exportkontrolle (docs/release/APP-STORE.md "Weitere Angaben"): nur Verschluesselung des Betriebssystems (HTTPS
         # ueber URLSession, AES-GCM/HKDF aus CryptoKit), keine eigene Krypto-Bibliothek -> keine Dokumente noetig
         ITSAppUsesNonExemptEncryption: false

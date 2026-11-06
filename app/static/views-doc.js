@@ -1,7 +1,7 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=45";
-import { PdfEditor } from "./editor.js?v=70";
-import { setupLectureMarker } from "./views-weekly.js?v=15";
+import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=46";
+import { PdfEditor } from "./editor.js?v=71";
+import { setupLectureMarker } from "./views-weekly.js?v=16";
 import { afterCloseTab, emptyDocHtml } from "./doc-nav.js?v=1";
 import { sourceKind, pagesHtml } from "./filekinds.js?v=2";   // PowerPoint als Seiten, Audio-Hinweis (docs/DATEIARTEN.md)
 
@@ -24,7 +24,7 @@ export async function viewDoc(parts, params, view) {
   const settings = await api("/settings").catch(() => ({}));
   view.className = "doc-view"; document.body.classList.add("doc-open"); let notesOpen = false, split = false;
   const hand = settings.hand === "left" ? "hand-left" : "hand-right";
-  view.innerHTML = `<div class="doc-top" id="docTop"><button class="btn ghost icon sm doc-menu" id="docMenu" title="Menü">${icon("menu", 18)}</button><button class="btn ghost sm" id="docBack" title="Zurück">${icon("chevron-left", 18)}<span class="hide-s">Dokumente</span></button><div class="doc-tabs" id="docTabs"></div>
+  view.innerHTML = `<div class="doc-top" id="docTop"><button class="btn ghost icon sm doc-menu" id="docMenu" title="Menü">${icon("menu", 18)}</button><button class="btn ghost sm doc-back" id="docBack" title="Zurück" aria-label="Zurück">${icon("chevron-left", 18)}<span class="hide-s">Zurück</span></button><div class="doc-tabs" id="docTabs"></div>
       ${params.task ? `<button class="btn ok sm" id="docDone" title="Aufgabe erledigt">${icon("check", 14)}<span class="hide-s"> Erledigt</span></button>` : ""}
       <select class="input doc-state" id="docState" title="Status des Dokuments"><option value="neu" ${f.status === "neu" ? "selected" : ""}>neu</option><option value="gelesen" ${f.status === "gelesen" || f.status === "neu" ? "selected" : ""}>gelesen</option><option value="erledigt" ${f.status === "erledigt" ? "selected" : ""}>erledigt</option></select>
       <button class="btn ghost icon sm" id="docFav" title="Favorit" style="color:${f.favorite ? "var(--warn)" : "var(--muted)"}">${icon("star", 16)}</button>
@@ -32,7 +32,8 @@ export async function viewDoc(parts, params, view) {
     <button class="fs-exit" id="fsExit" title="Vollbild verlassen">${icon("x", 15)} Vollbild beenden</button>
     <div class="doc-panes ${hand}" id="docPanes"><div class="doc-pane" id="paneA"></div><div class="split-handle" id="splitHandle" hidden title="Breite ziehen"><i></i></div><div class="doc-pane" id="paneB" hidden></div><div class="notes-pane" id="paneN" hidden><div class="nh">${icon("note", 16)} Eigene Notizen<span class="spacer"></span><span class="muted tiny" id="noteSaved"></span></div><textarea id="noteArea" placeholder="Hier frei schreiben und rechnen. Wird automatisch gespeichert.&#10;Für Handschrift: im Editor eine leere Notizseite einfügen (Seite +)."></textarea></div></div>`;
   renderTabs(id);
-  $("#docBack").onclick = () => { if (history.length > 1) history.back(); else location.hash = f.module_id ? `#/modules/${f.module_id}` : "#/files"; };
+  // derselbe Pfeil wie in der Kopfzeile (back-nav.js): vorige Seite dieser Sitzung, sonst Modul bzw. Dokumente
+  $("#docBack").onclick = () => { const to = f.module_id ? `#/modules/${f.module_id}` : "#/files"; if (window.goBack) window.goBack(to); else location.hash = to; };
   $("#docState").onchange = async () => { await api(`/files/${id}`, { method: "PATCH", body: { status: $("#docState").value } }); toast("Status gespeichert"); };
   $("#docFav").onclick = async () => { f.favorite = f.favorite ? 0 : 1; await api(`/files/${id}/favorite`, { method: "POST", body: { favorite: !!f.favorite } }); $("#docFav").style.color = f.favorite ? "var(--warn)" : "var(--muted)"; };
   $("#docFull").onclick = () => document.body.classList.toggle("fullscreen-doc");

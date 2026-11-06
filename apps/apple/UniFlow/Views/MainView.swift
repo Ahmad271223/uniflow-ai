@@ -58,6 +58,12 @@ struct MainView: View {
             case .mensa:
                 // Mensa (05.11.2026): oeffentliche Speiseplaene, ohne Stud.IP und ohne Tarif
                 MensaPage().id(session.api?.base)
+            case .rooms:
+                // Raumfinder (05.11.2026): Standortfinder der LUH, Standorte von HsH und Hildesheim, ohne Tarif
+                RoomFinderPage().id(session.api?.base)
+            case .uniMail:
+                // Uni-Mail und Uni-Kalender (SOGo der LUH, 05.11.2026): eigene Anmeldung, Mails nur auf dem iPad
+                UniMailPage().id(session.api?.base)
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }
@@ -70,6 +76,7 @@ struct MainView: View {
         }
         .modifier(CommunityBadgeHost())                                      // Zahl neuer Korrekturhinweise an "Community"
         .modifier(MessagesInboxHost())                                       // "Nachrichten": sichtbar und Zahl neuer
+        .modifier(UniMailBadgeHost())                                        // "Uni-Mail": Zahl der ungelesenen
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
         .modifier(OlderSemesterLoaderHost())                                 // fruehere Semester im Hintergrund (SyncOrder, Stufe d)

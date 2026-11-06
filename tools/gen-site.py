@@ -6,7 +6,7 @@ Die Markdown-Dateien sind die einzige Quelle (dieselben, die der Dienst unter /d
     DATENSCHUTZ.md -> datenschutz.html     NUTZUNGSBEDINGUNGEN.md -> nutzungsbedingungen.html
     IMPRESSUM.md -> impressum.html         KONTO-LOESCHEN.md -> konto-loeschen.html
     EINLADUNG.md -> i/index.html           (Einladungsseite hinter https://studinow.app/i/<CODE>, nicht in der Navigation)
-dazu .well-known/apple-app-site-association (Universal Links /i/* fuer die iPad-App; Team-ID aus apps/apple/Config/Team.xcconfig,
+dazu .well-known/apple-app-site-association und dieselbe Datei an der Wurzel (Universal Links /i/* fuer die iPad-App; Team-ID aus apps/apple/Config/Team.xcconfig,
 sonst Platzhalter [[TEAMID]]), style.css (eine Datei, Farben der App aus app/static/style.css bzw. UFTheme.swift, dunkel nach Systemeinstellung
 ohne Skript) und icon.svg (Kopie von app/static/icon.svg), dazu _redirects und _headers fuer Netlify und img/ (Bildschirmfotos
 der Startseite aus docs/release/website-img/, Demo-Inhalte, je hell und dunkel, JPEG hoechstens 1400 px breit).
@@ -34,6 +34,7 @@ import markdown
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "docs" / "release"
 ICON = ROOT / "app" / "static" / "icon.svg"
+LOGO_SRC = SRC / "website-logo"    # Logo ab 06.11.2026 (logo.png, apple-touch-icon.png, favicon.png), aus dem App-Icon
 IMG_SRC = SRC / "website-img"       # Bildschirmfotos der Startseite (Demo-Inhalte, JPEG <= 1400 px), kopiert nach site/img/
 DEFAULT_OUT = ROOT / "site"
 DOMAIN = "studinow.app"
@@ -41,8 +42,9 @@ DOMAIN = "studinow.app"
 # (Markdown, Ausgabe, Name in der Navigation, Beschreibung fuer <meta name="description">)
 PAGES = [
     ("STARTSEITE.md", "index.html", "Start",
-     "StudiNow holt Skripte, Termine und Nachrichten aus Stud.IP und QIS aufs iPad: Apple Pencil, KI-Hilfe fürs ganze "
-     "Dokument, Wochentests und Karteikarten. Ohne Tracking."),
+     "Für Studierende in ganz Deutschland, heute angebunden: LUH, Hochschule Hannover und Uni Hildesheim. StudiNow holt "
+     "Skripte, Termine und Nachrichten aufs iPad: Apple Pencil, KI-Hilfe fürs ganze Dokument, Wochentests, Karteikarten "
+     "und Mensa. Ohne Tracking."),
     ("SUPPORT.md", "support.html", "Support",
      "Hilfe zu StudiNow: Anmeldung bei der Hochschule, Daten auf dem iPad, Konto löschen, Abo. Kontakt support@studinow.app."),
     ("DATENSCHUTZ.md", "datenschutz.html", "Datenschutz", "Datenschutzerklärung der StudiNow-Apps und des StudiNow-Dienstes."),
@@ -60,12 +62,18 @@ EXTRA_PAGES = [
 TITLES = {"index.html": "StudiNow – dein Studium an einem Ort"}
 SLUGS = {out[:-5]: out for _, out, _, _ in PAGES if out != "index.html"}
 AASA_PATH = ".well-known/apple-app-site-association"
+# Kopie an der Wurzel (05.11.2026): beim Hochladen per Drag-and-drop aus dem Finder fehlt der versteckte Ordner
+# .well-known (404 auf Netlify); die Umschreibung in _redirects liefert dann die Kopie unter derselben Adresse aus
+AASA_ROOT = "apple-app-site-association"
 NETLIFY_REDIRECTS = """https://studinow.ai/* https://studinow.app/:splat 301!
 https://www.studinow.ai/* https://studinow.app/:splat 301!
 https://www.studinow.app/* https://studinow.app/:splat 301!
+/.well-known/apple-app-site-association /apple-app-site-association 200
 /i/* /i/index.html 200
 """
 NETLIFY_HEADERS = """/.well-known/apple-app-site-association
+  Content-Type: application/json
+/apple-app-site-association
   Content-Type: application/json
 """
 TEAM_XCCONFIG = ROOT / "apps" / "apple" / "Config" / "Team.xcconfig"
@@ -165,6 +173,11 @@ main.home h3 { margin: .9rem 0 .35rem; font-size: 1.1rem; }
   background-size: 22px 22px; background-position: -1px -1px; border-bottom: 1px solid var(--line); }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 3.5rem; align-items: center; padding: 5rem 0 4.5rem; }
 .hero h1 { font-size: clamp(2.6rem, 1.2rem + 4.4vw, 4.4rem); line-height: 1.02; letter-spacing: -.045em; font-weight: 850; margin: 0 0 1.4rem; max-width: 9.5em; }
+.eyebrow { display: inline-block; margin: 0 0 1rem; padding: .3rem .85rem; border-radius: 999px; background: var(--surface); border: 1.5px solid var(--line-strong);
+  color: var(--accent-text); font-weight: 700; font-size: .92rem; letter-spacing: .01em; }
+.unis { display: flex; gap: .6rem; align-items: flex-start; margin: 1.3rem 0 0; max-width: 32rem; color: var(--text-2); font-size: .97rem; line-height: 1.5; }
+.unis .ico { width: 1.5rem; height: 1.5rem; margin-top: .05rem; color: var(--accent-text); }
+.unis strong { color: var(--text); }
 .lead { font-size: 1.2rem; line-height: 1.55; color: var(--text-2); max-width: 32rem; margin: 0; }
 .hero-shot { margin: 0; }
 .device { background: var(--bezel); border-radius: 28px; padding: 11px; box-shadow: var(--shadow); }
@@ -197,6 +210,7 @@ main.home h3 { margin: .9rem 0 .35rem; font-size: 1.1rem; }
 .checks li { position: relative; padding-left: 1.9rem; margin: .55rem 0; }
 .checks li::before { content: ""; position: absolute; left: .35rem; top: .3em; width: .42rem; height: .78rem; border: solid var(--ok); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 
+.feature + .steps-band { border-top: 1px solid var(--line); }
 .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem; counter-reset: step; }
 .steps li { margin: 0; position: relative; padding-top: 4.4rem; counter-increment: step; }
 .steps li::before { content: counter(step); position: absolute; top: 0; left: 0; width: 3.1rem; height: 3.1rem; border-radius: 50%; display: grid; place-items: center;
@@ -298,13 +312,14 @@ TEMPLATE = """\
 <title>{title}</title>
 <meta name="description" content="{description}">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="{root}icon.svg" type="image/svg+xml">
+<link rel="icon" href="{root}favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="{root}apple-touch-icon.png">
 <link rel="stylesheet" href="{root}style.css">
 </head>
 <body>
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
 <header class="header"><div class="wrap header-inner">
-<a class="brand" href="{root}index.html"><img src="{root}icon.svg" alt="" width="32" height="32">StudiNow</a>
+<a class="brand" href="{root}index.html"><img src="{root}logo.png" alt="" width="32" height="32">StudiNow</a>
 <nav class="nav" aria-label="Hauptnavigation">{nav}</nav>
 <a class="btn btn-small" href="{root}index.html#laden">App laden</a>
 </div></header>
@@ -314,7 +329,7 @@ TEMPLATE = """\
 <footer class="footer">
 <div class="wrap footer-grid">
 <div class="footer-about">
-<a class="brand" href="{root}index.html"><img src="{root}icon.svg" alt="" width="32" height="32">StudiNow</a>
+<a class="brand" href="{root}index.html"><img src="{root}logo.png" alt="" width="32" height="32">StudiNow</a>
 <p>Die Lern-App für Studierende: Unterlagen, Termine und Lernen an einem Ort. Ein unabhängiges Angebot, nicht mit den Hochschulen verbunden.</p>
 </div>
 {footer_cols}
@@ -448,9 +463,12 @@ def build() -> dict[str, str | bytes]:
     files: dict[str, str | bytes] = {"style.css": CSS, "icon.svg": ICON.read_bytes()}
     for src_name, out_name, nav_name, description in PAGES + EXTRA_PAGES:
         files[out_name] = render_page(src_name, out_name, nav_name, description, owner, year)
+    for logo in sorted(LOGO_SRC.glob("*.png")):
+        files[logo.name] = logo.read_bytes()
     for img in sorted(IMG_SRC.glob("*.jpg")):
         files[f"img/{img.name}"] = img.read_bytes()
     files[AASA_PATH] = apple_app_site_association()
+    files[AASA_ROOT] = files[AASA_PATH]
     # Netlify (05.11.2026): Einladungslinks /i/<CODE> zeigen die Einladungsseite, studinow.ai leitet dauerhaft auf
     # studinow.app um, die Apple-Datei geht als JSON raus (Universal Links)
     files["_redirects"] = NETLIFY_REDIRECTS

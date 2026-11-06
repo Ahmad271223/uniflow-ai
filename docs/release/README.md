@@ -41,8 +41,8 @@ Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 - **Nur, was wirklich funktioniert.** Uni & Noten auf dem iPad und die Online-Community gelten erst als Funktion,
   wenn sie am Gerät laufen („bald“ ist kein Store-Text). Fristen, Termine und Noten sind Abbilder der
   Hochschulsysteme; verbindlich bleibt immer die Hochschule – das steht in jedem Text.
-- **Keine Hochschule als Partner darstellen.** StudiNow ist nicht mit der Leibniz Universität Hannover oder der
-  Universität Hildesheim verbunden; keine Uni-Logos in Screenshots ohne Erlaubnis.
+- **Keine Hochschule als Partner darstellen.** StudiNow ist nicht mit der Leibniz Universität Hannover, der
+  Hochschule Hannover oder der Universität Hildesheim verbunden; keine Uni-Logos in Screenshots ohne Erlaubnis.
 
 ## Platzhalter
 
@@ -102,7 +102,7 @@ den das Werkzeug nicht kennt, ist ein Fehler – neue Platzhalter in `tools/rech
 | `antwortfrist` | `[[7 Tagen]]` – Zusage für die Bestätigung einer Löschung per E-Mail | Konto löschen |
 | `datum` (optional) | `[[Datum]]` (Stand der Texte) und `[[Jahr]]` (Copyright); leer = heute | Datenschutz, Nutzungsbedingungen, App Store |
 | `unternehmen.*` (nur juristische Person) | `firma` gesetzt → Impressum **Variante B** mit `[[Firma]] [[Rechtsform]]`, `[[Geschäftsführer/in Vorname Nachname]]`, `[[Amtsgericht Ort]]`, `[[HRB …]]`; leer → **Variante A** (natürliche Person). Die andere Variante wird entfernt, Überschrift „Angaben nach § 5 DDG“, Titel „Impressum“ | Impressum |
-| `funktionen.*` (true/false) | optionale Satzteile: `ipad_hildesheim` (`[[ UND DER UNIVERSITÄT HILDESHEIM]]`, `[[ bzw. Learnweb]]`), `ipad_fristen` (Abgabefristen/Ankündigungen/Feiertage, auch Bildschirmfoto 5), `ipad_skriptsuche`, `ipad_community_online`, `android_karteikarten`, `android_community` (beide zusammen für `[[, dazu Karteikarten und das Teilen von Lösungen]]`) | App Store, Play Store |
+| `funktionen.*` (true/false) | optionale Satzteile: `ipad_hildesheim` (`[[ UND DER UNIVERSITÄT HILDESHEIM]]`, `[[ bzw. Learnweb]]`), `ipad_hsh` (`[[, DER HOCHSCHULE HANNOVER]]`, `[[, Moodle]]`, Zeile Hochschule Hannover; seit 05.11.2026 mit `ipad_hildesheim` an, Wunsch des Inhabers), `ipad_fristen` (Abgabefristen/Ankündigungen/Feiertage, auch Bildschirmfoto 5), `ipad_skriptsuche`, `ipad_community_online`, `android_karteikarten`, `android_community` (beide zusammen für `[[, dazu Karteikarten und das Teilen von Lösungen]]`) | App Store, Play Store |
 | – | Prüfhinweise `[[Anwaltlich prüfen…]]`, `[[mit Apple-Dokumentation…]]`, `[[Mit der Google-Dokumentation…]]` und die Erklärung `[[…]]` in `PLAY-STORE.md` werden entfernt und im Protokoll genannt | Nutzungsbedingungen 5, 9; App Store; Play Store |
 
 Nicht als Platzhalter vorgesehen (steht fest im Text): Land „Deutschland“ im Impressum, OpenAI/ChatGPT (Datenschutz

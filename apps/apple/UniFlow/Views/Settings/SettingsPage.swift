@@ -1018,6 +1018,7 @@ private struct LocalAccountTab: View {
                 UFGridLayout(spacing: 16, minWidth: 340) {
                     if studip.offersStudIP {
                         LUHSourcesCard()                                     // Stud.IP und QIS der LUH (Views/QISViews.swift)
+                        UniMailSourcesCard()                                 // Uni-Mail und Uni-Kalender (SOGo der LUH)
                     } else {
                         HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
                         HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH

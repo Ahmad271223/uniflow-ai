@@ -89,7 +89,7 @@ export function chipDetail(key) {
     toast(b.dataset.due === "hidden" ? "Ausgeblendet – erscheint nicht mehr" : "Bestätigt"); m.remove(); state.route();
   });
   const ev$ = $("[data-hev]", m);
-  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=47").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
+  if (ev$) ev$.onclick = () => { m.remove(); import("./views-tt.js?v=48").then(t => ev.event_id ? t.openEvent(ev.event_id, d.date) : (location.hash = `#/plan?view=day&date=${d.date}`)); };
   $$("[data-hatt]", m).forEach(b => b.onclick = async () => {
     try { await api("/timetable/attendance", { method: "POST", body: { event_id: ev.event_id, date: d.date, mode: b.dataset.hatt } }); }
     catch (e) { toast(`Speichern fehlgeschlagen: ${e.message}`, 4000); return; }

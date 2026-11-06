@@ -202,8 +202,10 @@ struct LibraryView: View {
                     } else if f.opensAsText {
                         // Word, PowerPoint, Audio: Text je Seite mit KI-Hilfe daneben statt nur der Vorschau (docs/DATEIARTEN.md)
                         TextDocumentView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
+                            .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }
                     } else {
                         FileOutsideEditorView(file: f, api: api)
+                            .toolbar { ToolbarItem(placement: .topBarLeading) { UFBackButton(style: .toolbar) } }
                     }
                 } else if let id = fileSelection, missing.contains(id) {
                     ContentUnavailableView("Dokument nicht verfügbar", systemImage: "doc.questionmark", description: Text(DocumentOpenText.notFound))
@@ -220,10 +222,17 @@ struct LibraryView: View {
                             Button("Zur Bibliothek") { logoMenu.go(.files()) }.buttonStyle(.borderedProminent)
                         }
                     }
-                    .toolbar { ToolbarItem(placement: .topBarLeading) { UFLogoMenu() } }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .topBarLeading) {
+                            UFBackButton(style: .toolbar)                // schliesst das Dokument dorthin, wo es geoeffnet wurde
+                            UFLogoMenu()
+                        }
+                    }
                 }
             }
             .onPreferenceChange(EditorTracingKey.self) { editorTracing = $0 }
+            // schmal klappt die Teilung zu einem Stapel mit System-Zurueck zusammen: genau ein Pfeil, unserer (06.11.2026)
+            .navigationBarBackButtonHidden(true)
         }
         .navigationSplitViewStyle(.prominentDetail)
         .onChange(of: fileSelection) { _, new in

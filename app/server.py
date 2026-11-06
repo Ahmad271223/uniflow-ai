@@ -86,8 +86,12 @@ from . import ai_relay  # noqa: E402 - StudiNow-KI am PC ueber das Konto (/api/a
 app.include_router(ai_relay.router)
 from . import mensa_api  # noqa: E402 - Mensa: Speiseplaene LUH/HsH/Hildesheim, frei in jedem Tarif (/api/mensa, docs/MENSA-2026-11-05.md)
 app.include_router(mensa_api.router)
+from . import rooms_api  # noqa: E402 - Raumfinder: Standortfinder der LUH, Kartenlinks, frei in jedem Tarif (/api/rooms, docs/RAUMFINDER-2026-11-05.md)
+app.include_router(rooms_api.router)
 from . import moodle_api  # noqa: E402 - Abgeben in Moodle am PC (HsH, Learnweb Hildesheim; app/moodle.py)
 app.include_router(moodle_api.router)
+from . import sogo_api  # noqa: E402 - Uni-Mail und Uni-Kalender der LUH (SOGo), nur PC/Windows (/api/sogo, docs/UNI-MAIL-2026-11-05.md)
+app.include_router(sogo_api.router)
 db.init_db()
 
 

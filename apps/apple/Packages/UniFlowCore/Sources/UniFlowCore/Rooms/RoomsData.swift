@@ -1,0 +1,105 @@
+// Erzeugt von tools/gen-rooms-fixture.py aus packages/shared-contracts/rooms.json - nicht von Hand aendern.
+enum RoomsData {
+    static let json = #"""
+{
+  "v": 1,
+  "checked_at": "2026-11-05",
+  "note": "Raumfinder (docs/RAUMFINDER-2026-11-05.md). LUH: oeffentlicher Standortfinder (Suche per POST /search). HsH und Uni Hildesheim haben keinen oeffentlichen Raumfinder: Standorte und Adressen von den Anfahrtsseiten der Hochschulen (gelesen am checked_at), Erkennung nur ueber Stichwoerter und belegte Raumkennungen. Pruefen: tools/gen-rooms-fixture.py --check",
+  "standortfinder": {
+    "name": "Standortfinder der Leibniz Universität Hannover",
+    "url": "https://standortfinder.uni-hannover.de/de/",
+    "search": "https://standortfinder.uni-hannover.de/search",
+    "attribution": "Lage: Standortfinder der Leibniz Universität Hannover",
+    "page_size": 100
+  },
+  "note_campus": "Ort laut Hochschule; genaue Lage ohne Gewähr",
+  "note_position": "Position im Standortfinder nicht genau ermittelt; die Karte sucht nach der Adresse.",
+  "online_words": ["online", "digital", "virtuell", "zoom", "webex", "bigbluebutton", "bbb", "meetings", "livestream", "stream", "teams"],
+  "universities": {
+    "luh": {
+      "name": "Leibniz Universität Hannover",
+      "finder": "standortfinder",
+      "fallback": "Leibniz Universität Hannover",
+      "campuses": [
+        {"id": "welfengarten", "name": "Hauptgebäude (Welfengarten)", "address": "Welfengarten 1, 30167 Hannover", "lat": 52.38255, "lon": 9.71785,
+         "match": ["welfengarten"], "source": "https://standortfinder.uni-hannover.de/de/?b=1101"},
+        {"id": "conti", "name": "Conti-Campus", "address": "Königsworther Platz 1, 30167 Hannover", "lat": 52.37846, "lon": 9.72346,
+         "match": ["conti-campus", "conti campus", "königsworther"], "source": "https://standortfinder.uni-hannover.de/de/?b=1501"},
+        {"id": "nordstadt", "name": "Campus Nordstadt (Appelstraße)", "address": "Appelstraße 11, 30167 Hannover", "lat": 52.38931, "lon": 9.71183,
+         "match": ["appelstraße", "appelstr."], "source": "https://standortfinder.uni-hannover.de/de/?b=3403"},
+        {"id": "herrenhausen", "name": "Campus Herrenhausen", "address": "Herrenhäuser Straße 2, 30419 Hannover", "lat": 52.39163, "lon": 9.704,
+         "match": ["herrenhausen", "herrenhäuser"], "source": "https://standortfinder.uni-hannover.de/de/?b=4105"},
+        {"id": "garbsen", "name": "Campus Maschinenbau Garbsen", "address": "An der Universität 1, 30823 Garbsen", "lat": 52.42488, "lon": 9.61605,
+         "match": ["garbsen", "an der universität"], "source": "https://standortfinder.uni-hannover.de/de/?b=8141"}
+      ]
+    },
+    "hsh": {
+      "name": "Hochschule Hannover",
+      "finder": null,
+      "fallback": "Hochschule Hannover",
+      "campuses": [
+        {"id": "linden", "name": "Campus Linden", "address": "Ricklinger Stadtweg 120, 30459 Hannover",
+         "match": ["campus linden", "ricklinger stadtweg", "linden"], "codes": "(?<![\\w.])1[A-Z]\\.\\d\\.\\d{2}(?![\\w])",
+         "source": "https://www.hs-hannover.de/ueber-uns/organisation/gebaeudemanagement/standorte/standorte-und-anfahrt/standort-linden"},
+        {"id": "expo", "name": "Campus Expo Plaza", "address": "Expo Plaza 2, 30539 Hannover",
+         "match": ["expo plaza", "expo-plaza", "expoplaza", "lissabonner allee"],
+         "source": "https://www.hs-hannover.de/ueber-uns/organisation/gebaeudemanagement/standorte/standorte-und-anfahrt/standort-expo-plaza"},
+        {"id": "kleefeld", "name": "Campus Kleefeld", "address": "Blumhardtstraße 2, 30625 Hannover",
+         "match": ["kleefeld", "blumhardtstraße", "blumhardtstr."],
+         "source": "https://www.hs-hannover.de/ueber-uns/organisation/gebaeudemanagement/standorte/standorte-und-anfahrt/standort-kleefeld"},
+        {"id": "ahlem", "name": "Campus Ahlem", "address": "Heisterbergallee 10A, 30453 Hannover",
+         "match": ["ahlem", "heisterbergallee"],
+         "source": "https://www.hs-hannover.de/ueber-uns/organisation/gebaeudemanagement/standorte/standorte-und-anfahrt/standort-ahlem"}
+      ]
+    },
+    "hildesheim": {
+      "name": "Universität Hildesheim",
+      "finder": null,
+      "fallback": "Universität Hildesheim",
+      "campuses": [
+        {"id": "hauptcampus", "name": "Hauptcampus (Marienburger Höhe)", "address": "Universitätsplatz 1, 31141 Hildesheim",
+         "match": ["hauptcampus", "marienburger höhe", "universitätsplatz"],
+         "source": "https://www.uni-hildesheim.de/en/ueber-uns/anfahrt/"},
+        {"id": "buehler", "name": "Bühler-Campus", "address": "Lübecker Straße 1, 31141 Hildesheim",
+         "match": ["bühler", "buehler", "lübecker straße", "lübecker str."],
+         "source": "https://www.uni-hildesheim.de/en/ueber-uns/anfahrt/"},
+        {"id": "samelsonplatz", "name": "Samelsonplatz", "address": "Samelsonplatz, 31141 Hildesheim",
+         "match": ["samelsonplatz"],
+         "source": "https://www.uni-hildesheim.de/en/ueber-uns/anfahrt/"},
+        {"id": "domaene", "name": "Kulturcampus Domäne Marienburg", "address": "Domänenstraße, 31141 Hildesheim",
+         "match": ["domäne", "domaene", "kulturcampus", "domänenstraße"],
+         "source": "https://www.uni-hildesheim.de/en/ueber-uns/anfahrt/"}
+      ]
+    }
+  },
+  "luh_buildings": [
+    {"name": "Hauptgebäude Herrenhausen", "id": "4105"},
+    {"name": "Hauptgebäude Physik", "id": "3701"},
+    {"name": "Hauptgebäude", "id": "1101"},
+    {"name": "Hochhaus Conti", "id": "1502"},
+    {"name": "Conti-Hochhaus", "id": "1502"},
+    {"name": "Hochhaus Appelstraße", "id": "3408"},
+    {"name": "WMR-Gebäude", "id": "3403"},
+    {"name": "Lessinghaus", "id": "1112"},
+    {"name": "Kesselhaus", "id": "1208"},
+    {"name": "Pferdestall", "id": "3440"}
+  ],
+  "accessibility": {
+    "building": [
+      {"key": "parking_spaces", "title": "PKW-Stellplätze für Menschen mit Behinderungen", "status": "parking_spaces_available", "text": "parking_spaces_description"},
+      {"key": "access", "title": "Barrierefreier Zugang zum Gebäude", "status": "bf_access_building_available", "text": "bf_access_building_description"},
+      {"key": "elevator", "title": "Barrierefreier Aufzug", "status": "bf_elevator_available", "text": "bf_elevator_description"},
+      {"key": "toilet", "title": "Barrierefreie Toiletten", "status": "bf_toilet_available", "text": "bf_toilet_description"},
+      {"key": "orientation", "title": "Orientierung im Gebäude", "status": null, "text": "orientation"},
+      {"key": "rest_rooms", "title": "Still- und Ruheraum", "status": null, "text": "rest_rooms"}
+    ],
+    "room": [
+      {"key": "access", "title": "Barrierefreier Zugang zum Raum", "status": "bf_access_room_available", "text": "bf_access_room_description"},
+      {"key": "wheelchair", "title": "Plätze für Rollstuhlnutzende", "status": null, "text": "wheelchair_places"},
+      {"key": "acoustics", "title": "Unterstützende Akustik für Höreingeschränkte", "status": null, "text": "supportive_acoustics"}
+    ],
+    "status": {"BF_YES": "vorhanden", "BF_NO": "nicht vorhanden", "BF_RESTRICTED": "eingeschränkt"}
+  }
+}
+"""#
+}

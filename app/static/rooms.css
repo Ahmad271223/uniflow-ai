@@ -1,0 +1,26 @@
+/* Raumfinder (rooms.js): Suche, Treffer, Ort mit Karten-Links, Raum-Links in Stundenplan, Lernkalender und Klausuren. Nur
+   Farben aus style.css (hell/dunkel), Ziele mindestens 44 px, ab 390 px Breite ohne waagrechtes Rollen. */
+.rm-search { display: flex; gap: .6rem; margin-bottom: .6rem; }
+.rm-search .input { flex: 1; min-width: 0; min-height: 44px; }
+.rm-examples { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.rm-examples .chip { min-height: 36px; }
+.rm-count { margin: .4rem 0; color: var(--text-2); }
+.rm-result { display: flex; align-items: center; gap: .7rem; width: 100%; min-height: 52px; text-align: left; padding: .6rem .8rem; margin-bottom: .5rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); color: var(--text); cursor: pointer; }
+.rm-result:hover, .rm-result:focus-visible { border-color: var(--accent); }
+.rm-result > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.rm-result small { color: var(--text-2); }
+.rm-result svg { color: var(--accent); flex: none; }
+.rm-maps, .rm-links { display: flex; flex-wrap: wrap; gap: .5rem; margin: .6rem 0; }
+.rm-maps a, .rm-links a { min-height: 40px; display: inline-flex; align-items: center; gap: .3rem; text-decoration: none; }
+.rm-title { display: flex; align-items: center; gap: .4rem; margin: 0 0 .2rem; }
+.rm-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .3rem .9rem; margin: .6rem 0; }
+.rm-rows dt { color: var(--muted); }
+.rm-rows dd { margin: 0; font-weight: 600; }
+.rm-note { display: flex; gap: .5rem; align-items: flex-start; background: var(--warn-soft); color: var(--warn-text); margin: .5rem 0; }
+.rm-sec h4 { margin: .8rem 0 .3rem; }
+.rm-part + .rm-part { border-top: 1px solid var(--line); margin-top: .8rem; padding-top: .8rem; }
+.rm-campuses { margin-top: 1rem; }
+.rm-campus { display: flex; flex-direction: column; gap: .15rem; padding: .6rem 0; border-top: 1px solid var(--line); }
+.rm-campus:first-of-type { border-top: 0; }
+@media (max-width: 520px) { .rm-search { flex-direction: column; } }
