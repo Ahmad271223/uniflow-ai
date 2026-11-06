@@ -532,9 +532,6 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         showLayout()
 
         toolPicker.addObserver(self)
-        observers.append(NotificationCenter.default.addObserver(forName: .ufRulerChoiceChanged, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.applyRuler() }
-        })
         toolPicker.colorUserInterfaceStyle = .light   // Farben wie auf dem hellen Papier; die Palette folgt dem System
         if ownsToolPicker {
             // gleicher Name = gleicher Stand (Auswahl, Farben) fuer alle Fenster; ein schon gesetzter Name bleibt (Tests)
@@ -867,50 +864,6 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         toolPicker.addObserver(c)
         // Palette auch, wenn diese Zeichenflaeche den Fokus hat (Schreiben im Dokument daneben, geteilte Ansicht)
         if writable { toolPicker.setVisible(true, forFirstResponder: c) }
-        applyRuler(to: c)
-    }
-
-    // MARK: Lineal (geteilte Ansicht, `RulerChoice`)
-
-    /// Lineal auf dieser Seite: Palette hat es an und die Wahl (links/rechts/beide) trifft dieses Dokument
-    var rulerWanted: Bool { toolPicker.isRulerActive && RulerChoice.shared.applies(primary: ownsToolPicker) }
-
-    /// Zeichenflaechen, die fuer die Dauer des Lineals von der Palette geloest sind (Seite ohne Lineal). PencilKit gibt
-    /// ein ausgeschaltetes Lineal einer beobachtenden Zeichenflaeche an die Palette zurueck und schaltete es so auf
-    /// beiden Seiten aus (Geraetetest 06.11.2026: "geht kurz auf beiden auf, dann weg"). Geloest bekommt die
-    /// Zeichenflaeche ihr Werkzeug von uns (`toolPickerSelectedToolDidChange`).
-    private var rulerDetached = Set<ObjectIdentifier>()
-
-    /// PencilKit schaltet das Lineal auf allen Zeichenflaechen der Palette; danach die Wahl durchsetzen
-    func toolPickerIsRulerActiveDidChange(_ toolPicker: PKToolPicker) {
-        if ownsToolPicker { RulerChoice.shared.rulerOn = toolPicker.isRulerActive }
-        DispatchQueue.main.async { [weak self] in self?.applyRuler() }
-    }
-
-    func applyRuler() {
-        for overlay in allOverlays { applyRuler(to: overlay.canvas) }
-    }
-
-    private func applyRuler(to c: PKCanvasView) {
-        let id = ObjectIdentifier(c)
-        if toolPicker.isRulerActive && !rulerWanted {
-            // erst loesen, dann ausschalten: so erreicht das Ausschalten die Palette nicht
-            if !rulerDetached.contains(id) { toolPicker.removeObserver(c); rulerDetached.insert(id) }
-            if c.isRulerActive { c.isRulerActive = false }
-        } else {
-            if rulerDetached.remove(id) != nil {
-                toolPicker.addObserver(c)
-                c.tool = canvasTool
-            }
-            if c.isRulerActive != rulerWanted { c.isRulerActive = rulerWanted }
-        }
-    }
-
-    /// Geloeste Zeichenflaechen (Seite ohne Lineal) bekommen Werkzeugwechsel der Palette von hier
-    private func syncDetachedTools() {
-        guard !rulerDetached.isEmpty else { return }
-        let tool = canvasTool
-        for overlay in allOverlays where rulerDetached.contains(ObjectIdentifier(overlay.canvas)) { overlay.canvas.tool = tool }
     }
 
     /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).
@@ -1557,10 +1510,10 @@ extension PDFEditorController {
     nonisolated static func canvasKnows(_ t: PKTool) -> Bool { t is PKInkingTool || t is PKEraserTool || t is PKLassoTool }
 
     /// iPadOS 17 (alte Rueckmeldung); ab iPadOS 18 ruft PencilKit nur noch `toolPickerSelectedToolItemDidChange`
-    func toolPickerSelectedToolDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged(); syncDetachedTools() }
+    func toolPickerSelectedToolDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged() }
 
     @available(iOS 18.0, *)
-    func toolPickerSelectedToolItemDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged(); syncDetachedTools() }
+    func toolPickerSelectedToolItemDidChange(_ toolPicker: PKToolPicker) { paletteSelectionChanged() }
 
     /// Gewaehltes Werkzeug der Palette uebernehmen:
     /// - Stift oder Textmarker: Farbe und Staerke merken (fuer Objekte und "Text markieren"), Objektmodus aus.

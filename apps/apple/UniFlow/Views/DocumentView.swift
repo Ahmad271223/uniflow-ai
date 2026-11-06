@@ -464,13 +464,7 @@ struct DocumentView: View {
                         }
                     }
                     .coordinateSpace(NamedCoordinateSpace.named("split"))
-                    // geteilte Ansicht: Lineal links, rechts oder auf beiden (06.11.2026)
-                    .overlay(alignment: .top) { RulerTargetBar(choice: RulerChoice.shared).padding(.top, 8) }
                 }
-                .onAppear { RulerChoice.shared.setSplit(hasSidePane && !tracing, primaryIsLeft: !scriptLeft) }
-                .onChange(of: hasSidePane && !tracing) { _, on in RulerChoice.shared.setSplit(on, primaryIsLeft: !scriptLeft) }
-                .onChange(of: scriptLeft) { _, left in RulerChoice.shared.setSplit(hasSidePane && !tracing, primaryIsLeft: !left) }
-                .onDisappear { RulerChoice.shared.setSplit(false, primaryIsLeft: true) }
             } else {
                 ProgressView("Lädt…")
             }
