@@ -531,10 +531,10 @@ def _init_db(conn) -> None:
     conn.executescript(SCHEMA)
     # Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
     uni = config.university()
+    # OR IGNORE: zwei API-Prozesse koennen die Datenbank beim ersten Start gleichzeitig anlegen (Server 06.11.2026)
+    conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES ('university', ?)", (uni,))
     owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
-    if owner is None:
-        conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", (uni,))
-    elif owner[0] != uni:
+    if owner is not None and owner[0] != uni:
         raise UniversityMismatch(f"Der Datenordner {config.data_dir()} gehoert zur Hochschule '{owner[0]}', "
                                  f"die App laeuft fuer '{uni}'. Es werden keine Daten gemischt.")
     for k, v in DEFAULT_SETTINGS.items():
