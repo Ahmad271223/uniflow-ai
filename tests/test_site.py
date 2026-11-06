@@ -19,7 +19,7 @@ SITE = ROOT / "site"
 PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.html", "impressum.html", "konto-loeschen.html")
 # Kopie der Apple-Datei an der Wurzel: Drag-and-drop aus dem Finder laesst den versteckten Ordner .well-known weg (05.11.2026)
 AASA_ROOT = "apple-app-site-association"
-FILES = PAGES + ("style.css", "icon.svg", "_redirects", "_headers", AASA_ROOT)
+FILES = PAGES + ("style.css", "icon.svg", "logo.png", "favicon.png", "apple-touch-icon.png", "_redirects", "_headers", AASA_ROOT)
 IMG_SRC = ROOT / "docs" / "release" / "website-img"
 IMAGES = tuple(f"img/{p.name}" for p in sorted(IMG_SRC.glob("*.jpg")))
 # ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE>, Bilder der Startseite und Universal Links
@@ -37,7 +37,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert f"{13 + len(IMAGES)} Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
+    assert f"{16 + len(IMAGES)} Dateien" in p.stdout and "datenschutz.html: 2 Platzhalter offen" in p.stdout
     return out
 
 
@@ -63,7 +63,7 @@ def test_site_matches_the_generator_output(generated):
 def test_pages_are_german_self_contained_and_without_scripts(name):
     html = page(name)
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and '<meta charset="utf-8">' in html
-    assert 'name="viewport"' in html and '<link rel="stylesheet" href="style.css">' in html and 'href="icon.svg"' in html
+    assert 'name="viewport"' in html and '<link rel="stylesheet" href="style.css">' in html and 'href="favicon.png"' in html and 'src="logo.png"' in html
     assert "<script" not in html, "kein Skript"
     assert not re.search(r'<(link|script|img|iframe)[^>]*(src|href)="(https?:)?//', html), "keine fremden Ressourcen"
     assert "– StudiNow</title>" in html or "<title>StudiNow" in html
@@ -192,7 +192,7 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
     in app/invites.py, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
     html = page("i/index.html")
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and "<script" not in html
-    assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../icon.svg"' in html and 'href="../index.html"' in html
+    assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../favicon.png"' in html and 'href="../index.html"' in html
     assert '<main id="inhalt" class="doc invite">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
     assert 'class="btn btn-store"' in html and "Im App Store laden" in html and "Bald verfügbar" in html
     for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
@@ -200,7 +200,7 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
               "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):
         assert s in html, s
     assert 'href="../support.html"' in html and 'href="../datenschutz.html"' in html and "aria-current" not in html
-    assert 'src="../icon.svg"' in html and 'href="../index.html#preise"' in html
+    assert 'src="../logo.png"' in html and 'href="../index.html#preise"' in html
     assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf oeffentlichen Seiten (docs/release/README.md)"
     assert not PLACEHOLDER.findall(html)
 

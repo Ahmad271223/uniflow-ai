@@ -34,6 +34,7 @@ import markdown
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "docs" / "release"
 ICON = ROOT / "app" / "static" / "icon.svg"
+LOGO_SRC = SRC / "website-logo"    # Logo ab 06.11.2026 (logo.png, apple-touch-icon.png, favicon.png), aus dem App-Icon
 IMG_SRC = SRC / "website-img"       # Bildschirmfotos der Startseite (Demo-Inhalte, JPEG <= 1400 px), kopiert nach site/img/
 DEFAULT_OUT = ROOT / "site"
 DOMAIN = "studinow.app"
@@ -311,13 +312,14 @@ TEMPLATE = """\
 <title>{title}</title>
 <meta name="description" content="{description}">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="{root}icon.svg" type="image/svg+xml">
+<link rel="icon" href="{root}favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="{root}apple-touch-icon.png">
 <link rel="stylesheet" href="{root}style.css">
 </head>
 <body>
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
 <header class="header"><div class="wrap header-inner">
-<a class="brand" href="{root}index.html"><img src="{root}icon.svg" alt="" width="32" height="32">StudiNow</a>
+<a class="brand" href="{root}index.html"><img src="{root}logo.png" alt="" width="32" height="32">StudiNow</a>
 <nav class="nav" aria-label="Hauptnavigation">{nav}</nav>
 <a class="btn btn-small" href="{root}index.html#laden">App laden</a>
 </div></header>
@@ -327,7 +329,7 @@ TEMPLATE = """\
 <footer class="footer">
 <div class="wrap footer-grid">
 <div class="footer-about">
-<a class="brand" href="{root}index.html"><img src="{root}icon.svg" alt="" width="32" height="32">StudiNow</a>
+<a class="brand" href="{root}index.html"><img src="{root}logo.png" alt="" width="32" height="32">StudiNow</a>
 <p>Die Lern-App für Studierende: Unterlagen, Termine und Lernen an einem Ort. Ein unabhängiges Angebot, nicht mit den Hochschulen verbunden.</p>
 </div>
 {footer_cols}
@@ -461,6 +463,8 @@ def build() -> dict[str, str | bytes]:
     files: dict[str, str | bytes] = {"style.css": CSS, "icon.svg": ICON.read_bytes()}
     for src_name, out_name, nav_name, description in PAGES + EXTRA_PAGES:
         files[out_name] = render_page(src_name, out_name, nav_name, description, owner, year)
+    for logo in sorted(LOGO_SRC.glob("*.png")):
+        files[logo.name] = logo.read_bytes()
     for img in sorted(IMG_SRC.glob("*.jpg")):
         files[f"img/{img.name}"] = img.read_bytes()
     files[AASA_PATH] = apple_app_site_association()
