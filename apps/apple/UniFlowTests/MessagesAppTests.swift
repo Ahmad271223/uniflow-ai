@@ -307,9 +307,12 @@ final class MessagesAppTests: XCTestCase {
         XCTAssertTrue(row.accessibilityActivate())
         XCTAssertTrue(env.wait { env.labels().contains { $0.contains("Raum F 102") } }, env.labels().joined(separator: "\n"))
         XCTAssertTrue(env.labels().contains(MessagesText.open))
-        let back = try XCTUnwrap(element("Zurück zu den Nachrichten", in: env))
-        XCTAssertTrue(back.accessibilityActivate())
+        // Zurueck-Pfeil oben links (06.11.2026): schliesst erst die Nachricht, die Seite bleibt
+        XCTAssertFalse(env.labels().contains("Zurück zu den Nachrichten"), "kein zweiter Pfeil in der Seite")
+        let route = env.router.route
+        env.router.goBack()
         XCTAssertTrue(env.wait { !env.labels().contains(MessagesText.open) && env.labels().contains { $0.hasPrefix("Neu, Tutorium") } })
+        XCTAssertEqual(env.router.route, route)
     }
 
     func testSearchFiltersAndShowsNoHits() throws {

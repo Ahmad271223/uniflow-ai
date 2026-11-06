@@ -169,7 +169,7 @@ struct AIStartView: View {
     /// Oben: zurueck zu den Tests; im Gespraech rechts "Neues Gespräch"
     private var topBar: some View {
         HStack(spacing: 8) {
-            UFButton("Tests", icon: "arrow-left", kind: .ghost, size: .small) { router.go(.exams) }.accessibilityIdentifier("ai.start.tests")
+            UFButton("Tests", icon: "exam", kind: .ghost, size: .small) { router.go(.exams) }.accessibilityIdentifier("ai.start.tests")
             Spacer(minLength: 0)
             if layout == .chat {
                 UFButton("Neues Gespräch", icon: "plus", size: .small) { newConversation() }

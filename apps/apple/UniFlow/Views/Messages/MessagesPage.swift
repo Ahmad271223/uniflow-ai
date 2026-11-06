@@ -236,7 +236,10 @@ struct MessagesPage: View {
             }
             .modifier(MessagesPane())
         } else if let m = selected {
+            // schmal: der Zurueck-Pfeil oben links (`UFBackButton`) fuehrt erst zur Liste zurueck (06.11.2026; vorher
+            // ein eigenes "‹ Nachrichten" ueber der Nachricht, also zwei Pfeile)
             reader(m, back: true).modifier(MessagesPane())
+                .ufLocalBack(id: "messages.reader", active: true) { UFMotion.toggle { selectedID = nil } }
         } else {
             pane { scrollList { listRows } }
         }
@@ -328,20 +331,6 @@ struct MessagesPage: View {
         let chips = MessagesText.chips(m, today: today)
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                if back {
-                    Button { UFMotion.toggle { selectedID = nil } } label: {
-                        HStack(spacing: 4) {
-                            UFIcon("chevron-left", size: 16)
-                            Text(MessagesText.back).ufFont(14.5, 550)
-                        }
-                        .foregroundStyle(UF.accentText)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Zurück zu den Nachrichten")
-                    .accessibilityIdentifier("messages.back")
-                }
                 Text(m.s("subject") ?? "(ohne Betreff)")
                     .ufFont(21.6, 700, lh: 1.25, em: -0.01)
                     .foregroundStyle(UF.text)

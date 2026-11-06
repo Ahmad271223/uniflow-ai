@@ -268,7 +268,13 @@ struct DocumentView: View {
     @State private var freezeIntroFor: EditorFreeze.Mode?
     @Environment(\.scenePhase) private var scenePhase
 
-    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil) {
+    /// Zurueck-Pfeil mit eigener Aufgabe (Vollbild einer frueheren Fassung: schliessen); nil = Pfeil der App-Huelle
+    /// (`\.ufBack`; im Vollbild darf der Pfeil nicht die Seite darunter wechseln, darum ausdruecklich)
+    private let onBack: (() -> Void)?
+
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil, correcting: String? = nil,
+         onBack: (() -> Void)? = nil) {
+        self.onBack = onBack
         self.api = api
         self.readOnly = readOnly
         self.initialPDFPage = initialPDFPage
@@ -563,10 +569,8 @@ struct DocumentView: View {
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fullScreenCover(item: $openedVersion) { v in
             NavigationStack {
-                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Schließen") { openedVersion = nil } }
-                    }
+                // Vollbild einer frueheren Fassung: derselbe Zurueck-Pfeil wie im Editor schliesst sie (vorher "Schließen")
+                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true, onBack: { openedVersion = nil })
             }
         }
         .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in
@@ -886,6 +890,8 @@ struct DocumentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
+            // Zurueck (06.11.2026): schliesst das Dokument dorthin, wo es geoeffnet wurde (vorige Seite, sonst Startseite)
+            UFBackButton(style: .toolbar, action: onBack)
             UFLogoMenu()                                       // die App-Leiste ist im Editor aus (mehr Platz zum Schreiben)
             Button { withAnimation(UF.motion(.default)) { showSidebar.toggle() } } label: {
                 Label("Seiten", systemImage: "rectangle.stack")

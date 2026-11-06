@@ -153,29 +153,6 @@ struct CommunityChip: View {
     }
 }
 
-/// Zurueck mit Pfeil und Ziel ("‹ Community"), 44 pt hoch
-struct CommunityBackButton: View {
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                UFIcon("chevron-left", size: 16)
-                Text(title).lineLimit(1)
-            }
-            .ufFont(14.5, 550)
-            .foregroundStyle(UF.accentText)
-            .padding(.horizontal, 6)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(UFPressStyle())
-        .accessibilityLabel("Zurück zu \(title)")
-        .accessibilityIdentifier("community.back")
-    }
-}
-
 /// Notizen einer Person, die als ganze Seite offen sind
 struct CommunityReading: Identifiable, Equatable {
     let id = UUID()
@@ -242,13 +219,7 @@ struct CommunitySpacePage: View {
         VStack(spacing: 0) {
             UFContent {
                 VStack(alignment: .leading, spacing: 16) {
-                    // nur "‹ Community": Seitenleiste und Kopfzeile sind hier sichtbar, das App-Logo davor wirkte wie ein
-                    // zweiter Knopf ohne Funktion (Audit 03.11.2026); im Leser ohne App-Leiste bleibt es
-                    HStack(spacing: 6) {
-                        CommunityBackButton(title: "Community") { back() }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.top, -8)
+                    // Zurueck steht oben links in der Kopfzeile (`UFBackButton`, 06.11.2026); vorher zusaetzlich "‹ Community" hier
                     if let space {
                         header(space)
                         if space.joined, !inbox.items.isEmpty || inbox.notice != nil { CorrectionInboxList(model: inbox) }
@@ -422,8 +393,9 @@ struct CommunitySpacePage: View {
                     .padding(.horizontal, 200)
                     .accessibilityAddTraits(.isHeader)
                 HStack(spacing: 6) {
+                    // derselbe Pfeil wie ueberall: schliesst die Notizen zurueck zur Community-Seite
+                    UFBackButton(style: .header) { reading = nil }
                     UFLogoMenu()
-                    CommunityBackButton(title: space?.name ?? "Community") { reading = nil }
                     Spacer(minLength: 0)
                 }
             }

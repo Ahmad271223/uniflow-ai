@@ -136,7 +136,7 @@ final class AuditApp20261103Tests: XCTestCase {
     func testMoreListsRemainingAreasWithBadges() {
         let visible = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: false)
         let more = UFNavItem.more(visible: visible)
-        XCTAssertEqual(more.map(\.title), ["Stundenplan", "Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Community", "Einstellungen"])
+        XCTAssertEqual(more.map(\.title), ["Stundenplan", "Studienverlauf", "Karteikarten", "Uni & Noten", "Mensa", "Raumfinder", "Community", "Einstellungen"])
         XCTAssertEqual(UFNavItem.mobile.last?.title, "Mehr")
         XCTAssertTrue(UFMobileNav.moreActive(.timetable(), items: more))
         XCTAssertTrue(UFMobileNav.moreActive(.settings(), items: more))

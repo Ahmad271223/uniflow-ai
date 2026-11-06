@@ -12,7 +12,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/inter.css?v=30">
-<link rel="stylesheet" href="style.css?v=58">
+<link rel="stylesheet" href="style.css?v=59">
 <link rel="stylesheet" href="editor.css?v=39">
 <script src="theme.js?v=30"></script>
 </head>
@@ -30,6 +30,7 @@
   </aside>
   <div class="main">
     <header class="header">
+      <button class="btn ghost back-btn" id="backBtn" title="Zurück" aria-label="Zurück" hidden></button>
       <button class="btn ghost icon menu-btn" id="menuBtn" title="Menü"></button>
       <div class="search" id="globalSearch"><input id="searchInput" placeholder="Suche nach Dateien, Modulen, Themen…" autocomplete="off"><span class="kbd">Strg K</span><div class="search-pop" id="searchPop" hidden></div></div>
       <span class="spacer"></span>
@@ -45,6 +46,6 @@
 </div>
 <nav class="mobile-nav" id="mobileNav"></nav>
 <div id="overlay"></div>
-<script type="module" src="app.js?v=104"></script>
+<script type="module" src="app.js?v=105"></script>
 </body>
 </html>

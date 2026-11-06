@@ -478,8 +478,12 @@ struct ExamRunPage: View {
         let answered = qs.filter { !(answers[Self.nrOf($0)] ?? "").isEmpty }.count
         UFContent(maxWidth: 900) {
             UFFlexWrap(gap: 9.6) {
-                UFButton(submitted ? "Zurück" : "Abbrechen", icon: "arrow-left", size: .small) { leave() }
-                    .accessibilityIdentifier("exam.back")
+                // nach der Abgabe ist die Kopfzeile wieder da: dort steht der Zurueck-Pfeil (06.11.2026); im Fokus ohne
+                // Kopfzeile bleibt "Abbrechen"
+                if !submitted {
+                    UFButton("Abbrechen", icon: "arrow-left", size: .small) { leave() }
+                        .accessibilityIdentifier("exam.back")
+                }
                 VStack(alignment: .leading, spacing: 0) {
                     Text((submitted ? "Ergebnis: " : "Test: ") + ExamsPage.cleanTitle(t.s("title"))).ufFont(14.5, 700).foregroundStyle(UF.text)
                     Text("\(t.s("subject") ?? "") · \(t.i("duration_min") ?? 0) min · \(qs.count) Aufgaben · KI-generiert\(t.i("week_no").map { " · Lehrwoche \($0)" } ?? "")"

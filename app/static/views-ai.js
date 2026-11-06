@@ -22,7 +22,7 @@ export async function viewAiStart(_, params, view) {
   if (!st.fileId) st.fileId = docs()[0]?.id || "";
   const pills = L.ACTIONS.map(a => `<button type="button" class="ai-pill tone-${a.tone}" data-act="${a.id}" aria-label="${esc(a.title)}: ${esc(a.sub)}"><span class="ai-pill-ic" aria-hidden="true">${icon(a.icon, 18)}</span><span class="ai-pill-t"><b>${esc(a.title)}</b><small>${esc(a.sub)}</small></span></button>`).join("");
   view.innerHTML = `<div class="content ai-start" id="aiRoot" data-layout="start">
-    <div class="ai-top"><a class="btn ghost sm" href="#/exams">${icon("arrow-left", 14)} Tests</a><span class="spacer"></span><button type="button" class="btn sm" id="aiNew" hidden>${icon("plus", 14)} Neues Gespräch</button></div>
+    <div class="ai-top"><a class="btn ghost sm" href="#/exams">${icon("exam", 14)} Tests</a><span class="spacer"></span><button type="button" class="btn sm" id="aiNew" hidden>${icon("plus", 14)} Neues Gespräch</button></div>
     <div class="ai-main">
       <div class="ai-head" id="aiHead"><span class="ai-logo" aria-hidden="true">${icon("sparkles", 28)}</span><h1>${esc(L.START_QUESTION)}</h1></div>
       <div class="ai-thread" id="aiThread" aria-live="polite"></div>

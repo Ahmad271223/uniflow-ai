@@ -77,6 +77,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .header { position: sticky; top: 0; z-index: 15; height: var(--header); display: flex; align-items: center; gap: .6rem; padding: 0 1.1rem; background: var(--surface); border-bottom: 1px solid var(--line); }
 .header .search { flex: 1; max-width: 520px; position: relative; }
 .header .search input { width: 100%; padding: .5rem .8rem .5rem 2.2rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); }
+/* Zurueck-Pfeil oben links (06.11.2026, back-nav.js): auf jeder Seite ausser der Startseite, 44 px Trefferflaeche */
+.back-btn { display: inline-flex; align-items: center; gap: .2rem; min-width: 44px; min-height: 44px; padding: 0 .55rem 0 .35rem; color: var(--accent-text); font-weight: 550; flex-shrink: 0; }
+.back-btn[hidden] { display: none; }
+.doc-back { min-height: 44px; color: var(--accent-text); }
+@media (max-width: 900px) { .back-btn { padding: 0; justify-content: center; } .back-btn .back-label { display: none; } }
 .header .search .ic { position: absolute; left: .7rem; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .search-pop { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); max-height: 60vh; overflow: auto; padding: .35rem; }
 .search-pop a { display: flex; gap: .5rem; align-items: center; padding: .45rem .6rem; border-radius: var(--r-sm); color: var(--text); }

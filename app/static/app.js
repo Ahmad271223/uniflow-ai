@@ -1,7 +1,7 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=46";
 import { viewDashboard as viewHome } from "./views-home.js?v=21";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=69";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=70";
 import { viewFiles } from "./views-lib.js?v=69";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=50";
 import { viewTimetable, openEvent } from "./views-tt.js?v=48";
@@ -14,8 +14,9 @@ import { trialHintHtml } from "./trial-hint.js?v=2";
 import { initPWA, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=17";
 import { navHtml, accountHtml } from "./shell-nav.js?v=5";
 import { viewStudyPlan } from "./study-plan.js?v=5";   // Studienverlauf (05.11.2026)
-import { viewAiStart } from "./views-ai.js?v=6";                       // KI-Start (#/ki), Paket B 05.11.2026
+import { viewAiStart } from "./views-ai.js?v=7";                       // KI-Start (#/ki), Paket B 05.11.2026
 import { gateState, gateBarHtml, mountLogin } from "./account-gate.js?v=1";   // Konto- und Abo-Pflicht (05.11.2026)
+import { createBackNav, backButtonHtml, showsBack } from "./back-nav.js?v=1";   // Zurueck-Pfeil (06.11.2026)
 
 // ---------------------------------------------------------------- Shell
 // Seitenleiste in Gruppen wie auf dem iPad (shell-nav.js): STUDIUM / LERNEN / GEMEINSAM, unten Konto mit Tarif
@@ -24,6 +25,7 @@ function buildShell() {
   $("#nav").innerHTML = navHtml(icon);
   $("#navSettings").innerHTML = `${icon("settings", 18)}<span>Einstellungen</span>`; $("#navSettings").dataset.route = "settings"; $("#navSettings").className = "";
   $("#collapseBtn").innerHTML = `${icon("panel-left", 18)}<span> Einklappen</span>`;
+  $("#backBtn").innerHTML = backButtonHtml(icon); $("#backBtn").onclick = () => goBack();
   $("#menuBtn").innerHTML = icon("menu", 20); $("#themeBtn").innerHTML = icon("sun", 18); $("#profileBtn").innerHTML = icon("clock", 18); $("#profileBtn").title = "Zeitmesser";
   $("#syncBtn").innerHTML = `${icon("sync", 15)} Sync`;
   $("#mobileNav").innerHTML = [["dashboard", "Start", "home"], ["plan", "Kalender", "calendar"], ["modules", "Module", "book"], ["files", "Dokumente", "folder"], ["settings", "Mehr", "settings"]].map(([r, t, i]) => `<a href="#/${r}" data-route="${r}">${icon(i, 20)}${t}</a>`).join("");
@@ -103,6 +105,17 @@ function renderAccount() {
 }
 window.renderAccount = renderAccount;
 
+// ---------------------------------------------------------------- Zurueck (06.11.2026, back-nav.js)
+// Pfeil oben links auf jeder Seite ausser der Startseite: erst das Zurueck der Seite (state.backNav.setLocal), dann die
+// vorige Seite dieser Sitzung (history.back()), sonst die Startseite bzw. `fallback` (Dokument: Modul oder Dokumente)
+const backNav = createBackNav();
+state.backNav = backNav;
+function goBack(fallback = "#/") {
+  const r = backNav.back(fallback);
+  if (r.local) r.local(); else if (r.history) history.back(); else location.hash = r.hash;
+}
+window.goBack = goBack;
+
 // ---------------------------------------------------------------- Router
 const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, studyplan: viewStudyPlan, studienverlauf: viewStudyPlan, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, messages: (p, q, v) => import("./messages.js?v=6").then(m => m.viewMessages(p, q, v)), tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
 routes.ki = viewAiStart;
@@ -124,6 +137,7 @@ async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
   $$("[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === name || (name === "doc" && a.dataset.route === "files")));
+  backNav.visit(location.hash); const bb = $("#backBtn"); if (bb) bb.hidden = !showsBack(location.hash);
   $("#sidebar").classList.remove("open"); toggleBackdrop(false); $("#drawerEl")?.remove(); $("#drawerBd")?.remove(); $$("#overlay .modal").forEach(m => m.remove());
   document.body.classList.remove("exam-focus", "fullscreen-doc", "doc-open");
   for (const ed of state.editors) { try { if (ed.tabId) docTabs.state[ed.tabId] = ed.getState(); await ed.destroy(); } catch {} } state.editors = [];
