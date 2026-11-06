@@ -8,7 +8,7 @@ Ausführlich: `docs/START-DIENST-CHECKLISTE.md` (Server), `docs/UNI-MAIL-2026-11
 
 | Zweig | Commit | Inhalt |
 |---|---|---|
-| `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (7)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
+| `develop` | `adb145a` + diese Datei | iPad-App **Build 1.0 (8)**, Web/Windows, Dienst. Alle Tests grün (pytest 1734, node 430, swift test 1245, UniFlowTests iPad 1166) |
 | `feature/iphone` | `db3cf9d` (**WIP**) | Merge von develop **3e6de7d** (Stand Build 6) + begonnene iPhone-Anpassungen für Raumfinder, Uni-Mail, Zurück-Pfeil. **Tests nicht vollständig gelaufen** (Agent wegen Kontingent angehalten) |
 | `main` | alt | nicht benutzt; Releases kommen aus develop |
 
@@ -26,8 +26,8 @@ Demo ohne Dauer-Ladehinweis.
 
 ## 3. Was der Inhaber (Ahmad) selbst tun muss
 
-1. **Build 7 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (7)` (Archiv `~/Studora-Builds/StudiNow-7.xcarchive`)
-   → Distribute App → App Store Connect → Upload. Build 5 und 6 **nicht** einreichen.
+1. **Build 7 hochladen:** Xcode → Window → Organizer → `StudiNow 1.0 (8)` (Archiv `~/Studora-Builds/StudiNow-8.xcarchive`)
+   → Distribute App → App Store Connect → Upload. Build 5, 6 und 7 **nicht** einreichen. Build 8 = Build 7 + Lineal-Wahl (links/rechts/beide) in der geteilten Ansicht.
    (Upload per `xcodebuild -exportArchive` scheitert mit „Failed to Use Accounts“ – nur über den Organizer.)
 2. **CloudKit-Schema** in der CloudKit-Konsole (icloud.developer.apple.com) von Development nach **Production** übernehmen,
    sonst gehen Lösung teilen/Community im App Store nicht (`docs/CLOUDKIT-SCHEMA-PRODUCTION-2026-11-03.md`).
